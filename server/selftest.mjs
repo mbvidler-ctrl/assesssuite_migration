@@ -145,12 +145,16 @@ async function runChecks(baseUrl, appId) {
     record('analytics track/batch returns 204', res.status === 204, `status=${res.status}`);
   }
   {
-    const res = await fetch(`${baseUrl}/app-logs/${appId}/log-user-in-app/Dashboard`, {
+    const res = await fetch(`${baseUrl}/api/app-logs/${appId}/log-user-in-app/Dashboard`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-App-Id': appId },
       body: JSON.stringify({ page: 'Dashboard' }),
     });
-    record('app-logs log-user-in-app returns 204', res.status === 204, `status=${res.status}`);
+    record(
+      'app-logs log-user-in-app returns 204 at the SDK-true /api-prefixed path',
+      res.status === 204,
+      `status=${res.status}`,
+    );
   }
 
   // --- Admin bootstrap login ---
@@ -506,6 +510,308 @@ async function runChecks(baseUrl, appId) {
     record(
       "unknown function returns 404 {message:'function not found'}",
       status === 404 && body?.message === 'function not found',
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Ported functions (base44/functions/*/entry.ts) + transcribeSession mock
+  // ---------------------------------------------------------------------
+
+  const PORTED_FUNCTION_NAMES = [
+    'assignOrganizations',
+    'auditAssessmentIssues',
+    'createCheckoutSession',
+    'createMissingAssessments',
+    'createPortalSession',
+    'createTestClientWithAssessments',
+    'enableMissingTestRunners',
+    'fixHasTestRunnerFlags',
+    'fixMissingOrgIds',
+    'fixUserOrganizations',
+    'getComorbidityReport',
+    'getMissingTestRunners',
+    'stripeWebhook',
+    'syncStripeSubscription',
+    'verifyTestAssessmentData',
+    'transcribeSession',
+  ];
+
+  // --- every ported function name responds (not the router's 404) ---
+  for (const functionName of PORTED_FUNCTION_NAMES) {
+    let requestBody = {};
+    if (functionName === 'stripeWebhook') requestBody = { type: 'unrecognised.event.type', data: { object: {} } };
+    if (functionName === 'transcribeSession') requestBody = { action: 'transcribe', audio_url: '/uploads/probe.webm' };
+    if (functionName === 'createPortalSession') requestBody = { stripeCustomerId: null };
+
+    const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/functions/${functionName}`, {
+      method: 'POST',
+      token: adminToken,
+      body: requestBody,
+    });
+    record(
+      `function ${functionName} responds (not router 404)`,
+      !(status === 404 && body?.message === 'function not found'),
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
+  }
+
+  // --- getComorbidityReport: 403 for non-admin, 200 for admin ---
+  {
+    const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/functions/getComorbidityReport`, {
+      method: 'POST',
+      token: userToken,
+      body: {},
+    });
+    record(
+      'getComorbidityReport returns 403 for non-admin',
+      status === 403,
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
+  }
+  {
+    const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/functions/getComorbidityReport`, {
+      method: 'POST',
+      token: adminToken,
+      body: {},
+    });
+    record(
+      'getComorbidityReport returns 200 for admin',
+      status === 200 && Array.isArray(body?.comorbidities),
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Mocked Stripe flow, end to end: checkout -> webhook -> sync
+  // ---------------------------------------------------------------------
+  {
+    const stripeEmail = `stripe-selftest-${Date.now()}@example.com`;
+
+    const { body: registerBody } = await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+      method: 'POST',
+      body: { email: stripeEmail, password: 'stripe-selftest-password-1' },
+    });
+    const stripeUserId = registerBody?.user_id;
+
+    // 1. createCheckoutSession returns a url.
+    const { status: checkoutStatus, body: checkoutBody } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/functions/createCheckoutSession`,
+      { method: 'POST', token: adminToken, body: { userEmail: stripeEmail, userId: stripeUserId } },
+    );
+    record(
+      'createCheckoutSession returns a url',
+      checkoutStatus === 200 && typeof checkoutBody?.url === 'string' && checkoutBody.url.length > 0,
+      `status=${checkoutStatus} body=${JSON.stringify(checkoutBody)}`,
+    );
+
+    // 2. Posting a checkout.session.completed webhook event sets the User
+    // entitlement fields (account_status, subscription_status,
+    // stripe_customer_id, stripe_subscription_id, subscription_start_date).
+    const mockCustomerId = `mock_cus_selftest_${Date.now()}`;
+    const mockSubscriptionId = `mock_sub_selftest_${Date.now()}`;
+    const { status: webhookStatus, body: webhookBody } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/functions/stripeWebhook`,
+      {
+        method: 'POST',
+        body: {
+          type: 'checkout.session.completed',
+          data: {
+            object: {
+              customer: mockCustomerId,
+              subscription: mockSubscriptionId,
+              client_reference_id: stripeUserId,
+              customer_email: stripeEmail,
+            },
+          },
+        },
+      },
+    );
+    record(
+      'stripeWebhook checkout.session.completed accepted',
+      webhookStatus === 200 && webhookBody?.received === true,
+      `status=${webhookStatus} body=${JSON.stringify(webhookBody)}`,
+    );
+
+    const { body: verifyBody } = await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
+      method: 'POST',
+      body: { email: stripeEmail, otp_code: '000000' },
+    });
+    const stripeUserToken = verifyBody?.access_token;
+
+    const { status: meStatus, body: meBody } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User/me`, {
+      token: stripeUserToken,
+    });
+    record(
+      'stripeWebhook wrote User entitlement fields',
+      meStatus === 200 &&
+        meBody?.account_status === 'active' &&
+        meBody?.subscription_status === 'active' &&
+        meBody?.stripe_customer_id === mockCustomerId &&
+        meBody?.stripe_subscription_id === mockSubscriptionId &&
+        typeof meBody?.subscription_start_date === 'string',
+      `status=${meStatus} body=${JSON.stringify(meBody)}`,
+    );
+
+    // 3. syncStripeSubscription reflects the mock store.
+    const { status: syncStatus, body: syncBody } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/functions/syncStripeSubscription`,
+      { method: 'POST', token: stripeUserToken, body: {} },
+    );
+    record(
+      'syncStripeSubscription reconciles from the mock Stripe store',
+      syncStatus === 200 &&
+        syncBody?.success === true &&
+        syncBody?.data?.stripe_customer_id === mockCustomerId &&
+        syncBody?.data?.stripe_subscription_id === mockSubscriptionId,
+      `status=${syncStatus} body=${JSON.stringify(syncBody)}`,
+    );
+  }
+
+  // ---------------------------------------------------------------------
+  // Core integration endpoints
+  // ---------------------------------------------------------------------
+
+  // --- InvokeLLM without response_json_schema -> raw string ---
+  {
+    const { status, body } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/integration-endpoints/Core/InvokeLLM`,
+      { method: 'POST', body: { prompt: 'Write a short clinical note.' } },
+    );
+    record(
+      'InvokeLLM without response_json_schema returns a raw string',
+      status === 200 && typeof body === 'string' && body.length > 0,
+      `status=${status} typeof body=${typeof body}`,
+    );
+  }
+
+  // --- InvokeLLM with response_json_schema -> schema-shaped object ---
+  {
+    const schema = {
+      type: 'object',
+      properties: {
+        alerts: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              medication_name: { type: 'string' },
+              alert_text: { type: 'string' },
+            },
+            required: ['medication_name', 'alert_text'],
+          },
+        },
+      },
+      required: ['alerts'],
+    };
+    const { status, body } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/integration-endpoints/Core/InvokeLLM`,
+      { method: 'POST', body: { prompt: 'Give medication alerts', response_json_schema: schema } },
+    );
+    record(
+      'InvokeLLM with response_json_schema returns the schema-shaped object directly',
+      status === 200 &&
+        Array.isArray(body?.alerts) &&
+        body.alerts.length > 0 &&
+        typeof body.alerts[0].medication_name === 'string' &&
+        typeof body.alerts[0].alert_text === 'string',
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
+  }
+
+  // --- SendEmail / SendSMS happy path ---
+  {
+    const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/integration-endpoints/Core/SendEmail`, {
+      method: 'POST',
+      body: { to: 'selftest@example.com', subject: 'Selftest', body: 'Body text' },
+    });
+    record('SendEmail returns a success shape', status === 200 && Boolean(body), `status=${status} body=${JSON.stringify(body)}`);
+  }
+  {
+    const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/integration-endpoints/Core/SendSMS`, {
+      method: 'POST',
+      body: { to: '+61400000000', body: 'Text message' },
+    });
+    record('SendSMS returns a success shape', status === 200 && Boolean(body), `status=${status} body=${JSON.stringify(body)}`);
+  }
+
+  // --- GenerateImage happy path ---
+  {
+    const { status, body } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/integration-endpoints/Core/GenerateImage`,
+      { method: 'POST', body: { prompt: 'a cat' } },
+    );
+    record('GenerateImage returns {url}', status === 200 && typeof body?.url === 'string', `status=${status} body=${JSON.stringify(body)}`);
+  }
+
+  // --- UploadFile round trip through the served /uploads/ URL ---
+  let uploadedFileUrl = null;
+  {
+    const boundary = `----selftestBoundary${Date.now()}`;
+    const fileContent = 'selftest upload content';
+    const multipartBody =
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="selftest.txt"\r\n` +
+      `Content-Type: text/plain\r\n\r\n` +
+      `${fileContent}\r\n` +
+      `--${boundary}--\r\n`;
+    const res = await fetch(`${baseUrl}/api/apps/${appId}/integration-endpoints/Core/UploadFile`, {
+      method: 'POST',
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'X-App-Id': appId },
+      body: multipartBody,
+    });
+    const body = await res.json().catch(() => null);
+    uploadedFileUrl = body?.file_url;
+    record(
+      'UploadFile stores the file and returns {file_url}',
+      res.status === 200 && typeof uploadedFileUrl === 'string' && uploadedFileUrl.startsWith('/uploads/'),
+      `status=${res.status} body=${JSON.stringify(body)}`,
+    );
+
+    if (uploadedFileUrl) {
+      const servedRes = await fetch(`${baseUrl}${uploadedFileUrl}`);
+      const servedText = await servedRes.text().catch(() => '');
+      record(
+        'uploaded file is retrievable via the served /uploads/ URL',
+        servedRes.status === 200 && servedText === fileContent,
+        `status=${servedRes.status} text=${JSON.stringify(servedText)}`,
+      );
+    }
+  }
+
+  // --- ExtractDataFromUploadedFile happy path ---
+  {
+    const schema = {
+      type: 'object',
+      properties: {
+        full_name: { type: 'string' },
+        comorbidities: { type: 'array', items: { type: 'string' } },
+      },
+    };
+    const { status, body } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/integration-endpoints/Core/ExtractDataFromUploadedFile`,
+      { method: 'POST', body: { file_url: uploadedFileUrl, json_schema: schema } },
+    );
+    record(
+      'ExtractDataFromUploadedFile returns {status, output} honouring json_schema',
+      status === 200 &&
+        body?.status === 'success' &&
+        typeof body?.output?.full_name === 'string' &&
+        Array.isArray(body?.output?.comorbidities),
       `status=${status} body=${JSON.stringify(body)}`,
     );
   }

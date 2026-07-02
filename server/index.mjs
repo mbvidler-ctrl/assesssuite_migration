@@ -19,6 +19,7 @@ import {
   stripAuthFields,
   sanitizeUpdateMePayload,
 } from './auth.mjs';
+import { handleCoreIntegration } from './integrations.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
@@ -91,6 +92,15 @@ async function loadFunctionsRouter() {
   }
   try {
     const mod = await import(pathToFileURL(functionsEntry).href);
+    // If the functions router exports init(db, entityNames), hand it this
+    // process's already-open db handle rather than letting it call
+    // openDatabase() a second time — a second independent call would (a)
+    // attempt to re-delete/recreate the SELFTEST db file that this process
+    // already holds open (fails with EPERM on Windows file locking) and
+    // (b) open a redundant DatabaseSync connection even outside selftest.
+    if (typeof mod.init === 'function') {
+      mod.init(db, entityNames);
+    }
     functionsRouter = mod.default || mod.handleFunction || null;
   } catch (err) {
     console.error('[shim] failed to load functions router:', err);
@@ -183,7 +193,7 @@ function isPublicRoute(pathname) {
     /^\/api\/apps\/[^/]+\/auth\//.test(pathname) ||
     /^\/api\/apps\/public\//.test(pathname) ||
     /^\/api\/apps\/[^/]+\/analytics\//.test(pathname) ||
-    /^\/app-logs\//.test(pathname) ||
+    /^\/api\/app-logs\//.test(pathname) ||
     /^\/uploads\//.test(pathname)
   );
 }
@@ -631,7 +641,7 @@ async function requestListener(req, res) {
       await readBody(req); // drain body (may arrive via sendBeacon)
       return sendNoContent(res);
     }
-    const appLogsMatch = /^\/app-logs\/([^/]+)\/log-user-in-app\/([^/]+)$/.exec(pathname);
+    const appLogsMatch = /^\/api\/app-logs\/([^/]+)\/log-user-in-app\/([^/]+)$/.exec(pathname);
     if (appLogsMatch && req.method === 'POST') {
       await readBody(req);
       return sendNoContent(res);
@@ -680,8 +690,14 @@ async function requestListener(req, res) {
       return functionsRouter(req, res, { appId, functionName, url });
     }
 
-    // Integration endpoints — not part of this deliverable's scope; return a
-    // clear 404 rather than silently succeeding, so a missing mock is visible.
+    // Integration endpoints (Core.InvokeLLM, Core.SendEmail, etc.) — mocked
+    // per docs/shim/20260702-sdk-wire-protocol.md, "Integrations".
+    const integrationMatch =
+      /^\/api\/apps\/([^/]+)\/integration-endpoints\/Core\/([^/]+)$/.exec(pathname);
+    if (integrationMatch && req.method === 'POST') {
+      const [, , endpointName] = integrationMatch;
+      return handleCoreIntegration(req, res, { endpointName, outboxEmail, outboxSms });
+    }
     if (/^\/api\/apps\/[^/]+\/integration-endpoints\//.test(pathname)) {
       return sendError(res, 404, 'integration endpoint not implemented in this shim build');
     }
