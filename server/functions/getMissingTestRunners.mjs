@@ -1,5 +1,18 @@
 // Ported from base44/functions/getMissingTestRunners/entry.ts.
-// No auth check in the captured source — ported unchanged. Uses its own
+//
+// DELIBERATE, DOCUMENTED DEVIATION FROM CAPTURED SOURCE (added on review,
+// 2026-07-04 — this function was missed in the initial G6 hardening pass
+// and is corrected here): the captured entry.ts has no caller-identity or
+// role check of any kind — it does not even call auth.me(). On the live
+// Base44 platform, any caller able to reach the function URL receives the
+// full assessment-catalogue gap analysis. This is a live-platform security
+// defect recorded in docs/qa/20260703-role-entitlement-isolation-analysis.md
+// (G6 finding, remediation queue). The finding stands against the live app
+// unchanged; the shim hardens this ported copy by requiring the caller to
+// be an authenticated admin, matching its intended admin-only invocation
+// surface (a maintenance/audit tool, same category as its six already-
+// guarded siblings). Guard idiom copied verbatim from
+// server/functions/getComorbidityReport.mjs. Uses its own
 // (older, distinct from fixHasTestRunnerFlags's) mirror of the TestRunner.js
 // detection logic — kept verbatim rather than de-duplicated against
 // fixHasTestRunnerFlags.mjs's hasRunner(), since the two lists genuinely
@@ -153,7 +166,11 @@ function hasDetectedRunner(name) {
 }
 
 export default async function getMissingTestRunners(ctx) {
-  const { entities, respond } = ctx;
+  const { user, entities, respond } = ctx;
+
+  if (user?.role !== 'admin') {
+    return respond(403, { error: 'Forbidden: Admin access required' });
+  }
 
   const allAssessments = await entities.Assessment.list('-created_date', 500);
 

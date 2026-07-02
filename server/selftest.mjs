@@ -664,6 +664,34 @@ async function runChecks(baseUrl, appId) {
       `status=${status} body=${JSON.stringify(body)}`,
     );
   }
+  {
+    // Found on review 2026-07-04: getMissingTestRunners was missed in the
+    // initial G6 hardening pass (captured source has no auth check of any
+    // kind, not even auth.me()). Guard added; asserted here alongside its
+    // three siblings.
+    const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/functions/getMissingTestRunners`, {
+      method: 'POST',
+      token: userToken,
+      body: {},
+    });
+    record(
+      'getMissingTestRunners returns 403 for non-admin',
+      status === 403,
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
+  }
+  {
+    const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/functions/getMissingTestRunners`, {
+      method: 'POST',
+      token: adminToken,
+      body: {},
+    });
+    record(
+      'getMissingTestRunners proceeds (non-403) for admin',
+      status !== 403,
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
+  }
 
   // ---------------------------------------------------------------------
   // Mocked Stripe flow, end to end: checkout -> webhook -> sync

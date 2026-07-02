@@ -85,7 +85,7 @@ async function main() {
   const auditNon = await api(`/api/apps/${APP}/functions/auditAssessmentIssues`, { method: 'POST', token: alphaTok, body: {} });
   record('G5/G6.8a', auditNon.status === 403, `non-admin auditAssessmentIssues → ${auditNon.status} (expect 403)`);
 
-  for (const fn of ['createTestClientWithAssessments', 'verifyTestAssessmentData']) {
+  for (const fn of ['createTestClientWithAssessments', 'verifyTestAssessmentData', 'getMissingTestRunners']) {
     const r = await api(`/api/apps/${APP}/functions/${fn}`, { method: 'POST', token: alphaTok, body: {} });
     record(`G6.8-${fn}`, r.status === 403, `non-admin ${fn} → ${r.status} (expect 403)`);
   }
