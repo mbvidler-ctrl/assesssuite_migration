@@ -1,7 +1,19 @@
 // Ported from base44/functions/createTestClientWithAssessments/entry.ts.
-// No auth-role gate in the captured source (any authenticated caller with an
-// org membership may run it) — ported unchanged. Requires the caller to
-// already belong to an organisation.
+//
+// DELIBERATE, DOCUMENTED DEVIATION FROM CAPTURED SOURCE: the captured
+// entry.ts has no role gate at all — any authenticated caller with an org
+// membership can create a synthetic client and a full set of assessment
+// records inside their own organisation. On the live Base44 platform this
+// is a maintenance/seed-data tool with no ordinary-user invocation surface;
+// its unrestricted availability is a live-platform security defect recorded
+// in docs/qa/20260703-role-entitlement-isolation-analysis.md (G6 finding,
+// remediation queue item 2). The finding stands against the live app
+// unchanged; the shim hardens this ported copy by requiring the caller to
+// be an authenticated admin, matching the function's intended admin-only
+// invocation surface. Guard idiom copied verbatim from
+// server/functions/getComorbidityReport.mjs. All subsequent logic
+// (org-membership lookup, client/assessment creation) is preserved
+// unchanged for admin callers.
 
 // Helper to pick a random number in range.
 const rnd = (min, max) => Math.round((Math.random() * (max - min) + min) * 10) / 10;
@@ -499,8 +511,8 @@ function generateAssessmentData(assessment) {
 export default async function createTestClientWithAssessments(ctx) {
   const { user, entities, respond } = ctx;
 
-  if (!user) {
-    return respond(401, { error: 'Unauthorized' });
+  if (user?.role !== 'admin') {
+    return respond(403, { error: 'Forbidden: Admin access required' });
   }
 
   const orgMemberships = await entities.OrganizationMember.filter({ user_email: user.email });

@@ -1,10 +1,23 @@
 // Ported from base44/functions/auditAssessmentIssues/entry.ts.
 //
-// No auth check in the captured source — ported unchanged (public to any
-// caller, matching entry.ts exactly).
+// DELIBERATE, DOCUMENTED DEVIATION FROM CAPTURED SOURCE: the captured
+// entry.ts has no auth check at all — on the live Base44 platform, any
+// caller able to reach the function URL receives a whole-database audit
+// across every organisation's Client/ClientAssessment/Assessment data. This
+// is a live-platform security defect recorded in
+// docs/qa/20260703-role-entitlement-isolation-analysis.md (G6 finding,
+// remediation queue item 2). The finding stands against the live app
+// unchanged; the shim hardens this ported copy by requiring the caller to
+// be an authenticated admin, matching the function's intended admin-only
+// invocation surface (this is a cross-org maintenance/audit tool). Guard
+// idiom copied verbatim from server/functions/getComorbidityReport.mjs.
 
 export default async function auditAssessmentIssues(ctx) {
-  const { entities, respond } = ctx;
+  const { user, entities, respond } = ctx;
+
+  if (user?.role !== 'admin') {
+    return respond(403, { error: 'Forbidden: Admin access required' });
+  }
 
   const testClients = await entities.Client.filter({ full_name: 'Test Client - Automated' });
   if (!testClients || testClients.length === 0) {

@@ -582,6 +582,89 @@ async function runChecks(baseUrl, appId) {
     );
   }
 
+  // --- G6 remediation: admin-only maintenance functions -----------------
+  // auditAssessmentIssues, createTestClientWithAssessments, and
+  // verifyTestAssessmentData are ported without an auth check in the
+  // captured Base44 source (a live-platform security defect recorded in
+  // docs/qa/20260703-role-entitlement-isolation-analysis.md). The shim
+  // hardens each with an admin-role guard; these checks confirm the guard
+  // is present (403 for non-admin) and does not block legitimate admin use
+  // (non-403 for admin).
+  {
+    const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/functions/auditAssessmentIssues`, {
+      method: 'POST',
+      token: userToken,
+      body: {},
+    });
+    record(
+      'auditAssessmentIssues returns 403 for non-admin',
+      status === 403,
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
+  }
+  {
+    const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/functions/auditAssessmentIssues`, {
+      method: 'POST',
+      token: adminToken,
+      body: {},
+    });
+    record(
+      'auditAssessmentIssues proceeds (non-403) for admin',
+      status !== 403,
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
+  }
+  {
+    const { status, body } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/functions/createTestClientWithAssessments`,
+      { method: 'POST', token: userToken, body: {} },
+    );
+    record(
+      'createTestClientWithAssessments returns 403 for non-admin',
+      status === 403,
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
+  }
+  {
+    const { status, body } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/functions/createTestClientWithAssessments`,
+      { method: 'POST', token: adminToken, body: {} },
+    );
+    record(
+      'createTestClientWithAssessments proceeds (non-403) for admin',
+      status !== 403,
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
+  }
+  {
+    const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/functions/verifyTestAssessmentData`, {
+      method: 'POST',
+      token: userToken,
+      body: {},
+    });
+    record(
+      'verifyTestAssessmentData returns 403 for non-admin',
+      status === 403,
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
+  }
+  {
+    const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/functions/verifyTestAssessmentData`, {
+      method: 'POST',
+      token: adminToken,
+      body: {},
+    });
+    record(
+      'verifyTestAssessmentData proceeds (non-403) for admin',
+      status !== 403,
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
+  }
+
   // ---------------------------------------------------------------------
   // Mocked Stripe flow, end to end: checkout -> webhook -> sync
   // ---------------------------------------------------------------------
