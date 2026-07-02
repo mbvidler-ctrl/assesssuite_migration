@@ -27,6 +27,7 @@ import ClientGoals from "../components/onboarding/ClientGoals";
 import Consent from "../components/onboarding/Consent";
 import QuickOnboardModal from "../components/onboarding/QuickOnboardModal";
 import ReferralUploader from "../components/documents/ReferralUploader";
+import { findPotentialDuplicates } from "@/lib/clientDuplicates";
 
 const steps = [
   { id: 1, title: "Personal Information", component: PersonalInfo, clientCanComplete: true },
@@ -365,6 +366,20 @@ Send this email to: ${email}`;
       } else {
         const currentUser = await base44.auth.me();
         const { orgId } = await getOrCreateOrg(currentUser);
+
+        const orgClients = await base44.entities.Client.filter({ org_id: orgId }).catch(() => []);
+        const potentialDuplicates = findPotentialDuplicates(clientDataFromForm, orgClients);
+        if (potentialDuplicates.length > 0) {
+          const names = potentialDuplicates.map((c) => c.full_name).filter(Boolean).join(", ");
+          const proceed = window.confirm(
+            `A client with a matching name and date of birth already exists (${names || "unknown name"}). Continue and create a new client anyway?`
+          );
+          if (!proceed) {
+            setIsSubmitting(false);
+            submitLockRef.current = false;
+            return;
+          }
+        }
 
         client = await base44.entities.Client.create({ ...clientDataFromForm, org_id: orgId, assigned_clinician_email: currentUser.email });
         toast.success("Client created successfully!");

@@ -9,6 +9,7 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { Loader2, UserPlus, Trash2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { findPotentialDuplicates } from "@/lib/clientDuplicates";
 
 export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) {
   const [formData, setFormData] = useState({
@@ -256,6 +257,20 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
         const existingClients = await base44.entities.Client.filter({ email: clientData.email }).catch(() => []);
         if (existingClients && existingClients.length > 0) {
           toast.error(`A client with email "${clientData.email}" already exists.`);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      // Advisory duplicate check (name + date of birth) against the org's existing clients.
+      const orgClients = await base44.entities.Client.filter({ org_id: orgId }).catch(() => []);
+      const potentialDuplicates = findPotentialDuplicates(clientData, orgClients);
+      if (potentialDuplicates.length > 0) {
+        const names = potentialDuplicates.map((c) => c.full_name).filter(Boolean).join(", ");
+        const proceed = window.confirm(
+          `A client with a matching name and date of birth already exists (${names || "unknown name"}). Continue and create a new client anyway?`
+        );
+        if (!proceed) {
           setIsSubmitting(false);
           return;
         }
