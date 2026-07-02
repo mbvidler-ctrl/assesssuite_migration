@@ -29,7 +29,7 @@ API:
 - G6.6a Beta clinician `GET` an Alpha client by id → 404. PASS.
 - G6.6b Beta clinician `Client` list excludes all Alpha records. PASS.
 - G6.6c Alpha clinician list returns only own-org rows (4/4 org_id match). PASS.
-- non-admin `createTestClientWithAssessments`, `verifyTestAssessmentData` → 403 each. PASS.
+- non-admin `createTestClientWithAssessments`, `verifyTestAssessmentData`, `getMissingTestRunners` → 403 each. PASS. (`getMissingTestRunners` corrected into scope 2026-07-04 — a follow-up review found it had no auth check of any kind, missed in the initial pass; guard applied, selftest 66/66, gate-tests 13/13.)
 
 UI: Clients page as Alpha clinician shows only Alpha clients; no Beta records visible. PASS.
 
