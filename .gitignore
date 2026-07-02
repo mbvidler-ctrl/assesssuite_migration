@@ -1,6 +1,7 @@
 #env
 .env
 .env.*
+!.env.example
 
 # Logs
 logs
@@ -15,6 +16,10 @@ node_modules
 dist
 dist-ssr
 *.local
+
+# Local shim server runtime data (SQLite db, uploaded files)
+server/data/
+server/uploads/
 
 # Editor directories and files
 .vscode/*

@@ -1,0 +1,712 @@
+// Local Base44 shim server core: node:http, entities CRUD, auth,
+// public-settings, telemetry stubs, and static serving (dist/ + uploads/).
+//
+// Deliberately dependency-free beyond Node built-ins, per the migration
+// contract at docs/shim/20260702-sdk-wire-protocol.md.
+
+import http from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { randomUUID } from 'node:crypto';
+
+import { openDatabase, createEntityRepository, createSessionRepository, createOutboxRepository } from './db.mjs';
+import { matchesQuery, applySortSkipLimit, applyProjection } from './query.mjs';
+import {
+  hashPassword,
+  verifyPassword,
+  parseBearerToken,
+  stripAuthFields,
+  sanitizeUpdateMePayload,
+} from './auth.mjs';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.join(__dirname, '..');
+const distDir = path.join(repoRoot, 'dist');
+const uploadsDir = path.join(__dirname, 'uploads');
+
+const PORT = Number(process.env.PORT) || 8787;
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@local.test';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'change-me-local';
+
+fs.mkdirSync(uploadsDir, { recursive: true });
+
+const { db, entityNames } = openDatabase();
+const sessions = createSessionRepository(db);
+const outboxEmail = createOutboxRepository(db, 'email');
+const outboxSms = createOutboxRepository(db, 'sms');
+
+const userRepo = createEntityRepository(db, 'User');
+const orgMemberRepo = entityNames.has('OrganizationMember')
+  ? createEntityRepository(db, 'OrganizationMember')
+  : null;
+
+/**
+ * Builds a repository per entity name on demand (repositories are cheap;
+ * prepared statements are created lazily per table).
+ */
+const repoCache = new Map();
+function repoFor(entityName) {
+  if (!entityNames.has(entityName)) return null;
+  if (!repoCache.has(entityName)) {
+    repoCache.set(entityName, createEntityRepository(db, entityName));
+  }
+  return repoCache.get(entityName);
+}
+
+// ---------------------------------------------------------------------------
+// Bootstrap: ensure a single admin user exists on startup.
+// ---------------------------------------------------------------------------
+function bootstrapAdmin() {
+  const existingAdmin = userRepo.listAll().find((u) => u.role === 'admin');
+  if (existingAdmin) return;
+  const { password_hash, salt } = hashPassword(ADMIN_PASSWORD);
+  const created = userRepo.create(
+    {
+      email: ADMIN_EMAIL,
+      full_name: 'Local Administrator',
+      role: 'admin',
+      account_status: 'active',
+      password_hash,
+      salt,
+    },
+    ADMIN_EMAIL,
+  );
+  // eslint-disable-next-line no-console
+  console.log(`[shim] bootstrap admin created: ${created.email} (id ${created.id})`);
+}
+bootstrapAdmin();
+
+// ---------------------------------------------------------------------------
+// Functions router — replaceable, mounted from server/functions/index.mjs if
+// present. Owned by a parallel workstream; this deliverable only wires the
+// mount point and the 404 fallback.
+// ---------------------------------------------------------------------------
+let functionsRouter = null;
+async function loadFunctionsRouter() {
+  const functionsEntry = path.join(__dirname, 'functions', 'index.mjs');
+  if (!fs.existsSync(functionsEntry)) {
+    functionsRouter = null;
+    return;
+  }
+  try {
+    const mod = await import(pathToFileURL(functionsEntry).href);
+    functionsRouter = mod.default || mod.handleFunction || null;
+  } catch (err) {
+    console.error('[shim] failed to load functions router:', err);
+    functionsRouter = null;
+  }
+}
+await loadFunctionsRouter();
+
+// ---------------------------------------------------------------------------
+// HTTP helpers
+// ---------------------------------------------------------------------------
+
+function sendJson(res, status, body) {
+  const payload = JSON.stringify(body);
+  res.writeHead(status, {
+    'Content-Type': 'application/json',
+    'Content-Length': Buffer.byteLength(payload),
+  });
+  res.end(payload);
+}
+
+function sendNoContent(res) {
+  res.writeHead(204);
+  res.end();
+}
+
+function sendError(res, status, message, extra = {}) {
+  sendJson(res, status, { message, ...extra });
+}
+
+async function readBody(req) {
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+  if (chunks.length === 0) return { raw: Buffer.alloc(0), contentType: req.headers['content-type'] || '' };
+  return { raw: Buffer.concat(chunks), contentType: req.headers['content-type'] || '' };
+}
+
+async function readJsonBody(req) {
+  const { raw, contentType } = await readBody(req);
+  if (raw.length === 0) return {};
+  if (contentType.includes('multipart/form-data')) {
+    // Multipart handled separately by callers that need file access; JSON
+    // consumers on multipart routes get the parsed fields only.
+    const form = await bufferToFormData(raw, contentType);
+    const obj = {};
+    for (const [key, value] of form.entries()) {
+      obj[key] = value;
+    }
+    return obj;
+  }
+  try {
+    return JSON.parse(raw.toString('utf8'));
+  } catch {
+    return {};
+  }
+}
+
+/**
+ * Converts a raw multipart buffer into a WHATWG FormData using undici's
+ * built-in Response(body, {headers}).formData() — no new dependency.
+ */
+async function bufferToFormData(raw, contentType) {
+  const response = new Response(raw, { headers: { 'content-type': contentType } });
+  return response.formData();
+}
+
+function parseUrl(req) {
+  return new URL(req.url, `http://localhost:${PORT}`);
+}
+
+// ---------------------------------------------------------------------------
+// Auth / authorisation helpers
+// ---------------------------------------------------------------------------
+
+/** Resolves the current session user (or null) from the Authorization header. */
+function resolveSessionUser(req) {
+  const token = parseBearerToken(req);
+  if (!token) return null;
+  const session = sessions.findByToken(token);
+  if (!session) return null;
+  const user = userRepo.getById(session.user_id);
+  return user || null;
+}
+
+/** Returns true if the entity is unauthenticated-accessible per the contract allow-list. */
+function isPublicRoute(pathname) {
+  return (
+    /^\/api\/apps\/[^/]+\/auth\//.test(pathname) ||
+    /^\/api\/apps\/public\//.test(pathname) ||
+    /^\/api\/apps\/[^/]+\/analytics\//.test(pathname) ||
+    /^\/app-logs\//.test(pathname) ||
+    /^\/uploads\//.test(pathname)
+  );
+}
+
+/** org_ids the given user belongs to (via OrganizationMember), for non-admins. */
+function orgIdsForUser(userEmail) {
+  if (!orgMemberRepo) return [];
+  return orgMemberRepo
+    .listAll()
+    .filter((m) => m.user_email === userEmail)
+    .map((m) => m.org_id)
+    .filter(Boolean);
+}
+
+// ---------------------------------------------------------------------------
+// Entities router
+// ---------------------------------------------------------------------------
+
+const ENTITY_ROUTE_RE = /^\/api\/apps\/([^/]+)\/entities\/([^/]+)(?:\/(.*))?$/;
+
+async function handleEntitiesRoute(req, res, url, match) {
+  const [, appId, entityName, rest] = match;
+
+  // /me is handled specially (auth.me / auth.updateMe), not entity CRUD.
+  if (entityName === 'User' && rest === 'me') {
+    return handleMe(req, res);
+  }
+
+  if (rest === 'bulk') {
+    return handleBulk(req, res, entityName);
+  }
+  if (rest === 'update-many') {
+    return handleUpdateMany(req, res, entityName);
+  }
+
+  const repo = repoFor(entityName);
+  if (!repo) {
+    return sendError(res, 404, `entity ${entityName} not found`);
+  }
+
+  const sessionUser = resolveSessionUser(req);
+  const isAdmin = sessionUser?.role === 'admin';
+
+  // User collection: list/get/update restricted to admins.
+  const isUserCollection = entityName === 'User';
+
+  if (req.method === 'GET' && !rest) {
+    if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
+    if (!sessionUser && isUserCollection) return sendError(res, 401, 'authentication required');
+    return handleList(req, res, repo, entityName, sessionUser, isAdmin, url);
+  }
+
+  if (req.method === 'GET' && rest) {
+    const record = repo.getById(rest);
+    if (!record) return sendError(res, 404, 'record not found');
+    if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
+    if (!isAdmin && !isUserCollection && !isWithinOrgScope(record, sessionUser)) {
+      return sendError(res, 404, 'record not found');
+    }
+    const stripped = isUserCollection ? stripAuthFields(record) : record;
+    return sendJson(res, 200, stripped);
+  }
+
+  if (req.method === 'POST' && !rest) {
+    const data = await readJsonBody(req);
+    const createdBy = sessionUser?.email || null;
+    if (!isAdmin && entityName !== 'User') {
+      // Non-admin writes are stamped with created_by and (where the entity
+      // carries org_id) auto-scoped to the requester's own org if absent.
+      if ('org_id' in (data || {}) === false) {
+        const orgIds = orgIdsForUser(createdBy);
+        if (orgIds.length === 1) data.org_id = orgIds[0];
+      }
+    }
+    const record = repo.create(data, createdBy);
+    const stripped = isUserCollection ? stripAuthFields(record) : record;
+    return sendJson(res, 200, stripped);
+  }
+
+  if (req.method === 'PUT' && rest) {
+    if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
+    const existing = repo.getById(rest);
+    if (!existing) return sendError(res, 404, 'record not found');
+    if (!isAdmin && !isUserCollection && !isWithinOrgScope(existing, sessionUser)) {
+      return sendError(res, 404, 'record not found');
+    }
+    const data = await readJsonBody(req);
+    const record = repo.update(rest, data);
+    const stripped = isUserCollection ? stripAuthFields(record) : record;
+    return sendJson(res, 200, stripped);
+  }
+
+  if (req.method === 'DELETE' && rest) {
+    const existing = repo.getById(rest);
+    if (!existing) return sendError(res, 404, 'record not found');
+    if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
+    if (!isAdmin && !isUserCollection && !isWithinOrgScope(existing, sessionUser)) {
+      return sendError(res, 404, 'record not found');
+    }
+    repo.remove(rest);
+    return sendJson(res, 200, { id: rest, deleted: true });
+  }
+
+  if (req.method === 'DELETE' && !rest) {
+    // DELETE-with-body deleteMany.
+    const query = await readJsonBody(req);
+    const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
+    const all = repo.listAll();
+    const matched = all.filter((record) => matchesQuery(record, scopedQuery));
+    for (const record of matched) repo.remove(record.id);
+    return sendJson(res, 200, { deleted: matched.length });
+  }
+
+  return sendError(res, 404, 'route not found');
+}
+
+/** Whether a non-admin session user may see/write a record, based on org_id scoping. */
+function isWithinOrgScope(record, sessionUser) {
+  if (!('org_id' in record) || record.org_id === undefined || record.org_id === null) {
+    return true; // entity does not carry org_id — no scoping applies.
+  }
+  if (!sessionUser) return false;
+  const orgIds = orgIdsForUser(sessionUser.email);
+  return orgIds.includes(record.org_id);
+}
+
+/** Merges an org-scoping constraint into a query object for non-admin requesters. */
+function scopeQueryToOrg(query, entityName, sessionUser, isAdmin) {
+  if (isAdmin) return query || {};
+  const repo = repoFor(entityName);
+  const sample = repo?.listAll()[0];
+  const carriesOrgId = sample ? 'org_id' in sample : entityName !== 'User';
+  if (!carriesOrgId) return query || {};
+  const orgIds = orgIdsForUser(sessionUser?.email);
+  return { ...(query || {}), org_id: { $in: orgIds } };
+}
+
+function handleList(req, res, repo, entityName, sessionUser, isAdmin, url) {
+  const params = url.searchParams;
+  const q = params.get('q');
+  let query = {};
+  if (q) {
+    try {
+      query = JSON.parse(q);
+    } catch {
+      return sendError(res, 400, 'invalid q parameter');
+    }
+  }
+  query = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
+
+  let records = repo.listAll().filter((record) => matchesQuery(record, query));
+  records = applySortSkipLimit(records, {
+    sort: params.get('sort'),
+    limit: params.get('limit'),
+    skip: params.get('skip'),
+  });
+  const fields = params.get('fields');
+  if (fields) {
+    records = records.map((record) => applyProjection(record, fields));
+  }
+  if (entityName === 'User') {
+    records = records.map(stripAuthFields);
+  }
+  return sendJson(res, 200, records);
+}
+
+async function handleBulk(req, res, entityName) {
+  const repo = repoFor(entityName);
+  if (!repo) return sendError(res, 404, `entity ${entityName} not found`);
+  const sessionUser = resolveSessionUser(req);
+  const isAdmin = sessionUser?.role === 'admin';
+  if (entityName === 'User' && !isAdmin) return sendError(res, 403, 'admin access required');
+
+  const body = await readJsonBody(req);
+
+  if (req.method === 'POST') {
+    // bulkCreate: JSON array of records.
+    const items = Array.isArray(body) ? body : body.items || [];
+    const createdBy = sessionUser?.email || null;
+    const created = items.map((item) => repo.create(item, createdBy));
+    const result = entityName === 'User' ? created.map(stripAuthFields) : created;
+    return sendJson(res, 200, result);
+  }
+
+  if (req.method === 'PUT') {
+    // bulkUpdate: JSON array of records, each carrying its own id.
+    const items = Array.isArray(body) ? body : body.items || [];
+    const updated = items
+      .map((item) => (item.id ? repo.update(item.id, item) : null))
+      .filter(Boolean);
+    const result = entityName === 'User' ? updated.map(stripAuthFields) : updated;
+    return sendJson(res, 200, result);
+  }
+
+  return sendError(res, 405, 'method not allowed');
+}
+
+async function handleUpdateMany(req, res, entityName) {
+  if (req.method !== 'PATCH') return sendError(res, 405, 'method not allowed');
+  const repo = repoFor(entityName);
+  if (!repo) return sendError(res, 404, `entity ${entityName} not found`);
+  const sessionUser = resolveSessionUser(req);
+  const isAdmin = sessionUser?.role === 'admin';
+  if (entityName === 'User' && !isAdmin) return sendError(res, 403, 'admin access required');
+
+  const body = await readJsonBody(req);
+  const { query, data } = body || {};
+  const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
+  const matched = repo.listAll().filter((record) => matchesQuery(record, scopedQuery));
+  const updated = matched.map((record) => repo.update(record.id, data));
+  const result = entityName === 'User' ? updated.map(stripAuthFields) : updated;
+  return sendJson(res, 200, { updated: result.length, records: result });
+}
+
+// ---------------------------------------------------------------------------
+// auth.me / auth.updateMe
+// ---------------------------------------------------------------------------
+
+async function handleMe(req, res) {
+  const sessionUser = resolveSessionUser(req);
+  if (!sessionUser) return sendError(res, 401, 'authentication required');
+
+  if (req.method === 'GET') {
+    return sendJson(res, 200, stripAuthFields(sessionUser));
+  }
+
+  if (req.method === 'PUT') {
+    const payload = await readJsonBody(req);
+    const sanitized = sanitizeUpdateMePayload(payload);
+    const updated = userRepo.update(sessionUser.id, sanitized);
+    return sendJson(res, 200, stripAuthFields(updated));
+  }
+
+  return sendError(res, 405, 'method not allowed');
+}
+
+// ---------------------------------------------------------------------------
+// Auth endpoints (/api/apps/{appId}/auth/*, /users/invite-user, etc.)
+// ---------------------------------------------------------------------------
+
+function findUserByEmail(email) {
+  return userRepo.listAll().find((u) => u.email === email) || null;
+}
+
+async function handleAuthRoute(req, res, url, appId, action) {
+  if (action === 'login' && req.method === 'POST') {
+    const { email, password } = await readJsonBody(req);
+    const user = findUserByEmail(email);
+    if (!user || !verifyPassword(password, user.password_hash, user.salt)) {
+      return sendError(res, 401, 'invalid email or password');
+    }
+    const token = sessions.create(user.id);
+    return sendJson(res, 200, { access_token: token, user: stripAuthFields(user) });
+  }
+
+  if (action === 'register' && req.method === 'POST') {
+    const payload = await readJsonBody(req);
+    const { email, password } = payload;
+    if (!email || !password) {
+      return sendError(res, 400, 'email and password are required');
+    }
+    if (findUserByEmail(email)) {
+      return sendError(res, 409, 'a user with this email already exists');
+    }
+    const { password_hash, salt } = hashPassword(password);
+    const { password: _pw, ...customFields } = payload;
+    const user = userRepo.create(
+      {
+        ...customFields,
+        email,
+        role: 'user',
+        account_status: 'pending',
+        password_hash,
+        salt,
+        otp_code: '000000',
+      },
+      email,
+    );
+    return sendJson(res, 200, { message: 'registered', user_id: user.id, otp_required: true });
+  }
+
+  if (action === 'verify-otp' && req.method === 'POST') {
+    const { email, otp_code } = await readJsonBody(req);
+    const user = findUserByEmail(email);
+    if (!user) return sendError(res, 404, 'user not found');
+    if (String(otp_code) !== '000000' && String(otp_code) !== String(user.otp_code)) {
+      return sendError(res, 401, 'invalid verification code');
+    }
+    const updated = userRepo.update(user.id, { account_status: 'active', otp_code: null });
+    const token = sessions.create(user.id);
+    return sendJson(res, 200, { access_token: token, user: stripAuthFields(updated) });
+  }
+
+  if (action === 'resend-otp' && req.method === 'POST') {
+    const { email } = await readJsonBody(req);
+    const user = findUserByEmail(email);
+    if (user) {
+      outboxEmail.record({ to: email, subject: 'Your verification code', body: 'Code: 000000' });
+    }
+    return sendJson(res, 200, { status: 'sent' });
+  }
+
+  if (action === 'reset-password-request' && req.method === 'POST') {
+    const { email } = await readJsonBody(req);
+    const user = findUserByEmail(email);
+    if (user) {
+      const resetToken = randomUUID();
+      userRepo.update(user.id, { reset_token: resetToken });
+      outboxEmail.record({ to: email, subject: 'Password reset', body: `Reset token: ${resetToken}` });
+    }
+    return sendJson(res, 200, { status: 'sent' });
+  }
+
+  if (action === 'reset-password' && req.method === 'POST') {
+    const { reset_token, new_password } = await readJsonBody(req);
+    const user = userRepo.listAll().find((u) => u.reset_token === reset_token);
+    if (!user) return sendError(res, 400, 'invalid or expired reset token');
+    const { password_hash, salt } = hashPassword(new_password);
+    userRepo.update(user.id, { password_hash, salt, reset_token: null });
+    return sendJson(res, 200, { status: 'reset' });
+  }
+
+  if (action === 'change-password' && req.method === 'POST') {
+    const { user_id, current_password, new_password } = await readJsonBody(req);
+    const user = userRepo.getById(user_id);
+    if (!user || !verifyPassword(current_password, user.password_hash, user.salt)) {
+      return sendError(res, 401, 'current password is incorrect');
+    }
+    const { password_hash, salt } = hashPassword(new_password);
+    userRepo.update(user.id, { password_hash, salt });
+    return sendJson(res, 200, { status: 'changed' });
+  }
+
+  return sendError(res, 404, 'auth route not found');
+}
+
+async function handleInviteUser(req, res) {
+  if (req.method !== 'POST') return sendError(res, 405, 'method not allowed');
+  const { user_email, role } = await readJsonBody(req);
+  if (!user_email || !['user', 'admin'].includes(role)) {
+    return sendError(res, 400, 'user_email and a valid role are required');
+  }
+  let user = findUserByEmail(user_email);
+  if (!user) {
+    user = userRepo.create(
+      { email: user_email, role, account_status: 'invited' },
+      user_email,
+    );
+  } else {
+    user = userRepo.update(user.id, { role });
+  }
+  outboxEmail.record({ to: user_email, subject: 'You have been invited', body: `Role: ${role}` });
+  return sendJson(res, 200, { status: 'invited', user: stripAuthFields(user) });
+}
+
+function handleLogout(req, res, url) {
+  const token = parseBearerToken(req);
+  if (token) sessions.remove(token);
+  const fromUrl = url.searchParams.get('from_url') || '/';
+  res.writeHead(302, { Location: fromUrl });
+  res.end();
+}
+
+// ---------------------------------------------------------------------------
+// Public settings + telemetry stubs
+// ---------------------------------------------------------------------------
+
+function handlePublicSettings(req, res, appId) {
+  return sendJson(res, 200, { id: appId, public_settings: {} });
+}
+
+// ---------------------------------------------------------------------------
+// Static serving: /uploads/* and dist/ SPA fallback
+// ---------------------------------------------------------------------------
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+  '.woff': 'font/woff',
+  '.woff2': 'font/woff2',
+  '.txt': 'text/plain; charset=utf-8',
+  '.pdf': 'application/pdf',
+};
+
+function serveFile(res, filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+  const stream = fs.createReadStream(filePath);
+  res.writeHead(200, { 'Content-Type': contentType });
+  stream.pipe(res);
+  stream.on('error', () => {
+    if (!res.headersSent) sendError(res, 500, 'failed to read file');
+    else res.end();
+  });
+}
+
+function serveUpload(req, res, pathname) {
+  const relative = decodeURIComponent(pathname.replace(/^\/uploads\//, ''));
+  const resolved = path.join(uploadsDir, relative);
+  if (!resolved.startsWith(uploadsDir)) {
+    return sendError(res, 400, 'invalid path');
+  }
+  if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+    return sendError(res, 404, 'not found');
+  }
+  return serveFile(res, resolved);
+}
+
+function serveDistOrFallback(req, res, pathname) {
+  if (!fs.existsSync(distDir)) {
+    return sendError(res, 404, 'not found');
+  }
+  const candidate = path.join(distDir, decodeURIComponent(pathname));
+  if (candidate.startsWith(distDir) && fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+    return serveFile(res, candidate);
+  }
+  const indexPath = path.join(distDir, 'index.html');
+  if (fs.existsSync(indexPath)) {
+    return serveFile(res, indexPath);
+  }
+  return sendError(res, 404, 'not found');
+}
+
+// ---------------------------------------------------------------------------
+// Main request handler
+// ---------------------------------------------------------------------------
+
+async function requestListener(req, res) {
+  try {
+    const url = parseUrl(req);
+    const pathname = url.pathname;
+
+    // Telemetry stubs — always 204, never error.
+    if (/^\/api\/apps\/[^/]+\/analytics\/track\/batch$/.test(pathname) && req.method === 'POST') {
+      await readBody(req); // drain body (may arrive via sendBeacon)
+      return sendNoContent(res);
+    }
+    const appLogsMatch = /^\/app-logs\/([^/]+)\/log-user-in-app\/([^/]+)$/.exec(pathname);
+    if (appLogsMatch && req.method === 'POST') {
+      await readBody(req);
+      return sendNoContent(res);
+    }
+
+    // Public settings.
+    const publicSettingsMatch = /^\/api\/apps\/public\/prod\/public-settings\/by-id\/([^/]+)$/.exec(
+      pathname,
+    );
+    if (publicSettingsMatch && req.method === 'GET') {
+      return handlePublicSettings(req, res, publicSettingsMatch[1]);
+    }
+
+    // Uploads static serving.
+    if (pathname.startsWith('/uploads/') && req.method === 'GET') {
+      return serveUpload(req, res, pathname);
+    }
+
+    // Auth routes.
+    const authMatch = /^\/api\/apps\/([^/]+)\/auth\/([^/]+)$/.exec(pathname);
+    if (authMatch) {
+      return handleAuthRoute(req, res, url, authMatch[1], authMatch[2]);
+    }
+    const logoutMatch = /^\/api\/apps\/auth\/logout$/.exec(pathname);
+    if (logoutMatch && req.method === 'GET') {
+      return handleLogout(req, res, url);
+    }
+    const inviteMatch = /^\/api\/apps\/([^/]+)\/(?:users|runtime\/users)\/invite-user$/.exec(pathname);
+    if (inviteMatch) {
+      return handleInviteUser(req, res);
+    }
+
+    // Entities routes.
+    const entityMatch = ENTITY_ROUTE_RE.exec(pathname);
+    if (entityMatch) {
+      return await handleEntitiesRoute(req, res, url, entityMatch);
+    }
+
+    // Functions routes.
+    const functionMatch = /^\/api\/apps\/([^/]+)\/functions\/([^/]+)$/.exec(pathname);
+    if (functionMatch && req.method === 'POST') {
+      const [, appId, functionName] = functionMatch;
+      if (!functionsRouter) {
+        return sendError(res, 404, 'function not found');
+      }
+      return functionsRouter(req, res, { appId, functionName, url });
+    }
+
+    // Integration endpoints — not part of this deliverable's scope; return a
+    // clear 404 rather than silently succeeding, so a missing mock is visible.
+    if (/^\/api\/apps\/[^/]+\/integration-endpoints\//.test(pathname)) {
+      return sendError(res, 404, 'integration endpoint not implemented in this shim build');
+    }
+
+    // Static SPA serving (dist/), when present.
+    if (req.method === 'GET' && fs.existsSync(distDir)) {
+      return serveDistOrFallback(req, res, pathname);
+    }
+
+    return sendError(res, 404, 'not found');
+  } catch (err) {
+    console.error('[shim] unhandled error:', err);
+    if (!res.headersSent) {
+      sendError(res, 500, 'internal server error');
+    } else {
+      res.end();
+    }
+  }
+}
+
+const server = http.createServer(requestListener);
+
+server.listen(PORT, () => {
+  // eslint-disable-next-line no-console
+  console.log(`[shim] listening on http://localhost:${PORT}`);
+});
+
+export { server, db };
