@@ -10,18 +10,14 @@ export default function PaymentRequired() {
     setIsLoading(true);
     try {
       const user = await base44.auth.me();
-      const response = await fetch("https://superagent-1-96aa301b.base44.app/functions/createCheckoutSession", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          priceId,
-          userEmail: user.email,
-          userId: user.id,
-          successUrl: window.location.origin + "/Dashboard",
-          cancelUrl: window.location.origin + "/PaymentRequired",
-        }),
+      const response = await base44.functions.invoke("createCheckoutSession", {
+        priceId,
+        userEmail: user.email,
+        userId: user.id,
+        successUrl: window.location.origin + "/Dashboard",
+        cancelUrl: window.location.origin + "/PaymentRequired",
       });
-      const data = await response.json();
+      const data = response.data;
       const url = data?.url;
       if (url) {
         setTimeout(() => {

@@ -1,0 +1,1 @@
+export { ClientAssessment } from './all';
