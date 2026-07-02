@@ -1,0 +1,57 @@
+{
+  "name": "LegalAcceptance",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email of user who accepted"
+    },
+    "user_role": {
+      "type": "string",
+      "enum": [
+        "Clinician",
+        "EndUser",
+        "Admin"
+      ],
+      "description": "Role of user at time of acceptance"
+    },
+    "document_set_id": {
+      "type": "string",
+      "default": "exphys-assess-plus-global-legal-v1",
+      "description": "Legal document set identifier"
+    },
+    "document_set_version": {
+      "type": "string",
+      "default": "1.0.0",
+      "description": "Version of legal documents accepted"
+    },
+    "accepted_documents": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of document IDs accepted"
+    },
+    "accepted": {
+      "type": "boolean",
+      "description": "Whether user accepted all terms"
+    },
+    "ip_address": {
+      "type": "string",
+      "description": "IP address at time of acceptance"
+    },
+    "user_agent": {
+      "type": "string",
+      "description": "Browser user agent at acceptance"
+    },
+    "digital_signature": {
+      "type": "string",
+      "description": "Base64 encoded signature"
+    }
+  },
+  "required": [
+    "user_email",
+    "user_role",
+    "accepted"
+  ]
+}

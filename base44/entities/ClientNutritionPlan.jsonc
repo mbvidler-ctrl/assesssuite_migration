@@ -1,0 +1,125 @@
+{
+  "name": "ClientNutritionPlan",
+  "type": "object",
+  "properties": {
+    "org_id": {
+      "type": "string",
+      "description": "Organization this nutrition plan belongs to"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Reference to the client"
+    },
+    "weight_goal": {
+      "type": "string",
+      "enum": [
+        "maintain",
+        "lose",
+        "gain"
+      ],
+      "description": "Client's weight management goal"
+    },
+    "current_weight_kg": {
+      "type": "number",
+      "description": "Current weight in kilograms"
+    },
+    "height_cm": {
+      "type": "number",
+      "description": "Height in centimeters"
+    },
+    "target_weight_kg": {
+      "type": "number",
+      "description": "Target weight in kilograms"
+    },
+    "activity_level": {
+      "type": "string",
+      "enum": [
+        "sedentary",
+        "lightly_active",
+        "moderately_active",
+        "very_active",
+        "extremely_active"
+      ],
+      "description": "Physical activity level"
+    },
+    "bmr": {
+      "type": "number",
+      "description": "Calculated Basal Metabolic Rate"
+    },
+    "tdee": {
+      "type": "number",
+      "description": "Total Daily Energy Expenditure"
+    },
+    "recommended_calories": {
+      "type": "number",
+      "description": "Recommended daily caloric intake"
+    },
+    "current_eating_patterns": {
+      "type": "string",
+      "description": "Client's current eating habits and patterns"
+    },
+    "dietary_preferences": {
+      "type": "string",
+      "description": "Dietary preferences or restrictions"
+    },
+    "nutrition_goals": {
+      "type": "string",
+      "description": "Client's nutrition-related goals"
+    },
+    "general_advice_given": {
+      "type": "string",
+      "description": "General healthy eating advice aligned with Australian Dietary Guidelines"
+    },
+    "sample_meal_plan": {
+      "type": "string",
+      "description": "Sample daily eating pattern showing how to meet recommended serves"
+    },
+    "behavioral_strategies": {
+      "type": "string",
+      "description": "Behavior change strategies for eating habits"
+    },
+    "referred_to_dietitian": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether client was referred to an APD"
+    },
+    "dietitian_referral_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of dietitian referral"
+    },
+    "dietitian_referral_reason": {
+      "type": "string",
+      "description": "Reason for dietitian referral"
+    },
+    "referred_to_diabetes_educator": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether client was referred to diabetes educator"
+    },
+    "diabetes_educator_referral_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of diabetes educator referral"
+    },
+    "energy_unit_preference": {
+      "type": "string",
+      "enum": [
+        "kJ",
+        "Cal"
+      ],
+      "default": "kJ",
+      "description": "Client's preferred energy unit (Australian standard is kJ)"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last update to nutrition plan"
+    }
+  },
+  "required": [
+    "org_id",
+    "client_id",
+    "target_weight_kg"
+  ]
+}

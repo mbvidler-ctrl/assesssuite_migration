@@ -1,0 +1,106 @@
+{
+  "name": "ClientOnboardingEpisode",
+  "type": "object",
+  "properties": {
+    "org_id": {
+      "type": "string",
+      "description": "Organization this episode belongs to"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Reference to the client"
+    },
+    "episode_number": {
+      "type": "number",
+      "description": "Sequential episode number for this client"
+    },
+    "episode_label": {
+      "type": "string",
+      "description": "Human-readable label e.g. Episode 1"
+    },
+    "episode_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this episode was completed"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "active",
+        "archived"
+      ],
+      "default": "active",
+      "description": "Whether this is the current active episode"
+    },
+    "funding_source": {
+      "type": "string",
+      "description": "Funding source at time of this episode"
+    },
+    "referral_source": {
+      "type": "string",
+      "description": "Referral source at time of episode"
+    },
+    "referral_source_name": {
+      "type": "string",
+      "description": "Name of referrer"
+    },
+    "referral_reason": {
+      "type": "string",
+      "description": "Reason for referral"
+    },
+    "referral_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of referral"
+    },
+    "apss_completed": {
+      "type": "boolean",
+      "description": "Whether APSS Stage 1 was completed"
+    },
+    "apss_stage2_completed": {
+      "type": "boolean",
+      "description": "Whether APSS Stage 2 was completed"
+    },
+    "consent_confirmed": {
+      "type": "boolean",
+      "description": "Whether consent was confirmed"
+    },
+    "privacy_consent": {
+      "type": "boolean",
+      "description": "Whether privacy consent was given"
+    },
+    "assessment_consent": {
+      "type": "boolean",
+      "description": "Whether assessment consent was given"
+    },
+    "pricing_explained": {
+      "type": "boolean",
+      "description": "Whether pricing was explained"
+    },
+    "client_goals": {
+      "type": "string",
+      "description": "Client goals snapshot at time of episode"
+    },
+    "medical_conditions_snapshot": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "condition_name": {
+            "type": "string"
+          },
+          "condition_type": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Snapshot of medical conditions at time of onboarding"
+    }
+  },
+  "required": [
+    "org_id",
+    "client_id",
+    "episode_number",
+    "status"
+  ]
+}

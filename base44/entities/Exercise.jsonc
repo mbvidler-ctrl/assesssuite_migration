@@ -1,0 +1,117 @@
+{
+  "name": "Exercise",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the exercise"
+    },
+    "description": {
+      "type": "string",
+      "description": "Detailed instructions on how to perform the exercise"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "Strength",
+        "Cardio",
+        "Flexibility",
+        "Balance",
+        "Plyometric",
+        "Core"
+      ],
+      "description": "Exercise category"
+    },
+    "target_muscles": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Primary muscle groups targeted"
+    },
+    "equipment_needed": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Equipment required for the exercise"
+    },
+    "difficulty_level": {
+      "type": "string",
+      "enum": [
+        "Beginner",
+        "Intermediate",
+        "Advanced"
+      ],
+      "description": "Difficulty level of the exercise"
+    },
+    "modifications": {
+      "type": "object",
+      "properties": {
+        "easier": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "harder": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Ways to modify the exercise"
+    },
+    "contraindications": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Conditions where exercise should be avoided"
+    },
+    "instructions_video_url": {
+      "type": "string",
+      "description": "URL to instructional video"
+    },
+    "instructions_image_urls": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "URLs to instructional images"
+    },
+    "reps_range": {
+      "type": "string",
+      "description": "Recommended repetition range"
+    },
+    "sets_range": {
+      "type": "string",
+      "description": "Recommended set range"
+    },
+    "duration_range": {
+      "type": "string",
+      "description": "Recommended duration for time-based exercises"
+    },
+    "rest_period": {
+      "type": "string",
+      "description": "Recommended rest between sets"
+    },
+    "evidence_base": {
+      "type": "string",
+      "description": "Scientific evidence supporting the exercise"
+    },
+    "search_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Keywords for searching"
+    }
+  },
+  "required": [
+    "name",
+    "description",
+    "category"
+  ]
+}

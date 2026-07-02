@@ -1,0 +1,793 @@
+{
+  "name": "Client",
+  "type": "object",
+  "properties": {
+    "org_id": {
+      "type": "string",
+      "description": "Organization this client belongs to"
+    },
+    "assigned_clinician_email": {
+      "type": "string",
+      "description": "Email of assigned clinician"
+    },
+    "full_name": {
+      "type": "string",
+      "description": "Client's full name"
+    },
+    "date_of_birth": {
+      "type": "string",
+      "format": "date",
+      "description": "Client's date of birth"
+    },
+    "gender": {
+      "type": "string",
+      "enum": [
+        "male",
+        "female",
+        "other",
+        "prefer_not_to_say"
+      ],
+      "description": "Client's gender"
+    },
+    "gender_other": {
+      "type": "string",
+      "description": "Other gender specification"
+    },
+    "pronouns": {
+      "type": "string",
+      "description": "Client's preferred pronouns"
+    },
+    "phone": {
+      "type": "string",
+      "description": "Contact phone number"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "description": "Contact email address"
+    },
+    "address": {
+      "type": "string",
+      "description": "Home address"
+    },
+    "emergency_contact_name": {
+      "type": "string",
+      "description": "Emergency contact full name"
+    },
+    "emergency_contact_phone": {
+      "type": "string",
+      "description": "Emergency contact phone"
+    },
+    "cultural_considerations": {
+      "type": "string",
+      "description": "Cultural or language considerations"
+    },
+    "referral_source": {
+      "type": "string",
+      "enum": [
+        "gp",
+        "wc_case_manager",
+        "aged_care_case_manager",
+        "ndis_support_coordinator",
+        "dva",
+        "self_referral",
+        "other"
+      ],
+      "description": "How client was referred (primary referral)"
+    },
+    "referral_source_name": {
+      "type": "string",
+      "description": "Name of referring person/organization (primary)"
+    },
+    "referral_source_address": {
+      "type": "string",
+      "description": "Address of referring person/organization (primary)"
+    },
+    "referral_source_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Email of referring person/organization (primary)"
+    },
+    "referral_provider_number": {
+      "type": "string",
+      "description": "Provider number of referring professional (primary)"
+    },
+    "referral_reason": {
+      "type": "string",
+      "description": "Reason for referral (primary)"
+    },
+    "referral_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of referral (primary)"
+    },
+    "additional_referrals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "referral_source": {
+            "type": "string",
+            "enum": [
+              "gp",
+              "wc_case_manager",
+              "aged_care_case_manager",
+              "ndis_support_coordinator",
+              "dva",
+              "self_referral",
+              "other"
+            ]
+          },
+          "referral_source_name": {
+            "type": "string"
+          },
+          "referral_source_address": {
+            "type": "string"
+          },
+          "referral_source_email": {
+            "type": "string"
+          },
+          "referral_provider_number": {
+            "type": "string"
+          },
+          "referral_reason": {
+            "type": "string"
+          },
+          "referral_date": {
+            "type": "string",
+            "format": "date"
+          }
+        },
+        "required": [
+          "referral_source"
+        ]
+      },
+      "description": "Additional referral sources for multi-funded clients"
+    },
+    "primary_gp_clinic_name": {
+      "type": "string",
+      "description": "Primary GP's clinic name"
+    },
+    "primary_gp_name": {
+      "type": "string",
+      "description": "Primary/community GP name"
+    },
+    "primary_gp_address": {
+      "type": "string",
+      "description": "Primary GP clinic address"
+    },
+    "primary_gp_phone": {
+      "type": "string",
+      "description": "Primary GP clinic phone"
+    },
+    "primary_gp_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Primary GP clinic email"
+    },
+    "primary_gp_provider_number": {
+      "type": "string",
+      "description": "Primary GP provider number"
+    },
+    "hospital_name": {
+      "type": "string",
+      "description": "Hospital/Rehab Center name"
+    },
+    "hospital_gp_name": {
+      "type": "string",
+      "description": "Hospital/rehab center GP name"
+    },
+    "hospital_gp_address": {
+      "type": "string",
+      "description": "Hospital/rehab center address"
+    },
+    "hospital_gp_phone": {
+      "type": "string",
+      "description": "Hospital/rehab center phone"
+    },
+    "hospital_gp_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Hospital/rehab center email"
+    },
+    "hospital_gp_provider_number": {
+      "type": "string",
+      "description": "Hospital GP provider number"
+    },
+    "specialist_clinic_name": {
+      "type": "string",
+      "description": "Specialist's clinic name"
+    },
+    "specialist_name": {
+      "type": "string",
+      "description": "Specialist doctor name"
+    },
+    "specialist_type": {
+      "type": "string",
+      "description": "Type of specialist"
+    },
+    "specialist_address": {
+      "type": "string",
+      "description": "Specialist clinic address"
+    },
+    "specialist_phone": {
+      "type": "string",
+      "description": "Specialist clinic phone"
+    },
+    "specialist_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Specialist clinic email"
+    },
+    "specialist_provider_number": {
+      "type": "string",
+      "description": "Specialist provider number"
+    },
+    "other_healthcare_providers": {
+      "type": "string",
+      "description": "Other healthcare providers involved in care"
+    },
+    "funding_source": {
+      "type": "string",
+      "enum": [
+        "dva",
+        "private_health",
+        "medicare",
+        "self_funded",
+        "workcover_qld",
+        "ndis",
+        "tac_maic",
+        "aged_care",
+        "my_aged_care",
+        "other"
+      ],
+      "description": "Who is funding the sessions"
+    },
+    "other_funding_source": {
+      "type": "string",
+      "description": "Description of other funding source"
+    },
+    "other_funding_contact_name": {
+      "type": "string",
+      "description": "Other funding source contact name"
+    },
+    "other_funding_contact_phone": {
+      "type": "string",
+      "description": "Other funding source contact phone"
+    },
+    "other_funding_contact_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Other funding source contact email"
+    },
+    "other_funding_contact_address": {
+      "type": "string",
+      "description": "Other funding source contact address"
+    },
+    "my_aged_care_package_level": {
+      "type": "string",
+      "enum": [
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "description": "My Aged Care package level"
+    },
+    "my_aged_care_provider_name": {
+      "type": "string",
+      "description": "My Aged Care provider organization name"
+    },
+    "my_aged_care_case_manager": {
+      "type": "string",
+      "description": "My Aged Care case manager/coordinator name"
+    },
+    "my_aged_care_case_manager_phone": {
+      "type": "string",
+      "description": "Case manager phone number"
+    },
+    "my_aged_care_case_manager_email": {
+      "type": "string",
+      "format": "email",
+      "description": "Case manager email"
+    },
+    "my_aged_care_functional_goals": {
+      "type": "string",
+      "description": "Functional goals from My Aged Care plan"
+    },
+    "my_aged_care_service_types": {
+      "type": "string",
+      "description": "Types of services approved under My Aged Care"
+    },
+    "dva_card_number": {
+      "type": "string",
+      "description": "DVA card number"
+    },
+    "dva_card_type": {
+      "type": "string",
+      "enum": [
+        "white",
+        "gold",
+        "gold_tpi"
+      ],
+      "description": "Type of DVA card"
+    },
+    "dva_file_number": {
+      "type": "string",
+      "description": "DVA file number"
+    },
+    "dva_accepted_conditions": {
+      "type": "string",
+      "description": "DVA accepted conditions"
+    },
+    "dva_card_expiry": {
+      "type": "string",
+      "format": "date",
+      "description": "DVA card expiry date"
+    },
+    "dva_veteran_status": {
+      "type": "string",
+      "description": "Veteran service background"
+    },
+    "dva_pcp_history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "goals": {
+            "type": "string"
+          },
+          "goals_agreed": {
+            "type": "boolean"
+          }
+        }
+      },
+      "description": "History of DVA Patient Care Plans with goals"
+    },
+    "private_health_fund_name": {
+      "type": "string",
+      "description": "Private health insurance fund name"
+    },
+    "private_health_fund_number": {
+      "type": "string",
+      "description": "Private health fund member number"
+    },
+    "private_health_irn": {
+      "type": "string",
+      "description": "IRN on private health card"
+    },
+    "medicare_number": {
+      "type": "string",
+      "description": "Medicare card number"
+    },
+    "medicare_irn": {
+      "type": "string",
+      "description": "IRN on Medicare card"
+    },
+    "medicare_expiry": {
+      "type": "string",
+      "format": "date",
+      "description": "Medicare card expiry date"
+    },
+    "medicare_referral_type": {
+      "type": "string",
+      "enum": [
+        "tca",
+        "epc",
+        "cdm"
+      ],
+      "description": "Type of Medicare referral"
+    },
+    "medicare_item_number": {
+      "type": "string",
+      "description": "Medicare item number for referral"
+    },
+    "workcover_claim_number": {
+      "type": "string",
+      "description": "WorkCover claim number"
+    },
+    "workcover_date_of_injury": {
+      "type": "string",
+      "format": "date",
+      "description": "Date of workplace injury"
+    },
+    "workcover_injury_description": {
+      "type": "string",
+      "description": "Description of workplace injury"
+    },
+    "workcover_work_capacity": {
+      "type": "string",
+      "enum": [
+        "fit",
+        "modified",
+        "not_fit"
+      ],
+      "description": "Current work fitness status"
+    },
+    "workcover_workplace_tasks": {
+      "type": "string",
+      "description": "Specific workplace tasks and limitations"
+    },
+    "workcover_rtw_planning": {
+      "type": "string",
+      "description": "Return to work planning details"
+    },
+    "ndis_number": {
+      "type": "string",
+      "description": "NDIS participant number"
+    },
+    "ndis_goals": {
+      "type": "string",
+      "description": "NDIS participant goals from plan"
+    },
+    "ndis_functional_impact": {
+      "type": "string",
+      "description": "Functional impact of disability"
+    },
+    "ndis_support_recommendations": {
+      "type": "string",
+      "description": "Recommended supports"
+    },
+    "ndis_assistive_tech": {
+      "type": "string",
+      "description": "Assistive technology or home modifications"
+    },
+    "ndis_risk_factors": {
+      "type": "string",
+      "description": "Risk factors and safety concerns"
+    },
+    "ndis_daily_living_capacity": {
+      "type": "string",
+      "description": "Daily living capacity comments"
+    },
+    "tac_maic_claim_number": {
+      "type": "string",
+      "description": "TAC/MAIC claim number"
+    },
+    "tac_maic_injury_description": {
+      "type": "string",
+      "description": "Motor vehicle accident injury description"
+    },
+    "tac_maic_functional_limitations": {
+      "type": "string",
+      "description": "Functional limitations from injury"
+    },
+    "aged_care_package_level": {
+      "type": "string",
+      "enum": [
+        "1",
+        "2",
+        "3",
+        "4"
+      ],
+      "description": "Home care package level"
+    },
+    "aged_care_coordinator_name": {
+      "type": "string",
+      "description": "Care coordinator or case manager name"
+    },
+    "aged_care_functional_issues": {
+      "type": "string",
+      "description": "Functional issues and mobility concerns"
+    },
+    "aged_care_home_safety": {
+      "type": "string",
+      "description": "Home safety observations"
+    },
+    "gp_referrer_name": {
+      "type": "string",
+      "description": "Name of GP who made referral"
+    },
+    "gp_referrer_address": {
+      "type": "string",
+      "description": "GP/clinic address"
+    },
+    "gp_referrer_email": {
+      "type": "string",
+      "format": "email",
+      "description": "GP/clinic email"
+    },
+    "gp_provider_number": {
+      "type": "string",
+      "description": "GP provider number"
+    },
+    "client_goals": {
+      "type": "string",
+      "description": "Client's personal goals for therapy"
+    },
+    "apss_completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether APSS Stage 1 has been completed"
+    },
+    "apss_completion_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When APSS Stage 1 was completed"
+    },
+    "apss_q1_heart_stroke": {
+      "type": "boolean",
+      "description": "Q1: Heart condition or stroke"
+    },
+    "apss_q2_chest_pain": {
+      "type": "boolean",
+      "description": "Q2: Unexplained chest pain"
+    },
+    "apss_q3_faint_dizzy": {
+      "type": "boolean",
+      "description": "Q3: Faint, dizzy, or lose balance"
+    },
+    "apss_q4_asthma": {
+      "type": "boolean",
+      "description": "Q4: Asthma attack in last 12 months"
+    },
+    "apss_q5_diabetes_control": {
+      "type": "boolean",
+      "description": "Q5: Diabetes blood sugar control issues"
+    },
+    "apss_q6_other_conditions": {
+      "type": "boolean",
+      "description": "Q6: Other conditions requiring consideration"
+    },
+    "apss_q7_activity_light_freq": {
+      "type": "number",
+      "description": "Q7: Light activity frequency per week"
+    },
+    "apss_q7_activity_light_duration": {
+      "type": "number",
+      "description": "Q7: Light activity duration per week (minutes)"
+    },
+    "apss_q7_activity_moderate_freq": {
+      "type": "number",
+      "description": "Q7: Moderate activity frequency per week"
+    },
+    "apss_q7_activity_moderate_duration": {
+      "type": "number",
+      "description": "Q7: Moderate activity duration per week (minutes)"
+    },
+    "apss_q7_activity_vigorous_freq": {
+      "type": "number",
+      "description": "Q7: Vigorous activity frequency per week"
+    },
+    "apss_q7_activity_vigorous_duration": {
+      "type": "number",
+      "description": "Q7: Vigorous activity duration per week (minutes)"
+    },
+    "apss_q7_total_minutes": {
+      "type": "number",
+      "description": "Q7: Total weighted minutes of activity per week"
+    },
+    "apss_additional_info": {
+      "type": "string",
+      "description": "Additional APSS information"
+    },
+    "apss_stage2_completed": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether APSS Stage 2 has been completed"
+    },
+    "apss_stage2_completion_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When APSS Stage 2 was completed"
+    },
+    "apss_s2_family_history": {
+      "type": "boolean",
+      "description": "Stage 2: Family history of heart disease"
+    },
+    "apss_s2_family_history_records": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "relationship": {
+            "type": "string"
+          },
+          "age_at_event": {
+            "type": "number"
+          }
+        }
+      },
+      "description": "Array of family members with heart disease history"
+    },
+    "apss_s2_smoking": {
+      "type": "boolean",
+      "description": "Stage 2: Currently smoking or quit in last 6 months"
+    },
+    "apss_s2_smoking_details": {
+      "type": "string",
+      "description": "Smoking frequency details"
+    },
+    "apss_s2_smoking_years": {
+      "type": "number",
+      "description": "Number of years smoking"
+    },
+    "apss_s2_vaping": {
+      "type": "boolean",
+      "description": "Currently vaping"
+    },
+    "apss_s2_vaping_details": {
+      "type": "string",
+      "description": "Vaping frequency details"
+    },
+    "apss_s2_vaping_years": {
+      "type": "number",
+      "description": "Number of years vaping"
+    },
+    "apss_s2_weight_kg": {
+      "type": "number",
+      "description": "Weight in kg"
+    },
+    "apss_s2_height_cm": {
+      "type": "number",
+      "description": "Height in cm"
+    },
+    "apss_s2_bmi": {
+      "type": "number",
+      "description": "Calculated BMI"
+    },
+    "apss_s2_waist_circumference": {
+      "type": "number",
+      "description": "Waist circumference in cm"
+    },
+    "apss_s2_hip_circumference": {
+      "type": "number",
+      "description": "Hip circumference in cm"
+    },
+    "apss_s2_whr": {
+      "type": "number",
+      "description": "Calculated Waist-to-Hip Ratio"
+    },
+    "apss_s2_high_blood_pressure": {
+      "type": "boolean",
+      "description": "Told has high blood pressure"
+    },
+    "apss_s2_systolic_bp": {
+      "type": "number",
+      "description": "Systolic blood pressure (mmHg)"
+    },
+    "apss_s2_diastolic_bp": {
+      "type": "number",
+      "description": "Diastolic blood pressure (mmHg)"
+    },
+    "apss_s2_heart_rate": {
+      "type": "number",
+      "description": "Heart rate (bpm)"
+    },
+    "apss_s2_spo2": {
+      "type": "number",
+      "description": "Blood oxygen saturation (%)"
+    },
+    "apss_s2_bp_medication": {
+      "type": "boolean",
+      "description": "Taking medication for blood pressure"
+    },
+    "apss_s2_bp_medication_details": {
+      "type": "string",
+      "description": "Blood pressure medication details"
+    },
+    "apss_s2_high_cholesterol": {
+      "type": "boolean",
+      "description": "Told has high cholesterol/blood lipids"
+    },
+    "apss_s2_total_cholesterol": {
+      "type": "number",
+      "description": "Total cholesterol (mmol/L)"
+    },
+    "apss_s2_hdl": {
+      "type": "number",
+      "description": "HDL cholesterol (mmol/L)"
+    },
+    "apss_s2_ldl": {
+      "type": "number",
+      "description": "LDL cholesterol (mmol/L)"
+    },
+    "apss_s2_triglycerides": {
+      "type": "number",
+      "description": "Triglycerides (mmol/L)"
+    },
+    "apss_s2_cholesterol_medication": {
+      "type": "boolean",
+      "description": "Taking medication for cholesterol"
+    },
+    "apss_s2_cholesterol_medication_details": {
+      "type": "string",
+      "description": "Cholesterol medication details"
+    },
+    "apss_s2_high_blood_sugar": {
+      "type": "boolean",
+      "description": "Told has high blood sugar/glucose"
+    },
+    "apss_s2_fasting_glucose": {
+      "type": "number",
+      "description": "Fasting blood glucose (mmol/L)"
+    },
+    "apss_s2_glucose_medication": {
+      "type": "boolean",
+      "description": "Taking medication for blood sugar"
+    },
+    "apss_s2_glucose_medication_details": {
+      "type": "string",
+      "description": "Blood sugar medication details"
+    },
+    "apss_s2_prescribed_medications": {
+      "type": "boolean",
+      "description": "Currently taking prescribed medications"
+    },
+    "apss_s2_medications_list": {
+      "type": "string",
+      "description": "List of current medical conditions requiring medication"
+    },
+    "apss_s2_hospital_admissions": {
+      "type": "boolean",
+      "description": "Hospital admissions in last 12 months"
+    },
+    "apss_s2_hospital_admissions_details": {
+      "type": "string",
+      "description": "Details of hospital admissions"
+    },
+    "apss_s2_pregnancy": {
+      "type": "boolean",
+      "description": "Pregnant or given birth in last 12 months"
+    },
+    "apss_s2_pregnancy_details": {
+      "type": "string",
+      "description": "Pregnancy/childbirth details"
+    },
+    "apss_s2_musculoskeletal_issues": {
+      "type": "boolean",
+      "description": "Diagnosed muscle, bone, tendon, ligament issues"
+    },
+    "apss_s2_musculoskeletal_details": {
+      "type": "string",
+      "description": "Musculoskeletal issues details"
+    },
+    "consent_confirmed": {
+      "type": "boolean",
+      "description": "Whether client has provided consent"
+    },
+    "privacy_consent": {
+      "type": "boolean",
+      "description": "Whether client has provided privacy consent"
+    },
+    "assessment_consent": {
+      "type": "boolean",
+      "description": "Whether client has provided assessment consent"
+    },
+    "pricing_explained": {
+      "type": "boolean",
+      "description": "Whether pricing schedule was explained and agreed to"
+    },
+    "cancellation_policy_agreed": {
+      "type": "boolean",
+      "description": "Whether client has agreed to cancellation policy"
+    },
+    "consent_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When consent was provided"
+    },
+    "digital_signature": {
+      "type": "string",
+      "description": "Base64 encoded digital signature"
+    },
+    "client_completed_sections": {
+      "type": "array",
+      "items": {
+        "type": "number"
+      },
+      "description": "Sections completed by client"
+    }
+  },
+  "required": [
+    "org_id",
+    "full_name",
+    "date_of_birth",
+    "gender",
+    "consent_confirmed"
+  ]
+}

@@ -1,0 +1,171 @@
+{
+  "name": "Assessment",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Name of the assessment"
+    },
+    "category": {
+      "type": "string",
+      "description": "Clinical category (e.g., musculoskeletal, neurological)"
+    },
+    "description": {
+      "type": "string",
+      "description": "A brief description of the assessment"
+    },
+    "instructions": {
+      "type": "string",
+      "description": "Detailed instructions on how to perform the assessment"
+    },
+    "scoring_system": {
+      "type": "string",
+      "description": "Explanation of the scoring system"
+    },
+    "unit_of_measure": {
+      "type": "string",
+      "description": "The unit for the score (e.g., seconds, repetitions, score)"
+    },
+    "equipment_needed": {
+      "type": "string",
+      "description": "List of equipment required"
+    },
+    "contraindications": {
+      "type": "string",
+      "description": "Conditions or situations where the assessment should not be used"
+    },
+    "conditions_indicated": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of conditions this assessment is indicated for"
+    },
+    "search_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tags to help with searching for the assessment"
+    },
+    "normative_data": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "age_min": {
+            "type": "integer"
+          },
+          "age_max": {
+            "type": "integer"
+          },
+          "gender": {
+            "type": "string",
+            "enum": [
+              "male",
+              "female",
+              "both"
+            ]
+          },
+          "mean": {
+            "type": "number"
+          },
+          "std_dev": {
+            "type": "number"
+          },
+          "percentile_25": {
+            "type": "number"
+          },
+          "percentile_75": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "age_min",
+          "age_max",
+          "gender"
+        ]
+      },
+      "description": "Normative data for different populations"
+    },
+    "references": {
+      "type": "string",
+      "description": "Citations or sources for the assessment"
+    },
+    "questions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "question_text": {
+            "type": "string"
+          },
+          "question_type": {
+            "type": "string",
+            "enum": [
+              "yes_no",
+              "scale",
+              "multiple_choice"
+            ]
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "reverse_scored": {
+            "type": "boolean"
+          }
+        }
+      },
+      "description": "Array of questions for questionnaire-based assessments"
+    },
+    "is_questionnaire": {
+      "type": "boolean",
+      "description": "Whether this is a questionnaire-based assessment (vs performance-based)"
+    },
+    "is_deleted": {
+      "type": "boolean",
+      "description": "Soft delete flag"
+    },
+    "deleted_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date when assessment was deleted"
+    },
+    "has_test_runner": {
+      "type": "boolean",
+      "description": "Quality check: Has a test runner"
+    },
+    "results_add_to_soap": {
+      "type": "boolean",
+      "description": "Quality check: Results add correctly to SOAP notes"
+    },
+    "has_normatives": {
+      "type": "boolean",
+      "description": "Quality check: Results have normatives"
+    },
+    "has_instructions": {
+      "type": "boolean",
+      "description": "Quality check: Has instructions to clinician"
+    },
+    "has_references": {
+      "type": "boolean",
+      "description": "Quality check: Has references"
+    }
+  },
+  "required": [
+    "name",
+    "category",
+    "description"
+  ]
+}

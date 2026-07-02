@@ -1,0 +1,227 @@
+{
+  "name": "TreatmentProtocol",
+  "type": "object",
+  "properties": {
+    "condition_name": {
+      "type": "string",
+      "description": "Name of the condition"
+    },
+    "category": {
+      "type": "string",
+      "enum": [
+        "musculoskeletal",
+        "cardio_pulmonary",
+        "metabolic",
+        "neurological",
+        "mental_health",
+        "geriatric",
+        "general"
+      ],
+      "description": "Clinical category"
+    },
+    "overview": {
+      "type": "object",
+      "properties": {
+        "pathophysiology": {
+          "type": "string"
+        },
+        "functional_impact": {
+          "type": "string"
+        },
+        "prevalence": {
+          "type": "string"
+        }
+      }
+    },
+    "assessment": {
+      "type": "object",
+      "properties": {
+        "key_assessments": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "outcome_measures": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "screening_tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "evidence_base": {
+          "type": "string"
+        }
+      }
+    },
+    "exercise_prescription": {
+      "type": "object",
+      "properties": {
+        "exercises": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "dosage": {
+                "type": "string"
+              },
+              "purpose": {
+                "type": "string"
+              },
+              "modifications": {
+                "type": "string"
+              },
+              "evidence_level": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "frequency": {
+          "type": "string"
+        },
+        "session_duration": {
+          "type": "string"
+        },
+        "program_duration": {
+          "type": "string"
+        },
+        "evidence_summary": {
+          "type": "string"
+        }
+      }
+    },
+    "progression": {
+      "type": "object",
+      "properties": {
+        "phases": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "phase_name": {
+                "type": "string"
+              },
+              "duration": {
+                "type": "string"
+              },
+              "goals": {
+                "type": "string"
+              },
+              "criteria": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "evidence_base": {
+          "type": "string"
+        }
+      }
+    },
+    "contraindications": {
+      "type": "object",
+      "properties": {
+        "absolute": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "relative": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "red_flags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "outcomes": {
+      "type": "object",
+      "properties": {
+        "expected_timeframe": {
+          "type": "string"
+        },
+        "key_outcomes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "success_indicators": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "effect_sizes": {
+          "type": "string"
+        }
+      }
+    },
+    "meta_analysis_summary": {
+      "type": "object",
+      "properties": {
+        "key_findings": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "pooled_effects": {
+          "type": "string"
+        },
+        "quality_of_evidence": {
+          "type": "string"
+        }
+      }
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "citation": {
+            "type": "string"
+          },
+          "key_finding": {
+            "type": "string"
+          },
+          "study_type": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "clinical_note": {
+      "type": "string",
+      "description": "General clinical judgment note"
+    },
+    "last_updated": {
+      "type": "string",
+      "format": "date",
+      "description": "When this protocol was last updated"
+    }
+  },
+  "required": [
+    "condition_name",
+    "category"
+  ]
+}

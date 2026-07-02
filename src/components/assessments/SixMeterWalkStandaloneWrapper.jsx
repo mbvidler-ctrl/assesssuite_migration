@@ -1,0 +1,141 @@
+import React, { useState } from "react";
+import { base44 } from "@/api/base44Client";
+import { toast } from "sonner";
+import SixMeterWalkTestRunner from "./6MeterWalkTestRunner";
+import { generateSOAPForSpecialMeasurements } from "./SOAPObjectiveGenerator";
+import ClientSelectorModal from "./ClientSelectorModal";
+
+// Wrapper to handle standalone 6-meter walk test from assessment library
+// If called with client prop, skips ClientSelectorModal and goes straight to test runner
+// Only shows ClientSelectorModal when client is null (true standalone mode)
+export default function SixMeterWalkStandaloneWrapper({ assessment, client, onClose }) {
+  const [selectedClient, setSelectedClient] = useState(client || null);
+  const [allClients, setAllClients] = useState([]);
+  const [showClientSelector, setShowClientSelector] = useState(!client);
+
+  React.useEffect(() => {
+    const loadClients = async () => {
+      try {
+        const user = await base44.auth.me();
+        const orgMemberships = await base44.entities.OrganizationMember.filter({ user_email: user.email });
+        const userOrgId = orgMemberships.length > 0 ? orgMemberships[0].org_id : null;
+        
+        if (userOrgId) {
+          const clients = await base44.entities.Client.filter({ org_id: userOrgId });
+          setAllClients(clients);
+        }
+      } catch (error) {
+        console.error("Error loading clients:", error);
+      }
+    };
+    loadClients();
+  }, []);
+
+  const handleSaveTest = async (data) => {
+    if (!selectedClient) {
+      toast.error("Please select a client first");
+      return;
+    }
+
+    try {
+      const now = new Date();
+      
+      // Find or create appointment for today
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+      const tomorrowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+      
+      let existingAppts = await base44.entities.Appointment.filter({
+        client_id: selectedClient.id,
+        start_time: { $gte: todayStart, $lt: tomorrowStart }
+      });
+
+      let appointmentId = existingAppts?.[0]?.id;
+      
+      if (!appointmentId) {
+        const newAppt = await base44.entities.Appointment.create({
+          org_id: selectedClient.org_id,
+          client_id: selectedClient.id,
+          title: `${assessment.name}`,
+          start_time: now.toISOString(),
+          end_time: new Date(now.getTime() + 60 * 60000).toISOString(),
+          status: 'completed'
+        });
+        appointmentId = newAppt.id;
+      }
+
+      // Create client assessment
+      await base44.entities.ClientAssessment.create({
+        org_id: selectedClient.org_id,
+        client_id: selectedClient.id,
+        assessment_id: assessment.id,
+        appointment_id: appointmentId,
+        status: 'completed',
+        result_value: data.result_value,
+        assessment_date: data.assessment_date,
+        notes: data.notes,
+        additional_data: data.additional_data
+      });
+
+      // Generate SOAP note entry - pass additional_data, not the whole data object
+      const formattedObjective = generateSOAPForSpecialMeasurements(assessment, data.additional_data || {});
+      const objectiveText = formattedObjective
+        ? `â€¢ ${assessment.name}:\n${formattedObjective}${data.notes ? `\n  Clinical Notes: ${data.notes}` : ''}`
+        : `â€¢ ${assessment.name}: ${data.result_value} m/s\n${data.notes ? `  Clinical Notes: ${data.notes}\n` : ''}`;
+
+      // Find or create SOAP note for appointment
+      let existingSoapNotes = await base44.entities.SOAPNote.filter({
+        client_id: selectedClient.id,
+        appointment_id: appointmentId
+      });
+
+      if (existingSoapNotes && existingSoapNotes.length > 0) {
+        const soapNote = existingSoapNotes[0];
+        const updatedObjective = soapNote.objective 
+          ? `${soapNote.objective}\n\n${objectiveText}`
+          : objectiveText;
+        
+        await base44.entities.SOAPNote.update(soapNote.id, {
+          objective: updatedObjective
+        });
+      } else {
+        await base44.entities.SOAPNote.create({
+          org_id: selectedClient.org_id,
+          client_id: selectedClient.id,
+          appointment_id: appointmentId,
+          note_date: now.toISOString(),
+          objective: objectiveText,
+          status: 'draft'
+        });
+      }
+
+      toast.success("6-Meter Walk Test saved successfully!");
+      onClose();
+    } catch (error) {
+      console.error("Error saving assessment:", error);
+      toast.error("Failed to save assessment");
+    }
+  };
+
+  if (!showClientSelector && selectedClient) {
+    return (
+      <SixMeterWalkTestRunner
+        client={selectedClient}
+        onSave={handleSaveTest}
+        onClose={onClose}
+      />
+    );
+  }
+
+  return (
+    <ClientSelectorModal
+      isOpen={showClientSelector}
+      clients={allClients}
+      testName="6-Meter Walk Test"
+      onSelect={(client) => {
+        setSelectedClient(client);
+        setShowClientSelector(false);
+      }}
+      onCancel={onClose}
+    />
+  );
+}

@@ -1,0 +1,230 @@
+css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+    --radius: 0.5rem;
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* ==========================================
+   PRINT STYLESHEET - DETERMINISTIC PDF LAYOUT
+   For Clinical Reports (Onboarding, SOAP Notes, etc.)
+   ========================================== */
+
+@media print {
+  /* ===== A4 PAGE SETUP WITH FIXED MARGINS ===== */
+  @page {
+    size: A4 portrait;
+    margin: 20mm 18mm 32mm 18mm; /* Extra bottom margin for footer */
+  }
+
+  /* ===== BODY AND ROOT RESETS ===== */
+  html, body {
+    width: 210mm;
+    height: 297mm;
+    margin: 0;
+    padding: 0;
+    font-size: 10pt;
+    line-height: 1.3;
+    background: white;
+    color: black;
+  }
+
+  /* ===== HIDE NON-PRINT ELEMENTS ===== */
+  .no-print {
+    display: none !important;
+  }
+
+  /* ===== CONVERT FLEX/GRID TO BLOCK LAYOUT ===== */
+  .flex, .grid {
+    display: block !important;
+  }
+
+  .flex > *, .grid > * {
+    display: block !important;
+    width: 100% !important;
+    margin-bottom: 4pt;
+  }
+
+  /* ===== ATOMIC BLOCKS - NEVER SPLIT ===== */
+  section:not(.apss-section),
+  .medical-history-item,
+  .condition-block,
+  .signature-block,
+  .consent-signature,
+  .clearance-disclaimer,
+  .sop-disclaimer,
+  .client-details,
+  .provider-details {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  /* ===== APSS SECTIONS - CAN SPLIT BETWEEN QUESTIONS ===== */
+  .apss-section {
+    break-inside: auto;
+  }
+
+  .apss-question-row,
+  .apss-question-block {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 6pt;
+  }
+
+  /* ===== HEADINGS - NO ORPHANS ===== */
+  h1, h2, h3, h4, h5, h6 {
+    break-after: avoid;
+    page-break-after: avoid;
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-top: 8pt;
+    margin-bottom: 4pt;
+  }
+
+  /* ===== TABLE RULES ===== */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    break-inside: auto;
+  }
+
+  thead {
+    display: table-header-group;
+  }
+
+  tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  td, th {
+    padding: 4pt;
+  }
+
+  /* ===== REMOVE MODAL STYLING ===== */
+  .fixed, .absolute {
+    position: static !important;
+  }
+
+  .overflow-hidden, .overflow-y-auto, .overflow-auto {
+    overflow: visible !important;
+  }
+
+  .max-h-screen, .max-h-full, .h-screen {
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  /* ===== PRINT CONTENT CONTAINER ===== */
+  .print-content {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* ===== SPACING CONTROL ===== */
+  .space-y-1 > * + * { margin-top: 2pt; }
+  .space-y-2 > * + * { margin-top: 4pt; }
+  .space-y-3 > * + * { margin-top: 6pt; }
+  .space-y-4 > * + * { margin-top: 8pt; }
+  .space-y-6 > * + * { margin-top: 10pt; }
+
+  /* ===== REMOVE EXCESSIVE PADDING ===== */
+  .p-2 { padding: 4pt !important; }
+  .p-3 { padding: 6pt !important; }
+  .p-4 { padding: 8pt !important; }
+  .p-6, .p-8 { padding: 0 !important; }
+
+  /* ===== ENSURE COLORS PRINT ===== */
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+
+  .bg-red-100 { background-color: #fee2e2 !important; }
+  .bg-yellow-100 { background-color: #fef3c7 !important; }
+  .bg-green-100 { background-color: #d1fae5 !important; }
+  .bg-blue-100 { background-color: #dbeafe !important; }
+  .bg-blue-50 { background-color: #eff6ff !important; }
+  .bg-slate-50 { background-color: #f8fafc !important; }
+
+  .text-red-800 { color: #991b1b !important; }
+  .text-yellow-800 { color: #854d0e !important; }
+  .text-green-800 { color: #166534 !important; }
+  .text-blue-800 { color: #1e40af !important; }
+  .text-blue-700 { color: #1d4ed8 !important; }
+
+  /* ===== BORDERS ===== */
+  .border, .border-b, .border-t {
+    border-color: #cbd5e1 !important;
+  }
+
+  /* ===== REMOVE SHADOWS & EFFECTS ===== */
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* ===== IMAGES ===== */
+  img {
+    max-width: 100%;
+    height: auto;
+    break-inside: avoid;
+  }
+
+  /* ===== PREVENT TEXT OVERFLOW ===== */
+  * {
+    max-width: 100%;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+
+  /* ===== ORPHAN/WIDOW CONTROL ===== */
+  p, li {
+    orphans: 2;
+    widows: 2;
+  }
+}
+
+/* ===== END PRINT STYLESHEET ===== */

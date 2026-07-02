@@ -1,0 +1,85 @@
+{
+  "name": "ClientAssessment",
+  "type": "object",
+  "properties": {
+    "org_id": {
+      "type": "string",
+      "description": "Organization this assessment belongs to"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Reference to client"
+    },
+    "assessment_id": {
+      "type": "string",
+      "description": "Reference to assessment"
+    },
+    "appointment_id": {
+      "type": "string",
+      "description": "Reference to appointment where assessment was performed"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "completed"
+      ],
+      "default": "pending",
+      "description": "Status of the assessment"
+    },
+    "result_value": {
+      "type": "number",
+      "description": "The test result/score"
+    },
+    "assessment_date": {
+      "type": "string",
+      "format": "date",
+      "description": "When assessment was performed"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about the assessment"
+    },
+    "barriers": {
+      "type": "string",
+      "description": "Identified barriers to rehabilitation during assessment"
+    },
+    "normative_comparison": {
+      "type": "string",
+      "enum": [
+        "well_above_average",
+        "above_average",
+        "average",
+        "below_average",
+        "well_below_average"
+      ],
+      "description": "How result compares to normative data"
+    },
+    "percentile": {
+      "type": "number",
+      "description": "Percentile ranking"
+    },
+    "is_flagged": {
+      "type": "boolean",
+      "description": "Whether result is flagged for attention"
+    },
+    "additional_data": {
+      "type": "object",
+      "description": "Additional assessment data (for complex assessments)"
+    },
+    "source": {
+      "type": "string",
+      "enum": [
+        "live",
+        "uploaded"
+      ],
+      "default": "live",
+      "description": "How this assessment was created (live test or uploaded from historical document)"
+    }
+  },
+  "required": [
+    "org_id",
+    "client_id",
+    "assessment_id"
+  ]
+}

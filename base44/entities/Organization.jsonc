@@ -1,0 +1,29 @@
+{
+  "name": "Organization",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Organization/Clinic name"
+    },
+    "subscription_status": {
+      "type": "string",
+      "enum": [
+        "trial",
+        "active",
+        "suspended",
+        "cancelled"
+      ],
+      "default": "trial",
+      "description": "Subscription status"
+    },
+    "subscription_expires": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When subscription expires"
+    }
+  },
+  "required": [
+    "name"
+  ]
+}

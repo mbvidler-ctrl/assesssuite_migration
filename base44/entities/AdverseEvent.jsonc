@@ -1,0 +1,299 @@
+{
+  "name": "AdverseEvent",
+  "type": "object",
+  "properties": {
+    "org_id": {
+      "type": "string",
+      "description": "Organization this event belongs to"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Reference to the client"
+    },
+    "clinician_email": {
+      "type": "string",
+      "description": "Email of clinician reporting the event"
+    },
+    "clinician_name": {
+      "type": "string",
+      "description": "Name of clinician reporting"
+    },
+    "clinician_provider_number": {
+      "type": "string",
+      "description": "Provider number of clinician"
+    },
+    "report_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When this report was created"
+    },
+    "person_completing_form": {
+      "type": "string",
+      "description": "Name of person who completed the form"
+    },
+    "date_became_aware": {
+      "type": "string",
+      "format": "date",
+      "description": "Date site team member became aware of event"
+    },
+    "how_learned": {
+      "type": "string",
+      "enum": [
+        "occurred_with_person",
+        "reported_in_person",
+        "reported_phone_email"
+      ],
+      "description": "How the event was discovered"
+    },
+    "date_of_onset": {
+      "type": "string",
+      "format": "date",
+      "description": "Date event occurred"
+    },
+    "event_description": {
+      "type": "string",
+      "description": "Detailed description of the event"
+    },
+    "is_sae": {
+      "type": "string",
+      "enum": [
+        "yes",
+        "no",
+        "unsure"
+      ],
+      "description": "Is this a Serious Adverse Event"
+    },
+    "is_aesi": {
+      "type": "string",
+      "enum": [
+        "yes",
+        "no",
+        "unsure"
+      ],
+      "description": "Is this an Adverse Event of Special Interest"
+    },
+    "sae_types": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "death",
+          "life_threatening",
+          "hospitalization",
+          "disability"
+        ]
+      },
+      "description": "Types of SAE"
+    },
+    "sae_category": {
+      "type": "string",
+      "enum": [
+        "accident_trauma_fracture",
+        "cancer_neoplasm",
+        "cardiovascular",
+        "dialysis_access",
+        "endocrine",
+        "gastrointestinal",
+        "haematology",
+        "infection",
+        "neurological",
+        "renal",
+        "psychological_social",
+        "other"
+      ],
+      "description": "Category of SAE"
+    },
+    "sae_category_other": {
+      "type": "string",
+      "description": "Specify other SAE category"
+    },
+    "sae_relationship_to_activity": {
+      "type": "string",
+      "enum": [
+        "unrelated",
+        "unlikely",
+        "possible",
+        "probably",
+        "definitely"
+      ],
+      "description": "Relationship of event to exercise/activity"
+    },
+    "sae_action_taken": {
+      "type": "string",
+      "description": "Action taken during task and adverse event"
+    },
+    "sae_action_reason": {
+      "type": "string",
+      "description": "Reason for action taken"
+    },
+    "sae_hospitalized": {
+      "type": "string",
+      "enum": [
+        "yes",
+        "no",
+        "unsure"
+      ],
+      "description": "Was participant hospitalized"
+    },
+    "sae_admission_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Hospital admission date"
+    },
+    "sae_discharge_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Hospital discharge/death date"
+    },
+    "sae_primary_diagnosis": {
+      "type": "string",
+      "description": "Primary discharge diagnosis"
+    },
+    "sae_other_diagnoses": {
+      "type": "string",
+      "description": "Other diagnoses"
+    },
+    "sae_outcome": {
+      "type": "string",
+      "description": "Outcome of SAE"
+    },
+    "sae_resolution_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date SAE was resolved"
+    },
+    "sae_outcome_notes": {
+      "type": "string",
+      "description": "Notes regarding outcomes"
+    },
+    "aesi_type": {
+      "type": "string",
+      "enum": [
+        "fall",
+        "musculoskeletal_pain",
+        "weight_loss",
+        "drug_withdrawal",
+        "mood_alteration"
+      ],
+      "description": "Type of AESI"
+    },
+    "aesi_when_occurred": {
+      "type": "string",
+      "description": "When the AESI event occurred"
+    },
+    "aesi_relationship_to_activity": {
+      "type": "string",
+      "enum": [
+        "unrelated",
+        "unlikely",
+        "possible",
+        "probably",
+        "definitely"
+      ],
+      "description": "Relationship of AESI to exercise/activity"
+    },
+    "aesi_action_taken": {
+      "type": "string",
+      "description": "Action taken for AESI"
+    },
+    "aesi_action_reason": {
+      "type": "string",
+      "description": "Reason for action taken"
+    },
+    "aesi_hospitalized": {
+      "type": "string",
+      "enum": [
+        "yes",
+        "no"
+      ],
+      "description": "Was participant hospitalized"
+    },
+    "aesi_admission_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Hospital admission date"
+    },
+    "aesi_discharge_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Hospital discharge/death date"
+    },
+    "aesi_primary_diagnosis": {
+      "type": "string",
+      "description": "Primary discharge diagnosis"
+    },
+    "aesi_other_diagnoses": {
+      "type": "string",
+      "description": "Other diagnoses"
+    },
+    "aesi_outcome": {
+      "type": "string",
+      "description": "Outcome of AESI"
+    },
+    "aesi_resolution_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date AESI was resolved"
+    },
+    "aesi_outcome_notes": {
+      "type": "string",
+      "description": "Notes regarding outcomes"
+    },
+    "clinician_acknowledgment": {
+      "type": "boolean",
+      "description": "Clinician confirmed review and verification"
+    },
+    "digital_signature": {
+      "type": "string",
+      "description": "Base64 encoded signature"
+    },
+    "attachments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "attachment_type": {
+            "type": "string"
+          },
+          "attachment_name": {
+            "type": "string"
+          },
+          "attachment_url": {
+            "type": "string"
+          },
+          "attached_date": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "description": "Supporting documents"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "submitted",
+        "reviewed"
+      ],
+      "default": "draft",
+      "description": "Status of the adverse event report"
+    },
+    "supervisor_notified": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether supervisor was notified"
+    },
+    "supervisor_notified_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When supervisor was notified"
+    }
+  },
+  "required": [
+    "org_id",
+    "client_id",
+    "clinician_email",
+    "event_description"
+  ]
+}

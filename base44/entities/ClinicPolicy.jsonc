@@ -1,0 +1,82 @@
+{
+  "name": "ClinicPolicy",
+  "type": "object",
+  "properties": {
+    "org_id": {
+      "type": "string",
+      "description": "Organization this policy belongs to"
+    },
+    "policy_name": {
+      "type": "string",
+      "description": "Name of the policy"
+    },
+    "version_label": {
+      "type": "string",
+      "description": "Version label e.g. v1.0, v2.1"
+    },
+    "effective_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the policy becomes effective"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether this is the currently active policy shown to clients"
+    },
+    "show_primary_consent": {
+      "type": "boolean",
+      "default": true,
+      "description": "Show primary consent for assessment and treatment"
+    },
+    "consent_primary_text": {
+      "type": "string",
+      "description": "Text for primary consent item"
+    },
+    "show_privacy_consent": {
+      "type": "boolean",
+      "default": true,
+      "description": "Show privacy and data storage consent"
+    },
+    "consent_privacy_text": {
+      "type": "string",
+      "description": "Text for privacy consent item"
+    },
+    "show_assessment_consent": {
+      "type": "boolean",
+      "default": true,
+      "description": "Show assessment and testing consent"
+    },
+    "consent_assessment_text": {
+      "type": "string",
+      "description": "Text for assessment consent item"
+    },
+    "show_pricing_consent": {
+      "type": "boolean",
+      "default": true,
+      "description": "Show pricing schedule agreement"
+    },
+    "consent_pricing_text": {
+      "type": "string",
+      "description": "Text for pricing consent item"
+    },
+    "show_cancellation_policy": {
+      "type": "boolean",
+      "default": true,
+      "description": "Show cancellation policy"
+    },
+    "cancellation_policy_text": {
+      "type": "string",
+      "description": "Text for cancellation policy item"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Internal notes about this policy version"
+    }
+  },
+  "required": [
+    "org_id",
+    "policy_name",
+    "version_label"
+  ]
+}

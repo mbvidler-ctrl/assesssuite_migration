@@ -1,0 +1,116 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "clinician_name": {
+      "type": "string",
+      "description": "Professional name of the clinician"
+    },
+    "qualifications": {
+      "type": "string",
+      "description": "Professional qualifications"
+    },
+    "registration_number": {
+      "type": "string",
+      "description": "Professional registration number"
+    },
+    "clinic_name": {
+      "type": "string",
+      "description": "Name of the clinic"
+    },
+    "clinic_address": {
+      "type": "string",
+      "description": "Clinic address"
+    },
+    "clinic_phone": {
+      "type": "string",
+      "description": "Clinic phone number"
+    },
+    "clinic_email": {
+      "type": "string",
+      "description": "Clinic email address"
+    },
+    "clinic_logo_url": {
+      "type": "string",
+      "description": "URL to clinic logo"
+    },
+    "account_status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "active",
+        "suspended",
+        "rejected"
+      ],
+      "default": "pending",
+      "description": "Account approval status"
+    },
+    "rejection_reason": {
+      "type": "string",
+      "description": "Reason for account rejection if applicable"
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Email of admin who approved the account"
+    },
+    "approved_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the account was approved"
+    },
+    "profession": {
+      "type": "string",
+      "description": "Type of profession (e.g., Exercise Physiologist)"
+    },
+    "provider_number": {
+      "type": "string",
+      "description": "Provider number for billing purposes"
+    },
+    "consent_primary_text": {
+      "type": "string",
+      "description": "Custom primary consent text"
+    },
+    "consent_privacy_text": {
+      "type": "string",
+      "description": "Custom privacy consent text"
+    },
+    "consent_assessment_text": {
+      "type": "string",
+      "description": "Custom assessment consent text"
+    },
+    "consent_pricing_text": {
+      "type": "string",
+      "description": "Custom pricing consent text"
+    },
+    "cancellation_policy_text": {
+      "type": "string",
+      "description": "Custom cancellation policy text"
+    },
+    "last_active": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Last time the user was active in the system"
+    }
+  },
+  "required": [
+    "clinician_name",
+    "qualifications",
+    "registration_number",
+    "clinic_name",
+    "clinic_address",
+    "clinic_phone",
+    "clinic_email",
+    "clinic_logo_url",
+    "rejection_reason",
+    "approved_by",
+    "approved_date",
+    "profession",
+    "provider_number",
+    "consent_primary_text",
+    "consent_privacy_text",
+    "consent_assessment_text",
+    "consent_pricing_text",
+    "cancellation_policy_text",
+    "last_active"
+  ]
+}

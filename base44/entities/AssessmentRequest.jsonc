@@ -1,0 +1,56 @@
+{
+  "name": "AssessmentRequest",
+  "type": "object",
+  "properties": {
+    "org_id": {
+      "type": "string",
+      "description": "Organization ID of the user who submitted"
+    },
+    "request_type": {
+      "type": "string",
+      "enum": [
+        "new_assessment",
+        "error_report"
+      ],
+      "description": "Type of request"
+    },
+    "assessment_name": {
+      "type": "string",
+      "description": "Name of the assessment"
+    },
+    "details": {
+      "type": "string",
+      "description": "Details about the request"
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Email of user who submitted"
+    },
+    "user_name": {
+      "type": "string",
+      "description": "Name of user who submitted"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "reviewed",
+        "completed",
+        "rejected"
+      ],
+      "default": "pending",
+      "description": "Status of the request"
+    },
+    "admin_notes": {
+      "type": "string",
+      "description": "Internal notes from admin review"
+    }
+  },
+  "required": [
+    "org_id",
+    "request_type",
+    "details",
+    "user_email",
+    "user_name"
+  ]
+}

@@ -1,0 +1,75 @@
+{
+  "name": "SavedReport",
+  "type": "object",
+  "properties": {
+    "org_id": {
+      "type": "string",
+      "description": "Organization this report belongs to"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Reference to the client"
+    },
+    "report_type": {
+      "type": "string",
+      "description": "Internal report type key (e.g. gp_summary, workcover_pmp)"
+    },
+    "report_name": {
+      "type": "string",
+      "description": "Display name for the report"
+    },
+    "report_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the report was generated"
+    },
+    "date_range_start": {
+      "type": "string",
+      "format": "date",
+      "description": "Start of the report date range"
+    },
+    "date_range_end": {
+      "type": "string",
+      "format": "date",
+      "description": "End of the report date range"
+    },
+    "assessment_ids": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "IDs of assessments included in this report"
+    },
+    "section_content": {
+      "type": "object",
+      "description": "Key-value map of section name to content text"
+    },
+    "active_sections": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Ordered list of sections included in this report"
+    },
+    "report_html": {
+      "type": "string",
+      "description": "Full rendered HTML of the report"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "final"
+      ],
+      "default": "draft",
+      "description": "Report status"
+    }
+  },
+  "required": [
+    "client_id",
+    "org_id",
+    "report_type",
+    "report_name",
+    "report_date"
+  ]
+}

@@ -1,0 +1,54 @@
+{
+  "name": "ClientCondition",
+  "type": "object",
+  "properties": {
+    "org_id": {
+      "type": "string",
+      "description": "Organization this record belongs to"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Reference to client"
+    },
+    "condition_type": {
+      "type": "string",
+      "enum": [
+        "primary",
+        "comorbidity"
+      ],
+      "description": "Type of condition"
+    },
+    "condition_name": {
+      "type": "string",
+      "description": "Name of the condition"
+    },
+    "medication": {
+      "type": "string",
+      "description": "Medication prescribed for this condition"
+    },
+    "diagnosis_date": {
+      "type": "string",
+      "format": "date",
+      "description": "When condition was diagnosed"
+    },
+    "pain_level": {
+      "type": "number",
+      "description": "Current pain level for this condition (0-10)"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about condition"
+    },
+    "is_active": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether condition is currently active"
+    }
+  },
+  "required": [
+    "org_id",
+    "client_id",
+    "condition_name",
+    "condition_type"
+  ]
+}

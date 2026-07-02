@@ -1,0 +1,63 @@
+{
+  "name": "ClientReport",
+  "type": "object",
+  "properties": {
+    "org_id": {
+      "type": "string",
+      "description": "Organization this report belongs to"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Reference to the client"
+    },
+    "report_type": {
+      "type": "string",
+      "enum": [
+        "workcover_pmp",
+        "workcover_progress",
+        "dva_patient_care_plan",
+        "dva_end_cycle_report",
+        "medicare_referral_acceptance",
+        "medicare_initial",
+        "medicare_final",
+        "gp_summary",
+        "private_health_initial",
+        "private_health_progress",
+        "ndis_initial",
+        "tac_functional",
+        "aged_care_assessment",
+        "custom_report"
+      ],
+      "description": "Type of report"
+    },
+    "report_name": {
+      "type": "string",
+      "description": "Display name for the report"
+    },
+    "report_date": {
+      "type": "string",
+      "format": "date",
+      "description": "Date the report was generated"
+    },
+    "report_data": {
+      "type": "object",
+      "description": "The complete report data in JSON format"
+    },
+    "html_content": {
+      "type": "string",
+      "description": "HTML content of the report for quick viewing"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes about this report"
+    }
+  },
+  "required": [
+    "org_id",
+    "client_id",
+    "report_type",
+    "report_name",
+    "report_date",
+    "report_data"
+  ]
+}

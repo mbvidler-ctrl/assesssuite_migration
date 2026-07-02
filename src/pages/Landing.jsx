@@ -1,0 +1,920 @@
+import React, { useState, useEffect } from "react";
+import { base44 } from "@/api/base44Client";
+import { useAuth } from "@/lib/AuthContext";
+import { useNavigate } from "react-router-dom";
+
+// Icon map by funder tag
+const tagIcon = (tag) => {
+  const map = { "WorkCover": "ðŸ¦º", "WorkCover NSW": "ðŸ¦º", "WorkSafe VIC": "ðŸ¦º", "ReturnToWorkSA": "ðŸ¦º", "WorkCover WA": "ðŸ¦º", "DVA": "ðŸŽ–ï¸", "Medicare": "â¤ï¸", "NDIS": "â™¿", "TAC": "ðŸš—", "MAIC": "ðŸš—", "CTP": "ðŸš—", "Aged Care": "ðŸ‘´", "CHSP": "ðŸ‘´", "HCP": "ðŸ‘´", "Legal / FCE": "âš–ï¸", "Medico-Legal": "âš–ï¸", "Cancer": "ðŸŽ—ï¸", "Cardiac": "â¤ï¸", "GP / General": "ðŸ¥", "Private Health": "ðŸ¥", "ACC": "ðŸš—", "Disability": "â™¿", "WSIB": "ðŸ¦º", "WorkSafeBC": "ðŸ¦º", "WCB Alberta": "ðŸ¦º", "EHB": "ðŸ¥", "VAC": "ðŸŽ–ï¸", "NHS": "ðŸ¥", "Cardiac UK": "â¤ï¸", "Pulmonary": "ðŸ«", "Cancer UK": "ðŸŽ—ï¸", "PMI": "ðŸ¥", "RTW UK": "ðŸ¦º", "FCE UK": "âš–ï¸", "HealthierSG": "â¤ï¸", "CDMP": "â¤ï¸", "WICA": "ðŸ¦º", "Corporate": "ðŸ¥", "HSE": "ðŸ¥", "Cardiac IE": "â¤ï¸", "PIAB": "âš–ï¸", "Private IE": "ðŸ¥", "Medical Aid": "ðŸ¥", "COIDA": "ðŸ¦º", "RAF": "ðŸš—", "GEMS": "ðŸ¥" };
+  return map[tag] || "ðŸ“„";
+};
+
+const countryData = {
+  au: [
+    { icon: "ðŸ¥", tag: "GP / General", title: "GP Summary Letter", desc: "Brief update to referring GP summarising interventions and next steps." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update or additional report â€” pulls all prior history." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom formatted report â€” choose any sections and tailor to any referrer or funder." },
+    { icon: "ðŸ¦º", tag: "WorkCover", title: "WorkCover PMP", desc: "Pain management program report documenting injury background, functional capacity, goals, and RTW plan." },
+    { icon: "ðŸ¦º", tag: "WorkCover", title: "WorkCover Progress Report", desc: "Interval progress report with baseline vs current outcome measures and updated RTW recommendations." },
+    { icon: "ðŸ¦º", tag: "WorkCover", title: "WorkCover Discharge / RTW Summary", desc: "Final RTW summary including treatment outcomes, final work capacity, and self-management plan." },
+    { icon: "ðŸ¦º", tag: "WorkCover NSW", title: "NSW SIRA Initial Assessment", desc: "SIRA-aligned initial assessment documenting injury background, functional capacity, and RTW plan." },
+    { icon: "ðŸ¦º", tag: "WorkCover NSW", title: "NSW SIRA â€” Allied Health Treatment Request (AHTR)", desc: "Formal treatment extension request with outcome measures and skilled need justification." },
+    { icon: "ðŸ¦º", tag: "WorkCover NSW", title: "NSW SIRA Progress Report", desc: "Progress report for icare/SIRA-funded clients with functional test results and RTW updates." },
+    { icon: "ðŸ¦º", tag: "WorkCover NSW", title: "NSW SIRA Discharge Summary", desc: "Discharge report documenting final functional capacity and RTW outcome." },
+    { icon: "ðŸ¦º", tag: "WorkSafe VIC", title: "WorkSafe VIC Initial Assessment", desc: "Initial WorkSafe VIC assessment documenting injury, functional baselines, and RTW plan." },
+    { icon: "ðŸ¦º", tag: "WorkSafe VIC", title: "WorkSafe VIC Progress Report", desc: "Progress report with outcome measures and updated RTW recommendations for WorkSafe VIC funders." },
+    { icon: "ðŸ¦º", tag: "WorkSafe VIC", title: "WorkSafe VIC Discharge Summary", desc: "Discharge summary with final functional status and RTW outcome for WorkSafe VIC." },
+    { icon: "ðŸ¦º", tag: "ReturnToWorkSA", title: "ReturnToWorkSA Initial Assessment", desc: "RTWSA-aligned initial assessment with functional measures and recovery/RTW plan." },
+    { icon: "ðŸ¦º", tag: "ReturnToWorkSA", title: "ReturnToWorkSA Progress Report", desc: "Progress report for RTWSA-funded clients with outcome measures and RTW updates." },
+    { icon: "ðŸ¦º", tag: "ReturnToWorkSA", title: "ReturnToWorkSA Discharge Summary", desc: "Final discharge summary for RTWSA clients." },
+    { icon: "ðŸ¦º", tag: "WorkCover WA", title: "WorkCover WA Initial Assessment", desc: "Initial assessment for WorkCover WA-funded clients documenting injury, capacity, and RTW plan." },
+    { icon: "ðŸ¦º", tag: "WorkCover WA", title: "WorkCover WA Progress Report", desc: "Progress report with functional measures and RTW updates for WorkCover WA." },
+    { icon: "ðŸ¦º", tag: "WorkCover WA", title: "WorkCover WA Discharge Summary", desc: "Final discharge summary for WorkCover WA clients." },
+    { icon: "ðŸŽ–ï¸", tag: "DVA", title: "DVA Patient Care Plan", desc: "DVA-compliant care plan with accepted conditions, goals, and proposed exercise intervention." },
+    { icon: "ðŸŽ–ï¸", tag: "DVA", title: "DVA End of Cycle Report", desc: "End-of-cycle progress report with outcome measures and justification for further treatment." },
+    { icon: "â¤ï¸", tag: "Medicare", title: "Medicare Referral Acceptance", desc: "Referral acceptance letter for Medicare CDM-referred clients." },
+    { icon: "â¤ï¸", tag: "Medicare", title: "Medicare Initial Assessment (GPCCMP)", desc: "Initial assessment report for Medicare-referred chronic disease clients with exercise prescription." },
+    { icon: "â¤ï¸", tag: "Medicare", title: "Medicare Final Report", desc: "End-of-referral report with goal attainment and GP discharge communication." },
+    { icon: "ðŸ¥", tag: "Private Health", title: "Private Health Initial Assessment", desc: "Initial assessment for private health-funded clients with diagnosis, goals, and treatment plan." },
+    { icon: "ðŸ¥", tag: "Private Health", title: "Private Health Progress Report", desc: "Progress report for private health clients documenting outcomes and updated goals." },
+    { icon: "â™¿", tag: "NDIS", title: "NDIS Initial Assessment", desc: "Comprehensive NDIS initial report across 7 functional domains with support justification." },
+    { icon: "â™¿", tag: "NDIS", title: "NDIS Progress Report", desc: "NDIS goal-aligned progress report with functional domain updates and support recommendations." },
+    { icon: "â™¿", tag: "NDIS", title: "NDIS Functional Capacity Evaluation", desc: "Detailed NDIS FCE documenting capacity across all 7 domains with AT recommendations." },
+    { icon: "â™¿", tag: "NDIS", title: "NDIS Discharge / Transition Summary", desc: "NDIS discharge report with outcomes, self-management plan, and future support recommendations." },
+    { icon: "ðŸš—", tag: "TAC", title: "TAC Allied Health Treatment & Recovery Plan (AHTRP)", desc: "TAC-aligned functional assessment with accident background, functional tolerances, and treatment plan." },
+    { icon: "ðŸš—", tag: "TAC", title: "TAC Progress Report", desc: "TAC progress report with outcome measures and justification for continued treatment." },
+    { icon: "ðŸš—", tag: "TAC", title: "TAC Discharge Summary", desc: "TAC discharge summary with final functional status and RTW/return-to-activity outcome." },
+    { icon: "ðŸš—", tag: "MAIC", title: "MAIC QLD Initial Assessment", desc: "Initial report for MAIC QLD motor accident clients documenting injury, functional status, and treatment plan." },
+    { icon: "ðŸš—", tag: "MAIC", title: "MAIC QLD Progress Report", desc: "Progress report for MAIC-funded clients with functional outcomes and updated goals." },
+    { icon: "ðŸš—", tag: "MAIC", title: "MAIC QLD Discharge Summary", desc: "Discharge summary for MAIC motor accident clients." },
+    { icon: "ðŸš—", tag: "CTP", title: "CTP Motor Accident â€” Initial Assessment", desc: "Initial report for CTP motor accident clients with functional assessment and treatment plan." },
+    { icon: "ðŸš—", tag: "CTP", title: "CTP Motor Accident â€” Progress Report", desc: "Progress report for CTP-funded clients with outcome measures and goals update." },
+    { icon: "ðŸš—", tag: "CTP", title: "CTP Motor Accident â€” Discharge Summary", desc: "Discharge summary for CTP motor accident clients." },
+    { icon: "ðŸ‘´", tag: "HCP", title: "Home Care Package â€” Initial Functional Assessment", desc: "HCP initial assessment including falls risk, ADL capacity, mobility, and goals." },
+    { icon: "ðŸ‘´", tag: "HCP", title: "Home Care Package â€” Individual Care Plan", desc: "HCP care plan with service types, exercise program, and review schedule." },
+    { icon: "ðŸ‘´", tag: "HCP", title: "Home Care Package â€” Annual Review", desc: "Annual HCP review comparing functional outcomes and updating the service plan." },
+    { icon: "ðŸ‘´", tag: "CHSP", title: "CHSP Initial Assessment", desc: "CHSP initial assessment with falls risk, ADL capacity, and support plan." },
+    { icon: "ðŸ‘´", tag: "CHSP", title: "CHSP Support Plan", desc: "CHSP support plan with service goals, frequency, and client consent." },
+    { icon: "ðŸ‘´", tag: "Aged Care", title: "Aged Care Assessment", desc: "Comprehensive aged care assessment with functional status, falls risk, cognition screening, and management plan." },
+    { icon: "âš–ï¸", tag: "Legal / FCE", title: "Functional Capacity Evaluation (FCE)", desc: "Detailed medicolegal FCE documenting postural tolerances, material handling, validity indicators, and RTW recommendations." },
+    { icon: "âš–ï¸", tag: "Medico-Legal", title: "Medico-Legal / Independent Medical Report", desc: "Independent medico-legal report with causation analysis, diagnosis, functional limitations, and responses to legal questions." },
+    { icon: "ðŸŽ—ï¸", tag: "Cancer", title: "Cancer / Oncology â€” Initial Assessment", desc: "Oncology initial assessment with cancer type, treatment status, side effects, exercise precautions, and prescription." },
+    { icon: "ðŸŽ—ï¸", tag: "Cancer", title: "Cancer / Oncology â€” Progress Report", desc: "Progress report for cancer rehab clients with outcome measures and updated exercise prescription." },
+    { icon: "â¤ï¸", tag: "Cardiac", title: "Cardiac Rehab â€” Phase I (Inpatient)", desc: "Inpatient cardiac rehab report with event summary, activity progression, education, and Phase II recommendations." },
+    { icon: "â¤ï¸", tag: "Cardiac", title: "Cardiac Rehab â€” Phase II (Outpatient)", desc: "Outpatient cardiac rehab report with risk stratification, exercise prescription, and outcome measures." },
+    { icon: "â¤ï¸", tag: "Cardiac", title: "Cardiac Rehab â€” Phase III Completion Report", desc: "Phase III completion report with exercise capacity change, risk factor improvements, and maintenance recommendations." },
+    { icon: "â¤ï¸", tag: "Cardiac", title: "Cardiac Rehab â€” Phase IV Referral Letter", desc: "Phase IV referral letter summarising outcomes and recommended community maintenance exercise parameters." },
+  ],
+  nz: [
+    { icon: "ðŸš—", tag: "ACC", title: "ACC â€” Initial Assessment Report", desc: "ACC-aligned initial report documenting injury background, assessment findings, goals, and proposed treatment plan." },
+    { icon: "ðŸš—", tag: "ACC", title: "ACC â€” Progress Report (ACC32 Extension)", desc: "Progress report for ACC extension requests with outcome measures and treatment justification." },
+    { icon: "ðŸš—", tag: "ACC", title: "ACC â€” Functional Capacity Evaluation (FCE)", desc: "FCE for ACC clients documenting physical tolerances, work capacity, and RTW recommendations." },
+    { icon: "ðŸš—", tag: "ACC", title: "ACC â€” Discharge / Completion Summary", desc: "Discharge summary for ACC clients with functional outcomes and home programme." },
+    { icon: "â™¿", tag: "Disability", title: "Disability Support â€” Functional Assessment", desc: "Whaikaha/MoH-aligned functional assessment documenting support needs across ADL domains." },
+    { icon: "ðŸ¥", tag: "Private Health", title: "Private Insurance â€” Initial Assessment", desc: "Initial assessment report for NZ private insurance-funded clients." },
+    { icon: "ðŸ¥", tag: "Private Health", title: "Private Insurance â€” Progress Report", desc: "Progress report for NZ private insurance clients with outcomes and justification for continued sessions." },
+    { icon: "ðŸ¥", tag: "GP / General", title: "GP Summary Letter", desc: "Professional GP correspondence summarising EP assessment findings and intervention." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for NZ clients." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom formatted report for any NZ funder or referrer." },
+  ],
+  uk: [
+    { icon: "ðŸ¥", tag: "NHS", title: "NHS ERS â€” Initial Assessment", desc: "NHS Exercise Referral Scheme initial assessment with risk stratification, fitness baseline, and exercise prescription." },
+    { icon: "ðŸ¥", tag: "NHS", title: "NHS ERS â€” Progress Report", desc: "NHS ERS mid-programme progress report with attendance, outcome measures, and goals update." },
+    { icon: "ðŸ¥", tag: "NHS", title: "NHS ERS â€” Completion / Discharge Report", desc: "NHS ERS end-of-programme report with exercise capacity change and ongoing activity recommendations." },
+    { icon: "â¤ï¸", tag: "Cardiac UK", title: "Cardiac Rehab â€” Initial Clinical Assessment", desc: "UK cardiac rehab initial assessment with BACPR/SIGN risk stratification, exercise tolerance, and Phase II prescription." },
+    { icon: "â¤ï¸", tag: "Cardiac UK", title: "Cardiac Rehab â€” Phase III Completion Report", desc: "UK cardiac rehab completion report with outcomes, risk factor improvements, and Phase IV referral." },
+    { icon: "ðŸ«", tag: "Pulmonary", title: "Pulmonary Rehab â€” Initial Assessment", desc: "UK pulmonary rehab assessment with spirometry, MRC dyspnoea, ISWT/6MWT, and SGRQ/CAT." },
+    { icon: "ðŸ«", tag: "Pulmonary", title: "Pulmonary Rehab â€” Completion Report", desc: "UK pulmonary rehab completion with exercise capacity change and maintenance recommendations." },
+    { icon: "ðŸŽ—ï¸", tag: "Cancer UK", title: "Cancer Rehab â€” Initial Exercise Assessment", desc: "UK cancer rehab initial report with HNA summary, fitness baseline, and exercise prescription." },
+    { icon: "ðŸŽ—ï¸", tag: "Cancer UK", title: "Cancer Rehab â€” Progress Report", desc: "UK cancer rehab progress report with attendance, outcomes, and updated exercise tolerance." },
+    { icon: "ðŸŽ—ï¸", tag: "Cancer UK", title: "Cancer Rehab â€” End-of-Programme Report", desc: "UK cancer rehab end-of-programme with outcomes, wellbeing results, and onward referral." },
+    { icon: "ðŸ¥", tag: "PMI", title: "PMI â€” Initial Assessment / Consultation Report", desc: "UK private medical insurance initial report with clinical justification for treatment." },
+    { icon: "ðŸ¥", tag: "PMI", title: "PMI â€” Progress Report", desc: "PMI progress report with outcome measures and justification for continued treatment." },
+    { icon: "ðŸ¥", tag: "PMI", title: "PMI â€” Discharge Report", desc: "PMI discharge report with treatment outcomes and home programme." },
+    { icon: "âš–ï¸", tag: "FCE UK", title: "FCE / Work Capacity Assessment", desc: "UK work capacity assessment documenting functional tolerances, validity indicators, and RTW recommendations." },
+    { icon: "ðŸ¦º", tag: "RTW UK", title: "Return to Work Progress Report", desc: "UK RTW progress report with current functional status, work capacity, and graded RTW plan." },
+    { icon: "ðŸ¥", tag: "GP / General", title: "GP / Specialist Summary Letter", desc: "UK GP correspondence summarising assessment findings and intervention." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for UK clients." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom report for any UK funder or referrer." },
+  ],
+  ca: [
+    { icon: "ðŸ¦º", tag: "WSIB", title: "WSIB â€” Initial Assessment Report", desc: "WSIB Ontario initial report with mechanism of injury, functional limitations, diagnosis, and RTW recommendations." },
+    { icon: "ðŸ¦º", tag: "WSIB", title: "WSIB â€” Functional Abilities Form (FAF)", desc: "WSIB FAF documenting physical tolerances, work status, restrictions, and expected return date." },
+    { icon: "ðŸ¦º", tag: "WSIB", title: "WSIB â€” Progress Report", desc: "WSIB progress report with outcome measures, functional progress, and goals update." },
+    { icon: "ðŸ¦º", tag: "WSIB", title: "WSIB â€” Return-to-Work Summary", desc: "WSIB RTW discharge summary with final capacity, remaining restrictions, and employer recommendations." },
+    { icon: "ðŸ¦º", tag: "WorkSafeBC", title: "WorkSafeBC â€” Initial Assessment", desc: "WorkSafeBC initial report documenting claim details, functional assessment, and RTW plan." },
+    { icon: "ðŸ¦º", tag: "WorkSafeBC", title: "WorkSafeBC â€” Functional Capacity Assessment (FCA)", desc: "WorkSafeBC FCA with testing results, work tolerances, and disability rating recommendations." },
+    { icon: "ðŸ¦º", tag: "WorkSafeBC", title: "WorkSafeBC â€” Progress Report", desc: "Progress report for WorkSafeBC-funded clients with functional outcomes and updated plan." },
+    { icon: "ðŸ¦º", tag: "WCB Alberta", title: "WCB Alberta â€” Initial Assessment", desc: "WCB Alberta initial assessment documenting injury, capacity, diagnosis, and RTW plan." },
+    { icon: "ðŸ¦º", tag: "WCB Alberta", title: "WCB Alberta â€” Functional Capacity Evaluation (FCE)", desc: "WCB Alberta FCE with physical demands classification, validity indicators, and RTW recommendations." },
+    { icon: "ðŸ¦º", tag: "WCB Alberta", title: "WCB Alberta â€” Progress Report", desc: "Progress report for WCB Alberta clients with outcome measures and work capacity update." },
+    { icon: "ðŸ¥", tag: "EHB", title: "Extended Health Benefits â€” Initial Assessment", desc: "EHB initial report with assessment findings, diagnosis, and clinical justification for treatment." },
+    { icon: "ðŸ¥", tag: "EHB", title: "Extended Health Benefits â€” Progress Report", desc: "EHB progress report with outcome measures and justification for continued sessions." },
+    { icon: "ðŸŽ–ï¸", tag: "VAC", title: "Veterans Affairs Canada â€” Initial Assessment", desc: "VAC initial assessment with service-related history, functional limitations, and rehabilitation plan." },
+    { icon: "ðŸŽ–ï¸", tag: "VAC", title: "Veterans Affairs Canada â€” Progress Report", desc: "VAC progress report aligned to rehabilitation goals with functional outcomes update." },
+    { icon: "ðŸ¥", tag: "GP / General", title: "GP Summary Letter", desc: "Professional GP correspondence summarising EP assessment and intervention." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for Canadian clients." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom report for any Canadian funder or referrer." },
+  ],
+  us: [
+    { icon: "ðŸ¥", tag: "USA", title: "Initial Evaluation / Examination", desc: "ACSM-aligned initial evaluation with subjective/objective findings, goals, and plan of care." },
+    { icon: "ðŸ¥", tag: "USA", title: "Plan of Care / Certification Packet", desc: "Insurance plan of care with diagnoses, goals, frequency/duration, and ordering provider certification." },
+    { icon: "ðŸ¥", tag: "USA", title: "Progress Report / Re-examination", desc: "Progress re-examination with objective results, goal attainment, and clinical justification for continued care." },
+    { icon: "ðŸ¥", tag: "USA", title: "Discharge Summary", desc: "Discharge report with goal attainment, functional status, home programme, and referral recommendations." },
+    { icon: "ðŸ¥", tag: "USA", title: "Prior Authorization / Medical Necessity", desc: "Prior auth packet with clinical summary, objective findings, goal rationale, and skilled need justification." },
+    { icon: "ðŸ¥", tag: "GP / General", title: "GP Summary Letter", desc: "Physician correspondence summarising EP assessment and intervention." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for US clients." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom report for any US insurer, hospital, or referrer." },
+  ],
+  ie: [
+    { icon: "ðŸ¥", tag: "HSE", title: "HSE â€” Initial Assessment Report", desc: "HSE programme initial assessment with risk stratification, baseline assessment, and exercise prescription." },
+    { icon: "ðŸ¥", tag: "HSE", title: "HSE â€” Progress Review Report", desc: "HSE mid-programme progress review with attendance, outcomes, and updated plan." },
+    { icon: "ðŸ¥", tag: "HSE", title: "HSE â€” Discharge Summary", desc: "HSE discharge summary with programme outcomes and maintenance recommendations." },
+    { icon: "â¤ï¸", tag: "Cardiac IE", title: "Cardiac Rehab â€” Initial Assessment (Ireland)", desc: "Irish cardiac rehab initial assessment with cardiovascular risk factors, exercise assessment, and Phase II prescription." },
+    { icon: "â¤ï¸", tag: "Cardiac IE", title: "Cardiac Rehab â€” Completion Report (Ireland)", desc: "Irish cardiac rehab completion with outcomes, risk factor improvements, and maintenance recommendations." },
+    { icon: "âš–ï¸", tag: "PIAB", title: "PIAB â€” Personal Injury Functional Assessment", desc: "PIAB-aligned functional assessment with injury background, capacity measures, and prognosis." },
+    { icon: "ðŸ¥", tag: "Private IE", title: "Private Insurance â€” Initial Assessment (Ireland)", desc: "Initial assessment for Irish private insurance clients with assessment findings and treatment plan." },
+    { icon: "ðŸ¥", tag: "Private IE", title: "Private Insurance â€” Progress Report (Ireland)", desc: "Progress report for Irish private insurance clients with outcomes and justification for continued sessions." },
+    { icon: "ðŸ¥", tag: "Private IE", title: "Private Insurance â€” Discharge Report (Ireland)", desc: "Discharge report for Irish private insurance clients with outcomes and home programme." },
+    { icon: "ðŸ¥", tag: "GP / General", title: "GP / Specialist Summary Letter (Ireland)", desc: "Irish GP correspondence summarising EP assessment and intervention." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for Irish clients." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom report for any Irish funder or referrer." },
+  ],
+  sg: [
+    { icon: "â¤ï¸", tag: "HealthierSG", title: "Healthier SG â€” Initial Assessment Report", desc: "Healthier SG initial assessment with health plan goals, chronic conditions, and exercise/rehab plan." },
+    { icon: "â¤ï¸", tag: "HealthierSG", title: "Healthier SG â€” Programme Progress Report", desc: "Progress report with chronic disease indicators (HbA1c, BP, BMI) and engagement update." },
+    { icon: "â¤ï¸", tag: "HealthierSG", title: "Healthier SG â€” Completion / Discharge Report", desc: "Completion report with chronic disease indicator changes and self-management recommendations." },
+    { icon: "â¤ï¸", tag: "CDMP", title: "CDMP â€” Initial Exercise Assessment", desc: "CDMP initial report with chronic disease indicators, fitness baseline, and exercise prescription." },
+    { icon: "â¤ï¸", tag: "CDMP", title: "CDMP â€” Progress / Review Report", desc: "CDMP progress review with chronic disease indicators, exercise capacity, and adherence update." },
+    { icon: "â¤ï¸", tag: "CDMP", title: "CDMP â€” Discharge Summary", desc: "CDMP discharge with chronic disease indicator changes and home programme." },
+    { icon: "ðŸ¦º", tag: "WICA", title: "WICA â€” Work Injury Assessment", desc: "MOM WICA work injury report with functional assessment, diagnosis, and RTW recommendations." },
+    { icon: "ðŸ¦º", tag: "WICA", title: "WICA â€” Return-to-Work Plan", desc: "WICA RTW plan with graded return duties, employer recommendations, and expected RTW date." },
+    { icon: "ðŸ¥", tag: "Corporate", title: "Corporate / Private Insurance â€” Initial Assessment", desc: "Initial assessment for Singapore private insurance and corporate health clients." },
+    { icon: "ðŸ¥", tag: "GP / General", title: "GP Summary Letter", desc: "Physician correspondence summarising EP findings and exercise prescription." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for Singapore clients." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom report for any Singapore funder or referrer." },
+  ],
+  za: [
+    { icon: "ðŸ¥", tag: "Medical Aid", title: "Medical Aid â€” Initial Assessment Report", desc: "Medical aid initial report with ICD-10 diagnosis, assessment findings, and clinical motivation for treatment." },
+    { icon: "ðŸ¥", tag: "Medical Aid", title: "Medical Aid â€” Progress Report", desc: "Progress report for medical aid clients with outcome measures and motivation for continued sessions." },
+    { icon: "ðŸ¥", tag: "Medical Aid", title: "Medical Aid â€” Discharge Report", desc: "Discharge report for medical aid clients with final outcomes and home programme." },
+    { icon: "ðŸ¦º", tag: "COIDA", title: "COIDA â€” Initial Assessment Report", desc: "COIDA initial report with injury background, functional assessment, and RTW recommendations." },
+    { icon: "ðŸ¦º", tag: "COIDA", title: "COIDA â€” Progress Report", desc: "COIDA progress report with outcome measures, work capacity update, and goals update." },
+    { icon: "ðŸ¦º", tag: "COIDA", title: "COIDA â€” Return-to-Work Summary", desc: "COIDA RTW discharge with final capacity, remaining restrictions, and employer recommendations." },
+    { icon: "ðŸš—", tag: "RAF", title: "RAF â€” Initial Assessment Report", desc: "RAF motor vehicle accident initial report with functional assessment, diagnosis, and treatment plan." },
+    { icon: "ðŸš—", tag: "RAF", title: "RAF â€” Progress Report", desc: "RAF progress report with functional outcomes and updated goals." },
+    { icon: "ðŸ¥", tag: "GEMS", title: "GEMS â€” Initial Assessment Report", desc: "GEMS government employees medical scheme initial report with ICD-10 diagnosis and clinical motivation." },
+    { icon: "ðŸ¥", tag: "GEMS", title: "GEMS â€” Progress Report", desc: "GEMS progress report with outcome measures and motivation for continued sessions." },
+    { icon: "ðŸ¥", tag: "GP / General", title: "GP Summary Letter", desc: "GP correspondence summarising EP assessment and intervention." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for South African clients." },
+    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom report for any South African funder or referrer." },
+  ],
+};
+
+const countryButtons = [
+  { code: "au", label: "ðŸ‡¦ðŸ‡º Australia" },
+  { code: "nz", label: "ðŸ‡³ðŸ‡¿ New Zealand" },
+  { code: "uk", label: "ðŸ‡¬ðŸ‡§ United Kingdom" },
+  { code: "ca", label: "ðŸ‡¨ðŸ‡¦ Canada" },
+  { code: "us", label: "ðŸ‡ºðŸ‡¸ United States" },
+  { code: "ie", label: "ðŸ‡®ðŸ‡ª Ireland" },
+  { code: "sg", label: "ðŸ‡¸ðŸ‡¬ Singapore" },
+  { code: "za", label: "ðŸ‡¿ðŸ‡¦ South Africa" },
+];
+
+export default function Landing() {
+  const [activeCountry, setActiveCountry] = useState("au");
+  const [showSignupModal, setShowSignupModal] = useState(false);
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [capturedEmail, setCapturedEmail] = useState('');
+  const [capturedName, setCapturedName] = useState('');
+  const [selectedPlan, setSelectedPlan] = useState('monthly');
+  const { navigateToLogin } = useAuth();
+  const navigate = useNavigate();
+
+  const showSuccess = new URLSearchParams(window.location.search).get('success') === 'true';
+  const [showComingSoon, setShowComingSoon] = useState(false);
+
+  const handleGetStarted = (plan = 'monthly') => {
+    window.location.href = '/signup';
+  };
+
+  const handleEmailSubmit = () => {
+    const base = selectedPlan === 'annual' 
+      ? 'https://buy.stripe.com/3cIbJ2fBX4V34GLbR124001' 
+      : 'https://buy.stripe.com/8x2dRagG15Z7a15f3d24002';
+    const url = capturedEmail 
+      ? base + '?prefilled_email=' + encodeURIComponent(capturedEmail)
+      : base;
+    window.open(url, '_self');
+  };
+
+  useEffect(() => {
+    function animateCounter(id, target, suffix, duration) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const start = performance.now();
+      function update(now) {
+        const elapsed = now - start;
+        const progress = Math.min(elapsed / duration, 1);
+        const eased = 1 - Math.pow(1 - progress, 3);
+        el.textContent = Math.floor(eased * target) + suffix;
+        if (progress < 1) requestAnimationFrame(update);
+      }
+      requestAnimationFrame(update);
+    }
+    function onVisible(el, callback) {
+      const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+          if (entry.isIntersecting) { callback(); observer.disconnect(); }
+        });
+      }, { threshold: 0.3 });
+      observer.observe(el);
+    }
+    const statSection = document.querySelector('.stat-row');
+    if (statSection) {
+      onVisible(statSection, () => {
+        animateCounter('stat-assessments', 226, '+', 1200);
+        animateCounter('stat-reports', 128, '+', 1000);
+      });
+    }
+  }, []);
+
+  return (
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
+        .lp * { margin: 0; padding: 0; box-sizing: border-box; }
+        .lp { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; background: #fff; }
+        .lp a { text-decoration: none; color: inherit; }
+        .lp nav { display: flex; justify-content: space-between; align-items: center; padding: 18px 60px; position: sticky; top: 0; background: rgba(255,255,255,0.97); backdrop-filter: blur(8px); border-bottom: 1px solid #f0f0f0; z-index: 100; }
+        .lp .nav-brand { display: flex; flex-direction: column; }
+        .lp .nav-logo { font-size: 20px; font-weight: 800; color: #0f172a; letter-spacing: -0.5px; }
+        .lp .nav-logo span { color: #2563eb; }
+        .lp .nav-product { font-size: 11px; color: #64748b; font-weight: 500; margin-top: 1px; }
+        .lp .nav-links { display: flex; gap: 32px; align-items: center; }
+        .lp .nav-links a { font-size: 15px; color: #555; font-weight: 500; transition: color 0.2s; }
+        .lp .nav-links a:hover { color: #2563eb; }
+        .lp .nav-cta { background: #2563eb; color: #fff !important; padding: 10px 22px; border-radius: 8px; font-weight: 600; font-size: 14px !important; cursor: pointer; }
+        .lp .nav-cta:hover { background: #1d4ed8 !important; }
+        .lp .nav-signin { background: transparent; color: #374151 !important; padding: 10px 18px; border-radius: 8px; font-weight: 600; font-size: 14px !important; cursor: pointer; border: 1px solid #e2e8f0; }
+        .lp .nav-signin:hover { background: #f8fafc !important; border-color: #cbd5e1 !important; }
+        .lp .hero { background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%); padding: 100px 60px 90px; text-align: center; }
+        .lp .hero-badge { display: inline-block; background: #dbeafe; color: #1d4ed8; font-size: 13px; font-weight: 600; padding: 6px 16px; border-radius: 100px; margin-bottom: 28px; }
+        .lp .hero-company { font-size: 15px; font-weight: 700; color: #2563eb; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
+        .lp .hero h1 { font-size: 56px; font-weight: 900; line-height: 1.1; color: #0f172a; max-width: 840px; margin: 0 auto 12px; letter-spacing: -1.5px; font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif; }
+        .lp .hero-product { font-size: 22px; font-weight: 700; color: #2563eb; margin-bottom: 24px; }
+        .lp .hero p { font-size: 20px; color: #475569; max-width: 620px; margin: 0 auto 40px; line-height: 1.7; }
+        .lp .hero-ctas { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
+        .lp .btn-primary { background: #2563eb; color: #fff; padding: 16px 36px; border-radius: 10px; font-size: 17px; font-weight: 700; transition: background 0.2s, transform 0.1s; display: inline-block; cursor: pointer; border: none; }
+        .lp .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
+        .lp .btn-secondary { background: #fff; color: #2563eb; border: 2px solid #2563eb; padding: 16px 36px; border-radius: 10px; font-size: 17px; font-weight: 700; display: inline-block; }
+        .lp .btn-secondary:hover { background: #eff6ff; }
+        .lp .hero-sub { margin-top: 18px; font-size: 14px; color: #94a3b8; }
+        .lp .ep-strip { background: #0f172a; padding: 16px 60px; text-align: center; }
+        .lp .ep-strip p { color: #94a3b8; font-size: 14px; font-weight: 500; }
+        .lp .ep-strip p strong { color: #e2e8f0; }
+        .lp section { padding: 90px 60px; }
+        .lp .section-label { font-size: 12px; font-weight: 700; color: #2563eb; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; }
+        .lp h2 { font-size: 42px; font-weight: 800; color: #0f172a; line-height: 1.2; letter-spacing: -1px; margin-bottom: 16px; font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif; }
+        .lp .section-sub { font-size: 18px; color: #64748b; line-height: 1.7; max-width: 600px; margin-bottom: 52px; }
+        .lp .problem { background: #fff; text-align: center; }
+        .lp .problem h2 { max-width: 700px; margin: 0 auto 16px; }
+        .lp .problem .section-sub { margin: 0 auto 52px; }
+        .lp .problem-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; max-width: 1000px; margin: 0 auto; }
+        .lp .problem-card { background: #fef2f2; border: 1px solid #fecaca; border-radius: 14px; padding: 32px; text-align: left; }
+        .lp .problem-card .icon { font-size: 28px; margin-bottom: 14px; }
+        .lp .problem-card h3 { font-size: 17px; font-weight: 700; color: #0f172a; margin-bottom: 8px; }
+        .lp .problem-card p { font-size: 15px; color: #64748b; line-height: 1.6; }
+        .lp .features { background: #f8fafc; }
+        .lp .features-grid { display: flex; flex-direction: column; gap: 0; max-width: 900px; margin: 0 auto; }
+        .lp .feature-card { background: transparent; border-radius: 0; padding: 32px 0; border: none; border-bottom: 1px solid #e2e8f0; position: relative; overflow: visible; box-shadow: none; display: flex; gap: 28px; align-items: flex-start; transition: none; }
+        .lp .feature-card:last-child { border-bottom: none; }
+        .lp .feature-card::before { content: ""; display: none; }
+        .lp .feature-card:hover { box-shadow: none; transform: none; }
+        .lp .feature-card:nth-child(1) { --accent-color: transparent; }
+        .lp .feature-card:nth-child(2) { --accent-color: transparent; }
+        .lp .feature-card:nth-child(3) { --accent-color: transparent; }
+        .lp .feature-card:nth-child(4) { --accent-color: transparent; }
+        .lp .feature-card:nth-child(5) { --accent-color: transparent; }
+        .lp .feature-card:nth-child(6) { --accent-color: transparent; }
+        .lp .feature-card:nth-child(7) { --accent-color: transparent; }
+        .lp .feature-card:nth-child(8) { --accent-color: transparent; }
+        .lp .feature-icon { width: 48px; height: 48px; border-radius: 8px; background: #f8fafc; display: flex; align-items: center; justify-content: center; font-size: 24px; margin: 0; flex-shrink: 0; box-shadow: none; }
+        .lp .feature-card:nth-child(1) .feature-icon { --bg-color: transparent; }
+        .lp .feature-card:nth-child(2) .feature-icon { --bg-color: transparent; }
+        .lp .feature-card:nth-child(3) .feature-icon { --bg-color: transparent; }
+        .lp .feature-card:nth-child(4) .feature-icon { --bg-color: transparent; }
+        .lp .feature-card:nth-child(5) .feature-icon { --bg-color: transparent; }
+        .lp .feature-card:nth-child(6) .feature-icon { --bg-color: transparent; }
+        .lp .feature-card:nth-child(7) .feature-icon { --bg-color: transparent; }
+        .lp .feature-card:nth-child(8) .feature-icon { --bg-color: transparent; }
+        .lp .feature-card h3 { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 8px; text-align: left; letter-spacing: -0.3px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        .lp .feature-card p { font-size: 14px; color: #64748b; line-height: 1.6; text-align: left; font-weight: 400; }
+        .lp .feature-card-content { flex: 1; }
+        .lp .library { background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 50%, #f0fdf4 100%); position: relative; text-align: center; overflow: hidden; }
+        .lp .library .section-label { color: #2563eb; }
+        .lp .library h2 { color: #0f172a; }
+        .lp .library .section-sub { color: #475569; margin-left: auto; margin-right: auto; }
+        .lp .stat-row { display: flex; gap: 24px; margin-bottom: 48px; flex-wrap: wrap; justify-content: center; }
+        .lp .stat-box { background: rgba(255,255,255,0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.9); border-radius: 16px; padding: 28px 40px; box-shadow: 0 4px 24px rgba(37,99,235,0.08); }
+        .lp .stat-box .number { font-size: 48px; font-weight: 900; color: #2563eb; line-height: 1; }
+        .lp .stat-box .label { font-size: 14px; color: #64748b; margin-top: 4px; font-weight: 500; }
+        .lp .categories { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 40px; justify-content: center; }
+        .lp .cat-pill { background: rgba(255,255,255,0.75); backdrop-filter: blur(8px); border: 1px solid rgba(37,99,235,0.2); color: #2563eb; padding: 8px 18px; border-radius: 100px; font-size: 13px; font-weight: 600; box-shadow: 0 2px 8px rgba(37,99,235,0.06); }
+
+        .lp .screenshot-row { display: flex; gap: 32px; margin-bottom: 64px; justify-content: center; align-items: center; animation: scroll-carousel 30s linear infinite; }
+        .lp .screenshot-card { flex: 0 0 340px; min-width: 240px; max-width: 340px; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 40px rgba(15,23,42,0.18); border: 3px solid #fff; background: #fff; transition: transform 0.2s; }
+        .lp .screenshot-card:nth-child(1) { transform: rotate(-2.5deg); }
+        .lp .screenshot-card:nth-child(2) { transform: rotate(1.2deg) translateY(-10px); }
+        .lp .screenshot-card:nth-child(3) { transform: rotate(-1.5deg) translateY(6px); }
+        .lp .screenshot-card:nth-child(4) { transform: rotate(2.2deg) translateY(-8px); }
+        .lp .screenshot-card:nth-child(5) { transform: rotate(-1.8deg) translateY(4px); }
+        .lp .screenshot-card:hover { transform: rotate(0deg) translateY(-4px) scale(1.02) !important; }
+        @keyframes scroll-carousel { 
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-20%); }
+        }
+        .lp .screenshot-card img { width: 100%; display: block; }
+        
+        .lp .ep-focus { background: #fff; }
+        .lp .country-tabs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 36px; }
+        .lp .country-btn { background: #f1f5f9; border: 2px solid #e2e8f0; color: #475569; padding: 10px 20px; border-radius: 100px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+        .lp .country-btn:hover { border-color: #2563eb; color: #2563eb; background: #eff6ff; }
+        .lp .country-btn.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+        .lp .report-carousel-wrap { position: relative; }
+        .lp .report-carousel { display: flex; gap: 16px; overflow-x: auto; padding-bottom: 16px; scroll-behavior: smooth; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+        .lp .report-carousel::-webkit-scrollbar { display: none; }
+        .lp .report-card { flex: 0 0 260px; border: 1px solid #e2e8f0; border-radius: 14px; padding: 24px; transition: border-color 0.2s, box-shadow 0.2s; background: #fff; }
+        .lp .report-card:hover { border-color: #2563eb; box-shadow: 0 4px 20px rgba(37,99,235,0.08); }
+        .lp .report-card .rep-icon { font-size: 24px; margin-bottom: 10px; }
+        .lp .report-tag { display: inline-block; background: #eff6ff; color: #2563eb; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 100px; margin-bottom: 10px; letter-spacing: 0.5px; text-transform: uppercase; }
+        .lp .report-card h3 { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 8px; line-height: 1.4; }
+        .lp .report-card p { font-size: 13px; color: #64748b; line-height: 1.6; }
+        .lp .carousel-nav { display: flex; gap: 10px; margin-top: 20px; }
+        .lp .carousel-btn { width: 38px; height: 38px; border-radius: 50%; border: 2px solid #e2e8f0; background: #fff; color: #374151; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+        .lp .carousel-btn:hover { border-color: #2563eb; color: #2563eb; background: #eff6ff; }
+        .lp .report-count { font-size: 13px; color: #94a3b8; margin-top: 12px; }
+        .lp .reporting { background: linear-gradient(135deg, #eff6ff, #f0f9ff); }
+        .lp .reporting-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: start; }
+        .lp .funder-list { display: flex; flex-direction: column; gap: 8px; max-height: 520px; overflow-y: auto; padding-right: 4px; scrollbar-width: thin; scrollbar-color: #e2e8f0 transparent; }
+        .lp .funder-list::-webkit-scrollbar { width: 4px; }
+        .lp .funder-list::-webkit-scrollbar-track { background: transparent; }
+        .lp .funder-list::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 4px; }
+        .lp .funder-item { display: flex; align-items: center; gap: 14px; background: #fff; border-radius: 10px; padding: 14px 18px; border: 1px solid #e2e8f0; }
+        .lp .funder-check { width: 24px; height: 24px; background: #dcfce7; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #16a34a; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+        .lp .funder-item span { font-size: 14px; color: #475569; font-weight: 400; }
+        .lp .capabilities { background: #f8fafc; }
+        .lp .cap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+        .lp .cap-item { background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; padding: 18px 22px; display: flex; align-items: center; gap: 12px; }
+        .lp .cap-dot { width: 9px; height: 9px; background: #2563eb; border-radius: 50%; flex-shrink: 0; }
+        .lp .cap-item span { font-size: 14px; color: #374151; font-weight: 500; }
+        .lp .coming-soon { background: #0f172a; padding: 70px 60px; text-align: center; }
+        .lp .coming-soon h2 { color: #fff; margin-bottom: 14px; }
+        .lp .coming-soon p { color: #94a3b8; font-size: 18px; max-width: 560px; margin: 0 auto 40px; line-height: 1.7; }
+        .lp .discipline-pills { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+        .lp .discipline-pill { background: #1e293b; border: 1px solid #334155; color: #94a3b8; padding: 10px 20px; border-radius: 100px; font-size: 14px; font-weight: 500; }
+        .lp .discipline-pill.current { background: #2563eb; border-color: #2563eb; color: #fff; }
+        .lp .pricing { background: #fff; text-align: center; }
+        .lp .pricing .section-sub { margin: 0 auto 52px; }
+        .lp .pricing-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 28px; max-width: 780px; margin: 0 auto 24px; }
+        .lp .pricing-card { border: 2px solid #e2e8f0; border-radius: 20px; padding: 44px 40px; text-align: left; position: relative; }
+        .lp .pricing-card.featured { border-color: #2563eb; background: #eff6ff; }
+        .lp .popular-badge { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); background: #2563eb; color: #fff; font-size: 12px; font-weight: 700; padding: 4px 16px; border-radius: 100px; white-space: nowrap; }
+        .lp .plan-name { font-size: 13px; font-weight: 700; color: #2563eb; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        .lp .price { font-size: 52px; font-weight: 900; color: #0f172a; line-height: 1; margin-bottom: 4px; }
+        .lp .price span { font-size: 20px; font-weight: 500; color: #64748b; }
+        .lp .billing { font-size: 14px; color: #64748b; margin-bottom: 24px; }
+        .lp .save-badge { display: inline-block; background: #dcfce7; color: #16a34a; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 100px; margin-bottom: 24px; }
+        .lp .pricing-features { list-style: none; display: flex; flex-direction: column; gap: 11px; margin-bottom: 32px; padding: 0; }
+        .lp .pricing-features li { display: flex; align-items: center; gap: 10px; font-size: 15px; color: #374151; }
+        .lp .pricing-features li::before { content: "âœ“"; color: #16a34a; font-weight: 700; }
+        .lp .pricing-note { font-size: 14px; color: #94a3b8; }
+        .lp .final-cta { background: #f8fafc; padding: 60px 60px 40px; text-align: center; border-top: 1px solid #e2e8f0; }
+        .lp .final-cta h2 { color: #0f172a; margin-bottom: 16px; }
+        .lp .final-cta p { font-size: 20px; color: #64748b; max-width: 560px; margin: 0 auto 40px; line-height: 1.7; }
+        .lp .btn-white { background: #2563eb; color: #fff; padding: 18px 44px; border-radius: 10px; font-size: 18px; font-weight: 800; display: inline-block; transition: background 0.15s, transform 0.15s; cursor: pointer; border: none; }
+        .lp .btn-white:hover { background: #1d4ed8; transform: translateY(-2px); }
+        .lp footer { background: #0f172a; padding: 32px 60px 24px; display: flex; flex-direction: column; gap: 12px; }
+        .lp .footer-top { display: flex; flex-direction: column; gap: 8px; }
+        .lp .footer-brand { display: flex; flex-direction: column; gap: 8px; }
+        .lp .footer-col { display: flex; flex-direction: column; gap: 8px; }
+        .lp .footer-col-title { font-size: 12px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 4px; }
+        .lp .footer-col a { font-size: 13px; color: #e2e8f0; transition: color 0.2s; }
+        .lp .footer-col a:hover { color: #60a5fa; }
+        .lp .footer-col > div { font-size: 13px; color: #e2e8f0; }
+        .lp .footer-bottom { text-align: right; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1); }
+        .lp .footer-logo { font-size: 18px; font-weight: 800; color: #fff; }
+        .lp .footer-logo span { color: #60a5fa; }
+        .lp .footer-product { font-size: 12px; color: #475569; margin-top: 3px; }
+        .lp .footer-tagline { font-size: 12px; color: #334155; margin-top: 2px; }
+        .lp .footer-links { display: flex; gap: 24px; }
+        .lp .footer-links a { font-size: 13px; color: #64748b; }
+        .lp .footer-links a:hover { color: #94a3b8; }
+        @media (max-width: 900px) {
+          .lp nav { padding: 16px 24px; }
+          .lp .nav-links { display: none; }
+          .lp .hero { padding: 60px 24px 50px; }
+          .lp .hero h1 { font-size: 36px; }
+          .lp section { padding: 60px 24px; }
+          .lp .problem-grid, .lp .features-grid, .lp .ep-grid, .lp .reporting-grid, .lp .cap-grid, .lp .pricing-grid { grid-template-columns: 1fr; }
+          .lp .ep-strip, .lp .coming-soon { padding: 40px 24px; }
+          .lp footer { padding: 32px 24px; flex-direction: column; text-align: center; }
+        }
+      `}</style>
+
+      <div className="lp">
+        {showSuccess && (
+          <div style={{ background: '#d1fae5', borderBottom: '2px solid #10b981', padding: '20px', textAlign: 'center', position: 'sticky', top: 0, zIndex: 999 }}>
+            <p style={{ fontSize: '18px', fontWeight: '600', color: '#065f46', margin: '0 0 10px 0' }}>
+              ðŸŽ‰ Payment successful! Welcome to Assess Suite Clinical.
+            </p>
+            <p style={{ color: '#047857', margin: '0 0 14px 0' }}>
+              Click below to create your account and get started.
+            </p>
+            <a href="https://assesssuite.com" style={{ background: '#10b981', color: 'white', padding: '10px 24px', borderRadius: '8px', textDecoration: 'none', fontWeight: '600' }}>
+              Create Your Account â†’
+            </a>
+          </div>
+        )}
+        <nav>
+          <div className="nav-brand">
+            <div style={{height: "56px", overflow: "hidden", display: "flex", alignItems: "center"}}>
+              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/358c0c514_Logo-Transparent1.png" alt="AssessSuite Clinical" style={{height: "200px", width: "auto", marginTop: "-70px", marginBottom: "-70px"}} />
+            </div>
+          </div>
+          <div className="nav-links">
+            <a href="#features">Features</a>
+            <a href="#assessments">Assessments</a>
+            <a href="#reporting">Reports</a>
+            <a href="#pricing">Pricing</a>
+            <a href="#" onClick={(e) => { e.preventDefault(); window.location.href = '/signup'; }} className="nav-cta" style={{display:'inline-block',border: 'none', cursor: 'pointer', textDecoration:'none', color:'#fff'}}>Sign In / Sign Up â†’</a>
+          </div>
+        </nav>
+
+        <section className="hero">
+          <h1>Exercise Physiology at it's Clinical Best.</h1>
+          <p>AssessSuite Clinical gives clinicians the tools to assess with greater accuracy, document more efficiently, and deliver more consistent client care. Designed specifically for Exercise Physiologists, the platform brings together assessments, clinical notes, outcome tracking, and professional reporting into one modern workflow built for growing practices and evolving healthcare systems.</p>
+          <div className="hero-ctas">
+            <button onClick={() => window.location.href = '/signup'} className="btn-primary" style={{display:'inline-block',cursor:'pointer',border:'none'}}>Sign In / Sign Up â†’</button>
+          </div>
+        </section>
+
+        <section className="library" id="assessments">
+          <h2>The most complete Exercise Physiologist assessment library available.</h2>
+          <p className="section-sub">226+ validated clinical assessments â€” all with built-in clinician instructions, normative data, and automated interpretation. If you run it in practice, it's in here.</p>
+
+          <div className="screenshot-row">
+            <div className="screenshot-card">
+              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/f3de54057_image.png" alt="10-Metre Walk Test with clinician instructions" />
+            </div>
+            <div className="screenshot-card">
+              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/5eb559ca6_image.png" alt="Trial runner showing gait speed measurements" />
+            </div>
+            <div className="screenshot-card">
+              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/e9df29d41_image.png" alt="Visual ROM Assessment â€” joint selector" />
+            </div>
+            <div className="screenshot-card">
+              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/07f2f5d2f_image.png" alt="Assessment summary with ROM results" />
+            </div>
+            <div className="screenshot-card">
+              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/63773537e_image.png" alt="DASS-21 questionnaire with instructions" />
+            </div>
+            <div className="screenshot-card">
+              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/a0e2d7fd0_image.png" alt="DASS-21 results and clinical interpretation" />
+            </div>
+            <div className="screenshot-card">
+              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/262107ccf_image.png" alt="PHQ-9 mental health questionnaire runner" />
+            </div>
+          </div>
+
+          <div className="stat-row">
+            <div className="stat-box"><div className="number" id="stat-assessments">0</div><div className="label">Clinical Assessments & Growing</div></div>
+            <div className="stat-box"><div className="number" id="stat-reports">0</div><div className="label">Report Templates</div></div>
+          </div>
+          <div className="categories">
+            {["Cardiovascular & Aerobic Fitness","Strength & Power","Balance & Vestibular","Mobility & Flexibility","Neurological & Cognitive","Pain & Psychological","Respiratory & Metabolic","Functional Independence","Outcome Measures & Questionnaires","Sports Performance & Agility","Body Composition","Chronic Disease Management"].map(c => (
+              <div key={c} className="cat-pill">{c}</div>
+            ))}
+            <a href="mailto:admin@assesssuite.com?subject=Assessment%20Request%20-%20AssessSuite%20Clinical" className="cat-pill" style={{textDecoration: "none"}}>
+              Request an Assessment
+            </a>
+          </div>
+
+        </section>
+
+        <section className="reporting" id="reporting">
+          <div className="reporting-grid">
+            <div>
+              <h2>Reports structured around funder requirements.</h2>
+              <p className="section-sub">Select your country to see every funder-ready report AssessSuite Clinical generates â€” structured EP reports with objective data tables, goal-based outcomes, and clinical justification built in.</p>
+              <div className="country-tabs" style={{marginBottom: 0}}>
+                {countryButtons.map(({ code, label }) => (
+                  <button
+                    key={code}
+                    className={`country-btn${activeCountry === code ? " active" : ""}`}
+                    onClick={() => setActiveCountry(code)}
+                  >{label}</button>
+                ))}
+              </div>
+            </div>
+            <div className="funder-list">
+              {countryData[activeCountry].map(({ icon, tag, title }) => (
+                <div key={title} className="funder-item">
+                  <div className="funder-check">âœ“</div>
+                  <span><strong style={{color:"#0f172a"}}>{tag}</strong> â€” {title}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="pricing" id="pricing">
+           <h2>Simple, transparent pricing.</h2>
+           <p className="section-sub">One subscription per EP clinician. Everything included. No hidden fees, no per-report charges, no feature tiers.</p>
+           <div className="pricing-grid">
+             <div className="pricing-card">
+               <div className="plan-name">Monthly</div>
+               <div className="price">$55<span>/mo</span></div>
+               <div className="billing">Billed monthly. Cancel anytime.</div>
+               <ul className="pricing-features">
+                 {["Unlimited assessments","Unlimited clients","All 226+ EP assessments","Automated SOAP notes","Full report generation","Multi-clinician support","All future updates included"].map(f => <li key={f}>{f}</li>)}
+               </ul>
+               <button onClick={() => handleGetStarted('monthly')} className="btn-primary" style={{width:"100%",textAlign:"center",display:"block",border:'none',cursor:'pointer',color:'#fff'}}>Get Started â†’</button>
+             </div>
+             <div className="pricing-card featured">
+               <div className="popular-badge">BEST VALUE</div>
+               <div className="plan-name">Annual</div>
+               <div className="price">$45<span>/mo</span></div>
+               <div className="billing">Billed annually â€” $540/year.</div>
+               <div className="save-badge">Save $120/year</div>
+               <ul className="pricing-features">
+                 {["Unlimited assessments","Unlimited clients","All 226+ EP assessments","Automated SOAP notes","Full report generation","Multi-clinician support","All future updates included"].map(f => <li key={f}>{f}</li>)}
+               </ul>
+               <button onClick={() => handleGetStarted('annual')} className="btn-primary" style={{width:"100%",textAlign:"center",display:"block",border:'none',cursor:'pointer',color:'#fff'}}>Get Started â†’</button>
+             </div>
+           </div>
+           <p className="pricing-note">One subscription = one clinician. Each EP in your practice needs their own subscription.</p>
+           <p className="pricing-note" style={{marginTop: "20px"}}>Looking for corporate pricing? <a href="mailto:admin@assesssuite.com?subject=Corporate%20Pricing%20Inquiry%20-%20AssessSuite%20Clinical" style={{color: "#2563eb", textDecoration: "none", fontWeight: 500}}>Reach out</a> for teams and multi-clinic practices.</p>
+         </section>
+
+        <section className="features" id="features">
+           <h2>Everything an Exercise Physiologist needs.</h2>
+           <p className="section-sub">From first assessment to final report â€” AssessSuite Clinical handles the clinical work and the paperwork.</p>
+           <div className="features-grid">
+             <div className="feature-card">
+               <div className="feature-icon">ðŸ§ª</div>
+               <div className="feature-card-content"><h3>226+ EP Assessments</h3><p>Every test you run is built in â€” with clinician administration scripts, normative data, and interpretation guides. No more hunting for reference values mid-session. New assessments are added monthly, and missing ones can be requested directly from the platform.</p></div>
+             </div>
+             <div className="feature-card">
+               <div className="feature-icon">ðŸ“‹</div>
+               <div className="feature-card-content"><h3>Automated SOAP Notes</h3><p>Every completed assessment instantly generates a structured SOAP note populated with results, normative classifications, and clinical commentary. Zero typing required.</p></div>
+             </div>
+             <div className="feature-card">
+               <div className="feature-icon">ðŸ“„</div>
+               <div className="feature-card-content"><h3>Funder-Ready Reports</h3><p>Generate professional EP reports tailored for NDIS, WorkCover, Medicare, DVA, and TAC â€” following best-practice guidelines with goal-based outcomes and objective data tables.</p></div>
+             </div>
+             <div className="feature-card">
+               <div className="feature-icon">ðŸ“ˆ</div>
+               <div className="feature-card-content"><h3>Progress Tracking</h3><p>Automatic pre and post comparisons across assessment dates. See exactly how your client is responding to intervention â€” with trend analysis built in.</p></div>
+             </div>
+             <div className="feature-card">
+               <div className="feature-icon">ðŸ‘¥</div>
+               <div className="feature-card-content"><h3>Client & Episode Management</h3><p>Full client profiles with onboarding, referral tracking, episode history, funding sources, and client goals â€” all in one organised place.</p></div>
+             </div>
+             <div className="feature-card">
+               <div className="feature-icon">ðŸ”’</div>
+               <div className="feature-card-content"><h3>Digital Consent & Policies</h3><p>Capture signed consent, privacy agreements, and assessment policies digitally. Compliant, timestamped, and linked to every client episode.</p></div>
+             </div>
+             <div className="feature-card">
+               <div className="feature-icon">ðŸ’Š</div>
+               <div className="feature-card-content"><h3>Exercise Treatment Protocols</h3><p>Evidence-based exercise prescription and treatment protocols built in â€” so every client gets a structured, clinically justified program aligned to their assessment results and goals.</p></div>
+             </div>
+             <div className="feature-card">
+               <div className="feature-icon">ðŸ¥—</div>
+               <div className="feature-card-content"><h3>Nutrition Within EP Scope</h3><p>Dietary guidance tools scoped specifically to Exercise Physiology practice â€” covering energy intake for chronic disease management, body composition, and physical performance. No dietetic advice, no scope creep. Just what EPs are qualified and registered to provide.</p></div>
+             </div>
+           </div>
+           <div style={{marginTop: "40px", paddingTop: "40px", borderTop: "1px solid #e2e8f0", textAlign: "center"}}>
+             <p style={{fontSize: "14px", color: "#64748b", maxWidth: "700px", margin: "0 auto"}}>
+               <strong>Note:</strong> AssessSuite Clinical is assessment software built specifically for Exercise Physiologists. It is not clinic management software â€” it doesn't handle billing, referrer invoicing, or practice administration. It focuses on what EPs do: run assessments, generate SOAP notes, and create evidence-based reports.
+             </p>
+           </div>
+         </section>
+
+        <section className="final-cta">
+          <h2>Ready to spend less time documenting<br />and more time with clients?</h2>
+          <p>Join Exercise Physiologists already using AssessSuite Clinical to run better assessments, write better reports, and reclaim their clinical time.</p>
+          <button onClick={() => window.location.href = '/signup'} className="btn-white" style={{display:"inline-block",border:'none',cursor:'pointer',color:'#fff'}}>Sign In / Sign Up â†’</button>
+        </section>
+
+        <footer>
+          <div className="footer-top">
+            <div className="footer-brand">
+              <img 
+                src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/29dfd4c64_Logo-Transparent1.png" 
+                alt="AssessSuite Clinical Logo" 
+                style={{maxWidth: "180px", marginBottom: "12px", filter: "brightness(0) invert(1)"}}
+              />
+
+            </div>
+
+            <div className="footer-col">
+              <div className="footer-col-title">Contact &amp; Support</div>
+              <a href="tel:1800317553" style={{color:"#fff"}}>ðŸ“ž 1800 317 553</a>
+              <a href="mailto:admin@assesssuite.com" style={{color:"#fff"}}>âœ‰ï¸ admin@assesssuite.com</a>
+              <div style={{fontSize:"12px",color:"#fff",marginTop:"4px"}}>Monâ€“Thu, 10:00amâ€“2:00pm AEST</div>
+            </div>
+
+            <div className="footer-col">
+              <div className="footer-col-title">About Us</div>
+              <div style={{fontSize:"13px",color:"#fff",lineHeight:"1.7"}}>
+                AssessSuite Clinical is a product of<br/>
+                <strong style={{color:"#fff"}}>Assess Suite Pty Ltd</strong><br/>
+                ABN 53 694 044 481<br/>
+                Australian Private Company
+              </div>
+            </div>
+
+            <div className="footer-col">
+              <div className="footer-col-title">Legal</div>
+              <a href="#privacy-policy" onClick={(e) => { e.preventDefault(); document.getElementById('privacy-modal').style.display='flex'; }} style={{color:"#fff"}}>Privacy Policy</a>
+              <a href="#terms" onClick={(e) => { e.preventDefault(); document.getElementById('terms-modal').style.display='flex'; }} style={{color:"#fff"}}>Terms of Service</a>
+            </div>
+          </div>
+
+          <div className="footer-bottom" style={{textAlign:"right"}}>
+            <span style={{color:"#fff"}}>Â© 2026 Assess Suite Pty Ltd. All rights reserved.</span>
+          </div>
+        </footer>
+
+        {/* PRIVACY POLICY MODAL */}
+        <div id="privacy-modal" style={{display:"none",position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9999,alignItems:"center",justifyContent:"center",padding:"24px"}}>
+          <div style={{background:"#fff",borderRadius:"16px",maxWidth:"720px",width:"100%",maxHeight:"85vh",overflowY:"auto",padding:"48px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"28px"}}>
+              <h2 style={{fontSize:"24px",fontWeight:800,color:"#0f172a"}}>Privacy Policy</h2>
+              <button onClick={() => document.getElementById('privacy-modal').style.display='none'} style={{background:"none",border:"none",fontSize:"24px",cursor:"pointer",color:"#64748b"}}>âœ•</button>
+            </div>
+            <div style={{fontSize:"14px",color:"#374151",lineHeight:"1.8"}}>
+              <p><strong>Last updated: 24 May 2026</strong></p><br/>
+              <p>Assess Suite Pty Ltd (ABN 53 694 044 481) ("Assess Suite", "we", "us", "our") operates AssessSuite Clinical ("Platform").</p>
+              <p>This Privacy Policy explains how we collect, use, disclose, store, and protect personal information in accordance with the Privacy Act 1988 (Cth), the Australian Privacy Principles ("APPs"), and applicable health records legislation.</p>
+              <p>By accessing or using the Platform, you acknowledge and agree to this Privacy Policy.</p><br/>
+              
+              <p><strong>1. Information We Collect</strong></p>
+              <p><strong>Personal &amp; Account Information</strong></p>
+              <ul style={{marginLeft:"20px"}}>
+                <li>name;</li>
+                <li>email address;</li>
+                <li>phone number;</li>
+                <li>business or practice information;</li>
+                <li>login credentials;</li>
+                <li>subscription and billing information;</li>
+                <li>payment-related information;</li>
+                <li>professional registration details;</li>
+                <li>account preferences and settings.</li>
+              </ul>
+              <p><strong>Clinical &amp; Health Information</strong></p>
+              <p>Users may upload, create, store, or process client assessment records, SOAP notes, reports, treatment information, exercise prescription information, uploaded documents, health-related information, clinical observations, and appointment or workflow data.</p>
+              <p><strong>Technical Information</strong></p>
+              <p>We may automatically collect IP addresses, browser information, device identifiers, operating system information, access logs, usage activity, analytics data, and cookies and session information.</p><br/>
+              
+              <p><strong>2. How We Collect Information</strong></p>
+              <p>We collect information directly from you, when you register or subscribe, when you use the Platform, through uploaded content and forms, through communications with us, automatically through cookies and analytics, and from third-party service providers connected to the Platform.</p><br/>
+              
+              <p><strong>3. How We Use Information</strong></p>
+              <p>We may use information to provide and operate the Platform, manage subscriptions and billing, authenticate users, provide customer support, improve functionality and performance, conduct troubleshooting and security monitoring, generate de-identified analytics, communicate service updates, comply with legal and regulatory obligations, and investigate misuse or security incidents.</p>
+              <p>We do not sell personal information to third parties.</p><br/>
+              
+              <p><strong>4. Clinical Data &amp; User Responsibility</strong></p>
+              <p>You retain ownership of clinical data entered into the Platform. Assess Suite Pty Ltd acts primarily as a technology service provider and data processor on your behalf.</p>
+              <p>You are solely responsible for obtaining all required client or patient consents, complying with applicable privacy laws, ensuring lawful collection and use of health information, ensuring the accuracy of clinical data, maintaining records required by law, and independently backing up or exporting records where required.</p>
+              <p>You acknowledge that AssessSuite Clinical is not a healthcare provider, we do not review or validate clinical information, and clinicians remain solely responsible for all clinical decisions.</p><br/>
+              
+              <p><strong>5. AI &amp; Automated Processing</strong></p>
+              <p>The Platform may utilise artificial intelligence, automation systems, templates, or algorithmic processing to assist with report drafting, documentation, summaries, recommendations, workflow suggestions, assessment interpretation, and administrative functions.</p>
+              <p>You acknowledge that automated outputs may contain inaccuracies or omissions, all outputs must be independently reviewed by a qualified clinician, and Assess Suite Pty Ltd does not guarantee the accuracy or clinical appropriateness of automated outputs.</p><br/>
+              
+              <p><strong>6. Disclosure of Information</strong></p>
+              <p>We may disclose information to service providers, payment processors including Stripe, cloud hosting providers, analytics providers, where required by law, where necessary to investigate fraud or security incidents, or where authorised by you.</p>
+              <p>We may disclose de-identified or aggregated data for analytics or service improvement purposes. We do not sell personal or clinical information.</p><br/>
+              
+              <p><strong>7. Third-Party Services</strong></p>
+              <p>The Platform may integrate with third-party services including Stripe, cloud hosting providers, analytics providers, AI services, communication platforms, and external APIs. Third-party providers may operate under their own privacy policies. We are not responsible for the privacy practices or security of third-party services.</p><br/>
+              
+              <p><strong>8. Data Security</strong></p>
+              <p>We implement reasonable technical and organisational safeguards designed to protect information from unauthorised access, misuse, disclosure, loss, and modification. Security measures may include encryption, access controls, authentication systems, monitoring systems, and infrastructure reviews.</p>
+              <p>However, no electronic platform or transmission method is completely secure. You acknowledge and accept the inherent security risks associated with electronic storage and transmission of information. You are responsible for maintaining secure passwords, restricting access to authorised personnel, securing your devices and systems, and notifying us immediately of suspected unauthorised access or security incidents.</p><br/>
+              
+              <p><strong>9. Data Retention</strong></p>
+              <p>We retain information while your account remains active and as reasonably necessary for operational purposes, legal compliance, dispute resolution, and security purposes.</p>
+              <p>Following account termination, some information may be retained in backups, archived systems, logs, compliance records, or legal records. We may delete information at our discretion in accordance with our retention policies. You are responsible for exporting or retaining copies of records where required.</p><br/>
+              
+              <p><strong>10. International Data Processing</strong></p>
+              <p>Some data may be processed, transmitted, or stored using infrastructure or service providers located outside Australia. By using the Platform, you consent to such transfers where reasonably necessary for service operation. We take reasonable steps to ensure third-party providers implement appropriate safeguards.</p><br/>
+              
+              <p><strong>11. Cookies &amp; Analytics</strong></p>
+              <p>We may use cookies, session tracking, analytics tools, and performance monitoring technologies to improve functionality, analyse usage patterns, maintain security, and optimise performance. You may disable cookies through browser settings, although some functionality may be affected.</p><br/>
+              
+              <p><strong>12. Access &amp; Correction</strong></p>
+              <p>You may request access to or correction of your personal information by contacting us. We may require verification of identity before processing requests. Requests may be refused where permitted by law.</p><br/>
+              
+              <p><strong>13. Account Deletion</strong></p>
+              <p>You may request deletion of your account and associated information by contacting admin@assesssuite.com.</p>
+              <p>We may retain certain information where required by law, reasonably necessary for compliance, required for dispute resolution, necessary for fraud prevention, or retained in backups or archived systems. Deletion requests may not immediately remove all information from backups or historical systems.</p><br/>
+              
+              <p><strong>14. Limitation of Liability</strong></p>
+              <p>To the maximum extent permitted by law, Assess Suite Pty Ltd excludes liability for indirect, incidental, consequential, punitive, or economic loss arising from privacy or security incidents. We do not guarantee uninterrupted, secure, or error-free operation. Users assume responsibility for maintaining appropriate safeguards and backups.</p><br/>
+              
+              <p><strong>15. Changes to this Privacy Policy</strong></p>
+              <p>We may update this Privacy Policy from time to time. Updated versions become effective upon publication within the Platform or website. Continued use constitutes acceptance of the revised Privacy Policy.</p><br/>
+              
+              <p><strong>16. Contact</strong></p>
+              <p>Assess Suite Pty Ltd<br/>ABN 53 694 044 481<br/>Email: admin@assesssuite.com<br/>Phone: 1800 317 553</p>
+            </div>
+          </div>
+        </div>
+
+        {/* TERMS OF SERVICE MODAL */}
+        <div id="terms-modal" style={{display:"none",position:"fixed",inset:0,background:"rgba(0,0,0,0.6)",zIndex:9999,alignItems:"center",justifyContent:"center",padding:"24px"}}>
+          <div style={{background:"#fff",borderRadius:"16px",maxWidth:"720px",width:"100%",maxHeight:"85vh",overflowY:"auto",padding:"48px"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"28px"}}>
+              <h2 style={{fontSize:"24px",fontWeight:800,color:"#0f172a"}}>Terms of Service</h2>
+              <button onClick={() => document.getElementById('terms-modal').style.display='none'} style={{background:"none",border:"none",fontSize:"24px",cursor:"pointer",color:"#64748b"}}>âœ•</button>
+            </div>
+            <div style={{fontSize:"14px",color:"#374151",lineHeight:"1.8"}}>
+              <p><strong>Last updated: 24 May 2026</strong></p><br/>
+              <p>These Terms of Service ("Terms") govern your access to and use of AssessSuite Clinical ("Platform"), operated by Assess Suite Pty Ltd (ABN 53 694 044 481) ("Assess Suite", "we", "us", "our").</p>
+              <p>By accessing or using the Platform, you agree to be bound by these Terms. If you do not agree to these Terms, you must not use the Platform.</p><br/>
+              
+              <p><strong>1. Eligibility</strong></p>
+              <p>AssessSuite Clinical is intended solely for use by registered allied health professionals, accredited Exercise Physiologists, healthcare providers, and authorised practice administrators.</p>
+              <p>You are responsible for ensuring:</p>
+              <ul style={{marginLeft:"20px"}}>
+                <li>your registration, accreditation, licences, and professional obligations remain current;</li>
+                <li>your use of the Platform complies with all applicable laws, professional standards, funding requirements, and privacy obligations;</li>
+                <li>all clinical decisions remain independently made by you.</li>
+              </ul>
+              <p>We may request verification of professional credentials at any time.</p><br/>
+              
+              <p><strong>2. Subscriptions &amp; Payment</strong></p>
+              <p>Access to the Platform requires a paid subscription.</p>
+              <p>Subscriptions are billed:</p>
+              <ul style={{marginLeft:"20px"}}>
+                <li>Monthly: $55 AUD including GST; or</li>
+                <li>Annually: $540 AUD including GST.</li>
+              </ul>
+              <p>All fees are charged in Australian Dollars. Payments are processed through third-party payment providers including Stripe. You authorise recurring billing until cancellation. Failure to make payment may result in suspension or termination of access.</p><br/>
+              
+              <p><strong>3. Cancellation</strong></p>
+              <p>You may cancel your subscription at any time. Cancellation takes effect at the end of the current billing period. No refunds, credits, or partial reimbursements are provided for unused subscription periods unless required under Australian Consumer Law.</p><br/>
+              
+              <p><strong>4. Clinical Responsibility</strong></p>
+              <p>AssessSuite Clinical is an administrative, workflow, documentation, assessment, and reporting assistance platform only.</p>
+              <p>The Platform does not provide medical advice, diagnosis, treatment recommendations, exercise prescription, or clinical direction.</p>
+              <p>All clinical decisions, treatment recommendations, exercise prescription, interpretation of results, patient management, and professional judgement remain solely the responsibility of the treating clinician.</p>
+              <p>You must independently verify all reports, calculations, recommendations, assessment interpretations, summaries, templates, AI-generated outputs, and Platform-generated content prior to use, reliance, distribution, or implementation.</p><br/>
+              
+              <p><strong>5. AI &amp; Automated Content Disclaimer</strong></p>
+              <p>The Platform may utilise artificial intelligence, automation systems, templates, predictive logic, or algorithmic processes to assist with report generation, documentation, summaries, workflow suggestions, assessment interpretation, calculations, recommendations, and administrative tasks.</p>
+              <p>You acknowledge and agree that automated outputs may contain inaccuracies, omissions, outdated information, formatting issues, or inappropriate recommendations. No Platform output should be relied upon without independent professional review. All outputs must be independently reviewed, verified, and approved by a qualified clinician before use.</p>
+              <p>Assess Suite Pty Ltd does not guarantee the accuracy, completeness, reliability, legality, or clinical appropriateness of any automated output.</p><br/>
+              
+              <p><strong>6. Your Data</strong></p>
+              <p>You retain ownership of all clinical and business data entered into the Platform.</p>
+              <p>You grant Assess Suite Pty Ltd a non-exclusive licence to host, store, process, transmit, back up, analyse, and reproduce such data solely for operating the Platform, improving services, troubleshooting, technical support, security monitoring, de-identified analytics, and compliance with legal obligations.</p>
+              <p>You are solely responsible for obtaining all required patient or client consents, complying with privacy and health records legislation, retaining records required by law or professional standards, and maintaining independent backups where required.</p><br/>
+              
+              <p><strong>7. Privacy &amp; Security</strong></p>
+              <p>While we implement reasonable technical and organisational safeguards, no electronic platform or transmission method is completely secure. You acknowledge and accept the risks associated with electronic storage and transmission of information.</p>
+              <p>You are responsible for maintaining secure passwords, restricting unauthorised access to your account, securing your devices and systems, and complying with all applicable privacy obligations. You must notify us immediately of any suspected unauthorised access or security incident.</p><br/>
+              
+              <p><strong>8. Acceptable Use</strong></p>
+              <p>You must not use the Platform for unlawful purposes, share login credentials, permit unauthorised third-party access, reverse-engineer or copy the Platform, reproduce workflows or templates, interfere with Platform performance, or upload malicious code. We reserve the right to investigate suspected misuse.</p><br/>
+              
+              <p><strong>9. Intellectual Property</strong></p>
+              <p>All intellectual property rights in the Platform remain the exclusive property of Assess Suite Pty Ltd, including software, branding, interfaces, workflows, report structures, templates, assessment logic, and proprietary processes. No ownership rights are transferred to you. You are granted a limited, revocable, non-transferable licence to use the Platform solely in accordance with these Terms.</p><br/>
+              
+              <p><strong>10. Assessment Content &amp; Intellectual Property Concerns</strong></p>
+              <p>AssessSuite Clinical may include assessment tools, questionnaires, or materials that may be subject to third-party intellectual property rights or licensing requirements. We make reasonable efforts to investigate appropriateness but do not warrant all materials are free from intellectual property restrictions in every jurisdiction.</p>
+              <p>If you believe any content infringes intellectual property rights, notify us immediately at admin@assesssuite.com. Upon receiving a concern, we reserve the right to investigate, restrict access, remove content, or suspend affected materials.</p><br/>
+              
+              <p><strong>11. Third-Party Services</strong></p>
+              <p>The Platform may integrate with third-party providers including payment processors, cloud hosting, AI services, and external APIs. We are not responsible for the availability, security, or conduct of third-party services. Your use may be subject to separate terms and policies.</p><br/>
+              
+              <p><strong>12. Availability</strong></p>
+              <p>We aim to provide reliable access but do not guarantee uninterrupted or error-free availability. The Platform may experience downtime, interruptions, maintenance, or technical issues. We are not liable for any loss arising from Platform unavailability.</p><br/>
+              
+              <p><strong>13. Indemnity &amp; Clinical Risk Assumption</strong></p>
+              <p>You acknowledge AssessSuite Clinical is solely a software and workflow assistance platform and is not responsible for clinical decision-making, diagnosis, treatment planning, exercise prescription, or healthcare outcomes.</p>
+              <p>You assume full responsibility for all clinical decisions, patient interactions, treatment recommendations, and reliance upon Platform outputs. All Platform outputs must be independently reviewed, verified, and approved by a suitably qualified clinician prior to use.</p>
+              <p>You agree to indemnify and hold harmless Assess Suite Pty Ltd from any claims, liabilities, damages, or losses arising from your clinical services, patient injury, reliance upon Platform outputs, or breach of professional obligations.</p><br/>
+              
+              <p><strong>14. Disclaimer of Warranties</strong></p>
+              <p>To the maximum extent permitted by law, the Platform is provided on an "as is" and "as available" basis. We make no warranties regarding accuracy, reliability, clinical suitability, legality, fitness for purpose, availability, security, or compatibility.</p><br/>
+              
+              <p><strong>15. Limitation of Liability</strong></p>
+              <p>To the maximum extent permitted by law, Assess Suite Pty Ltd excludes all liability for indirect, incidental, consequential, special, or economic loss. Our total aggregate liability is limited to the total subscription fees paid by you in the 3 months preceding the relevant claim.</p><br/>
+              
+              <p><strong>16. Suspension &amp; Termination</strong></p>
+              <p>We may suspend or terminate access immediately where these Terms are breached, payment is overdue, professional registration lapses, misuse is suspected, or legal or security risks arise. Upon termination, your licence ceases and data may be deleted in accordance with our retention policies.</p><br/>
+              
+              <p><strong>17. Confidentiality</strong></p>
+              <p>You agree to keep confidential all non-public information relating to the Platform, systems, workflows, pricing, and business methods. This obligation survives termination.</p><br/>
+              
+              <p><strong>18. Changes to the Platform</strong></p>
+              <p>We may modify, suspend, replace, discontinue, or update any aspect of the Platform at any time without liability. Features, pricing, and functionality may change without notice.</p><br/>
+              
+              <p><strong>19. Changes to Terms</strong></p>
+              <p>We may update these Terms from time to time. Updated Terms become effective upon publication. Continued use constitutes acceptance of revised Terms.</p><br/>
+              
+              <p><strong>20. Governing Law</strong></p>
+              <p>These Terms are governed by the laws of Queensland, Australia. You submit to the exclusive jurisdiction of the courts of Queensland.</p><br/>
+              
+              <p><strong>21. Contact</strong></p>
+              <p>Assess Suite Pty Ltd<br/>ABN 53 694 044 481<br/>Email: admin@assesssuite.com<br/>Phone: 1800 317 553</p>
+            </div>
+          </div>
+        </div>
+
+      {showEmailModal && (
+        <div style={{position:'fixed',inset:0,background:'rgba(15,23,42,0.65)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
+          <div style={{background:'#fff',borderRadius:'20px',padding:'48px 40px',maxWidth:'440px',width:'100%',textAlign:'center',boxShadow:'0 8px 48px rgba(15,23,42,0.2)'}}>
+            <div style={{background:'#eff6ff',color:'#2563eb',fontSize:'13px',fontWeight:700,padding:'6px 16px',borderRadius:'100px',display:'inline-block',marginBottom:'20px'}}>
+              {selectedPlan === 'annual' ? 'Annual Plan â€” $45/mo' : 'Monthly Plan â€” $55/mo'}
+            </div>
+            <h2 style={{fontSize:'24px',fontWeight:800,color:'#0f172a',marginBottom:'10px',letterSpacing:'-0.5px'}}>Enter your email to continue</h2>
+            <p style={{fontSize:'15px',color:'#64748b',marginBottom:'28px',lineHeight:1.6}}>We'll pre-fill your email at checkout and use it to set up your account.</p>
+            <input
+              type="text"
+              placeholder="Your full name"
+              value={capturedName}
+              onChange={e => setCapturedName(e.target.value)}
+              style={{width:'100%',padding:'14px 16px',borderRadius:'10px',border:'2px solid #e2e8f0',fontSize:'16px',marginBottom:'16px',outline:'none',boxSizing:'border-box'}}
+            />
+            <input
+              type="email"
+              placeholder="you@example.com"
+              value={capturedEmail}
+              onChange={e => setCapturedEmail(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleEmailSubmit()}
+              style={{width:'100%',padding:'14px 16px',borderRadius:'10px',border:'2px solid #e2e8f0',fontSize:'16px',marginBottom:'16px',outline:'none',boxSizing:'border-box'}}
+              autoFocus
+            />
+            <button
+              onClick={() => {
+                const base = selectedPlan === 'annual' 
+                  ? 'https://buy.stripe.com/3cIbJ2fBX4V34GLbR124001' 
+                  : 'https://buy.stripe.com/8x2dRagG15Z7a15f3d24002';
+                const url = capturedEmail 
+                  ? base + '?prefilled_email=' + encodeURIComponent(capturedEmail)
+                  : base;
+                window.open(url, '_self');
+              }}
+              style={{width:'100%',background:'#2563eb',color:'#fff',border:'none',borderRadius:'10px',padding:'16px',fontSize:'17px',fontWeight:700,cursor:'pointer',marginBottom:'12px'}}
+            >
+              Continue to Payment â†’
+            </button>
+            <button onClick={() => setShowEmailModal(false)} style={{background:'none',border:'none',fontSize:'14px',color:'#94a3b8',cursor:'pointer'}}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {showComingSoon && (
+        <div style={{position:'fixed',inset:0,background:'rgba(15,23,42,0.65)',zIndex:99999,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
+          <div style={{background:'#fff',borderRadius:'20px',padding:'48px 40px',maxWidth:'420px',width:'100%',textAlign:'center',boxShadow:'0 8px 48px rgba(15,23,42,0.2)'}}>
+            <div style={{fontSize:'48px',marginBottom:'16px'}}>ðŸš€</div>
+            <h2 style={{fontSize:'26px',fontWeight:800,color:'#0f172a',marginBottom:'12px',letterSpacing:'-0.5px'}}>Coming Soon</h2>
+            <p style={{fontSize:'16px',color:'#64748b',marginBottom:'8px',lineHeight:1.6}}>AssessSuite Clinical launches on</p>
+            <div style={{background:'#eff6ff',color:'#2563eb',fontSize:'22px',fontWeight:800,padding:'14px 24px',borderRadius:'12px',display:'inline-block',marginBottom:'20px',letterSpacing:'-0.5px'}}>1 June 2026</div>
+            <p style={{fontSize:'14px',color:'#94a3b8',marginBottom:'28px',lineHeight:1.6}}>We're putting the finishing touches on the platform. Check back on launch day to sign up and get started.</p>
+            <button onClick={() => setShowComingSoon(false)} style={{background:'#2563eb',color:'#fff',border:'none',borderRadius:'10px',padding:'14px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'}}>
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
+      {showSignupModal && (
+        <div style={{position:'fixed',inset:0,background:'rgba(15,23,42,0.6)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
+          <div style={{background:'#fff',borderRadius:'20px',padding:'48px 40px',maxWidth:'460px',width:'100%',textAlign:'center',boxShadow:'0 8px 48px rgba(15,23,42,0.18)'}}>
+            <div style={{background:'#dcfce7',color:'#16a34a',fontSize:'13px',fontWeight:700,padding:'6px 16px',borderRadius:'100px',display:'inline-block',marginBottom:'20px'}}>Step 1 of 2</div>
+            <h2 style={{fontSize:'24px',fontWeight:800,color:'#0f172a',marginBottom:'12px',letterSpacing:'-0.5px'}}>First, create your account</h2>
+            <p style={{fontSize:'15px',color:'#64748b',marginBottom:'12px',lineHeight:1.7}}>Click below to go to the sign-in page. On that page, look for:</p>
+            <div style={{background:'#f8fafc',border:'2px solid #e2e8f0',borderRadius:'10px',padding:'16px',marginBottom:'28px',fontSize:'15px',color:'#0f172a',fontWeight:600}}>
+              "Need an account? <span style={{color:'#2563eb'}}>Sign up</span>"
+            </div>
+            <p style={{fontSize:'14px',color:'#64748b',marginBottom:'28px'}}>After creating your account, you'll be prompted to subscribe to complete your access.</p>
+            <button onClick={navigateToLogin} style={{width:'100%',background:'#2563eb',color:'#fff',border:'none',borderRadius:'10px',padding:'16px',fontSize:'17px',fontWeight:700,cursor:'pointer',marginBottom:'12px'}}>
+              Create My Account â†’
+            </button>
+            <button onClick={() => setShowSignupModal(false)} style={{background:'none',border:'none',fontSize:'14px',color:'#94a3b8',cursor:'pointer'}}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      </div>
+    </>
+  );
+}

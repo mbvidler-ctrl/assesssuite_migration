@@ -1,0 +1,189 @@
+{
+  "name": "SOAPNote",
+  "type": "object",
+  "properties": {
+    "org_id": {
+      "type": "string",
+      "description": "Organization this SOAP note belongs to"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Reference to the client"
+    },
+    "appointment_id": {
+      "type": "string",
+      "description": "Reference to the appointment (optional if SOAP note created independently)"
+    },
+    "location_id": {
+      "type": "string",
+      "description": "Reference to the location where session took place"
+    },
+    "note_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "The date of the note, usually matches the appointment date"
+    },
+    "session_location": {
+      "type": "string",
+      "description": "Location where the session took place (deprecated, use location_id)"
+    },
+    "note_name": {
+      "type": "string",
+      "description": "Custom name for the SOAP note (e.g., PCP Session 1, ECR Final Review)"
+    },
+    "subjective": {
+      "type": "string",
+      "description": "Subjective part of the SOAP note"
+    },
+    "compliance": {
+      "type": "object",
+      "description": "Structured compliance / home program adherence data (analytics-safe)",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "green",
+            "yellow",
+            "red",
+            "grey"
+          ],
+          "description": "Traffic light compliance status"
+        },
+        "frequency": {
+          "type": "string",
+          "description": "Exercise frequency (green only)"
+        },
+        "barriers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Selected barrier tags"
+        },
+        "actions_taken": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Actions taken by clinician"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Free text notes (clinical record only, not for analytics)"
+        }
+      }
+    },
+    "objective": {
+      "type": "string",
+      "description": "Objective part of the SOAP note"
+    },
+    "assessment": {
+      "type": "string",
+      "description": "Assessment part of the SOAP note"
+    },
+    "plan": {
+      "type": "string",
+      "description": "Plan part of the SOAP note"
+    },
+    "plan_attachments": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "document_id": {
+            "type": "string"
+          },
+          "file_url": {
+            "type": "string"
+          },
+          "file_name": {
+            "type": "string"
+          },
+          "uploaded_at": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "description": "Documents attached to the plan section"
+    },
+    "other": {
+      "type": "string",
+      "description": "Any other relevant information"
+    },
+    "full_transcript": {
+      "type": "string",
+      "description": "Complete audio transcription of the session recording"
+    },
+    "session_audio_url": {
+      "type": "string",
+      "description": "URL to the recorded audio file of the session (deprecated, use session_audio_urls)"
+    },
+    "session_audio_urls": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "label": {
+            "type": "string"
+          }
+        }
+      },
+      "description": "Array of recorded audio files for the session"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "published"
+      ],
+      "default": "draft",
+      "description": "The status of the note"
+    },
+    "published_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "When the note was first published"
+    },
+    "published_by": {
+      "type": "string",
+      "description": "Email of the user who published the note"
+    },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "user_email": {
+            "type": "string"
+          },
+          "action": {
+            "type": "string",
+            "enum": [
+              "created",
+              "published",
+              "amended"
+            ]
+          }
+        }
+      },
+      "description": "A log of changes made to the note"
+    }
+  },
+  "required": [
+    "org_id",
+    "client_id",
+    "note_date"
+  ]
+}

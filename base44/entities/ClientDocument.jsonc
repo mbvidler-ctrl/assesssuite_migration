@@ -1,0 +1,45 @@
+{
+  "name": "ClientDocument",
+  "type": "object",
+  "properties": {
+    "org_id": {
+      "type": "string",
+      "description": "Organization this document belongs to"
+    },
+    "client_id": {
+      "type": "string",
+      "description": "Reference to the client"
+    },
+    "document_type": {
+      "type": "string",
+      "enum": [
+        "referral",
+        "report",
+        "assessment",
+        "consent",
+        "medical_record",
+        "other"
+      ],
+      "description": "Type of document"
+    },
+    "file_url": {
+      "type": "string",
+      "description": "URL to the uploaded file"
+    },
+    "file_name": {
+      "type": "string",
+      "description": "Original file name"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Notes about this document"
+    }
+  },
+  "required": [
+    "org_id",
+    "client_id",
+    "document_type",
+    "file_url",
+    "file_name"
+  ]
+}

@@ -1,0 +1,542 @@
+import React, { useState, useRef, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
+import { base44 } from "@/api/base44Client";
+import { toast } from "sonner";
+import { Loader2, UserPlus, Trash2 } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+
+export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) {
+  const [formData, setFormData] = useState({
+    full_name: "",
+    email: "",
+    date_of_birth: "",
+    gender: "",
+    gender_other: "",
+    apss_q1_heart_stroke: null,
+    apss_q2_chest_pain: null,
+    apss_q3_faint_dizzy: null,
+    apss_q4_asthma: null,
+    apss_q5_diabetes_control: null,
+    apss_q6_other_conditions: null,
+  });
+  const [consents, setConsents] = useState({});
+  const [activePolicy, setActivePolicy] = useState(null);
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDrawing, setIsDrawing] = useState(false);
+  const canvasRef = useRef(null);
+  const [hasSignature, setHasSignature] = useState(false);
+
+  useEffect(() => {
+    if (isOpen && canvasRef.current) {
+      const canvas = canvasRef.current;
+      const ctx = canvas.getContext('2d');
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+  }, [isOpen]);
+
+  const DEFAULT_POLICY = {
+    show_primary_consent: true, show_privacy_consent: true, show_assessment_consent: true,
+    show_pricing_consent: true, show_cancellation_policy: true,
+    consent_primary_text: "I consent to receive clinical assessment and treatment services. I understand that this may involve physical examination, movement assessment, and therapeutic interventions.",
+    consent_privacy_text: "I consent to the collection, storage, and use of my personal health information for the purpose of providing clinical services and maintaining medical records in accordance with privacy regulations.",
+    consent_assessment_text: "I consent to participate in various physical and psychological assessment tests as recommended by my clinician. I understand the purpose, risks, and benefits of these assessments.",
+    consent_pricing_text: "I confirm that the pricing schedule for services has been explained to me and I agree to the stated fees and payment terms.",
+    cancellation_policy_text: "I understand that appointments cancelled with less than 24 hours notice may incur a cancellation fee. I agree to provide adequate notice when cancelling or rescheduling appointments."
+  };
+
+  const CONSENT_ITEMS = [
+    { showKey: "show_primary_consent", textKey: "consent_primary_text", key: "primary", label: "Primary Consent for Assessment and Treatment" },
+    { showKey: "show_privacy_consent", textKey: "consent_privacy_text", key: "privacy", label: "Privacy and Data Storage Consent" },
+    { showKey: "show_assessment_consent", textKey: "consent_assessment_text", key: "assessment", label: "Assessment and Testing Consent" },
+    { showKey: "show_pricing_consent", textKey: "consent_pricing_text", key: "pricing", label: "Pricing Schedule Agreement" },
+    { showKey: "show_cancellation_policy", textKey: "cancellation_policy_text", key: "cancellation", label: "Cancellation Policy" },
+  ];
+
+  useEffect(() => {
+    const loadPolicy = async () => {
+      try {
+        const user = await base44.auth.me();
+        const mems = await base44.entities.OrganizationMember.filter({ user_email: user.email }).catch(() => []);
+        const primary = (mems || []).find(m => m.is_primary) || (mems || [])[0];
+        const orgId = primary?.org_id;
+        if (orgId) {
+          const all = await base44.entities.ClinicPolicy.list().catch(() => []);
+          const active = (all || []).filter(p => p.org_id === orgId && p.is_active === true);
+          if (active.length > 0) {
+            const policy = active.sort((a, b) => new Date(b.created_date) - new Date(a.created_date))[0];
+            setActivePolicy(policy);
+            return;
+          }
+        }
+        setActivePolicy(DEFAULT_POLICY);
+      } catch {
+        setActivePolicy(DEFAULT_POLICY);
+      }
+    };
+    if (isOpen) loadPolicy();
+  }, [isOpen]);
+
+  const handleChange = (field, value) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors((prev) => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const getEventCoordinates = (e) => {
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    
+    // Handle both mouse and touch events
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    return {
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    };
+  };
+
+  const startDrawing = (e) => {
+    e.preventDefault();
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const coords = getEventCoordinates(e);
+    
+    setIsDrawing(true);
+    ctx.beginPath();
+    ctx.moveTo(coords.x, coords.y);
+  };
+
+  const draw = (e) => {
+    if (!isDrawing) return;
+    e.preventDefault();
+    
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    const coords = getEventCoordinates(e);
+    
+    ctx.lineTo(coords.x, coords.y);
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    setHasSignature(true);
+  };
+
+  const stopDrawing = () => {
+    setIsDrawing(false);
+  };
+
+  const clearSignature = () => {
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    setHasSignature(false);
+    if (errors.signature) {
+      setErrors((prev) => ({ ...prev, signature: "" }));
+    }
+  };
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.full_name.trim()) newErrors.full_name = "Full name is required";
+    if (!formData.date_of_birth) newErrors.date_of_birth = "Date of birth is required";
+    if (!formData.gender) newErrors.gender = "Gender is required";
+    if (formData.gender === "other" && !formData.gender_other.trim()) {
+      newErrors.gender_other = "Please specify gender";
+    }
+    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = "Please enter a valid email address";
+    }
+    const policy = activePolicy || DEFAULT_POLICY;
+    const visibleKeys = CONSENT_ITEMS.filter(i => policy[i.showKey] !== false).map(i => i.key);
+    if (visibleKeys.some(k => !consents[k])) {
+      newErrors.consents = "All consent checkboxes must be checked";
+    }
+    if (!hasSignature) {
+      newErrors.signature = "Client signature is required to proceed";
+    }
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!validateForm()) {
+      toast.error("Please correct the errors in the form.");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      // Get signature as base64
+      const canvas = canvasRef.current;
+      const signatureData = canvas.toDataURL('image/png');
+
+      // Get current user first
+      const currentUser = await base44.auth.me();
+
+      // Ensure user has an organization
+      let orgId;
+      try {
+        let memberships = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email }).catch(() => []);
+        if (!memberships) memberships = [];
+        
+        if (memberships.length === 0) {
+          // Auto-create organization for user
+          const newOrg = await base44.entities.Organization.create({
+            name: `${currentUser.full_name || currentUser.email}'s Clinic`
+          });
+          
+          await base44.entities.OrganizationMember.create({
+            org_id: newOrg.id,
+            user_email: currentUser.email,
+            role: 'owner',
+            is_primary: true
+          });
+          
+          orgId = newOrg.id;
+        } else {
+          // Get primary org or first org
+          const primaryMembership = memberships.find(m => m.is_primary) || memberships[0];
+          orgId = primaryMembership.org_id;
+        }
+      } catch (orgError) {
+        console.error("Error checking organization:", orgError);
+        toast.error("Failed to verify organization. Please try again.");
+        setIsSubmitting(false);
+        return;
+      }
+
+      const clientData = {
+        org_id: orgId,
+        full_name: formData.full_name,
+        date_of_birth: formData.date_of_birth,
+        gender: formData.gender,
+        gender_other: formData.gender === "other" ? formData.gender_other : null,
+        email: formData.email.trim() || null,
+        assigned_clinician_email: currentUser.email,
+        consent_confirmed: true,
+        privacy_consent: true,
+        assessment_consent: true,
+        pricing_explained: true,
+        consent_date: new Date().toISOString(),
+        digital_signature: signatureData,
+        apss_q1_heart_stroke: formData.apss_q1_heart_stroke,
+        apss_q2_chest_pain: formData.apss_q2_chest_pain,
+        apss_q3_faint_dizzy: formData.apss_q3_faint_dizzy,
+        apss_q4_asthma: formData.apss_q4_asthma,
+        apss_q5_diabetes_control: formData.apss_q5_diabetes_control,
+        apss_q6_other_conditions: formData.apss_q6_other_conditions,
+        apss_completed: (formData.apss_q1_heart_stroke !== null && 
+                        formData.apss_q2_chest_pain !== null && 
+                        formData.apss_q3_faint_dizzy !== null && 
+                        formData.apss_q4_asthma !== null && 
+                        formData.apss_q5_diabetes_control !== null && 
+                        formData.apss_q6_other_conditions !== null),
+        apss_completion_date: (formData.apss_q1_heart_stroke !== null && 
+                               formData.apss_q2_chest_pain !== null && 
+                               formData.apss_q3_faint_dizzy !== null && 
+                               formData.apss_q4_asthma !== null && 
+                               formData.apss_q5_diabetes_control !== null && 
+                               formData.apss_q6_other_conditions !== null) ? new Date().toISOString() : null,
+      };
+
+      // Check for existing client with same email if provided
+      if (clientData.email) {
+        const existingClients = await base44.entities.Client.filter({ email: clientData.email }).catch(() => []);
+        if (existingClients && existingClients.length > 0) {
+          toast.error(`A client with email "${clientData.email}" already exists.`);
+          setIsSubmitting(false);
+          return;
+        }
+      }
+
+      const newClient = await base44.entities.Client.create(clientData);
+      
+      toast.success("Client quickly onboarded! Redirecting to profile...");
+      onClientCreated(newClient.id);
+      onClose();
+    } catch (error) {
+      console.error("Failed to quick onboard client:", error);
+      const errorMsg = error?.message || error?.toString() || "Unknown error";
+      toast.error(`Failed to onboard: ${errorMsg}`);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto p-6">
+        <DialogHeader className="pb-4">
+          <DialogTitle className="flex items-center gap-2">
+            <UserPlus className="w-5 h-5" /> Quick Client Onboarding
+          </DialogTitle>
+          <p className="text-sm text-slate-600 mt-2">
+            For walk-in clients - capture essential info to start testing immediately. Complete full onboarding later.
+          </p>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <Label htmlFor="full_name">Full Name *</Label>
+            <Input
+              id="full_name"
+              value={formData.full_name}
+              onChange={(e) => handleChange("full_name", e.target.value)}
+              placeholder="Client's full name"
+              className={errors.full_name ? "border-red-500" : ""}
+            />
+            {errors.full_name && <p className="text-red-500 text-sm mt-1">{errors.full_name}</p>}
+          </div>
+
+          <div>
+            <Label htmlFor="email">Email (Optional)</Label>
+            <Input
+              id="email"
+              type="email"
+              value={formData.email}
+              onChange={(e) => handleChange("email", e.target.value)}
+              placeholder="Client's email address"
+              className={errors.email ? "border-red-500" : ""}
+            />
+            {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+            <p className="text-xs text-slate-500 mt-1">Can be added later if not available now</p>
+          </div>
+
+          <div>
+            <Label htmlFor="date_of_birth">Date of Birth *</Label>
+            <Input
+              id="date_of_birth"
+              type="date"
+              value={formData.date_of_birth}
+              onChange={(e) => handleChange("date_of_birth", e.target.value)}
+              className={errors.date_of_birth ? "border-red-500" : ""}
+            />
+            {errors.date_of_birth && <p className="text-red-500 text-sm mt-1">{errors.date_of_birth}</p>}
+          </div>
+
+          <div>
+            <Label htmlFor="gender">Gender *</Label>
+            <Select value={formData.gender} onValueChange={(value) => handleChange("gender", value)}>
+              <SelectTrigger className={errors.gender ? "border-red-500" : ""}>
+                <SelectValue placeholder="Select gender" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="male">Male</SelectItem>
+                <SelectItem value="female">Female</SelectItem>
+                <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="prefer_not_to_say">Prefer not to say</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.gender && <p className="text-red-500 text-sm mt-1">{errors.gender}</p>}
+          </div>
+
+          {formData.gender === "other" && (
+            <div>
+              <Label htmlFor="gender_other">Please specify *</Label>
+              <Input
+                id="gender_other"
+                value={formData.gender_other}
+                onChange={(e) => handleChange("gender_other", e.target.value)}
+                placeholder="Specify gender"
+                className={errors.gender_other ? "border-red-500" : ""}
+              />
+              {errors.gender_other && <p className="text-red-500 text-sm mt-1">{errors.gender_other}</p>}
+            </div>
+          )}
+
+          <div className="space-y-4 mt-6 bg-slate-50 border border-slate-200 rounded-lg p-4">
+            <h3 className="font-semibold text-slate-900 text-base">Stage 1 - Adult Pre-Exercise Screening (APSS)</h3>
+            <p className="text-xs text-slate-600">If you answer YES to any of the following, medical clearance from your doctor may be required before commencing exercise</p>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">1. Has your doctor ever told you that you have a heart condition, or have you ever suffered a stroke?</Label>
+                <RadioGroup value={formData.apss_q1_heart_stroke?.toString()} onValueChange={(v) => handleChange("apss_q1_heart_stroke", v === "true")}>
+                  <div className="flex gap-6">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="true" id="q1_yes" />
+                      <Label htmlFor="q1_yes" className="font-normal">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="false" id="q1_no" />
+                      <Label htmlFor="q1_no" className="font-normal">No</Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">2. Do you ever experience unexplained pains or discomfort in your chest at rest or during physical activity/exercise?</Label>
+                <RadioGroup value={formData.apss_q2_chest_pain?.toString()} onValueChange={(v) => handleChange("apss_q2_chest_pain", v === "true")}>
+                  <div className="flex gap-6">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="true" id="q2_yes" />
+                      <Label htmlFor="q2_yes" className="font-normal">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="false" id="q2_no" />
+                      <Label htmlFor="q2_no" className="font-normal">No</Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">3. Do you ever feel faint, dizzy, or lose balance during physical activity/exercise?</Label>
+                <RadioGroup value={formData.apss_q3_faint_dizzy?.toString()} onValueChange={(v) => handleChange("apss_q3_faint_dizzy", v === "true")}>
+                  <div className="flex gap-6">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="true" id="q3_yes" />
+                      <Label htmlFor="q3_yes" className="font-normal">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="false" id="q3_no" />
+                      <Label htmlFor="q3_no" className="font-normal">No</Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">4. Have you had an asthma attack requiring immediate medical attention at any time over the last 12 months?</Label>
+                <RadioGroup value={formData.apss_q4_asthma?.toString()} onValueChange={(v) => handleChange("apss_q4_asthma", v === "true")}>
+                  <div className="flex gap-6">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="true" id="q4_yes" />
+                      <Label htmlFor="q4_yes" className="font-normal">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="false" id="q4_no" />
+                      <Label htmlFor="q4_no" className="font-normal">No</Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">5. If you have diabetes (type 1 or type 2), have you had trouble controlling your blood sugar (hypo/hyperglycaemia) in the last 3 months?</Label>
+                <RadioGroup value={formData.apss_q5_diabetes_control?.toString()} onValueChange={(v) => handleChange("apss_q5_diabetes_control", v === "true")}>
+                  <div className="flex gap-6">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="true" id="q5_yes" />
+                      <Label htmlFor="q5_yes" className="font-normal">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="false" id="q5_no" />
+                      <Label htmlFor="q5_no" className="font-normal">No</Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">6. Do you have any other condition(s) that may make it dangerous for you to participate in physical activity/exercise?</Label>
+                <RadioGroup value={formData.apss_q6_other_conditions?.toString()} onValueChange={(v) => handleChange("apss_q6_other_conditions", v === "true")}>
+                  <div className="flex gap-6">
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="true" id="q6_yes" />
+                      <Label htmlFor="q6_yes" className="font-normal">Yes</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="false" id="q6_no" />
+                      <Label htmlFor="q6_no" className="font-normal">No</Label>
+                    </div>
+                  </div>
+                </RadioGroup>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-4 mt-6">
+            <h3 className="font-semibold text-slate-900 text-base">Consent & Confirmation</h3>
+            
+            <div className="space-y-4">
+              {CONSENT_ITEMS.filter(item => (activePolicy || DEFAULT_POLICY)[item.showKey] !== false).map(item => (
+                <div key={item.key} className="flex items-start space-x-3">
+                  <Checkbox
+                    id={`consent_${item.key}`}
+                    checked={!!consents[item.key]}
+                    onCheckedChange={(checked) => setConsents(prev => ({ ...prev, [item.key]: checked }))}
+                  />
+                  <div className="flex-1">
+                    <label htmlFor={`consent_${item.key}`} className="text-sm font-semibold text-slate-900 cursor-pointer">
+                      {item.label}
+                    </label>
+                    <p className="text-xs text-slate-600 mt-1">
+                      {(activePolicy || DEFAULT_POLICY)[item.textKey]}
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {errors.consents && <p className="text-red-500 text-sm mt-2">{errors.consents}</p>}
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+            <Label className="text-sm font-semibold mb-2 block">
+              Client Signature *
+            </Label>
+            <p className="text-xs text-slate-600 mb-3">
+              By signing below, I confirm that I have read and agree to all the consent statements and policies above.
+            </p>
+            
+            <div className="relative">
+              <canvas
+                ref={canvasRef}
+                width={400}
+                height={150}
+                className={`border-2 rounded bg-white cursor-crosshair w-full ${errors.signature ? 'border-red-500' : 'border-slate-300'}`}
+                style={{ touchAction: 'none' }}
+                onMouseDown={startDrawing}
+                onMouseMove={draw}
+                onMouseUp={stopDrawing}
+                onMouseLeave={stopDrawing}
+                onTouchStart={startDrawing}
+                onTouchMove={draw}
+                onTouchEnd={stopDrawing}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={clearSignature}
+                className="absolute top-2 right-2 bg-white hover:bg-slate-100"
+              >
+                <Trash2 className="w-3 h-3 mr-1" />
+                Clear
+              </Button>
+            </div>
+            
+            {errors.signature && <p className="text-red-500 text-sm mt-2">{errors.signature}</p>}
+          </div>
+
+          <DialogFooter className="mt-6 gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <UserPlus className="w-4 h-4 mr-2" />
+              )}
+              Quick Onboard & Start Testing
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
