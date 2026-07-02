@@ -107,6 +107,7 @@ function exportCSV(rows, filename) {
 // â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function AdminAnalytics() {
+  const [currentUser, setCurrentUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [clients, setClients] = useState([]);
   const [conditions, setConditions] = useState([]);
@@ -117,6 +118,14 @@ export default function AdminAnalytics() {
   useEffect(() => {
     (async () => {
       setIsLoading(true);
+      const user = await base44.auth.me();
+      setCurrentUser(user);
+
+      if (user.role !== 'admin') {
+        setIsLoading(false);
+        return;
+      }
+
       const [cls, conds, cas, defs, notes] = await Promise.all([
         base44.entities.Client.list(),
         base44.entities.ClientCondition.list(),
@@ -226,6 +235,20 @@ export default function AdminAnalytics() {
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-blue-600" />
           <p className="text-slate-600">Loading analytics...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (currentUser?.role !== 'admin') {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 p-6 flex items-center justify-center">
+        <Card className="max-w-md">
+          <CardContent className="pt-6 text-center">
+            <ShieldCheck className="w-12 h-12 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold mb-2">Admin Access Required</h2>
+            <p className="text-slate-600">You need admin privileges to access this page.</p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
