@@ -11,7 +11,8 @@
     "preview": "vite preview",
     "server": "node server/index.mjs",
     "selftest": "node server/selftest.mjs",
-    "seed": "node server/seed.mjs"
+    "seed": "node server/seed.mjs",
+    "validate:entry-guards": "node scripts/validate-entry-ts-guards.mjs"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.35",

@@ -492,6 +492,13 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // Security patch ASX-SEC-20260703-01: previously any authenticated
+    // user (not just admins) could invoke this test-data-generation
+    // utility. See docs/ASX-SEC-20260703-01-patch-note.md.
+    if (user.role !== 'admin') {
+      return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+    }
+
     const orgMemberships = await base44.entities.OrganizationMember.filter({ user_email: user.email });
     const orgId = orgMemberships?.[0]?.org_id;
 

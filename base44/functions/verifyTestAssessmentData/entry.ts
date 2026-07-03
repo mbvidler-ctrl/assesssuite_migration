@@ -3,7 +3,15 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    
+    // Security patch ASX-SEC-20260703-01: this function previously had no
+    // caller-identity or role check at all. Admin-only guard added; see
+    // docs/ASX-SEC-20260703-01-patch-note.md.
+    const user = await base44.auth.me();
+
+    if (user?.role !== 'admin') {
+      return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+    }
+
     // Get the test client (most recent client named "Test Client - Automated")
     const testClients = await base44.entities.Client.filter({ full_name: 'Test Client - Automated' });
     

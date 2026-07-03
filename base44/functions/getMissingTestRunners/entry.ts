@@ -149,6 +149,15 @@ function hasDetectedRunner(name) {
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
+    // Security patch ASX-SEC-20260703-01: this function previously had no
+    // caller-identity or role check of any kind. Admin-only guard added;
+    // see docs/ASX-SEC-20260703-01-patch-note.md.
+    const user = await base44.auth.me();
+
+    if (user?.role !== 'admin') {
+      return Response.json({ error: 'Forbidden: Admin access required' }, { status: 403 });
+    }
+
     const allAssessments = await base44.entities.Assessment.list('-created_date', 500);
     
     const missing = allAssessments.filter(a => {
