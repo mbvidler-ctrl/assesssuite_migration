@@ -129,7 +129,7 @@ import BackScratchTestRunner from './BackScratchTestRunner';
 import BalanceEvaluationSystemsTestBESTestRunner from './BalanceEvaluationSystemsTestBESTestRunner';
 import BodyFatPercentageSkinfoldsRunner from './BodyFatPercentageSkinfoldsRunner';
 import BodyMassIndexBMIRunner from './BodyMassIndexBMIRunner';
-// BruceTreadmillProtocolRunner removed â€” consolidated into BruceProtocolRunner
+// BruceTreadmillProtocolRunner removed — consolidated into BruceProtocolRunner
 import ChairSitandReachTestRunner from './ChairSitandReachTestRunner';
 import ClosedKineticChainUpperExtremityStabilityTestCKCUESTRunner from './ClosedKineticChainUpperExtremityStabilityTestCKCUESTRunner';
 import CommunityBalanceMobilityScaleCBMRunner from './CommunityBalanceMobilityScaleCBMRunner';
@@ -507,7 +507,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
         const dateStr = today.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' });
         const soapContent = data?.additional_data?.soap_text;
         const resultText = resultValue !== null && resultValue !== undefined ? resultValue : 'Assessment recorded';
-        let objectiveText = soapContent ? `Assessment completed on ${dateStr}:\n\n${soapContent}` : `Assessment completed on ${dateStr}:\n\nâ€¢ ${assessment.name}: ${resultText}`;
+        let objectiveText = soapContent ? `Assessment completed on ${dateStr}:\n\n${soapContent}` : `Assessment completed on ${dateStr}:\n\n• ${assessment.name}: ${resultText}`;
         if (clinicianNotes && clinicianNotes.trim()) { objectiveText += `\n\nClinician Notes (recorded during assessment):\n${clinicianNotes.trim()}`; }
         
         try {
@@ -583,7 +583,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
           'Worry or distress caused by the sleep problem',
           'Interference with quality of life caused by the sleep problem'
         ];
-        let isiText = `â€¢ Insomnia Severity Index (ISI): ${runnerData.result_value || 0} score\n\n  Individual Question Responses:\n`;
+        let isiText = `• Insomnia Severity Index (ISI): ${runnerData.result_value || 0} score\n\n  Individual Question Responses:\n`;
         Object.entries(runnerData.additional_data.responses).forEach((entry) => {
           const key = entry[0];
           const value = entry[1];
@@ -622,7 +622,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
           if (barriers && barriers.trim()) objectiveText += `  Barriers Identified: ${barriers}\n`;
           if (clinicianNotes && clinicianNotes.trim()) { objectiveText += `\n\nClinician Notes (recorded during assessment):\n${clinicianNotes.trim()}`; }
        } else if (runnerData.result_value !== null && runnerData.result_value !== undefined && runnerData.result_value !== '') {
-       objectiveText = `Assessment completed on ${dateStr}:\n\nâ€¢ ${assessment.name}: ${runnerData.result_value}${assessment.unit_of_measure ? ` ${assessment.unit_of_measure}` : ''}\n`;
+       objectiveText = `Assessment completed on ${dateStr}:\n\n• ${assessment.name}: ${runnerData.result_value}${assessment.unit_of_measure ? ` ${assessment.unit_of_measure}` : ''}\n`;
 
         // If the runner returned questionnaire responses, format them with question text + answer labels
         if (data.responses && assessment.questions && assessment.questions.length > 0) {
@@ -670,7 +670,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
           if (clinicianNotes && clinicianNotes.trim()) { objectiveText += `\n\nClinician Notes (recorded during assessment):\n${clinicianNotes.trim()}`; }
           } else {
           // Fallback if no result and no soap text
-          objectiveText = `Assessment completed on ${dateStr}:\n\nâ€¢ ${assessment.name}: Assessment recorded`;
+          objectiveText = `Assessment completed on ${dateStr}:\n\n• ${assessment.name}: Assessment recorded`;
           if (notes && notes.trim()) objectiveText += `\n  Clinical Notes: ${notes}\n`;
           if (barriers && barriers.trim()) objectiveText += `  Barriers Identified: ${barriers}\n`;
           if (clinicianNotes && clinicianNotes.trim()) { objectiveText += `\n\nClinician Notes (recorded during assessment):\n${clinicianNotes.trim()}`; }
@@ -909,7 +909,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
     }
   };
 
-  // Runners that manage their own modal UI â€” render without wrapper
+  // Runners that manage their own modal UI — render without wrapper
   const selfModalTypes = ['psqi', 'ppt_full', 'sppb', 'stroop', 'static_back', 'standing_stork',
     'slump_test', 'sebt', 'single_leg_stance_test', 'five_xsts', 'fes', 'fesi', 'bia',
     'pcl5', 'roland', 'sarc_f', 'rivermead_mobility', '2min_walk', 'standing_long_jump'];

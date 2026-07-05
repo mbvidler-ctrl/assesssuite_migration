@@ -218,9 +218,9 @@ Please click the link below to access your secure onboarding form:
 ${link}
 
 You can complete the following sections at your convenience:
-â€¢ Referral Information  
-â€¢ Medical History
-â€¢ Your Goals for Treatment
+• Referral Information  
+• Medical History
+• Your Goals for Treatment
 
 Please note: Some sections (like consent forms and clinical assessments) will be completed together during your appointment.
 

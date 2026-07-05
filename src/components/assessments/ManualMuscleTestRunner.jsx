@@ -30,17 +30,17 @@ const TESTING_POSITIONS = {
   'Shoulder Flexion': 'Seated or standing. Stabilize scapula. Arm at side, palm facing inward. Resist upward movement.',
   'Shoulder Extension': 'Prone with arm off edge of table or standing. Resist backward movement.',
   'Shoulder Abduction': 'Seated. Arm at side. Resist outward movement away from body.',
-  'Shoulder Internal Rotation': 'Prone with shoulder abducted 90Â°, elbow flexed 90Â°. Resist internal rotation.',
-  'Shoulder External Rotation': 'Prone with shoulder abducted 90Â°, elbow flexed 90Â°. Resist external rotation.',
-  'Elbow Flexion': 'Seated, arm at side, elbow 90Â°, palm up. Resist flexion at forearm.',
+  'Shoulder Internal Rotation': 'Prone with shoulder abducted 90°, elbow flexed 90°. Resist internal rotation.',
+  'Shoulder External Rotation': 'Prone with shoulder abducted 90°, elbow flexed 90°. Resist external rotation.',
+  'Elbow Flexion': 'Seated, arm at side, elbow 90°, palm up. Resist flexion at forearm.',
   'Elbow Extension': 'Seated or standing, elbow flexed. Resist extension at forearm.',
   'Wrist Flexion': 'Forearm supported, wrist neutral. Resist flexion at hand.',
   'Wrist Extension': 'Forearm supported, wrist neutral. Resist extension at hand.',
-  'Hip Flexion': 'Seated with knees flexed 90Â°. Resist at distal thigh.',
+  'Hip Flexion': 'Seated with knees flexed 90°. Resist at distal thigh.',
   'Hip Extension': 'Prone. Resist at posterior thigh.',
   'Hip Abduction': 'Side-lying, test leg up. Resist at lateral knee or ankle.',
-  'Knee Flexion': 'Prone, knee flexed ~45-90Â°. Resist at posterior ankle.',
-  'Knee Extension': 'Seated, knee flexed 90Â°. Resist at anterior ankle.',
+  'Knee Flexion': 'Prone, knee flexed ~45-90°. Resist at posterior ankle.',
+  'Knee Extension': 'Seated, knee flexed 90°. Resist at anterior ankle.',
   'Ankle Dorsiflexion': 'Seated or supine. Resist at dorsum of foot.',
   'Ankle Plantarflexion': 'Prone with foot over edge or seated. Resist at plantar surface.'
 };
@@ -74,9 +74,9 @@ export default function ManualMuscleTestRunner({ initialData, onSave, onClose })
   const handleSave = () => {
     const avgGrade = tests.length > 0 ? (tests.reduce((sum, t) => sum + t.grade, 0) / tests.length).toFixed(1) : 0;
     const testLines = tests.map(t =>
-      `  ${t.region} ${t.movement} (${t.side}): ${t.grade}/5${t.notes ? ` â€” ${t.notes}` : ''}`
+      `  ${t.region} ${t.movement} (${t.side}): ${t.grade}/5${t.notes ? ` — ${t.notes}` : ''}`
     ).join('\n');
-    const soapText = `â€¢ Manual Muscle Testing (MMT):\n${testLines}\n  Average Grade: ${avgGrade}/5`;
+    const soapText = `• Manual Muscle Testing (MMT):\n${testLines}\n  Average Grade: ${avgGrade}/5`;
 
     onSave({
       result_value: parseFloat(avgGrade),
@@ -108,16 +108,16 @@ export default function ManualMuscleTestRunner({ initialData, onSave, onClose })
         <CardContent className="space-y-6">
           {/* Clinician Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-2">
-            <p className="font-semibold">ðŸ“‹ Administration Instructions (Kendall/MRC Protocol)</p>
+            <p className="font-semibold">📋 Administration Instructions (Kendall/MRC Protocol)</p>
             <p><strong>Positioning:</strong> Stabilise proximal segment. Apply resistance at the distal segment of the limb being tested. Break-test (isometric) or active ROM method may be used.</p>
-            <p><strong>Grades 0â€“2:</strong> Test in gravity-eliminated position. <strong>Grades 3â€“5:</strong> Test against gravity.</p>
+            <p><strong>Grades 0–2:</strong> Test in gravity-eliminated position. <strong>Grades 3–5:</strong> Test against gravity.</p>
             <p className="italic">"Move your [body part] as far as you can / Hold while I push."</p>
-            <p><strong>Note:</strong> Grades may be modified (+/âˆ’) but this tool uses whole numbers for simplicity. Document any modifications.</p>
+            <p><strong>Note:</strong> Grades may be modified (+/−) but this tool uses whole numbers for simplicity. Document any modifications.</p>
           </div>
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š MMT Grade Interpretation</p>
+            <p className="font-semibold text-slate-700">📊 MMT Grade Interpretation</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Grade</th><th className="p-2 text-left">Label</th><th className="p-2 text-left">Clinical Meaning</th></tr></thead>
@@ -135,7 +135,7 @@ export default function ManualMuscleTestRunner({ initialData, onSave, onClose })
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
+            <p className="font-semibold">📖 Reference</p>
             <p>Kendall FP, McCreary EK, Provance PG, Rodgers MM, & Romani WA. (2005). <em>Muscles: Testing and Function with Posture and Pain</em> (5th ed.). Lippincott Williams & Wilkins.</p>
             <p>Medical Research Council. (1981). <em>Aids to the Examination of the Peripheral Nervous System</em>. Her Majesty's Stationery Office.</p>
           </div>
@@ -256,7 +256,7 @@ export default function ManualMuscleTestRunner({ initialData, onSave, onClose })
                         Grade: <span className={`font-bold ${test.grade >= 4 ? 'text-green-600' : test.grade >= 3 ? 'text-yellow-600' : 'text-red-600'}`}>
                           {test.grade}/5
                         </span>
-                        {test.notes && ` â€¢ ${test.notes}`}
+                        {test.notes && ` • ${test.notes}`}
                       </p>
                     </div>
                     <Button

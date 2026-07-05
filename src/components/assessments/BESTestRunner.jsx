@@ -124,7 +124,7 @@ export default function BESTestRunner({ onSave, onClose }) {
     }));
 
     // Build comprehensive SOAP text
-    let soapText = `â€¢ Balance Evaluation Systems Test (BESTest): ${total}/108 (${percentage}%) â†’ ${interpretation.level}\n\n  Section Scores:\n`;
+    let soapText = `• Balance Evaluation Systems Test (BESTest): ${total}/108 (${percentage}%) → ${interpretation.level}\n\n  Section Scores:\n`;
     sectionScores.forEach((section, idx) => {
       soapText += `  ${idx + 1}. ${section.section_name}: ${section.section_total}/${section.section_max}\n`;
     });
@@ -176,16 +176,16 @@ export default function BESTestRunner({ onSave, onClose }) {
                   <Info className="w-5 h-5 text-amber-600 mt-0.5 shrink-0" />
                   <div className="text-sm text-amber-900">
                     <p className="font-semibold mb-1">Official Test Manual Required</p>
-                    <p>The BESTest scoring forms and administration instructions are copyrighted by Fay Horak PhD (Â© 2008). Please obtain the official test manual and scoring forms directly from the BESTest website before administering this assessment.</p>
+                    <p>The BESTest scoring forms and administration instructions are copyrighted by Fay Horak PhD (© 2008). Please obtain the official test manual and scoring forms directly from the BESTest website before administering this assessment.</p>
                     <a
                       href="https://www.bestest.us"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1 mt-2 font-semibold text-amber-700 underline hover:text-amber-900"
                     >
-                      Download official BESTest materials at bestest.us â†’
+                      Download official BESTest materials at bestest.us →
                     </a>
-                    <p className="mt-2 text-xs text-amber-700">Use this tool to record scores only. Scores 0â€“3 per item (0 = severe impairment, 3 = normal).</p>
+                    <p className="mt-2 text-xs text-amber-700">Use this tool to record scores only. Scores 0–3 per item (0 = severe impairment, 3 = normal).</p>
                   </div>
                 </div>
               </CardContent>
@@ -313,9 +313,9 @@ export default function BESTestRunner({ onSave, onClose }) {
                 <CardTitle className="text-sm text-slate-700">References & Usage</CardTitle>
               </CardHeader>
               <CardContent className="text-xs text-slate-600 space-y-2">
-                <p>â€¢ Horak FB, Wrisley DM, Frank J. <em>The Balance Evaluation Systems Test (BESTest) to differentiate balance deficits.</em> Phys Ther. 2009;89(5):484â€“498. doi:10.2522/ptj.20080071</p>
-                <p>â€¢ Franchignoni F, et al. <em>Using psychometric techniques to improve the Balance Evaluation Systems Test: the mini-BESTest.</em> J Rehabil Med. 2010;42(4):323â€“331.</p>
-                <p className="pt-1 border-t border-slate-200 text-slate-500"><strong>Usage:</strong> The BESTest is freely available for clinical and research use. The tool is copyrighted by Fay Horak PhD (Â© 2008) but is provided at no cost for clinical practice and non-commercial research. The full manual and scoring forms are available at <strong>bestest.us</strong>. No licensing fee is required for clinical use.</p>
+                <p>• Horak FB, Wrisley DM, Frank J. <em>The Balance Evaluation Systems Test (BESTest) to differentiate balance deficits.</em> Phys Ther. 2009;89(5):484–498. doi:10.2522/ptj.20080071</p>
+                <p>• Franchignoni F, et al. <em>Using psychometric techniques to improve the Balance Evaluation Systems Test: the mini-BESTest.</em> J Rehabil Med. 2010;42(4):323–331.</p>
+                <p className="pt-1 border-t border-slate-200 text-slate-500"><strong>Usage:</strong> The BESTest is freely available for clinical and research use. The tool is copyrighted by Fay Horak PhD (© 2008) but is provided at no cost for clinical practice and non-commercial research. The full manual and scoring forms are available at <strong>bestest.us</strong>. No licensing fee is required for clinical use.</p>
               </CardContent>
             </Card>
           </div>

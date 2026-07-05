@@ -77,7 +77,7 @@ export default function SixMinuteStepTestStandaloneWrapper({ assessment, client,
       });
 
       // Generate SOAP note entry
-      const objectiveText = `â€¢ ${assessment.name}:\n  Steps completed: ${data.result_value}\n  Step height: ${data.additional_data.step_height} cm\n  Age: ${data.additional_data.age}, Gender: ${data.additional_data.gender}\n${data.notes ? `\n  Notes: ${data.notes}` : ''}`;
+      const objectiveText = `• ${assessment.name}:\n  Steps completed: ${data.result_value}\n  Step height: ${data.additional_data.step_height} cm\n  Age: ${data.additional_data.age}, Gender: ${data.additional_data.gender}\n${data.notes ? `\n  Notes: ${data.notes}` : ''}`;
 
       // Find or create SOAP note for appointment
       let existingSoapNotes = await base44.entities.SOAPNote.filter({

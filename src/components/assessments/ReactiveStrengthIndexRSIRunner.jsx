@@ -39,7 +39,7 @@ export default function ReactiveStrengthIndexRSIRunner({ client, onSave, onClose
   const handleSave = () => {
     if (trials.length === 0) { toast.error("Record at least one trial"); return; }
     const trialLines = trials.map((t, i) => `  Trial ${i + 1}: Jump ${t.jumpHeight}cm | GCT ${t.contactTime}ms | RSI ${t.rsi}`).join("\n");
-    const soap = `â€¢ Reactive Strength Index (RSI) â€” Drop Jump\n  Best RSI: ${best.rsi} (${cat.label})\n  Jump Height: ${best.jumpHeight}cm | Ground Contact Time: ${best.contactTime}ms\n  Drop Height: ${dropHeight}cm\n\n  All Trials:\n${trialLines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  RSI = Jump Height (m) Ã· Ground Contact Time (s)\n  Elite athletes typically >2.5; general population 1.0â€“2.0\n  Reference: Young WB (1995). Laboratory strength assessment of athletes. NSCA Journal. McClymont D (2003).`;
+    const soap = `• Reactive Strength Index (RSI) — Drop Jump\n  Best RSI: ${best.rsi} (${cat.label})\n  Jump Height: ${best.jumpHeight}cm | Ground Contact Time: ${best.contactTime}ms\n  Drop Height: ${dropHeight}cm\n\n  All Trials:\n${trialLines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  RSI = Jump Height (m) ÷ Ground Contact Time (s)\n  Elite athletes typically >2.5; general population 1.0–2.0\n  Reference: Young WB (1995). Laboratory strength assessment of athletes. NSCA Journal. McClymont D (2003).`;
     onSave({ status: "completed", result_value: best.rsi, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "reactive_strength", best_rsi: best.rsi, best_jump_height_cm: best.jumpHeight, best_contact_time_ms: best.contactTime, drop_height_cm: parseFloat(dropHeight), trials, classification: cat.label } });
     toast.success("RSI saved.");
   };
@@ -48,7 +48,7 @@ export default function ReactiveStrengthIndexRSIRunner({ client, onSave, onClose
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-w-xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="p-5 border-b bg-gradient-to-r from-orange-50 to-red-50 flex justify-between items-start">
-          <div><h2 className="text-2xl font-bold text-slate-900">Reactive Strength Index (RSI)</h2><p className="text-slate-500 text-sm mt-0.5">Drop jump â€” plyometric capacity assessment</p></div>
+          <div><h2 className="text-2xl font-bold text-slate-900">Reactive Strength Index (RSI)</h2><p className="text-slate-500 text-sm mt-0.5">Drop jump — plyometric capacity assessment</p></div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
 
@@ -56,8 +56,8 @@ export default function ReactiveStrengthIndexRSIRunner({ client, onSave, onClose
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 space-y-1">
             <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />Protocol</p>
             <p><strong>Drop Jump:</strong> Step off box at set height (not jumping off). Land on both feet, immediately jump maximally upward. Minimize ground contact time.</p>
-            <p><strong>Measure:</strong> Jump height (cm) and ground contact time (ms) via jump mat or force plate. RSI = Height(m) Ã· GCT(s).</p>
-            <p><strong>Trials:</strong> 3â€“5 attempts. Record best RSI.</p>
+            <p><strong>Measure:</strong> Jump height (cm) and ground contact time (ms) via jump mat or force plate. RSI = Height(m) ÷ GCT(s).</p>
+            <p><strong>Trials:</strong> 3–5 attempts. Record best RSI.</p>
           </div>
 
           <div><Label>Drop Height (cm)</Label><Input type="number" step="5" value={dropHeight} onChange={e => setDropHeight(e.target.value)} className="mt-1" /></div>
@@ -84,7 +84,7 @@ export default function ReactiveStrengthIndexRSIRunner({ client, onSave, onClose
               <CardContent className="space-y-2">
                 {trials.map((t, i) => (
                   <div key={i} className="flex justify-between items-center bg-orange-50 px-3 py-2 rounded-lg text-sm">
-                    <span>T{i + 1}: <span className={`font-bold ${t.rsi === best?.rsi ? "text-orange-600" : ""}`}>RSI {t.rsi}</span> | {t.jumpHeight}cm / {t.contactTime}ms{t.rsi === best?.rsi ? " â˜…" : ""}</span>
+                    <span>T{i + 1}: <span className={`font-bold ${t.rsi === best?.rsi ? "text-orange-600" : ""}`}>RSI {t.rsi}</span> | {t.jumpHeight}cm / {t.contactTime}ms{t.rsi === best?.rsi ? " ★" : ""}</span>
                     <Button variant="ghost" size="icon" onClick={() => setTrials(trials.filter((_, x) => x !== i))}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
                   </div>
                 ))}

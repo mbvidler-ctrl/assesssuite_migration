@@ -19,7 +19,7 @@ const ROM_DATA = {
       {
         name: "Flexion",
         plane: "Sagittal",
-        normal: { male: "40-55Â°", female: "45-60Â°", combined: "40-60Â°" },
+        normal: { male: "40-55°", female: "45-60°", combined: "40-60°" },
         goniometer: {
           axis: "External auditory meatus (or just anterior to the tragus of the ear)",
           stationary_arm: "Vertically aligned (perpendicular to the floor)",
@@ -28,12 +28,12 @@ const ROM_DATA = {
         landmarks: "External auditory meatus / tragus of the ear, tip of the nose or base of the nares, sternum / manubrium (observe to ensure trunk flexion is not substituted for neck flexion)",
         position: "Sitting upright on a chair, feet flat, thoracic spine supported or verbally cued to stay still. Eyes looking forward at start.",
         script: "\"Sit up tall with your shoulders relaxed. Keep your shoulders and upper back as still as you can. When I say go, gently tuck your chin and bend your neck forward as if you're looking down at your chest. Go as far as you comfortably can, but stop if you feel sharp pain, dizziness, or anything unusual. Hold that position while I measure, then slowly return to your starting position.\"",
-        interpretation: "Typical active cervical flexion in healthy adults is around 40â€“60Â°. Values significantly below this range may reflect stiffness, pain limitation, guarding, or neurological involvement. Compare side-to-side patterns across other planes and consider symptom reproduction."
+        interpretation: "Typical active cervical flexion in healthy adults is around 40–60°. Values significantly below this range may reflect stiffness, pain limitation, guarding, or neurological involvement. Compare side-to-side patterns across other planes and consider symptom reproduction."
       },
       {
         name: "Extension",
         plane: "Sagittal",
-        normal: { male: "50-70Â°", female: "50-75Â°", combined: "50-70Â°" },
+        normal: { male: "50-70°", female: "50-75°", combined: "50-70°" },
         goniometer: {
           axis: "External auditory meatus / tragus",
           stationary_arm: "Vertically aligned (perpendicular to the floor)",
@@ -42,12 +42,12 @@ const ROM_DATA = {
         landmarks: "External auditory meatus / tragus, base of nares or tip of nose, observe sternum and upper chest to minimise trunk extension",
         position: "Sitting upright on a chair, feet flat, thoracic spine stable. Eyes looking forward at start.",
         script: "\"Sit up tall with your shoulders relaxed. Keep your upper back as still as possible. When I say go, gently look up toward the ceiling as far as is comfortable without forcing it. Stop if you feel dizziness, blurred vision, or sharp pain. Hold that position while I measure, then slowly return to neutral.\"",
-        interpretation: "Normal active extension is typically 50â€“70Â°. Reduced extension may be related to facet joint irritation, disc pathology, postural changes, or fear-avoidance. Monitor for vestibular or vertebrobasilar symptoms."
+        interpretation: "Normal active extension is typically 50–70°. Reduced extension may be related to facet joint irritation, disc pathology, postural changes, or fear-avoidance. Monitor for vestibular or vertebrobasilar symptoms."
       },
       {
         name: "Lateral Flexion (Left)",
         plane: "Frontal",
-        normal: { male: "35-45Â°", female: "35-50Â°", combined: "35-45Â°" },
+        normal: { male: "35-45°", female: "35-50°", combined: "35-45°" },
         goniometer: {
           axis: "Spinous process of C7",
           stationary_arm: "Along the thoracic spine, vertical (perpendicular to the floor)",
@@ -56,12 +56,12 @@ const ROM_DATA = {
         landmarks: "C7 spinous process (palpate the most prominent lower cervical spinous process), midline of the head (bump of the occiput or midpoint between the ears). Ensure the client does not rotate or flex/extend while side-bending.",
         position: "Sitting upright, feet flat, thoracic spine stable, looking straight ahead.",
         script: "\"Sit up tall and look straight ahead. Try to keep your shoulders level. When I say go, gently bring your left ear toward your left shoulder without turning your head. Go as far as is comfortable. Don't lift the shoulder up to meet the ear. Hold that position for a moment while I measure, then relax back to the middle.\"",
-        interpretation: "Normal lateral flexion is approximately 35â€“45Â°. Asymmetry between sides, or reproduction of arm symptoms, may indicate foraminal narrowing, nerve root irritation, or muscular imbalance."
+        interpretation: "Normal lateral flexion is approximately 35–45°. Asymmetry between sides, or reproduction of arm symptoms, may indicate foraminal narrowing, nerve root irritation, or muscular imbalance."
       },
       {
         name: "Lateral Flexion (Right)",
         plane: "Frontal",
-        normal: { male: "35-45Â°", female: "35-50Â°", combined: "35-45Â°" },
+        normal: { male: "35-45°", female: "35-50°", combined: "35-45°" },
         goniometer: {
           axis: "Spinous process of C7",
           stationary_arm: "Along the thoracic spine, vertical (perpendicular to the floor)",
@@ -70,12 +70,12 @@ const ROM_DATA = {
         landmarks: "C7 spinous process, head midline. Observe for compensation (rotation or flexion/extension).",
         position: "Sitting upright, feet flat, thoracic spine stable, looking straight ahead.",
         script: "\"Sit tall and look straight ahead. Keep your shoulders level. When I say go, gently bring your right ear toward your right shoulder without turning your head. Only go as far as is comfortable. Hold that position for a moment while I measure, then return to the middle.\"",
-        interpretation: "Compare left vs right. Differences >5â€“10Â° plus symptom reproduction may be clinically relevant. Consider muscle length, joint restrictions, and neural involvement."
+        interpretation: "Compare left vs right. Differences >5–10° plus symptom reproduction may be clinically relevant. Consider muscle length, joint restrictions, and neural involvement."
       },
       {
         name: "Rotation (Left)",
         plane: "Transverse",
-        normal: { male: "60-80Â°", female: "65-85Â°", combined: "60-80Â°" },
+        normal: { male: "60-80°", female: "65-85°", combined: "60-80°" },
         goniometer: {
           axis: "Over the centre of the head (approx. over the top of the skull)",
           stationary_arm: "Parallel to an imaginary line between the acromion processes or along the shoulders",
@@ -84,12 +84,12 @@ const ROM_DATA = {
         landmarks: "Approximate vertex of the skull for fulcrum (use a visual point), tip of the nose, line between acromion processes (or use an external reference like the frontal plane of the shoulders)",
         position: "Sitting upright or supine, depending on preference. For goniometer measurement, sitting is common; for inclinometer, supine is often easier.",
         script: "\"Sit up tall and look straight ahead. When I say go, turn your head to look over your left shoulder as if you're checking behind you. Move smoothly and stop when you feel a comfortable limit or if you feel pain, dizziness, or visual changes. Hold that end position while I take the measurement, then return to facing forward.\"",
-        interpretation: "Normal cervical rotation is roughly 60â€“80Â°. Marked limitation or symptom reproduction (especially dizziness or visual disturbance) may suggest upper cervical involvement, vertebrobasilar insufficiency, or facet joint restriction and warrants cautious progression."
+        interpretation: "Normal cervical rotation is roughly 60–80°. Marked limitation or symptom reproduction (especially dizziness or visual disturbance) may suggest upper cervical involvement, vertebrobasilar insufficiency, or facet joint restriction and warrants cautious progression."
       },
       {
         name: "Rotation (Right)",
         plane: "Transverse",
-        normal: { male: "60-80Â°", female: "65-85Â°", combined: "60-80Â°" },
+        normal: { male: "60-80°", female: "65-85°", combined: "60-80°" },
         goniometer: {
           axis: "At top/centre of the skull",
           stationary_arm: "Aligned with acromion line / shoulders",
@@ -98,7 +98,7 @@ const ROM_DATA = {
         landmarks: "Top of skull (visual), tip of nose, and shoulder line. Ensure trunk does not rotate with the head; cue the client to keep shoulders facing forward.",
         position: "Sitting upright or supine, consistent with the method used on the left side.",
         script: "\"Sit tall and look straight ahead. When I say go, slowly turn your head to look over your right shoulder. Go only as far as is comfortable and stop if you feel dizziness, nausea, or sharp pain. Hold that position briefly while I measure, then return to centre.\"",
-        interpretation: "Compare left and right rotation. Asymmetry â‰¥10Â° with concordant symptoms may guide manual therapy, mobility work, or referral for further medical review if red flags are present."
+        interpretation: "Compare left and right rotation. Asymmetry ≥10° with concordant symptoms may guide manual therapy, mobility work, or referral for further medical review if red flags are present."
       }
     ]
   },
@@ -110,7 +110,7 @@ const ROM_DATA = {
       {
         name: "Rotation (Left)",
         plane: "Transverse",
-        normal: { male: "28-32Â°", female: "30-36Â°", combined: "30-35Â°" },
+        normal: { male: "28-32°", female: "30-36°", combined: "30-35°" },
         goniometer: {
           axis: "Best measured with an inclinometer or goniometer atop the shoulders. Method 1 (Dual Inclinometer): Place one inclinometer at T1, another at T12. Have client rotate; subtract lower value from upper. Method 2 (Goniometer): Fulcrum placed on the top of the head.",
           stationary_arm: "Parallel to an imaginary line between the two iliac crests (or parallel to pelvis)",
@@ -119,12 +119,12 @@ const ROM_DATA = {
         landmarks: "Spinous process of T1, spinous process of T12 (approx. midpoint between inferior scapular angle and lumbar junction), acromion processes (for goniometer method)",
         position: "Sitting upright with legs supported. Arms crossed over the chest or hands placed on shoulders. Pelvis stabilised manually or verbally cued to avoid lumbar rotation.",
         script: "\"Sit tall with your arms crossed over your chest. When I say go, turn your upper body to the left as if looking behind you, but keep your hips and lower back still. Stop when you feel a comfortable limit or any symptoms. Hold that end position while I measure you.\"",
-        interpretation: "Typical right thoracic rotation is around 30â€“35Â°. Large asymmetry (>10Â°) may suggest facet joint stiffness, rib dysfunction, or muscle imbalance."
+        interpretation: "Typical right thoracic rotation is around 30–35°. Large asymmetry (>10°) may suggest facet joint stiffness, rib dysfunction, or muscle imbalance."
       },
       {
         name: "Rotation (Right)",
         plane: "Transverse",
-        normal: { male: "28-32Â°", female: "30-36Â°", combined: "30-35Â°" },
+        normal: { male: "28-32°", female: "30-36°", combined: "30-35°" },
         goniometer: {
           axis: "Same as left rotation - inclinometer at T1 and T12, or goniometer at vertex",
           stationary_arm: "Parallel to pelvis/iliac crests",
@@ -138,7 +138,7 @@ const ROM_DATA = {
       {
         name: "Extension",
         plane: "Sagittal",
-        normal: { male: "12-18Â°", female: "15-22Â°", combined: "15-20Â°" },
+        normal: { male: "12-18°", female: "15-22°", combined: "15-20°" },
         goniometer: {
           axis: "Use dual inclinometer: Upper inclinometer at T1, lower inclinometer at T12. Subtract T12 reading from T1 reading. Alternatively, visually estimate using goniometer with fulcrum at mid-thoracic region.",
           stationary_arm: "Aligned with lower thoracic/upper lumbar spine",
@@ -152,7 +152,7 @@ const ROM_DATA = {
       {
         name: "Lateral Flexion (Left)",
         plane: "Frontal",
-        normal: { male: "15-18Â°", female: "16-22Â°", combined: "15-20Â°" },
+        normal: { male: "15-18°", female: "16-22°", combined: "15-20°" },
         goniometer: {
           axis: "Place inclinometer at T1 and T12; subtract values. For goniometer: Fulcrum at T1.",
           stationary_arm: "Vertical (perpendicular to floor)",
@@ -166,7 +166,7 @@ const ROM_DATA = {
       {
         name: "Lateral Flexion (Right)",
         plane: "Frontal",
-        normal: { male: "15-18Â°", female: "16-22Â°", combined: "15-20Â°" },
+        normal: { male: "15-18°", female: "16-22°", combined: "15-20°" },
         goniometer: {
           axis: "Place inclinometer at T1 and T12; subtract values. For goniometer: Fulcrum at T1.",
           stationary_arm: "Vertical (perpendicular to floor)",
@@ -187,7 +187,7 @@ const ROM_DATA = {
       {
         name: "Flexion",
         plane: "Sagittal",
-        normal: { male: "40-60Â°", female: "45-65Â°", combined: "40-60Â°" },
+        normal: { male: "40-60°", female: "45-65°", combined: "40-60°" },
         goniometer: {
           axis: "Dual inclinometer method (gold standard): Place the upper inclinometer at T12, place the lower inclinometer at S1. Client flexes forward; subtract S1 from T12.",
           stationary_arm: "Lower inclinometer at S1 (sacral base)",
@@ -196,12 +196,12 @@ const ROM_DATA = {
         landmarks: "T12 (lower thoracic spine), S1 (midline at sacral base). Ensure movement originates at lumbar spine and not all from hips/hamstrings. Fingertip-to-floor method acceptable when no inclinometer is available.",
         position: "Standing, feet hip-width apart, knees extended.",
         script: "\"Stand tall with knees straight. When I say go, slowly lean forward and reach toward the floor. Keep your knees straight but do not force the movement. Hold at the end while I measure.\"",
-        interpretation: "Normal flexion is 40â€“60Â°. Restrictions may relate to hamstring tightness, discogenic pain, fear-avoidance, or facet joint irritation."
+        interpretation: "Normal flexion is 40–60°. Restrictions may relate to hamstring tightness, discogenic pain, fear-avoidance, or facet joint irritation."
       },
       {
         name: "Extension",
         plane: "Sagittal",
-        normal: { male: "20-30Â°", female: "25-35Â°", combined: "20-35Â°" },
+        normal: { male: "20-30°", female: "25-35°", combined: "20-35°" },
         goniometer: {
           axis: "Dual inclinometer: Upper at T12, lower at S1. Subtract S1 from T12 during extension.",
           stationary_arm: "Lower inclinometer at S1",
@@ -215,7 +215,7 @@ const ROM_DATA = {
       {
         name: "Lateral Flexion (Left)",
         plane: "Frontal",
-        normal: { male: "20-30Â°", female: "22-32Â°", combined: "20-30Â°" },
+        normal: { male: "20-30°", female: "22-32°", combined: "20-30°" },
         goniometer: {
           axis: "Dual inclinometer at T12 and S1",
           stationary_arm: "Lower inclinometer at S1",
@@ -224,12 +224,12 @@ const ROM_DATA = {
         landmarks: "T12 and S1. Watch for trunk rotation or hip hiking.",
         position: "Standing, arms relaxed at sides.",
         script: "\"Stand tall. Slide your left hand down the side of your left leg without leaning forward or backward.\"",
-        interpretation: "Observe movement quality in addition to degrees. Right/left discrepancies >10Â° may be significant."
+        interpretation: "Observe movement quality in addition to degrees. Right/left discrepancies >10° may be significant."
       },
       {
         name: "Lateral Flexion (Right)",
         plane: "Frontal",
-        normal: { male: "20-30Â°", female: "22-32Â°", combined: "20-30Â°" },
+        normal: { male: "20-30°", female: "22-32°", combined: "20-30°" },
         goniometer: {
           axis: "Dual inclinometer at T12 and S1",
           stationary_arm: "Lower inclinometer at S1",
@@ -238,12 +238,12 @@ const ROM_DATA = {
         landmarks: "T12 and S1. Watch for trunk rotation or hip hiking.",
         position: "Standing, arms relaxed at sides.",
         script: "\"Stand tall. Slide your right hand down the side of your right leg without leaning forward or backward.\"",
-        interpretation: "Observe movement quality in addition to degrees. Right/left discrepancies >10Â° may be significant."
+        interpretation: "Observe movement quality in addition to degrees. Right/left discrepancies >10° may be significant."
       },
       {
         name: "Rotation (Left)",
         plane: "Transverse",
-        normal: { male: "5-15Â°", female: "5-15Â°", combined: "5-15Â°" },
+        normal: { male: "5-15°", female: "5-15°", combined: "5-15°" },
         goniometer: {
           axis: "Place inclinometer at T12. Measure upper trunk rotation while pelvis remains fixed.",
           stationary_arm: "Pelvis (fixed)",
@@ -257,7 +257,7 @@ const ROM_DATA = {
       {
         name: "Rotation (Right)",
         plane: "Transverse",
-        normal: { male: "5-15Â°", female: "5-15Â°", combined: "5-15Â°" },
+        normal: { male: "5-15°", female: "5-15°", combined: "5-15°" },
         goniometer: {
           axis: "Place inclinometer at T12. Measure upper trunk rotation while pelvis remains fixed.",
           stationary_arm: "Pelvis (fixed)",
@@ -278,7 +278,7 @@ const ROM_DATA = {
       {
         name: "Flexion",
         plane: "Sagittal",
-        normal: { male: "165-180Â°", female: "170-185Â°", combined: "0-180Â°" },
+        normal: { male: "165-180°", female: "170-185°", combined: "0-180°" },
         goniometer: {
           axis: "Lateral aspect of the greater tubercle",
           stationary_arm: "Parallel to the midaxillary line of the thorax",
@@ -292,7 +292,7 @@ const ROM_DATA = {
       {
         name: "Extension",
         plane: "Sagittal",
-        normal: { male: "50-60Â°", female: "45-55Â°", combined: "0-60Â°" },
+        normal: { male: "50-60°", female: "45-55°", combined: "0-60°" },
         goniometer: {
           axis: "Lateral aspect of greater tubercle",
           stationary_arm: "Midaxillary line of thorax",
@@ -306,7 +306,7 @@ const ROM_DATA = {
       {
         name: "Abduction",
         plane: "Frontal",
-        normal: { male: "170-180Â°", female: "175-185Â°", combined: "0-180Â°" },
+        normal: { male: "170-180°", female: "175-185°", combined: "0-180°" },
         goniometer: {
           axis: "Anterior aspect of acromion process",
           stationary_arm: "Parallel to sternum",
@@ -320,7 +320,7 @@ const ROM_DATA = {
       {
         name: "Adduction",
         plane: "Frontal",
-        normal: { male: "0-30Â°", female: "0-30Â°", combined: "0-30Â°" },
+        normal: { male: "0-30°", female: "0-30°", combined: "0-30°" },
         goniometer: {
           axis: "Same setup as abduction. Measure movement across the body.",
           stationary_arm: "Parallel to sternum",
@@ -332,30 +332,30 @@ const ROM_DATA = {
         interpretation: "Adduction limitations may occur with tight posterior capsule or rotator cuff pathology."
       },
       {
-        name: "External Rotation (90Â° Abducted)",
+        name: "External Rotation (90° Abducted)",
         plane: "Transverse",
-        normal: { male: "80-90Â°", female: "85-95Â°", combined: "0-90Â°" },
+        normal: { male: "80-90°", female: "85-95°", combined: "0-90°" },
         goniometer: {
           axis: "Olecranon",
           stationary_arm: "Perpendicular to floor",
           moving_arm: "Ulnar border toward ulnar styloid"
         },
         landmarks: "Olecranon, ulnar border, and vertical reference",
-        position: "Supine. Shoulder abducted to 90Â°, elbow flexed to 90Â°, towel under humerus.",
+        position: "Supine. Shoulder abducted to 90°, elbow flexed to 90°, towel under humerus.",
         script: "\"With your elbow bent and arm out to the side, rotate your hand backward toward the table. Keep your elbow in line. Stop at discomfort.\"",
         interpretation: "Limited ER suggests capsular restriction or rotator cuff involvement. Excessive ER may suggest instability."
       },
       {
-        name: "Internal Rotation (90Â° Abducted)",
+        name: "Internal Rotation (90° Abducted)",
         plane: "Transverse",
-        normal: { male: "60-70Â°", female: "65-75Â°", combined: "0-70Â°" },
+        normal: { male: "60-70°", female: "65-75°", combined: "0-70°" },
         goniometer: {
           axis: "Olecranon",
           stationary_arm: "Perpendicular to floor",
           moving_arm: "Ulnar border of forearm"
         },
         landmarks: "Olecranon and ulnar border",
-        position: "Supine, shoulder at 90Â° abduction, elbow at 90Â°.",
+        position: "Supine, shoulder at 90° abduction, elbow at 90°.",
         script: "\"Rotate your hand down toward the floor as if lowering it toward your stomach. Keep your elbow still. Hold it there while I measure.\"",
         interpretation: "Limited IR is common in overhead athletes and frozen shoulder. Consider posterior capsule tightness."
       },
@@ -397,7 +397,7 @@ const ROM_DATA = {
       {
         name: "Flexion",
         plane: "Sagittal",
-        normal: { male: "140-150Â°", female: "145-155Â°", combined: "0-150Â°" },
+        normal: { male: "140-150°", female: "145-155°", combined: "0-150°" },
         goniometer: {
           axis: "Lateral epicondyle of humerus",
           stationary_arm: "Aligned with humerus toward acromion",
@@ -411,7 +411,7 @@ const ROM_DATA = {
       {
         name: "Extension",
         plane: "Sagittal",
-        normal: { male: "0Â°", female: "0-10Â°", combined: "0Â° (Â± 5-10Â° hyperextension normal)" },
+        normal: { male: "0°", female: "0-10°", combined: "0° (± 5-10° hyperextension normal)" },
         goniometer: {
           axis: "Lateral epicondyle of humerus",
           stationary_arm: "Aligned with humerus toward acromion",
@@ -425,28 +425,28 @@ const ROM_DATA = {
       {
         name: "Supination",
         plane: "Transverse",
-        normal: { male: "0-80Â°", female: "0-80Â°", combined: "0-80Â°" },
+        normal: { male: "0-80°", female: "0-80°", combined: "0-80°" },
         goniometer: {
           axis: "Medial and proximal to ulnar styloid",
           stationary_arm: "Parallel to humerus",
           moving_arm: "Across volar surface of wrist, just proximal to radial/ulnar styloids"
         },
         landmarks: "Ulnar styloid and volar wrist midline",
-        position: "Sitting, elbow flexed to 90Â°, arm tight to torso, forearm neutral.",
+        position: "Sitting, elbow flexed to 90°, arm tight to torso, forearm neutral.",
         script: "\"Turn your palm upward like you're holding a bowl. Keep your elbow tucked in.\"",
         interpretation: "Supination deficits often reflect distal radioulnar joint issues or interosseous membrane tightness."
       },
       {
         name: "Pronation",
         plane: "Transverse",
-        normal: { male: "0-80Â°", female: "0-80Â°", combined: "0-80Â°" },
+        normal: { male: "0-80°", female: "0-80°", combined: "0-80°" },
         goniometer: {
           axis: "Lateral and proximal to ulnar styloid",
           stationary_arm: "Parallel to humerus",
           moving_arm: "Across dorsal wrist proximal to styloids"
         },
         landmarks: "Dorsal wrist midline",
-        position: "Sitting, elbow 90Â°, arm by side.",
+        position: "Sitting, elbow 90°, arm by side.",
         script: "\"Turn your palm downward like you're tipping out water. Keep elbow close to your body.\"",
         interpretation: "Pronation limitations may indicate pronator teres tightness, DRUJ restriction, or radial head involvement."
       }
@@ -460,7 +460,7 @@ const ROM_DATA = {
       {
         name: "Wrist Flexion",
         plane: "Sagittal",
-        normal: { male: "70-80Â°", female: "75-85Â°", combined: "0-80Â°" },
+        normal: { male: "70-80°", female: "75-85°", combined: "0-80°" },
         goniometer: {
           axis: "Lateral aspect of wrist at triquetrum",
           stationary_arm: "Aligned with ulna toward olecranon",
@@ -474,7 +474,7 @@ const ROM_DATA = {
       {
         name: "Wrist Extension",
         plane: "Sagittal",
-        normal: { male: "0-70Â°", female: "0-70Â°", combined: "0-70Â°" },
+        normal: { male: "0-70°", female: "0-70°", combined: "0-70°" },
         goniometer: {
           axis: "Triquetrum",
           stationary_arm: "Along ulna",
@@ -488,7 +488,7 @@ const ROM_DATA = {
       {
         name: "Radial Deviation",
         plane: "Frontal",
-        normal: { male: "0-20Â°", female: "0-20Â°", combined: "0-20Â°" },
+        normal: { male: "0-20°", female: "0-20°", combined: "0-20°" },
         goniometer: {
           axis: "Dorsal aspect of wrist over capitate",
           stationary_arm: "Aligned with midline of forearm",
@@ -502,7 +502,7 @@ const ROM_DATA = {
       {
         name: "Ulnar Deviation",
         plane: "Frontal",
-        normal: { male: "0-30Â°", female: "0-30Â°", combined: "0-30Â°" },
+        normal: { male: "0-30°", female: "0-30°", combined: "0-30°" },
         goniometer: {
           axis: "Dorsal aspect of wrist over capitate",
           stationary_arm: "Aligned with midline of forearm",
@@ -516,7 +516,7 @@ const ROM_DATA = {
       {
         name: "Finger MCP Flexion",
         plane: "Sagittal",
-        normal: { male: "0-90Â°", female: "0-90Â°", combined: "0-90Â°" },
+        normal: { male: "0-90°", female: "0-90°", combined: "0-90°" },
         goniometer: {
           axis: "Dorsal aspect of MCP joint",
           stationary_arm: "Aligned with metacarpal",
@@ -530,7 +530,7 @@ const ROM_DATA = {
       {
         name: "Finger PIP Flexion",
         plane: "Sagittal",
-        normal: { male: "0-100Â°", female: "0-100Â°", combined: "0-100Â°" },
+        normal: { male: "0-100°", female: "0-100°", combined: "0-100°" },
         goniometer: {
           axis: "Dorsal PIP joint",
           stationary_arm: "Proximal phalanx",
@@ -544,7 +544,7 @@ const ROM_DATA = {
       {
         name: "Finger DIP Flexion",
         plane: "Sagittal",
-        normal: { male: "0-80Â°", female: "0-80Â°", combined: "0-80Â°" },
+        normal: { male: "0-80°", female: "0-80°", combined: "0-80°" },
         goniometer: {
           axis: "Dorsal DIP joint",
           stationary_arm: "Middle phalanx",
@@ -558,7 +558,7 @@ const ROM_DATA = {
       {
         name: "Thumb CMC Abduction",
         plane: "Frontal",
-        normal: { male: "60-70Â°", female: "60-70Â°", combined: "60-70Â°" },
+        normal: { male: "60-70°", female: "60-70°", combined: "60-70°" },
         goniometer: {
           axis: "CMC joint of the thumb",
           stationary_arm: "Along the 2nd metacarpal",
@@ -572,7 +572,7 @@ const ROM_DATA = {
       {
         name: "Thumb MCP Flexion",
         plane: "Sagittal",
-        normal: { male: "50-60Â°", female: "50-60Â°", combined: "50-60Â°" },
+        normal: { male: "50-60°", female: "50-60°", combined: "50-60°" },
         goniometer: {
           axis: "Dorsal aspect of the thumb MCP joint",
           stationary_arm: "Along the 1st metacarpal",
@@ -586,7 +586,7 @@ const ROM_DATA = {
       {
         name: "Thumb IP Flexion",
         plane: "Sagittal",
-        normal: { male: "80-90Â°", female: "80-90Â°", combined: "80-90Â°" },
+        normal: { male: "80-90°", female: "80-90°", combined: "80-90°" },
         goniometer: {
           axis: "Dorsal aspect of the thumb IP joint",
           stationary_arm: "Along the proximal phalanx",
@@ -607,7 +607,7 @@ const ROM_DATA = {
       {
         name: "Flexion",
         plane: "Sagittal",
-        normal: { male: "110-120Â°", female: "115-125Â°", combined: "0-120Â°" },
+        normal: { male: "110-120°", female: "115-125°", combined: "0-120°" },
         goniometer: {
           axis: "Greater trochanter",
           stationary_arm: "Midline of pelvis",
@@ -621,7 +621,7 @@ const ROM_DATA = {
       {
         name: "Extension",
         plane: "Sagittal",
-        normal: { male: "0-20Â°", female: "0-20Â°", combined: "0-20Â°" },
+        normal: { male: "0-20°", female: "0-20°", combined: "0-20°" },
         goniometer: {
           axis: "Greater trochanter",
           stationary_arm: "Midline of pelvis",
@@ -635,7 +635,7 @@ const ROM_DATA = {
       {
         name: "Abduction",
         plane: "Frontal",
-        normal: { male: "0-45Â°", female: "0-45Â°", combined: "0-45Â°" },
+        normal: { male: "0-45°", female: "0-45°", combined: "0-45°" },
         goniometer: {
           axis: "ASIS of measured side",
           stationary_arm: "Toward opposite ASIS",
@@ -644,12 +644,12 @@ const ROM_DATA = {
         landmarks: "Both ASIS to avoid pelvic rotation",
         position: "Supine, legs extended.",
         script: "\"Slide your leg out to the side without rolling your hips.\"",
-        interpretation: "Values <30Â° may suggest glute med/min tightness or capsular restriction."
+        interpretation: "Values <30° may suggest glute med/min tightness or capsular restriction."
       },
       {
         name: "Adduction",
         plane: "Frontal",
-        normal: { male: "0-30Â°", female: "0-30Â°", combined: "0-30Â°" },
+        normal: { male: "0-30°", female: "0-30°", combined: "0-30°" },
         goniometer: {
           axis: "ASIS",
           stationary_arm: "Opposite ASIS line",
@@ -663,21 +663,21 @@ const ROM_DATA = {
       {
         name: "Internal Rotation",
         plane: "Transverse",
-        normal: { male: "0-45Â°", female: "0-45Â°", combined: "0-45Â°" },
+        normal: { male: "0-45°", female: "0-45°", combined: "0-45°" },
         goniometer: {
           axis: "Patella",
           stationary_arm: "Perpendicular to floor",
           moving_arm: "Midline of tibia"
         },
         landmarks: "Tibial tuberosity and patella",
-        position: "Sitting with hips/knees at 90Â°, towel under thigh.",
+        position: "Sitting with hips/knees at 90°, towel under thigh.",
         script: "\"Rotate your foot outward, keeping your knee still.\"",
         interpretation: "Limited IR may indicate posterior capsule tightness or femoral retroversion."
       },
       {
         name: "External Rotation",
         plane: "Transverse",
-        normal: { male: "0-45Â°", female: "0-45Â°", combined: "0-45Â°" },
+        normal: { male: "0-45°", female: "0-45°", combined: "0-45°" },
         goniometer: {
           axis: "Patella",
           stationary_arm: "Perpendicular to floor",
@@ -698,7 +698,7 @@ const ROM_DATA = {
       {
         name: "Flexion",
         plane: "Sagittal",
-        normal: { male: "130-135Â°", female: "135-140Â°", combined: "0-135Â°" },
+        normal: { male: "130-135°", female: "135-140°", combined: "0-135°" },
         goniometer: {
           axis: "Lateral epicondyle of femur",
           stationary_arm: "Midline of femur toward greater trochanter",
@@ -712,7 +712,7 @@ const ROM_DATA = {
       {
         name: "Extension",
         plane: "Sagittal",
-        normal: { male: "0-5Â°", female: "0-5Â°", combined: "0Â° to +5Â° hyperextension" },
+        normal: { male: "0-5°", female: "0-5°", combined: "0° to +5° hyperextension" },
         goniometer: {
           axis: "Lateral epicondyle of femur",
           stationary_arm: "Midline of femur toward greater trochanter",
@@ -733,21 +733,21 @@ const ROM_DATA = {
       {
         name: "Dorsiflexion",
         plane: "Sagittal",
-        normal: { male: "0-20Â°", female: "0-20Â°", combined: "0-20Â°" },
+        normal: { male: "0-20°", female: "0-20°", combined: "0-20°" },
         goniometer: {
           axis: "Lateral malleolus",
           stationary_arm: "Midline of fibula toward fibular head",
           moving_arm: "Parallel to 5th metatarsal"
         },
         landmarks: "Lateral malleolus, fibula, and 5th metatarsal",
-        position: "Sitting or supine with knee flexed to 90Â° (reduces gastrocnemius influence).",
+        position: "Sitting or supine with knee flexed to 90° (reduces gastrocnemius influence).",
         script: "\"Pull your foot upward toward your shin without lifting your heel.\"",
         interpretation: "Limited dorsiflexion may indicate gastrocnemius/soleus tightness or anterior ankle impingement."
       },
       {
         name: "Plantarflexion",
         plane: "Sagittal",
-        normal: { male: "0-50Â°", female: "0-50Â°", combined: "0-50Â°" },
+        normal: { male: "0-50°", female: "0-50°", combined: "0-50°" },
         goniometer: {
           axis: "Lateral malleolus",
           stationary_arm: "Midline of fibula toward fibular head",
@@ -761,7 +761,7 @@ const ROM_DATA = {
       {
         name: "Inversion",
         plane: "Frontal",
-        normal: { male: "0-35Â°", female: "0-35Â°", combined: "0-35Â°" },
+        normal: { male: "0-35°", female: "0-35°", combined: "0-35°" },
         goniometer: {
           axis: "Anterior ankle midway between malleoli",
           stationary_arm: "Midline of tibia",
@@ -775,7 +775,7 @@ const ROM_DATA = {
       {
         name: "Eversion",
         plane: "Frontal",
-        normal: { male: "0-15Â°", female: "0-15Â°", combined: "0-15Â°" },
+        normal: { male: "0-15°", female: "0-15°", combined: "0-15°" },
         goniometer: {
           axis: "Anterior ankle midway between malleoli",
           stationary_arm: "Midline of tibia",
@@ -796,7 +796,7 @@ const ROM_DATA = {
       {
         name: "1st MTP Extension (Dorsiflexion)",
         plane: "Sagittal",
-        normal: { male: "0-70Â°", female: "0-70Â°", combined: "0-70Â°" },
+        normal: { male: "0-70°", female: "0-70°", combined: "0-70°" },
         goniometer: {
           axis: "MTP joint",
           stationary_arm: "1st metatarsal",
@@ -810,7 +810,7 @@ const ROM_DATA = {
       {
         name: "1st MTP Flexion",
         plane: "Sagittal",
-        normal: { male: "0-45Â°", female: "0-45Â°", combined: "0-45Â°" },
+        normal: { male: "0-45°", female: "0-45°", combined: "0-45°" },
         goniometer: {
           axis: "MTP joint",
           stationary_arm: "1st metatarsal",
@@ -824,7 +824,7 @@ const ROM_DATA = {
       {
         name: "Toe IP Flexion",
         plane: "Sagittal",
-        normal: { male: "0-50Â° to 0-80Â°", female: "0-50Â° to 0-80Â°", combined: "0-50Â° to 0-80Â° (varies by toe)" },
+        normal: { male: "0-50° to 0-80°", female: "0-50° to 0-80°", combined: "0-50° to 0-80° (varies by toe)" },
         goniometer: {
           axis: "IP joint",
           stationary_arm: "Proximal phalanx",
@@ -838,7 +838,7 @@ const ROM_DATA = {
       {
         name: "Toe IP Extension",
         plane: "Sagittal",
-        normal: { male: "0-30Â°", female: "0-30Â°", combined: "0-30Â°" },
+        normal: { male: "0-30°", female: "0-30°", combined: "0-30°" },
         goniometer: {
           axis: "IP joint",
           stationary_arm: "Proximal phalanx",
@@ -899,8 +899,8 @@ export default function ROMAssessmentRunner({ onSave, onClose, initialData }) {
       const m = measurements[movement.name];
       if (m?.left || m?.right) {
         soapText += `${movement.name}:\n`;
-        if (m.left) soapText += `  Left: ${m.left}Â° (Normal: ${movement.normal.combined})\n`;
-        if (m.right) soapText += `  Right: ${m.right}Â° (Normal: ${movement.normal.combined})\n`;
+        if (m.left) soapText += `  Left: ${m.left}° (Normal: ${movement.normal.combined})\n`;
+        if (m.right) soapText += `  Right: ${m.right}° (Normal: ${movement.normal.combined})\n`;
         if (comments[movement.name]) soapText += `  Notes: ${comments[movement.name]}\n`;
         soapText += `\n`;
       }
@@ -929,8 +929,8 @@ export default function ROMAssessmentRunner({ onSave, onClose, initialData }) {
       const m = measurements[movement.name];
       if (m?.left || m?.right) {
         text += `  ${movement.name}: `;
-        if (m.left) text += `L: ${m.left}Â° `;
-        if (m.right) text += `R: ${m.right}Â°`;
+        if (m.left) text += `L: ${m.left}° `;
+        if (m.right) text += `R: ${m.right}°`;
         text += ` (Normal: ${movement.normal.combined})\n`;
         
         if (comments[movement.name]) {
@@ -1072,7 +1072,7 @@ export default function ROMAssessmentRunner({ onSave, onClose, initialData }) {
                     {/* Measurement Inputs - Always visible */}
                     <div className="grid grid-cols-2 md:grid-cols-3 gap-4 pt-4 border-t">
                       <div>
-                        <Label htmlFor={`${movement.name}-left`} className="text-sm">Left Side (Â°)</Label>
+                        <Label htmlFor={`${movement.name}-left`} className="text-sm">Left Side (°)</Label>
                         <Input
                           id={`${movement.name}-left`}
                           type="number"
@@ -1083,7 +1083,7 @@ export default function ROMAssessmentRunner({ onSave, onClose, initialData }) {
                         />
                       </div>
                       <div>
-                        <Label htmlFor={`${movement.name}-right`} className="text-sm">Right Side (Â°)</Label>
+                        <Label htmlFor={`${movement.name}-right`} className="text-sm">Right Side (°)</Label>
                         <Input
                           id={`${movement.name}-right`}
                           type="number"

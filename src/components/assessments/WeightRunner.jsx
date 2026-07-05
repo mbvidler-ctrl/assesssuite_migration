@@ -18,7 +18,7 @@ export default function WeightRunner({ client, onSave, onClose }) {
     if (!weight) return;
     const w = parseFloat(adjustedWeight || weight);
     const soapLines = [
-      `â€¢ Body Weight Measurement`,
+      `• Body Weight Measurement`,
       `  Measured Weight: ${weight} kg`,
       clothingAdjustment && parseFloat(clothingAdjustment) > 0 ? `  Clothing Deduction: ${clothingAdjustment} kg` : "",
       `  Adjusted Weight: ${w} kg`,
@@ -51,11 +51,11 @@ export default function WeightRunner({ client, onSave, onClose }) {
 
       {/* Protocol */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-2">
-        <p className="font-semibold">ðŸ“‹ Measurement Protocol (ISAK/ESSA)</p>
+        <p className="font-semibold">📋 Measurement Protocol (ISAK/ESSA)</p>
         <ul className="list-disc list-inside text-xs space-y-1 text-blue-700">
           <li>Calibrate scale to zero before measurement</li>
           <li>Client should be post-void (bladder empty)</li>
-          <li>Minimal clothing â€” light shorts/shirt only</li>
+          <li>Minimal clothing — light shorts/shirt only</li>
           <li>Remove shoes, heavy belts, jewellery, phone</li>
           <li>Client stands in centre of scale, evenly distributed</li>
           <li>Record to nearest 0.1 kg</li>
@@ -74,7 +74,7 @@ export default function WeightRunner({ client, onSave, onClose }) {
           </div>
           <div>
             <Label className="text-sm font-semibold text-slate-700">Clothing Deduction (kg)</Label>
-            <p className="text-xs text-slate-400">Light clothing â‰ˆ 0.3â€“0.5 kg</p>
+            <p className="text-xs text-slate-400">Light clothing ≈ 0.3–0.5 kg</p>
             <Input type="number" step="0.1" value={clothingAdjustment} onChange={e => setClothingAdjustment(e.target.value)}
               placeholder="0.0" className="mt-1" />
           </div>
@@ -95,7 +95,7 @@ export default function WeightRunner({ client, onSave, onClose }) {
 
       {/* References */}
       <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-        <p className="font-semibold text-slate-700">ðŸ“– References</p>
+        <p className="font-semibold text-slate-700">📖 References</p>
         <p>1. Norton K &amp; Olds T. (1996). <em>Anthropometrica</em>. University of New South Wales Press.</p>
         <p>2. Exercise &amp; Sports Science Australia (ESSA). (2020). Health Outcome Measures Manual. ESSA.</p>
         <p>3. ISAK. (2001). International Standards for Anthropometric Assessment. International Society for the Advancement of Kinanthropometry.</p>

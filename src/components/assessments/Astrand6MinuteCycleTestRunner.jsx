@@ -114,29 +114,29 @@ export default function Astrand6MinuteCycleTestRunner({ client, onSave, onClose 
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
         {/* Reference */}
         <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1 mb-4">
-          <p className="font-semibold">ðŸ“– Reference</p>
-          <p>Ã…strand PO & Rhyming I. (1954). A nomogram for calculation of aerobic capacity from pulse rate during submaximal work. <em>Journal of Applied Physiology, 7</em>(2), 218â€“221.</p>
+          <p className="font-semibold">📖 Reference</p>
+          <p>Åstrand PO & Rhyming I. (1954). A nomogram for calculation of aerobic capacity from pulse rate during submaximal work. <em>Journal of Applied Physiology, 7</em>(2), 218–221.</p>
         </div>
 
         {/* Clinician Instructions */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800 space-y-1 mb-4">
-          <p className="font-semibold">ðŸ“‹ Administration Instructions</p>
-          <p><strong>Setup:</strong> Calibrated cycle ergometer. Cadence: <strong>50 rpm</strong>. Select workload to target HR 125â€“170 bpm by min 2â€“3 (typically 50â€“100W women; 100â€“150W men).</p>
-          <p><strong>Protocol:</strong> Warm-up 2 min, then 6 min at constant workload. Record HR each minute. Steady state = HR difference min 5â€“6 â‰¤5 bpm. Extend to min 7â€“8 if not achieved.</p>
+          <p className="font-semibold">📋 Administration Instructions</p>
+          <p><strong>Setup:</strong> Calibrated cycle ergometer. Cadence: <strong>50 rpm</strong>. Select workload to target HR 125–170 bpm by min 2–3 (typically 50–100W women; 100–150W men).</p>
+          <p><strong>Protocol:</strong> Warm-up 2 min, then 6 min at constant workload. Record HR each minute. Steady state = HR difference min 5–6 ≤5 bpm. Extend to min 7–8 if not achieved.</p>
           <p className="italic">"Pedal steadily at a comfortable pace matching the metronome. Tell me immediately if you feel chest pain or dizziness."</p>
         </div>
 
         {/* Norms */}
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2 mb-4">
-          <p className="font-semibold text-slate-700">ðŸ“Š VO2max Norms (ml/kg/min) â€” ACSM Classification</p>
+          <p className="font-semibold text-slate-700">📊 VO2max Norms (ml/kg/min) — ACSM Classification</p>
           <div className="overflow-x-auto">
             <table className="w-full text-xs border border-slate-300 rounded">
-              <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20â€“39</th><th className="p-2 text-center">Men 40â€“59</th><th className="p-2 text-center">Women 20â€“39</th><th className="p-2 text-center">Women 40â€“59</th></tr></thead>
+              <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20–39</th><th className="p-2 text-center">Men 40–59</th><th className="p-2 text-center">Women 20–39</th><th className="p-2 text-center">Women 40–59</th></tr></thead>
               <tbody>
-                <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">â‰¥52</td><td className="p-2 text-center">â‰¥45</td><td className="p-2 text-center">â‰¥41</td><td className="p-2 text-center">â‰¥35</td></tr>
-                <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">43â€“51</td><td className="p-2 text-center">38â€“44</td><td className="p-2 text-center">35â€“40</td><td className="p-2 text-center">29â€“34</td></tr>
-                <tr className="border-t"><td className="p-2">Fair</td><td className="p-2 text-center">34â€“42</td><td className="p-2 text-center">30â€“37</td><td className="p-2 text-center">27â€“34</td><td className="p-2 text-center">23â€“28</td></tr>
-                <tr className="border-t bg-white"><td className="p-2">Poor</td><td className="p-2 text-center">â‰¤33</td><td className="p-2 text-center">â‰¤29</td><td className="p-2 text-center">â‰¤26</td><td className="p-2 text-center">â‰¤22</td></tr>
+                <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">≥52</td><td className="p-2 text-center">≥45</td><td className="p-2 text-center">≥41</td><td className="p-2 text-center">≥35</td></tr>
+                <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">43–51</td><td className="p-2 text-center">38–44</td><td className="p-2 text-center">35–40</td><td className="p-2 text-center">29–34</td></tr>
+                <tr className="border-t"><td className="p-2">Fair</td><td className="p-2 text-center">34–42</td><td className="p-2 text-center">30–37</td><td className="p-2 text-center">27–34</td><td className="p-2 text-center">23–28</td></tr>
+                <tr className="border-t bg-white"><td className="p-2">Poor</td><td className="p-2 text-center">≤33</td><td className="p-2 text-center">≤29</td><td className="p-2 text-center">≤26</td><td className="p-2 text-center">≤22</td></tr>
               </tbody>
             </table>
           </div>

@@ -90,7 +90,7 @@ export default function RepeatedSprintAbilityTestShuttle1515mRunner({ client, on
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
         {/* Header */}
         <div className="border-b pb-4">
-          <h1 className="text-3xl font-bold text-slate-900">Repeated Sprint Ability Test â€“ Shuttle (15 + 15 m)</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Repeated Sprint Ability Test – Shuttle (15 + 15 m)</h1>
           <p className="text-slate-600 mt-2">Assessment of repeated sprint anaerobic capacity and fatigue resistance</p>
         </div>
 
@@ -131,7 +131,7 @@ export default function RepeatedSprintAbilityTestShuttle1515mRunner({ client, on
                       <li>Client performs maximal sprint from start to 15m line and back (30m total)</li>
                       <li>Record sprint time to nearest 0.01 second</li>
                       <li>20-second passive rest period between sprints</li>
-                      <li>Repeat for 6â€“10 consecutive sprints</li>
+                      <li>Repeat for 6–10 consecutive sprints</li>
                     </ul>
                     <p><strong>Effort:</strong> Client should perform each sprint at maximum effort</p>
                   </div>
@@ -142,15 +142,15 @@ export default function RepeatedSprintAbilityTestShuttle1515mRunner({ client, on
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <h4 className="font-semibold text-purple-900 mb-2">Interpretation</h4>
                   <div className="space-y-2 text-sm text-purple-800">
-                    <p><strong>Peak Sprint Time:</strong> Fastest sprintâ€”indicates maximum explosive power</p>
-                    <p><strong>Mean Sprint Time:</strong> Average across all sprintsâ€”reflects overall sprint capacity</p>
-                    <p><strong>Fatigue Index (%):</strong> (Mean Time âˆ’ Best Time) / Best Time Ã— 100 â†’ Indicates fatigue resistance</p>
+                    <p><strong>Peak Sprint Time:</strong> Fastest sprint—indicates maximum explosive power</p>
+                    <p><strong>Mean Sprint Time:</strong> Average across all sprints—reflects overall sprint capacity</p>
+                    <p><strong>Fatigue Index (%):</strong> (Mean Time − Best Time) / Best Time × 100 → Indicates fatigue resistance</p>
                     <p className="mt-3">
                       <strong>Fatigue Index Reference:</strong>
                     </p>
                     <ul className="list-disc list-inside space-y-1 ml-2">
                       <li>&lt;5%: Excellent fatigue resistance</li>
-                      <li>5â€“10%: Good fatigue resistance</li>
+                      <li>5–10%: Good fatigue resistance</li>
                       <li>&gt;10%: Poor fatigue resistance</li>
                     </ul>
                   </div>

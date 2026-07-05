@@ -79,19 +79,19 @@ export default function PPTRunner({ onSave, onClose }) {
           <div className="space-y-6">
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>Reuben DB & Siu AL. (1990). An objective measure of physical function of elderly outpatients: the Physical Performance Test. <em>Journal of the American Geriatrics Society, 38</em>(10), 1105â€“1112.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Reuben DB & Siu AL. (1990). An objective measure of physical function of elderly outpatients: the Physical Performance Test. <em>Journal of the American Geriatrics Society, 38</em>(10), 1105–1112.</p>
             </div>
 
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Score Interpretation (/28)</p>
+              <p className="font-semibold text-slate-700">📊 Score Interpretation (/28)</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Score</th><th className="p-2 text-left">Interpretation</th></tr></thead>
                   <tbody>
-                    <tr className="border-t"><td className="p-2">25â€“28</td><td className="p-2 text-green-700">Good function â€” no/minimal impairment</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">19â€“24</td><td className="p-2 text-yellow-700">Mild impairment</td></tr>
+                    <tr className="border-t"><td className="p-2">25–28</td><td className="p-2 text-green-700">Good function — no/minimal impairment</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">19–24</td><td className="p-2 text-yellow-700">Mild impairment</td></tr>
                     <tr className="border-t"><td className="p-2">&lt;19</td><td className="p-2 text-red-700">Frailty/reduced independence</td></tr>
                   </tbody>
                 </table>
@@ -108,11 +108,11 @@ export default function PPTRunner({ onSave, onClose }) {
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-1">
                 <p>Each task is scored 0-4 points based on time or ability:</p>
-                <p>â€¢ 4 points = Excellent performance</p>
-                <p>â€¢ 3 points = Good performance</p>
-                <p>â€¢ 2 points = Fair performance</p>
-                <p>â€¢ 1 point = Poor performance</p>
-                <p>â€¢ 0 points = Unable to complete</p>
+                <p>• 4 points = Excellent performance</p>
+                <p>• 3 points = Good performance</p>
+                <p>• 2 points = Fair performance</p>
+                <p>• 1 point = Poor performance</p>
+                <p>• 0 points = Unable to complete</p>
               </CardContent>
             </Card>
 

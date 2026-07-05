@@ -53,7 +53,7 @@ export default function FourHundredMeterWalkStandaloneWrapper({
       let objectiveText = `Assessment completed on ${dateStr}:\n\n`;
       
       if (testData.result_value !== null && testData.result_value !== undefined) {
-        objectiveText += `â€¢ ${assessment.name}: ${testData.result_value}s\n`;
+        objectiveText += `• ${assessment.name}: ${testData.result_value}s\n`;
       }
       
       // Add additional data fields

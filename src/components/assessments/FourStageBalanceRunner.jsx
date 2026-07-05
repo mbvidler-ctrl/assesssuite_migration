@@ -15,7 +15,7 @@ const STAGES = [
     title: "Side-by-Side Stance",
     instruction: "Ask the client to stand with their feet together, side by side, so that the inner edges of both feet are touching.",
     clientCue: "\"Please stand with your feet together, touching side by side, and hold this position for 10 seconds.\"",
-    icon: "ðŸ‘£",
+    icon: "👣",
     clinicianNote: "Assist the client into position if needed. Ensure they are not gripping a support. Begin timing once they are steady and you have released any assistance."
   },
   {
@@ -24,7 +24,7 @@ const STAGES = [
     title: "Semi-Tandem Stance",
     instruction: "Ask the client to place the instep of one foot alongside the big toe of the other foot. Either foot may be in front.",
     clientCue: "\"Now place the side of your heel touching the big toe of your other foot, and hold this position for 10 seconds.\"",
-    icon: "ðŸ¦¶",
+    icon: "🦶",
     clinicianNote: "Ensure foot contact is at instep-to-big-toe. Either foot forward is acceptable. Begin timing once steady."
   },
   {
@@ -33,8 +33,8 @@ const STAGES = [
     title: "Tandem Stance",
     instruction: "Ask the client to place one foot directly in front of the other so the heel of the front foot touches the toes of the back foot (heel-to-toe).",
     clientCue: "\"Now place one foot directly in front of the other so your heel is touching your toes. Hold this position for 10 seconds.\"",
-    icon: "ðŸš¶",
-    clinicianNote: "âš ï¸ This is the critical stage for fall risk assessment. If this stage is not held for 10 seconds, the client is considered at increased risk of falling. Ensure the heel-to-toe contact is maintained."
+    icon: "🚶",
+    clinicianNote: "⚠ï¸ This is the critical stage for fall risk assessment. If this stage is not held for 10 seconds, the client is considered at increased risk of falling. Ensure the heel-to-toe contact is maintained."
   },
   {
     id: "single_leg",
@@ -42,7 +42,7 @@ const STAGES = [
     title: "Single Leg Stance",
     instruction: "Ask the client to lift one foot off the ground and balance on the other leg alone.",
     clientCue: "\"Finally, lift one foot off the ground and stand on one leg. Hold this for 10 seconds.\"",
-    icon: "ðŸ¦µ",
+    icon: "🦵",
     clinicianNote: "The client may choose which leg to use. They should not rest the raised foot against the standing leg. Only score if Stage 3 was passed."
   }
 ];
@@ -102,7 +102,7 @@ export default function FourStageBalanceRunner({ onSave, onClose }) {
     setTimes(prev => ({ ...prev, [stageId]: held }));
     setIsRunning(false);
     setTimerSeconds(0);
-    toast.error("Stage failed â€” test stops here.");
+    toast.error("Stage failed — test stops here.");
     setTimeout(() => setWizardStep('results'), 600);
   };
 
@@ -119,10 +119,10 @@ export default function FourStageBalanceRunner({ onSave, onClose }) {
 
   const handleSave = () => {
     const soapText = [
-      `â€¢ 4-Stage Balance Test`,
+      `• 4-Stage Balance Test`,
       `  Highest Stage Achieved: ${stageAchieved}/4`,
       `  Fall Risk: ${fallRisk ? 'Increased (tandem stance not held for 10s)' : 'Normal'}`,
-      ...STAGES.map(s => results[s.id] ? `  Stage ${s.number} (${s.title}): ${results[s.id] === 'pass' ? `Pass (${times[s.id].toFixed(1)}s)` : `Fail (${times[s.id] > 0 ? times[s.id].toFixed(1) + 's' : 'â€”'})`}` : null).filter(Boolean),
+      ...STAGES.map(s => results[s.id] ? `  Stage ${s.number} (${s.title}): ${results[s.id] === 'pass' ? `Pass (${times[s.id].toFixed(1)}s)` : `Fail (${times[s.id] > 0 ? times[s.id].toFixed(1) + 's' : '—'})`}` : null).filter(Boolean),
       clinicianNotes ? `  Notes: ${clinicianNotes}` : null,
     ].filter(Boolean).join('\n');
 
@@ -149,7 +149,7 @@ export default function FourStageBalanceRunner({ onSave, onClose }) {
 
   const handlePrint = () => window.print();
 
-  // â”€â”€ INTRO SCREEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── INTRO SCREEN ──────────────────────────────────────────────────────────
   if (wizardStep === 'intro') {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -166,15 +166,15 @@ export default function FourStageBalanceRunner({ onSave, onClose }) {
             <Card className="bg-amber-50 border-amber-200">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm flex items-center gap-2 text-amber-800">
-                  <AlertTriangle className="w-4 h-4" /> Safety â€” Read Before Starting
+                  <AlertTriangle className="w-4 h-4" /> Safety — Read Before Starting
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-xs text-amber-800 space-y-1">
-                <p>â€¢ Ensure the client is near a stable support (wall or sturdy chair) throughout.</p>
-                <p>â€¢ Stand close to the client and be prepared to provide support at any time.</p>
-                <p>â€¢ Do not proceed to the next stage if the client appears unsafe in the current position.</p>
-                <p>â€¢ Stop the test immediately if the client feels dizzy, unsafe, or at risk of falling.</p>
-                <p>â€¢ The client should not use an assistive device and should keep eyes open during each stage.</p>
+                <p>• Ensure the client is near a stable support (wall or sturdy chair) throughout.</p>
+                <p>• Stand close to the client and be prepared to provide support at any time.</p>
+                <p>• Do not proceed to the next stage if the client appears unsafe in the current position.</p>
+                <p>• Stop the test immediately if the client feels dizzy, unsafe, or at risk of falling.</p>
+                <p>• The client should not use an assistive device and should keep eyes open during each stage.</p>
               </CardContent>
             </Card>
 
@@ -209,7 +209,7 @@ export default function FourStageBalanceRunner({ onSave, onClose }) {
     );
   }
 
-  // â”€â”€ STAGE SCREEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── STAGE SCREEN ──────────────────────────────────────────────────────────
   if (wizardStep === 'stage') {
     const stage = STAGES[currentStage];
     const alreadyDone = results[stageId] !== null;
@@ -262,7 +262,7 @@ export default function FourStageBalanceRunner({ onSave, onClose }) {
                     {timerSeconds.toFixed(1)}<span className="text-3xl">s</span>
                   </div>
                   <p className="text-sm text-slate-500 mb-4">
-                    {timerSeconds >= 10 ? 'âœ“ 10 seconds reached â€” record Pass or Fail below' : `${(10 - timerSeconds).toFixed(1)}s remaining`}
+                    {timerSeconds >= 10 ? '✓ 10 seconds reached — record Pass or Fail below' : `${(10 - timerSeconds).toFixed(1)}s remaining`}
                   </p>
                   <div className="flex justify-center gap-3">
                     <Button
@@ -306,7 +306,7 @@ export default function FourStageBalanceRunner({ onSave, onClose }) {
             {!alreadyDone && (
               <div className="grid grid-cols-2 gap-3">
                 <Button onClick={handlePass} className="bg-green-600 hover:bg-green-700 h-14 text-base" disabled={timerSeconds === 0 && !manualSeconds[stageId]}>
-                  <CheckCircle2 className="w-5 h-5 mr-2" />Pass â€” Held 10s
+                  <CheckCircle2 className="w-5 h-5 mr-2" />Pass — Held 10s
                 </Button>
                 <Button onClick={handleFail} variant="destructive" className="h-14 text-base" disabled={timerSeconds === 0 && !manualSeconds[stageId]}>
                   <X className="w-5 h-5 mr-2" />Could Not Hold 10s
@@ -316,7 +316,7 @@ export default function FourStageBalanceRunner({ onSave, onClose }) {
 
             {alreadyDone && (
               <div className={`rounded-lg p-4 text-center font-semibold ${results[stageId] === 'pass' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                {results[stageId] === 'pass' ? `âœ“ Stage ${stage.number} Passed (${times[stageId].toFixed(1)}s)` : `âœ— Stage ${stage.number} Failed â€” Test Stopped`}
+                {results[stageId] === 'pass' ? `✓ Stage ${stage.number} Passed (${times[stageId].toFixed(1)}s)` : `✗ Stage ${stage.number} Failed — Test Stopped`}
               </div>
             )}
 
@@ -353,13 +353,13 @@ export default function FourStageBalanceRunner({ onSave, onClose }) {
     );
   }
 
-  // â”€â”€ RESULTS SCREEN â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── RESULTS SCREEN ────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-w-2xl w-full max-h-[95vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="p-5 border-b bg-gradient-to-r from-blue-50 to-indigo-50 flex justify-between items-start">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">4-Stage Balance Test â€” Results</h2>
+            <h2 className="text-xl font-bold text-slate-900">4-Stage Balance Test — Results</h2>
             <p className="text-sm text-slate-500">{new Date().toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
           </div>
           <div className="flex gap-2">
@@ -417,7 +417,7 @@ export default function FourStageBalanceRunner({ onSave, onClose }) {
                     <div className="flex items-center gap-2 text-sm">
                       {results[s.id] === 'pass' && <span className="text-slate-600">{times[s.id].toFixed(1)}s</span>}
                       {results[s.id] === 'pass' && <Badge className="bg-green-600">Pass</Badge>}
-                      {results[s.id] === 'fail' && <span className="text-slate-600">{times[s.id] > 0 ? `${times[s.id].toFixed(1)}s` : 'â€”'}</span>}
+                      {results[s.id] === 'fail' && <span className="text-slate-600">{times[s.id] > 0 ? `${times[s.id].toFixed(1)}s` : '—'}</span>}
                       {results[s.id] === 'fail' && <Badge variant="destructive">Fail</Badge>}
                       {results[s.id] === null && <Badge variant="outline" className="text-slate-400">Not tested</Badge>}
                     </div>
@@ -441,7 +441,7 @@ export default function FourStageBalanceRunner({ onSave, onClose }) {
 
           {/* Source citation */}
           <div className="text-xs text-slate-400 border rounded p-3 bg-slate-50">
-            <p><strong>Source citation:</strong> CDC STEADI â€“ 4-Stage Balance Test (Centers for Disease Control and Prevention, Stopping Elderly Accidents, Deaths &amp; Injuries initiative). This clinical interface uses original wording and does not reproduce CDC/STEADI materials or imply endorsement. Test adapted for independent clinical use.</p>
+            <p><strong>Source citation:</strong> CDC STEADI – 4-Stage Balance Test (Centers for Disease Control and Prevention, Stopping Elderly Accidents, Deaths &amp; Injuries initiative). This clinical interface uses original wording and does not reproduce CDC/STEADI materials or imply endorsement. Test adapted for independent clinical use.</p>
           </div>
         </div>
 

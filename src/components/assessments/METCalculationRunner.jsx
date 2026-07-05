@@ -530,7 +530,7 @@ export default function METCalculationRunner({ client, onSave, onClose }) {
                   <ul className="space-y-2">
                     {qualityWarnings.map((warning, idx) => (
                       <li key={idx} className="text-sm text-yellow-800 flex gap-2">
-                        <span className="text-yellow-600">â€¢</span>
+                        <span className="text-yellow-600">•</span>
                         {warning}
                       </li>
                     ))}

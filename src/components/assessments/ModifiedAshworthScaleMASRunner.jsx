@@ -61,7 +61,7 @@ export default function ModifiedAshworthScaleMASRunner({ client, onSave, onClose
       return;
     }
 
-    const soapText = `â€¢ Modified Ashworth Scale (MAS):\n${muscles.map(m => `  ${m.muscle}: ${m.label}`).join("\n")}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`;
+    const soapText = `• Modified Ashworth Scale (MAS):\n${muscles.map(m => `  ${m.muscle}: ${m.label}`).join("\n")}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`;
 
     onSave({
       result_value: muscles.length,
@@ -116,7 +116,7 @@ export default function ModifiedAshworthScaleMASRunner({ client, onSave, onClose
                     <p className="font-semibold text-blue-900 mb-2">Administration Protocol</p>
                     <ul className="text-blue-800 space-y-2 list-disc list-inside">
                       <li><strong>Patient Position:</strong> Ensure patient is relaxed and comfortable (supine, prone, or seated depending on muscle group).</li>
-                      <li><strong>Speed of Movement:</strong> Passively move the joint through full range of motion at a slow, consistent speed (â‰ˆ1 second per direction).</li>
+                      <li><strong>Speed of Movement:</strong> Passively move the joint through full range of motion at a slow, consistent speed (≈1 second per direction).</li>
                       <li><strong>Grading:</strong> Assess the resistance felt throughout the passive movement. Do not grade based on pain or contracture alone.</li>
                       <li><strong>Repetition:</strong> It is recommended to perform the assessment 3 times on each muscle group and use the average score.</li>
                       <li><strong>Testing Muscles:</strong> Common muscle groups include elbow flexors/extensors, wrist flexors/extensors, hip flexors/adductors, and ankle plantarflexors.</li>
@@ -127,7 +127,7 @@ export default function ModifiedAshworthScaleMASRunner({ client, onSave, onClose
                     <p className="font-semibold text-blue-900 mb-2">Clinical Considerations</p>
                     <ul className="text-blue-800 space-y-1 list-disc list-inside text-xs">
                       <li>Ensure patient is as relaxed as possible (anxiety may increase muscle tone).</li>
-                      <li>Move at consistent, moderate speedâ€”rapid movement may elicit a velocity-dependent response.</li>
+                      <li>Move at consistent, moderate speed—rapid movement may elicit a velocity-dependent response.</li>
                       <li>Screen for pain, contracture, and other causes of reduced passive ROM.</li>
                       <li>Bilateral comparisons are more clinically useful than absolute scores.</li>
                       <li>Serial assessments track changes in spasticity over time (baseline, follow-up).</li>
@@ -137,15 +137,15 @@ export default function ModifiedAshworthScaleMASRunner({ client, onSave, onClose
                   <div>
                     <p className="font-semibold text-blue-900 mb-2">Interpretation & Clinical Significance</p>
                     <ul className="text-blue-800 space-y-1 list-disc list-inside text-xs">
-                      <li><strong>Score 0â€“1:</strong> Normal or minimal tone; may not require antispasticity intervention.</li>
-                      <li><strong>Score 1+â€“2:</strong> Mild-to-moderate spasticity; monitor for functional impact and consider conservative management (stretching, positioning).</li>
+                      <li><strong>Score 0–1:</strong> Normal or minimal tone; may not require antispasticity intervention.</li>
+                      <li><strong>Score 1+–2:</strong> Mild-to-moderate spasticity; monitor for functional impact and consider conservative management (stretching, positioning).</li>
                       <li><strong>Score 3+:</strong> Significant spasticity; likely affecting function and mobility; consider pharmacological or physical interventions.</li>
                       <li><strong>Higher scores:</strong> Associated with limited ROM, contracture risk, and functional disability.</li>
                     </ul>
                   </div>
 
                   <div className="bg-white p-3 rounded border border-blue-200">
-                    <p className="text-xs text-slate-700"><strong>Reliability Note:</strong> The MAS has fair-to-good inter-rater reliability (ICC 0.55â€“0.85) and fair intra-rater reliability. Use consistent technique and avoid confounding variables (pain, patient effort, environmental factors).</p>
+                    <p className="text-xs text-slate-700"><strong>Reliability Note:</strong> The MAS has fair-to-good inter-rater reliability (ICC 0.55–0.85) and fair intra-rater reliability. Use consistent technique and avoid confounding variables (pain, patient effort, environmental factors).</p>
                   </div>
 
                   <div className="bg-white p-3 rounded border border-blue-200">

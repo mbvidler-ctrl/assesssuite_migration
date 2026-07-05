@@ -336,7 +336,7 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
               </div>
               <div>
                 <Label className="text-xs text-slate-600">Provider Number</Label>
-                <p className="font-medium">{currentUser?.provider_number || "â€”"}</p>
+                <p className="font-medium">{currentUser?.provider_number || "—"}</p>
               </div>
               <div>
                 <Label className="text-xs text-slate-600">Contact</Label>
@@ -357,7 +357,7 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
               </div>
               <div>
                 <Label className="text-xs text-slate-600">DOB</Label>
-                <p className="font-medium">{client.date_of_birth || "â€”"}</p>
+                <p className="font-medium">{client.date_of_birth || "—"}</p>
               </div>
               <div>
                 <Label className="text-xs text-slate-600">Client ID</Label>
@@ -441,10 +441,10 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
                 <div className="bg-red-50 p-4 rounded-lg border border-red-200">
                   <Label className="font-semibold text-red-900">1.6 Is this a Serious Adverse Event (SAE)?</Label>
                   <ul className="text-xs text-red-800 mt-2 space-y-1 mb-3">
-                    <li>â€¢ Death</li>
-                    <li>â€¢ Life threatening illness or injury</li>
-                    <li>â€¢ Required hospitalization or prolongation</li>
-                    <li>â€¢ Significant disability/incapacity</li>
+                    <li>• Death</li>
+                    <li>• Life threatening illness or injury</li>
+                    <li>• Required hospitalization or prolongation</li>
+                    <li>• Significant disability/incapacity</li>
                   </ul>
                   <RadioGroup value={formData.is_sae} onValueChange={(v) => handleChange("is_sae", v)}>
                     <div className="flex gap-4">
@@ -467,11 +467,11 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
                 <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
                   <Label className="font-semibold text-yellow-900">1.7 Is this an Adverse Event of Special Interest (AESI)?</Label>
                   <ul className="text-xs text-yellow-800 mt-2 space-y-1 mb-3">
-                    <li>â€¢ Falls with/without injury</li>
-                    <li>â€¢ Musculoskeletal pain/injury (â‰¥2 days)</li>
-                    <li>â€¢ Unintentional weight loss</li>
-                    <li>â€¢ Adverse drug withdrawal events</li>
-                    <li>â€¢ Mood alteration requiring health professional</li>
+                    <li>• Falls with/without injury</li>
+                    <li>• Musculoskeletal pain/injury (≥2 days)</li>
+                    <li>• Unintentional weight loss</li>
+                    <li>• Adverse drug withdrawal events</li>
+                    <li>• Mood alteration requiring health professional</li>
                   </ul>
                   <RadioGroup value={formData.is_aesi} onValueChange={(v) => handleChange("is_aesi", v)}>
                     <div className="flex gap-4">
@@ -716,7 +716,7 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
                       </div>
                       <div className="flex items-start space-x-2">
                         <RadioGroupItem value="musculoskeletal_pain" id="aesi_msk" />
-                        <Label htmlFor="aesi_msk" className="font-normal text-sm">Musculoskeletal pain/injury causing participant to seek health professional or limit ADLs for â‰¥2 days</Label>
+                        <Label htmlFor="aesi_msk" className="font-normal text-sm">Musculoskeletal pain/injury causing participant to seek health professional or limit ADLs for ≥2 days</Label>
                       </div>
                       <div className="flex items-start space-x-2">
                         <RadioGroupItem value="weight_loss" id="aesi_weight" />

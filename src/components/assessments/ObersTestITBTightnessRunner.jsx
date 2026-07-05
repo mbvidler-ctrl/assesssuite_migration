@@ -45,7 +45,7 @@ export default function ObersTestITBTightnessRunner({ client, onSave, onClose })
     }
 
     const positiveCount = (bilateralResults.left === "positive" ? 1 : 0) + (bilateralResults.right === "positive" ? 1 : 0);
-    const soapText = `â€¢ Ober's Test (ITB Tightness)\n  Left: ${bilateralResults.left}\n  Right: ${bilateralResults.right}\n  Interpretation: ${
+    const soapText = `• Ober's Test (ITB Tightness)\n  Left: ${bilateralResults.left}\n  Right: ${bilateralResults.right}\n  Interpretation: ${
       positiveCount === 2 ? "Bilateral ITB tightness" :
       positiveCount === 1 ? "Unilateral ITB tightness" :
       "No ITB tightness detected"
@@ -102,7 +102,7 @@ export default function ObersTestITBTightnessRunner({ client, onSave, onClose })
               className="w-full flex justify-between items-center px-4 py-3 bg-purple-50 border border-purple-200 rounded-lg font-semibold text-purple-900 text-sm hover:bg-purple-100 transition-colors"
               onClick={() => setShowClinicianInfo(!showClinicianInfo)}
             >
-              <span className="flex items-center gap-2">ðŸ“‹ Clinician Information & Evidence</span>
+              <span className="flex items-center gap-2">📋 Clinician Information & Evidence</span>
               {showClinicianInfo ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
 
@@ -129,19 +129,19 @@ export default function ObersTestITBTightnessRunner({ client, onSave, onClose })
                     <p className="font-semibold text-purple-900 mb-2">Administration: Step-by-Step Guide</p>
                     <div className="bg-white p-3 rounded border border-purple-100 space-y-3">
                       <div>
-                        <p className="font-semibold text-purple-900 text-xs">ðŸ”´ <strong>Patient Position & Setup</strong></p>
+                        <p className="font-semibold text-purple-900 text-xs">🔴 <strong>Patient Position & Setup</strong></p>
                         <ul className="text-purple-800 text-xs list-disc list-inside mt-1 space-y-1">
                           <li><strong>Side-lying position:</strong> Patient lies on side being tested (tested knee on top).</li>
-                          <li><strong>Hip neutral:</strong> Bottom hip flexed to 45Â° to stabilize pelvis and prevent lumbar extension compensation.</li>
+                          <li><strong>Hip neutral:</strong> Bottom hip flexed to 45° to stabilize pelvis and prevent lumbar extension compensation.</li>
                           <li><strong>Bottom knee flexed:</strong> Support lower knee flexion to anchor pelvis and prevent pelvic rolling.</li>
                           <li><strong>Head neutral:</strong> Chin tuck, neck neutral to avoid cervical strain.</li>
                         </ul>
                       </div>
 
                       <div>
-                        <p className="font-semibold text-purple-900 text-xs">ðŸŸ  <strong>Testing Procedure (Classical Modified Ober's)</strong></p>
+                        <p className="font-semibold text-purple-900 text-xs">🟠 <strong>Testing Procedure (Classical Modified Ober's)</strong></p>
                         <ol className="text-purple-800 text-xs list-decimal list-inside mt-1 space-y-1">
-                          <li><strong>Tested hip position:</strong> Hip abducted 45Â° (or to neutral if tighter), knee extended fully.</li>
+                          <li><strong>Tested hip position:</strong> Hip abducted 45° (or to neutral if tighter), knee extended fully.</li>
                           <li><strong>Clinician hand placement:</strong> One hand on knee, other stabilizing pelvis at iliac crest.</li>
                           <li><strong>Action:</strong> Clinician slowly lowers abducted leg toward table (adduction).</li>
                           <li><strong>Positive sign:</strong> Tested knee CANNOT reach table/neutral adduction position; stays abducted due to ITB/TFL tightness.</li>
@@ -151,12 +151,12 @@ export default function ObersTestITBTightnessRunner({ client, onSave, onClose })
                       </div>
 
                       <div>
-                        <p className="font-semibold text-purple-900 text-xs">ðŸŸ¢ <strong>Clinical Cues & Instructions</strong></p>
+                        <p className="font-semibold text-purple-900 text-xs">🟢 <strong>Clinical Cues & Instructions</strong></p>
                         <p className="text-purple-800 text-xs italic mt-1">"I'm going to lower your upper leg down toward the table. Let gravity do the work; I want to see how far your hip can relax. Tell me if you feel tightness at the outside of the hip."</p>
                       </div>
 
                       <div>
-                        <p className="font-semibold text-purple-900 text-xs">ðŸ”µ <strong>Interpretation of Results</strong></p>
+                        <p className="font-semibold text-purple-900 text-xs">🔵 <strong>Interpretation of Results</strong></p>
                         <p className="text-purple-800 text-xs mt-1"><strong>Negative (Normal):</strong> Knee reaches table or goes past neutral adduction. ITB is flexible; no apparent tightness.</p>
                         <p className="text-purple-800 text-xs mt-2"><strong>Positive (ITB Tightness):</strong> Knee stays abducted, cannot reach neutral or table. Suggests ITB/hip abductor tightness contributing to hip/knee dysfunction.</p>
                       </div>
@@ -166,27 +166,27 @@ export default function ObersTestITBTightnessRunner({ client, onSave, onClose })
                   <div>
                     <p className="font-semibold text-purple-900 mb-2">Diagnostic Accuracy & Limitations</p>
                     <div className="bg-white p-3 rounded border border-purple-100 space-y-2 text-xs">
-                      <p className="text-purple-800"><strong>Sensitivity:</strong> ~45â€“80% (varies by study). Many patients with ITBS may have negative Ober's.</p>
-                      <p className="text-purple-800"><strong>Specificity:</strong> ~40â€“80% (non-specific). ITB tightness alone doesn't diagnose ITBS; often requires symptom reproduction + imaging.</p>
-                      <p className="text-purple-800"><strong>âš ï¸ Clinical note:</strong> A tight ITB is not synonymous with ITB syndrome. Approximately 10â€“15% of asymptomatic runners have ITB tightness. Test must be combined with pain history, lateral knee pain reproduction (Noble's test, ITB palpation), and functional assessment.</p>
+                      <p className="text-purple-800"><strong>Sensitivity:</strong> ~45–80% (varies by study). Many patients with ITBS may have negative Ober's.</p>
+                      <p className="text-purple-800"><strong>Specificity:</strong> ~40–80% (non-specific). ITB tightness alone doesn't diagnose ITBS; often requires symptom reproduction + imaging.</p>
+                      <p className="text-purple-800"><strong>⚠ï¸ Clinical note:</strong> A tight ITB is not synonymous with ITB syndrome. Approximately 10–15% of asymptomatic runners have ITB tightness. Test must be combined with pain history, lateral knee pain reproduction (Noble's test, ITB palpation), and functional assessment.</p>
                     </div>
                   </div>
 
                   <div>
                     <p className="font-semibold text-purple-900 mb-2">Clinical Interpretation Scenarios</p>
                     <div className="bg-white p-3 rounded border border-purple-100 space-y-2 text-xs">
-                      <p className="text-purple-800"><strong>âœ… Ober's POSITIVE + Lateral knee pain + Pain with running:</strong> Strong likelihood of ITB syndrome. Recommend hip abductor strengthening, hip mobility work, running load management, consider foam rolling/massage.</p>
-                      <p className="text-purple-800"><strong>âš ï¸ Ober's POSITIVE but NO lateral knee pain:</strong> May indicate tightness without current dysfunction. Monitor; recommend preventive hip/glute strengthening.</p>
-                      <p className="text-purple-800"><strong>âŒ Ober's NEGATIVE + Lateral knee pain:</strong> Pain may be from other sources (patellofemoral, knee OA, other ligament/capsule). Do NOT rule out ITBS; sensitivity is only ~50â€“60%.</p>
+                      <p className="text-purple-800"><strong>✅ Ober's POSITIVE + Lateral knee pain + Pain with running:</strong> Strong likelihood of ITB syndrome. Recommend hip abductor strengthening, hip mobility work, running load management, consider foam rolling/massage.</p>
+                      <p className="text-purple-800"><strong>⚠ï¸ Ober's POSITIVE but NO lateral knee pain:</strong> May indicate tightness without current dysfunction. Monitor; recommend preventive hip/glute strengthening.</p>
+                      <p className="text-purple-800"><strong>âŒ Ober's NEGATIVE + Lateral knee pain:</strong> Pain may be from other sources (patellofemoral, knee OA, other ligament/capsule). Do NOT rule out ITBS; sensitivity is only ~50–60%.</p>
                     </div>
                   </div>
 
                   <div>
                     <p className="font-semibold text-purple-900 mb-2">Evidence Base & References</p>
                     <div className="bg-white p-3 rounded border border-purple-100 space-y-2 text-xs">
-                      <p><strong>Classic Ober Description:</strong> Ober FR. (1936). Back strain and sciatic pain. <em>Journal of the American Medical Association, 104</em>(17), 1595â€“1602.</p>
-                      <p><strong>Modern Diagnostic Review:</strong> Fredericson M, Weir A. (2016). Practical management of iliotibial band syndrome in runners. <em>Clinical Journal of Sport Medicine, 26</em>(5), 407â€“417.</p>
-                      <p><strong>Sensitivity/Specificity Meta-Analysis:</strong> Hegedus EJ, et al. (2015). Physical examination tests of the knee: a systematic review with meta-analysis. <em>British Journal of Sports Medicine, 49</em>(5), 298â€“305.</p>
+                      <p><strong>Classic Ober Description:</strong> Ober FR. (1936). Back strain and sciatic pain. <em>Journal of the American Medical Association, 104</em>(17), 1595–1602.</p>
+                      <p><strong>Modern Diagnostic Review:</strong> Fredericson M, Weir A. (2016). Practical management of iliotibial band syndrome in runners. <em>Clinical Journal of Sport Medicine, 26</em>(5), 407–417.</p>
+                      <p><strong>Sensitivity/Specificity Meta-Analysis:</strong> Hegedus EJ, et al. (2015). Physical examination tests of the knee: a systematic review with meta-analysis. <em>British Journal of Sports Medicine, 49</em>(5), 298–305.</p>
                       <p><strong>ESSA / APA Guidelines:</strong> Exercise & Sports Science Australia recommend clinical examination clusters (not single tests) for ITBS; imaging (MRI/ultrasound) confirmatory when indicated.</p>
                       <Button
                         onClick={() => window.open('https://journals.sagepub.com/doi/10.1177/0363546516634477', '_blank')}
@@ -260,10 +260,10 @@ export default function ObersTestITBTightnessRunner({ client, onSave, onClose })
               <>
                 <Card className={testingStage === "test" ? "border-pink-200 bg-pink-50" : "border-slate-200"}>
                   <CardHeader>
-                    <CardTitle className="text-base">Step 2: Ober's Test â€” Left Side</CardTitle>
+                    <CardTitle className="text-base">Step 2: Ober's Test — Left Side</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <p className="text-sm text-slate-700 italic">Patient side-lying on right side. Left hip abducted 45Â°, knee extended. Lower leg with gravity; assess if knee reaches neutral/table.</p>
+                    <p className="text-sm text-slate-700 italic">Patient side-lying on right side. Left hip abducted 45°, knee extended. Lower leg with gravity; assess if knee reaches neutral/table.</p>
                     <div className="space-y-2">
                       {bilateralResults.left && (
                         <Badge variant={bilateralResults.left === "positive" ? "destructive" : "outline"}>
@@ -286,10 +286,10 @@ export default function ObersTestITBTightnessRunner({ client, onSave, onClose })
 
                 <Card className={testingStage === "test" ? "border-pink-200 bg-pink-50" : "border-slate-200"}>
                   <CardHeader>
-                    <CardTitle className="text-base">Step 2: Ober's Test â€” Right Side</CardTitle>
+                    <CardTitle className="text-base">Step 2: Ober's Test — Right Side</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-3">
-                    <p className="text-sm text-slate-700 italic">Patient side-lying on left side. Right hip abducted 45Â°, knee extended. Lower leg with gravity; assess if knee reaches neutral/table.</p>
+                    <p className="text-sm text-slate-700 italic">Patient side-lying on left side. Right hip abducted 45°, knee extended. Lower leg with gravity; assess if knee reaches neutral/table.</p>
                     <div className="space-y-2">
                       {bilateralResults.right && (
                         <Badge variant={bilateralResults.right === "positive" ? "destructive" : "outline"}>
@@ -312,7 +312,7 @@ export default function ObersTestITBTightnessRunner({ client, onSave, onClose })
 
                 {testingStage === "test" && (
                   <Button onClick={handleCompleteTest} disabled={bilateralResults.left === null || bilateralResults.right === null} className="w-full">
-                    Complete Assessment â†’ Post-Test Vitals
+                    Complete Assessment → Post-Test Vitals
                   </Button>
                 )}
               </>
@@ -373,9 +373,9 @@ export default function ObersTestITBTightnessRunner({ client, onSave, onClose })
                       <p>Left Side: <Badge variant={bilateralResults.left === "positive" ? "destructive" : "outline"}>{bilateralResults.left === "positive" ? "Tight ITB" : "Normal"}</Badge></p>
                       <p>Right Side: <Badge variant={bilateralResults.right === "positive" ? "destructive" : "outline"}>{bilateralResults.right === "positive" ? "Tight ITB" : "Normal"}</Badge></p>
                       <p className="mt-2 font-semibold">
-                        {bilateralResults.left === "positive" && bilateralResults.right === "positive" ? "âš ï¸ Bilateral ITB tightness detected" :
-                         bilateralResults.left === "positive" || bilateralResults.right === "positive" ? "âš ï¸ Unilateral ITB tightness detected" :
-                         "âœ… No ITB tightness detected"}
+                        {bilateralResults.left === "positive" && bilateralResults.right === "positive" ? "⚠ï¸ Bilateral ITB tightness detected" :
+                         bilateralResults.left === "positive" || bilateralResults.right === "positive" ? "⚠ï¸ Unilateral ITB tightness detected" :
+                         "✅ No ITB tightness detected"}
                       </p>
                     </div>
                   </CardContent>

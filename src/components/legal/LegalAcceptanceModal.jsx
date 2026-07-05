@@ -55,7 +55,7 @@ export default function LegalAcceptanceModal({ isOpen, onAccept, user }) {
           Session Acknowledgement
         </h2>
         <p className="text-sm text-slate-500 text-center mb-6">
-          Required each session â€” your acceptance is logged with a timestamp.
+          Required each session — your acceptance is logged with a timestamp.
         </p>
 
         {/* Acknowledgement points */}

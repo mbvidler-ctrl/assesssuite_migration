@@ -72,7 +72,7 @@ export default function ActivitiesspecificBalanceConfidenceABCScaleRunner({ clie
       ? 'Low balance confidence and fall risk' 
       : 'Good balance confidence';
 
-    const soap_text = `â€¢ Activities-specific Balance Confidence (ABC) Scale:\n  Average Score: ${resultValue}%\n  Interpretation: ${interpretation}\n  Individual Activity Scores:\n${activities.map((activity, i) => `    ${i + 1}. ${activity}: ${responses[i]}%`).join('\n')}\n${notes ? `\n  Clinical Notes: ${notes}` : ''}`;
+    const soap_text = `• Activities-specific Balance Confidence (ABC) Scale:\n  Average Score: ${resultValue}%\n  Interpretation: ${interpretation}\n  Individual Activity Scores:\n${activities.map((activity, i) => `    ${i + 1}. ${activity}: ${responses[i]}%`).join('\n')}\n${notes ? `\n  Clinical Notes: ${notes}` : ''}`;
 
     onSave({
       result_value: resultValue,

@@ -228,7 +228,7 @@ export default function Consent({ data, onNext, onBack, canGoBack, isSubmitting,
           <span className="text-xs text-blue-700">
             <span className="font-semibold">{activePolicy.policy_name}</span>
             {activePolicy.version_label && <Badge className="ml-2 bg-blue-100 text-blue-700 text-xs">{activePolicy.version_label}</Badge>}
-            {activePolicy.effective_date && <span className="ml-1 text-blue-500"> Â· Effective {activePolicy.effective_date}</span>}
+            {activePolicy.effective_date && <span className="ml-1 text-blue-500"> · Effective {activePolicy.effective_date}</span>}
           </span>
         </div>
       )}

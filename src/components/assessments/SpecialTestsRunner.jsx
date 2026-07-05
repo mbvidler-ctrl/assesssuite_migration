@@ -10,7 +10,7 @@ import { toast } from "sonner";
 const SPECIAL_TESTS = {
   "Ely's Test": {
     description: "Assesses rectus femoris tightness",
-    protocol: "Client prone, passively flex knee while stabilizing pelvis. Positive if hip flexes or pelvis tilts before ~90Â° knee flexion.",
+    protocol: "Client prone, passively flex knee while stabilizing pelvis. Positive if hip flexes or pelvis tilts before ~90° knee flexion.",
     sides: true,
     options: ["Negative (normal)", "Positive - tightness present", "Positive - pain reproduced"]
   },
@@ -22,7 +22,7 @@ const SPECIAL_TESTS = {
   },
   "Ober's Test": {
     description: "Assesses iliotibial band tightness",
-    protocol: "Client side-lying, lower leg flexed. Flex upper knee to 90Â°, abduct and extend hip, then allow passive adduction. Positive if leg remains abducted above neutral.",
+    protocol: "Client side-lying, lower leg flexed. Flex upper knee to 90°, abduct and extend hip, then allow passive adduction. Positive if leg remains abducted above neutral.",
     sides: true,
     options: ["Negative (leg drops to/below neutral)", "Positive - mild tightness", "Positive - moderate tightness", "Positive - severe tightness"]
   }
@@ -52,7 +52,7 @@ export default function SpecialTestsRunner({ testName, onSave, onClose }) {
                       leftPositive ? "Left positive" : 
                       rightPositive ? "Right positive" : "Bilateral negative";
     const soapText = [
-      `â€¢ ${normalizedName}`,
+      `• ${normalizedName}`,
       leftResult ? `  Left: ${leftResult}` : null,
       rightResult ? `  Right: ${rightResult}` : null,
       `  Overall: ${overallInterp}`,

@@ -63,7 +63,7 @@ export default function AssessmentCard({ assessment, onClick, onSelect, showSele
            assessment.has_instructions && 
            assessment.has_references && (
             <Badge className="bg-green-600 text-white border-0 w-fit">
-              âœ“ Verified
+              ✓ Verified
             </Badge>
           )}
         </div>

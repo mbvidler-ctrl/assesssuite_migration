@@ -12,7 +12,7 @@ import { base44 } from "@/api/base44Client";
 const CBM_ITEMS = [
   { id: 1, name: "Unilateral Stance", max: 5 },
   { id: 2, name: "Tandem Walk", max: 5 },
-  { id: 3, name: "180Â° Turn", max: 5 },
+  { id: 3, name: "180° Turn", max: 5 },
   { id: 4, name: "Step Up and Over", max: 5 },
   { id: 5, name: "Forward to Backward Walking", max: 5 },
   { id: 6, name: "Crouch and Walk", max: 5 },
@@ -73,12 +73,12 @@ export default function CBMRunner({ onSave, onClose }) {
     }
 
     const itemLines = CBM_ITEMS.map(item =>
-      `  â€¢ ${item.name}: ${scores[item.id] ?? 'N/A'} / ${item.max}`
+      `  • ${item.name}: ${scores[item.id] ?? 'N/A'} / ${item.max}`
     ).join('\n');
 
     const soap_text = [
       `Community Balance & Mobility Scale (CB&M)`,
-      `Total Score: ${total} / 96 â€” ${interpretation.level}`,
+      `Total Score: ${total} / 96 — ${interpretation.level}`,
       ``,
       `Item Scores:`,
       itemLines,
@@ -125,35 +125,35 @@ export default function CBMRunner({ onSave, onClose }) {
           <div className="space-y-6">
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>Howe JA, Inness EL, Venturini A, Williams JI, & Verrier MC. (2006). The Community Balance and Mobility Scale â€” a balance measure for individuals with traumatic brain injury. <em>Clinical Rehabilitation, 20</em>(10), 885â€“895.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Howe JA, Inness EL, Venturini A, Williams JI, & Verrier MC. (2006). The Community Balance and Mobility Scale — a balance measure for individuals with traumatic brain injury. <em>Clinical Rehabilitation, 20</em>(10), 885–895.</p>
             </div>
 
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Score Interpretation (/96)</p>
+              <p className="font-semibold text-slate-700">📊 Score Interpretation (/96)</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Score</th><th className="p-2 text-left">Interpretation</th></tr></thead>
                   <tbody>
-                    <tr className="border-t"><td className="p-2">â‰¥80</td><td className="p-2 text-green-700">High community-level balance and mobility</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">60â€“79</td><td className="p-2 text-yellow-700">Moderate â€” community mobility with some limitations</td></tr>
-                    <tr className="border-t"><td className="p-2">&lt;60</td><td className="p-2 text-red-700">Significant balance impairment â€” high fall risk in community</td></tr>
+                    <tr className="border-t"><td className="p-2">≥80</td><td className="p-2 text-green-700">High community-level balance and mobility</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">60–79</td><td className="p-2 text-yellow-700">Moderate — community mobility with some limitations</td></tr>
+                    <tr className="border-t"><td className="p-2">&lt;60</td><td className="p-2 text-red-700">Significant balance impairment — high fall risk in community</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-slate-500">Healthy adults typically score â‰¥80. MCID not established. Designed for higher-functioning individuals â€” ceiling effects rare. Source: Howe et al. (2006).</p>
+              <p className="text-xs text-slate-500">Healthy adults typically score ≥80. MCID not established. Designed for higher-functioning individuals — ceiling effects rare. Source: Howe et al. (2006).</p>
             </div>
 
             <Card className="bg-blue-50 border-blue-200">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Info className="w-5 h-5 text-blue-600" />
-                  ðŸ“‹ Test Protocol
+                  📋 Test Protocol
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-blue-800">
-                <p>Administer all CB&M items in standard sequence. Use standardised instructions and demonstrations from the CB&M manual. Score 0â€“5 for most items (item 13 scored 0â€“6). Higher scores indicate better community-level balance and mobility. Provide demonstration before each task.</p>
+                <p>Administer all CB&M items in standard sequence. Use standardised instructions and demonstrations from the CB&M manual. Score 0–5 for most items (item 13 scored 0–6). Higher scores indicate better community-level balance and mobility. Provide demonstration before each task.</p>
               </CardContent>
             </Card>
 

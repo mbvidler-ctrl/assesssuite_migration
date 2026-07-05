@@ -56,11 +56,11 @@ export default function BioelectricalImpedanceAnalysisBIARunner({ client, onSave
       (totalBodyWater? `  Total Body Water:     ${totalBodyWater} L\n` : '') +
       (skeletalMuscleMass ? `  Skeletal Muscle Mass: ${skeletalMuscleMass} kg\n` : '') +
       (visceralFatLevel   ? `  Visceral Fat Level:   ${visceralFatLevel}\n` : '') +
-      (bmi           ? `  BMI (device):         ${bmi} kg/mÂ²\n` : '') +
+      (bmi           ? `  BMI (device):         ${bmi} kg/m²\n` : '') +
       (basalMetabolicRate ? `  Basal Metabolic Rate: ${basalMetabolicRate} kcal/day\n` : '') +
       `\n--- Raw Impedance Values ---\n` +
-      (resistance ? `  Resistance:  ${resistance} Î©\n` : '  Resistance:  Not recorded\n') +
-      (reactance  ? `  Reactance:   ${reactance} Î©\n` : '  Reactance:   Not recorded\n') +
+      (resistance ? `  Resistance:  ${resistance} Ω\n` : '  Resistance:  Not recorded\n') +
+      (reactance  ? `  Reactance:   ${reactance} Ω\n` : '  Reactance:   Not recorded\n') +
       (notes ? `\nClinical Notes: ${notes}` : '');
 
     onSave({
@@ -109,22 +109,22 @@ export default function BioelectricalImpedanceAnalysisBIARunner({ client, onSave
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 flex gap-2">
             <Info className="w-4 h-4 text-blue-600 mt-0.5 shrink-0" />
             <p className="text-xs text-blue-800">
-              <strong>Standardised conditions:</strong> Fasted 4â€“8 hrs; euhydrated; no exercise 12 hrs; no alcohol 24 hrs; no diuretics. Void bladder before test. Position supine with electrodes on hand and foot (or per device protocol). Follow manufacturer instructions and enter values below.
+              <strong>Standardised conditions:</strong> Fasted 4–8 hrs; euhydrated; no exercise 12 hrs; no alcohol 24 hrs; no diuretics. Void bladder before test. Position supine with electrodes on hand and foot (or per device protocol). Follow manufacturer instructions and enter values below.
             </p>
           </div>
 
           {/* Body Fat Classification */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Body Fat % Classification â€” ACSM</p>
+            <p className="font-semibold text-slate-700">📊 Body Fat % Classification — ACSM</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men</th><th className="p-2 text-center">Women</th></tr></thead>
                 <tbody>
-                  <tr className="border-t"><td className="p-2">Essential fat</td><td className="p-2 text-center">2â€“5%</td><td className="p-2 text-center">10â€“13%</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">Athlete</td><td className="p-2 text-center">6â€“13%</td><td className="p-2 text-center">14â€“20%</td></tr>
-                  <tr className="border-t"><td className="p-2">Fitness</td><td className="p-2 text-center">14â€“17%</td><td className="p-2 text-center">21â€“24%</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">Acceptable</td><td className="p-2 text-center">18â€“24%</td><td className="p-2 text-center">25â€“31%</td></tr>
-                  <tr className="border-t"><td className="p-2">Obese</td><td className="p-2 text-center">â‰¥25%</td><td className="p-2 text-center">â‰¥32%</td></tr>
+                  <tr className="border-t"><td className="p-2">Essential fat</td><td className="p-2 text-center">2–5%</td><td className="p-2 text-center">10–13%</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">Athlete</td><td className="p-2 text-center">6–13%</td><td className="p-2 text-center">14–20%</td></tr>
+                  <tr className="border-t"><td className="p-2">Fitness</td><td className="p-2 text-center">14–17%</td><td className="p-2 text-center">21–24%</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">Acceptable</td><td className="p-2 text-center">18–24%</td><td className="p-2 text-center">25–31%</td></tr>
+                  <tr className="border-t"><td className="p-2">Obese</td><td className="p-2 text-center">≥25%</td><td className="p-2 text-center">≥32%</td></tr>
                 </tbody>
               </table>
             </div>
@@ -132,9 +132,9 @@ export default function BioelectricalImpedanceAnalysisBIARunner({ client, onSave
 
           {/* References */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– References</p>
-            <p>Lukaski HC, Johnson PE, Bolonchuk WW, & Lykken GI. (1985). Assessment of fat-free mass using bioelectrical impedance measurements of the human body. <em>American Journal of Clinical Nutrition, 41</em>(4), 810â€“817.</p>
-            <p>Kyle UG et al. (2004). Bioelectrical impedance analysis â€” Part I: review of principles and methods. <em>Clinical Nutrition, 23</em>(5), 1226â€“1243.</p>
+            <p className="font-semibold">📖 References</p>
+            <p>Lukaski HC, Johnson PE, Bolonchuk WW, & Lykken GI. (1985). Assessment of fat-free mass using bioelectrical impedance measurements of the human body. <em>American Journal of Clinical Nutrition, 41</em>(4), 810–817.</p>
+            <p>Kyle UG et al. (2004). Bioelectrical impedance analysis — Part I: review of principles and methods. <em>Clinical Nutrition, 23</em>(5), 1226–1243.</p>
           </div>
 
           {/* Client parameters */}
@@ -213,7 +213,7 @@ export default function BioelectricalImpedanceAnalysisBIARunner({ client, onSave
                 <Input type="number" step="1" value={visceralFatLevel} onChange={e => setVisceralFatLevel(e.target.value)} className="mt-1" placeholder="e.g. 8" />
               </div>
               <div>
-                <Label>BMI (device) (kg/mÂ²)</Label>
+                <Label>BMI (device) (kg/m²)</Label>
                 <Input type="number" step="0.1" value={bmi} onChange={e => setBmi(e.target.value)} className="mt-1" placeholder="e.g. 24.2" />
               </div>
               <div>
@@ -228,11 +228,11 @@ export default function BioelectricalImpedanceAnalysisBIARunner({ client, onSave
             <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-3">Raw Impedance Values</h3>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label>Resistance (Î©)</Label>
+                <Label>Resistance (Ω)</Label>
                 <Input type="number" value={resistance} onChange={e => setResistance(e.target.value)} className="mt-1" placeholder="e.g. 520" />
               </div>
               <div>
-                <Label>Reactance (Î©)</Label>
+                <Label>Reactance (Ω)</Label>
                 <Input type="number" value={reactance} onChange={e => setReactance(e.target.value)} className="mt-1" placeholder="e.g. 65" />
               </div>
             </div>

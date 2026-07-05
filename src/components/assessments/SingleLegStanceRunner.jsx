@@ -85,7 +85,7 @@ export default function SingleLegStanceRunner({ onSave, onClose }) {
 
   const handleSave = () => {
     const soapText = [
-      `â€¢ Single Leg Stance Test`,
+      `• Single Leg Stance Test`,
       `  Best Time: ${getBestTime().toFixed(2)}s (${eyesOpen ? 'Eyes Open' : 'Eyes Closed'})`,
       interpretation ? `  Interpretation: ${interpretation.level}` : null,
       notes ? `  Notes: ${notes}` : null,
@@ -129,7 +129,7 @@ export default function SingleLegStanceRunner({ onSave, onClose }) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">
-                <p><strong>Instructions:</strong> Stand on one leg with hands on hips. Raise the opposite knee to approximately 45Â°. Hold as long as possible up to 60 seconds.</p>
+                <p><strong>Instructions:</strong> Stand on one leg with hands on hips. Raise the opposite knee to approximately 45°. Hold as long as possible up to 60 seconds.</p>
                 <p><strong>Termination:</strong> Stop when the raised foot touches the ground, hands leave hips, or stance foot moves.</p>
                 <p><strong>Trials:</strong> Typically 3 trials per leg, record best time.</p>
                 <p><strong>Eyes Open vs Closed:</strong> Eyes closed tests proprioceptive balance (much more challenging).</p>

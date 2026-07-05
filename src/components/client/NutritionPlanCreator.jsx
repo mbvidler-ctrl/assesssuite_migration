@@ -390,7 +390,7 @@ CRITICAL: This is EDUCATION not prescription. Frame as "example of how to meet d
             )}
 
             <Button onClick={() => setStep(2)} className="w-full" disabled={formData.bmr === 0}>
-              Continue to Assessment â†’
+              Continue to Assessment →
             </Button>
           </TabsContent>
 
@@ -460,7 +460,7 @@ CRITICAL: This is EDUCATION not prescription. Frame as "example of how to meet d
                 â† Back
               </Button>
               <Button onClick={() => setStep(3)} className="flex-1">
-                Continue to Advice â†’
+                Continue to Advice →
               </Button>
             </div>
           </TabsContent>

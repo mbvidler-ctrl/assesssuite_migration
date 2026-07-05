@@ -10,25 +10,25 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ NORMATIVE DATA (Tombaugh 2004, age-stratified, seconds) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── NORMATIVE DATA (Tombaugh 2004, age-stratified, seconds) ─────────────────
 const NORMS = {
   A: [
-    { age: "18â€“24", ageMin: 18, ageMax: 24, mean: 22.6, sd: 7.3 },
-    { age: "25â€“34", ageMin: 25, ageMax: 34, mean: 24.5, sd: 8.9 },
-    { age: "35â€“44", ageMin: 35, ageMax: 44, mean: 25.7, sd: 9.5 },
-    { age: "45â€“54", ageMin: 45, ageMax: 54, mean: 28.6, sd: 11.3 },
-    { age: "55â€“64", ageMin: 55, ageMax: 64, mean: 34.5, sd: 14.3 },
-    { age: "65â€“74", ageMin: 65, ageMax: 74, mean: 39.5, sd: 16.3 },
-    { age: "75â€“85", ageMin: 75, ageMax: 85, mean: 54.4, sd: 25.6 },
+    { age: "18–24", ageMin: 18, ageMax: 24, mean: 22.6, sd: 7.3 },
+    { age: "25–34", ageMin: 25, ageMax: 34, mean: 24.5, sd: 8.9 },
+    { age: "35–44", ageMin: 35, ageMax: 44, mean: 25.7, sd: 9.5 },
+    { age: "45–54", ageMin: 45, ageMax: 54, mean: 28.6, sd: 11.3 },
+    { age: "55–64", ageMin: 55, ageMax: 64, mean: 34.5, sd: 14.3 },
+    { age: "65–74", ageMin: 65, ageMax: 74, mean: 39.5, sd: 16.3 },
+    { age: "75–85", ageMin: 75, ageMax: 85, mean: 54.4, sd: 25.6 },
   ],
   B: [
-    { age: "18â€“24", ageMin: 18, ageMax: 24, mean: 50.2, sd: 17.5 },
-    { age: "25â€“34", ageMin: 25, ageMax: 34, mean: 54.4, sd: 18.4 },
-    { age: "35â€“44", ageMin: 35, ageMax: 44, mean: 60.5, sd: 21.0 },
-    { age: "45â€“54", ageMin: 45, ageMax: 54, mean: 69.5, sd: 27.1 },
-    { age: "55â€“64", ageMin: 55, ageMax: 64, mean: 83.0, sd: 35.3 },
-    { age: "65â€“74", ageMin: 65, ageMax: 74, mean: 105.0, sd: 46.0 },
-    { age: "75â€“85", ageMin: 75, ageMax: 85, mean: 153.1, sd: 76.1 },
+    { age: "18–24", ageMin: 18, ageMax: 24, mean: 50.2, sd: 17.5 },
+    { age: "25–34", ageMin: 25, ageMax: 34, mean: 54.4, sd: 18.4 },
+    { age: "35–44", ageMin: 35, ageMax: 44, mean: 60.5, sd: 21.0 },
+    { age: "45–54", ageMin: 45, ageMax: 54, mean: 69.5, sd: 27.1 },
+    { age: "55–64", ageMin: 55, ageMax: 64, mean: 83.0, sd: 35.3 },
+    { age: "65–74", ageMin: 65, ageMax: 74, mean: 105.0, sd: 46.0 },
+    { age: "75–85", ageMin: 75, ageMax: 85, mean: 153.1, sd: 76.1 },
   ],
 };
 
@@ -53,14 +53,14 @@ function classifyZ(z) {
 }
 
 function formatSecs(s) {
-  if (s == null) return "â€”";
+  if (s == null) return "—";
   const m = Math.floor(s / 60);
   const sec = (s % 60).toFixed(2);
   return m > 0 ? `${m}m ${sec}s` : `${parseFloat(s.toFixed(2))}s`;
 }
 
-// â”€â”€â”€ NODE LAYOUT â€” fixed positions for reproducibility â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Part A: numbers 1â€“13 (keeping count manageable for screen-based version)
+// ─── NODE LAYOUT — fixed positions for reproducibility ───────────────────────
+// Part A: numbers 1–13 (keeping count manageable for screen-based version)
 const NODES_A = [
   { id: 1,  label: "1",  x: 20, y: 15 }, { id: 2,  label: "2",  x: 55, y: 30 },
   { id: 3,  label: "3",  x: 80, y: 12 }, { id: 4,  label: "4",  x: 70, y: 50 },
@@ -82,7 +82,7 @@ const NODES_B = [
   { id: 13, label: "7",  x: 40, y: 90, type: "num" },
 ];
 
-// â”€â”€â”€ HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
 function Section({ title, icon: Icon, children, defaultOpen = false, accent = "indigo" }) {
   const [open, setOpen] = useState(defaultOpen);
   const map = {
@@ -113,7 +113,7 @@ function ImageCard({ url, caption }) {
   );
 }
 
-// â”€â”€â”€ INTERACTIVE TRAIL CANVAS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── INTERACTIVE TRAIL CANVAS ─────────────────────────────────────────────────
 function TrailCanvas({ part, nodes, onComplete, onError }) {
   const [phase, setPhase] = useState("ready"); // ready | running | done
   const [nextIdx, setNextIdx] = useState(0);   // index into nodes array
@@ -191,7 +191,7 @@ function TrailCanvas({ part, nodes, onComplete, onError }) {
       {/* Timer bar */}
       <div className={`rounded-xl border-2 p-4 text-center transition-colors ${phase === "running" ? partLight : phase === "done" ? "bg-green-50 border-green-400" : "bg-slate-50 border-slate-200"}`}>
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-          {phase === "ready" ? `Part ${part} â€” Ready` : phase === "running" ? `â–¶ Part ${part} Running` : `âœ“ Part ${part} Complete`}
+          {phase === "ready" ? `Part ${part} — Ready` : phase === "running" ? `▶ Part ${part} Running` : `✓ Part ${part} Complete`}
         </p>
         <p className={`text-5xl font-mono font-bold ${phase === "running" ? partText : phase === "done" ? "text-green-700" : "text-slate-300"}`}>
           {elapsed.toFixed(1)}<span className="text-xl">s</span>
@@ -284,7 +284,7 @@ function TrailCanvas({ part, nodes, onComplete, onError }) {
   );
 }
 
-// â”€â”€â”€ MAIN COMPONENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onClose }) {
   const [step, setStep] = useState(0);
 
@@ -362,7 +362,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
     if (timeB) text += ` Part B (executive function/set-shifting) completed in ${formatSecs(timeB)}${clsB ? `, classified as ${clsB.label}` : ""}${errorsB > 0 ? ` with ${errorsB} error(s)` : ""}.`;
 
     if (baRatio !== null) {
-      if (baRatio > 3.0) text += ` The B/A ratio of ${baRatio} exceeds the threshold of 3.0, indicating executive dysfunction disproportionate to processing speed â€” consistent with frontal lobe inefficiency.`;
+      if (baRatio > 3.0) text += ` The B/A ratio of ${baRatio} exceeds the threshold of 3.0, indicating executive dysfunction disproportionate to processing speed — consistent with frontal lobe inefficiency.`;
       else if (baRatio > 2.5) text += ` The B/A ratio of ${baRatio} is elevated, suggesting borderline executive task-switching difficulty.`;
       else text += ` The B/A ratio of ${baRatio} is within expected range, suggesting intact executive flexibility relative to processing speed.`;
     }
@@ -381,17 +381,17 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
   const generateFlags = () => {
     const flags = [];
     if (!timeA && !timeB) return flags;
-    if (zA !== null && zA > 2.0) flags.push({ label: "Part A severely impaired â€” processing speed deficit", severity: "high" });
-    else if (zA !== null && zA > 1.5) flags.push({ label: "Part A impaired â€” slowed visual scanning/attention", severity: "medium" });
-    if (zB !== null && zB > 2.0) flags.push({ label: "Part B severely impaired â€” executive dysfunction", severity: "high" });
-    else if (zB !== null && zB > 1.5) flags.push({ label: "Part B impaired â€” reduced cognitive flexibility", severity: "medium" });
-    if (baRatio !== null && baRatio > 3.0) flags.push({ label: "B/A ratio > 3.0 â€” executive dysfunction beyond processing speed", severity: "high" });
-    else if (baRatio !== null && baRatio > 2.5) flags.push({ label: "Elevated B/A ratio â€” borderline executive difficulty", severity: "medium" });
-    if (errorsB > 3) flags.push({ label: "High error rate on Part B â€” task-switching deficit", severity: "high" });
-    else if (errorsB > 1) flags.push({ label: "Errors on Part B â€” monitor cognitive switching", severity: "medium" });
-    if (observations.perseveration) flags.push({ label: "Perseverative errors â€” frontal lobe involvement", severity: "high" });
+    if (zA !== null && zA > 2.0) flags.push({ label: "Part A severely impaired — processing speed deficit", severity: "high" });
+    else if (zA !== null && zA > 1.5) flags.push({ label: "Part A impaired — slowed visual scanning/attention", severity: "medium" });
+    if (zB !== null && zB > 2.0) flags.push({ label: "Part B severely impaired — executive dysfunction", severity: "high" });
+    else if (zB !== null && zB > 1.5) flags.push({ label: "Part B impaired — reduced cognitive flexibility", severity: "medium" });
+    if (baRatio !== null && baRatio > 3.0) flags.push({ label: "B/A ratio > 3.0 — executive dysfunction beyond processing speed", severity: "high" });
+    else if (baRatio !== null && baRatio > 2.5) flags.push({ label: "Elevated B/A ratio — borderline executive difficulty", severity: "medium" });
+    if (errorsB > 3) flags.push({ label: "High error rate on Part B — task-switching deficit", severity: "high" });
+    else if (errorsB > 1) flags.push({ label: "Errors on Part B — monitor cognitive switching", severity: "medium" });
+    if (observations.perseveration) flags.push({ label: "Perseverative errors — frontal lobe involvement", severity: "high" });
     if (observations.confusion) flags.push({ label: "Sequence confusion observed during Part B", severity: "medium" });
-    if (setup.baselineFatigue >= 7) flags.push({ label: "High pre-test fatigue â€” interpret with caution", severity: "low" });
+    if (setup.baselineFatigue >= 7) flags.push({ label: "High pre-test fatigue — interpret with caution", severity: "low" });
     if (zA !== null && zA > 1.5) flags.push({ label: "Consider neuropsychological referral", severity: "info" });
     flags.push({ label: "Serial monitoring recommended at next cognitive review", severity: "info" });
     return flags;
@@ -402,15 +402,15 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
   // SOAP
   const generateSoap = () => {
     if (!timeA && !timeB) return "";
-    const lines = ["â€¢ Trail Making Test (TMT) â€” Parts A & B"];
+    const lines = ["• Trail Making Test (TMT) — Parts A & B"];
     if (timeA) {
       lines.push(`  Part A (Visual scanning / Sequencing): ${formatSecs(timeA)}${errorsA > 0 ? ` | Errors: ${errorsA}` : ""}${clsA ? ` | ${clsA.label}` : ""}${pctA != null ? ` | ~${pctA}th percentile` : ""}`);
     }
     if (timeB) {
       lines.push(`  Part B (Executive function / Set-shifting): ${formatSecs(timeB)}${errorsB > 0 ? ` | Errors: ${errorsB}` : ""}${clsB ? ` | ${clsB.label}` : ""}${pctB != null ? ` | ~${pctB}th percentile` : ""}`);
     }
-    if (bMinusA != null) lines.push(`  B âˆ’ A Difference: ${bMinusA}s (executive burden indicator)`);
-    if (baRatio != null) lines.push(`  B/A Ratio: ${baRatio} ${baRatio > 3.0 ? "âš  > 3.0 â€” executive dysfunction" : "(within expected range)"}`);
+    if (bMinusA != null) lines.push(`  B − A Difference: ${bMinusA}s (executive burden indicator)`);
+    if (baRatio != null) lines.push(`  B/A Ratio: ${baRatio} ${baRatio > 3.0 ? "⚠ > 3.0 — executive dysfunction" : "(within expected range)"}`);
     if (clinicalNotes) lines.push(`  Clinical Notes: ${clinicalNotes}`);
     lines.push(`  Interpretation: ${generateInterpretation()}`);
     lines.push(`  Reference: Tombaugh (2004) Arch Clin Neuropsychol | Norms age-stratified`);
@@ -473,8 +473,8 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
         {/* Header */}
         <div className="px-5 py-4 border-b bg-gradient-to-r from-indigo-50 to-purple-50 flex justify-between items-start shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Trail Making Test â€” Parts A & B</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Processing speed â€¢ Executive function â€¢ Cognitive flexibility â€¢ Attention</p>
+            <h2 className="text-lg font-bold text-slate-900">Trail Making Test — Parts A & B</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Processing speed • Executive function • Cognitive flexibility • Attention</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -493,7 +493,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-          {/* â”€â”€ STEP 0: OVERVIEW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 0: OVERVIEW ─────────────────────────────────────────── */}
           {step === 0 && (
             <div className="space-y-4">
               <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
@@ -506,67 +506,67 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
                 </div>
               </div>
 
-              <Section title="Part A vs Part B â€” What They Measure" icon={Brain} defaultOpen accent="indigo">
+              <Section title="Part A vs Part B — What They Measure" icon={Brain} defaultOpen accent="indigo">
                 <div className="grid grid-cols-2 gap-3 text-sm">
                   <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-xl">
                     <p className="font-bold text-indigo-800 mb-1">Part A</p>
-                    <p className="text-xs text-indigo-700 mb-2">Connect numbers 1 â†’ 2 â†’ 3 â€¦ in order</p>
+                    <p className="text-xs text-indigo-700 mb-2">Connect numbers 1 → 2 → 3 … in order</p>
                     <div className="space-y-0.5 text-xs text-indigo-600">
-                      <p>â€¢ Visual scanning speed</p>
-                      <p>â€¢ Psychomotor speed</p>
-                      <p>â€¢ Sequential attention</p>
-                      <p>â€¢ Processing speed</p>
+                      <p>• Visual scanning speed</p>
+                      <p>• Psychomotor speed</p>
+                      <p>• Sequential attention</p>
+                      <p>• Processing speed</p>
                     </div>
                   </div>
                   <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl">
                     <p className="font-bold text-orange-800 mb-1">Part B</p>
-                    <p className="text-xs text-orange-700 mb-2">Alternate: 1 â†’ A â†’ 2 â†’ B â†’ 3 â†’ C â€¦</p>
+                    <p className="text-xs text-orange-700 mb-2">Alternate: 1 → A → 2 → B → 3 → C …</p>
                     <div className="space-y-0.5 text-xs text-orange-600">
-                      <p>â€¢ Executive function</p>
-                      <p>â€¢ Cognitive flexibility</p>
-                      <p>â€¢ Task switching</p>
-                      <p>â€¢ Working memory</p>
+                      <p>• Executive function</p>
+                      <p>• Cognitive flexibility</p>
+                      <p>• Task switching</p>
+                      <p>• Working memory</p>
                     </div>
                   </div>
                 </div>
                 <div className="mt-3 p-3 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-800">
                   <p className="font-semibold mb-1">B/A Ratio (executive index)</p>
-                  <p>B âˆ’ A isolates executive contribution. B/A ratio &lt; 3.0 = normal. &gt; 3.0 = executive dysfunction beyond processing speed.</p>
+                  <p>B − A isolates executive contribution. B/A ratio &lt; 3.0 = normal. &gt; 3.0 = executive dysfunction beyond processing speed.</p>
                 </div>
               </Section>
 
               <Section title="Instructional Images" icon={Eye} accent="slate">
                 <div className="grid grid-cols-2 gap-3">
-                  <ImageCard url="https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400" caption="Trail A â€” Sequential numbering" />
-                  <ImageCard url="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400" caption="Trail B â€” Number-letter alternating" />
-                  <ImageCard url="https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=400" caption="Correct sequencing â€” plan before moving" />
-                  <ImageCard url="https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400" caption="Cognitive domains â€” frontal executive" />
+                  <ImageCard url="https://images.unsplash.com/photo-1559757148-5c350d0d3c56?w=400" caption="Trail A — Sequential numbering" />
+                  <ImageCard url="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400" caption="Trail B — Number-letter alternating" />
+                  <ImageCard url="https://images.unsplash.com/photo-1434030216411-0b793f4b4173?w=400" caption="Correct sequencing — plan before moving" />
+                  <ImageCard url="https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=400" caption="Cognitive domains — frontal executive" />
                 </div>
                 <div className="mt-3 p-3 bg-indigo-50 border border-indigo-100 rounded-lg text-xs text-indigo-700 space-y-1">
                   <p><strong>Clinician Tips:</strong></p>
-                  <p>â‘  Complete practice trial first to ensure understanding</p>
-                  <p>â‘¡ Allow rest between Part A and Part B (60â€“90 seconds)</p>
-                  <p>â‘¢ On error â€” say "wrong, go back" without stopping timer</p>
-                  <p>â‘£ Tap each numbered/lettered circle in sequence</p>
-                  <p>â‘¤ Record all errors, hesitations, and strategies used</p>
+                  <p>① Complete practice trial first to ensure understanding</p>
+                  <p>② Allow rest between Part A and Part B (60–90 seconds)</p>
+                  <p>③ On error — say "wrong, go back" without stopping timer</p>
+                  <p>④ Tap each numbered/lettered circle in sequence</p>
+                  <p>⑤ Record all errors, hesitations, and strategies used</p>
                 </div>
               </Section>
 
-              <Button onClick={() => setStep(1)} className="w-full bg-indigo-600 hover:bg-indigo-700">Begin Assessment â†’</Button>
+              <Button onClick={() => setStep(1)} className="w-full bg-indigo-600 hover:bg-indigo-700">Begin Assessment →</Button>
             </div>
           )}
 
-          {/* â”€â”€ STEP 1: SETUP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 1: SETUP ─────────────────────────────────────────────── */}
           {step === 1 && (
             <div className="space-y-4">
               <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-sm text-indigo-800">
-                <Activity className="w-4 h-4 inline mr-1" /><strong>Test Setup</strong> â€” Capture environmental and client factors.
+                <Activity className="w-4 h-4 inline mr-1" /><strong>Test Setup</strong> — Capture environmental and client factors.
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label className="text-sm font-medium">Environment</Label>
                   <select value={setup.environment} onChange={e => setSetup(p => ({ ...p, environment: e.target.value }))} className="mt-1 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400">
-                    <option>Quiet clinic room</option><option>Clinic â€” some noise</option><option>Ward / bedside</option><option>Home visit</option><option>Noisy environment</option>
+                    <option>Quiet clinic room</option><option>Clinic — some noise</option><option>Ward / bedside</option><option>Home visit</option><option>Noisy environment</option>
                   </select>
                 </div>
                 <div>
@@ -599,14 +599,14 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
                 ))}
               </div>
               <div>
-                <Label className="text-sm font-medium">Baseline Fatigue (0â€“10)</Label>
+                <Label className="text-sm font-medium">Baseline Fatigue (0–10)</Label>
                 <div className="flex items-center gap-3 mt-1">
                   <input type="range" min={0} max={10} value={setup.baselineFatigue} onChange={e => setSetup(p => ({ ...p, baselineFatigue: Number(e.target.value) }))} className="flex-1 accent-indigo-600" />
                   <span className="font-bold text-indigo-600 w-5">{setup.baselineFatigue}</span>
                 </div>
               </div>
               <div>
-                <Label className="text-sm font-medium">Baseline Attention / Alertness (0â€“10)</Label>
+                <Label className="text-sm font-medium">Baseline Attention / Alertness (0–10)</Label>
                 <div className="flex items-center gap-3 mt-1">
                   <input type="range" min={0} max={10} value={setup.baselineAttention} onChange={e => setSetup(p => ({ ...p, baselineAttention: Number(e.target.value) }))} className="flex-1 accent-indigo-600" />
                   <span className="font-bold text-indigo-600 w-5">{setup.baselineAttention}</span>
@@ -614,12 +614,12 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(0)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(2)} className="flex-1 bg-indigo-600 hover:bg-indigo-700">Practice Trial â†’</Button>
+                <Button onClick={() => setStep(2)} className="flex-1 bg-indigo-600 hover:bg-indigo-700">Practice Trial →</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 2: PRACTICE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 2: PRACTICE ──────────────────────────────────────────── */}
           {step === 2 && (
             <div className="space-y-4">
               <div className="bg-green-50 border border-green-200 rounded-xl p-4">
@@ -634,7 +634,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
                     {[1, 2, 3, 4, 5].map((n, i) => (
                       <React.Fragment key={n}>
                         <div className="w-10 h-10 rounded-full bg-indigo-600 text-white font-bold text-sm flex items-center justify-center shadow">{n}</div>
-                        {i < 4 && <span className="text-indigo-400 font-bold">â†’</span>}
+                        {i < 4 && <span className="text-indigo-400 font-bold">→</span>}
                       </React.Fragment>
                     ))}
                   </div>
@@ -646,21 +646,21 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
                     {["1","A","2","B","3"].map((n, i) => (
                       <React.Fragment key={i}>
                         <div className={`w-9 h-9 rounded-full font-bold text-sm flex items-center justify-center shadow ${isNaN(n) ? "bg-orange-500 text-white" : "bg-indigo-600 text-white"}`}>{n}</div>
-                        {i < 4 && <span className="text-slate-400 text-xs">â†’</span>}
+                        {i < 4 && <span className="text-slate-400 text-xs">→</span>}
                       </React.Fragment>
                     ))}
                   </div>
-                  <p className="text-xs text-orange-600 mt-2">Alternate number â†’ letter</p>
+                  <p className="text-xs text-orange-600 mt-2">Alternate number → letter</p>
                 </div>
               </div>
 
               <div className="bg-green-50 border border-green-200 rounded-xl p-4 space-y-3">
-                <p className="font-semibold text-green-800 text-sm">ðŸ“‹ Read aloud to participant:</p>
+                <p className="font-semibold text-green-800 text-sm">📋 Read aloud to participant:</p>
                 <div className="p-3 bg-white rounded-lg border border-green-200 text-sm text-slate-700 italic">
                   "I'm going to show you some circles with numbers in them. I want you to connect them in order, starting from 1, then 2, then 3, as fast as you can. When you make a mistake, I'll tell you to go back and fix it, but keep going as fast as you can. Do you understand?"
                 </div>
                 <div className="p-3 bg-white rounded-lg border border-green-200 text-sm text-slate-700 italic">
-                  "For the next part, the circles have both numbers and letters. Connect them in order, alternating between number and letter â€” 1, then A, then 2, then B, then 3, then C, and so on. Do you understand?"
+                  "For the next part, the circles have both numbers and letters. Connect them in order, alternating between number and letter — 1, then A, then 2, then B, then 3, then C, and so on. Do you understand?"
                 </div>
               </div>
 
@@ -674,17 +674,17 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(1)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(3)} disabled={!practiceConfirmed} className="flex-1 bg-indigo-600 hover:bg-indigo-700">Begin Part A â†’</Button>
+                <Button onClick={() => setStep(3)} disabled={!practiceConfirmed} className="flex-1 bg-indigo-600 hover:bg-indigo-700">Begin Part A →</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 3: PART A â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 3: PART A ────────────────────────────────────────────── */}
           {step === 3 && (
             <div className="space-y-4">
               <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-sm text-indigo-800">
-                <Brain className="w-4 h-4 inline mr-1" /><strong>Part A â€” Sequencing (Numbers 1â€“13)</strong><br />
-                <span className="text-xs">Tap each numbered circle in order: 1 â†’ 2 â†’ 3 â†’ â€¦ â†’ 13. Timer starts on first tap.</span>
+                <Brain className="w-4 h-4 inline mr-1" /><strong>Part A — Sequencing (Numbers 1–13)</strong><br />
+                <span className="text-xs">Tap each numbered circle in order: 1 → 2 → 3 → … → 13. Timer starts on first tap.</span>
               </div>
               <TrailCanvas
                 part="A"
@@ -697,7 +697,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
                   <p><CheckCircle2 className="w-4 h-4 inline mr-1" />Part A recorded: <strong>{formatSecs(partAResult.time)}</strong> | Errors: <strong>{partAResult.errors}</strong></p>
                   <div className="flex items-center gap-3 mt-2">
                     <Label className="text-xs">Additional errors to add:</Label>
-                    <button onClick={() => setPartAErrors(e => Math.max(0, e - 1))} className="w-7 h-7 rounded border bg-white font-bold">âˆ’</button>
+                    <button onClick={() => setPartAErrors(e => Math.max(0, e - 1))} className="w-7 h-7 rounded border bg-white font-bold">−</button>
                     <span className="font-bold w-6 text-center">{partAErrors}</span>
                     <button onClick={() => setPartAErrors(e => e + 1)} className="w-7 h-7 rounded border bg-white font-bold">+</button>
                   </div>
@@ -705,17 +705,17 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
               )}
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(2)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(4)} disabled={!partAResult} className="flex-1 bg-orange-600 hover:bg-orange-700">Begin Part B â†’</Button>
+                <Button onClick={() => setStep(4)} disabled={!partAResult} className="flex-1 bg-orange-600 hover:bg-orange-700">Begin Part B →</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 4: PART B â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 4: PART B ────────────────────────────────────────────── */}
           {step === 4 && (
             <div className="space-y-4">
               <div className="bg-orange-50 border border-orange-200 rounded-xl p-3 text-sm text-orange-800">
-                <Brain className="w-4 h-4 inline mr-1" /><strong>Part B â€” Set-Shifting (Numbers & Letters)</strong><br />
-                <span className="text-xs">Alternate: 1 â†’ A â†’ 2 â†’ B â†’ 3 â†’ C â†’ 4 â†’ D â†’ 5 â†’ E â†’ 6 â†’ F â†’ 7</span>
+                <Brain className="w-4 h-4 inline mr-1" /><strong>Part B — Set-Shifting (Numbers & Letters)</strong><br />
+                <span className="text-xs">Alternate: 1 → A → 2 → B → 3 → C → 4 → D → 5 → E → 6 → F → 7</span>
               </div>
               <TrailCanvas
                 part="B"
@@ -728,7 +728,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
                   <p><CheckCircle2 className="w-4 h-4 inline mr-1" />Part B recorded: <strong>{formatSecs(partBResult.time)}</strong> | Errors: <strong>{partBResult.errors}</strong></p>
                   <div className="flex items-center gap-3 mt-2">
                     <Label className="text-xs">Additional errors to add:</Label>
-                    <button onClick={() => setPartBErrors(e => Math.max(0, e - 1))} className="w-7 h-7 rounded border bg-white font-bold">âˆ’</button>
+                    <button onClick={() => setPartBErrors(e => Math.max(0, e - 1))} className="w-7 h-7 rounded border bg-white font-bold">−</button>
                     <span className="font-bold w-6 text-center">{partBErrors}</span>
                     <button onClick={() => setPartBErrors(e => e + 1)} className="w-7 h-7 rounded border bg-white font-bold">+</button>
                   </div>
@@ -736,16 +736,16 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
               )}
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(3)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(5)} disabled={!partBResult} className="flex-1 bg-indigo-600 hover:bg-indigo-700">Observations â†’</Button>
+                <Button onClick={() => setStep(5)} disabled={!partBResult} className="flex-1 bg-indigo-600 hover:bg-indigo-700">Observations →</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 5: OBSERVATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 5: OBSERVATIONS ─────────────────────────────────────── */}
           {step === 5 && (
             <div className="space-y-4">
               <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-3 text-sm text-indigo-800">
-                <Flag className="w-4 h-4 inline mr-1" /><strong>Behavioural Observations</strong> â€” Record what was observed.
+                <Flag className="w-4 h-4 inline mr-1" /><strong>Behavioural Observations</strong> — Record what was observed.
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {[
@@ -770,12 +770,12 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(4)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(6)} className="flex-1 bg-indigo-600 hover:bg-indigo-700">View Results â†’</Button>
+                <Button onClick={() => setStep(6)} className="flex-1 bg-indigo-600 hover:bg-indigo-700">View Results →</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 6: RESULTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 6: RESULTS ──────────────────────────────────────────── */}
           {step === 6 && (
             <div className="space-y-4">
 
@@ -802,16 +802,16 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
                 <div className={`border-2 rounded-xl p-4 text-center ${baRatio > 3.0 ? "bg-red-50 border-red-300 text-red-800" : baRatio > 2.5 ? "bg-yellow-50 border-yellow-300 text-yellow-800" : "bg-green-50 border-green-300 text-green-800"}`}>
                   <p className="text-xs font-semibold uppercase tracking-wider opacity-70 mb-1">B/A Ratio (Executive Index)</p>
                   <p className="text-4xl font-bold">{baRatio}</p>
-                  <p className="text-sm font-semibold mt-1">{baRatio > 3.0 ? "âš  Executive Dysfunction" : baRatio > 2.5 ? "Borderline" : "Within Expected Range"}</p>
-                  <p className="text-xs opacity-70 mt-1">B âˆ’ A = {bMinusA}s | Normal B/A &lt; 3.0</p>
+                  <p className="text-sm font-semibold mt-1">{baRatio > 3.0 ? "⚠ Executive Dysfunction" : baRatio > 2.5 ? "Borderline" : "Within Expected Range"}</p>
+                  <p className="text-xs opacity-70 mt-1">B − A = {bMinusA}s | Normal B/A &lt; 3.0</p>
                 </div>
               )}
 
               {/* Normative Table */}
               {age && (
-                <Section title={`Normative Comparison â€” Age ${age} (Tombaugh 2004)`} icon={Activity} defaultOpen accent="blue">
+                <Section title={`Normative Comparison — Age ${age} (Tombaugh 2004)`} icon={Activity} defaultOpen accent="blue">
                   <div className="space-y-2 text-xs">
-                    <p className="text-slate-500 mb-2">Comparison against age-matched normative data (mean Â± SD, Tombaugh 2004)</p>
+                    <p className="text-slate-500 mb-2">Comparison against age-matched normative data (mean ± SD, Tombaugh 2004)</p>
                     {[
                       { label: "Part A", time: timeA, norm: normA, z: zA, cls: clsA, pct: pctA },
                       { label: "Part B", time: timeB, norm: normB, z: zB, cls: clsB, pct: pctB },
@@ -824,7 +824,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
                         <div className="grid grid-cols-4 gap-2 text-slate-600">
                           <div><span className="text-slate-400">Score</span><br /><strong>{formatSecs(row.time)}</strong></div>
                           <div><span className="text-slate-400">Mean</span><br />{row.norm.mean}s</div>
-                          <div><span className="text-slate-400">SD</span><br />Â±{row.norm.sd}s</div>
+                          <div><span className="text-slate-400">SD</span><br />±{row.norm.sd}s</div>
                           <div><span className="text-slate-400">Z / %ile</span><br />{row.z} / ~{row.pct}th</div>
                         </div>
                         {row.time && (
@@ -867,10 +867,10 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
                 <div className="space-y-2 text-xs text-slate-600">
                   {[
                     { n: 1, t: "Reitan RM.", s: "Trail Making Test: Manual for Administration and Scoring. Reitan Neuropsychology Laboratory; 1958, 1992." },
-                    { n: 2, t: "Tombaugh TN.", s: "Trail Making Test A and B: Normative data stratified by age and education. Archives of Clinical Neuropsychology. 2004;19(2):203â€“214." },
+                    { n: 2, t: "Tombaugh TN.", s: "Trail Making Test A and B: Normative data stratified by age and education. Archives of Clinical Neuropsychology. 2004;19(2):203–214." },
                     { n: 3, t: "Lezak MD, Howieson DB, Bigler ED, Tranel D.", s: "Neuropsychological Assessment. 5th ed. Oxford University Press; 2012." },
                     { n: 4, t: "Strauss E, Sherman EMS, Spreen O.", s: "A Compendium of Neuropsychological Tests: Administration, Norms, and Commentary. 3rd ed. Oxford University Press; 2006." },
-                    { n: 5, t: "Bowie CR, Harvey PD.", s: "Administration and interpretation of the Trail Making Test. Nature Protocols. 2006;1(5):2277â€“2281." },
+                    { n: 5, t: "Bowie CR, Harvey PD.", s: "Administration and interpretation of the Trail Making Test. Nature Protocols. 2006;1(5):2277–2281." },
                   ].map(r => (
                     <div key={r.n} className="p-2 bg-slate-50 rounded border border-slate-200">
                       <p><span className="font-semibold">{r.n}.</span> {r.t} <em>{r.s}</em></p>

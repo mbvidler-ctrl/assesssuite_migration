@@ -51,7 +51,7 @@ export default function BESSRunner({ onSave, onClose }) {
       return `  ${c.name}: ${errs} error${errs !== 1 ? 's' : ''}`;
     }).join('\n');
 
-    const soapText = `â€¢ Balance Error Scoring System (BESS)\n  Total Errors: ${total}/60\n  Interpretation: ${interpretation?.level ?? 'N/A'}\n\n  Condition Breakdown:\n${conditionLines}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`;
+    const soapText = `• Balance Error Scoring System (BESS)\n  Total Errors: ${total}/60\n  Interpretation: ${interpretation?.level ?? 'N/A'}\n\n  Condition Breakdown:\n${conditionLines}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`;
 
     onSave({
       result_value: total,
@@ -98,7 +98,7 @@ export default function BESSRunner({ onSave, onClose }) {
                   <li>Hands lifted off iliac crest</li>
                   <li>Opening eyes</li>
                   <li>Step, stumble, or fall</li>
-                  <li>Moving hip into &gt;30Â° abduction</li>
+                  <li>Moving hip into &gt;30° abduction</li>
                   <li>Lifting forefoot or heel</li>
                   <li>Remaining out of position &gt;5 seconds</li>
                 </ul>
@@ -108,31 +108,31 @@ export default function BESSRunner({ onSave, onClose }) {
 
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>Riemann BL, Guskiewicz KM, & Shields EW. (1999). Relationship between clinical and forceplate measures of postural stability. <em>Journal of Sport Rehabilitation, 8</em>(2), 71â€“82.</p>
-              <p>Guskiewicz KM et al. (2001). Postural stability and neuropsychological deficits after concussion. <em>Journal of Athletic Training, 36</em>(3), 263â€“273.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Riemann BL, Guskiewicz KM, & Shields EW. (1999). Relationship between clinical and forceplate measures of postural stability. <em>Journal of Sport Rehabilitation, 8</em>(2), 71–82.</p>
+              <p>Guskiewicz KM et al. (2001). Postural stability and neuropsychological deficits after concussion. <em>Journal of Athletic Training, 36</em>(3), 263–273.</p>
             </div>
 
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Norms & Interpretation (Total Errors / 60)</p>
+              <p className="font-semibold text-slate-700">📊 Norms & Interpretation (Total Errors / 60)</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Errors</th><th className="p-2 text-left">Interpretation</th></tr></thead>
                   <tbody>
-                    <tr className="border-t"><td className="p-2">0â€“3</td><td className="p-2 text-green-700">Normal balance</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">4â€“6</td><td className="p-2 text-yellow-700">Mild impairment</td></tr>
-                    <tr className="border-t"><td className="p-2">7â€“12</td><td className="p-2 text-orange-700">Moderate impairment</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">â‰¥13</td><td className="p-2 text-red-700">Severe impairment / significant concussion indicator</td></tr>
+                    <tr className="border-t"><td className="p-2">0–3</td><td className="p-2 text-green-700">Normal balance</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">4–6</td><td className="p-2 text-yellow-700">Mild impairment</td></tr>
+                    <tr className="border-t"><td className="p-2">7–12</td><td className="p-2 text-orange-700">Moderate impairment</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">≥13</td><td className="p-2 text-red-700">Severe impairment / significant concussion indicator</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-slate-500">MCID: ~7 errors post-concussion vs. baseline. A score â‰¥3 errors above individual baseline is clinically meaningful. Source: Guskiewicz et al. (2001).</p>
+              <p className="text-xs text-slate-500">MCID: ~7 errors post-concussion vs. baseline. A score ≥3 errors above individual baseline is clinically meaningful. Source: Guskiewicz et al. (2001).</p>
             </div>
 
             <Card className="bg-amber-50 border-amber-200">
               <CardHeader>
-                <CardTitle className="text-sm text-amber-800">âš ï¸ Contraindications</CardTitle>
+                <CardTitle className="text-sm text-amber-800">⚠ï¸ Contraindications</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-amber-800">
                 <p><strong>Relative:</strong> Acute ankle/knee injury, severe dizziness, acute vestibular dysfunction. Provide spotting for all conditions. Stop if client at risk of falling.</p>

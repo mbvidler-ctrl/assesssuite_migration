@@ -307,11 +307,11 @@ export default function ProfileSetup() {
                   <Select value={formData.country} onValueChange={(v) => handleInputChange("country", v)}>
                     <SelectTrigger className="mt-1"><SelectValue placeholder="Select country" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="australia">ðŸ‡¦ðŸ‡º Australia</SelectItem>
-                      <SelectItem value="usa">ðŸ‡ºðŸ‡¸ United States</SelectItem>
-                      <SelectItem value="canada">ðŸ‡¨ðŸ‡¦ Canada</SelectItem>
-                      <SelectItem value="nz">ðŸ‡³ðŸ‡¿ New Zealand</SelectItem>
-                      <SelectItem value="uk">ðŸ‡¬ðŸ‡§ United Kingdom</SelectItem>
+                      <SelectItem value="australia">🇦🇺 Australia</SelectItem>
+                      <SelectItem value="usa">🇺🇸 United States</SelectItem>
+                      <SelectItem value="canada">🇨🇦 Canada</SelectItem>
+                      <SelectItem value="nz">🇳🇿 New Zealand</SelectItem>
+                      <SelectItem value="uk">🇬🇧 United Kingdom</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

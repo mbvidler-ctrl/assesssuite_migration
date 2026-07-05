@@ -861,15 +861,15 @@ export default function SOAPNoteModal({
         ? new Date(appointment.start_time).toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' })
         : new Date().toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-      lines.push(`SOAP NOTE â€” ${client?.full_name || 'Client'} â€” ${apptDate}`);
+      lines.push(`SOAP NOTE — ${client?.full_name || 'Client'} — ${apptDate}`);
       if (currentUser?.full_name) lines.push(`Clinician: ${currentUser.full_name}`);
       lines.push('');
       lines.push('SUBJECTIVE');
-      lines.push('â”€'.repeat(40));
+      lines.push('─'.repeat(40));
       lines.push(soapNote?.subjective || '');
       lines.push('');
       lines.push('OBJECTIVE');
-      lines.push('â”€'.repeat(40));
+      lines.push('─'.repeat(40));
       lines.push(soapNote?.objective || '');
       if (assessments && assessments.length > 0) {
         lines.push('');
@@ -880,32 +880,32 @@ export default function SOAPNoteModal({
           const resultVal = ca.result_value !== undefined && ca.result_value !== null ? ca.result_value : '';
           const unit = ca.unit_of_measure ? ` ${ca.unit_of_measure}` : '';
           if (soapText) {
-            lines.push(`â€¢ ${aName}: ${soapText}`);
+            lines.push(`• ${aName}: ${soapText}`);
           } else if (resultVal !== '') {
-            lines.push(`â€¢ ${aName}: ${resultVal}${unit}`);
+            lines.push(`• ${aName}: ${resultVal}${unit}`);
           } else {
-            lines.push(`â€¢ ${aName}`);
+            lines.push(`• ${aName}`);
           }
         });
       }
       lines.push('');
       lines.push('ASSESSMENT');
-      lines.push('â”€'.repeat(40));
+      lines.push('─'.repeat(40));
       lines.push(soapNote?.assessment || '');
       lines.push('');
       lines.push('PLAN');
-      lines.push('â”€'.repeat(40));
+      lines.push('─'.repeat(40));
       lines.push(soapNote?.plan || '');
       if (soapNote?.goals) {
         lines.push('');
         lines.push('GOALS');
-        lines.push('â”€'.repeat(40));
+        lines.push('─'.repeat(40));
         lines.push(soapNote.goals);
       }
       if (soapNote?.other) {
         lines.push('');
         lines.push('OTHER NOTES');
-        lines.push('â”€'.repeat(40));
+        lines.push('─'.repeat(40));
         lines.push(soapNote.other);
       }
 
@@ -1392,7 +1392,7 @@ export default function SOAPNoteModal({
                 onChange={(e) => handleInputChange("assessment", e.target.value)}
                 disabled={isLocked}
                 rows={4}
-                placeholder="Your professional interpretation of the subjective and objective dataâ€”what it means, the likely condition, contributing factors, and progress."
+                placeholder="Your professional interpretation of the subjective and objective data—what it means, the likely condition, contributing factors, and progress."
                 className={`mt-2 ${isLocked ? 'bg-slate-50' : ''} placeholder:text-slate-400`}
                 />
                 </div>

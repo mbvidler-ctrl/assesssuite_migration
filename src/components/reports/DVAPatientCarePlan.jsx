@@ -669,7 +669,7 @@ Return only the improved plain text version with clear structure, no additional 
 </tr>
 <tr>
 <td style="border: 1px solid #000; padding: 8px; background-color: #f8f9fa; font-weight: bold;">Has the client consented to this Patient Care Plan?</td>
-<td style="border: 1px solid #000; padding: 8px;">${clientConsented ? 'Yes â˜‘' : 'No â˜'}</td>
+<td style="border: 1px solid #000; padding: 8px;">${clientConsented ? 'Yes ☑' : 'No â˜'}</td>
 </tr>
 </tbody>
 </table>
@@ -682,7 +682,7 @@ Return only the improved plain text version with clear structure, no additional 
 <tbody>
 <tr>
 <td style="border: 1px solid #000; padding: 8px; width: 40%; background-color: #f8f9fa; font-weight: bold;">Goals have been set and agreed to with the client:</td>
-<td style="border: 1px solid #000; padding: 8px; width: 60%;">${goalsAgreed === 'yes' ? 'Yes â˜‘ No â˜' : 'Yes â˜ No â˜‘'}</td>
+<td style="border: 1px solid #000; padding: 8px; width: 60%;">${goalsAgreed === 'yes' ? 'Yes ☑ No â˜' : 'Yes â˜ No ☑'}</td>
 </tr>
 <tr>
 <td colspan="2" style="border: 1px solid #000; padding: 12px;">
@@ -1306,9 +1306,9 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
                     value={clientGoalsText}
                     onChange={(e) => setClientGoalsText(e.target.value)}
                     placeholder="e.g.,
-â€¢ Return to playing tennis twice weekly without shoulder pain within 8 weeks
-â€¢ Walk 2km continuously without rest breaks by end of treatment cycle
-â€¢ Reduce lower back pain from 7/10 to 3/10 during daily activities"
+• Return to playing tennis twice weekly without shoulder pain within 8 weeks
+• Walk 2km continuously without rest breaks by end of treatment cycle
+• Reduce lower back pain from 7/10 to 3/10 during daily activities"
                     rows={8}
                     className="font-mono text-sm"
                   />

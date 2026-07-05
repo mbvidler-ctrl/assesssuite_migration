@@ -60,7 +60,7 @@ export default function HexagonAgilityTestRunner({ client, onSave, onClose }) {
 
   const handleSave = () => {
     if (trials.length === 0) { toast.error("Record at least one trial"); return; }
-    const soap = `â€¢ Hexagon Agility Test\n  Best Time: ${best}s (3 circuits, ~${(best * 100 / 30.48).toFixed(0)}cm sides)${cat ? ` â€” ${cat.level}` : ""}\n  All Trials: ${trials.map(t => t + "s").join(", ")}${notes ? `\n  Notes: ${notes}` : ""}\n  Assesses agility, speed, and lower limb coordination.\n  Reference: Johnson BL & Nelson JK (1979). Practical Measurements for Evaluation in Physical Education. NSCA Performance Testing.`;
+    const soap = `• Hexagon Agility Test\n  Best Time: ${best}s (3 circuits, ~${(best * 100 / 30.48).toFixed(0)}cm sides)${cat ? ` — ${cat.level}` : ""}\n  All Trials: ${trials.map(t => t + "s").join(", ")}${notes ? `\n  Notes: ${notes}` : ""}\n  Assesses agility, speed, and lower limb coordination.\n  Reference: Johnson BL & Nelson JK (1979). Practical Measurements for Evaluation in Physical Education. NSCA Performance Testing.`;
     onSave({ status: "completed", result_value: best, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "agility_timed", best_time_s: best, trials, classification: cat?.level } });
     toast.success("Hexagon Test saved.");
   };
@@ -104,8 +104,8 @@ export default function HexagonAgilityTestRunner({ client, onSave, onClose }) {
                 <div className="bg-violet-50 border border-violet-200 rounded-lg p-3 space-y-1 text-violet-900">
                   <p className="font-semibold">Equipment & Setup</p>
                   <ul className="list-disc ml-4 space-y-0.5">
-                    <li>Mark a hexagon on floor with tape â€” each side <strong>24 inches (61 cm)</strong>, interior angles 120Â°</li>
-                    <li>Number each side 1â€“6 clockwise from the front</li>
+                    <li>Mark a hexagon on floor with tape — each side <strong>24 inches (61 cm)</strong>, interior angles 120°</li>
+                    <li>Number each side 1–6 clockwise from the front</li>
                     <li>Stopwatch or electronic timer</li>
                     <li>Non-slip surface; appropriate footwear</li>
                   </ul>
@@ -116,10 +116,10 @@ export default function HexagonAgilityTestRunner({ client, onSave, onClose }) {
                   <ol className="list-decimal ml-4 space-y-0.5">
                     <li>Client stands inside hexagon facing forward (toward side 1)</li>
                     <li>On "Go", client jumps forward over side 1, then immediately jumps back in</li>
-                    <li>Continue jumping over each side clockwise, always returning to centre â€” 3 full circuits</li>
+                    <li>Continue jumping over each side clockwise, always returning to centre — 3 full circuits</li>
                     <li><strong>Feet must NOT touch the lines</strong>; client must always face forward</li>
                     <li>Stop timer when both feet return to centre after the 3rd circuit</li>
-                    <li>Rest 60 seconds. Perform 2â€“3 trials; record best time</li>
+                    <li>Rest 60 seconds. Perform 2–3 trials; record best time</li>
                     <li>Disqualify trial if lines are touched or client loses balance</li>
                   </ol>
                 </div>
@@ -148,31 +148,31 @@ export default function HexagonAgilityTestRunner({ client, onSave, onClose }) {
                         </tr>
                       </thead>
                       <tbody>
-                        <tr className="border-b bg-green-50"><td className="px-3 py-1.5"><strong className="text-green-700">Excellent</strong></td><td className="text-center text-green-700 font-mono">â‰¤11.2s</td><td className="text-center text-green-700 font-mono">â‰¤12.0s</td></tr>
-                        <tr className="border-b bg-teal-50"><td className="px-3 py-1.5"><strong className="text-teal-700">Good</strong></td><td className="text-center text-teal-700 font-mono">11.3â€“13.3s</td><td className="text-center text-teal-700 font-mono">12.1â€“14.5s</td></tr>
-                        <tr className="border-b bg-yellow-50"><td className="px-3 py-1.5"><strong className="text-yellow-700">Average</strong></td><td className="text-center text-yellow-700 font-mono">13.4â€“15.5s</td><td className="text-center text-yellow-700 font-mono">14.6â€“17.0s</td></tr>
-                        <tr className="border-b bg-orange-50"><td className="px-3 py-1.5"><strong className="text-orange-700">Below Average</strong></td><td className="text-center text-orange-700 font-mono">15.6â€“17.8s</td><td className="text-center text-orange-700 font-mono">17.1â€“19.5s</td></tr>
+                        <tr className="border-b bg-green-50"><td className="px-3 py-1.5"><strong className="text-green-700">Excellent</strong></td><td className="text-center text-green-700 font-mono">≤11.2s</td><td className="text-center text-green-700 font-mono">≤12.0s</td></tr>
+                        <tr className="border-b bg-teal-50"><td className="px-3 py-1.5"><strong className="text-teal-700">Good</strong></td><td className="text-center text-teal-700 font-mono">11.3–13.3s</td><td className="text-center text-teal-700 font-mono">12.1–14.5s</td></tr>
+                        <tr className="border-b bg-yellow-50"><td className="px-3 py-1.5"><strong className="text-yellow-700">Average</strong></td><td className="text-center text-yellow-700 font-mono">13.4–15.5s</td><td className="text-center text-yellow-700 font-mono">14.6–17.0s</td></tr>
+                        <tr className="border-b bg-orange-50"><td className="px-3 py-1.5"><strong className="text-orange-700">Below Average</strong></td><td className="text-center text-orange-700 font-mono">15.6–17.8s</td><td className="text-center text-orange-700 font-mono">17.1–19.5s</td></tr>
                         <tr className="bg-red-50"><td className="px-3 py-1.5"><strong className="text-red-700">Poor</strong></td><td className="text-center text-red-700 font-mono">&gt;17.8s</td><td className="text-center text-red-700 font-mono">&gt;19.5s</td></tr>
                       </tbody>
                     </table>
                   </div>
                   <div className="text-xs text-slate-600 px-3 py-2 bg-slate-50 border-t">
-                    <strong>Note:</strong> Best of 2â€“3 trials. Time of 3 complete hexagon circuits (18 jumps total). Feet must not touch lines; trial is disqualified if line contact occurs.
+                    <strong>Note:</strong> Best of 2–3 trials. Time of 3 complete hexagon circuits (18 jumps total). Feet must not touch lines; trial is disqualified if line contact occurs.
                   </div>
                 </div>
 
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900">
-                  <p className="font-semibold mb-1">âš ï¸ Scoring & Recording</p>
+                  <p className="font-semibold mb-1">⚠ï¸ Scoring & Recording</p>
                   <p>This tool records the <strong>best trial time only</strong>. Performance interpretation is automated and displayed during assessment. For official test administration, refer to primary sources and follow test protocols precisely.</p>
                 </div>
 
                 <div className="text-xs text-slate-600 space-y-2 border-t pt-3">
                   <p className="font-semibold text-slate-700">Primary Sources &amp; References</p>
                   <ul className="space-y-1.5 ml-3">
-                    <li><strong>1. Johnson BL &amp; Nelson JK (1979).</strong> <em>Practical Measurements for Evaluation in Physical Education</em> (4th ed.). Burgess Publishing. â€” Original hexagon test description.</li>
-                    <li><strong>2. Pauole K, Madole K, Garhammer J, et al. (2000).</strong> Reliability and validity of the T-test as a measure of agility. <em>J Strength Cond Res</em>, 14(4), 443â€“450. â€” Comparative agility test validation.</li>
-                    <li><strong>3. NSCA (2016).</strong> <em>NSCA's Guide to Tests and Assessments</em>. Human Kinetics. â€” <a href="https://www.nsca.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">www.nsca.com</a></li>
-                    <li><strong>4. Semenick D (1990).</strong> The T-test. <em>NSCA Journal</em>, 12(1), 36â€“37. â€” Agility assessment methodology.</li>
+                    <li><strong>1. Johnson BL &amp; Nelson JK (1979).</strong> <em>Practical Measurements for Evaluation in Physical Education</em> (4th ed.). Burgess Publishing. — Original hexagon test description.</li>
+                    <li><strong>2. Pauole K, Madole K, Garhammer J, et al. (2000).</strong> Reliability and validity of the T-test as a measure of agility. <em>J Strength Cond Res</em>, 14(4), 443–450. — Comparative agility test validation.</li>
+                    <li><strong>3. NSCA (2016).</strong> <em>NSCA's Guide to Tests and Assessments</em>. Human Kinetics. — <a href="https://www.nsca.com" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">www.nsca.com</a></li>
+                    <li><strong>4. Semenick D (1990).</strong> The T-test. <em>NSCA Journal</em>, 12(1), 36–37. — Agility assessment methodology.</li>
                   </ul>
                   <p className="text-slate-500 text-xs mt-2"><em>Not a copyrighted proprietary test. Public domain assessment widely used in athletic performance evaluation.</em></p>
                 </div>
@@ -183,9 +183,9 @@ export default function HexagonAgilityTestRunner({ client, onSave, onClose }) {
           {/* Protocol summary (always visible) */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 space-y-1">
             <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />Protocol Summary</p>
-            <p><strong>Setup:</strong> Hexagon on floor â€” 24 inches (61 cm) sides.</p>
+            <p><strong>Setup:</strong> Hexagon on floor — 24 inches (61 cm) sides.</p>
             <p><strong>Task:</strong> Start inside. Jump over each side clockwise and back for 3 complete circuits. Always face forward. Feet must not touch lines.</p>
-            <p><strong>Rest:</strong> 60s between trials. Best of 2â€“3 trials.</p>
+            <p><strong>Rest:</strong> 60s between trials. Best of 2–3 trials.</p>
           </div>
 
           <div className="bg-slate-50 border rounded-xl p-5 text-center space-y-3">
@@ -203,7 +203,7 @@ export default function HexagonAgilityTestRunner({ client, onSave, onClose }) {
               <CardContent className="space-y-2">
                 {trials.map((t, i) => (
                   <div key={i} className="flex justify-between items-center bg-violet-50 px-3 py-2 rounded-lg">
-                    <span>Trial {i + 1}: <span className={`font-bold ${t === best ? "text-violet-600" : "text-slate-700"}`}>{t}s{t === best ? " â˜…" : ""}</span></span>
+                    <span>Trial {i + 1}: <span className={`font-bold ${t === best ? "text-violet-600" : "text-slate-700"}`}>{t}s{t === best ? " ★" : ""}</span></span>
                     <Button variant="ghost" size="icon" onClick={() => setTrials(trials.filter((_, x) => x !== i))}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
                   </div>
                 ))}

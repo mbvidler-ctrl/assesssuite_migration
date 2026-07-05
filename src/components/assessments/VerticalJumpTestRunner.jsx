@@ -65,7 +65,7 @@ export default function VerticalJumpTestRunner({ client, onSave, onClose }) {
 
   const handleSave = () => {
     if (trials.length === 0) { toast.error("Record at least one trial"); return; }
-    const soap = `â€¢ Vertical Jump Test\n  Best Height: ${best} cm${cat ? ` â€” ${cat.label}` : ""}\n  Method: ${method === "jump_mat" ? "Jump mat/force plate" : method === "sargent" ? "Sargent (reach) method" : "Other"}\n  Trials: ${trials.map(t => `${t} cm`).join(", ")}${notes ? `\n  Notes: ${notes}` : ""}\n  Measures lower-body explosive power (anaerobic power/force production)\n  Reference: ACSM; Harman et al. (1991). Estimation of human power output from maximal vertical jump. J Strength Cond Res.`;
+    const soap = `• Vertical Jump Test\n  Best Height: ${best} cm${cat ? ` — ${cat.label}` : ""}\n  Method: ${method === "jump_mat" ? "Jump mat/force plate" : method === "sargent" ? "Sargent (reach) method" : "Other"}\n  Trials: ${trials.map(t => `${t} cm`).join(", ")}${notes ? `\n  Notes: ${notes}` : ""}\n  Measures lower-body explosive power (anaerobic power/force production)\n  Reference: ACSM; Harman et al. (1991). Estimation of human power output from maximal vertical jump. J Strength Cond Res.`;
     onSave({ status: "completed", result_value: best, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "vertical_jump", best_cm: best, trials, method, classification: cat?.label } });
     toast.success("Saved.");
   };
@@ -80,7 +80,7 @@ export default function VerticalJumpTestRunner({ client, onSave, onClose }) {
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 space-y-1">
-            <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />ðŸ“‹ Protocol & Administration</p>
+            <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />📋 Protocol & Administration</p>
             <p><strong>Countermovement Jump:</strong> Stand with feet shoulder-width apart on mat. Dip and swing arms, then jump maximally. Land on both feet simultaneously on the mat.</p>
             <p className="italic">"Jump as high as you can. You may bend your knees and swing your arms. Try to land on both feet at the same time."</p>
             <p><strong>Trials:</strong> 3 attempts with 30s rest. Record best.</p>
@@ -88,14 +88,14 @@ export default function VerticalJumpTestRunner({ client, onSave, onClose }) {
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Norms (countermovement jump, cm)</p>
+            <p className="font-semibold text-slate-700">📊 Norms (countermovement jump, cm)</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
-                <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20â€“29</th><th className="p-2 text-center">Men 40â€“49</th><th className="p-2 text-center">Women 20â€“29</th><th className="p-2 text-center">Women 40â€“49</th></tr></thead>
+                <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20–29</th><th className="p-2 text-center">Men 40–49</th><th className="p-2 text-center">Women 20–29</th><th className="p-2 text-center">Women 40–49</th></tr></thead>
                 <tbody>
-                  <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">â‰¥70</td><td className="p-2 text-center">â‰¥60</td><td className="p-2 text-center">â‰¥55</td><td className="p-2 text-center">â‰¥45</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">60â€“69</td><td className="p-2 text-center">50â€“59</td><td className="p-2 text-center">45â€“54</td><td className="p-2 text-center">35â€“44</td></tr>
-                  <tr className="border-t"><td className="p-2">Average</td><td className="p-2 text-center">50â€“59</td><td className="p-2 text-center">40â€“49</td><td className="p-2 text-center">35â€“44</td><td className="p-2 text-center">25â€“34</td></tr>
+                  <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">≥70</td><td className="p-2 text-center">≥60</td><td className="p-2 text-center">≥55</td><td className="p-2 text-center">≥45</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">60–69</td><td className="p-2 text-center">50–59</td><td className="p-2 text-center">45–54</td><td className="p-2 text-center">35–44</td></tr>
+                  <tr className="border-t"><td className="p-2">Average</td><td className="p-2 text-center">50–59</td><td className="p-2 text-center">40–49</td><td className="p-2 text-center">35–44</td><td className="p-2 text-center">25–34</td></tr>
                   <tr className="border-t bg-white"><td className="p-2">Poor</td><td className="p-2 text-center">&lt;50</td><td className="p-2 text-center">&lt;40</td><td className="p-2 text-center">&lt;35</td><td className="p-2 text-center">&lt;25</td></tr>
                 </tbody>
               </table>
@@ -104,8 +104,8 @@ export default function VerticalJumpTestRunner({ client, onSave, onClose }) {
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
-            <p>Harman EA, Rosenstein MT, Frykman PN, & Rosenstein RM. (1991). Estimation of human power output from maximal vertical jump and body mass. <em>Journal of Strength and Conditioning Research, 5</em>(3), 116â€“120.</p>
+            <p className="font-semibold">📖 Reference</p>
+            <p>Harman EA, Rosenstein MT, Frykman PN, & Rosenstein RM. (1991). Estimation of human power output from maximal vertical jump and body mass. <em>Journal of Strength and Conditioning Research, 5</em>(3), 116–120.</p>
             <p>American College of Sports Medicine. (2022). <em>ACSM's Guidelines for Exercise Testing and Prescription</em> (11th ed.). Wolters Kluwer.</p>
           </div>
 
@@ -141,7 +141,7 @@ export default function VerticalJumpTestRunner({ client, onSave, onClose }) {
               <CardContent className="space-y-2">
                 {trials.map((v, i) => (
                   <div key={i} className="flex justify-between items-center bg-emerald-50 px-3 py-2 rounded-lg">
-                    <span>Trial {i + 1}: <span className={`font-bold ${v === best ? "text-emerald-600" : "text-slate-700"}`}>{v} cm{v === best ? " â˜…" : ""}</span></span>
+                    <span>Trial {i + 1}: <span className={`font-bold ${v === best ? "text-emerald-600" : "text-slate-700"}`}>{v} cm{v === best ? " ★" : ""}</span></span>
                     <Button variant="ghost" size="icon" onClick={() => setTrials(trials.filter((_, x) => x !== i))}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
                   </div>
                 ))}

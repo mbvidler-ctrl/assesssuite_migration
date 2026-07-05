@@ -48,9 +48,9 @@ export default function ApleysRunner({ onSave, onClose }) {
                        (rightData.compression_pain && rightData.compression_pain !== 'none');
 
     const soapText = [
-      `â€¢ Apley's Compression Test`,
-      leftData.compression_pain ? `  Left: ${leftData.compression_pain} pain â€” ${leftInterp?.text || ''}` : null,
-      rightData.compression_pain ? `  Right: ${rightData.compression_pain} pain â€” ${rightInterp?.text || ''}` : null,
+      `• Apley's Compression Test`,
+      leftData.compression_pain ? `  Left: ${leftData.compression_pain} pain — ${leftInterp?.text || ''}` : null,
+      rightData.compression_pain ? `  Right: ${rightData.compression_pain} pain — ${rightInterp?.text || ''}` : null,
       notes ? `  Notes: ${notes}` : null,
     ].filter(Boolean).join('\n');
 
@@ -98,7 +98,7 @@ export default function ApleysRunner({ onSave, onClose }) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">
-                <p><strong>Position:</strong> Prone, knee flexed to 90Â°</p>
+                <p><strong>Position:</strong> Prone, knee flexed to 90°</p>
                 <p><strong>Procedure:</strong> Apply axial compression through tibia, rotate medially and laterally</p>
                 <p><strong>Positive:</strong> Joint-line pain with compression greater than distraction suggests meniscal tear</p>
               </CardContent>
@@ -106,7 +106,7 @@ export default function ApleysRunner({ onSave, onClose }) {
 
             {/* Norms & Interpretation */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Diagnostic Accuracy & Interpretation</p>
+              <p className="font-semibold text-slate-700">📊 Diagnostic Accuracy & Interpretation</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Result Pattern</th><th className="p-2 text-left">Likely Pathology</th></tr></thead>
@@ -122,9 +122,9 @@ export default function ApleysRunner({ onSave, onClose }) {
 
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>Apley AG. (1947). The diagnosis of meniscus injuries. <em>Journal of Bone and Joint Surgery, 29</em>(1), 78â€“84.</p>
-              <p>Scholten RJPM et al. (2001). The accuracy of physical diagnostic tests for assessing meniscal lesions of the knee. <em>Journal of Family Practice, 50</em>(11), 938â€“944.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Apley AG. (1947). The diagnosis of meniscus injuries. <em>Journal of Bone and Joint Surgery, 29</em>(1), 78–84.</p>
+              <p>Scholten RJPM et al. (2001). The accuracy of physical diagnostic tests for assessing meniscal lesions of the knee. <em>Journal of Family Practice, 50</em>(11), 938–944.</p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">

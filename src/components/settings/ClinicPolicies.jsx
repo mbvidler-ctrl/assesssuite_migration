@@ -113,7 +113,7 @@ export default function ClinicPolicies() {
     setEditingPolicy(copy);
     setExpandedItems({});
     setShowNewForm(true);
-    toast.info("Duplicated â€” edit as needed then save");
+    toast.info("Duplicated — edit as needed then save");
   };
 
   const handleCancel = () => {
@@ -258,7 +258,7 @@ export default function ClinicPolicies() {
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-slate-700 mb-3">Consent Items â€” toggle which appear on the APSS consent form</p>
+            <p className="text-sm font-semibold text-slate-700 mb-3">Consent Items — toggle which appear on the APSS consent form</p>
             <div className="space-y-3">
               {CONSENT_ITEMS.map(item => (
                 <div key={item.key} className={`border rounded-lg overflow-hidden ${editingPolicy[item.key] ? 'border-blue-200 bg-blue-50/30' : 'border-slate-200 bg-slate-50'}`}>
@@ -421,7 +421,7 @@ function PolicyCard({ policy, onEdit, onDuplicate, onDelete, onSetActive, isActi
           {policy.effective_date && (
             <p className="text-xs text-slate-500 mt-0.5">
               Effective: {format(new Date(policy.effective_date), "dd MMM yyyy")}
-              {policy.notes && <span className="ml-2 text-slate-400">â€” {policy.notes}</span>}
+              {policy.notes && <span className="ml-2 text-slate-400">— {policy.notes}</span>}
             </p>
           )}
           <div className="flex flex-wrap gap-1 mt-2">

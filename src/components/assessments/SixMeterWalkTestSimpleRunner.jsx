@@ -37,18 +37,18 @@ export default function SixMeterWalkTestSimpleRunner({ client, onSave, onClose }
   const avgSpeed = trials.length > 0 ? (trials.reduce((s, t) => s + t.speed, 0) / trials.length) : 0;
 
   const getInterp = (s) => {
-    if (s >= 1.0) return { label: "Community Ambulator â€” Normal", color: "bg-green-100 text-green-800 border-green-300" };
+    if (s >= 1.0) return { label: "Community Ambulator — Normal", color: "bg-green-100 text-green-800 border-green-300" };
     if (s >= 0.8) return { label: "Limited Community Ambulator", color: "bg-yellow-100 text-yellow-800 border-yellow-300" };
     if (s >= 0.4) return { label: "Household Ambulator", color: "bg-orange-100 text-orange-800 border-orange-300" };
-    return { label: "Non-functional Ambulator â€” High Fall Risk", color: "bg-red-100 text-red-800 border-red-300" };
+    return { label: "Non-functional Ambulator — High Fall Risk", color: "bg-red-100 text-red-800 border-red-300" };
   };
 
   const interp = trials.length > 0 ? getInterp(avgSpeed) : null;
 
   const handleSave = () => {
     const avg = avgSpeed.toFixed(3);
-    const trialLines = trials.map((t, i) => `  Trial ${i + 1}: ${t.time}s â†’ ${t.speed} m/s`).join("\n");
-    const soap = `â€¢ 6-Metre Walk Test\n  Average Speed: ${avg} m/s â€” ${interp?.label}\n  Trials:\n${trialLines}${assistiveDevice !== "none" ? `\n  Assistive Device: ${assistiveDevice}` : ""}${notes ? `\n  Notes: ${notes}` : ""}\n  Reference: â‰¥1.0 m/s community ambulation | 0.8â€“0.99 limited | <0.8 household/non-functional`;
+    const trialLines = trials.map((t, i) => `  Trial ${i + 1}: ${t.time}s → ${t.speed} m/s`).join("\n");
+    const soap = `• 6-Metre Walk Test\n  Average Speed: ${avg} m/s — ${interp?.label}\n  Trials:\n${trialLines}${assistiveDevice !== "none" ? `\n  Assistive Device: ${assistiveDevice}` : ""}${notes ? `\n  Notes: ${notes}` : ""}\n  Reference: ≥1.0 m/s community ambulation | 0.8–0.99 limited | <0.8 household/non-functional`;
     onSave({ result_value: parseFloat(avg), notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "6_meter_walk_test", average_speed_ms: parseFloat(avg), trials, assistive_device: assistiveDevice, interpretation: interp?.label } });
     toast.success("Saved.");
   };
@@ -64,10 +64,10 @@ export default function SixMeterWalkTestSimpleRunner({ client, onSave, onClose }
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 space-y-1">
             <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />Protocol</p>
-            <p><strong>Setup:</strong> 10 m walkway â€” 2 m acceleration, 6 m timed, 2 m deceleration. Mark start/end of 6 m zone.</p>
+            <p><strong>Setup:</strong> 10 m walkway — 2 m acceleration, 6 m timed, 2 m deceleration. Mark start/end of 6 m zone.</p>
             <p><strong>Instruction:</strong> "Walk at your usual comfortable pace until I tell you to stop."</p>
             <p><strong>Timing:</strong> Start timer as first foot crosses start line; stop as first foot crosses end line.</p>
-            <p><strong>Trials:</strong> 2â€“3 trials, rest 2 min between. Report average speed (m/s).</p>
+            <p><strong>Trials:</strong> 2–3 trials, rest 2 min between. Report average speed (m/s).</p>
           </div>
 
           <div>
@@ -100,7 +100,7 @@ export default function SixMeterWalkTestSimpleRunner({ client, onSave, onClose }
               <CardContent className="space-y-2">
                 {trials.map((t, i) => (
                   <div key={i} className="flex justify-between items-center bg-slate-50 px-3 py-2 rounded-lg">
-                    <span className="text-sm">Trial {i + 1}: <span className="font-mono font-bold">{t.time}s</span> â†’ <span className="text-violet-700 font-bold">{t.speed} m/s</span></span>
+                    <span className="text-sm">Trial {i + 1}: <span className="font-mono font-bold">{t.time}s</span> → <span className="text-violet-700 font-bold">{t.speed} m/s</span></span>
                     <Button variant="ghost" size="icon" onClick={() => setTrials(trials.filter((_, x) => x !== i))}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
                   </div>
                 ))}
@@ -112,7 +112,7 @@ export default function SixMeterWalkTestSimpleRunner({ client, onSave, onClose }
           {interp && (
             <div className={`border rounded-xl p-4 text-center font-semibold text-lg ${interp.color}`}>
               {interp.label}
-              <p className="text-xs font-normal mt-1">â‰¥1.0 community | 0.8â€“1.0 limited | 0.4â€“0.8 household | &lt;0.4 non-functional</p>
+              <p className="text-xs font-normal mt-1">≥1.0 community | 0.8–1.0 limited | 0.4–0.8 household | &lt;0.4 non-functional</p>
             </div>
           )}
 

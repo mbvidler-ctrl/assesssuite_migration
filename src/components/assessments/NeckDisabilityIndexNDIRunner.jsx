@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 const sections = [
   {
-    title: "Section 1 â€“ Pain Intensity",
+    title: "Section 1 – Pain Intensity",
     options: [
       { value: 0, label: "I have no pain at the moment" },
       { value: 1, label: "The pain is very mild at the moment" },
@@ -18,7 +18,7 @@ const sections = [
     ],
   },
   {
-    title: "Section 2 â€“ Personal Care (Washing, Dressing, etc.)",
+    title: "Section 2 – Personal Care (Washing, Dressing, etc.)",
     options: [
       { value: 0, label: "I can look after myself normally without causing extra pain" },
       { value: 1, label: "I can look after myself normally but it causes extra pain" },
@@ -29,7 +29,7 @@ const sections = [
     ],
   },
   {
-    title: "Section 3 â€“ Lifting",
+    title: "Section 3 – Lifting",
     options: [
       { value: 0, label: "I can lift heavy weights without extra pain" },
       { value: 1, label: "I can lift heavy weights but it gives extra pain" },
@@ -40,7 +40,7 @@ const sections = [
     ],
   },
   {
-    title: "Section 4 â€“ Reading",
+    title: "Section 4 – Reading",
     options: [
       { value: 0, label: "I can read as much as I want to with no pain in my neck" },
       { value: 1, label: "I can read as much as I want to with slight pain in my neck" },
@@ -51,7 +51,7 @@ const sections = [
     ],
   },
   {
-    title: "Section 5 â€“ Headaches",
+    title: "Section 5 – Headaches",
     options: [
       { value: 0, label: "I have no headaches at all" },
       { value: 1, label: "I have slight headaches which come infrequently" },
@@ -62,7 +62,7 @@ const sections = [
     ],
   },
   {
-    title: "Section 6 â€“ Concentration",
+    title: "Section 6 – Concentration",
     options: [
       { value: 0, label: "I can concentrate fully when I want to with no difficulty" },
       { value: 1, label: "I can concentrate fully when I want to with slight difficulty" },
@@ -73,7 +73,7 @@ const sections = [
     ],
   },
   {
-    title: "Section 7 â€“ Work",
+    title: "Section 7 – Work",
     options: [
       { value: 0, label: "I can do as much work as I want to" },
       { value: 1, label: "I can only do my usual work but no more" },
@@ -84,7 +84,7 @@ const sections = [
     ],
   },
   {
-    title: "Section 8 â€“ Driving",
+    title: "Section 8 – Driving",
     options: [
       { value: 0, label: "I can drive my car without any neck pain" },
       { value: 1, label: "I can drive my car as long as I want with slight pain in my neck" },
@@ -95,18 +95,18 @@ const sections = [
     ],
   },
   {
-    title: "Section 9 â€“ Sleeping",
+    title: "Section 9 – Sleeping",
     options: [
       { value: 0, label: "I have no trouble sleeping" },
       { value: 1, label: "My sleep is slightly disturbed (less than 1 hour sleepless)" },
-      { value: 2, label: "My sleep is mildly disturbed (1â€“2 hours sleepless)" },
-      { value: 3, label: "My sleep is moderately disturbed (2â€“3 hours sleepless)" },
-      { value: 4, label: "My sleep is greatly disturbed (3â€“5 hours sleepless)" },
-      { value: 5, label: "My sleep is completely disturbed (5â€“7 hours sleepless)" },
+      { value: 2, label: "My sleep is mildly disturbed (1–2 hours sleepless)" },
+      { value: 3, label: "My sleep is moderately disturbed (2–3 hours sleepless)" },
+      { value: 4, label: "My sleep is greatly disturbed (3–5 hours sleepless)" },
+      { value: 5, label: "My sleep is completely disturbed (5–7 hours sleepless)" },
     ],
   },
   {
-    title: "Section 10 â€“ Recreation",
+    title: "Section 10 – Recreation",
     options: [
       { value: 0, label: "I am able to engage in all my recreational activities with no neck pain" },
       { value: 1, label: "I am able to engage in all my recreational activities with some pain in my neck" },
@@ -151,10 +151,10 @@ export default function NeckDisabilityIndexNDIRunner({ client, onSave, onClose }
     const soapLines = sections.map((section, idx) => {
       const val = responses[idx];
       const opt = section.options.find(o => o.value === val);
-      return `  ${section.title}: ${val}/5 â€” ${opt?.label || ''}`;
+      return `  ${section.title}: ${val}/5 — ${opt?.label || ''}`;
     }).join('\n');
 
-    const soapText = `â€¢ Neck Disability Index (NDI): ${percentage.toFixed(1)}% (${totalScore}/50) â€” ${interpretation.label}\n\n  Individual Section Responses:\n${soapLines}`;
+    const soapText = `• Neck Disability Index (NDI): ${percentage.toFixed(1)}% (${totalScore}/50) — ${interpretation.label}\n\n  Individual Section Responses:\n${soapLines}`;
 
     onSave({
       status: "completed",
@@ -182,7 +182,7 @@ export default function NeckDisabilityIndexNDIRunner({ client, onSave, onClose }
             <div className="p-2 bg-blue-100 rounded-lg"><ClipboardList className="w-5 h-5 text-blue-600" /></div>
             <div>
               <h2 className="text-lg font-bold text-slate-900">Neck Disability Index (NDI)</h2>
-              <p className="text-xs text-slate-500">Vernon & Mior, 1991 â€” {answeredCount}/10 sections completed</p>
+              <p className="text-xs text-slate-500">Vernon & Mior, 1991 — {answeredCount}/10 sections completed</p>
             </div>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
@@ -212,7 +212,7 @@ export default function NeckDisabilityIndexNDIRunner({ client, onSave, onClose }
                       className="mt-0.5 h-4 w-4 accent-blue-600 flex-shrink-0"
                     />
                     <span className="text-sm text-slate-700">
-                      <span className="font-medium text-slate-500 mr-1">{option.value} â€”</span>
+                      <span className="font-medium text-slate-500 mr-1">{option.value} —</span>
                       {option.label}
                     </span>
                   </label>
@@ -230,11 +230,11 @@ export default function NeckDisabilityIndexNDIRunner({ client, onSave, onClose }
                   <p className="text-sm mt-0.5">Score: {totalScore}/50 ({percentage.toFixed(1)}%)</p>
                 </div>
                 <div className="text-right text-xs space-y-1">
-                  <div>0â€“8%: No Disability</div>
-                  <div>10â€“28%: Mild</div>
-                  <div>30â€“48%: Moderate</div>
-                  <div>50â€“64%: Severe</div>
-                  <div>â‰¥65%: Complete</div>
+                  <div>0–8%: No Disability</div>
+                  <div>10–28%: Mild</div>
+                  <div>30–48%: Moderate</div>
+                  <div>50–64%: Severe</div>
+                  <div>≥65%: Complete</div>
                 </div>
               </div>
             </div>

@@ -86,7 +86,7 @@ export const hasInteractiveRunner = (assessmentName) => {
     () => name.includes('ebbeling') || name.includes('single-stage treadmill'),
     () => name.includes('iswt') || name.includes('incremental shuttle'),
     () => name.includes('harvard step'),
-    () => name.includes('Ã¥strand') || name.includes('astrand'),
+    () => name.includes('åstrand') || name.includes('astrand'),
     () => name.includes('bruce'),
     () => name.includes('naughton'),
     () => name.includes('modified bruce'),

@@ -179,7 +179,7 @@ export default function Register() {
               id="password"
               type="password"
               autoComplete="new-password"
-              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+              placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               className="pl-10 h-12"
@@ -195,7 +195,7 @@ export default function Register() {
               id="confirm"
               type="password"
               autoComplete="new-password"
-              placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+              placeholder="••••••••"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               className="pl-10 h-12"

@@ -107,7 +107,7 @@ export default function RockportWalkRunner({ client, onSave, onClose }) {
     }
 
     const soapText = [
-      `â€¢ Rockport 1-Mile Walk Test`,
+      `• Rockport 1-Mile Walk Test`,
       `  Walk Time: ${walkTime} min | Final HR: ${endHR} bpm | Weight: ${weight} kg`,
       `  Estimated VO2max: ${estimatedVO2max} mL/kg/min`,
       fitnessCategory ? `  Fitness Category: ${fitnessCategory.category}` : null,

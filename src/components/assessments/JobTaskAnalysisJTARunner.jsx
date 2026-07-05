@@ -29,7 +29,7 @@ export default function JobTaskAnalysisJTARunner({ client, onSave, onClose }) {
       return;
     }
 
-    const soapText = `â€¢ Job Task Analysis (JTA)\n  Tasks Analysed: ${tasks.length}\n  Tasks:\n${tasks.map(t => `  - ${t}`).join('\n')}${observations ? `\n  Observations: ${observations}` : ''}${recommendations ? `\n  Recommendations: ${recommendations}` : ''}`;
+    const soapText = `• Job Task Analysis (JTA)\n  Tasks Analysed: ${tasks.length}\n  Tasks:\n${tasks.map(t => `  - ${t}`).join('\n')}${observations ? `\n  Observations: ${observations}` : ''}${recommendations ? `\n  Recommendations: ${recommendations}` : ''}`;
     onSave({
       status: "completed",
       result_value: tasks.length,

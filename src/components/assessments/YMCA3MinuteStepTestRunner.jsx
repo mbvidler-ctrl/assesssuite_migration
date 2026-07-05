@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Save, X, Play, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ FITNESS CLASSIFICATION (RECOVERY HR) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── FITNESS CLASSIFICATION (RECOVERY HR) ──────────────────────────────────
 const FITNESS_CATEGORIES = {
   male: [
     { label: "Excellent", maxHR: 76 },
@@ -36,7 +36,7 @@ const getCategory = (recoveryHR, sex) => {
   return "Poor";
 };
 
-// â”€â”€â”€ COMPONENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── COMPONENT ──────────────────────────────────────────────────────────────
 export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
   const [age, setAge] = useState("");
   const [sex, setSex] = useState("");
@@ -56,7 +56,7 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
     if (timer >= 180) {
       setIsRunning(false);
       setIsCompleted(true);
-      toast.success("Test complete â€” record recovery heart rate between 5â€“20 seconds post-exercise.");
+      toast.success("Test complete — record recovery heart rate between 5–20 seconds post-exercise.");
       return;
     }
     const interval = setInterval(() => setTimer((t) => t + 1), 1000);
@@ -72,7 +72,7 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
     setIsCompleted(false);
     setRecoveryHR("");
     setIsRunning(true);
-    toast.success("Test started â€” step at approximately 96 bpm cadence. Maintain steady rhythm.");
+    toast.success("Test started — step at approximately 96 bpm cadence. Maintain steady rhythm.");
   };
 
   const handleStop = () => {
@@ -87,7 +87,7 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
       return;
     }
     const category = getCategory(recoveryHR, sex);
-    const soapText = `â€¢ Allied 3-Minute Step Recovery Test
+    const soapText = `• Allied 3-Minute Step Recovery Test
   Submaximal cardiovascular recovery and aerobic estimation assessment
   
   CLIENT DETAILS:
@@ -95,13 +95,13 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
   
   PROTOCOL:
   Step Height: ${stepHeight} cm
-  Cadence Target: 96 bpm (24 steps/min â€” 4-count pattern: up-up-down-down)
+  Cadence Target: 96 bpm (24 steps/min — 4-count pattern: up-up-down-down)
   Duration: 3 minutes continuous stepping
   
   VITAL SIGNS:
   Resting HR: ${restingHR} bpm
-  Recovery HR (5â€“20 sec post): ${recoveryHR} bpm
-  ${rpe ? `RPE (Borg 0â€“10): ${rpe}` : ""}
+  Recovery HR (5–20 sec post): ${recoveryHR} bpm
+  ${rpe ? `RPE (Borg 0–10): ${rpe}` : ""}
   
   INTERPRETATION:
   Fitness Category: ${category}
@@ -141,7 +141,7 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
   const secs = String(timer % 60).padStart(2, "0");
   const category = recoveryHR ? getCategory(recoveryHR, sex) : null;
 
-  // â”€â”€â”€ RENDER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── RENDER ─────────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-[9999] p-4" onClick={onClose}>
       <div className="w-full max-w-2xl max-h-[95vh] overflow-y-auto rounded-2xl shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -173,7 +173,7 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
                 onClick={() => setShowProtocol(v => !v)}
                 className="w-full flex justify-between items-center bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900 hover:bg-blue-100 transition-colors"
               >
-                <span>ðŸ“‹ Clinician Instructions & Protocol</span>
+                <span>📋 Clinician Instructions & Protocol</span>
                 {showProtocol ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
               {showProtocol && (
@@ -194,7 +194,7 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
                       <li>Pattern: Right foot up, left foot up, right foot down, left foot down (4-count cycle)</li>
                       <li>Maintain consistent stepping rhythm throughout</li>
                       <li>Immediately after stepping, client sits or stands at rest</li>
-                      <li>Record recovery heart rate between 5â€“20 seconds post-test</li>
+                      <li>Record recovery heart rate between 5–20 seconds post-test</li>
                     </ul>
                   </div>
                   <div className="bg-blue-100 rounded p-2 text-xs italic">
@@ -257,7 +257,7 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
               {isCompleted && (
                 <div className="border border-slate-200 rounded-lg p-4 bg-slate-50 space-y-3">
                   <div>
-                    <Label className="text-sm font-semibold">Recovery HR (5â€“20 sec post-test, bpm)</Label>
+                    <Label className="text-sm font-semibold">Recovery HR (5–20 sec post-test, bpm)</Label>
                     <Input type="number" value={recoveryHR} onChange={e => setRecoveryHR(e.target.value)} placeholder="Enter recovery heart rate" className="mt-1" />
                   </div>
                   {category && (
@@ -278,8 +278,8 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
               {/* RPE & Symptoms */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <Label className="text-xs">RPE (Borg 0â€“10)</Label>
-                  <Input type="number" min="0" max="10" value={rpe} onChange={e => setRpe(e.target.value)} placeholder="0â€“10" className="mt-1" />
+                  <Label className="text-xs">RPE (Borg 0–10)</Label>
+                  <Input type="number" min="0" max="10" value={rpe} onChange={e => setRpe(e.target.value)} placeholder="0–10" className="mt-1" />
                 </div>
                 <div>
                   <Label className="text-xs">Symptoms During Test</Label>
@@ -295,7 +295,7 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
 
               {/* Reference */}
               <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
-                <p className="font-semibold text-slate-700 mb-1">ðŸ“– Clinical Basis</p>
+                <p className="font-semibold text-slate-700 mb-1">📖 Clinical Basis</p>
                 <p>Recovery heart rate is a marker of parasympathetic reactivation and cardiovascular fitness. Faster heart rate recovery after submaximal exercise indicates better aerobic capacity and autonomic nervous system function.</p>
               </div>
             </div>

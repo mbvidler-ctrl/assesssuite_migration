@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ NORMATIVE DATA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── NORMATIVE DATA ────────────────────────────────────────────────────────────
 // Pauole et al. 2000 + Semenick 1990 + sport-adjusted ranges
 const NORMS = {
   male: [
@@ -44,30 +44,30 @@ const RTS_THRESHOLDS = {
 function rtsStatus(time, gender) {
   if (!time || !gender) return null;
   const t = RTS_THRESHOLDS[gender === "male" ? "male" : "female"];
-  if (time <= t.clearance) return { label: "RTS â€” Cleared", color: "bg-green-100 text-green-800 border-green-300" };
-  if (time <= t.caution) return { label: "RTS â€” Caution / Progressive", color: "bg-yellow-100 text-yellow-800 border-yellow-300" };
-  return { label: "RTS â€” Not Cleared", color: "bg-red-100 text-red-800 border-red-300" };
+  if (time <= t.clearance) return { label: "RTS — Cleared", color: "bg-green-100 text-green-800 border-green-300" };
+  if (time <= t.caution) return { label: "RTS — Caution / Progressive", color: "bg-yellow-100 text-yellow-800 border-yellow-300" };
+  return { label: "RTS — Not Cleared", color: "bg-red-100 text-red-800 border-red-300" };
 }
 
 function formatTime(s) {
-  return s != null ? `${s.toFixed(2)}s` : "â€”";
+  return s != null ? `${s.toFixed(2)}s` : "—";
 }
 
-// â”€â”€â”€ SAFETY ITEMS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── SAFETY ITEMS ─────────────────────────────────────────────────────────────
 const SAFETY_ITEMS = [
   { id: "cleared_running", label: "Cleared for running and cutting activities" },
   { id: "no_acute_pain", label: "No acute pain in lower limb at rest or movement" },
   { id: "no_instability", label: "No knee instability or giving-way episodes" },
   { id: "no_swelling", label: "No acute joint swelling" },
-  { id: "warmup_done", label: "Warm-up completed (â‰¥5 min dynamic warm-up)" },
+  { id: "warmup_done", label: "Warm-up completed (≥5 min dynamic warm-up)" },
   { id: "safe_footwear", label: "Appropriate footwear worn" },
   { id: "safe_surface", label: "Surface safe and appropriate for sprinting" },
   { id: "consent", label: "Patient consent obtained" },
 ];
 
-// â”€â”€â”€ MOVEMENT QUALITY ITEMS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MOVEMENT QUALITY ITEMS ───────────────────────────────────────────────────
 const QUALITY_ITEMS = [
-  { key: "acceleration", label: "Acceleration quality (Aâ†’B)" },
+  { key: "acceleration", label: "Acceleration quality (A→B)" },
   { key: "deceleration", label: "Deceleration control (B transitions)" },
   { key: "lateral_shuffle", label: "Lateral shuffle technique" },
   { key: "foot_placement", label: "Foot placement & cone contact" },
@@ -78,7 +78,7 @@ const QUALITY_ITEMS = [
   { key: "turning_efficiency", label: "Turning efficiency" },
 ];
 
-// â”€â”€â”€ HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 function Section({ title, icon: Icon, children, defaultOpen = false, accent = "amber" }) {
   const [open, setOpen] = useState(defaultOpen);
   const map = {
@@ -128,14 +128,14 @@ function ImageCard({ url, caption }) {
   );
 }
 
-// â”€â”€â”€ CONE DIAGRAM (SVG) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── CONE DIAGRAM (SVG) ────────────────────────────────────────────────────────
 function ConeDiagram() {
   return (
     <div className="p-4 bg-slate-900 rounded-xl">
       <svg viewBox="0 0 300 220" className="w-full max-w-xs mx-auto">
-        {/* Vertical line Aâ†’B */}
+        {/* Vertical line A→B */}
         <line x1="150" y1="190" x2="150" y2="90" stroke="#f59e0b" strokeWidth="2" strokeDasharray="6,3" />
-        {/* Horizontal line Câ†’Bâ†’D */}
+        {/* Horizontal line C→B→D */}
         <line x1="50" y1="90" x2="250" y2="90" stroke="#f59e0b" strokeWidth="2" strokeDasharray="6,3" />
         {/* Arrows */}
         <defs>
@@ -143,15 +143,15 @@ function ConeDiagram() {
             <path d="M0,0 L8,4 L0,8 Z" fill="#f59e0b" />
           </marker>
         </defs>
-        {/* Sprint Aâ†’B */}
+        {/* Sprint A→B */}
         <line x1="150" y1="188" x2="150" y2="105" stroke="#22c55e" strokeWidth="2.5" markerEnd="url(#arr)" />
-        {/* Shuffle Bâ†’C */}
+        {/* Shuffle B→C */}
         <line x1="148" y1="88" x2="65" y2="88" stroke="#60a5fa" strokeWidth="2.5" markerEnd="url(#arr)" />
-        {/* Shuffle Câ†’D */}
+        {/* Shuffle C→D */}
         <line x1="52" y1="92" x2="235" y2="92" stroke="#60a5fa" strokeWidth="2.5" markerEnd="url(#arr)" />
-        {/* Shuffle Dâ†’B */}
+        {/* Shuffle D→B */}
         <line x1="248" y1="88" x2="165" y2="88" stroke="#60a5fa" strokeWidth="2.5" markerEnd="url(#arr)" />
-        {/* Backpedal Bâ†’A */}
+        {/* Backpedal B→A */}
         <line x1="152" y1="94" x2="152" y2="178" stroke="#f472b6" strokeWidth="2.5" markerEnd="url(#arr)" />
 
         {/* Cones */}
@@ -178,12 +178,12 @@ function ConeDiagram() {
           <text x="22" y="39" fill="#94a3b8" fontSize="8">Backpedal</text>
         </g>
       </svg>
-      <div className="text-center text-xs text-slate-400 mt-2">T-Test Agility â€” Standard Layout</div>
+      <div className="text-center text-xs text-slate-400 mt-2">T-Test Agility — Standard Layout</div>
     </div>
   );
 }
 
-// â”€â”€â”€ MAIN COMPONENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function TTestAgilityRunner({ client, onSave, onClose }) {
   const [step, setStep] = useState(0);
 
@@ -208,7 +208,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
   const startRef = useRef(null);
   const intervalRef = useRef(null);
 
-  // Quality scores: keyed by quality item key, value 0â€“4
+  // Quality scores: keyed by quality item key, value 0–4
   const [quality, setQuality] = useState({
     acceleration: 2, deceleration: 2, lateral_shuffle: 2, foot_placement: 2,
     cod_control: 2, knee_valgus: 2, trunk_control: 2, arm_coordination: 2, turning_efficiency: 2,
@@ -282,8 +282,8 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
   // Interpretation
   const generateInterpretation = () => {
     if (!bestTime) return "";
-    const cls = classification?.label || "â€”";
-    const rtsL = rts?.label || "â€”";
+    const cls = classification?.label || "—";
+    const rtsL = rts?.label || "—";
     const kv = quality.knee_valgus;
     const dec = quality.deceleration;
     const cods = quality.cod_control;
@@ -292,7 +292,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
     text += `. Performance was classified as ${cls}.`;
     if (rts) text += ` Return-to-sport status: ${rtsL}.`;
     if (kv <= 1) text += " Dynamic knee valgus was evident during directional changes, indicating potential neuromuscular control deficit and elevated ACL re-injury risk.";
-    else if (kv === 2) text += " Mild knee valgus was noted â€” monitor with progressive loading.";
+    else if (kv === 2) text += " Mild knee valgus was noted — monitor with progressive loading.";
     if (dec <= 1) text += " Deceleration control was poor, suggesting deficits in eccentric lower-limb strength and braking mechanics.";
     if (cods <= 1) text += " Change-of-direction control was significantly reduced.";
     if (consistency !== null && consistency < 90) text += ` Performance consistency was reduced (${consistency}%), which may reflect fatigue, technique variability, or apprehension.`;
@@ -306,18 +306,18 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
     if (!bestTime) return flags;
     const g = gender === "male" ? "male" : "female";
     const t = RTS_THRESHOLDS[g];
-    if (bestTime > t.caution) flags.push({ label: "Significantly reduced agility â€” RTS not indicated", severity: "high" });
-    else if (bestTime > t.clearance) flags.push({ label: "Reduced agility â€” progressive RTS programme recommended", severity: "medium" });
-    if (quality.knee_valgus <= 1) flags.push({ label: "Dynamic valgus collapse â€” ACL re-injury risk", severity: "high" });
-    else if (quality.knee_valgus === 2) flags.push({ label: "Mild knee valgus â€” monitor during loading progression", severity: "medium" });
-    if (quality.deceleration <= 1) flags.push({ label: "Poor deceleration control â€” eccentric strengthening required", severity: "high" });
-    if (quality.cod_control <= 1) flags.push({ label: "Change-of-direction deficit â€” agility progression indicated", severity: "medium" });
-    if (consistency !== null && consistency < 85) flags.push({ label: "Low performance consistency â€” consider fatigue or apprehension", severity: "medium" });
+    if (bestTime > t.caution) flags.push({ label: "Significantly reduced agility — RTS not indicated", severity: "high" });
+    else if (bestTime > t.clearance) flags.push({ label: "Reduced agility — progressive RTS programme recommended", severity: "medium" });
+    if (quality.knee_valgus <= 1) flags.push({ label: "Dynamic valgus collapse — ACL re-injury risk", severity: "high" });
+    else if (quality.knee_valgus === 2) flags.push({ label: "Mild knee valgus — monitor during loading progression", severity: "medium" });
+    if (quality.deceleration <= 1) flags.push({ label: "Poor deceleration control — eccentric strengthening required", severity: "high" });
+    if (quality.cod_control <= 1) flags.push({ label: "Change-of-direction deficit — agility progression indicated", severity: "medium" });
+    if (consistency !== null && consistency < 85) flags.push({ label: "Low performance consistency — consider fatigue or apprehension", severity: "medium" });
     if (trialResults.some(t => !t.invalid && t.time) && validTrials.length > 1) {
       const trend = validTrials[validTrials.length - 1] - validTrials[0];
       if (trend > 0.5) flags.push({ label: "Fatigue-related performance decline across trials", severity: "medium" });
     }
-    if (setup.fatigueLevel >= 6) flags.push({ label: "High pre-test fatigue â€” may compromise results", severity: "low" });
+    if (setup.fatigueLevel >= 6) flags.push({ label: "High pre-test fatigue — may compromise results", severity: "low" });
     flags.push({ label: "Reassess at next RTS milestone", severity: "info" });
     flags.push({ label: "Correlate with LSI hop testing and quad strength", severity: "info" });
     return flags;
@@ -328,30 +328,30 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
   // SOAP
   const generateSoap = () => {
     if (!bestTime) return "";
-    const lines = [`â€¢ T-Test Agility`];
+    const lines = [`• T-Test Agility`];
     
     // Setup/environmental context
     if (setup.surface || setup.footwear || setup.testingSport) {
       lines.push(`  Setup & Environment:`);
-      if (setup.testingSport) lines.push(`    â€¢ Context: ${setup.testingSport}`);
-      if (setup.surface) lines.push(`    â€¢ Surface: ${setup.surface}`);
-      if (setup.footwear) lines.push(`    â€¢ Footwear: ${setup.footwear}`);
-      if (setup.dominantLeg && setup.dominantLeg !== "Unknown") lines.push(`    â€¢ Dominant leg: ${setup.dominantLeg}`);
-      if (setup.injuredSide && setup.injuredSide !== "None") lines.push(`    â€¢ Injured side: ${setup.injuredSide}`);
+      if (setup.testingSport) lines.push(`    • Context: ${setup.testingSport}`);
+      if (setup.surface) lines.push(`    • Surface: ${setup.surface}`);
+      if (setup.footwear) lines.push(`    • Footwear: ${setup.footwear}`);
+      if (setup.dominantLeg && setup.dominantLeg !== "Unknown") lines.push(`    • Dominant leg: ${setup.dominantLeg}`);
+      if (setup.injuredSide && setup.injuredSide !== "None") lines.push(`    • Injured side: ${setup.injuredSide}`);
     }
     
     // Pre-test observations
     if (setup.sprintConfidence !== undefined || setup.fatigueLevel !== undefined) {
       lines.push(`  Pre-Test Status:`);
-      if (setup.sprintConfidence !== undefined) lines.push(`    â€¢ Sprint confidence: ${setup.sprintConfidence}/10`);
-      if (setup.fatigueLevel !== undefined) lines.push(`    â€¢ Pre-test fatigue: ${setup.fatigueLevel}/10`);
+      if (setup.sprintConfidence !== undefined) lines.push(`    • Sprint confidence: ${setup.sprintConfidence}/10`);
+      if (setup.fatigueLevel !== undefined) lines.push(`    • Pre-test fatigue: ${setup.fatigueLevel}/10`);
     }
     
     // Trial results
     trialResults.forEach(t => {
-      if (t) lines.push(`  Trial ${t.trialNum}: ${formatTime(t.time)}${t.invalid ? ` [INVALID â€” ${t.invalidReason}]` : " [Valid]"}`);
+      if (t) lines.push(`  Trial ${t.trialNum}: ${formatTime(t.time)}${t.invalid ? ` [INVALID — ${t.invalidReason}]` : " [Valid]"}`);
     });
-    if (bestTime) lines.push(`  Best Time: ${formatTime(bestTime)}${classification ? ` â€” ${classification.label}` : ""}`);
+    if (bestTime) lines.push(`  Best Time: ${formatTime(bestTime)}${classification ? ` — ${classification.label}` : ""}`);
     if (avgTime && validTrials.length > 1) lines.push(`  Mean Time: ${formatTime(avgTime)}`);
     if (consistency !== null) lines.push(`  Consistency: ${consistency}%`);
     if (rts) lines.push(`  Return-to-Sport Status: ${rts.label}`);
@@ -359,7 +359,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
     
     // Quality details if any notable
     const qualityDetails = [];
-    if (quality.knee_valgus <= 2) qualityDetails.push(`Dynamic knee valgus noted â€” ACL risk consideration`);
+    if (quality.knee_valgus <= 2) qualityDetails.push(`Dynamic knee valgus noted — ACL risk consideration`);
     if (quality.deceleration <= 1) qualityDetails.push(`Poor deceleration control`);
     if (quality.cod_control <= 1) qualityDetails.push(`Reduced change-of-direction control`);
     if (qualityDetails.length > 0) lines.push(`  Quality observations: ${qualityDetails.join("; ")}`);
@@ -420,7 +420,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
         <div className="px-5 py-4 border-b bg-gradient-to-r from-amber-50 to-yellow-50 flex justify-between items-start shrink-0">
           <div>
             <h2 className="text-lg font-bold text-slate-900">T-Test Agility</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Multidirectional agility â€¢ Change of direction â€¢ Return to sport</p>
+            <p className="text-xs text-slate-500 mt-0.5">Multidirectional agility • Change of direction • Return to sport</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -438,7 +438,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-          {/* â”€â”€ STEP 0: OVERVIEW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 0: OVERVIEW ─────────────────────────────────────────── */}
           {step === 0 && (
             <div className="space-y-4">
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
@@ -455,24 +455,24 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                 <ConeDiagram />
                 <div className="mt-3 space-y-2 text-sm text-slate-700">
                   <div className="p-3 bg-green-50 border border-green-200 rounded-lg">
-                    <p className="font-semibold text-green-800">Sprint A â†’ B (9.14m)</p>
+                    <p className="font-semibold text-green-800">Sprint A → B (9.14m)</p>
                     <p className="text-green-700 text-xs">Forward sprint to centre cone</p>
                   </div>
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="font-semibold text-blue-800">Shuffle B â†’ C (4.57m left)</p>
+                    <p className="font-semibold text-blue-800">Shuffle B → C (4.57m left)</p>
                     <p className="text-blue-700 text-xs">Lateral shuffle left, touch cone C</p>
                   </div>
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="font-semibold text-blue-800">Shuffle C â†’ D (9.14m right)</p>
+                    <p className="font-semibold text-blue-800">Shuffle C → D (9.14m right)</p>
                     <p className="text-blue-700 text-xs">Lateral shuffle right, touch cone D</p>
                   </div>
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                    <p className="font-semibold text-blue-800">Shuffle D â†’ B (4.57m left)</p>
+                    <p className="font-semibold text-blue-800">Shuffle D → B (4.57m left)</p>
                     <p className="text-blue-700 text-xs">Lateral shuffle back to B, touch cone</p>
                   </div>
                   <div className="p-3 bg-pink-50 border border-pink-200 rounded-lg">
-                    <p className="font-semibold text-pink-800">Backpedal B â†’ A (9.14m)</p>
-                    <p className="text-pink-700 text-xs">Backpedal to start/finish â€” timer stops</p>
+                    <p className="font-semibold text-pink-800">Backpedal B → A (9.14m)</p>
+                    <p className="text-pink-700 text-xs">Backpedal to start/finish — timer stops</p>
                   </div>
                 </div>
               </Section>
@@ -480,7 +480,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
               <Section title="Instructional Images" icon={Activity} accent="slate">
                 <div className="grid grid-cols-2 gap-3">
 
-                  {/* Diagram 1: Sprint Phase A â†’ B */}
+                  {/* Diagram 1: Sprint Phase A → B */}
                   <div className="rounded-lg overflow-hidden border border-slate-200 bg-white">
                     <svg viewBox="0 0 200 160" className="w-full" xmlns="http://www.w3.org/2000/svg">
                       <rect width="200" height="160" fill="#f0fdf4"/>
@@ -496,7 +496,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                       {/* Sprint path */}
                       <path d="M37,115 Q80,100 155,82" stroke="#22c55e" strokeWidth="3" fill="none" strokeDasharray="5,3"/>
                       <polygon points="150,79 162,82 152,88" fill="#22c55e"/>
-                      {/* Runner figure â€” sprinting */}
+                      {/* Runner figure — sprinting */}
                       <circle cx="90" cy="75" r="9" fill="#fbbf24" stroke="#f59e0b" strokeWidth="1.5"/>
                       {/* torso */}
                       <line x1="90" y1="84" x2="90" y2="108" stroke="#0369a1" strokeWidth="5" strokeLinecap="round"/>
@@ -518,14 +518,14 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                       <line x1="62" y1="73" x2="70" y2="73" stroke="#22c55e" strokeWidth="1" opacity="0.4"/>
                       {/* Label */}
                       <text x="100" y="15" textAnchor="middle" fontSize="9" fill="#166534" fontWeight="700">SPRINT PHASE</text>
-                      <text x="100" y="26" textAnchor="middle" fontSize="8" fill="#4d7c0f">A â†’ B (9.14 m forward)</text>
+                      <text x="100" y="26" textAnchor="middle" fontSize="8" fill="#4d7c0f">A → B (9.14 m forward)</text>
                       {/* Distance marker */}
                       <line x1="37" y1="135" x2="163" y2="135" stroke="#94a3b8" strokeWidth="0.8"/>
                       <line x1="37" y1="132" x2="37" y2="138" stroke="#94a3b8" strokeWidth="0.8"/>
                       <line x1="163" y1="132" x2="163" y2="138" stroke="#94a3b8" strokeWidth="0.8"/>
                       <text x="100" y="148" textAnchor="middle" fontSize="7" fill="#64748b">9.14 m</text>
                     </svg>
-                    <p className="text-xs text-slate-500 text-center px-2 pb-2">Sprint Acceleration Phase â€” A to B (9.14m)</p>
+                    <p className="text-xs text-slate-500 text-center px-2 pb-2">Sprint Acceleration Phase — A to B (9.14m)</p>
                   </div>
 
                   {/* Diagram 2: Lateral Shuffle Technique */}
@@ -543,13 +543,13 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                       {/* Cone D */}
                       <polygon points="168,130 182,130 175,115" fill="#f472b6" stroke="#db2777" strokeWidth="1"/>
                       <text x="175" y="143" textAnchor="middle" fontSize="9" fill="#be185d" fontWeight="700">D</text>
-                      {/* Shuffle path arrow Bâ†’C */}
+                      {/* Shuffle path arrow B→C */}
                       <path d="M90,112 L30,112" stroke="#60a5fa" strokeWidth="2.5" fill="none"/>
                       <polygon points="25,112 36,107 36,117" fill="#60a5fa"/>
-                      {/* Shuffle path arrow Câ†’D */}
+                      {/* Shuffle path arrow C→D */}
                       <path d="M30,108 L170,108" stroke="#60a5fa" strokeWidth="2" fill="none" strokeDasharray="4,2"/>
                       <polygon points="175,108 164,103 164,113" fill="#60a5fa"/>
-                      {/* Runner figure â€” side shuffle stance */}
+                      {/* Runner figure — side shuffle stance */}
                       <circle cx="60" cy="68" r="9" fill="#fbbf24" stroke="#f59e0b" strokeWidth="1.5"/>
                       {/* Torso upright */}
                       <line x1="60" y1="77" x2="60" y2="100" stroke="#7c3aed" strokeWidth="5" strokeLinecap="round"/>
@@ -567,9 +567,9 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                       <text x="145" y="80" textAnchor="middle" fontSize="7" fill="#ef4444">Feet must NOT cross</text>
                       <text x="145" y="89" textAnchor="middle" fontSize="7" fill="#ef4444">during shuffle</text>
                       <text x="100" y="15" textAnchor="middle" fontSize="9" fill="#1e40af" fontWeight="700">LATERAL SHUFFLE</text>
-                      <text x="100" y="26" textAnchor="middle" fontSize="8" fill="#3b82f6">Feet stay parallel â€” face forward</text>
+                      <text x="100" y="26" textAnchor="middle" fontSize="8" fill="#3b82f6">Feet stay parallel — face forward</text>
                     </svg>
-                    <p className="text-xs text-slate-500 text-center px-2 pb-2">Lateral Shuffle Technique â€” feet parallel, no crossover</p>
+                    <p className="text-xs text-slate-500 text-center px-2 pb-2">Lateral Shuffle Technique — feet parallel, no crossover</p>
                   </div>
 
                   {/* Diagram 3: Cone Touch Position */}
@@ -587,8 +587,8 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                       <line x1="62" y1="75" x2="88" y2="130" stroke="#0369a1" strokeWidth="4" strokeLinecap="round"/>
                       {/* Hand shape */}
                       <ellipse cx="88" cy="133" rx="7" ry="5" fill="#fbbf24" stroke="#f59e0b" strokeWidth="1.5"/>
-                      <text x="88" y="136" textAnchor="middle" fontSize="7" fill="#92400e">âœ‹</text>
-                      {/* Runner body â€” crouched to touch */}
+                      <text x="88" y="136" textAnchor="middle" fontSize="7" fill="#92400e">✋</text>
+                      {/* Runner body — crouched to touch */}
                       <circle cx="55" cy="55" r="10" fill="#fbbf24" stroke="#f59e0b" strokeWidth="1.5"/>
                       {/* Torso bent forward */}
                       <line x1="55" y1="65" x2="62" y2="85" stroke="#0369a1" strokeWidth="5" strokeLinecap="round"/>
@@ -602,17 +602,17 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                       {/* Key points callout */}
                       <rect x="115" y="40" width="75" height="70" rx="5" fill="#fef9c3" stroke="#fde047" strokeWidth="1.5"/>
                       <text x="152" y="54" textAnchor="middle" fontSize="8" fill="#713f12" fontWeight="700">KEY RULES</text>
-                      <text x="119" y="66" fontSize="7" fill="#854d0e">âœ“ Touch BASE of cone</text>
-                      <text x="119" y="77" fontSize="7" fill="#854d0e">âœ“ With fingertips</text>
-                      <text x="119" y="88" fontSize="7" fill="#854d0e">âœ“ Maintain direction</text>
-                      <text x="119" y="99" fontSize="7" fill="#854d0e">âœ— Knocking cone =</text>
+                      <text x="119" y="66" fontSize="7" fill="#854d0e">✓ Touch BASE of cone</text>
+                      <text x="119" y="77" fontSize="7" fill="#854d0e">✓ With fingertips</text>
+                      <text x="119" y="88" fontSize="7" fill="#854d0e">✓ Maintain direction</text>
+                      <text x="119" y="99" fontSize="7" fill="#854d0e">✗ Knocking cone =</text>
                       <text x="119" y="109" fontSize="7" fill="#dc2626">  INVALID trial</text>
                       <text x="100" y="15" textAnchor="middle" fontSize="9" fill="#92400e" fontWeight="700">CONE TOUCH TECHNIQUE</text>
                     </svg>
-                    <p className="text-xs text-slate-500 text-center px-2 pb-2">Cone Touch Position â€” hand must touch cone base</p>
+                    <p className="text-xs text-slate-500 text-center px-2 pb-2">Cone Touch Position — hand must touch cone base</p>
                   </div>
 
-                  {/* Diagram 4: Backpedal Return B â†’ A */}
+                  {/* Diagram 4: Backpedal Return B → A */}
                   <div className="rounded-lg overflow-hidden border border-slate-200 bg-white">
                     <svg viewBox="0 0 200 160" className="w-full" xmlns="http://www.w3.org/2000/svg">
                       <rect width="200" height="160" fill="#fdf4ff"/>
@@ -625,24 +625,24 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                       <polygon points="28,130 42,130 35,115" fill="#22c55e" stroke="#16a34a" strokeWidth="1"/>
                       <text x="35" y="143" textAnchor="middle" fontSize="9" fill="#15803d" fontWeight="700">A</text>
                       <text x="35" y="152" textAnchor="middle" fontSize="7" fill="#64748b">FINISH</text>
-                      {/* Backpedal path â€” moving toward A, facing B */}
+                      {/* Backpedal path — moving toward A, facing B */}
                       <path d="M155,88 Q100,100 45,122" stroke="#f472b6" strokeWidth="3" fill="none" strokeDasharray="5,3"/>
                       <polygon points="40,120 52,115 50,126" fill="#f472b6"/>
-                      {/* Runner figure â€” backpedaling (facing forward/toward B but moving backward) */}
+                      {/* Runner figure — backpedaling (facing forward/toward B but moving backward) */}
                       <circle cx="100" cy="72" r="9" fill="#fbbf24" stroke="#f59e0b" strokeWidth="1.5"/>
                       {/* Body slight back lean */}
                       <line x1="100" y1="81" x2="102" y2="103" stroke="#7c3aed" strokeWidth="5" strokeLinecap="round"/>
                       {/* Arms back for balance */}
                       <line x1="102" y1="90" x2="88" y2="96" stroke="#7c3aed" strokeWidth="3.5" strokeLinecap="round"/>
                       <line x1="102" y1="90" x2="116" y2="96" stroke="#7c3aed" strokeWidth="3.5" strokeLinecap="round"/>
-                      {/* Legs backpedaling â€” knees lifted backward */}
+                      {/* Legs backpedaling — knees lifted backward */}
                       <line x1="102" y1="103" x2="90" y2="118" stroke="#7c3aed" strokeWidth="4" strokeLinecap="round"/>
                       <line x1="90" y1="118" x2="86" y2="130" stroke="#7c3aed" strokeWidth="3.5" strokeLinecap="round"/>
                       <line x1="102" y1="103" x2="114" y2="116" stroke="#7c3aed" strokeWidth="4" strokeLinecap="round"/>
                       <line x1="114" y1="116" x2="120" y2="128" stroke="#7c3aed" strokeWidth="3.5" strokeLinecap="round"/>
                       {/* Direction of movement arrow */}
                       <text x="78" y="48" textAnchor="middle" fontSize="7" fill="#be185d" fontWeight="700">â† MOVING</text>
-                      <text x="125" y="55" textAnchor="middle" fontSize="7" fill="#7c3aed">FACING â†’</text>
+                      <text x="125" y="55" textAnchor="middle" fontSize="7" fill="#7c3aed">FACING →</text>
                       {/* Eyes / gaze direction */}
                       <ellipse cx="104" cy="70" rx="2" ry="1.5" fill="#1e293b"/>
                       <ellipse cx="96" cy="70" rx="2" ry="1.5" fill="#1e293b"/>
@@ -651,28 +651,28 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                       <text x="22" y="111" textAnchor="middle" fontSize="6.5" fill="#166534" fontWeight="700">TIMER</text>
                       <text x="22" y="119" textAnchor="middle" fontSize="6" fill="#166534">STOPS</text>
                       <text x="100" y="15" textAnchor="middle" fontSize="9" fill="#7e22ce" fontWeight="700">BACKPEDAL RETURN</text>
-                      <text x="100" y="26" textAnchor="middle" fontSize="8" fill="#a855f7">B â†’ A facing forward â€” do NOT turn</text>
+                      <text x="100" y="26" textAnchor="middle" fontSize="8" fill="#a855f7">B → A facing forward — do NOT turn</text>
                     </svg>
-                    <p className="text-xs text-slate-500 text-center px-2 pb-2">Backpedal Return â€” B to A facing forward, timer stops at A</p>
+                    <p className="text-xs text-slate-500 text-center px-2 pb-2">Backpedal Return — B to A facing forward, timer stops at A</p>
                   </div>
 
                 </div>
                 <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-700 space-y-1">
                   <p><strong>Key Technique Points:</strong></p>
-                  <p>â‘  Do not cross feet during lateral shuffles</p>
-                  <p>â‘¡ Touch each cone with hand (base)</p>
-                  <p>â‘¢ Face forward throughout â€” do not turn body</p>
-                  <p>â‘£ Maintain athletic stance â€” low centre of gravity</p>
-                  <p>â‘¤ Full speed â€” not technique demonstration</p>
-                  <p>â‘¥ Backpedal to finish â€” do not turn and run</p>
+                  <p>① Do not cross feet during lateral shuffles</p>
+                  <p>② Touch each cone with hand (base)</p>
+                  <p>③ Face forward throughout — do not turn body</p>
+                  <p>④ Maintain athletic stance — low centre of gravity</p>
+                  <p>⑤ Full speed — not technique demonstration</p>
+                  <p>⑥ Backpedal to finish — do not turn and run</p>
                 </div>
               </Section>
 
-              <Button onClick={() => setStep(1)} className="w-full bg-amber-500 hover:bg-amber-600">Begin Assessment â†’</Button>
+              <Button onClick={() => setStep(1)} className="w-full bg-amber-500 hover:bg-amber-600">Begin Assessment →</Button>
             </div>
           )}
 
-          {/* â”€â”€ STEP 1: SAFETY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 1: SAFETY ────────────────────────────────────────────── */}
           {step === 1 && (
             <div className="space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-xl p-4">
@@ -696,12 +696,12 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
               ) : null}
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(0)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(2)} className="flex-1 bg-amber-500 hover:bg-amber-600">{allSafeClear ? "Proceed to Setup â†’" : "Override & Continue â†’"}</Button>
+                <Button onClick={() => setStep(2)} className="flex-1 bg-amber-500 hover:bg-amber-600">{allSafeClear ? "Proceed to Setup →" : "Override & Continue →"}</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 2: SETUP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 2: SETUP ─────────────────────────────────────────────── */}
           {step === 2 && (
             <div className="space-y-4">
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
@@ -760,18 +760,18 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
 
               {/* Clinician script */}
               <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                <h4 className="font-semibold text-green-800 text-sm mb-2">ðŸ“‹ Clinician Script (read aloud)</h4>
+                <h4 className="font-semibold text-green-800 text-sm mb-2">📋 Clinician Script (read aloud)</h4>
                 <p className="text-sm text-green-800 italic">"Complete the course as quickly as possible while maintaining control. Sprint forward to the centre cone, shuffle left to cone C, shuffle all the way right to cone D, shuffle back to centre cone B, then backpedal backwards to the start. Touch each cone with your hand. Do not cross your feet when shuffling. Face forward throughout. Ready?"</p>
               </div>
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(1)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(3)} className="flex-1 bg-amber-500 hover:bg-amber-600">Start Trials â†’</Button>
+                <Button onClick={() => setStep(3)} className="flex-1 bg-amber-500 hover:bg-amber-600">Start Trials →</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 3: TRIAL RUNNER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 3: TRIAL RUNNER ──────────────────────────────────────── */}
           {step === 3 && (
             <div className="space-y-4">
               {/* Live best */}
@@ -800,7 +800,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
               {/* Timer */}
               <div className={`rounded-2xl p-6 text-center border-2 transition-colors ${trialState === "running" ? "bg-amber-50 border-amber-400" : trialState === "done" ? "bg-green-50 border-green-400" : "bg-slate-50 border-slate-200"}`}>
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-                  {trialState === "running" ? "â–¶ TRIAL RUNNING â€” Press STOP when finished" : trialState === "done" ? "âœ“ Trial Stopped" : `Trial ${activeTrial + 1} Ready`}
+                  {trialState === "running" ? "▶ TRIAL RUNNING — Press STOP when finished" : trialState === "done" ? "✓ Trial Stopped" : `Trial ${activeTrial + 1} Ready`}
                 </p>
                 <p className={`text-7xl font-mono font-bold ${trialState === "running" ? "text-amber-600" : trialState === "done" ? "text-green-700" : "text-slate-400"}`}>
                   {trialState === "running" ? elapsed.toFixed(2) : elapsed > 0 ? elapsed.toFixed(2) : "0.00"}<span className="text-2xl">s</span>
@@ -842,7 +842,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                         <div className="flex items-center gap-2">
                           <span className="font-mono font-bold">{formatTime(t.time)}</span>
                           {t.invalid && <Badge className="bg-red-100 text-red-700 text-xs">Invalid</Badge>}
-                          {!t.invalid && t.time === bestTime && <Badge className="bg-amber-500 text-white text-xs">Best â˜…</Badge>}
+                          {!t.invalid && t.time === bestTime && <Badge className="bg-amber-500 text-white text-xs">Best ★</Badge>}
                         </div>
                       </div>
                     ))}
@@ -857,16 +857,16 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(2)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(4)} disabled={!canSave} className="flex-1 bg-amber-500 hover:bg-amber-600">Movement Quality â†’</Button>
+                <Button onClick={() => setStep(4)} disabled={!canSave} className="flex-1 bg-amber-500 hover:bg-amber-600">Movement Quality →</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 4: MOVEMENT QUALITY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 4: MOVEMENT QUALITY ──────────────────────────────────── */}
           {step === 4 && (
             <div className="space-y-4">
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm text-amber-800">
-                <Activity className="w-4 h-4 inline mr-1" /><strong>Movement Quality Scoring</strong> â€” Rate clinician observations (0 = Severe deficit â†’ 4 = Excellent). For knee valgus, higher score = better control.
+                <Activity className="w-4 h-4 inline mr-1" /><strong>Movement Quality Scoring</strong> — Rate clinician observations (0 = Severe deficit → 4 = Excellent). For knee valgus, higher score = better control.
               </div>
               <div className="space-y-4 p-4 bg-slate-50 rounded-xl border">
                 {QUALITY_ITEMS.map(item => (
@@ -885,12 +885,12 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
               </div>
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(3)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(5)} className="flex-1 bg-amber-500 hover:bg-amber-600">View Results â†’</Button>
+                <Button onClick={() => setStep(5)} className="flex-1 bg-amber-500 hover:bg-amber-600">View Results →</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 5: RESULTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 5: RESULTS ──────────────────────────────────────────── */}
           {step === 5 && (
             <div className="space-y-4">
 
@@ -910,8 +910,8 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                   {[
                     ["Best Time", formatTime(bestTime)],
                     ["Mean Time", formatTime(avgTime)],
-                    ["Variability", trialVariability != null ? `${trialVariability}s` : "â€”"],
-                    ["Consistency", consistency != null ? `${consistency}%` : "â€”"],
+                    ["Variability", trialVariability != null ? `${trialVariability}s` : "—"],
+                    ["Consistency", consistency != null ? `${consistency}%` : "—"],
                     ["Valid Trials", validTrials.length],
                     ["Avg Quality", `${avgQuality}/4 (${qualityLabel})`],
                   ].map(([label, val]) => (
@@ -931,8 +931,8 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                     {NORMS[gender === "male" ? "male" : "female"].map(row => (
                       <div key={row.label} className={`flex justify-between items-center px-3 py-2 rounded-lg ${classification?.label === row.label ? "border-2 font-bold" : "bg-slate-50"} ${row.color}`}>
                         <span>{row.label}</span>
-                        <span>{row.max === 999 ? `> ${NORMS[gender === "male" ? "male" : "female"].find(r => r.max !== 999 && NORMS[gender === "male" ? "male" : "female"].indexOf(r) === NORMS[gender === "male" ? "male" : "female"].indexOf(row) - 1)?.max || "â€”"}s` : `< ${row.max}s`}</span>
-                        {classification?.label === row.label && bestTime && <Badge className={`text-xs ml-2 ${row.color}`}>â†‘ {formatTime(bestTime)}</Badge>}
+                        <span>{row.max === 999 ? `> ${NORMS[gender === "male" ? "male" : "female"].find(r => r.max !== 999 && NORMS[gender === "male" ? "male" : "female"].indexOf(r) === NORMS[gender === "male" ? "male" : "female"].indexOf(row) - 1)?.max || "—"}s` : `< ${row.max}s`}</span>
+                        {classification?.label === row.label && bestTime && <Badge className={`text-xs ml-2 ${row.color}`}>↑ {formatTime(bestTime)}</Badge>}
                       </div>
                     ))}
                   </div>
@@ -987,11 +987,11 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
               <Section title="Evidence-Based References" icon={BookOpen} accent="slate">
                 <div className="space-y-2 text-xs text-slate-600">
                   {[
-                    { n: 1, t: "Pauole K, Madole K, Garhammer J, Lacourse M, Rozenek R.", s: "Reliability and validity of the T-test as a measure of agility, leg power, and leg speed in college-aged men and women. J Strength Cond Res. 2000;14(4):443â€“450." },
-                    { n: 2, t: "Semenick D.", s: "Tests and measurements: The T-test. NSCA Journal. 1990;12(1):36â€“37." },
-                    { n: 3, t: "Sheppard JM, Young WB.", s: "Agility literature review: Classifications, training and testing. J Sports Sci. 2006;24(9):919â€“932." },
-                    { n: 4, t: "Nimphius S, Callaghan SJ, Spiteri T, Lockie RG.", s: "Change of direction deficit: A more isolated measure of change of direction performance than total 505 time. J Strength Cond Res. 2016;30(11):3024â€“3032." },
-                    { n: 5, t: "Young WB, James R, Montgomery I.", s: "Is muscle power related to running speed with changes of direction? J Sports Med Phys Fitness. 2002;42(3):282â€“288." },
+                    { n: 1, t: "Pauole K, Madole K, Garhammer J, Lacourse M, Rozenek R.", s: "Reliability and validity of the T-test as a measure of agility, leg power, and leg speed in college-aged men and women. J Strength Cond Res. 2000;14(4):443–450." },
+                    { n: 2, t: "Semenick D.", s: "Tests and measurements: The T-test. NSCA Journal. 1990;12(1):36–37." },
+                    { n: 3, t: "Sheppard JM, Young WB.", s: "Agility literature review: Classifications, training and testing. J Sports Sci. 2006;24(9):919–932." },
+                    { n: 4, t: "Nimphius S, Callaghan SJ, Spiteri T, Lockie RG.", s: "Change of direction deficit: A more isolated measure of change of direction performance than total 505 time. J Strength Cond Res. 2016;30(11):3024–3032." },
+                    { n: 5, t: "Young WB, James R, Montgomery I.", s: "Is muscle power related to running speed with changes of direction? J Sports Med Phys Fitness. 2002;42(3):282–288." },
                   ].map(r => (
                     <div key={r.n} className="p-2 bg-slate-50 rounded border border-slate-200">
                       <p><span className="font-semibold">{r.n}.</span> {r.t} <em>{r.s}</em></p>

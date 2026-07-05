@@ -57,7 +57,7 @@ export default function OneRMRunner({ onSave, onClose }) {
     const primaryRM = exercises.length > 0 ? exercises[0].one_rm_kg : null;
 
     const exerciseLines = exercises.map(ex => `  ${ex.exercise_name}: ${ex.one_rm_kg} kg (${ex.method === 'estimated' ? 'estimated' : 'actual'})`).join('\n');
-    const soapText = `â€¢ 1RM Strength Testing\n${exerciseLines}${notes ? `\n  Notes: ${notes}` : ''}`;
+    const soapText = `• 1RM Strength Testing\n${exerciseLines}${notes ? `\n  Notes: ${notes}` : ''}`;
 
     onSave({
       result_value: primaryRM,

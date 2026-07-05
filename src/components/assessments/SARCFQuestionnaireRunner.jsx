@@ -7,12 +7,12 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Save, X, RotateCcw, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ Question Definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Question Definitions ────────────────────────────────────────────────────
 const QUESTIONS = [
   {
     id: 1,
     domain: "Strength",
-    icon: "ðŸ’ª",
+    icon: "💪",
     script: "How much difficulty do you have lifting and carrying 10 pounds (approximately 4.5 kg)?",
     example: "e.g. a heavy shopping bag or a gallon of milk",
     options: [
@@ -24,7 +24,7 @@ const QUESTIONS = [
   {
     id: 2,
     domain: "Assistance Walking",
-    icon: "ðŸš¶",
+    icon: "🚶",
     script: "How much difficulty do you have walking across a room?",
     example: "e.g. walking from one side of a room to the other without stopping",
     options: [
@@ -36,7 +36,7 @@ const QUESTIONS = [
   {
     id: 3,
     domain: "Rise from Chair",
-    icon: "ðŸª‘",
+    icon: "🪑",
     script: "How much difficulty do you have transferring from a chair or bed?",
     example: "e.g. rising from a chair without using the armrests",
     options: [
@@ -48,7 +48,7 @@ const QUESTIONS = [
   {
     id: 4,
     domain: "Climb Stairs",
-    icon: "ðŸªœ",
+    icon: "🪜",
     script: "How much difficulty do you have climbing a flight of 10 stairs?",
     example: "e.g. climbing one full flight of stairs indoors",
     options: [
@@ -60,18 +60,18 @@ const QUESTIONS = [
   {
     id: 5,
     domain: "Falls",
-    icon: "âš ï¸",
+    icon: "⚠ï¸",
     script: "How many times have you fallen in the last year?",
     example: "Include any unplanned descent to the ground, regardless of injury",
     options: [
       { value: 0, label: "None" },
-      { value: 1, label: "1â€“3 falls" },
+      { value: 1, label: "1–3 falls" },
       { value: 2, label: "4 or more falls" },
     ],
   },
 ];
 
-// â”€â”€â”€ Scoring Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Scoring Helpers ──────────────────────────────────────────────────────────
 function getRiskLevel(score) {
   if (score <= 3) return { level: "Low Risk", color: "text-green-700", bg: "bg-green-50", border: "border-green-200", badge: "bg-green-100 text-green-800 border-green-300" };
   if (score <= 7) return { level: "Moderate Risk", color: "text-amber-700", bg: "bg-amber-50", border: "border-amber-200", badge: "bg-amber-100 text-amber-800 border-amber-300" };
@@ -108,11 +108,11 @@ function generateInterpretation(answers, total) {
   if (answers[2] >= 1) parts.push("walking ability");
   if (answers[3] >= 1) parts.push("sit-to-stand transfers");
   if (answers[4] >= 1) parts.push("stair climbing");
-  if (q5 >= 1) parts.push(`falls history (${q5 === 1 ? "1â€“3 falls" : "4+ falls"} in past year)`);
+  if (q5 >= 1) parts.push(`falls history (${q5 === 1 ? "1–3 falls" : "4+ falls"} in past year)`);
 
   const domainText = parts.length > 0 ? ` Difficulty reported in: ${parts.join(", ")}.` : "";
 
-  return `SARC-F score of ${total}/10 indicates probable sarcopenia risk.${domainText} Further investigation is warranted, including grip strength, sit-to-stand testing, gait speed assessment, muscle mass evaluation, and/or referral for resistance training intervention.${flags.fallsRisk ? " Falls history identified â€” falls prevention strategies are recommended." : ""}`;
+  return `SARC-F score of ${total}/10 indicates probable sarcopenia risk.${domainText} Further investigation is warranted, including grip strength, sit-to-stand testing, gait speed assessment, muscle mass evaluation, and/or referral for resistance training intervention.${flags.fallsRisk ? " Falls history identified — falls prevention strategies are recommended." : ""}`;
 }
 
 function getSuggestedTests(total) {
@@ -129,7 +129,7 @@ function getSuggestedTests(total) {
   ];
 }
 
-// â”€â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Sub-components ───────────────────────────────────────────────────────────
 function Section({ title, defaultOpen = false, children, badge }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
@@ -157,7 +157,7 @@ function QuestionCard({ q, value, onChange, index, total }) {
         <div className="flex items-center gap-2">
           <span className="text-xl">{q.icon}</span>
           <div>
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Question {index + 1} of {total} â€” {q.domain}</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Question {index + 1} of {total} — {q.domain}</p>
             <p className="font-semibold text-slate-900 mt-0.5 text-sm leading-snug">"{q.script}"</p>
           </div>
         </div>
@@ -191,7 +191,7 @@ function QuestionCard({ q, value, onChange, index, total }) {
   );
 }
 
-// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function SARCFQuestionnaireRunner({ client, onSave, onClose }) {
   const [answers, setAnswers] = useState({});
   const [notes, setNotes] = useState("");
@@ -227,12 +227,12 @@ export default function SARCFQuestionnaireRunner({ client, onSave, onClose }) {
     const optionLabel = (qId, val) => QUESTIONS.find(q => q.id === qId)?.options.find(o => o.value === val)?.label || val;
 
     const soapLines = [
-      `â€¢ SARC-F Questionnaire (Sarcopenia Screening)`,
-      `  Total Score: ${total}/10 â€” ${r.level}`,
+      `• SARC-F Questionnaire (Sarcopenia Screening)`,
+      `  Total Score: ${total}/10 — ${r.level}`,
       `  Probable Sarcopenia: ${total >= 4 ? "Yes" : "No"}`,
       ``,
       `  Question Responses:`,
-      ...QUESTIONS.map(q => `    Q${q.id} (${q.domain}): ${answers[q.id] ?? 0}/2 â€” ${optionLabel(q.id, answers[q.id] ?? 0)}`),
+      ...QUESTIONS.map(q => `    Q${q.id} (${q.domain}): ${answers[q.id] ?? 0}/2 — ${optionLabel(q.id, answers[q.id] ?? 0)}`),
       ``,
       `  Clinical Flags:`,
       `    Sarcopenia Risk: ${f.sarcopeniaRisk}`,
@@ -283,7 +283,7 @@ export default function SARCFQuestionnaireRunner({ client, onSave, onClose }) {
         <div className="px-5 py-4 border-b bg-gradient-to-r from-indigo-50 to-purple-50 shrink-0 flex justify-between items-start">
           <div>
             <h2 className="text-xl font-bold text-slate-900">SARC-F Questionnaire</h2>
-            <p className="text-sm text-indigo-600 mt-0.5">Sarcopenia Screening Tool Â· 5 Questions Â· Score 0â€“10</p>
+            <p className="text-sm text-indigo-600 mt-0.5">Sarcopenia Screening Tool · 5 Questions · Score 0–10</p>
             {client && <p className="text-xs text-slate-500 mt-0.5">Client: {client.full_name}</p>}
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
@@ -295,7 +295,7 @@ export default function SARCFQuestionnaireRunner({ client, onSave, onClose }) {
             <span className="text-xs font-medium text-slate-600">{answered}/5 questions answered</span>
             {answered > 0 && (
               <span className={`text-xs font-bold ${answered < 5 ? "text-slate-500" : risk?.color}`}>
-                Score: {total}/10 {answered === 5 && `â€” ${risk?.level}`}
+                Score: {total}/10 {answered === 5 && `— ${risk?.level}`}
               </span>
             )}
           </div>
@@ -312,12 +312,12 @@ export default function SARCFQuestionnaireRunner({ client, onSave, onClose }) {
 
           {/* Clinician script */}
           <div className="bg-blue-600 text-white rounded-lg px-4 py-3 text-sm">
-            <p className="font-semibold mb-0.5">ðŸ’¬ Clinician Instructions</p>
-            <p className="text-blue-100">Ask the patient each question. Record the most appropriate response. Higher score = higher sarcopenia risk. Score â‰¥4 warrants further assessment.</p>
+            <p className="font-semibold mb-0.5">💬 Clinician Instructions</p>
+            <p className="text-blue-100">Ask the patient each question. Record the most appropriate response. Higher score = higher sarcopenia risk. Score ≥4 warrants further assessment.</p>
           </div>
 
           {/* Questions */}
-          <Section title="ðŸ“‹ SARC-F Questions" defaultOpen={true}>
+          <Section title="📋 SARC-F Questions" defaultOpen={true}>
             <div className="space-y-4">
               {QUESTIONS.map((q, i) => (
                 <QuestionCard
@@ -335,7 +335,7 @@ export default function SARCFQuestionnaireRunner({ client, onSave, onClose }) {
           {/* Live score + flags */}
           {allAnswered && (
             <>
-              <Section title="ðŸ“Š Score & Clinical Flags" defaultOpen={true}>
+              <Section title="📊 Score & Clinical Flags" defaultOpen={true}>
                 <div className="space-y-3">
                   {/* Score strip */}
                   <div className={`rounded-lg border-2 ${risk.border} ${risk.bg} px-4 py-3 flex items-center justify-between`}>
@@ -371,7 +371,7 @@ export default function SARCFQuestionnaireRunner({ client, onSave, onClose }) {
               </Section>
 
               {/* Interpretation */}
-              <Section title="ðŸ§  Clinical Interpretation" defaultOpen={true}>
+              <Section title="🧠 Clinical Interpretation" defaultOpen={true}>
                 <div className={`rounded-lg border p-4 ${total >= 4 ? "bg-orange-50 border-orange-200" : "bg-green-50 border-green-200"}`}>
                   <p className={`text-sm leading-relaxed italic ${total >= 4 ? "text-orange-800" : "text-green-800"}`}>
                     {interpretation}
@@ -381,7 +381,7 @@ export default function SARCFQuestionnaireRunner({ client, onSave, onClose }) {
 
               {/* Follow-up tests */}
               {suggestedTests.length > 0 && (
-                <Section title="ðŸ”¬ Suggested Follow-Up Tests">
+                <Section title="🔬 Suggested Follow-Up Tests">
                   <div className="flex flex-wrap gap-2">
                     {suggestedTests.map(t => (
                       <span key={t} className="px-3 py-1.5 bg-indigo-50 border border-indigo-200 text-indigo-700 rounded-full text-xs font-medium">
@@ -405,7 +405,7 @@ export default function SARCFQuestionnaireRunner({ client, onSave, onClose }) {
           </Section>
 
           {/* Reference */}
-          <Section title="ðŸ“š Reference">
+          <Section title="📚 Reference">
             <div className="space-y-1 text-sm">
               <a href="https://pubmed.ncbi.nlm.nih.gov/27649914/" target="_blank" rel="noopener noreferrer"
                 className="flex items-center gap-2 text-indigo-700 hover:underline">

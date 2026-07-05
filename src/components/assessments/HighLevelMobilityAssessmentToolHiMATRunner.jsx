@@ -90,10 +90,10 @@ const ITEMS = [
     description: "Continuous hopping on one leg in place",
     scoringCriteria: {
       6: "Completes 10+ hops on each leg; good balance; consistent height; controlled landing",
-      5: "Completes 8â€“10 hops per leg; minor balance loss; stable",
-      4: "Completes 5â€“7 hops per leg; noticeable balance corrections; lower height",
-      3: "Completes 3â€“4 hops per leg; requires supervision; poor balance; low height",
-      2: "Completes 1â€“2 hops per leg; unable to continue; marked instability",
+      5: "Completes 8–10 hops per leg; minor balance loss; stable",
+      4: "Completes 5–7 hops per leg; noticeable balance corrections; lower height",
+      3: "Completes 3–4 hops per leg; requires supervision; poor balance; low height",
+      2: "Completes 1–2 hops per leg; unable to continue; marked instability",
       1: "Attempts single-leg hop but unable to perform; immediate balance loss",
       0: "Unable to attempt or declines task"
     }
@@ -115,9 +115,9 @@ const ITEMS = [
   },
   { 
     key: "stair_walk_up", 
-    label: "Stair walk â€” up", 
+    label: "Stair walk — up", 
     max: 4, 
-    description: "Walking up stairs at natural pace (â‰¥12 stairs)",
+    description: "Walking up stairs at natural pace (≥12 stairs)",
     scoringCriteria: {
       4: "Ascends stairs smoothly; normal speed; no rail use; normal stepping pattern",
       3: "Ascends stairs safely; uses rail; slightly slow; one foot per step",
@@ -128,7 +128,7 @@ const ITEMS = [
   },
   { 
     key: "stair_walk_down", 
-    label: "Stair walk â€” down", 
+    label: "Stair walk — down", 
     max: 4, 
     description: "Walking down stairs at natural pace",
     scoringCriteria: {
@@ -141,7 +141,7 @@ const ITEMS = [
   },
   { 
     key: "stair_run_up", 
-    label: "Stair run â€” up", 
+    label: "Stair run — up", 
     max: 4, 
     description: "Running up stairs at maximum safe speed",
     scoringCriteria: {
@@ -185,7 +185,7 @@ export default function HighLevelMobilityAssessmentToolHiMATRunner({ client, onS
     }
 
     const scoreLines = ITEMS.map(item => `  ${item.label}: ${scores[item.key]}/${item.max}`).join("\n");
-    const soap = `â€¢ High-Level Mobility Assessment Tool (HiMAT)\n  Total Score: ${totalScore}/${maxScore} â€” ${interp.label}\n\n  Item Scores:\n${scoreLines}${preVitals.heartRate ? `\n\n  Pre-Test HR: ${preVitals.heartRate} bpm` : ""}${preVitals.bloodPressure ? ` | BP: ${preVitals.bloodPressure} mmHg` : ""}${postVitals.heartRate ? `\n  Post-Test HR: ${postVitals.heartRate} bpm` : ""}${postVitals.bloodPressure ? ` | BP: ${postVitals.bloodPressure} mmHg` : ""}${notes ? `\n\n  Clinician Notes: ${notes}` : ""}`;
+    const soap = `• High-Level Mobility Assessment Tool (HiMAT)\n  Total Score: ${totalScore}/${maxScore} — ${interp.label}\n\n  Item Scores:\n${scoreLines}${preVitals.heartRate ? `\n\n  Pre-Test HR: ${preVitals.heartRate} bpm` : ""}${preVitals.bloodPressure ? ` | BP: ${preVitals.bloodPressure} mmHg` : ""}${postVitals.heartRate ? `\n  Post-Test HR: ${postVitals.heartRate} bpm` : ""}${postVitals.bloodPressure ? ` | BP: ${postVitals.bloodPressure} mmHg` : ""}${notes ? `\n\n  Clinician Notes: ${notes}` : ""}`;
 
     onSave({
       result_value: totalScore,
@@ -212,7 +212,7 @@ export default function HighLevelMobilityAssessmentToolHiMATRunner({ client, onS
         <div className="sticky top-0 bg-white z-10 p-5 border-b flex justify-between items-start">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">High-Level Mobility Assessment Tool (HiMAT)</h2>
-            <p className="text-slate-500 text-sm mt-0.5">10-item performance-based assessment â€” max 54 points</p>
+            <p className="text-slate-500 text-sm mt-0.5">10-item performance-based assessment — max 54 points</p>
           </div>
           {answered === ITEMS.length && <div className={`px-3 py-1 rounded-full text-sm font-semibold border ${interp.color}`}>{totalScore}/{maxScore}</div>}
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
@@ -239,7 +239,7 @@ export default function HighLevelMobilityAssessmentToolHiMATRunner({ client, onS
                    <p className="font-semibold text-slate-800 mb-1">Administration Instructions</p>
                    <ul className="list-disc list-inside text-slate-600 space-y-0.5">
                      <li>Client wears usual footwear without assistive devices (unless typically used)</li>
-                     <li>8-metre corridor for walking/running tasks; stairs (â‰¥12) for climbing tasks</li>
+                     <li>8-metre corridor for walking/running tasks; stairs (≥12) for climbing tasks</li>
                      <li>Client performs each task at natural pace; score ability to complete</li>
                      <li>Stop test immediately if client experiences chest pain, dyspnoea, dizziness, or severe pain</li>
                      <li>Record vitals pre- and post-test to monitor cardiovascular response</li>
@@ -251,17 +251,17 @@ export default function HighLevelMobilityAssessmentToolHiMATRunner({ client, onS
                      <li><strong>Completion:</strong> Score is based on whether the task is completed, not speed alone</li>
                      <li><strong>Quality of Movement:</strong> Assess smoothness, coordination, balance control, and symmetry</li>
                      <li><strong>Safety:</strong> Consider use of rails, supervision requirements, and fall risk</li>
-                     <li><strong>Consistency:</strong> Observe repetitive patterns (hopping, skipping) â€” does client maintain rhythm/height?</li>
+                     <li><strong>Consistency:</strong> Observe repetitive patterns (hopping, skipping) — does client maintain rhythm/height?</li>
                      <li><strong>Effort & Fatigue:</strong> Note if client shows marked exertion, shortness of breath, or inability to continue</li>
-                     <li><strong>Modifications:</strong> Use of rail, verbal cuing, or tactile assistance lowers score â€” document in notes</li>
+                     <li><strong>Modifications:</strong> Use of rail, verbal cuing, or tactile assistance lowers score — document in notes</li>
                    </ul>
                 </div>
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Scoring</p>
                   <div className="bg-slate-50 p-2 rounded text-xs space-y-1">
-                    <p><strong>Walking tasks (0â€“6):</strong> Walk, walk backwards, walk on toes, run, skip</p>
-                    <p><strong>Hopping/bounding (0â€“6):</strong> Hop on spot, forward bound</p>
-                    <p><strong>Stair tasks (0â€“4):</strong> Walk up, walk down, run up</p>
+                    <p><strong>Walking tasks (0–6):</strong> Walk, walk backwards, walk on toes, run, skip</p>
+                    <p><strong>Hopping/bounding (0–6):</strong> Hop on spot, forward bound</p>
+                    <p><strong>Stair tasks (0–4):</strong> Walk up, walk down, run up</p>
                     <p className="mt-2"><strong>Total Max Score: 54 points</strong></p>
                   </div>
                 </div>
@@ -269,23 +269,23 @@ export default function HighLevelMobilityAssessmentToolHiMATRunner({ client, onS
                   <p className="font-semibold text-slate-800 mb-1">Score Interpretation</p>
                   <div className="space-y-1 text-xs">
                     <div className="flex gap-2"><span className="w-12 font-semibold">54:</span><span className="text-green-700">Full high-level community mobility</span></div>
-                    <div className="flex gap-2"><span className="w-12 font-semibold">42â€“53:</span><span className="text-blue-700">Good mobility with minor limitations</span></div>
+                    <div className="flex gap-2"><span className="w-12 font-semibold">42–53:</span><span className="text-blue-700">Good mobility with minor limitations</span></div>
                     <div className="flex gap-2"><span className="w-12 font-semibold">&lt;42:</span><span className="text-orange-700">Impaired high-level mobility</span></div>
                   </div>
-                  <p className="text-xs text-slate-500 mt-2">MCID: ~2â€“3 points. Validated for TBI, stroke, lower limb orthopaedic conditions.</p>
+                  <p className="text-xs text-slate-500 mt-2">MCID: ~2–3 points. Validated for TBI, stroke, lower limb orthopaedic conditions.</p>
                 </div>
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Psychometric Properties</p>
                   <ul className="list-disc list-inside text-slate-600 text-xs space-y-0.5">
-                    <li>Excellent intra-rater reliability (ICC 0.95â€“0.99)</li>
-                    <li>Good inter-rater reliability (ICC 0.94â€“0.98)</li>
-                    <li>High internal consistency (Cronbach's Î± = 0.90)</li>
+                    <li>Excellent intra-rater reliability (ICC 0.95–0.99)</li>
+                    <li>Good inter-rater reliability (ICC 0.94–0.98)</li>
+                    <li>High internal consistency (Cronbach's α = 0.90)</li>
                     <li>Sensitive to change post-TBI and stroke rehabilitation</li>
                   </ul>
                 </div>
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Key Reference</p>
-                  <p className="text-xs text-slate-600">Williams GP et al. (2006). High-Level Mobility Assessment Tool (HiMAT): interrater reliability, retest reliability, and internal consistency. <em>Physical Therapy</em>, 86(3), 395â€“400.</p>
+                  <p className="text-xs text-slate-600">Williams GP et al. (2006). High-Level Mobility Assessment Tool (HiMAT): interrater reliability, retest reliability, and internal consistency. <em>Physical Therapy</em>, 86(3), 395–400.</p>
                 </div>
               </div>
             )}
@@ -308,7 +308,7 @@ export default function HighLevelMobilityAssessmentToolHiMATRunner({ client, onS
 
           {/* Scoring Items */}
           <div className="space-y-3">
-            <p className="font-semibold text-slate-800">Score Each Item (0â€“max)</p>
+            <p className="font-semibold text-slate-800">Score Each Item (0–max)</p>
             {ITEMS.map((item) => (
               <div key={item.key} className={`border rounded-lg overflow-hidden ${scores[item.key] !== undefined ? "border-blue-200 bg-blue-50" : "border-slate-200"}`}>
                 <div className="p-3 bg-slate-50">
@@ -325,7 +325,7 @@ export default function HighLevelMobilityAssessmentToolHiMATRunner({ client, onS
                         value={scores[item.key] ?? ""}
                         onChange={e => handleScoreChange(item.key, e.target.value)}
                         className="w-16 text-center font-semibold"
-                        placeholder="â€”"
+                        placeholder="—"
                       />
                       <span className="text-sm font-semibold text-slate-600">/ {item.max}</span>
                     </div>

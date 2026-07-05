@@ -224,7 +224,7 @@ const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref
                 <div className="info-item"><strong>Heart Rate:</strong> {reportData.baseline_measures.hr}</div>
               )}
               {reportData.baseline_measures.spo2 && (
-                <div className="info-item"><strong>SpOâ‚‚:</strong> {reportData.baseline_measures.spo2}</div>
+                <div className="info-item"><strong>SpO₂:</strong> {reportData.baseline_measures.spo2}</div>
               )}
               {reportData.baseline_measures.bmi && (
                 <div className="info-item"><strong>BMI:</strong> {reportData.baseline_measures.bmi}</div>
@@ -1021,7 +1021,7 @@ ${currentPlan}`;
                       ? 'bg-green-500 text-white' 
                       : 'bg-gray-200 text-gray-500'
                 }`}>
-                  {index < currentStep ? 'âœ“' : index + 1}
+                  {index < currentStep ? '✓' : index + 1}
                 </div>
                 {index < stepTitles.length - 1 && (
                   <div className={`flex-grow h-1 mx-1 ${index < currentStep ? 'bg-green-500' : 'bg-gray-200'}`} />
@@ -1343,7 +1343,7 @@ ${currentPlan}`;
               </div>
 
               <div>
-                <Label htmlFor="spo2">SpOâ‚‚ (%)</Label>
+                <Label htmlFor="spo2">SpO₂ (%)</Label>
                 <Input
                   id="spo2"
                   type="number"
@@ -1357,7 +1357,7 @@ ${currentPlan}`;
               </div>
 
               <div>
-                <Label htmlFor="bmi">BMI (kg/mÂ²)</Label>
+                <Label htmlFor="bmi">BMI (kg/m²)</Label>
                 <Input
                   id="bmi"
                   type="number"
@@ -1444,7 +1444,7 @@ ${currentPlan}`;
                           onClick={() => removeGoal(index)}
                           className="text-red-500 hover:text-red-700"
                         >
-                          Ã—
+                          ×
                         </Button>
                       </div>
 

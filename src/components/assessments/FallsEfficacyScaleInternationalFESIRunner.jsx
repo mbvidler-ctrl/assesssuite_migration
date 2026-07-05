@@ -44,12 +44,12 @@ export default function FallsEfficacyScaleInternationalFESIRunner({ client, onSa
     }
 
     const totalScore = responses.reduce((sum, score) => sum + score, 0);
-    let concernLevel = "Low concern about falling (16â€“19)";
-    if (totalScore >= 20 && totalScore <= 27) concernLevel = "Moderate concern about falling (20â€“27)";
-    else if (totalScore >= 28) concernLevel = "High concern about falling (28â€“64)";
+    let concernLevel = "Low concern about falling (16–19)";
+    if (totalScore >= 20 && totalScore <= 27) concernLevel = "Moderate concern about falling (20–27)";
+    else if (totalScore >= 28) concernLevel = "High concern about falling (28–64)";
 
     // Build soap_text for direct SOAP injection
-    let soapText = `â€¢ Falls Efficacy Scale â€“ International (FES-I):\n  Total Score: ${totalScore}/64 â€” ${concernLevel}\n\n  Individual Item Scores (1=Not concerned, 4=Very concerned):\n`;
+    let soapText = `• Falls Efficacy Scale – International (FES-I):\n  Total Score: ${totalScore}/64 — ${concernLevel}\n\n  Individual Item Scores (1=Not concerned, 4=Very concerned):\n`;
     FESI_ACTIVITIES.forEach((activity, i) => {
       soapText += `    ${i + 1}. ${activity}: ${responses[i]} (${CONCERN_LABELS[responses[i]]})\n`;
     });
@@ -73,7 +73,7 @@ export default function FallsEfficacyScaleInternationalFESIRunner({ client, onSa
       assessment_date: assessmentDate,
     });
 
-    toast.success("Assessment recorded â€” please confirm and save.");
+    toast.success("Assessment recorded — please confirm and save.");
   };
 
   const answeredCount = responses.filter(r => r !== null).length;
@@ -84,7 +84,7 @@ export default function FallsEfficacyScaleInternationalFESIRunner({ client, onSa
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle>Falls Efficacy Scale â€“ International (FES-I)</CardTitle>
+            <CardTitle>Falls Efficacy Scale – International (FES-I)</CardTitle>
             <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -94,10 +94,10 @@ export default function FallsEfficacyScaleInternationalFESIRunner({ client, onSa
               <p className="font-semibold text-blue-800">Clinician Instructions</p>
               <p><strong>Purpose:</strong> Measures concern about falling during 16 activities of daily living, including social activities and outdoor tasks.</p>
               <p><strong>Administration:</strong> Self-report or interviewer-administered. Ask the client to rate their level of <em>concern</em> about falling when performing each activity, even if they don't normally do the activity.</p>
-              <p><strong>Scoring:</strong> Sum all 16 items (range 16â€“64). Higher scores = greater concern. <strong>16â€“19</strong> = Low concern; <strong>20â€“27</strong> = Moderate concern; <strong>â‰¥28</strong> = High concern.</p>
-              <p><strong>Clinically important difference:</strong> 4â€“6 points.</p>
+              <p><strong>Scoring:</strong> Sum all 16 items (range 16–64). Higher scores = greater concern. <strong>16–19</strong> = Low concern; <strong>20–27</strong> = Moderate concern; <strong>≥28</strong> = High concern.</p>
+              <p><strong>Clinically important difference:</strong> 4–6 points.</p>
               <p><strong>Population:</strong> Older adults (community and clinical). Validated in multiple languages.</p>
-              <p><strong>Reference form:</strong> <a href="https://www.physio-pedia.com/Falls_Efficacy_Scale_-_International_(FES-I)" target="_blank" rel="noopener noreferrer" className="underline text-blue-700 hover:text-blue-900">FES-I Reference â†—</a></p>
+              <p><strong>Reference form:</strong> <a href="https://www.physio-pedia.com/Falls_Efficacy_Scale_-_International_(FES-I)" target="_blank" rel="noopener noreferrer" className="underline text-blue-700 hover:text-blue-900">FES-I Reference ↗</a></p>
             </div>
 
             <p className="text-sm text-gray-500">
@@ -128,7 +128,7 @@ export default function FallsEfficacyScaleInternationalFESIRunner({ client, onSa
             {answeredCount === 16 && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
                 <strong>Total Score: {currentScore}/64</strong>
-                {" â€” "}{currentScore <= 19 ? "Low concern" : currentScore <= 27 ? "Moderate concern" : "High concern"}
+                {" — "}{currentScore <= 19 ? "Low concern" : currentScore <= 27 ? "Moderate concern" : "High concern"}
               </div>
             )}
 

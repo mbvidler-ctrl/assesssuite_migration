@@ -203,10 +203,10 @@ export default function OneRepetitionMaximum1RMTestingRunner({ client, onSave, o
       pain_post: painPost ? parseFloat(painPost) : null,
       clinician_notes: clinicianNotes,
       interpretation_summary: interpretation,
-      soap_text: `â€¢ 1RM Testing â€” ${exercise} (${equipmentType})\n  1RM: ${oneRmLoad} ${units}${relativeStrength ? ` | Relative strength: ${relativeStrength.toFixed(2)} Ã— BM | Classification: ${normativeLabel}` : ` | ${normativeLabel}`}${romStandard ? `\n  ROM Standard: ${romStandard}` : ''}${machineSettings ? `\n  Machine Settings: ${machineSettings}` : ''}${spotterUsed ? '\n  Spotter used' : ''}${rpePost ? ` | RPE: ${rpePost}/10` : ''}${painPost ? ` | Pain: ${painPost}/10` : ''}${assistiveConsiderations ? `\n  Considerations: ${assistiveConsiderations}` : ''}${clinicianNotes ? `\n  Notes: ${clinicianNotes}` : ''}\n  Training Load Guide: 60â€“70% = ${(parseFloat(oneRmLoad)*0.65).toFixed(1)} ${units} | 70â€“85% = ${(parseFloat(oneRmLoad)*0.775).toFixed(1)} ${units} | 85â€“95% = ${(parseFloat(oneRmLoad)*0.9).toFixed(1)} ${units}`,
+      soap_text: `• 1RM Testing — ${exercise} (${equipmentType})\n  1RM: ${oneRmLoad} ${units}${relativeStrength ? ` | Relative strength: ${relativeStrength.toFixed(2)} × BM | Classification: ${normativeLabel}` : ` | ${normativeLabel}`}${romStandard ? `\n  ROM Standard: ${romStandard}` : ''}${machineSettings ? `\n  Machine Settings: ${machineSettings}` : ''}${spotterUsed ? '\n  Spotter used' : ''}${rpePost ? ` | RPE: ${rpePost}/10` : ''}${painPost ? ` | Pain: ${painPost}/10` : ''}${assistiveConsiderations ? `\n  Considerations: ${assistiveConsiderations}` : ''}${clinicianNotes ? `\n  Notes: ${clinicianNotes}` : ''}\n  Training Load Guide: 60–70% = ${(parseFloat(oneRmLoad)*0.65).toFixed(1)} ${units} | 70–85% = ${(parseFloat(oneRmLoad)*0.775).toFixed(1)} ${units} | 85–95% = ${(parseFloat(oneRmLoad)*0.9).toFixed(1)} ${units}`,
       soap_objective: `1RM Testing - ${exercise}: ${oneRmLoad} ${units}. ${relativeStrength ? `Relative strength: ${relativeStrength.toFixed(2)} x body mass.` : ''} ${normativeLabel}.`,
       soap_assessment: interpretation,
-      soap_plan: `Use ~60â€“80% of 1RM (${(parseFloat(oneRmLoad) * 0.6).toFixed(1)}-${(parseFloat(oneRmLoad) * 0.8).toFixed(1)} ${units}) for general strength development with appropriate technique and progression; re-test in 4â€“8 weeks or as clinically indicated.`
+      soap_plan: `Use ~60–80% of 1RM (${(parseFloat(oneRmLoad) * 0.6).toFixed(1)}-${(parseFloat(oneRmLoad) * 0.8).toFixed(1)} ${units}) for general strength development with appropriate technique and progression; re-test in 4–8 weeks or as clinically indicated.`
     };
 
     onSave({
@@ -230,7 +230,7 @@ export default function OneRepetitionMaximum1RMTestingRunner({ client, onSave, o
                 1-Repetition Maximum (1RM) Testing
               </CardTitle>
               <p className="text-sm text-slate-600 mt-1">
-                {client?.full_name} â€¢ Gold-standard measure of maximal dynamic strength
+                {client?.full_name} • Gold-standard measure of maximal dynamic strength
               </p>
             </div>
             <Button variant="ghost" size="icon" onClick={onClose}>
@@ -339,7 +339,7 @@ export default function OneRepetitionMaximum1RMTestingRunner({ client, onSave, o
               <div>
                 <Label>Restrictions / Notes (ROM, pain, precautions)</Label>
                 <Textarea
-                  placeholder="E.g., limited to 90Â° shoulder abduction, mild knee discomfort noted..."
+                  placeholder="E.g., limited to 90° shoulder abduction, mild knee discomfort noted..."
                   value={assistiveConsiderations}
                   onChange={(e) => setAssistiveConsiderations(e.target.value)}
                   rows={2}
@@ -474,7 +474,7 @@ export default function OneRepetitionMaximum1RMTestingRunner({ client, onSave, o
                 <div>
                   <Label>ROM/Technique Standard Used</Label>
                   <Input
-                    placeholder="E.g., Full ROM, 90Â° knee flexion..."
+                    placeholder="E.g., Full ROM, 90° knee flexion..."
                     value={romStandard}
                     onChange={(e) => setRomStandard(e.target.value)}
                   />
@@ -568,32 +568,32 @@ export default function OneRepetitionMaximum1RMTestingRunner({ client, onSave, o
 
             {/* Clinician Instructions */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-2">
-              <p className="font-semibold">ðŸ“‹ Administration Instructions</p>
-              <p><strong>Warm-up:</strong> 2â€“3 sets at 50â€“70% estimated 1RM (8â€“10 reps, then 3â€“5 reps), with 3â€“5 min rest between warm-up and first test attempt.</p>
-              <p><strong>Protocol:</strong> Start at 50â€“70% of estimated 1RM. Increase load by 5â€“10% (upper body) or 10â€“20% (lower body) per attempt. Allow 3â€“5 minutes rest between attempts. Achieve 1RM within 3â€“5 attempts.</p>
+              <p className="font-semibold">📋 Administration Instructions</p>
+              <p><strong>Warm-up:</strong> 2–3 sets at 50–70% estimated 1RM (8–10 reps, then 3–5 reps), with 3–5 min rest between warm-up and first test attempt.</p>
+              <p><strong>Protocol:</strong> Start at 50–70% of estimated 1RM. Increase load by 5–10% (upper body) or 10–20% (lower body) per attempt. Allow 3–5 minutes rest between attempts. Achieve 1RM within 3–5 attempts.</p>
               <p className="italic">"I want you to lift this weight once through the full range of motion with good technique. Only attempt this if you feel you can complete it safely."</p>
             </div>
 
             {/* Norms & Interpretation */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Relative Strength Norms â€” Bench Press (1RM Ã· body mass)</p>
+              <p className="font-semibold text-slate-700">📊 Relative Strength Norms — Bench Press (1RM ÷ body mass)</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men</th><th className="p-2 text-center">Women</th></tr></thead>
                   <tbody>
-                    <tr className="border-t border-slate-200"><td className="p-2">Untrained</td><td className="p-2 text-center">&lt;1.0Ã—</td><td className="p-2 text-center">&lt;0.7Ã—</td></tr>
-                    <tr className="border-t border-slate-200 bg-white"><td className="p-2">Novice</td><td className="p-2 text-center">1.0â€“1.3Ã—</td><td className="p-2 text-center">0.7â€“0.9Ã—</td></tr>
-                    <tr className="border-t border-slate-200"><td className="p-2">Intermediate</td><td className="p-2 text-center">1.3â€“1.6Ã—</td><td className="p-2 text-center">0.9â€“1.1Ã—</td></tr>
-                    <tr className="border-t border-slate-200 bg-white"><td className="p-2">Advanced</td><td className="p-2 text-center">â‰¥1.6Ã—</td><td className="p-2 text-center">â‰¥1.1Ã—</td></tr>
+                    <tr className="border-t border-slate-200"><td className="p-2">Untrained</td><td className="p-2 text-center">&lt;1.0×</td><td className="p-2 text-center">&lt;0.7×</td></tr>
+                    <tr className="border-t border-slate-200 bg-white"><td className="p-2">Novice</td><td className="p-2 text-center">1.0–1.3×</td><td className="p-2 text-center">0.7–0.9×</td></tr>
+                    <tr className="border-t border-slate-200"><td className="p-2">Intermediate</td><td className="p-2 text-center">1.3–1.6×</td><td className="p-2 text-center">0.9–1.1×</td></tr>
+                    <tr className="border-t border-slate-200 bg-white"><td className="p-2">Advanced</td><td className="p-2 text-center">≥1.6×</td><td className="p-2 text-center">≥1.1×</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-slate-500">Training loads: 60â€“70% 1RM = muscular endurance; 70â€“85% = hypertrophy; 85â€“95% = maximal strength. Source: Baechle & Earle (2008).</p>
+              <p className="text-xs text-slate-500">Training loads: 60–70% 1RM = muscular endurance; 70–85% = hypertrophy; 85–95% = maximal strength. Source: Baechle & Earle (2008).</p>
             </div>
 
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
+              <p className="font-semibold">📖 Reference</p>
               <p>Baechle TR & Earle RW (Eds.). (2008). <em>Essentials of Strength Training and Conditioning</em> (3rd ed.). Human Kinetics.</p>
               <p>American College of Sports Medicine. (2022). <em>ACSM's Guidelines for Exercise Testing and Prescription</em> (11th ed.). Wolters Kluwer.</p>
             </div>

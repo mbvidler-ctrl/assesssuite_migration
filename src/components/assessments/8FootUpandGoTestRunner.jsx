@@ -61,7 +61,7 @@ export default function EightFootUpandGoTestRunner({ client, onSave, onClose }) 
     const bestTime = Math.min(trial1Time, trial2Time);
     const resultValue = bestTime;
     const additionalData = {
-      soap_text: `â€¢ 8-Foot Up-and-Go Test\n  Time: ${bestTime} s\n`,
+      soap_text: `• 8-Foot Up-and-Go Test\n  Time: ${bestTime} s\n`,
       measurement_type: "8-foot-up-and-go",
       age,
       gender,
@@ -84,32 +84,32 @@ export default function EightFootUpandGoTestRunner({ client, onSave, onClose }) 
       <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         {/* Clinician Instructions */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-2">
-          <p className="font-semibold">ðŸ“‹ Administration Instructions (Rikli & Jones Protocol)</p>
+          <p className="font-semibold">📋 Administration Instructions (Rikli & Jones Protocol)</p>
           <p><strong>Setup:</strong> Place a chair against a wall and a cone 8 feet (2.44m) in front. Client starts seated, feet flat, hands on thighs. No assistive devices unless documented.</p>
           <p className="italic">"When I say 'Go', stand up, walk around the cone as quickly as possible, and return to sit down. Walk as fast as you safely can."</p>
-          <p><strong>Timing:</strong> Start on "Go" and stop when the client is fully seated. Allow one practice trial then 2 timed trials â€” record best time.</p>
+          <p><strong>Timing:</strong> Start on "Go" and stop when the client is fully seated. Allow one practice trial then 2 timed trials — record best time.</p>
         </div>
 
         {/* Norms & Interpretation */}
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-          <p className="font-semibold text-slate-700">ðŸ“Š Norms & Interpretation</p>
+          <p className="font-semibold text-slate-700">📊 Norms & Interpretation</p>
           <div className="overflow-x-auto">
             <table className="w-full text-xs border border-slate-300 rounded">
               <thead className="bg-slate-200"><tr><th className="p-2 text-left">Time</th><th className="p-2 text-left">Classification</th><th className="p-2 text-left">Risk</th></tr></thead>
               <tbody>
-                <tr className="border-t border-slate-200"><td className="p-2">â‰¤ 8.1 s</td><td className="p-2">Normal</td><td className="p-2 text-green-600">Low fall risk</td></tr>
-                <tr className="border-t border-slate-200 bg-white"><td className="p-2">8.2â€“9.2 s</td><td className="p-2">Borderline</td><td className="p-2 text-yellow-600">Moderate risk</td></tr>
-                <tr className="border-t border-slate-200"><td className="p-2">â‰¥ 9.3 s</td><td className="p-2">Below normal</td><td className="p-2 text-red-600">High fall risk</td></tr>
+                <tr className="border-t border-slate-200"><td className="p-2">≤ 8.1 s</td><td className="p-2">Normal</td><td className="p-2 text-green-600">Low fall risk</td></tr>
+                <tr className="border-t border-slate-200 bg-white"><td className="p-2">8.2–9.2 s</td><td className="p-2">Borderline</td><td className="p-2 text-yellow-600">Moderate risk</td></tr>
+                <tr className="border-t border-slate-200"><td className="p-2">≥ 9.3 s</td><td className="p-2">Below normal</td><td className="p-2 text-red-600">High fall risk</td></tr>
               </tbody>
             </table>
           </div>
-          <p className="text-xs text-slate-500">For community-dwelling adults 60â€“94 yrs. MCID: ~0.67 s. Source: Rikli & Jones Senior Fitness Test (2013).</p>
+          <p className="text-xs text-slate-500">For community-dwelling adults 60–94 yrs. MCID: ~0.67 s. Source: Rikli & Jones Senior Fitness Test (2013).</p>
         </div>
 
         {/* Reference */}
         <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-          <p className="font-semibold">ðŸ“– Reference</p>
-          <p>Rikli RE & Jones CJ. (1999). Development and validation of a functional fitness test for community-residing older adults. <em>Journal of Aging and Physical Activity, 7</em>(2), 129â€“161.</p>
+          <p className="font-semibold">📖 Reference</p>
+          <p>Rikli RE & Jones CJ. (1999). Development and validation of a functional fitness test for community-residing older adults. <em>Journal of Aging and Physical Activity, 7</em>(2), 129–161.</p>
           <p>Rikli RE & Jones CJ. (2013). <em>Senior Fitness Test Manual</em> (2nd ed.). Human Kinetics.</p>
         </div>
 

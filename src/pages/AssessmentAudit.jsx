@@ -67,7 +67,7 @@ export default function AssessmentAudit() {
       let client;
       if (existingClients.length > 0) {
         client = existingClients[0];
-        toast.info('Test client already exists â€” adding any missing assessments...');
+        toast.info('Test client already exists — adding any missing assessments...');
       } else {
         client = await base44.entities.Client.create({
           full_name: 'Superagent One',
@@ -388,7 +388,7 @@ export default function AssessmentAudit() {
       assessment.name.toLowerCase().includes('romberg') ||
       assessment.name.toLowerCase().includes('stork test') ||
       assessment.name.toLowerCase().includes('astrand-rhyming') ||
-      assessment.name.toLowerCase().includes('Ã¥strand-rhyming') ||
+      assessment.name.toLowerCase().includes('åstrand-rhyming') ||
       assessment.name.toLowerCase().includes('tecumseh step') ||
       assessment.name.toLowerCase().includes('grocery shelving') ||
       assessment.name.toLowerCase().includes('gst') ||
@@ -406,7 +406,7 @@ export default function AssessmentAudit() {
       assessment.name.toLowerCase().includes('pastor') ||
       assessment.name.toLowerCase().includes('step tap') ||
       assessment.name.toLowerCase().includes('biering') ||
-      assessment.name.toLowerCase().includes('sÃ¸rensen') ||
+      assessment.name.toLowerCase().includes('sørensen') ||
       assessment.name.toLowerCase().includes('sorensen') ||
       assessment.name.toLowerCase().includes('back extension') ||
       assessment.name.toLowerCase().includes('four square') ||

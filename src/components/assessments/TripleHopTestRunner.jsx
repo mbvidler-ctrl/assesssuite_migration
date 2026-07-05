@@ -13,9 +13,9 @@ function getLSI(tested, contralateral) {
 function getLSICategory(lsi) {
   const v = parseFloat(lsi);
   if (isNaN(v)) return null;
-  if (v >= 90) return { label: "Symmetrical (â‰¥90%) â€” RTS criteria met", color: "text-green-700", bg: "bg-green-50 border-green-200" };
-  if (v >= 80) return { label: "Mild asymmetry (80â€“89%) â€” monitor", color: "text-yellow-700", bg: "bg-yellow-50 border-yellow-200" };
-  return { label: "Significant asymmetry (<80%) â€” not RTS ready", color: "text-red-700", bg: "bg-red-50 border-red-200" };
+  if (v >= 90) return { label: "Symmetrical (≥90%) — RTS criteria met", color: "text-green-700", bg: "bg-green-50 border-green-200" };
+  if (v >= 80) return { label: "Mild asymmetry (80–89%) — monitor", color: "text-yellow-700", bg: "bg-yellow-50 border-yellow-200" };
+  return { label: "Significant asymmetry (<80%) — not RTS ready", color: "text-red-700", bg: "bg-red-50 border-red-200" };
 }
 
 export default function TripleHopTestRunner({ client, onSave, onClose }) {
@@ -44,14 +44,14 @@ export default function TripleHopTestRunner({ client, onSave, onClose }) {
     const tested = side === "right" ? bestRight : bestLeft;
     const contra = side === "right" ? bestLeft : bestRight;
     const soapText = [
-      `â€¢ Triple Hop Test for Distance`,
+      `• Triple Hop Test for Distance`,
       `  Tested limb: ${side === "right" ? "Right" : "Left"}`,
-      bestRight ? `  Right â€” Best: ${bestRight} cm (trials: ${hops.right.filter(v => v).join(", ")} cm)` : "",
-      bestLeft ? `  Left â€” Best: ${bestLeft} cm (trials: ${hops.left.filter(v => v).join(", ")} cm)` : "",
+      bestRight ? `  Right — Best: ${bestRight} cm (trials: ${hops.right.filter(v => v).join(", ")} cm)` : "",
+      bestLeft ? `  Left — Best: ${bestLeft} cm (trials: ${hops.left.filter(v => v).join(", ")} cm)` : "",
       lsi ? `  Limb Symmetry Index (LSI): ${lsi}%` : "",
       lsiCat ? `  Interpretation: ${lsiCat.label}` : "",
       notes ? `  Notes: ${notes}` : "",
-      `  LSI â‰¥90% required for return-to-sport clearance (Noyes et al., 1991)`,
+      `  LSI ≥90% required for return-to-sport clearance (Noyes et al., 1991)`,
     ].filter(Boolean).join("\n");
 
     onSave({
@@ -85,7 +85,7 @@ export default function TripleHopTestRunner({ client, onSave, onClose }) {
       <div className="border border-blue-200 rounded-lg overflow-hidden">
         <button onClick={() => setShowInstructions(v => !v)}
           className="w-full flex justify-between items-center bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900">
-          ðŸ“‹ Protocol &amp; Instructions
+          📋 Protocol &amp; Instructions
           {showInstructions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
         {showInstructions && (
@@ -106,20 +106,20 @@ export default function TripleHopTestRunner({ client, onSave, onClose }) {
                   <li>Perform 3 consecutive single-leg hops forward</li>
                   <li>Land and maintain balance on last hop</li>
                   <li>Measure from start line to heel of landing foot</li>
-                  <li>3 trials per limb â€” best recorded</li>
+                  <li>3 trials per limb — best recorded</li>
                 </ul>
               </div>
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">
               <p className="font-semibold text-amber-800">LSI &amp; Return to Sport</p>
-              <p className="text-amber-700">Limb Symmetry Index (LSI) = (tested/contralateral) Ã— 100</p>
-              <p className="text-amber-700"><strong>â‰¥90%</strong> = symmetrical â€” RTS criteria met</p>
-              <p className="text-amber-700"><strong>80â€“89%</strong> = mild deficit â€” continue rehab</p>
-              <p className="text-amber-700"><strong>&lt;80%</strong> = significant deficit â€” not RTS ready</p>
+              <p className="text-amber-700">Limb Symmetry Index (LSI) = (tested/contralateral) × 100</p>
+              <p className="text-amber-700"><strong>≥90%</strong> = symmetrical — RTS criteria met</p>
+              <p className="text-amber-700"><strong>80–89%</strong> = mild deficit — continue rehab</p>
+              <p className="text-amber-700"><strong>&lt;80%</strong> = significant deficit — not RTS ready</p>
             </div>
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs">
               <p className="font-semibold text-red-800">Safety</p>
-              <p className="text-red-700">Ensure full warm-up. Contraindicated in active pain or &lt;6 weeks post-surgery. Land softly â€” assess knee valgus on landing.</p>
+              <p className="text-red-700">Ensure full warm-up. Contraindicated in active pain or &lt;6 weeks post-surgery. Land softly — assess knee valgus on landing.</p>
             </div>
           </div>
         )}
@@ -127,14 +127,14 @@ export default function TripleHopTestRunner({ client, onSave, onClose }) {
 
       {/* Normative Table */}
       <div className="border border-slate-200 rounded-lg p-3 text-sm">
-        <p className="font-semibold text-slate-700 mb-2">ðŸ“Š Normative Reference Values (cm)</p>
+        <p className="font-semibold text-slate-700 mb-2">📊 Normative Reference Values (cm)</p>
         <table className="w-full text-xs border border-slate-300 rounded overflow-hidden">
           <thead className="bg-slate-200">
             <tr><th className="p-2 text-left">Population</th><th className="p-2 text-center">Males</th><th className="p-2 text-center">Females</th></tr>
           </thead>
           <tbody>
-            <tr className="border-t"><td className="p-2">Healthy adults (20â€“40 yrs)</td><td className="p-2 text-center">~500â€“560</td><td className="p-2 text-center">~380â€“430</td></tr>
-            <tr className="border-t bg-white"><td className="p-2">Post-ACL reconstruction (RTS)</td><td className="p-2 text-center" colSpan={2}>LSI â‰¥ 90% of contralateral</td></tr>
+            <tr className="border-t"><td className="p-2">Healthy adults (20–40 yrs)</td><td className="p-2 text-center">~500–560</td><td className="p-2 text-center">~380–430</td></tr>
+            <tr className="border-t bg-white"><td className="p-2">Post-ACL reconstruction (RTS)</td><td className="p-2 text-center" colSpan={2}>LSI ≥ 90% of contralateral</td></tr>
           </tbody>
         </table>
         <p className="text-xs text-slate-500 mt-1">Source: Noyes et al. (1991); Reid et al. (2007). Values vary by sport and fitness level.</p>
@@ -156,7 +156,7 @@ export default function TripleHopTestRunner({ client, onSave, onClose }) {
 
         {(["right", "left"]).map(leg => (
           <div key={leg}>
-            <p className="text-sm font-semibold text-slate-700 mb-2">{leg === "right" ? "Right" : "Left"} Leg â€” Hop Distances (cm)</p>
+            <p className="text-sm font-semibold text-slate-700 mb-2">{leg === "right" ? "Right" : "Left"} Leg — Hop Distances (cm)</p>
             <div className="grid grid-cols-3 gap-3">
               {hops[leg].map((val, idx) => (
                 <div key={idx}>
@@ -192,10 +192,10 @@ export default function TripleHopTestRunner({ client, onSave, onClose }) {
 
       {/* References */}
       <div className="bg-slate-100 border border-slate-200 rounded-lg p-4 text-xs text-slate-600 space-y-1">
-        <p className="font-semibold text-slate-700">ðŸ“– References</p>
-        <p>1. Noyes FR, Barber SD, &amp; Mangine RE. (1991). Abnormal lower limb symmetry determined by function hop tests after anterior cruciate ligament rupture. <em>American Journal of Sports Medicine</em>, 19(5), 513â€“518.</p>
-        <p>2. Reid A, Birmingham TB, Stratford PW, Alcock GK, &amp; Giffin JR. (2007). Hop testing provides a reliable and valid outcome measure during rehabilitation after anterior cruciate ligament reconstruction. <em>Physical Therapy</em>, 87(3), 337â€“349.</p>
-        <p>3. Grindem H, Snyder-Mackler L, Moksnes H, et al. (2016). Simple decision rules can reduce reinjury risk by 84% after ACL reconstruction. <em>British Journal of Sports Medicine</em>, 50(13), 804â€“808.</p>
+        <p className="font-semibold text-slate-700">📖 References</p>
+        <p>1. Noyes FR, Barber SD, &amp; Mangine RE. (1991). Abnormal lower limb symmetry determined by function hop tests after anterior cruciate ligament rupture. <em>American Journal of Sports Medicine</em>, 19(5), 513–518.</p>
+        <p>2. Reid A, Birmingham TB, Stratford PW, Alcock GK, &amp; Giffin JR. (2007). Hop testing provides a reliable and valid outcome measure during rehabilitation after anterior cruciate ligament reconstruction. <em>Physical Therapy</em>, 87(3), 337–349.</p>
+        <p>3. Grindem H, Snyder-Mackler L, Moksnes H, et al. (2016). Simple decision rules can reduce reinjury risk by 84% after ACL reconstruction. <em>British Journal of Sports Medicine</em>, 50(13), 804–808.</p>
       </div>
 
       <div className="flex justify-between pt-2 border-t">

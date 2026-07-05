@@ -213,7 +213,7 @@ export default function IsometricStrengthTestingRunner({ client, onSave, onClose
                   />
                 </div>
                 <div>
-                  <Label>Joint Angle (Â°)</Label>
+                  <Label>Joint Angle (°)</Label>
                   <Input
                     type="number"
                     value={angle}
@@ -283,9 +283,9 @@ export default function IsometricStrengthTestingRunner({ client, onSave, onClose
               <CardTitle className="text-sm font-semibold">References</CardTitle>
             </CardHeader>
             <CardContent className="text-xs text-slate-600 space-y-1">
-              <p>â€¢ Bohannon, R. W. (2019). Hand-grip dynamometry: Adjusting values for age and sex. J Geriatr Phys Ther, 31(1), 16-20.</p>
-              <p>â€¢ Mathiowetz, V., et al. (1985). Reliability and validity of grip and pinch strength evaluations. J Hand Surg, 10(2), 222-226.</p>
-              <p>â€¢ Metter, E. J., et al. (1997). Relationship of age and gender to dominance, strength, and quality of upper extremity function. J Gerontol A Biol Sci Med Sci, 52(4), B207-B217.</p>
+              <p>• Bohannon, R. W. (2019). Hand-grip dynamometry: Adjusting values for age and sex. J Geriatr Phys Ther, 31(1), 16-20.</p>
+              <p>• Mathiowetz, V., et al. (1985). Reliability and validity of grip and pinch strength evaluations. J Hand Surg, 10(2), 222-226.</p>
+              <p>• Metter, E. J., et al. (1997). Relationship of age and gender to dominance, strength, and quality of upper extremity function. J Gerontol A Biol Sci Med Sci, 52(4), B207-B217.</p>
             </CardContent>
           </Card>
         </div>

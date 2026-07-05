@@ -7,7 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Save, X, Info, ChevronDown, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
-// Official LCQ â€” 19 items, 7-point Likert (1=Always/Severely, 7=Never/Not at all)
+// Official LCQ — 19 items, 7-point Likert (1=Always/Severely, 7=Never/Not at all)
 // Higher score = better cough-related QoL
 const LCQ_DOMAINS = [
   {
@@ -65,7 +65,7 @@ const SCALE = [
   { value: 1, label: "None of the time" },
 ];
 
-// Domain score = mean of items (range 1â€“7). Total = mean of all 19 items (1â€“7). Higher = better.
+// Domain score = mean of items (range 1–7). Total = mean of all 19 items (1–7). Higher = better.
 function calcDomainScore(domainItems, responses) {
   const vals = domainItems.map(i => responses[i.id]).filter(v => v !== undefined);
   if (vals.length === 0) return null;
@@ -84,7 +84,7 @@ function ScoreInterpretation({ score }) {
   let label, color;
   if (s >= 5.5) { label = "Minimal impact"; color = "bg-green-100 text-green-800"; }
   else if (s >= 4.0) { label = "Moderate impact"; color = "bg-yellow-100 text-yellow-800"; }
-  else { label = "Severe impact â€” consider referral"; color = "bg-red-100 text-red-800"; }
+  else { label = "Severe impact — consider referral"; color = "bg-red-100 text-red-800"; }
   return <Badge className={`text-xs ${color}`}>{label}</Badge>;
 }
 
@@ -115,7 +115,7 @@ export default function LeicesterCoughQuestionnaireLCQRunner({ client, onSave, o
     const psychScore = parseFloat(calcDomainScore(LCQ_DOMAINS[1].items, responses));
     const socialScore = parseFloat(calcDomainScore(LCQ_DOMAINS[2].items, responses));
 
-    const interpretation = totalScore >= 5.5 ? "Minimal cough impact" : totalScore >= 4.0 ? "Moderate cough impact" : "Severe cough impact â€” consider specialist referral";
+    const interpretation = totalScore >= 5.5 ? "Minimal cough impact" : totalScore >= 4.0 ? "Moderate cough impact" : "Severe cough impact — consider specialist referral";
 
     // Build detailed response section
     let detailedResponses = "";
@@ -128,8 +128,8 @@ export default function LeicesterCoughQuestionnaireLCQRunner({ client, onSave, o
       });
     });
 
-    const soapText = `â€¢ Leicester Cough Questionnaire (LCQ)
-  Total Score: ${totalScore}/7 â€” ${interpretation}
+    const soapText = `• Leicester Cough Questionnaire (LCQ)
+  Total Score: ${totalScore}/7 — ${interpretation}
   Physical Domain: ${physicalScore}/7
   Psychological Domain: ${psychScore}/7
   Social Domain: ${socialScore}/7
@@ -137,7 +137,7 @@ export default function LeicesterCoughQuestionnaireLCQRunner({ client, onSave, o
 
   Detailed Responses:${detailedResponses}
 
-  Reference: Birring SS et al. (2003). Thorax, 58(4), 339â€“343.`;
+  Reference: Birring SS et al. (2003). Thorax, 58(4), 339–343.`;
 
     onSave({
       status: "completed",
@@ -166,7 +166,7 @@ export default function LeicesterCoughQuestionnaireLCQRunner({ client, onSave, o
         <div className="p-6 border-b bg-gradient-to-r from-teal-50 to-cyan-50 flex justify-between items-start">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Leicester Cough Questionnaire (LCQ)</h2>
-            <p className="text-slate-600 mt-0.5">Cough-Related Quality of Life â€” 19 items across 3 domains</p>
+            <p className="text-slate-600 mt-0.5">Cough-Related Quality of Life — 19 items across 3 domains</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -194,7 +194,7 @@ export default function LeicesterCoughQuestionnaireLCQRunner({ client, onSave, o
           <Collapsible open={showClinician} onOpenChange={setShowClinician}>
             <CollapsibleTrigger className="flex items-center gap-2 w-full px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg font-semibold text-amber-900 text-sm hover:bg-amber-100 transition-colors">
               <ChevronDown className={`w-4 h-4 transition-transform ${showClinician ? "rotate-180" : ""}`} />
-              ðŸ“‹ Clinician Instructions & Clinical Context
+              📋 Clinician Instructions & Clinical Context
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-5 space-y-4 text-sm text-amber-800">
               <div>
@@ -206,11 +206,11 @@ export default function LeicesterCoughQuestionnaireLCQRunner({ client, onSave, o
                 <ul className="list-disc list-inside space-y-1 text-xs">
                   <li><strong>Timeframe:</strong> Last 2 weeks.</li>
                   <li><strong>Scale:</strong> 1 (Always/Severely affected) to 7 (None of the time / Not at all). <strong>Higher = better QoL.</strong></li>
-                  <li><strong>Domain scores:</strong> Mean of items in that domain (1â€“7 scale).</li>
-                  <li><strong>Total score:</strong> Mean of all 19 items (1â€“7 scale).</li>
-                  <li><strong>Missing data:</strong> If â‰¤2 items missing, impute with domain mean. If &gt;2 missing, domain/total is invalid.</li>
-                  <li><strong>Completion time:</strong> 3â€“5 minutes.</li>
-                  <li><strong>MCID:</strong> 1.3 points â€” a change of â‰¥1.3 on the total score is clinically meaningful.</li>
+                  <li><strong>Domain scores:</strong> Mean of items in that domain (1–7 scale).</li>
+                  <li><strong>Total score:</strong> Mean of all 19 items (1–7 scale).</li>
+                  <li><strong>Missing data:</strong> If ≤2 items missing, impute with domain mean. If &gt;2 missing, domain/total is invalid.</li>
+                  <li><strong>Completion time:</strong> 3–5 minutes.</li>
+                  <li><strong>MCID:</strong> 1.3 points — a change of ≥1.3 on the total score is clinically meaningful.</li>
                 </ul>
               </div>
               <div>
@@ -224,11 +224,11 @@ export default function LeicesterCoughQuestionnaireLCQRunner({ client, onSave, o
           <Collapsible open={showNormatives} onOpenChange={setShowNormatives}>
             <CollapsibleTrigger className="flex items-center gap-2 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-700 text-sm hover:bg-slate-100 transition-colors">
               <ChevronDown className={`w-4 h-4 transition-transform ${showNormatives ? "rotate-180" : ""}`} />
-              ðŸ“Š Normative Data & Interpretation
+              📊 Normative Data & Interpretation
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2 space-y-3">
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3 text-xs">
-                <p className="font-semibold text-slate-800">Population Reference Scores (Total LCQ, scale 1â€“7)</p>
+                <p className="font-semibold text-slate-800">Population Reference Scores (Total LCQ, scale 1–7)</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead className="bg-slate-200">
@@ -240,11 +240,11 @@ export default function LeicesterCoughQuestionnaireLCQRunner({ client, onSave, o
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {[
-                        ["Healthy controls (no chronic cough)", "~6.5â€“7.0", "Near-ceiling as expected"],
-                        ["Chronic cough (idiopathic)", "~3.5â€“4.5", "Birring et al., 2003"],
-                        ["COPD (stable)", "~4.5â€“5.5", "Moderate impact"],
-                        ["Bronchiectasis", "~3.5â€“4.5", "Often lower due to daily cough burden"],
-                        ["Post-pulmonary rehab improvement", "+1.3â€“2.0", "MCID = 1.3 pts"],
+                        ["Healthy controls (no chronic cough)", "~6.5–7.0", "Near-ceiling as expected"],
+                        ["Chronic cough (idiopathic)", "~3.5–4.5", "Birring et al., 2003"],
+                        ["COPD (stable)", "~4.5–5.5", "Moderate impact"],
+                        ["Bronchiectasis", "~3.5–4.5", "Often lower due to daily cough burden"],
+                        ["Post-pulmonary rehab improvement", "+1.3–2.0", "MCID = 1.3 pts"],
                       ].map(([pop, score, note]) => (
                         <tr key={pop} className="hover:bg-slate-100">
                           <td className="p-1.5 font-medium">{pop}</td>
@@ -258,10 +258,10 @@ export default function LeicesterCoughQuestionnaireLCQRunner({ client, onSave, o
                 <div className="bg-green-50 border border-green-200 rounded p-3 space-y-1">
                   <p className="font-semibold text-green-800">Clinical Thresholds</p>
                   <ul className="list-disc list-inside space-y-0.5 text-green-700">
-                    <li><strong>â‰¥5.5:</strong> Minimal cough impact â€” continue current management</li>
-                    <li><strong>4.0â€“5.4:</strong> Moderate impact â€” optimise treatment</li>
-                    <li><strong>&lt;4.0:</strong> Severe impact â€” consider specialist referral, investigate etiology</li>
-                    <li><strong>MCID = 1.3 points</strong> â€” minimum meaningful change (Birring et al., 2006)</li>
+                    <li><strong>≥5.5:</strong> Minimal cough impact — continue current management</li>
+                    <li><strong>4.0–5.4:</strong> Moderate impact — optimise treatment</li>
+                    <li><strong>&lt;4.0:</strong> Severe impact — consider specialist referral, investigate etiology</li>
+                    <li><strong>MCID = 1.3 points</strong> — minimum meaningful change (Birring et al., 2006)</li>
                   </ul>
                 </div>
               </div>
@@ -271,7 +271,7 @@ export default function LeicesterCoughQuestionnaireLCQRunner({ client, onSave, o
           {/* Progress */}
           <div className="text-center text-sm text-slate-600">
             {answered} / {TOTAL_ITEMS} questions answered
-            {allAnswered && <span className="ml-2 text-green-600 font-semibold">âœ“ All complete</span>}
+            {allAnswered && <span className="ml-2 text-green-600 font-semibold">✓ All complete</span>}
           </div>
 
           {/* Questions by Domain */}
@@ -348,7 +348,7 @@ export default function LeicesterCoughQuestionnaireLCQRunner({ client, onSave, o
                     </div>
                   ))}
                 </div>
-                <p className="text-xs text-center text-slate-500 mt-3">1 = Worst Â· 7 = Best Â· MCID = 1.3 points</p>
+                <p className="text-xs text-center text-slate-500 mt-3">1 = Worst · 7 = Best · MCID = 1.3 points</p>
               </CardContent>
             </Card>
           )}
@@ -363,18 +363,18 @@ export default function LeicesterCoughQuestionnaireLCQRunner({ client, onSave, o
           <Collapsible open={showReferences} onOpenChange={setShowReferences}>
             <CollapsibleTrigger className="flex items-center gap-2 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-700 text-sm hover:bg-slate-100 transition-colors">
               <ChevronDown className={`w-4 h-4 transition-transform ${showReferences ? "rotate-180" : ""}`} />
-              ðŸ“š References
+              📚 References
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2 bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2 text-xs text-slate-600">
-              <p>1. Birring SS, Prudon B, Carr AJ, Singh SJ, Morgan MD, Pavord ID. (2003). Development of a symptom specific health status measure for patients with chronic cough: The Leicester Cough Questionnaire (LCQ). <em>Thorax, 58</em>(4), 339â€“343. doi:10.1136/thorax.58.4.339</p>
-              <p>2. Birring SS, Wijsenbeek MS, Agrawal S, et al. (2017). A novel formulation of inhaled sodium cromoglicate (PA101) in idiopathic pulmonary fibrosis and chronic cough: a randomised, double-blind, proof-of-concept, phase 2 trial. <em>The Lancet Respiratory Medicine, 5</em>(10), 806â€“815.</p>
-              <p>3. Kelsall A, Decalmer S, McGuiness K, Woodcock A, Smith JA. (2008). Sex differences and predictors of objective cough frequency in chronic cough. <em>Thorax, 64</em>(5), 393â€“398.</p>
-              <p>4. Raj AA, Pavord ID, Birring SS. (2009). Clinical utility of cough-specific quality of life measures. <em>Current Opinion in Allergy & Clinical Immunology, 9</em>(1), 28â€“33.</p>
-              <p>5. Thoracic Society of Australia and New Zealand (TSANZ). Chronic Cough Guidelines â€” Recommends LCQ for baseline assessment and monitoring treatment response.</p>
+              <p>1. Birring SS, Prudon B, Carr AJ, Singh SJ, Morgan MD, Pavord ID. (2003). Development of a symptom specific health status measure for patients with chronic cough: The Leicester Cough Questionnaire (LCQ). <em>Thorax, 58</em>(4), 339–343. doi:10.1136/thorax.58.4.339</p>
+              <p>2. Birring SS, Wijsenbeek MS, Agrawal S, et al. (2017). A novel formulation of inhaled sodium cromoglicate (PA101) in idiopathic pulmonary fibrosis and chronic cough: a randomised, double-blind, proof-of-concept, phase 2 trial. <em>The Lancet Respiratory Medicine, 5</em>(10), 806–815.</p>
+              <p>3. Kelsall A, Decalmer S, McGuiness K, Woodcock A, Smith JA. (2008). Sex differences and predictors of objective cough frequency in chronic cough. <em>Thorax, 64</em>(5), 393–398.</p>
+              <p>4. Raj AA, Pavord ID, Birring SS. (2009). Clinical utility of cough-specific quality of life measures. <em>Current Opinion in Allergy & Clinical Immunology, 9</em>(1), 28–33.</p>
+              <p>5. Thoracic Society of Australia and New Zealand (TSANZ). Chronic Cough Guidelines — Recommends LCQ for baseline assessment and monitoring treatment response.</p>
               <p>6. European Respiratory Society (ERS). (2020). ERS guidelines on the assessment of cough. <em>European Respiratory Journal, 55</em>(1), 1901136.</p>
               <div className="mt-2">
                 <Button variant="outline" size="sm" className="text-xs h-8 w-full justify-start" onClick={() => window.open("https://doi.org/10.1136/thorax.58.4.339", "_blank")}>
-                  <ExternalLink className="w-3 h-3 mr-2" /> Original LCQ Paper â€” Thorax (2003)
+                  <ExternalLink className="w-3 h-3 mr-2" /> Original LCQ Paper — Thorax (2003)
                 </Button>
               </div>
             </CollapsibleContent>

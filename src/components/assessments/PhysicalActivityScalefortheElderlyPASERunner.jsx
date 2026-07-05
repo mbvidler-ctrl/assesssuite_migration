@@ -16,8 +16,8 @@ const LEISURE_ITEMS = [
 
 const LEISURE_HOURS = [
   { value: 1, label: "< 1 hr/week" },
-  { value: 2, label: "1â€“2 hrs/week" },
-  { value: 3, label: "2â€“4 hrs/week" },
+  { value: 2, label: "1–2 hrs/week" },
+  { value: 3, label: "2–4 hrs/week" },
   { value: 4, label: "> 4 hrs/week" },
 ];
 
@@ -55,10 +55,10 @@ const WORK_ITEM = {
 
 const WORK_HOURS = [
   { value: 1, label: "< 10 hrs/week" },
-  { value: 2, label: "10â€“19 hrs/week" },
-  { value: 3, label: "20â€“29 hrs/week" },
-  { value: 4, label: "30â€“39 hrs/week" },
-  { value: 5, label: "â‰¥ 40 hrs/week" },
+  { value: 2, label: "10–19 hrs/week" },
+  { value: 3, label: "20–29 hrs/week" },
+  { value: 4, label: "30–39 hrs/week" },
+  { value: 5, label: "≥ 40 hrs/week" },
 ];
 
 const WORK_WEIGHTS = [10, 20, 30, 40, 50]; // approximate composite contribution
@@ -124,21 +124,21 @@ export default function PhysicalActivityScalefortheElderlyPASERunner({ onSave, o
     const leisureLines = LEISURE_ITEMS.map(item => {
       const hrs = leisureResponses[item.id];
       const label = LEISURE_HOURS.find(h => h.value === hrs)?.label || "Not performed";
-      return `    â€¢ ${item.label}: ${hrs ? label : "Not performed"}`;
+      return `    • ${item.label}: ${hrs ? label : "Not performed"}`;
     }).join('\n');
 
     const householdLines = HOUSEHOLD_ITEMS.map(item => (
-      `    â€¢ ${item.label}: ${householdResponses[item.id] ? "Yes" : "No"}`
+      `    • ${item.label}: ${householdResponses[item.id] ? "Yes" : "No"}`
     )).join('\n');
 
     const workLine = workDone
-      ? `    â€¢ Work/volunteering: Yes â€” ${WORK_HOURS.find(h => h.value === workHours)?.label || ''}${workType ? `, type: ${workType}` : ''}`
-      : `    â€¢ Work/volunteering: No`;
+      ? `    • Work/volunteering: Yes — ${WORK_HOURS.find(h => h.value === workHours)?.label || ''}${workType ? `, type: ${workType}` : ''}`
+      : `    • Work/volunteering: No`;
 
     const soapText = [
-      `â€¢ Physical Activity Scale for the Elderly (PASE)`,
-      `  Total PASE Score: ${score} â†’ ${interp.text}`,
-      `  Score Interpretation: <40 Low | 40â€“74 Moderate | 75â€“119 High | â‰¥120 Very High`,
+      `• Physical Activity Scale for the Elderly (PASE)`,
+      `  Total PASE Score: ${score} → ${interp.text}`,
+      `  Score Interpretation: <40 Low | 40–74 Moderate | 75–119 High | ≥120 Very High`,
       ``,
       `  Leisure Activities (past week):`,
       leisureLines,
@@ -181,7 +181,7 @@ export default function PhysicalActivityScalefortheElderlyPASERunner({ onSave, o
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-2xl font-bold text-slate-900">Physical Activity Scale for the Elderly (PASE)</h2>
-              <p className="text-slate-600 mt-1">Self-report physical activity questionnaire for adults â‰¥65 years</p>
+              <p className="text-slate-600 mt-1">Self-report physical activity questionnaire for adults ≥65 years</p>
             </div>
             <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
           </div>
@@ -193,7 +193,7 @@ export default function PhysicalActivityScalefortheElderlyPASERunner({ onSave, o
             <CardContent className="py-4 text-sm text-blue-800 space-y-1">
               <p className="flex items-center gap-2"><Info className="w-4 h-4 flex-shrink-0" /><strong>Protocol:</strong> Ask about typical activities over the PAST 7 DAYS.</p>
               <p className="italic">"I'd like to ask about the physical activities you've done over the past week, including walking, housework, and hobbies. Please answer as accurately as you can."</p>
-              <p><strong>Scoring:</strong> Weighted composite. Higher = more active. Population mean â‰ˆ 90â€“100 for community-dwelling elderly.</p>
+              <p><strong>Scoring:</strong> Weighted composite. Higher = more active. Population mean ≈ 90–100 for community-dwelling elderly.</p>
             </CardContent>
           </Card>
 
@@ -319,7 +319,7 @@ export default function PhysicalActivityScalefortheElderlyPASERunner({ onSave, o
                 <p className="text-sm text-slate-600">Estimated PASE Score</p>
                 <p className="text-4xl font-bold text-slate-900">{score}</p>
                 <p className={`text-lg font-semibold ${interp.color}`}>{interp.text}</p>
-                <p className="text-xs text-slate-500 mt-1">Population mean â‰ˆ 90â€“100 for community-dwelling older adults</p>
+                <p className="text-xs text-slate-500 mt-1">Population mean ≈ 90–100 for community-dwelling older adults</p>
               </CardContent>
             </Card>
           )}

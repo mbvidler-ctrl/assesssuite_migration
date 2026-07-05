@@ -38,7 +38,7 @@ export default function StairClimbTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    const soap = `â€¢ Stair Climb Test\n  Stairs: ${stairCount} steps | Time: ${recorded}s | Handrail: ${handrailUse ? "Yes" : "No"} | Gait: ${gaitStability} | Device: ${assistiveDevice}${notes ? `\n  Notes: ${notes}` : ""}`;
+    const soap = `• Stair Climb Test\n  Stairs: ${stairCount} steps | Time: ${recorded}s | Handrail: ${handrailUse ? "Yes" : "No"} | Gait: ${gaitStability} | Device: ${assistiveDevice}${notes ? `\n  Notes: ${notes}` : ""}`;
     onSave({ status: "completed", result_value: recorded, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "stair_climb_test", time_seconds: recorded, stair_count: parseInt(stairCount) || null, handrail_use: handrailUse, gait_stability: gaitStability, assistive_device: assistiveDevice } });
     toast.success("Saved.");
   };
@@ -47,28 +47,28 @@ export default function StairClimbTestRunner({ client, onSave, onClose }) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-w-xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="p-5 border-b bg-gradient-to-r from-teal-50 to-cyan-50 flex justify-between items-start">
-          <div><h2 className="text-xl font-bold text-slate-900">Stair Climb Test</h2><p className="text-slate-500 text-sm mt-0.5">Timed stair ascent â€” functional mobility</p></div>
+          <div><h2 className="text-xl font-bold text-slate-900">Stair Climb Test</h2><p className="text-slate-500 text-sm mt-0.5">Timed stair ascent — functional mobility</p></div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900 space-y-1">
-            <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />ðŸ“‹ Protocol & Administration</p>
-            <p><strong>Standard:</strong> 10â€“12 stairs. Start time on "Go" (or when foot leaves floor). Stop when both feet reach the top step.</p>
+            <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />📋 Protocol & Administration</p>
+            <p><strong>Standard:</strong> 10–12 stairs. Start time on "Go" (or when foot leaves floor). Stop when both feet reach the top step.</p>
             <p className="italic">"Climb the stairs as quickly as you safely can. I'll time you from start until both feet are at the top."</p>
-            <p><strong>Safety:</strong> Stand close for assistance. Allow handrail use â€” document if used. Note step-over-step vs. step-to-step pattern.</p>
+            <p><strong>Safety:</strong> Stand close for assistance. Allow handrail use — document if used. Note step-over-step vs. step-to-step pattern.</p>
           </div>
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Norms â€” 10-Step Stair Climb (seconds)</p>
+            <p className="font-semibold text-slate-700">📊 Norms — 10-Step Stair Climb (seconds)</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Time</th><th className="p-2 text-left">Interpretation</th></tr></thead>
                 <tbody>
-                  <tr className="border-t"><td className="p-2">&lt;6 s</td><td className="p-2 text-green-700">Excellent â€” independent, low fall risk</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">6â€“10 s</td><td className="p-2 text-yellow-700">Moderate â€” minor limitations</td></tr>
-                  <tr className="border-t"><td className="p-2">&gt;10 s</td><td className="p-2 text-red-700">Slow â€” increased fall risk, requires monitoring</td></tr>
+                  <tr className="border-t"><td className="p-2">&lt;6 s</td><td className="p-2 text-green-700">Excellent — independent, low fall risk</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">6–10 s</td><td className="p-2 text-yellow-700">Moderate — minor limitations</td></tr>
+                  <tr className="border-t"><td className="p-2">&gt;10 s</td><td className="p-2 text-red-700">Slow — increased fall risk, requires monitoring</td></tr>
                 </tbody>
               </table>
             </div>
@@ -77,9 +77,9 @@ export default function StairClimbTestRunner({ client, onSave, onClose }) {
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
+            <p className="font-semibold">📖 Reference</p>
             <p>Bohannon RW. (1996). Stair timed up and go test. <em>Archives of Physical Medicine and Rehabilitation, 78</em>(9), 1046.</p>
-            <p>Nightingale EJ et al. (2014). Normative values of knee muscle strength and functional performance measures in adults aged 55â€“85 years. <em>Clinical Rehabilitation, 28</em>(10), 995â€“1008.</p>
+            <p>Nightingale EJ et al. (2014). Normative values of knee muscle strength and functional performance measures in adults aged 55–85 years. <em>Clinical Rehabilitation, 28</em>(10), 995–1008.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-3">

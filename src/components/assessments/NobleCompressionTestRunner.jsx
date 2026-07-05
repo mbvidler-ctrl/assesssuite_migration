@@ -28,10 +28,10 @@ export default function NobleCompressionTestRunner({ client, onSave, onClose }) 
     const resultLabel = isPositive ? "Positive" : "Negative";
 
     const soapLines = [
-      `â€¢ Noble Compression Test: ${resultLabel}`,
+      `• Noble Compression Test: ${resultLabel}`,
       `  Side Tested: ${side.charAt(0).toUpperCase() + side.slice(1)}`,
-      `  Knee Flexion Angle at Compression: ${kneeAngle ? kneeAngle + 'Â°' : 'Not recorded'}`,
-      reproduced !== null ? `  Pain Reproduced at 30Â° Flexion: ${reproduced ? 'Yes' : 'No'}` : null,
+      `  Knee Flexion Angle at Compression: ${kneeAngle ? kneeAngle + '°' : 'Not recorded'}`,
+      reproduced !== null ? `  Pain Reproduced at 30° Flexion: ${reproduced ? 'Yes' : 'No'}` : null,
       painLevel !== "" ? `  Pain Intensity (NRS): ${painLevel}/10` : null,
       painType ? `  Pain Quality/Type: ${painType}` : null,
       painLocation ? `  Pain Location: ${painLocation}` : null,
@@ -65,7 +65,7 @@ export default function NobleCompressionTestRunner({ client, onSave, onClose }) 
         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between rounded-t-xl z-10">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Noble Compression Test</h2>
-            <p className="text-xs text-slate-500">IT Band Syndrome â€” lateral knee compression assessment</p>
+            <p className="text-xs text-slate-500">IT Band Syndrome — lateral knee compression assessment</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
@@ -74,7 +74,7 @@ export default function NobleCompressionTestRunner({ client, onSave, onClose }) 
 
           {/* Clinician instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900">
-            <strong>Procedure:</strong> With the client supine, apply direct pressure with the thumb over the lateral femoral condyle (~2â€“3 cm above the joint line). Slowly flex and extend the knee. The test is <strong>positive</strong> if pain is reproduced at approximately <strong>30Â° of knee flexion</strong>, consistent with ITB impingement.
+            <strong>Procedure:</strong> With the client supine, apply direct pressure with the thumb over the lateral femoral condyle (~2–3 cm above the joint line). Slowly flex and extend the knee. The test is <strong>positive</strong> if pain is reproduced at approximately <strong>30° of knee flexion</strong>, consistent with ITB impingement.
           </div>
 
           {/* Side */}
@@ -100,12 +100,12 @@ export default function NobleCompressionTestRunner({ client, onSave, onClose }) 
               placeholder="e.g. 30"
               className="mt-1 max-w-xs"
             />
-            <p className="text-xs text-slate-500 mt-1">Standard test angle is 30Â°</p>
+            <p className="text-xs text-slate-500 mt-1">Standard test angle is 30°</p>
           </div>
 
-          {/* Pain reproduced at 30Â° */}
+          {/* Pain reproduced at 30° */}
           <div>
-            <Label className="font-semibold text-slate-800 mb-2 block">Pain Reproduced at ~30Â° Flexion?</Label>
+            <Label className="font-semibold text-slate-800 mb-2 block">Pain Reproduced at ~30° Flexion?</Label>
             <div className="flex gap-3">
               {[{ label: "Yes", val: true }, { label: "No", val: false }].map(opt => (
                 <button key={String(opt.val)} onClick={() => setReproduced(opt.val)}
@@ -118,14 +118,14 @@ export default function NobleCompressionTestRunner({ client, onSave, onClose }) 
 
           {/* Pain level */}
           <div>
-            <Label className="font-medium">Pain Intensity (NRS 0â€“10)</Label>
+            <Label className="font-medium">Pain Intensity (NRS 0–10)</Label>
             <Input
               type="number"
               min="0"
               max="10"
               value={painLevel}
               onChange={e => setPainLevel(e.target.value)}
-              placeholder="0â€“10"
+              placeholder="0–10"
               className="mt-1 max-w-xs"
             />
           </div>
@@ -170,8 +170,8 @@ export default function NobleCompressionTestRunner({ client, onSave, onClose }) 
             {isPositive !== null && (
               <p className={`mt-2 text-sm font-medium ${isPositive ? 'text-red-600' : 'text-green-700'}`}>
                 {isPositive
-                  ? "Positive â€” suggests ITB syndrome / lateral knee impingement"
-                  : "Negative â€” ITB compression pain not reproduced"}
+                  ? "Positive — suggests ITB syndrome / lateral knee impingement"
+                  : "Negative — ITB compression pain not reproduced"}
               </p>
             )}
           </div>

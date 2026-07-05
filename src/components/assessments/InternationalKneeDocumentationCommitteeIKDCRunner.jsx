@@ -75,7 +75,7 @@ export default function InternationalKneeDocumentationCommitteeIKDCRunner({ clie
       ikdc_score_percent: parseFloat(totalScore),
       symptoms_subscale: symptomsScore,
       function_subscale: functionScore,
-      scoring_formula: "Sum of all item responses / Maximum possible score Ã— 100",
+      scoring_formula: "Sum of all item responses / Maximum possible score × 100",
       soap_text: soapText
     };
 
@@ -132,7 +132,7 @@ export default function InternationalKneeDocumentationCommitteeIKDCRunner({ clie
                 </div>
                 <div>
                   <p className="font-semibold">Scoring Formula:</p>
-                  <p className="font-mono bg-white p-2 rounded">Sum of all item responses Ã· Maximum possible score (80) Ã— 100 = Score %</p>
+                  <p className="font-mono bg-white p-2 rounded">Sum of all item responses ÷ Maximum possible score (80) × 100 = Score %</p>
                 </div>
                 <div>
                   <p className="font-semibold">Scale Direction:</p>
@@ -195,7 +195,7 @@ export default function InternationalKneeDocumentationCommitteeIKDCRunner({ clie
               <CardContent className="text-sm text-gray-700">
                 <p><strong>Lower numbers (left)</strong> = Greater difficulty/worse symptoms</p>
                 <p><strong>Higher numbers (right)</strong> = Better function/fewer symptoms</p>
-                <p className="text-xs text-gray-600 mt-2">Each question has variable response options (0â€“2, 0â€“4, or 0â€“10). All responses are scored as stated; higher value always = better outcome.</p>
+                <p className="text-xs text-gray-600 mt-2">Each question has variable response options (0–2, 0–4, or 0–10). All responses are scored as stated; higher value always = better outcome.</p>
               </CardContent>
             </Card>
 

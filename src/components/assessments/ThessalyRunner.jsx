@@ -44,9 +44,9 @@ export default function ThessalyRunner({ onSave, onClose }) {
                        (rightData.joint_line_pain && rightData.joint_line_pain !== 'none');
 
     const soapText = [
-      `â€¢ Thessaly Test`,
-      leftData.joint_line_pain ? `  Left: ${leftData.joint_line_pain} pain â€” ${leftInterp?.text || ''}` : null,
-      rightData.joint_line_pain ? `  Right: ${rightData.joint_line_pain} pain â€” ${rightInterp?.text || ''}` : null,
+      `• Thessaly Test`,
+      leftData.joint_line_pain ? `  Left: ${leftData.joint_line_pain} pain — ${leftInterp?.text || ''}` : null,
+      rightData.joint_line_pain ? `  Right: ${rightData.joint_line_pain} pain — ${rightInterp?.text || ''}` : null,
       notes ? `  Notes: ${notes}` : null,
     ].filter(Boolean).join('\n');
 
@@ -90,36 +90,36 @@ export default function ThessalyRunner({ onSave, onClose }) {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Info className="w-5 h-5 text-blue-600" />
-                  ðŸ“‹ Test Protocol & Administration
+                  📋 Test Protocol & Administration
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">
-                <p><strong>Standard version:</strong> Single-leg stance, knee flexed to <strong>20Â°</strong>. Clinician holds client's outstretched hands for balance only. Client rotates body and knee medially and laterally 3 times. Then repeat at <strong>5Â°</strong> flexion.</p>
+                <p><strong>Standard version:</strong> Single-leg stance, knee flexed to <strong>20°</strong>. Clinician holds client's outstretched hands for balance only. Client rotates body and knee medially and laterally 3 times. Then repeat at <strong>5°</strong> flexion.</p>
                 <p className="italic">"Stand on one leg with your knee slightly bent. Rotate your body left and right 3 times while keeping your foot flat."</p>
                 <p><strong>Positive:</strong> Joint-line pain (medial or lateral), locking, catching, or giving way during rotation. Pain location indicates which meniscus.</p>
-                <p><strong>Note:</strong> Requires good balance â€” not suitable if client cannot safely stand single-leg. Modified version with 5Â° shows higher sensitivity.</p>
+                <p><strong>Note:</strong> Requires good balance — not suitable if client cannot safely stand single-leg. Modified version with 5° shows higher sensitivity.</p>
               </CardContent>
             </Card>
 
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Diagnostic Accuracy</p>
+              <p className="font-semibold text-slate-700">📊 Diagnostic Accuracy</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Version</th><th className="p-2 text-center">Sensitivity</th><th className="p-2 text-center">Specificity</th></tr></thead>
                   <tbody>
-                    <tr className="border-t"><td className="p-2">20Â° knee flexion</td><td className="p-2 text-center">~66%</td><td className="p-2 text-center">~97%</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">5Â° knee flexion</td><td className="p-2 text-center">~89%</td><td className="p-2 text-center">~97%</td></tr>
+                    <tr className="border-t"><td className="p-2">20° knee flexion</td><td className="p-2 text-center">~66%</td><td className="p-2 text-center">~97%</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">5° knee flexion</td><td className="p-2 text-center">~89%</td><td className="p-2 text-center">~97%</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-slate-500">High specificity makes it useful to rule in meniscal tear. 5Â° version more sensitive. Source: Karachalios et al. (2005).</p>
+              <p className="text-xs text-slate-500">High specificity makes it useful to rule in meniscal tear. 5° version more sensitive. Source: Karachalios et al. (2005).</p>
             </div>
 
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>Karachalios T et al. (2005). Diagnostic accuracy of a new clinical test (the Thessaly test) for early detection of meniscal tears. <em>Journal of Bone and Joint Surgery (Am), 87</em>(5), 955â€“962.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Karachalios T et al. (2005). Diagnostic accuracy of a new clinical test (the Thessaly test) for early detection of meniscal tears. <em>Journal of Bone and Joint Surgery (Am), 87</em>(5), 955–962.</p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">

@@ -28,8 +28,8 @@ const PROBLEM_LIST = {
 
 function getInterpretation(score) {
   if (score <= 3) return { label: "Mild / No clinical concern", color: "text-green-700", bg: "bg-green-50 border-green-200", flag: false };
-  if (score <= 6) return { label: "Moderate distress â€” consider follow-up", color: "text-yellow-700", bg: "bg-yellow-50 border-yellow-200", flag: true };
-  return { label: "Severe distress â€” further assessment recommended", color: "text-red-700", bg: "bg-red-50 border-red-200", flag: true };
+  if (score <= 6) return { label: "Moderate distress — consider follow-up", color: "text-yellow-700", bg: "bg-yellow-50 border-yellow-200", flag: true };
+  return { label: "Severe distress — further assessment recommended", color: "text-red-700", bg: "bg-red-50 border-red-200", flag: true };
 }
 
 export default function DistressThermometerRunner({ client, onSave, onClose }) {
@@ -45,7 +45,7 @@ export default function DistressThermometerRunner({ client, onSave, onClose }) {
 
   const handleSave = () => {
     if (score === null) {
-      toast.error("Please select a distress score (0â€“10).");
+      toast.error("Please select a distress score (0–10).");
       return;
     }
 
@@ -57,8 +57,8 @@ export default function DistressThermometerRunner({ client, onSave, onClose }) {
       return acc;
     }, {});
 
-    let soapText = `â€¢ Distress Thermometer (NCCN):\n`;
-    soapText += `  Score: ${score}/10 â€” ${interp.label}\n`;
+    let soapText = `• Distress Thermometer (NCCN):\n`;
+    soapText += `  Score: ${score}/10 — ${interp.label}\n`;
     if (selectedProblems.length > 0) {
       soapText += `  Reported problems:\n`;
       Object.entries(problemsByCategory).forEach(([cat, items]) => {
@@ -101,14 +101,14 @@ export default function DistressThermometerRunner({ client, onSave, onClose }) {
           {/* Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm space-y-1">
             <p className="font-semibold text-blue-800">Clinician Instructions</p>
-            <p className="text-slate-700">Ask the client: <em>"Please circle the number (0â€“10) that best describes how much distress you have been experiencing in the past week, including today."</em></p>
+            <p className="text-slate-700">Ask the client: <em>"Please circle the number (0–10) that best describes how much distress you have been experiencing in the past week, including today."</em></p>
             <p className="text-slate-700">0 = No distress &nbsp;|&nbsp; 10 = Extreme distress</p>
-            <p className="text-slate-700 font-medium">Clinical cut-off: â‰¥4 indicates significant distress warranting further assessment.</p>
+            <p className="text-slate-700 font-medium">Clinical cut-off: ≥4 indicates significant distress warranting further assessment.</p>
           </div>
 
           {/* Visual thermometer scale */}
           <div>
-            <Label className="text-sm font-semibold mb-3 block">Select Distress Level (0â€“10):</Label>
+            <Label className="text-sm font-semibold mb-3 block">Select Distress Level (0–10):</Label>
             <div className="flex gap-2 flex-wrap">
               {Array.from({ length: 11 }, (_, i) => {
                 const color =
@@ -140,7 +140,7 @@ export default function DistressThermometerRunner({ client, onSave, onClose }) {
           {/* Score interpretation */}
           {interp && (
             <div className={`rounded-lg border p-3 ${interp.bg}`}>
-              <p className={`font-semibold ${interp.color}`}>Score {score}/10 â€” {interp.label}</p>
+              <p className={`font-semibold ${interp.color}`}>Score {score}/10 — {interp.label}</p>
             </div>
           )}
 

@@ -5,116 +5,116 @@ import { useNavigate } from "react-router-dom";
 
 // Icon map by funder tag
 const tagIcon = (tag) => {
-  const map = { "WorkCover": "ðŸ¦º", "WorkCover NSW": "ðŸ¦º", "WorkSafe VIC": "ðŸ¦º", "ReturnToWorkSA": "ðŸ¦º", "WorkCover WA": "ðŸ¦º", "DVA": "ðŸŽ–ï¸", "Medicare": "â¤ï¸", "NDIS": "â™¿", "TAC": "ðŸš—", "MAIC": "ðŸš—", "CTP": "ðŸš—", "Aged Care": "ðŸ‘´", "CHSP": "ðŸ‘´", "HCP": "ðŸ‘´", "Legal / FCE": "âš–ï¸", "Medico-Legal": "âš–ï¸", "Cancer": "ðŸŽ—ï¸", "Cardiac": "â¤ï¸", "GP / General": "ðŸ¥", "Private Health": "ðŸ¥", "ACC": "ðŸš—", "Disability": "â™¿", "WSIB": "ðŸ¦º", "WorkSafeBC": "ðŸ¦º", "WCB Alberta": "ðŸ¦º", "EHB": "ðŸ¥", "VAC": "ðŸŽ–ï¸", "NHS": "ðŸ¥", "Cardiac UK": "â¤ï¸", "Pulmonary": "ðŸ«", "Cancer UK": "ðŸŽ—ï¸", "PMI": "ðŸ¥", "RTW UK": "ðŸ¦º", "FCE UK": "âš–ï¸", "HealthierSG": "â¤ï¸", "CDMP": "â¤ï¸", "WICA": "ðŸ¦º", "Corporate": "ðŸ¥", "HSE": "ðŸ¥", "Cardiac IE": "â¤ï¸", "PIAB": "âš–ï¸", "Private IE": "ðŸ¥", "Medical Aid": "ðŸ¥", "COIDA": "ðŸ¦º", "RAF": "ðŸš—", "GEMS": "ðŸ¥" };
-  return map[tag] || "ðŸ“„";
+  const map = { "WorkCover": "🦺", "WorkCover NSW": "🦺", "WorkSafe VIC": "🦺", "ReturnToWorkSA": "🦺", "WorkCover WA": "🦺", "DVA": "🎖ï¸", "Medicare": "â¤ï¸", "NDIS": "♿", "TAC": "🚗", "MAIC": "🚗", "CTP": "🚗", "Aged Care": "👴", "CHSP": "👴", "HCP": "👴", "Legal / FCE": "⚖ï¸", "Medico-Legal": "⚖ï¸", "Cancer": "🎗ï¸", "Cardiac": "â¤ï¸", "GP / General": "ðŸ¥", "Private Health": "ðŸ¥", "ACC": "🚗", "Disability": "♿", "WSIB": "🦺", "WorkSafeBC": "🦺", "WCB Alberta": "🦺", "EHB": "ðŸ¥", "VAC": "🎖ï¸", "NHS": "ðŸ¥", "Cardiac UK": "â¤ï¸", "Pulmonary": "ðŸ«", "Cancer UK": "🎗ï¸", "PMI": "ðŸ¥", "RTW UK": "🦺", "FCE UK": "⚖ï¸", "HealthierSG": "â¤ï¸", "CDMP": "â¤ï¸", "WICA": "🦺", "Corporate": "ðŸ¥", "HSE": "ðŸ¥", "Cardiac IE": "â¤ï¸", "PIAB": "⚖ï¸", "Private IE": "ðŸ¥", "Medical Aid": "ðŸ¥", "COIDA": "🦺", "RAF": "🚗", "GEMS": "ðŸ¥" };
+  return map[tag] || "📄";
 };
 
 const countryData = {
   au: [
     { icon: "ðŸ¥", tag: "GP / General", title: "GP Summary Letter", desc: "Brief update to referring GP summarising interventions and next steps." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update or additional report â€” pulls all prior history." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom formatted report â€” choose any sections and tailor to any referrer or funder." },
-    { icon: "ðŸ¦º", tag: "WorkCover", title: "WorkCover PMP", desc: "Pain management program report documenting injury background, functional capacity, goals, and RTW plan." },
-    { icon: "ðŸ¦º", tag: "WorkCover", title: "WorkCover Progress Report", desc: "Interval progress report with baseline vs current outcome measures and updated RTW recommendations." },
-    { icon: "ðŸ¦º", tag: "WorkCover", title: "WorkCover Discharge / RTW Summary", desc: "Final RTW summary including treatment outcomes, final work capacity, and self-management plan." },
-    { icon: "ðŸ¦º", tag: "WorkCover NSW", title: "NSW SIRA Initial Assessment", desc: "SIRA-aligned initial assessment documenting injury background, functional capacity, and RTW plan." },
-    { icon: "ðŸ¦º", tag: "WorkCover NSW", title: "NSW SIRA â€” Allied Health Treatment Request (AHTR)", desc: "Formal treatment extension request with outcome measures and skilled need justification." },
-    { icon: "ðŸ¦º", tag: "WorkCover NSW", title: "NSW SIRA Progress Report", desc: "Progress report for icare/SIRA-funded clients with functional test results and RTW updates." },
-    { icon: "ðŸ¦º", tag: "WorkCover NSW", title: "NSW SIRA Discharge Summary", desc: "Discharge report documenting final functional capacity and RTW outcome." },
-    { icon: "ðŸ¦º", tag: "WorkSafe VIC", title: "WorkSafe VIC Initial Assessment", desc: "Initial WorkSafe VIC assessment documenting injury, functional baselines, and RTW plan." },
-    { icon: "ðŸ¦º", tag: "WorkSafe VIC", title: "WorkSafe VIC Progress Report", desc: "Progress report with outcome measures and updated RTW recommendations for WorkSafe VIC funders." },
-    { icon: "ðŸ¦º", tag: "WorkSafe VIC", title: "WorkSafe VIC Discharge Summary", desc: "Discharge summary with final functional status and RTW outcome for WorkSafe VIC." },
-    { icon: "ðŸ¦º", tag: "ReturnToWorkSA", title: "ReturnToWorkSA Initial Assessment", desc: "RTWSA-aligned initial assessment with functional measures and recovery/RTW plan." },
-    { icon: "ðŸ¦º", tag: "ReturnToWorkSA", title: "ReturnToWorkSA Progress Report", desc: "Progress report for RTWSA-funded clients with outcome measures and RTW updates." },
-    { icon: "ðŸ¦º", tag: "ReturnToWorkSA", title: "ReturnToWorkSA Discharge Summary", desc: "Final discharge summary for RTWSA clients." },
-    { icon: "ðŸ¦º", tag: "WorkCover WA", title: "WorkCover WA Initial Assessment", desc: "Initial assessment for WorkCover WA-funded clients documenting injury, capacity, and RTW plan." },
-    { icon: "ðŸ¦º", tag: "WorkCover WA", title: "WorkCover WA Progress Report", desc: "Progress report with functional measures and RTW updates for WorkCover WA." },
-    { icon: "ðŸ¦º", tag: "WorkCover WA", title: "WorkCover WA Discharge Summary", desc: "Final discharge summary for WorkCover WA clients." },
-    { icon: "ðŸŽ–ï¸", tag: "DVA", title: "DVA Patient Care Plan", desc: "DVA-compliant care plan with accepted conditions, goals, and proposed exercise intervention." },
-    { icon: "ðŸŽ–ï¸", tag: "DVA", title: "DVA End of Cycle Report", desc: "End-of-cycle progress report with outcome measures and justification for further treatment." },
+    { icon: "📄", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update or additional report — pulls all prior history." },
+    { icon: "📄", tag: "GP / General", title: "Custom Report", desc: "Custom formatted report — choose any sections and tailor to any referrer or funder." },
+    { icon: "🦺", tag: "WorkCover", title: "WorkCover PMP", desc: "Pain management program report documenting injury background, functional capacity, goals, and RTW plan." },
+    { icon: "🦺", tag: "WorkCover", title: "WorkCover Progress Report", desc: "Interval progress report with baseline vs current outcome measures and updated RTW recommendations." },
+    { icon: "🦺", tag: "WorkCover", title: "WorkCover Discharge / RTW Summary", desc: "Final RTW summary including treatment outcomes, final work capacity, and self-management plan." },
+    { icon: "🦺", tag: "WorkCover NSW", title: "NSW SIRA Initial Assessment", desc: "SIRA-aligned initial assessment documenting injury background, functional capacity, and RTW plan." },
+    { icon: "🦺", tag: "WorkCover NSW", title: "NSW SIRA — Allied Health Treatment Request (AHTR)", desc: "Formal treatment extension request with outcome measures and skilled need justification." },
+    { icon: "🦺", tag: "WorkCover NSW", title: "NSW SIRA Progress Report", desc: "Progress report for icare/SIRA-funded clients with functional test results and RTW updates." },
+    { icon: "🦺", tag: "WorkCover NSW", title: "NSW SIRA Discharge Summary", desc: "Discharge report documenting final functional capacity and RTW outcome." },
+    { icon: "🦺", tag: "WorkSafe VIC", title: "WorkSafe VIC Initial Assessment", desc: "Initial WorkSafe VIC assessment documenting injury, functional baselines, and RTW plan." },
+    { icon: "🦺", tag: "WorkSafe VIC", title: "WorkSafe VIC Progress Report", desc: "Progress report with outcome measures and updated RTW recommendations for WorkSafe VIC funders." },
+    { icon: "🦺", tag: "WorkSafe VIC", title: "WorkSafe VIC Discharge Summary", desc: "Discharge summary with final functional status and RTW outcome for WorkSafe VIC." },
+    { icon: "🦺", tag: "ReturnToWorkSA", title: "ReturnToWorkSA Initial Assessment", desc: "RTWSA-aligned initial assessment with functional measures and recovery/RTW plan." },
+    { icon: "🦺", tag: "ReturnToWorkSA", title: "ReturnToWorkSA Progress Report", desc: "Progress report for RTWSA-funded clients with outcome measures and RTW updates." },
+    { icon: "🦺", tag: "ReturnToWorkSA", title: "ReturnToWorkSA Discharge Summary", desc: "Final discharge summary for RTWSA clients." },
+    { icon: "🦺", tag: "WorkCover WA", title: "WorkCover WA Initial Assessment", desc: "Initial assessment for WorkCover WA-funded clients documenting injury, capacity, and RTW plan." },
+    { icon: "🦺", tag: "WorkCover WA", title: "WorkCover WA Progress Report", desc: "Progress report with functional measures and RTW updates for WorkCover WA." },
+    { icon: "🦺", tag: "WorkCover WA", title: "WorkCover WA Discharge Summary", desc: "Final discharge summary for WorkCover WA clients." },
+    { icon: "🎖ï¸", tag: "DVA", title: "DVA Patient Care Plan", desc: "DVA-compliant care plan with accepted conditions, goals, and proposed exercise intervention." },
+    { icon: "🎖ï¸", tag: "DVA", title: "DVA End of Cycle Report", desc: "End-of-cycle progress report with outcome measures and justification for further treatment." },
     { icon: "â¤ï¸", tag: "Medicare", title: "Medicare Referral Acceptance", desc: "Referral acceptance letter for Medicare CDM-referred clients." },
     { icon: "â¤ï¸", tag: "Medicare", title: "Medicare Initial Assessment (GPCCMP)", desc: "Initial assessment report for Medicare-referred chronic disease clients with exercise prescription." },
     { icon: "â¤ï¸", tag: "Medicare", title: "Medicare Final Report", desc: "End-of-referral report with goal attainment and GP discharge communication." },
     { icon: "ðŸ¥", tag: "Private Health", title: "Private Health Initial Assessment", desc: "Initial assessment for private health-funded clients with diagnosis, goals, and treatment plan." },
     { icon: "ðŸ¥", tag: "Private Health", title: "Private Health Progress Report", desc: "Progress report for private health clients documenting outcomes and updated goals." },
-    { icon: "â™¿", tag: "NDIS", title: "NDIS Initial Assessment", desc: "Comprehensive NDIS initial report across 7 functional domains with support justification." },
-    { icon: "â™¿", tag: "NDIS", title: "NDIS Progress Report", desc: "NDIS goal-aligned progress report with functional domain updates and support recommendations." },
-    { icon: "â™¿", tag: "NDIS", title: "NDIS Functional Capacity Evaluation", desc: "Detailed NDIS FCE documenting capacity across all 7 domains with AT recommendations." },
-    { icon: "â™¿", tag: "NDIS", title: "NDIS Discharge / Transition Summary", desc: "NDIS discharge report with outcomes, self-management plan, and future support recommendations." },
-    { icon: "ðŸš—", tag: "TAC", title: "TAC Allied Health Treatment & Recovery Plan (AHTRP)", desc: "TAC-aligned functional assessment with accident background, functional tolerances, and treatment plan." },
-    { icon: "ðŸš—", tag: "TAC", title: "TAC Progress Report", desc: "TAC progress report with outcome measures and justification for continued treatment." },
-    { icon: "ðŸš—", tag: "TAC", title: "TAC Discharge Summary", desc: "TAC discharge summary with final functional status and RTW/return-to-activity outcome." },
-    { icon: "ðŸš—", tag: "MAIC", title: "MAIC QLD Initial Assessment", desc: "Initial report for MAIC QLD motor accident clients documenting injury, functional status, and treatment plan." },
-    { icon: "ðŸš—", tag: "MAIC", title: "MAIC QLD Progress Report", desc: "Progress report for MAIC-funded clients with functional outcomes and updated goals." },
-    { icon: "ðŸš—", tag: "MAIC", title: "MAIC QLD Discharge Summary", desc: "Discharge summary for MAIC motor accident clients." },
-    { icon: "ðŸš—", tag: "CTP", title: "CTP Motor Accident â€” Initial Assessment", desc: "Initial report for CTP motor accident clients with functional assessment and treatment plan." },
-    { icon: "ðŸš—", tag: "CTP", title: "CTP Motor Accident â€” Progress Report", desc: "Progress report for CTP-funded clients with outcome measures and goals update." },
-    { icon: "ðŸš—", tag: "CTP", title: "CTP Motor Accident â€” Discharge Summary", desc: "Discharge summary for CTP motor accident clients." },
-    { icon: "ðŸ‘´", tag: "HCP", title: "Home Care Package â€” Initial Functional Assessment", desc: "HCP initial assessment including falls risk, ADL capacity, mobility, and goals." },
-    { icon: "ðŸ‘´", tag: "HCP", title: "Home Care Package â€” Individual Care Plan", desc: "HCP care plan with service types, exercise program, and review schedule." },
-    { icon: "ðŸ‘´", tag: "HCP", title: "Home Care Package â€” Annual Review", desc: "Annual HCP review comparing functional outcomes and updating the service plan." },
-    { icon: "ðŸ‘´", tag: "CHSP", title: "CHSP Initial Assessment", desc: "CHSP initial assessment with falls risk, ADL capacity, and support plan." },
-    { icon: "ðŸ‘´", tag: "CHSP", title: "CHSP Support Plan", desc: "CHSP support plan with service goals, frequency, and client consent." },
-    { icon: "ðŸ‘´", tag: "Aged Care", title: "Aged Care Assessment", desc: "Comprehensive aged care assessment with functional status, falls risk, cognition screening, and management plan." },
-    { icon: "âš–ï¸", tag: "Legal / FCE", title: "Functional Capacity Evaluation (FCE)", desc: "Detailed medicolegal FCE documenting postural tolerances, material handling, validity indicators, and RTW recommendations." },
-    { icon: "âš–ï¸", tag: "Medico-Legal", title: "Medico-Legal / Independent Medical Report", desc: "Independent medico-legal report with causation analysis, diagnosis, functional limitations, and responses to legal questions." },
-    { icon: "ðŸŽ—ï¸", tag: "Cancer", title: "Cancer / Oncology â€” Initial Assessment", desc: "Oncology initial assessment with cancer type, treatment status, side effects, exercise precautions, and prescription." },
-    { icon: "ðŸŽ—ï¸", tag: "Cancer", title: "Cancer / Oncology â€” Progress Report", desc: "Progress report for cancer rehab clients with outcome measures and updated exercise prescription." },
-    { icon: "â¤ï¸", tag: "Cardiac", title: "Cardiac Rehab â€” Phase I (Inpatient)", desc: "Inpatient cardiac rehab report with event summary, activity progression, education, and Phase II recommendations." },
-    { icon: "â¤ï¸", tag: "Cardiac", title: "Cardiac Rehab â€” Phase II (Outpatient)", desc: "Outpatient cardiac rehab report with risk stratification, exercise prescription, and outcome measures." },
-    { icon: "â¤ï¸", tag: "Cardiac", title: "Cardiac Rehab â€” Phase III Completion Report", desc: "Phase III completion report with exercise capacity change, risk factor improvements, and maintenance recommendations." },
-    { icon: "â¤ï¸", tag: "Cardiac", title: "Cardiac Rehab â€” Phase IV Referral Letter", desc: "Phase IV referral letter summarising outcomes and recommended community maintenance exercise parameters." },
+    { icon: "♿", tag: "NDIS", title: "NDIS Initial Assessment", desc: "Comprehensive NDIS initial report across 7 functional domains with support justification." },
+    { icon: "♿", tag: "NDIS", title: "NDIS Progress Report", desc: "NDIS goal-aligned progress report with functional domain updates and support recommendations." },
+    { icon: "♿", tag: "NDIS", title: "NDIS Functional Capacity Evaluation", desc: "Detailed NDIS FCE documenting capacity across all 7 domains with AT recommendations." },
+    { icon: "♿", tag: "NDIS", title: "NDIS Discharge / Transition Summary", desc: "NDIS discharge report with outcomes, self-management plan, and future support recommendations." },
+    { icon: "🚗", tag: "TAC", title: "TAC Allied Health Treatment & Recovery Plan (AHTRP)", desc: "TAC-aligned functional assessment with accident background, functional tolerances, and treatment plan." },
+    { icon: "🚗", tag: "TAC", title: "TAC Progress Report", desc: "TAC progress report with outcome measures and justification for continued treatment." },
+    { icon: "🚗", tag: "TAC", title: "TAC Discharge Summary", desc: "TAC discharge summary with final functional status and RTW/return-to-activity outcome." },
+    { icon: "🚗", tag: "MAIC", title: "MAIC QLD Initial Assessment", desc: "Initial report for MAIC QLD motor accident clients documenting injury, functional status, and treatment plan." },
+    { icon: "🚗", tag: "MAIC", title: "MAIC QLD Progress Report", desc: "Progress report for MAIC-funded clients with functional outcomes and updated goals." },
+    { icon: "🚗", tag: "MAIC", title: "MAIC QLD Discharge Summary", desc: "Discharge summary for MAIC motor accident clients." },
+    { icon: "🚗", tag: "CTP", title: "CTP Motor Accident — Initial Assessment", desc: "Initial report for CTP motor accident clients with functional assessment and treatment plan." },
+    { icon: "🚗", tag: "CTP", title: "CTP Motor Accident — Progress Report", desc: "Progress report for CTP-funded clients with outcome measures and goals update." },
+    { icon: "🚗", tag: "CTP", title: "CTP Motor Accident — Discharge Summary", desc: "Discharge summary for CTP motor accident clients." },
+    { icon: "👴", tag: "HCP", title: "Home Care Package — Initial Functional Assessment", desc: "HCP initial assessment including falls risk, ADL capacity, mobility, and goals." },
+    { icon: "👴", tag: "HCP", title: "Home Care Package — Individual Care Plan", desc: "HCP care plan with service types, exercise program, and review schedule." },
+    { icon: "👴", tag: "HCP", title: "Home Care Package — Annual Review", desc: "Annual HCP review comparing functional outcomes and updating the service plan." },
+    { icon: "👴", tag: "CHSP", title: "CHSP Initial Assessment", desc: "CHSP initial assessment with falls risk, ADL capacity, and support plan." },
+    { icon: "👴", tag: "CHSP", title: "CHSP Support Plan", desc: "CHSP support plan with service goals, frequency, and client consent." },
+    { icon: "👴", tag: "Aged Care", title: "Aged Care Assessment", desc: "Comprehensive aged care assessment with functional status, falls risk, cognition screening, and management plan." },
+    { icon: "⚖ï¸", tag: "Legal / FCE", title: "Functional Capacity Evaluation (FCE)", desc: "Detailed medicolegal FCE documenting postural tolerances, material handling, validity indicators, and RTW recommendations." },
+    { icon: "⚖ï¸", tag: "Medico-Legal", title: "Medico-Legal / Independent Medical Report", desc: "Independent medico-legal report with causation analysis, diagnosis, functional limitations, and responses to legal questions." },
+    { icon: "🎗ï¸", tag: "Cancer", title: "Cancer / Oncology — Initial Assessment", desc: "Oncology initial assessment with cancer type, treatment status, side effects, exercise precautions, and prescription." },
+    { icon: "🎗ï¸", tag: "Cancer", title: "Cancer / Oncology — Progress Report", desc: "Progress report for cancer rehab clients with outcome measures and updated exercise prescription." },
+    { icon: "â¤ï¸", tag: "Cardiac", title: "Cardiac Rehab — Phase I (Inpatient)", desc: "Inpatient cardiac rehab report with event summary, activity progression, education, and Phase II recommendations." },
+    { icon: "â¤ï¸", tag: "Cardiac", title: "Cardiac Rehab — Phase II (Outpatient)", desc: "Outpatient cardiac rehab report with risk stratification, exercise prescription, and outcome measures." },
+    { icon: "â¤ï¸", tag: "Cardiac", title: "Cardiac Rehab — Phase III Completion Report", desc: "Phase III completion report with exercise capacity change, risk factor improvements, and maintenance recommendations." },
+    { icon: "â¤ï¸", tag: "Cardiac", title: "Cardiac Rehab — Phase IV Referral Letter", desc: "Phase IV referral letter summarising outcomes and recommended community maintenance exercise parameters." },
   ],
   nz: [
-    { icon: "ðŸš—", tag: "ACC", title: "ACC â€” Initial Assessment Report", desc: "ACC-aligned initial report documenting injury background, assessment findings, goals, and proposed treatment plan." },
-    { icon: "ðŸš—", tag: "ACC", title: "ACC â€” Progress Report (ACC32 Extension)", desc: "Progress report for ACC extension requests with outcome measures and treatment justification." },
-    { icon: "ðŸš—", tag: "ACC", title: "ACC â€” Functional Capacity Evaluation (FCE)", desc: "FCE for ACC clients documenting physical tolerances, work capacity, and RTW recommendations." },
-    { icon: "ðŸš—", tag: "ACC", title: "ACC â€” Discharge / Completion Summary", desc: "Discharge summary for ACC clients with functional outcomes and home programme." },
-    { icon: "â™¿", tag: "Disability", title: "Disability Support â€” Functional Assessment", desc: "Whaikaha/MoH-aligned functional assessment documenting support needs across ADL domains." },
-    { icon: "ðŸ¥", tag: "Private Health", title: "Private Insurance â€” Initial Assessment", desc: "Initial assessment report for NZ private insurance-funded clients." },
-    { icon: "ðŸ¥", tag: "Private Health", title: "Private Insurance â€” Progress Report", desc: "Progress report for NZ private insurance clients with outcomes and justification for continued sessions." },
+    { icon: "🚗", tag: "ACC", title: "ACC — Initial Assessment Report", desc: "ACC-aligned initial report documenting injury background, assessment findings, goals, and proposed treatment plan." },
+    { icon: "🚗", tag: "ACC", title: "ACC — Progress Report (ACC32 Extension)", desc: "Progress report for ACC extension requests with outcome measures and treatment justification." },
+    { icon: "🚗", tag: "ACC", title: "ACC — Functional Capacity Evaluation (FCE)", desc: "FCE for ACC clients documenting physical tolerances, work capacity, and RTW recommendations." },
+    { icon: "🚗", tag: "ACC", title: "ACC — Discharge / Completion Summary", desc: "Discharge summary for ACC clients with functional outcomes and home programme." },
+    { icon: "♿", tag: "Disability", title: "Disability Support — Functional Assessment", desc: "Whaikaha/MoH-aligned functional assessment documenting support needs across ADL domains." },
+    { icon: "ðŸ¥", tag: "Private Health", title: "Private Insurance — Initial Assessment", desc: "Initial assessment report for NZ private insurance-funded clients." },
+    { icon: "ðŸ¥", tag: "Private Health", title: "Private Insurance — Progress Report", desc: "Progress report for NZ private insurance clients with outcomes and justification for continued sessions." },
     { icon: "ðŸ¥", tag: "GP / General", title: "GP Summary Letter", desc: "Professional GP correspondence summarising EP assessment findings and intervention." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for NZ clients." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom formatted report for any NZ funder or referrer." },
+    { icon: "📄", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for NZ clients." },
+    { icon: "📄", tag: "GP / General", title: "Custom Report", desc: "Custom formatted report for any NZ funder or referrer." },
   ],
   uk: [
-    { icon: "ðŸ¥", tag: "NHS", title: "NHS ERS â€” Initial Assessment", desc: "NHS Exercise Referral Scheme initial assessment with risk stratification, fitness baseline, and exercise prescription." },
-    { icon: "ðŸ¥", tag: "NHS", title: "NHS ERS â€” Progress Report", desc: "NHS ERS mid-programme progress report with attendance, outcome measures, and goals update." },
-    { icon: "ðŸ¥", tag: "NHS", title: "NHS ERS â€” Completion / Discharge Report", desc: "NHS ERS end-of-programme report with exercise capacity change and ongoing activity recommendations." },
-    { icon: "â¤ï¸", tag: "Cardiac UK", title: "Cardiac Rehab â€” Initial Clinical Assessment", desc: "UK cardiac rehab initial assessment with BACPR/SIGN risk stratification, exercise tolerance, and Phase II prescription." },
-    { icon: "â¤ï¸", tag: "Cardiac UK", title: "Cardiac Rehab â€” Phase III Completion Report", desc: "UK cardiac rehab completion report with outcomes, risk factor improvements, and Phase IV referral." },
-    { icon: "ðŸ«", tag: "Pulmonary", title: "Pulmonary Rehab â€” Initial Assessment", desc: "UK pulmonary rehab assessment with spirometry, MRC dyspnoea, ISWT/6MWT, and SGRQ/CAT." },
-    { icon: "ðŸ«", tag: "Pulmonary", title: "Pulmonary Rehab â€” Completion Report", desc: "UK pulmonary rehab completion with exercise capacity change and maintenance recommendations." },
-    { icon: "ðŸŽ—ï¸", tag: "Cancer UK", title: "Cancer Rehab â€” Initial Exercise Assessment", desc: "UK cancer rehab initial report with HNA summary, fitness baseline, and exercise prescription." },
-    { icon: "ðŸŽ—ï¸", tag: "Cancer UK", title: "Cancer Rehab â€” Progress Report", desc: "UK cancer rehab progress report with attendance, outcomes, and updated exercise tolerance." },
-    { icon: "ðŸŽ—ï¸", tag: "Cancer UK", title: "Cancer Rehab â€” End-of-Programme Report", desc: "UK cancer rehab end-of-programme with outcomes, wellbeing results, and onward referral." },
-    { icon: "ðŸ¥", tag: "PMI", title: "PMI â€” Initial Assessment / Consultation Report", desc: "UK private medical insurance initial report with clinical justification for treatment." },
-    { icon: "ðŸ¥", tag: "PMI", title: "PMI â€” Progress Report", desc: "PMI progress report with outcome measures and justification for continued treatment." },
-    { icon: "ðŸ¥", tag: "PMI", title: "PMI â€” Discharge Report", desc: "PMI discharge report with treatment outcomes and home programme." },
-    { icon: "âš–ï¸", tag: "FCE UK", title: "FCE / Work Capacity Assessment", desc: "UK work capacity assessment documenting functional tolerances, validity indicators, and RTW recommendations." },
-    { icon: "ðŸ¦º", tag: "RTW UK", title: "Return to Work Progress Report", desc: "UK RTW progress report with current functional status, work capacity, and graded RTW plan." },
+    { icon: "ðŸ¥", tag: "NHS", title: "NHS ERS — Initial Assessment", desc: "NHS Exercise Referral Scheme initial assessment with risk stratification, fitness baseline, and exercise prescription." },
+    { icon: "ðŸ¥", tag: "NHS", title: "NHS ERS — Progress Report", desc: "NHS ERS mid-programme progress report with attendance, outcome measures, and goals update." },
+    { icon: "ðŸ¥", tag: "NHS", title: "NHS ERS — Completion / Discharge Report", desc: "NHS ERS end-of-programme report with exercise capacity change and ongoing activity recommendations." },
+    { icon: "â¤ï¸", tag: "Cardiac UK", title: "Cardiac Rehab — Initial Clinical Assessment", desc: "UK cardiac rehab initial assessment with BACPR/SIGN risk stratification, exercise tolerance, and Phase II prescription." },
+    { icon: "â¤ï¸", tag: "Cardiac UK", title: "Cardiac Rehab — Phase III Completion Report", desc: "UK cardiac rehab completion report with outcomes, risk factor improvements, and Phase IV referral." },
+    { icon: "ðŸ«", tag: "Pulmonary", title: "Pulmonary Rehab — Initial Assessment", desc: "UK pulmonary rehab assessment with spirometry, MRC dyspnoea, ISWT/6MWT, and SGRQ/CAT." },
+    { icon: "ðŸ«", tag: "Pulmonary", title: "Pulmonary Rehab — Completion Report", desc: "UK pulmonary rehab completion with exercise capacity change and maintenance recommendations." },
+    { icon: "🎗ï¸", tag: "Cancer UK", title: "Cancer Rehab — Initial Exercise Assessment", desc: "UK cancer rehab initial report with HNA summary, fitness baseline, and exercise prescription." },
+    { icon: "🎗ï¸", tag: "Cancer UK", title: "Cancer Rehab — Progress Report", desc: "UK cancer rehab progress report with attendance, outcomes, and updated exercise tolerance." },
+    { icon: "🎗ï¸", tag: "Cancer UK", title: "Cancer Rehab — End-of-Programme Report", desc: "UK cancer rehab end-of-programme with outcomes, wellbeing results, and onward referral." },
+    { icon: "ðŸ¥", tag: "PMI", title: "PMI — Initial Assessment / Consultation Report", desc: "UK private medical insurance initial report with clinical justification for treatment." },
+    { icon: "ðŸ¥", tag: "PMI", title: "PMI — Progress Report", desc: "PMI progress report with outcome measures and justification for continued treatment." },
+    { icon: "ðŸ¥", tag: "PMI", title: "PMI — Discharge Report", desc: "PMI discharge report with treatment outcomes and home programme." },
+    { icon: "⚖ï¸", tag: "FCE UK", title: "FCE / Work Capacity Assessment", desc: "UK work capacity assessment documenting functional tolerances, validity indicators, and RTW recommendations." },
+    { icon: "🦺", tag: "RTW UK", title: "Return to Work Progress Report", desc: "UK RTW progress report with current functional status, work capacity, and graded RTW plan." },
     { icon: "ðŸ¥", tag: "GP / General", title: "GP / Specialist Summary Letter", desc: "UK GP correspondence summarising assessment findings and intervention." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for UK clients." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom report for any UK funder or referrer." },
+    { icon: "📄", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for UK clients." },
+    { icon: "📄", tag: "GP / General", title: "Custom Report", desc: "Custom report for any UK funder or referrer." },
   ],
   ca: [
-    { icon: "ðŸ¦º", tag: "WSIB", title: "WSIB â€” Initial Assessment Report", desc: "WSIB Ontario initial report with mechanism of injury, functional limitations, diagnosis, and RTW recommendations." },
-    { icon: "ðŸ¦º", tag: "WSIB", title: "WSIB â€” Functional Abilities Form (FAF)", desc: "WSIB FAF documenting physical tolerances, work status, restrictions, and expected return date." },
-    { icon: "ðŸ¦º", tag: "WSIB", title: "WSIB â€” Progress Report", desc: "WSIB progress report with outcome measures, functional progress, and goals update." },
-    { icon: "ðŸ¦º", tag: "WSIB", title: "WSIB â€” Return-to-Work Summary", desc: "WSIB RTW discharge summary with final capacity, remaining restrictions, and employer recommendations." },
-    { icon: "ðŸ¦º", tag: "WorkSafeBC", title: "WorkSafeBC â€” Initial Assessment", desc: "WorkSafeBC initial report documenting claim details, functional assessment, and RTW plan." },
-    { icon: "ðŸ¦º", tag: "WorkSafeBC", title: "WorkSafeBC â€” Functional Capacity Assessment (FCA)", desc: "WorkSafeBC FCA with testing results, work tolerances, and disability rating recommendations." },
-    { icon: "ðŸ¦º", tag: "WorkSafeBC", title: "WorkSafeBC â€” Progress Report", desc: "Progress report for WorkSafeBC-funded clients with functional outcomes and updated plan." },
-    { icon: "ðŸ¦º", tag: "WCB Alberta", title: "WCB Alberta â€” Initial Assessment", desc: "WCB Alberta initial assessment documenting injury, capacity, diagnosis, and RTW plan." },
-    { icon: "ðŸ¦º", tag: "WCB Alberta", title: "WCB Alberta â€” Functional Capacity Evaluation (FCE)", desc: "WCB Alberta FCE with physical demands classification, validity indicators, and RTW recommendations." },
-    { icon: "ðŸ¦º", tag: "WCB Alberta", title: "WCB Alberta â€” Progress Report", desc: "Progress report for WCB Alberta clients with outcome measures and work capacity update." },
-    { icon: "ðŸ¥", tag: "EHB", title: "Extended Health Benefits â€” Initial Assessment", desc: "EHB initial report with assessment findings, diagnosis, and clinical justification for treatment." },
-    { icon: "ðŸ¥", tag: "EHB", title: "Extended Health Benefits â€” Progress Report", desc: "EHB progress report with outcome measures and justification for continued sessions." },
-    { icon: "ðŸŽ–ï¸", tag: "VAC", title: "Veterans Affairs Canada â€” Initial Assessment", desc: "VAC initial assessment with service-related history, functional limitations, and rehabilitation plan." },
-    { icon: "ðŸŽ–ï¸", tag: "VAC", title: "Veterans Affairs Canada â€” Progress Report", desc: "VAC progress report aligned to rehabilitation goals with functional outcomes update." },
+    { icon: "🦺", tag: "WSIB", title: "WSIB — Initial Assessment Report", desc: "WSIB Ontario initial report with mechanism of injury, functional limitations, diagnosis, and RTW recommendations." },
+    { icon: "🦺", tag: "WSIB", title: "WSIB — Functional Abilities Form (FAF)", desc: "WSIB FAF documenting physical tolerances, work status, restrictions, and expected return date." },
+    { icon: "🦺", tag: "WSIB", title: "WSIB — Progress Report", desc: "WSIB progress report with outcome measures, functional progress, and goals update." },
+    { icon: "🦺", tag: "WSIB", title: "WSIB — Return-to-Work Summary", desc: "WSIB RTW discharge summary with final capacity, remaining restrictions, and employer recommendations." },
+    { icon: "🦺", tag: "WorkSafeBC", title: "WorkSafeBC — Initial Assessment", desc: "WorkSafeBC initial report documenting claim details, functional assessment, and RTW plan." },
+    { icon: "🦺", tag: "WorkSafeBC", title: "WorkSafeBC — Functional Capacity Assessment (FCA)", desc: "WorkSafeBC FCA with testing results, work tolerances, and disability rating recommendations." },
+    { icon: "🦺", tag: "WorkSafeBC", title: "WorkSafeBC — Progress Report", desc: "Progress report for WorkSafeBC-funded clients with functional outcomes and updated plan." },
+    { icon: "🦺", tag: "WCB Alberta", title: "WCB Alberta — Initial Assessment", desc: "WCB Alberta initial assessment documenting injury, capacity, diagnosis, and RTW plan." },
+    { icon: "🦺", tag: "WCB Alberta", title: "WCB Alberta — Functional Capacity Evaluation (FCE)", desc: "WCB Alberta FCE with physical demands classification, validity indicators, and RTW recommendations." },
+    { icon: "🦺", tag: "WCB Alberta", title: "WCB Alberta — Progress Report", desc: "Progress report for WCB Alberta clients with outcome measures and work capacity update." },
+    { icon: "ðŸ¥", tag: "EHB", title: "Extended Health Benefits — Initial Assessment", desc: "EHB initial report with assessment findings, diagnosis, and clinical justification for treatment." },
+    { icon: "ðŸ¥", tag: "EHB", title: "Extended Health Benefits — Progress Report", desc: "EHB progress report with outcome measures and justification for continued sessions." },
+    { icon: "🎖ï¸", tag: "VAC", title: "Veterans Affairs Canada — Initial Assessment", desc: "VAC initial assessment with service-related history, functional limitations, and rehabilitation plan." },
+    { icon: "🎖ï¸", tag: "VAC", title: "Veterans Affairs Canada — Progress Report", desc: "VAC progress report aligned to rehabilitation goals with functional outcomes update." },
     { icon: "ðŸ¥", tag: "GP / General", title: "GP Summary Letter", desc: "Professional GP correspondence summarising EP assessment and intervention." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for Canadian clients." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom report for any Canadian funder or referrer." },
+    { icon: "📄", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for Canadian clients." },
+    { icon: "📄", tag: "GP / General", title: "Custom Report", desc: "Custom report for any Canadian funder or referrer." },
   ],
   us: [
     { icon: "ðŸ¥", tag: "USA", title: "Initial Evaluation / Examination", desc: "ACSM-aligned initial evaluation with subjective/objective findings, goals, and plan of care." },
@@ -123,63 +123,63 @@ const countryData = {
     { icon: "ðŸ¥", tag: "USA", title: "Discharge Summary", desc: "Discharge report with goal attainment, functional status, home programme, and referral recommendations." },
     { icon: "ðŸ¥", tag: "USA", title: "Prior Authorization / Medical Necessity", desc: "Prior auth packet with clinical summary, objective findings, goal rationale, and skilled need justification." },
     { icon: "ðŸ¥", tag: "GP / General", title: "GP Summary Letter", desc: "Physician correspondence summarising EP assessment and intervention." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for US clients." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom report for any US insurer, hospital, or referrer." },
+    { icon: "📄", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for US clients." },
+    { icon: "📄", tag: "GP / General", title: "Custom Report", desc: "Custom report for any US insurer, hospital, or referrer." },
   ],
   ie: [
-    { icon: "ðŸ¥", tag: "HSE", title: "HSE â€” Initial Assessment Report", desc: "HSE programme initial assessment with risk stratification, baseline assessment, and exercise prescription." },
-    { icon: "ðŸ¥", tag: "HSE", title: "HSE â€” Progress Review Report", desc: "HSE mid-programme progress review with attendance, outcomes, and updated plan." },
-    { icon: "ðŸ¥", tag: "HSE", title: "HSE â€” Discharge Summary", desc: "HSE discharge summary with programme outcomes and maintenance recommendations." },
-    { icon: "â¤ï¸", tag: "Cardiac IE", title: "Cardiac Rehab â€” Initial Assessment (Ireland)", desc: "Irish cardiac rehab initial assessment with cardiovascular risk factors, exercise assessment, and Phase II prescription." },
-    { icon: "â¤ï¸", tag: "Cardiac IE", title: "Cardiac Rehab â€” Completion Report (Ireland)", desc: "Irish cardiac rehab completion with outcomes, risk factor improvements, and maintenance recommendations." },
-    { icon: "âš–ï¸", tag: "PIAB", title: "PIAB â€” Personal Injury Functional Assessment", desc: "PIAB-aligned functional assessment with injury background, capacity measures, and prognosis." },
-    { icon: "ðŸ¥", tag: "Private IE", title: "Private Insurance â€” Initial Assessment (Ireland)", desc: "Initial assessment for Irish private insurance clients with assessment findings and treatment plan." },
-    { icon: "ðŸ¥", tag: "Private IE", title: "Private Insurance â€” Progress Report (Ireland)", desc: "Progress report for Irish private insurance clients with outcomes and justification for continued sessions." },
-    { icon: "ðŸ¥", tag: "Private IE", title: "Private Insurance â€” Discharge Report (Ireland)", desc: "Discharge report for Irish private insurance clients with outcomes and home programme." },
+    { icon: "ðŸ¥", tag: "HSE", title: "HSE — Initial Assessment Report", desc: "HSE programme initial assessment with risk stratification, baseline assessment, and exercise prescription." },
+    { icon: "ðŸ¥", tag: "HSE", title: "HSE — Progress Review Report", desc: "HSE mid-programme progress review with attendance, outcomes, and updated plan." },
+    { icon: "ðŸ¥", tag: "HSE", title: "HSE — Discharge Summary", desc: "HSE discharge summary with programme outcomes and maintenance recommendations." },
+    { icon: "â¤ï¸", tag: "Cardiac IE", title: "Cardiac Rehab — Initial Assessment (Ireland)", desc: "Irish cardiac rehab initial assessment with cardiovascular risk factors, exercise assessment, and Phase II prescription." },
+    { icon: "â¤ï¸", tag: "Cardiac IE", title: "Cardiac Rehab — Completion Report (Ireland)", desc: "Irish cardiac rehab completion with outcomes, risk factor improvements, and maintenance recommendations." },
+    { icon: "⚖ï¸", tag: "PIAB", title: "PIAB — Personal Injury Functional Assessment", desc: "PIAB-aligned functional assessment with injury background, capacity measures, and prognosis." },
+    { icon: "ðŸ¥", tag: "Private IE", title: "Private Insurance — Initial Assessment (Ireland)", desc: "Initial assessment for Irish private insurance clients with assessment findings and treatment plan." },
+    { icon: "ðŸ¥", tag: "Private IE", title: "Private Insurance — Progress Report (Ireland)", desc: "Progress report for Irish private insurance clients with outcomes and justification for continued sessions." },
+    { icon: "ðŸ¥", tag: "Private IE", title: "Private Insurance — Discharge Report (Ireland)", desc: "Discharge report for Irish private insurance clients with outcomes and home programme." },
     { icon: "ðŸ¥", tag: "GP / General", title: "GP / Specialist Summary Letter (Ireland)", desc: "Irish GP correspondence summarising EP assessment and intervention." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for Irish clients." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom report for any Irish funder or referrer." },
+    { icon: "📄", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for Irish clients." },
+    { icon: "📄", tag: "GP / General", title: "Custom Report", desc: "Custom report for any Irish funder or referrer." },
   ],
   sg: [
-    { icon: "â¤ï¸", tag: "HealthierSG", title: "Healthier SG â€” Initial Assessment Report", desc: "Healthier SG initial assessment with health plan goals, chronic conditions, and exercise/rehab plan." },
-    { icon: "â¤ï¸", tag: "HealthierSG", title: "Healthier SG â€” Programme Progress Report", desc: "Progress report with chronic disease indicators (HbA1c, BP, BMI) and engagement update." },
-    { icon: "â¤ï¸", tag: "HealthierSG", title: "Healthier SG â€” Completion / Discharge Report", desc: "Completion report with chronic disease indicator changes and self-management recommendations." },
-    { icon: "â¤ï¸", tag: "CDMP", title: "CDMP â€” Initial Exercise Assessment", desc: "CDMP initial report with chronic disease indicators, fitness baseline, and exercise prescription." },
-    { icon: "â¤ï¸", tag: "CDMP", title: "CDMP â€” Progress / Review Report", desc: "CDMP progress review with chronic disease indicators, exercise capacity, and adherence update." },
-    { icon: "â¤ï¸", tag: "CDMP", title: "CDMP â€” Discharge Summary", desc: "CDMP discharge with chronic disease indicator changes and home programme." },
-    { icon: "ðŸ¦º", tag: "WICA", title: "WICA â€” Work Injury Assessment", desc: "MOM WICA work injury report with functional assessment, diagnosis, and RTW recommendations." },
-    { icon: "ðŸ¦º", tag: "WICA", title: "WICA â€” Return-to-Work Plan", desc: "WICA RTW plan with graded return duties, employer recommendations, and expected RTW date." },
-    { icon: "ðŸ¥", tag: "Corporate", title: "Corporate / Private Insurance â€” Initial Assessment", desc: "Initial assessment for Singapore private insurance and corporate health clients." },
+    { icon: "â¤ï¸", tag: "HealthierSG", title: "Healthier SG — Initial Assessment Report", desc: "Healthier SG initial assessment with health plan goals, chronic conditions, and exercise/rehab plan." },
+    { icon: "â¤ï¸", tag: "HealthierSG", title: "Healthier SG — Programme Progress Report", desc: "Progress report with chronic disease indicators (HbA1c, BP, BMI) and engagement update." },
+    { icon: "â¤ï¸", tag: "HealthierSG", title: "Healthier SG — Completion / Discharge Report", desc: "Completion report with chronic disease indicator changes and self-management recommendations." },
+    { icon: "â¤ï¸", tag: "CDMP", title: "CDMP — Initial Exercise Assessment", desc: "CDMP initial report with chronic disease indicators, fitness baseline, and exercise prescription." },
+    { icon: "â¤ï¸", tag: "CDMP", title: "CDMP — Progress / Review Report", desc: "CDMP progress review with chronic disease indicators, exercise capacity, and adherence update." },
+    { icon: "â¤ï¸", tag: "CDMP", title: "CDMP — Discharge Summary", desc: "CDMP discharge with chronic disease indicator changes and home programme." },
+    { icon: "🦺", tag: "WICA", title: "WICA — Work Injury Assessment", desc: "MOM WICA work injury report with functional assessment, diagnosis, and RTW recommendations." },
+    { icon: "🦺", tag: "WICA", title: "WICA — Return-to-Work Plan", desc: "WICA RTW plan with graded return duties, employer recommendations, and expected RTW date." },
+    { icon: "ðŸ¥", tag: "Corporate", title: "Corporate / Private Insurance — Initial Assessment", desc: "Initial assessment for Singapore private insurance and corporate health clients." },
     { icon: "ðŸ¥", tag: "GP / General", title: "GP Summary Letter", desc: "Physician correspondence summarising EP findings and exercise prescription." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for Singapore clients." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom report for any Singapore funder or referrer." },
+    { icon: "📄", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for Singapore clients." },
+    { icon: "📄", tag: "GP / General", title: "Custom Report", desc: "Custom report for any Singapore funder or referrer." },
   ],
   za: [
-    { icon: "ðŸ¥", tag: "Medical Aid", title: "Medical Aid â€” Initial Assessment Report", desc: "Medical aid initial report with ICD-10 diagnosis, assessment findings, and clinical motivation for treatment." },
-    { icon: "ðŸ¥", tag: "Medical Aid", title: "Medical Aid â€” Progress Report", desc: "Progress report for medical aid clients with outcome measures and motivation for continued sessions." },
-    { icon: "ðŸ¥", tag: "Medical Aid", title: "Medical Aid â€” Discharge Report", desc: "Discharge report for medical aid clients with final outcomes and home programme." },
-    { icon: "ðŸ¦º", tag: "COIDA", title: "COIDA â€” Initial Assessment Report", desc: "COIDA initial report with injury background, functional assessment, and RTW recommendations." },
-    { icon: "ðŸ¦º", tag: "COIDA", title: "COIDA â€” Progress Report", desc: "COIDA progress report with outcome measures, work capacity update, and goals update." },
-    { icon: "ðŸ¦º", tag: "COIDA", title: "COIDA â€” Return-to-Work Summary", desc: "COIDA RTW discharge with final capacity, remaining restrictions, and employer recommendations." },
-    { icon: "ðŸš—", tag: "RAF", title: "RAF â€” Initial Assessment Report", desc: "RAF motor vehicle accident initial report with functional assessment, diagnosis, and treatment plan." },
-    { icon: "ðŸš—", tag: "RAF", title: "RAF â€” Progress Report", desc: "RAF progress report with functional outcomes and updated goals." },
-    { icon: "ðŸ¥", tag: "GEMS", title: "GEMS â€” Initial Assessment Report", desc: "GEMS government employees medical scheme initial report with ICD-10 diagnosis and clinical motivation." },
-    { icon: "ðŸ¥", tag: "GEMS", title: "GEMS â€” Progress Report", desc: "GEMS progress report with outcome measures and motivation for continued sessions." },
+    { icon: "ðŸ¥", tag: "Medical Aid", title: "Medical Aid — Initial Assessment Report", desc: "Medical aid initial report with ICD-10 diagnosis, assessment findings, and clinical motivation for treatment." },
+    { icon: "ðŸ¥", tag: "Medical Aid", title: "Medical Aid — Progress Report", desc: "Progress report for medical aid clients with outcome measures and motivation for continued sessions." },
+    { icon: "ðŸ¥", tag: "Medical Aid", title: "Medical Aid — Discharge Report", desc: "Discharge report for medical aid clients with final outcomes and home programme." },
+    { icon: "🦺", tag: "COIDA", title: "COIDA — Initial Assessment Report", desc: "COIDA initial report with injury background, functional assessment, and RTW recommendations." },
+    { icon: "🦺", tag: "COIDA", title: "COIDA — Progress Report", desc: "COIDA progress report with outcome measures, work capacity update, and goals update." },
+    { icon: "🦺", tag: "COIDA", title: "COIDA — Return-to-Work Summary", desc: "COIDA RTW discharge with final capacity, remaining restrictions, and employer recommendations." },
+    { icon: "🚗", tag: "RAF", title: "RAF — Initial Assessment Report", desc: "RAF motor vehicle accident initial report with functional assessment, diagnosis, and treatment plan." },
+    { icon: "🚗", tag: "RAF", title: "RAF — Progress Report", desc: "RAF progress report with functional outcomes and updated goals." },
+    { icon: "ðŸ¥", tag: "GEMS", title: "GEMS — Initial Assessment Report", desc: "GEMS government employees medical scheme initial report with ICD-10 diagnosis and clinical motivation." },
+    { icon: "ðŸ¥", tag: "GEMS", title: "GEMS — Progress Report", desc: "GEMS progress report with outcome measures and motivation for continued sessions." },
     { icon: "ðŸ¥", tag: "GP / General", title: "GP Summary Letter", desc: "GP correspondence summarising EP assessment and intervention." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for South African clients." },
-    { icon: "ðŸ“„", tag: "GP / General", title: "Custom Report", desc: "Custom report for any South African funder or referrer." },
+    { icon: "📄", tag: "GP / General", title: "Progress / Extra Report", desc: "Free-form progress update for South African clients." },
+    { icon: "📄", tag: "GP / General", title: "Custom Report", desc: "Custom report for any South African funder or referrer." },
   ],
 };
 
 const countryButtons = [
-  { code: "au", label: "ðŸ‡¦ðŸ‡º Australia" },
-  { code: "nz", label: "ðŸ‡³ðŸ‡¿ New Zealand" },
-  { code: "uk", label: "ðŸ‡¬ðŸ‡§ United Kingdom" },
-  { code: "ca", label: "ðŸ‡¨ðŸ‡¦ Canada" },
-  { code: "us", label: "ðŸ‡ºðŸ‡¸ United States" },
-  { code: "ie", label: "ðŸ‡®ðŸ‡ª Ireland" },
-  { code: "sg", label: "ðŸ‡¸ðŸ‡¬ Singapore" },
-  { code: "za", label: "ðŸ‡¿ðŸ‡¦ South Africa" },
+  { code: "au", label: "🇦🇺 Australia" },
+  { code: "nz", label: "🇳🇿 New Zealand" },
+  { code: "uk", label: "🇬🇧 United Kingdom" },
+  { code: "ca", label: "🇨🇦 Canada" },
+  { code: "us", label: "🇺🇸 United States" },
+  { code: "ie", label: "🇮🇪 Ireland" },
+  { code: "sg", label: "🇸🇬 Singapore" },
+  { code: "za", label: "🇿🇦 South Africa" },
 ];
 
 export default function LandingLive() {
@@ -370,7 +370,7 @@ export default function LandingLive() {
         .lp .save-badge { display: inline-block; background: #dcfce7; color: #16a34a; font-size: 13px; font-weight: 700; padding: 4px 12px; border-radius: 100px; margin-bottom: 24px; }
         .lp .pricing-features { list-style: none; display: flex; flex-direction: column; gap: 11px; margin-bottom: 32px; padding: 0; }
         .lp .pricing-features li { display: flex; align-items: center; gap: 10px; font-size: 15px; color: #374151; }
-        .lp .pricing-features li::before { content: "âœ“"; color: #16a34a; font-weight: 700; }
+        .lp .pricing-features li::before { content: "✓"; color: #16a34a; font-weight: 700; }
         .lp .pricing-note { font-size: 14px; color: #94a3b8; }
         .lp .final-cta { background: #f8fafc; padding: 60px 60px 40px; text-align: center; border-top: 1px solid #e2e8f0; }
         .lp .final-cta h2 { color: #0f172a; margin-bottom: 16px; }
@@ -409,13 +409,13 @@ export default function LandingLive() {
         {showSuccess && (
           <div style={{ background: '#d1fae5', borderBottom: '2px solid #10b981', padding: '20px', textAlign: 'center', position: 'sticky', top: 0, zIndex: 999 }}>
             <p style={{ fontSize: '18px', fontWeight: '600', color: '#065f46', margin: '0 0 10px 0' }}>
-              ðŸŽ‰ Payment successful! Welcome to Assess Suite Clinical.
+              🎉 Payment successful! Welcome to Assess Suite Clinical.
             </p>
             <p style={{ color: '#047857', margin: '0 0 14px 0' }}>
               Click below to create your account and get started.
             </p>
             <a href="https://assesssuite.com" style={{ background: '#10b981', color: 'white', padding: '10px 24px', borderRadius: '8px', textDecoration: 'none', fontWeight: '600' }}>
-              Create Your Account â†’
+              Create Your Account →
             </a>
           </div>
         )}
@@ -430,7 +430,7 @@ export default function LandingLive() {
             <a href="#assessments">Assessments</a>
             <a href="#reporting">Reports</a>
             <a href="#pricing">Pricing</a>
-            <a onClick={() => setShowComingSoon(true)} className="nav-cta" style={{display:'inline-block',border: 'none', cursor: 'pointer', textDecoration:'none', color:'#fff'}}>Sign In / Sign Up â†’</a>
+            <a onClick={() => setShowComingSoon(true)} className="nav-cta" style={{display:'inline-block',border: 'none', cursor: 'pointer', textDecoration:'none', color:'#fff'}}>Sign In / Sign Up →</a>
           </div>
         </nav>
 
@@ -438,13 +438,13 @@ export default function LandingLive() {
           <h1>Exercise Physiology at it's Clinical Best.</h1>
           <p>AssessSuite Clinical gives clinicians the tools to assess with greater accuracy, document more efficiently, and deliver more consistent client care. Designed specifically for Exercise Physiologists, the platform brings together assessments, clinical notes, outcome tracking, and professional reporting into one modern workflow built for growing practices and evolving healthcare systems.</p>
           <div className="hero-ctas">
-            <button onClick={() => setShowComingSoon(true)} className="btn-primary" style={{display:'inline-block',cursor:'pointer',border:'none'}}>Sign In / Sign Up â†’</button>
+            <button onClick={() => setShowComingSoon(true)} className="btn-primary" style={{display:'inline-block',cursor:'pointer',border:'none'}}>Sign In / Sign Up →</button>
           </div>
         </section>
 
         <section className="library" id="assessments">
           <h2>The most complete Exercise Physiologist assessment library available.</h2>
-          <p className="section-sub">226+ validated clinical assessments â€” all with built-in clinician instructions, normative data, and automated interpretation. If you run it in practice, it's in here.</p>
+          <p className="section-sub">226+ validated clinical assessments — all with built-in clinician instructions, normative data, and automated interpretation. If you run it in practice, it's in here.</p>
 
           <div className="screenshot-row">
             <div className="screenshot-card">
@@ -454,7 +454,7 @@ export default function LandingLive() {
               <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/5eb559ca6_image.png" alt="Trial runner showing gait speed measurements" />
             </div>
             <div className="screenshot-card">
-              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/e9df29d41_image.png" alt="Visual ROM Assessment â€” joint selector" />
+              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/e9df29d41_image.png" alt="Visual ROM Assessment — joint selector" />
             </div>
             <div className="screenshot-card">
               <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/07f2f5d2f_image.png" alt="Assessment summary with ROM results" />
@@ -489,7 +489,7 @@ export default function LandingLive() {
           <div className="reporting-grid">
             <div>
               <h2>Reports structured around funder requirements.</h2>
-              <p className="section-sub">Select your country to see every funder-ready report AssessSuite Clinical generates â€” structured EP reports with objective data tables, goal-based outcomes, and clinical justification built in.</p>
+              <p className="section-sub">Select your country to see every funder-ready report AssessSuite Clinical generates — structured EP reports with objective data tables, goal-based outcomes, and clinical justification built in.</p>
               <div className="country-tabs" style={{marginBottom: 0}}>
                 {countryButtons.map(({ code, label }) => (
                   <button
@@ -503,8 +503,8 @@ export default function LandingLive() {
             <div className="funder-list">
               {countryData[activeCountry].map(({ icon, tag, title }) => (
                 <div key={title} className="funder-item">
-                  <div className="funder-check">âœ“</div>
-                  <span><strong style={{color:"#0f172a"}}>{tag}</strong> â€” {title}</span>
+                  <div className="funder-check">✓</div>
+                  <span><strong style={{color:"#0f172a"}}>{tag}</strong> — {title}</span>
                 </div>
               ))}
             </div>
@@ -522,18 +522,18 @@ export default function LandingLive() {
                <ul className="pricing-features">
                  {["Unlimited assessments","Unlimited clients","All 226+ EP assessments","Automated SOAP notes","Full report generation","Multi-clinician support","All future updates included"].map(f => <li key={f}>{f}</li>)}
                </ul>
-               <button onClick={() => setShowComingSoon(true)} className="btn-primary" style={{width:"100%",textAlign:"center",display:"block",border:'none',cursor:'pointer',color:'#fff'}}>Get Started â†’</button>
+               <button onClick={() => setShowComingSoon(true)} className="btn-primary" style={{width:"100%",textAlign:"center",display:"block",border:'none',cursor:'pointer',color:'#fff'}}>Get Started →</button>
              </div>
              <div className="pricing-card featured">
                <div className="popular-badge">BEST VALUE</div>
                <div className="plan-name">Annual</div>
                <div className="price">$45<span>/mo</span></div>
-               <div className="billing">Billed annually â€” $540/year.</div>
+               <div className="billing">Billed annually — $540/year.</div>
                <div className="save-badge">Save $120/year</div>
                <ul className="pricing-features">
                  {["Unlimited assessments","Unlimited clients","All 226+ EP assessments","Automated SOAP notes","Full report generation","Multi-clinician support","All future updates included"].map(f => <li key={f}>{f}</li>)}
                </ul>
-               <button onClick={() => setShowComingSoon(true)} className="btn-primary" style={{width:"100%",textAlign:"center",display:"block",border:'none',cursor:'pointer',color:'#fff'}}>Get Started â†’</button>
+               <button onClick={() => setShowComingSoon(true)} className="btn-primary" style={{width:"100%",textAlign:"center",display:"block",border:'none',cursor:'pointer',color:'#fff'}}>Get Started →</button>
              </div>
            </div>
            <p className="pricing-note">One subscription = one clinician. Each EP in your practice needs their own subscription.</p>
@@ -542,44 +542,44 @@ export default function LandingLive() {
 
         <section className="features" id="features">
            <h2>Everything an Exercise Physiologist needs.</h2>
-           <p className="section-sub">From first assessment to final report â€” AssessSuite Clinical handles the clinical work and the paperwork.</p>
+           <p className="section-sub">From first assessment to final report — AssessSuite Clinical handles the clinical work and the paperwork.</p>
            <div className="features-grid">
              <div className="feature-card">
-               <div className="feature-icon">ðŸ§ª</div>
-               <div className="feature-card-content"><h3>226+ EP Assessments</h3><p>Every test you run is built in â€” with clinician administration scripts, normative data, and interpretation guides. No more hunting for reference values mid-session. New assessments are added monthly, and missing ones can be requested directly from the platform.</p></div>
+               <div className="feature-icon">🧪</div>
+               <div className="feature-card-content"><h3>226+ EP Assessments</h3><p>Every test you run is built in — with clinician administration scripts, normative data, and interpretation guides. No more hunting for reference values mid-session. New assessments are added monthly, and missing ones can be requested directly from the platform.</p></div>
              </div>
              <div className="feature-card">
-               <div className="feature-icon">ðŸ“‹</div>
+               <div className="feature-icon">📋</div>
                <div className="feature-card-content"><h3>Automated SOAP Notes</h3><p>Every completed assessment instantly generates a structured SOAP note populated with results, normative classifications, and clinical commentary. Zero typing required.</p></div>
              </div>
              <div className="feature-card">
-               <div className="feature-icon">ðŸ“„</div>
-               <div className="feature-card-content"><h3>Funder-Ready Reports</h3><p>Generate professional EP reports tailored for NDIS, WorkCover, Medicare, DVA, and TAC â€” following best-practice guidelines with goal-based outcomes and objective data tables.</p></div>
+               <div className="feature-icon">📄</div>
+               <div className="feature-card-content"><h3>Funder-Ready Reports</h3><p>Generate professional EP reports tailored for NDIS, WorkCover, Medicare, DVA, and TAC — following best-practice guidelines with goal-based outcomes and objective data tables.</p></div>
              </div>
              <div className="feature-card">
-               <div className="feature-icon">ðŸ“ˆ</div>
-               <div className="feature-card-content"><h3>Progress Tracking</h3><p>Automatic pre and post comparisons across assessment dates. See exactly how your client is responding to intervention â€” with trend analysis built in.</p></div>
+               <div className="feature-icon">📈</div>
+               <div className="feature-card-content"><h3>Progress Tracking</h3><p>Automatic pre and post comparisons across assessment dates. See exactly how your client is responding to intervention — with trend analysis built in.</p></div>
              </div>
              <div className="feature-card">
-               <div className="feature-icon">ðŸ‘¥</div>
-               <div className="feature-card-content"><h3>Client & Episode Management</h3><p>Full client profiles with onboarding, referral tracking, episode history, funding sources, and client goals â€” all in one organised place.</p></div>
+               <div className="feature-icon">👥</div>
+               <div className="feature-card-content"><h3>Client & Episode Management</h3><p>Full client profiles with onboarding, referral tracking, episode history, funding sources, and client goals — all in one organised place.</p></div>
              </div>
              <div className="feature-card">
-               <div className="feature-icon">ðŸ”’</div>
+               <div className="feature-icon">🔒</div>
                <div className="feature-card-content"><h3>Digital Consent & Policies</h3><p>Capture signed consent, privacy agreements, and assessment policies digitally. Compliant, timestamped, and linked to every client episode.</p></div>
              </div>
              <div className="feature-card">
-               <div className="feature-icon">ðŸ’Š</div>
-               <div className="feature-card-content"><h3>Exercise Treatment Protocols</h3><p>Evidence-based exercise prescription and treatment protocols built in â€” so every client gets a structured, clinically justified program aligned to their assessment results and goals.</p></div>
+               <div className="feature-icon">💊</div>
+               <div className="feature-card-content"><h3>Exercise Treatment Protocols</h3><p>Evidence-based exercise prescription and treatment protocols built in — so every client gets a structured, clinically justified program aligned to their assessment results and goals.</p></div>
              </div>
              <div className="feature-card">
-               <div className="feature-icon">ðŸ¥—</div>
-               <div className="feature-card-content"><h3>Nutrition Within EP Scope</h3><p>Dietary guidance tools scoped specifically to Exercise Physiology practice â€” covering energy intake for chronic disease management, body composition, and physical performance. No dietetic advice, no scope creep. Just what EPs are qualified and registered to provide.</p></div>
+               <div className="feature-icon">🥗</div>
+               <div className="feature-card-content"><h3>Nutrition Within EP Scope</h3><p>Dietary guidance tools scoped specifically to Exercise Physiology practice — covering energy intake for chronic disease management, body composition, and physical performance. No dietetic advice, no scope creep. Just what EPs are qualified and registered to provide.</p></div>
              </div>
            </div>
            <div style={{marginTop: "40px", paddingTop: "40px", borderTop: "1px solid #e2e8f0", textAlign: "center"}}>
              <p style={{fontSize: "14px", color: "#64748b", maxWidth: "700px", margin: "0 auto"}}>
-               <strong>Note:</strong> AssessSuite Clinical is assessment software built specifically for Exercise Physiologists. It is not clinic management software â€” it doesn't handle billing, referrer invoicing, or practice administration. It focuses on what EPs do: run assessments, generate SOAP notes, and create evidence-based reports.
+               <strong>Note:</strong> AssessSuite Clinical is assessment software built specifically for Exercise Physiologists. It is not clinic management software — it doesn't handle billing, referrer invoicing, or practice administration. It focuses on what EPs do: run assessments, generate SOAP notes, and create evidence-based reports.
              </p>
            </div>
          </section>
@@ -587,7 +587,7 @@ export default function LandingLive() {
         <section className="final-cta">
           <h2>Ready to spend less time documenting<br />and more time with clients?</h2>
           <p>Join Exercise Physiologists already using AssessSuite Clinical to run better assessments, write better reports, and reclaim their clinical time.</p>
-          <button onClick={() => setShowComingSoon(true)} className="btn-white" style={{display:"inline-block",border:'none',cursor:'pointer',color:'#fff'}}>Sign In / Sign Up â†’</button>
+          <button onClick={() => setShowComingSoon(true)} className="btn-white" style={{display:"inline-block",border:'none',cursor:'pointer',color:'#fff'}}>Sign In / Sign Up →</button>
         </section>
 
         <footer>
@@ -602,9 +602,9 @@ export default function LandingLive() {
 
             <div className="footer-col">
               <div className="footer-col-title">Contact &amp; Support</div>
-              <a href="tel:1800317553" style={{color:"#fff"}}>ðŸ“ž 1800 317 553</a>
-              <a href="mailto:admin@assesssuite.com" style={{color:"#fff"}}>âœ‰ï¸ admin@assesssuite.com</a>
-              <div style={{fontSize:"12px",color:"#fff",marginTop:"4px"}}>Monâ€“Thu, 10:00amâ€“2:00pm AEST</div>
+              <a href="tel:1800317553" style={{color:"#fff"}}>📞 1800 317 553</a>
+              <a href="mailto:admin@assesssuite.com" style={{color:"#fff"}}>✉ï¸ admin@assesssuite.com</a>
+              <div style={{fontSize:"12px",color:"#fff",marginTop:"4px"}}>Mon–Thu, 10:00am–2:00pm AEST</div>
             </div>
 
             <div className="footer-col">
@@ -625,7 +625,7 @@ export default function LandingLive() {
           </div>
 
           <div className="footer-bottom" style={{textAlign:"right", position:"relative"}}>
-            <span style={{color:"#fff"}}>Â© 2026 Assess Suite Pty Ltd. All rights reserved.</span>
+            <span style={{color:"#fff"}}>© 2026 Assess Suite Pty Ltd. All rights reserved.</span>
 
           </div>
         </footer>
@@ -691,7 +691,7 @@ export default function LandingLive() {
       {showComingSoon && (
         <div style={{position:'fixed',inset:0,background:'rgba(15,23,42,0.65)',zIndex:99999,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
           <div style={{background:'#fff',borderRadius:'20px',padding:'48px 40px',maxWidth:'420px',width:'100%',textAlign:'center',boxShadow:'0 8px 48px rgba(15,23,42,0.2)',fontFamily:'Inter,sans-serif'}}>
-            <div style={{fontSize:'48px',marginBottom:'16px'}}>ðŸš€</div>
+            <div style={{fontSize:'48px',marginBottom:'16px'}}>🚀</div>
             <h2 style={{fontSize:'26px',fontWeight:800,color:'#0f172a',marginBottom:'12px',letterSpacing:'-0.5px'}}>Coming Soon</h2>
             <p style={{fontSize:'16px',color:'#64748b',marginBottom:'8px',lineHeight:1.6}}>AssessSuite Clinical launches on</p>
             <div style={{background:'#eff6ff',color:'#2563eb',fontSize:'22px',fontWeight:800,padding:'14px 24px',borderRadius:'12px',display:'inline-block',marginBottom:'20px',letterSpacing:'-0.5px'}}>June 8, 2026</div>

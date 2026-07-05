@@ -40,10 +40,10 @@ export default function ClientGoals({ data, onNext, onBack, canGoBack, onSaveAnd
       <div className="bg-blue-50 p-4 rounded-lg">
         <h4 className="font-medium text-slate-900 mb-2">Examples of Goals:</h4>
         <ul className="text-sm text-slate-600 space-y-1">
-          <li>â€¢ Return to playing social tennis twice a week.</li>
-          <li>â€¢ Lift my grandchild without shoulder pain.</li>
-          <li>â€¢ Improve balance to reduce risk of falls.</li>
-          <li>â€¢ Complete a 5k fun run.</li>
+          <li>• Return to playing social tennis twice a week.</li>
+          <li>• Lift my grandchild without shoulder pain.</li>
+          <li>• Improve balance to reduce risk of falls.</li>
+          <li>• Complete a 5k fun run.</li>
         </ul>
       </div>
 

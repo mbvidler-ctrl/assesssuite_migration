@@ -37,7 +37,7 @@ export default function ClosedKineticChainUpperExtremityStabilityTestCKCUESTRunn
     }
 
     const additionalData = {
-      soap_text: `â€¢ Closed Kinetic Chain Upper Extremity Stability Test (CKCUEST)\n  Trial 1: ${t1} touches | Trial 2: ${t2} touches | Trial 3: ${t3} touches\n  Average: ${average} touches | Best: ${best} touches`,
+      soap_text: `• Closed Kinetic Chain Upper Extremity Stability Test (CKCUEST)\n  Trial 1: ${t1} touches | Trial 2: ${t2} touches | Trial 3: ${t3} touches\n  Average: ${average} touches | Best: ${best} touches`,
       measurement_type: "ckcuest",
       trial1: t1, trial2: t2, trial3: t3,
       average, best,
@@ -73,7 +73,7 @@ export default function ClosedKineticChainUpperExtremityStabilityTestCKCUESTRunn
               className="w-full flex items-center justify-between bg-blue-50 px-4 py-3 text-left"
               onClick={() => setShowInstructions(!showInstructions)}
             >
-              <span className="font-semibold text-blue-900 text-sm">ðŸ“‹ Equipment, Instructions & References</span>
+              <span className="font-semibold text-blue-900 text-sm">📋 Equipment, Instructions & References</span>
               {showInstructions ? <ChevronUp className="w-4 h-4 text-blue-700" /> : <ChevronDown className="w-4 h-4 text-blue-700" />}
             </button>
 
@@ -100,7 +100,7 @@ export default function ClosedKineticChainUpperExtremityStabilityTestCKCUESTRunn
                   <ul className="list-disc list-inside text-slate-700 space-y-1">
                     <li>Client assumes a <strong>standard push-up position</strong> (hands on floor, body straight)</li>
                     <li>Both hands placed on the <strong>same tape mark</strong> to start</li>
-                    <li>For females, a modified position (knees down) may be used â€” document accordingly</li>
+                    <li>For females, a modified position (knees down) may be used — document accordingly</li>
                     <li>Feet shoulder-width apart for stability</li>
                   </ul>
                 </div>
@@ -124,7 +124,7 @@ export default function ClosedKineticChainUpperExtremityStabilityTestCKCUESTRunn
                     <li>Score = total touches in 15 seconds per trial</li>
                     <li>Report <strong>average</strong> of all 3 trials as the primary outcome</li>
                     <li>Also note the <strong>best</strong> trial score</li>
-                    <li>A <strong>Symmetry Index</strong> can be calculated if testing dominant vs non-dominant sides separately: (non-dom / dom) Ã— 100</li>
+                    <li>A <strong>Symmetry Index</strong> can be calculated if testing dominant vs non-dominant sides separately: (non-dom / dom) × 100</li>
                   </ul>
                 </div>
 
@@ -135,7 +135,7 @@ export default function ClosedKineticChainUpperExtremityStabilityTestCKCUESTRunn
                     <div className="flex items-center justify-center gap-2 mb-2">
                       <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">L</div>
                       <div className="flex-1 border-t-2 border-dashed border-slate-400 relative">
-                        <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs text-slate-500 whitespace-nowrap">â† 90 cm â†’</span>
+                        <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs text-slate-500 whitespace-nowrap">â† 90 cm →</span>
                       </div>
                       <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-bold">R</div>
                     </div>
@@ -158,7 +158,7 @@ export default function ClosedKineticChainUpperExtremityStabilityTestCKCUESTRunn
                         <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50"}>
                           <td className="border border-slate-300 px-2 py-1">{row.group}</td>
                           <td className="border border-slate-300 px-2 py-1 text-center">{row.mean}</td>
-                          <td className="border border-slate-300 px-2 py-1 text-center">Â±{row.sd}</td>
+                          <td className="border border-slate-300 px-2 py-1 text-center">±{row.sd}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -171,19 +171,19 @@ export default function ClosedKineticChainUpperExtremityStabilityTestCKCUESTRunn
                   <div className="space-y-1.5">
                     <a href="https://www.sralab.org/rehabilitation-measures/closed-kinetic-chain-upper-extremity-stability-test" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 underline">
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                      Shirley Ryan AbilityLab â€“ CKCUEST
+                      Shirley Ryan AbilityLab – CKCUEST
                     </a>
                     <a href="https://pubmed.ncbi.nlm.nih.gov/10675076/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 underline">
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                      Goldbeck & Davies (2000) â€“ Original CKCUEST validity study (PubMed)
+                      Goldbeck & Davies (2000) – Original CKCUEST validity study (PubMed)
                     </a>
                     <a href="https://pubmed.ncbi.nlm.nih.gov/12710816/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 underline">
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                      Uhl et al. (2003) â€“ Normative data &amp; reliability (PubMed)
+                      Uhl et al. (2003) – Normative data &amp; reliability (PubMed)
                     </a>
                     <a href="https://www.physio-pedia.com/Closed_Kinetic_Chain_Upper_Extremity_Stability_Test_(CKCUEST)" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 underline">
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                      Physiopedia â€“ CKCUEST
+                      Physiopedia – CKCUEST
                     </a>
                   </div>
                 </div>

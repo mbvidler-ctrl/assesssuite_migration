@@ -18,18 +18,18 @@ const MUSCLE_GROUPS = {
 };
 
 const TARDIEU_SCORES = [
-  { value: "0", label: "0 â€” No resistance throughout" },
-  { value: "1", label: "1 â€” Slight resistance, no catch" },
-  { value: "2", label: "2 â€” Clear catch at precise angle" },
-  { value: "3", label: "3 â€” Fatigable clonus (< 10 sec)" },
-  { value: "4", label: "4 â€” Unfatigable clonus (> 10 sec)" },
-  { value: "5", label: "5 â€” Joint immobile" },
+  { value: "0", label: "0 — No resistance throughout" },
+  { value: "1", label: "1 — Slight resistance, no catch" },
+  { value: "2", label: "2 — Clear catch at precise angle" },
+  { value: "3", label: "3 — Fatigable clonus (< 10 sec)" },
+  { value: "4", label: "4 — Unfatigable clonus (> 10 sec)" },
+  { value: "5", label: "5 — Joint immobile" },
 ];
 
 const VELOCITIES = [
-  { key: "v1", label: "V1 â€” Slow Stretch", desc: "As slow as possible. Measures passive ROM (R2).", color: "bg-blue-50 border-blue-200" },
-  { key: "v2", label: "V2 â€” Speed of Limb Under Gravity", desc: "Speed of limb falling under gravity. Moderate speed.", color: "bg-yellow-50 border-yellow-200" },
-  { key: "v3", label: "V3 â€” Fast Stretch", desc: "As fast as possible. Used to provoke spasticity (R1).", color: "bg-red-50 border-red-200" },
+  { key: "v1", label: "V1 — Slow Stretch", desc: "As slow as possible. Measures passive ROM (R2).", color: "bg-blue-50 border-blue-200" },
+  { key: "v2", label: "V2 — Speed of Limb Under Gravity", desc: "Speed of limb falling under gravity. Moderate speed.", color: "bg-yellow-50 border-yellow-200" },
+  { key: "v3", label: "V3 — Fast Stretch", desc: "As fast as possible. Used to provoke spasticity (R1).", color: "bg-red-50 border-red-200" },
 ];
 
 const emptyVelocity = () => ({
@@ -63,15 +63,15 @@ function getInterpretation(entry) {
 
   if (!isNaN(r1) && !isNaN(r2)) {
     const diff = r2 - r1;
-    if (diff > 20) lines.push(`R2âˆ’R1 = ${diff.toFixed(0)}Â° â†’ Dynamic spasticity likely (velocity-dependent).`);
-    else if (diff < 10) lines.push(`R2âˆ’R1 = ${diff.toFixed(0)}Â° â†’ Fixed soft tissue restriction / contracture likely.`);
-    else lines.push(`R2âˆ’R1 = ${diff.toFixed(0)}Â° â†’ Mixed presentation (spasticity + contracture component).`);
+    if (diff > 20) lines.push(`R2−R1 = ${diff.toFixed(0)}° → Dynamic spasticity likely (velocity-dependent).`);
+    else if (diff < 10) lines.push(`R2−R1 = ${diff.toFixed(0)}° → Fixed soft tissue restriction / contracture likely.`);
+    else lines.push(`R2−R1 = ${diff.toFixed(0)}° → Mixed presentation (spasticity + contracture component).`);
   }
 
   if (!isNaN(score)) {
-    if (score >= 3) lines.push(`Tardieu Score ${score}: Significant spastic hypertonia â€” clonus present.`);
-    else if (score === 2) lines.push(`Tardieu Score ${score}: Clear velocity-dependent catch â€” moderate spasticity.`);
-    else if (score === 1) lines.push(`Tardieu Score ${score}: Mild resistance â€” minimal spasticity.`);
+    if (score >= 3) lines.push(`Tardieu Score ${score}: Significant spastic hypertonia — clonus present.`);
+    else if (score === 2) lines.push(`Tardieu Score ${score}: Clear velocity-dependent catch — moderate spasticity.`);
+    else if (score === 1) lines.push(`Tardieu Score ${score}: Mild resistance — minimal spasticity.`);
     else if (score === 0) lines.push(`Tardieu Score 0: No spasticity detected.`);
   }
 
@@ -82,7 +82,7 @@ function MuscleEntryPanel({ entry, index, onChange, onRemove }) {
   const interp = getInterpretation(entry);
   const r1 = parseFloat(entry.v3.r1_angle);
   const r2 = parseFloat(entry.v1.r2_angle);
-  const diff = !isNaN(r1) && !isNaN(r2) ? (r2 - r1).toFixed(0) : "â€”";
+  const diff = !isNaN(r1) && !isNaN(r2) ? (r2 - r1).toFixed(0) : "—";
 
   const updateVel = (velKey, field, value) => {
     onChange(index, { ...entry, [velKey]: { ...entry[velKey], [field]: value } });
@@ -157,7 +157,7 @@ function MuscleEntryPanel({ entry, index, onChange, onRemove }) {
               </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div>
-                  <Label className="text-xs text-slate-600">Tardieu Score (0â€“5)</Label>
+                  <Label className="text-xs text-slate-600">Tardieu Score (0–5)</Label>
                   <Select value={entry[key].tardieu_score} onValueChange={v => updateVel(key, "tardieu_score", v)}>
                     <SelectTrigger className="mt-1 text-xs h-8"><SelectValue placeholder="Score..." /></SelectTrigger>
                     <SelectContent>
@@ -167,18 +167,18 @@ function MuscleEntryPanel({ entry, index, onChange, onRemove }) {
                 </div>
                 {(key === "v3" || key === "v2") && (
                   <div>
-                    <Label className="text-xs text-slate-600">R1 Angle (Â°) â€” Catch</Label>
+                    <Label className="text-xs text-slate-600">R1 Angle (°) — Catch</Label>
                     <Input type="number" value={entry[key].r1_angle} onChange={e => updateVel(key, "r1_angle", e.target.value)} className="mt-1 text-xs h-8" placeholder="e.g. 20" />
                   </div>
                 )}
                 {key === "v1" && (
                   <div>
-                    <Label className="text-xs text-slate-600">R2 Angle (Â°) â€” Full ROM</Label>
+                    <Label className="text-xs text-slate-600">R2 Angle (°) — Full ROM</Label>
                     <Input type="number" value={entry[key].r2_angle} onChange={e => updateVel(key, "r2_angle", e.target.value)} className="mt-1 text-xs h-8" placeholder="e.g. 45" />
                   </div>
                 )}
                 <div>
-                  <Label className="text-xs text-slate-600">Catch Angle (Â°)</Label>
+                  <Label className="text-xs text-slate-600">Catch Angle (°)</Label>
                   <Input type="number" value={entry[key].catch_angle} onChange={e => updateVel(key, "catch_angle", e.target.value)} className="mt-1 text-xs h-8" placeholder="e.g. 15" />
                 </div>
               </div>
@@ -224,9 +224,9 @@ function MuscleEntryPanel({ entry, index, onChange, onRemove }) {
           ))}
 
           {/* R2-R1 Summary */}
-          {diff !== "â€”" && (
+          {diff !== "—" && (
             <div className={`rounded-lg px-4 py-3 border ${parseFloat(diff) > 20 ? "bg-orange-50 border-orange-300" : parseFloat(diff) < 10 ? "bg-purple-50 border-purple-300" : "bg-slate-50 border-slate-300"}`}>
-              <p className="text-xs font-bold text-slate-700">Calculated R2 âˆ’ R1 = <span className="text-lg">{diff}Â°</span></p>
+              <p className="text-xs font-bold text-slate-700">Calculated R2 − R1 = <span className="text-lg">{diff}°</span></p>
               {interp && <p className="text-xs text-slate-600 mt-1">{interp}</p>}
             </div>
           )}
@@ -267,16 +267,16 @@ export default function TardieuScaleRunner({ client, onSave, onClose }) {
 
   const handleSave = () => {
     // Build comprehensive SOAP text
-    const lines = [`â€¢ Tardieu Scale Assessment`, `  Diagnosis/Condition: ${header.diagnosis || "Not specified"}`];
+    const lines = [`• Tardieu Scale Assessment`, `  Diagnosis/Condition: ${header.diagnosis || "Not specified"}`];
     entries.forEach((entry, i) => {
       const r1 = parseFloat(entry.v3.r1_angle);
       const r2 = parseFloat(entry.v1.r2_angle);
       const diff = !isNaN(r1) && !isNaN(r2) ? (r2 - r1).toFixed(0) : "N/A";
-      lines.push(`\n  Muscle Group ${i + 1}: ${entry.muscle_group} (${entry.side}) â€” Position: ${entry.position}`);
-      lines.push(`    V1 (Slow): Score=${entry.v1.tardieu_score || "â€”"}, R2=${entry.v1.r2_angle || "â€”"}Â°, Catch=${entry.v1.catch_angle || "â€”"}Â°`);
-      lines.push(`    V2 (Gravity): Score=${entry.v2.tardieu_score || "â€”"}, R1=${entry.v2.r1_angle || "â€”"}Â°, Catch=${entry.v2.catch_angle || "â€”"}Â°`);
-      lines.push(`    V3 (Fast): Score=${entry.v3.tardieu_score || "â€”"}, R1=${entry.v3.r1_angle || "â€”"}Â°, Catch=${entry.v3.catch_angle || "â€”"}Â°`);
-      lines.push(`    R2âˆ’R1 = ${diff}Â° | Interpretation: ${getInterpretation(entry) || "Insufficient data"}`);
+      lines.push(`\n  Muscle Group ${i + 1}: ${entry.muscle_group} (${entry.side}) — Position: ${entry.position}`);
+      lines.push(`    V1 (Slow): Score=${entry.v1.tardieu_score || "—"}, R2=${entry.v1.r2_angle || "—"}°, Catch=${entry.v1.catch_angle || "—"}°`);
+      lines.push(`    V2 (Gravity): Score=${entry.v2.tardieu_score || "—"}, R1=${entry.v2.r1_angle || "—"}°, Catch=${entry.v2.catch_angle || "—"}°`);
+      lines.push(`    V3 (Fast): Score=${entry.v3.tardieu_score || "—"}, R1=${entry.v3.r1_angle || "—"}°, Catch=${entry.v3.catch_angle || "—"}°`);
+      lines.push(`    R2−R1 = ${diff}° | Interpretation: ${getInterpretation(entry) || "Insufficient data"}`);
       if (entry.v3.clonus_present) lines.push(`    Clonus: Present | Duration: ${entry.v3.clonus_duration || "?"}s | Type: ${entry.v3.clonus_sustained || "?"}`);
       if (entry.notes) lines.push(`    Notes: ${entry.notes}`);
     });
@@ -315,22 +315,22 @@ export default function TardieuScaleRunner({ client, onSave, onClose }) {
       <div className="border border-blue-200 rounded-lg overflow-hidden">
         <button onClick={() => setShowInstructions(v => !v)}
           className="w-full flex justify-between items-center bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900">
-          ðŸ“‹ Clinician Instructions &amp; Protocol
+          📋 Clinician Instructions &amp; Protocol
           {showInstructions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
         {showInstructions && (
           <div className="p-4 text-sm text-slate-700 space-y-3 bg-white">
             <div className="grid md:grid-cols-3 gap-4">
               <div className="bg-blue-50 rounded-lg p-3 border border-blue-100">
-                <p className="font-bold text-blue-800 mb-1">V1 â€” Slow Stretch</p>
+                <p className="font-bold text-blue-800 mb-1">V1 — Slow Stretch</p>
                 <p className="text-xs">"Move the limb as slowly as possible." Measures passive ROM (R2 = full range). Assesses soft tissue extensibility without neural response.</p>
               </div>
               <div className="bg-yellow-50 rounded-lg p-3 border border-yellow-100">
-                <p className="font-bold text-yellow-800 mb-1">V2 â€” Gravity Speed</p>
+                <p className="font-bold text-yellow-800 mb-1">V2 — Gravity Speed</p>
                 <p className="text-xs">Speed of limb falling under gravity. Used to detect moderate-velocity catch. Compare with V3 to quantify velocity dependency.</p>
               </div>
               <div className="bg-red-50 rounded-lg p-3 border border-red-100">
-                <p className="font-bold text-red-800 mb-1">V3 â€” Fast Stretch</p>
+                <p className="font-bold text-red-800 mb-1">V3 — Fast Stretch</p>
                 <p className="text-xs">"Move the limb as fast as possible." Designed to provoke spastic response. R1 = angle of muscle reaction during fast stretch. Key measure for spasticity.</p>
               </div>
             </div>
@@ -341,15 +341,15 @@ export default function TardieuScaleRunner({ client, onSave, onClose }) {
               </div>
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">
-              <p className="font-semibold text-amber-800">ðŸ”‘ Key Calculation: R2 âˆ’ R1</p>
-              <p className="text-amber-700 mt-1"><strong>&gt; 20Â°</strong> = Dynamic spasticity likely (velocity-dependent neural overactivity)</p>
-              <p className="text-amber-700"><strong>&lt; 10Â°</strong> = Fixed soft tissue shortening / contracture likely</p>
-              <p className="text-amber-700"><strong>10â€“20Â°</strong> = Mixed presentation (spasticity + contracture component)</p>
+              <p className="font-semibold text-amber-800">🔑 Key Calculation: R2 − R1</p>
+              <p className="text-amber-700 mt-1"><strong>&gt; 20°</strong> = Dynamic spasticity likely (velocity-dependent neural overactivity)</p>
+              <p className="text-amber-700"><strong>&lt; 10°</strong> = Fixed soft tissue shortening / contracture likely</p>
+              <p className="text-amber-700"><strong>10–20°</strong> = Mixed presentation (spasticity + contracture component)</p>
               <p className="text-amber-700 mt-1"><strong>R1</strong> = angle of catch on fast stretch (V3) | <strong>R2</strong> = full passive ROM on slow stretch (V1)</p>
             </div>
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs">
-              <p className="font-semibold text-red-800">âš ï¸ Safety &amp; Contraindications</p>
-              <p className="text-red-700">Do not perform during acute pain, fracture, dislocation, or severe spasm. Move limb smoothly â€” avoid forcing past resistance. Monitor for autonomic dysreflexia in SCI clients.</p>
+              <p className="font-semibold text-red-800">⚠ï¸ Safety &amp; Contraindications</p>
+              <p className="text-red-700">Do not perform during acute pain, fracture, dislocation, or severe spasm. Move limb smoothly — avoid forcing past resistance. Monitor for autonomic dysreflexia in SCI clients.</p>
             </div>
           </div>
         )}
@@ -404,12 +404,12 @@ export default function TardieuScaleRunner({ client, onSave, onClose }) {
 
       {/* References */}
       <div className="bg-slate-100 border border-slate-200 rounded-lg p-4 text-xs text-slate-600 space-y-1">
-        <p className="font-semibold text-slate-700">ðŸ“– References</p>
-        <p>1. Tardieu G, Shentoub S, Delarue R. (1954). Ã€ la recherche d'une technique de mesure de la spasticitÃ©. <em>Revue Neurologique</em>, 91, 143â€“144.</p>
-        <p>2. Boyd RN &amp; Graham HK. (1999). Objective measurement of clinical findings in the use of botulinum toxin type A for the management of children with cerebral palsy. <em>European Journal of Neurology</em>, 6(Suppl 4), S23â€“S35.</p>
-        <p>3. Haugh AB, Pandyan AD, Johnson GR. (2006). A systematic review of the Tardieu Scale for the measurement of spasticity. <em>Disability &amp; Rehabilitation</em>, 28(15), 899â€“907.</p>
-        <p>4. Patrick E &amp; Ada L. (2006). The Tardieu Scale differentiates contracture from spasticity whereas the Ashworth Scale is confounded by it. <em>Clinical Rehabilitation</em>, 20(2), 173â€“182.</p>
-        <p>5. Gracies JM et al. (2010). Five-step clinical assessment in spastic paresis. <em>European Journal of Physical and Rehabilitation Medicine</em>, 46(3), 411â€“421.</p>
+        <p className="font-semibold text-slate-700">📖 References</p>
+        <p>1. Tardieu G, Shentoub S, Delarue R. (1954). À la recherche d'une technique de mesure de la spasticité. <em>Revue Neurologique</em>, 91, 143–144.</p>
+        <p>2. Boyd RN &amp; Graham HK. (1999). Objective measurement of clinical findings in the use of botulinum toxin type A for the management of children with cerebral palsy. <em>European Journal of Neurology</em>, 6(Suppl 4), S23–S35.</p>
+        <p>3. Haugh AB, Pandyan AD, Johnson GR. (2006). A systematic review of the Tardieu Scale for the measurement of spasticity. <em>Disability &amp; Rehabilitation</em>, 28(15), 899–907.</p>
+        <p>4. Patrick E &amp; Ada L. (2006). The Tardieu Scale differentiates contracture from spasticity whereas the Ashworth Scale is confounded by it. <em>Clinical Rehabilitation</em>, 20(2), 173–182.</p>
+        <p>5. Gracies JM et al. (2010). Five-step clinical assessment in spastic paresis. <em>European Journal of Physical and Rehabilitation Medicine</em>, 46(3), 411–421.</p>
       </div>
 
       {/* Footer */}

@@ -12,8 +12,8 @@ function classify(mmol) {
   if (mmol < 3.9) return { label: "Hypoglycaemia", color: "bg-purple-100 text-purple-800 border-purple-300", alert: true };
   if (mmol <= 5.5) return { label: "Normal", color: "bg-green-100 text-green-800 border-green-300", alert: false };
   if (mmol <= 6.9) return { label: "Impaired Fasting Glucose (Pre-diabetes)", color: "bg-yellow-100 text-yellow-800 border-yellow-300", alert: false };
-  if (mmol <= 11.0) return { label: "Diabetes Mellitus â€” Elevated", color: "bg-red-100 text-red-800 border-red-300", alert: true };
-  return { label: "Severely Elevated â€” Urgent Review", color: "bg-red-200 text-red-900 border-red-400", alert: true };
+  if (mmol <= 11.0) return { label: "Diabetes Mellitus — Elevated", color: "bg-red-100 text-red-800 border-red-300", alert: true };
+  return { label: "Severely Elevated — Urgent Review", color: "bg-red-200 text-red-900 border-red-400", alert: true };
 }
 
 export default function FastingBloodGlucoseRunner({ client, onSave, onClose }) {
@@ -29,7 +29,7 @@ export default function FastingBloodGlucoseRunner({ client, onSave, onClose }) {
 
   const handleSave = () => {
     if (!glucose || isNaN(value)) { toast.error("Enter a valid glucose value"); return; }
-    const soap = `â€¢ Fasting Blood Glucose\n  Result: ${value} mmol/L â€” ${result?.label}\n  Fasting Duration: ${fastingHours} hours\n  Method: ${method === "fingerprick" ? "Finger-prick glucometer" : method === "venous" ? "Venous blood sample" : "Other"}${currentMedications ? `\n  Current Medications: ${currentMedications}` : ""}${notes ? `\n  Notes: ${notes}` : ""}\n  Reference Ranges: <3.9 = hypo | 3.9â€“5.5 = normal | 5.6â€“6.9 = IFG | â‰¥7.0 = diabetes\n  Diagnosis requires 2 separate readings. Single value is screening only.\n  Reference: Diabetes Australia / WHO criteria.`;
+    const soap = `• Fasting Blood Glucose\n  Result: ${value} mmol/L — ${result?.label}\n  Fasting Duration: ${fastingHours} hours\n  Method: ${method === "fingerprick" ? "Finger-prick glucometer" : method === "venous" ? "Venous blood sample" : "Other"}${currentMedications ? `\n  Current Medications: ${currentMedications}` : ""}${notes ? `\n  Notes: ${notes}` : ""}\n  Reference Ranges: <3.9 = hypo | 3.9–5.5 = normal | 5.6–6.9 = IFG | ≥7.0 = diabetes\n  Diagnosis requires 2 separate readings. Single value is screening only.\n  Reference: Diabetes Australia / WHO criteria.`;
     onSave({ status: "completed", result_value: value, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "fasting_blood_glucose", glucose_mmol: value, fasting_hours: parseInt(fastingHours), method, classification: result?.label } });
     toast.success("Fasting blood glucose saved.");
   };
@@ -79,9 +79,9 @@ export default function FastingBloodGlucoseRunner({ client, onSave, onClose }) {
                    <p className="font-semibold text-indigo-800 mb-1">Result Interpretation &amp; Clinical Action</p>
                    <div className="bg-white/60 rounded border border-indigo-200 p-2 text-xs space-y-1">
                      <p><strong className="text-green-700">&lt;3.9 mmol/L (Hypoglycaemia):</strong> Low blood sugar. Immediate action: give fast-acting carbs. Refer to GP/endocrinologist.</p>
-                     <p><strong className="text-green-700">3.9â€“5.5 mmol/L (Normal):</strong> Optimal fasting glucose. No intervention needed unless symptoms present.</p>
-                     <p><strong className="text-yellow-700">5.6â€“6.9 mmol/L (Pre-diabetes/IFG):</strong> Impaired fasting glucose. Lifestyle intervention: diet, exercise, weight management. Retest in 6â€“12 months.</p>
-                     <p><strong className="text-red-700">7.0â€“11.0 mmol/L (Diabetes):</strong> Elevated. Refer to GP for formal testing &amp; diabetes management plan. Lifestyle + pharmacological intervention.</p>
+                     <p><strong className="text-green-700">3.9–5.5 mmol/L (Normal):</strong> Optimal fasting glucose. No intervention needed unless symptoms present.</p>
+                     <p><strong className="text-yellow-700">5.6–6.9 mmol/L (Pre-diabetes/IFG):</strong> Impaired fasting glucose. Lifestyle intervention: diet, exercise, weight management. Retest in 6–12 months.</p>
+                     <p><strong className="text-red-700">7.0–11.0 mmol/L (Diabetes):</strong> Elevated. Refer to GP for formal testing &amp; diabetes management plan. Lifestyle + pharmacological intervention.</p>
                      <p><strong className="text-red-900">&gt;11.0 mmol/L (Severely Elevated):</strong> Urgent GP review. Risk of diabetic complications. May require immediate medication review.</p>
                    </div>
                  </div>
@@ -92,8 +92,8 @@ export default function FastingBloodGlucoseRunner({ client, onSave, onClose }) {
            {/* Pre-test Requirements */}
            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 space-y-1">
              <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />Pre-test Requirements</p>
-             <p><strong>Fasting:</strong> No caloric intake for at least 8â€“12 hours. Water allowed.</p>
-             <p><strong>Medication:</strong> Note any diabetes medications â€” these will affect results.</p>
+             <p><strong>Fasting:</strong> No caloric intake for at least 8–12 hours. Water allowed.</p>
+             <p><strong>Medication:</strong> Note any diabetes medications — these will affect results.</p>
              <p><strong>Timing:</strong> Test first thing in the morning is ideal.</p>
            </div>
 
@@ -141,7 +141,7 @@ export default function FastingBloodGlucoseRunner({ client, onSave, onClose }) {
 
           <div className="bg-slate-50 border rounded-lg p-3 text-xs text-slate-600 space-y-1">
             <p className="font-semibold">Reference Ranges (Fasting):</p>
-            <p>Normal: 3.9â€“5.5 mmol/L | Pre-diabetes (IFG): 5.6â€“6.9 mmol/L | Diabetes: â‰¥7.0 mmol/L | Hypo: &lt;3.9 mmol/L</p>
+            <p>Normal: 3.9–5.5 mmol/L | Pre-diabetes (IFG): 5.6–6.9 mmol/L | Diabetes: ≥7.0 mmol/L | Hypo: &lt;3.9 mmol/L</p>
             <p className="text-slate-400">Note: Diagnosis requires 2 separate elevated readings.</p>
           </div>
 

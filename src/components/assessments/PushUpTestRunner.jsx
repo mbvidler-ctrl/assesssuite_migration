@@ -38,7 +38,7 @@ export default function PushUpTestRunner({ client, onSave, onClose }) {
 
   const handleSave = () => {
     const resultValue = pushUps;
-    const soapText = `â€¢ Push-Up Test\n  Result: ${pushUps} push-ups${isModified ? ' (modified)' : ''}\n  Age: ${age} | Gender: ${gender}${notes ? `\n  Notes: ${notes}` : ''}`;
+    const soapText = `• Push-Up Test\n  Result: ${pushUps} push-ups${isModified ? ' (modified)' : ''}\n  Age: ${age} | Gender: ${gender}${notes ? `\n  Notes: ${notes}` : ''}`;
     onSave({
       status: "completed",
       result_value: resultValue,

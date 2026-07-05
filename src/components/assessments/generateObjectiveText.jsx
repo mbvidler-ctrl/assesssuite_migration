@@ -15,7 +15,7 @@ export function generateObjectiveText(assessment, assessmentData) {
   const dp = datePart.split('-').map(Number);
   const today = (dp.length === 3 && !isNaN(dp[0]) && dp[0] > 1900) ? new Date(dp[0], dp[1]-1, dp[2]) : new Date();
   const dateStr = today.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-  let objectiveText = `Assessment completed on ${dateStr}:\n\nâ€¢ ${assessment.name}:\n`;
+  let objectiveText = `Assessment completed on ${dateStr}:\n\n• ${assessment.name}:\n`;
   
   const data = assessmentData.additional_data || {};
 

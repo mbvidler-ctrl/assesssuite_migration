@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { X, ZoomIn } from "lucide-react";
 
-// â”€â”€ Lightbox â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Lightbox ────────────────────────────────────────────────────────────────
 function Lightbox({ image, onClose }) {
   if (!image) return null;
   return (
@@ -26,9 +26,9 @@ function Lightbox({ image, onClose }) {
   );
 }
 
-// â”€â”€ SVG Diagrams â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SVG Diagrams ─────────────────────────────────────────────────────────────
 
-// Diagram 1: Starting Position â€” patient prone, supported on plinth
+// Diagram 1: Starting Position — patient prone, supported on plinth
 function DiagramStartingPosition() {
   return (
     <svg viewBox="0 0 480 220" className="w-full" aria-label="Starting Position">
@@ -41,15 +41,15 @@ function DiagramStartingPosition() {
       <rect x="160" y="144" width="12" height="40" rx="2" fill="#6b7280"/>
       <rect x="308" y="144" width="12" height="40" rx="2" fill="#6b7280"/>
 
-      {/* Patient body prone â€” lower body on bench */}
+      {/* Patient body prone — lower body on bench */}
       {/* Legs on bench */}
       <rect x="220" y="106" width="200" height="22" rx="10" fill="#fbbf24" stroke="#f59e0b" strokeWidth="1.5"/>
-      {/* Pelvis block â€” at bench edge */}
+      {/* Pelvis block — at bench edge */}
       <ellipse cx="222" cy="117" rx="22" ry="14" fill="#f59e0b" stroke="#d97706" strokeWidth="1.5"/>
 
       {/* Torso hanging off edge */}
       <path d="M222 111 Q200 108 120 112 Q100 113 90 116" stroke="#fbbf24" strokeWidth="20" strokeLinecap="round" fill="none"/>
-      {/* Torso supported (slightly drooping for "starting" â€” will be horizontal in hold) */}
+      {/* Torso supported (slightly drooping for "starting" — will be horizontal in hold) */}
       <path d="M222 111 Q180 115 120 118 Q100 119 90 122" stroke="#f59e0b" strokeWidth="2" strokeLinecap="round" fill="none" strokeDasharray="4,3"/>
 
       {/* Arms crossed over chest */}
@@ -90,7 +90,7 @@ function DiagramStartingPosition() {
   );
 }
 
-// Diagram 2: Stabilisation Setup â€” straps on thighs, pelvis, calves
+// Diagram 2: Stabilisation Setup — straps on thighs, pelvis, calves
 function DiagramStabilisationSetup() {
   return (
     <svg viewBox="0 0 480 220" className="w-full" aria-label="Stabilisation Setup">
@@ -118,19 +118,19 @@ function DiagramStabilisationSetup() {
       {/* Head */}
       <ellipse cx="84" cy="110" rx="16" ry="13" fill="#fed7aa" stroke="#f59e0b" strokeWidth="1.5"/>
 
-      {/* STRAP 1 â€” calves */}
+      {/* STRAP 1 — calves */}
       <rect x="340" y="100" width="16" height="28" rx="3" fill="none" stroke="#2563eb" strokeWidth="3"/>
       <line x1="340" y1="100" x2="325" y2="92" stroke="#2563eb" strokeWidth="2"/>
       <rect x="300" y="84" width="50" height="14" rx="3" fill="#dbeafe" stroke="#2563eb" strokeWidth="1"/>
       <text x="325" y="94" textAnchor="middle" fontSize="8" fill="#1d4ed8" fontWeight="600">Calf strap</text>
 
-      {/* STRAP 2 â€” thighs */}
+      {/* STRAP 2 — thighs */}
       <rect x="270" y="100" width="16" height="28" rx="3" fill="none" stroke="#7c3aed" strokeWidth="3"/>
       <line x1="278" y1="100" x2="278" y2="86" stroke="#7c3aed" strokeWidth="2"/>
       <rect x="248" y="74" width="60" height="14" rx="3" fill="#ede9fe" stroke="#7c3aed" strokeWidth="1"/>
       <text x="278" y="84" textAnchor="middle" fontSize="8" fill="#5b21b6" fontWeight="600">Thigh strap</text>
 
-      {/* STRAP 3 â€” pelvis */}
+      {/* STRAP 3 — pelvis */}
       <rect x="212" y="99" width="26" height="32" rx="3" fill="none" stroke="#dc2626" strokeWidth="3"/>
       <line x1="225" y1="99" x2="225" y2="82" stroke="#dc2626" strokeWidth="2"/>
       <rect x="190" y="68" width="70" height="14" rx="3" fill="#fee2e2" stroke="#dc2626" strokeWidth="1"/>
@@ -138,18 +138,18 @@ function DiagramStabilisationSetup() {
 
       {/* Horizontal alignment indicator */}
       <line x1="88" y1="110" x2="222" y2="110" stroke="#16a34a" strokeWidth="1.5" strokeDasharray="5,3"/>
-      <text x="155" y="105" textAnchor="middle" fontSize="8" fill="#16a34a" fontWeight="600">Horizontal trunk âœ“</text>
+      <text x="155" y="105" textAnchor="middle" fontSize="8" fill="#16a34a" fontWeight="600">Horizontal trunk ✓</text>
 
       {/* Bench edge */}
       <line x1="222" y1="95" x2="222" y2="145" stroke="#dc2626" strokeWidth="1.5" strokeDasharray="3,2"/>
       <text x="240" y="160" fontSize="8" fill="#dc2626">bench edge</text>
 
-      <text x="240" y="195" textAnchor="middle" fontSize="9" fill="#374151">Three-point fixation: calves Â· thighs Â· pelvis</text>
+      <text x="240" y="195" textAnchor="middle" fontSize="9" fill="#374151">Three-point fixation: calves · thighs · pelvis</text>
     </svg>
   );
 }
 
-// Diagram 3: Correct Horizontal Hold â€” side profile
+// Diagram 3: Correct Horizontal Hold — side profile
 function DiagramHorizontalHold() {
   return (
     <svg viewBox="0 0 480 240" className="w-full" aria-label="Correct Horizontal Hold">
@@ -163,7 +163,7 @@ function DiagramHorizontalHold() {
       <rect x="225" y="115" width="190" height="22" rx="10" fill="#fbbf24" stroke="#f59e0b" strokeWidth="1.5"/>
       <ellipse cx="225" cy="126" rx="22" ry="14" fill="#f59e0b" stroke="#d97706" strokeWidth="2"/>
 
-      {/* Torso â€” HORIZONTAL, perfectly level */}
+      {/* Torso — HORIZONTAL, perfectly level */}
       <path d="M225 120 Q185 120 120 120 Q100 120 88 120" stroke="#fbbf24" strokeWidth="20" strokeLinecap="round" fill="none"/>
 
       {/* Arms CROSSED over chest */}
@@ -178,9 +178,9 @@ function DiagramHorizontalHold() {
       {/* HORIZONTAL REFERENCE LINE */}
       <line x1="30" y1="120" x2="450" y2="120" stroke="#16a34a" strokeWidth="2" strokeDasharray="8,4"/>
 
-      {/* Angle arc + label showing 0Â° (horizontal) */}
+      {/* Angle arc + label showing 0° (horizontal) */}
       <path d="M 225 120 m 0 0 a 30 30 0 0 0 0 -30" fill="none" stroke="#16a34a" strokeWidth="1.5" strokeDasharray="4,2"/>
-      <text x="258" y="107" fontSize="9" fill="#16a34a" fontWeight="700">0Â° â€” Horizontal âœ“</text>
+      <text x="258" y="107" fontSize="9" fill="#16a34a" fontWeight="700">0° — Horizontal ✓</text>
 
       {/* Bench edge */}
       <line x1="225" y1="105" x2="225" y2="155" stroke="#dc2626" strokeWidth="1.5" strokeDasharray="3,2"/>
@@ -196,12 +196,12 @@ function DiagramHorizontalHold() {
 
       <text x="78" y="197" fontSize="9" fill="#16a34a" fontWeight="700">Trunk parallel to bench surface</text>
       <text x="78" y="210" fontSize="8" fill="#374151">Timer starts once this position is stable</text>
-      <text x="78" y="222" fontSize="8" fill="#374151">Stop when trunk drops {'>'} 10Â° below horizontal</text>
+      <text x="78" y="222" fontSize="8" fill="#374151">Stop when trunk drops {'>'} 10° below horizontal</text>
     </svg>
   );
 }
 
-// Diagram 4: Common Compensation / Failure â€” trunk drop > 10Â°
+// Diagram 4: Common Compensation / Failure — trunk drop > 10°
 function DiagramCompensation() {
   return (
     <svg viewBox="0 0 480 240" className="w-full" aria-label="Common Compensation Example">
@@ -215,7 +215,7 @@ function DiagramCompensation() {
       <rect x="225" y="116" width="190" height="22" rx="10" fill="#fbbf24" stroke="#f59e0b" strokeWidth="1.5"/>
       <ellipse cx="225" cy="127" rx="22" ry="14" fill="#f59e0b" stroke="#d97706" strokeWidth="2"/>
 
-      {/* Torso â€” DROOPING (failure position, ~20Â° below horizontal) */}
+      {/* Torso — DROOPING (failure position, ~20° below horizontal) */}
       <path d="M225 122 Q200 126 160 134 Q130 139 100 143 Q90 145 80 146" stroke="#fbbf24" strokeWidth="20" strokeLinecap="round" fill="none"/>
 
       {/* Arms drooping */}
@@ -229,25 +229,25 @@ function DiagramCompensation() {
       <line x1="30" y1="122" x2="450" y2="122" stroke="#16a34a" strokeWidth="1.5" strokeDasharray="6,4"/>
       <text x="340" y="118" fontSize="8" fill="#16a34a">Correct horizontal</text>
 
-      {/* ANGLE arc showing >10Â° drop */}
+      {/* ANGLE arc showing >10° drop */}
       <path d="M 225 122 L 225 145" stroke="#dc2626" strokeWidth="1.5" strokeDasharray="2,2"/>
       <path d="M 225 122 L 175 140" stroke="#dc2626" strokeWidth="2"/>
       <path d="M225,122 a25,25 0 0,1 -22,11" fill="none" stroke="#dc2626" strokeWidth="1.5"/>
-      <text x="185" y="120" fontSize="9" fill="#dc2626" fontWeight="700">&gt;10Â° drop</text>
-      <text x="185" y="130" fontSize="8" fill="#dc2626">âš  STOP TEST</text>
+      <text x="185" y="120" fontSize="9" fill="#dc2626" fontWeight="700">&gt;10° drop</text>
+      <text x="185" y="130" fontSize="8" fill="#dc2626">⚠ STOP TEST</text>
 
       {/* Red X */}
       <circle cx="60" cy="200" r="12" fill="#fee2e2" stroke="#dc2626" strokeWidth="1.5"/>
       <path d="M54 194 L66 206 M66 194 L54 206" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round"/>
 
-      <text x="78" y="197" fontSize="9" fill="#dc2626" fontWeight="700">Trunk drop {'>'} 10Â° below horizontal = test end</text>
+      <text x="78" y="197" fontSize="9" fill="#dc2626" fontWeight="700">Trunk drop {'>'} 10° below horizontal = test end</text>
       <text x="78" y="210" fontSize="8" fill="#374151">Other stop criteria: hands leave hips/chest, patient requests stop</text>
-      <text x="78" y="222" fontSize="8" fill="#374151">Neurological symptoms, severe pain â€” stop immediately</text>
+      <text x="78" y="222" fontSize="8" fill="#374151">Neurological symptoms, severe pain — stop immediately</text>
     </svg>
   );
 }
 
-// â”€â”€ Main exported component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main exported component ───────────────────────────────────────────────────
 const IMAGES = [
   {
     id: "start",
@@ -266,7 +266,7 @@ const IMAGES = [
     notes: [
       "Three-point fixation: pelvic strap, thigh strap, calf strap.",
       "Straps must be firm but not restrict circulation.",
-      "Arms crossed over chest â€” standard protocol position.",
+      "Arms crossed over chest — standard protocol position.",
     ],
     svg: <DiagramStabilisationSetup />,
     thumb: <DiagramStabilisationSetup />,
@@ -275,8 +275,8 @@ const IMAGES = [
     id: "hold",
     caption: "Correct Horizontal Hold",
     notes: [
-      "Trunk held perfectly parallel to bench surface (0Â°).",
-      "Neutral lumbar spine â€” no hyperextension.",
+      "Trunk held perfectly parallel to bench surface (0°).",
+      "Neutral lumbar spine — no hyperextension.",
       "Timer starts once stable horizontal position is confirmed.",
     ],
     svg: <DiagramHorizontalHold />,
@@ -284,9 +284,9 @@ const IMAGES = [
   },
   {
     id: "comp",
-    caption: "Common Compensation â€” Trunk Drop",
+    caption: "Common Compensation — Trunk Drop",
     notes: [
-      "Test ends when trunk drops >10Â° below horizontal.",
+      "Test ends when trunk drops >10° below horizontal.",
       "Also stop for: pain, neurological symptoms, patient request.",
       "Document the reason for stopping as part of the assessment.",
     ],
@@ -323,13 +323,13 @@ export default function BieringSorensenDiagrams() {
 
       <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700 space-y-1">
         <p><strong>Key Setup Points:</strong></p>
-        <p>â‘  ASIS/iliac crest aligned precisely at the bench edge</p>
-        <p>â‘¡ Lower body secured with straps at thighs, pelvis, and calves</p>
-        <p>â‘¢ Arms folded across chest (not behind neck)</p>
-        <p>â‘£ Trunk initially supported â€” released on clinician command</p>
-        <p>â‘¤ Timer starts once horizontal trunk alignment is confirmed</p>
-        <p>â‘¥ Correct horizontal position = trunk parallel to bench surface</p>
-        <p>â‘¦ Stop at &gt;10Â° trunk drop below horizontal</p>
+        <p>① ASIS/iliac crest aligned precisely at the bench edge</p>
+        <p>② Lower body secured with straps at thighs, pelvis, and calves</p>
+        <p>③ Arms folded across chest (not behind neck)</p>
+        <p>④ Trunk initially supported — released on clinician command</p>
+        <p>⑤ Timer starts once horizontal trunk alignment is confirmed</p>
+        <p>⑥ Correct horizontal position = trunk parallel to bench surface</p>
+        <p>⑦ Stop at &gt;10° trunk drop below horizontal</p>
       </div>
 
       <Lightbox image={lightbox} onClose={() => setLightbox(null)} />

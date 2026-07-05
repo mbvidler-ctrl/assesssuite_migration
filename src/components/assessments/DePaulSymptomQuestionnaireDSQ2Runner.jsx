@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, ChevronLeft, ChevronRight, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
-// DSQ-2 symptom items â€” rated for Frequency (0-4) and Severity (0-4)
+// DSQ-2 symptom items — rated for Frequency (0-4) and Severity (0-4)
 const SYMPTOM_DOMAINS = [
   {
     domain: "Post-Exertional Malaise (PEM)",
@@ -145,8 +145,8 @@ const RECOVERY_OPTIONS = [
   "Less than 1 hour",
   "Several hours",
   "1 day",
-  "2â€“3 days",
-  "4â€“7 days",
+  "2–3 days",
+  "4–7 days",
   "More than 1 week",
 ];
 
@@ -242,16 +242,16 @@ export default function DePaulSymptomQuestionnaireDSQ2Runner({ client, onSave, o
       soapLines.push(`\n  ${d.domain} (Avg Frequency: ${domainBreakdown[d.domain]}/4):`);
       d.items.forEach((item, i) => {
         const gi = offset2 + i;
-        const freqLabel = FREQ_OPTIONS.find(o => o.value === freq[gi])?.label.replace("\n", " ") ?? "â€”";
-        const sevLabel = SEV_OPTIONS.find(o => o.value === sev[gi])?.label.replace("\n", " ") ?? "â€”";
-        soapLines.push(`    - ${item}: Freq ${freq[gi] ?? "â€”"}/4 (${freqLabel}), Severity ${sev[gi] ?? "â€”"}/4 (${sevLabel})`);
+        const freqLabel = FREQ_OPTIONS.find(o => o.value === freq[gi])?.label.replace("\n", " ") ?? "—";
+        const sevLabel = SEV_OPTIONS.find(o => o.value === sev[gi])?.label.replace("\n", " ") ?? "—";
+        soapLines.push(`    - ${item}: Freq ${freq[gi] ?? "—"}/4 (${freqLabel}), Severity ${sev[gi] ?? "—"}/4 (${sevLabel})`);
       });
       offset2 += d.items.length;
     });
     soapLines.push(`\nPEM Triggers: ${pemTriggers.length > 0 ? pemTriggers.join(", ") : "None reported"}`);
     if (pemRecovery) soapLines.push(`PEM Recovery Time: ${pemRecovery}`);
 
-    const soap_text = `DePaul Symptom Questionnaire (DSQ-2)\nâ€¢ Total composite score: ${avgComposite}\n\n${soapLines.join("\n")}`;
+    const soap_text = `DePaul Symptom Questionnaire (DSQ-2)\n• Total composite score: ${avgComposite}\n\n${soapLines.join("\n")}`;
 
     onSave({
       result_value: avgComposite,
@@ -292,7 +292,7 @@ export default function DePaulSymptomQuestionnaireDSQ2Runner({ client, onSave, o
         <div className="flex justify-between items-center px-6 py-4 border-b">
           <div>
             <h2 className="text-xl font-bold text-slate-900">DePaul Symptom Questionnaire (DSQ-2)</h2>
-            <p className="text-sm text-slate-500">{ALL_ITEMS.length} symptoms Â· Frequency &amp; Severity Â· Past 6 months</p>
+            <p className="text-sm text-slate-500">{ALL_ITEMS.length} symptoms · Frequency &amp; Severity · Past 6 months</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
@@ -328,7 +328,7 @@ export default function DePaulSymptomQuestionnaireDSQ2Runner({ client, onSave, o
                   <div>
                     <p className="font-semibold">Administration Guidelines:</p>
                     <ul className="list-disc list-inside ml-4 space-y-1 text-xs mt-1">
-                      <li>Explain that the assessment takes 10â€“15 minutes</li>
+                      <li>Explain that the assessment takes 10–15 minutes</li>
                       <li>Emphasize that there are no "right" or "wrong" answers</li>
                       <li>Clarify that questions cover the <strong>past 6 months only</strong></li>
                       <li>Frequency: How often the symptom occurred (Never to Always)</li>
@@ -337,7 +337,7 @@ export default function DePaulSymptomQuestionnaireDSQ2Runner({ client, onSave, o
                   </div>
                   <div>
                     <p className="font-semibold">Scoring Notes:</p>
-                    <p className="ml-4 text-xs">Composite score calculated as average of (frequency Ã— severity) for reported symptoms. Domain breakdowns provided for clinical interpretation.</p>
+                    <p className="ml-4 text-xs">Composite score calculated as average of (frequency × severity) for reported symptoms. Domain breakdowns provided for clinical interpretation.</p>
                   </div>
                 </CardContent>
               </Card>
@@ -367,7 +367,7 @@ export default function DePaulSymptomQuestionnaireDSQ2Runner({ client, onSave, o
                 </CardHeader>
                 <CardContent className="text-xs text-slate-700 space-y-2">
                   <p><strong>Friedberg F, Bateman L, Berman S, et al.</strong> Chronic Fatigue Syndrome in Adults and Children. American Family Physician. 2020.</p>
-                  <p><strong>Carruthers BM, van de Sande MI, De Meirleir KL, et al.</strong> Myalgic Encephalomyelitis: International Consensus Criteria. Journal of Internal Medicine. 2011;270(4):327â€“338.</p>
+                  <p><strong>Carruthers BM, van de Sande MI, De Meirleir KL, et al.</strong> Myalgic Encephalomyelitis: International Consensus Criteria. Journal of Internal Medicine. 2011;270(4):327–338.</p>
                   <p><strong>Institute of Medicine (IOM).</strong> Beyond Myalgic Encephalomyelitis/Chronic Fatigue Syndrome: Redefining an Illness. National Academies Press. 2015.</p>
                   <Button
                     onClick={() => window.open('https://me-cfs.org/', '_blank')}
@@ -405,7 +405,7 @@ export default function DePaulSymptomQuestionnaireDSQ2Runner({ client, onSave, o
                                   : "bg-white text-slate-700 border-slate-200 hover:border-blue-400"
                               }`}
                             >
-                              {opt.value} â€“ {opt.label.split("\n")[0]}
+                              {opt.value} – {opt.label.split("\n")[0]}
                             </button>
                           ))}
                         </div>
@@ -423,7 +423,7 @@ export default function DePaulSymptomQuestionnaireDSQ2Runner({ client, onSave, o
                                   : "bg-white text-slate-700 border-slate-200 hover:border-orange-300"
                               }`}
                             >
-                              {opt.value} â€“ {opt.label.split("\n")[0]}
+                              {opt.value} – {opt.label.split("\n")[0]}
                             </button>
                           ))}
                         </div>

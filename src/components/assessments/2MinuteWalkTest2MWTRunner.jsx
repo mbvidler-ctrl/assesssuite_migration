@@ -54,7 +54,7 @@ export default function TwoMinuteWalkTest2MWTRunner({ client, onSave, onClose })
       return;
     }
 
-    const soapText = `â€¢ 2-Minute Walk Test (2MWT)\n  Distance: ${distance}m\n  Pre-Test: HR ${preTestHR} bpm, BP ${preTestBP} mmHg\n  Post-Test: HR ${postTestHR} bpm, BP ${postTestBP} mmHg`;
+    const soapText = `• 2-Minute Walk Test (2MWT)\n  Distance: ${distance}m\n  Pre-Test: HR ${preTestHR} bpm, BP ${preTestBP} mmHg\n  Post-Test: HR ${postTestHR} bpm, BP ${postTestBP} mmHg`;
 
     onSave({
       status: "completed",
@@ -90,14 +90,14 @@ export default function TwoMinuteWalkTest2MWTRunner({ client, onSave, onClose })
             <h2 className="text-xl font-bold">2-Minute Walk Test (2MWT)</h2>
             <p className="text-blue-100 text-sm mt-1">Functional walking capacity assessment</p>
           </div>
-          <button onClick={onClose} className="text-white text-2xl leading-none">Ã—</button>
+          <button onClick={onClose} className="text-white text-2xl leading-none">×</button>
         </div>
 
         {/* Content */}
         <div className="p-5 space-y-4">
           {/* Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900">
-            <p className="font-semibold mb-2">ðŸ“‹ Administration</p>
+            <p className="font-semibold mb-2">📋 Administration</p>
             <p className="text-xs">Client walks as far as possible in 2 minutes along a 30m course. Document pre/post vitals and distance. Assistive devices permitted but documented.</p>
           </div>
 
@@ -105,9 +105,9 @@ export default function TwoMinuteWalkTest2MWTRunner({ client, onSave, onClose })
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-700">
             <p className="font-semibold mb-2">Reference Values</p>
             <div className="grid grid-cols-2 gap-2 text-xs">
-              <div>Healthy older: 142â€“175m</div>
-              <div>Stroke: 56â€“126m</div>
-              <div>Parkinson's: 80â€“120m</div>
+              <div>Healthy older: 142–175m</div>
+              <div>Stroke: 56–126m</div>
+              <div>Parkinson's: 80–120m</div>
               <div>MCID: ~12m</div>
             </div>
           </div>
@@ -138,7 +138,7 @@ export default function TwoMinuteWalkTest2MWTRunner({ client, onSave, onClose })
             </div>
             <div className="flex justify-center gap-2">
               <Badge variant={isTestRunning ? "default" : "secondary"} className={isTestRunning ? "bg-green-600" : ""}>
-                {isTestRunning ? "ðŸŸ¢ Running" : "â¸ Stopped"}
+                {isTestRunning ? "🟢 Running" : "â¸ Stopped"}
               </Badge>
             </div>
           </div>

@@ -128,7 +128,7 @@ export default function NaughtonTreadmillProtocolRunner({ client, onSave, onClos
     const interpretation = getInterpretation(stagesCompleted);
 
     const stageLines = stageData.map(s =>
-      `  Stage ${s.stage} (${formatTime(s.timeSec)}) â€” ${s.speedMph} mph / ${s.speedKmh} km/h / ${s.grade}% grade / ~${s.mets} METs` +
+      `  Stage ${s.stage} (${formatTime(s.timeSec)}) — ${s.speedMph} mph / ${s.speedKmh} km/h / ${s.grade}% grade / ~${s.mets} METs` +
       (s.heartRate ? ` | HR: ${s.heartRate} bpm` : '') +
       (s.bp ? ` | BP: ${s.bp}` : '') +
       (s.rpe ? ` | RPE: ${s.rpe}/10` : '') +
@@ -136,10 +136,10 @@ export default function NaughtonTreadmillProtocolRunner({ client, onSave, onClos
     ).join('\n');
 
     const soapText = [
-      `â€¢ Naughton Treadmill Protocol (${protocol.label}):`,
+      `• Naughton Treadmill Protocol (${protocol.label}):`,
       `  Total Time: ${formatTime(totalTime)}`,
       `  Stages Completed: ${stagesCompleted}`,
-      `  Final Stage: Stage ${currentStage.stage} â€” ${currentStage.speedMph} mph (${currentStage.speedKmh} km/h) / ${currentStage.gradePercent}% grade / ~${currentStage.estimatedMETs} METs`,
+      `  Final Stage: Stage ${currentStage.stage} — ${currentStage.speedMph} mph (${currentStage.speedKmh} km/h) / ${currentStage.gradePercent}% grade / ~${currentStage.estimatedMETs} METs`,
       `  Termination Reason: ${terminationReason}`,
       `  Clinical Interpretation: ${interpretation}`,
       stageLines ? `  Stage Data:\n${stageLines}` : null,
@@ -175,7 +175,7 @@ export default function NaughtonTreadmillProtocolRunner({ client, onSave, onClos
         <div className="p-6 border-b bg-gradient-to-r from-teal-50 to-cyan-50 flex justify-between items-start">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Naughton Treadmill Protocol</h2>
-            <p className="text-slate-600 mt-1">Low-workload graded exercise test â€” 2-minute stages</p>
+            <p className="text-slate-600 mt-1">Low-workload graded exercise test — 2-minute stages</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -210,7 +210,7 @@ export default function NaughtonTreadmillProtocolRunner({ client, onSave, onClos
 
           {/* Stage table */}
           <Card>
-            <CardHeader><CardTitle className="text-base">Protocol Stages â€” {protocol.label}</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-base">Protocol Stages — {protocol.label}</CardTitle></CardHeader>
             <CardContent>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm text-center">
@@ -237,14 +237,14 @@ export default function NaughtonTreadmillProtocolRunner({ client, onSave, onClos
                     ))}
                   </tbody>
                 </table>
-                <p className="text-xs text-slate-500 mt-2">METs estimated using ACSM walking equation. Values are approximations â€” do not interpret in isolation.</p>
+                <p className="text-xs text-slate-500 mt-2">METs estimated using ACSM walking equation. Values are approximations — do not interpret in isolation.</p>
               </div>
             </CardContent>
           </Card>
 
           {/* Current stage */}
           <Card className="bg-teal-50 border-teal-200">
-            <CardHeader><CardTitle className="text-lg">Current Stage â€” Stage {currentStage.stage}</CardTitle></CardHeader>
+            <CardHeader><CardTitle className="text-lg">Current Stage — Stage {currentStage.stage}</CardTitle></CardHeader>
             <CardContent>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
                 <div>
@@ -294,7 +294,7 @@ export default function NaughtonTreadmillProtocolRunner({ client, onSave, onClos
                   </Button>
                   {currentStageIdx < stages.length - 1 && (
                     <Button onClick={() => { setCurrentStageIdx(i => i + 1); setStageTime(0); }} variant="outline" size="lg">
-                      Next Stage â†’
+                      Next Stage →
                     </Button>
                   )}
                 </div>
@@ -315,7 +315,7 @@ export default function NaughtonTreadmillProtocolRunner({ client, onSave, onClos
                 <Input value={bp} onChange={e => setBp(e.target.value)} placeholder="e.g. 138/82" className="mt-1" />
               </div>
               <div>
-                <Label>RPE (/10 or Borg 6â€“20)</Label>
+                <Label>RPE (/10 or Borg 6–20)</Label>
                 <Input value={rpe} onChange={e => setRPE(e.target.value)} placeholder="e.g. 13" className="mt-1" />
               </div>
               <div>
@@ -336,7 +336,7 @@ export default function NaughtonTreadmillProtocolRunner({ client, onSave, onClos
                 <div className="space-y-2">
                   {stageData.map((d, idx) => (
                     <div key={idx} className="text-sm p-2 bg-slate-50 rounded border border-slate-200">
-                      <span className="font-medium">Stage {d.stage}</span> ({formatTime(d.timeSec)}) â€” {d.speedMph} mph / {d.speedKmh} km/h / {d.grade}% / ~{d.mets} METs
+                      <span className="font-medium">Stage {d.stage}</span> ({formatTime(d.timeSec)}) — {d.speedMph} mph / {d.speedKmh} km/h / {d.grade}% / ~{d.mets} METs
                       {d.heartRate ? <span className="ml-2 text-slate-600">| HR: {d.heartRate} bpm</span> : null}
                       {d.bp ? <span className="ml-2 text-slate-600">| BP: {d.bp}</span> : null}
                       {d.rpe ? <span className="ml-2 text-slate-600">| RPE: {d.rpe}</span> : null}

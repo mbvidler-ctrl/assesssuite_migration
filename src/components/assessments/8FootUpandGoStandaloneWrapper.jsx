@@ -78,7 +78,7 @@ export default function EightFootUpandGoStandaloneWrapper({ assessment, client, 
 
       // Generate SOAP note entry
       const trialsText = data.additional_data.trials.map((t, i) => `Trial ${i + 1}: ${t.time_s.toFixed(2)}s`).join(', ');
-      const objectiveText = `â€¢ ${assessment.name}:\n  Trials: ${trialsText}\n  Best Time: ${data.result_value.toFixed(2)}s\n  Chair: ${data.additional_data.chair_height}\n  Assistance: ${data.additional_data.assistance_used === 'none' ? 'None' : data.additional_data.assistance_used.replace('_', ' ')}\n  Interpretation: ${data.additional_data.interpretation || ''}\n${data.notes ? `\n  Clinical Notes: ${data.notes}` : ''}`;
+      const objectiveText = `• ${assessment.name}:\n  Trials: ${trialsText}\n  Best Time: ${data.result_value.toFixed(2)}s\n  Chair: ${data.additional_data.chair_height}\n  Assistance: ${data.additional_data.assistance_used === 'none' ? 'None' : data.additional_data.assistance_used.replace('_', ' ')}\n  Interpretation: ${data.additional_data.interpretation || ''}\n${data.notes ? `\n  Clinical Notes: ${data.notes}` : ''}`;
 
       // Find or create SOAP note for appointment
       let existingSoapNotes = await base44.entities.SOAPNote.filter({

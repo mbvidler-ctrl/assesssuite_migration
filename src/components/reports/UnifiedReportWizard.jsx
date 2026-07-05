@@ -19,21 +19,21 @@ export const META_TEMPLATES = {
     key: "short_referral_letter",
     label: "Short Referral Letter",
     recommended_length_pages: 1,
-    description: "Brief update to referrers â€” inform that treatment has started, succinct summary of interventions and next steps.",
-    ai_instruction: "Write concisely for a 1-page referral letter. Each section should be 2â€“4 sentences maximum. Use clear, direct clinical language appropriate for a GP or referrer. Do NOT pad with unnecessary background â€” focus only on what is clinically relevant and actionable.",
+    description: "Brief update to referrers — inform that treatment has started, succinct summary of interventions and next steps.",
+    ai_instruction: "Write concisely for a 1-page referral letter. Each section should be 2–4 sentences maximum. Use clear, direct clinical language appropriate for a GP or referrer. Do NOT pad with unnecessary background — focus only on what is clinically relevant and actionable.",
   },
   comprehensive_progress_report: {
     key: "comprehensive_progress_report",
     label: "Comprehensive Progress Report",
     recommended_length_pages: 2,
     description: "Plan reviews, progress reports for insurers or funders. Includes baseline and current measures, goal progress, and specific recommendations.",
-    ai_instruction: "Write a thorough but focused 2-page report. Each section should be 1â€“3 short paragraphs. Include baseline vs current outcome measures, goal progress with specific data, and clear clinical reasoning. Be specific and evidence-based â€” avoid vague generalities.",
+    ai_instruction: "Write a thorough but focused 2-page report. Each section should be 1–3 short paragraphs. Include baseline vs current outcome measures, goal progress with specific data, and clear clinical reasoning. Be specific and evidence-based — avoid vague generalities.",
   },
   functional_capacity_evaluation: {
     key: "functional_capacity_evaluation",
     label: "Functional Capacity Evaluation",
     recommended_length_pages: 2,
-    description: "Detailed FCE/FCA â€” physical and functional abilities, work capacity, and return-to-work recommendations.",
+    description: "Detailed FCE/FCA — physical and functional abilities, work capacity, and return-to-work recommendations.",
     ai_instruction: "Write a detailed, structured functional capacity evaluation. Be specific about measured tolerances (e.g. lifting capacity in kg, standing tolerance in minutes). Reference actual test results with values. Use objective, medicolegal-quality language. Organise findings clearly. Avoid vague qualitative statements without supporting data.",
   },
 };
@@ -500,7 +500,7 @@ const REPORT_TEMPLATES = {
     optional: ["RTW Timeline", "Workplace Communication Notes", "Equipment Recommendations", "Attachments", "Provider Signature"]
   },
   sira_ahtr: {
-    id: "SIRA_ALLIED_HEALTH_TREATMENT_REQUEST", title: "NSW SIRA â€” Allied Health Treatment Request (AHTR)", funder: "WORKCOVER_NSW",
+    id: "SIRA_ALLIED_HEALTH_TREATMENT_REQUEST", title: "NSW SIRA — Allied Health Treatment Request (AHTR)", funder: "WORKCOVER_NSW",
     mandatory: [
       "Claim / Client Details",
       "Diagnosis & Mechanism of Injury",
@@ -703,7 +703,7 @@ const REPORT_TEMPLATES = {
     optional: ["Attachments", "Provider Signature"]
   },
   ctp_initial: {
-    id: "CTP_INITIAL_ASSESSMENT", title: "CTP Motor Accident â€” Initial Assessment", funder: "CTP",
+    id: "CTP_INITIAL_ASSESSMENT", title: "CTP Motor Accident — Initial Assessment", funder: "CTP",
     mandatory: [
       "Accident / Injury Background & Claim Details",
       "Current Symptoms & Subjective Complaints",
@@ -717,7 +717,7 @@ const REPORT_TEMPLATES = {
     optional: ["Return to Activity Plan", "Attachments", "Provider Signature"]
   },
   ctp_progress: {
-    id: "CTP_PROGRESS_REPORT", title: "CTP Motor Accident â€” Progress Report", funder: "CTP",
+    id: "CTP_PROGRESS_REPORT", title: "CTP Motor Accident — Progress Report", funder: "CTP",
     mandatory: [
       "Summary of Treatment Provided to Date",
       "Outcome Measures (baseline vs current results)",
@@ -729,7 +729,7 @@ const REPORT_TEMPLATES = {
     optional: ["Attachments", "Provider Signature"]
   },
   ctp_discharge: {
-    id: "CTP_DISCHARGE_SUMMARY", title: "CTP Motor Accident â€” Discharge Summary", funder: "CTP",
+    id: "CTP_DISCHARGE_SUMMARY", title: "CTP Motor Accident — Discharge Summary", funder: "CTP",
     mandatory: [
       "Summary of Treatment Provided",
       "Outcome Measures (baseline vs final results)",
@@ -739,7 +739,7 @@ const REPORT_TEMPLATES = {
     optional: ["Attachments", "Provider Signature"]
   },
   hcp_initial: {
-    id: "HCP_INITIAL_FUNCTIONAL_ASSESSMENT", title: "Home Care Package â€” Initial Functional Assessment", funder: "AGED_CARE",
+    id: "HCP_INITIAL_FUNCTIONAL_ASSESSMENT", title: "Home Care Package — Initial Functional Assessment", funder: "AGED_CARE",
     mandatory: [
       "Reason for Referral & Presenting Concerns",
       "Relevant Medical History & Medications",
@@ -755,7 +755,7 @@ const REPORT_TEMPLATES = {
     optional: ["Carer / Family Notes", "Equipment / Home Modification Recommendations", "Cognitive Screening Notes", "Attachments", "Provider Signature"]
   },
   hcp_care_plan: {
-    id: "HCP_INDIVIDUAL_CARE_PLAN", title: "Home Care Package â€” Individual Care Plan", funder: "AGED_CARE",
+    id: "HCP_INDIVIDUAL_CARE_PLAN", title: "Home Care Package — Individual Care Plan", funder: "AGED_CARE",
     mandatory: [
       "Client Goals (aligned to HCP package goals)",
       "Service Types & Frequency",
@@ -767,7 +767,7 @@ const REPORT_TEMPLATES = {
     optional: ["Equipment Recommendations", "Home Modification Notes", "Carer Support Plan", "Attachments", "Provider Signature"]
   },
   hcp_annual_review: {
-    id: "HCP_ANNUAL_REVIEW", title: "Home Care Package â€” Annual Review", funder: "AGED_CARE",
+    id: "HCP_ANNUAL_REVIEW", title: "Home Care Package — Annual Review", funder: "AGED_CARE",
     mandatory: [
       "Summary of Services Provided",
       "Outcome Measures (baseline vs current results)",
@@ -840,7 +840,7 @@ const REPORT_TEMPLATES = {
     optional: ["Bibliography / References", "Appendices", "Provider Signature"]
   },
   cancer_initial: {
-    id: "CANCER_INITIAL_ASSESSMENT", title: "Cancer / Oncology â€” Initial Assessment", funder: "CANCER",
+    id: "CANCER_INITIAL_ASSESSMENT", title: "Cancer / Oncology — Initial Assessment", funder: "CANCER",
     mandatory: [
       "Reason for Referral & Cancer Background",
       "Cancer Type, Stage & Treatment Status (surgery / chemo / radiotherapy / hormone)",
@@ -856,7 +856,7 @@ const REPORT_TEMPLATES = {
     optional: ["Lymphoedema Screening Notes", "Psychosocial Screening", "Attachments", "Provider Signature"]
   },
   cancer_progress: {
-    id: "CANCER_PROGRESS_REPORT", title: "Cancer / Oncology â€” Progress Report", funder: "CANCER",
+    id: "CANCER_PROGRESS_REPORT", title: "Cancer / Oncology — Progress Report", funder: "CANCER",
     mandatory: [
       "Summary of Treatment Provided",
       "Outcome Measures (baseline vs current results)",
@@ -869,22 +869,22 @@ const REPORT_TEMPLATES = {
     optional: ["Psychosocial Update", "Attachments", "Provider Signature"]
   },
   cardiac_phase1: {
-    id: "CARDIAC_PHASE1", title: "Cardiac Rehab â€” Phase I (Inpatient)", funder: "CARDIAC",
+    id: "CARDIAC_PHASE1", title: "Cardiac Rehab — Phase I (Inpatient)", funder: "CARDIAC",
     mandatory: ["Reason for Referral & Cardiac Event Summary", "Relevant Medical History & Risk Factors", "Baseline Functional Assessment", "Inpatient Exercise Tolerance & Activity Progression", "Patient Education Delivered", "Discharge Functional Status", "Goals & Phase II Recommendations"],
     optional: ["Medications on Discharge", "Attachments", "Provider Signature"]
   },
   cardiac_phase2: {
-    id: "CARDIAC_PHASE2", title: "Cardiac Rehab â€” Phase II (Outpatient)", funder: "CARDIAC",
+    id: "CARDIAC_PHASE2", title: "Cardiac Rehab — Phase II (Outpatient)", funder: "CARDIAC",
     mandatory: ["Reason for Referral & Cardiac History", "Baseline Assessment & Risk Stratification", "Exercise Prescription & Program Design", "Education & Behaviour Change Interventions", "Outcome Measures (baseline vs current)", "Progress Against Goals", "Plan for Phase III / Maintenance"],
     optional: ["Psychosocial Screening Results", "Attachments", "Provider Signature"]
   },
   cardiac_phase3: {
-    id: "CARDIAC_PHASE3", title: "Cardiac Rehab â€” Phase III Completion Report", funder: "CARDIAC",
+    id: "CARDIAC_PHASE3", title: "Cardiac Rehab — Phase III Completion Report", funder: "CARDIAC",
     mandatory: ["Summary of Program Participation", "Outcome Measures (baseline vs end of program)", "Exercise Capacity Change (e.g. 6MWT, VO2 max, step test)", "Risk Factor Improvements", "Patient Education & Self-Management Achieved", "Discharge Functional Status & Goals Met", "Long-term Maintenance Recommendations"],
     optional: ["Return to Work / Activity Status", "Attachments", "Provider Signature"]
   },
   cardiac_phase4: {
-    id: "CARDIAC_PHASE4", title: "Cardiac Rehab â€” Phase IV Referral Letter", funder: "CARDIAC",
+    id: "CARDIAC_PHASE4", title: "Cardiac Rehab — Phase IV Referral Letter", funder: "CARDIAC",
     mandatory: ["Reason for Referral to Community Maintenance Program", "Summary of Phase II / III Participation & Outcomes", "Current Exercise Capacity & Functional Status", "Risk Stratification & Precautions", "Recommended Exercise Parameters", "Goals for Community Program"],
     optional: ["Medications", "Emergency Action Plan Notes", "Attachments", "Provider Signature"]
   },
@@ -953,69 +953,69 @@ const REPORT_TEMPLATES = {
     optional: ["Provider Signature"]
   },
 
-  // â”€â”€â”€ UK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── UK ───────────────────────────────────────────────────────────────────
   uk_nhs_ers_initial: {
-    id: "UK_NHS_ERS_INITIAL", title: "NHS ERS â€” Initial Assessment", funder: "UK_NHS",
+    id: "UK_NHS_ERS_INITIAL", title: "NHS ERS — Initial Assessment", funder: "UK_NHS",
     mandatory: ["Referral Details & Referring Clinician","Medical History & Contraindications","Physical Activity & Lifestyle Baseline","Baseline Fitness Assessment (ISWT / 6MWT / step test)","Resting Observations (HR, BP, SpO2, BMI)","Risk Stratification","Goals (short-term & long-term)","Exercise Prescription & Programme Plan"],
     optional: ["Psychological Screening (PHQ-9 / GAD-7)", "Attachments", "Provider Signature"]
   },
   uk_nhs_ers_progress: {
-    id: "UK_NHS_ERS_PROGRESS", title: "NHS ERS â€” Progress Report", funder: "UK_NHS",
+    id: "UK_NHS_ERS_PROGRESS", title: "NHS ERS — Progress Report", funder: "UK_NHS",
     mandatory: ["Summary of Attendance & Engagement","Outcome Measures (baseline vs current)","Exercise Capacity Progress","Adherence & Barriers","Goals Update","Plan for Remainder of Programme"],
     optional: ["Psychosocial Update", "Attachments", "Provider Signature"]
   },
   uk_nhs_ers_completion: {
-    id: "UK_NHS_ERS_COMPLETION", title: "NHS ERS â€” Completion / Discharge Report", funder: "UK_NHS",
+    id: "UK_NHS_ERS_COMPLETION", title: "NHS ERS — Completion / Discharge Report", funder: "UK_NHS",
     mandatory: ["Programme Summary & Attendance","Outcome Measures (baseline vs end)","Exercise Capacity Change","Physical Activity Level at Discharge","Goals Achieved","Recommendations for Ongoing Activity","Onward Referral (if applicable)"],
     optional: ["Barriers & Relapse Prevention", "Attachments", "Provider Signature"]
   },
   uk_cardiac_initial: {
-    id: "UK_CARDIAC_INITIAL", title: "Cardiac Rehab â€” Initial Clinical Assessment", funder: "UK_CARDIAC",
+    id: "UK_CARDIAC_INITIAL", title: "Cardiac Rehab — Initial Clinical Assessment", funder: "UK_CARDIAC",
     mandatory: ["Cardiac Event Summary & Referral Details","Relevant Cardiac History & Medications","Cardiovascular Risk Factors","Baseline Exercise Tolerance Assessment (CPET / 6MWT / Incremental Shuttle)","Resting ECG & Haemodynamic Response","Risk Stratification (BACPR / SIGN)","Psychological Screening (PHQ-9 / GAD-7 / HADS)","Patient Goals","Phase II Exercise Prescription"],
     optional: ["Vocational / Return to Work Goals", "Attachments", "Provider Signature"]
   },
   uk_cardiac_completion: {
-    id: "UK_CARDIAC_COMPLETION", title: "Cardiac Rehab â€” Phase III Completion Report", funder: "UK_CARDIAC",
+    id: "UK_CARDIAC_COMPLETION", title: "Cardiac Rehab — Phase III Completion Report", funder: "UK_CARDIAC",
     mandatory: ["Programme Summary & Attendance","Outcome Measures (baseline vs end of programme)","Exercise Capacity Change","Risk Factor Improvements (weight, BP, lipids, HbA1c)","Psychological Wellbeing Outcomes","Goals Achieved","Long-term Maintenance Recommendations","Phase IV Referral"],
     optional: ["Return to Work / Driving Status", "Attachments", "Provider Signature"]
   },
   uk_pulmonary_initial: {
-    id: "UK_PULMONARY_INITIAL", title: "Pulmonary Rehab â€” Initial Assessment", funder: "UK_PULMONARY",
+    id: "UK_PULMONARY_INITIAL", title: "Pulmonary Rehab — Initial Assessment", funder: "UK_PULMONARY",
     mandatory: ["Referral Details & Respiratory Diagnosis","Spirometry Results (FEV1, FVC, FEV1/FVC)","MRC Dyspnoea Scale","Baseline Exercise Tolerance (ISWT / 6MWT)","SGRQ / CAT Score","Oxygen Saturation at Rest & Exercise","Comorbidities & Medications","Goals & Exercise Prescription"],
     optional: ["Anxiety / Depression Screening", "Attachments", "Provider Signature"]
   },
   uk_pulmonary_completion: {
-    id: "UK_PULMONARY_COMPLETION", title: "Pulmonary Rehab â€” Completion Report", funder: "UK_PULMONARY",
+    id: "UK_PULMONARY_COMPLETION", title: "Pulmonary Rehab — Completion Report", funder: "UK_PULMONARY",
     mandatory: ["Attendance & Engagement","Outcome Measures (baseline vs end)","Exercise Capacity Change (ISWT / 6MWT)","SGRQ / CAT Score Change","Breathlessness & Functional Improvement","Goals Achieved","Maintenance Recommendations & Onward Referral"],
     optional: ["Exacerbation Frequency", "Attachments", "Provider Signature"]
   },
   uk_cancer_initial: {
-    id: "UK_CANCER_INITIAL", title: "Cancer Rehab â€” Initial Exercise Assessment", funder: "UK_CANCER",
+    id: "UK_CANCER_INITIAL", title: "Cancer Rehab — Initial Exercise Assessment", funder: "UK_CANCER",
     mandatory: ["Referral Details & Cancer Diagnosis / Treatment Status","Holistic Needs Assessment (HNA) Summary","Medical Clearance & Contraindications","Baseline Fitness Assessment","Fatigue & Wellbeing Screening","Goals","Exercise Prescription & Programme Plan"],
     optional: ["Psychological Referral", "Attachments", "Provider Signature"]
   },
   uk_cancer_progress: {
-    id: "UK_CANCER_PROGRESS", title: "Cancer Rehab â€” Progress Report", funder: "UK_CANCER",
+    id: "UK_CANCER_PROGRESS", title: "Cancer Rehab — Progress Report", funder: "UK_CANCER",
     mandatory: ["Attendance & Engagement","Outcome Measures (baseline vs current)","Exercise Tolerance Progress","Fatigue & Wellbeing Update","Cancer Treatment Changes","Goals Update","Plan Going Forward"],
     optional: ["Psychosocial Update", "Attachments", "Provider Signature"]
   },
   uk_cancer_completion: {
-    id: "UK_CANCER_COMPLETION", title: "Cancer Rehab â€” End-of-Programme Report", funder: "UK_CANCER",
+    id: "UK_CANCER_COMPLETION", title: "Cancer Rehab — End-of-Programme Report", funder: "UK_CANCER",
     mandatory: ["Programme Summary & Attendance","Outcome Measures (baseline vs end)","Exercise Capacity Change","Wellbeing & Fatigue Outcomes","Goals Achieved","Recommendations for Ongoing Activity","Onward Referral"],
     optional: ["Return to Work / ADL Status", "Attachments", "Provider Signature"]
   },
   uk_pmi_initial: {
-    id: "UK_PMI_INITIAL", title: "PMI â€” Initial Assessment / Consultation Report", funder: "UK_PMI",
+    id: "UK_PMI_INITIAL", title: "PMI — Initial Assessment / Consultation Report", funder: "UK_PMI",
     mandatory: ["Referral Details & Insurer","Presenting Complaint & History","Relevant Medical History","Assessment Findings & Outcome Measures","Diagnosis / Clinical Impression","Goals","Proposed Treatment Plan (frequency, duration, modality)","Clinical Justification for Treatment"],
     optional: ["Prior Treatment", "Attachments", "Provider Signature"]
   },
   uk_pmi_progress: {
-    id: "UK_PMI_PROGRESS", title: "PMI â€” Progress Report", funder: "UK_PMI",
+    id: "UK_PMI_PROGRESS", title: "PMI — Progress Report", funder: "UK_PMI",
     mandatory: ["Summary of Treatment to Date","Outcome Measures (baseline vs current)","Response to Treatment","Goals Update","Justification for Continued Treatment","Plan for Remaining Sessions"],
     optional: ["Barriers to Recovery", "Attachments", "Provider Signature"]
   },
   uk_pmi_discharge: {
-    id: "UK_PMI_DISCHARGE", title: "PMI â€” Discharge Report", funder: "UK_PMI",
+    id: "UK_PMI_DISCHARGE", title: "PMI — Discharge Report", funder: "UK_PMI",
     mandatory: ["Summary of Treatment Provided","Outcome Measures (baseline vs discharge)","Goals Achieved","Functional Status at Discharge","Home Programme Provided","Discharge Recommendations"],
     optional: ["Onward Referral", "Attachments", "Provider Signature"]
   },
@@ -1034,202 +1034,202 @@ const REPORT_TEMPLATES = {
     mandatory: ["Reason for Referral","Assessment Findings & Outcome Measures","Diagnosis / Clinical Impression","Intervention Provided","Progress & Response to Treatment","Recommendations & Next Steps"],
     optional: ["Onward Referral", "Attachments", "Provider Signature"]
   },
-  // â”€â”€â”€ Canada â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Canada ───────────────────────────────────────────────────────────────
   ca_wsib_initial: {
-    id: "CA_WSIB_INITIAL", title: "WSIB â€” Initial Assessment Report", funder: "CA_WSIB",
+    id: "CA_WSIB_INITIAL", title: "WSIB — Initial Assessment Report", funder: "CA_WSIB",
     mandatory: ["Referral Details & Claim Information","Mechanism of Injury & Background","Relevant Medical History","Assessment Findings & Functional Limitations","Diagnosis","Goals (short-term & long-term)","Proposed Treatment Plan","Return-to-Work Recommendations"],
     optional: ["Workplace Demands Analysis", "Attachments", "Provider Signature"]
   },
   ca_wsib_faf: {
-    id: "CA_WSIB_FAF", title: "WSIB â€” Functional Abilities Form (FAF)", funder: "CA_WSIB",
+    id: "CA_WSIB_FAF", title: "WSIB — Functional Abilities Form (FAF)", funder: "CA_WSIB",
     mandatory: ["Worker Information","Date of Assessment","Physical Tolerances (sitting, standing, walking, lifting)","Work Status & Restrictions","Functional Abilities Summary","Recommended Duties","Expected Date of Return to Full Duties"],
     optional: ["Attachments", "Provider Signature"]
   },
   ca_wsib_progress: {
-    id: "CA_WSIB_PROGRESS", title: "WSIB â€” Progress Report", funder: "CA_WSIB",
+    id: "CA_WSIB_PROGRESS", title: "WSIB — Progress Report", funder: "CA_WSIB",
     mandatory: ["Summary of Treatment to Date","Outcome Measures (baseline vs current)","Functional Progress","Work Capacity Update","Goals Update","Barriers to Recovery","Plan for Next Treatment Period"],
     optional: ["RTW Timeline Update", "Attachments", "Provider Signature"]
   },
   ca_wsib_rtw: {
-    id: "CA_WSIB_RTW", title: "WSIB â€” Return-to-Work Summary", funder: "CA_WSIB",
+    id: "CA_WSIB_RTW", title: "WSIB — Return-to-Work Summary", funder: "CA_WSIB",
     mandatory: ["Summary of Rehabilitation Programme","Outcome Measures at Discharge","Functional Capacity at Discharge","RTW Status & Duties","Remaining Restrictions (if any)","Recommendations for Employer / WSIB"],
     optional: ["Home Programme", "Attachments", "Provider Signature"]
   },
   ca_worksafebc_initial: {
-    id: "CA_WORKSAFEBC_INITIAL", title: "WorkSafeBC â€” Initial Assessment", funder: "CA_WORKSAFEBC",
+    id: "CA_WORKSAFEBC_INITIAL", title: "WorkSafeBC — Initial Assessment", funder: "CA_WORKSAFEBC",
     mandatory: ["Claim Details & Referral","Mechanism of Injury","Medical History & Current Status","Assessment Findings","Diagnosis","Goals","Proposed Treatment Plan","RTW Recommendations"],
     optional: ["Workplace Demands", "Attachments", "Provider Signature"]
   },
   ca_worksafebc_fca: {
-    id: "CA_WORKSAFEBC_FCA", title: "WorkSafeBC â€” Functional Capacity Assessment (FCA)", funder: "CA_WORKSAFEBC",
+    id: "CA_WORKSAFEBC_FCA", title: "WorkSafeBC — Functional Capacity Assessment (FCA)", funder: "CA_WORKSAFEBC",
     mandatory: ["Referral Purpose","Background & Claim History","Physical Assessment","Functional Capacity Testing Results","Work Tolerances","Validity Indicators","Recommendations for RTW / Disability Rating"],
     optional: ["Attachments", "Provider Signature"]
   },
   ca_worksafebc_progress: {
-    id: "CA_WORKSAFEBC_PROGRESS", title: "WorkSafeBC â€” Progress Report", funder: "CA_WORKSAFEBC",
+    id: "CA_WORKSAFEBC_PROGRESS", title: "WorkSafeBC — Progress Report", funder: "CA_WORKSAFEBC",
     mandatory: ["Treatment Summary","Outcome Measures (baseline vs current)","Functional Progress","Work Capacity","Goals Update","Plan Going Forward"],
     optional: ["Attachments", "Provider Signature"]
   },
   ca_wcb_alberta_initial: {
-    id: "CA_WCB_ALBERTA_INITIAL", title: "WCB Alberta â€” Initial Assessment", funder: "CA_WCB_AB",
+    id: "CA_WCB_ALBERTA_INITIAL", title: "WCB Alberta — Initial Assessment", funder: "CA_WCB_AB",
     mandatory: ["Claim Details","Mechanism of Injury","Medical History","Assessment Findings","Diagnosis","Goals","Treatment Plan","RTW Recommendations"],
     optional: ["Workplace Demands", "Attachments", "Provider Signature"]
   },
   ca_wcb_alberta_fce: {
-    id: "CA_WCB_ALBERTA_FCE", title: "WCB Alberta â€” Functional Capacity Evaluation (FCE)", funder: "CA_WCB_AB",
+    id: "CA_WCB_ALBERTA_FCE", title: "WCB Alberta — Functional Capacity Evaluation (FCE)", funder: "CA_WCB_AB",
     mandatory: ["Referral Purpose & Claim Details","Physical Assessment Findings","FCE Testing Results","Work Tolerances & Physical Demands Classification","Validity & Reliability","Recommendations for RTW / Disability"],
     optional: ["Attachments", "Provider Signature"]
   },
   ca_wcb_alberta_progress: {
-    id: "CA_WCB_ALBERTA_PROGRESS", title: "WCB Alberta â€” Progress Report", funder: "CA_WCB_AB",
+    id: "CA_WCB_ALBERTA_PROGRESS", title: "WCB Alberta — Progress Report", funder: "CA_WCB_AB",
     mandatory: ["Treatment Summary","Outcome Measures (baseline vs current)","Functional Progress","Work Capacity Update","Goals Update","Plan Going Forward"],
     optional: ["Attachments", "Provider Signature"]
   },
   ca_ehb_initial: {
-    id: "CA_EHB_INITIAL", title: "Extended Health Benefits â€” Initial Assessment", funder: "CA_EHB",
+    id: "CA_EHB_INITIAL", title: "Extended Health Benefits — Initial Assessment", funder: "CA_EHB",
     mandatory: ["Referral Details & Insurer","Presenting Complaint & History","Assessment Findings & Outcome Measures","Diagnosis","Goals","Proposed Treatment Plan","Clinical Justification"],
     optional: ["Attachments", "Provider Signature"]
   },
   ca_ehb_progress: {
-    id: "CA_EHB_PROGRESS", title: "Extended Health Benefits â€” Progress Report", funder: "CA_EHB",
+    id: "CA_EHB_PROGRESS", title: "Extended Health Benefits — Progress Report", funder: "CA_EHB",
     mandatory: ["Treatment Summary","Outcome Measures (baseline vs current)","Response to Treatment","Goals Update","Justification for Continued Treatment","Plan for Remaining Sessions"],
     optional: ["Attachments", "Provider Signature"]
   },
   ca_vac_initial: {
-    id: "CA_VAC_INITIAL", title: "Veterans Affairs Canada â€” Initial Assessment", funder: "CA_VAC",
+    id: "CA_VAC_INITIAL", title: "Veterans Affairs Canada — Initial Assessment", funder: "CA_VAC",
     mandatory: ["Referral Details & VAC File Number","Presenting Complaint & Service-Related History","Medical History & Current Medications","Assessment Findings & Outcome Measures","Functional Limitations","Goals","Proposed Rehabilitation Plan"],
     optional: ["Psychosocial Screening", "Attachments", "Provider Signature"]
   },
   ca_vac_progress: {
-    id: "CA_VAC_PROGRESS", title: "Veterans Affairs Canada â€” Progress Report", funder: "CA_VAC",
+    id: "CA_VAC_PROGRESS", title: "Veterans Affairs Canada — Progress Report", funder: "CA_VAC",
     mandatory: ["Treatment Summary","Outcome Measures (baseline vs current)","Functional Progress","Goals Update","VAC Rehabilitation Goals Alignment","Plan Going Forward"],
     optional: ["Psychosocial Update", "Attachments", "Provider Signature"]
   },
-  // â”€â”€â”€ New Zealand â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── New Zealand ──────────────────────────────────────────────────────────
   nz_acc_initial: {
-    id: "NZ_ACC_INITIAL", title: "ACC â€” Initial Assessment Report", funder: "NZ_ACC",
+    id: "NZ_ACC_INITIAL", title: "ACC — Initial Assessment Report", funder: "NZ_ACC",
     mandatory: ["Referral Details & ACC Claim Number","Mechanism of Injury & Background","Medical History & Current Medications","Assessment Findings & Outcome Measures","Diagnosis","Goals (short-term & long-term)","Proposed Treatment Plan (frequency, duration)","Expected Outcome & Timeframe"],
     optional: ["Workplace / ADL Impact", "Attachments", "Provider Signature"]
   },
   nz_acc_progress: {
-    id: "NZ_ACC_PROGRESS", title: "ACC â€” Progress Report (ACC32 Extension)", funder: "NZ_ACC",
+    id: "NZ_ACC_PROGRESS", title: "ACC — Progress Report (ACC32 Extension)", funder: "NZ_ACC",
     mandatory: ["Claim Details","Treatment Summary to Date","Outcome Measures (baseline vs current)","Functional Progress","Goals Update","Justification for Extension of Treatment","Plan for Next Period"],
     optional: ["Barriers to Recovery", "Attachments", "Provider Signature"]
   },
   nz_acc_fce: {
-    id: "NZ_ACC_FCE", title: "ACC â€” Functional Capacity Evaluation (FCE)", funder: "NZ_ACC",
+    id: "NZ_ACC_FCE", title: "ACC — Functional Capacity Evaluation (FCE)", funder: "NZ_ACC",
     mandatory: ["Referral Purpose & Claim Details","Background & Injury History","Physical Assessment","FCE Testing Results & Work Tolerances","Validity Indicators","Recommendations for ACC / RTW"],
     optional: ["Attachments", "Provider Signature"]
   },
   nz_acc_discharge: {
-    id: "NZ_ACC_DISCHARGE", title: "ACC â€” Discharge / Completion Summary", funder: "NZ_ACC",
+    id: "NZ_ACC_DISCHARGE", title: "ACC — Discharge / Completion Summary", funder: "NZ_ACC",
     mandatory: ["Treatment Summary","Outcome Measures (baseline vs discharge)","Goals Achieved","Functional Status at Discharge","Home Programme Provided","Discharge Recommendations"],
     optional: ["Onward Referral", "Attachments", "Provider Signature"]
   },
   nz_disability_initial: {
-    id: "NZ_DISABILITY_INITIAL", title: "Disability Support â€” Functional Assessment", funder: "NZ_DISABILITY",
+    id: "NZ_DISABILITY_INITIAL", title: "Disability Support — Functional Assessment", funder: "NZ_DISABILITY",
     mandatory: ["Referral Details & Funding Source (Whaikaha / MoH)","Presenting Condition & Disability Impact","Assessment Findings across ADL Domains","Functional Capacity & Support Needs","Goals","Proposed Support Plan & Equipment"],
     optional: ["Carer / Family Input", "Attachments", "Provider Signature"]
   },
   nz_private_initial: {
-    id: "NZ_PRIVATE_INITIAL", title: "Private Insurance â€” Initial Assessment", funder: "NZ_PRIVATE",
+    id: "NZ_PRIVATE_INITIAL", title: "Private Insurance — Initial Assessment", funder: "NZ_PRIVATE",
     mandatory: ["Referral & Insurer Details","Presenting Complaint & History","Assessment Findings & Outcome Measures","Diagnosis","Goals","Proposed Treatment Plan","Clinical Justification"],
     optional: ["Attachments", "Provider Signature"]
   },
   nz_private_progress: {
-    id: "NZ_PRIVATE_PROGRESS", title: "Private Insurance â€” Progress Report", funder: "NZ_PRIVATE",
+    id: "NZ_PRIVATE_PROGRESS", title: "Private Insurance — Progress Report", funder: "NZ_PRIVATE",
     mandatory: ["Treatment Summary","Outcome Measures (baseline vs current)","Response to Treatment","Goals Update","Justification for Continued Sessions","Plan Going Forward"],
     optional: ["Attachments", "Provider Signature"]
   },
-  // â”€â”€â”€ Singapore â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Singapore ────────────────────────────────────────────────────────────
   sg_healthiersg_initial: {
-    id: "SG_HEALTHIERSG_INITIAL", title: "Healthier SG â€” Initial Assessment Report", funder: "SG_HSG",
+    id: "SG_HEALTHIERSG_INITIAL", title: "Healthier SG — Initial Assessment Report", funder: "SG_HSG",
     mandatory: ["Referral Details & Enrolled Clinic","Health Plan Goals","Medical History & Chronic Conditions","Assessment Findings & Outcome Measures","Functional Limitations","Goals (aligned to Healthier SG Health Plan)","Proposed Exercise / Rehabilitation Plan"],
     optional: ["Dietary / Lifestyle Recommendations", "Attachments", "Provider Signature"]
   },
   sg_healthiersg_progress: {
-    id: "SG_HEALTHIERSG_PROGRESS", title: "Healthier SG â€” Programme Progress Report", funder: "SG_HSG",
+    id: "SG_HEALTHIERSG_PROGRESS", title: "Healthier SG — Programme Progress Report", funder: "SG_HSG",
     mandatory: ["Treatment Summary","Outcome Measures (baseline vs current)","Chronic Disease Indicators (HbA1c, BP, BMI)","Goals Update","Engagement & Adherence","Plan Going Forward"],
     optional: ["Attachments", "Provider Signature"]
   },
   sg_healthiersg_completion: {
-    id: "SG_HEALTHIERSG_COMPLETION", title: "Healthier SG â€” Completion / Discharge Report", funder: "SG_HSG",
+    id: "SG_HEALTHIERSG_COMPLETION", title: "Healthier SG — Completion / Discharge Report", funder: "SG_HSG",
     mandatory: ["Programme Summary","Outcome Measures (baseline vs end)","Chronic Disease Indicator Changes","Goals Achieved","Recommendations for Ongoing Self-Management","Onward Referral (if applicable)"],
     optional: ["Attachments", "Provider Signature"]
   },
   sg_cdmp_initial: {
-    id: "SG_CDMP_INITIAL", title: "CDMP â€” Initial Exercise Assessment", funder: "SG_CDMP",
+    id: "SG_CDMP_INITIAL", title: "CDMP — Initial Exercise Assessment", funder: "SG_CDMP",
     mandatory: ["Referral Details & CDMP Chronic Conditions","Medical History & Contraindications","Baseline Assessment (fitness, strength, flexibility)","Chronic Disease Indicators (HbA1c, BP, lipids, BMI)","Goals","Exercise Prescription & Programme Plan"],
     optional: ["Dietary Advice", "Attachments", "Provider Signature"]
   },
   sg_cdmp_progress: {
-    id: "SG_CDMP_PROGRESS", title: "CDMP â€” Progress / Review Report", funder: "SG_CDMP",
+    id: "SG_CDMP_PROGRESS", title: "CDMP — Progress / Review Report", funder: "SG_CDMP",
     mandatory: ["Treatment Summary","Chronic Disease Indicators (baseline vs current)","Exercise Capacity Progress","Adherence","Goals Update","Plan Going Forward"],
     optional: ["Attachments", "Provider Signature"]
   },
   sg_cdmp_discharge: {
-    id: "SG_CDMP_DISCHARGE", title: "CDMP â€” Discharge Summary", funder: "SG_CDMP",
+    id: "SG_CDMP_DISCHARGE", title: "CDMP — Discharge Summary", funder: "SG_CDMP",
     mandatory: ["Programme Summary","Chronic Disease Indicators (baseline vs discharge)","Exercise Capacity Change","Goals Achieved","Home Programme","Discharge Recommendations"],
     optional: ["Onward Referral", "Attachments", "Provider Signature"]
   },
   sg_wica_initial: {
-    id: "SG_WICA_INITIAL", title: "WICA â€” Work Injury Assessment", funder: "SG_WICA",
+    id: "SG_WICA_INITIAL", title: "WICA — Work Injury Assessment", funder: "SG_WICA",
     mandatory: ["Claim Details & MOM Reference","Mechanism of Injury","Medical History & Current Status","Assessment Findings","Functional Limitations","Diagnosis","Proposed Treatment Plan","RTW Recommendations"],
     optional: ["Workplace Demands", "Attachments", "Provider Signature"]
   },
   sg_wica_rtw: {
-    id: "SG_WICA_RTW", title: "WICA â€” Return-to-Work Plan", funder: "SG_WICA",
+    id: "SG_WICA_RTW", title: "WICA — Return-to-Work Plan", funder: "SG_WICA",
     mandatory: ["Claim Details","Current Functional Status","Work Capacity & Restrictions","Graded RTW Plan","Recommended Duties / Modifications","Expected RTW Date","Employer Recommendations"],
     optional: ["Attachments", "Provider Signature"]
   },
   sg_corporate_initial: {
-    id: "SG_CORPORATE_INITIAL", title: "Corporate / Private Insurance â€” Initial Assessment", funder: "SG_PRIVATE",
+    id: "SG_CORPORATE_INITIAL", title: "Corporate / Private Insurance — Initial Assessment", funder: "SG_PRIVATE",
     mandatory: ["Referral & Insurer Details","Presenting Complaint & History","Assessment Findings & Outcome Measures","Diagnosis","Goals","Proposed Treatment Plan","Clinical Justification"],
     optional: ["Attachments", "Provider Signature"]
   },
-  // â”€â”€â”€ Ireland â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Ireland ──────────────────────────────────────────────────────────────
   ie_hse_initial: {
-    id: "IE_HSE_INITIAL", title: "HSE â€” Initial Assessment Report", funder: "IE_HSE",
+    id: "IE_HSE_INITIAL", title: "HSE — Initial Assessment Report", funder: "IE_HSE",
     mandatory: ["Referral Details & Programme Type (Cardiac/Pulmonary/Cancer)","Medical History & Current Status","Baseline Assessment Findings","Risk Stratification","Goals","Exercise Prescription & Programme Plan"],
     optional: ["Psychosocial Screening", "Attachments", "Provider Signature"]
   },
   ie_hse_progress: {
-    id: "IE_HSE_PROGRESS", title: "HSE â€” Progress Review Report", funder: "IE_HSE",
+    id: "IE_HSE_PROGRESS", title: "HSE — Progress Review Report", funder: "IE_HSE",
     mandatory: ["Attendance & Engagement","Outcome Measures (baseline vs current)","Exercise Progress","Goals Update","Plan Going Forward"],
     optional: ["Attachments", "Provider Signature"]
   },
   ie_hse_discharge: {
-    id: "IE_HSE_DISCHARGE", title: "HSE â€” Discharge Summary", funder: "IE_HSE",
+    id: "IE_HSE_DISCHARGE", title: "HSE — Discharge Summary", funder: "IE_HSE",
     mandatory: ["Programme Summary & Attendance","Outcome Measures (baseline vs discharge)","Goals Achieved","Maintenance Recommendations","Onward Referral"],
     optional: ["Attachments", "Provider Signature"]
   },
   ie_cardiac_initial: {
-    id: "IE_CARDIAC_INITIAL", title: "Cardiac Rehab â€” Initial Assessment (Ireland)", funder: "IE_CARDIAC",
+    id: "IE_CARDIAC_INITIAL", title: "Cardiac Rehab — Initial Assessment (Ireland)", funder: "IE_CARDIAC",
     mandatory: ["Referral Details & Cardiac Event","Cardiovascular Risk Factors","Medical History & Medications","Baseline Exercise Assessment","Risk Stratification","Goals","Phase II Exercise Prescription"],
     optional: ["Psychological Screening", "Attachments", "Provider Signature"]
   },
   ie_cardiac_completion: {
-    id: "IE_CARDIAC_COMPLETION", title: "Cardiac Rehab â€” Completion Report (Ireland)", funder: "IE_CARDIAC",
+    id: "IE_CARDIAC_COMPLETION", title: "Cardiac Rehab — Completion Report (Ireland)", funder: "IE_CARDIAC",
     mandatory: ["Programme Summary & Attendance","Outcome Measures (baseline vs end)","Exercise Capacity Change","Risk Factor Improvements","Goals Achieved","Long-term Maintenance Recommendations"],
     optional: ["Phase IV Referral", "Attachments", "Provider Signature"]
   },
   ie_piab_fce: {
-    id: "IE_PIAB_FCE", title: "PIAB â€” Personal Injury Functional Assessment", funder: "IE_LEGAL",
+    id: "IE_PIAB_FCE", title: "PIAB — Personal Injury Functional Assessment", funder: "IE_LEGAL",
     mandatory: ["Referral Details & PIAB Reference","Background & Injury History","Medical History","Assessment Findings & Outcome Measures","Functional Limitations","Prognosis & Recommendations"],
     optional: ["Consistency of Effort", "Attachments", "Provider Signature"]
   },
   ie_private_initial: {
-    id: "IE_PRIVATE_INITIAL", title: "Private Insurance â€” Initial Assessment (Ireland)", funder: "IE_PRIVATE",
+    id: "IE_PRIVATE_INITIAL", title: "Private Insurance — Initial Assessment (Ireland)", funder: "IE_PRIVATE",
     mandatory: ["Referral & Insurer Details","Presenting Complaint & History","Assessment Findings & Outcome Measures","Diagnosis","Goals","Proposed Treatment Plan","Clinical Justification"],
     optional: ["Attachments", "Provider Signature"]
   },
   ie_private_progress: {
-    id: "IE_PRIVATE_PROGRESS", title: "Private Insurance â€” Progress Report (Ireland)", funder: "IE_PRIVATE",
+    id: "IE_PRIVATE_PROGRESS", title: "Private Insurance — Progress Report (Ireland)", funder: "IE_PRIVATE",
     mandatory: ["Treatment Summary","Outcome Measures (baseline vs current)","Response to Treatment","Goals Update","Justification for Continued Sessions","Plan Going Forward"],
     optional: ["Attachments", "Provider Signature"]
   },
   ie_private_discharge: {
-    id: "IE_PRIVATE_DISCHARGE", title: "Private Insurance â€” Discharge Report (Ireland)", funder: "IE_PRIVATE",
+    id: "IE_PRIVATE_DISCHARGE", title: "Private Insurance — Discharge Report (Ireland)", funder: "IE_PRIVATE",
     mandatory: ["Treatment Summary","Outcome Measures (baseline vs discharge)","Goals Achieved","Functional Status at Discharge","Home Programme","Discharge Recommendations"],
     optional: ["Onward Referral", "Attachments", "Provider Signature"]
   },
@@ -1238,54 +1238,54 @@ const REPORT_TEMPLATES = {
     mandatory: ["Reason for Referral","Assessment Findings & Outcome Measures","Diagnosis / Clinical Impression","Intervention Provided","Progress & Response to Treatment","Recommendations & Next Steps"],
     optional: ["Onward Referral", "Attachments", "Provider Signature"]
   },
-  // â”€â”€â”€ South Africa â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── South Africa ─────────────────────────────────────────────────────────
   za_medaid_initial: {
-    id: "ZA_MEDAID_INITIAL", title: "Medical Aid â€” Initial Assessment Report", funder: "ZA_MEDAID",
+    id: "ZA_MEDAID_INITIAL", title: "Medical Aid — Initial Assessment Report", funder: "ZA_MEDAID",
     mandatory: ["Referral & Medical Aid Details (scheme / authorisation number)","Presenting Complaint & History","Medical History & Medications","Assessment Findings & Outcome Measures","Diagnosis (ICD-10 code)","Goals","Proposed Treatment Plan","Clinical Motivation for Treatment"],
     optional: ["Attachments", "Provider Signature"]
   },
   za_medaid_progress: {
-    id: "ZA_MEDAID_PROGRESS", title: "Medical Aid â€” Progress Report", funder: "ZA_MEDAID",
+    id: "ZA_MEDAID_PROGRESS", title: "Medical Aid — Progress Report", funder: "ZA_MEDAID",
     mandatory: ["Authorisation Reference","Treatment Summary","Outcome Measures (baseline vs current)","Response to Treatment","Goals Update","Motivation for Continued Sessions","Plan Going Forward"],
     optional: ["Attachments", "Provider Signature"]
   },
   za_medaid_discharge: {
-    id: "ZA_MEDAID_DISCHARGE", title: "Medical Aid â€” Discharge Report", funder: "ZA_MEDAID",
+    id: "ZA_MEDAID_DISCHARGE", title: "Medical Aid — Discharge Report", funder: "ZA_MEDAID",
     mandatory: ["Treatment Summary","Outcome Measures (baseline vs discharge)","Goals Achieved","Functional Status at Discharge","Home Programme","Discharge Recommendations"],
     optional: ["Onward Referral", "Attachments", "Provider Signature"]
   },
   za_coida_initial: {
-    id: "ZA_COIDA_INITIAL", title: "COIDA â€” Initial Assessment Report", funder: "ZA_COIDA",
+    id: "ZA_COIDA_INITIAL", title: "COIDA — Initial Assessment Report", funder: "ZA_COIDA",
     mandatory: ["Claim Details & COIDA Reference","Mechanism of Injury & Background","Medical History","Assessment Findings","Diagnosis","Goals","Proposed Treatment Plan","RTW Recommendations"],
     optional: ["Workplace Demands", "Attachments", "Provider Signature"]
   },
   za_coida_progress: {
-    id: "ZA_COIDA_PROGRESS", title: "COIDA â€” Progress Report", funder: "ZA_COIDA",
+    id: "ZA_COIDA_PROGRESS", title: "COIDA — Progress Report", funder: "ZA_COIDA",
     mandatory: ["Treatment Summary","Outcome Measures (baseline vs current)","Functional Progress","Work Capacity Update","Goals Update","Plan Going Forward"],
     optional: ["RTW Timeline", "Attachments", "Provider Signature"]
   },
   za_coida_rtw: {
-    id: "ZA_COIDA_RTW", title: "COIDA â€” Return-to-Work Summary", funder: "ZA_COIDA",
+    id: "ZA_COIDA_RTW", title: "COIDA — Return-to-Work Summary", funder: "ZA_COIDA",
     mandatory: ["Claim Details","Rehabilitation Summary","Outcome Measures at Discharge","Functional Capacity at Discharge","RTW Status & Duties","Remaining Restrictions","Employer Recommendations"],
     optional: ["Attachments", "Provider Signature"]
   },
   za_raf_initial: {
-    id: "ZA_RAF_INITIAL", title: "RAF â€” Initial Assessment Report", funder: "ZA_RAF",
+    id: "ZA_RAF_INITIAL", title: "RAF — Initial Assessment Report", funder: "ZA_RAF",
     mandatory: ["Claim Details & RAF Reference","Mechanism of Injury (Motor Vehicle Accident)","Medical History & Current Status","Assessment Findings & Outcome Measures","Diagnosis","Functional Limitations","Goals","Proposed Treatment Plan"],
     optional: ["Psychosocial Screening", "Attachments", "Provider Signature"]
   },
   za_raf_progress: {
-    id: "ZA_RAF_PROGRESS", title: "RAF â€” Progress Report", funder: "ZA_RAF",
+    id: "ZA_RAF_PROGRESS", title: "RAF — Progress Report", funder: "ZA_RAF",
     mandatory: ["Claim Details","Treatment Summary","Outcome Measures (baseline vs current)","Functional Progress","Goals Update","Plan Going Forward"],
     optional: ["Attachments", "Provider Signature"]
   },
   za_gems_initial: {
-    id: "ZA_GEMS_INITIAL", title: "GEMS â€” Initial Assessment Report", funder: "ZA_GEMS",
+    id: "ZA_GEMS_INITIAL", title: "GEMS — Initial Assessment Report", funder: "ZA_GEMS",
     mandatory: ["GEMS Membership & Authorisation Details","Presenting Complaint & History","Medical History & Medications","Assessment Findings & Outcome Measures","Diagnosis (ICD-10)","Goals","Proposed Treatment Plan","Clinical Motivation"],
     optional: ["Attachments", "Provider Signature"]
   },
   za_gems_progress: {
-    id: "ZA_GEMS_PROGRESS", title: "GEMS â€” Progress Report", funder: "ZA_GEMS",
+    id: "ZA_GEMS_PROGRESS", title: "GEMS — Progress Report", funder: "ZA_GEMS",
     mandatory: ["Authorisation Reference","Treatment Summary","Outcome Measures (baseline vs current)","Response to Treatment","Goals Update","Motivation for Continued Sessions","Plan Going Forward"],
     optional: ["Attachments", "Provider Signature"]
   },
@@ -1364,7 +1364,7 @@ function buildReportHtml(template, activeSections, content, client, clinician, d
   const clientDOB = client.date_of_birth ? format(new Date(client.date_of_birth), "dd/MM/yyyy") : "N/A";
   const age = client.date_of_birth ? Math.floor((new Date() - new Date(client.date_of_birth)) / 31557600000) : null;
   const rangeStr = dateRange?.start && dateRange?.end
-    ? `${format(new Date(dateRange.start), "dd/MM/yyyy")} â€“ ${format(new Date(dateRange.end), "dd/MM/yyyy")}`
+    ? `${format(new Date(dateRange.start), "dd/MM/yyyy")} – ${format(new Date(dateRange.end), "dd/MM/yyyy")}`
     : today;
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
 <style>
@@ -1387,7 +1387,7 @@ function buildReportHtml(template, activeSections, content, client, clinician, d
   <h1>${template.title}</h1>
   <p>Report Period: ${rangeStr}</p>
   <p>Date Generated: ${today}</p>
-  ${clinician ? `<p>Clinician: ${clinician.full_name || ''}${clinician.profession ? ` â€” ${clinician.profession}` : ''}${clinician.provider_number ? ` | Provider #: ${clinician.provider_number}` : ''}</p>` : ''}
+  ${clinician ? `<p>Clinician: ${clinician.full_name || ''}${clinician.profession ? ` — ${clinician.profession}` : ''}${clinician.provider_number ? ` | Provider #: ${clinician.provider_number}` : ''}</p>` : ''}
 </div>
 <div class="client-box">
   <span><strong>Client:</strong> ${client.full_name}</span>
@@ -1407,7 +1407,7 @@ ${activeSections.filter(s => s.toLowerCase().includes('signature')).map(section 
   const sig = content[`${section}_signature`];
   return `<div class="sig-area"><p style="white-space:pre-wrap;font-size:12px;">${text || ''}</p>${sig ? `<img src="${sig}" alt="Signature"/>` : ''}<div style="margin-top:16px;border-top:1px solid #555;width:200px;padding-top:4px;font-size:11px;color:#555;">Signature</div></div>`;
 }).join('')}
-<div class="footer">Generated by Allied Assess Â· Confidential Clinical Document</div>
+<div class="footer">Generated by Allied Assess · Confidential Clinical Document</div>
 </body></html>`;
 }
 
@@ -1455,7 +1455,7 @@ function ReportTypeSelector({ client, value, onChange }) {
                   >
                     <p className="text-sm font-medium">{template.title}</p>
                     <p className={`text-xs mt-0.5 ${value === key ? 'text-blue-100' : 'text-slate-400'}`}>
-                      {template.mandatory.slice(0, 3).join(' Â· ')}{template.mandatory.length > 3 ? ` Â· +${template.mandatory.length - 3} more` : ''}
+                      {template.mandatory.slice(0, 3).join(' · ')}{template.mandatory.length > 3 ? ` · +${template.mandatory.length - 3} more` : ''}
                     </p>
                   </button>
                 ))}
@@ -1750,11 +1750,11 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
       <DialogContent className="max-w-4xl w-full max-h-[92vh] flex flex-col p-0 gap-0">
         <DialogHeader className="px-6 pt-5 pb-3 border-b border-slate-200 flex-shrink-0">
           <DialogTitle className="text-lg font-bold text-slate-800">
-            {isEditing ? `Edit Report â€” ${reportTemplate?.title}` : "Create Clinical Report"}
+            {isEditing ? `Edit Report — ${reportTemplate?.title}` : "Create Clinical Report"}
           </DialogTitle>
           <div className="mt-2 space-y-1">
             <div className="flex items-center justify-between text-xs text-slate-500">
-              <span>Step {step + 1} of {totalSteps} â€” {STEPS[step]}</span>
+              <span>Step {step + 1} of {totalSteps} — {STEPS[step]}</span>
               <span>{Math.round(progress)}%</span>
             </div>
             <Progress value={progress} className="h-1.5" />

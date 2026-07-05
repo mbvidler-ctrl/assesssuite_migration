@@ -8,10 +8,10 @@ import { Save, X } from "lucide-react";
 import { toast } from "sonner";
 
 const DEXA_SITES = [
-  { key: "lumbarSpine", label: "Lumbar Spine (L1-L4)", unit: "g/cmÂ²" },
-  { key: "femoralNeck", label: "Femoral Neck", unit: "g/cmÂ²" },
-  { key: "totalHip", label: "Total Hip", unit: "g/cmÂ²" },
-  { key: "distalRadius", label: "Distal Radius (1/3)", unit: "g/cmÂ²" },
+  { key: "lumbarSpine", label: "Lumbar Spine (L1-L4)", unit: "g/cm²" },
+  { key: "femoralNeck", label: "Femoral Neck", unit: "g/cm²" },
+  { key: "totalHip", label: "Total Hip", unit: "g/cm²" },
+  { key: "distalRadius", label: "Distal Radius (1/3)", unit: "g/cm²" },
 ];
 
 export default function DEXAScanResultsInterpretationRunner({ client, onSave, onClose }) {
@@ -60,15 +60,15 @@ export default function DEXAScanResultsInterpretationRunner({ client, onSave, on
     const validTScores = Object.values(tScores).filter(val => val !== "").map(val => parseFloat(val));
     const worstTScore = Math.min(...validTScores);
 
-    let soapText = `â€¢ DEXA Scan Results: Worst T-Score ${worstTScore}\n\n  Bone Mineral Density (T-Scores):\n`;
+    let soapText = `• DEXA Scan Results: Worst T-Score ${worstTScore}\n\n  Bone Mineral Density (T-Scores):\n`;
     DEXA_SITES.forEach(site => {
       if (tScores[site.key]) {
         const interp = getTScoreInterpretation(tScores[site.key]);
-        soapText += `  - ${site.label}: T-Score ${tScores[site.key]}${bmd[site.key] ? `, BMD ${bmd[site.key]} g/cmÂ²` : ''} (${interp.label})\n`;
+        soapText += `  - ${site.label}: T-Score ${tScores[site.key]}${bmd[site.key] ? `, BMD ${bmd[site.key]} g/cm²` : ''} (${interp.label})\n`;
       }
     });
     if (bodyFatPercentage) soapText += `\n  Body Fat: ${bodyFatPercentage}%`;
-    if (visceralAdiposeTissue) soapText += `\n  Visceral Adipose Tissue: ${visceralAdiposeTissue} cmÂ²`;
+    if (visceralAdiposeTissue) soapText += `\n  Visceral Adipose Tissue: ${visceralAdiposeTissue} cm²`;
     if (leanMass) soapText += `\n  Lean Mass: ${leanMass} kg`;
 
     const additionalData = {
@@ -156,7 +156,7 @@ export default function DEXAScanResultsInterpretationRunner({ client, onSave, on
                     />
                   </div>
                   <div>
-                    <Label>Visceral Adipose Tissue (cmÂ²)</Label>
+                    <Label>Visceral Adipose Tissue (cm²)</Label>
                     <Input
                       type="number"
                       step="0.1"
@@ -181,9 +181,9 @@ export default function DEXAScanResultsInterpretationRunner({ client, onSave, on
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm">
                 <p className="font-semibold mb-2">WHO Classification (T-Score):</p>
                 <ul className="space-y-1 text-gray-700">
-                  <li>â€¢ <span className="font-medium">Normal:</span> T-score â‰¥ -1.0</li>
-                  <li>â€¢ <span className="font-medium">Osteopenia:</span> T-score between -1.0 and -2.5</li>
-                  <li>â€¢ <span className="font-medium">Osteoporosis:</span> T-score â‰¤ -2.5</li>
+                  <li>• <span className="font-medium">Normal:</span> T-score ≥ -1.0</li>
+                  <li>• <span className="font-medium">Osteopenia:</span> T-score between -1.0 and -2.5</li>
+                  <li>• <span className="font-medium">Osteoporosis:</span> T-score ≤ -2.5</li>
                 </ul>
               </div>
 

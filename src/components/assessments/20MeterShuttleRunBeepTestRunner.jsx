@@ -48,7 +48,7 @@ export default function TwentyMeterShuttleRunBeepTestRunner({ client, onSave, on
 
       const msftResultString = `Level ${finalLevel} Shuttle ${finalShuttle}`;
 
-      const soapText = `â€¢ 20m Multi-Stage Shuttle Run (Beep Test)\n\n  Final Level: ${level} | Shuttle: ${shuttle}\n  Estimated VO2max: ${estimatedVO2 || 'N/A'} mL/kg/min (Ramsbottom formula)\n\n  VO2max Norms (Males 20-29): Excellent â‰¥55 | Good 49-54 | Average 40-48 | Poor <35 mL/kg/min\n  Level 5 ~33 | Level 8 ~42 | Level 11 ~51 | Level 13 ~57 mL/kg/min\n  MCID: ~3.5 mL/kg/min VO2max\n\n  Reference: Ramsbottom et al. (1988). A progressive shuttle run test to estimate maximal oxygen uptake. British Journal of Sports Medicine, 22(4), 141-144. https://doi.org/10.1136/bjsm.22.4.141`;
+      const soapText = `• 20m Multi-Stage Shuttle Run (Beep Test)\n\n  Final Level: ${level} | Shuttle: ${shuttle}\n  Estimated VO2max: ${estimatedVO2 || 'N/A'} mL/kg/min (Ramsbottom formula)\n\n  VO2max Norms (Males 20-29): Excellent ≥55 | Good 49-54 | Average 40-48 | Poor <35 mL/kg/min\n  Level 5 ~33 | Level 8 ~42 | Level 11 ~51 | Level 13 ~57 mL/kg/min\n  MCID: ~3.5 mL/kg/min VO2max\n\n  Reference: Ramsbottom et al. (1988). A progressive shuttle run test to estimate maximal oxygen uptake. British Journal of Sports Medicine, 22(4), 141-144. https://doi.org/10.1136/bjsm.22.4.141`;
 
       await onSave({
         status: "completed",
@@ -152,7 +152,7 @@ export default function TwentyMeterShuttleRunBeepTestRunner({ client, onSave, on
                 <div>
                   <p className="font-semibold mb-1">Equipment Required</p>
                   <ul className="list-disc list-inside space-y-0.5 text-blue-800">
-                    <li>Flat, non-slip surface â‰¥ 20 metres</li>
+                    <li>Flat, non-slip surface ≥ 20 metres</li>
                     <li>Two marker cones placed exactly 20m apart</li>
                     <li>Calibrated audio file / CD player</li>
                     <li>Heart rate monitor (optional)</li>
@@ -172,7 +172,7 @@ export default function TwentyMeterShuttleRunBeepTestRunner({ client, onSave, on
                   <p className="font-semibold text-amber-800 mb-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Stop Criteria</p>
                   <ul className="list-disc list-inside text-amber-800 space-y-0.5">
                     <li>Chest pain, dizziness, or syncope</li>
-                    <li>SpOâ‚‚ &lt; 88% or marked cyanosis</li>
+                    <li>SpO₂ &lt; 88% or marked cyanosis</li>
                     <li>Participant request to stop</li>
                     <li>Failure to reach line twice consecutively</li>
                   </ul>
@@ -185,12 +185,12 @@ export default function TwentyMeterShuttleRunBeepTestRunner({ client, onSave, on
                     rel="noopener noreferrer"
                     className="text-blue-600 underline text-sm"
                   >
-                    20m Shuttle Run Audio (Beep Test) â€” YouTube
+                    20m Shuttle Run Audio (Beep Test) — YouTube
                   </a>
-                  <p className="text-xs text-blue-700 mt-1">Also available via ESSA, Fitness Australia, or the LÃ©ger & Lambert (1982) original.</p>
+                  <p className="text-xs text-blue-700 mt-1">Also available via ESSA, Fitness Australia, or the Léger & Lambert (1982) original.</p>
                 </div>
                 <div>
-                  <p className="font-semibold mb-1">VOâ‚‚max Reference by Level (Ramsbottom et al., 1988)</p>
+                  <p className="font-semibold mb-1">VO₂max Reference by Level (Ramsbottom et al., 1988)</p>
                   <div className="overflow-x-auto">
                     <table className="text-xs w-full border rounded overflow-hidden">
                       <thead className="bg-blue-100">
@@ -219,7 +219,7 @@ export default function TwentyMeterShuttleRunBeepTestRunner({ client, onSave, on
                   </div>
                   <p className="text-xs text-blue-600 mt-1">Values in mL/kg/min</p>
                 </div>
-                <p className="text-xs text-blue-600 italic">Reference: Ramsbottom R et al. (1988). Br J Sports Med, 22(4):141â€“144. | LÃ©ger LA & Lambert J (1982). Eur J Appl Physiol, 49:1â€“12.</p>
+                <p className="text-xs text-blue-600 italic">Reference: Ramsbottom R et al. (1988). Br J Sports Med, 22(4):141–144. | Léger LA & Lambert J (1982). Eur J Appl Physiol, 49:1–12.</p>
               </CardContent>
             )}
           </Card>
@@ -280,7 +280,7 @@ export default function TwentyMeterShuttleRunBeepTestRunner({ client, onSave, on
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label>RPE (6â€“20) *</Label>
+                <Label>RPE (6–20) *</Label>
                 <Input type="number" placeholder="e.g., 19" min="6" max="20" value={rpe} onChange={(e) => setRpe(e.target.value)} />
               </div>
               <div>

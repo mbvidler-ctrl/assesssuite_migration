@@ -36,7 +36,7 @@ export default function IllinoisAgilityTestRunner({ client, onSave, onClose }) {
     }
 
     const bestTime = Math.min(...trialTimes);
-    const soapText = `â€¢ Illinois Agility Test:\n  Best Time: ${bestTime}s\n  All Trials: ${trialTimes.join('s, ')}s${notes.trim() ? `\n  Clinical Notes: ${notes}` : ''}`;
+    const soapText = `• Illinois Agility Test:\n  Best Time: ${bestTime}s\n  All Trials: ${trialTimes.join('s, ')}s${notes.trim() ? `\n  Clinical Notes: ${notes}` : ''}`;
 
     onSave({
       status: "completed",
@@ -50,7 +50,7 @@ export default function IllinoisAgilityTestRunner({ client, onSave, onClose }) {
       notes: soapText,
       assessment_date: new Date().toISOString().split("T")[0],
     });
-    toast.success("Assessment recorded â€” please confirm and save.");
+    toast.success("Assessment recorded — please confirm and save.");
   };
 
   return (
@@ -74,7 +74,7 @@ export default function IllinoisAgilityTestRunner({ client, onSave, onClose }) {
                 <div>
                   <p className="font-semibold text-blue-900">Test Setup:</p>
                   <ul className="list-disc list-inside text-blue-800 mt-1 space-y-1">
-                    <li>Mark an area 10m long Ã— 5m wide</li>
+                    <li>Mark an area 10m long × 5m wide</li>
                     <li>Place 4 cones: start line, 10m mark, 5m left, 5m right</li>
                     <li>Mark the 5m line perpendicular to the start/end line</li>
                   </ul>
@@ -93,7 +93,7 @@ export default function IllinoisAgilityTestRunner({ client, onSave, onClose }) {
                 </div>
                 <div>
                   <p className="font-semibold text-blue-900">Scoring:</p>
-                  <p className="text-blue-800 mt-1">Record the best time of at least 2 trials. Rest 1â€“2 minutes between trials.</p>
+                  <p className="text-blue-800 mt-1">Record the best time of at least 2 trials. Rest 1–2 minutes between trials.</p>
                 </div>
               </CardContent>
             </Card>
@@ -110,7 +110,7 @@ export default function IllinoisAgilityTestRunner({ client, onSave, onClose }) {
                 <ul className="list-disc list-inside text-sm text-amber-800 space-y-1">
                   <li>Stopwatch or electronic timing system</li>
                   <li>4 cones or markers</li>
-                  <li>Measuring tape (10m Ã— 5m area)</li>
+                  <li>Measuring tape (10m × 5m area)</li>
                   <li>Smooth, flat surface (gym floor recommended)</li>
                   <li>Appropriate non-slip footwear</li>
                 </ul>

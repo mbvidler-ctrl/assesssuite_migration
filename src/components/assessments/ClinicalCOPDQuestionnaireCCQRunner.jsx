@@ -39,13 +39,13 @@ const DOMAINS = [
 ];
 
 const OPTIONS = [
-  { value: 0, label: "0 â€“ Never/Not limited at all" },
-  { value: 1, label: "1 â€“ Hardly ever/Hardly limited" },
-  { value: 2, label: "2 â€“ A few times/A little limited" },
-  { value: 3, label: "3 â€“ Several times/Moderately limited" },
-  { value: 4, label: "4 â€“ Many times/Very limited" },
-  { value: 5, label: "5 â€“ A great many times/Extremely limited" },
-  { value: 6, label: "6 â€“ Almost always/Unable to do" },
+  { value: 0, label: "0 – Never/Not limited at all" },
+  { value: 1, label: "1 – Hardly ever/Hardly limited" },
+  { value: 2, label: "2 – A few times/A little limited" },
+  { value: 3, label: "3 – Several times/Moderately limited" },
+  { value: 4, label: "4 – Many times/Very limited" },
+  { value: 5, label: "5 – A great many times/Extremely limited" },
+  { value: 6, label: "6 – Almost always/Unable to do" },
 ];
 
 function getInterpretation(mean) {
@@ -83,7 +83,7 @@ export default function ClinicalCOPDQuestionnaireCCQRunner({ client, onSave, onC
     const fMean = domainMean(functionalIds);
     const mMean = domainMean(mentalIds);
     const lines = allItems.map((item, i) => `  Q${i + 1}: ${responses[item.id]}/6`).join("\n");
-    const soap = `â€¢ Clinical COPD Questionnaire (CCQ)\n  Total Score (mean): ${totalMean.toFixed(2)}/6 â€” ${interp.label}\n  Symptom Domain: ${sMean?.toFixed(2)} | Functional: ${fMean?.toFixed(2)} | Mental: ${mMean?.toFixed(2)}\n\n  Item Responses:\n${lines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  MCID: 0.4 points | Scale: 0 (best) to 6 (worst)\n  Reference: van der Molen T et al. (2003). Development, validity, reliability of CCQ. Health Qual Life Outcomes, 1:13.`;
+    const soap = `• Clinical COPD Questionnaire (CCQ)\n  Total Score (mean): ${totalMean.toFixed(2)}/6 — ${interp.label}\n  Symptom Domain: ${sMean?.toFixed(2)} | Functional: ${fMean?.toFixed(2)} | Mental: ${mMean?.toFixed(2)}\n\n  Item Responses:\n${lines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  MCID: 0.4 points | Scale: 0 (best) to 6 (worst)\n  Reference: van der Molen T et al. (2003). Development, validity, reliability of CCQ. Health Qual Life Outcomes, 1:13.`;
     onSave({ status: "completed", result_value: parseFloat(totalMean.toFixed(2)), notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", responses, total_mean: parseFloat(totalMean.toFixed(2)), symptom_domain: parseFloat(sMean?.toFixed(2)), functional_domain: parseFloat(fMean?.toFixed(2)), mental_domain: parseFloat(mMean?.toFixed(2)), control_level: interp.label } });
     toast.success("CCQ saved.");
   };
@@ -94,7 +94,7 @@ export default function ClinicalCOPDQuestionnaireCCQRunner({ client, onSave, onC
         <div className="sticky top-0 bg-white z-10 p-5 border-b flex justify-between items-start">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Clinical COPD Questionnaire (CCQ)</h2>
-            <p className="text-slate-500 text-sm mt-0.5">10-item health status â€” 3 domains (0â€“6 scale)</p>
+            <p className="text-slate-500 text-sm mt-0.5">10-item health status — 3 domains (0–6 scale)</p>
           </div>
           {allAnswered && <div className={`px-3 py-1 rounded-full text-sm font-semibold border mr-2 ${interp.color}`}>{totalMean?.toFixed(2)}/6</div>}
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>

@@ -10,19 +10,19 @@ import { toast } from "sonner";
 
 const VO2_CATEGORIES = {
   male: [
-    { age: "13â€“19", poor: [0, 35.4], fair: [35.5, 38.3], good: [38.4, 45.1], excellent: [45.2, 50.9], superior: [51, 999] },
-    { age: "20â€“29", poor: [0, 33.0], fair: [33.1, 36.4], good: [36.5, 42.4], excellent: [42.5, 46.4], superior: [46.5, 999] },
-    { age: "30â€“39", poor: [0, 31.5], fair: [31.6, 35.4], good: [35.5, 40.9], excellent: [41.0, 44.9], superior: [45, 999] },
-    { age: "40â€“49", poor: [0, 30.2], fair: [30.3, 33.5], good: [33.6, 38.9], excellent: [39.0, 43.7], superior: [43.8, 999] },
-    { age: "50â€“59", poor: [0, 26.1], fair: [26.2, 30.9], good: [31.0, 35.7], excellent: [35.8, 40.9], superior: [41, 999] },
+    { age: "13–19", poor: [0, 35.4], fair: [35.5, 38.3], good: [38.4, 45.1], excellent: [45.2, 50.9], superior: [51, 999] },
+    { age: "20–29", poor: [0, 33.0], fair: [33.1, 36.4], good: [36.5, 42.4], excellent: [42.5, 46.4], superior: [46.5, 999] },
+    { age: "30–39", poor: [0, 31.5], fair: [31.6, 35.4], good: [35.5, 40.9], excellent: [41.0, 44.9], superior: [45, 999] },
+    { age: "40–49", poor: [0, 30.2], fair: [30.3, 33.5], good: [33.6, 38.9], excellent: [39.0, 43.7], superior: [43.8, 999] },
+    { age: "50–59", poor: [0, 26.1], fair: [26.2, 30.9], good: [31.0, 35.7], excellent: [35.8, 40.9], superior: [41, 999] },
     { age: "60+",   poor: [0, 20.5], fair: [20.6, 26.0], good: [26.1, 32.2], excellent: [32.3, 36.4], superior: [36.5, 999] },
   ],
   female: [
-    { age: "13â€“19", poor: [0, 25.0], fair: [25.1, 30.9], good: [31.0, 34.9], excellent: [35.0, 38.9], superior: [39, 999] },
-    { age: "20â€“29", poor: [0, 23.6], fair: [23.7, 28.9], good: [29.0, 32.9], excellent: [33.0, 36.9], superior: [37, 999] },
-    { age: "30â€“39", poor: [0, 22.8], fair: [22.9, 26.9], good: [27.0, 31.4], excellent: [31.5, 35.6], superior: [35.7, 999] },
-    { age: "40â€“49", poor: [0, 21.0], fair: [21.1, 24.4], good: [24.5, 28.9], excellent: [29.0, 32.8], superior: [32.9, 999] },
-    { age: "50â€“59", poor: [0, 20.2], fair: [20.3, 22.7], good: [22.8, 26.9], excellent: [27.0, 31.4], superior: [31.5, 999] },
+    { age: "13–19", poor: [0, 25.0], fair: [25.1, 30.9], good: [31.0, 34.9], excellent: [35.0, 38.9], superior: [39, 999] },
+    { age: "20–29", poor: [0, 23.6], fair: [23.7, 28.9], good: [29.0, 32.9], excellent: [33.0, 36.9], superior: [37, 999] },
+    { age: "30–39", poor: [0, 22.8], fair: [22.9, 26.9], good: [27.0, 31.4], excellent: [31.5, 35.6], superior: [35.7, 999] },
+    { age: "40–49", poor: [0, 21.0], fair: [21.1, 24.4], good: [24.5, 28.9], excellent: [29.0, 32.8], superior: [32.9, 999] },
+    { age: "50–59", poor: [0, 20.2], fair: [20.3, 22.7], good: [22.8, 26.9], excellent: [27.0, 31.4], superior: [31.5, 999] },
     { age: "60+",   poor: [0, 17.5], fair: [17.6, 20.1], good: [20.2, 24.4], excellent: [24.5, 30.2], superior: [30.3, 999] },
   ],
 };
@@ -98,7 +98,7 @@ export default function TwelveMinuteWalkRunTestCooperRunner({ client, onSave, on
     const vo2Max = (distanceInMeters - 504.9) / 44.73;
     const category = getVO2Category(vo2Max, clientGender, clientAge);
 
-    const soapText = `â€¢ 12-Minute Walk/Run Test (Cooper)\n  Distance: ${distanceInMeters} m\n  Estimated VO2max: ${vo2Max.toFixed(1)} ml/kg/min\n  Fitness Category: ${category.label} (${clientGender}, age ${clientAge})`;
+    const soapText = `• 12-Minute Walk/Run Test (Cooper)\n  Distance: ${distanceInMeters} m\n  Estimated VO2max: ${vo2Max.toFixed(1)} ml/kg/min\n  Fitness Category: ${category.label} (${clientGender}, age ${clientAge})`;
 
     onSave({
       status: "completed",
@@ -134,7 +134,7 @@ export default function TwelveMinuteWalkRunTestCooperRunner({ client, onSave, on
         {/* Instructions */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5 text-blue-600" />12-Minute Walk/Run Test (Cooper) â€” Clinician Instructions</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5 text-blue-600" />12-Minute Walk/Run Test (Cooper) — Clinician Instructions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-slate-700">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -165,10 +165,10 @@ export default function TwelveMinuteWalkRunTestCooperRunner({ client, onSave, on
               <p className="font-semibold mb-2">Procedure</p>
               <ol className="list-decimal list-inside space-y-1 text-slate-600">
                 <li>Explain the test: client covers as much distance as possible in exactly 12 minutes by walking, jogging, or running</li>
-                <li>Pace client to avoid early burnout â€” encourage steady effort throughout</li>
+                <li>Pace client to avoid early burnout — encourage steady effort throughout</li>
                 <li>At the end of 12 minutes, mark the exact point reached</li>
                 <li>Measure total distance from start to marked point (in metres)</li>
-                <li>Enter distance below â€” VO2max is estimated automatically using the Cooper formula</li>
+                <li>Enter distance below — VO2max is estimated automatically using the Cooper formula</li>
               </ol>
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
@@ -177,8 +177,8 @@ export default function TwelveMinuteWalkRunTestCooperRunner({ client, onSave, on
             </div>
             <div className="bg-slate-50 border rounded-lg p-3">
               <p className="font-semibold mb-2">VO2max Formula</p>
-              <p className="font-mono text-blue-800 bg-white border rounded px-3 py-2">VO2max (ml/kg/min) = (Distance in metres âˆ’ 504.9) Ã· 44.73</p>
-              <p className="text-xs text-slate-500 mt-1">Cooper, K.H. (1968). A means of assessing maximal oxygen intake. JAMA, 203(3), 201â€“204.</p>
+              <p className="font-mono text-blue-800 bg-white border rounded px-3 py-2">VO2max (ml/kg/min) = (Distance in metres − 504.9) ÷ 44.73</p>
+              <p className="text-xs text-slate-500 mt-1">Cooper, K.H. (1968). A means of assessing maximal oxygen intake. JAMA, 203(3), 201–204.</p>
             </div>
           </CardContent>
         </Card>
@@ -219,7 +219,7 @@ export default function TwelveMinuteWalkRunTestCooperRunner({ client, onSave, on
                 )}
               </div>
               {isRunning && timeLeft <= 60 && (
-                <Badge className="bg-red-600 text-white text-sm">Final minute â€” call out to client!</Badge>
+                <Badge className="bg-red-600 text-white text-sm">Final minute — call out to client!</Badge>
               )}
             </div>
           </CardContent>

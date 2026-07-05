@@ -87,8 +87,8 @@ export default function FibromyalgiaImpactQuestionnaireRevisedFIQRRunner({ clien
     else if (totalScore < 59) severity = "Moderate";
     else severity = "Severe";
 
-    let soapText = `â€¢ Fibromyalgia Impact Questionnaire - Revised (FIQR):\n`;
-    soapText += `  Total Score: ${totalScore.toFixed(1)}/100 â€” ${severity} impact\n`;
+    let soapText = `• Fibromyalgia Impact Questionnaire - Revised (FIQR):\n`;
+    soapText += `  Total Score: ${totalScore.toFixed(1)}/100 — ${severity} impact\n`;
     soapText += `  Function Domain: ${(functionScores.reduce((s,v)=>s+v,0)).toFixed(0)}/90 (scaled: ${functionDomainScore.toFixed(1)}/30)\n`;
     soapText += `  Overall Impact Domain: ${overallDomainScore.toFixed(0)}/20\n`;
     soapText += `  Symptoms Domain: ${(symptomScores.reduce((s,v)=>s+v,0)).toFixed(0)}/100 (scaled: ${symptomDomainScore.toFixed(1)}/50)\n\n`;
@@ -130,25 +130,25 @@ export default function FibromyalgiaImpactQuestionnaireRevisedFIQRRunner({ clien
 
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-bold text-slate-900">Fibromyalgia Impact Questionnaire â€“ Revised (FIQR)</h2>
+          <h2 className="text-xl font-bold text-slate-900">Fibromyalgia Impact Questionnaire – Revised (FIQR)</h2>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
 
         {/* Clinician Instructions */}
         <div className="bg-blue-600 text-white rounded-lg p-4 space-y-2 text-sm">
-          <p className="font-semibold text-base">ðŸ“‹ Clinician Instructions</p>
+          <p className="font-semibold text-base">📋 Clinician Instructions</p>
           <ul className="list-disc list-inside space-y-1">
             <li>Self-report questionnaire validated for fibromyalgia severity and treatment response.</li>
-            <li><strong>Domain 1 â€“ Function (9 items):</strong> Ask the client to rate difficulty over the <em>past 7 days</em>. Scale: 0 = No difficulty â†’ 10 = Extreme difficulty. Raw sum Ã· 3 = Domain score (max 30).</li>
-            <li><strong>Domain 2 â€“ Overall Impact (2 items):</strong> Rate how often fibromyalgia interfered (0 = Never â†’ 10 = Always). Sum = Domain score (max 20).</li>
-            <li><strong>Domain 3 â€“ Symptoms (10 items):</strong> Rate severity over the past 7 days (0 = No problem â†’ 10 = Severe problem). Raw sum Ã· 2 = Domain score (max 50).</li>
-            <li><strong>Total FIQR = Function + Overall + Symptoms (max 100).</strong> Mild &lt;39, Moderate 39â€“58, Severe â‰¥59.</li>
+            <li><strong>Domain 1 – Function (9 items):</strong> Ask the client to rate difficulty over the <em>past 7 days</em>. Scale: 0 = No difficulty → 10 = Extreme difficulty. Raw sum ÷ 3 = Domain score (max 30).</li>
+            <li><strong>Domain 2 – Overall Impact (2 items):</strong> Rate how often fibromyalgia interfered (0 = Never → 10 = Always). Sum = Domain score (max 20).</li>
+            <li><strong>Domain 3 – Symptoms (10 items):</strong> Rate severity over the past 7 days (0 = No problem → 10 = Severe problem). Raw sum ÷ 2 = Domain score (max 50).</li>
+            <li><strong>Total FIQR = Function + Overall + Symptoms (max 100).</strong> Mild &lt;39, Moderate 39–58, Severe ≥59.</li>
           </ul>
         </div>
 
         {/* Script */}
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-slate-700">
-          <p className="font-semibold text-green-800 mb-1">ðŸ—£ï¸ What to Say to the Client</p>
+          <p className="font-semibold text-green-800 mb-1">🗣ï¸ What to Say to the Client</p>
           <p className="italic">"I'm going to ask you about how fibromyalgia has affected you over the <strong>past 7 days</strong>. For each item, please choose a number from 0 to 10 that best reflects your experience. There are no right or wrong answers."</p>
         </div>
 
@@ -156,7 +156,7 @@ export default function FibromyalgiaImpactQuestionnaireRevisedFIQRRunner({ clien
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Section 1: Function</CardTitle>
-            <p className="text-xs text-slate-500">Rate difficulty performing each activity over the past 7 days. 0 = No difficulty Â· 10 = Extreme difficulty / Unable</p>
+            <p className="text-xs text-slate-500">Rate difficulty performing each activity over the past 7 days. 0 = No difficulty · 10 = Extreme difficulty / Unable</p>
           </CardHeader>
           <CardContent>
             {FUNCTION_ITEMS.map((q, i) => (
@@ -169,7 +169,7 @@ export default function FibromyalgiaImpactQuestionnaireRevisedFIQRRunner({ clien
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Section 2: Overall Impact</CardTitle>
-            <p className="text-xs text-slate-500">Rate how often fibromyalgia affected you over the past 7 days. 0 = Never Â· 10 = Always</p>
+            <p className="text-xs text-slate-500">Rate how often fibromyalgia affected you over the past 7 days. 0 = Never · 10 = Always</p>
           </CardHeader>
           <CardContent>
             {OVERALL_ITEMS.map((q, i) => (
@@ -182,7 +182,7 @@ export default function FibromyalgiaImpactQuestionnaireRevisedFIQRRunner({ clien
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Section 3: Symptoms</CardTitle>
-            <p className="text-xs text-slate-500">Rate the severity of each symptom over the past 7 days. 0 = No problem Â· 10 = Very severe problem</p>
+            <p className="text-xs text-slate-500">Rate the severity of each symptom over the past 7 days. 0 = No problem · 10 = Very severe problem</p>
           </CardHeader>
           <CardContent>
             {SYMPTOM_ITEMS.map((q, i) => (
@@ -201,8 +201,8 @@ export default function FibromyalgiaImpactQuestionnaireRevisedFIQRRunner({ clien
           const color = sev === "Mild" ? "bg-green-50 border-green-200 text-green-800" : sev === "Moderate" ? "bg-yellow-50 border-yellow-200 text-yellow-800" : "bg-red-50 border-red-200 text-red-800";
           return (
             <div className={`p-3 rounded-lg border ${color}`}>
-              <p className="font-semibold text-sm">Total FIQR Score: {total.toFixed(1)}/100 â€” {sev} Impact</p>
-              <p className="text-xs mt-1">Function: {fd.toFixed(1)}/30 Â· Overall: {od}/20 Â· Symptoms: {sd.toFixed(1)}/50</p>
+              <p className="font-semibold text-sm">Total FIQR Score: {total.toFixed(1)}/100 — {sev} Impact</p>
+              <p className="text-xs mt-1">Function: {fd.toFixed(1)}/30 · Overall: {od}/20 · Symptoms: {sd.toFixed(1)}/50</p>
             </div>
           );
         })()}

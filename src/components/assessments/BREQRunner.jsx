@@ -30,11 +30,11 @@ const ITEMS = [
 ];
 
 const RESPONSE_OPTIONS = [
-  { value: 0, label: "0 â€“ Not true for me" },
-  { value: 1, label: "1 â€“ Not very true for me" },
-  { value: 2, label: "2 â€“ Sometimes true for me" },
-  { value: 3, label: "3 â€“ Often true for me" },
-  { value: 4, label: "4 â€“ Very true for me" },
+  { value: 0, label: "0 – Not true for me" },
+  { value: 1, label: "1 – Not very true for me" },
+  { value: 2, label: "2 – Sometimes true for me" },
+  { value: 3, label: "3 – Often true for me" },
+  { value: 4, label: "4 – Very true for me" },
 ];
 
 const SUBSCALE_INFO = {
@@ -102,10 +102,10 @@ export default function BREQRunner({ client, onSave, onClose }) {
 
     const soap_text =
       `BREQ-2 Behavioural Regulation in Exercise Questionnaire\n\n` +
-      `Relative Autonomy Index (RAI): ${rai !== null ? rai.toFixed(2) : 'N/A'} â€” ${interp?.label || ''}\n\n` +
+      `Relative Autonomy Index (RAI): ${rai !== null ? rai.toFixed(2) : 'N/A'} — ${interp?.label || ''}\n\n` +
       `Subscale Means:\n` +
       Object.entries(SUBSCALE_INFO).map(([key, info]) =>
-        `  â€¢ ${info.label}: ${means[key] !== null ? means[key].toFixed(2) : 'N/A'}`
+        `  • ${info.label}: ${means[key] !== null ? means[key].toFixed(2) : 'N/A'}`
       ).join("\n") +
       `\n\nDetailed Responses:\n${subscaleLines}` +
       (notes ? `\n\nClinical Notes: ${notes}` : "");
@@ -134,7 +134,7 @@ export default function BREQRunner({ client, onSave, onClose }) {
         <div className="p-5 border-b bg-gradient-to-r from-indigo-50 to-blue-50 flex justify-between items-start shrink-0">
           <div>
             <h2 className="text-xl font-bold text-slate-900">BREQ-2</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Behavioural Regulation in Exercise Questionnaire â€” 19 items</p>
+            <p className="text-sm text-slate-500 mt-0.5">Behavioural Regulation in Exercise Questionnaire — 19 items</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -206,7 +206,7 @@ export default function BREQRunner({ client, onSave, onClose }) {
             <div className="mb-3 grid grid-cols-3 gap-2 text-xs">
               {Object.entries(SUBSCALE_INFO).map(([key, info]) => (
                 <div key={key} className={`px-2 py-1.5 rounded border text-center font-medium ${info.color}`}>
-                  {info.label.replace(" Regulation","").replace(" Motivation","")}: {means[key] !== null ? means[key].toFixed(2) : "â€”"}
+                  {info.label.replace(" Regulation","").replace(" Motivation","")}: {means[key] !== null ? means[key].toFixed(2) : "—"}
                 </div>
               ))}
             </div>
@@ -216,7 +216,7 @@ export default function BREQRunner({ client, onSave, onClose }) {
               <p className="text-sm text-slate-500">{answered}/19 answered</p>
               {rai !== null && interp && (
                 <p className={`text-sm font-semibold mt-0.5 ${interp.color}`}>
-                  RAI: {rai.toFixed(2)} â€” {interp.label}
+                  RAI: {rai.toFixed(2)} — {interp.label}
                 </p>
               )}
             </div>

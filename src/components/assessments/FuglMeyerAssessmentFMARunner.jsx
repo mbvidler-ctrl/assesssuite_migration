@@ -12,10 +12,10 @@ const SECTIONS = [
     label: "Upper Extremity Motor Function",
     maxScore: 66,
     items: [
-      "Shoulder retraction", "Shoulder elevation", "Shoulder abduction (90Â°)",
+      "Shoulder retraction", "Shoulder elevation", "Shoulder abduction (90°)",
       "Shoulder external rotation", "Elbow flexion", "Elbow supination/pronation",
-      "Wrist stability (elbow 90Â°)", "Wrist flexion/extension (elbow 90Â°)",
-      "Wrist stability (elbow 0Â°)", "Wrist flexion/extension (elbow 0Â°)",
+      "Wrist stability (elbow 90°)", "Wrist flexion/extension (elbow 90°)",
+      "Wrist stability (elbow 0°)", "Wrist flexion/extension (elbow 0°)",
       "Wrist circumduction", "Finger mass flexion", "Finger mass extension",
       "Hook grasp", "Lateral prehension", "Palmar prehension",
       "Cylindrical grasp", "Spherical grasp", "Finger individual movements",
@@ -106,7 +106,7 @@ export default function FuglMeyerAssessmentFMARunner({ client, onSave, onClose }
     const soapLines = SECTIONS.map(s => {
       const itemLines = s.items.map((item, i) => {
         const v = scores[`${s.key}_${i}`];
-        return `    â€¢ ${item}: ${v !== undefined ? v : 'N/A'}/2`;
+        return `    • ${item}: ${v !== undefined ? v : 'N/A'}/2`;
       }).join("\n");
       return `  ${s.label}: ${sectionScores[s.key]}/${s.maxScore}\n${itemLines}`;
     }).join("\n\n");
@@ -196,20 +196,20 @@ export default function FuglMeyerAssessmentFMARunner({ client, onSave, onClose }
                   <p className="font-semibold text-slate-800 mb-1">Motor Score Interpretation (UE + LE, max 100)</p>
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between bg-red-50 px-3 py-1.5 rounded"><span className="font-medium text-red-800">&lt; 50</span><span className="text-red-700">Severe impairment</span></div>
-                    <div className="flex justify-between bg-orange-50 px-3 py-1.5 rounded"><span className="font-medium text-orange-800">50â€“84</span><span className="text-orange-700">Marked impairment</span></div>
-                    <div className="flex justify-between bg-yellow-50 px-3 py-1.5 rounded"><span className="font-medium text-yellow-800">85â€“95</span><span className="text-yellow-700">Moderate impairment</span></div>
-                    <div className="flex justify-between bg-green-50 px-3 py-1.5 rounded"><span className="font-medium text-green-800">96â€“99</span><span className="text-green-700">Slight impairment</span></div>
+                    <div className="flex justify-between bg-orange-50 px-3 py-1.5 rounded"><span className="font-medium text-orange-800">50–84</span><span className="text-orange-700">Marked impairment</span></div>
+                    <div className="flex justify-between bg-yellow-50 px-3 py-1.5 rounded"><span className="font-medium text-yellow-800">85–95</span><span className="text-yellow-700">Moderate impairment</span></div>
+                    <div className="flex justify-between bg-green-50 px-3 py-1.5 rounded"><span className="font-medium text-green-800">96–99</span><span className="text-green-700">Slight impairment</span></div>
                     <div className="flex justify-between bg-emerald-50 px-3 py-1.5 rounded"><span className="font-medium text-emerald-800">100</span><span className="text-emerald-700">Normal motor function</span></div>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">MCID: 5.25â€“9.25 points (upper extremity). Sullivan et al., 2011.</p>
+                  <p className="text-xs text-slate-400 mt-1">MCID: 5.25–9.25 points (upper extremity). Sullivan et al., 2011.</p>
                 </div>
 
                 {/* Reliability */}
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Psychometric Properties</p>
                   <ul className="text-xs text-slate-600 list-disc list-inside space-y-0.5">
-                    <li>Excellent inter-rater reliability (ICC 0.97â€“0.99)</li>
-                    <li>Excellent test-retest reliability (ICC 0.95â€“0.99)</li>
+                    <li>Excellent inter-rater reliability (ICC 0.97–0.99)</li>
+                    <li>Excellent test-retest reliability (ICC 0.95–0.99)</li>
                     <li>Strong concurrent validity with Barthel Index and motor scales</li>
                     <li>Sensitive to change across the full spectrum of stroke severity</li>
                   </ul>
@@ -219,15 +219,15 @@ export default function FuglMeyerAssessmentFMARunner({ client, onSave, onClose }
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Key References</p>
                   <div className="text-xs text-slate-600 space-y-1.5">
-                    <p><strong>Fugl-Meyer AR, JÃ¤Ã¤skÃ¶ L, Leyman I, Olsson S, Steglind S.</strong> (1975). The post-stroke hemiplegic patient: a method for evaluation of physical performance. <em>Scandinavian Journal of Rehabilitation Medicine</em>, 7(1), 13â€“31.</p>
-                    <p><strong>Gladstone DJ, Danells CJ, Black SE.</strong> (2002). The Fugl-Meyer Assessment of Motor Recovery after Stroke: A Critical Review of Its Measurement Properties. <em>Neurorehabilitation and Neural Repair</em>, 16(3), 232â€“240.</p>
-                    <p><strong>Sullivan KJ et al.</strong> (2011). Fugl-Meyer Assessment of Sensorimotor Function After Stroke. <em>Physical Therapy</em>, 91(8), 1113â€“1125.</p>
+                    <p><strong>Fugl-Meyer AR, Jääskö L, Leyman I, Olsson S, Steglind S.</strong> (1975). The post-stroke hemiplegic patient: a method for evaluation of physical performance. <em>Scandinavian Journal of Rehabilitation Medicine</em>, 7(1), 13–31.</p>
+                    <p><strong>Gladstone DJ, Danells CJ, Black SE.</strong> (2002). The Fugl-Meyer Assessment of Motor Recovery after Stroke: A Critical Review of Its Measurement Properties. <em>Neurorehabilitation and Neural Repair</em>, 16(3), 232–240.</p>
+                    <p><strong>Sullivan KJ et al.</strong> (2011). Fugl-Meyer Assessment of Sensorimotor Function After Stroke. <em>Physical Therapy</em>, 91(8), 1113–1125.</p>
                   </div>
                   <button
                     onClick={() => window.open('https://strokengine.ca/en/assessments/fugl-meyer-assessment-of-sensorimotor-recovery-after-stroke-fma/', '_blank')}
                     className="mt-2 flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium"
                   >
-                    <ExternalLink className="w-3 h-3" /> StrokEngine â€” FMA Resource
+                    <ExternalLink className="w-3 h-3" /> StrokEngine — FMA Resource
                   </button>
                 </div>
               </CardContent>

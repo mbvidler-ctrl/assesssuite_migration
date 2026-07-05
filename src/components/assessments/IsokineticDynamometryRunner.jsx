@@ -10,14 +10,14 @@ import { toast } from "sonner";
 // H:Q ratio interpretation
 function interpretHQ(ratio) {
   if (!ratio || isNaN(ratio)) return null;
-  if (ratio >= 0.55 && ratio <= 0.80) return { label: "Normal (0.55â€“0.80)", color: "text-green-600" };
-  if (ratio < 0.55) return { label: "Low â€” Possible hamstring weakness / injury risk", color: "text-red-600" };
-  return { label: "High â€” Possible quadriceps weakness", color: "text-orange-600" };
+  if (ratio >= 0.55 && ratio <= 0.80) return { label: "Normal (0.55–0.80)", color: "text-green-600" };
+  if (ratio < 0.55) return { label: "Low — Possible hamstring weakness / injury risk", color: "text-red-600" };
+  return { label: "High — Possible quadriceps weakness", color: "text-orange-600" };
 }
 
-const SPEEDS = ["60Â°/s", "180Â°/s", "240Â°/s", "300Â°/s", "Custom"];
+const SPEEDS = ["60°/s", "180°/s", "240°/s", "300°/s", "Custom"];
 
-const emptySet = (side) => ({ side, speed: "60Â°/s", customSpeed: "", peakTorque: "", avgTorque: "", work: "", power: "", reps: "" });
+const emptySet = (side) => ({ side, speed: "60°/s", customSpeed: "", peakTorque: "", avgTorque: "", work: "", power: "", reps: "" });
 
 export default function IsokineticDynamometryRunner({ client, onSave, onClose }) {
   const [sets, setSets] = useState([emptySet("right"), emptySet("left")]);
@@ -31,12 +31,12 @@ export default function IsokineticDynamometryRunner({ client, onSave, onClose })
   const addSet = () => setSets([...sets, emptySet("right")]);
   const removeSet = (i) => setSets(sets.filter((_, idx) => idx !== i));
 
-  // H:Q ratio for right and left (at 60Â°/s)
+  // H:Q ratio for right and left (at 60°/s)
   const hqCalc = (side) => {
-    const flexSet = sets.find(s => s.side === side && s.speed === "60Â°/s" && parseFloat(s.peakTorque) > 0);
-    const extSet = sets.find(s => s.side !== side && s.speed === "60Â°/s" && parseFloat(s.peakTorque) > 0);
+    const flexSet = sets.find(s => s.side === side && s.speed === "60°/s" && parseFloat(s.peakTorque) > 0);
+    const extSet = sets.find(s => s.side !== side && s.speed === "60°/s" && parseFloat(s.peakTorque) > 0);
     // Simpler: find flex and ext for same side by index pairs
-    const sideSets = sets.filter(s => s.side === side && s.speed === "60Â°/s");
+    const sideSets = sets.filter(s => s.side === side && s.speed === "60°/s");
     if (sideSets.length < 2) return null;
     const [s1, s2] = sideSets;
     const t1 = parseFloat(s1.peakTorque), t2 = parseFloat(s2.peakTorque);
@@ -47,8 +47,8 @@ export default function IsokineticDynamometryRunner({ client, onSave, onClose })
   const handleSave = () => {
     const validSets = sets.filter(s => s.peakTorque && !isNaN(parseFloat(s.peakTorque)));
     const maxPeak = Math.max(...validSets.map(s => parseFloat(s.peakTorque)));
-    const setLines = validSets.map((s, i) => `  ${s.side} ${s.speed}${s.customSpeed ? ` (${s.customSpeed}Â°/s)` : ""}: Peak ${s.peakTorque}Nm${s.avgTorque ? ` | Avg ${s.avgTorque}Nm` : ""}${s.work ? ` | Work ${s.work}J` : ""}${s.power ? ` | Power ${s.power}W` : ""}${s.reps ? ` | ${s.reps} reps` : ""}`).join("\n");
-    const soap = `â€¢ Isokinetic Dynamometry â€” ${joint}\n  Device: ${device || "Not specified"}\n  Pre-test HR: ${preHR || "N/A"} bpm | Post-test HR: ${postHR || "N/A"} bpm\n\n  Results:\n${setLines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Hamstring:Quadriceps ratio norms: 0.55â€“0.80 at 60Â°/s. <0.55 indicates increased injury risk.\n  Reference: Coombs R & Garbutt G (2002). Developments in the use of the hamstring/quadriceps ratio for assessment of muscle balance. J Sports Sci Med, 1(3):56-62.`;
+    const setLines = validSets.map((s, i) => `  ${s.side} ${s.speed}${s.customSpeed ? ` (${s.customSpeed}°/s)` : ""}: Peak ${s.peakTorque}Nm${s.avgTorque ? ` | Avg ${s.avgTorque}Nm` : ""}${s.work ? ` | Work ${s.work}J` : ""}${s.power ? ` | Power ${s.power}W` : ""}${s.reps ? ` | ${s.reps} reps` : ""}`).join("\n");
+    const soap = `• Isokinetic Dynamometry — ${joint}\n  Device: ${device || "Not specified"}\n  Pre-test HR: ${preHR || "N/A"} bpm | Post-test HR: ${postHR || "N/A"} bpm\n\n  Results:\n${setLines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Hamstring:Quadriceps ratio norms: 0.55–0.80 at 60°/s. <0.55 indicates increased injury risk.\n  Reference: Coombs R & Garbutt G (2002). Developments in the use of the hamstring/quadriceps ratio for assessment of muscle balance. J Sports Sci Med, 1(3):56-62.`;
     onSave({ status: "completed", result_value: maxPeak, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "isokinetic_dynamometry", joint, device, pre_hr: preHR ? parseInt(preHR) : null, post_hr: postHR ? parseInt(postHR) : null, sets: validSets.map(s => ({ side: s.side, speed_deg_per_s: s.customSpeed || s.speed, peak_torque_nm: parseFloat(s.peakTorque), avg_torque_nm: s.avgTorque ? parseFloat(s.avgTorque) : null, work_j: s.work ? parseFloat(s.work) : null, power_w: s.power ? parseFloat(s.power) : null, reps: s.reps ? parseInt(s.reps) : null })) } });
     toast.success("Isokinetics saved.");
   };
@@ -65,7 +65,7 @@ export default function IsokineticDynamometryRunner({ client, onSave, onClose })
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 space-y-1">
             <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />Protocol</p>
             <p><strong>Setup:</strong> Align dynamometer axis with joint axis of rotation. Secure stabilisation straps.</p>
-            <p><strong>Common speeds:</strong> 60Â°/s (strength), 180â€“240Â°/s (power), 300Â°/s (endurance).</p>
+            <p><strong>Common speeds:</strong> 60°/s (strength), 180–240°/s (power), 300°/s (endurance).</p>
             <p><strong>Recording:</strong> Device outputs peak torque, average torque, total work. Record per side and per speed.</p>
           </div>
 
@@ -99,7 +99,7 @@ export default function IsokineticDynamometryRunner({ client, onSave, onClose })
                       <Button key={sp} size="sm" variant={s.speed === sp ? "default" : "outline"} onClick={() => updateSet(i, "speed", sp)}>{sp}</Button>
                     ))}
                   </div>
-                  {s.speed === "Custom" && <Input type="number" placeholder="Enter speed (Â°/s)" value={s.customSpeed} onChange={e => updateSet(i, "customSpeed", e.target.value)} className="w-40" />}
+                  {s.speed === "Custom" && <Input type="number" placeholder="Enter speed (°/s)" value={s.customSpeed} onChange={e => updateSet(i, "customSpeed", e.target.value)} className="w-40" />}
                   <div className="grid grid-cols-3 gap-2">
                     <div><Label className="text-xs">Peak Torque (Nm)*</Label><Input type="number" step="0.1" value={s.peakTorque} onChange={e => updateSet(i, "peakTorque", e.target.value)} className="mt-0.5" /></div>
                     <div><Label className="text-xs">Avg Torque (Nm)</Label><Input type="number" step="0.1" value={s.avgTorque} onChange={e => updateSet(i, "avgTorque", e.target.value)} className="mt-0.5" /></div>

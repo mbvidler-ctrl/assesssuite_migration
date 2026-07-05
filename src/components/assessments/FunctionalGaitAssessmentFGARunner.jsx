@@ -19,7 +19,7 @@ const ITEMS = [
   { id: "stairs", label: "10. Steps" },
 ];
 
-const SCORE_LABELS = ["0 â€” Severe impairment", "1 â€” Moderate impairment", "2 â€” Mild impairment", "3 â€” Normal"];
+const SCORE_LABELS = ["0 — Severe impairment", "1 — Moderate impairment", "2 — Mild impairment", "3 — Normal"];
 
 function getInterpretation(score) {
   if (score >= 27) return { label: "Normal / Minimal Risk", color: "bg-green-100 text-green-800 border-green-300" };
@@ -42,7 +42,7 @@ export default function FunctionalGaitAssessmentFGARunner({ client, onSave, onCl
     if (answered === 0) { toast.error("Please score at least one item before saving."); return; }
     const lines = ITEMS.map(it => `  ${it.label}: ${scores[it.id]}/3`).join("\n");
     const interpLabel = interp ? interp.label : "Partial assessment";
-    const soap = `â€¢ Functional Gait Assessment (FGA)\n  Total Score: ${total}/30 â€” ${interpLabel}\n\n  Item Scores:\n${lines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Cutoff: <22/30 = fall risk in community-dwelling older adults\n  MCID: 4 points\n  Reference: Wrisley DM et al. (2004). Functional Gait Assessment: concurrent, discriminative, and predictive validity in community-dwelling older adults. Phys Ther, 84:906-918.`;
+    const soap = `• Functional Gait Assessment (FGA)\n  Total Score: ${total}/30 — ${interpLabel}\n\n  Item Scores:\n${lines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Cutoff: <22/30 = fall risk in community-dwelling older adults\n  MCID: 4 points\n  Reference: Wrisley DM et al. (2004). Functional Gait Assessment: concurrent, discriminative, and predictive validity in community-dwelling older adults. Phys Ther, 84:906-918.`;
     onSave({ status: "completed", result_value: total, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "performance_based", total_score: total, item_scores: scores, fall_risk: interpLabel } });
     toast.success("FGA saved.");
   };
@@ -51,7 +51,7 @@ export default function FunctionalGaitAssessmentFGARunner({ client, onSave, onCl
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-w-2xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="sticky top-0 bg-white z-10 p-5 border-b flex justify-between items-start">
-          <div><h2 className="text-2xl font-bold text-slate-900">Functional Gait Assessment</h2><p className="text-slate-500 text-sm mt-0.5">FGA â€” 10 items, 0â€“3 each (max 30)</p></div>
+          <div><h2 className="text-2xl font-bold text-slate-900">Functional Gait Assessment</h2><p className="text-slate-500 text-sm mt-0.5">FGA — 10 items, 0–3 each (max 30)</p></div>
           {allAnswered && <div className={`px-3 py-1 rounded-full text-sm font-semibold border mr-2 ${interp.color}`}>{total}/30</div>}
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -80,7 +80,7 @@ export default function FunctionalGaitAssessmentFGARunner({ client, onSave, onCl
                     <li>Ensure a clear, unobstructed walkway of at least 6 metres</li>
                     <li>Patient may use their usual gait aid (note this in clinical notes)</li>
                     <li>Demonstrate each task before the patient attempts it</li>
-                    <li>Score 0â€“3 for each item based on observed gait quality and safety</li>
+                    <li>Score 0–3 for each item based on observed gait quality and safety</li>
                     <li>Allow one practice trial per task if needed; score the formal attempt</li>
                     <li>Safety: stand close to patient, especially for tasks with eyes closed or narrow BOS</li>
                   </ul>
@@ -101,9 +101,9 @@ export default function FunctionalGaitAssessmentFGARunner({ client, onSave, onCl
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Interpretation (max 30)</p>
                   <div className="space-y-1 text-xs">
-                    <div className="flex justify-between bg-green-50 px-3 py-1.5 rounded"><span className="font-medium text-green-800">27â€“30</span><span className="text-green-700">Normal / Minimal fall risk</span></div>
-                    <div className="flex justify-between bg-teal-50 px-3 py-1.5 rounded"><span className="font-medium text-teal-800">22â€“26</span><span className="text-teal-700">Low fall risk</span></div>
-                    <div className="flex justify-between bg-yellow-50 px-3 py-1.5 rounded"><span className="font-medium text-yellow-800">17â€“21</span><span className="text-yellow-700">Moderate fall risk</span></div>
+                    <div className="flex justify-between bg-green-50 px-3 py-1.5 rounded"><span className="font-medium text-green-800">27–30</span><span className="text-green-700">Normal / Minimal fall risk</span></div>
+                    <div className="flex justify-between bg-teal-50 px-3 py-1.5 rounded"><span className="font-medium text-teal-800">22–26</span><span className="text-teal-700">Low fall risk</span></div>
+                    <div className="flex justify-between bg-yellow-50 px-3 py-1.5 rounded"><span className="font-medium text-yellow-800">17–21</span><span className="text-yellow-700">Moderate fall risk</span></div>
                     <div className="flex justify-between bg-red-50 px-3 py-1.5 rounded"><span className="font-medium text-red-800">&lt; 17</span><span className="text-red-700">High fall risk</span></div>
                   </div>
                   <p className="text-xs text-slate-400 mt-1">Community-dwelling older adults: cutoff &lt;22/30. MCID: 4 points.</p>
@@ -124,12 +124,12 @@ export default function FunctionalGaitAssessmentFGARunner({ client, onSave, onCl
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Key References</p>
                   <div className="text-xs text-slate-600 space-y-1.5">
-                    <p><strong>Wrisley DM, Marchetti GF, Kuharsky DK, Whitney SL.</strong> (2004). Reliability, internal consistency, and validity of data obtained with the Functional Gait Assessment. <em>Physical Therapy</em>, 84(10), 906â€“918.</p>
-                    <p><strong>Walker ML et al.</strong> (2007). Reference group data for the Functional Gait Assessment. <em>Physical Therapy</em>, 87(11), 1468â€“1477.</p>
-                    <p><strong>Beninato M, Portney LG, Sullivan PE.</strong> (2009). Using the International Classification of Functioning, Disability and Health as a framework to examine the association between falls and clinical assessment tools in people with stroke. <em>Physical Therapy</em>, 89(8), 816â€“825.</p>
+                    <p><strong>Wrisley DM, Marchetti GF, Kuharsky DK, Whitney SL.</strong> (2004). Reliability, internal consistency, and validity of data obtained with the Functional Gait Assessment. <em>Physical Therapy</em>, 84(10), 906–918.</p>
+                    <p><strong>Walker ML et al.</strong> (2007). Reference group data for the Functional Gait Assessment. <em>Physical Therapy</em>, 87(11), 1468–1477.</p>
+                    <p><strong>Beninato M, Portney LG, Sullivan PE.</strong> (2009). Using the International Classification of Functioning, Disability and Health as a framework to examine the association between falls and clinical assessment tools in people with stroke. <em>Physical Therapy</em>, 89(8), 816–825.</p>
                   </div>
                   <button onClick={() => window.open('https://www.sralab.org/rehabilitation-measures/functional-gait-assessment', '_blank')} className="mt-2 flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium">
-                    <ExternalLink className="w-3 h-3" /> Rehab Measures Database â€” FGA
+                    <ExternalLink className="w-3 h-3" /> Rehab Measures Database — FGA
                   </button>
                 </div>
               </div>
@@ -144,7 +144,7 @@ export default function FunctionalGaitAssessmentFGARunner({ client, onSave, onCl
                   {[0, 1, 2, 3].map(v => (
                     <Button key={v} type="button" size="sm" variant={scores[item.id] === v ? "default" : "outline"} className={`flex flex-col h-auto py-2 text-xs ${scores[item.id] === v ? "bg-indigo-600 hover:bg-indigo-700" : ""}`} onClick={() => setScores(p => ({ ...p, [item.id]: v }))}>
                       <span className="font-bold text-base">{v}</span>
-                      <span className="text-[9px] leading-tight text-center">{SCORE_LABELS[v].split("â€”")[1].trim().split(" ")[0]}</span>
+                      <span className="text-[9px] leading-tight text-center">{SCORE_LABELS[v].split("—")[1].trim().split(" ")[0]}</span>
                     </Button>
                   ))}
                 </div>

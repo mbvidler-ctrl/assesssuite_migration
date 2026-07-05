@@ -55,12 +55,12 @@ export default function RivermadMobilityIndexRunner({ client, onSave, onClose })
     // Build SOAP text based on status
     let soapText;
     if (statusMap.complete) {
-      soapText = `â€¢ Rivermead Mobility Index (RMI): ${totalScore}/15. Mobility self-report completed. Interpretation: ${getMobilityLevel(totalScore)}.${notes ? ` Notes: ${notes}` : ""}`;
+      soapText = `• Rivermead Mobility Index (RMI): ${totalScore}/15. Mobility self-report completed. Interpretation: ${getMobilityLevel(totalScore)}.${notes ? ` Notes: ${notes}` : ""}`;
     } else if (statusMap.partial) {
       const unansweredCount = 15 - completedTasks;
-      soapText = `â€¢ Rivermead Mobility Index (RMI): Partial assessment completed. ${completedTasks}/15 items answered, current score ${totalScore}/${completedTasks} from answered items. ${unansweredCount} item${unansweredCount !== 1 ? "s" : ""} left unanswered.${notes ? ` Notes: ${notes}` : ""}`;
+      soapText = `• Rivermead Mobility Index (RMI): Partial assessment completed. ${completedTasks}/15 items answered, current score ${totalScore}/${completedTasks} from answered items. ${unansweredCount} item${unansweredCount !== 1 ? "s" : ""} left unanswered.${notes ? ` Notes: ${notes}` : ""}`;
     } else {
-      soapText = `â€¢ Rivermead Mobility Index (RMI): Assessment saved as incomplete/draft. No scored items completed.${notes ? ` Notes: ${notes}` : ""}`;
+      soapText = `• Rivermead Mobility Index (RMI): Assessment saved as incomplete/draft. No scored items completed.${notes ? ` Notes: ${notes}` : ""}`;
     }
 
     onSave({
@@ -138,7 +138,7 @@ export default function RivermadMobilityIndexRunner({ client, onSave, onClose })
                       <strong>Population:</strong> Originally developed for stroke survivors but applicable to various conditions affecting mobility (e.g., neurological, orthopedic, geriatric).
                     </p>
                     <p>
-                      <strong>Duration:</strong> Typically 10â€“15 minutes depending on client capability.
+                      <strong>Duration:</strong> Typically 10–15 minutes depending on client capability.
                     </p>
                   </div>
                 </div>
@@ -174,19 +174,19 @@ export default function RivermadMobilityIndexRunner({ client, onSave, onClose })
                   <h4 className="font-semibold text-purple-900 mb-3">Interpretation Guidelines</h4>
                   <div className="space-y-3 text-sm text-purple-800">
                     <p>
-                      <strong>Total Score Range:</strong> 0â€“15 points (higher = better mobility)
+                      <strong>Total Score Range:</strong> 0–15 points (higher = better mobility)
                     </p>
                     <div className="grid gap-2 pt-2">
                       <div className="bg-white border border-purple-200 rounded p-3">
-                        <p className="font-semibold text-red-700">0â€“6: Poor Mobility</p>
+                        <p className="font-semibold text-red-700">0–6: Poor Mobility</p>
                         <p className="text-xs mt-1">Significant functional limitations; dependent for most activities</p>
                       </div>
                       <div className="bg-white border border-purple-200 rounded p-3">
-                        <p className="font-semibold text-amber-700">7â€“11: Limited Mobility</p>
+                        <p className="font-semibold text-amber-700">7–11: Limited Mobility</p>
                         <p className="text-xs mt-1">Moderate functional limitations; partial independence with some tasks</p>
                       </div>
                       <div className="bg-white border border-purple-200 rounded p-3">
-                        <p className="font-semibold text-green-700">12â€“15: Good Mobility</p>
+                        <p className="font-semibold text-green-700">12–15: Good Mobility</p>
                         <p className="text-xs mt-1">Minimal limitations; independent in most mobility tasks</p>
                       </div>
                     </div>
@@ -252,11 +252,11 @@ export default function RivermadMobilityIndexRunner({ client, onSave, onClose })
                   </div>
                   <div className="text-xs font-semibold text-slate-500 mt-1">
                     {taskScores[task.id] === 1 ? (
-                      <span className="text-green-600">âœ“ Yes</span>
+                      <span className="text-green-600">✓ Yes</span>
                     ) : taskScores[task.id] === 0 ? (
-                      <span className="text-red-600">âœ— No</span>
+                      <span className="text-red-600">✗ No</span>
                     ) : (
-                      <span className="text-slate-400">â€”</span>
+                      <span className="text-slate-400">—</span>
                     )}
                   </div>
                 </div>

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
 
-// Rikli & Jones (2001) Senior Fitness Test norms â€” Back Scratch (cm)
+// Rikli & Jones (2001) Senior Fitness Test norms — Back Scratch (cm)
 const NORMS = {
   male: [
     { ageMin: 60, ageMax: 64, excellent: 1.3, good: -3.8, avg: -8.9, fair: -14, poor: -999 },
@@ -70,7 +70,7 @@ export default function BackScratchTestRunner({ client, onSave, onClose }) {
 
   const handleSave = () => {
     if (leftTrials.length === 0 && rightTrials.length === 0) { toast.error("Record at least one trial"); return; }
-    const soap = `â€¢ Back Scratch Test (Senior Fitness Test)\n  Best Left: ${bestLeft !== null ? bestLeft + " cm" : "N/A"}${catLeft ? ` â€” ${catLeft.label}` : ""}\n  Best Right: ${bestRight !== null ? bestRight + " cm" : "N/A"}${catRight ? ` â€” ${catRight.label}` : ""}\n  Positive = overlap; Negative = gap${notes ? `\n  Notes: ${notes}` : ""}\n  Assesses upper body (shoulder) flexibility\n  Reference: Rikli RE & Jones CJ (2001). Senior Fitness Test Manual. Human Kinetics.`;
+    const soap = `• Back Scratch Test (Senior Fitness Test)\n  Best Left: ${bestLeft !== null ? bestLeft + " cm" : "N/A"}${catLeft ? ` — ${catLeft.label}` : ""}\n  Best Right: ${bestRight !== null ? bestRight + " cm" : "N/A"}${catRight ? ` — ${catRight.label}` : ""}\n  Positive = overlap; Negative = gap${notes ? `\n  Notes: ${notes}` : ""}\n  Assesses upper body (shoulder) flexibility\n  Reference: Rikli RE & Jones CJ (2001). Senior Fitness Test Manual. Human Kinetics.`;
     onSave({ status: "completed", result_value: best, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "back_scratch", best_left_cm: bestLeft, best_right_cm: bestRight, left_trials: leftTrials, right_trials: rightTrials, left_classification: catLeft?.label, right_classification: catRight?.label } });
     toast.success("Saved.");
   };
@@ -86,29 +86,29 @@ export default function BackScratchTestRunner({ client, onSave, onClose }) {
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
+            <p className="font-semibold">📖 Reference</p>
             <p>Rikli RE & Jones CJ. (2001). <em>Senior Fitness Test Manual</em>. Human Kinetics.</p>
-            <p>Jones CJ & Rikli RE. (2002). Measuring functional fitness of older adults. <em>The Journal on Active Aging, 1</em>, 24â€“30.</p>
+            <p>Jones CJ & Rikli RE. (2002). Measuring functional fitness of older adults. <em>The Journal on Active Aging, 1</em>, 24–30.</p>
           </div>
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 space-y-1">
-            <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />ðŸ“‹ Protocol & Administration</p>
+            <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />📋 Protocol & Administration</p>
             <p><strong>Position:</strong> Standing. Dominant hand reaches over same shoulder (palm on back); non-dominant hand behind lower back, palm facing outward.</p>
             <p className="italic">"Reach one hand over your shoulder and one behind your back, and try to get your fingertips as close together as possible along your spine."</p>
-            <p><strong>Measure:</strong> Distance between middle fingertips. Positive = overlap; Negative = gap. Remove watches/bracelets. 2 trials each side â€” record best.</p>
+            <p><strong>Measure:</strong> Distance between middle fingertips. Positive = overlap; Negative = gap. Remove watches/bracelets. 2 trials each side — record best.</p>
           </div>
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Norms â€” Senior Fitness Test (cm)</p>
+            <p className="font-semibold text-slate-700">📊 Norms — Senior Fitness Test (cm)</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Age</th><th className="p-2 text-center">Men (avg range)</th><th className="p-2 text-center">Women (avg range)</th></tr></thead>
                 <tbody>
-                  <tr className="border-t"><td className="p-2">60â€“64</td><td className="p-2 text-center">âˆ’8.9 to +1.3</td><td className="p-2 text-center">âˆ’2.5 to +7.6</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">65â€“69</td><td className="p-2 text-center">âˆ’10.2 to 0</td><td className="p-2 text-center">âˆ’2.5 to +7.6</td></tr>
-                  <tr className="border-t"><td className="p-2">70â€“74</td><td className="p-2 text-center">âˆ’11.4 to âˆ’1.3</td><td className="p-2 text-center">âˆ’3.8 to +6.3</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">75+</td><td className="p-2 text-center">âˆ’12.7 to âˆ’2.5</td><td className="p-2 text-center">âˆ’5.1 to +5.1</td></tr>
+                  <tr className="border-t"><td className="p-2">60–64</td><td className="p-2 text-center">−8.9 to +1.3</td><td className="p-2 text-center">−2.5 to +7.6</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">65–69</td><td className="p-2 text-center">−10.2 to 0</td><td className="p-2 text-center">−2.5 to +7.6</td></tr>
+                  <tr className="border-t"><td className="p-2">70–74</td><td className="p-2 text-center">−11.4 to −1.3</td><td className="p-2 text-center">−3.8 to +6.3</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">75+</td><td className="p-2 text-center">−12.7 to −2.5</td><td className="p-2 text-center">−5.1 to +5.1</td></tr>
                 </tbody>
               </table>
             </div>

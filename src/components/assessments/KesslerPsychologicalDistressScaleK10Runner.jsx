@@ -28,7 +28,7 @@ const OPTIONS = [
 ];
 
 function getInterpretation(score) {
-  if (score <= 19) return { label: "Likely Well", color: "bg-green-100 text-green-800 border-green-300", action: "No specific action â€” monitor" };
+  if (score <= 19) return { label: "Likely Well", color: "bg-green-100 text-green-800 border-green-300", action: "No specific action — monitor" };
   if (score <= 24) return { label: "Mild Distress", color: "bg-yellow-100 text-yellow-800 border-yellow-300", action: "Consider further screening; psychoeducation" };
   if (score <= 29) return { label: "Moderate Distress", color: "bg-orange-100 text-orange-800 border-orange-300", action: "Formal assessment; consider referral to GP or mental health" };
   return { label: "Severe Distress", color: "bg-red-100 text-red-800 border-red-300", action: "Urgent mental health review recommended" };
@@ -46,7 +46,7 @@ export default function KesslerPsychologicalDistressScaleK10Runner({ client, onS
   const handleSave = () => {
     if (!allAnswered) { toast.error("Please answer all 10 questions"); return; }
     const qLines = QUESTIONS.map((q, i) => `  Q${i + 1} (${OPTIONS.find(o => o.value === responses[i])?.label}): ${responses[i]}`).join("\n");
-    const soap = `â€¢ K10 Psychological Distress Scale\n  Total Score: ${total}/50 â€” ${interp.label}\n  Recommended action: ${interp.action}\n\n  Item Responses:\n${qLines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: 10â€“19 well | 20â€“24 mild | 25â€“29 moderate | 30â€“50 severe\n  Reference: Kessler RC et al. (2002). Short screening scales to monitor population prevalences and trends in non-specific psychological distress. Psychol Med, 32(6):959-76.`;
+    const soap = `• K10 Psychological Distress Scale\n  Total Score: ${total}/50 — ${interp.label}\n  Recommended action: ${interp.action}\n\n  Item Responses:\n${qLines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: 10–19 well | 20–24 mild | 25–29 moderate | 30–50 severe\n  Reference: Kessler RC et al. (2002). Short screening scales to monitor population prevalences and trends in non-specific psychological distress. Psychol Med, 32(6):959-76.`;
     onSave({ status: "completed", result_value: total, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", responses, distress_level: interp.label } });
     toast.success("K10 saved.");
   };
@@ -57,10 +57,10 @@ export default function KesslerPsychologicalDistressScaleK10Runner({ client, onS
         <div className="sticky top-0 bg-white z-10 p-5 border-b flex justify-between items-start">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">K10 Distress Scale</h2>
-            <p className="text-slate-500 text-sm mt-0.5">Kessler Psychological Distress Scale â€” 10 items</p>
+            <p className="text-slate-500 text-sm mt-0.5">Kessler Psychological Distress Scale — 10 items</p>
           </div>
           <div className="flex items-center gap-3">
-            {allAnswered && <div className={`px-3 py-1 rounded-full text-sm font-semibold border ${interp.color}`}>{total}/50 â€” {interp.label}</div>}
+            {allAnswered && <div className={`px-3 py-1 rounded-full text-sm font-semibold border ${interp.color}`}>{total}/50 — {interp.label}</div>}
             <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
           </div>
         </div>
@@ -68,7 +68,7 @@ export default function KesslerPsychologicalDistressScaleK10Runner({ client, onS
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-900">
             <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />Instructions</p>
-            <p>In the past <strong>4 weeks</strong>, about how often did you feelâ€¦ (1=None of the time â†’ 5=All of the time)</p>
+            <p>In the past <strong>4 weeks</strong>, about how often did you feel… (1=None of the time → 5=All of the time)</p>
           </div>
 
           {QUESTIONS.map((q, i) => (

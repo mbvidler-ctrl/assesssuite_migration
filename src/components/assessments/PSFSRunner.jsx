@@ -54,11 +54,11 @@ export default function PSFSRunner({ onSave, onClose }) {
     const avg = parseFloat(average);
     const activityLines = valid.map((a, i) => `    ${i + 1}. "${a.activity}": ${a.score}/10`).join('\n');
     const soapText = [
-      `â€¢ Patient-Specific Functional Scale (PSFS)`,
+      `• Patient-Specific Functional Scale (PSFS)`,
       `  Average Score: ${avg}/10 (${valid.length} activit${valid.length > 1 ? 'ies' : 'y'})`,
       `  Activity Scores:`,
       activityLines,
-      `  MCID: A change of â‰¥2 points on average score (or 30% improvement per activity) is considered clinically meaningful.`,
+      `  MCID: A change of ≥2 points on average score (or 30% improvement per activity) is considered clinically meaningful.`,
       notes ? `  Clinical Notes: ${notes}` : null,
     ].filter(Boolean).join('\n');
 
@@ -103,14 +103,14 @@ export default function PSFSRunner({ onSave, onClose }) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">
-                <p><strong>About the PSFS:</strong> A client-specific outcome measure where the patient identifies 1â€“5 activities they are having difficulty performing due to their condition. Each activity is rated on an 11-point numeric scale. It is highly responsive to change and appropriate across musculoskeletal, neurological, and chronic pain presentations.</p>
+                <p><strong>About the PSFS:</strong> A client-specific outcome measure where the patient identifies 1–5 activities they are having difficulty performing due to their condition. Each activity is rated on an 11-point numeric scale. It is highly responsive to change and appropriate across musculoskeletal, neurological, and chronic pain presentations.</p>
                 <p className="mt-2 font-semibold">Clinician Script:</p>
                 <p className="italic">"I'd like you to identify up to 5 important activities that you are currently having difficulty with or are unable to perform because of your problem. For each activity, please rate your current ability on a scale from 0 to 10."</p>
                 <div className="grid grid-cols-2 gap-2 mt-2 text-xs">
                   <div className="bg-white rounded p-2 border border-blue-200"><strong>0</strong> = Unable to perform the activity at all</div>
                   <div className="bg-white rounded p-2 border border-blue-200"><strong>10</strong> = Able to perform at the same level as before injury/problem</div>
                 </div>
-                <p className="mt-2"><strong>MCID:</strong> A change of â‰¥2 points on the average score represents a clinically meaningful improvement (Westaway et al., 1998; Stratford et al., 1995).</p>
+                <p className="mt-2"><strong>MCID:</strong> A change of ≥2 points on the average score represents a clinically meaningful improvement (Westaway et al., 1998; Stratford et al., 1995).</p>
                 <p><strong>MDC (90%):</strong> ~2 points for the average score across most populations.</p>
               </CardContent>
             </Card>
@@ -200,10 +200,10 @@ export default function PSFSRunner({ onSave, onClose }) {
             <Card className="bg-slate-50 border-slate-200">
               <CardHeader><CardTitle className="text-sm text-slate-600">References</CardTitle></CardHeader>
               <CardContent className="text-xs text-slate-600 space-y-1">
-                <p>â€¢ Stratford P, et al. Assessing disability and change on individual patients: A report of a patient specific measure. <em>Physiotherapy Canada.</em> 1995;47(4):258â€“263.</p>
-                <p>â€¢ Westaway MD, et al. Responsiveness of the PSFS in patients with low neck pain. <em>J Orthop Sports Phys Ther.</em> 1998;27(3):176â€“182.</p>
-                <p>â€¢ Hefford C, et al. The patient-specific functional scale: Validity, reliability, and responsiveness in patients with upper extremity musculoskeletal problems. <em>J Orthop Sports Phys Ther.</em> 2012;42(2):56â€“65.</p>
-                <p>â€¢ Horn KK, et al. The patient-specific functional scale: Psychometrics, clinimetrics, and application as a clinical outcome measure. <em>J Orthop Sports Phys Ther.</em> 2012;42(1):30â€“42.</p>
+                <p>• Stratford P, et al. Assessing disability and change on individual patients: A report of a patient specific measure. <em>Physiotherapy Canada.</em> 1995;47(4):258–263.</p>
+                <p>• Westaway MD, et al. Responsiveness of the PSFS in patients with low neck pain. <em>J Orthop Sports Phys Ther.</em> 1998;27(3):176–182.</p>
+                <p>• Hefford C, et al. The patient-specific functional scale: Validity, reliability, and responsiveness in patients with upper extremity musculoskeletal problems. <em>J Orthop Sports Phys Ther.</em> 2012;42(2):56–65.</p>
+                <p>• Horn KK, et al. The patient-specific functional scale: Psychometrics, clinimetrics, and application as a clinical outcome measure. <em>J Orthop Sports Phys Ther.</em> 2012;42(1):30–42.</p>
               </CardContent>
             </Card>
           </div>

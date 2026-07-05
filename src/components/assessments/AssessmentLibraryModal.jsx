@@ -188,7 +188,7 @@ export default function AssessmentLibraryModal({ onClose, onSelectAssessment, cl
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
                   <Input
-                    placeholder="Search by name, description, categoryâ€¦"
+                    placeholder="Search by name, description, category…"
                     value={searchTerm}
                     onChange={e => setSearchTerm(e.target.value)}
                     className="pl-9 h-9"
@@ -201,7 +201,7 @@ export default function AssessmentLibraryModal({ onClose, onSelectAssessment, cl
                   )}
                 </div>
                 <p className="text-xs text-slate-400 mt-1.5">
-                  {isLoading ? "Loadingâ€¦" : `${filtered.length} assessment${filtered.length !== 1 ? "s" : ""}`}
+                  {isLoading ? "Loading…" : `${filtered.length} assessment${filtered.length !== 1 ? "s" : ""}`}
                 </p>
               </div>
 

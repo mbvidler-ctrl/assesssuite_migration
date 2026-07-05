@@ -6,8 +6,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Save, X, Play, Square, ChevronDown, ChevronUp } from "lucide-react";
 
 const SIGNS = [
-  { key: "hip_drop", label: "Contralateral Hip Drop", description: "Pelvis on the non-standing side drops below horizontal â€” positive Trendelenburg sign, indicates ipsilateral gluteus medius/minimus weakness." },
-  { key: "trunk_lurch", label: "Trunk Lateral Lean / Compensatory Lurch", description: "Client shifts trunk toward the standing leg to unload weak abductors â€” Trendelenburg gait compensation." },
+  { key: "hip_drop", label: "Contralateral Hip Drop", description: "Pelvis on the non-standing side drops below horizontal — positive Trendelenburg sign, indicates ipsilateral gluteus medius/minimus weakness." },
+  { key: "trunk_lurch", label: "Trunk Lateral Lean / Compensatory Lurch", description: "Client shifts trunk toward the standing leg to unload weak abductors — Trendelenburg gait compensation." },
   { key: "early_drop", label: "Inability to Hold 30 Seconds", description: "Foot dropped before 30s due to loss of balance or weakness. Note time of onset." },
   { key: "pelvic_obliquity", label: "Pelvic Obliquity / Rotation", description: "Visible pelvic rotation or obliquity during single-leg stance beyond expected." },
 ];
@@ -90,7 +90,7 @@ function SidePanel({ side, color, data, onChange }) {
 
       {/* Overall Result for this side */}
       <div>
-        <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Overall Result â€” {side}</p>
+        <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2">Overall Result — {side}</p>
         <div className="flex gap-2">
           {["Positive", "Negative", "Equivocal"].map(r => (
             <button
@@ -109,7 +109,7 @@ function SidePanel({ side, color, data, onChange }) {
           ))}
         </div>
         {anyPositive && !overallResult && (
-          <p className="text-xs text-amber-600 mt-1">Signs observed â€” please select a result above.</p>
+          <p className="text-xs text-amber-600 mt-1">Signs observed — please select a result above.</p>
         )}
       </div>
     </div>
@@ -130,9 +130,9 @@ export default function TrendelenburgTestRunner({ client, onSave, onClose }) {
 
     const overallResult = (left.result === "Positive" || right.result === "Positive") ? "Positive" : "Negative";
 
-    let soap = `â€¢ Trendelenburg Test\n`;
-    soap += `  Left: ${left.result || "Not recorded"}${leftSigns.length ? ` â€” Signs: ${leftSigns.join(", ")}` : ""}\n`;
-    soap += `  Right: ${right.result || "Not recorded"}${rightSigns.length ? ` â€” Signs: ${rightSigns.join(", ")}` : ""}\n`;
+    let soap = `• Trendelenburg Test\n`;
+    soap += `  Left: ${left.result || "Not recorded"}${leftSigns.length ? ` — Signs: ${leftSigns.join(", ")}` : ""}\n`;
+    soap += `  Right: ${right.result || "Not recorded"}${rightSigns.length ? ` — Signs: ${rightSigns.join(", ")}` : ""}\n`;
     soap += `  Overall: ${overallResult}\n`;
     if (notes) soap += `  Notes: ${notes}\n`;
 
@@ -162,24 +162,24 @@ export default function TrendelenburgTestRunner({ client, onSave, onClose }) {
         <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-blue-600 px-5 py-4 rounded-t-xl flex items-center justify-between z-10">
           <div>
             <h2 className="text-white font-bold text-lg">Trendelenburg Test</h2>
-            <p className="text-indigo-200 text-xs">Hip Abductor Strength â€” Bilateral Assessment</p>
+            <p className="text-indigo-200 text-xs">Hip Abductor Strength — Bilateral Assessment</p>
           </div>
-          <button onClick={onClose} className="text-white/70 hover:text-white text-2xl leading-none">Ã—</button>
+          <button onClick={onClose} className="text-white/70 hover:text-white text-2xl leading-none">×</button>
         </div>
 
         <div className="p-5 space-y-5">
 
           {/* Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm space-y-2">
-            <p className="font-semibold text-blue-900">ðŸ“‹ Administration Instructions</p>
+            <p className="font-semibold text-blue-900">📋 Administration Instructions</p>
             <ol className="space-y-1.5 text-blue-800 list-none">
               {[
                 "Client stands facing clinician on a firm, flat surface.",
-                "Instruct client to stand on one leg (test the symptomatic/affected side first) and flex the opposite knee to approximately 90Â°.",
+                "Instruct client to stand on one leg (test the symptomatic/affected side first) and flex the opposite knee to approximately 90°.",
                 "Patient instruction: \"Stand on your [left/right] leg and lift the other foot off the ground. Hold as still as you can for 30 seconds.\"",
-                "Observe the pelvis and trunk from the front â€” note any pelvic drop, trunk sway, or compensatory movements.",
+                "Observe the pelvis and trunk from the front — note any pelvic drop, trunk sway, or compensatory movements.",
                 "Test is positive if pelvis drops on the non-standing side within 30 seconds.",
-                "Rest 1â€“2 minutes between sides. Test both sides and compare.",
+                "Rest 1–2 minutes between sides. Test both sides and compare.",
               ].map((s, i) => (
                 <li key={i} className="flex gap-2.5">
                   <span className="w-5 h-5 rounded-full bg-blue-200 text-blue-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">{i + 1}</span>
@@ -213,7 +213,7 @@ export default function TrendelenburgTestRunner({ client, onSave, onClose }) {
 
           {/* Diagnostic Accuracy */}
           <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm">
-            <p className="font-semibold text-slate-700 mb-2">ðŸ“Š Diagnostic Accuracy</p>
+            <p className="font-semibold text-slate-700 mb-2">📊 Diagnostic Accuracy</p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               {[
                 ["Sensitivity (hip abductor weakness)", "~73%"],
@@ -227,16 +227,16 @@ export default function TrendelenburgTestRunner({ client, onSave, onClose }) {
                 </div>
               ))}
             </div>
-            <p className="text-xs text-slate-500 mt-2">Common in: hip OA, post-hip surgery, Legg-CalvÃ©-Perthes, IT band syndrome, neurological conditions.</p>
+            <p className="text-xs text-slate-500 mt-2">Common in: hip OA, post-hip surgery, Legg-Calvé-Perthes, IT band syndrome, neurological conditions.</p>
           </div>
 
-          {/* References â€” collapsible */}
+          {/* References — collapsible */}
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <button
               onClick={() => setRefOpen(o => !o)}
               className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 hover:bg-slate-100 transition-colors text-sm font-semibold text-slate-700"
             >
-              <span>ðŸ“– References</span>
+              <span>📖 References</span>
               {refOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
             {refOpen && (
@@ -244,20 +244,20 @@ export default function TrendelenburgTestRunner({ client, onSave, onClose }) {
                 {[
                   {
                     authors: "Trendelenburg F. (1895).",
-                    title: "Ueber den Gang bei angeborener HÃ¼ftgelenksluxation.",
-                    journal: "Deutsche Medicinische Wochenschrift, 21(21), 21â€“24.",
+                    title: "Ueber den Gang bei angeborener Hüftgelenksluxation.",
+                    journal: "Deutsche Medicinische Wochenschrift, 21(21), 21–24.",
                     detail: "Original description of the pelvic drop sign during single-leg stance.",
                   },
                   {
                     authors: "Hardcastle P & Nade S. (1985).",
                     title: "The significance of the Trendelenburg test.",
-                    journal: "Journal of Bone and Joint Surgery (Br), 67(5), 741â€“746.",
+                    journal: "Journal of Bone and Joint Surgery (Br), 67(5), 741–746.",
                     detail: "Established diagnostic accuracy values and clinical significance. Sensitivity ~73%, Specificity ~77%.",
                   },
                   {
                     authors: "Youdas JW et al. (2010).",
                     title: "Electromyographic analysis of trunk and hip musculature during single-leg stance.",
-                    journal: "Journal of Orthopaedic & Sports Physical Therapy, 40(3), 152â€“160.",
+                    journal: "Journal of Orthopaedic & Sports Physical Therapy, 40(3), 152–160.",
                     detail: "Quantified gluteus medius activation during single-leg tasks relevant to Trendelenburg assessment.",
                   },
                   {

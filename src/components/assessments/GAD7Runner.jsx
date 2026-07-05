@@ -202,7 +202,7 @@ export default function GAD7Runner({ onSave, onClose }) {
             {/* Clinical Notes */}
             <Card className="bg-amber-50 border-amber-200">
               <CardContent className="py-4 text-xs text-amber-800">
-                <p><strong>Note:</strong> GAD-7 is a screening tool, not a diagnostic instrument. Scores â‰¥10 suggest further clinical assessment may be warranted. Consider referral to GP or mental health professional for moderate-severe anxiety.</p>
+                <p><strong>Note:</strong> GAD-7 is a screening tool, not a diagnostic instrument. Scores ≥10 suggest further clinical assessment may be warranted. Consider referral to GP or mental health professional for moderate-severe anxiety.</p>
               </CardContent>
             </Card>
           </div>

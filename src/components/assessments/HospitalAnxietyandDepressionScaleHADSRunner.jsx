@@ -55,7 +55,7 @@ export default function HospitalAnxietyandDepressionScaleHADSRunner({ client, on
     const depressionSeverity = getSeverity(depressionScore);
     const totalScore = anxietyScore + depressionScore;
 
-    const soapText = `â€¢ Hospital Anxiety and Depression Scale (HADS)\n  Anxiety (HADS-A): ${anxietyScore}/21 â€” ${anxietySeverity}\n  Depression (HADS-D): ${depressionScore}/21 â€” ${depressionSeverity}\n  Total: ${totalScore}/42\n  Score Ranges: 0â€“7 Normal | 8â€“10 Borderline | 11â€“21 Clinical case\n  Reference: Zigmond & Snaith (1983). Acta Psychiatrica Scandinavica, 67(6), 361â€“370.`;
+    const soapText = `• Hospital Anxiety and Depression Scale (HADS)\n  Anxiety (HADS-A): ${anxietyScore}/21 — ${anxietySeverity}\n  Depression (HADS-D): ${depressionScore}/21 — ${depressionSeverity}\n  Total: ${totalScore}/42\n  Score Ranges: 0–7 Normal | 8–10 Borderline | 11–21 Clinical case\n  Reference: Zigmond & Snaith (1983). Acta Psychiatrica Scandinavica, 67(6), 361–370.`;
 
     onSave({
       status: "completed",

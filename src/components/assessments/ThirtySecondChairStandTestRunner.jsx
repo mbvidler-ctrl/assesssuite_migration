@@ -7,26 +7,26 @@ import { X, Play, Square, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
 const NORMS = [
-  { age: "60â€“64", male: "14â€“19", female: "12â€“17", below: "<14 / <12" },
-  { age: "65â€“69", male: "12â€“18", female: "11â€“16", below: "<12 / <11" },
-  { age: "70â€“74", male: "12â€“17", female: "10â€“15", below: "<12 / <10" },
-  { age: "75â€“79", male: "11â€“17", female: "10â€“15", below: "<11 / <10" },
-  { age: "80â€“84", male: "10â€“15", female: "9â€“14", below: "<10 / <9" },
-  { age: "85â€“89", male: "8â€“14", female: "8â€“13", below: "<8 / <8" },
-  { age: "90â€“94", male: "7â€“12", female: "4â€“11", below: "<7 / <4" },
+  { age: "60–64", male: "14–19", female: "12–17", below: "<14 / <12" },
+  { age: "65–69", male: "12–18", female: "11–16", below: "<12 / <11" },
+  { age: "70–74", male: "12–17", female: "10–15", below: "<12 / <10" },
+  { age: "75–79", male: "11–17", female: "10–15", below: "<11 / <10" },
+  { age: "80–84", male: "10–15", female: "9–14", below: "<10 / <9" },
+  { age: "85–89", male: "8–14", female: "8–13", below: "<8 / <8" },
+  { age: "90–94", male: "7–12", female: "4–11", below: "<7 / <4" },
 ];
 
 function getInterpretation(count, age, gender) {
   const ageNum = parseInt(age);
   const norm = NORMS.find(n => {
-    const [lo, hi] = n.age.split("â€“").map(Number);
+    const [lo, hi] = n.age.split("–").map(Number);
     return ageNum >= lo && ageNum <= hi;
   });
   if (!norm || !count) return null;
-  const [lo, hi] = (gender === "male" ? norm.male : norm.female).split("â€“").map(Number);
+  const [lo, hi] = (gender === "male" ? norm.male : norm.female).split("–").map(Number);
   if (count >= hi) return { label: "Above average", color: "text-green-700", bg: "bg-green-50 border-green-300" };
   if (count >= lo) return { label: "Average", color: "text-blue-700", bg: "bg-blue-50 border-blue-300" };
-  return { label: "Below average â€” consider falls risk assessment", color: "text-red-700", bg: "bg-red-50 border-red-300" };
+  return { label: "Below average — consider falls risk assessment", color: "text-red-700", bg: "bg-red-50 border-red-300" };
 }
 
 export default function ThirtySecondChairStandTestRunner({ client, onSave, onClose }) {
@@ -76,13 +76,13 @@ export default function ThirtySecondChairStandTestRunner({ client, onSave, onClo
   const handleSave = () => {
     if (!isCompleted && standCount === 0) { toast.error("Please complete the test first."); return; }
     const soapText = [
-      `â€¢ 30-Second Chair Stand Test`,
+      `• 30-Second Chair Stand Test`,
       `  Repetitions: ${standCount}`,
       interp ? `  Interpretation: ${interp.label}` : "",
       `  Age: ${age} | Gender: ${gender === "male" ? "Male" : "Female"}`,
       notes ? `  Notes: ${notes}` : "",
-      `  MCID: 2â€“3 repetitions | <10 reps: consider falls risk referral`,
-      `  Reference: Rikli & Jones (1999). Journal of Aging and Physical Activity, 7(2), 129â€“161.`,
+      `  MCID: 2–3 repetitions | <10 reps: consider falls risk referral`,
+      `  Reference: Rikli & Jones (1999). Journal of Aging and Physical Activity, 7(2), 129–161.`,
     ].filter(Boolean).join("\n");
 
     onSave({
@@ -108,7 +108,7 @@ export default function ThirtySecondChairStandTestRunner({ client, onSave, onClo
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-900">30-Second Chair Stand Test</h2>
-          <p className="text-sm text-slate-500">Lower body strength &amp; functional mobility â€” Rikli &amp; Jones</p>
+          <p className="text-sm text-slate-500">Lower body strength &amp; functional mobility — Rikli &amp; Jones</p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
       </div>
@@ -117,7 +117,7 @@ export default function ThirtySecondChairStandTestRunner({ client, onSave, onClo
       <div className="border border-blue-200 rounded-lg overflow-hidden">
         <button onClick={() => setShowInstructions(v => !v)}
           className="w-full flex justify-between items-center bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900">
-          ðŸ“‹ Administration Instructions (Rikli &amp; Jones Protocol)
+          📋 Administration Instructions (Rikli &amp; Jones Protocol)
           {showInstructions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
         {showInstructions && (
@@ -132,7 +132,7 @@ export default function ThirtySecondChairStandTestRunner({ client, onSave, onClo
 
       {/* Normative Table */}
       <div className="border border-slate-200 rounded-lg p-3">
-        <p className="font-semibold text-slate-700 text-sm mb-2">ðŸ“Š Normative Values â€” 30-Second Sit-to-Stand (repetitions)</p>
+        <p className="font-semibold text-slate-700 text-sm mb-2">📊 Normative Values — 30-Second Sit-to-Stand (repetitions)</p>
         <div className="overflow-x-auto">
           <table className="w-full text-xs border border-slate-300 rounded overflow-hidden">
             <thead className="bg-slate-200">
@@ -181,7 +181,7 @@ export default function ThirtySecondChairStandTestRunner({ client, onSave, onClo
       {/* Timer + Counter */}
       <div className="border border-slate-200 rounded-xl overflow-hidden">
         <div className={`px-4 py-2 text-sm font-semibold text-center ${isTesting ? "bg-green-100 text-green-800" : isCompleted ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>
-          {isTesting ? "ðŸŸ¢ Test Running â€” Count every full stand!" : isCompleted ? "âœ… Test Complete" : "Ready to start"}
+          {isTesting ? "🟢 Test Running — Count every full stand!" : isCompleted ? "✅ Test Complete" : "Ready to start"}
         </div>
 
         <div className="bg-white p-5 flex flex-col items-center gap-4">
@@ -206,7 +206,7 @@ export default function ThirtySecondChairStandTestRunner({ client, onSave, onClo
               <div className="text-sm text-slate-500 mt-1">stands completed</div>
               {/* Manual adjust after test */}
               <div className="flex items-center gap-3 mt-3 justify-center">
-                <Button variant="outline" size="sm" onClick={() => setStandCount(c => Math.max(0, c - 1))}>âˆ’</Button>
+                <Button variant="outline" size="sm" onClick={() => setStandCount(c => Math.max(0, c - 1))}>−</Button>
                 <span className="text-xs text-slate-500">Adjust count</span>
                 <Button variant="outline" size="sm" onClick={() => setStandCount(c => c + 1)}>+</Button>
               </div>
@@ -214,7 +214,7 @@ export default function ThirtySecondChairStandTestRunner({ client, onSave, onClo
           )}
 
           {!isTesting && !isCompleted && (
-            <div className="text-5xl font-bold text-slate-200">â€”</div>
+            <div className="text-5xl font-bold text-slate-200">—</div>
           )}
 
           {/* Controls */}
@@ -235,7 +235,7 @@ export default function ThirtySecondChairStandTestRunner({ client, onSave, onClo
       {/* Live interpretation */}
       {isCompleted && interp && (
         <div className={`rounded-lg border px-4 py-3 ${interp.bg}`}>
-          <p className="font-semibold text-sm text-slate-800">{standCount} repetitions â€” <span className={interp.color}>{interp.label}</span></p>
+          <p className="font-semibold text-sm text-slate-800">{standCount} repetitions — <span className={interp.color}>{interp.label}</span></p>
         </div>
       )}
 
@@ -247,8 +247,8 @@ export default function ThirtySecondChairStandTestRunner({ client, onSave, onClo
 
       {/* References */}
       <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-        <p className="font-semibold text-slate-700">ðŸ“– References</p>
-        <p>1. Rikli RE &amp; Jones CJ. (1999). Development and validation of a functional fitness test for community-residing older adults. <em>Journal of Aging and Physical Activity</em>, 7(2), 129â€“161.</p>
+        <p className="font-semibold text-slate-700">📖 References</p>
+        <p>1. Rikli RE &amp; Jones CJ. (1999). Development and validation of a functional fitness test for community-residing older adults. <em>Journal of Aging and Physical Activity</em>, 7(2), 129–161.</p>
         <p>2. Rikli RE &amp; Jones CJ. (2013). <em>Senior Fitness Test Manual</em> (2nd ed.). Human Kinetics.</p>
         <p>3. Bohannon RW. (2006). Reference values for the five-repetition sit-to-stand test. <em>Journal of Strength and Conditioning Research</em>.</p>
       </div>

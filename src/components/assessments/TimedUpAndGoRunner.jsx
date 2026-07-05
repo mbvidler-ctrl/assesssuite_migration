@@ -77,13 +77,13 @@ export default function TimedUpAndGoRunner({ onSave, onClose }) {
     const avgTime = calculateAverage();
     const interpretation = getInterpretation(avgTime);
     const trialSummary = trials.map((t, i) =>
-      `Trial ${i + 1}: ${t.time}s${t.assistiveDevice !== 'none' ? ` (${t.assistiveDevice.replace('_', ' ')})` : ''}${t.observations ? ` â€” ${t.observations}` : ''}`
+      `Trial ${i + 1}: ${t.time}s${t.assistiveDevice !== 'none' ? ` (${t.assistiveDevice.replace('_', ' ')})` : ''}${t.observations ? ` — ${t.observations}` : ''}`
     ).join('\n');
     onSave({
       result_value: parseFloat(avgTime),
       notes: `Interpretation: ${interpretation.text}\n\nTrials:\n${trialSummary}`,
       additional_data: {
-        soap_text: `â€¢ Timed Up and Go (TUG): ${avgTime}s (average of ${trials.length} trial${trials.length > 1 ? 's' : ''})\n  Interpretation: ${interpretation.text}\n  Assistive Device: ${trials[0]?.assistiveDevice?.replace('_', ' ') || 'None'}\n\n  Trial Details:\n${trials.map((t, i) => `    Trial ${i + 1}: ${t.time}s${t.assistiveDevice !== 'none' ? ` | Device: ${t.assistiveDevice.replace('_', ' ')}` : ''}${t.steps ? ` | Steps: ${t.steps}` : ''}${t.observations ? `\n      Observations: ${t.observations}` : ''}`).join('\n')}`,
+        soap_text: `• Timed Up and Go (TUG): ${avgTime}s (average of ${trials.length} trial${trials.length > 1 ? 's' : ''})\n  Interpretation: ${interpretation.text}\n  Assistive Device: ${trials[0]?.assistiveDevice?.replace('_', ' ') || 'None'}\n\n  Trial Details:\n${trials.map((t, i) => `    Trial ${i + 1}: ${t.time}s${t.assistiveDevice !== 'none' ? ` | Device: ${t.assistiveDevice.replace('_', ' ')}` : ''}${t.steps ? ` | Steps: ${t.steps}` : ''}${t.observations ? `\n      Observations: ${t.observations}` : ''}`).join('\n')}`,
         trials,
         averageTime: parseFloat(avgTime),
         interpretation: interpretation.text,
@@ -105,33 +105,33 @@ export default function TimedUpAndGoRunner({ onSave, onClose }) {
 
         <CardContent className="space-y-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-1">
-            <p className="font-semibold">ðŸ“‹ Administration Instructions</p>
-            <p><strong>Setup:</strong> Standard armchair (~46 cm). Measure 3m from chair front. Client wears usual footwear. Assistive devices permitted â€” document.</p>
+            <p className="font-semibold">📋 Administration Instructions</p>
+            <p><strong>Setup:</strong> Standard armchair (~46 cm). Measure 3m from chair front. Client wears usual footwear. Assistive devices permitted — document.</p>
             <p className="italic">"When I say 'Go', stand up from the chair, walk to the line, turn around, walk back, and sit down. Walk at a safe, comfortable pace."</p>
-            <p><strong>Timing:</strong> Start on "Go." Stop when back touches chair. Record time to 0.01 s. Multiple trials â€” use best or average.</p>
+            <p><strong>Timing:</strong> Start on "Go." Stop when back touches chair. Record time to 0.01 s. Multiple trials — use best or average.</p>
           </div>
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Norms & Interpretation</p>
+            <p className="font-semibold text-slate-700">📊 Norms & Interpretation</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Time</th><th className="p-2 text-left">Mobility</th></tr></thead>
                 <tbody>
-                  <tr className="border-t"><td className="p-2">â‰¤10 s</td><td className="p-2 text-green-700">Normal</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">11â€“20 s</td><td className="p-2 text-teal-700">Good, mostly independent</td></tr>
-                  <tr className="border-t"><td className="p-2">21â€“30 s</td><td className="p-2 text-yellow-700">Variable mobility</td></tr>
+                  <tr className="border-t"><td className="p-2">≤10 s</td><td className="p-2 text-green-700">Normal</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">11–20 s</td><td className="p-2 text-teal-700">Good, mostly independent</td></tr>
+                  <tr className="border-t"><td className="p-2">21–30 s</td><td className="p-2 text-yellow-700">Variable mobility</td></tr>
                   <tr className="border-t bg-white"><td className="p-2">&gt;30 s</td><td className="p-2 text-red-700">Impaired, high fall risk</td></tr>
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-slate-500">MCID: 1.4 s. Cut-off â‰¥13.5 s for fall prediction in community-dwelling older adults. Source: Podsiadlo & Richardson (1991).</p>
+            <p className="text-xs text-slate-500">MCID: 1.4 s. Cut-off ≥13.5 s for fall prediction in community-dwelling older adults. Source: Podsiadlo & Richardson (1991).</p>
           </div>
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
-            <p>Podsiadlo D & Richardson S. (1991). The timed "Up & Go": a test of basic functional mobility for frail elderly persons. <em>Journal of the American Geriatrics Society, 39</em>(2), 142â€“148.</p>
+            <p className="font-semibold">📖 Reference</p>
+            <p>Podsiadlo D & Richardson S. (1991). The timed "Up & Go": a test of basic functional mobility for frail elderly persons. <em>Journal of the American Geriatrics Society, 39</em>(2), 142–148.</p>
           </div>
 
           {/* Timer */}
@@ -249,8 +249,8 @@ export default function TimedUpAndGoRunner({ onSave, onClose }) {
                     <div className="flex-1">
                       <p className="font-semibold text-slate-900">
                         Trial {index + 1}: {trial.time}s
-                        {trial.steps && ` â€¢ ${trial.steps} steps`}
-                        {trial.assistiveDevice !== 'none' && ` â€¢ ${trial.assistiveDevice.replace('_', ' ')}`}
+                        {trial.steps && ` • ${trial.steps} steps`}
+                        {trial.assistiveDevice !== 'none' && ` • ${trial.assistiveDevice.replace('_', ' ')}`}
                       </p>
                       {trial.observations && (
                         <p className="text-sm text-slate-600 mt-1">{trial.observations}</p>
@@ -289,7 +289,7 @@ export default function TimedUpAndGoRunner({ onSave, onClose }) {
                   </div>
                 </div>
                 <div className="mt-3 text-xs text-slate-600 bg-white/70 rounded p-2">
-                  <strong>Guidelines:</strong> â‰¤10s = Normal â€¢ 11-20s = Good, mostly independent â€¢ 21-30s = Variable mobility â€¢ &gt;30s = Impaired, high fall risk
+                  <strong>Guidelines:</strong> ≤10s = Normal • 11-20s = Good, mostly independent • 21-30s = Variable mobility • &gt;30s = Impaired, high fall risk
                 </div>
               </div>
 

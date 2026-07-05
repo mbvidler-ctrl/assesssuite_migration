@@ -110,7 +110,7 @@ const PBS_ITEMS = [
     scoring: [
       { value: 4, label: "Able to lift leg independently and hold >10 seconds" },
       { value: 3, label: "Able to lift leg independently and hold 5-10 seconds" },
-      { value: 2, label: "Able to lift leg independently and hold â‰¥3 seconds" },
+      { value: 2, label: "Able to lift leg independently and hold ≥3 seconds" },
       { value: 1, label: "Tries to lift leg, unable to hold 3 seconds but remains standing independently" },
       { value: 0, label: "Unable to try or needs assistance to prevent fall" }
     ]
@@ -120,9 +120,9 @@ const PBS_ITEMS = [
     name: "Turning 360 Degrees",
     instructions: "Turn completely around in a full circle. Pause. Then turn a full circle in the other direction.",
     scoring: [
-      { value: 4, label: "Able to turn 360 degrees safely in â‰¤4 seconds, both sides" },
-      { value: 3, label: "Able to turn 360 degrees safely one side only in â‰¤4 seconds" },
-      { value: 2, label: "Able to turn 360 degrees safely but slowly (one side â‰¤4 seconds, one side >4 seconds, or both sides >4 seconds)" },
+      { value: 4, label: "Able to turn 360 degrees safely in ≤4 seconds, both sides" },
+      { value: 3, label: "Able to turn 360 degrees safely one side only in ≤4 seconds" },
+      { value: 2, label: "Able to turn 360 degrees safely but slowly (one side ≤4 seconds, one side >4 seconds, or both sides >4 seconds)" },
       { value: 1, label: "Needs close supervision (spotting) or verbal cueing" },
       { value: 0, label: "Needs physical assistance while turning" }
     ]
@@ -208,13 +208,13 @@ export default function PediatricBalanceRunner({ onSave, onClose }) {
     const itemLines = PBS_ITEMS.map(item => {
       const score = scores[item.id];
       const option = item.scoring.find(o => o.value === score);
-      return `    ${item.id}. ${item.name}: ${score}/4 â€” ${option?.label || ''}`;
+      return `    ${item.id}. ${item.name}: ${score}/4 — ${option?.label || ''}`;
     }).join('\n');
 
     const soapText = [
-      `â€¢ Pediatric Balance Scale (PBS)`,
-      `  Total Score: ${total}/56 â†’ ${interpretation.text}`,
-      `  Score Interpretation: â‰¥45 Low Fall Risk | 40â€“44 Medium Fall Risk | <40 High Fall Risk`,
+      `• Pediatric Balance Scale (PBS)`,
+      `  Total Score: ${total}/56 → ${interpretation.text}`,
+      `  Score Interpretation: ≥45 Low Fall Risk | 40–44 Medium Fall Risk | <40 High Fall Risk`,
       `  Item Scores:`,
       itemLines,
       notes ? `  Clinical Notes: ${notes}` : null,
@@ -263,7 +263,7 @@ export default function PediatricBalanceRunner({ onSave, onClose }) {
               <CardContent className="text-sm text-blue-800 space-y-2">
                 <p><strong>Age Range:</strong> 5-15 years (validated for children with mild to moderate motor impairments)</p>
                 <p><strong>Scoring:</strong> Each item scored 0-4 (Total: 0-56). Score based on child's best performance across multiple trials.</p>
-                <p><strong>Interpretation:</strong> â‰¥45 = Low fall risk | 40-44 = Medium fall risk | &lt;40 = High fall risk</p>
+                <p><strong>Interpretation:</strong> ≥45 = Low fall risk | 40-44 = Medium fall risk | &lt;40 = High fall risk</p>
                 <p><strong>Equipment:</strong> Adjustable height bench, chair with armrests, stopwatch, 6-inch step stool, ruler/yardstick, small object (shoe/slipper)</p>
                 <div className="pt-2 border-t border-blue-300">
                   <p className="text-xs italic">

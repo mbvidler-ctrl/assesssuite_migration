@@ -54,7 +54,7 @@ export default function Signup() {
         </div>
 
         <p className="text-blue-300 text-sm">
-          Â© 2026 Assess Suite Pty Ltd Â· ABN 53 694 044 481
+          © 2026 Assess Suite Pty Ltd · ABN 53 694 044 481
         </p>
       </div>
 
@@ -78,7 +78,7 @@ export default function Signup() {
             </h2>
             <p className="text-slate-500 mt-1">
               {mode === "signup"
-                ? "Start your free trial â€” no credit card needed to sign up."
+                ? "Start your free trial — no credit card needed to sign up."
                 : "Sign in to access your dashboard."}
             </p>
           </div>
@@ -125,7 +125,7 @@ export default function Signup() {
               className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-colors duration-200 flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {mode === "signup" ? "Create account â†’" : "Sign in â†’"}
+              {mode === "signup" ? "Create account →" : "Sign in →"}
             </button>
 
             {mode === "signup" && (

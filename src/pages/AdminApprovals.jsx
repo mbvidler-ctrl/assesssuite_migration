@@ -162,7 +162,7 @@ Responsibility for:
 
 remains entirely with the treating clinician.
 
-Use of AssessSuite does not create a clinicianâ€“patient relationship between AssessSuite and any user or client.`,
+Use of AssessSuite does not create a clinician–patient relationship between AssessSuite and any user or client.`,
 
   ai_automation_transparency_global: `## AI & AUTOMATION TRANSPARENCY
 
@@ -934,9 +934,9 @@ export default function AdminApprovals() {
             <div className="flex gap-2 flex-wrap">
               {[
                 { key: 'all', label: 'All', count: assessments.length },
-                { key: 'complete', label: 'âœ“ Complete', count: assessments.filter(a => isAssessmentComplete(a)).length },
-                { key: 'incomplete', label: 'âš  Incomplete', count: assessments.filter(a => !isAssessmentComplete(a) && !isDuplicate(a, assessments)).length },
-                { key: 'duplicate', label: 'âŠ˜ Duplicate', count: assessments.filter(a => isDuplicate(a, assessments)).length },
+                { key: 'complete', label: '✓ Complete', count: assessments.filter(a => isAssessmentComplete(a)).length },
+                { key: 'incomplete', label: '⚠ Incomplete', count: assessments.filter(a => !isAssessmentComplete(a) && !isDuplicate(a, assessments)).length },
+                { key: 'duplicate', label: '⊘ Duplicate', count: assessments.filter(a => isDuplicate(a, assessments)).length },
               ].map(f => (
                 <button
                   key={f.key}
@@ -1587,7 +1587,7 @@ export default function AdminApprovals() {
                   <Settings className="w-5 h-5" />
                   User Details
                 </CardTitle>
-                <Button onClick={() => setViewingUser(null)} variant="ghost" size="sm">âœ•</Button>
+                <Button onClick={() => setViewingUser(null)} variant="ghost" size="sm">✕</Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -1705,7 +1705,7 @@ export default function AdminApprovals() {
                   <Users className="w-5 h-5" />
                   Clients - {viewingUserClients.full_name || viewingUserClients.email}
                 </CardTitle>
-                <Button onClick={() => setViewingUserClients(null)} variant="ghost" size="sm">âœ•</Button>
+                <Button onClick={() => setViewingUserClients(null)} variant="ghost" size="sm">✕</Button>
               </div>
             </CardHeader>
             <CardContent>
@@ -1804,7 +1804,7 @@ export default function AdminApprovals() {
                   <FileText className="w-5 h-5" />
                   Legal Acceptance - {viewingAcceptance.user_email}
                 </CardTitle>
-                <Button onClick={() => setViewingAcceptance(null)} variant="ghost" size="sm">âœ•</Button>
+                <Button onClick={() => setViewingAcceptance(null)} variant="ghost" size="sm">✕</Button>
               </div>
             </CardHeader>
             <CardContent className="space-y-6">

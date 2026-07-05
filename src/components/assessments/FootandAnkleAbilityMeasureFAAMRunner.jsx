@@ -42,11 +42,11 @@ const SPORTS_ITEMS = [
 ];
 
 const SCORE_OPTIONS = [
-  { value: 4, label: "4 â€“ No difficulty" },
-  { value: 3, label: "3 â€“ Slight difficulty" },
-  { value: 2, label: "2 â€“ Moderate difficulty" },
-  { value: 1, label: "1 â€“ Extreme difficulty" },
-  { value: 0, label: "0 â€“ Unable to do" },
+  { value: 4, label: "4 – No difficulty" },
+  { value: 3, label: "3 – Slight difficulty" },
+  { value: 2, label: "2 – Moderate difficulty" },
+  { value: 1, label: "1 – Extreme difficulty" },
+  { value: 0, label: "0 – Unable to do" },
 ];
 
 function ItemRow({ label, value, onChange }) {
@@ -95,7 +95,7 @@ export default function FootandAnkleAbilityMeasureFAAMRunner({ client, onSave, o
     const sportsLines = SPORTS_ITEMS.map(
       (item, i) => `  ${i + 1}. ${item}: ${sports[i] !== null ? sports[i] + "/4" : "N/A"}`
     ).join("\n");
-    const soap_text = `â€¢ Foot and Ankle Ability Measure (FAAM)\n\n  ADL Subscale Score: ${adlScore || "â€”"}%\n  Sports Subscale Score: ${sportsScore || "â€”"}%\n\n  ADL Items:\n${adlLines}\n\n  Sports Items:\n${sportsLines}${
+    const soap_text = `• Foot and Ankle Ability Measure (FAAM)\n\n  ADL Subscale Score: ${adlScore || "—"}%\n  Sports Subscale Score: ${sportsScore || "—"}%\n\n  ADL Items:\n${adlLines}\n\n  Sports Items:\n${sportsLines}${
       notes ? `\n\n  Clinical Notes: ${notes}` : ""
     }`;
 
@@ -147,7 +147,7 @@ export default function FootandAnkleAbilityMeasureFAAMRunner({ client, onSave, o
               <div>
                 <p className="font-semibold text-slate-900">Scoring:</p>
                 <p className="text-slate-700">
-                  <strong>0â€“4 per item</strong>; each subscale converted to 0â€“100% scale. Higher scores = better functional ability.
+                  <strong>0–4 per item</strong>; each subscale converted to 0–100% scale. Higher scores = better functional ability.
                 </p>
               </div>
               <div>
@@ -171,15 +171,15 @@ export default function FootandAnkleAbilityMeasureFAAMRunner({ client, onSave, o
               <div>
                 <p className="font-semibold">How to Administer:</p>
                 <ul className="list-disc list-inside ml-2 space-y-1 text-xs mt-1">
-                  <li>Ask client to rate their ability on each activity over the past 1â€“2 weeks</li>
+                  <li>Ask client to rate their ability on each activity over the past 1–2 weeks</li>
                   <li>Clarify that "ability" refers to physical capability, not limitation due to other factors</li>
                   <li>Administer both ADL and Sports subscales, or either one based on client goals</li>
-                  <li>Allow 5â€“10 minutes for completion; provide written instructions if client prefers self-completion</li>
-                  <li>Ensure client understands the 0â€“4 scale: 0 = unable, 4 = no difficulty</li>
+                  <li>Allow 5–10 minutes for completion; provide written instructions if client prefers self-completion</li>
+                  <li>Ensure client understands the 0–4 scale: 0 = unable, 4 = no difficulty</li>
                 </ul>
               </div>
               <div className="bg-white p-2 rounded border border-blue-200 italic text-xs">
-                <p>"I'd like you to rate your ability to perform each activity over the past 1â€“2 weeks on a scale of 0 to 4. Zero means you're unable to do the activity, and 4 means you have no difficulty at all. If an activity is not applicable to you, you can skip it."</p>
+                <p>"I'd like you to rate your ability to perform each activity over the past 1–2 weeks on a scale of 0 to 4. Zero means you're unable to do the activity, and 4 means you have no difficulty at all. If an activity is not applicable to you, you can skip it."</p>
               </div>
             </CardContent>
           </Card>
@@ -195,21 +195,21 @@ export default function FootandAnkleAbilityMeasureFAAMRunner({ client, onSave, o
             <CardContent className="text-xs text-amber-900 space-y-2">
               <div className="bg-white p-2 rounded border border-amber-200">
                 <p className="font-semibold mb-1">ADL Score Interpretation:</p>
-                <p><strong>80â€“100%:</strong> Minimal or no functional limitation; able to perform most daily activities independently.</p>
-                <p><strong>60â€“79%:</strong> Mild to moderate functional limitation; some difficulty with certain ADL tasks.</p>
+                <p><strong>80–100%:</strong> Minimal or no functional limitation; able to perform most daily activities independently.</p>
+                <p><strong>60–79%:</strong> Mild to moderate functional limitation; some difficulty with certain ADL tasks.</p>
                 <p><strong>&lt;60%:</strong> Significant functional limitation; substantial difficulty with ADL independence.</p>
               </div>
               <div className="bg-white p-2 rounded border border-amber-200">
                 <p className="font-semibold mb-1">Sports Score Interpretation:</p>
-                <p><strong>80â€“100%:</strong> Able to return to sport; minimal impact from ankle dysfunction.</p>
-                <p><strong>60â€“79%:</strong> Moderate difficulty with sport-specific activities; caution with high-demand movements.</p>
+                <p><strong>80–100%:</strong> Able to return to sport; minimal impact from ankle dysfunction.</p>
+                <p><strong>60–79%:</strong> Moderate difficulty with sport-specific activities; caution with high-demand movements.</p>
                 <p><strong>&lt;60%:</strong> Unable to participate in sport at full capacity; requires continued rehabilitation.</p>
               </div>
               <div className="bg-white p-2 rounded border border-amber-200">
                 <p className="font-semibold mb-1">Normative Data:</p>
-                <p><strong>Healthy controls:</strong> ADL mean 96â€“98%; Sports mean 95â€“98%</p>
-                <p><strong>Chronic ankle instability:</strong> ADL mean 77â€“83%; Sports mean 60â€“75%</p>
-                <p><strong>Post-ankle sprain (acute):</strong> ADL mean 60â€“75%; Sports mean 20â€“40%</p>
+                <p><strong>Healthy controls:</strong> ADL mean 96–98%; Sports mean 95–98%</p>
+                <p><strong>Chronic ankle instability:</strong> ADL mean 77–83%; Sports mean 60–75%</p>
+                <p><strong>Post-ankle sprain (acute):</strong> ADL mean 60–75%; Sports mean 20–40%</p>
               </div>
             </CardContent>
           </Card>
@@ -221,13 +221,13 @@ export default function FootandAnkleAbilityMeasureFAAMRunner({ client, onSave, o
             </CardHeader>
             <CardContent className="text-xs text-slate-700 space-y-2">
               <p>
-                <strong>Minimal Detectable Change (MDC):</strong> 8â€“11% for ADL; 12â€“19% for Sports. Changes exceeding these thresholds indicate meaningful improvement or decline.
+                <strong>Minimal Detectable Change (MDC):</strong> 8–11% for ADL; 12–19% for Sports. Changes exceeding these thresholds indicate meaningful improvement or decline.
               </p>
               <p>
                 <strong>Reliability &amp; Validity:</strong> FAAM is a reliable, valid, and responsive measure of ankle/foot functional ability. Good correlation with objective functional tests (single-leg balance, hop tests).
               </p>
               <p>
-                <strong>Use in Rehabilitation:</strong> Baseline at initial evaluation, re-assess every 2â€“4 weeks to track progress. RTS (return-to-sport) readiness often requires both ADL â‰¥90% and Sports â‰¥90%.
+                <strong>Use in Rehabilitation:</strong> Baseline at initial evaluation, re-assess every 2–4 weeks to track progress. RTS (return-to-sport) readiness often requires both ADL ≥90% and Sports ≥90%.
               </p>
             </CardContent>
           </Card>
@@ -239,13 +239,13 @@ export default function FootandAnkleAbilityMeasureFAAMRunner({ client, onSave, o
             </CardHeader>
             <CardContent className="text-xs text-slate-700 space-y-2">
               <p>
-                <strong>Martin, R. L., Irrgang, J. J., Burdett, R. G., Conti, S. F., &amp; Van Swearingen, J. M.</strong> (2005). Evidence of validity for the Foot and Ankle Ability Measure (FAAM). <em>Foot &amp; Ankle International</em>, 26(11), 968â€“983.
+                <strong>Martin, R. L., Irrgang, J. J., Burdett, R. G., Conti, S. F., &amp; Van Swearingen, J. M.</strong> (2005). Evidence of validity for the Foot and Ankle Ability Measure (FAAM). <em>Foot &amp; Ankle International</em>, 26(11), 968–983.
               </p>
               <p>
-                <strong>Hale, S. A., &amp; Hertel, J.</strong> (2005). Reliability and sensitivity of the Foot and Ankle Disability Index in subjects with chronic ankle instability. <em>Journal of Athletic Training</em>, 40(1), 35â€“40.
+                <strong>Hale, S. A., &amp; Hertel, J.</strong> (2005). Reliability and sensitivity of the Foot and Ankle Disability Index in subjects with chronic ankle instability. <em>Journal of Athletic Training</em>, 40(1), 35–40.
               </p>
               <p>
-                <strong>Carcia, C. R., Martin, R. L., Drouin, J. M.</strong> (2005). Validity of the Foot and Ankle Ability Measure in athletes with ankle sprains. <em>Journal of Sport Rehabilitation</em>, 14(3), 189â€“206.
+                <strong>Carcia, C. R., Martin, R. L., Drouin, J. M.</strong> (2005). Validity of the Foot and Ankle Ability Measure in athletes with ankle sprains. <em>Journal of Sport Rehabilitation</em>, 14(3), 189–206.
               </p>
               <Button
                 onClick={() => window.open("https://www.apta.org/", "_blank")}

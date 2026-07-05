@@ -10,7 +10,7 @@ const DOMAINS = [
   {
     key: "cognition",
     label: "Cognition",
-    question: "Clock drawing test â€” ask the client to draw a clock showing 11:10",
+    question: "Clock drawing test — ask the client to draw a clock showing 11:10",
     options: [{ label: "Normal (0)", value: 0 }, { label: "Minor errors (1)", value: 1 }, { label: "More than minor errors (2)", value: 2 }],
   },
   {
@@ -23,7 +23,7 @@ const DOMAINS = [
     key: "functional_independence",
     label: "Functional Independence",
     question: "With how many of the following ADLs do you require help? (shopping, bathing, meal prep, transport, phone, finances)",
-    options: [{ label: "0â€“1 of 6 (0)", value: 0 }, { label: "2â€“4 of 6 (1)", value: 1 }, { label: "5â€“6 of 6 (2)", value: 2 }],
+    options: [{ label: "0–1 of 6 (0)", value: 0 }, { label: "2–4 of 6 (1)", value: 1 }, { label: "5–6 of 6 (2)", value: 2 }],
   },
   {
     key: "social_support",
@@ -59,7 +59,7 @@ const DOMAINS = [
     key: "functional_performance",
     label: "Functional Performance",
     question: "Timed Up and Go (TUG): How many seconds does it take the patient to get up from a chair, walk 3 metres, and return?",
-    options: [{ label: "0â€“10s (0)", value: 0 }, { label: "11â€“20s (1)", value: 1 }, { label: "â‰¥20s or refused (2)", value: 2 }],
+    options: [{ label: "0–10s (0)", value: 0 }, { label: "11–20s (1)", value: 1 }, { label: "≥20s or refused (2)", value: 2 }],
   },
 ];
 
@@ -83,7 +83,7 @@ export default function EdmontonFrailScaleEFSRunner({ client, onSave, onClose })
   const handleSave = () => {
     if (!allAnswered) { toast.error("Please answer all 9 domains"); return; }
     const lines = DOMAINS.map(d => `  ${d.label}: ${scores[d.key]}`).join("\n");
-    const soap = `â€¢ Edmonton Frail Scale (EFS)\n  Total Score: ${total}/17 â€” ${interp.label}\n\n  Domain Scores:\n${lines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: 0â€“4 not frail | 5â€“6 vulnerable | 7â€“8 mild | 9â€“10 moderate | 11+ severe\n  Reference: Rolfson DB et al. (2006). Validity and reliability of the Edmonton Frail Scale. Age and Ageing, 35(5):526-529.`;
+    const soap = `• Edmonton Frail Scale (EFS)\n  Total Score: ${total}/17 — ${interp.label}\n\n  Domain Scores:\n${lines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: 0–4 not frail | 5–6 vulnerable | 7–8 mild | 9–10 moderate | 11+ severe\n  Reference: Rolfson DB et al. (2006). Validity and reliability of the Edmonton Frail Scale. Age and Ageing, 35(5):526-529.`;
     onSave({ status: "completed", result_value: total, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "edmonton_frail_scale", domain_scores: scores, frailty_category: interp.label } });
     toast.success("EFS saved.");
   };
@@ -94,7 +94,7 @@ export default function EdmontonFrailScaleEFSRunner({ client, onSave, onClose })
         <div className="sticky top-0 bg-white z-10 p-5 border-b flex justify-between items-start">
           <div><h2 className="text-2xl font-bold text-slate-900">Edmonton Frail Scale</h2><p className="text-slate-500 text-sm mt-0.5">9-domain frailty assessment (EFS)</p></div>
           <div className="flex items-center gap-3">
-            {allAnswered && <div className={`px-3 py-1 rounded-full text-sm font-semibold border ${interp.color}`}>{total}/17 â€” {interp.label}</div>}
+            {allAnswered && <div className={`px-3 py-1 rounded-full text-sm font-semibold border ${interp.color}`}>{total}/17 — {interp.label}</div>}
             <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
           </div>
         </div>
@@ -127,7 +127,7 @@ export default function EdmontonFrailScaleEFSRunner({ client, onSave, onClose })
             <div className={`border-2 rounded-xl p-4 text-center ${interp.color}`}>
               <p className="text-3xl font-bold">{total} / 17</p>
               <p className="font-semibold text-lg mt-1">{interp.label}</p>
-              <p className="text-xs mt-2">0â€“4 not frail | 5â€“6 vulnerable | 7â€“8 mild | 9â€“10 moderate | 11+ severe</p>
+              <p className="text-xs mt-2">0–4 not frail | 5–6 vulnerable | 7–8 mild | 9–10 moderate | 11+ severe</p>
             </div>
           )}
 

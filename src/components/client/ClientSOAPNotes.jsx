@@ -210,7 +210,7 @@ export default function ClientSOAPNotes({ client }) {
                         {format(new Date(note.note_date), 'PPP')}
                         {note.published_date && (
                           <span className="text-xs">
-                            â€¢ Published {format(new Date(note.published_date), 'PPp')}
+                            • Published {format(new Date(note.published_date), 'PPp')}
                           </span>
                         )}
                       </div>

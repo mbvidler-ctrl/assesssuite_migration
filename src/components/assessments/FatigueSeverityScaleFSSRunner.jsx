@@ -39,7 +39,7 @@ export default function FatigueSeverityScaleFSSRunner({ client, onSave, onClose 
     const totalScore = responses.reduce((acc, curr) => acc + curr, 0);
     const meanScore = totalScore / responses.length;
 
-    let soapText = `â€¢ Fatigue Severity Scale (FSS):\n  Mean Score: ${meanScore.toFixed(2)}/7 (${meanScore >= 4 ? 'Significant fatigue' : 'Minimal fatigue'})\n  Total Score: ${totalScore}/63\n\n  Individual Question Responses:\n`;
+    let soapText = `• Fatigue Severity Scale (FSS):\n  Mean Score: ${meanScore.toFixed(2)}/7 (${meanScore >= 4 ? 'Significant fatigue' : 'Minimal fatigue'})\n  Total Score: ${totalScore}/63\n\n  Individual Question Responses:\n`;
     questions.forEach((q, i) => {
       soapText += `  Q${i + 1}. ${q}\n      Response: ${responses[i]}/7\n`;
     });
@@ -101,7 +101,7 @@ export default function FatigueSeverityScaleFSSRunner({ client, onSave, onClose 
                 </div>
                 <div>
                   <p className="font-semibold">Scoring:</p>
-                  <p>Calculate the mean (average) of all 9 items (range 1â€“7). A mean score of <strong>â‰¥4.0</strong> indicates clinically significant fatigue. Higher scores = greater fatigue severity.</p>
+                  <p>Calculate the mean (average) of all 9 items (range 1–7). A mean score of <strong>≥4.0</strong> indicates clinically significant fatigue. Higher scores = greater fatigue severity.</p>
                 </div>
                 <div>
                   <p className="font-semibold">Validated Populations:</p>
@@ -126,13 +126,13 @@ export default function FatigueSeverityScaleFSSRunner({ client, onSave, onClose 
               <CardContent className="text-sm text-green-900 space-y-2">
                 <div className="bg-white p-2 rounded border border-green-200">
                   <p className="font-semibold mb-1">Mean Score Thresholds:</p>
-                  <p><strong>1.0â€“3.9:</strong> Minimal or no fatigue</p>
-                  <p><strong>4.0â€“5.9:</strong> Moderate fatigue</p>
-                  <p><strong>6.0â€“7.0:</strong> Severe fatigue</p>
+                  <p><strong>1.0–3.9:</strong> Minimal or no fatigue</p>
+                  <p><strong>4.0–5.9:</strong> Moderate fatigue</p>
+                  <p><strong>6.0–7.0:</strong> Severe fatigue</p>
                 </div>
                 <div className="bg-white p-2 rounded border border-green-200">
                   <p className="font-semibold mb-1">Clinical Significance:</p>
-                  <p><strong>â‰¥4.0:</strong> Indicates clinically significant fatigue requiring intervention. May warrant energy management strategies, graded activity, or specialist referral.</p>
+                  <p><strong>≥4.0:</strong> Indicates clinically significant fatigue requiring intervention. May warrant energy management strategies, graded activity, or specialist referral.</p>
                 </div>
               </CardContent>
             )}
@@ -154,7 +154,7 @@ export default function FatigueSeverityScaleFSSRunner({ client, onSave, onClose 
                   <p className="text-xs text-amber-700">You strongly agree with the statement</p>
                 </div>
                 <div className="bg-white p-2 rounded border border-amber-200 col-span-2">
-                  <p className="font-semibold text-sm">2â€“6 = In Between</p>
+                  <p className="font-semibold text-sm">2–6 = In Between</p>
                   <p className="text-xs text-amber-700">Use these to indicate varying degrees of agreement</p>
                 </div>
               </div>
@@ -175,7 +175,7 @@ export default function FatigueSeverityScaleFSSRunner({ client, onSave, onClose 
             {expandedSection === "references" && (
               <CardContent className="text-xs text-slate-700 space-y-2">
                 <p>
-                  <strong>Krupp, L. B., LaRocca, N. G., Muir-Nash, J., &amp; Steinberg, A. D.</strong> (1989). The Fatigue Severity Scale: Application to patients with multiple sclerosis and systemic lupus erythematosus. <em>Archives of Neurology</em>, 46(10), 1121â€“1123.
+                  <strong>Krupp, L. B., LaRocca, N. G., Muir-Nash, J., &amp; Steinberg, A. D.</strong> (1989). The Fatigue Severity Scale: Application to patients with multiple sclerosis and systemic lupus erythematosus. <em>Archives of Neurology</em>, 46(10), 1121–1123.
                 </p>
                 <div className="space-y-1">
                   <p className="font-semibold">External Resources:</p>

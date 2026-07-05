@@ -80,7 +80,7 @@ export default function ShoulderTugTestPastorsTestRunner({ client, onSave, onClo
     const interpretation = getInterpretation(resultValue, assistanceNeeded);
 
     const soapText = [
-      `â€¢ Shoulder Tug Test (Pastor's Test) - Reactive Balance Assessment`,
+      `• Shoulder Tug Test (Pastor's Test) - Reactive Balance Assessment`,
       ``,
       `  Measurement:`,
       `    Steps Taken to Recover: ${resultValue}`,
@@ -91,19 +91,19 @@ export default function ShoulderTugTestPastorsTestRunner({ client, onSave, onClo
       `    Fall Risk: ${interpretation.risk}`,
       ``,
       `  Clinical Significance:`,
-      `    â€¢ â‰¤1 step: Normal postural reaction (low risk)`,
-      `    â€¢ 2 steps: Normal response (appropriate recovery)`,
-      `    â€¢ â‰¥3 steps: Impaired postural reaction (increased fall risk)`,
-      `    â€¢ Assistance needed: Severely impaired balance (high fall risk)`,
-      `    â€¢ Multiple large steps or loss of balance = poor reactive balance`,
+      `    • ≤1 step: Normal postural reaction (low risk)`,
+      `    • 2 steps: Normal response (appropriate recovery)`,
+      `    • ≥3 steps: Impaired postural reaction (increased fall risk)`,
+      `    • Assistance needed: Severely impaired balance (high fall risk)`,
+      `    • Multiple large steps or loss of balance = poor reactive balance`,
       ``,
       notes ? `  Clinical Notes: ${notes}` : null,
       ``,
       `  References:`,
-      `    â€¢ Pastor's Test developed as simple screening for reactive balance`,
-      `    â€¢ Part of comprehensive fall risk assessment battery`,
-      `    â€¢ Assesses ability to recover from unexpected backward perturbation`,
-      `    â€¢ Quick indicator of postural stability and fall risk`,
+      `    • Pastor's Test developed as simple screening for reactive balance`,
+      `    • Part of comprehensive fall risk assessment battery`,
+      `    • Assesses ability to recover from unexpected backward perturbation`,
+      `    • Quick indicator of postural stability and fall risk`,
     ].filter(Boolean).join('\n');
 
     onSave({
@@ -166,7 +166,7 @@ export default function ShoulderTugTestPastorsTestRunner({ client, onSave, onClo
                     <p><strong>Population:</strong> Older adults, fall risk screening, balance assessment, neurological conditions</p>
                     <p><strong>Equipment:</strong> Clear space (at least 2m), treatment table or countertop for support</p>
                     <p><strong>Safety:</strong> Clinician positioned to provide support; ensure safe environment with no hazards behind client</p>
-                    <p><strong>Duration:</strong> 1â€“2 minutes</p>
+                    <p><strong>Duration:</strong> 1–2 minutes</p>
                   </div>
 
                   <div className="bg-white border border-blue-200 rounded p-3 mt-3">
@@ -190,7 +190,7 @@ export default function ShoulderTugTestPastorsTestRunner({ client, onSave, onClo
                     <ol className="list-decimal list-inside space-y-2 text-xs text-green-800">
                       <li>Explain test to client: "I will stand behind you and give a quick, unexpected pull backward on your shoulders. Try to keep your balance. I'll be here to support you if needed."</li>
                       <li>Position client standing with feet shoulder-width apart, facing away from you</li>
-                      <li>Stand directly behind client, within reach (approximately 30â€“40 cm away)</li>
+                      <li>Stand directly behind client, within reach (approximately 30–40 cm away)</li>
                       <li>Deliver one sudden, firm backward tug on client's shoulders or safety belt</li>
                       <li>Pull should be quick and unexpected (not telegraphed)</li>
                       <li>Magnitude: Moderate force (sufficient to create balance challenge without excessive force)</li>
@@ -219,24 +219,24 @@ export default function ShoulderTugTestPastorsTestRunner({ client, onSave, onClo
                   
                   <div className="grid gap-2">
                     <div className="bg-green-50 border border-green-300 rounded p-3">
-                      <p className="font-semibold text-green-700 text-sm">0â€“1 Steps: Excellent Balance (Low Risk)</p>
+                      <p className="font-semibold text-green-700 text-sm">0–1 Steps: Excellent Balance (Low Risk)</p>
                       <p className="text-xs text-green-800">No steps or 1 step to recover; normal postural reaction</p>
-                      <p className="text-xs text-green-600 mt-1">â€¢ No external assistance needed â€¢ Able to quickly regain balance â€¢ Normal reactive balance</p>
+                      <p className="text-xs text-green-600 mt-1">• No external assistance needed • Able to quickly regain balance • Normal reactive balance</p>
                     </div>
                     <div className="bg-blue-50 border border-blue-300 rounded p-3">
                       <p className="font-semibold text-blue-700 text-sm">2 Steps: Good Balance (Low-Moderate Risk)</p>
                       <p className="text-xs text-blue-800">Two steps to recover; appropriate stepping response</p>
-                      <p className="text-xs text-blue-600 mt-1">â€¢ No external assistance required â€¢ Normal recovery pattern â€¢ Acceptable postural stability</p>
+                      <p className="text-xs text-blue-600 mt-1">• No external assistance required • Normal recovery pattern • Acceptable postural stability</p>
                     </div>
                     <div className="bg-amber-50 border border-amber-300 rounded p-3">
                       <p className="font-semibold text-amber-700 text-sm">3+ Steps (No Assistance): Impaired Balance (Moderate-High Risk)</p>
-                      <p className="text-xs text-amber-800">Excessive stepping (â‰¥3 large steps) to recover</p>
-                      <p className="text-xs text-amber-600 mt-1">â€¢ Impaired postural reaction â€¢ Increased fall risk â€¢ Consider balance interventions</p>
+                      <p className="text-xs text-amber-800">Excessive stepping (≥3 large steps) to recover</p>
+                      <p className="text-xs text-amber-600 mt-1">• Impaired postural reaction • Increased fall risk • Consider balance interventions</p>
                     </div>
                     <div className="bg-red-50 border border-red-300 rounded p-3">
                       <p className="font-semibold text-red-700 text-sm">Loss of Balance / Assistance Needed: Severely Impaired (High Risk)</p>
                       <p className="text-xs text-red-800">Falls backward, requires clinician support to prevent fall</p>
-                      <p className="text-xs text-red-600 mt-1">â€¢ Severe postural instability â€¢ Very high fall risk â€¢ Urgent intervention needed â€¢ Consider mobility aids or supervision</p>
+                      <p className="text-xs text-red-600 mt-1">• Severe postural instability • Very high fall risk • Urgent intervention needed • Consider mobility aids or supervision</p>
                     </div>
                   </div>
 
@@ -259,18 +259,18 @@ export default function ShoulderTugTestPastorsTestRunner({ client, onSave, onClo
                   <h4 className="font-semibold text-indigo-900 mb-3">Normative Data & Expected Performance</h4>
                   <div className="space-y-3">
                     <div className="bg-white border border-indigo-200 rounded p-3">
-                      <p className="font-semibold text-indigo-900 text-sm mb-2">Healthy Community-Dwelling Older Adults (â‰¥65 years)</p>
+                      <p className="font-semibold text-indigo-900 text-sm mb-2">Healthy Community-Dwelling Older Adults (≥65 years)</p>
                       <ul className="list-disc list-inside space-y-1 text-xs text-indigo-800">
-                        <li><strong>Mean steps to recovery: 0â€“2 steps</strong></li>
-                        <li>Majority (75â€“85%) require â‰¤2 steps</li>
+                        <li><strong>Mean steps to recovery: 0–2 steps</strong></li>
+                        <li>Majority (75–85%) require ≤2 steps</li>
                         <li>No external assistance required</li>
                         <li>Quick, coordinated response</li>
                       </ul>
                     </div>
                     <div className="bg-white border border-indigo-200 rounded p-3">
-                      <p className="font-semibold text-indigo-900 text-sm mb-2">Older Adults with Recent Falls (History of â‰¥2 falls/year)</p>
+                      <p className="font-semibold text-indigo-900 text-sm mb-2">Older Adults with Recent Falls (History of ≥2 falls/year)</p>
                       <ul className="list-disc list-inside space-y-1 text-xs text-indigo-800">
-                        <li><strong>Mean steps to recovery: 3â€“5+ steps</strong></li>
+                        <li><strong>Mean steps to recovery: 3–5+ steps</strong></li>
                         <li>More likely to require external support</li>
                         <li>Delayed or uncoordinated response</li>
                         <li>Higher risk of loss of balance</li>
@@ -279,9 +279,9 @@ export default function ShoulderTugTestPastorsTestRunner({ client, onSave, onClo
                     <div className="bg-white border border-indigo-200 rounded p-3">
                       <p className="font-semibold text-indigo-900 text-sm mb-2">Key Findings:</p>
                       <ul className="list-disc list-inside space-y-1 text-xs text-indigo-800">
-                        <li>â‰¥3 steps associated with history of falls</li>
+                        <li>≥3 steps associated with history of falls</li>
                         <li>Need for external support strongly associated with fall risk</li>
-                        <li>Quick adaptation (0â€“1 steps) = protective factor against falls</li>
+                        <li>Quick adaptation (0–1 steps) = protective factor against falls</li>
                         <li>Correlates with other balance tests (TUG, Berg Balance Scale)</li>
                       </ul>
                     </div>

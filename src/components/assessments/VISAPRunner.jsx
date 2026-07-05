@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ VISA-P QUESTIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── VISA-P QUESTIONS ──────────────────────────────────────────────────────
 const VISA_P_QUESTIONS = [
   {
     id: 1,
@@ -52,7 +52,7 @@ const VISA_P_QUESTIONS = [
   }
 ];
 
-// â”€â”€â”€ INTERPRETATION LOGIC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── INTERPRETATION LOGIC ──────────────────────────────────────────────────
 const getVISAPInterpretation = (score) => {
   if (score >= 60) return { label: "Minimal Symptoms", color: "bg-green-100 text-green-900" };
   if (score >= 40) return { label: "Mild Symptoms", color: "bg-blue-100 text-blue-900" };
@@ -60,7 +60,7 @@ const getVISAPInterpretation = (score) => {
   return { label: "Severe Symptoms", color: "bg-red-100 text-red-900" };
 };
 
-// â”€â”€â”€ COMPONENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── COMPONENT ──────────────────────────────────────────────────────────────
 export default function VISAPRunner({ client, onSave, onClose }) {
   const [responses, setResponses] = useState({});
   const [notes, setNotes] = useState("");
@@ -90,11 +90,11 @@ export default function VISAPRunner({ client, onSave, onClose }) {
     const totalScore = calculateScore();
     const interpretation = getVISAPInterpretation(totalScore);
 
-    const soapText = `â€¢ VISA-P (Victorian Institute of Sport Assessment â€” Patellar Tendinopathy)
+    const soapText = `• VISA-P (Victorian Institute of Sport Assessment — Patellar Tendinopathy)
   
   ASSESSMENT OVERVIEW:
   Client self-reports pain, function in activities of daily living (ADLs), and sports participation.
-  Scored 0â€“10 per item (0 = worst, 10 = best).
+  Scored 0–10 per item (0 = worst, 10 = best).
   
   INDIVIDUAL ITEM SCORES:
   ${VISA_P_QUESTIONS.map(q => `  Q${q.id} (${q.subscale}): ${responses[q.id] || 0}/10`).join("\n")}
@@ -113,7 +113,7 @@ export default function VISAPRunner({ client, onSave, onClose }) {
   
   SCORE TRENDS:
   Monitor longitudinal score changes to track response to intervention.
-  Score improvement of 10â€“15 points typically indicates clinically meaningful change.
+  Score improvement of 10–15 points typically indicates clinically meaningful change.
   
   ${notes ? `CLINICIAN NOTES:\n  ${notes}` : ""}`;
 
@@ -138,7 +138,7 @@ export default function VISAPRunner({ client, onSave, onClose }) {
   const interpretation = totalScore !== null ? getVISAPInterpretation(totalScore) : null;
   const allAnswered = Object.keys(responses).length === VISA_P_QUESTIONS.length;
 
-  // â”€â”€â”€ RENDER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── RENDER ─────────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[95vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -147,7 +147,7 @@ export default function VISAPRunner({ client, onSave, onClose }) {
         <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-blue-700 text-white rounded-t-2xl px-6 py-4 flex justify-between items-center z-10">
           <div>
             <h2 className="text-xl font-bold">VISA-P Assessment</h2>
-            <p className="text-indigo-100 text-sm mt-1">Victorian Institute of Sport Assessment â€” Patellar Tendinopathy</p>
+            <p className="text-indigo-100 text-sm mt-1">Victorian Institute of Sport Assessment — Patellar Tendinopathy</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/20">
             <X className="w-5 h-5" />
@@ -161,7 +161,7 @@ export default function VISAPRunner({ client, onSave, onClose }) {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-xs text-slate-600">Client Name</Label>
-                <p className="text-sm font-semibold text-slate-900">{client?.full_name || "â€”"}</p>
+                <p className="text-sm font-semibold text-slate-900">{client?.full_name || "—"}</p>
               </div>
               <div>
                 <Label className="text-xs text-slate-600">Assessment Date</Label>
@@ -175,14 +175,14 @@ export default function VISAPRunner({ client, onSave, onClose }) {
                 onClick={() => setShowProtocol(v => !v)}
                 className="w-full flex justify-between items-center bg-indigo-50 px-4 py-3 text-sm font-semibold text-indigo-900 hover:bg-indigo-100 transition-colors"
               >
-                <span>ðŸ“‹ Clinician Instructions</span>
+                <span>📋 Clinician Instructions</span>
                 {showProtocol ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
               {showProtocol && (
                 <div className="p-4 text-sm text-indigo-800 space-y-2 bg-indigo-50 border-t border-indigo-200">
                   <p><strong>Purpose:</strong> Assess pain and function related to patellar tendinopathy.</p>
-                  <p><strong>Format:</strong> Client self-rates 8 items on 0â€“10 scale (0 = worst, 10 = best).</p>
-                  <p><strong>Scoring:</strong> Sum all 8 responses for total score (0â€“80). Higher scores = better function/fewer symptoms.</p>
+                  <p><strong>Format:</strong> Client self-rates 8 items on 0–10 scale (0 = worst, 10 = best).</p>
+                  <p><strong>Scoring:</strong> Sum all 8 responses for total score (0–80). Higher scores = better function/fewer symptoms.</p>
                   <p><strong>Administration:</strong> Clarify any unclear questions. Ensure client understands the rating scale before starting.</p>
                 </div>
               )}
@@ -208,10 +208,10 @@ export default function VISAPRunner({ client, onSave, onClose }) {
                 </div>
                 <div className="bg-white p-3 rounded border border-slate-200 text-xs text-slate-700 space-y-1">
                   <p className="font-semibold">Score Guide:</p>
-                  <p>â€¢ <strong>60â€“80:</strong> Minimal symptoms, good function</p>
-                  <p>â€¢ <strong>40â€“59:</strong> Mild to moderate symptoms</p>
-                  <p>â€¢ <strong>20â€“39:</strong> Moderate to severe symptoms</p>
-                  <p>â€¢ <strong>0â€“19:</strong> Severe symptoms, substantial impairment</p>
+                  <p>• <strong>60–80:</strong> Minimal symptoms, good function</p>
+                  <p>• <strong>40–59:</strong> Mild to moderate symptoms</p>
+                  <p>• <strong>20–39:</strong> Moderate to severe symptoms</p>
+                  <p>• <strong>0–19:</strong> Severe symptoms, substantial impairment</p>
                 </div>
               </CardContent>
             </Card>
@@ -220,7 +220,7 @@ export default function VISAPRunner({ client, onSave, onClose }) {
           {/* Questions */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">Questions (Rate 0â€“10)</CardTitle>
+              <CardTitle className="text-base">Questions (Rate 0–10)</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-5">
@@ -239,11 +239,11 @@ export default function VISAPRunner({ client, onSave, onClose }) {
                         max="10"
                         value={responses[question.id] ?? ""}
                         onChange={(e) => handleResponseChange(question.id, e.target.value)}
-                        placeholder="0â€“10"
+                        placeholder="0–10"
                         className="w-20"
                       />
                       <span className="text-sm text-slate-600">
-                        {responses[question.id] !== undefined ? `${responses[question.id]}/10` : "â€”"}
+                        {responses[question.id] !== undefined ? `${responses[question.id]}/10` : "—"}
                       </span>
                     </div>
                   </div>
@@ -273,8 +273,8 @@ export default function VISAPRunner({ client, onSave, onClose }) {
               <CardTitle className="text-base">Reference</CardTitle>
             </CardHeader>
             <CardContent className="text-xs text-slate-600 space-y-2">
-              <p><strong>Bisset A, Coombes B, Vicenzino B.</strong> Efficacy and prognostic factors for common tendinopathy management: a review of the literature. <em>Aust J Physiother</em>. 2011;57(2):86â€“99.</p>
-              <p><strong>Visentini PJ, Khan KM, Cook JL, et al.</strong> The VISA score: an index of severity of symptoms in patients with jumper's knee (patellar tendinosis). <em>J Sci Med Sport</em>. 1998;1(1):22â€“28.</p>
+              <p><strong>Bisset A, Coombes B, Vicenzino B.</strong> Efficacy and prognostic factors for common tendinopathy management: a review of the literature. <em>Aust J Physiother</em>. 2011;57(2):86–99.</p>
+              <p><strong>Visentini PJ, Khan KM, Cook JL, et al.</strong> The VISA score: an index of severity of symptoms in patients with jumper's knee (patellar tendinosis). <em>J Sci Med Sport</em>. 1998;1(1):22–28.</p>
             </CardContent>
           </Card>
         </div>

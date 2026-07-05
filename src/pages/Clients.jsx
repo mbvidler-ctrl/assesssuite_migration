@@ -92,7 +92,7 @@ function ClientRow({ client, onDelete, onNavigate }) {
         </div>
       </div>
       <div className="hidden md:block text-sm text-slate-500 w-36 flex-shrink-0 truncate">
-        {client.phone || "â€”"}
+        {client.phone || "—"}
       </div>
       <button
         className="opacity-0 group-hover:opacity-100 p-1.5 rounded hover:bg-red-50 text-slate-400 hover:text-red-500 transition-all flex-shrink-0"
@@ -295,7 +295,7 @@ export default function Clients() {
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-2 h-2 rounded-full bg-green-500" />
                     <span className="text-xs font-semibold uppercase tracking-widest text-slate-500">Recently Onboarded</span>
-                    <span className="text-xs text-slate-400">â€” last 30 days</span>
+                    <span className="text-xs text-slate-400">— last 30 days</span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                     {recentlyOnboarded.map(client => {

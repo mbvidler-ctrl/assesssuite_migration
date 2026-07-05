@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ChevronRight, Save, ChevronDown, ChevronUp, BookOpen } from "lucide-react";
 
-// â”€â”€ Balance Items â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Balance Items ─────────────────────────────────────────────────────────────
 const balanceItems = [
   {
     name: "1. Sitting Balance",
@@ -28,7 +28,7 @@ const balanceItems = [
     ]
   },
   {
-    name: "3. Immediate Standing Balance (first 3â€“5 seconds)",
+    name: "3. Immediate Standing Balance (first 3–5 seconds)",
     tip: "Observe immediately after rising. Note any staggering, stepping to regain balance, or need to grab a surface within the first few seconds.",
     options: [
       { label: "Unsteady (staggers, moves feet, trunk sway)", value: 0 },
@@ -54,7 +54,7 @@ const balanceItems = [
     ]
   },
   {
-    name: "6a. Turning 360Â° â€” Steps",
+    name: "6a. Turning 360° — Steps",
     tip: "Ask patient to turn a full circle. Count whether steps are discontinuous (pauses between) or continuous (smooth rotation). Discontinuous = 0.",
     options: [
       { label: "Discontinuous steps (stops between)", value: 0 },
@@ -62,16 +62,16 @@ const balanceItems = [
     ]
   },
   {
-    name: "6b. Turning 360Â° â€” Steadiness",
-    tip: "During the same 360Â° turn, observe stability. Grabs for support or staggers during the turn = 0.",
+    name: "6b. Turning 360° — Steadiness",
+    tip: "During the same 360° turn, observe stability. Grabs for support or staggers during the turn = 0.",
     options: [
       { label: "Unsteady (grabs, staggers)", value: 0 },
       { label: "Steady", value: 1 }
     ]
   },
   {
-    name: "7. Nudge Test â€” Sternal Push (Ã—3)",
-    tip: "Stand close. Apply a gentle firm push to the sternum 3 times. Assess postural response. Do NOT push hard enough to cause a fall â€” this tests reactive balance.",
+    name: "7. Nudge Test — Sternal Push (×3)",
+    tip: "Stand close. Apply a gentle firm push to the sternum 3 times. Assess postural response. Do NOT push hard enough to cause a fall — this tests reactive balance.",
     options: [
       { label: "Begins to fall", value: 0 },
       { label: "Staggers, grabs, catches self", value: 1 },
@@ -92,12 +92,12 @@ const balanceItems = [
     tip: "Ask patient to stand on one leg for 5 seconds without support. Clinician may demonstrate. Score based on best leg attempted.",
     options: [
       { label: "Unable or holds <5 seconds", value: 0 },
-      { label: "Able to hold â‰¥5 seconds", value: 1 }
+      { label: "Able to hold ≥5 seconds", value: 1 }
     ]
   }
 ];
 
-// â”€â”€ Gait Items â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Gait Items ────────────────────────────────────────────────────────────────
 const gaitItems = [
   {
     name: "1. Gait Initiation (immediately after told to 'Go')",
@@ -108,7 +108,7 @@ const gaitItems = [
     ]
   },
   {
-    name: "2. Right Swing Foot â€” Step Length",
+    name: "2. Right Swing Foot — Step Length",
     tip: "Observe the RIGHT foot during swing phase. The foot should pass the left stance foot. If it does not pass the stance foot = 0.",
     options: [
       { label: "Does not pass left stance foot", value: 0 },
@@ -116,7 +116,7 @@ const gaitItems = [
     ]
   },
   {
-    name: "3. Right Swing Foot â€” Step Height (foot clearance)",
+    name: "3. Right Swing Foot — Step Height (foot clearance)",
     tip: "Observe the RIGHT foot lift. Foot should fully clear the floor. Scraping, shuffling or partial clearance = 0.",
     options: [
       { label: "Right foot does not clear floor completely", value: 0 },
@@ -124,7 +124,7 @@ const gaitItems = [
     ]
   },
   {
-    name: "4. Left Swing Foot â€” Step Length",
+    name: "4. Left Swing Foot — Step Length",
     tip: "Observe the LEFT foot during swing phase. Should pass the right stance foot. Failure to pass = 0.",
     options: [
       { label: "Does not pass right stance foot", value: 0 },
@@ -132,7 +132,7 @@ const gaitItems = [
     ]
   },
   {
-    name: "5. Left Swing Foot â€” Step Height (foot clearance)",
+    name: "5. Left Swing Foot — Step Height (foot clearance)",
     tip: "Observe the LEFT foot lift. Full floor clearance required. Scraping or shuffling = 0.",
     options: [
       { label: "Left foot does not clear floor completely", value: 0 },
@@ -183,7 +183,7 @@ const gaitItems = [
   }
 ];
 
-// â”€â”€ Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Component ─────────────────────────────────────────────────────────────────
 export default function TinettiRunner({ client, onSave, onClose }) {
   const [activeTab, setActiveTab] = useState("balance");
   const [balanceScores, setBalanceScores] = useState({});
@@ -197,8 +197,8 @@ export default function TinettiRunner({ client, onSave, onClose }) {
 
   const getInterpretation = (total) => {
     if (total >= 25) return { text: "Low Fall Risk", color: "text-green-700", bg: "bg-green-50 border-green-300" };
-    if (total >= 19) return { text: "Medium Fall Risk (~2Ã— increased)", color: "text-yellow-700", bg: "bg-yellow-50 border-yellow-300" };
-    return { text: "High Fall Risk (~5Ã— increased)", color: "text-red-700", bg: "bg-red-50 border-red-300" };
+    if (total >= 19) return { text: "Medium Fall Risk (~2× increased)", color: "text-yellow-700", bg: "bg-yellow-50 border-yellow-300" };
+    return { text: "High Fall Risk (~5× increased)", color: "text-red-700", bg: "bg-red-50 border-red-300" };
   };
 
   const handleSave = () => {
@@ -214,7 +214,7 @@ export default function TinettiRunner({ client, onSave, onClose }) {
     const bs = balanceScore(), gs = gaitScore(), ts = totalScore();
     const interp = getInterpretation(ts);
 
-    let soapText = `â€¢ Tinetti POMA: ${ts}/28 â€” ${interp.text}\n`;
+    let soapText = `• Tinetti POMA: ${ts}/28 — ${interp.text}\n`;
     soapText += `  Balance Score: ${bs}/16 | Gait Score: ${gs}/12\n\n`;
     soapText += `  Balance Items:\n`;
     balanceItems.forEach((item, idx) => {
@@ -231,7 +231,7 @@ export default function TinettiRunner({ client, onSave, onClose }) {
       }
     });
     if (notes) soapText += `\n  Clinical Notes: ${notes}\n`;
-    soapText += `  Reference: Tinetti (1986). JAGS, 34(2), 119â€“126.`;
+    soapText += `  Reference: Tinetti (1986). JAGS, 34(2), 119–126.`;
 
     onSave({
       result_value: ts,
@@ -262,9 +262,9 @@ export default function TinettiRunner({ client, onSave, onClose }) {
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-xl font-bold text-slate-900">Tinetti Performance Oriented Mobility Assessment</h2>
-              <p className="text-sm text-slate-500 mt-0.5">Balance (0â€“16) + Gait (0â€“12) = Total (0â€“28)</p>
+              <p className="text-sm text-slate-500 mt-0.5">Balance (0–16) + Gait (0–12) = Total (0–28)</p>
             </div>
-            <Button variant="ghost" size="icon" onClick={onClose}>Ã—</Button>
+            <Button variant="ghost" size="icon" onClick={onClose}>×</Button>
           </div>
 
           {/* Instructions Toggle */}
@@ -328,14 +328,14 @@ export default function TinettiRunner({ client, onSave, onClose }) {
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="balance">
-                Balance ({balanceScore()}/16) â€” {Object.keys(balanceScores).length}/{balanceItems.length} done
+                Balance ({balanceScore()}/16) — {Object.keys(balanceScores).length}/{balanceItems.length} done
               </TabsTrigger>
               <TabsTrigger value="gait">
-                Gait ({gaitScore()}/12) â€” {Object.keys(gaitScores).length}/{gaitItems.length} done
+                Gait ({gaitScore()}/12) — {Object.keys(gaitScores).length}/{gaitItems.length} done
               </TabsTrigger>
             </TabsList>
 
-            {/* â”€â”€ Balance Tab â”€â”€ */}
+            {/* ── Balance Tab ── */}
             <TabsContent value="balance" className="space-y-3 mt-4">
               {balanceItems.map((item, idx) => (
                 <Card key={idx} className={balanceScores[idx] !== undefined ? "border-blue-200" : "border-slate-200"}>
@@ -367,7 +367,7 @@ export default function TinettiRunner({ client, onSave, onClose }) {
               </div>
             </TabsContent>
 
-            {/* â”€â”€ Gait Tab â”€â”€ */}
+            {/* ── Gait Tab ── */}
             <TabsContent value="gait" className="space-y-3 mt-4">
               {gaitItems.map((item, idx) => (
                 <Card key={idx} className={gaitScores[idx] !== undefined ? "border-purple-200" : "border-slate-200"}>
@@ -397,7 +397,7 @@ export default function TinettiRunner({ client, onSave, onClose }) {
 
           {/* Normative Table */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Score Interpretation</p>
+            <p className="font-semibold text-slate-700">📊 Score Interpretation</p>
             <table className="w-full text-xs border border-slate-200 rounded overflow-hidden">
               <thead className="bg-slate-200">
                 <tr>
@@ -408,18 +408,18 @@ export default function TinettiRunner({ client, onSave, onClose }) {
               </thead>
               <tbody>
                 <tr className="border-t bg-green-50">
-                  <td className="p-2 font-medium">25â€“28</td>
+                  <td className="p-2 font-medium">25–28</td>
                   <td className="p-2 text-green-700">Low fall risk</td>
                   <td className="p-2 text-slate-600">Preventive exercise / education</td>
                 </tr>
                 <tr className="border-t bg-yellow-50">
-                  <td className="p-2 font-medium">19â€“24</td>
-                  <td className="p-2 text-yellow-700">Medium fall risk (~2Ã— increased)</td>
+                  <td className="p-2 font-medium">19–24</td>
+                  <td className="p-2 text-yellow-700">Medium fall risk (~2× increased)</td>
                   <td className="p-2 text-slate-600">Balance/strengthening program</td>
                 </tr>
                 <tr className="border-t bg-red-50">
                   <td className="p-2 font-medium">&lt;19</td>
-                  <td className="p-2 text-red-700">High fall risk (~5Ã— increased)</td>
+                  <td className="p-2 text-red-700">High fall risk (~5× increased)</td>
                   <td className="p-2 text-slate-600">Multidisciplinary fall prevention</td>
                 </tr>
               </tbody>
@@ -429,9 +429,9 @@ export default function TinettiRunner({ client, onSave, onClose }) {
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold text-slate-700">ðŸ“– References</p>
-            <p>1. Tinetti ME. (1986). Performance-oriented assessment of mobility problems in elderly patients. <em>JAGS, 34</em>(2), 119â€“126.</p>
-            <p>2. Faber MJ et al. (2006). Effects of exercise programs on falls and mobility in frail and pre-frail older adults. <em>Arch Phys Med Rehab, 87</em>(7), 885â€“896.</p>
+            <p className="font-semibold text-slate-700">📖 References</p>
+            <p>1. Tinetti ME. (1986). Performance-oriented assessment of mobility problems in elderly patients. <em>JAGS, 34</em>(2), 119–126.</p>
+            <p>2. Faber MJ et al. (2006). Effects of exercise programs on falls and mobility in frail and pre-frail older adults. <em>Arch Phys Med Rehab, 87</em>(7), 885–896.</p>
           </div>
 
           {/* Notes */}

@@ -14,7 +14,7 @@ const QUESTIONS = [
   "Poor appetite or overeating",
   "Feeling bad about yourself, or that you are a failure, or have let yourself or your family down",
   "Trouble concentrating on things, such as reading the newspaper or watching television",
-  "Moving or speaking so slowly that other people could have noticed? Or the opposite â€” being so fidgety or restless that you have been moving around a lot more than usual",
+  "Moving or speaking so slowly that other people could have noticed? Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual",
   "Thoughts that you would be better off dead or of hurting yourself in some way",
 ];
 
@@ -45,7 +45,7 @@ export default function PHQ9PatientHealthQuestionnaire9Runner({ client, onSave, 
   const handleSave = () => {
     if (!allAnswered) { toast.error("Please answer all 9 questions"); return; }
     const qLines = QUESTIONS.map((q, i) => `  Q${i + 1} (${OPTIONS[responses[i]]}): ${responses[i]}`).join("\n");
-    const soap = `â€¢ PHQ-9 Depression Scale\n  Total Score: ${total}/27 â€” ${interp.label}\n  Suggested action: ${interp.action}\n\n  Item Responses:\n${qLines}${functional !== null ? `\n  Functional Impairment: ${FUNCTIONAL_OPTS[functional]}` : ""}${q9Positive ? `\n  âš ï¸ Suicidal ideation screen (Q9): POSITIVE â€” requires immediate risk assessment` : ""}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: 0â€“4 minimal | 5â€“9 mild | 10â€“14 moderate | 15â€“19 mod-severe | 20â€“27 severe\n  MCID: 5-point change. Score â‰¥10 = likely major depressive disorder.\n  Reference: Kroenke K et al. (2001). The PHQ-9. J Gen Intern Med, 16(9):606-13.`;
+    const soap = `• PHQ-9 Depression Scale\n  Total Score: ${total}/27 — ${interp.label}\n  Suggested action: ${interp.action}\n\n  Item Responses:\n${qLines}${functional !== null ? `\n  Functional Impairment: ${FUNCTIONAL_OPTS[functional]}` : ""}${q9Positive ? `\n  ⚠ï¸ Suicidal ideation screen (Q9): POSITIVE — requires immediate risk assessment` : ""}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: 0–4 minimal | 5–9 mild | 10–14 moderate | 15–19 mod-severe | 20–27 severe\n  MCID: 5-point change. Score ≥10 = likely major depressive disorder.\n  Reference: Kroenke K et al. (2001). The PHQ-9. J Gen Intern Med, 16(9):606-13.`;
     onSave({ status: "completed", result_value: total, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", responses, severity: interp.label, q9_suicidal_ideation: q9Positive, functional_impairment: functional !== null ? FUNCTIONAL_OPTS[functional] : null } });
     toast.success("PHQ-9 saved.");
   };
@@ -56,10 +56,10 @@ export default function PHQ9PatientHealthQuestionnaire9Runner({ client, onSave, 
         <div className="sticky top-0 bg-white z-10 p-5 border-b flex justify-between items-start">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">PHQ-9</h2>
-            <p className="text-slate-500 text-sm mt-0.5">Patient Health Questionnaire â€” 9 items</p>
+            <p className="text-slate-500 text-sm mt-0.5">Patient Health Questionnaire — 9 items</p>
           </div>
           <div className="flex items-center gap-3">
-            {allAnswered && <div className={`px-3 py-1 rounded-full text-sm font-semibold border ${interp.color}`}>{total}/27 â€” {interp.label}</div>}
+            {allAnswered && <div className={`px-3 py-1 rounded-full text-sm font-semibold border ${interp.color}`}>{total}/27 — {interp.label}</div>}
             <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
           </div>
         </div>
@@ -74,7 +74,7 @@ export default function PHQ9PatientHealthQuestionnaire9Runner({ client, onSave, 
             <Card key={i} className={`${responses[i] !== null ? "border-blue-200 bg-blue-50/20" : ""} ${i === 8 && responses[8] > 0 ? "border-red-300 bg-red-50" : ""}`}>
               <CardHeader className="pb-2">
                 <CardTitle className={`text-sm font-medium ${i === 8 ? "text-red-700" : "text-slate-700"}`}>
-                  Q{i + 1}. {q}{i === 8 && " âš ï¸"}
+                  Q{i + 1}. {q}{i === 8 && " ⚠ï¸"}
                 </CardTitle>
               </CardHeader>
               <CardContent>

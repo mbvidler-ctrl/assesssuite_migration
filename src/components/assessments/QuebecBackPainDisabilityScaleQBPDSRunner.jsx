@@ -34,7 +34,7 @@ export default function QuebecBackPainDisabilityScaleQBPDSRunner({ client, onSav
 
     const score = parseFloat(totalScore);
     const soapLines = [
-      `â€¢ Quebec Back Pain Disability Scale (QBPDS)`,
+      `• Quebec Back Pain Disability Scale (QBPDS)`,
       `  Assessment Date: ${assessmentDate}`,
       ``,
       `  Total Score: ${score}/100`,
@@ -283,7 +283,7 @@ export default function QuebecBackPainDisabilityScaleQBPDSRunner({ client, onSav
 
           {state === "setup" && (
             <Button onClick={() => setState("score_entry")} className="bg-blue-600 hover:bg-blue-700">
-              Continue to Score Entry â†’
+              Continue to Score Entry →
             </Button>
           )}
 
@@ -293,7 +293,7 @@ export default function QuebecBackPainDisabilityScaleQBPDSRunner({ client, onSav
               disabled={!isFormValid}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Review Results â†’
+              Review Results →
             </Button>
           )}
 

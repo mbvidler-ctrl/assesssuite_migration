@@ -43,7 +43,7 @@ const SCORING_LEVELS = [
   { score: 7, label: "Complete Independence" },
   { score: 6, label: "Modified Independence" },
   { score: 5, label: "Supervision/Setup" },
-  { score: 4, label: "Minimal Assistance (â‰¥75%)" },
+  { score: 4, label: "Minimal Assistance (≥75%)" },
   { score: 3, label: "Moderate Assistance (50-74%)" },
   { score: 2, label: "Maximal Assistance (25-49%)" },
   { score: 1, label: "Total Assistance (<25%)" }
@@ -86,7 +86,7 @@ export default function FIMRunner({ onSave, onClose }) {
     }
 
     // Build comprehensive SOAP text
-    let soapText = `â€¢ Functional Independence Measure (FIM): ${total}/126 â†’ ${interpretation?.level}\n`;
+    let soapText = `• Functional Independence Measure (FIM): ${total}/126 → ${interpretation?.level}\n`;
     soapText += `  Motor Score: ${motor}/91\n`;
     soapText += `  Cognitive Score: ${cognitive}/35\n\n`;
     
@@ -186,7 +186,7 @@ export default function FIMRunner({ onSave, onClose }) {
                    </div>
                    <div>
                      <p className="font-semibold text-teal-800 mb-1">Administration Time</p>
-                     <p className="text-teal-700 bg-white/60 p-2 rounded border border-teal-200"><strong>15â€“30 minutes</strong> depending on client complexity. Allows observation and staff interview.</p>
+                     <p className="text-teal-700 bg-white/60 p-2 rounded border border-teal-200"><strong>15–30 minutes</strong> depending on client complexity. Allows observation and staff interview.</p>
                    </div>
                    <div>
                      <p className="font-semibold text-teal-800 mb-1">Who Can Administer</p>
@@ -222,12 +222,12 @@ export default function FIMRunner({ onSave, onClose }) {
                    <div>
                      <p className="font-semibold text-slate-800 mb-1">Key Reference</p>
                      <p>
-                       <strong>Uniform Data System for Medical Rehabilitation (UDSMR).</strong> Functional Independence Measure (FIMâ„¢). Version 5.2. Buffalo, NY: UDSMR, State University of New York at Buffalo. Available at: <a href="https://www.udsmr.org" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">www.udsmr.org</a>
+                       <strong>Uniform Data System for Medical Rehabilitation (UDSMR).</strong> Functional Independence Measure (FIM™). Version 5.2. Buffalo, NY: UDSMR, State University of New York at Buffalo. Available at: <a href="https://www.udsmr.org" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:text-blue-800 underline">www.udsmr.org</a>
                      </p>
                    </div>
                    <div>
                      <p className="font-semibold text-slate-800 mb-1">Validation Studies</p>
-                     <p>Linacre, J. M., et al. (1994). The structure and stability of the Functional Independence Measure. <em>Archives of Physical Medicine and Rehabilitation</em>, 75(2), 127â€“132.</p>
+                     <p>Linacre, J. M., et al. (1994). The structure and stability of the Functional Independence Measure. <em>Archives of Physical Medicine and Rehabilitation</em>, 75(2), 127–132.</p>
                    </div>
                    <div className="space-y-1">
                      <p className="font-semibold text-slate-800">External Links</p>

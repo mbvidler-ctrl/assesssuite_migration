@@ -56,7 +56,7 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
               setPhase("rest");
               return PHASE_DURATION.rest;
             } else {
-              // Rest ended â†’ next stage
+              // Rest ended → next stage
               setStageIndex(si => Math.min(si + 1, STAGES.length - 1));
               setTotalStages(ts => ts + 1);
               setPhase("run");
@@ -77,7 +77,7 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
     setTotalStages(1);
     setPhaseTime(PHASE_DURATION.run);
     setPhase("run");
-    toast.info("Test started â€” Stage 1, 8.0 km/h. Client begins running!");
+    toast.info("Test started — Stage 1, 8.0 km/h. Client begins running!");
   };
 
   const handleStop = () => {
@@ -87,7 +87,7 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
     setViftManual(lastSpeed.toFixed(1));
     setFinalStagesManual(String(totalStages));
     setPhase("done");
-    toast.success("Test stopped. Confirm the final VÌ‡IFT speed below.");
+    toast.success("Test stopped. Confirm the final V̇IFT speed below.");
   };
 
   const handleReset = () => {
@@ -103,7 +103,7 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
   const handleSave = () => {
     const vift = parseFloat(viftManual);
     if (!viftManual || isNaN(vift) || vift < 8) {
-      toast.error("Please enter a valid VÌ‡IFT speed (km/h).");
+      toast.error("Please enter a valid V̇IFT speed (km/h).");
       return;
     }
 
@@ -111,14 +111,14 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
     const interp = getInterpretation(vift);
 
     const soapLines = [
-      `â€¢ 30-15 Intermittent Fitness Test (30-15IFT)`,
-      `  VÌ‡IFT (Final Speed): ${vift.toFixed(1)} km/h â€” ${interp.label}`,
+      `• 30-15 Intermittent Fitness Test (30-15IFT)`,
+      `  V̇IFT (Final Speed): ${vift.toFixed(1)} km/h — ${interp.label}`,
       stages ? `  Total Stages Completed: ${stages}` : null,
-      `  Training Prescription: ${(vift * 1.0).toFixed(1)}â€“${(vift * 1.3).toFixed(1)} km/h interval target`,
+      `  Training Prescription: ${(vift * 1.0).toFixed(1)}–${(vift * 1.3).toFixed(1)} km/h interval target`,
       hrPre ? `  Pre-Test HR: ${hrPre} bpm` : null,
       bpPre ? `  Pre-Test BP: ${bpPre} mmHg` : null,
       hrPost ? `  Post-Test HR: ${hrPost} bpm` : null,
-      rpe ? `  RPE (6â€“20): ${rpe}` : null,
+      rpe ? `  RPE (6–20): ${rpe}` : null,
       notes ? `  Notes: ${notes}` : null,
     ].filter(Boolean).join("\n");
 
@@ -160,7 +160,7 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
         <div className="flex items-center justify-between px-6 pt-6">
           <div>
             <h2 className="text-xl font-bold text-slate-900">30-15 Intermittent Fitness Test</h2>
-            <p className="text-sm text-slate-500">30-15IFT â€” Buchheit (2008)</p>
+            <p className="text-sm text-slate-500">30-15IFT — Buchheit (2008)</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -191,9 +191,9 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
                   <p className="font-semibold mb-1">Termination & Result</p>
                   <ul className="list-disc list-inside space-y-1 text-blue-800 text-xs">
                     <li>Stop when client fails to reach line on 2 consecutive shuttles</li>
-                    <li>VÌ‡IFT = speed of LAST COMPLETED stage</li>
+                    <li>V̇IFT = speed of LAST COMPLETED stage</li>
                     <li>Use timer below to track stage/phase in real time</li>
-                    <li>Enter final VÌ‡IFT manually after test</li>
+                    <li>Enter final V̇IFT manually after test</li>
                   </ul>
                 </div>
               </div>
@@ -202,13 +202,13 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
                 <p className="italic text-blue-700">"You will run 40 metres back and forth in time with the audio signal. You have 30 seconds of running, then 15 seconds to walk to the nearest end. The speed increases every stage. Stop when you can no longer reach the line in time on two consecutive shuttles."</p>
               </div>
               <div className="bg-white rounded-lg p-3 border border-blue-100">
-                <p className="font-semibold mb-2 text-xs">VÌ‡IFT Reference Ranges</p>
+                <p className="font-semibold mb-2 text-xs">V̇IFT Reference Ranges</p>
                 <div className="grid grid-cols-4 gap-1 text-center text-xs">
                   {[
-                    { label: "Low Fitness", range: "8â€“10", bg: "bg-orange-100", color: "text-orange-700" },
-                    { label: "Moderate", range: "10â€“14", bg: "bg-blue-100", color: "text-blue-700" },
-                    { label: "High", range: "14â€“18", bg: "bg-green-100", color: "text-green-700" },
-                    { label: "Elite", range: "â‰¥19", bg: "bg-purple-100", color: "text-purple-700" },
+                    { label: "Low Fitness", range: "8–10", bg: "bg-orange-100", color: "text-orange-700" },
+                    { label: "Moderate", range: "10–14", bg: "bg-blue-100", color: "text-blue-700" },
+                    { label: "High", range: "14–18", bg: "bg-green-100", color: "text-green-700" },
+                    { label: "Elite", range: "≥19", bg: "bg-purple-100", color: "text-purple-700" },
                   ].map(c => (
                     <div key={c.label} className={`${c.bg} rounded p-2`}>
                       <p className={`font-bold ${c.color}`}>{c.range}</p>
@@ -244,7 +244,7 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
 
         {/* Live Timer */}
         <Card className="mx-6">
-          <CardHeader className="pb-2"><CardTitle className="text-base">Stage Timer (Optional â€” follows audio track)</CardTitle></CardHeader>
+          <CardHeader className="pb-2"><CardTitle className="text-base">Stage Timer (Optional — follows audio track)</CardTitle></CardHeader>
           <CardContent className="space-y-4">
             <div className="flex flex-col items-center gap-3 py-4 bg-slate-50 rounded-lg border">
               {/* Phase indicator */}
@@ -254,7 +254,7 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
                 phase === "done" ? "bg-blue-200 text-blue-800" :
                 "bg-slate-200 text-slate-600"
               }`}>
-                {phase === "idle" ? "Ready" : phase === "run" ? "â–¶ RUNNING" : phase === "rest" ? "â¸ REST" : "âœ“ Completed"}
+                {phase === "idle" ? "Ready" : phase === "run" ? "▶ RUNNING" : phase === "rest" ? "â¸ REST" : "✓ Completed"}
               </div>
 
               {/* Timer */}
@@ -263,7 +263,7 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
                 phase === "run" ? "text-green-700" :
                 phase === "rest" ? "text-yellow-700" : "text-slate-600"
               }`}>
-                {isActive || phase === "done" ? (phase === "done" ? "â€”" : String(phaseTime).padStart(2, "0")) : "30"}
+                {isActive || phase === "done" ? (phase === "done" ? "—" : String(phaseTime).padStart(2, "0")) : "30"}
               </div>
 
               {/* Stage info */}
@@ -325,7 +325,7 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <Label>VÌ‡IFT â€” Final Completed Speed (km/h) <span className="text-red-500">*</span></Label>
+                <Label>V̇IFT — Final Completed Speed (km/h) <span className="text-red-500">*</span></Label>
                 <Input
                   type="number"
                   step="0.5"
@@ -354,9 +354,9 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
             {interpPreview && (
               <div className={`${interpPreview.bg} border rounded-lg p-3 flex items-center justify-between`}>
                 <div>
-                  <p className={`font-bold ${interpPreview.color}`}>{viftPreview.toFixed(1)} km/h â€” {interpPreview.label}</p>
+                  <p className={`font-bold ${interpPreview.color}`}>{viftPreview.toFixed(1)} km/h — {interpPreview.label}</p>
                   <p className="text-xs text-slate-600 mt-0.5">
-                    Training target: {(viftPreview * 1.0).toFixed(1)}â€“{(viftPreview * 1.3).toFixed(1)} km/h
+                    Training target: {(viftPreview * 1.0).toFixed(1)}–{(viftPreview * 1.3).toFixed(1)} km/h
                   </p>
                 </div>
                 <Badge className={`${interpPreview.bg} ${interpPreview.color} border-0`}>{interpPreview.label}</Badge>
@@ -375,7 +375,7 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
                 <Input type="number" value={hrPost} onChange={e => setHrPost(e.target.value)} placeholder="e.g. 185" className="mt-1" />
               </div>
               <div>
-                <Label>RPE (6â€“20)</Label>
+                <Label>RPE (6–20)</Label>
                 <Input type="number" min="6" max="20" value={rpe} onChange={e => setRpe(e.target.value)} placeholder="e.g. 18" className="mt-1" />
               </div>
             </div>

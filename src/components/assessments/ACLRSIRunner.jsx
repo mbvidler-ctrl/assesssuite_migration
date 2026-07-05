@@ -45,7 +45,7 @@ export default function ACLRSIRunner({ client, onSave, onClose }) {
     const percentageScore = parseFloat(getPercentageScore());
     const readiness = percentageScore >= 77 ? 'Psychologically Ready' : percentageScore >= 56 ? 'Moderate Readiness' : 'Low Readiness';
 
-    let soapText = `â€¢ ACL-RSI: ${percentageScore}% (${readiness})\n  Total: ${getTotalScore()}/120\n\n  Individual Responses:\n`;
+    let soapText = `• ACL-RSI: ${percentageScore}% (${readiness})\n  Total: ${getTotalScore()}/120\n\n  Individual Responses:\n`;
     ACL_RSI_QUESTIONS.forEach((q, i) => {
       soapText += `  Q${i+1}. ${q.text}\n      Score: ${responses[i]}/10\n`;
     });

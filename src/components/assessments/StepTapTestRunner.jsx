@@ -49,7 +49,7 @@ export default function StepTapTestRunner({ client, onSave, onClose }) {
 
   const handleSave = () => {
     if (!reps || isNaN(r) || r < 0) { toast.error("Enter taps completed"); return; }
-    const soap = `â€¢ Step Tap Test\n  Taps: ${r} in ${duration}s\n  Rate: ${rate} taps/sec\n  Step Height: ${stepHeight} cm${notes ? `\n  Notes: ${notes}` : ""}\n  Assesses lower limb agility, coordination, and dynamic balance\n  Reference: Lord SR et al. (2003). Balance, reaction time, and falls in older people. J Am Geriatr Soc.`;
+    const soap = `• Step Tap Test\n  Taps: ${r} in ${duration}s\n  Rate: ${rate} taps/sec\n  Step Height: ${stepHeight} cm${notes ? `\n  Notes: ${notes}` : ""}\n  Assesses lower limb agility, coordination, and dynamic balance\n  Reference: Lord SR et al. (2003). Balance, reaction time, and falls in older people. J Am Geriatr Soc.`;
     onSave({ status: "completed", result_value: r, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "performance_timed", taps: r, duration_s: duration, rate_per_sec: parseFloat(rate), step_height_cm: parseFloat(stepHeight) } });
     toast.success("Step Tap Test saved.");
   };
@@ -60,7 +60,7 @@ export default function StepTapTestRunner({ client, onSave, onClose }) {
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-w-xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="p-5 border-b bg-gradient-to-r from-cyan-50 to-blue-50 flex justify-between items-start">
-          <div><h2 className="text-2xl font-bold text-slate-900">Step Tap Test</h2><p className="text-slate-500 text-sm mt-0.5">Alternating foot tap â€” agility & coordination</p></div>
+          <div><h2 className="text-2xl font-bold text-slate-900">Step Tap Test</h2><p className="text-slate-500 text-sm mt-0.5">Alternating foot tap — agility & coordination</p></div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
 

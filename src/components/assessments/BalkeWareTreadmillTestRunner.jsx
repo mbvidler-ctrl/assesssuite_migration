@@ -23,8 +23,8 @@ function formatTime(seconds) {
   return `${m}:${s.toString().padStart(2, "0")}`;
 }
 
-// Balke-Ware VO2max equation (ACSM): VO2max = 1.387 Ã— T + 10.833 (T = time in minutes, for males)
-// Female: VO2max = 1.38 Ã— T + 5.22
+// Balke-Ware VO2max equation (ACSM): VO2max = 1.387 × T + 10.833 (T = time in minutes, for males)
+// Female: VO2max = 1.38 × T + 5.22
 function estimateVO2max(timeMins, sex) {
   if (!timeMins || timeMins <= 0) return null;
   if (sex === "female") return (1.38 * timeMins + 5.22).toFixed(1);
@@ -79,9 +79,9 @@ export default function BalkeWareTreadmillTestRunner({ client, onSave, onClose }
     const timeMins = parseFloat((totalSeconds / 60).toFixed(2));
     
     // Build comprehensive SOAP text
-    let soapText = `â€¢ Balke-Ware Treadmill Test: ${timeMins} minutes (${formatTime(totalSeconds)})\n`;
+    let soapText = `• Balke-Ware Treadmill Test: ${timeMins} minutes (${formatTime(totalSeconds)})\n`;
     if (clientAge) soapText += `  Client Age: ${clientAge} yrs | Age-predicted HRmax: ${agePredictedHRmax} bpm\n`;
-    if (preHR || preBP) soapText += `  Pre-test: HR ${preHR || 'â€”'} bpm, BP ${preBP || 'â€”'}${preRPE ? `, RPE ${preRPE}/20` : ''}\n`;
+    if (preHR || preBP) soapText += `  Pre-test: HR ${preHR || '—'} bpm, BP ${preBP || '—'}${preRPE ? `, RPE ${preRPE}/20` : ''}\n`;
     if (weight) soapText += `  Body Weight: ${weight} kg\n`;
     if (vo2max) soapText += `  Estimated VO2max: ${vo2max} ml/kg/min (${sex})\n`;
     soapText += `  Protocol: 3.3 mph, +1% grade/min, last grade ${Math.min(Math.floor(timeMins), 25)}%\n`;
@@ -129,7 +129,7 @@ export default function BalkeWareTreadmillTestRunner({ client, onSave, onClose }
         <div className="p-6 border-b bg-gradient-to-r from-blue-50 to-sky-50 flex justify-between items-start sticky top-0 z-10">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Balke-Ware Treadmill Test</h2>
-            <p className="text-sm text-slate-600 mt-1">Incremental GXT â€” constant 3.3 mph, grade +1%/min</p>
+            <p className="text-sm text-slate-600 mt-1">Incremental GXT — constant 3.3 mph, grade +1%/min</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -161,7 +161,7 @@ export default function BalkeWareTreadmillTestRunner({ client, onSave, onClose }
               <div><span className="text-slate-500">Client:</span> <span className="font-semibold text-slate-800">{client.full_name}</span></div>
               {clientAge && <div><span className="text-slate-500">Age:</span> <span className="font-semibold text-slate-800">{clientAge} yrs</span></div>}
               {agePredictedHRmax && (
-                <div><span className="text-slate-500">Age-predicted HRmax:</span> <span className="font-semibold text-red-700">{agePredictedHRmax} bpm</span> <span className="text-xs text-slate-400">(220 âˆ’ age)</span></div>
+                <div><span className="text-slate-500">Age-predicted HRmax:</span> <span className="font-semibold text-red-700">{agePredictedHRmax} bpm</span> <span className="text-xs text-slate-400">(220 − age)</span></div>
               )}
               {client.gender && <div><span className="text-slate-500">Sex:</span> <span className="font-semibold text-slate-800 capitalize">{client.gender}</span></div>}
             </div>
@@ -187,7 +187,7 @@ export default function BalkeWareTreadmillTestRunner({ client, onSave, onClose }
           {/* Pre-test vitals */}
           <Card className="border-orange-200 bg-orange-50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-orange-800">âš ï¸ Pre-Test Vitals</CardTitle>
+              <CardTitle className="text-sm text-orange-800">⚠ï¸ Pre-Test Vitals</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
@@ -199,7 +199,7 @@ export default function BalkeWareTreadmillTestRunner({ client, onSave, onClose }
                 <Input value={preBP} onChange={e => setPreBP(e.target.value)} placeholder="e.g., 120/80" className="mt-1" />
               </div>
               <div>
-                <Label className="text-xs">Resting RPE (6â€“20)</Label>
+                <Label className="text-xs">Resting RPE (6–20)</Label>
                 <Input type="number" value={preRPE} onChange={e => setPreRPE(e.target.value)} placeholder="e.g., 6" min="6" max="20" className="mt-1" />
               </div>
               <div>
@@ -216,7 +216,7 @@ export default function BalkeWareTreadmillTestRunner({ client, onSave, onClose }
               <p className="text-5xl font-mono font-bold">{formatTime(totalSeconds)}</p>
               {isRunning && (
                 <div className="mt-2">
-                  <p className="text-blue-300 text-sm">Current Stage â€” Minute {currentMinute}</p>
+                  <p className="text-blue-300 text-sm">Current Stage — Minute {currentMinute}</p>
                   <p className="text-xl font-semibold text-white">{currentStage.speed_mph} mph @ {currentStage.grade_pct}% grade</p>
                   <p className="text-slate-400 text-xs mt-1">Next change: {60 - (totalSeconds % 60)}s</p>
                 </div>
@@ -225,16 +225,16 @@ export default function BalkeWareTreadmillTestRunner({ client, onSave, onClose }
                 <p className="text-slate-400 text-sm">Press Start to begin</p>
               )}
               {testFinished && (
-                <p className="text-green-400 text-sm font-semibold">Test Complete â€” {formatTime(totalSeconds)}</p>
+                <p className="text-green-400 text-sm font-semibold">Test Complete — {formatTime(totalSeconds)}</p>
               )}
             </CardContent>
           </Card>
 
-          {/* Live HR Log â€” visible once test is started */}
+          {/* Live HR Log — visible once test is started */}
           {(isRunning || testFinished) && currentMinute > 0 && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">â¤ï¸ Heart Rate Log â€” enter at the end of each minute</CardTitle>
+                <CardTitle className="text-sm">â¤ï¸ Heart Rate Log — enter at the end of each minute</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">
@@ -275,7 +275,7 @@ export default function BalkeWareTreadmillTestRunner({ client, onSave, onClose }
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-center">
                   <p className="text-sm text-green-700">Estimated VO2max ({sex})</p>
                   <p className="text-4xl font-bold text-green-600">{vo2max} <span className="text-lg">ml/kg/min</span></p>
-                  <p className="text-xs text-green-600 mt-1">Balke equation: {sex === "female" ? "VOâ‚‚max = 1.38 Ã— T + 5.22" : "VOâ‚‚max = 1.387 Ã— T + 10.833"}</p>
+                  <p className="text-xs text-green-600 mt-1">Balke equation: {sex === "female" ? "VO₂max = 1.38 × T + 5.22" : "VO₂max = 1.387 × T + 10.833"}</p>
                 </div>
               )}
 
@@ -291,7 +291,7 @@ export default function BalkeWareTreadmillTestRunner({ client, onSave, onClose }
                   />
                 </div>
                 <div>
-                  <Label>Peak RPE at Test End (6â€“20)</Label>
+                  <Label>Peak RPE at Test End (6–20)</Label>
                   <Input
                     type="number"
                     value={peakRPE}
@@ -317,25 +317,25 @@ export default function BalkeWareTreadmillTestRunner({ client, onSave, onClose }
 
               {/* Norms */}
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-                <p className="font-semibold text-slate-700">ðŸ“Š VO2max Norms (ml/kg/min) â€” ACSM Classification</p>
+                <p className="font-semibold text-slate-700">📊 VO2max Norms (ml/kg/min) — ACSM Classification</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs border border-slate-300 rounded">
-                    <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20â€“39</th><th className="p-2 text-center">Men 40â€“59</th><th className="p-2 text-center">Women 20â€“39</th><th className="p-2 text-center">Women 40â€“59</th></tr></thead>
+                    <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20–39</th><th className="p-2 text-center">Men 40–59</th><th className="p-2 text-center">Women 20–39</th><th className="p-2 text-center">Women 40–59</th></tr></thead>
                     <tbody>
-                      <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">â‰¥52</td><td className="p-2 text-center">â‰¥45</td><td className="p-2 text-center">â‰¥41</td><td className="p-2 text-center">â‰¥35</td></tr>
-                      <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">43â€“51</td><td className="p-2 text-center">38â€“44</td><td className="p-2 text-center">35â€“40</td><td className="p-2 text-center">29â€“34</td></tr>
-                      <tr className="border-t"><td className="p-2">Fair</td><td className="p-2 text-center">34â€“42</td><td className="p-2 text-center">30â€“37</td><td className="p-2 text-center">27â€“34</td><td className="p-2 text-center">23â€“28</td></tr>
-                      <tr className="border-t bg-white"><td className="p-2">Poor</td><td className="p-2 text-center">â‰¤33</td><td className="p-2 text-center">â‰¤29</td><td className="p-2 text-center">â‰¤26</td><td className="p-2 text-center">â‰¤22</td></tr>
+                      <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">≥52</td><td className="p-2 text-center">≥45</td><td className="p-2 text-center">≥41</td><td className="p-2 text-center">≥35</td></tr>
+                      <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">43–51</td><td className="p-2 text-center">38–44</td><td className="p-2 text-center">35–40</td><td className="p-2 text-center">29–34</td></tr>
+                      <tr className="border-t"><td className="p-2">Fair</td><td className="p-2 text-center">34–42</td><td className="p-2 text-center">30–37</td><td className="p-2 text-center">27–34</td><td className="p-2 text-center">23–28</td></tr>
+                      <tr className="border-t bg-white"><td className="p-2">Poor</td><td className="p-2 text-center">≤33</td><td className="p-2 text-center">≤29</td><td className="p-2 text-center">≤26</td><td className="p-2 text-center">≤22</td></tr>
                     </tbody>
                   </table>
                 </div>
-                <p className="text-xs text-slate-500">Balke equation: Male = 1.387Ã—T + 10.833; Female = 1.38Ã—T + 5.22 (T = minutes). Source: ACSM (2022).</p>
+                <p className="text-xs text-slate-500">Balke equation: Male = 1.387×T + 10.833; Female = 1.38×T + 5.22 (T = minutes). Source: ACSM (2022).</p>
               </div>
 
               {/* Reference */}
               <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-                <p className="font-semibold">ðŸ“– Reference</p>
-                <p>Balke B & Ware RW. (1959). An experimental study of physical fitness of Air Force personnel. <em>U.S. Armed Forces Medical Journal, 10</em>(6), 675â€“688.</p>
+                <p className="font-semibold">📖 Reference</p>
+                <p>Balke B & Ware RW. (1959). An experimental study of physical fitness of Air Force personnel. <em>U.S. Armed Forces Medical Journal, 10</em>(6), 675–688.</p>
                 <p>American College of Sports Medicine. (2022). <em>ACSM's Guidelines for Exercise Testing and Prescription</em> (11th ed.). Wolters Kluwer.</p>
               </div>
             </div>

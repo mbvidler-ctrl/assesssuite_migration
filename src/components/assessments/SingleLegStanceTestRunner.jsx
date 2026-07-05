@@ -52,7 +52,7 @@ export default function SingleLegStanceTestRunner({ client, onSave, onClose }) {
     const resultValue = Math.max(bestLeft, bestRight);
 
     // Build comprehensive SOAP text
-    let soapText = `â€¢ Single-Leg Stance Test:\n`;
+    let soapText = `• Single-Leg Stance Test:\n`;
     if (trials.left.length > 0) soapText += `  Left Leg Trials: ${trials.left.join(', ')}s (Best: ${bestLeft}s)\n`;
     if (trials.right.length > 0) soapText += `  Right Leg Trials: ${trials.right.join(', ')}s (Best: ${bestRight}s)\n`;
     soapText += `  Overall Best Time: ${resultValue}s\n`;

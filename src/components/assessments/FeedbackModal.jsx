@@ -63,7 +63,7 @@ export default function FeedbackModal({ onClose }) {
           <p><strong>Details:</strong></p>
           <p>${details.replace(/\n/g, '<br>')}</p>
           <hr>
-          <p><em>Review this request in the Admin Dashboard â†’ Assessment Requests tab</em></p>
+          <p><em>Review this request in the Admin Dashboard → Assessment Requests tab</em></p>
         `;
 
         await SendEmail({

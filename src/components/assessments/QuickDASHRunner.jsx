@@ -36,7 +36,7 @@ export default function QuickDASHRunner({ client, onSave, onClose }) {
     const rawSumValue = rawSum ? parseInt(rawSum) : null;
     
     const soapLines = [
-      `â€¢ QuickDASH (Disabilities of the Arm, Shoulder and Hand)`,
+      `• QuickDASH (Disabilities of the Arm, Shoulder and Hand)`,
       `  Assessment Date: ${assessmentDate}`,
       ``,
       rawSumValue ? `  Sum of Item Scores: ${rawSumValue}/55` : ``,
@@ -179,10 +179,10 @@ export default function QuickDASHRunner({ client, onSave, onClose }) {
                 </CardHeader>
                 <CardContent className="text-sm space-y-2">
                   <div className="bg-slate-50 p-3 rounded space-y-1 text-xs">
-                    <p><strong>0â€“20:</strong> Minimal upper limb disability</p>
-                    <p><strong>21â€“40:</strong> Mild disability</p>
-                    <p><strong>41â€“60:</strong> Moderate disability</p>
-                    <p><strong>61â€“100:</strong> Severe disability</p>
+                    <p><strong>0–20:</strong> Minimal upper limb disability</p>
+                    <p><strong>21–40:</strong> Mild disability</p>
+                    <p><strong>41–60:</strong> Moderate disability</p>
+                    <p><strong>61–100:</strong> Severe disability</p>
                   </div>
                 </CardContent>
               </Card>
@@ -199,7 +199,7 @@ export default function QuickDASHRunner({ client, onSave, onClose }) {
                 <CardContent className="space-y-4">
                   <div>
                     <Label htmlFor="raw-sum" className="block text-sm font-medium mb-2">
-                      Sum of Item Scores (11â€“55)
+                      Sum of Item Scores (11–55)
                     </Label>
                     <Input
                       id="raw-sum"
@@ -208,14 +208,14 @@ export default function QuickDASHRunner({ client, onSave, onClose }) {
                       max="55"
                       value={rawSum}
                       onChange={(e) => setRawSum(e.target.value)}
-                      placeholder="11â€“55 (optional)"
+                      placeholder="11–55 (optional)"
                     />
                     <p className="text-xs text-slate-500 mt-1">Optional: helps verify score conversion</p>
                   </div>
 
                   <div>
                     <Label htmlFor="total-score" className="block text-sm font-medium mb-2">
-                      QuickDASH Score (0â€“100) *
+                      QuickDASH Score (0–100) *
                     </Label>
                     <Input
                       id="total-score"
@@ -306,7 +306,7 @@ export default function QuickDASHRunner({ client, onSave, onClose }) {
 
           {state === "setup" && (
             <Button onClick={() => setState("score_entry")} className="bg-blue-600 hover:bg-blue-700">
-              Continue to Score Entry â†’
+              Continue to Score Entry →
             </Button>
           )}
 
@@ -316,7 +316,7 @@ export default function QuickDASHRunner({ client, onSave, onClose }) {
               disabled={!isFormValid}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Review Results â†’
+              Review Results →
             </Button>
           )}
 

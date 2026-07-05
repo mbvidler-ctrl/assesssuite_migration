@@ -107,7 +107,7 @@ export default function DASS21Runner({ client, onSave, onClose }) {
       status: 'completed',
       result_value: (depression || 0) + (anxiety || 0) + (stress || 0),
       additional_data: {
-        soap_text: `â€¢ DASS-21\n  Depression: ${depression}/42 â€” ${depressionInterpretation.level}\n  Anxiety: ${anxiety}/42 â€” ${anxietyInterpretation.level}\n  Stress: ${stress}/42 â€” ${stressInterpretation.level}`,
+        soap_text: `• DASS-21\n  Depression: ${depression}/42 — ${depressionInterpretation.level}\n  Anxiety: ${anxiety}/42 — ${anxietyInterpretation.level}\n  Stress: ${stress}/42 — ${stressInterpretation.level}`,
         depression_score: depression,
         anxiety_score: anxiety,
         stress_score: stress,

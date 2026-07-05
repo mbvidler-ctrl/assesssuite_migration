@@ -78,13 +78,13 @@ export default function COPDAssessmentTestCATRunner({ client, onSave, onClose })
               <ul className="list-disc list-inside space-y-1 text-blue-800">
                 <li>Ask the patient to complete all 8 items by selecting a score from <strong>0 to 5</strong> for each question.</li>
                 <li>Each item is anchored at either end with opposing statements (e.g., "I never cough" = 0, "I cough all the time" = 5).</li>
-                <li>Total score ranges from <strong>0â€“40</strong>.</li>
+                <li>Total score ranges from <strong>0–40</strong>.</li>
               </ul>
               <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                <div className="bg-green-100 border border-green-300 rounded px-2 py-1 text-green-800"><strong>0â€“9:</strong> Low Impact</div>
-                <div className="bg-yellow-100 border border-yellow-300 rounded px-2 py-1 text-yellow-800"><strong>10â€“20:</strong> Medium Impact</div>
-                <div className="bg-orange-100 border border-orange-300 rounded px-2 py-1 text-orange-800"><strong>21â€“30:</strong> High Impact</div>
-                <div className="bg-red-100 border border-red-300 rounded px-2 py-1 text-red-800"><strong>31â€“40:</strong> Very High Impact</div>
+                <div className="bg-green-100 border border-green-300 rounded px-2 py-1 text-green-800"><strong>0–9:</strong> Low Impact</div>
+                <div className="bg-yellow-100 border border-yellow-300 rounded px-2 py-1 text-yellow-800"><strong>10–20:</strong> Medium Impact</div>
+                <div className="bg-orange-100 border border-orange-300 rounded px-2 py-1 text-orange-800"><strong>21–30:</strong> High Impact</div>
+                <div className="bg-red-100 border border-red-300 rounded px-2 py-1 text-red-800"><strong>31–40:</strong> Very High Impact</div>
               </div>
             </div>
 

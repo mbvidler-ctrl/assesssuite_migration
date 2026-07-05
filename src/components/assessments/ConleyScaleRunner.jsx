@@ -76,11 +76,11 @@ export default function ConleyScaleRunner({ client, onSave, onClose }) {
     const positiveFindings = getPositiveFindings();
 
     let soapText = `Conley Scale Assessment:\n`;
-    soapText += `â€¢ Total Score: ${totalScore}/7\n`;
-    soapText += `â€¢ Falls Risk Classification: ${classification}\n`;
+    soapText += `• Total Score: ${totalScore}/7\n`;
+    soapText += `• Falls Risk Classification: ${classification}\n`;
     
     if (positiveFindings) {
-      soapText += `â€¢ Positive Findings: ${positiveFindings}\n`;
+      soapText += `• Positive Findings: ${positiveFindings}\n`;
     }
     
     soapText += `\nIndividual Items:\n`;
@@ -93,16 +93,16 @@ export default function ConleyScaleRunner({ client, onSave, onClose }) {
 
     let planText = "";
     if (scores.impaired_mobility) {
-      planText += "â€¢ Initiate lower limb strengthening, balance, and gait stability program\n";
+      planText += "• Initiate lower limb strengthening, balance, and gait stability program\n";
     }
     if (scores.confusion || scores.poor_judgment) {
-      planText += "â€¢ Implement supervision strategies and simplified instructions during exercise\n";
+      planText += "• Implement supervision strategies and simplified instructions during exercise\n";
     }
     if (scores.dizziness) {
-      planText += "â€¢ Screen for vestibular dysfunction and monitor orthostatic tolerance\n";
+      planText += "• Screen for vestibular dysfunction and monitor orthostatic tolerance\n";
     }
     if (scores.altered_elimination) {
-      planText += "â€¢ Incorporate toileting schedule and environmental safety modifications\n";
+      planText += "• Incorporate toileting schedule and environmental safety modifications\n";
     }
 
     const assessmentText = `${soapText}\n${planText}`;
@@ -175,7 +175,7 @@ export default function ConleyScaleRunner({ client, onSave, onClose }) {
                     <li>Completed through chart review and/or patient interview/observation</li>
                     <li>Takes approximately 2 minutes</li>
                     <li>Each item is a binary yes/no response (1 point per yes)</li>
-                    <li>Total score ranges 0â€“7</li>
+                    <li>Total score ranges 0–7</li>
                   </ul>
                 </div>
                 <div>
@@ -184,14 +184,14 @@ export default function ConleyScaleRunner({ client, onSave, onClose }) {
                     <div className="flex items-start gap-2">
                       <span className="inline-block w-3 h-3 rounded-full bg-green-500 mt-0.5 flex-shrink-0"></span>
                       <div>
-                        <strong className="text-green-900">0â€“1: Low Falls Risk</strong>
+                        <strong className="text-green-900">0–1: Low Falls Risk</strong>
                         <p className="text-slate-700">Routine fall prevention precautions</p>
                       </div>
                     </div>
                     <div className="flex items-start gap-2">
                       <span className="inline-block w-3 h-3 rounded-full bg-red-500 mt-0.5 flex-shrink-0"></span>
                       <div>
-                        <strong className="text-red-900">2â€“7: High Falls Risk</strong>
+                        <strong className="text-red-900">2–7: High Falls Risk</strong>
                         <p className="text-slate-700">Enhanced fall prevention strategies recommended</p>
                       </div>
                     </div>
@@ -199,7 +199,7 @@ export default function ConleyScaleRunner({ client, onSave, onClose }) {
                 </div>
                 <div>
                   <h4 className="font-semibold text-slate-800 mb-1">Reference</h4>
-                  <p className="text-xs text-slate-700">Conley D, Schultz AA, Selvin R. (1999). The challenge of predicting patients at risk for falling: Development of the Conley Scale. <em>Medsurg Nursing, 8</em>(6), 348â€“354.</p>
+                  <p className="text-xs text-slate-700">Conley D, Schultz AA, Selvin R. (1999). The challenge of predicting patients at risk for falling: Development of the Conley Scale. <em>Medsurg Nursing, 8</em>(6), 348–354.</p>
                 </div>
               </div>
             )}

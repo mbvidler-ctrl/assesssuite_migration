@@ -138,7 +138,7 @@ export default function KOOSRunner({ onSave, onClose }) {
 
     const averageScore = Object.values(sectionScores).reduce((a, b) => a + b, 0) / Object.keys(sectionScores).length;
 
-    const soapText = `â€¢ KOOS (Knee Injury and Osteoarthritis Outcome Score)\n  Average Score: ${averageScore.toFixed(1)}/100\n${Object.entries(sectionScores).map(([k, v]) => `  ${SECTIONS[k].name}: ${v}/100`).join('\n')}`;
+    const soapText = `• KOOS (Knee Injury and Osteoarthritis Outcome Score)\n  Average Score: ${averageScore.toFixed(1)}/100\n${Object.entries(sectionScores).map(([k, v]) => `  ${SECTIONS[k].name}: ${v}/100`).join('\n')}`;
     onSave({
       result_value: averageScore,
       additional_data: {
@@ -182,7 +182,7 @@ export default function KOOSRunner({ onSave, onClose }) {
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">
                 <p>This questionnaire assesses your views about your knee. Think about your knee symptoms and difficulties <strong>during the last week</strong>.</p>
-                <p>Answer each question based on your experience. There are no right or wrong answers â€” your honest responses help guide your treatment.</p>
+                <p>Answer each question based on your experience. There are no right or wrong answers — your honest responses help guide your treatment.</p>
               </CardContent>
             </Card>
 
@@ -191,7 +191,7 @@ export default function KOOSRunner({ onSave, onClose }) {
               className="w-full flex justify-between items-center px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg font-semibold text-amber-900 text-sm hover:bg-amber-100 transition-colors"
               onClick={() => setShowClinicianInfo(!showClinicianInfo)}
             >
-              <span className="flex items-center gap-2">ðŸ“‹ Clinician Instructions & Evidence</span>
+              <span className="flex items-center gap-2">📋 Clinician Instructions & Evidence</span>
               {showClinicianInfo ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
 
@@ -216,23 +216,23 @@ export default function KOOSRunner({ onSave, onClose }) {
                     <p className="font-semibold text-amber-900 mb-2">The 5 KOOS Domains & What They Measure</p>
                     <div className="bg-white p-3 rounded border border-amber-100 space-y-3">
                       <div>
-                        <p className="font-semibold text-amber-900 text-xs">ðŸ”´ <strong>Pain (9 items)</strong></p>
+                        <p className="font-semibold text-amber-900 text-xs">🔴 <strong>Pain (9 items)</strong></p>
                         <p className="text-amber-800 text-xs">Knee pain during specific activities (twisting, stairs, sport, etc.). Captures pain frequency and intensity across functional contexts. High pain scores often correlate with structural damage and/or inflammation.</p>
                       </div>
                       <div>
-                        <p className="font-semibold text-amber-900 text-xs">ðŸŸ  <strong>Symptoms (7 items)</strong></p>
+                        <p className="font-semibold text-amber-900 text-xs">🟠 <strong>Symptoms (7 items)</strong></p>
                         <p className="text-amber-800 text-xs">Stiffness (morning and after activity), swelling, crepitus, catching, and range of motion restrictions. Reflects synovial inflammation, cartilage damage, and mechanical dysfunction. Stiffness often improves first with treatment; catching may persist.</p>
                       </div>
                       <div>
-                        <p className="font-semibold text-amber-900 text-xs">ðŸŸ¡ <strong>Activities of Daily Living â€” ADL (17 items)</strong></p>
+                        <p className="font-semibold text-amber-900 text-xs">🟡 <strong>Activities of Daily Living — ADL (17 items)</strong></p>
                         <p className="text-amber-800 text-xs">The largest subscale; captures functional difficulty with stairs, walking, standing, bed mobility, dressing, bathing, and household tasks. Most sensitive to functional recovery post-injury or surgery. Often first area of improvement in rehabilitation.</p>
                       </div>
                       <div>
-                        <p className="font-semibold text-amber-900 text-xs">ðŸŸ¢ <strong>Sport & Recreation (5 items)</strong></p>
+                        <p className="font-semibold text-amber-900 text-xs">🟢 <strong>Sport & Recreation (5 items)</strong></p>
                         <p className="text-amber-800 text-xs">Higher-demand activities: running, jumping, squatting, kneeling, turning. Most sensitive to functional limitations and highest threshold for return. Often last domain to normalize post-injury. Critical for work/sport return decisions.</p>
                       </div>
                       <div>
-                        <p className="font-semibold text-amber-900 text-xs">ðŸ”µ <strong>Quality of Life â€” QoL (4 items)</strong></p>
+                        <p className="font-semibold text-amber-900 text-xs">🔵 <strong>Quality of Life — QoL (4 items)</strong></p>
                         <p className="text-amber-800 text-xs">Frequency of knee awareness, lifestyle modifications, lack of confidence, and overall difficulty perception. Psychosocial impact of knee problems; captures patient's subjective experience and fear-avoidance. Often remains impaired even after symptom improvement.</p>
                       </div>
                     </div>
@@ -241,10 +241,10 @@ export default function KOOSRunner({ onSave, onClose }) {
                   <div>
                     <p className="font-semibold text-amber-900 mb-2">Administration & Scoring Guidelines</p>
                     <ul className="text-amber-800 list-disc list-inside space-y-1 text-xs ml-2">
-                      <li><strong>Timeframe:</strong> Always refer to "<strong>the past 7 days</strong>" â€” not "usual" or "ever". This ensures consistency and sensitivity to short-term change.</li>
+                      <li><strong>Timeframe:</strong> Always refer to "<strong>the past 7 days</strong>" — not "usual" or "ever". This ensures consistency and sensitivity to short-term change.</li>
                       <li><strong>Response Scale:</strong> 5-point Likert (0=None, 1=Mild, 2=Moderate, 3=Severe, 4=Extreme). Do NOT use intermediate values (no 0.5 scores).</li>
-                      <li><strong>Scoring Formula:</strong> Raw score sum â†’ convert to 0-100 scale per subscale using: (Sum of item scores / max possible score Ã— 4) Ã— 100. Higher = better function.</li>
-                      <li><strong>Missing Data:</strong> If â‰¤2 items missing per subscale, impute using mean of completed items. If &gt;2 missing, subscale score invalid. Do NOT report overall average if subscales incomplete.</li>
+                      <li><strong>Scoring Formula:</strong> Raw score sum → convert to 0-100 scale per subscale using: (Sum of item scores / max possible score × 4) × 100. Higher = better function.</li>
+                      <li><strong>Missing Data:</strong> If ≤2 items missing per subscale, impute using mean of completed items. If &gt;2 missing, subscale score invalid. Do NOT report overall average if subscales incomplete.</li>
                       <li><strong>Completion Time:</strong> 5-8 minutes typical. May take longer if patient has cognitive impairment or low literacy.</li>
                       <li><strong>Language:</strong> Validate translation (ISOQOL standard). Do NOT use back-translated or informal translations in clinical practice.</li>
                     </ul>
@@ -253,11 +253,11 @@ export default function KOOSRunner({ onSave, onClose }) {
                   <div>
                     <p className="font-semibold text-amber-900 mb-2">Normative Data & Clinical Interpretation</p>
                     <div className="bg-white p-3 rounded border border-amber-100 space-y-2 text-xs">
-                      <p className="text-amber-800"><strong>Healthy controls (no knee disease):</strong> Mean â‰ˆ 85-95 across all subscales.</p>
+                      <p className="text-amber-800"><strong>Healthy controls (no knee disease):</strong> Mean ≈ 85-95 across all subscales.</p>
                       <p className="text-amber-800"><strong>Post-injury (acute, &lt;4 weeks post-op):</strong> Expect Pain 30-50, ADL 20-40, Sport 0-20 (severely limited).</p>
                       <p className="text-amber-800"><strong>Chronic/mild OA:</strong> Pain 50-70, ADL 60-80, Sport 30-50 (functional but with limitations).</p>
                       <p className="text-amber-800"><strong>Moderate-to-severe OA:</strong> Pain 30-50, ADL 30-60, Sport 0-30 (significant functional loss).</p>
-                      <p className="text-amber-800"><strong>Minimal Clinically Important Difference (MCID):</strong> â‰ˆ 8-10 points per subscale = meaningful change from patient's perspective.</p>
+                      <p className="text-amber-800"><strong>Minimal Clinically Important Difference (MCID):</strong> ≈ 8-10 points per subscale = meaningful change from patient's perspective.</p>
                     </div>
                   </div>
 
@@ -295,7 +295,7 @@ export default function KOOSRunner({ onSave, onClose }) {
                   <div>
                     <p className="font-semibold text-amber-900 mb-2">Strengths & Limitations</p>
                     <div className="bg-white p-3 rounded border border-amber-100 space-y-2 text-xs">
-                      <p className="text-amber-800"><strong>âœ… Strengths:</strong> Multi-dimensional (5 domains), validated, responsive to change, brief, free, available in 30+ languages, widely accepted in research/clinical guidelines.</p>
+                      <p className="text-amber-800"><strong>✅ Strengths:</strong> Multi-dimensional (5 domains), validated, responsive to change, brief, free, available in 30+ languages, widely accepted in research/clinical guidelines.</p>
                       <p className="text-amber-800"><strong>âŒ Limitations:</strong> Patient-reported (subjective); does NOT measure ROM, strength, or clinical signs; can be influenced by mood/expectation; requires adequate literacy; may not be sensitive to very early or very late stages of recovery.</p>
                     </div>
                   </div>
@@ -316,30 +316,30 @@ export default function KOOSRunner({ onSave, onClose }) {
                   </div>
 
                   <div>
-                    <p className="font-semibold text-amber-900 mb-3">ðŸ“š Evidence Base & Key References</p>
+                    <p className="font-semibold text-amber-900 mb-3">📚 Evidence Base & Key References</p>
                     <div className="bg-white p-4 rounded border border-amber-100 space-y-3 text-xs">
                       <div className="border-b border-amber-50 pb-3">
                         <p className="font-bold text-amber-900">Primary Development & Validation</p>
                         <ul className="text-amber-800 space-y-2 ml-3 mt-2">
-                          <li>ðŸ”— <strong>Original KOOS Paper:</strong> Roos EM, Klassbo M, Lohmander LS. (1999). "KOOS: a knee-specific outcome assessment tool." <em>Arthritis Care & Research, 12</em>(5), 331-335. doi:10.1002/1529-0131</li>
-                          <li>ðŸ”— <strong>ACL Validation Study:</strong> Roos EM, Lohmander LS. (2003). "KOOS is valid and responsive in evaluating the outcome of treatment for knee ligament injuries." <em>Journal of Clinical Epidemiology, 56</em>(6), 588-594.</li>
-                          <li>ðŸ”— <strong>OA Validation (vs WOMAC):</strong> Roos EM, Toksvig-Larsen S. (2003). "Knee injury and Osteoarthritis Outcome Score (KOOS) - validation and comparison to the WOMAC." <em>Health and Quality of Life Outcomes, 1</em>, 17.</li>
+                          <li>🔗 <strong>Original KOOS Paper:</strong> Roos EM, Klassbo M, Lohmander LS. (1999). "KOOS: a knee-specific outcome assessment tool." <em>Arthritis Care & Research, 12</em>(5), 331-335. doi:10.1002/1529-0131</li>
+                          <li>🔗 <strong>ACL Validation Study:</strong> Roos EM, Lohmander LS. (2003). "KOOS is valid and responsive in evaluating the outcome of treatment for knee ligament injuries." <em>Journal of Clinical Epidemiology, 56</em>(6), 588-594.</li>
+                          <li>🔗 <strong>OA Validation (vs WOMAC):</strong> Roos EM, Toksvig-Larsen S. (2003). "Knee injury and Osteoarthritis Outcome Score (KOOS) - validation and comparison to the WOMAC." <em>Health and Quality of Life Outcomes, 1</em>, 17.</li>
                         </ul>
                       </div>
 
                       <div className="border-b border-amber-50 pb-3">
                         <p className="font-bold text-amber-900">Return-to-Sport Evidence</p>
                         <ul className="text-amber-800 space-y-2 ml-3 mt-2">
-                          <li>ðŸ”— <strong>Barber-Westin & Noyes (2011):</strong> "Factors used to determine return to unrestricted sports activities after ACL reconstruction." <em>Sports Medicine, 41</em>(12), 987-1007.</li>
-                          <li>ðŸ”— <strong>ACL International Summit (2016):</strong> Consensus recommendations for return-to-sport decision-making post-ACL reconstruction (recommend KOOS Sport subscale &gt;56).</li>
+                          <li>🔗 <strong>Barber-Westin & Noyes (2011):</strong> "Factors used to determine return to unrestricted sports activities after ACL reconstruction." <em>Sports Medicine, 41</em>(12), 987-1007.</li>
+                          <li>🔗 <strong>ACL International Summit (2016):</strong> Consensus recommendations for return-to-sport decision-making post-ACL reconstruction (recommend KOOS Sport subscale &gt;56).</li>
                         </ul>
                       </div>
 
                       <div className="border-b border-amber-50 pb-3">
                         <p className="font-bold text-amber-900">Australian Clinical Guidelines</p>
                         <ul className="text-amber-800 space-y-2 ml-3 mt-2">
-                          <li>ðŸ“‹ <strong>RACGP Red Book:</strong> General Practice Management of Knee Osteoarthritis â€” recommends KOOS for baseline and monitoring.</li>
-                          <li>ðŸ“‹ <strong>ESSA Guidelines:</strong> Exercise and Sports Science Australia â€” recommend KOOS for musculoskeletal outcome tracking.</li>
+                          <li>📋 <strong>RACGP Red Book:</strong> General Practice Management of Knee Osteoarthritis — recommends KOOS for baseline and monitoring.</li>
+                          <li>📋 <strong>ESSA Guidelines:</strong> Exercise and Sports Science Australia — recommend KOOS for musculoskeletal outcome tracking.</li>
                         </ul>
                       </div>
 
@@ -353,7 +353,7 @@ export default function KOOSRunner({ onSave, onClose }) {
                             className="text-xs h-8 w-full justify-start"
                           >
                             <ExternalLink className="w-3 h-3 mr-2" />
-                            Official KOOS Website â€” Scoring, Normatives, Translations
+                            Official KOOS Website — Scoring, Normatives, Translations
                           </Button>
                         </div>
                       </div>

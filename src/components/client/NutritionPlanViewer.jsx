@@ -128,7 +128,7 @@ export default function NutritionPlanViewer({ isOpen, onClose, client, onCreateN
                             )}
                           </div>
                           <div className="text-sm text-slate-600 mt-1">
-                            Goal: {goalLabels[plan.weight_goal]} â€¢ {plan.current_weight_kg}kg
+                            Goal: {goalLabels[plan.weight_goal]} • {plan.current_weight_kg}kg
                           </div>
                         </div>
                         <div className="text-right">

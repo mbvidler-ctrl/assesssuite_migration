@@ -8,13 +8,13 @@ import { base44 } from "@/api/base44Client";
 import { saveAssessmentToSOAP } from "./TestRunnerSOAPHelper";
 
 const SCORE_LEVELS = [
-  { value: 7, label: "7 â€“ Complete Independence", description: "Activity performed safely, without modification, equipment, or assistance, within reasonable time." },
-  { value: 6, label: "6 â€“ Modified Independence", description: "Requires an assistive device, takes more than reasonable time, or there are safety considerations." },
-  { value: 5, label: "5 â€“ Supervision/Setup", description: "Requires only standby supervision, cueing, or coaxing. No hands-on assistance. Helper sets up objects." },
-  { value: 4, label: "4 â€“ Minimal Assistance", description: "Helper provides hands-on assistance only (touching); person performs â‰¥75% of task effort." },
-  { value: 3, label: "3 â€“ Moderate Assistance", description: "Person performs 50â€“74% of task effort." },
-  { value: 2, label: "2 â€“ Maximal Assistance", description: "Person performs 25â€“49% of task effort." },
-  { value: 1, label: "1 â€“ Total Assistance", description: "Person performs <25% of task effort or activity cannot be done." },
+  { value: 7, label: "7 – Complete Independence", description: "Activity performed safely, without modification, equipment, or assistance, within reasonable time." },
+  { value: 6, label: "6 – Modified Independence", description: "Requires an assistive device, takes more than reasonable time, or there are safety considerations." },
+  { value: 5, label: "5 – Supervision/Setup", description: "Requires only standby supervision, cueing, or coaxing. No hands-on assistance. Helper sets up objects." },
+  { value: 4, label: "4 – Minimal Assistance", description: "Helper provides hands-on assistance only (touching); person performs ≥75% of task effort." },
+  { value: 3, label: "3 – Moderate Assistance", description: "Person performs 50–74% of task effort." },
+  { value: 2, label: "2 – Maximal Assistance", description: "Person performs 25–49% of task effort." },
+  { value: 1, label: "1 – Total Assistance", description: "Person performs <25% of task effort or activity cannot be done." },
 ];
 
 const FIM_SECTIONS = [
@@ -25,8 +25,8 @@ const FIM_SECTIONS = [
       { id: 0, label: "Eating", description: "Use of suitable utensils to bring food to mouth, chewing and swallowing." },
       { id: 1, label: "Grooming", description: "Oral care, hair combing, washing hands/face, shaving or makeup." },
       { id: 2, label: "Bathing", description: "Washing, rinsing, and drying the body from the neck down (excluding back)." },
-      { id: 3, label: "Dressing â€“ Upper Body", description: "Dressing and undressing above the waist, including prostheses or orthoses." },
-      { id: 4, label: "Dressing â€“ Lower Body", description: "Dressing and undressing below the waist, including prostheses or orthoses." },
+      { id: 3, label: "Dressing – Upper Body", description: "Dressing and undressing above the waist, including prostheses or orthoses." },
+      { id: 4, label: "Dressing – Lower Body", description: "Dressing and undressing below the waist, including prostheses or orthoses." },
       { id: 5, label: "Toileting", description: "Maintaining perineal hygiene and adjusting clothing before/after using toilet." },
     ],
   },
@@ -52,7 +52,7 @@ const FIM_SECTIONS = [
     subscale: "motor",
     items: [
       { id: 11, label: "Walk / Wheelchair", description: "Walking on level surfaces, or propelling a wheelchair indoors for at least 50m." },
-      { id: 12, label: "Stairs", description: "Going up and down 12â€“14 stairs." },
+      { id: 12, label: "Stairs", description: "Going up and down 12–14 stairs." },
     ],
   },
   {
@@ -191,7 +191,7 @@ export default function FunctionalIndependenceMeasureFIMRunner({ client, assessm
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center z-10">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Functional Independence Measure (FIM)</h2>
-            <p className="text-sm text-blue-600 mt-0.5">Rate each item 1â€“7: 1 = total assistance â†’ 7 = complete independence</p>
+            <p className="text-sm text-blue-600 mt-0.5">Rate each item 1–7: 1 = total assistance → 7 = complete independence</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
@@ -242,34 +242,34 @@ export default function FunctionalIndependenceMeasureFIMRunner({ client, assessm
                 </div>
 
                 <div>
-                  <p className="font-semibold text-slate-800 mb-1">Scoring Guide (1â€“7)</p>
+                  <p className="font-semibold text-slate-800 mb-1">Scoring Guide (1–7)</p>
                   <div className="space-y-1 text-xs">
-                    <div className="flex gap-2 bg-red-50 px-3 py-1.5 rounded"><span className="font-bold text-red-700 w-4">1</span><span className="text-red-800">Total Assistance â€” &lt;25% task effort by patient</span></div>
-                    <div className="flex gap-2 bg-orange-50 px-3 py-1.5 rounded"><span className="font-bold text-orange-700 w-4">2</span><span className="text-orange-800">Maximal Assistance â€” 25â€“49% task effort</span></div>
-                    <div className="flex gap-2 bg-amber-50 px-3 py-1.5 rounded"><span className="font-bold text-amber-700 w-4">3</span><span className="text-amber-800">Moderate Assistance â€” 50â€“74% task effort</span></div>
-                    <div className="flex gap-2 bg-yellow-50 px-3 py-1.5 rounded"><span className="font-bold text-yellow-700 w-4">4</span><span className="text-yellow-800">Minimal Assistance â€” â‰¥75% task effort; helper touches only</span></div>
-                    <div className="flex gap-2 bg-lime-50 px-3 py-1.5 rounded"><span className="font-bold text-lime-700 w-4">5</span><span className="text-lime-800">Supervision/Setup â€” standby assist, cueing, or setup only</span></div>
-                    <div className="flex gap-2 bg-teal-50 px-3 py-1.5 rounded"><span className="font-bold text-teal-700 w-4">6</span><span className="text-teal-800">Modified Independence â€” assistive device, extra time, or safety concern</span></div>
-                    <div className="flex gap-2 bg-green-50 px-3 py-1.5 rounded"><span className="font-bold text-green-700 w-4">7</span><span className="text-green-800">Complete Independence â€” safe, timely, no device or assistance</span></div>
+                    <div className="flex gap-2 bg-red-50 px-3 py-1.5 rounded"><span className="font-bold text-red-700 w-4">1</span><span className="text-red-800">Total Assistance — &lt;25% task effort by patient</span></div>
+                    <div className="flex gap-2 bg-orange-50 px-3 py-1.5 rounded"><span className="font-bold text-orange-700 w-4">2</span><span className="text-orange-800">Maximal Assistance — 25–49% task effort</span></div>
+                    <div className="flex gap-2 bg-amber-50 px-3 py-1.5 rounded"><span className="font-bold text-amber-700 w-4">3</span><span className="text-amber-800">Moderate Assistance — 50–74% task effort</span></div>
+                    <div className="flex gap-2 bg-yellow-50 px-3 py-1.5 rounded"><span className="font-bold text-yellow-700 w-4">4</span><span className="text-yellow-800">Minimal Assistance — ≥75% task effort; helper touches only</span></div>
+                    <div className="flex gap-2 bg-lime-50 px-3 py-1.5 rounded"><span className="font-bold text-lime-700 w-4">5</span><span className="text-lime-800">Supervision/Setup — standby assist, cueing, or setup only</span></div>
+                    <div className="flex gap-2 bg-teal-50 px-3 py-1.5 rounded"><span className="font-bold text-teal-700 w-4">6</span><span className="text-teal-800">Modified Independence — assistive device, extra time, or safety concern</span></div>
+                    <div className="flex gap-2 bg-green-50 px-3 py-1.5 rounded"><span className="font-bold text-green-700 w-4">7</span><span className="text-green-800">Complete Independence — safe, timely, no device or assistance</span></div>
                   </div>
                 </div>
 
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Total Score Interpretation (max 126)</p>
                   <div className="space-y-1 text-xs">
-                    <div className="flex justify-between bg-green-50 px-3 py-1.5 rounded"><span className="font-medium text-green-800">96â€“126</span><span className="text-green-700">Mild disability â€” minimal or no assistance needed</span></div>
-                    <div className="flex justify-between bg-yellow-50 px-3 py-1.5 rounded"><span className="font-medium text-yellow-800">73â€“95</span><span className="text-yellow-700">Moderate disability â€” some assistance required</span></div>
-                    <div className="flex justify-between bg-orange-50 px-3 py-1.5 rounded"><span className="font-medium text-orange-800">36â€“72</span><span className="text-orange-700">Severe disability â€” substantial assistance required</span></div>
-                    <div className="flex justify-between bg-red-50 px-3 py-1.5 rounded"><span className="font-medium text-red-800">18â€“35</span><span className="text-red-700">Total dependence â€” complete assistance required</span></div>
+                    <div className="flex justify-between bg-green-50 px-3 py-1.5 rounded"><span className="font-medium text-green-800">96–126</span><span className="text-green-700">Mild disability — minimal or no assistance needed</span></div>
+                    <div className="flex justify-between bg-yellow-50 px-3 py-1.5 rounded"><span className="font-medium text-yellow-800">73–95</span><span className="text-yellow-700">Moderate disability — some assistance required</span></div>
+                    <div className="flex justify-between bg-orange-50 px-3 py-1.5 rounded"><span className="font-medium text-orange-800">36–72</span><span className="text-orange-700">Severe disability — substantial assistance required</span></div>
+                    <div className="flex justify-between bg-red-50 px-3 py-1.5 rounded"><span className="font-medium text-red-800">18–35</span><span className="text-red-700">Total dependence — complete assistance required</span></div>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">MCID: 17â€“22 points (total); 13â€“17 points (motor subscale).</p>
+                  <p className="text-xs text-slate-400 mt-1">MCID: 17–22 points (total); 13–17 points (motor subscale).</p>
                 </div>
 
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Psychometric Properties</p>
                   <ul className="text-xs text-slate-600 list-disc list-inside space-y-0.5">
-                    <li>Excellent inter-rater reliability (ICC = 0.95â€“0.99)</li>
-                    <li>Excellent internal consistency (Cronbach Î± = 0.93â€“0.95)</li>
+                    <li>Excellent inter-rater reliability (ICC = 0.95–0.99)</li>
+                    <li>Excellent internal consistency (Cronbach α = 0.93–0.95)</li>
                     <li>Strong predictive validity for discharge destination and length of stay</li>
                     <li>Rasch-validated; motor and cognitive subscales function as distinct constructs</li>
                   </ul>
@@ -278,12 +278,12 @@ export default function FunctionalIndependenceMeasureFIMRunner({ client, assessm
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Key References</p>
                   <div className="text-xs text-slate-600 space-y-1.5">
-                    <p><strong>Granger CV, Hamilton BB, Keith RA, Zielezny M, Sherwin FS.</strong> (1986). Advances in functional assessment for medical rehabilitation. <em>Topics in Geriatric Rehabilitation</em>, 1(3), 59â€“74.</p>
-                    <p><strong>Linacre JM, Heinemann AW, Wright BD, Granger CV, Hamilton BB.</strong> (1994). The structure and stability of the Functional Independence Measure. <em>Archives of Physical Medicine and Rehabilitation</em>, 75(2), 127â€“132.</p>
-                    <p><strong>Stineman MG et al.</strong> (1996). The Functional Independence Measure: tests of scaling assumptions, structure, and reliability across 20 diverse impairment categories. <em>Archives of Physical Medicine and Rehabilitation</em>, 77(11), 1101â€“1108.</p>
+                    <p><strong>Granger CV, Hamilton BB, Keith RA, Zielezny M, Sherwin FS.</strong> (1986). Advances in functional assessment for medical rehabilitation. <em>Topics in Geriatric Rehabilitation</em>, 1(3), 59–74.</p>
+                    <p><strong>Linacre JM, Heinemann AW, Wright BD, Granger CV, Hamilton BB.</strong> (1994). The structure and stability of the Functional Independence Measure. <em>Archives of Physical Medicine and Rehabilitation</em>, 75(2), 127–132.</p>
+                    <p><strong>Stineman MG et al.</strong> (1996). The Functional Independence Measure: tests of scaling assumptions, structure, and reliability across 20 diverse impairment categories. <em>Archives of Physical Medicine and Rehabilitation</em>, 77(11), 1101–1108.</p>
                   </div>
                   <button onClick={() => window.open('https://www.sralab.org/rehabilitation-measures/functional-independence-measure', '_blank')} className="mt-2 flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium">
-                    <ExternalLink className="w-3 h-3" /> Rehab Measures Database â€” FIM
+                    <ExternalLink className="w-3 h-3" /> Rehab Measures Database — FIM
                   </button>
                 </div>
               </div>
@@ -310,7 +310,7 @@ export default function FunctionalIndependenceMeasureFIMRunner({ client, assessm
                           <span className="font-medium text-slate-800 text-sm">{item.label}</span>
                         </div>
                         <span className={`text-sm font-semibold px-2 py-0.5 rounded-full border ${score !== null ? 'bg-white border-blue-300 text-blue-700' : 'bg-white border-slate-200 text-slate-400'}`}>
-                          {score !== null ? `${score}/7` : 'â€“'}
+                          {score !== null ? `${score}/7` : '–'}
                         </span>
                       </button>
 

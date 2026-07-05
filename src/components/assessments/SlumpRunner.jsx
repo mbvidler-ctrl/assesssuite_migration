@@ -85,7 +85,7 @@ export default function SlumpRunner({ onSave, onClose }) {
     const leftInterp = getInterpretation(leftData);
     const rightInterp = getInterpretation(rightData);
 
-    let soapText = `â€¢ Slump Test:\n`;
+    let soapText = `• Slump Test:\n`;
     soapText += formatSideSlump('Left', leftData, leftInterp);
     soapText += formatSideSlump('Right', rightData, rightInterp);
     if (notes) soapText += `  Clinical Notes: ${notes}\n`;
@@ -132,20 +132,20 @@ export default function SlumpRunner({ onSave, onClose }) {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Info className="w-5 h-5 text-blue-600" />
-                  ðŸ“‹ Test Protocol & Administration
+                  📋 Test Protocol & Administration
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">
-                <p><strong>Sequence:</strong> 1) Slump spine (thoracic/lumbar flexion) â†’ 2) Flex neck/chin tuck â†’ 3) Extend knee â†’ 4) Dorsiflex ankle (passive).</p>
-                <p><strong>Sensitisation:</strong> If symptoms produced, apply structural differentiation. Extend neck (releases meninges) â€” if symptoms decrease, neural involvement confirmed. Or plantarflex ankle â€” if symptoms decrease, confirms neurodynamic test.</p>
-                <p className="italic">"Let your back slump forwardâ€¦ now tuck your chin to your chestâ€¦ now straighten your legâ€¦ now point your toes up."</p>
+                <p><strong>Sequence:</strong> 1) Slump spine (thoracic/lumbar flexion) → 2) Flex neck/chin tuck → 3) Extend knee → 4) Dorsiflex ankle (passive).</p>
+                <p><strong>Sensitisation:</strong> If symptoms produced, apply structural differentiation. Extend neck (releases meninges) — if symptoms decrease, neural involvement confirmed. Or plantarflex ankle — if symptoms decrease, confirms neurodynamic test.</p>
+                <p className="italic">"Let your back slump forward… now tuck your chin to your chest… now straighten your leg… now point your toes up."</p>
                 <p><strong>Positive:</strong> Familiar distal symptoms (below knee ideally) that <strong>decrease with neck extension or ankle plantarflexion</strong>.</p>
               </CardContent>
             </Card>
 
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Diagnostic Accuracy</p>
+              <p className="font-semibold text-slate-700">📊 Diagnostic Accuracy</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Metric</th><th className="p-2 text-center">Value</th></tr></thead>
@@ -155,14 +155,14 @@ export default function SlumpRunner({ onSave, onClose }) {
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-slate-500">Useful for neurodynamic assessment of lumbar nerve roots, especially L3â€“S2. Structural differentiation is essential for valid interpretation. Source: Philip et al. (1989).</p>
+              <p className="text-xs text-slate-500">Useful for neurodynamic assessment of lumbar nerve roots, especially L3–S2. Structural differentiation is essential for valid interpretation. Source: Philip et al. (1989).</p>
             </div>
 
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>Maitland GD. (1979). Negative disc exploration: positive canal signs. <em>Australian Journal of Physiotherapy, 25</em>(3), 129â€“134.</p>
-              <p>Philip K, Lew P, & Matyas TA. (1989). The inter-therapist reliability of the slump test. <em>Australian Journal of Physiotherapy, 35</em>(2), 89â€“94.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Maitland GD. (1979). Negative disc exploration: positive canal signs. <em>Australian Journal of Physiotherapy, 25</em>(3), 129–134.</p>
+              <p>Philip K, Lew P, & Matyas TA. (1989). The inter-therapist reliability of the slump test. <em>Australian Journal of Physiotherapy, 35</em>(2), 89–94.</p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">

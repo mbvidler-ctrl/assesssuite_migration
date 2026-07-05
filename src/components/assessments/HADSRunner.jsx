@@ -69,9 +69,9 @@ export default function HADSRunner({ onSave, onClose }) {
     });
 
     soapText += `\nSubscale Scores:\n`;
-    soapText += `  â€¢ Anxiety: ${anxiety}/21 - ${anxietyInterp.level}\n`;
-    soapText += `  â€¢ Depression: ${depression}/21 - ${depressionInterp.level}\n`;
-    soapText += `  â€¢ Total HADS Score: ${anxiety + depression}/42\n`;
+    soapText += `  • Anxiety: ${anxiety}/21 - ${anxietyInterp.level}\n`;
+    soapText += `  • Depression: ${depression}/21 - ${depressionInterp.level}\n`;
+    soapText += `  • Total HADS Score: ${anxiety + depression}/42\n`;
 
     if (notes && notes.trim()) {
       soapText += `\nClinical Notes: ${notes}\n`;
@@ -124,10 +124,10 @@ export default function HADSRunner({ onSave, onClose }) {
 
             <Card className="bg-amber-50 border-amber-200">
               <CardHeader>
-                <CardTitle className="text-sm text-amber-800">âš ï¸ Clinical Considerations</CardTitle>
+                <CardTitle className="text-sm text-amber-800">⚠ï¸ Clinical Considerations</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-amber-800">
-                <p>Scores â‰¥11 indicate probable presence of mood disorder. Recommend referral to GP or mental health professional for further assessment. High scores may affect exercise tolerance, motivation, and safety.</p>
+                <p>Scores ≥11 indicate probable presence of mood disorder. Recommend referral to GP or mental health professional for further assessment. High scores may affect exercise tolerance, motivation, and safety.</p>
               </CardContent>
             </Card>
 

@@ -299,7 +299,7 @@ export default function ClientProfile() {
                     {client.full_name}
                   </h1>
                   <p className="text-slate-600">
-                    Age {getAge(client.date_of_birth)} â€¢ Client Profile
+                    Age {getAge(client.date_of_birth)} • Client Profile
                   </p>
                 </div>
               </div>

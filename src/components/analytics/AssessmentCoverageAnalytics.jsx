@@ -24,7 +24,7 @@ export default function AssessmentCoverageAnalytics({ clients, clientAssessments
 
   // Assessments used per condition (top conditions)
   const conditionAssessmentMap = useMemo(() => {
-    // Map client â†’ conditions
+    // Map client → conditions
     const clientConditions = {};
     conditions.forEach(c => {
       if (!clientConditions[c.client_id]) clientConditions[c.client_id] = [];
@@ -115,7 +115,7 @@ export default function AssessmentCoverageAnalytics({ clients, clientAssessments
                       {sorted.map(([name, count]) => (
                         <div key={name} className="flex justify-between text-xs text-slate-600">
                           <span className="truncate max-w-xs">{name}</span>
-                          <span className="font-semibold ml-2">{count}Ã—</span>
+                          <span className="font-semibold ml-2">{count}×</span>
                         </div>
                       ))}
                     </div>

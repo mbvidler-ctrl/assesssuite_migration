@@ -50,11 +50,11 @@ const SECTIONS = [
 ];
 
 function getInterpretation(pct) {
-  if (pct <= 20) return { label: "Minimal Disability (0â€“20%)", desc: "Patient can manage most ADL. No treatment needed other than advice.", color: "bg-green-100 text-green-800 border-green-300" };
-  if (pct <= 40) return { label: "Moderate Disability (21â€“40%)", desc: "Patient experiences more pain and difficulty. Conservative treatment recommended.", color: "bg-yellow-100 text-yellow-800 border-yellow-300" };
-  if (pct <= 60) return { label: "Severe Disability (41â€“60%)", desc: "Pain impacts daily function significantly. Detailed investigation required.", color: "bg-orange-100 text-orange-800 border-orange-300" };
-  if (pct <= 80) return { label: "Crippled (61â€“80%)", desc: "Back pain significantly impairs all aspects of function. Active intervention required.", color: "bg-red-100 text-red-800 border-red-300" };
-  return { label: "Bed Bound / Exaggerating (81â€“100%)", desc: "Patient is bed-bound or symptoms are exaggerated. Evaluate carefully.", color: "bg-red-200 text-red-900 border-red-400" };
+  if (pct <= 20) return { label: "Minimal Disability (0–20%)", desc: "Patient can manage most ADL. No treatment needed other than advice.", color: "bg-green-100 text-green-800 border-green-300" };
+  if (pct <= 40) return { label: "Moderate Disability (21–40%)", desc: "Patient experiences more pain and difficulty. Conservative treatment recommended.", color: "bg-yellow-100 text-yellow-800 border-yellow-300" };
+  if (pct <= 60) return { label: "Severe Disability (41–60%)", desc: "Pain impacts daily function significantly. Detailed investigation required.", color: "bg-orange-100 text-orange-800 border-orange-300" };
+  if (pct <= 80) return { label: "Crippled (61–80%)", desc: "Back pain significantly impairs all aspects of function. Active intervention required.", color: "bg-red-100 text-red-800 border-red-300" };
+  return { label: "Bed Bound / Exaggerating (81–100%)", desc: "Patient is bed-bound or symptoms are exaggerated. Evaluate carefully.", color: "bg-red-200 text-red-900 border-red-400" };
 }
 
 export default function OswestryDisabilityIndexODIRunner({ client, onSave, onClose }) {
@@ -70,7 +70,7 @@ export default function OswestryDisabilityIndexODIRunner({ client, onSave, onClo
   const handleSave = () => {
     if (!allAnswered) { toast.error("Please answer all 10 sections"); return; }
     const lines = SECTIONS.map(s => `  ${s.label}: ${responses[s.id]}/5`).join("\n");
-    const soap = `â€¢ Oswestry Disability Index (ODI)\n  Score: ${rawScore}/50 (${percentage}%) â€” ${interp.label}\n  ${interp.desc}\n\n  Section Scores:\n${lines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  MCID: 10â€“12.8 percentage points\n  Reference: Fairbank JC et al. (1980). The Oswestry low back pain disability questionnaire. Physiotherapy, 66(8):271-3.`;
+    const soap = `• Oswestry Disability Index (ODI)\n  Score: ${rawScore}/50 (${percentage}%) — ${interp.label}\n  ${interp.desc}\n\n  Section Scores:\n${lines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  MCID: 10–12.8 percentage points\n  Reference: Fairbank JC et al. (1980). The Oswestry low back pain disability questionnaire. Physiotherapy, 66(8):271-3.`;
     onSave({ status: "completed", result_value: parseFloat(percentage), notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", raw_score: rawScore, percentage: parseFloat(percentage), section_scores: responses, disability_level: interp.label } });
     toast.success("ODI saved.");
   };
@@ -79,7 +79,7 @@ export default function OswestryDisabilityIndexODIRunner({ client, onSave, onClo
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-w-3xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="sticky top-0 bg-white z-10 p-5 border-b flex justify-between items-start">
-          <div><h2 className="text-2xl font-bold text-slate-900">Oswestry Disability Index (ODI)</h2><p className="text-slate-500 text-sm mt-0.5">Low back pain disability â€” 10 sections</p></div>
+          <div><h2 className="text-2xl font-bold text-slate-900">Oswestry Disability Index (ODI)</h2><p className="text-slate-500 text-sm mt-0.5">Low back pain disability — 10 sections</p></div>
           <div className="flex items-center gap-3">
             {percentage && <div className={`px-3 py-1 rounded-full text-sm font-semibold border ${interp.color}`}>{percentage}%</div>}
             <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>

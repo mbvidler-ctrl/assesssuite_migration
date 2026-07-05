@@ -42,7 +42,7 @@ export default function CTSIBRunner({ onSave, onClose, initialData }) {
       return score ? `  - ${condition.name}: ${score}s` : `  - ${condition.name}: Not tested`;
     }).join('\n');
 
-    const soapText = `â€¢ Clinical Test of Sensory Interaction in Balance (CTSIB):\n${scoresText}${observations ? `\n\n  Observations: ${observations}` : ''}`;
+    const soapText = `• Clinical Test of Sensory Interaction in Balance (CTSIB):\n${scoresText}${observations ? `\n\n  Observations: ${observations}` : ''}`;
 
     // Use the shortest recorded time as result_value for display
     const times = Object.values(scores).map(Number);
@@ -67,7 +67,7 @@ export default function CTSIBRunner({ onSave, onClose, initialData }) {
         <CardHeader className="flex flex-row items-start justify-between space-y-0">
           <div>
             <CardTitle className="text-xl font-bold">Clinical Test of Sensory Interaction in Balance (CTSIB)</CardTitle>
-            <p className="text-sm text-slate-600 mt-1">Test 4 conditions: firm/foam surface Ã— eyes open/closed</p>
+            <p className="text-sm text-slate-600 mt-1">Test 4 conditions: firm/foam surface × eyes open/closed</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X className="w-4 h-4" />
@@ -77,23 +77,23 @@ export default function CTSIBRunner({ onSave, onClose, initialData }) {
         <CardContent className="space-y-6">
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
-            <p>Shumway-Cook A & Horak FB. (1986). Assessing the influence of sensory interaction on balance. <em>Physical Therapy, 66</em>(10), 1548â€“1550.</p>
-            <p>Broglio SP et al. (2009). The sensitivity of concussion assessment measures. <em>Journal of Athletic Training, 44</em>(1), 3â€“9.</p>
+            <p className="font-semibold">📖 Reference</p>
+            <p>Shumway-Cook A & Horak FB. (1986). Assessing the influence of sensory interaction on balance. <em>Physical Therapy, 66</em>(10), 1548–1550.</p>
+            <p>Broglio SP et al. (2009). The sensitivity of concussion assessment measures. <em>Journal of Athletic Training, 44</em>(1), 3–9.</p>
           </div>
 
           {/* Clinician Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-1">
-            <p className="font-semibold">ðŸ“‹ Administration Instructions</p>
+            <p className="font-semibold">📋 Administration Instructions</p>
             <p><strong>Position:</strong> Feet together, arms at sides (or on hips). Time each condition for up to 30 seconds. Record actual time if loss of balance before 30 s.</p>
             <p className="italic">"Stand as still as possible with feet together and arms at your sides. Close your eyes when I say so."</p>
-            <p><strong>Progression:</strong> Conditions 1â†’2â†’3â†’4 (firm EO â†’ firm EC â†’ foam EO â†’ foam EC). Rest between conditions as needed.</p>
+            <p><strong>Progression:</strong> Conditions 1→2→3→4 (firm EO → firm EC → foam EO → foam EC). Rest between conditions as needed.</p>
             <p><strong>Stop criteria:</strong> Both feet move, arms used for balance, eyes open (EC conditions), or near-fall.</p>
           </div>
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Expected Performance</p>
+            <p className="font-semibold text-slate-700">📊 Expected Performance</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Condition</th><th className="p-2 text-center">Healthy Adults</th><th className="p-2 text-center">Significance if Impaired</th></tr></thead>
@@ -101,7 +101,7 @@ export default function CTSIBRunner({ onSave, onClose, initialData }) {
                   <tr className="border-t"><td className="p-2">Firm, Eyes Open</td><td className="p-2 text-center">30 s</td><td className="p-2">Gross sensorimotor deficit</td></tr>
                   <tr className="border-t bg-white"><td className="p-2">Firm, Eyes Closed</td><td className="p-2 text-center">30 s</td><td className="p-2">Vestibular/proprioceptive deficit</td></tr>
                   <tr className="border-t"><td className="p-2">Foam, Eyes Open</td><td className="p-2 text-center">30 s</td><td className="p-2">Proprioceptive impairment</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">Foam, Eyes Closed</td><td className="p-2 text-center">20â€“30 s</td><td className="p-2">Vestibular dysfunction</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">Foam, Eyes Closed</td><td className="p-2 text-center">20–30 s</td><td className="p-2">Vestibular dysfunction</td></tr>
                 </tbody>
               </table>
             </div>
@@ -144,7 +144,7 @@ export default function CTSIBRunner({ onSave, onClose, initialData }) {
               </div>
             </div>
             {timerSeconds >= 30 && (
-              <p className="mt-2 text-green-600 font-semibold">âœ“ 30 seconds reached!</p>
+              <p className="mt-2 text-green-600 font-semibold">✓ 30 seconds reached!</p>
             )}
           </div>
 

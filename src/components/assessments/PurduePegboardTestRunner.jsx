@@ -153,7 +153,7 @@ export default function PurduePegboardTestRunner({ client, onSave, onClose }) {
     }
 
     const soapLines = [
-      `â€¢ Purdue Pegboard Test`,
+      `• Purdue Pegboard Test`,
       `  Assessment Date: ${assessmentDate}`,
       `  Client Age: ${clientAge} years (${ageGroup})`,
       `  Client Sex: ${clientSex}`,
@@ -264,7 +264,7 @@ export default function PurduePegboardTestRunner({ client, onSave, onClose }) {
                       className="flex items-center gap-2 text-blue-600 hover:underline text-sm"
                     >
                       <ExternalLink className="w-4 h-4" />
-                      Australian Medical Supply â€“ Purdue Pegboard
+                      Australian Medical Supply – Purdue Pegboard
                     </a>
                   </div>
                   <div>
@@ -289,7 +289,7 @@ export default function PurduePegboardTestRunner({ client, onSave, onClose }) {
                         className="flex items-center gap-2 text-blue-600 hover:underline text-sm"
                       >
                         <BookOpen className="w-4 h-4" />
-                        Lafayette Instruments â€“ Quick Start Guide
+                        Lafayette Instruments – Quick Start Guide
                       </a>
                       <a
                         href="https://www.limef.com/downloads/MAN-32020A-forpdf-rev0.pdf"
@@ -298,7 +298,7 @@ export default function PurduePegboardTestRunner({ client, onSave, onClose }) {
                         className="flex items-center gap-2 text-blue-600 hover:underline text-sm"
                       >
                         <BookOpen className="w-4 h-4" />
-                        LIMEF â€“ Complete Manual
+                        LIMEF – Complete Manual
                       </a>
                     </div>
                   </div>
@@ -378,7 +378,7 @@ export default function PurduePegboardTestRunner({ client, onSave, onClose }) {
                       size="lg"
                       className="h-12 w-12"
                     >
-                      âˆ’
+                      −
                     </Button>
                     <div className="text-5xl font-bold text-center w-32">{scores[currentSubtest.key] ?? 0}</div>
                     <Button
@@ -397,7 +397,7 @@ export default function PurduePegboardTestRunner({ client, onSave, onClose }) {
                       variant="secondary"
                       className="h-10"
                     >
-                      Skip & Continue â†’
+                      Skip & Continue →
                     </Button>
                     <Button
                       onClick={stopTest}
@@ -416,8 +416,8 @@ export default function PurduePegboardTestRunner({ client, onSave, onClose }) {
                   <div className="space-y-2">
                     {subtests.map((subtest, idx) => (
                       <div key={subtest.key} className={`text-sm p-2 rounded ${idx === currentSubtestIndex ? 'bg-red-100 font-semibold' : idx < currentSubtestIndex ? 'bg-green-100' : 'bg-slate-100'}`}>
-                        {idx === currentSubtestIndex ? 'â–¶ ' : idx < currentSubtestIndex ? 'âœ“ ' : 'â—‹ '}
-                        {subtest.label}: {scores[subtest.key] ?? 'â€“'}
+                        {idx === currentSubtestIndex ? '▶ ' : idx < currentSubtestIndex ? '✓ ' : '○ '}
+                        {subtest.label}: {scores[subtest.key] ?? '–'}
                       </div>
                     ))}
                   </div>
@@ -441,7 +441,7 @@ export default function PurduePegboardTestRunner({ client, onSave, onClose }) {
                         <p className="text-xs text-slate-500">{subtest.time} seconds</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-2xl font-bold text-slate-900">{scores[subtest.key] ?? 'â€”'}</p>
+                        <p className="text-2xl font-bold text-slate-900">{scores[subtest.key] ?? '—'}</p>
                         {clientAge && clientSex && scores[subtest.key] !== null && (
                           <p className={`text-xs font-semibold ${getInterpretation(subtest.key, scores[subtest.key])?.color || 'text-slate-600'}`}>
                             {getInterpretation(subtest.key, scores[subtest.key])?.level || ''}

@@ -31,7 +31,7 @@ export default function FigureofEightWalkTestRunner({ client, onSave, onClose })
 
   const handleStartStop = () => {
     if (isRunning) {
-      // Stop â€” record trial
+      // Stop — record trial
       setIsRunning(false);
       const recorded = parseFloat(time.toFixed(1));
       setTrialData(prev => [...prev, { time: recorded }]);
@@ -57,7 +57,7 @@ export default function FigureofEightWalkTestRunner({ client, onSave, onClose })
     if (avg == null) return null;
     if (avg < 12) return { label: "Normal dynamic balance", color: "text-green-700", bg: "bg-green-50 border-green-200" };
     if (avg < 16) return { label: "Mild balance / turning deficit", color: "text-amber-700", bg: "bg-amber-50 border-amber-200" };
-    return { label: "Significant deficit â€” elevated fall risk", color: "text-red-700", bg: "bg-red-50 border-red-200" };
+    return { label: "Significant deficit — elevated fall risk", color: "text-red-700", bg: "bg-red-50 border-red-200" };
   };
 
   const interp = getInterpretation(avgTime);
@@ -70,14 +70,14 @@ export default function FigureofEightWalkTestRunner({ client, onSave, onClose })
     const avg = parseFloat(avgTime.toFixed(2));
     const interpretation = interp?.label || "";
 
-    let soapText = `â€¢ Figure of Eight Walk Test\n`;
+    let soapText = `• Figure of Eight Walk Test\n`;
     soapText += `  Average Time: ${avg}s over ${trialData.length} trial(s)\n`;
     soapText += `  Interpretation: ${interpretation}\n`;
     trialData.forEach((t, i) => { soapText += `  Trial ${i + 1}: ${t.time}s\n`; });
     if (preVitals.heartRate || preVitals.bloodPressure)
-      soapText += `  Pre-Test Vitals: HR ${preVitals.heartRate || "â€”"} bpm, BP ${preVitals.bloodPressure || "â€”"}\n`;
+      soapText += `  Pre-Test Vitals: HR ${preVitals.heartRate || "—"} bpm, BP ${preVitals.bloodPressure || "—"}\n`;
     if (postVitals.heartRate || postVitals.bloodPressure)
-      soapText += `  Post-Test Vitals: HR ${postVitals.heartRate || "â€”"} bpm, BP ${postVitals.bloodPressure || "â€”"}\n`;
+      soapText += `  Post-Test Vitals: HR ${postVitals.heartRate || "—"} bpm, BP ${postVitals.bloodPressure || "—"}\n`;
     if (notes.trim()) soapText += `  Notes: ${notes}`;
 
     onSave({
@@ -130,7 +130,7 @@ export default function FigureofEightWalkTestRunner({ client, onSave, onClose })
         {/* Content */}
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
 
-          {/* â”€â”€ PAGE 0: INSTRUCTIONS â”€â”€ */}
+          {/* ── PAGE 0: INSTRUCTIONS ── */}
           {page === 0 && (
             <>
               {/* Instructional diagram */}
@@ -184,9 +184,9 @@ export default function FigureofEightWalkTestRunner({ client, onSave, onClose })
                 <CardContent className="text-xs text-blue-900 space-y-1">
                   <ul className="list-disc list-inside space-y-1 ml-1">
                     <li>Two cones placed <strong>5 feet (1.5 m)</strong> apart</li>
-                    <li>Clear space at least 15 Ã— 15 ft with no obstacles</li>
+                    <li>Clear space at least 15 × 15 ft with no obstacles</li>
                     <li>Appropriate footwear; assistive devices allowed if normally used</li>
-                    <li>Perform <strong>2â€“3 trials</strong>; record each time</li>
+                    <li>Perform <strong>2–3 trials</strong>; record each time</li>
                   </ul>
                 </CardContent>
               </Card>
@@ -199,13 +199,13 @@ export default function FigureofEightWalkTestRunner({ client, onSave, onClose })
                 <CardContent className="text-xs text-slate-700 space-y-2">
                   <ol className="list-decimal list-inside space-y-1 ml-1">
                     <li>Client stands upright at the midpoint between the two cones.</li>
-                    <li>On "Go", client walks around cone A, crosses to cone B, walks around cone B and returns to start â€” <strong>completing two full figure-eights</strong>.</li>
+                    <li>On "Go", client walks around cone A, crosses to cone B, walks around cone B and returns to start — <strong>completing two full figure-eights</strong>.</li>
                     <li>Use the client's normal walking pace. Do not instruct them to hurry.</li>
                     <li>Timer starts on "Go" and stops when they return to start position.</li>
                     <li>Provide safety guarding as needed.</li>
                   </ol>
                   <div className="bg-blue-50 border border-blue-200 rounded p-2 italic mt-2">
-                    "Walk around these two cones in a figure-eight pattern â€” around one, then the other, and back to start. Walk at your normal pace. Ready? Go!"
+                    "Walk around these two cones in a figure-eight pattern — around one, then the other, and back to start. Walk at your normal pace. Ready? Go!"
                   </div>
                 </CardContent>
               </Card>
@@ -222,18 +222,18 @@ export default function FigureofEightWalkTestRunner({ client, onSave, onClose })
                     <span>Age</span><span>Normal</span><span>Elevated risk</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
-                    <span>65â€“74</span><span className="text-green-700">&lt;12s</span><span className="text-red-700">&gt;16s</span>
+                    <span>65–74</span><span className="text-green-700">&lt;12s</span><span className="text-red-700">&gt;16s</span>
                   </div>
                   <div className="grid grid-cols-3 gap-2">
                     <span>75+</span><span className="text-green-700">&lt;14s</span><span className="text-red-700">&gt;18s</span>
                   </div>
-                  <p className="mt-2">MCID: approximately 2â€“3 seconds for detecting meaningful change.</p>
+                  <p className="mt-2">MCID: approximately 2–3 seconds for detecting meaningful change.</p>
                 </CardContent>
               </Card>
             </>
           )}
 
-          {/* â”€â”€ PAGE 1: TEST â”€â”€ */}
+          {/* ── PAGE 1: TEST ── */}
           {page === 1 && (
             <>
               {/* Pre-test vitals */}
@@ -266,7 +266,7 @@ export default function FigureofEightWalkTestRunner({ client, onSave, onClose })
                     {time.toFixed(1)}<span className="text-2xl text-slate-500 ml-1">s</span>
                   </p>
                   {isRunning && (
-                    <p className="text-sm text-green-700 font-medium animate-pulse">â— Recordingâ€¦</p>
+                    <p className="text-sm text-green-700 font-medium animate-pulse">â— Recording…</p>
                   )}
                   <Button
                     onClick={handleStartStop}

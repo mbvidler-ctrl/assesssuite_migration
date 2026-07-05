@@ -42,7 +42,7 @@ export default function AmericanShoulderandElbowSurgeonsASESScoreRunner({ client
 
     const difficultyLabel = (v) => ['Unable', 'Very difficult', 'Somewhat difficult', 'Not difficult'][v] || v;
 
-    let soapText = `â€¢ American Shoulder and Elbow Surgeons (ASES) Score:\n`;
+    let soapText = `• American Shoulder and Elbow Surgeons (ASES) Score:\n`;
     soapText += `  Total Score: ${resultValue}/100\n`;
     soapText += `\n  Pain Section:\n`;
     soapText += `    Pain Score (VAS): ${painScore}/10\n`;
@@ -51,7 +51,7 @@ export default function AmericanShoulderandElbowSurgeonsASESScoreRunner({ client
     ADL_ACTIVITIES.forEach((activity, index) => {
       soapText += `    ${activity.label}: ${adlScores[index]} (${difficultyLabel(adlScores[index])})\n`;
     });
-    soapText += `    ADL Total: ${totalAdlScore}/30 â†’ ADL Subscore: ${Math.round((totalAdlScore / 30) * 50)}/50\n`;
+    soapText += `    ADL Total: ${totalAdlScore}/30 → ADL Subscore: ${Math.round((totalAdlScore / 30) * 50)}/50\n`;
     if (notes && notes.trim()) soapText += `\n  Clinical Notes: ${notes}\n`;
 
     onSave({
@@ -77,7 +77,7 @@ export default function AmericanShoulderandElbowSurgeonsASESScoreRunner({ client
           <div className="flex justify-between items-start mb-4">
             <div>
               <h2 className="text-2xl font-bold text-slate-900">ASES Score Assessment</h2>
-              <p className="text-sm text-slate-600 mt-1">American Shoulder and Elbow Surgeons â€” Functional Shoulder Assessment</p>
+              <p className="text-sm text-slate-600 mt-1">American Shoulder and Elbow Surgeons — Functional Shoulder Assessment</p>
             </div>
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="w-5 h-5" />
@@ -99,7 +99,7 @@ export default function AmericanShoulderandElbowSurgeonsASESScoreRunner({ client
             {expandedSection === "purpose" && (
               <CardContent className="text-sm text-blue-900 space-y-2 border-t border-blue-200 pt-4">
                 <p><strong>Purpose:</strong> The ASES is a shoulder-specific, patient-reported outcome measure that assesses shoulder function, pain, and disability across work, recreation, and activities of daily living.</p>
-                <p><strong>Domains:</strong> Pain (VAS 0â€“10) and Activities of Daily Living (10 ADL items). Total score ranges 0â€“100, with higher scores indicating better shoulder function.</p>
+                <p><strong>Domains:</strong> Pain (VAS 0–10) and Activities of Daily Living (10 ADL items). Total score ranges 0–100, with higher scores indicating better shoulder function.</p>
                 <p><strong>Use:</strong> Evaluates patients with shoulder conditions (rotator cuff pathology, arthritis, post-surgical) and tracks response to conservative and surgical interventions.</p>
               </CardContent>
             )}
@@ -175,26 +175,26 @@ export default function AmericanShoulderandElbowSurgeonsASESScoreRunner({ client
               {expandedSection === "interpretation" && (
               <CardContent className="text-sm text-green-900 space-y-3 border-t border-green-200 pt-4">
               <div>
-                <p className="font-semibold mb-2">Total ASES Score (0â€“100)</p>
+                <p className="font-semibold mb-2">Total ASES Score (0–100)</p>
                 <ul className="text-xs space-y-1 list-disc list-inside">
-                  <li><strong>90â€“100:</strong> Excellent â€” minimal pain and disability</li>
-                  <li><strong>80â€“89:</strong> Very good â€” mild pain/disability</li>
-                  <li><strong>70â€“79:</strong> Good â€” moderate pain/disability</li>
-                  <li><strong>60â€“69:</strong> Fair â€” significant pain/disability</li>
-                  <li><strong>&lt;60:</strong> Poor â€” substantial pain/dysfunction requiring intervention</li>
+                  <li><strong>90–100:</strong> Excellent — minimal pain and disability</li>
+                  <li><strong>80–89:</strong> Very good — mild pain/disability</li>
+                  <li><strong>70–79:</strong> Good — moderate pain/disability</li>
+                  <li><strong>60–69:</strong> Fair — significant pain/disability</li>
+                  <li><strong>&lt;60:</strong> Poor — substantial pain/dysfunction requiring intervention</li>
                 </ul>
               </div>
               <div>
                 <p className="font-semibold mb-2">Normative Values (Healthy Population)</p>
                 <ul className="text-xs space-y-1 list-disc list-inside">
-                  <li>Mean score: 90â€“95</li>
-                  <li>Pain subscore: 48â€“50 (out of 50)</li>
-                  <li>ADL subscore: 48â€“50 (out of 50)</li>
+                  <li>Mean score: 90–95</li>
+                  <li>Pain subscore: 48–50 (out of 50)</li>
+                  <li>ADL subscore: 48–50 (out of 50)</li>
                 </ul>
               </div>
               <div>
                 <p className="font-semibold mb-2">Minimal Clinically Important Difference (MCID)</p>
-                <p className="text-xs">â‰¥6â€“7 points change indicates clinically meaningful improvement or deterioration.</p>
+                <p className="text-xs">≥6–7 points change indicates clinically meaningful improvement or deterioration.</p>
               </div>
               </CardContent>
               )}
@@ -215,17 +215,17 @@ export default function AmericanShoulderandElbowSurgeonsASESScoreRunner({ client
                 <p className="font-semibold mb-1">Administration</p>
                 <ul className="text-xs space-y-1 list-decimal list-inside">
                   <li>Patient completes the questionnaire independently or with clinician assistance</li>
-                  <li>Allow ~5â€“10 minutes for completion</li>
+                  <li>Allow ~5–10 minutes for completion</li>
                   <li>Ensure patient understands scale definitions before starting</li>
                 </ul>
               </div>
               <div>
-                <p className="font-semibold mb-1">Pain Section (VAS 0â€“10)</p>
+                <p className="font-semibold mb-1">Pain Section (VAS 0–10)</p>
                 <p className="text-xs italic">Ask: "How severe is your shoulder pain right now?" Use a numerical rating scale anchored at 0 (no pain) and 10 (worst pain imaginable).</p>
               </div>
               <div>
                 <p className="font-semibold mb-1">ADL Section Scoring</p>
-                <p className="text-xs">Each activity is scored 0â€“3:</p>
+                <p className="text-xs">Each activity is scored 0–3:</p>
                 <ul className="text-xs space-y-1 list-disc list-inside ml-2">
                   <li>0 = Unable to perform</li>
                   <li>1 = Very difficult</li>
@@ -235,9 +235,9 @@ export default function AmericanShoulderandElbowSurgeonsASESScoreRunner({ client
               </div>
               <div>
                 <p className="font-semibold mb-1">Total Score Calculation</p>
-                <p className="text-xs">Pain subscore = (10 âˆ’ pain VAS) Ã— 5 (out of 50)</p>
-                <p className="text-xs">ADL subscore = (sum of 10 items Ã· 30) Ã— 50 (out of 50)</p>
-                <p className="text-xs"><strong>Total ASES = Pain subscore + ADL subscore (0â€“100)</strong></p>
+                <p className="text-xs">Pain subscore = (10 − pain VAS) × 5 (out of 50)</p>
+                <p className="text-xs">ADL subscore = (sum of 10 items ÷ 30) × 50 (out of 50)</p>
+                <p className="text-xs"><strong>Total ASES = Pain subscore + ADL subscore (0–100)</strong></p>
               </div>
               </CardContent>
               )}
@@ -257,18 +257,18 @@ export default function AmericanShoulderandElbowSurgeonsASESScoreRunner({ client
               <div>
                 <p className="font-semibold mb-1">Reliability &amp; Validity</p>
                 <ul className="text-xs space-y-1 list-disc list-inside text-slate-600">
-                  <li>Test-retest reliability (ICC): 0.91â€“0.96 (excellent)</li>
-                  <li>Internal consistency (Cronbach Î±): 0.89â€“0.95</li>
-                  <li>Responsive to clinical change; MCID = 6â€“7 points</li>
+                  <li>Test-retest reliability (ICC): 0.91–0.96 (excellent)</li>
+                  <li>Internal consistency (Cronbach α): 0.89–0.95</li>
+                  <li>Responsive to clinical change; MCID = 6–7 points</li>
                   <li>Strongly correlates with imaging pathology and functional outcomes</li>
                 </ul>
               </div>
               <div>
                 <p className="font-semibold mb-1">Key References</p>
                 <ul className="text-xs space-y-2 text-slate-600">
-                  <li><strong>Michener LA, Leggin BG.</strong> (2001). A review of the literature supporting the use of physiotherapy modalities in the treatment of adhesive capsulitis. <em>Journal of Hand Therapy</em>, 14(2), 95â€“106.</li>
-                  <li><strong>Roddey TS, Olson SL, Cook KF, et al.</strong> (2002). Humerus and scapula positioning against an impingement sign. <em>Journal of Orthopaedic &amp; Sports Physical Therapy</em>, 32(6), 272â€“283.</li>
-                  <li><strong>Desai AS, Dramis A, Hearnden AJ.</strong> (2010). The assessment of outcome after treatment of musculoskeletal disorders of the shoulder. <em>Shoulder &amp; Elbow</em>, 2(1), 39â€“48.</li>
+                  <li><strong>Michener LA, Leggin BG.</strong> (2001). A review of the literature supporting the use of physiotherapy modalities in the treatment of adhesive capsulitis. <em>Journal of Hand Therapy</em>, 14(2), 95–106.</li>
+                  <li><strong>Roddey TS, Olson SL, Cook KF, et al.</strong> (2002). Humerus and scapula positioning against an impingement sign. <em>Journal of Orthopaedic &amp; Sports Physical Therapy</em>, 32(6), 272–283.</li>
+                  <li><strong>Desai AS, Dramis A, Hearnden AJ.</strong> (2010). The assessment of outcome after treatment of musculoskeletal disorders of the shoulder. <em>Shoulder &amp; Elbow</em>, 2(1), 39–48.</li>
                 </ul>
               </div>
               </CardContent>

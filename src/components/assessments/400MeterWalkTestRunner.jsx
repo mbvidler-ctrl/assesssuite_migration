@@ -61,7 +61,7 @@ export default function FourHundredMeterWalkTestRunner({ client, assessment, onS
     const splitTime = lapTime - prevLapTime;
     const newLaps = [...laps, { lap: laps.length + 1, cumulative: lapTime, split: splitTime }];
     setLaps(newLaps);
-    toast.success(`Lap ${newLaps.length} recorded â€” ${LAP_DISTANCE_M * newLaps.length}m`);
+    toast.success(`Lap ${newLaps.length} recorded — ${LAP_DISTANCE_M * newLaps.length}m`);
     if (newLaps.length >= TOTAL_LAPS) {
       setIsRunning(false);
       setTestComplete(true);
@@ -94,10 +94,10 @@ export default function FourHundredMeterWalkTestRunner({ client, assessment, onS
       : null;
 
     const soapLines = [
-      `â€¢ 400-Metre Walk Test`,
+      `• 400-Metre Walk Test`,
       `  Total Time: ${formatTime(totalTime)} (${totalTime.toFixed(1)}s)`,
       `  Distance Covered: ${distanceCovered}m`,
-      `  Test Completed: ${!stoppedEarly ? 'Yes' : `No â€” ${stopsReason || 'stopped early'}`}`,
+      `  Test Completed: ${!stoppedEarly ? 'Yes' : `No — ${stopsReason || 'stopped early'}`}`,
       lapLines ? `  Lap Splits (${laps.length} laps):\n${lapLines}` : null,
       restBreaks.length > 0 ? `  Rest Breaks: ${restBreaks.length}\n${restLines}` : `  Rest Breaks: 0`,
       (preHR || preBP || preSpO2) ? `  Pre-Test: HR ${preHR || 'N/A'} bpm | BP ${preBP || 'N/A'} | SpO2 ${preSpO2 || 'N/A'}%` : null,
@@ -138,7 +138,7 @@ export default function FourHundredMeterWalkTestRunner({ client, assessment, onS
         <div className="p-5 border-b bg-gradient-to-r from-teal-50 to-cyan-50 flex justify-between items-start">
           <div>
             <h2 className="text-xl font-bold text-slate-900">400-Metre Walk Test</h2>
-            <p className="text-sm text-slate-500">10 Ã— 40m laps â€” record lap splits, rests, and observations</p>
+            <p className="text-sm text-slate-500">10 × 40m laps — record lap splits, rests, and observations</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -146,23 +146,23 @@ export default function FourHundredMeterWalkTestRunner({ client, assessment, onS
         <div className="flex-1 overflow-y-auto p-5 space-y-5">
           {/* Clinician Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-2">
-            <p className="font-semibold">ðŸ“‹ Administration Instructions (Simonsick et al. Protocol)</p>
-            <p><strong>Setup:</strong> 20m indoor course (10 laps Ã— 40m back and forth) or equivalent outdoor course. Assistive devices permitted â€” document type. No active encouragement during test.</p>
+            <p className="font-semibold">📋 Administration Instructions (Simonsick et al. Protocol)</p>
+            <p><strong>Setup:</strong> 20m indoor course (10 laps × 40m back and forth) or equivalent outdoor course. Assistive devices permitted — document type. No active encouragement during test.</p>
             <p className="italic">"I want you to walk 400 metres as quickly as you can without running. You will walk back and forth along this course. You may stop and rest if necessary, but try to complete the distance as fast as possible."</p>
             <p><strong>Record:</strong> Total time in seconds. If client rests, note duration and location. Test is failed if client cannot complete 400m.</p>
           </div>
 
           {/* Norms & Interpretation */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Norms & Interpretation</p>
+            <p className="font-semibold text-slate-700">📊 Norms & Interpretation</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Performance</th><th className="p-2 text-left">Time (seconds)</th><th className="p-2 text-left">Clinical Significance</th></tr></thead>
                 <tbody>
                   <tr className="border-t border-slate-200"><td className="p-2">Excellent (older adults)</td><td className="p-2">&lt;287 s (&lt;4:47)</td><td className="p-2 text-green-600">Low disability/mortality risk</td></tr>
-                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">Average</td><td className="p-2">287â€“400 s</td><td className="p-2 text-yellow-600">Moderate functional limitation</td></tr>
+                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">Average</td><td className="p-2">287–400 s</td><td className="p-2 text-yellow-600">Moderate functional limitation</td></tr>
                   <tr className="border-t border-slate-200"><td className="p-2">Slow (mobility limitation)</td><td className="p-2">&gt;400 s (&gt;6:40)</td><td className="p-2 text-red-600">High disability/mortality risk</td></tr>
-                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">Unable to complete</td><td className="p-2">Did not complete</td><td className="p-2 text-red-700">Very high risk â€” clinical referral</td></tr>
+                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">Unable to complete</td><td className="p-2">Did not complete</td><td className="p-2 text-red-700">Very high risk — clinical referral</td></tr>
                 </tbody>
               </table>
             </div>
@@ -171,16 +171,16 @@ export default function FourHundredMeterWalkTestRunner({ client, assessment, onS
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
-            <p>Simonsick EM et al. (2001). Measuring higher level physical function in well-functioning older adults: expanding familiar approaches in the Health ABC study. <em>Journals of Gerontology: Medical Sciences, 56</em>(10), M644â€“M649.</p>
-            <p>Newman AB et al. (2006). Association of long-distance corridor walk performance with mortality, cardiovascular disease, mobility limitation, and disability. <em>JAMA, 295</em>(17), 2018â€“2026.</p>
+            <p className="font-semibold">📖 Reference</p>
+            <p>Simonsick EM et al. (2001). Measuring higher level physical function in well-functioning older adults: expanding familiar approaches in the Health ABC study. <em>Journals of Gerontology: Medical Sciences, 56</em>(10), M644–M649.</p>
+            <p>Newman AB et al. (2006). Association of long-distance corridor walk performance with mortality, cardiovascular disease, mobility limitation, and disability. <em>JAMA, 295</em>(17), 2018–2026.</p>
           </div>
 
           {/* Safety */}
           <Card className="bg-amber-50 border-amber-200">
             <CardContent className="pt-4 text-xs text-amber-800 space-y-1">
               <p className="font-semibold flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" />Stop the test if the client experiences:</p>
-              <p>â€¢ Chest pain or pressure, severe dyspnoea, dizziness/pre-syncope, leg cramps, claudication, or requests to stop.</p>
+              <p>• Chest pain or pressure, severe dyspnoea, dizziness/pre-syncope, leg cramps, claudication, or requests to stop.</p>
             </CardContent>
           </Card>
 
@@ -199,7 +199,7 @@ export default function FourHundredMeterWalkTestRunner({ client, assessment, onS
             <CardContent className="pt-4">
               <div className="text-center mb-4">
                 <div className="text-6xl font-bold font-mono text-blue-600 mb-1">{formatTime(timerSeconds)}</div>
-                <div className="text-sm text-slate-500">{laps.length} / {TOTAL_LAPS} laps â€” {laps.length * LAP_DISTANCE_M}m covered</div>
+                <div className="text-sm text-slate-500">{laps.length} / {TOTAL_LAPS} laps — {laps.length * LAP_DISTANCE_M}m covered</div>
                 {testComplete && <Badge className="mt-2 bg-green-600">{stoppedEarly ? 'Stopped Early' : 'Test Complete!'}</Badge>}
               </div>
               <div className="flex flex-wrap justify-center gap-2">
@@ -265,7 +265,7 @@ export default function FourHundredMeterWalkTestRunner({ client, assessment, onS
           {/* Manual time entry if not using timer */}
           {!testStarted && (
             <div>
-              <Label className="text-sm">Manual Total Time (seconds) â€” if timer not used</Label>
+              <Label className="text-sm">Manual Total Time (seconds) — if timer not used</Label>
               <Input type="number" value={manualTotalTime} onChange={e => setManualTotalTime(e.target.value)} placeholder="e.g. 312" className="mt-1 w-40" />
             </div>
           )}

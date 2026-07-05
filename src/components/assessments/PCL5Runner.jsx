@@ -69,7 +69,7 @@ export default function PCL5Runner({ client, onSave, onClose }) {
       return;
     }
 
-    const soapText = `â€¢ PCL-5 (PTSD Checklist for DSM-5)\n  Total Score: ${totalScore}/80\n  Severity: ${severity.level}\n  Interpretation: ${
+    const soapText = `• PCL-5 (PTSD Checklist for DSM-5)\n  Total Score: ${totalScore}/80\n  Severity: ${severity.level}\n  Interpretation: ${
       totalScore >= 33 ? "Probable PTSD diagnosis (clinical cutoff >= 33)" :
       totalScore >= 14 ? "Subclinical PTSD symptoms; monitor and reassess" :
       "Minimal PTSD symptoms"
@@ -131,7 +131,7 @@ export default function PCL5Runner({ client, onSave, onClose }) {
               className="w-full flex justify-between items-center px-4 py-3 bg-red-50 border border-red-200 rounded-lg font-semibold text-red-900 text-sm hover:bg-red-100 transition-colors"
               onClick={() => setShowClinicianInfo(!showClinicianInfo)}
             >
-              <span className="flex items-center gap-2">ðŸ“‹ Clinician Information & Evidence</span>
+              <span className="flex items-center gap-2">📋 Clinician Information & Evidence</span>
               {showClinicianInfo ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
 
@@ -149,19 +149,19 @@ export default function PCL5Runner({ client, onSave, onClose }) {
                     <p className="font-semibold text-red-900 mb-2">DSM-5 PTSD Symptom Clusters</p>
                     <div className="bg-white p-3 rounded border border-red-100 space-y-2">
                       <div>
-                        <p className="font-semibold text-red-900 text-xs">ðŸ”´ <strong>Cluster B â€” Re-experiencing (Items 1â€“5)</strong></p>
+                        <p className="font-semibold text-red-900 text-xs">🔴 <strong>Cluster B — Re-experiencing (Items 1–5)</strong></p>
                         <p className="text-red-800 text-xs">Intrusive thoughts, nightmares, flashbacks, physiological reactivity to trauma reminders. At least 1 symptom required for PTSD diagnosis.</p>
                       </div>
                       <div>
-                        <p className="font-semibold text-red-900 text-xs">ðŸŸ  <strong>Cluster C â€” Avoidance (Items 6â€“7)</strong></p>
+                        <p className="font-semibold text-red-900 text-xs">🟠 <strong>Cluster C — Avoidance (Items 6–7)</strong></p>
                         <p className="text-red-800 text-xs">Avoidance of trauma-related thoughts/feelings and external reminders. At least 1 symptom required for PTSD diagnosis.</p>
                       </div>
                       <div>
-                        <p className="font-semibold text-red-900 text-xs">ðŸŸ¡ <strong>Cluster D â€” Negative Alterations in Cognitions & Mood (Items 8â€“14)</strong></p>
+                        <p className="font-semibold text-red-900 text-xs">🟡 <strong>Cluster D — Negative Alterations in Cognitions & Mood (Items 8–14)</strong></p>
                         <p className="text-red-800 text-xs">Memory gaps, negative self/world beliefs, blame, persistent negative emotions, anhedonia, social withdrawal, inability to experience positive emotions. At least 2 symptoms required for PTSD diagnosis.</p>
                       </div>
                       <div>
-                        <p className="font-semibold text-red-900 text-xs">ðŸ”µ <strong>Cluster E â€” Hyperarousal (Items 15â€“20)</strong></p>
+                        <p className="font-semibold text-red-900 text-xs">🔵 <strong>Cluster E — Hyperarousal (Items 15–20)</strong></p>
                         <p className="text-red-800 text-xs">Irritability, recklessness, hypervigilance, concentration difficulties, sleep disturbance, aggressive behavior. At least 2 symptoms required for PTSD diagnosis.</p>
                       </div>
                     </div>
@@ -170,13 +170,13 @@ export default function PCL5Runner({ client, onSave, onClose }) {
                   <div>
                     <p className="font-semibold text-red-900 mb-2">Scoring & Interpretation</p>
                     <div className="bg-white p-3 rounded border border-red-100 space-y-2 text-xs">
-                      <p className="text-red-800"><strong>Total Score Range:</strong> 0â€“80</p>
-                      <p className="text-red-800"><strong>Minimal (0â€“13):</strong> No/minimal PTSD symptoms.</p>
-                      <p className="text-red-800"><strong>Mild (14â€“27):</strong> Subclinical symptoms; may meet partial PTSD criteria.</p>
-                      <p className="text-red-800"><strong>Moderate (28â€“43):</strong> Moderate symptom severity; likely meets full PTSD criteria.</p>
-                      <p className="text-red-800"><strong>Severe (44â€“58):</strong> Severe PTSD symptoms; significant functional impairment.</p>
-                      <p className="text-red-800"><strong>Extreme (59â€“80):</strong> Extreme PTSD severity; urgent treatment needed.</p>
-                      <p className="text-red-800 mt-2"><strong>âš ï¸ Clinical Cutoff:</strong> Score â‰¥33 suggests probable PTSD diagnosis. Score â‰¥31 (alternative cutoff) also used in some populations.</p>
+                      <p className="text-red-800"><strong>Total Score Range:</strong> 0–80</p>
+                      <p className="text-red-800"><strong>Minimal (0–13):</strong> No/minimal PTSD symptoms.</p>
+                      <p className="text-red-800"><strong>Mild (14–27):</strong> Subclinical symptoms; may meet partial PTSD criteria.</p>
+                      <p className="text-red-800"><strong>Moderate (28–43):</strong> Moderate symptom severity; likely meets full PTSD criteria.</p>
+                      <p className="text-red-800"><strong>Severe (44–58):</strong> Severe PTSD symptoms; significant functional impairment.</p>
+                      <p className="text-red-800"><strong>Extreme (59–80):</strong> Extreme PTSD severity; urgent treatment needed.</p>
+                      <p className="text-red-800 mt-2"><strong>⚠ï¸ Clinical Cutoff:</strong> Score ≥33 suggests probable PTSD diagnosis. Score ≥31 (alternative cutoff) also used in some populations.</p>
                     </div>
                   </div>
 
@@ -185,19 +185,19 @@ export default function PCL5Runner({ client, onSave, onClose }) {
                     <ul className="text-red-800 list-disc list-inside space-y-1 text-xs">
                       <li><strong>Sensitivity:</strong> 0.94 (excellent); detects PTSD cases well.</li>
                       <li><strong>Specificity:</strong> 0.95 (excellent); minimizes false positives.</li>
-                      <li><strong>Internal Consistency (Î±):</strong> 0.96 (excellent).</li>
+                      <li><strong>Internal Consistency (α):</strong> 0.96 (excellent).</li>
                       <li><strong>Test-Retest Reliability:</strong> r = 0.84 (strong).</li>
-                      <li><strong>Responsiveness:</strong> Sensitive to symptom change over 2â€“4 weeks treatment.</li>
+                      <li><strong>Responsiveness:</strong> Sensitive to symptom change over 2–4 weeks treatment.</li>
                     </ul>
                   </div>
 
                   <div>
                     <p className="font-semibold text-red-900 mb-2">Clinical Decision-Making</p>
                     <div className="bg-white p-3 rounded border border-red-100 space-y-2 text-xs">
-                      <p className="text-red-800"><strong>âœ… Score â‰¥33 + trauma history + functional impairment:</strong> Probable PTSD. Recommend specialist referral (psychiatry/trauma-informed psychology), evidence-based treatment (CBT, EMDR, prolonged exposure).</p>
-                      <p className="text-red-800"><strong>âš ï¸ Score 14â€“32 + trauma history:</strong> Subclinical PTSD; elevated risk. Recommend psychoeducation, stress management, peer support, repeat assessment in 4 weeks.</p>
+                      <p className="text-red-800"><strong>✅ Score ≥33 + trauma history + functional impairment:</strong> Probable PTSD. Recommend specialist referral (psychiatry/trauma-informed psychology), evidence-based treatment (CBT, EMDR, prolonged exposure).</p>
+                      <p className="text-red-800"><strong>⚠ï¸ Score 14–32 + trauma history:</strong> Subclinical PTSD; elevated risk. Recommend psychoeducation, stress management, peer support, repeat assessment in 4 weeks.</p>
                       <p className="text-red-800"><strong>âŒ Score &lt;14 + trauma history:</strong> Minimal symptoms. Monitor; normal stress response. Reassure and offer support.</p>
-                      <p className="text-red-800"><strong>ðŸ†˜ Score &gt;59 + acute distress:</strong> Urgent psychiatric evaluation; assess suicide/self-harm risk, crisis support, possible inpatient treatment.</p>
+                      <p className="text-red-800"><strong>🆘 Score &gt;59 + acute distress:</strong> Urgent psychiatric evaluation; assess suicide/self-harm risk, crisis support, possible inpatient treatment.</p>
                     </div>
                   </div>
 
@@ -205,7 +205,7 @@ export default function PCL5Runner({ client, onSave, onClose }) {
                     <p className="font-semibold text-red-900 mb-2">Evidence Base & References</p>
                     <div className="bg-white p-3 rounded border border-red-100 space-y-2 text-xs">
                       <p><strong>PCL-5 Development:</strong> Weathers FW, et al. (2013). The PTSD Checklist for DSM-5 (PCL-5). <em>National Center for PTSD</em>.</p>
-                      <p><strong>Validation Study:</strong> Blevins CA, Weathers FW, Davis MT, et al. (2015). The Posttraumatic Stress Disorder Checklist for DSM-5 (PCL-5): Development and initial psychometric evaluation. <em>Journal of Traumatic Stress, 28</em>(6), 489â€“498.</p>
+                      <p><strong>Validation Study:</strong> Blevins CA, Weathers FW, Davis MT, et al. (2015). The Posttraumatic Stress Disorder Checklist for DSM-5 (PCL-5): Development and initial psychometric evaluation. <em>Journal of Traumatic Stress, 28</em>(6), 489–498.</p>
                       <p><strong>Clinical Utility:</strong> Bovin MJ, Marx BP. (2011). The importance of the DSM-5 PTSD criterion structure: Comment on the Diagnostic Criteria for PTSD. <em>Journal of Anxiety Disorders</em>.</p>
                       <p><strong>Australian Context:</strong> RANZCP (Royal Australian and New Zealand College of Psychiatrists) and Phoenix Australia recommend PCL-5 for PTSD screening and monitoring.</p>
                       <Button
@@ -283,7 +283,7 @@ export default function PCL5Runner({ client, onSave, onClose }) {
                       <p className="text-sm text-slate-600 mt-2">/ 80</p>
                       <p className={`text-lg font-semibold ${severity.color} mt-3`}>{severity.level} PTSD Severity</p>
                       {totalScore >= 33 && (
-                        <p className="text-xs text-red-700 mt-2 font-semibold">âš ï¸ Score indicates probable PTSD diagnosis</p>
+                        <p className="text-xs text-red-700 mt-2 font-semibold">⚠ï¸ Score indicates probable PTSD diagnosis</p>
                       )}
                     </div>
                   </CardContent>

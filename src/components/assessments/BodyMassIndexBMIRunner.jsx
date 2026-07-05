@@ -52,7 +52,7 @@ export default function BodyMassIndexBMIRunner({ client, onSave, onClose }) {
       assessment_date: new Date().toISOString().split("T")[0],
       notes,
       additional_data: {
-        soap_text: `â€¢ Body Mass Index (BMI) Assessment\n  Height: ${heightCm} cm | Weight: ${weight} kg\n  BMI: ${bmi.toFixed(2)} kg/mÂ²\n  Classification: ${category.label} (Health Risk: ${category.risk})${notes ? `\n  Notes: ${notes}` : ""}`,
+        soap_text: `• Body Mass Index (BMI) Assessment\n  Height: ${heightCm} cm | Weight: ${weight} kg\n  BMI: ${bmi.toFixed(2)} kg/m²\n  Classification: ${category.label} (Health Risk: ${category.risk})${notes ? `\n  Notes: ${notes}` : ""}`,
         measurement_type: "BMI",
         height_cm: heightCm,
         height_m: hM.toFixed(3),
@@ -79,27 +79,27 @@ export default function BodyMassIndexBMIRunner({ client, onSave, onClose }) {
 
           {/* Reference */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold text-slate-700">ðŸ“– References</p>
+            <p className="font-semibold text-slate-700">📖 References</p>
             <p>World Health Organization. (1995). <em>Physical status: the use and interpretation of anthropometry</em>. WHO Technical Report Series No. 854. Geneva: WHO.</p>
             <p>NHMRC. (2013). <em>Clinical Practice Guidelines for the Management of Overweight and Obesity in Adults</em>.</p>
           </div>
 
           {/* Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 space-y-1.5">
-            <p className="font-semibold">ðŸ“‹ Administration Instructions</p>
+            <p className="font-semibold">📋 Administration Instructions</p>
             <p><strong>Height:</strong> Measure barefoot using a stadiometer. Client stands erect, heels together, eyes forward (Frankfort plane). Record to nearest 0.1 cm.</p>
             <p><strong>Weight:</strong> Measure in light clothing, no shoes, on a calibrated scale. Record to nearest 0.1 kg.</p>
-            <p><strong>Formula:</strong> BMI = Weight (kg) Ã· HeightÂ² (mÂ²).</p>
-            <p><strong>Note:</strong> BMI does not distinguish fat from muscle. Interpret with clinical context â€” especially in athletes, older adults, and Asian populations (lower cut-offs: overweight â‰¥23, obese â‰¥27.5).</p>
+            <p><strong>Formula:</strong> BMI = Weight (kg) ÷ Height² (m²).</p>
+            <p><strong>Note:</strong> BMI does not distinguish fat from muscle. Interpret with clinical context — especially in athletes, older adults, and Asian populations (lower cut-offs: overweight ≥23, obese ≥27.5).</p>
           </div>
 
           {/* WHO Classification Table */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
-            <p className="font-semibold text-slate-700 text-sm">ðŸ“Š WHO Classification (Adults)</p>
+            <p className="font-semibold text-slate-700 text-sm">📊 WHO Classification (Adults)</p>
             <table className="w-full text-xs border-collapse">
               <thead>
                 <tr className="bg-slate-200 text-slate-700">
-                  <th className="p-2 text-left border border-slate-300">BMI (kg/mÂ²)</th>
+                  <th className="p-2 text-left border border-slate-300">BMI (kg/m²)</th>
                   <th className="p-2 text-left border border-slate-300">Classification</th>
                   <th className="p-2 text-left border border-slate-300">Health Risk</th>
                 </tr>
@@ -107,11 +107,11 @@ export default function BodyMassIndexBMIRunner({ client, onSave, onClose }) {
               <tbody>
                 {[
                   ["< 18.5",    "Underweight",        "Increased",    "text-yellow-700"],
-                  ["18.5â€“24.9", "Healthy Weight",     "Minimal",      "text-green-700"],
-                  ["25.0â€“29.9", "Overweight",         "Increased",    "text-yellow-700"],
-                  ["30.0â€“34.9", "Obesity Class I",    "Moderate",     "text-orange-700"],
-                  ["35.0â€“39.9", "Obesity Class II",   "Severe",       "text-red-700"],
-                  ["â‰¥ 40.0",    "Obesity Class III",  "Very Severe",  "text-red-900"],
+                  ["18.5–24.9", "Healthy Weight",     "Minimal",      "text-green-700"],
+                  ["25.0–29.9", "Overweight",         "Increased",    "text-yellow-700"],
+                  ["30.0–34.9", "Obesity Class I",    "Moderate",     "text-orange-700"],
+                  ["35.0–39.9", "Obesity Class II",   "Severe",       "text-red-700"],
+                  ["≥ 40.0",    "Obesity Class III",  "Very Severe",  "text-red-900"],
                 ].map(([range, label, risk, color], i) => (
                   <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-slate-50"}>
                     <td className="p-2 border border-slate-200">{range}</td>
@@ -156,7 +156,7 @@ export default function BodyMassIndexBMIRunner({ client, onSave, onClose }) {
           {/* Live Result */}
           {bmi !== null && category && (
             <div className={`rounded-lg border p-4 text-center ${category.color}`}>
-              <p className="text-3xl font-bold">{bmi.toFixed(2)} <span className="text-base font-normal">kg/mÂ²</span></p>
+              <p className="text-3xl font-bold">{bmi.toFixed(2)} <span className="text-base font-normal">kg/m²</span></p>
               <p className="text-lg font-semibold mt-1">{category.label}</p>
               <p className="text-sm mt-0.5">Health Risk: <strong>{category.risk}</strong></p>
             </div>

@@ -20,7 +20,7 @@ function getInterpretation(reps, age, gender) {
   const range = gender === "female" ? norm.female : norm.male;
   if (reps >= range[1]) return { label: "Above Average", color: "text-green-700", bg: "bg-green-100" };
   if (reps >= range[0]) return { label: "Average", color: "text-blue-700", bg: "bg-blue-100" };
-  return { label: "Below Average â€” Elevated Fall Risk", color: "text-red-700", bg: "bg-red-100" };
+  return { label: "Below Average — Elevated Fall Risk", color: "text-red-700", bg: "bg-red-100" };
 }
 
 export default function SixtySecondSittoStandTestRunner({ client, onSave, onClose }) {
@@ -64,7 +64,7 @@ export default function SixtySecondSittoStandTestRunner({ client, onSave, onClos
     setReps(0);
     setTimeLeft(60);
     setPhase("running");
-    toast.info("Test started â€” tap COUNT for each full stand!");
+    toast.info("Test started — tap COUNT for each full stand!");
   };
 
   const handleStop = () => {
@@ -92,7 +92,7 @@ export default function SixtySecondSittoStandTestRunner({ client, onSave, onClos
     const interpretation = clientAge ? getInterpretation(reps, clientAge, clientGender) : null;
 
     const soapLines = [
-      `â€¢ 60-Second Sit-to-Stand Test`,
+      `• 60-Second Sit-to-Stand Test`,
       `  Repetitions: ${reps}${handsUsed ? " (hands used for support)" : ""}`,
       interpretation ? `  Performance: ${interpretation.label}` : null,
       (hrPre || bpPre) ? `  Pre-Test: HR ${hrPre || "N/A"} bpm | BP ${bpPre || "N/A"} mmHg` : null,
@@ -144,8 +144,8 @@ export default function SixtySecondSittoStandTestRunner({ client, onSave, onClos
             <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />Clinician Instructions</p>
             <ul className="list-decimal list-inside space-y-1 text-blue-800">
               <li>Standard chair (~43 cm) against a wall. Client sits in the middle, feet flat on floor.</li>
-              <li>Arms crossed over chest throughout. No arm rests unless safety requires â€” document if used.</li>
-              <li>On "Go" â€” client rises to full stand (hips & knees fully extended) then sits fully back down.</li>
+              <li>Arms crossed over chest throughout. No arm rests unless safety requires — document if used.</li>
+              <li>On "Go" — client rises to full stand (hips & knees fully extended) then sits fully back down.</li>
               <li>Tap <strong>COUNT</strong> for every fully completed stand. Only count full stands.</li>
               <li>Stop if client shows signs of distress, dizziness, or unsafe movement.</li>
             </ul>
@@ -210,7 +210,7 @@ export default function SixtySecondSittoStandTestRunner({ client, onSave, onClos
                 )}
               </div>
               {phase === "done" && (
-                <Badge className="bg-green-600 text-white text-sm px-4 py-1">âœ“ Test Complete</Badge>
+                <Badge className="bg-green-600 text-white text-sm px-4 py-1">✓ Test Complete</Badge>
               )}
             </div>
 
@@ -234,7 +234,7 @@ export default function SixtySecondSittoStandTestRunner({ client, onSave, onClos
                   onClick={() => setReps(r => Math.max(0, r - 1))}
                   disabled={phase === "running"}
                 >
-                  âˆ’ Undo
+                  − Undo
                 </Button>
                 <Button
                   variant="outline"
@@ -251,7 +251,7 @@ export default function SixtySecondSittoStandTestRunner({ client, onSave, onClos
             {/* Live interpretation */}
             {interpretation && (
               <div className={`${interpretation.bg} border rounded-lg p-3 text-center`}>
-                <p className={`font-semibold ${interpretation.color}`}>{reps} reps â€” {interpretation.label}</p>
+                <p className={`font-semibold ${interpretation.color}`}>{reps} reps — {interpretation.label}</p>
                 {clientAge && <p className="text-xs text-slate-500 mt-0.5">Based on norms for {clientGender}, age {clientAge}</p>}
               </div>
             )}
@@ -309,14 +309,14 @@ export default function SixtySecondSittoStandTestRunner({ client, onSave, onClos
                 <tbody>
                   {NORMS.map(n => (
                     <tr key={n.ageMin} className="border-t">
-                      <td className="p-2 border">{n.ageMin}â€“{n.ageMax}</td>
-                      <td className="p-2 text-center border">{n.male[0]}â€“{n.male[1]}</td>
-                      <td className="p-2 text-center border">{n.female[0]}â€“{n.female[1]}</td>
+                      <td className="p-2 border">{n.ageMin}–{n.ageMax}</td>
+                      <td className="p-2 text-center border">{n.male[0]}–{n.male[1]}</td>
+                      <td className="p-2 text-center border">{n.female[0]}–{n.female[1]}</td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <p className="text-xs text-slate-500 mt-2">MCID: ~3â€“4 repetitions. Below average = elevated fall risk.</p>
+              <p className="text-xs text-slate-500 mt-2">MCID: ~3–4 repetitions. Below average = elevated fall risk.</p>
             </div>
           </details>
         </div>

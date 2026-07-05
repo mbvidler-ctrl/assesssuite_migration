@@ -45,7 +45,7 @@ export default function MedicineBallThrowRunner({ client, onSave, onClose }) {
       vitalsSummary += `\n  Post-Test Vitals:${postTestVitals.systolic ? ` BP ${postTestVitals.systolic}/${postTestVitals.diastolic}` : ""}${postTestVitals.heartRate ? ` HR ${postTestVitals.heartRate}bpm` : ""}`;
     }
 
-    const soapText = `â€¢ Medicine Ball Throw Assessment:\n  Trials: ${trials.map(t => `${t}m`).join(", ")}\n  Best Trial: ${bestTrial}m\n  Average: ${avgTrial}m${vitalsSummary}${notes ? `\n  Notes: ${notes}` : ""}`;
+    const soapText = `• Medicine Ball Throw Assessment:\n  Trials: ${trials.map(t => `${t}m`).join(", ")}\n  Best Trial: ${bestTrial}m\n  Average: ${avgTrial}m${vitalsSummary}${notes ? `\n  Notes: ${notes}` : ""}`;
 
     onSave({
       result_value: bestTrial,
@@ -84,13 +84,13 @@ export default function MedicineBallThrowRunner({ client, onSave, onClose }) {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Info className="w-5 h-5 text-blue-600" />
-                  ðŸ“‹ Instructions & Protocol
+                  📋 Instructions & Protocol
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">
                 <p><strong>Ball weight:</strong> Typically 3 kg (men) or 2 kg (women) seated chest pass. Document ball weight used.</p>
                 <p><strong>Position:</strong> Seated against wall, back straight, feet flat on floor. Ball held at chest level with both hands.</p>
-                <p className="italic">"Throw the ball as far as you can â€” straight forward, not upward. Push from the chest using both hands. Do not lean forward or leave the seat."</p>
+                <p className="italic">"Throw the ball as far as you can — straight forward, not upward. Push from the chest using both hands. Do not lean forward or leave the seat."</p>
                 <p><strong>Measurement:</strong> Measure to where the ball first contacts the floor. Record 3 trials with 60s rest. Use best distance.</p>
                 <p><strong>Note:</strong> Client must not push off the wall or use leg drive. Document any deviations.</p>
               </CardContent>
@@ -98,14 +98,14 @@ export default function MedicineBallThrowRunner({ client, onSave, onClose }) {
 
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Norms â€” Seated Medicine Ball Throw (3 kg, metres)</p>
+              <p className="font-semibold text-slate-700">📊 Norms — Seated Medicine Ball Throw (3 kg, metres)</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
-                  <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20â€“29</th><th className="p-2 text-center">Men 40â€“49</th><th className="p-2 text-center">Women 20â€“29</th><th className="p-2 text-center">Women 40â€“49</th></tr></thead>
+                  <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20–29</th><th className="p-2 text-center">Men 40–49</th><th className="p-2 text-center">Women 20–29</th><th className="p-2 text-center">Women 40–49</th></tr></thead>
                   <tbody>
-                    <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">â‰¥6.5 m</td><td className="p-2 text-center">â‰¥5.5 m</td><td className="p-2 text-center">â‰¥4.5 m</td><td className="p-2 text-center">â‰¥3.8 m</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">5.5â€“6.4 m</td><td className="p-2 text-center">4.5â€“5.4 m</td><td className="p-2 text-center">3.8â€“4.4 m</td><td className="p-2 text-center">3.0â€“3.7 m</td></tr>
-                    <tr className="border-t"><td className="p-2">Average</td><td className="p-2 text-center">4.5â€“5.4 m</td><td className="p-2 text-center">3.5â€“4.4 m</td><td className="p-2 text-center">3.0â€“3.7 m</td><td className="p-2 text-center">2.2â€“2.9 m</td></tr>
+                    <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">≥6.5 m</td><td className="p-2 text-center">≥5.5 m</td><td className="p-2 text-center">≥4.5 m</td><td className="p-2 text-center">≥3.8 m</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">5.5–6.4 m</td><td className="p-2 text-center">4.5–5.4 m</td><td className="p-2 text-center">3.8–4.4 m</td><td className="p-2 text-center">3.0–3.7 m</td></tr>
+                    <tr className="border-t"><td className="p-2">Average</td><td className="p-2 text-center">4.5–5.4 m</td><td className="p-2 text-center">3.5–4.4 m</td><td className="p-2 text-center">3.0–3.7 m</td><td className="p-2 text-center">2.2–2.9 m</td></tr>
                     <tr className="border-t bg-white"><td className="p-2">Poor</td><td className="p-2 text-center">&lt;4.5 m</td><td className="p-2 text-center">&lt;3.5 m</td><td className="p-2 text-center">&lt;3.0 m</td><td className="p-2 text-center">&lt;2.2 m</td></tr>
                   </tbody>
                 </table>
@@ -115,8 +115,8 @@ export default function MedicineBallThrowRunner({ client, onSave, onClose }) {
 
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>Stockbrugger BA & Haennel RG. (2001). Validity and reliability of a medicine ball explosive power test. <em>Journal of Strength and Conditioning Research, 15</em>(4), 431â€“438.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Stockbrugger BA & Haennel RG. (2001). Validity and reliability of a medicine ball explosive power test. <em>Journal of Strength and Conditioning Research, 15</em>(4), 431–438.</p>
             </div>
 
             {/* Pre-Test Vitals */}

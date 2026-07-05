@@ -185,7 +185,7 @@ export default function NutritionTab({ client, onUpdate }) {
           </div>
 
           <div class="warning-box">
-            <h3 style="margin-top: 0; color: #92400e;">âš ï¸ Exercise Physiology Scope of Practice</h3>
+            <h3 style="margin-top: 0; color: #92400e;">⚠ï¸ Exercise Physiology Scope of Practice</h3>
             <p style="margin-bottom: 0.5rem;"><strong>This nutrition advice is provided within the scope of an Accredited Exercise Physiologist (AEP) as defined by ESSA guidelines.</strong></p>
             
             <p style="margin-top: 1rem; margin-bottom: 0.5rem;"><strong>Within EP Scope:</strong></p>

@@ -8,27 +8,27 @@ import { X, Save, Info, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
 const RSA_PROTOCOLS = {
-  "6 Ã— 30 m (straight)": { sprints: 6, distance: 30, recovery: "20-30", isShuttle: false, key: "6x30" },
-  "7 Ã— 35 m (straight)": { sprints: 7, distance: 35, recovery: "25-30", isShuttle: false, key: "7x35" },
-  "10 Ã— 20 m (straight)": { sprints: 10, distance: 20, recovery: "20-30", isShuttle: false, key: "10x20" },
-  "Shuttle 6 Ã— (15 + 15 m)": { sprints: 6, distance: 30, shuttleDistance: 15, recovery: "20-30", isShuttle: true, key: "shuttle" },
+  "6 × 30 m (straight)": { sprints: 6, distance: 30, recovery: "20-30", isShuttle: false, key: "6x30" },
+  "7 × 35 m (straight)": { sprints: 7, distance: 35, recovery: "25-30", isShuttle: false, key: "7x35" },
+  "10 × 20 m (straight)": { sprints: 10, distance: 20, recovery: "20-30", isShuttle: false, key: "10x20" },
+  "Shuttle 6 × (15 + 15 m)": { sprints: 6, distance: 30, shuttleDistance: 15, recovery: "20-30", isShuttle: true, key: "shuttle" },
 };
 
-// Map from assessment name â†’ default protocol key
+// Map from assessment name → default protocol key
 const NAME_TO_PROTOCOL = {
-  "rsa_6x30": "6 Ã— 30 m (straight)",
-  "rsa_7x35": "7 Ã— 35 m (straight)",
-  "rsa_10x20": "10 Ã— 20 m (straight)",
-  "rsa_shuttle": "Shuttle 6 Ã— (15 + 15 m)",
+  "rsa_6x30": "6 × 30 m (straight)",
+  "rsa_7x35": "7 × 35 m (straight)",
+  "rsa_10x20": "10 × 20 m (straight)",
+  "rsa_shuttle": "Shuttle 6 × (15 + 15 m)",
 };
 
 function detectProtocolFromName(name) {
   if (!name) return null;
   const n = name.toLowerCase();
-  if (n.includes("shuttle")) return "Shuttle 6 Ã— (15 + 15 m)";
-  if (n.includes("7") && n.includes("35")) return "7 Ã— 35 m (straight)";
-  if (n.includes("10") && n.includes("20")) return "10 Ã— 20 m (straight)";
-  if (n.includes("6") && n.includes("30")) return "6 Ã— 30 m (straight)";
+  if (n.includes("shuttle")) return "Shuttle 6 × (15 + 15 m)";
+  if (n.includes("7") && n.includes("35")) return "7 × 35 m (straight)";
+  if (n.includes("10") && n.includes("20")) return "10 × 20 m (straight)";
+  if (n.includes("6") && n.includes("30")) return "6 × 30 m (straight)";
   return null;
 }
 
@@ -74,7 +74,7 @@ export default function RSARunner({ testName, assessment, onSave, onClose, clien
                     <div>
                       <p className="font-semibold text-slate-900">{name}</p>
                       <p className="text-sm text-slate-500 mt-1">
-                        {p.sprints} sprints Ã— {p.distance}m{p.isShuttle ? ` shuttle (${p.shuttleDistance}+${p.shuttleDistance}m)` : ' straight'} Â· {p.recovery}s rest
+                        {p.sprints} sprints × {p.distance}m{p.isShuttle ? ` shuttle (${p.shuttleDistance}+${p.shuttleDistance}m)` : ' straight'} · {p.recovery}s rest
                       </p>
                     </div>
                     <ChevronRight className="w-5 h-5 text-slate-400" />
@@ -112,7 +112,7 @@ export default function RSARunner({ testName, assessment, onSave, onClose, clien
     const decrement = parseFloat(calculateDecrement());
 
     const soapText = [
-      `â€¢ Repeated Sprint Ability Test (${selectedProtocolName})`,
+      `• Repeated Sprint Ability Test (${selectedProtocolName})`,
       `  Best Time: ${bestTime.toFixed(2)}s | Mean Time: ${meanTime.toFixed(2)}s | Total Time: ${totalTime.toFixed(2)}s`,
       `  Fatigue Index (%Decrement): ${decrement.toFixed(2)}% (lower = better sprint maintenance)`,
       `  Sprint Times: ${parsedTimes.map(t => t.toFixed(2)).join(', ')}s`,
@@ -153,7 +153,7 @@ export default function RSARunner({ testName, assessment, onSave, onClose, clien
                 onClick={() => setSprintTimes(null)}
                 className="text-sm text-orange-600 hover:underline mt-1 font-medium"
               >
-                Protocol: {selectedProtocolName} Â· Change
+                Protocol: {selectedProtocolName} · Change
               </button>
             </div>
             <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
@@ -190,16 +190,16 @@ export default function RSARunner({ testName, assessment, onSave, onClose, clien
                     <li>Perform maximal-effort sprints with passive recovery between efforts</li>
                     <li>Allow {protocol.recovery}s passive rest between each sprint</li>
                     <li>Record to nearest 0.01 second for accuracy</li>
-                    <li>If experiencing chest pain, severe dizziness, or unusual symptoms â€” stop immediately</li>
+                    <li>If experiencing chest pain, severe dizziness, or unusual symptoms — stop immediately</li>
                   </ul>
                 </div>
                 <div className="space-y-2 pt-3 border-t border-blue-300">
                   <p className="font-semibold text-blue-900">Interpretation</p>
                   <ul className="text-sm text-blue-800 list-disc list-inside space-y-1">
-                    <li><strong>Peak (Best) Time:</strong> Fastest sprint â€” indicates maximum speed</li>
-                    <li><strong>Mean Time:</strong> Average across all sprints â€” overall sprint capacity</li>
+                    <li><strong>Peak (Best) Time:</strong> Fastest sprint — indicates maximum speed</li>
+                    <li><strong>Mean Time:</strong> Average across all sprints — overall sprint capacity</li>
                     <li><strong>% Decrement:</strong> Fatigue index showing performance maintenance</li>
-                    <li>&lt;5%: Excellent fatigue resistance | 5â€“10%: Good | &gt;10%: Significant fatigue</li>
+                    <li>&lt;5%: Excellent fatigue resistance | 5–10%: Good | &gt;10%: Significant fatigue</li>
                   </ul>
                 </div>
               </CardContent>

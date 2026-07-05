@@ -29,7 +29,7 @@ export default function BackScratchRunner({ onSave, onClose, initialData }) {
     const average = (leftBest !== null && rightBest !== null) ? (leftBest + rightBest) / 2 : null;
 
     // Build comprehensive SOAP text
-    let soapText = `â€¢ Back Scratch Test (Shoulder Flexibility):\n`;
+    let soapText = `• Back Scratch Test (Shoulder Flexibility):\n`;
     soapText += `  Left Hand Over Shoulder:\n`;
     if (data.left_trial1) soapText += `    Trial 1: ${data.left_trial1}cm\n`;
     if (data.left_trial2) soapText += `    Trial 2: ${data.left_trial2}cm\n`;
@@ -77,29 +77,29 @@ export default function BackScratchRunner({ onSave, onClose, initialData }) {
         <CardContent className="space-y-6">
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
-            <p>Rikli RE & Jones CJ. (1999). Development and validation of a functional fitness test for community-residing older adults. <em>Journal of Aging and Physical Activity, 7</em>(2), 129â€“161.</p>
+            <p className="font-semibold">📖 Reference</p>
+            <p>Rikli RE & Jones CJ. (1999). Development and validation of a functional fitness test for community-residing older adults. <em>Journal of Aging and Physical Activity, 7</em>(2), 129–161.</p>
           </div>
 
           {/* Clinician Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-1">
-            <p className="font-semibold">ðŸ“‹ Administration Instructions</p>
+            <p className="font-semibold">📋 Administration Instructions</p>
             <p><strong>Position:</strong> Standing. Dominant hand reaches over same shoulder, palm on back; non-dominant hand behind lower back, palm out. Both hands reach toward each other along spine.</p>
             <p className="italic">"Reach one hand over your shoulder and one behind your back, and try to get your fingertips as close together as possible."</p>
-            <p><strong>Scoring:</strong> Positive (+) = fingers overlap; Negative (âˆ’) = gap between fingertips. Measure middle fingertips. 2 trials each side â€” record the best.</p>
+            <p><strong>Scoring:</strong> Positive (+) = fingers overlap; Negative (−) = gap between fingertips. Measure middle fingertips. 2 trials each side — record the best.</p>
           </div>
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Norms â€” Back Scratch (cm) â€” Rikli & Jones Senior Fitness Test</p>
+            <p className="font-semibold text-slate-700">📊 Norms — Back Scratch (cm) — Rikli & Jones Senior Fitness Test</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Age</th><th className="p-2 text-center">Men (avg)</th><th className="p-2 text-center">Women (avg)</th></tr></thead>
                 <tbody>
-                  <tr className="border-t"><td className="p-2">60â€“64</td><td className="p-2 text-center">âˆ’8.9 to +1.3</td><td className="p-2 text-center">âˆ’2.5 to +7.6</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">65â€“69</td><td className="p-2 text-center">âˆ’10.2 to 0</td><td className="p-2 text-center">âˆ’2.5 to +7.6</td></tr>
-                  <tr className="border-t"><td className="p-2">70â€“74</td><td className="p-2 text-center">âˆ’11.4 to âˆ’1.3</td><td className="p-2 text-center">âˆ’3.8 to +6.3</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">75+</td><td className="p-2 text-center">âˆ’12.7 to âˆ’2.5</td><td className="p-2 text-center">âˆ’5.1 to +5.1</td></tr>
+                  <tr className="border-t"><td className="p-2">60–64</td><td className="p-2 text-center">−8.9 to +1.3</td><td className="p-2 text-center">−2.5 to +7.6</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">65–69</td><td className="p-2 text-center">−10.2 to 0</td><td className="p-2 text-center">−2.5 to +7.6</td></tr>
+                  <tr className="border-t"><td className="p-2">70–74</td><td className="p-2 text-center">−11.4 to −1.3</td><td className="p-2 text-center">−3.8 to +6.3</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">75+</td><td className="p-2 text-center">−12.7 to −2.5</td><td className="p-2 text-center">−5.1 to +5.1</td></tr>
                 </tbody>
               </table>
             </div>

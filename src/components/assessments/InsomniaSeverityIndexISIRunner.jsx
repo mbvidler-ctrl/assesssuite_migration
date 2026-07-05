@@ -82,7 +82,7 @@ export default function InsomniaSeverityIndexISIRunner({ client, onSave, onClose
       status: "completed",
       result_value: totalScore,
       additional_data: {
-        soap_text: `â€¢ Insomnia Severity Index (ISI)\n  Total Score: ${totalScore}/28 â€” ${severity}`,
+        soap_text: `• Insomnia Severity Index (ISI)\n  Total Score: ${totalScore}/28 — ${severity}`,
         measurement_type: "questionnaire",
         responses,
         severity,
@@ -129,20 +129,20 @@ export default function InsomniaSeverityIndexISIRunner({ client, onSave, onClose
             {/* Clinician Instructions */}
             <Card className="bg-blue-50 border-blue-200">
               <CardHeader>
-                <CardTitle className="text-lg">ðŸ“‹ Clinician Instructions</CardTitle>
+                <CardTitle className="text-lg">📋 Clinician Instructions</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">
-                <p>Patient self-completes or clinician administers. Refers to <strong>past 2 weeks</strong>. Q1â€“3: rate severity of sleep difficulty. Q4: rate satisfaction. Q5â€“7: rate daytime impact.</p>
+                <p>Patient self-completes or clinician administers. Refers to <strong>past 2 weeks</strong>. Q1–3: rate severity of sleep difficulty. Q4: rate satisfaction. Q5–7: rate daytime impact.</p>
                 <p className="italic">"For each question, please rate the <strong>severity</strong> of your sleep problem over the past 2 weeks. 0 = No problem at all, 4 = Very severe problem."</p>
-                <p><strong>Note:</strong> Q4 (Satisfaction) is rated inversely â€” 0 = Very satisfied, 4 = Very dissatisfied.</p>
+                <p><strong>Note:</strong> Q4 (Satisfaction) is rated inversely — 0 = Very satisfied, 4 = Very dissatisfied.</p>
               </CardContent>
             </Card>
 
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
+              <p className="font-semibold">📖 Reference</p>
               <p>Morin CM. (1993). <em>Insomnia: Psychological Assessment and Management</em>. Guilford Press.</p>
-              <p>Bastien CH, ValliÃ¨res A, & Morin CM. (2001). Validation of the Insomnia Severity Index (ISI) as an outcome measure for insomnia research. <em>Sleep Medicine, 2</em>(4), 297â€“307.</p>
+              <p>Bastien CH, Vallières A, & Morin CM. (2001). Validation of the Insomnia Severity Index (ISI) as an outcome measure for insomnia research. <em>Sleep Medicine, 2</em>(4), 297–307.</p>
             </div>
 
             {/* Scale Legend */}
@@ -233,7 +233,7 @@ export default function InsomniaSeverityIndexISIRunner({ client, onSave, onClose
                 <div>
                   <p><strong>22-28:</strong> Clinical insomnia (severe)</p>
                 </div>
-                <p className="text-xs mt-3 italic">Note: Score of â‰¥15 suggests moderate to severe insomnia warranting clinical intervention.</p>
+                <p className="text-xs mt-3 italic">Note: Score of ≥15 suggests moderate to severe insomnia warranting clinical intervention.</p>
               </CardContent>
             </Card>
 

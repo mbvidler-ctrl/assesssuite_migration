@@ -5,90 +5,90 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Save, ChevronRight, ChevronLeft, CheckCircle, AlertCircle, RotateCcw } from "lucide-react";
 
-// â”€â”€â”€ Joint + movement definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Joint + movement definitions ───────────────────────────────────────────
 const JOINTS = [
   {
-    key: "cervical", label: "Cervical Spine", emoji: "ðŸ”µ",
+    key: "cervical", label: "Cervical Spine", emoji: "🔵",
     movements: ["Flexion","Extension","Lat. Flexion (L)","Lat. Flexion (R)","Rotation (L)","Rotation (R)"],
-    normals:   ["40-60Â°","50-70Â°","35-45Â°","35-45Â°","60-80Â°","60-80Â°"],
+    normals:   ["40-60°","50-70°","35-45°","35-45°","60-80°","60-80°"],
   },
   {
-    key: "thoracic", label: "Thoracic Spine", emoji: "ðŸŸ£",
+    key: "thoracic", label: "Thoracic Spine", emoji: "🟣",
     movements: ["Rotation (L)","Rotation (R)","Extension","Lat. Flexion (L)","Lat. Flexion (R)"],
-    normals:   ["30-35Â°","30-35Â°","15-20Â°","15-20Â°","15-20Â°"],
+    normals:   ["30-35°","30-35°","15-20°","15-20°","15-20°"],
   },
   {
-    key: "lumbar", label: "Lumbar Spine", emoji: "ðŸŸ ",
+    key: "lumbar", label: "Lumbar Spine", emoji: "🟠",
     movements: ["Flexion","Extension","Lat. Flexion (L)","Lat. Flexion (R)","Rotation (L)","Rotation (R)"],
-    normals:   ["40-60Â°","20-35Â°","20-30Â°","20-30Â°","5-15Â°","5-15Â°"],
+    normals:   ["40-60°","20-35°","20-30°","20-30°","5-15°","5-15°"],
   },
   {
-    key: "shoulder_L", label: "Shoulder (Left)", emoji: "ðŸ’ª",
+    key: "shoulder_L", label: "Shoulder (Left)", emoji: "💪",
     movements: ["Flexion","Extension","Abduction","Adduction","Ext. Rotation","Int. Rotation"],
-    normals:   ["0-180Â°","0-60Â°","0-180Â°","0-30Â°","0-90Â°","0-70Â°"],
+    normals:   ["0-180°","0-60°","0-180°","0-30°","0-90°","0-70°"],
   },
   {
-    key: "shoulder_R", label: "Shoulder (Right)", emoji: "ðŸ’ª",
+    key: "shoulder_R", label: "Shoulder (Right)", emoji: "💪",
     movements: ["Flexion","Extension","Abduction","Adduction","Ext. Rotation","Int. Rotation"],
-    normals:   ["0-180Â°","0-60Â°","0-180Â°","0-30Â°","0-90Â°","0-70Â°"],
+    normals:   ["0-180°","0-60°","0-180°","0-30°","0-90°","0-70°"],
   },
   {
-    key: "elbow_L", label: "Elbow (Left)", emoji: "ðŸ¦¾",
+    key: "elbow_L", label: "Elbow (Left)", emoji: "🦾",
     movements: ["Flexion","Extension","Supination","Pronation"],
-    normals:   ["0-150Â°","0Â°","0-80Â°","0-80Â°"],
+    normals:   ["0-150°","0°","0-80°","0-80°"],
   },
   {
-    key: "elbow_R", label: "Elbow (Right)", emoji: "ðŸ¦¾",
+    key: "elbow_R", label: "Elbow (Right)", emoji: "🦾",
     movements: ["Flexion","Extension","Supination","Pronation"],
-    normals:   ["0-150Â°","0Â°","0-80Â°","0-80Â°"],
+    normals:   ["0-150°","0°","0-80°","0-80°"],
   },
   {
-    key: "wrist_L", label: "Wrist (Left)", emoji: "âœ‹",
+    key: "wrist_L", label: "Wrist (Left)", emoji: "✋",
     movements: ["Flexion","Extension","Radial Dev.","Ulnar Dev."],
-    normals:   ["0-80Â°","0-70Â°","0-20Â°","0-30Â°"],
+    normals:   ["0-80°","0-70°","0-20°","0-30°"],
   },
   {
-    key: "wrist_R", label: "Wrist (Right)", emoji: "âœ‹",
+    key: "wrist_R", label: "Wrist (Right)", emoji: "✋",
     movements: ["Flexion","Extension","Radial Dev.","Ulnar Dev."],
-    normals:   ["0-80Â°","0-70Â°","0-20Â°","0-30Â°"],
+    normals:   ["0-80°","0-70°","0-20°","0-30°"],
   },
   {
-    key: "hip_L", label: "Hip (Left)", emoji: "ðŸ¦µ",
+    key: "hip_L", label: "Hip (Left)", emoji: "🦵",
     movements: ["Flexion","Extension","Abduction","Adduction","Int. Rotation","Ext. Rotation"],
-    normals:   ["0-120Â°","0-20Â°","0-45Â°","0-30Â°","0-45Â°","0-45Â°"],
+    normals:   ["0-120°","0-20°","0-45°","0-30°","0-45°","0-45°"],
   },
   {
-    key: "hip_R", label: "Hip (Right)", emoji: "ðŸ¦µ",
+    key: "hip_R", label: "Hip (Right)", emoji: "🦵",
     movements: ["Flexion","Extension","Abduction","Adduction","Int. Rotation","Ext. Rotation"],
-    normals:   ["0-120Â°","0-20Â°","0-45Â°","0-30Â°","0-45Â°","0-45Â°"],
+    normals:   ["0-120°","0-20°","0-45°","0-30°","0-45°","0-45°"],
   },
   {
-    key: "knee_L", label: "Knee (Left)", emoji: "ðŸ¦¿",
+    key: "knee_L", label: "Knee (Left)", emoji: "🦿",
     movements: ["Flexion","Extension"],
-    normals:   ["0-135Â°","0Â°"],
+    normals:   ["0-135°","0°"],
   },
   {
-    key: "knee_R", label: "Knee (Right)", emoji: "ðŸ¦¿",
+    key: "knee_R", label: "Knee (Right)", emoji: "🦿",
     movements: ["Flexion","Extension"],
-    normals:   ["0-135Â°","0Â°"],
+    normals:   ["0-135°","0°"],
   },
   {
-    key: "ankle_L", label: "Ankle (Left)", emoji: "ðŸ¦¶",
+    key: "ankle_L", label: "Ankle (Left)", emoji: "🦶",
     movements: ["Dorsiflexion","Plantarflexion","Inversion","Eversion"],
-    normals:   ["0-20Â°","0-50Â°","0-35Â°","0-15Â°"],
+    normals:   ["0-20°","0-50°","0-35°","0-15°"],
   },
   {
-    key: "ankle_R", label: "Ankle (Right)", emoji: "ðŸ¦¶",
+    key: "ankle_R", label: "Ankle (Right)", emoji: "🦶",
     movements: ["Dorsiflexion","Plantarflexion","Inversion","Eversion"],
-    normals:   ["0-20Â°","0-50Â°","0-35Â°","0-15Â°"],
+    normals:   ["0-20°","0-50°","0-35°","0-15°"],
   },
 ];
 
 const ROM_PCTS = [
   { label: "Full (100%)", value: 100, color: "bg-green-500" },
-  { label: "Â¾ (75%)",    value: 75,  color: "bg-lime-500" },
-  { label: "Â½ (50%)",    value: 50,  color: "bg-yellow-500" },
-  { label: "Â¼ (25%)",    value: 25,  color: "bg-orange-500" },
+  { label: "¾ (75%)",    value: 75,  color: "bg-lime-500" },
+  { label: "½ (50%)",    value: 50,  color: "bg-yellow-500" },
+  { label: "¼ (25%)",    value: 25,  color: "bg-orange-500" },
   { label: "Minimal (<25%)", value: 10, color: "bg-red-500" },
   { label: "Unable (0%)", value: 0,  color: "bg-red-800" },
 ];
@@ -159,14 +159,14 @@ export default function VisualROMAssessmentRunner({ onSave, onClose }) {
 
   const handleSave = () => {
     // Build SOAP text
-    let soapText = `â€¢ Visual ROM Assessment\n\n`;
+    let soapText = `• Visual ROM Assessment\n\n`;
     activeJoints.forEach(joint => {
       soapText += `  ${joint.label}:\n`;
       joint.movements.forEach((mv, i) => {
         const r = getResult(joint.key, mv);
         if (r.rom !== null) {
           soapText += `    ${mv}: ${r.rom}% ROM (Normal: ${joint.normals[i]})`;
-          soapText += r.pain ? " â€” PAIN reported" : " â€” No pain";
+          soapText += r.pain ? " — PAIN reported" : " — No pain";
           if (r.note) soapText += ` | Note: ${r.note}`;
           soapText += "\n";
         }
@@ -190,7 +190,7 @@ export default function VisualROMAssessmentRunner({ onSave, onClose }) {
     });
   };
 
-  // â”€â”€â”€ Phase: Joint Selection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Phase: Joint Selection ───────────────────────────────────────────────
   if (phase === "select") {
     return (
       <div className="bg-white rounded-xl w-full flex flex-col" style={{ maxHeight: "85vh" }}>
@@ -248,7 +248,7 @@ export default function VisualROMAssessmentRunner({ onSave, onClose }) {
     );
   }
 
-  // â”€â”€â”€ Phase: Assess â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Phase: Assess ────────────────────────────────────────────────────────
   if (phase === "assess" && currentJoint) {
     const isFirst = jointIdx === 0 && movementIdx === 0;
     const progress = Math.round((doneMovements / totalMovements) * 100);
@@ -356,7 +356,7 @@ export default function VisualROMAssessmentRunner({ onSave, onClose }) {
             })}
           </div>
           <p className="text-xs text-center text-slate-400">
-            Movement {movementIdx + 1} of {currentJoint.movements.length} â€” {currentJoint.label}
+            Movement {movementIdx + 1} of {currentJoint.movements.length} — {currentJoint.label}
           </p>
         </div>
 
@@ -379,7 +379,7 @@ export default function VisualROMAssessmentRunner({ onSave, onClose }) {
     );
   }
 
-  // â”€â”€â”€ Phase: Summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Phase: Summary ───────────────────────────────────────────────────────
   return (
     <div className="bg-white rounded-xl w-full flex flex-col" style={{ maxHeight: "85vh" }}>
       <div className="p-5 border-b bg-gradient-to-r from-green-50 to-blue-50 flex justify-between items-start shrink-0">

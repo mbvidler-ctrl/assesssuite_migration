@@ -86,19 +86,19 @@ export default function WOMACRunner({ onSave, onClose }) {
 
     const painLines = WOMAC_SECTIONS.pain.map((item, i) => {
       const s = scores[`pain_${i}`];
-      return `    ${i + 1}. ${item}: ${s !== undefined ? `${s} â€” ${SCORE_LABELS[s]}` : "â€”"}`;
+      return `    ${i + 1}. ${item}: ${s !== undefined ? `${s} — ${SCORE_LABELS[s]}` : "—"}`;
     });
     const stiffnessLines = WOMAC_SECTIONS.stiffness.map((item, i) => {
       const s = scores[`stiffness_${i}`];
-      return `    ${i + 1}. ${item}: ${s !== undefined ? `${s} â€” ${SCORE_LABELS[s]}` : "â€”"}`;
+      return `    ${i + 1}. ${item}: ${s !== undefined ? `${s} — ${SCORE_LABELS[s]}` : "—"}`;
     });
     const functionLines = WOMAC_SECTIONS.function.map((item, i) => {
       const s = scores[`function_${i}`];
-      return `    ${i + 1}. ${item}: ${s !== undefined ? `${s} â€” ${SCORE_LABELS[s]}` : "â€”"}`;
+      return `    ${i + 1}. ${item}: ${s !== undefined ? `${s} — ${SCORE_LABELS[s]}` : "—"}`;
     });
 
     const soapText = [
-      `â€¢ WOMAC (${joint} - ${side})`,
+      `• WOMAC (${joint} - ${side})`,
       `  Total: ${scores_calc.total}/96`,
       `  Pain: ${scores_calc.pain}/20 (${scores_calc.painPercent}%) | Stiffness: ${scores_calc.stiffness}/8 (${scores_calc.stiffnessPercent}%) | Function: ${scores_calc.function}/68 (${scores_calc.functionPercent}%)`,
       ``,

@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle, Info, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ VO2MAX CLASSIFICATION (ACSM) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── VO2MAX CLASSIFICATION (ACSM) ──────────────────────────────────────────
 const getVO2Classification = (vo2, age, gender) => {
   const vo2Num = parseFloat(vo2);
   const ageNum = parseInt(age);
@@ -41,7 +41,7 @@ const colorForClassification = (classification) => {
   }
 };
 
-// â”€â”€â”€ COMPONENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── COMPONENT ──────────────────────────────────────────────────────────────
 export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClose }) {
   const [age, setAge] = useState("");
   const [weight, setWeight] = useState("");
@@ -102,7 +102,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
     setWorkloads(newWorkloads);
     setHeartRate("");
 
-    // Check for steady-state (HR diff â‰¤5 bpm) at 110â€“150 bpm
+    // Check for steady-state (HR diff ≤5 bpm) at 110–150 bpm
     if (newHeartRates.length >= 2) {
       const [prevHR, currHR] = newHeartRates.slice(-2);
       const diff = Math.abs(currHR - prevHR);
@@ -128,7 +128,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
     const maxHeartRate = 220 - ageNum;
     const lastWorkload = finalWorkloads[finalWorkloads.length - 1];
     
-    // Linear regression: VO2 = (workload Ã— 10.8) / weight + 7
+    // Linear regression: VO2 = (workload × 10.8) / weight + 7
     const vo2Max = ((lastWorkload * 10.8) / weightNum + 7).toFixed(2);
     const classification = getVO2Classification(vo2Max, age, gender);
 
@@ -149,7 +149,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
   const handleSaveResult = () => {
     if (!vo2maxResult) return;
 
-    const soapText = `â€¢ Allied Submaximal Cycle Ergometer VO2 Assessment
+    const soapText = `• Allied Submaximal Cycle Ergometer VO2 Assessment
   Multi-stage cardiovascular fitness prediction using heart rate response
   
   CLIENT DETAILS:
@@ -157,17 +157,17 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
   Body Mass: ${vo2maxResult.weight} kg
   
   TEST PROTOCOL:
-  Predicted Max HR (220 âˆ’ age): ${vo2maxResult.maxHeartRate} bpm
+  Predicted Max HR (220 − age): ${vo2maxResult.maxHeartRate} bpm
   Final Workload: ${vo2maxResult.lastWorkload} W
   Cadence: 50 rpm (constant)
   Stages: 3 minutes per stage, progressive load
   
   HEART RATE RESPONSE BY STAGE:
-  ${vo2maxResult.workloads.map((w, i) => `  Stage ${i + 1}: ${w}W â†’ ${vo2maxResult.heartRates[i]} bpm`).join("\n")}
+  ${vo2maxResult.workloads.map((w, i) => `  Stage ${i + 1}: ${w}W → ${vo2maxResult.heartRates[i]} bpm`).join("\n")}
   
   STEADY-STATE ACHIEVEMENT:
-  âœ“ HR in target range (110â€“150 bpm)
-  âœ“ HR variation between stages â‰¤5 bpm
+  ✓ HR in target range (110–150 bpm)
+  ✓ HR variation between stages ≤5 bpm
   
   ESTIMATED VO2MAX:
   ${vo2maxResult.vo2Max} ml/kg/min
@@ -175,7 +175,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
   CLASSIFICATION (ACSM):
   ${vo2maxResult.classification} cardiovascular fitness
   
-  ${rpe ? `RPE (Borg 0â€“10): ${rpe}` : ""}
+  ${rpe ? `RPE (Borg 0–10): ${rpe}` : ""}
   ${symptoms ? `Symptoms: ${symptoms}` : "No adverse symptoms reported."}
   
   CLINICAL INTERPRETATION:
@@ -211,7 +211,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
   const mins = Math.floor(timer / 60);
   const secs = String(timer % 60).padStart(2, "0");
 
-  // â”€â”€â”€ RENDER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── RENDER ─────────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl max-w-5xl w-full max-h-[95vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -240,7 +240,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
             <>
               <Card className={`border-2 ${colorForClassification(vo2maxResult.classification)}`}>
                 <CardHeader>
-                  <CardTitle>Test Results â€” Estimated VO2max</CardTitle>
+                  <CardTitle>Test Results — Estimated VO2max</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="text-center">
@@ -285,7 +285,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
                     <div className="space-y-1">
                       {vo2maxResult.workloads.map((w, i) => (
                         <p key={i} className="text-sm text-teal-800">
-                          Stage {i + 1}: {w}W â†’ {vo2maxResult.heartRates[i]} bpm
+                          Stage {i + 1}: {w}W → {vo2maxResult.heartRates[i]} bpm
                         </p>
                       ))}
                     </div>
@@ -318,7 +318,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
                   onClick={() => setShowProtocol(v => !v)}
                   className="w-full flex justify-between items-center bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900 hover:bg-blue-100 transition-colors"
                 >
-                  <span>ðŸ“‹ Clinician Instructions & Protocol</span>
+                  <span>📋 Clinician Instructions & Protocol</span>
                   {showProtocol ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </button>
                 {showProtocol && (
@@ -326,7 +326,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
                     <div>
                       <p className="font-semibold">Equipment</p>
                       <ul className="text-xs list-disc list-inside space-y-0.5 text-blue-700 mt-1">
-                        <li>Calibrated cycle ergometer (25â€“250W range)</li>
+                        <li>Calibrated cycle ergometer (25–250W range)</li>
                         <li>Heart rate monitor or pulse oximeter</li>
                         <li>Stopwatch for 3-minute stage intervals</li>
                       </ul>
@@ -337,7 +337,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
                         <li>Client cycles through progressive workloads, 3 minutes per stage</li>
                         <li>Maintain constant cadence at 50 rpm</li>
                         <li>Record heart rate during final 30 seconds of each stage</li>
-                        <li>Continue until two consecutive steady-state HR values achieved (110â€“150 bpm, diff â‰¤5 bpm)</li>
+                        <li>Continue until two consecutive steady-state HR values achieved (110–150 bpm, diff ≤5 bpm)</li>
                       </ul>
                     </div>
                     <div className="bg-blue-100 rounded p-2 text-xs italic">
@@ -352,7 +352,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2 text-red-900">
                     <AlertTriangle className="w-5 h-5" />
-                    Absolute Contraindications â€” STOP Test Immediately
+                    Absolute Contraindications — STOP Test Immediately
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-red-800 space-y-1">
@@ -450,7 +450,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
                         <div className="bg-white p-2 rounded border border-teal-200">
                           <p className="text-xs font-semibold text-slate-700 mb-1">Recorded Heart Rates:</p>
                           <p className="text-sm text-teal-800">
-                            {heartRates.map((hr, i) => `${workloads[i]}Wâ†’${hr}bpm`).join(" | ")}
+                            {heartRates.map((hr, i) => `${workloads[i]}W→${hr}bpm`).join(" | ")}
                           </p>
                         </div>
                       )}
@@ -459,8 +459,8 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <Label className="text-xs">RPE (Borg 0â€“10)</Label>
-                      <Input type="number" min="0" max="10" value={rpe} onChange={(e) => setRpe(e.target.value)} placeholder="0â€“10" className="mt-1" disabled={isTestRunning} />
+                      <Label className="text-xs">RPE (Borg 0–10)</Label>
+                      <Input type="number" min="0" max="10" value={rpe} onChange={(e) => setRpe(e.target.value)} placeholder="0–10" className="mt-1" disabled={isTestRunning} />
                     </div>
                     <div>
                       <Label className="text-xs">Symptoms During Test</Label>
@@ -507,18 +507,18 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
                       <thead>
                         <tr className="bg-slate-200 border-b-2 border-slate-400">
                           <th className="p-2 text-left font-semibold">Category</th>
-                          <th className="p-2 text-center font-semibold">Men 20â€“39</th>
-                          <th className="p-2 text-center font-semibold">Men 40â€“59</th>
-                          <th className="p-2 text-center font-semibold">Women 20â€“39</th>
-                          <th className="p-2 text-center font-semibold">Women 40â€“59</th>
+                          <th className="p-2 text-center font-semibold">Men 20–39</th>
+                          <th className="p-2 text-center font-semibold">Men 40–59</th>
+                          <th className="p-2 text-center font-semibold">Women 20–39</th>
+                          <th className="p-2 text-center font-semibold">Women 40–59</th>
                         </tr>
                       </thead>
                       <tbody>
                         {[
-                          { cat: "Excellent", men1: "â‰¥52", men2: "â‰¥45", women1: "â‰¥41", women2: "â‰¥35", bg: "bg-green-50" },
-                          { cat: "Good", men1: "43â€“51", men2: "38â€“44", women1: "35â€“40", women2: "29â€“34", bg: "bg-blue-50" },
-                          { cat: "Fair", men1: "34â€“42", men2: "30â€“37", women1: "27â€“34", women2: "23â€“28", bg: "bg-amber-50" },
-                          { cat: "Poor", men1: "â‰¤33", men2: "â‰¤29", women1: "â‰¤26", women2: "â‰¤22", bg: "bg-red-50" },
+                          { cat: "Excellent", men1: "≥52", men2: "≥45", women1: "≥41", women2: "≥35", bg: "bg-green-50" },
+                          { cat: "Good", men1: "43–51", men2: "38–44", women1: "35–40", women2: "29–34", bg: "bg-blue-50" },
+                          { cat: "Fair", men1: "34–42", men2: "30–37", women1: "27–34", women2: "23–28", bg: "bg-amber-50" },
+                          { cat: "Poor", men1: "≤33", men2: "≤29", women1: "≤26", women2: "≤22", bg: "bg-red-50" },
                         ].map(row => (
                           <tr key={row.cat} className={`border-b ${row.bg}`}>
                             <td className="p-2 font-semibold">{row.cat}</td>

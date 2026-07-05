@@ -51,7 +51,7 @@ export default function RolandMorrisDisabilityQuestionnaireRunner({ client, onSa
   const handleSave = () => {
     const checkedItems = checked.map((c, i) => c ? i + 1 : null).filter(x => x !== null);
     const checkedLines = checkedItems.length > 0 ? `\n  Items answered 'yes': ${checkedItems.join(", ")}` : "";
-    const soap = `â€¢ Roland-Morris Disability Questionnaire\n  Total Score: ${total}/24 â€” ${getInterpretation(total)}${checkedLines}${notes ? `\n  Notes: ${notes}` : ""}\n  Interpretation: 0 = no disability | 1â€“4 = minimal | 5â€“8 = moderate | 9â€“16 = severe | 17+ = very severe\n  MCID: 5 points\n  Reference: Roland & Morris (1983). Back pain measures and outcome prediction for acute admissions to hospital following the occurrence of low back pain.`;
+    const soap = `• Roland-Morris Disability Questionnaire\n  Total Score: ${total}/24 — ${getInterpretation(total)}${checkedLines}${notes ? `\n  Notes: ${notes}` : ""}\n  Interpretation: 0 = no disability | 1–4 = minimal | 5–8 = moderate | 9–16 = severe | 17+ = very severe\n  MCID: 5 points\n  Reference: Roland & Morris (1983). Back pain measures and outcome prediction for acute admissions to hospital following the occurrence of low back pain.`;
     onSave({ status: "completed", result_value: total, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", items_checked: checked, disability_level: getInterpretation(total) } });
     toast.success("Saved.");
   };
@@ -60,30 +60,30 @@ export default function RolandMorrisDisabilityQuestionnaireRunner({ client, onSa
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-w-3xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="p-5 border-b bg-gradient-to-r from-blue-50 to-indigo-50 flex justify-between items-start">
-          <div><h2 className="text-2xl font-bold text-slate-900">Roland-Morris Disability Questionnaire</h2><p className="text-slate-500 text-sm mt-0.5">Back pain disability assessment â€” 24 items</p></div>
+          <div><h2 className="text-2xl font-bold text-slate-900">Roland-Morris Disability Questionnaire</h2><p className="text-slate-500 text-sm mt-0.5">Back pain disability assessment — 24 items</p></div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 space-y-1">
-            <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />ðŸ“‹ Administration Instructions</p>
+            <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />📋 Administration Instructions</p>
             <p>Patient self-completes. Refers to <strong>today</strong> (current status). Check only the statements that are true for the patient due to back or leg pain.</p>
-            <p className="italic">"Check only the statements that describe you today due to your back (or leg) pain. Some questions may look similar but they are all different â€” please tick all that apply."</p>
+            <p className="italic">"Check only the statements that describe you today due to your back (or leg) pain. Some questions may look similar but they are all different — please tick all that apply."</p>
             <p><strong>Note:</strong> Count only items ticked as true = total score. Items not ticked = 0. No partial scoring.</p>
           </div>
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Score Interpretation (/24)</p>
+            <p className="font-semibold text-slate-700">📊 Score Interpretation (/24)</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Score</th><th className="p-2 text-left">Disability Level</th></tr></thead>
                 <tbody>
                   <tr className="border-t"><td className="p-2">0</td><td className="p-2 text-green-700">No disability</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">1â€“4</td><td className="p-2 text-teal-700">Minimal disability</td></tr>
-                  <tr className="border-t"><td className="p-2">5â€“8</td><td className="p-2 text-yellow-700">Moderate disability</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">9â€“16</td><td className="p-2 text-orange-700">Severe disability</td></tr>
-                  <tr className="border-t"><td className="p-2">17â€“24</td><td className="p-2 text-red-700">Very severe disability</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">1–4</td><td className="p-2 text-teal-700">Minimal disability</td></tr>
+                  <tr className="border-t"><td className="p-2">5–8</td><td className="p-2 text-yellow-700">Moderate disability</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">9–16</td><td className="p-2 text-orange-700">Severe disability</td></tr>
+                  <tr className="border-t"><td className="p-2">17–24</td><td className="p-2 text-red-700">Very severe disability</td></tr>
                 </tbody>
               </table>
             </div>
@@ -92,8 +92,8 @@ export default function RolandMorrisDisabilityQuestionnaireRunner({ client, onSa
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
-            <p>Roland M & Morris R. (1983). A study of the natural history of back pain. Part I: Development of a reliable and sensitive measure of disability in low-back pain. <em>Spine, 8</em>(2), 141â€“144.</p>
+            <p className="font-semibold">📖 Reference</p>
+            <p>Roland M & Morris R. (1983). A study of the natural history of back pain. Part I: Development of a reliable and sensitive measure of disability in low-back pain. <em>Spine, 8</em>(2), 141–144.</p>
           </div>
 
           <div className="space-y-2">
@@ -111,7 +111,7 @@ export default function RolandMorrisDisabilityQuestionnaireRunner({ client, onSa
                 <div className="text-center">
                   <p className="text-3xl font-bold text-slate-900">{total} / 24</p>
                   <p className="font-semibold text-lg mt-1">{getInterpretation(total)}</p>
-                  <p className="text-xs text-slate-600 mt-2">0=none | 1â€“4=minimal | 5â€“8=moderate | 9â€“16=severe | 17+=very severe</p>
+                  <p className="text-xs text-slate-600 mt-2">0=none | 1–4=minimal | 5–8=moderate | 9–16=severe | 17+=very severe</p>
                 </div>
               </CardContent>
             </Card>

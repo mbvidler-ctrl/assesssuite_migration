@@ -78,7 +78,7 @@ export default function FABQRunner({ onSave, onClose }) {
     onSave({
       result_value: totalScore,
       additional_data: {
-        soap_text: `â€¢ FABQ (Fear-Avoidance Beliefs Questionnaire)\n  Physical Activity: ${physicalScore}/30 | Work: ${workScore}/66 | Total: ${totalScore}/96\n  ${getInterpretation().join(' | ')}`,
+        soap_text: `• FABQ (Fear-Avoidance Beliefs Questionnaire)\n  Physical Activity: ${physicalScore}/30 | Work: ${workScore}/66 | Total: ${totalScore}/96\n  ${getInterpretation().join(' | ')}`,
         physical_activity_score: physicalScore,
         work_score: workScore,
         total_score: totalScore,
@@ -125,7 +125,7 @@ export default function FABQRunner({ onSave, onClose }) {
             <Card className="bg-amber-50 border-amber-200">
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2 text-amber-800">
-                  âš ï¸ Contraindications & Considerations
+                  ⚠ï¸ Contraindications & Considerations
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-amber-800">

@@ -69,7 +69,7 @@ export default function StaticSquatTestRunner({ client, onSave, onClose }) {
     const qualityCheck = Object.values(observations).filter(v => v).length;
 
     const soapText = [
-      `â€¢ Static Squat Test (Wall Squat) - Isometric Lower Limb Endurance`,
+      `• Static Squat Test (Wall Squat) - Isometric Lower Limb Endurance`,
       ``,
       `  Test Parameters:`,
       `    Hold Time: ${holdTime} seconds`,
@@ -79,17 +79,17 @@ export default function StaticSquatTestRunner({ client, onSave, onClose }) {
       `    Interpretation: ${holdTime} seconds hold indicates ${interpretation.level} isometric endurance`,
       ``,
       `  Test Quality Observations (${qualityCheck}/4):`,
-      observations.wallContactOk ? `    âœ“ Back and head maintained full wall contact` : `    â€¢ Back/head lost wall contact (reduced range)`,
-      observations.kneeAlign ? `    âœ“ Knees tracked over toes; proper alignment` : `    â€¢ Knee alignment issues (valgus/varus)`,
-      observations.backFlat ? `    âœ“ Back remained flat against wall` : `    â€¢ Back arched or rounded away from wall`,
-      observations.noPain ? `    âœ“ No pain; fatigue only` : `    â€¢ Pain reported (discontinue if severe)`,
+      observations.wallContactOk ? `    ✓ Back and head maintained full wall contact` : `    • Back/head lost wall contact (reduced range)`,
+      observations.kneeAlign ? `    ✓ Knees tracked over toes; proper alignment` : `    • Knee alignment issues (valgus/varus)`,
+      observations.backFlat ? `    ✓ Back remained flat against wall` : `    • Back arched or rounded away from wall`,
+      observations.noPain ? `    ✓ No pain; fatigue only` : `    • Pain reported (discontinue if severe)`,
       ``,
       `  Interpretation Criteria (Wall Squat Hold Time):`,
-      `    â€¢ Excellent: â‰¥120 seconds (exceptional isometric endurance)`,
-      `    â€¢ Very Good: 60-119 seconds (strong endurance capacity)`,
-      `    â€¢ Good: 30-59 seconds (above-average endurance)`,
-      `    â€¢ Fair: 10-29 seconds (moderate endurance; strength training recommended)`,
-      `    â€¢ Poor: <10 seconds (limited endurance; high priority for intervention)`,
+      `    • Excellent: ≥120 seconds (exceptional isometric endurance)`,
+      `    • Very Good: 60-119 seconds (strong endurance capacity)`,
+      `    • Good: 30-59 seconds (above-average endurance)`,
+      `    • Fair: 10-29 seconds (moderate endurance; strength training recommended)`,
+      `    • Poor: <10 seconds (limited endurance; high priority for intervention)`,
       ``,
       `  Pre-Test Vitals:`,
       `    Blood Pressure: ${preTestVitals.bloodPressure || 'N/A'}`,
@@ -104,16 +104,16 @@ export default function StaticSquatTestRunner({ client, onSave, onClose }) {
       postTestNotes ? `  Post-Test Notes: ${postTestNotes}` : null,
       ``,
       `  Clinical Relevance:`,
-      `    â€¢ Measures isometric lower limb strength and quadriceps endurance`,
-      `    â€¢ Simulates static postures (stair climbing, squatting down to pick up objects)`,
-      `    â€¢ Useful for rehabilitation and functional strength assessment`,
-      `    â€¢ Less joint stress than dynamic movements; suitable for some pathologies`,
-      `    â€¢ Correlates with ADL independence and fall risk`,
+      `    • Measures isometric lower limb strength and quadriceps endurance`,
+      `    • Simulates static postures (stair climbing, squatting down to pick up objects)`,
+      `    • Useful for rehabilitation and functional strength assessment`,
+      `    • Less joint stress than dynamic movements; suitable for some pathologies`,
+      `    • Correlates with ADL independence and fall risk`,
       ``,
       `  References:`,
-      `    â€¢ Isometric squat hold test - assessment of quadriceps endurance`,
-      `    â€¢ Sensitive to training response; good reliability (ICC 0.80-0.90)`,
-      `    â€¢ Age-adjusted normative data available (varies by population)`,
+      `    • Isometric squat hold test - assessment of quadriceps endurance`,
+      `    • Sensitive to training response; good reliability (ICC 0.80-0.90)`,
+      `    • Age-adjusted normative data available (varies by population)`,
     ].filter(Boolean).join('\n');
 
     onSave({
@@ -304,7 +304,7 @@ export default function StaticSquatTestRunner({ client, onSave, onClose }) {
                       <li>Verbal consent and clear instructions before test</li>
                       <li>Clinician present and within arm's reach during test</li>
                       <li>Establish pain/fatigue scale expectations</li>
-                      <li>Clear instruction: "Tell me if you experience pain (not fatigue) â€” stop immediately"</li>
+                      <li>Clear instruction: "Tell me if you experience pain (not fatigue) — stop immediately"</li>
                       <li>Monitor for postural breakdown; provide support if needed</li>
                       <li>Allow gradual slide down wall at start (no abrupt descent)</li>
                       <li>Assist rising from position if patient struggles (prevent falls)</li>
@@ -331,29 +331,29 @@ export default function StaticSquatTestRunner({ client, onSave, onClose }) {
                   
                   <div className="space-y-2">
                     <div className="bg-green-50 border border-green-300 rounded p-3">
-                      <p className="font-semibold text-green-700 text-sm">Excellent: â‰¥120 seconds</p>
+                      <p className="font-semibold text-green-700 text-sm">Excellent: ≥120 seconds</p>
                       <p className="text-xs text-green-800">Exceptional isometric endurance; excellent lower limb strength capacity</p>
-                      <p className="text-xs text-green-600 mt-1">â€¢ Athlete-level performance; minimal fall risk; excellent functional reserve</p>
+                      <p className="text-xs text-green-600 mt-1">• Athlete-level performance; minimal fall risk; excellent functional reserve</p>
                     </div>
                     <div className="bg-blue-50 border border-blue-300 rounded p-3">
                       <p className="font-semibold text-blue-700 text-sm">Very Good: 60-119 seconds</p>
                       <p className="text-xs text-blue-800">Strong isometric endurance; adequate strength for ADLs and activities</p>
-                      <p className="text-xs text-blue-600 mt-1">â€¢ Good functional capacity; low fall risk; suitable for independent living</p>
+                      <p className="text-xs text-blue-600 mt-1">• Good functional capacity; low fall risk; suitable for independent living</p>
                     </div>
                     <div className="bg-amber-50 border border-amber-300 rounded p-3">
                       <p className="font-semibold text-amber-700 text-sm">Good: 30-59 seconds</p>
                       <p className="text-xs text-amber-800">Above-average isometric endurance; adequate for most daily activities</p>
-                      <p className="text-xs text-amber-600 mt-1">â€¢ Some difficulty with prolonged standing or stairs; moderate training benefit</p>
+                      <p className="text-xs text-amber-600 mt-1">• Some difficulty with prolonged standing or stairs; moderate training benefit</p>
                     </div>
                     <div className="bg-orange-50 border border-orange-300 rounded p-3">
                       <p className="font-semibold text-orange-700 text-sm">Fair: 10-29 seconds</p>
                       <p className="text-xs text-orange-800">Moderate isometric endurance; limited ability to sustain lower limb activity</p>
-                      <p className="text-xs text-orange-600 mt-1">â€¢ Difficulty with stairs, squatting, standing; <strong>recommend targeted strengthening</strong></p>
+                      <p className="text-xs text-orange-600 mt-1">• Difficulty with stairs, squatting, standing; <strong>recommend targeted strengthening</strong></p>
                     </div>
                     <div className="bg-red-50 border border-red-300 rounded p-3">
                       <p className="font-semibold text-red-700 text-sm">Poor: {`<`}10 seconds</p>
                       <p className="text-xs text-red-800">Severely limited isometric endurance; significant lower limb weakness</p>
-                      <p className="text-xs text-red-600 mt-1">â€¢ High fall risk; ADL dependence likely; <strong>requires intervention/evaluation</strong></p>
+                      <p className="text-xs text-red-600 mt-1">• High fall risk; ADL dependence likely; <strong>requires intervention/evaluation</strong></p>
                     </div>
                   </div>
 

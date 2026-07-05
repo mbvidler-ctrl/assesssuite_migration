@@ -63,17 +63,17 @@ export default function PHQ9Runner({ onSave, onClose }) {
     const questionLines = PHQ9_QUESTIONS.map((q, i) => {
       const val = responses[i];
       const label = RESPONSE_OPTIONS.find(o => o.value === val)?.label || '';
-      return `    Q${i + 1}. ${q}: ${val}/3 â€” ${label}`;
+      return `    Q${i + 1}. ${q}: ${val}/3 — ${label}`;
     }).join('\n');
 
     const soapText = [
-      `â€¢ PHQ-9 (Patient Health Questionnaire-9)`,
-      `  Total Score: ${total}/27 â†’ ${interpretation.severity}`,
-      `  Severity Bands: 0â€“4 Minimal | 5â€“9 Mild | 10â€“14 Moderate | 15â€“19 Moderately Severe | 20â€“27 Severe`,
+      `• PHQ-9 (Patient Health Questionnaire-9)`,
+      `  Total Score: ${total}/27 → ${interpretation.severity}`,
+      `  Severity Bands: 0–4 Minimal | 5–9 Mild | 10–14 Moderate | 15–19 Moderately Severe | 20–27 Severe`,
       `  Item Responses (Over the last 2 weeks, how often bothered by...):`,
       questionLines,
       functionalImpact ? `  Functional Impact: ${functionalImpact}` : null,
-      responses[8] > 0 ? `  âš ï¸ ALERT: Suicidal ideation endorsed (Q9) â€” clinical follow-up and safety planning required.` : null,
+      responses[8] > 0 ? `  ⚠ï¸ ALERT: Suicidal ideation endorsed (Q9) — clinical follow-up and safety planning required.` : null,
     ].filter(Boolean).join('\n');
 
     onSave({
@@ -119,7 +119,7 @@ export default function PHQ9Runner({ onSave, onClose }) {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Info className="w-5 h-5 text-blue-600" />
-                  ðŸ“‹ Instructions
+                  📋 Instructions
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
@@ -132,26 +132,26 @@ export default function PHQ9Runner({ onSave, onClose }) {
 
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Score Interpretation (/27)</p>
+              <p className="font-semibold text-slate-700">📊 Score Interpretation (/27)</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Score</th><th className="p-2 text-left">Severity</th><th className="p-2 text-left">Action</th></tr></thead>
                   <tbody>
-                    <tr className="border-t"><td className="p-2">0â€“4</td><td className="p-2 text-green-700">Minimal depression</td><td className="p-2">None required</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">5â€“9</td><td className="p-2 text-yellow-700">Mild depression</td><td className="p-2">Watchful waiting; repeat PHQ-9</td></tr>
-                    <tr className="border-t"><td className="p-2">10â€“14</td><td className="p-2 text-orange-700">Moderate depression</td><td className="p-2">Treatment plan; consider referral</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">15â€“19</td><td className="p-2 text-red-600">Moderately severe</td><td className="p-2">Active treatment/referral</td></tr>
-                    <tr className="border-t"><td className="p-2">20â€“27</td><td className="p-2 text-red-800">Severe depression</td><td className="p-2">Urgent referral to mental health</td></tr>
+                    <tr className="border-t"><td className="p-2">0–4</td><td className="p-2 text-green-700">Minimal depression</td><td className="p-2">None required</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">5–9</td><td className="p-2 text-yellow-700">Mild depression</td><td className="p-2">Watchful waiting; repeat PHQ-9</td></tr>
+                    <tr className="border-t"><td className="p-2">10–14</td><td className="p-2 text-orange-700">Moderate depression</td><td className="p-2">Treatment plan; consider referral</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">15–19</td><td className="p-2 text-red-600">Moderately severe</td><td className="p-2">Active treatment/referral</td></tr>
+                    <tr className="border-t"><td className="p-2">20–27</td><td className="p-2 text-red-800">Severe depression</td><td className="p-2">Urgent referral to mental health</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-slate-500">MCID: ~5 points. Sensitivity 88%, Specificity 88% for MDD at â‰¥10. Source: Kroenke et al. (2001).</p>
+              <p className="text-xs text-slate-500">MCID: ~5 points. Sensitivity 88%, Specificity 88% for MDD at ≥10. Source: Kroenke et al. (2001).</p>
             </div>
 
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>Kroenke K, Spitzer RL, & Williams JBW. (2001). The PHQ-9: Validity of a brief depression severity measure. <em>Journal of General Internal Medicine, 16</em>(9), 606â€“613.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Kroenke K, Spitzer RL, & Williams JBW. (2001). The PHQ-9: Validity of a brief depression severity measure. <em>Journal of General Internal Medicine, 16</em>(9), 606–613.</p>
             </div>
 
             {/* Questions */}
@@ -280,7 +280,7 @@ export default function PHQ9Runner({ onSave, onClose }) {
             {/* Clinical Notes */}
             <Card className="bg-amber-50 border-amber-200">
               <CardContent className="py-4 text-xs text-amber-800">
-                <p><strong>Clinical Use:</strong> PHQ-9 is a validated screening and monitoring tool. Scores â‰¥10 typically warrant further evaluation. Always assess suicide risk when Q9 is positive. Consider referral to GP or psychologist for moderate-severe depression.</p>
+                <p><strong>Clinical Use:</strong> PHQ-9 is a validated screening and monitoring tool. Scores ≥10 typically warrant further evaluation. Always assess suicide risk when Q9 is positive. Consider referral to GP or psychologist for moderate-severe depression.</p>
               </CardContent>
             </Card>
           </div>

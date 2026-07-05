@@ -181,7 +181,7 @@ export default function TimedPushUpTestPressUpTestRunner({ client, onSave, onClo
                     />
                   </div>
                   <div>
-                    <Label>Resting SpOâ‚‚ (%)</Label>
+                    <Label>Resting SpO₂ (%)</Label>
                     <Input
                       type="number"
                       value={restingSPO2}
@@ -255,7 +255,7 @@ export default function TimedPushUpTestPressUpTestRunner({ client, onSave, onClo
                     />
                   </div>
                   <div>
-                    <Label>Post SpOâ‚‚ (%)</Label>
+                    <Label>Post SpO₂ (%)</Label>
                     <Input
                       type="number"
                       value={postSPO2}

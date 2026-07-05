@@ -121,7 +121,7 @@ export default function TenSecondRepeatedJumpTestRunner({ client, onSave, onClos
       return `    Jump ${i + 1}: Flight=${j.flight_time_ms}ms, Contact=${j.contact_time_ms}ms, RSI=${rsi}${j.jump_height_cm ? `, Height=${j.jump_height_cm}cm` : ''}`;
     }).join('\n');
 
-    const soapText = `â€¢ 10-Second Repeated Jump Test\n  Total Valid Jumps: ${validJumps.length} | Best RSI: ${bestRSI.toFixed(3)} | Average RSI: ${avgRSI.toFixed(3)}\n  Avg Flight Time: ${Math.round(avgFlightTime)} ms | Avg Contact Time: ${Math.round(avgContactTime)} ms${fatigueIndex !== null ? ` | Fatigue Index: ${fatigueIndex.toFixed(1)}%` : ''}\n\n  Individual Jump Data:\n${jumpLines}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`;
+    const soapText = `• 10-Second Repeated Jump Test\n  Total Valid Jumps: ${validJumps.length} | Best RSI: ${bestRSI.toFixed(3)} | Average RSI: ${avgRSI.toFixed(3)}\n  Avg Flight Time: ${Math.round(avgFlightTime)} ms | Avg Contact Time: ${Math.round(avgContactTime)} ms${fatigueIndex !== null ? ` | Fatigue Index: ${fatigueIndex.toFixed(1)}%` : ''}\n\n  Individual Jump Data:\n${jumpLines}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`;
 
     onSave({
       status: "completed",
@@ -151,12 +151,12 @@ export default function TenSecondRepeatedJumpTestRunner({ client, onSave, onClos
         {/* Instructions */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5 text-blue-600" />10-Second Repeated Jump Test â€” Clinician Instructions</CardTitle>
+            <CardTitle className="flex items-center gap-2"><Info className="h-5 w-5 text-blue-600" />10-Second Repeated Jump Test — Clinician Instructions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-slate-700">
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-2">
               <p className="font-semibold text-blue-900">Purpose</p>
-              <p>Measures reactive strength, neuromuscular power, and leg stiffness via the Reactive Strength Index (RSI = Flight Time Ã· Contact Time). Used for athletic performance, return-to-sport, and neuromuscular assessment.</p>
+              <p>Measures reactive strength, neuromuscular power, and leg stiffness via the Reactive Strength Index (RSI = Flight Time ÷ Contact Time). Used for athletic performance, return-to-sport, and neuromuscular assessment.</p>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="bg-slate-50 border rounded-lg p-3">
@@ -181,7 +181,7 @@ export default function TenSecondRepeatedJumpTestRunner({ client, onSave, onClos
               <p className="font-semibold mb-2">Procedure</p>
               <ol className="list-decimal list-inside space-y-1 text-slate-600">
                 <li>Client stands on surface ready to jump</li>
-                <li>Clinician presses <strong>Start Test</strong> â€” client immediately begins jumping continuously</li>
+                <li>Clinician presses <strong>Start Test</strong> — client immediately begins jumping continuously</li>
                 <li>Click the large button each time the client <strong>leaves the ground (takeoff)</strong> then again on <strong>landing (contact)</strong></li>
                 <li>Test auto-stops at 10 seconds. Instruct client to jump as many times as possible within 10 seconds</li>
                 <li>Record at least 5 valid jumps for a reliable RSI score</li>
@@ -191,10 +191,10 @@ export default function TenSecondRepeatedJumpTestRunner({ client, onSave, onClos
               <p className="font-semibold text-amber-800 mb-1">RSI Interpretation (Reactive Strength Index)</p>
               <div className="grid grid-cols-3 gap-2 text-center text-xs">
                 <div className="bg-red-100 rounded p-2"><p className="font-bold text-red-800">&lt; 1.0</p><p className="text-red-700">Poor</p></div>
-                <div className="bg-yellow-100 rounded p-2"><p className="font-bold text-yellow-800">1.0 â€“ 1.5</p><p className="text-yellow-700">Average</p></div>
-                <div className="bg-green-100 rounded p-2"><p className="font-bold text-green-800">&gt; 1.5</p><p className="text-green-700">Goodâ€“Elite</p></div>
+                <div className="bg-yellow-100 rounded p-2"><p className="font-bold text-yellow-800">1.0 – 1.5</p><p className="text-yellow-700">Average</p></div>
+                <div className="bg-green-100 rounded p-2"><p className="font-bold text-green-800">&gt; 1.5</p><p className="text-green-700">Good–Elite</p></div>
               </div>
-              <p className="text-xs text-amber-700 mt-2">Higher RSI = better reactive strength. Elite athletes typically score 2.0â€“3.0+.</p>
+              <p className="text-xs text-amber-700 mt-2">Higher RSI = better reactive strength. Elite athletes typically score 2.0–3.0+.</p>
             </div>
           </CardContent>
         </Card>
@@ -228,16 +228,16 @@ export default function TenSecondRepeatedJumpTestRunner({ client, onSave, onClos
                 <span className="text-slate-500">/ 10.00s</span>
               </div>
               <Badge variant={testRunning ? "default" : "secondary"}>
-                {testRunning ? (clickPhase === "flight" ? "â¬† Recording Flight" : "â¬‡ Recording Contact") : "Ready"}
+                {testRunning ? (clickPhase === "flight" ? "⬆ Recording Flight" : "⬇ Recording Contact") : "Ready"}
               </Badge>
             </div>
 
             {testRunning && (
               <div className="flex flex-col items-center gap-3 p-6 bg-blue-50 rounded-lg border-2 border-blue-200">
                 <Button onClick={handleTimerClick} size="lg" className="w-full h-24 text-xl font-bold bg-blue-600 hover:bg-blue-700">
-                  {clickPhase === "flight" ? "ðŸ¦µ TAKEOFF â€” Click Now" : "ðŸ“ LANDED â€” Click Now"}
+                  {clickPhase === "flight" ? "🦵 TAKEOFF — Click Now" : "ðŸ“ LANDED — Click Now"}
                 </Button>
-                <p className="text-sm text-slate-600 text-center">Rhythm: <strong>Takeoff â†’ Land â†’ Takeoff â†’ Landâ€¦</strong></p>
+                <p className="text-sm text-slate-600 text-center">Rhythm: <strong>Takeoff → Land → Takeoff → Land…</strong></p>
               </div>
             )}
 
@@ -257,11 +257,11 @@ export default function TenSecondRepeatedJumpTestRunner({ client, onSave, onClos
                         </div>
                         <div>
                           <p className="text-xs text-slate-500">Flight (ms)</p>
-                          <p className="font-semibold">{jump.flight_time_ms || "â€”"}</p>
+                          <p className="font-semibold">{jump.flight_time_ms || "—"}</p>
                         </div>
                         <div>
                           <p className="text-xs text-slate-500">Contact (ms)</p>
-                          <p className="font-semibold">{jump.contact_time_ms || <span className="text-amber-500 text-xs">Pendingâ€¦</span>}</p>
+                          <p className="font-semibold">{jump.contact_time_ms || <span className="text-amber-500 text-xs">Pending…</span>}</p>
                         </div>
                         <div>
                           <p className="text-xs text-slate-500">Height cm (opt.)</p>

@@ -9,34 +9,34 @@ import { Save, X, Info, ClipboardList, BarChart2 } from "lucide-react";
 import { toast } from "sonner";
 
 const NORMS = [
-  { gender: "Male", age: "17â€“19", excellent: "â‰¥ 251", good: "221â€“250", average: "191â€“220", belowAvg: "161â€“190", poor: "< 161" },
-  { gender: "Male", age: "20â€“29", excellent: "â‰¥ 261", good: "231â€“260", average: "201â€“230", belowAvg: "171â€“200", poor: "< 171" },
-  { gender: "Male", age: "30â€“39", excellent: "â‰¥ 241", good: "211â€“240", average: "181â€“210", belowAvg: "151â€“180", poor: "< 151" },
-  { gender: "Male", age: "40â€“49", excellent: "â‰¥ 221", good: "191â€“220", average: "161â€“190", belowAvg: "131â€“160", poor: "< 131" },
-  { gender: "Male", age: "50+",   excellent: "â‰¥ 191", good: "161â€“190", average: "131â€“160", belowAvg: "101â€“130", poor: "< 101" },
-  { gender: "Female", age: "17â€“19", excellent: "â‰¥ 196", good: "166â€“195", average: "136â€“165", belowAvg: "106â€“135", poor: "< 106" },
-  { gender: "Female", age: "20â€“29", excellent: "â‰¥ 196", good: "166â€“195", average: "136â€“165", belowAvg: "106â€“135", poor: "< 106" },
-  { gender: "Female", age: "30â€“39", excellent: "â‰¥ 181", good: "151â€“180", average: "121â€“150", belowAvg: "91â€“120",  poor: "< 91"  },
-  { gender: "Female", age: "40â€“49", excellent: "â‰¥ 161", good: "131â€“160", average: "101â€“130", belowAvg: "71â€“100",  poor: "< 71"  },
-  { gender: "Female", age: "50+",   excellent: "â‰¥ 141", good: "111â€“140", average: "81â€“110",  belowAvg: "51â€“80",   poor: "< 51"  },
+  { gender: "Male", age: "17–19", excellent: "≥ 251", good: "221–250", average: "191–220", belowAvg: "161–190", poor: "< 161" },
+  { gender: "Male", age: "20–29", excellent: "≥ 261", good: "231–260", average: "201–230", belowAvg: "171–200", poor: "< 171" },
+  { gender: "Male", age: "30–39", excellent: "≥ 241", good: "211–240", average: "181–210", belowAvg: "151–180", poor: "< 151" },
+  { gender: "Male", age: "40–49", excellent: "≥ 221", good: "191–220", average: "161–190", belowAvg: "131–160", poor: "< 131" },
+  { gender: "Male", age: "50+",   excellent: "≥ 191", good: "161–190", average: "131–160", belowAvg: "101–130", poor: "< 101" },
+  { gender: "Female", age: "17–19", excellent: "≥ 196", good: "166–195", average: "136–165", belowAvg: "106–135", poor: "< 106" },
+  { gender: "Female", age: "20–29", excellent: "≥ 196", good: "166–195", average: "136–165", belowAvg: "106–135", poor: "< 106" },
+  { gender: "Female", age: "30–39", excellent: "≥ 181", good: "151–180", average: "121–150", belowAvg: "91–120",  poor: "< 91"  },
+  { gender: "Female", age: "40–49", excellent: "≥ 161", good: "131–160", average: "101–130", belowAvg: "71–100",  poor: "< 71"  },
+  { gender: "Female", age: "50+",   excellent: "≥ 141", good: "111–140", average: "81–110",  belowAvg: "51–80",   poor: "< 51"  },
 ];
 
 function getClassification(bestJump, gender, age) {
   if (!bestJump || !gender || !age) return null;
   const ageNum = parseInt(age);
   let ageGroup = "50+";
-  if (ageNum <= 19) ageGroup = "17â€“19";
-  else if (ageNum <= 29) ageGroup = "20â€“29";
-  else if (ageNum <= 39) ageGroup = "30â€“39";
-  else if (ageNum <= 49) ageGroup = "40â€“49";
+  if (ageNum <= 19) ageGroup = "17–19";
+  else if (ageNum <= 29) ageGroup = "20–29";
+  else if (ageNum <= 39) ageGroup = "30–39";
+  else if (ageNum <= 49) ageGroup = "40–49";
 
   const norm = NORMS.find(n => n.gender === gender && n.age === ageGroup);
   if (!norm) return null;
 
-  const excellent = parseInt(norm.excellent.replace("â‰¥ ", ""));
-  const goodLow = parseInt(norm.good.split("â€“")[0]);
-  const avgLow = parseInt(norm.average.split("â€“")[0]);
-  const belowAvgLow = parseInt(norm.belowAvg.split("â€“")[0]);
+  const excellent = parseInt(norm.excellent.replace("≥ ", ""));
+  const goodLow = parseInt(norm.good.split("–")[0]);
+  const avgLow = parseInt(norm.average.split("–")[0]);
+  const belowAvgLow = parseInt(norm.belowAvg.split("–")[0]);
 
   if (bestJump >= excellent) return { label: "Excellent", color: "bg-green-100 text-green-800" };
   if (bestJump >= goodLow) return { label: "Good", color: "bg-blue-100 text-blue-800" };
@@ -191,7 +191,7 @@ Notes: ${notes || "None"}`;
           <Card className="border-slate-200">
             <CardHeader className="pb-2 pt-3 px-4">
               <CardTitle className="text-sm text-slate-700 flex items-center gap-2">
-                <BarChart2 className="w-4 h-4" /> Normative Data (cm) â€” Johnson & Nelson, 1979
+                <BarChart2 className="w-4 h-4" /> Normative Data (cm) — Johnson & Nelson, 1979
               </CardTitle>
             </CardHeader>
             <CardContent className="px-4 pb-3">
@@ -234,9 +234,9 @@ Notes: ${notes || "None"}`;
             </CardHeader>
             <CardContent className="px-4 pb-3 text-xs text-slate-600 space-y-1">
               <p>Johnson, B.L. & Nelson, J.K. (1979). <em>Practical Measurements for Evaluation in Physical Education.</em> 4th ed. Burgess Publishing.</p>
-              <p>Maulder, P. & Cronin, J. (2005). Horizontal and vertical jump assessment: reliability, symmetry, discriminative and predictive ability. <em>Physical Therapy in Sport, 6</em>(2), 74â€“82. https://doi.org/10.1016/j.ptsp.2005.01.001</p>
-              <p>Castro-PiÃ±ero, J. et al. (2010). Percentile values for standing broad jump in children and adolescents aged 6â€“17 years. <em>Journal of Sports Medicine and Physical Fitness, 50</em>(3), 194â€“202.</p>
-              <p>Lohman, E.B. et al. (2011). The relationship between lumbar lordosis, sit and reach test, and standing long jump distance in healthy young adults. <em>Physiotherapy Theory and Practice, 27</em>(5), 340â€“347.</p>
+              <p>Maulder, P. & Cronin, J. (2005). Horizontal and vertical jump assessment: reliability, symmetry, discriminative and predictive ability. <em>Physical Therapy in Sport, 6</em>(2), 74–82. https://doi.org/10.1016/j.ptsp.2005.01.001</p>
+              <p>Castro-Piñero, J. et al. (2010). Percentile values for standing broad jump in children and adolescents aged 6–17 years. <em>Journal of Sports Medicine and Physical Fitness, 50</em>(3), 194–202.</p>
+              <p>Lohman, E.B. et al. (2011). The relationship between lumbar lordosis, sit and reach test, and standing long jump distance in healthy young adults. <em>Physiotherapy Theory and Practice, 27</em>(5), 340–347.</p>
             </CardContent>
           </Card>
 

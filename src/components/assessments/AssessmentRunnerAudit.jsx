@@ -48,7 +48,7 @@ export default function AssessmentRunnerAudit() {
     'Bruce': true,
     'YMCA Cycle': true,
     'Astrand': true,
-    'Ã…strand': true,
+    'Åstrand': true,
     'Harvard Step': true,
     'Beep': true,
     'Cooper': true,

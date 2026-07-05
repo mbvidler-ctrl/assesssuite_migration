@@ -45,7 +45,7 @@ function hasDetectedRunner(name) {
   if (n.includes('harvard step')) return true;
   if (n.includes('box and block')) return true;
   if (n.includes('himat') || n.includes('high-level mobility')) return true;
-  if (n.includes('astrand') || n.includes('Ã¥strand')) return true;
+  if (n.includes('astrand') || n.includes('åstrand')) return true;
   if (n.includes('job task analysis') || n.includes('icare')) return true;
   if (n.includes('borg') && n.includes('rpe')) return true;
   if (n.includes('general movement screen')) return true;

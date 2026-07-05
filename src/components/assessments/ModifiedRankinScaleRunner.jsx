@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { X, Save, Info, CheckCircle2, ChevronDown, AlertTriangle, FileText } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ Grade definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Grade definitions ────────────────────────────────────────────────────────
 const MRS_GRADES = [
   { score: 0, label: "No symptoms", description: "No symptoms at all.", color: "green" },
   { score: 1, label: "No significant disability", description: "No significant disability despite symptoms; able to carry out all usual duties and activities.", color: "teal" },
@@ -29,7 +29,7 @@ const gradeColorMap = {
   slate:  { border: "border-slate-400",  bg: "bg-slate-100", text: "text-slate-700",  badge: "bg-slate-200 text-slate-700" },
 };
 
-// â”€â”€â”€ Interview questions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Interview questions ──────────────────────────────────────────────────────
 const INTERVIEW_QUESTIONS = [
   { id: "walk_independently",    label: "Can the client walk independently?" },
   { id: "needs_gait_aid",        label: "Does the client require a gait aid?" },
@@ -45,7 +45,7 @@ const INTERVIEW_QUESTIONS = [
   { id: "needs_constant_care",   label: "Does the client require constant nursing/care support?" },
 ];
 
-// â”€â”€â”€ Observation checkboxes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Observation checkboxes ───────────────────────────────────────────────────
 const OBSERVATIONS = [
   "Independent transfers observed",
   "Ambulates independently",
@@ -59,7 +59,7 @@ const OBSERVATIONS = [
   "Falls risk concern identified",
 ];
 
-// â”€â”€â”€ Score suggestion logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Score suggestion logic ───────────────────────────────────────────────────
 function suggestGrade(interview) {
   const yes = (k) => interview[k] === "yes";
   const no  = (k) => interview[k] === "no";
@@ -76,17 +76,17 @@ function suggestGrade(interview) {
   return null;
 }
 
-// â”€â”€â”€ Risk flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Risk flags ───────────────────────────────────────────────────────────────
 function getRiskFlags(interview, observations) {
   const flags = [];
-  if (interview["needs_supervision"] === "yes" || observations.includes("Falls risk concern identified") || observations.includes("Balance impairment observed")) flags.push("âš ï¸ Falls risk concern");
-  if (interview["needs_dressing_help"] === "yes" || interview["needs_bathing_help"] === "yes" || interview["needs_toileting_help"] === "yes") flags.push("ðŸ‘¤ Carer/support needs identified");
+  if (interview["needs_supervision"] === "yes" || observations.includes("Falls risk concern identified") || observations.includes("Balance impairment observed")) flags.push("⚠ï¸ Falls risk concern");
+  if (interview["needs_dressing_help"] === "yes" || interview["needs_bathing_help"] === "yes" || interview["needs_toileting_help"] === "yes") flags.push("👤 Carer/support needs identified");
   if (observations.includes("Falls risk concern identified") || observations.includes("Balance impairment observed")) flags.push("ðŸ  Home safety review may be required");
-  if (observations.includes("Balance impairment observed") || observations.includes("Fatigue limits function") || interview["needs_gait_aid"] === "yes") flags.push("ðŸ©º Physiotherapy/OT referral may be appropriate");
+  if (observations.includes("Balance impairment observed") || observations.includes("Fatigue limits function") || interview["needs_gait_aid"] === "yes") flags.push("🩺 Physiotherapy/OT referral may be appropriate");
   return flags;
 }
 
-// â”€â”€â”€ YNU toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── YNU toggle ──────────────────────────────────────────────────────────────
 function YNUToggle({ value, onChange }) {
   return (
     <div className="flex gap-1">
@@ -110,7 +110,7 @@ function YNUToggle({ value, onChange }) {
   );
 }
 
-// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
   const [interview, setInterview]       = useState({});
   const [observations, setObservations] = useState([]);
@@ -135,7 +135,7 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
 
   const selectedGradeInfo = selectedScore !== null ? MRS_GRADES.find(g => g.score === selectedScore) : null;
 
-  // â”€â”€â”€ Auto-report text â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Auto-report text ──────────────────────────────────────────────────────
   const reportText = selectedGradeInfo ? (() => {
     const walkStr = interview.walk_independently === "yes" ? "walks independently"
       : interview.walk_independently === "no" ? "does not walk independently" : "walking status unclear";
@@ -145,7 +145,7 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
     return `Modified Rankin Scale score: ${selectedScore}/6. This indicates ${selectedGradeInfo.label.toLowerCase()}. The client ${walkStr}, ${careStr}, and ${supStr}. Clinical reasoning: ${clinicalReasoning || "(not provided)"}`;
   })() : "";
 
-  // â”€â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Save ──────────────────────────────────────────────────────────────────
   const handleSave = () => {
     if (selectedScore === null) { toast.error("Please select a final disability grade."); return; }
     if (!clinicalReasoning.trim()) { toast.error("Clinical reasoning is required before saving."); return; }
@@ -155,13 +155,13 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
       .map(q => `    ${q.label}: ${interview[q.id]}`)
       .join("\n");
 
-    const obsSummary = observations.length ? observations.map(o => `    âœ“ ${o}`).join("\n") : "    None recorded";
+    const obsSummary = observations.length ? observations.map(o => `    ✓ ${o}`).join("\n") : "    None recorded";
 
     const soapText = [
-      `â€¢ Modified Rankin Scale (mRS): Grade ${selectedScore}/6 â€” ${selectedGradeInfo.label}`,
+      `• Modified Rankin Scale (mRS): Grade ${selectedScore}/6 — ${selectedGradeInfo.label}`,
       `  ${selectedGradeInfo.description}`,
-      suggestedGrade !== null ? `  Suggested Grade (logic): ${suggestedGrade} â€” clinician confirmed: ${selectedScore}` : null,
-      scoreChange !== null ? `  Change from previous score (${prevScore}): ${scoreChange > 0 ? "+" : ""}${scoreChange} grade(s) â€” ${changeLabel}` : null,
+      suggestedGrade !== null ? `  Suggested Grade (logic): ${suggestedGrade} — clinician confirmed: ${selectedScore}` : null,
+      scoreChange !== null ? `  Change from previous score (${prevScore}): ${scoreChange > 0 ? "+" : ""}${scoreChange} grade(s) — ${changeLabel}` : null,
       ``,
       `  Structured Interview:`,
       interviewSummary || "    Not completed",
@@ -236,7 +236,7 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
             <CollapsibleContent className="mt-2 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-2">
               <p>Complete the structured interview and observation checklist, then select the clinician-confirmed final grade. The system will suggest a grade based on your responses, but <strong>the final score must always be clinician-confirmed</strong>.</p>
               <p className="italic">"I'm going to ask you about your ability to perform daily activities. Please describe what you can and cannot do without help."</p>
-              <p><strong>Key criterion:</strong> Grade 0â€“2 = independent living. Grade 3 = needs some help but independent in personal care and walking. Grade 4â€“5 = dependent on others. Grade 6 = death.</p>
+              <p><strong>Key criterion:</strong> Grade 0–2 = independent living. Grade 3 = needs some help but independent in personal care and walking. Grade 4–5 = dependent on others. Grade 6 = death.</p>
             </CollapsibleContent>
           </Collapsible>
 
@@ -244,7 +244,7 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
           <Collapsible open={showNormatives} onOpenChange={setShowNormatives}>
             <CollapsibleTrigger className="flex items-center gap-2 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-700 text-sm hover:bg-slate-100 transition-colors">
               <ChevronDown className={`w-4 h-4 transition-transform ${showNormatives ? "rotate-180" : ""}`} />
-              ðŸ“Š Score Interpretation
+              📊 Score Interpretation
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2 bg-slate-50 border border-slate-200 rounded-lg p-4">
               <div className="overflow-x-auto">
@@ -253,11 +253,11 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
                     <tr><th className="p-2 text-left">Score</th><th className="p-2 text-left">Disability</th><th className="p-2 text-left">Discharge Implication</th></tr>
                   </thead>
                   <tbody>
-                    <tr className="border-t"><td className="p-2">0â€“1</td><td className="p-2 text-green-700">No/minimal disability</td><td className="p-2">Community â€” no support needed</td></tr>
+                    <tr className="border-t"><td className="p-2">0–1</td><td className="p-2 text-green-700">No/minimal disability</td><td className="p-2">Community — no support needed</td></tr>
                     <tr className="border-t bg-white"><td className="p-2">2</td><td className="p-2 text-teal-700">Slight disability</td><td className="p-2">Community with some support</td></tr>
                     <tr className="border-t"><td className="p-2">3</td><td className="p-2 text-yellow-700">Moderate disability</td><td className="p-2">Needs carer support</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">4â€“5</td><td className="p-2 text-red-700">Severe disability</td><td className="p-2">Institutional or high-level care</td></tr>
-                    <tr className="border-t"><td className="p-2">6</td><td className="p-2 text-slate-600">Deceased</td><td className="p-2">â€”</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">4–5</td><td className="p-2 text-red-700">Severe disability</td><td className="p-2">Institutional or high-level care</td></tr>
+                    <tr className="border-t"><td className="p-2">6</td><td className="p-2 text-slate-600">Deceased</td><td className="p-2">—</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -265,7 +265,7 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 1: Clinical Context â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── SECTION 1: Clinical Context ─────────────────────────────────── */}
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <div className="bg-slate-100 px-4 py-3 font-semibold text-slate-800 text-sm">1. Clinical Context (Optional)</div>
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
@@ -275,7 +275,7 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
                 { key: "affectedSide",      label: "Affected side",                            placeholder: "e.g. Left, Right, Bilateral" },
                 { key: "livingSituation",   label: "Living situation",                         placeholder: "e.g. Lives alone, with family" },
                 { key: "supports",          label: "Current supports/carers" },
-                { key: "previousScore",     label: "Previous mRS score (if known)",            type: "number", placeholder: "0â€“6" },
+                { key: "previousScore",     label: "Previous mRS score (if known)",            type: "number", placeholder: "0–6" },
                 { key: "previousScoreDate", label: "Date of previous score",                   type: "date" },
               ].map(({ key, label, type = "text", placeholder }) => (
                 <div key={key}>
@@ -294,7 +294,7 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
             </div>
           </div>
 
-          {/* â”€â”€ SECTION 2: Structured Interview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── SECTION 2: Structured Interview ─────────────────────────────── */}
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <div className="bg-indigo-50 px-4 py-3 font-semibold text-indigo-900 text-sm">2. Structured Interview</div>
             <div className="divide-y divide-slate-100">
@@ -307,7 +307,7 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
             </div>
           </div>
 
-          {/* â”€â”€ SECTION 3: Observation Checklist â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── SECTION 3: Observation Checklist ────────────────────────────── */}
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <div className="bg-teal-50 px-4 py-3 font-semibold text-teal-900 text-sm">3. Clinical Observation Checklist</div>
             <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -325,7 +325,7 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
             </div>
           </div>
 
-          {/* â”€â”€ Suggested Grade â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── Suggested Grade ──────────────────────────────────────────────── */}
           {suggestedGrade !== null && (
             <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 space-y-1">
               <div className="flex items-center gap-2 font-semibold text-amber-900">
@@ -333,16 +333,16 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
                 Score Guidance
               </div>
               <p className="text-sm text-amber-800">
-                Based on interview responses: <strong>Suggested Grade {suggestedGrade}</strong> â€” {MRS_GRADES[suggestedGrade].description}
+                Based on interview responses: <strong>Suggested Grade {suggestedGrade}</strong> — {MRS_GRADES[suggestedGrade].description}
               </p>
-              <p className="text-xs text-amber-700 font-medium italic">Suggested Grade Only â€“ clinician must confirm final score below.</p>
+              <p className="text-xs text-amber-700 font-medium italic">Suggested Grade Only – clinician must confirm final score below.</p>
               <Button size="sm" variant="outline" className="mt-1 text-xs border-amber-400 text-amber-800 hover:bg-amber-100" onClick={() => setSelectedScore(suggestedGrade)}>
                 Apply Suggested Grade {suggestedGrade}
               </Button>
             </div>
           )}
 
-          {/* â”€â”€ Risk Flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── Risk Flags ───────────────────────────────────────────────────── */}
           {riskFlags.length > 0 && (
             <div className="bg-red-50 border border-red-200 rounded-xl p-4 space-y-2">
               <p className="font-semibold text-red-900 text-sm flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> Risk & Referral Flags</p>
@@ -354,7 +354,7 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
             </div>
           )}
 
-          {/* â”€â”€ SECTION 4: Grade Selection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── SECTION 4: Grade Selection ───────────────────────────────────── */}
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <div className="bg-slate-100 px-4 py-3 font-semibold text-slate-800 text-sm">4. Final Grade Selection (Clinician-Confirmed)</div>
             <div className="p-4 space-y-2">
@@ -386,21 +386,21 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
             </div>
           </div>
 
-          {/* â”€â”€ Change Over Time â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── Change Over Time ─────────────────────────────────────────────── */}
           {scoreChange !== null && (
             <div className={`rounded-xl p-4 border-2 space-y-1 ${changeLabel === "Improved" ? "bg-green-50 border-green-300" : changeLabel === "Worsened" ? "bg-red-50 border-red-300" : "bg-slate-50 border-slate-300"}`}>
               <p className={`font-semibold text-sm ${changeLabel === "Improved" ? "text-green-900" : changeLabel === "Worsened" ? "text-red-900" : "text-slate-800"}`}>
                 Change Over Time
               </p>
               <div className="text-sm space-y-0.5">
-                <p>Previous score: <strong>{prevScore}</strong> &nbsp;â†’&nbsp; Current score: <strong>{selectedScore}</strong></p>
-                <p>Change: <strong>{scoreChange > 0 ? "+" : ""}{scoreChange} grade(s)</strong> â€” <strong>{changeLabel}</strong></p>
+                <p>Previous score: <strong>{prevScore}</strong> &nbsp;→&nbsp; Current score: <strong>{selectedScore}</strong></p>
+                <p>Change: <strong>{scoreChange > 0 ? "+" : ""}{scoreChange} grade(s)</strong> — <strong>{changeLabel}</strong></p>
                 <p className="text-xs text-slate-500 italic">A change of 1 grade may be clinically meaningful depending on context.</p>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ SECTION 5: Clinical Reasoning â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── SECTION 5: Clinical Reasoning ───────────────────────────────── */}
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <div className="bg-slate-100 px-4 py-3">
               <p className="font-semibold text-slate-800 text-sm">5. Clinical Reasoning for Selected Score <span className="text-red-500">*</span></p>
@@ -415,7 +415,7 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
             </div>
           </div>
 
-          {/* â”€â”€ Auto-Generated Report Text â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── Auto-Generated Report Text ───────────────────────────────────── */}
           {selectedScore !== null && clinicalReasoning.trim() && (
             <div className="border border-indigo-200 rounded-xl overflow-hidden">
               <div className="bg-indigo-50 px-4 py-3 flex items-center gap-2 font-semibold text-indigo-900 text-sm">
@@ -431,14 +431,14 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
           <Collapsible open={showReferences} onOpenChange={setShowReferences}>
             <CollapsibleTrigger className="flex items-center gap-2 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-700 text-sm hover:bg-slate-100 transition-colors">
               <ChevronDown className={`w-4 h-4 transition-transform ${showReferences ? "rotate-180" : ""}`} />
-              ðŸ“š References
+              📚 References
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2 bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2 text-xs text-slate-600">
-              <p>1. Rankin J. (1957). Cerebral vascular accidents in patients over the age of 60. <em>Scottish Medical Journal, 2</em>, 200â€“215.</p>
-              <p>2. van Swieten JC, Koudstaal PJ, Visser MC, Schouten HJA, van Gijn J. (1988). Interobserver agreement for the assessment of handicap in stroke patients. <em>Stroke, 19</em>(5), 604â€“607.</p>
-              <p>3. Wilson JT, Hareendran A, Hendry A, Potter J, Bone I, Muir KW. (2005). Reliability of the modified Rankin Scale across multiple raters and over time. <em>Stroke, 36</em>(4), 777â€“781.</p>
-              <p>4. Quinn TJ, Dawson J, Walters MR, Lees KR. (2009). Reliability of the modified Rankin Scale. <em>Expert Review of Neurotherapeutics, 9</em>(9), 1231â€“1237.</p>
-              <p>5. Banks JL, Marotta CA. (2007). Outcomes validity and reliability of the modified Rankin Scale: implications for stroke clinical trials. <em>Stroke, 38</em>(3), 1091â€“1096.</p>
+              <p>1. Rankin J. (1957). Cerebral vascular accidents in patients over the age of 60. <em>Scottish Medical Journal, 2</em>, 200–215.</p>
+              <p>2. van Swieten JC, Koudstaal PJ, Visser MC, Schouten HJA, van Gijn J. (1988). Interobserver agreement for the assessment of handicap in stroke patients. <em>Stroke, 19</em>(5), 604–607.</p>
+              <p>3. Wilson JT, Hareendran A, Hendry A, Potter J, Bone I, Muir KW. (2005). Reliability of the modified Rankin Scale across multiple raters and over time. <em>Stroke, 36</em>(4), 777–781.</p>
+              <p>4. Quinn TJ, Dawson J, Walters MR, Lees KR. (2009). Reliability of the modified Rankin Scale. <em>Expert Review of Neurotherapeutics, 9</em>(9), 1231–1237.</p>
+              <p>5. Banks JL, Marotta CA. (2007). Outcomes validity and reliability of the modified Rankin Scale: implications for stroke clinical trials. <em>Stroke, 38</em>(3), 1091–1096.</p>
             </CollapsibleContent>
           </Collapsible>
 

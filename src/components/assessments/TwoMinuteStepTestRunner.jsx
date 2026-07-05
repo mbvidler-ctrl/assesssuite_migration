@@ -71,7 +71,7 @@ export default function TwoMinuteStepTestRunner({ client, onSave, onClose }) {
     setSteps(0);
     setTestDone(false);
     setIsRunning(true);
-    toast.info("Test started â€” count every right knee lift to target height.");
+    toast.info("Test started — count every right knee lift to target height.");
   };
 
   const handleStop = () => {
@@ -95,7 +95,7 @@ export default function TwoMinuteStepTestRunner({ client, onSave, onClose }) {
     const interpretation = clientAge ? getInterpretation(steps, clientAge, clientGender) : null;
 
     const soapLines = [
-      `â€¢ 2-Minute Step Test`,
+      `• 2-Minute Step Test`,
       `  Right Knee Steps: ${steps}`,
       interpretation ? `  Performance: ${interpretation.label}` : null,
       hrPre ? `  Pre-Test HR: ${hrPre} bpm` : null,
@@ -190,7 +190,7 @@ export default function TwoMinuteStepTestRunner({ client, onSave, onClose }) {
                   {/* Midpoint label arrow */}
                   <text x="2" y="93" fontSize="7" fill="#dc2626" fontWeight="bold">Mid</text>
                   {/* Label: knee raised */}
-                  <text x="48" y="88" fontSize="6.5" fill="#2563eb">â†‘ Knee</text>
+                  <text x="48" y="88" fontSize="6.5" fill="#2563eb">↑ Knee</text>
                 </svg>
               </div>
               <div className="text-sm text-slate-700 space-y-2 flex-1">
@@ -198,7 +198,7 @@ export default function TwoMinuteStepTestRunner({ client, onSave, onClose }) {
                 <ol className="list-decimal list-inside space-y-1.5 text-xs text-slate-600">
                   <li>Client stands side-on next to a wall for reference</li>
                   <li>Locate the <strong>iliac crest</strong> (top of hip bone) and <strong>kneecap (patella)</strong></li>
-                  <li>Mark or measure the <strong>midpoint</strong> between these two landmarks on the thigh/wall â€” this is the target height <span className="text-red-600 font-semibold">(red dashed line)</span></li>
+                  <li>Mark or measure the <strong>midpoint</strong> between these two landmarks on the thigh/wall — this is the target height <span className="text-red-600 font-semibold">(red dashed line)</span></li>
                   <li>Client marches in place, lifting each <strong>right</strong> knee to reach this height</li>
                   <li>Count only right knee raises that meet or exceed the marked height</li>
                 </ol>
@@ -272,10 +272,10 @@ export default function TwoMinuteStepTestRunner({ client, onSave, onClose }) {
                 )}
               </div>
               {timeLeft <= 30 && isRunning && (
-                <Badge className="bg-red-600 text-white animate-pulse">Final 30 seconds â€” encourage client!</Badge>
+                <Badge className="bg-red-600 text-white animate-pulse">Final 30 seconds — encourage client!</Badge>
               )}
               {testDone && (
-                <Badge className="bg-green-600 text-white text-sm px-4 py-1">âœ“ Test Complete</Badge>
+                <Badge className="bg-green-600 text-white text-sm px-4 py-1">✓ Test Complete</Badge>
               )}
             </div>
 
@@ -289,7 +289,7 @@ export default function TwoMinuteStepTestRunner({ client, onSave, onClose }) {
                   variant="outline"
                   size="lg"
                   className="w-14 h-14 text-xl rounded-full"
-                >âˆ’</Button>
+                >−</Button>
                 <Button
                   onClick={() => setSteps(s => s + 1)}
                   className="w-20 h-20 text-2xl rounded-full bg-blue-600 hover:bg-blue-700 shadow-lg"
@@ -311,7 +311,7 @@ export default function TwoMinuteStepTestRunner({ client, onSave, onClose }) {
             {/* Live interpretation */}
             {interpretation && (
               <div className={`${interpretation.bg} border rounded-lg p-3 text-center`}>
-                <p className={`font-semibold ${interpretation.color}`}>{steps} steps â€” {interpretation.label}</p>
+                <p className={`font-semibold ${interpretation.color}`}>{steps} steps — {interpretation.label}</p>
                 <p className="text-xs text-slate-500 mt-0.5">Based on norms for {clientGender}, age {clientAge}</p>
               </div>
             )}
@@ -361,9 +361,9 @@ export default function TwoMinuteStepTestRunner({ client, onSave, onClose }) {
                 <tbody>
                   {NORMS.map(n => (
                     <tr key={n.ageMin} className="border-t">
-                      <td className="p-2 border">{n.ageMin}â€“{n.ageMax}</td>
-                      <td className="p-2 text-center border">{n.male[0]}â€“{n.male[1]}</td>
-                      <td className="p-2 text-center border">{n.female[0]}â€“{n.female[1]}</td>
+                      <td className="p-2 border">{n.ageMin}–{n.ageMax}</td>
+                      <td className="p-2 text-center border">{n.male[0]}–{n.male[1]}</td>
+                      <td className="p-2 text-center border">{n.female[0]}–{n.female[1]}</td>
                     </tr>
                   ))}
                 </tbody>

@@ -34,7 +34,7 @@ export default function LachmanTestRunner({ client, onSave, onClose }) {
     const resultValue = (gradeValues[parseInt(laxityGrade)] || 0) + (endFeel === "soft" ? 1 : 0);
 
     const additionalData = {
-      soap_text: `â€¢ Lachman Test:\n  Laxity Grade: ${laxityGrade} (${["0-5mm", "5-10mm", ">10mm"][parseInt(laxityGrade)-1]}) | End-Feel: ${endFeel === "firm" ? "Firm (ACL intact)" : "Soft (ACL likely ruptured)"} | Knee Flexion: ${kneeFlexion}Â°${notes ? `\n  Notes: ${notes}` : ""}`,
+      soap_text: `• Lachman Test:\n  Laxity Grade: ${laxityGrade} (${["0-5mm", "5-10mm", ">10mm"][parseInt(laxityGrade)-1]}) | End-Feel: ${endFeel === "firm" ? "Firm (ACL intact)" : "Soft (ACL likely ruptured)"} | Knee Flexion: ${kneeFlexion}°${notes ? `\n  Notes: ${notes}` : ""}`,
       measurement_type: "LachmanTest",
       kneeFlexion,
       endFeel,
@@ -111,7 +111,7 @@ export default function LachmanTestRunner({ client, onSave, onClose }) {
               <div className="space-y-2">
                 <div className="bg-white p-3 rounded border-l-4 border-blue-500">
                   <p className="text-sm font-semibold text-slate-800">Client Position</p>
-                  <p className="text-sm text-slate-600 mt-1">Supine with knee in 20â€“30Â° flexion</p>
+                  <p className="text-sm text-slate-600 mt-1">Supine with knee in 20–30° flexion</p>
                 </div>
                 <div className="bg-white p-3 rounded border-l-4 border-orange-500">
                   <p className="text-sm font-semibold text-slate-800">Examiner Hands</p>
@@ -130,7 +130,7 @@ export default function LachmanTestRunner({ client, onSave, onClose }) {
             className="w-full flex justify-between items-center px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg font-semibold text-blue-900 hover:bg-blue-100 transition-colors"
             onClick={() => setExpandedSection(expandedSection === "procedure" ? null : "procedure")}
           >
-            <span>ðŸ“‹ Step-by-Step Procedure</span>
+            <span>📋 Step-by-Step Procedure</span>
             {expandedSection === "procedure" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
 
@@ -139,7 +139,7 @@ export default function LachmanTestRunner({ client, onSave, onClose }) {
               <CardContent className="pt-6 space-y-3">
                 {[
                   { id: 1, title: "Position Client", desc: "Place client supine on examination table." },
-                  { id: 2, title: "Set Knee Angle", desc: "Flex knee to 20â€“30Â° (typically 25Â°). Use goniometer if precise measurement needed." },
+                  { id: 2, title: "Set Knee Angle", desc: "Flex knee to 20–30° (typically 25°). Use goniometer if precise measurement needed." },
                   { id: 3, title: "Stabilize Femur", desc: "Place one hand above the knee to stabilize the femur. Apply gentle counterforce." },
                   { id: 4, title: "Grasp Proximal Tibia", desc: "Place other hand around proximal tibia, just below knee joint." },
                   { id: 5, title: "Apply Force", desc: "Smoothly apply anterior translatory force to tibia. Assess displacement and resistance." },
@@ -180,7 +180,7 @@ export default function LachmanTestRunner({ client, onSave, onClose }) {
             className="w-full flex justify-between items-center px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-900 hover:bg-slate-100 transition-colors"
             onClick={() => setExpandedSection(expandedSection === "accuracy" ? null : "accuracy")}
           >
-            <span>ðŸ“Š Diagnostic Accuracy & Evidence</span>
+            <span>📊 Diagnostic Accuracy & Evidence</span>
             {expandedSection === "accuracy" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
 
@@ -205,8 +205,8 @@ export default function LachmanTestRunner({ client, onSave, onClose }) {
                   </div>
                 </div>
                 <div className="bg-slate-100 p-3 rounded text-xs text-slate-600 space-y-1">
-                  <p><strong>Primary Source:</strong> Makhmalbaf H et al. (2013). Accuracy of the Lachman and anterior drawer tests for anterior cruciate ligament injuries. <em>Electronic Physician, 5</em>(2), 627â€“631.</p>
-                  <p><strong>Original Technique:</strong> Lachman JH. (1976). Anterior cruciate ligament injuries in skiers. <em>Orthopedic Clinics of North America, 7</em>(1), 245â€“252.</p>
+                  <p><strong>Primary Source:</strong> Makhmalbaf H et al. (2013). Accuracy of the Lachman and anterior drawer tests for anterior cruciate ligament injuries. <em>Electronic Physician, 5</em>(2), 627–631.</p>
+                  <p><strong>Original Technique:</strong> Lachman JH. (1976). Anterior cruciate ligament injuries in skiers. <em>Orthopedic Clinics of North America, 7</em>(1), 245–252.</p>
                 </div>
               </CardContent>
             </Card>
@@ -220,7 +220,7 @@ export default function LachmanTestRunner({ client, onSave, onClose }) {
             <CardContent className="pt-6 space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <Label className="font-semibold text-slate-800">Knee Flexion Angle (Â°)</Label>
+                  <Label className="font-semibold text-slate-800">Knee Flexion Angle (°)</Label>
                   <Input
                     type="number"
                     value={kneeFlexion}
@@ -229,7 +229,7 @@ export default function LachmanTestRunner({ client, onSave, onClose }) {
                     min="15"
                     max="45"
                   />
-                  <p className="text-xs text-slate-500 mt-1">Typical: 20â€“30Â°</p>
+                  <p className="text-xs text-slate-500 mt-1">Typical: 20–30°</p>
                 </div>
               </div>
 
@@ -270,7 +270,7 @@ export default function LachmanTestRunner({ client, onSave, onClose }) {
                     >
                       <div className="capitalize font-bold">{feel}</div>
                       <div className="text-xs mt-1">
-                        {feel === "firm" ? "ACL intact âœ“" : "ACL likely ruptured âš "}
+                        {feel === "firm" ? "ACL intact ✓" : "ACL likely ruptured ⚠"}
                       </div>
                     </button>
                   ))}
@@ -298,7 +298,7 @@ export default function LachmanTestRunner({ client, onSave, onClose }) {
                   </div>
                   <p className="text-sm text-green-800">
                     Grade {laxityGrade} laxity with {endFeel === "firm" ? "firm" : "soft/absent"} end-feel
-                    {endFeel === "soft" && " â€” indicates possible ACL rupture"}
+                    {endFeel === "soft" && " — indicates possible ACL rupture"}
                   </p>
                 </div>
               )}

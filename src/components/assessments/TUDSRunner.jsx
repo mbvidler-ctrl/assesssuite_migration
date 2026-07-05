@@ -96,8 +96,8 @@ export default function TUDSRunner({ onSave, onClose }) {
     }
 
     const soapText = [
-      `â€¢ Timed Up and Down Stairs (TUDS)`,
-      `  Average Time: ${calculateAverage()}s | Best Time: ${getBestTime()}s â€” ${interpretation?.level}`,
+      `• Timed Up and Down Stairs (TUDS)`,
+      `  Average Time: ${calculateAverage()}s | Best Time: ${getBestTime()}s — ${interpretation?.level}`,
       `  Stairs: ${numStairs} (${stairHeight}cm high) | Handrail: ${handrail} | Device: ${assistiveDevice}`,
       safetyObservations ? `  Safety: ${safetyObservations}` : null,
     ].filter(Boolean).join('\n');
@@ -156,7 +156,7 @@ export default function TUDSRunner({ onSave, onClose }) {
             <Card className="bg-amber-50 border-amber-200">
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2 text-amber-800">
-                  âš ï¸ Contraindications
+                  ⚠ï¸ Contraindications
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-amber-800">

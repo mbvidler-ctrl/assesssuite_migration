@@ -21,7 +21,7 @@ export default function DropVerticalJumpRunner({ client, onSave, onClose }) {
 
     const resultValue = parseFloat(jumpHeight);
     const additionalData = {
-      soap_text: `â€¢ Drop Vertical Jump\n  Jump Height: ${jumpHeight} cm\n  Knee Angle at Landing: ${kneeAngle}Â°\n  Knee Valgus: ${kneeValgus}Â°${notes ? `\n  Notes: ${notes}` : ''}`,
+      soap_text: `• Drop Vertical Jump\n  Jump Height: ${jumpHeight} cm\n  Knee Angle at Landing: ${kneeAngle}°\n  Knee Valgus: ${kneeValgus}°${notes ? `\n  Notes: ${notes}` : ''}`,
       measurement_type: "drop_vertical_jump",
       knee_angle: parseFloat(kneeAngle),
       knee_valgus: parseFloat(kneeValgus),
@@ -49,7 +49,7 @@ export default function DropVerticalJumpRunner({ client, onSave, onClose }) {
           <div className="space-y-4">
             {/* Clinician Instructions */}
             <div className="bg-blue-600 text-white rounded-lg p-4 space-y-2">
-              <p className="font-semibold text-base">ðŸ“‹ Clinician Instructions</p>
+              <p className="font-semibold text-base">📋 Clinician Instructions</p>
               <ul className="text-sm space-y-1 list-disc list-inside">
                 <li>Client stands on a 30 cm box with feet hip-width apart.</li>
                 <li>Client steps off (not jumps) and lands on both feet simultaneously.</li>
@@ -62,8 +62,8 @@ export default function DropVerticalJumpRunner({ client, onSave, onClose }) {
 
             {/* Video Analysis Software */}
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2">
-              <p className="font-semibold text-amber-800 text-sm">ðŸŽ¥ Recommended Video Analysis Software</p>
-              <p className="text-xs text-amber-700 mb-2">Record from the front (coronal plane) at 60â€“240fps for accurate analysis:</p>
+              <p className="font-semibold text-amber-800 text-sm">🎥 Recommended Video Analysis Software</p>
+              <p className="text-xs text-amber-700 mb-2">Record from the front (coronal plane) at 60–240fps for accurate analysis:</p>
               <div className="grid grid-cols-2 gap-2 text-xs text-slate-700">
                 <div className="bg-white rounded p-2 border border-amber-100">
                   <p className="font-semibold">Kinovea</p>
@@ -93,7 +93,7 @@ export default function DropVerticalJumpRunner({ client, onSave, onClose }) {
               />
             </div>
             <div>
-              <Label htmlFor="kneeAngle">Knee Angle (Â°)</Label>
+              <Label htmlFor="kneeAngle">Knee Angle (°)</Label>
               <Input
                 id="kneeAngle"
                 type="number"
@@ -102,7 +102,7 @@ export default function DropVerticalJumpRunner({ client, onSave, onClose }) {
               />
             </div>
             <div>
-              <Label htmlFor="kneeValgus">Knee Valgus (Â°)</Label>
+              <Label htmlFor="kneeValgus">Knee Valgus (°)</Label>
               <Input
                 id="kneeValgus"
                 type="number"

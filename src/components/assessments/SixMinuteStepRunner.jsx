@@ -56,7 +56,7 @@ export default function SixMinuteStepRunner({ onSave, onClose }) {
     }
 
     const soapText = [
-      `â€¢ 6-Minute Step Test`,
+      `• 6-Minute Step Test`,
       `  Total Steps: ${totalSteps} | Step Height: ${stepHeight}cm`,
       baselineHR ? `  Pre-Test: HR ${baselineHR} bpm, SpO2 ${baselineSpO2}%, BP ${baselineBPSys}/${baselineBPDia}` : null,
       postHR ? `  Post-Test: HR ${postHR} bpm, SpO2 ${postSpO2}%, RPE ${postRPE}, Dyspnea ${postDyspnea}/10` : null,

@@ -138,7 +138,7 @@ export default function KneeInjuryandOsteoarthritisOutcomeScoreKOOSRunner({ clie
     });
     
     const scoreLines = SECTION_KEYS.map(k => `    ${SECTIONS[k].name}: ${sectionScores[k]}/100`).join("\n");
-    const soapText = `â€¢ KOOS (Knee Injury and Osteoarthritis Outcome Score)\n  Average Score: ${avg}/100\n\n  Subscale Scores:\n${scoreLines}\n  MCID: 8â€“10 points per subscale\n\n  Detailed Responses:${detailedResponses}\n\n  Reference: Roos EM & Lohmander LS (2003). Health Qual Life Outcomes.`;
+    const soapText = `• KOOS (Knee Injury and Osteoarthritis Outcome Score)\n  Average Score: ${avg}/100\n\n  Subscale Scores:\n${scoreLines}\n  MCID: 8–10 points per subscale\n\n  Detailed Responses:${detailedResponses}\n\n  Reference: Roos EM & Lohmander LS (2003). Health Qual Life Outcomes.`;
 
     onSave({
       status: "completed",
@@ -186,7 +186,7 @@ export default function KneeInjuryandOsteoarthritisOutcomeScoreKOOSRunner({ clie
           <Collapsible open={showClinician} onOpenChange={setShowClinician}>
             <CollapsibleTrigger className="flex items-center gap-2 w-full px-4 py-3 bg-amber-50 border border-amber-200 rounded-lg font-semibold text-amber-900 text-sm hover:bg-amber-100 transition-colors">
               <ChevronDown className={`w-4 h-4 transition-transform ${showClinician ? "rotate-180" : ""}`} />
-              ðŸ“‹ Clinician Instructions & Clinical Context
+              📋 Clinician Instructions & Clinical Context
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2 bg-amber-50 border border-amber-200 rounded-lg p-5 space-y-4 text-sm text-amber-800">
               <div>
@@ -197,9 +197,9 @@ export default function KneeInjuryandOsteoarthritisOutcomeScoreKOOSRunner({ clie
                 <p className="font-semibold text-amber-900 mb-1">Administration</p>
                 <ul className="list-disc list-inside space-y-1 text-xs">
                   <li><strong>Timeframe:</strong> Refers to the <strong>past 7 days</strong> only.</li>
-                  <li><strong>Scoring:</strong> Each item 0â€“4. Subscale score = (1 âˆ’ sum/max) Ã— 100. Higher = better function.</li>
-                  <li><strong>Missing data:</strong> If â‰¤2 items missing per subscale, impute using subscale mean. If &gt;2 missing, subscale is invalid.</li>
-                  <li><strong>Completion time:</strong> 5â€“8 minutes.</li>
+                  <li><strong>Scoring:</strong> Each item 0–4. Subscale score = (1 − sum/max) × 100. Higher = better function.</li>
+                  <li><strong>Missing data:</strong> If ≤2 items missing per subscale, impute using subscale mean. If &gt;2 missing, subscale is invalid.</li>
+                  <li><strong>Completion time:</strong> 5–8 minutes.</li>
                 </ul>
               </div>
               <div>
@@ -213,7 +213,7 @@ export default function KneeInjuryandOsteoarthritisOutcomeScoreKOOSRunner({ clie
           <Collapsible open={showNormatives} onOpenChange={setShowNormatives}>
             <CollapsibleTrigger className="flex items-center gap-2 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-700 text-sm hover:bg-slate-100 transition-colors">
               <ChevronDown className={`w-4 h-4 transition-transform ${showNormatives ? "rotate-180" : ""}`} />
-              ðŸ“Š Normative Data & Interpretation
+              📊 Normative Data & Interpretation
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2 space-y-3">
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs space-y-3">
@@ -231,11 +231,11 @@ export default function KneeInjuryandOsteoarthritisOutcomeScoreKOOSRunner({ clie
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {[
-                        ["Healthy controls", "90â€“96", "93â€“97", "85â€“92", "88â€“94"],
-                        ["Mild knee OA", "60â€“75", "65â€“80", "35â€“55", "45â€“65"],
-                        ["Moderateâ€“severe OA", "35â€“55", "40â€“65", "15â€“35", "25â€“45"],
-                        ["Post-ACL (<6 wks)", "30â€“55", "25â€“45", "5â€“20", "20â€“40"],
-                        ["Post-ACL (12 months)", "70â€“88", "75â€“90", "55â€“75", "55â€“75"],
+                        ["Healthy controls", "90–96", "93–97", "85–92", "88–94"],
+                        ["Mild knee OA", "60–75", "65–80", "35–55", "45–65"],
+                        ["Moderate–severe OA", "35–55", "40–65", "15–35", "25–45"],
+                        ["Post-ACL (<6 wks)", "30–55", "25–45", "5–20", "20–40"],
+                        ["Post-ACL (12 months)", "70–88", "75–90", "55–75", "55–75"],
                       ].map(([pop, pain, adl, sport, qol]) => (
                         <tr key={pop} className="hover:bg-slate-100">
                           <td className="p-1.5 font-medium">{pop}</td>
@@ -250,7 +250,7 @@ export default function KneeInjuryandOsteoarthritisOutcomeScoreKOOSRunner({ clie
                 </div>
                 <div className="bg-green-50 border border-green-200 rounded p-3 space-y-1">
                   <p className="font-semibold text-green-800">MCID (Minimum Clinically Important Difference)</p>
-                  <p className="text-green-700">â‰ˆ <strong>8â€“10 points</strong> per subscale = meaningful change from patient perspective (Roos et al., 2003).</p>
+                  <p className="text-green-700">≈ <strong>8–10 points</strong> per subscale = meaningful change from patient perspective (Roos et al., 2003).</p>
                   <p className="text-green-700">Return-to-sport threshold: Sport subscale <strong>&gt;56</strong> (expert consensus; some guidelines recommend &gt;90% limb symmetry alongside KOOS).</p>
                 </div>
               </div>
@@ -260,7 +260,7 @@ export default function KneeInjuryandOsteoarthritisOutcomeScoreKOOSRunner({ clie
           {/* Progress */}
           <div className="text-center text-sm text-slate-600">
             {answered} / {TOTAL_QUESTIONS} questions answered
-            {allAnswered && <span className="ml-2 text-green-600 font-semibold">âœ“ All complete</span>}
+            {allAnswered && <span className="ml-2 text-green-600 font-semibold">✓ All complete</span>}
           </div>
 
           {/* Tabs */}
@@ -273,7 +273,7 @@ export default function KneeInjuryandOsteoarthritisOutcomeScoreKOOSRunner({ clie
                 return (
                   <TabsTrigger key={k} value={k} className="text-xs relative">
                     {SECTIONS[k].name}
-                    {done && <span className="ml-1 text-green-500">âœ“</span>}
+                    {done && <span className="ml-1 text-green-500">✓</span>}
                   </TabsTrigger>
                 );
               })}
@@ -351,7 +351,7 @@ export default function KneeInjuryandOsteoarthritisOutcomeScoreKOOSRunner({ clie
                     );
                   })}
                 </div>
-                <p className="text-xs text-center text-slate-500 mt-3">0 = extreme problems Â· 100 = no problems Â· MCID â‰ˆ 8â€“10 pts</p>
+                <p className="text-xs text-center text-slate-500 mt-3">0 = extreme problems · 100 = no problems · MCID ≈ 8–10 pts</p>
               </CardContent>
             </Card>
           )}
@@ -366,18 +366,18 @@ export default function KneeInjuryandOsteoarthritisOutcomeScoreKOOSRunner({ clie
           <Collapsible open={showReferences} onOpenChange={setShowReferences}>
             <CollapsibleTrigger className="flex items-center gap-2 w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg font-semibold text-slate-700 text-sm hover:bg-slate-100 transition-colors">
               <ChevronDown className={`w-4 h-4 transition-transform ${showReferences ? "rotate-180" : ""}`} />
-              ðŸ“š References
+              📚 References
             </CollapsibleTrigger>
             <CollapsibleContent className="mt-2 bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2 text-xs text-slate-600">
-              <p>1. Roos EM, Klassbo M, Lohmander LS. (1998). KOOS â€” Knee Injury and Osteoarthritis Outcome Score. Reliability and validity of a knee joint questionnaire. <em>Scandinavian Journal of Medicine & Science in Sports, 8</em>(6), 439â€“448.</p>
+              <p>1. Roos EM, Klassbo M, Lohmander LS. (1998). KOOS — Knee Injury and Osteoarthritis Outcome Score. Reliability and validity of a knee joint questionnaire. <em>Scandinavian Journal of Medicine & Science in Sports, 8</em>(6), 439–448.</p>
               <p>2. Roos EM, Lohmander LS. (2003). The Knee injury and Osteoarthritis Outcome Score (KOOS): from joint injury to osteoarthritis. <em>Health and Quality of Life Outcomes, 1</em>, 64.</p>
-              <p>3. Roos EM, Toksvig-Larsen S. (2003). Knee injury and Osteoarthritis Outcome Score (KOOS) â€” validation and comparison to the WOMAC in total knee replacement. <em>Health and Quality of Life Outcomes, 1</em>, 17.</p>
-              <p>4. Collins NJ, Misra D, Felson DT, et al. (2011). Measures of knee function: KOOS, KOOS-PS, KOOS-QCL. <em>Arthritis Care & Research, 63</em>(S11), S208â€“S228.</p>
-              <p>5. Frobell RB, Roos EM, Roos HP, et al. (2010). A randomized trial of treatment for acute anterior cruciate ligament tears. <em>New England Journal of Medicine, 363</em>, 331â€“342.</p>
-              <p>6. van Meer BL, Meuffels DE, Vissers MM, et al. (2013). Knee injury and Osteoarthritis Outcome Score or International Knee Documentation Committee Subjective Knee Form: which questionnaire is most useful to monitor patients with an intraarticular knee disorder in the short-term? <em>Arthroscopy, 29</em>(4), 701â€“715.</p>
+              <p>3. Roos EM, Toksvig-Larsen S. (2003). Knee injury and Osteoarthritis Outcome Score (KOOS) — validation and comparison to the WOMAC in total knee replacement. <em>Health and Quality of Life Outcomes, 1</em>, 17.</p>
+              <p>4. Collins NJ, Misra D, Felson DT, et al. (2011). Measures of knee function: KOOS, KOOS-PS, KOOS-QCL. <em>Arthritis Care & Research, 63</em>(S11), S208–S228.</p>
+              <p>5. Frobell RB, Roos EM, Roos HP, et al. (2010). A randomized trial of treatment for acute anterior cruciate ligament tears. <em>New England Journal of Medicine, 363</em>, 331–342.</p>
+              <p>6. van Meer BL, Meuffels DE, Vissers MM, et al. (2013). Knee injury and Osteoarthritis Outcome Score or International Knee Documentation Committee Subjective Knee Form: which questionnaire is most useful to monitor patients with an intraarticular knee disorder in the short-term? <em>Arthroscopy, 29</em>(4), 701–715.</p>
               <div className="mt-2">
                 <Button variant="outline" size="sm" className="text-xs h-8 w-full justify-start" onClick={() => window.open("https://www.koos.nu", "_blank")}>
-                  <ExternalLink className="w-3 h-3 mr-2" /> Official KOOS Website â€” koos.nu (scoring, translations, normatives)
+                  <ExternalLink className="w-3 h-3 mr-2" /> Official KOOS Website — koos.nu (scoring, translations, normatives)
                 </Button>
               </div>
             </CollapsibleContent>

@@ -19,7 +19,7 @@ export default function GenericQuestionnaireRunner({ client, assessment, onSave,
     if (!score || isNaN(numericScore)) { toast.error("Enter a valid score"); return; }
     const name = assessment?.name || "Assessment";
     const unit = assessment?.unit_of_measure || "points";
-    const soap = `â€¢ ${name}\n  Score: ${numericScore} ${unit}${assessment?.scoring_system ? `\n  Scoring: ${assessment.scoring_system}` : ""}${Object.keys(subscores).length > 0 ? `\n  Subscores: ${Object.entries(subscores).map(([k, v]) => `${k}: ${v}`).join(", ")}` : ""}${notes ? `\n  Notes: ${notes}` : ""}`;
+    const soap = `• ${name}\n  Score: ${numericScore} ${unit}${assessment?.scoring_system ? `\n  Scoring: ${assessment.scoring_system}` : ""}${Object.keys(subscores).length > 0 ? `\n  Subscores: ${Object.entries(subscores).map(([k, v]) => `${k}: ${v}`).join(", ")}` : ""}${notes ? `\n  Notes: ${notes}` : ""}`;
     onSave({ status: "completed", result_value: numericScore, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", assessment_name: name, administered_by: administeredBy, subscores: Object.keys(subscores).length > 0 ? subscores : undefined } });
     toast.success(`${name} saved.`);
   };

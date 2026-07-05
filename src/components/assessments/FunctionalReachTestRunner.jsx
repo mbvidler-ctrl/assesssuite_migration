@@ -40,7 +40,7 @@ export default function FunctionalReachTestRunner({ client, onSave, onClose }) {
       status: "completed",
       result_value: avgReach,
       additional_data: {
-        soap_text: `â€¢ Functional Reach Test\n  Average Reach: ${avgReach.toFixed(1)} cm â€” ${fallRisk} Fall Risk\n  Trials: ${trials.map(t => t.toFixed(1) + ' cm').join(', ')}`,
+        soap_text: `• Functional Reach Test\n  Average Reach: ${avgReach.toFixed(1)} cm — ${fallRisk} Fall Risk\n  Trials: ${trials.map(t => t.toFixed(1) + ' cm').join(', ')}`,
         measurement_type: "Functional Reach",
         trials,
         fall_risk: fallRisk,
@@ -95,11 +95,11 @@ export default function FunctionalReachTestRunner({ client, onSave, onClose }) {
             <div>
               <p className="font-semibold text-slate-800 mb-1">Administration Instructions</p>
               <ol className="text-xs text-slate-600 list-decimal list-inside space-y-1">
-                <li>Have the patient stand parallel to the wall-mounted measuring tape, feet shoulder-width apart, dominant arm raised to 90Â° shoulder flexion with hand closed in a fist</li>
+                <li>Have the patient stand parallel to the wall-mounted measuring tape, feet shoulder-width apart, dominant arm raised to 90° shoulder flexion with hand closed in a fist</li>
                 <li>Record the starting position at the tip of the third metacarpal (start position)</li>
                 <li>Ask the patient to reach forward as far as possible without taking a step or losing balance</li>
                 <li>Record the end position at the tip of the third metacarpal</li>
-                <li>Reach distance = end position âˆ’ start position</li>
+                <li>Reach distance = end position − start position</li>
                 <li>Perform 1 practice trial, then record <strong>3 valid trials</strong></li>
                 <li>Average the 3 trial scores for the final result</li>
                 <li>Discard any trial where a step is taken or balance is lost</li>
@@ -114,7 +114,7 @@ export default function FunctionalReachTestRunner({ client, onSave, onClose }) {
                   <span className="text-red-700">High fall risk</span>
                 </div>
                 <div className="flex justify-between bg-orange-50 px-3 py-1.5 rounded">
-                  <span className="font-semibold text-orange-800">15â€“25 cm</span>
+                  <span className="font-semibold text-orange-800">15–25 cm</span>
                   <span className="text-orange-700">Moderate fall risk</span>
                 </div>
                 <div className="flex justify-between bg-green-50 px-3 py-1.5 rounded">
@@ -122,31 +122,31 @@ export default function FunctionalReachTestRunner({ client, onSave, onClose }) {
                   <span className="text-green-700">Low fall risk</span>
                 </div>
               </div>
-              <p className="text-xs text-slate-400 mt-1">Normative values vary by age/sex. Healthy adults typically reach 25â€“40 cm. Values below 15 cm are associated with 4Ã— increased fall risk (Duncan et al., 1992).</p>
+              <p className="text-xs text-slate-400 mt-1">Normative values vary by age/sex. Healthy adults typically reach 25–40 cm. Values below 15 cm are associated with 4× increased fall risk (Duncan et al., 1992).</p>
             </div>
 
             <div>
               <p className="font-semibold text-slate-800 mb-1">Psychometric Properties</p>
               <ul className="text-xs text-slate-600 list-disc list-inside space-y-0.5">
-                <li>Good test-retest reliability (ICC = 0.89â€“0.92)</li>
-                <li>Good intra-rater reliability (ICC = 0.87â€“0.98)</li>
+                <li>Good test-retest reliability (ICC = 0.89–0.92)</li>
+                <li>Good intra-rater reliability (ICC = 0.87–0.98)</li>
                 <li>Sensitivity 70%, specificity 58% for predicting falls in community-dwelling older adults</li>
-                <li>MCID: approximately 3â€“4 cm in older adults</li>
+                <li>MCID: approximately 3–4 cm in older adults</li>
               </ul>
             </div>
 
             <div>
               <p className="font-semibold text-slate-800 mb-1">Key References</p>
               <div className="text-xs text-slate-600 space-y-1.5">
-                <p><strong>Duncan PW, Weiner DK, Chandler J, Studenski S.</strong> (1990). Functional reach: a new clinical measure of balance. <em>Journal of Gerontology</em>, 45(6), M192â€“M197.</p>
-                <p><strong>Duncan PW, Studenski S, Chandler J, Prescott B.</strong> (1992). Functional reach: predictive validity in a sample of elderly male veterans. <em>Journal of Gerontology</em>, 47(3), M93â€“M98.</p>
-                <p><strong>Weiner DK, Bongiorni DR, Studenski SA, Duncan PW, Kochersberger GG.</strong> (1993). Does functional reach improve with rehabilitation? <em>Archives of Physical Medicine and Rehabilitation</em>, 74(8), 796â€“800.</p>
+                <p><strong>Duncan PW, Weiner DK, Chandler J, Studenski S.</strong> (1990). Functional reach: a new clinical measure of balance. <em>Journal of Gerontology</em>, 45(6), M192–M197.</p>
+                <p><strong>Duncan PW, Studenski S, Chandler J, Prescott B.</strong> (1992). Functional reach: predictive validity in a sample of elderly male veterans. <em>Journal of Gerontology</em>, 47(3), M93–M98.</p>
+                <p><strong>Weiner DK, Bongiorni DR, Studenski SA, Duncan PW, Kochersberger GG.</strong> (1993). Does functional reach improve with rehabilitation? <em>Archives of Physical Medicine and Rehabilitation</em>, 74(8), 796–800.</p>
               </div>
               <button
                 onClick={() => window.open('https://www.sralab.org/sites/default/files/2021-08/Functional%20Reach%20Test%20(FRT)_0.pdf', '_blank')}
                 className="mt-2 flex items-center gap-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium"
               >
-                <ExternalLink className="w-3 h-3" /> Rehab Measures Database â€” FRT
+                <ExternalLink className="w-3 h-3" /> Rehab Measures Database — FRT
               </button>
             </div>
           </div>
@@ -189,7 +189,7 @@ export default function FunctionalReachTestRunner({ client, onSave, onClose }) {
               {avgReach !== null && (
                 <div className="flex justify-between text-sm bg-blue-50 px-3 py-1.5 rounded border border-blue-200 font-semibold">
                   <span className="text-blue-700">Average</span>
-                  <span className="text-blue-800">{avgReach.toFixed(1)} cm â€” {avgReach < 15 ? "High" : avgReach <= 25 ? "Moderate" : "Low"} Fall Risk</span>
+                  <span className="text-blue-800">{avgReach.toFixed(1)} cm — {avgReach < 15 ? "High" : avgReach <= 25 ? "Moderate" : "Low"} Fall Risk</span>
                 </div>
               )}
             </div>

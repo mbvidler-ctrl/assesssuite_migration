@@ -26,7 +26,7 @@ export default function ApleysCompressionTestRunner({ client, onSave, onClose })
     setIsTestCompleted(true);
     const resultValue = calculateResultValue(trialData);
     const additionalData = {
-      soap_text: `â€¢ Apley's Compression Test\n  Positive Trials: ${resultValue}\n  Pain Locations: ${trialData.map(t => t.painLocation).join(', ')}`,
+      soap_text: `• Apley's Compression Test\n  Positive Trials: ${resultValue}\n  Pain Locations: ${trialData.map(t => t.painLocation).join(', ')}`,
       measurement_type: "ApleysCompressionTest",
       trials: trialData,
     };
@@ -73,16 +73,16 @@ export default function ApleysCompressionTestRunner({ client, onSave, onClose })
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
         {/* Clinician Instructions */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-2">
-          <p className="font-semibold">ðŸ“‹ Administration Instructions</p>
-          <p><strong>Position:</strong> Client prone with knee flexed to 90Â°. Clinician stabilises thigh by kneeling on popliteal fossa (or applies counterpressure).</p>
+          <p className="font-semibold">📋 Administration Instructions</p>
+          <p><strong>Position:</strong> Client prone with knee flexed to 90°. Clinician stabilises thigh by kneeling on popliteal fossa (or applies counterpressure).</p>
           <p><strong>Compression:</strong> Apply downward axial force through the heel/foot. Rotate tibia medially and laterally while maintaining compression. Note location and quality of pain.</p>
-          <p><strong>Distraction:</strong> Lift the leg (distraction) and repeat rotation. Compare: if pain is greater with compression than distraction â†’ meniscal pathology more likely. If pain greater with distraction â†’ ligamentous/capsular involvement more likely.</p>
+          <p><strong>Distraction:</strong> Lift the leg (distraction) and repeat rotation. Compare: if pain is greater with compression than distraction → meniscal pathology more likely. If pain greater with distraction → ligamentous/capsular involvement more likely.</p>
           <p><strong>Positive test:</strong> Medial or lateral joint-line pain during compression with rotation.</p>
         </div>
 
         {/* Norms & Interpretation */}
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-          <p className="font-semibold text-slate-700">ðŸ“Š Diagnostic Accuracy</p>
+          <p className="font-semibold text-slate-700">📊 Diagnostic Accuracy</p>
           <div className="overflow-x-auto">
             <table className="w-full text-xs border border-slate-300 rounded">
               <thead className="bg-slate-200"><tr><th className="p-2 text-left">Metric</th><th className="p-2 text-center">Value</th></tr></thead>
@@ -99,9 +99,9 @@ export default function ApleysCompressionTestRunner({ client, onSave, onClose })
 
         {/* Reference */}
         <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-          <p className="font-semibold">ðŸ“– Reference</p>
-          <p>Apley AG. (1947). The diagnosis of meniscus injuries. <em>Journal of Bone and Joint Surgery, 29</em>(1), 78â€“84.</p>
-          <p>Scholten RJPM et al. (2001). The accuracy of physical diagnostic tests for assessing meniscal lesions of the knee. <em>Journal of Family Practice, 50</em>(11), 938â€“944.</p>
+          <p className="font-semibold">📖 Reference</p>
+          <p>Apley AG. (1947). The diagnosis of meniscus injuries. <em>Journal of Bone and Joint Surgery, 29</em>(1), 78–84.</p>
+          <p>Scholten RJPM et al. (2001). The accuracy of physical diagnostic tests for assessing meniscal lesions of the knee. <em>Journal of Family Practice, 50</em>(11), 938–944.</p>
         </div>
 
         <Card>

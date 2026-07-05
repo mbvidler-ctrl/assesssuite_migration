@@ -21,8 +21,8 @@ function extractApssConditions(client) {
   if (client.apss_s2_hospital_admissions) apss.push({ name: "Recent Hospital Admission", notes: client.apss_s2_hospital_admissions_details || null });
   if (client.apss_s2_pregnancy) apss.push({ name: "Pregnancy / Recent Childbirth", notes: client.apss_s2_pregnancy_details || null });
   // BMI flags
-  if (client.apss_s2_bmi && client.apss_s2_bmi >= 30) apss.push({ name: "Obesity (BMI â‰¥ 30)", notes: `BMI: ${client.apss_s2_bmi}` });
-  else if (client.apss_s2_bmi && client.apss_s2_bmi >= 25) apss.push({ name: "Overweight (BMI 25â€“29.9)", notes: `BMI: ${client.apss_s2_bmi}` });
+  if (client.apss_s2_bmi && client.apss_s2_bmi >= 30) apss.push({ name: "Obesity (BMI ≥ 30)", notes: `BMI: ${client.apss_s2_bmi}` });
+  else if (client.apss_s2_bmi && client.apss_s2_bmi >= 25) apss.push({ name: "Overweight (BMI 25–29.9)", notes: `BMI: ${client.apss_s2_bmi}` });
   return apss;
 }
 

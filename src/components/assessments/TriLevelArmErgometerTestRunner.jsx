@@ -62,12 +62,12 @@ export default function TriLevelArmErgometerTestRunner({ client, onSave, onClose
 
   const handleSave = () => {
     const soapText = [
-      `â€¢ Tri-Level Arm Ergometer Test`,
-      `  Protocol: 3 stages Ã— 2 min | 25W â†’ 50W â†’ 75W | 50 rpm`,
-      `  Stage 1 HR: ${heartRates[0] || "â€”"} bpm`,
-      `  Stage 2 HR: ${heartRates[1] || "â€”"} bpm`,
-      `  Stage 3 HR: ${heartRates[2] || "â€”"} bpm`,
-      rpeBorg ? `  RPE (Borg 6â€“20): ${rpeBorg}` : "",
+      `• Tri-Level Arm Ergometer Test`,
+      `  Protocol: 3 stages × 2 min | 25W → 50W → 75W | 50 rpm`,
+      `  Stage 1 HR: ${heartRates[0] || "—"} bpm`,
+      `  Stage 2 HR: ${heartRates[1] || "—"} bpm`,
+      `  Stage 3 HR: ${heartRates[2] || "—"} bpm`,
+      rpeBorg ? `  RPE (Borg 6–20): ${rpeBorg}` : "",
       notes ? `  Notes: ${notes}` : "",
     ].filter(Boolean).join("\n");
 
@@ -102,7 +102,7 @@ export default function TriLevelArmErgometerTestRunner({ client, onSave, onClose
       <div className="border border-blue-200 rounded-lg overflow-hidden">
         <button onClick={() => setShowInstructions(v => !v)}
           className="w-full flex justify-between items-center bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900">
-          ðŸ“‹ Protocol &amp; Instructions
+          📋 Protocol &amp; Instructions
           {showInstructions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
         {showInstructions && (
@@ -119,7 +119,7 @@ export default function TriLevelArmErgometerTestRunner({ client, onSave, onClose
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs space-y-1">
               <p className="font-semibold text-slate-700">Key Points</p>
               <ul className="list-disc pl-4 space-y-1 text-slate-600">
-                <li>Maintain 50â€“60 rpm throughout</li>
+                <li>Maintain 50–60 rpm throughout</li>
                 <li>Seat height: arm horizontal at mid-range of crank</li>
                 <li>Record HR at end of each 2-minute stage (last 30s)</li>
                 <li>Used for SCI, upper limb dominant or lower limb injured populations</li>
@@ -128,7 +128,7 @@ export default function TriLevelArmErgometerTestRunner({ client, onSave, onClose
             </div>
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs">
               <p className="font-semibold text-red-800">Contraindications</p>
-              <p className="text-red-700">Active shoulder/elbow injury Â· Uncontrolled hypertension Â· Acute cardiac event Â· Inability to maintain safe ergometer contact</p>
+              <p className="text-red-700">Active shoulder/elbow injury · Uncontrolled hypertension · Acute cardiac event · Inability to maintain safe ergometer contact</p>
             </div>
           </div>
         )}
@@ -137,7 +137,7 @@ export default function TriLevelArmErgometerTestRunner({ client, onSave, onClose
       {/* Timer */}
       <div className="border border-slate-200 rounded-xl overflow-hidden">
         <div className={`px-4 py-2 text-sm font-semibold ${stage === 0 ? "bg-slate-100 text-slate-600" : stage === 4 ? "bg-green-100 text-green-800" : "bg-blue-100 text-blue-800"}`}>
-          {stage === 0 ? "Ready to start" : stage === 4 ? "âœ… Test Complete" : `${STAGES[stage-1].label} â€” ${STAGES[stage-1].watts}W`}
+          {stage === 0 ? "Ready to start" : stage === 4 ? "✅ Test Complete" : `${STAGES[stage-1].label} — ${STAGES[stage-1].watts}W`}
         </div>
         {stage > 0 && stage <= 3 && (
           <div className="bg-white p-4 space-y-3 text-center">
@@ -181,7 +181,7 @@ export default function TriLevelArmErgometerTestRunner({ client, onSave, onClose
           ))}
         </div>
         <div className="w-40">
-          <Label className="text-xs text-slate-600">RPE (Borg 6â€“20)</Label>
+          <Label className="text-xs text-slate-600">RPE (Borg 6–20)</Label>
           <Input type="number" min={6} max={20} value={rpeBorg} onChange={e => setRpeBorg(e.target.value)} placeholder="e.g. 15" className="mt-1 h-8 text-sm" />
         </div>
       </div>
@@ -194,9 +194,9 @@ export default function TriLevelArmErgometerTestRunner({ client, onSave, onClose
 
       {/* References */}
       <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-        <p className="font-semibold text-slate-700">ðŸ“– References</p>
-        <p>1. Franklin BA. (1985). Exercise testing, training and arm ergometry. <em>Sports Medicine</em>, 2(2), 100â€“119.</p>
-        <p>2. Exercise &amp; Sports Science Australia (ESSA). (2020). Health Outcome Measures â€” Cardiorespiratory Section. ESSA.</p>
+        <p className="font-semibold text-slate-700">📖 References</p>
+        <p>1. Franklin BA. (1985). Exercise testing, training and arm ergometry. <em>Sports Medicine</em>, 2(2), 100–119.</p>
+        <p>2. Exercise &amp; Sports Science Australia (ESSA). (2020). Health Outcome Measures — Cardiorespiratory Section. ESSA.</p>
         <p>3. American College of Sports Medicine. (2022). <em>ACSM's Guidelines for Exercise Testing and Prescription</em> (11th ed.). Wolters Kluwer.</p>
       </div>
 

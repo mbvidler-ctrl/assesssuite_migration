@@ -72,9 +72,9 @@ export default function BorgRPERunner({ onSave, onClose }) {
     const interpretation = getInterpretation(selectedRating, selectedScale);
     
     const soapText = [
-      `â€¢ Borg RPE Scale Assessment`,
+      `• Borg RPE Scale Assessment`,
       `  Scale: ${selectedScale === 'borg_6_20' ? 'Borg RPE (6-20)' : 'Modified CR10 (0-10)'}`,
-      `  Rating: ${selectedRating} â€” ${interpretation.text}`,
+      `  Rating: ${selectedRating} — ${interpretation.text}`,
       activityDescription ? `  Activity: ${activityDescription}` : null,
       notes ? `  Notes: ${notes}` : null,
     ].filter(Boolean).join('\n');
@@ -134,7 +134,7 @@ export default function BorgRPERunner({ onSave, onClose }) {
                     <div className="text-sm text-blue-800 space-y-2">
                       <p><strong>Best for:</strong> Cardiovascular exercise and general fitness</p>
                       <p><strong>Instructions:</strong> Ask the client: "On a scale of 6 to 20, where 6 is no exertion and 20 is maximum exertion, how hard do you feel you are working right now?"</p>
-                      <p className="text-xs italic">Note: The scale roughly corresponds to heart rate when multiplied by 10 (e.g., RPE 15 â‰ˆ 150 bpm)</p>
+                      <p className="text-xs italic">Note: The scale roughly corresponds to heart rate when multiplied by 10 (e.g., RPE 15 ≈ 150 bpm)</p>
                     </div>
                   </TabsContent>
                   
@@ -196,7 +196,7 @@ export default function BorgRPERunner({ onSave, onClose }) {
                             <div className={`font-semibold ${
                               selectedRating === item.value ? 'text-blue-900' : 'text-slate-900'
                             }`}>
-                              {item.label || "â€”"}
+                              {item.label || "—"}
                             </div>
                             {item.range && (
                               <div className="text-xs text-slate-500">Range: {item.range}</div>

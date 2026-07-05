@@ -125,7 +125,7 @@ export default function DASHRunner({ client, onSave, onClose }) {
       return `  Q${i + 1}. ${q.text}: ${opt?.label || responses[i]} (${responses[i]})`;
     }).join("\n");
 
-    const soap_text = `DASH (Full Version)\nâ€¢ Score: ${rounded}/100\nâ€¢ Interpretation: ${interpretation}\n\nItem Responses:\n${soapLines}`;
+    const soap_text = `DASH (Full Version)\n• Score: ${rounded}/100\n• Interpretation: ${interpretation}\n\nItem Responses:\n${soapLines}`;
 
     onSave({
       status: "completed",
@@ -150,7 +150,7 @@ export default function DASHRunner({ client, onSave, onClose }) {
         {/* Header */}
         <div className="flex justify-between items-center px-6 py-4 border-b bg-gradient-to-r from-blue-50 to-slate-50">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">DASH â€“ Full Version</h2>
+            <h2 className="text-xl font-bold text-slate-900">DASH – Full Version</h2>
             <p className="text-sm text-slate-500">Disabilities of the Arm, Shoulder and Hand (30 items)</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
@@ -195,11 +195,11 @@ export default function DASHRunner({ client, onSave, onClose }) {
                 </CardHeader>
                 <CardContent className="text-xs space-y-2">
                   <div className="bg-slate-50 p-3 rounded space-y-1">
-                    <p><strong>0â€“20:</strong> Minimal disability</p>
-                    <p><strong>21â€“40:</strong> Mild disability</p>
-                    <p><strong>41â€“60:</strong> Moderate disability</p>
-                    <p><strong>61â€“80:</strong> Severe disability</p>
-                    <p><strong>81â€“100:</strong> Complete disability</p>
+                    <p><strong>0–20:</strong> Minimal disability</p>
+                    <p><strong>21–40:</strong> Mild disability</p>
+                    <p><strong>41–60:</strong> Moderate disability</p>
+                    <p><strong>61–80:</strong> Severe disability</p>
+                    <p><strong>81–100:</strong> Complete disability</p>
                   </div>
                   <p className="text-slate-600 mt-3"><strong>MCID:</strong> 10.83 points (clinically meaningful change)</p>
                 </CardContent>

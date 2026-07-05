@@ -127,7 +127,7 @@ export default function RepeatedJumpRunner({ onSave, onClose }) {
     }
 
     const soapText = [
-      `â€¢ 10-s Repeated Jump Test (RSI)`,
+      `• 10-s Repeated Jump Test (RSI)`,
       `  Total Jumps: ${validJumps.length}`,
       `  Best RSI: ${bestRSI.toFixed(3)} | Average RSI: ${avgRSI}`,
       `  Avg Flight Time: ${avgFlightTime}ms | Avg Contact Time: ${avgContactTime}ms`,
@@ -182,7 +182,7 @@ export default function RepeatedJumpRunner({ onSave, onClose }) {
                 <p><strong>Setup:</strong> Force plate or jump mat, hands on hips throughout</p>
                 <p><strong>Protocol:</strong> 1 preparatory countermovement jump, then 10 maximal continuous bilateral rebound jumps</p>
                 <p><strong>Goal:</strong> Minimize ground contact time, maximize jump height</p>
-                <p><strong>RSI Calculation:</strong> Flight Time (ms) Ã· Contact Time (ms)</p>
+                <p><strong>RSI Calculation:</strong> Flight Time (ms) ÷ Contact Time (ms)</p>
                 <p className="text-xs italic pt-2 border-t border-blue-300">
                   References: Louder et al. (2021), Southey et al. (2020), Doyle et al. (2021)
                 </p>
@@ -229,10 +229,10 @@ export default function RepeatedJumpRunner({ onSave, onClose }) {
                       size="lg"
                       className="w-full h-28 text-2xl font-bold bg-blue-600 hover:bg-blue-700 shadow-lg"
                     >
-                      {clickPhase === "flight" ? "â¬‡ï¸ Click to End Flight Time" : "â¬†ï¸ Click to End Contact Time"}
+                      {clickPhase === "flight" ? "⬇ï¸ Click to End Flight Time" : "⬆ï¸ Click to End Contact Time"}
                     </Button>
                     <p className="text-sm text-slate-600 text-center font-medium">
-                      Click rhythm: <strong>Flight â†’ Contact â†’ Flight â†’ Contact</strong>
+                      Click rhythm: <strong>Flight → Contact → Flight → Contact</strong>
                     </p>
                   </div>
                 )}

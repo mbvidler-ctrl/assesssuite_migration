@@ -196,7 +196,7 @@ export default function AQoLRunner({ client, onSave, onClose }) {
       return `    Q${i + 1} (${q.domain}): ${option?.label ?? "Not answered"}`;
     }).join("\n");
 
-    const soapText = `Assessment of Quality of Life (AQoL-4D)\n\n  Total Psychometric Score: ${totalScore}/36 â€” ${interp.label}\n\n  Domain Scores:\n${domainSummary}\n\n  Individual Responses:\n${responseLines}`;
+    const soapText = `Assessment of Quality of Life (AQoL-4D)\n\n  Total Psychometric Score: ${totalScore}/36 — ${interp.label}\n\n  Domain Scores:\n${domainSummary}\n\n  Individual Responses:\n${responseLines}`;
 
     onSave({
       result_value: totalScore,

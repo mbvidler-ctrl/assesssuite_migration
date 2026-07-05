@@ -52,15 +52,15 @@ export default function HydrostaticWeighingRunner({ client, onSave, onClose }) {
     // Generate comprehensive SOAP text with all measurements
     let soapText = `Hydrostatic Weighing Assessment:\n\n`;
     soapText += `Measurements:\n`;
-    soapText += `  â€¢ Land Weight: ${parseFloat(landWeight).toFixed(2)} kg\n`;
+    soapText += `  • Land Weight: ${parseFloat(landWeight).toFixed(2)} kg\n`;
     soapText += `\nUnderwater Weights (${validWeights.length} trials):\n`;
     validWeights.forEach((weight, idx) => {
-      soapText += `  â€¢ Trial ${idx + 1}: ${parseFloat(weight).toFixed(2)} kg\n`;
+      soapText += `  • Trial ${idx + 1}: ${parseFloat(weight).toFixed(2)} kg\n`;
     });
-    soapText += `  â€¢ Average Underwater Weight: ${averageUnderwaterWeight.toFixed(2)} kg\n`;
+    soapText += `  • Average Underwater Weight: ${averageUnderwaterWeight.toFixed(2)} kg\n`;
     soapText += `\nCalculated Results:\n`;
-    soapText += `  â€¢ Body Density: ${bodyDensity.toFixed(4)} g/cmÂ³\n`;
-    soapText += `  â€¢ Body Fat Percentage: ${bodyFatPercentage.toFixed(2)}%\n`;
+    soapText += `  • Body Density: ${bodyDensity.toFixed(4)} g/cm³\n`;
+    soapText += `  • Body Fat Percentage: ${bodyFatPercentage.toFixed(2)}%\n`;
     if (notes && notes.trim()) {
       soapText += `\nClinical Notes: ${notes}\n`;
     }

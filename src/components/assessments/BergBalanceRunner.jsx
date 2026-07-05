@@ -45,7 +45,7 @@ export default function BergBalanceRunner({ onSave, onClose, initialData }) {
     const interpretation = total >= 45 ? 'Low fall risk' : total >= 21 ? 'Medium fall risk' : 'High fall risk';
     
     // Build comprehensive SOAP text
-    let soapText = `â€¢ Berg Balance Scale: ${total}/56 â†’ ${interpretation}\n\n  Individual Item Scores:\n`;
+    let soapText = `• Berg Balance Scale: ${total}/56 → ${interpretation}\n\n  Individual Item Scores:\n`;
     BERG_ITEMS.forEach(item => {
       const score = scores[item.id];
       if (score !== undefined && score !== null) {
@@ -83,32 +83,32 @@ export default function BergBalanceRunner({ onSave, onClose, initialData }) {
         <CardContent className="space-y-4 pt-6">
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
-            <p>Berg KO, Wood-Dauphinee SL, Williams JI, & Maki B. (1992). Measuring balance in the elderly: validation of an instrument. <em>Canadian Journal of Public Health, 83</em>(Suppl 2), S7â€“S11.</p>
+            <p className="font-semibold">📖 Reference</p>
+            <p>Berg KO, Wood-Dauphinee SL, Williams JI, & Maki B. (1992). Measuring balance in the elderly: validation of an instrument. <em>Canadian Journal of Public Health, 83</em>(Suppl 2), S7–S11.</p>
           </div>
 
           {/* Clinician Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-1">
-            <p className="font-semibold">ðŸ“‹ Administration Instructions</p>
-            <p><strong>General:</strong> Score each item 0â€“4 based on the client's ABILITY to complete the task safely. 4 = independent, full ability; 0 = unable/requires maximal assistance.</p>
-            <p><strong>Equipment:</strong> Chairs (with/without armrests), stopwatch, ruler (30 cm), step or stool (15â€“20 cm), tape for floor marks.</p>
-            <p><strong>Script:</strong> Demonstrate each task before asking the client to perform it. Only provide necessary verbal cues â€” do not provide physical assistance unless safety requires it.</p>
+            <p className="font-semibold">📋 Administration Instructions</p>
+            <p><strong>General:</strong> Score each item 0–4 based on the client's ABILITY to complete the task safely. 4 = independent, full ability; 0 = unable/requires maximal assistance.</p>
+            <p><strong>Equipment:</strong> Chairs (with/without armrests), stopwatch, ruler (30 cm), step or stool (15–20 cm), tape for floor marks.</p>
+            <p><strong>Script:</strong> Demonstrate each task before asking the client to perform it. Only provide necessary verbal cues — do not provide physical assistance unless safety requires it.</p>
           </div>
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Score Interpretation (/56)</p>
+            <p className="font-semibold text-slate-700">📊 Score Interpretation (/56)</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Score</th><th className="p-2 text-left">Fall Risk</th><th className="p-2 text-left">Ambulatory Status</th></tr></thead>
                 <tbody>
-                  <tr className="border-t"><td className="p-2">45â€“56</td><td className="p-2 text-green-700">Low</td><td className="p-2">Independent community ambulation</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">21â€“44</td><td className="p-2 text-yellow-700">Medium</td><td className="p-2">Assisted ambulation likely</td></tr>
-                  <tr className="border-t"><td className="p-2">0â€“20</td><td className="p-2 text-red-700">High</td><td className="p-2">Wheelchair dependent</td></tr>
+                  <tr className="border-t"><td className="p-2">45–56</td><td className="p-2 text-green-700">Low</td><td className="p-2">Independent community ambulation</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">21–44</td><td className="p-2 text-yellow-700">Medium</td><td className="p-2">Assisted ambulation likely</td></tr>
+                  <tr className="border-t"><td className="p-2">0–20</td><td className="p-2 text-red-700">High</td><td className="p-2">Wheelchair dependent</td></tr>
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-slate-500">MCID: 4â€“7 points. Cut-off â‰¤45 predicts falls (sensitivity 64â€“92%). Source: Berg et al. (1992); Bogle Thorbahn & Newton (1996).</p>
+            <p className="text-xs text-slate-500">MCID: 4–7 points. Cut-off ≤45 predicts falls (sensitivity 64–92%). Source: Berg et al. (1992); Bogle Thorbahn & Newton (1996).</p>
           </div>
 
           {BERG_ITEMS.map((item) => (

@@ -11,7 +11,7 @@ export default function CreateAccount() {
         <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/358c0c514_Logo-Transparent1.png" alt="AssessSuite Clinical" style={{ height: '56px', marginBottom: '28px' }} />
         
         <div style={{ background: '#dcfce7', color: '#16a34a', fontSize: '13px', fontWeight: 700, padding: '6px 16px', borderRadius: '100px', display: 'inline-block', marginBottom: '20px' }}>
-          âœ“ Subscription confirmed
+          ✓ Subscription confirmed
         </div>
 
         <h1 style={{ fontSize: '26px', fontWeight: 800, color: '#0f172a', marginBottom: '12px', letterSpacing: '-0.5px', lineHeight: 1.3 }}>
@@ -19,14 +19,14 @@ export default function CreateAccount() {
         </h1>
         
         <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px', lineHeight: 1.7 }}>
-          You're one step away from accessing AssessSuite Clinical. Click below to create your login â€” use the same email you used at checkout.
+          You're one step away from accessing AssessSuite Clinical. Click below to create your login — use the same email you used at checkout.
         </p>
 
         <button
           onClick={navigateToLogin}
           style={{ width: '100%', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '10px', padding: '16px', fontSize: '17px', fontWeight: 700, cursor: 'pointer', marginBottom: '16px' }}
         >
-          Create My Account â†’
+          Create My Account →
         </button>
 
         <p style={{ fontSize: '13px', color: '#94a3b8' }}>
