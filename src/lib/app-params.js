@@ -34,10 +34,27 @@ const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl =
 	return null;
 }
 
+const isLocalhostOrigin = (url) => /^https?:\/\/(localhost|127\.0\.0\.1)(:|$|\/)/.test(url || "");
+
+// The shim serves the frontend and the API from a single origin in production,
+// so window.location.origin is the correct backend URL for tunnel and hosted
+// deployments. Prefer an explicit ?server_url= or a non-localhost build-time
+// VITE_BASE44_BACKEND_URL; otherwise, or when a localhost value was baked into a
+// build that is now served from a remote host, fall back to the current origin.
+// This removes the rebuild-per-URL dependency without breaking local dev.
+const resolveServerUrl = () => {
+	const explicit = getAppParamValue("server_url", { defaultValue: import.meta.env.VITE_BASE44_BACKEND_URL });
+	if (isNode) return explicit;
+	const origin = window.location.origin;
+	if (!explicit) return origin;
+	if (isLocalhostOrigin(explicit) && !isLocalhostOrigin(origin)) return origin;
+	return explicit;
+}
+
 const getAppParams = () => {
 	return {
 		appId: getAppParamValue("app_id", { defaultValue: import.meta.env.VITE_BASE44_APP_ID }),
-		serverUrl: getAppParamValue("server_url", { defaultValue: import.meta.env.VITE_BASE44_BACKEND_URL }),
+		serverUrl: resolveServerUrl(),
 		token: getAppParamValue("access_token", { removeFromUrl: true }),
 		fromUrl: getAppParamValue("from_url", { defaultValue: window.location.href }),
 		functionsVersion: getAppParamValue("functions_version"),

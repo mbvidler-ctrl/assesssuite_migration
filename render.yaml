@@ -1,0 +1,27 @@
+# Render Blueprint for the AssessSuite private demo (durable lane).
+# Free web service, single process: the shim serves the built frontend and the
+# API from one origin. Ephemeral disk is acceptable — the start command reseeds
+# synthetic data on every boot. node:sqlite requires Node 24.
+#
+# One-time setup (Maxwell, interactive — GitHub authorisation cannot be done by
+# an agent): Render dashboard -> New -> Blueprint -> connect
+# github.com/mbvidler-ctrl/assesssuite_migration -> select branch demo-20260705.
+# Registration stays disabled (ALLOW_OPEN_REGISTRATION unset); seeded accounts
+# use password login. VITE_BASE44_BACKEND_URL is intentionally NOT set: the
+# frontend resolves the API base to window.location.origin at runtime, so no
+# per-URL rebuild is needed.
+services:
+  - type: web
+    name: assesssuite-demo
+    runtime: node
+    plan: free
+    branch: demo-20260705
+    buildCommand: npm install && npm run build
+    startCommand: node server/seed.mjs && node server/index.mjs
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: ALLOW_OPEN_REGISTRATION
+        value: "0"
+      - key: ADMIN_PASSWORD
+        generateValue: true

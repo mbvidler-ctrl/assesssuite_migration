@@ -647,7 +647,7 @@ Be specific, evidence-based, and practical for clinical use.`,
                     onClick={async () => {
                       setDisclaimerDismissed(true);
                       try {
-                        const ip = await fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>d.ip).catch(()=>'unknown');
+                        const ip = 'not-collected';
                         await base44.entities.LegalAcceptance.create({
                           user_email: currentUser?.email || 'unknown',
                           user_role: currentUser?.role === 'admin' ? 'Admin' : 'Clinician',

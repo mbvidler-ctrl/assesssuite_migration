@@ -1622,6 +1622,13 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
   const handleNext = () => {
     if (!isEditing && step === 0 && !reportTypeKey) { toast.error("Please select a report type"); return; }
     if (step === STEPS.length - 2) {
+      // Guard against report types offered on the Reports page that have no
+      // template definition (e.g. uk_cardiac_phase4): building HTML from an
+      // undefined template previously threw a TypeError and blanked the wizard.
+      if (!reportTemplate) {
+        toast.error("This report type is not yet available. Please choose another report type.");
+        return;
+      }
       const html = buildReportHtml(reportTemplate, activeSections, sectionContent, client, clinician, dateRange);
       setReportHtml(html);
     }
@@ -1630,7 +1637,7 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
   const handleBack = () => setStep(s => Math.max(s - 1, 0));
 
   const handleSave = async () => {
-    if (!reportTemplate) return;
+    if (!reportTemplate) { toast.error("This report type is not yet available and cannot be saved."); return; }
     setIsSaving(true);
     try {
       // Build HTML if not already built (safety net)

@@ -29,6 +29,17 @@ const uploadsDir = path.join(__dirname, 'uploads');
 const PORT = Number(process.env.PORT) || 8787;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@local.test';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'change-me-local';
+// Access hardening for the private demo. Self-registration and the OTP
+// endpoints (which accept the fixed code 000000, and would otherwise mint a
+// session for any known email without a password) are DISABLED unless this is
+// explicitly set to '1'. Seeded accounts use password login and are unaffected.
+// The self-test spawns an isolated throwaway server (SELFTEST=1) and validates
+// the registration/OTP flows, so they remain enabled there.
+const ALLOW_OPEN_REGISTRATION =
+  process.env.ALLOW_OPEN_REGISTRATION === '1' || process.env.SELFTEST === '1';
+// Default app id used for the dev-only /functions/<name> relative path when it
+// is served in single-process production (mirrors the vite proxy rewrite).
+const DEFAULT_APP_ID = process.env.DEFAULT_APP_ID || 'local-assesssuite';
 
 fs.mkdirSync(uploadsDir, { recursive: true });
 
@@ -450,6 +461,9 @@ async function handleAuthRoute(req, res, url, appId, action) {
   }
 
   if (action === 'register' && req.method === 'POST') {
+    if (!ALLOW_OPEN_REGISTRATION) {
+      return sendError(res, 403, 'self-registration is disabled for this deployment');
+    }
     const payload = await readJsonBody(req);
     const { email, password } = payload;
     if (!email || !password) {
@@ -476,6 +490,11 @@ async function handleAuthRoute(req, res, url, appId, action) {
   }
 
   if (action === 'verify-otp' && req.method === 'POST') {
+    if (!ALLOW_OPEN_REGISTRATION) {
+      // The blanket 000000 code would otherwise return a session for any known
+      // email without a password; disabled with registration for the demo.
+      return sendError(res, 403, 'account verification is disabled for this deployment');
+    }
     const { email, otp_code } = await readJsonBody(req);
     const user = findUserByEmail(email);
     if (!user) return sendError(res, 404, 'user not found');
@@ -488,6 +507,9 @@ async function handleAuthRoute(req, res, url, appId, action) {
   }
 
   if (action === 'resend-otp' && req.method === 'POST') {
+    if (!ALLOW_OPEN_REGISTRATION) {
+      return sendError(res, 403, 'account verification is disabled for this deployment');
+    }
     const { email } = await readJsonBody(req);
     const user = findUserByEmail(email);
     if (user) {
@@ -700,6 +722,19 @@ async function requestListener(req, res) {
     }
     if (/^\/api\/apps\/[^/]+\/integration-endpoints\//.test(pathname)) {
       return sendError(res, 404, 'integration endpoint not implemented in this shim build');
+    }
+
+    // Relative /functions/<name> passthrough. In dev the vite proxy rewrites
+    // this to the app-scoped route; in single-process production we do the
+    // equivalent here so relative calls (e.g. MyProfile.jsx createPortalSession)
+    // work without a rebuild. The functions router ignores appId.
+    const relFunctionMatch = /^\/functions\/([^/]+)$/.exec(pathname);
+    if (relFunctionMatch && req.method === 'POST') {
+      const [, functionName] = relFunctionMatch;
+      if (!functionsRouter) {
+        return sendError(res, 404, 'function not found');
+      }
+      return functionsRouter(req, res, { appId: DEFAULT_APP_ID, functionName, url });
     }
 
     // Static SPA serving (dist/), when present.

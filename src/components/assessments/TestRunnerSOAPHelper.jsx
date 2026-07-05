@@ -1,17 +1,13 @@
 import { base44 } from "@/api/base44Client";
 
 async function ensureSoapText(assessmentToUpdateId) {
-  if (!assessmentToUpdateId) return;
-  try {
-    await fetch('https://superagent-1-96aa301b.base44.app/functions/injectSoapText', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ clientAssessmentId: assessmentToUpdateId }),
-      credentials: 'include',
-    });
-  } catch (e) {
-    // non-blocking
-  }
+  // Legacy enrichment that POSTed to a foreign Base44 app
+  // (superagent-1-96aa301b.base44.app) on every assessment save. Removed so the
+  // migrated app makes no calls to any live Base44 deployment. The SOAP note is
+  // already written to the local backend above (SOAPNote.create/update), so this
+  // is behaviour-neutral. Restore a first-party endpoint here if server-side SOAP
+  // enrichment is reintroduced.
+  return;
 }
 
 export async function saveAssessmentToSOAP({ clientToUse, appointmentId, objectiveText, assessmentToUpdateId, updateData, assessment }) {

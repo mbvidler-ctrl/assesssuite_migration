@@ -555,8 +555,11 @@ export default function SOAPNoteModal({
     setShowTranscriptPanel(true);
     try {
       const result = await base44.functions.invoke('transcribeSession', { action: 'transcribe', audio_url: audioUrl });
-      if (result?.transcript) {
-        setSessionTranscript(prev => prev ? prev + '\n\n---\n\n' + result.transcript : result.transcript);
+      // functions.invoke returns the raw response envelope; the body is under
+      // .data (matching the response.data || response convention used elsewhere).
+      const payload = result?.data ?? result;
+      if (payload?.transcript) {
+        setSessionTranscript(prev => prev ? prev + '\n\n---\n\n' + payload.transcript : payload.transcript);
         toast.success('Transcription complete!');
       } else {
         toast.error('Transcription returned empty result.');
@@ -574,13 +577,14 @@ export default function SOAPNoteModal({
     setIsDissecting(true);
     try {
       const result = await base44.functions.invoke('transcribeSession', { action: 'dissect_to_soap', transcript: sessionTranscript });
-      if (result?.success) {
+      const payload = result?.data ?? result;
+      if (payload?.success) {
         setSoapNote(prev => ({
           ...prev,
-          subjective: result.subjective ? (prev.subjective ? prev.subjective + '\n\n' + result.subjective : result.subjective) : prev.subjective,
-          objective: result.objective ? (prev.objective ? prev.objective + '\n\n' + result.objective : result.objective) : prev.objective,
-          assessment: result.assessment ? (prev.assessment ? prev.assessment + '\n\n' + result.assessment : result.assessment) : prev.assessment,
-          plan: result.plan ? (prev.plan ? prev.plan + '\n\n' + result.plan : result.plan) : prev.plan,
+          subjective: payload.subjective ? (prev.subjective ? prev.subjective + '\n\n' + payload.subjective : payload.subjective) : prev.subjective,
+          objective: payload.objective ? (prev.objective ? prev.objective + '\n\n' + payload.objective : payload.objective) : prev.objective,
+          assessment: payload.assessment ? (prev.assessment ? prev.assessment + '\n\n' + payload.assessment : payload.assessment) : prev.assessment,
+          plan: payload.plan ? (prev.plan ? prev.plan + '\n\n' + payload.plan : payload.plan) : prev.plan,
         }));
         setShowTranscriptPanel(false);
         toast.success('SOAP note populated from transcript!');
