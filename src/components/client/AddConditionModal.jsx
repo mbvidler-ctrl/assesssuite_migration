@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,6 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { ClientCondition } from '@/entities/ClientCondition';
+import { base44 } from '@/api/base44Client';
 
 export default function AddConditionModal({ clientId, onClose, onSuccess }) {
   const [formData, setFormData] = useState({
@@ -17,6 +18,28 @@ export default function AddConditionModal({ clientId, onClose, onSuccess }) {
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});
+  // Onboarding enrichment: debounced ICD-10-CM code suggestions for the typed
+  // condition (decision-support; the clinician chooses). Degrades silently.
+  const [icdSuggestions, setIcdSuggestions] = useState([]);
+  const [selectedIcd, setSelectedIcd] = useState(null);
+  const debounceRef = useRef(null);
+
+  useEffect(() => {
+    const term = (formData.condition_name || '').trim();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (term.length < 3) { setIcdSuggestions([]); return; }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const resp = await base44.functions.invoke('medicalLookup', { conditions: [term] });
+        const payload = resp?.data ?? resp;
+        const matches = payload?.conditions?.[0]?.matches || [];
+        setIcdSuggestions(matches.slice(0, 5));
+      } catch (e) {
+        setIcdSuggestions([]);
+      }
+    }, 500);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [formData.condition_name]);
 
   const validate = () => {
     const newErrors = {};
@@ -35,6 +58,7 @@ export default function AddConditionModal({ clientId, onClose, onSuccess }) {
     try {
       await ClientCondition.create({
         ...formData,
+        ...(selectedIcd ? { icd10_code: selectedIcd.code, icd10_name: selectedIcd.name } : {}),
         client_id: clientId,
       });
       onSuccess();
@@ -70,6 +94,22 @@ export default function AddConditionModal({ clientId, onClose, onSuccess }) {
               className={errors.condition_name ? 'border-red-500' : ''}
             />
             {errors.condition_name && <p className="text-red-500 text-sm mt-1">{errors.condition_name}</p>}
+            {icdSuggestions.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                <span className="text-xs text-slate-500 w-full">Suggested ICD-10-CM codes (NIH Clinical Tables) — optional:</span>
+                {icdSuggestions.map((m) => (
+                  <button
+                    type="button"
+                    key={m.code}
+                    onClick={() => { setSelectedIcd(m); handleChange('condition_name', m.name); setIcdSuggestions([]); }}
+                    className="text-xs px-2 py-0.5 rounded border bg-slate-50 border-slate-200 text-slate-700 hover:bg-slate-100"
+                  >
+                    {m.code} — {m.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            {selectedIcd && <p className="text-xs text-green-700 mt-1">Coded as {selectedIcd.code} ({selectedIcd.name})</p>}
           </div>
           
           <div className="grid grid-cols-2 gap-4">

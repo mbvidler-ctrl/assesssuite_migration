@@ -64,6 +64,14 @@ The Tranche-3 backbone now exists and is tested against live databases:
 - `server/functions/verifyReferences.mjs` — exposes it to the app (`base44.functions.invoke('verifyReferences', { citations })`), authenticated, max 25 per call.
 - Live self-test `scripts/evidence-selftest.mjs` — 11/11, incl. the real-DOI-wrong-paper catch and never-verify-on-failure. End-to-end through the running shim: verified / mismatch / unverifiable across three citations, 401 without auth.
 
+## Onboarding enrichment (built 6 July 2026)
+
+Serves the client's request to enrich onboarding for conditions and medications by reference to authoritative data (not LLM memory):
+
+- `server/medicalLookup.mjs` + `server/functions/medicalLookup.mjs` — conditions → ICD-10-CM codes (NIH Clinical Tables); medications → RxNorm generic-ingredient normalisation + openFDA drug-label warnings/contraindications. Every field verbatim from an authoritative source with provenance tags; **US-jurisdiction caveat surfaced in every payload** (RxNorm/openFDA are US-sourced; matched at ingredient level; Australian AMT/TGA has no free API). Terms only leave the server — no client data.
+- Wired: `AddConditionModal` shows debounced ICD-10-CM code suggestions for the typed condition (decision-support; clinician chooses; degrades silently), storing the selected code on the condition.
+- Live self-test `scripts/medical-lookup-selftest.mjs` — 9/9 + end-to-end through the shim (E11.65/E11.9 for type 2 diabetes; metformin → rxcui 6809 + real openFDA contraindications; 401 without auth).
+
 ## What is closed as at 5 July 2026
 
 - `CL-DASS21-BANDS` — verified against the DASS manual; cutoffs consolidated into a single sourced module.
