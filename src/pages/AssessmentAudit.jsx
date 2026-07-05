@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { hasInteractiveRunner } from "@/components/assessments/assessmentRunnerUtils";
+import { splitReferenceLines, keepVerifiedReferenceLines } from "@/lib/clinical/referenceGate";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -844,7 +845,34 @@ export default function AssessmentAudit() {
         fix.status = 'approved';
         fix.fileName = fileName;
       } else if (fix.type === 'text_fields' && fix.data) {
-        await base44.entities.Assessment.update(result.assessment.id, fix.data);
+        const dataToWrite = { ...fix.data };
+        // Contamination guard: AI-generated references must be verified against
+        // academic databases BEFORE they enter the catalogue. Keep only verified
+        // citations; never persist unverified/fabricated references (and never
+        // persist any if the verification service is unavailable).
+        if (typeof dataToWrite.references === 'string' && dataToWrite.references.trim()) {
+          const lines = splitReferenceLines(dataToWrite.references).slice(0, 25);
+          let results = null;
+          try {
+            const resp = await base44.functions.invoke('verifyReferences', { citations: lines });
+            const payload = resp?.data ?? resp;
+            results = payload?.results || null;
+          } catch (e) {
+            results = null;
+          }
+          const { verified, removed } = keepVerifiedReferenceLines(lines, results);
+          if (verified === null) {
+            delete dataToWrite.references;
+            toast.warning('References could not be verified and were not saved to the catalogue.');
+          } else if (verified.length > 0) {
+            dataToWrite.references = verified.join('\n');
+            if (removed > 0) toast.warning(`${removed} unverified reference${removed > 1 ? 's' : ''} were not saved to the catalogue.`);
+          } else {
+            delete dataToWrite.references;
+            toast.warning('No references could be verified; none were saved to the catalogue.');
+          }
+        }
+        await base44.entities.Assessment.update(result.assessment.id, dataToWrite);
         toast.success('Documentation fields updated!');
         fix.status = 'applied';
       }

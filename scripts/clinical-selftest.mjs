@@ -3,6 +3,7 @@
 import { deriveItems, buildItemBlockText, soapTextHasItemBlock, hasBespokeItemRenderer } from '../src/lib/clinical/assessmentResults.js';
 import { DASS21_QUESTIONS, DASS21_OPTIONS, getDassLevel, buildDass21Payload } from '../src/lib/clinical/dass21.js';
 import { generateInterpretation } from '../src/lib/clinical/generateInterpretation.js';
+import { splitReferenceLines, keepVerifiedReferenceLines } from '../src/lib/clinical/referenceGate.js';
 
 let pass = 0, fail = 0;
 function ok(name, cond, extra = '') {
@@ -110,6 +111,19 @@ ok('DASS payload measurement_type dass21', payload.additional_data.measurement_t
 // derive items back out of the payload (viewer path)
 const roundTrip = deriveItems(payload.additional_data, { questions: DASS21_QUESTIONS, options: DASS21_OPTIONS });
 ok('DASS payload items round-trip via deriveItems', roundTrip.length === 21 && roundTrip[20].question_text === DASS21_QUESTIONS[20].text);
+
+// ---- referenceGate: catalogue write-back guard ----
+ok('splitReferenceLines splits and trims', splitReferenceLines('  a \n\n b \n').length === 2);
+ok('splitReferenceLines empty -> []', splitReferenceLines('').length === 0);
+const gLines = ['Ref A (verified)', 'Ref B (mismatch)', 'Ref C (unverifiable)'];
+const gResults = [{ verdict: 'verified' }, { verdict: 'mismatch' }, { verdict: 'unverifiable' }];
+const kept = keepVerifiedReferenceLines(gLines, gResults);
+ok('keepVerified keeps only verified', kept.verified.length === 1 && kept.verified[0] === 'Ref A (verified)');
+ok('keepVerified counts removed', kept.removed === 2);
+const noSvc = keepVerifiedReferenceLines(gLines, null);
+ok('keepVerified null results -> verified:null (never assert verified on failure)', noSvc.verified === null && noSvc.removed === 3);
+const allBad = keepVerifiedReferenceLines(gLines, [{ verdict: 'mismatch' }, { verdict: 'unverifiable' }, { verdict: 'unverifiable' }]);
+ok('keepVerified all-unverified -> empty kept', allBad.verified.length === 0 && allBad.removed === 3);
 
 console.log(`\nClinical self-test: ${pass}/${pass + fail} passed.`);
 if (fail > 0) process.exit(1);
