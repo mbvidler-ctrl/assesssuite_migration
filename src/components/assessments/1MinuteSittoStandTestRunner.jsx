@@ -118,7 +118,7 @@ export default function OneMinuteSitToStandTestRunner({ client, onSave, onClose 
     else if (repetitions >= 17) interpretation = 'Average';
     else interpretation = 'Below average';
 
-    const soapText = `â€¢ 1-Minute Sit-to-Stand Test (1MSTS)\n\n  Repetitions: ${repetitions} in 60 seconds â€” ${interpretation}\n\n  Normative Values (healthy adults 60-69): ~35-45 reps\n  Healthy adults 70-79: ~28-38 reps | 80+: ~20-30 reps\n  Strongly correlated with VO2max and 6MWT in COPD/cardiac populations\n  MCID: 3-4 repetitions\n\n  Reference: Crook et al. (2017). Validity of the 1 minute sit-to-stand test in patients with COPD. Journal of Cardiopulmonary Rehabilitation, 37(4), 278-282.`;
+    const soapText = `• 1-Minute Sit-to-Stand Test (1MSTS)\n\n  Repetitions: ${repetitions} in 60 seconds — ${interpretation}\n\n  Normative Values (healthy adults 60-69): ~35-45 reps\n  Healthy adults 70-79: ~28-38 reps | 80+: ~20-30 reps\n  Strongly correlated with VO2max and 6MWT in COPD/cardiac populations\n  MCID: 3-4 repetitions\n\n  Reference: Crook et al. (2017). Validity of the 1 minute sit-to-stand test in patients with COPD. Journal of Cardiopulmonary Rehabilitation, 37(4), 278-282.`;
 
     onSave({
       repetitions,

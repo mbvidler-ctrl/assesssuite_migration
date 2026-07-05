@@ -72,7 +72,7 @@ export default function AstrandRhymingStepTestRunner({ client, onSave, onClose }
     const vo2max = calculateVO2Max(Number(postTestHeartRate)).toFixed(1);
     const resultValue = Number(vo2max);
     const additionalData = {
-      soap_text: `â€¢ Ã…strand-Rhyming Step Test\n  Estimated VO2max: ${vo2max} mL/kg/min\n  Post-test HR: ${postTestHeartRate} bpm`,
+      soap_text: `• Åstrand-Rhyming Step Test\n  Estimated VO2max: ${vo2max} mL/kg/min\n  Post-test HR: ${postTestHeartRate} bpm`,
       measurement_type: "astrand_rhyming_step_test",
       heart_rate: heartRate,
       post_test_heart_rate: postTestHeartRate,
@@ -95,24 +95,24 @@ export default function AstrandRhymingStepTestRunner({ client, onSave, onClose }
         <div className="space-y-4">
           {/* Clinician Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-2">
-            <p className="font-semibold">ðŸ“‹ Administration Instructions</p>
+            <p className="font-semibold">📋 Administration Instructions</p>
             <p><strong>Step height:</strong> Men = 40 cm, Women = 33 cm. <strong>Cadence:</strong> 22.5 steps/min (metronome at 90 bpm for 4-count stepping). Duration: 5 minutes continuous stepping.</p>
-            <p className="italic">"Step up and down to the beat â€” up-up-down-down. Keep the rhythm throughout. Tell me immediately if you feel chest pain or dizziness."</p>
-            <p><strong>Heart rate:</strong> Measure HR in the final 30 seconds of minute 5 (or immediately post-exercise within 5â€“10 seconds). Enter this as post-test HR for VO2max estimation.</p>
-            <p><strong>Note:</strong> Age-correction factor should be applied to the Ã…strand nomogram result. The formula in this runner uses a simplified estimation.</p>
+            <p className="italic">"Step up and down to the beat — up-up-down-down. Keep the rhythm throughout. Tell me immediately if you feel chest pain or dizziness."</p>
+            <p><strong>Heart rate:</strong> Measure HR in the final 30 seconds of minute 5 (or immediately post-exercise within 5–10 seconds). Enter this as post-test HR for VO2max estimation.</p>
+            <p><strong>Note:</strong> Age-correction factor should be applied to the Åstrand nomogram result. The formula in this runner uses a simplified estimation.</p>
           </div>
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š VO2max Norms (ml/kg/min) â€” ACSM Classification</p>
+            <p className="font-semibold text-slate-700">📊 VO2max Norms (ml/kg/min) — ACSM Classification</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
-                <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20â€“39</th><th className="p-2 text-center">Men 40â€“59</th><th className="p-2 text-center">Women 20â€“39</th><th className="p-2 text-center">Women 40â€“59</th></tr></thead>
+                <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20–39</th><th className="p-2 text-center">Men 40–59</th><th className="p-2 text-center">Women 20–39</th><th className="p-2 text-center">Women 40–59</th></tr></thead>
                 <tbody>
-                  <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">â‰¥52</td><td className="p-2 text-center">â‰¥45</td><td className="p-2 text-center">â‰¥41</td><td className="p-2 text-center">â‰¥35</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">43â€“51</td><td className="p-2 text-center">38â€“44</td><td className="p-2 text-center">35â€“40</td><td className="p-2 text-center">29â€“34</td></tr>
-                  <tr className="border-t"><td className="p-2">Fair</td><td className="p-2 text-center">34â€“42</td><td className="p-2 text-center">30â€“37</td><td className="p-2 text-center">27â€“34</td><td className="p-2 text-center">23â€“28</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">Poor</td><td className="p-2 text-center">â‰¤33</td><td className="p-2 text-center">â‰¤29</td><td className="p-2 text-center">â‰¤26</td><td className="p-2 text-center">â‰¤22</td></tr>
+                  <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">≥52</td><td className="p-2 text-center">≥45</td><td className="p-2 text-center">≥41</td><td className="p-2 text-center">≥35</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">43–51</td><td className="p-2 text-center">38–44</td><td className="p-2 text-center">35–40</td><td className="p-2 text-center">29–34</td></tr>
+                  <tr className="border-t"><td className="p-2">Fair</td><td className="p-2 text-center">34–42</td><td className="p-2 text-center">30–37</td><td className="p-2 text-center">27–34</td><td className="p-2 text-center">23–28</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">Poor</td><td className="p-2 text-center">≤33</td><td className="p-2 text-center">≤29</td><td className="p-2 text-center">≤26</td><td className="p-2 text-center">≤22</td></tr>
                 </tbody>
               </table>
             </div>
@@ -120,14 +120,14 @@ export default function AstrandRhymingStepTestRunner({ client, onSave, onClose }
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
-            <p>Ã…strand PO & Rhyming I. (1954). A nomogram for calculation of aerobic capacity from pulse rate during submaximal work. <em>Journal of Applied Physiology, 7</em>(2), 218â€“221.</p>
-            <p>Marley WP & Linnerud AC. (1976). The Ã…strand-Rhyming step test revisited. <em>British Journal of Sports Medicine, 10</em>(4), 163â€“165.</p>
+            <p className="font-semibold">📖 Reference</p>
+            <p>Åstrand PO & Rhyming I. (1954). A nomogram for calculation of aerobic capacity from pulse rate during submaximal work. <em>Journal of Applied Physiology, 7</em>(2), 218–221.</p>
+            <p>Marley WP & Linnerud AC. (1976). The Åstrand-Rhyming step test revisited. <em>British Journal of Sports Medicine, 10</em>(4), 163–165.</p>
           </div>
 
           <Card>
             <CardHeader>
-              <CardTitle>Ã…strand-Rhyming Step Test</CardTitle>
+              <CardTitle>Åstrand-Rhyming Step Test</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

@@ -55,7 +55,7 @@ export default function LTestofFunctionalMobilityRunner({ client, onSave, onClos
     const resultValue = trialsInSeconds.reduce((acc, time) => acc + time, 0) / trialsInSeconds.length;
     const bestTime = Math.min(...trialsInSeconds);
     
-    let soapText = `â€¢ L Test of Functional Mobility:\n`;
+    let soapText = `• L Test of Functional Mobility:\n`;
     soapText += `  Best Time: ${bestTime.toFixed(2)}s\n`;
     soapText += `  Average Time: ${resultValue.toFixed(2)}s over ${trialsInSeconds.length} trial(s)\n`;
     soapText += `  Individual Trials: ${trialsInSeconds.map((t, i) => `Trial ${i+1}: ${t.toFixed(2)}s`).join(', ')}\n`;
@@ -63,7 +63,7 @@ export default function LTestofFunctionalMobilityRunner({ client, onSave, onClos
     if (postVitals.heartRate) soapText += `  Post-Test HR: ${postVitals.heartRate} bpm, BP: ${postVitals.bloodPressure}\n`;
     if (notes.trim()) soapText += `  Clinical Notes: ${notes}`;
     onSave({ status: "completed", result_value: parseFloat(bestTime.toFixed(2)), additional_data: { measurement_type: "LTestofFunctionalMobility", trials: trialsInSeconds, pre_vitals: preVitals, post_vitals: postVitals, soap_text: soapText }, notes: soapText, assessment_date: new Date().toISOString().split("T")[0] });
-    toast.success("Assessment recorded â€” please confirm and save.");
+    toast.success("Assessment recorded — please confirm and save.");
   };
 
   return (
@@ -82,13 +82,13 @@ export default function LTestofFunctionalMobilityRunner({ client, onSave, onClos
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
         {/* Norms */}
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-          <p className="font-semibold text-slate-700">ðŸ“Š Norms & Interpretation</p>
+          <p className="font-semibold text-slate-700">📊 Norms & Interpretation</p>
           <div className="overflow-x-auto">
             <table className="w-full text-xs border border-slate-300 rounded">
               <thead className="bg-slate-200"><tr><th className="p-2 text-left">Time (s)</th><th className="p-2 text-left">Interpretation</th><th className="p-2 text-left">Population</th></tr></thead>
               <tbody>
                 <tr className="border-t"><td className="p-2">&lt;15 s</td><td className="p-2 text-green-700">Good functional mobility</td><td className="p-2">Community ambulators</td></tr>
-                <tr className="border-t bg-white"><td className="p-2">15â€“20 s</td><td className="p-2 text-yellow-700">Moderate limitation</td><td className="p-2">Some functional restriction</td></tr>
+                <tr className="border-t bg-white"><td className="p-2">15–20 s</td><td className="p-2 text-yellow-700">Moderate limitation</td><td className="p-2">Some functional restriction</td></tr>
                 <tr className="border-t"><td className="p-2">&gt;20 s</td><td className="p-2 text-red-700">Significant limitation</td><td className="p-2">Increased fall risk / dependent mobility</td></tr>
               </tbody>
             </table>
@@ -122,7 +122,7 @@ export default function LTestofFunctionalMobilityRunner({ client, onSave, onClos
               <text x="150" y="30" fontSize="10" fill="#6b7280">10m</text>
             </svg>
           </div>
-          <p className="text-xs text-slate-600 mt-2">Two 10-meter lines at right angles (90Â°). Total path distance: 20 meters.</p>
+          <p className="text-xs text-slate-600 mt-2">Two 10-meter lines at right angles (90°). Total path distance: 20 meters.</p>
         </div>
 
         {/* Detailed Instructions */}
@@ -139,13 +139,13 @@ export default function LTestofFunctionalMobilityRunner({ client, onSave, onClos
             <CardContent className="pt-6 space-y-4 text-sm">
               <div>
                 <p className="font-semibold text-blue-900 mb-2">Purpose & Application</p>
-                <p className="text-blue-800">The L Test is a modification of the Timed Up & Go (TUG) test designed to evaluate functional mobility, balance, and gait control in individuals with lower-limb amputations and other conditions affecting mobility. It assesses dynamic balance during negotiation of a 90Â° turn, which is more functionally relevant than a straight-line walk.</p>
+                <p className="text-blue-800">The L Test is a modification of the Timed Up & Go (TUG) test designed to evaluate functional mobility, balance, and gait control in individuals with lower-limb amputations and other conditions affecting mobility. It assesses dynamic balance during negotiation of a 90° turn, which is more functionally relevant than a straight-line walk.</p>
               </div>
               <div>
                 <p className="font-semibold text-blue-900 mb-2">Setup & Equipment</p>
                 <ul className="text-blue-800 list-disc list-inside space-y-1">
                   <li>Mark an L-shaped path on a flat, firm surface (e.g., gym floor, corridor).</li>
-                  <li>Use 2 parallel lines (tape or rope) forming a 90Â° angle, each 10 meters long.</li>
+                  <li>Use 2 parallel lines (tape or rope) forming a 90° angle, each 10 meters long.</li>
                   <li>Ensure adequate clearance (at least 2 meters) on all sides for safety.</li>
                   <li>Stopwatch (or automated timing device).</li>
                 </ul>
@@ -153,20 +153,20 @@ export default function LTestofFunctionalMobilityRunner({ client, onSave, onClos
               <div>
                 <p className="font-semibold text-blue-900 mb-2">Detailed Procedure</p>
                 <ol className="text-blue-800 list-decimal list-inside space-y-1">
-                  <li>Obtain baseline vitals (HR, BP, SpOâ‚‚ if indicated).</li>
+                  <li>Obtain baseline vitals (HR, BP, SpO₂ if indicated).</li>
                   <li>Client stands at the starting point, waiting for the "Go" command.</li>
-                  <li>On "Go", the client walks along the L-shaped path (10m down, 90Â° turn, 10m across) as <strong>quickly and safely as possible</strong>.</li>
+                  <li>On "Go", the client walks along the L-shaped path (10m down, 90° turn, 10m across) as <strong>quickly and safely as possible</strong>.</li>
                   <li>Start timing when client starts moving; stop when they reach the end point.</li>
                   <li>Allow 1-2 minutes rest between trials.</li>
                   <li>Repeat for 3 trials (some protocols use best of 3).</li>
-                  <li>Obtain post-test vitals (HR, BP, SpOâ‚‚).</li>
+                  <li>Obtain post-test vitals (HR, BP, SpO₂).</li>
                 </ol>
               </div>
               <div>
                 <p className="font-semibold text-blue-900 mb-2">Scoring & Interpretation</p>
                 <ul className="text-blue-800 list-disc list-inside space-y-1">
                   <li><strong>&lt;15s:</strong> Good functional mobility (minimal fall risk)</li>
-                  <li><strong>15â€“20s:</strong> Moderate functional limitation (some fall risk)</li>
+                  <li><strong>15–20s:</strong> Moderate functional limitation (some fall risk)</li>
                   <li><strong>&gt;20s:</strong> Significant functional limitation (high fall risk, increased dependence)</li>
                   <li><strong>MCID:</strong> ~5 seconds represents a clinically meaningful change.</li>
                 </ul>
@@ -183,7 +183,7 @@ export default function LTestofFunctionalMobilityRunner({ client, onSave, onClos
               <div>
                 <p className="font-semibold text-blue-900 mb-2">Evidence & References</p>
                 <div className="bg-white p-3 rounded border border-blue-100 space-y-2 text-xs">
-                  <p><strong>Primary Reference:</strong> Deathe AB & Miller WC. (2005). The L test of functional mobility: measurement properties of a modified version of the timed "up & go" test designed for people with lower-limb amputations. <em>Physical Therapy, 85</em>(7), 626â€“635.</p>
+                  <p><strong>Primary Reference:</strong> Deathe AB & Miller WC. (2005). The L test of functional mobility: measurement properties of a modified version of the timed "up & go" test designed for people with lower-limb amputations. <em>Physical Therapy, 85</em>(7), 626–635.</p>
                   <p><strong>Key Findings:</strong> Excellent intra-rater reliability (ICC 0.96), good validity for predicting fall risk, responsive to rehabilitation changes in amputee populations.</p>
                   <p><strong>Clinical Use:</strong> Amputee rehabilitation, prosthetic fitting outcomes, neurological conditions, geriatric assessment, return-to-work evaluation.</p>
                   <p><strong>Related:</strong> Modified version of TUG; correlates with single-leg stance time and walking velocity in lower-limb amputees.</p>

@@ -10,10 +10,10 @@ import { X, Save, Play, Pause, RotateCcw, Square } from "lucide-react";
 import { toast } from "sonner";
 
 const NORMS = [
-  { population: "Healthy older adults (60â€“80 yrs)", range: "142â€“175 m", mcid: "~12 m", color: "text-green-700" },
-  { population: "Stroke survivors (mildâ€“moderate)", range: "56â€“126 m", mcid: "12 m", color: "text-blue-700" },
-  { population: "Parkinson's disease", range: "80â€“120 m", mcid: "~10 m", color: "text-purple-700" },
-  { population: "Community ambulatory threshold", range: "â‰¥100 m (â‰ˆ0.8 m/s)", mcid: "â€”", color: "text-slate-700" },
+  { population: "Healthy older adults (60–80 yrs)", range: "142–175 m", mcid: "~12 m", color: "text-green-700" },
+  { population: "Stroke survivors (mild–moderate)", range: "56–126 m", mcid: "12 m", color: "text-blue-700" },
+  { population: "Parkinson's disease", range: "80–120 m", mcid: "~10 m", color: "text-purple-700" },
+  { population: "Community ambulatory threshold", range: "≥100 m (≈0.8 m/s)", mcid: "—", color: "text-slate-700" },
 ];
 
 export default function TwoMinuteWalkRunner({ client, onSave, onClose }) {
@@ -61,15 +61,15 @@ export default function TwoMinuteWalkRunner({ client, onSave, onClose }) {
     if (!distance) { toast.error("Please enter the distance walked."); return; }
     const dist = parseFloat(distance);
     const soapLines = [
-      `â€¢ 2-Minute Walk Test (2MWT)`,
+      `• 2-Minute Walk Test (2MWT)`,
       `  Distance: ${dist} m`,
       hrPre ? `  Pre-Test HR: ${hrPre} bpm` : null,
       bpPre ? `  Pre-Test BP: ${bpPre} mmHg` : null,
-      spo2Pre ? `  Pre-Test SpOâ‚‚: ${spo2Pre}%` : null,
+      spo2Pre ? `  Pre-Test SpO₂: ${spo2Pre}%` : null,
       hrPost ? `  Post-Test HR: ${hrPost} bpm` : null,
       bpPost ? `  Post-Test BP: ${bpPost} mmHg` : null,
-      spo2Post ? `  Post-Test SpOâ‚‚: ${spo2Post}%` : null,
-      rpe ? `  RPE (Borg 6â€“20): ${rpe}` : null,
+      spo2Post ? `  Post-Test SpO₂: ${spo2Post}%` : null,
+      rpe ? `  RPE (Borg 6–20): ${rpe}` : null,
       assistiveDevice === "yes" ? `  Assistive Device: ${deviceType || "Yes"}` : null,
       restsTaken > 0 ? `  Rests Taken: ${restsTaken}` : null,
       symptoms ? `  Symptoms: ${symptoms}` : null,
@@ -114,7 +114,7 @@ export default function TwoMinuteWalkRunner({ client, onSave, onClose }) {
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b">
           <div>
             <h2 className="text-xl font-bold text-slate-900">2-Minute Walk Test (2MWT)</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Functional walking capacity â€” distance covered in 2 minutes</p>
+            <p className="text-sm text-slate-500 mt-0.5">Functional walking capacity — distance covered in 2 minutes</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -123,7 +123,7 @@ export default function TwoMinuteWalkRunner({ client, onSave, onClose }) {
 
           {/* Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 space-y-2">
-            <p className="font-semibold">ðŸ“‹ Administration Instructions</p>
+            <p className="font-semibold">📋 Administration Instructions</p>
             <p><strong>Setup:</strong> Measure a 30 m straight course (or use a 15 m shuttle). Client should be rested and wearing appropriate footwear. Assistive devices permitted but must be documented.</p>
             <p className="italic">"I am going to ask you to walk as far as possible in 2 minutes. You will walk back and forth along this course. I will tell you when to start and stop. You may slow down or rest if you need to, but try to cover as much ground as possible."</p>
             <p><strong>During test:</strong> Encourage with standardised phrases only (e.g., "You are doing well," "Keep up the good work"). Do not pace alongside the client.</p>
@@ -144,7 +144,7 @@ export default function TwoMinuteWalkRunner({ client, onSave, onClose }) {
                   <Input type="text" value={bpPre} onChange={e => setBpPre(e.target.value)} placeholder="e.g. 120/80" className="mt-1" />
                 </div>
                 <div>
-                  <Label className="text-xs">SpOâ‚‚ (%)</Label>
+                  <Label className="text-xs">SpO₂ (%)</Label>
                   <Input type="number" value={spo2Pre} onChange={e => setSpo2Pre(e.target.value)} placeholder="e.g. 98" className="mt-1" />
                 </div>
               </div>
@@ -185,9 +185,9 @@ export default function TwoMinuteWalkRunner({ client, onSave, onClose }) {
                   )}
                 </div>
                 {timeLeft <= 30 && isRunning && (
-                  <Badge className="bg-red-600 text-white animate-pulse">Final 30 seconds â€” standardised encouragement only</Badge>
+                  <Badge className="bg-red-600 text-white animate-pulse">Final 30 seconds — standardised encouragement only</Badge>
                 )}
-                {testDone && <Badge className="bg-green-600 text-white text-sm px-4 py-1">âœ“ Test Complete â€” record distance below</Badge>}
+                {testDone && <Badge className="bg-green-600 text-white text-sm px-4 py-1">✓ Test Complete — record distance below</Badge>}
               </div>
             </CardContent>
           </Card>
@@ -204,7 +204,7 @@ export default function TwoMinuteWalkRunner({ client, onSave, onClose }) {
                 <div>
                   <Label className="text-xs">Rests Taken (count)</Label>
                   <div className="flex items-center gap-2 mt-1">
-                    <Button variant="outline" size="sm" onClick={() => setRestsTaken(r => Math.max(0, r - 1))}>âˆ’</Button>
+                    <Button variant="outline" size="sm" onClick={() => setRestsTaken(r => Math.max(0, r - 1))}>−</Button>
                     <span className="text-xl font-bold w-8 text-center">{restsTaken}</span>
                     <Button variant="outline" size="sm" onClick={() => setRestsTaken(r => r + 1)}>+</Button>
                   </div>
@@ -226,7 +226,7 @@ export default function TwoMinuteWalkRunner({ client, onSave, onClose }) {
                   </div>
                 )}
                 <div>
-                  <Label className="text-xs">RPE â€” Borg Scale (6â€“20)</Label>
+                  <Label className="text-xs">RPE — Borg Scale (6–20)</Label>
                   <Input type="number" min={6} max={20} value={rpe} onChange={e => setRpe(e.target.value)} placeholder="e.g. 13" className="mt-1" />
                 </div>
               </div>
@@ -247,7 +247,7 @@ export default function TwoMinuteWalkRunner({ client, onSave, onClose }) {
                   <Input type="text" value={bpPost} onChange={e => setBpPost(e.target.value)} placeholder="e.g. 138/85" className="mt-1" />
                 </div>
                 <div>
-                  <Label className="text-xs">SpOâ‚‚ (%)</Label>
+                  <Label className="text-xs">SpO₂ (%)</Label>
                   <Input type="number" value={spo2Post} onChange={e => setSpo2Post(e.target.value)} placeholder="e.g. 95" className="mt-1" />
                 </div>
               </div>
@@ -260,7 +260,7 @@ export default function TwoMinuteWalkRunner({ client, onSave, onClose }) {
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Norms & Interpretation</p>
+            <p className="font-semibold text-slate-700">📊 Norms & Interpretation</p>
             <table className="w-full text-xs border border-slate-300 rounded overflow-hidden">
               <thead className="bg-slate-200">
                 <tr>
@@ -279,14 +279,14 @@ export default function TwoMinuteWalkRunner({ client, onSave, onClose }) {
                 ))}
               </tbody>
             </table>
-            <p className="text-xs text-slate-500">MCID = Minimal Clinically Important Difference. A change of â‰¥12 m is meaningful for most populations.</p>
+            <p className="text-xs text-slate-500">MCID = Minimal Clinically Important Difference. A change of ≥12 m is meaningful for most populations.</p>
           </div>
 
           {/* References */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold text-slate-700">ðŸ“– References</p>
-            <p>Butland RJ et al. (1982). Two-, six-, and 12-minute walking tests in respiratory disease. <em>BMJ, 284</em>(6329), 1607â€“1608.</p>
-            <p>Bohannon RW & Crouch R. (2017). Two-minute walk test performance by adults 18 to 85 years. <em>Arch Phys Med Rehab, 98</em>(8), 1736â€“1740.</p>
+            <p className="font-semibold text-slate-700">📖 References</p>
+            <p>Butland RJ et al. (1982). Two-, six-, and 12-minute walking tests in respiratory disease. <em>BMJ, 284</em>(6329), 1607–1608.</p>
+            <p>Bohannon RW & Crouch R. (2017). Two-minute walk test performance by adults 18 to 85 years. <em>Arch Phys Med Rehab, 98</em>(8), 1736–1740.</p>
           </div>
 
           {/* Clinical Notes */}

@@ -52,7 +52,7 @@ export default function FourStageBalanceTestRunner({ client, onSave, onClose }) 
     const totalTime = results.reduce((sum, r) => sum + r.time, 0);
 
     // Build comprehensive SOAP text
-    let soapText = `â€¢ Four-Stage Balance Test: Total Time ${totalTime}s\n`;
+    let soapText = `• Four-Stage Balance Test: Total Time ${totalTime}s\n`;
     soapText += `  Stage Results:\n`;
     results.forEach((result, idx) => {
       soapText += `    ${idx + 1}. ${result.stage}: ${result.time}s\n`;

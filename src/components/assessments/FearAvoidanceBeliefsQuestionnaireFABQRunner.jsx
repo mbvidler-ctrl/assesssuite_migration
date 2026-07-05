@@ -48,7 +48,7 @@ export default function FearAvoidanceBeliefsQuestionnaireFABQRunner({ client, on
     const workScore = workItems.reduce((sum, index) => sum + responses[index], 0);
     const totalScore = physicalActivityScore + workScore;
 
-    let soapText = `â€¢ FABQ: Total ${totalScore}/96\n  Physical Activity Subscale: ${physicalActivityScore}/24 (high risk â‰¥15)\n  Work Subscale: ${workScore}/66 (high risk â‰¥34)\n\n  Individual Responses:\n`;
+    let soapText = `• FABQ: Total ${totalScore}/96\n  Physical Activity Subscale: ${physicalActivityScore}/24 (high risk ≥15)\n  Work Subscale: ${workScore}/66 (high risk ≥34)\n\n  Individual Responses:\n`;
     FABQ_QUESTIONS.forEach((q, i) => {
       soapText += `  Q${i+1}. ${q}\n      Score: ${responses[i]}/6\n`;
     });

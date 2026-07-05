@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const getBestDistance = (t1, t2, t3) => {
   const vals = [t1, t2, t3].map(v => parseFloat(v)).filter(v => !isNaN(v) && v > 0);
@@ -37,14 +37,14 @@ const calcTimedLSI = (injuredTime, uninjuredTime) => {
 };
 
 const lsiColor = (lsi) => {
-  if (!lsi) return { bg: "bg-slate-100", text: "text-slate-500", border: "border-slate-200", label: "â€”" };
+  if (!lsi) return { bg: "bg-slate-100", text: "text-slate-500", border: "border-slate-200", label: "—" };
   const v = parseFloat(lsi);
-  if (v >= 90) return { bg: "bg-green-100", text: "text-green-800", border: "border-green-300", label: "Good â€” RTS criteria met" };
-  if (v >= 85) return { bg: "bg-yellow-100", text: "text-yellow-800", border: "border-yellow-300", label: "Borderline â€” address deficits" };
-  return { bg: "bg-red-100", text: "text-red-800", border: "border-red-300", label: "Significant asymmetry â€” defer RTS" };
+  if (v >= 90) return { bg: "bg-green-100", text: "text-green-800", border: "border-green-300", label: "Good — RTS criteria met" };
+  if (v >= 85) return { bg: "bg-yellow-100", text: "text-yellow-800", border: "border-yellow-300", label: "Borderline — address deficits" };
+  return { bg: "bg-red-100", text: "text-red-800", border: "border-red-300", label: "Significant asymmetry — defer RTS" };
 };
 
-// â”€â”€â”€ Sub-components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Sub-components ───────────────────────────────────────────────────────────
 
 function SectionHeader({ icon: Icon, title, color = "slate", subtitle }) {
   const bg = {
@@ -96,13 +96,13 @@ function LSIPill({ lsi, label }) {
   return (
     <div className={`border rounded-xl px-3 py-2.5 text-center ${c.bg} ${c.border}`}>
       <p className="text-xs opacity-70">{label}</p>
-      <p className={`text-xl font-bold ${c.text}`}>{lsi ? `${lsi}%` : "â€”"}</p>
+      <p className={`text-xl font-bold ${c.text}`}>{lsi ? `${lsi}%` : "—"}</p>
       <p className={`text-xs mt-0.5 ${c.text}`}>{lsi ? c.label : "No data"}</p>
     </div>
   );
 }
 
-// â”€â”€â”€ Hop Test Panel (bilateral entry) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Hop Test Panel (bilateral entry) ─────────────────────────────────────────
 
 function HopTestPanel({ title, subtitle, unit = "cm", trialsPerSide = 3, isTimed = false,
   leftTrials, setLeftTrials, rightTrials, setRightTrials,
@@ -206,7 +206,7 @@ function HopTestPanel({ title, subtitle, unit = "cm", trialsPerSide = 3, isTimed
   );
 }
 
-// â”€â”€â”€ Safety items â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Safety items ──────────────────────────────────────────────────────────────
 
 const SAFETY_ITEMS = [
   { id: "cleared_jump", label: "Cleared for jumping/landing activities", concern: false },
@@ -215,11 +215,11 @@ const SAFETY_ITEMS = [
   { id: "sl_balance", label: "Able to perform safe single-leg balance", concern: false },
   { id: "rom_ok", label: "Knee ROM adequate for full hop/land", concern: false },
   { id: "no_instability", label: "No instability episode today", concern: false },
-  { id: "warmup", label: "Warm-up completed (5â€“10 min dynamic activity)", concern: false },
+  { id: "warmup", label: "Warm-up completed (5–10 min dynamic activity)", concern: false },
   { id: "consent", label: "Patient consent obtained", concern: false },
 ];
 
-// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Main Component ────────────────────────────────────────────────────────────
 
 export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
 
@@ -273,7 +273,7 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
   const [open, setOpen] = useState({ overview: true, setup: true, single: true, triple: true, crossover: true, timed: true, refs: false });
   const tog = k => setOpen(p => ({ ...p, [k]: !p[k] }));
 
-  // â”€â”€ Derived â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Derived ───────────────────────────────────────────────────────────────
 
   const singleBestLeft = useMemo(() => getBestDistance(...singleLeft), [singleLeft]);
   const singleBestRight = useMemo(() => getBestDistance(...singleRight), [singleRight]);
@@ -324,7 +324,7 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
   const hasAnyData = singleBestLeft || singleBestRight || tripleBestLeft || tripleBestRight || crossBestLeft || crossBestRight || timedBestLeft || timedBestRight;
   const hasBilateral = (singleBestLeft && singleBestRight) || (tripleBestLeft && tripleBestRight) || (crossBestLeft && crossBestRight) || (timedBestLeft && timedBestRight);
 
-  // â”€â”€ Interpretation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Interpretation ────────────────────────────────────────────────────────
 
   const interpretation = useMemo(() => {
     if (!meanLSI) return null;
@@ -340,47 +340,47 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
 
     if (v >= 90) {
       return {
-        level: "Good Symmetry â€” RTS Criteria Met",
+        level: "Good Symmetry — RTS Criteria Met",
         color: "text-green-700", bg: "bg-green-50 border-green-200",
-        narrative: `${side} single-leg hop testing demonstrates good limb symmetry with mean LSI of ${meanLSI}% (${symmetryText}). Results meet the â‰¥90% threshold for return-to-sport consideration. Clinical decision should incorporate strength testing, psychological readiness, and sport-specific performance criteria.`
+        narrative: `${side} single-leg hop testing demonstrates good limb symmetry with mean LSI of ${meanLSI}% (${symmetryText}). Results meet the ≥90% threshold for return-to-sport consideration. Clinical decision should incorporate strength testing, psychological readiness, and sport-specific performance criteria.`
       };
     }
     if (v >= 85) {
       return {
-        level: "Borderline Symmetry â€” Address Deficits",
+        level: "Borderline Symmetry — Address Deficits",
         color: "text-yellow-700", bg: "bg-yellow-50 border-yellow-200",
-        narrative: `${side} single-leg hop testing demonstrates borderline limb symmetry with mean LSI of ${meanLSI}% (${symmetryText}). Residual asymmetry is present. Continued rehabilitation with progressive plyometric loading is recommended prior to return-to-sport clearance. Reassess in 3â€“4 weeks.`
+        narrative: `${side} single-leg hop testing demonstrates borderline limb symmetry with mean LSI of ${meanLSI}% (${symmetryText}). Residual asymmetry is present. Continued rehabilitation with progressive plyometric loading is recommended prior to return-to-sport clearance. Reassess in 3–4 weeks.`
       };
     }
     return {
-      level: "Significant Asymmetry â€” Return to Sport Not Recommended",
+      level: "Significant Asymmetry — Return to Sport Not Recommended",
       color: "text-red-700", bg: "bg-red-50 border-red-200",
       narrative: `${side} single-leg hop testing reveals significant lower-limb asymmetry with mean LSI of ${meanLSI}% (${symmetryText}). Findings indicate incomplete restoration of unilateral power and neuromuscular control. Return to sport is not recommended at this time. Structured plyometric and strength progression is indicated.`
     };
   }, [meanLSI, singleLSI, tripleLSI, crossLSI, timedLSI, injuredSide]);
 
-  // â”€â”€ Flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Flags ─────────────────────────────────────────────────────────────────
 
   const flags = useMemo(() => {
     const f = [];
     if (!meanLSI) return f;
     const v = parseFloat(meanLSI);
-    if (v < 90) f.push("Reinjury risk elevated â€” LSI below 90% threshold");
-    if (v < 85) f.push("Significant power deficit â€” defer return to sport");
-    if ([singleLeftObs, singleRightObs, tripleLeftObs, tripleRightObs, crossLeftObs, crossRightObs].some(o => o === "failed")) f.push("Failed hop attempts recorded â€” neuromuscular control concern");
-    if ([singleLeftObs, singleRightObs, tripleLeftObs, tripleRightObs, crossLeftObs, crossRightObs].some(o => o === "significant_sway" || o === "stumble")) f.push("Poor landing mechanics â€” address dynamic control");
-    if (confidenceLevel && parseInt(confidenceLevel) <= 5) f.push("Low confidence reported â€” psychological readiness concern");
-    if (baselinePain && parseInt(baselinePain) >= 3) f.push("Elevated baseline pain â€” testing validity may be compromised");
+    if (v < 90) f.push("Reinjury risk elevated — LSI below 90% threshold");
+    if (v < 85) f.push("Significant power deficit — defer return to sport");
+    if ([singleLeftObs, singleRightObs, tripleLeftObs, tripleRightObs, crossLeftObs, crossRightObs].some(o => o === "failed")) f.push("Failed hop attempts recorded — neuromuscular control concern");
+    if ([singleLeftObs, singleRightObs, tripleLeftObs, tripleRightObs, crossLeftObs, crossRightObs].some(o => o === "significant_sway" || o === "stumble")) f.push("Poor landing mechanics — address dynamic control");
+    if (confidenceLevel && parseInt(confidenceLevel) <= 5) f.push("Low confidence reported — psychological readiness concern");
+    if (baselinePain && parseInt(baselinePain) >= 3) f.push("Elevated baseline pain — testing validity may be compromised");
     if (v < 90) f.push("Requires progressive plyometric program before RTS");
     if (v < 85) f.push("Consider formal strength & power re-assessment (isokinetics, SLQT)");
     return f;
   }, [meanLSI, singleLeftObs, singleRightObs, tripleLeftObs, tripleRightObs, crossLeftObs, crossRightObs, confidenceLevel, baselinePain]);
 
-  // â”€â”€ SOAP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── SOAP ──────────────────────────────────────────────────────────────────
 
   const buildSOAP = () => {
     const lines = [
-      `â€¢ Single Leg Hop Test Battery`,
+      `• Single Leg Hop Test Battery`,
       ``,
       `  Test Results:`,
       singleBestLeft && singleBestRight ? `    Single Hop for Distance: L ${singleBestLeft}cm | R ${singleBestRight}cm | LSI ${singleLSI}%` : null,
@@ -393,7 +393,7 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
       interpretation ? `  ${interpretation.narrative}` : null,
       ``,
       flags.length > 0 ? `  Clinical Flags:` : null,
-      ...flags.map(f => `    âš‘ ${f}`),
+      ...flags.map(f => `    ⚑ ${f}`),
       ``,
       notes ? `  Clinician Notes: ${notes}` : null,
       ``,
@@ -402,7 +402,7 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
     return lines;
   };
 
-  // â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Save ──────────────────────────────────────────────────────────────────
 
   const handleSave = () => {
     if (!hasBilateral) {
@@ -448,7 +448,7 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
 
   const coreConsent = safetyChecks["consent"] && safetyChecks["cleared_jump"] && safetyChecks["no_swelling"];
 
-  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -458,7 +458,7 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 z-10 flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Single Leg Hop Test Battery</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Bilateral power Â· LSI Â· Return-to-Sport readiness</p>
+            <p className="text-sm text-slate-500 mt-0.5">Bilateral power · LSI · Return-to-Sport readiness</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -478,11 +478,11 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
 
         <div className="p-6 space-y-5">
 
-          {/* â”€â”€ SECTION 1: Overview â”€â”€ */}
+          {/* ── SECTION 1: Overview ── */}
           <Collapsible open={open.overview} onOpenChange={() => tog("overview")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={Info} title="1. Assessment Overview" color="slate"
-                subtitle="Single Leg Hop Battery â€” Bilateral power & limb symmetry" />
+                subtitle="Single Leg Hop Battery — Bilateral power & limb symmetry" />
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="mt-3 bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3 text-sm">
@@ -493,19 +493,19 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
                   ))}
                 </div>
                 <div className="grid grid-cols-4 gap-2 text-xs">
-                  <div className="bg-white border rounded p-2 text-center"><p className="font-semibold text-slate-700">RTS Threshold</p><p>â‰¥90% LSI</p></div>
-                  <div className="bg-white border rounded p-2 text-center"><p className="font-semibold text-slate-700">Borderline</p><p>85â€“89%</p></div>
+                  <div className="bg-white border rounded p-2 text-center"><p className="font-semibold text-slate-700">RTS Threshold</p><p>≥90% LSI</p></div>
+                  <div className="bg-white border rounded p-2 text-center"><p className="font-semibold text-slate-700">Borderline</p><p>85–89%</p></div>
                   <div className="bg-white border rounded p-2 text-center"><p className="font-semibold text-slate-700">Defer RTS</p><p>&lt;85%</p></div>
                   <div className="bg-white border rounded p-2 text-center"><p className="font-semibold text-slate-700">MCID</p><p>~5% LSI</p></div>
                 </div>
                 <p className="text-xs text-slate-500 bg-blue-50 border border-blue-100 rounded p-2">
-                  <strong>LSI formula:</strong> (Injured limb Ã· Uninjured limb) Ã— 100. Timed hop uses inverse (faster = better).
+                  <strong>LSI formula:</strong> (Injured limb ÷ Uninjured limb) × 100. Timed hop uses inverse (faster = better).
                 </p>
               </div>
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 2: Safety â”€â”€ */}
+          {/* ── SECTION 2: Safety ── */}
           {!safetyDone ? (
             <div className="border-2 border-amber-300 rounded-xl overflow-hidden">
               <div className="bg-amber-500 text-white px-4 py-3 flex items-center gap-2 font-semibold text-sm">
@@ -535,13 +535,13 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
             </div>
           )}
 
-          {/* â”€â”€ SECTION 3: Instructions â”€â”€ */}
+          {/* ── SECTION 3: Instructions ── */}
           <div className="bg-blue-600 text-white rounded-lg px-4 py-3 text-sm">
-            <p className="font-semibold mb-1">ðŸ’¬ 3. Clinician Instructions</p>
-            <p className="text-blue-100">Patient performs maximal effort single-leg hop tasks on each limb. Record 2â€“3 trials per side and use the best (for distance) or fastest (for timed). Calculate LSI = (injured Ã· uninjured) Ã— 100. â‰¥90% = RTS criteria met. Observe landing quality, valgus, and confidence throughout.</p>
+            <p className="font-semibold mb-1">💬 3. Clinician Instructions</p>
+            <p className="text-blue-100">Patient performs maximal effort single-leg hop tasks on each limb. Record 2–3 trials per side and use the best (for distance) or fastest (for timed). Calculate LSI = (injured ÷ uninjured) × 100. ≥90% = RTS criteria met. Observe landing quality, valgus, and confidence throughout.</p>
           </div>
 
-          {/* â”€â”€ SECTION 4: Setup â”€â”€ */}
+          {/* ── SECTION 4: Setup ── */}
           <Collapsible open={open.setup} onOpenChange={() => tog("setup")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={Activity} title="4. Test Setup" color="blue" />
@@ -574,15 +574,15 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <Label className="text-xs font-semibold text-slate-600 block mb-1">Pain (0â€“10)</Label>
+                    <Label className="text-xs font-semibold text-slate-600 block mb-1">Pain (0–10)</Label>
                     <Input type="number" min="0" max="10" value={baselinePain} onChange={e => setBaselinePain(e.target.value)} placeholder="0" />
                   </div>
                   <div>
-                    <Label className="text-xs font-semibold text-slate-600 block mb-1">Confidence (0â€“10)</Label>
+                    <Label className="text-xs font-semibold text-slate-600 block mb-1">Confidence (0–10)</Label>
                     <Input type="number" min="0" max="10" value={confidenceLevel} onChange={e => setConfidenceLevel(e.target.value)} placeholder="0" />
                   </div>
                   <div>
-                    <Label className="text-xs font-semibold text-slate-600 block mb-1">Fatigue (0â€“10)</Label>
+                    <Label className="text-xs font-semibold text-slate-600 block mb-1">Fatigue (0–10)</Label>
                     <Input type="number" min="0" max="10" value={fatigue} onChange={e => setFatigue(e.target.value)} placeholder="0" />
                   </div>
                 </div>
@@ -590,7 +590,7 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 5: Test Selection â”€â”€ */}
+          {/* ── SECTION 5: Test Selection ── */}
           <div className="border border-slate-200 rounded-lg p-4 bg-slate-50">
             <p className="text-sm font-semibold text-slate-700 mb-3">5. Test Battery Selection</p>
             <div className="grid grid-cols-2 gap-2">
@@ -610,12 +610,12 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
             </div>
           </div>
 
-          {/* â”€â”€ SECTION 6: Single Hop â”€â”€ */}
+          {/* ── SECTION 6: Single Hop ── */}
           {enabledTests.single && (
             <Collapsible open={open.single} onOpenChange={() => tog("single")}>
               <CollapsibleTrigger className="w-full text-left">
                 <SectionHeader icon={Zap} title="6. Single Hop for Distance" color="green"
-                  subtitle="Maximum single explosive hop â€” 3 trials per side, use best" />
+                  subtitle="Maximum single explosive hop — 3 trials per side, use best" />
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="mt-3">
@@ -632,12 +632,12 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
             </Collapsible>
           )}
 
-          {/* â”€â”€ SECTION 7: Triple Hop â”€â”€ */}
+          {/* ── SECTION 7: Triple Hop ── */}
           {enabledTests.triple && (
             <Collapsible open={open.triple} onOpenChange={() => tog("triple")}>
               <CollapsibleTrigger className="w-full text-left">
                 <SectionHeader icon={Zap} title="7. Triple Hop for Distance" color="purple"
-                  subtitle="3 consecutive hops â€” total distance per side, use best trial" />
+                  subtitle="3 consecutive hops — total distance per side, use best trial" />
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="mt-3">
@@ -654,12 +654,12 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
             </Collapsible>
           )}
 
-          {/* â”€â”€ SECTION 8: Crossover Hop â”€â”€ */}
+          {/* ── SECTION 8: Crossover Hop ── */}
           {enabledTests.crossover && (
             <Collapsible open={open.crossover} onOpenChange={() => tog("crossover")}>
               <CollapsibleTrigger className="w-full text-left">
                 <SectionHeader icon={Target} title="8. Crossover Hop for Distance" color="teal"
-                  subtitle="3 crossover hops over centre line â€” total distance per side, use best" />
+                  subtitle="3 crossover hops over centre line — total distance per side, use best" />
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="mt-3">
@@ -676,12 +676,12 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
             </Collapsible>
           )}
 
-          {/* â”€â”€ SECTION 9: Timed Hop â”€â”€ */}
+          {/* ── SECTION 9: Timed Hop ── */}
           {enabledTests.timed && (
             <Collapsible open={open.timed} onOpenChange={() => tog("timed")}>
               <CollapsibleTrigger className="w-full text-left">
                 <SectionHeader icon={Activity} title="9. 6-Metre Timed Hop" color="indigo"
-                  subtitle="Time to hop 6 metres â€” 2 trials per side, use fastest" />
+                  subtitle="Time to hop 6 metres — 2 trials per side, use fastest" />
               </CollapsibleTrigger>
               <CollapsibleContent>
                 <div className="mt-3">
@@ -698,7 +698,7 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
             </Collapsible>
           )}
 
-          {/* â”€â”€ SECTIONS 10â€“14: Results & Interpretation â”€â”€ */}
+          {/* ── SECTIONS 10–14: Results & Interpretation ── */}
           {interpretation && (
             <div className="space-y-4">
 
@@ -708,26 +708,26 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
                 <div className="grid grid-cols-2 gap-x-8 gap-y-1 text-sm">
                   {singleBestLeft && singleBestRight && (
                     <>
-                      <p className="text-slate-300">Single Hop â€” Left: <span className="text-white font-bold">{singleBestLeft}cm</span></p>
-                      <p className="text-slate-300">Single Hop â€” Right: <span className="text-white font-bold">{singleBestRight}cm</span></p>
+                      <p className="text-slate-300">Single Hop — Left: <span className="text-white font-bold">{singleBestLeft}cm</span></p>
+                      <p className="text-slate-300">Single Hop — Right: <span className="text-white font-bold">{singleBestRight}cm</span></p>
                     </>
                   )}
                   {tripleBestLeft && tripleBestRight && (
                     <>
-                      <p className="text-slate-300">Triple Hop â€” Left: <span className="text-white font-bold">{tripleBestLeft}cm</span></p>
-                      <p className="text-slate-300">Triple Hop â€” Right: <span className="text-white font-bold">{tripleBestRight}cm</span></p>
+                      <p className="text-slate-300">Triple Hop — Left: <span className="text-white font-bold">{tripleBestLeft}cm</span></p>
+                      <p className="text-slate-300">Triple Hop — Right: <span className="text-white font-bold">{tripleBestRight}cm</span></p>
                     </>
                   )}
                   {crossBestLeft && crossBestRight && (
                     <>
-                      <p className="text-slate-300">Crossover â€” Left: <span className="text-white font-bold">{crossBestLeft}cm</span></p>
-                      <p className="text-slate-300">Crossover â€” Right: <span className="text-white font-bold">{crossBestRight}cm</span></p>
+                      <p className="text-slate-300">Crossover — Left: <span className="text-white font-bold">{crossBestLeft}cm</span></p>
+                      <p className="text-slate-300">Crossover — Right: <span className="text-white font-bold">{crossBestRight}cm</span></p>
                     </>
                   )}
                   {timedBestLeft && timedBestRight && (
                     <>
-                      <p className="text-slate-300">Timed Hop â€” Left: <span className="text-white font-bold">{timedBestLeft}s</span></p>
-                      <p className="text-slate-300">Timed Hop â€” Right: <span className="text-white font-bold">{timedBestRight}s</span></p>
+                      <p className="text-slate-300">Timed Hop — Left: <span className="text-white font-bold">{timedBestLeft}s</span></p>
+                      <p className="text-slate-300">Timed Hop — Right: <span className="text-white font-bold">{timedBestRight}s</span></p>
                     </>
                   )}
                 </div>
@@ -749,12 +749,12 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
                 <p className="font-semibold text-indigo-900 mb-2">Return-to-Sport Classification</p>
                 <div className="grid grid-cols-3 gap-2 text-xs">
                   {[
-                    { range: "â‰¥90%", label: "RTS Criteria Met", sub: "Good symmetry", bg: "bg-green-100 border-green-300 text-green-800" },
-                    { range: "85â€“89%", label: "Borderline", sub: "Address deficits", bg: "bg-yellow-100 border-yellow-300 text-yellow-800" },
+                    { range: "≥90%", label: "RTS Criteria Met", sub: "Good symmetry", bg: "bg-green-100 border-green-300 text-green-800" },
+                    { range: "85–89%", label: "Borderline", sub: "Address deficits", bg: "bg-yellow-100 border-yellow-300 text-yellow-800" },
                     { range: "<85%", label: "Defer RTS", sub: "Significant asymmetry", bg: "bg-red-100 border-red-300 text-red-800" },
                   ].map(r => {
                     const v = parseFloat(meanLSI);
-                    const active = (r.range === "â‰¥90%" && v >= 90) || (r.range === "85â€“89%" && v >= 85 && v < 90) || (r.range === "<85%" && v < 85);
+                    const active = (r.range === "≥90%" && v >= 90) || (r.range === "85–89%" && v >= 85 && v < 90) || (r.range === "<85%" && v < 85);
                     return (
                       <div key={r.range} className={`border rounded-lg p-2.5 text-center ${r.bg} ${active ? "ring-2 ring-offset-1 ring-slate-700" : "opacity-70"}`}>
                         <p className="font-bold text-lg">{r.range}</p>
@@ -764,7 +764,7 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
                     );
                   })}
                 </div>
-                <p className="text-xs text-indigo-800 mt-3">Note: LSI â‰¥90% is a necessary but not sufficient criterion for RTS. Integrate with strength testing (quadriceps symmetry), psychological readiness (ACL-RSI), and sport-specific performance.</p>
+                <p className="text-xs text-indigo-800 mt-3">Note: LSI ≥90% is a necessary but not sufficient criterion for RTS. Integrate with strength testing (quadriceps symmetry), psychological readiness (ACL-RSI), and sport-specific performance.</p>
               </div>
 
               {/* Flags */}
@@ -774,7 +774,7 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
                   <div className="space-y-1.5">
                     {flags.map((f, i) => (
                       <div key={i} className="flex items-start gap-2">
-                        <span className="text-red-500 mt-0.5 flex-shrink-0">âš‘</span>
+                        <span className="text-red-500 mt-0.5 flex-shrink-0">⚑</span>
                         <p className="text-sm text-red-800">{f}</p>
                       </div>
                     ))}
@@ -784,7 +784,7 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
             </div>
           )}
 
-          {/* â”€â”€ Clinical Notes â”€â”€ */}
+          {/* ── Clinical Notes ── */}
           <div>
             <Label className="font-semibold block mb-2 text-sm">Clinical Notes</Label>
             <Textarea value={notes} onChange={e => setNotes(e.target.value)}
@@ -792,7 +792,7 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
               rows={3} />
           </div>
 
-          {/* â”€â”€ References â”€â”€ */}
+          {/* ── References ── */}
           <Collapsible open={open.refs} onOpenChange={() => tog("refs")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={ExternalLink} title="Evidence-Based References" color="amber" />
@@ -800,11 +800,11 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
             <CollapsibleContent>
               <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2.5 text-xs text-amber-800">
                 {[
-                  { text: "Noyes FR, Barber SD, Mangine RE. Abnormal lower limb symmetry determined by function hop tests after ACL rupture. Am J Sports Med. 1991;19(5):513â€“518.", url: "https://pubmed.ncbi.nlm.nih.gov/1897659/" },
-                  { text: "Reid A, Birmingham TB, Stratford PW, et al. Hop testing provides a reliable and valid outcome measure during rehabilitation after ACL reconstruction. Phys Ther. 2007;87(3):337â€“349.", url: "https://pubmed.ncbi.nlm.nih.gov/17272543/" },
-                  { text: "Logerstedt D, Grindem H, Lynch A, et al. Single-legged hop tests as predictors of self-reported knee function after ACL reconstruction. Am J Sports Med. 2012;40(10):2348â€“2356.", url: "https://pubmed.ncbi.nlm.nih.gov/22773832/" },
-                  { text: "Gustavsson A, Neeter C, ThomeÃ© P, et al. A test battery for evaluating hop performance in patients with ACL injury and patients who have undergone ACL reconstruction. Knee Surg Sports Traumatol Arthrosc. 2006;14(8):778â€“788.", url: "https://pubmed.ncbi.nlm.nih.gov/16525782/" },
-                  { text: "Myer GD, Schmitt LC, Brent JL, et al. Utilization of modified NFL combine testing to identify lower extremity functional asymmetries in adolescent athletes. Clin J Sport Med. 2011;21(6):530â€“537.", url: "https://pubmed.ncbi.nlm.nih.gov/21378549/" },
+                  { text: "Noyes FR, Barber SD, Mangine RE. Abnormal lower limb symmetry determined by function hop tests after ACL rupture. Am J Sports Med. 1991;19(5):513–518.", url: "https://pubmed.ncbi.nlm.nih.gov/1897659/" },
+                  { text: "Reid A, Birmingham TB, Stratford PW, et al. Hop testing provides a reliable and valid outcome measure during rehabilitation after ACL reconstruction. Phys Ther. 2007;87(3):337–349.", url: "https://pubmed.ncbi.nlm.nih.gov/17272543/" },
+                  { text: "Logerstedt D, Grindem H, Lynch A, et al. Single-legged hop tests as predictors of self-reported knee function after ACL reconstruction. Am J Sports Med. 2012;40(10):2348–2356.", url: "https://pubmed.ncbi.nlm.nih.gov/22773832/" },
+                  { text: "Gustavsson A, Neeter C, Thomeé P, et al. A test battery for evaluating hop performance in patients with ACL injury and patients who have undergone ACL reconstruction. Knee Surg Sports Traumatol Arthrosc. 2006;14(8):778–788.", url: "https://pubmed.ncbi.nlm.nih.gov/16525782/" },
+                  { text: "Myer GD, Schmitt LC, Brent JL, et al. Utilization of modified NFL combine testing to identify lower extremity functional asymmetries in adolescent athletes. Clin J Sport Med. 2011;21(6):530–537.", url: "https://pubmed.ncbi.nlm.nih.gov/21378549/" },
                 ].map((ref, i) => (
                   <a key={i} href={ref.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2 hover:underline">
                     <ExternalLink className="w-3 h-3 flex-shrink-0 mt-0.5" />
@@ -815,7 +815,7 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ Actions â”€â”€ */}
+          {/* ── Actions ── */}
           <div className="flex justify-between items-center gap-3 pt-4 border-t border-slate-200">
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose}><X className="w-4 h-4 mr-2" />Cancel</Button>

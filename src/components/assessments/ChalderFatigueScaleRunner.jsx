@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 
-// Chalder Fatigue Scale â€” 11-item bimodal + Likert scoring
+// Chalder Fatigue Scale — 11-item bimodal + Likert scoring
 const PHYSICAL_Q = [
   "Do you have problems with fatigue?",
   "Do you need to rest more?",
@@ -31,8 +31,8 @@ const BIMODAL_MAP = [0, 1, 1, 1]; // 0,1,2,3 -> bimodal score (Likert options 2-
 function getInterpretation(bimodalScore) {
   if (bimodalScore <= 3) return { label: "Minimal fatigue", color: "bg-green-100 text-green-800 border-green-300" };
   if (bimodalScore <= 6) return { label: "Mild fatigue", color: "bg-yellow-100 text-yellow-800 border-yellow-300" };
-  if (bimodalScore <= 9) return { label: "Moderate fatigue â€” clinical attention warranted", color: "bg-orange-100 text-orange-800 border-orange-300" };
-  return { label: "Severe fatigue â€” CFS/ME criteria may apply", color: "bg-red-100 text-red-800 border-red-300" };
+  if (bimodalScore <= 9) return { label: "Moderate fatigue — clinical attention warranted", color: "bg-orange-100 text-orange-800 border-orange-300" };
+  return { label: "Severe fatigue — CFS/ME criteria may apply", color: "bg-red-100 text-red-800 border-red-300" };
 }
 
 export default function ChalderFatigueScaleRunner({ client, onSave, onClose }) {
@@ -54,7 +54,7 @@ export default function ChalderFatigueScaleRunner({ client, onSave, onClose }) {
   const handleSave = () => {
     if (!allAnswered) { toast.error("Please answer all 11 questions"); return; }
     const qLines = allQs.map((q, i) => `  Q${i + 1} (${OPTIONS_LIKERT[responses[i]]}): ${responses[i]}`).join("\n");
-    const soap = `â€¢ Chalder Fatigue Scale (CFS-11)\n  Bimodal Score: ${bimodalScore}/11 â€” ${interp.label}\n  Likert Total: ${likertScore}/33\n  Physical Subscale: ${physicalScore}/24 | Mental Subscale: ${mentalScore}/9\n\n  Item Responses:\n${qLines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: Bimodal score â‰¥4 = significant fatigue. Caseness: â‰¥4 bimodal points.\n  Reference: Chalder T et al. (1993). Development of a fatigue scale. J Psychosom Res, 37(2):147-53.`;
+    const soap = `• Chalder Fatigue Scale (CFS-11)\n  Bimodal Score: ${bimodalScore}/11 — ${interp.label}\n  Likert Total: ${likertScore}/33\n  Physical Subscale: ${physicalScore}/24 | Mental Subscale: ${mentalScore}/9\n\n  Item Responses:\n${qLines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: Bimodal score ≥4 = significant fatigue. Caseness: ≥4 bimodal points.\n  Reference: Chalder T et al. (1993). Development of a fatigue scale. J Psychosom Res, 37(2):147-53.`;
     onSave({ result_value: bimodalScore, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", responses, bimodal_score: bimodalScore, likert_score: likertScore, physical_subscale: physicalScore, mental_subscale: mentalScore, fatigue_level: interp.label } });
   };
 
@@ -84,7 +84,7 @@ export default function ChalderFatigueScaleRunner({ client, onSave, onClose }) {
               className="w-full flex items-center justify-between bg-slate-50 px-4 py-3 text-left"
               onClick={() => setShowInfo(!showInfo)}
             >
-              <span className="font-semibold text-slate-800 text-sm">ðŸ“‹ About this Scale â€” Clinician Reference</span>
+              <span className="font-semibold text-slate-800 text-sm">📋 About this Scale — Clinician Reference</span>
               {showInfo ? <ChevronUp className="w-4 h-4 text-slate-600" /> : <ChevronDown className="w-4 h-4 text-slate-600" />}
             </button>
             {showInfo && (
@@ -114,25 +114,25 @@ export default function ChalderFatigueScaleRunner({ client, onSave, onClose }) {
                         </tr>
                       </thead>
                       <tbody>
-                        <tr><td className="border border-slate-300 px-2 py-1">Bimodal</td><td className="border border-slate-300 px-2 py-1">0â€“11</td><td className="border border-slate-300 px-2 py-1">â‰¥4 = caseness (significant fatigue)</td></tr>
-                        <tr className="bg-slate-50"><td className="border border-slate-300 px-2 py-1">Likert</td><td className="border border-slate-300 px-2 py-1">0â€“33</td><td className="border border-slate-300 px-2 py-1">Cumulative score (not primary)</td></tr>
+                        <tr><td className="border border-slate-300 px-2 py-1">Bimodal</td><td className="border border-slate-300 px-2 py-1">0–11</td><td className="border border-slate-300 px-2 py-1">≥4 = caseness (significant fatigue)</td></tr>
+                        <tr className="bg-slate-50"><td className="border border-slate-300 px-2 py-1">Likert</td><td className="border border-slate-300 px-2 py-1">0–33</td><td className="border border-slate-300 px-2 py-1">Cumulative score (not primary)</td></tr>
                       </tbody>
                     </table>
                   </div>
-                  <p className="text-slate-500 text-xs mt-1">Bimodal: "Less than usual" or "No more than usual" = 0; "More than usual" or "Much more than usual" = 1. Likert: options 0â€“3 summed (not standard for diagnosis).</p>
+                  <p className="text-slate-500 text-xs mt-1">Bimodal: "Less than usual" or "No more than usual" = 0; "More than usual" or "Much more than usual" = 1. Likert: options 0–3 summed (not standard for diagnosis).</p>
                 </div>
                 <div>
                   <h4 className="font-semibold text-slate-800 mb-1">Interpretation (Bimodal)</h4>
                   <div className="space-y-1 text-xs">
-                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-400 inline-block"></span><span>0â€“3: Minimal fatigue</span></div>
-                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span><span>4â€“6: Mild fatigue</span></div>
-                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-orange-400 inline-block"></span><span>7â€“9: Moderate fatigue â€” clinical attention warranted</span></div>
-                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500 inline-block"></span><span>10â€“11: Severe fatigue â€” CFS/ME criteria may apply</span></div>
+                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-green-400 inline-block"></span><span>0–3: Minimal fatigue</span></div>
+                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-yellow-400 inline-block"></span><span>4–6: Mild fatigue</span></div>
+                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-orange-400 inline-block"></span><span>7–9: Moderate fatigue — clinical attention warranted</span></div>
+                    <div className="flex items-center gap-2"><span className="w-3 h-3 rounded-full bg-red-500 inline-block"></span><span>10–11: Severe fatigue — CFS/ME criteria may apply</span></div>
                   </div>
                 </div>
                 <div>
                    <h4 className="font-semibold text-slate-800 mb-2">Key Reference</h4>
-                   <p className="text-xs text-slate-700 mb-2">Chalder T, Berelowitz G, Pawlikowska T, et al. (1993). Development of a fatigue scale. <em>Journal of Psychosomatic Research</em>, 37(2), 147â€“153.</p>
+                   <p className="text-xs text-slate-700 mb-2">Chalder T, Berelowitz G, Pawlikowska T, et al. (1993). Development of a fatigue scale. <em>Journal of Psychosomatic Research</em>, 37(2), 147–153.</p>
                    <p className="text-xs text-slate-500">The original validation study for the Chalder Fatigue Scale in post-viral fatigue populations. Bimodal scoring recommended for detecting CFS/ME caseness.</p>
                  </div>
               </div>
@@ -140,7 +140,7 @@ export default function ChalderFatigueScaleRunner({ client, onSave, onClose }) {
           </div>
 
           <div>
-            <p className="font-semibold text-sm text-slate-700 mb-2">Physical Fatigue (Q1â€“8)</p>
+            <p className="font-semibold text-sm text-slate-700 mb-2">Physical Fatigue (Q1–8)</p>
             {PHYSICAL_Q.map((q, i) => (
               <Card key={i} className={`mb-2 ${responses[i] !== null ? "border-purple-200 bg-purple-50/20" : ""}`}>
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-slate-700">Q{i + 1}. {q}</CardTitle></CardHeader>
@@ -158,7 +158,7 @@ export default function ChalderFatigueScaleRunner({ client, onSave, onClose }) {
                     </div>
 
                     <div>
-                    <p className="font-semibold text-sm text-slate-700 mb-2">Mental Fatigue (Q9â€“11)</p>
+                    <p className="font-semibold text-sm text-slate-700 mb-2">Mental Fatigue (Q9–11)</p>
                     {MENTAL_Q.map((q, i) => (
                     <Card key={i} className={`mb-2 ${responses[i + 8] !== null ? "border-purple-200 bg-purple-50/20" : ""}`}>
                     <CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-slate-700">Q{i + 9}. {q}</CardTitle></CardHeader>

@@ -62,12 +62,12 @@ export default function GoalAttainmentScalingGASRunner({ client, onSave, onClose
             <div className="space-y-4">
               {/* Clinician Instructions */}
               <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg p-4">
-                <h3 className="font-bold mb-2 flex items-center gap-2"><span>ðŸ’¬</span> Clinician Instructions</h3>
+                <h3 className="font-bold mb-2 flex items-center gap-2"><span>💬</span> Clinician Instructions</h3>
                 <div className="text-sm leading-relaxed bg-white/10 rounded p-3 space-y-1">
                   <p>GAS measures individualised goal achievement on a 5-point scale:</p>
-                  <p>â€¢ <strong>-2</strong> = Much less than expected | <strong>-1</strong> = Somewhat less than expected</p>
-                  <p>â€¢ <strong>0</strong> = Expected outcome | <strong>+1</strong> = Somewhat more | <strong>+2</strong> = Much more than expected</p>
-                  <p>â€¢ Rate <strong>Importance</strong> (0â€“3) and <strong>Difficulty</strong> (0â€“3) to weight the goal in the overall T-score.</p>
+                  <p>• <strong>-2</strong> = Much less than expected | <strong>-1</strong> = Somewhat less than expected</p>
+                  <p>• <strong>0</strong> = Expected outcome | <strong>+1</strong> = Somewhat more | <strong>+2</strong> = Much more than expected</p>
+                  <p>• Rate <strong>Importance</strong> (0–3) and <strong>Difficulty</strong> (0–3) to weight the goal in the overall T-score.</p>
                 </div>
               </div>
 

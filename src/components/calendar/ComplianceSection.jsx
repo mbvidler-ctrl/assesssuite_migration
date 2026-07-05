@@ -78,8 +78,8 @@ const ACTIONS_RED = [
 
 const FREQUENCIES = [
   "Daily",
-  "4â€“6x/week",
-  "2â€“3x/week",
+  "4–6x/week",
+  "2–3x/week",
   "1x/week",
 ];
 

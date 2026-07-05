@@ -48,7 +48,7 @@ export default function SEBTRunner({ onSave, onClose }) {
 
   const handleSave = () => {
     const reachLines = SEBT_DIRECTIONS.map(d => reaches[d] ? `  ${d}: ${reaches[d]}cm (${normalizedReaches[d]}%)` : null).filter(Boolean).join('\n');
-    const soapText = `â€¢ Star Excursion Balance Test (SEBT)\n  Leg: ${legTested} | Leg Length: ${legLength}cm\n  Composite Score: ${compositeScore}%\n${reachLines}${notes ? `\n  Notes: ${notes}` : ''}`;
+    const soapText = `• Star Excursion Balance Test (SEBT)\n  Leg: ${legTested} | Leg Length: ${legLength}cm\n  Composite Score: ${compositeScore}%\n${reachLines}${notes ? `\n  Notes: ${notes}` : ''}`;
 
     onSave({
       result_value: parseFloat(compositeScore) || 0,
@@ -121,7 +121,7 @@ export default function SEBTRunner({ onSave, onClose }) {
 
             <Card className="bg-amber-50 border-amber-200">
               <CardHeader>
-                <CardTitle className="text-sm text-amber-800">âš ï¸ Contraindications</CardTitle>
+                <CardTitle className="text-sm text-amber-800">⚠ï¸ Contraindications</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-amber-800">
                 <p>Acute lower limb injury, severe ankle instability, recent surgery. Provide close supervision and spotting.</p>

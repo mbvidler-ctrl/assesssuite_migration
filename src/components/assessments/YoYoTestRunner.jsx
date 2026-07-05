@@ -59,7 +59,7 @@ export default function YoYoTestRunner({ onSave, onClose }) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-blue-800">
-                <p>Perform 2Ã—20m shuttles with 10s recovery between each bout. Speed increases progressively. Record final distance completed.</p>
+                <p>Perform 2×20m shuttles with 10s recovery between each bout. Speed increases progressively. Record final distance completed.</p>
               </CardContent>
             </Card>
 

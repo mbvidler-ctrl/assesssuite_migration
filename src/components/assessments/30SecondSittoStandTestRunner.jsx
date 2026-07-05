@@ -74,7 +74,7 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
       status: "completed",
       result_value: standCount,
       additional_data: {
-        soap_text: `â€¢ 30-Second Sit-to-Stand Test\n  Repetitions: ${standCount}\n  Hands Used: ${handsUsed ? 'Yes' : 'No'}\n  Pre HR: ${preHR || 'N/A'} bpm | Post HR: ${postHR || 'N/A'} bpm${symptoms ? `\n  Symptoms: ${symptoms}` : ''}`,
+        soap_text: `• 30-Second Sit-to-Stand Test\n  Repetitions: ${standCount}\n  Hands Used: ${handsUsed ? 'Yes' : 'No'}\n  Pre HR: ${preHR || 'N/A'} bpm | Post HR: ${postHR || 'N/A'} bpm${symptoms ? `\n  Symptoms: ${symptoms}` : ''}`,
         measurement_type: "30-second sit-to-stand test",
         hands_used: handsUsed,
         pre_heart_rate: preHR,
@@ -228,7 +228,7 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
               <div className="bg-amber-50 border border-amber-200 rounded p-3 space-y-2">
                 <p className="font-semibold text-amber-900">Equipment & Setup</p>
                 <ul className="text-xs space-y-1 text-amber-800 list-disc list-inside">
-                  <li>Standard chair with straight back, no armrests â€” seat height ~43 cm (17 inches)</li>
+                  <li>Standard chair with straight back, no armrests — seat height ~43 cm (17 inches)</li>
                   <li>Place chair against wall for stability</li>
                   <li>Stopwatch or timer (30 seconds)</li>
                   <li>Measure pre-test heart rate (resting) before positioning client</li>
@@ -247,11 +247,11 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
               <div className="bg-green-50 border border-green-200 rounded p-3 space-y-2">
                 <p className="font-semibold text-green-900">Clinician Script</p>
                 <div className="text-xs space-y-2 text-green-800">
-                  <p><span className="font-medium">Explanation:</span> <em>"This test measures your lower body strength and endurance. When I say 'Go', I want you to stand up fully and then sit back down as many times as you can in 30 seconds. Keep your arms crossed over your chest the whole time. If you need to use your hands for balance or to help push up, that's okay â€” just let me know."</em></p>
+                  <p><span className="font-medium">Explanation:</span> <em>"This test measures your lower body strength and endurance. When I say 'Go', I want you to stand up fully and then sit back down as many times as you can in 30 seconds. Keep your arms crossed over your chest the whole time. If you need to use your hands for balance or to help push up, that's okay — just let me know."</em></p>
                   <p><span className="font-medium">Practice rep (optional):</span> <em>"Let's do one practice stand so you understand the movement."</em></p>
                   <p><span className="font-medium">Start cue:</span> <em>"Ready? Go!"</em> (start timer)</p>
-                  <p><span className="font-medium">Encouragement:</span> <em>"Keep going, you're doing great!"</em> â€” count each full stand aloud</p>
-                  <p><span className="font-medium">End cue:</span> <em>"Stop!"</em> at 30 seconds â€” count any partial stand if hips are more than halfway up</p>
+                  <p><span className="font-medium">Encouragement:</span> <em>"Keep going, you're doing great!"</em> — count each full stand aloud</p>
+                  <p><span className="font-medium">End cue:</span> <em>"Stop!"</em> at 30 seconds — count any partial stand if hips are more than halfway up</p>
                   <p><span className="font-medium">Post-test:</span> Measure HR within 60 seconds of test completion. Ask about symptoms.</p>
                 </div>
               </div>
@@ -260,7 +260,7 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
                 <ul className="text-xs space-y-1 text-red-800 list-disc list-inside">
                   <li>Stop if participant reports chest pain, dizziness, or severe shortness of breath</li>
                   <li>Caution with recent lower limb surgery or acute joint pain</li>
-                  <li>Ensure chair is stable â€” hold or brace the chair if needed</li>
+                  <li>Ensure chair is stable — hold or brace the chair if needed</li>
                   <li>Clinician should stand close by to assist if balance is compromised</li>
                 </ul>
               </div>
@@ -269,7 +269,7 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
                 <ul className="text-xs space-y-1 text-slate-700 list-disc list-inside">
                   <li>Count each complete sit-to-stand cycle (one full stand = 1 rep)</li>
                   <li>If hips are more than halfway up at the 30-second mark, count as a full rep</li>
-                  <li>Note if hands were used â€” record separately (impacts interpretation)</li>
+                  <li>Note if hands were used — record separately (impacts interpretation)</li>
                   <li>One trial only (no warm-up trial in standard protocol)</li>
                 </ul>
               </div>
@@ -284,7 +284,7 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
             </CollapsibleTrigger>
             <CollapsibleContent className="pt-3 space-y-3 text-sm">
               <div className="bg-slate-50 border border-slate-200 rounded p-3">
-                <p className="font-semibold text-slate-900 mb-2">Rikli & Jones (2013) â€” Community-Dwelling Older Adults</p>
+                <p className="font-semibold text-slate-900 mb-2">Rikli & Jones (2013) — Community-Dwelling Older Adults</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead className="bg-slate-200">
@@ -296,13 +296,13 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {[
-                        ["60â€“64", "14â€“19", "12â€“17"],
-                        ["65â€“69", "12â€“18", "11â€“16"],
-                        ["70â€“74", "12â€“17", "10â€“15"],
-                        ["75â€“79", "11â€“17", "10â€“15"],
-                        ["80â€“84", "10â€“15", "9â€“14"],
-                        ["85â€“89", "8â€“14", "8â€“13"],
-                        ["90â€“94", "7â€“12", "4â€“11"],
+                        ["60–64", "14–19", "12–17"],
+                        ["65–69", "12–18", "11–16"],
+                        ["70–74", "12–17", "10–15"],
+                        ["75–79", "11–17", "10–15"],
+                        ["80–84", "10–15", "9–14"],
+                        ["85–89", "8–14", "8–13"],
+                        ["90–94", "7–12", "4–11"],
                       ].map(([age, men, women]) => (
                         <tr key={age} className="hover:bg-slate-100">
                           <td className="p-1.5 font-medium">{age}</td>
@@ -313,11 +313,11 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
                     </tbody>
                   </table>
                 </div>
-                <p className="text-xs text-slate-500 mt-1">Values represent the average range (25thâ€“75th percentile). Below 25th percentile indicates elevated fall risk.</p>
+                <p className="text-xs text-slate-500 mt-1">Values represent the average range (25th–75th percentile). Below 25th percentile indicates elevated fall risk.</p>
               </div>
 
               <div className="bg-slate-50 border border-slate-200 rounded p-3">
-                <p className="font-semibold text-slate-900 mb-2">Younger Adults â€” Reference Values (Bohannon, 2006)</p>
+                <p className="font-semibold text-slate-900 mb-2">Younger Adults — Reference Values (Bohannon, 2006)</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
                     <thead className="bg-slate-200">
@@ -329,10 +329,10 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
                     </thead>
                     <tbody className="divide-y divide-slate-200">
                       {[
-                        ["20â€“29", "21â€“29", "19â€“26"],
-                        ["30â€“39", "19â€“27", "18â€“24"],
-                        ["40â€“49", "17â€“25", "16â€“22"],
-                        ["50â€“59", "15â€“23", "14â€“21"],
+                        ["20–29", "21–29", "19–26"],
+                        ["30–39", "19–27", "18–24"],
+                        ["40–49", "17–25", "16–22"],
+                        ["50–59", "15–23", "14–21"],
                       ].map(([age, men, women]) => (
                         <tr key={age} className="hover:bg-slate-100">
                           <td className="p-1.5 font-medium">{age}</td>
@@ -365,10 +365,10 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
             </CollapsibleTrigger>
             <CollapsibleContent className="pt-3 text-xs text-slate-600 space-y-2">
               <p>1. Rikli RE, Jones CJ. <em>Senior Fitness Test Manual</em> (2nd ed.). Human Kinetics; 2013.</p>
-              <p>2. Jones CJ, Rikli RE, Beam WC. A 30-s chair-stand test as a measure of lower body strength in community-residing older adults. <em>Res Q Exerc Sport</em>. 1999;70(2):113â€“119.</p>
-              <p>3. Bischoff HA, StÃ¤helin HB, Monsch AU, et al. Identifying a cut-off point for normal mobility: a comparison of the timed 'up and go' test in community-dwelling and institutionalised elderly women. <em>Age Ageing</em>. 2003;32(3):315â€“320.</p>
-              <p>4. Bohannon RW. Reference values for the five-repetition sit-to-stand test: a descriptive meta-analysis of data from elders. <em>Percept Mot Skills</em>. 2006;103(1):215â€“222.</p>
-              <p>5. Bohannon RW, Bubela DJ, Magasi SR, Wang YC, Gershon RC. Sit-to-stand test: performance and determinants across the age-span. <em>Isokinet Exerc Sci</em>. 2010;18(4):235â€“240.</p>
+              <p>2. Jones CJ, Rikli RE, Beam WC. A 30-s chair-stand test as a measure of lower body strength in community-residing older adults. <em>Res Q Exerc Sport</em>. 1999;70(2):113–119.</p>
+              <p>3. Bischoff HA, Stähelin HB, Monsch AU, et al. Identifying a cut-off point for normal mobility: a comparison of the timed 'up and go' test in community-dwelling and institutionalised elderly women. <em>Age Ageing</em>. 2003;32(3):315–320.</p>
+              <p>4. Bohannon RW. Reference values for the five-repetition sit-to-stand test: a descriptive meta-analysis of data from elders. <em>Percept Mot Skills</em>. 2006;103(1):215–222.</p>
+              <p>5. Bohannon RW, Bubela DJ, Magasi SR, Wang YC, Gershon RC. Sit-to-stand test: performance and determinants across the age-span. <em>Isokinet Exerc Sci</em>. 2010;18(4):235–240.</p>
               <p>6. Paterson DH, Warburton DE. Physical activity and functional limitations in older adults: a systematic review related to Canada's Physical Activity Guidelines. <em>Int J Behav Nutr Phys Act</em>. 2010;7:38.</p>
             </CollapsibleContent>
           </Collapsible>

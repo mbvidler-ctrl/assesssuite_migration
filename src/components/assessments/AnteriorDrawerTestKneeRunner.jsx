@@ -18,10 +18,10 @@ const END_FEEL_OPTIONS = [
   "Absent end-feel (complete rupture suspected)",
 ];
 const TRANSLATION_GRADE = [
-  { value: "0", label: "Grade 0 â€“ No laxity (<3mm)" },
-  { value: "1+", label: "Grade 1+ â€“ Mild laxity (3â€“5mm)" },
-  { value: "2+", label: "Grade 2+ â€“ Moderate laxity (6â€“10mm)" },
-  { value: "3+", label: "Grade 3+ â€“ Severe laxity (>10mm)" },
+  { value: "0", label: "Grade 0 – No laxity (<3mm)" },
+  { value: "1+", label: "Grade 1+ – Mild laxity (3–5mm)" },
+  { value: "2+", label: "Grade 2+ – Moderate laxity (6–10mm)" },
+  { value: "3+", label: "Grade 3+ – Severe laxity (>10mm)" },
 ];
 
 export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }) {
@@ -55,7 +55,7 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
     const gradeLabel = TRANSLATION_GRADE.find((g) => g.value === translationGrade);
 
     const soapLines = [
-      `â€¢ Anterior Drawer Test (Knee) â€” ${side} Side`,
+      `• Anterior Drawer Test (Knee) — ${side} Side`,
       `  Overall Result: ${overallResult}`,
       anteriorTranslation ? `  Anterior Translation: ${anteriorTranslation} mm` : null,
       translationGrade ? `  Laxity Grade: ${gradeLabel ? gradeLabel.label : translationGrade}` : null,
@@ -100,7 +100,7 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
       <div className="flex justify-between items-start">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Anterior Drawer Test (Knee)</h2>
-          <p className="text-sm text-slate-500 mt-0.5">Special orthopaedic test â€” ACL integrity assessment</p>
+          <p className="text-sm text-slate-500 mt-0.5">Special orthopaedic test — ACL integrity assessment</p>
           {client && <p className="text-xs text-slate-400 mt-0.5">Client: {client.full_name}</p>}
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}>
@@ -119,11 +119,11 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
            }}
          />
          <div className="px-4 py-2 bg-slate-100 text-xs text-slate-500 text-center">
-           Client supine, knee at 90Â° flexion â€” clinician draws tibia anteriorly
+           Client supine, knee at 90° flexion — clinician draws tibia anteriorly
          </div>
        </div>
 
-      {/* Clinical Overview â€” collapsible */}
+      {/* Clinical Overview — collapsible */}
       <Card className="border-blue-200 bg-blue-50">
         <CardHeader className="pb-0 pt-3 px-4">
           <button
@@ -159,7 +159,7 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
         )}
       </Card>
 
-      {/* Protocol â€” collapsible */}
+      {/* Protocol — collapsible */}
       <Card className="border-amber-200 bg-amber-50">
         <CardHeader className="pb-0 pt-3 px-4">
           <button
@@ -173,9 +173,9 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
         {expandedSection === "protocol" && (
           <CardContent className="pt-3 pb-4 px-4 text-xs text-amber-900 space-y-2">
             <ol className="list-decimal list-inside space-y-1.5">
-              <li>Client supine on plinth with knee flexed to <strong>90Â°</strong> and foot flat on table.</li>
+              <li>Client supine on plinth with knee flexed to <strong>90°</strong> and foot flat on table.</li>
               <li>
-                Clinician sits on client's foot to stabilise, or uses body weight â€” ensure the foot is fully
+                Clinician sits on client's foot to stabilise, or uses body weight — ensure the foot is fully
                 secured.
               </li>
               <li>
@@ -199,7 +199,7 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
         )}
       </Card>
 
-      {/* Grading Reference â€” collapsible */}
+      {/* Grading Reference — collapsible */}
       <Card className="border-green-200 bg-green-50">
         <CardHeader className="pb-0 pt-3 px-4">
           <button
@@ -222,10 +222,10 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
               </thead>
               <tbody>
                 {[
-                  ["Grade 0", "<3mm", "No laxity â€” ACL intact"],
-                  ["Grade 1+", "3â€“5mm", "Mild laxity â€” partial tear possible"],
-                  ["Grade 2+", "6â€“10mm", "Moderate laxity â€” significant ACL injury"],
-                  ["Grade 3+", ">10mm", "Severe laxity â€” complete ACL rupture"],
+                  ["Grade 0", "<3mm", "No laxity — ACL intact"],
+                  ["Grade 1+", "3–5mm", "Mild laxity — partial tear possible"],
+                  ["Grade 2+", "6–10mm", "Moderate laxity — significant ACL injury"],
+                  ["Grade 3+", ">10mm", "Severe laxity — complete ACL rupture"],
                 ].map(([grade, trans, interp], i) => (
                   <tr key={grade} className={i % 2 === 0 ? "bg-white" : "bg-green-50"}>
                     <td className="px-2 py-1.5 font-semibold">{grade}</td>
@@ -239,14 +239,14 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
               <strong>End Feel:</strong> Firm end-feel = intact ACL. Soft/absent end-feel = ACL insufficiency.
             </p>
             <p>
-              <strong>Positive Test:</strong> â‰¥6mm anterior translation (Grade 2+/3+) OR soft/absent end-feel
+              <strong>Positive Test:</strong> ≥6mm anterior translation (Grade 2+/3+) OR soft/absent end-feel
               (in absence of hamstring guarding).
             </p>
           </CardContent>
         )}
       </Card>
 
-      {/* References â€” collapsible */}
+      {/* References — collapsible */}
       <Card className="border-slate-200 bg-slate-50">
         <CardHeader className="pb-0 pt-3 px-4">
           <button
@@ -262,23 +262,23 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
             <p>
               <strong>Benjaminse A, Gokeler A, van der Schans CP.</strong> (2006). Clinical diagnosis of an anterior
               cruciate ligament rupture: a meta-analysis. <em>Journal of Orthopaedic & Sports Physical Therapy</em>,
-              36(5), 267â€“288.
+              36(5), 267–288.
             </p>
             <p>
               <strong>Malanga GA, Andrus S, Nadler SF, McLean J.</strong> (2003). Physical examination of the knee:
               a review of the original test description and scientific validity of common orthopaedic tests.
-              <em> Archives of Physical Medicine and Rehabilitation</em>, 84(4), 592â€“603.
+              <em> Archives of Physical Medicine and Rehabilitation</em>, 84(4), 592–603.
             </p>
             <p>
               <strong>van Eck CF, van den Bekerom MPJ, Fu FH, Poolman RW, Kerkhoffs GMMJ.</strong> (2013). Methods to
               diagnose acute anterior cruciate ligament rupture. <em>Knee Surgery, Sports Traumatology, Arthroscopy</em>,
-              21(8), 1895â€“1903.
+              21(8), 1895–1903.
             </p>
           </CardContent>
         )}
       </Card>
 
-      {/* â”€â”€â”€ DATA ENTRY â”€â”€â”€ */}
+      {/* ─── DATA ENTRY ─── */}
 
       {/* Side */}
       <div>
@@ -363,9 +363,9 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="No pain">No pain</SelectItem>
-                <SelectItem value="Mild pain (1â€“3/10)">Mild pain (1â€“3/10)</SelectItem>
-                <SelectItem value="Moderate pain (4â€“6/10)">Moderate pain (4â€“6/10)</SelectItem>
-                <SelectItem value="Severe pain (7â€“10/10)">Severe pain (7â€“10/10)</SelectItem>
+                <SelectItem value="Mild pain (1–3/10)">Mild pain (1–3/10)</SelectItem>
+                <SelectItem value="Moderate pain (4–6/10)">Moderate pain (4–6/10)</SelectItem>
+                <SelectItem value="Severe pain (7–10/10)">Severe pain (7–10/10)</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -405,17 +405,17 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
                 <SelectValue placeholder="Select..." />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="No â€“ Test negative, ACL likely intact">
-                  No â€“ Test negative, ACL likely intact
+                <SelectItem value="No – Test negative, ACL likely intact">
+                  No – Test negative, ACL likely intact
                 </SelectItem>
-                <SelectItem value="Inconclusive â€“ Further investigation recommended">
-                  Inconclusive â€“ Further investigation recommended
+                <SelectItem value="Inconclusive – Further investigation recommended">
+                  Inconclusive – Further investigation recommended
                 </SelectItem>
-                <SelectItem value="Yes â€“ Positive test, partial ACL tear suspected">
-                  Yes â€“ Positive test, partial ACL tear suspected
+                <SelectItem value="Yes – Positive test, partial ACL tear suspected">
+                  Yes – Positive test, partial ACL tear suspected
                 </SelectItem>
-                <SelectItem value="Yes â€“ Positive test, complete ACL rupture suspected">
-                  Yes â€“ Positive test, complete ACL rupture suspected
+                <SelectItem value="Yes – Positive test, complete ACL rupture suspected">
+                  Yes – Positive test, complete ACL rupture suspected
                 </SelectItem>
               </SelectContent>
             </Select>
@@ -446,12 +446,12 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
           {translationGrade === "2+" || translationGrade === "3+" ? (
             <>
               <AlertTriangle className="w-4 h-4 shrink-0" />
-              Positive Test â€” ACL insufficiency suspected. Recommend imaging and orthopaedic review.
+              Positive Test — ACL insufficiency suspected. Recommend imaging and orthopaedic review.
             </>
           ) : translationGrade === "1+" ? (
-            <>âš  Equivocal â€” mild laxity. Correlate with Lachman and clinical history.</>
+            <>⚠ Equivocal — mild laxity. Correlate with Lachman and clinical history.</>
           ) : (
-            <>âœ“ Grade 0 â€” No significant laxity detected. ACL likely intact.</>
+            <>✓ Grade 0 — No significant laxity detected. ACL likely intact.</>
           )}
         </div>
       )}

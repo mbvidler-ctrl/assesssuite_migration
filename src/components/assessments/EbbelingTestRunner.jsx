@@ -114,19 +114,19 @@ export default function EbbelingTestRunner({ client, onSave, onClose }) {
   const handleSave = () => {
     const interpretation = getVO2maxInterpretation(calculatedVO2max, age, gender);
 
-    let soapText = `â€¢ Ebbeling Single-Stage Treadmill Test:\n`;
+    let soapText = `• Ebbeling Single-Stage Treadmill Test:\n`;
     soapText += `  Result: ${calculatedVO2max} ml/kg/min (estimated VO2max)`;
-    if (interpretation) soapText += ` â€” ${interpretation.label}`;
+    if (interpretation) soapText += ` — ${interpretation.label}`;
     soapText += `\n`;
     soapText += `  Age: ${age} | Gender: ${gender}\n`;
     if (restingHR) soapText += `  Resting HR: ${restingHR} bpm\n`;
-    soapText += `  HR Max: ${hrMax} bpm | Target Zone: ${hrTarget50}â€“${hrTarget70} bpm\n`;
+    soapText += `  HR Max: ${hrMax} bpm | Target Zone: ${hrTarget50}–${hrTarget70} bpm\n`;
     soapText += `  Walking Speed: ${warmupSpeed} ${warmupSpeedUnit} @ 5% grade\n`;
     soapText += `  Minute-by-Minute HR & RPE:\n`;
     ['min1', 'min2', 'min3', 'min4'].forEach((key, i) => {
       const reading = testHRReadings[key];
-      const hrStr = reading.hr ? `HR: ${reading.hr} bpm` : 'HR: â€”';
-      const rpeStr = reading.rpe ? `RPE: ${reading.rpe}` : 'RPE: â€”';
+      const hrStr = reading.hr ? `HR: ${reading.hr} bpm` : 'HR: —';
+      const rpeStr = reading.rpe ? `RPE: ${reading.rpe}` : 'RPE: —';
       soapText += `    Min ${i + 1}: ${hrStr}, ${rpeStr}\n`;
     });
     soapText += `  Steady-State HR (avg Min 3 & 4): ${steadyStateHR} bpm\n`;
@@ -493,10 +493,10 @@ export default function EbbelingTestRunner({ client, onSave, onClose }) {
               <p className="text-sm text-purple-700">Steady-State Heart Rate (Avg of Min 3 & 4)</p>
               <p className="text-4xl font-bold text-purple-600">{steadyStateHR} bpm</p>
               {parseFloat(steadyStateHR) < hrTarget50 && (
-                <p className="text-xs text-yellow-600 mt-1">âš ï¸ Below target range - consider increasing speed</p>
+                <p className="text-xs text-yellow-600 mt-1">⚠ï¸ Below target range - consider increasing speed</p>
               )}
               {parseFloat(steadyStateHR) > hrTarget70 && (
-                <p className="text-xs text-yellow-600 mt-1">âš ï¸ Above target range - consider decreasing speed</p>
+                <p className="text-xs text-yellow-600 mt-1">⚠ï¸ Above target range - consider decreasing speed</p>
               )}
             </div>
           </CardContent>

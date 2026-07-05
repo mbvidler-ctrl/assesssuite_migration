@@ -10,7 +10,7 @@ function generateAssessmentData(assessment) {
   let resultValue = 50;
   let additionalData = {};
 
-  // â”€â”€ GAIT & MOBILITY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── GAIT & MOBILITY ──────────────────────────────────────────────
   if (name.includes('6-meter walk') || name.includes('6 meter walk')) {
     resultValue = rnd(0.9, 1.4);
     additionalData = {
@@ -71,7 +71,7 @@ function generateAssessmentData(assessment) {
         assistive_device: 'none',
         required_assistance: 'none',
         observations: 'Some trunk sway on turning, cautious pace',
-        interpretation: time < 12 ? 'Low fall risk' : time < 20 ? 'Moderate fall risk â€” monitor' : 'High fall risk'
+        interpretation: time < 12 ? 'Low fall risk' : time < 20 ? 'Moderate fall risk — monitor' : 'High fall risk'
       }
     };
   } else if (name.includes('8-foot up') || (name.includes('8 foot') && name.includes('go'))) {
@@ -90,14 +90,14 @@ function generateAssessmentData(assessment) {
       interpretation: time < 10 ? 'Low fall risk' : time < 20 ? 'Moderate fall risk' : 'High fall risk'
     };
 
-  // â”€â”€ BALANCE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── BALANCE ──────────────────────────────────────────────────────
   } else if (name.includes('berg balance')) {
     resultValue = rndInt(40, 52);
     additionalData = {
       measurement_type: 'berg_balance',
       berg_data: {
         total: resultValue,
-        interpretation: resultValue >= 45 ? 'Low fall risk' : resultValue >= 21 ? 'Moderate fall risk' : 'High fall risk â€” wheelchair recommended',
+        interpretation: resultValue >= 45 ? 'Low fall risk' : resultValue >= 21 ? 'Moderate fall risk' : 'High fall risk — wheelchair recommended',
         scores: { 1:4, 2:4, 3:4, 4:3, 5:4, 6:3, 7:4, 8:3, 9:3, 10:4, 11:3, 12:3, 13:4, 14:3 }
       }
     };
@@ -149,7 +149,7 @@ function generateAssessmentData(assessment) {
       interpretation: resultValue >= 25 ? 'Low fall risk' : 'Elevated fall risk'
     };
 
-  // â”€â”€ CARDIORESPIRATORY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── CARDIORESPIRATORY ─────────────────────────────────────────────
   } else if (name.includes('6-minute walk') || name.includes('6 minute walk') || name.includes('6mwt')) {
     resultValue = rndInt(380, 520);
     additionalData = {
@@ -232,7 +232,7 @@ function generateAssessmentData(assessment) {
       rpe_final: rndInt(17, 20)
     };
 
-  // â”€â”€ STRENGTH â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── STRENGTH ─────────────────────────────────────────────────────
   } else if (name.includes('grip strength') || name.includes('hand grip')) {
     resultValue = rndInt(32, 48);
     additionalData = {
@@ -286,7 +286,7 @@ function generateAssessmentData(assessment) {
       form_breakdown: false
     };
 
-  // â”€â”€ JUMP & PLYOMETRIC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── JUMP & PLYOMETRIC ─────────────────────────────────────────────
   } else if (name.includes('10-second repeated jump') || name.includes('10 second repeated jump') || name.includes('reactive strength index')) {
     const jumps = Array.from({ length: 10 }, () => ({
       flight_time_ms: rndInt(150, 220),
@@ -315,7 +315,7 @@ function generateAssessmentData(assessment) {
       trial_heights: [rndInt(25, 45), resultValue, rndInt(25, 45)]
     };
 
-  // â”€â”€ AGILITY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── AGILITY ───────────────────────────────────────────────────────
   } else if (name.includes('505 agility')) {
     resultValue = rnd(2.1, 3.0);
     additionalData = {
@@ -326,7 +326,7 @@ function generateAssessmentData(assessment) {
       asymmetry_pct: rnd(1, 8)
     };
 
-  // â”€â”€ BODY COMPOSITION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── BODY COMPOSITION ─────────────────────────────────────────────
   } else if (name.includes('bmi') || name.includes('body mass index')) {
     resultValue = rnd(22, 30);
     additionalData = {
@@ -356,7 +356,7 @@ function generateAssessmentData(assessment) {
       formula_used: 'Jackson & Pollock 3-site'
     };
 
-  // â”€â”€ PAIN / FUNCTION / QUESTIONNAIRES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── PAIN / FUNCTION / QUESTIONNAIRES ──────────────────────────────
   } else if (name.includes('dass')) {
     resultValue = rndInt(14, 26);
     additionalData = {
@@ -403,7 +403,7 @@ function generateAssessmentData(assessment) {
     resultValue = rndInt(25, 45);
     additionalData = { measurement_type: 'questionnaire', responses: Array(14).fill(0).map(() => rndInt(0, 4)) };
 
-  // â”€â”€ NEUROLOGICAL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── NEUROLOGICAL ──────────────────────────────────────────────────
   } else if (name.includes('moca') || name.includes('montreal cognitive')) {
     resultValue = rndInt(22, 28);
     additionalData = {
@@ -413,7 +413,7 @@ function generateAssessmentData(assessment) {
       interpretation: resultValue >= 26 ? 'Normal cognition' : 'Mild cognitive impairment'
     };
 
-  // â”€â”€ ROM â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── ROM ───────────────────────────────────────────────────────────
   } else if (name.toLowerCase().includes('range of motion') || (name.toLowerCase().includes('rom') && !name.toLowerCase().includes('from'))) {
     resultValue = 8;
     const jointName = name.includes('shoulder') ? 'Shoulder' : name.includes('knee') ? 'Knee' : name.includes('hip') ? 'Hip' : name.includes('ankle') ? 'Ankle' : 'Lumbar';
@@ -431,7 +431,7 @@ function generateAssessmentData(assessment) {
       }
     };
 
-  // â”€â”€ VITAL SIGNS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── VITAL SIGNS ───────────────────────────────────────────────────
   } else if (name.includes('blood pressure') || name.includes('resting blood pressure')) {
     resultValue = 124;
     additionalData = {
@@ -456,7 +456,7 @@ function generateAssessmentData(assessment) {
       post_exercise_spo2: rndInt(93, 98)
     };
 
-  // â”€â”€ QUESTIONNAIRE (generic) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── QUESTIONNAIRE (generic) ───────────────────────────────────────
   } else if (assessment.is_questionnaire && assessment.questions && assessment.questions.length > 0) {
     resultValue = rndInt(12, 30);
     additionalData = {
@@ -468,7 +468,7 @@ function generateAssessmentData(assessment) {
       })
     };
 
-  // â”€â”€ GENERIC FALLBACK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── GENERIC FALLBACK ──────────────────────────────────────────────
   } else {
     resultValue = rndInt(20, 80);
     additionalData = {
@@ -568,7 +568,7 @@ Deno.serve(async (req) => {
           notes: `Automated test data for ${assessment.name}`
         });
 
-        const objectiveText = `â€¢ ${assessment.name}: ${resultValue} ${assessment.unit_of_measure || ''}\n`;
+        const objectiveText = `• ${assessment.name}: ${resultValue} ${assessment.unit_of_measure || ''}\n`;
         await base44.entities.SOAPNote.update(soapNote.id, {
           objective: soapNote.objective + objectiveText
         });

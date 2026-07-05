@@ -94,7 +94,7 @@ export default function GaitSpeedRunner({ onSave, onClose, assessmentName }) {
     const avgTime = trials.length > 0 ? (trials.reduce((acc, t) => acc + t.time, 0) / trials.length).toFixed(2) : null;
     
     // Build comprehensive SOAP text
-    let soapText = `â€¢ ${testType} Gait Speed Test: ${avgSpeed} m/s\n`;
+    let soapText = `• ${testType} Gait Speed Test: ${avgSpeed} m/s\n`;
     soapText += `  Distance: ${distance}m\n`;
     soapText += `  Number of Trials: ${trials.length}\n`;
     soapText += `  Average Time: ${avgTime}s\n\n  Individual Trials:\n`;
@@ -153,8 +153,8 @@ export default function GaitSpeedRunner({ onSave, onClose, assessmentName }) {
                     <p><strong>Setup:</strong> Mark a 4-metre timed walkway. Allow a 2m acceleration zone before the start line and 2m deceleration zone after the finish line (total ~8m walking corridor).</p>
                     <p><strong>Instruction to client:</strong> "Walk at your normal, comfortable pace from one end to the other."</p>
                     <p><strong>Timing:</strong> Start timer when first foot crosses the 4m start line, stop when first foot crosses the 4m finish line.</p>
-                    <p><strong>Trials:</strong> Perform 2â€“3 trials. Use the average. Allow 1 minute rest between trials.</p>
-                    <p><strong>Interpretation:</strong> &lt;0.8 m/s = increased fall and hospitalisation risk; â‰¥1.0 m/s = community ambulation; &lt;0.6 m/s = high-risk, household ambulator.</p>
+                    <p><strong>Trials:</strong> Perform 2–3 trials. Use the average. Allow 1 minute rest between trials.</p>
+                    <p><strong>Interpretation:</strong> &lt;0.8 m/s = increased fall and hospitalisation risk; ≥1.0 m/s = community ambulation; &lt;0.6 m/s = high-risk, household ambulator.</p>
                   </>
                 ) : (
                   <>

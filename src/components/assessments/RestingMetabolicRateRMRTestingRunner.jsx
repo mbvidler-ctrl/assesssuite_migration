@@ -45,7 +45,7 @@ export default function RestingMetabolicRateRMRTestingRunner({ client, onSave, o
     }
 
     const additionalData = {
-      soap_text: `â€¢ Resting Metabolic Rate (RMR) Testing\n  Estimated BMR: ${bmr.toFixed(2)} kcal/day\n  Height: ${height}cm | Weight: ${weight}kg | Age: ${age}yrs | Sex: ${sex}`,
+      soap_text: `• Resting Metabolic Rate (RMR) Testing\n  Estimated BMR: ${bmr.toFixed(2)} kcal/day\n  Height: ${height}cm | Weight: ${weight}kg | Age: ${age}yrs | Sex: ${sex}`,
       measurement_type: "RMR",
       weight,
       height,

@@ -17,14 +17,14 @@ export default function AdverseEventsTab({ client }) {
   const [showEmergencyNumbers, setShowEmergencyNumbers] = useState(false);
 
   const EMERGENCY_NUMBERS = [
-    { country: "ðŸ‡¦ðŸ‡º Australia",    police: "000", ambulance: "000", mental_health: "Lifeline 13 11 14" },
-    { country: "ðŸ‡³ðŸ‡¿ New Zealand",  police: "111", ambulance: "111", mental_health: "Lifeline 0800 543 354" },
-    { country: "ðŸ‡¬ðŸ‡§ United Kingdom", police: "999", ambulance: "999", mental_health: "Samaritans 116 123" },
-    { country: "ðŸ‡ºðŸ‡¸ United States", police: "911", ambulance: "911", mental_health: "988 Suicide & Crisis Lifeline" },
-    { country: "ðŸ‡¨ðŸ‡¦ Canada",       police: "911", ambulance: "911", mental_health: "Crisis Services Canada 1-833-456-4566" },
-    { country: "ðŸ‡¿ðŸ‡¦ South Africa", police: "10111", ambulance: "10177", mental_health: "SADAG 0800 456 789" },
-    { country: "ðŸ‡¸ðŸ‡¬ Singapore",    police: "999", ambulance: "995", mental_health: "SOS 1767" },
-    { country: "ðŸ‡®ðŸ‡ª Ireland",      police: "999", ambulance: "999", mental_health: "Samaritans 116 123" },
+    { country: "🇦🇺 Australia",    police: "000", ambulance: "000", mental_health: "Lifeline 13 11 14" },
+    { country: "🇳🇿 New Zealand",  police: "111", ambulance: "111", mental_health: "Lifeline 0800 543 354" },
+    { country: "🇬🇧 United Kingdom", police: "999", ambulance: "999", mental_health: "Samaritans 116 123" },
+    { country: "🇺🇸 United States", police: "911", ambulance: "911", mental_health: "988 Suicide & Crisis Lifeline" },
+    { country: "🇨🇦 Canada",       police: "911", ambulance: "911", mental_health: "Crisis Services Canada 1-833-456-4566" },
+    { country: "🇿🇦 South Africa", police: "10111", ambulance: "10177", mental_health: "SADAG 0800 456 789" },
+    { country: "🇸🇬 Singapore",    police: "999", ambulance: "995", mental_health: "SOS 1767" },
+    { country: "🇮🇪 Ireland",      police: "999", ambulance: "999", mental_health: "Samaritans 116 123" },
   ];
 
   const loadEvents = async () => {
@@ -98,7 +98,7 @@ export default function AdverseEventsTab({ client }) {
             {EMERGENCY_NUMBERS.map(({ country, police, ambulance, mental_health }) => (
               <div key={country} className="bg-white rounded border border-red-200 px-3 py-2 text-xs space-y-0.5">
                 <p className="font-bold text-red-900">{country}</p>
-                <p className="text-slate-700">ðŸš” Police / Ambulance: <span className="font-semibold">{police}</span>{ambulance !== police ? ` / ${ambulance}` : ""}</p>
+                <p className="text-slate-700">🚔 Police / Ambulance: <span className="font-semibold">{police}</span>{ambulance !== police ? ` / ${ambulance}` : ""}</p>
                 <p className="text-slate-600 text-[11px]">{mental_health}</p>
               </div>
             ))}
@@ -152,7 +152,7 @@ export default function AdverseEventsTab({ client }) {
                   <div>
                     <Label className="text-xs text-slate-600">Onset Date</Label>
                     <p className="font-medium">
-                      {event.date_of_onset ? format(new Date(event.date_of_onset), 'dd/MM/yyyy') : "â€”"}
+                      {event.date_of_onset ? format(new Date(event.date_of_onset), 'dd/MM/yyyy') : "—"}
                     </p>
                   </div>
                   <div>

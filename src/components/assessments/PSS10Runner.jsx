@@ -79,7 +79,7 @@ export default function PSS10Runner({ onSave, onClose }) {
     onSave({
       result_value: total,
       additional_data: {
-        soap_text: `â€¢ Perceived Stress Scale (PSS-10)\n  Total Score: ${total}/40 â€” ${interpretation?.level}`,
+        soap_text: `• Perceived Stress Scale (PSS-10)\n  Total Score: ${total}/40 — ${interpretation?.level}`,
         total_score: total,
         item_scores: Object.keys(scores).reduce((obj, key) => {
           obj[key] = scores[key].value;
@@ -140,11 +140,11 @@ export default function PSS10Runner({ onSave, onClose }) {
                 <div>
                   <p className="font-semibold text-indigo-900 mb-2">Psychometric Properties</p>
                   <div className="bg-white p-3 rounded border border-indigo-300 space-y-2 text-xs">
-                    <p className="text-indigo-800"><strong>Internal Consistency:</strong> Cronbach's Î± = 0.78â€“0.91 (excellent reliability across diverse populations)</p>
-                    <p className="text-indigo-800"><strong>Test-Retest Reliability:</strong> r = 0.55â€“0.70 over 2â€“6 weeks (moderate-to-high stability; appropriate for a state measure sensitive to change)</p>
-                    <p className="text-indigo-800"><strong>Construct Validity:</strong> Strong correlations with depression (r = 0.52â€“0.70), anxiety (r = 0.50â€“0.65), health complaints (r = 0.35â€“0.45), and negative affect (r = 0.60â€“0.75)</p>
+                    <p className="text-indigo-800"><strong>Internal Consistency:</strong> Cronbach's α = 0.78–0.91 (excellent reliability across diverse populations)</p>
+                    <p className="text-indigo-800"><strong>Test-Retest Reliability:</strong> r = 0.55–0.70 over 2–6 weeks (moderate-to-high stability; appropriate for a state measure sensitive to change)</p>
+                    <p className="text-indigo-800"><strong>Construct Validity:</strong> Strong correlations with depression (r = 0.52–0.70), anxiety (r = 0.50–0.65), health complaints (r = 0.35–0.45), and negative affect (r = 0.60–0.75)</p>
                     <p className="text-indigo-800"><strong>Factor Structure:</strong> Two-factor model: Negative subscale (items 1, 2, 3, 6, 9, 10) and Positive subscale (items 4, 5, 7, 8, reverse-scored). Total score is most commonly used in clinical practice.</p>
-                    <p className="text-indigo-800"><strong>Sensitivity to Change:</strong> PSS scores decrease significantly following stress management interventions, mindfulness-based stress reduction (MBSR), CBT, and exercise programs (effect sizes d = 0.40â€“0.80)</p>
+                    <p className="text-indigo-800"><strong>Sensitivity to Change:</strong> PSS scores decrease significantly following stress management interventions, mindfulness-based stress reduction (MBSR), CBT, and exercise programs (effect sizes d = 0.40–0.80)</p>
                   </div>
                 </div>
 
@@ -152,12 +152,12 @@ export default function PSS10Runner({ onSave, onClose }) {
                   <p className="font-semibold text-indigo-900 mb-2">Administration Instructions</p>
                   <ol className="text-indigo-800 list-decimal list-inside space-y-1 text-xs">
                     <li><strong>Setting:</strong> Quiet, private environment. Can be self-administered (paper or digital) or clinician-administered (interview format).</li>
-                    <li><strong>Time Frame:</strong> Emphasize "during the LAST MONTH" â€” not just recent days or general life stress.</li>
+                    <li><strong>Time Frame:</strong> Emphasize "during the LAST MONTH" — not just recent days or general life stress.</li>
                     <li><strong>Instructions to Client:</strong> "Read each statement carefully. Indicate how OFTEN you felt or thought this way during the last month. There are no right or wrong answers. Answer honestly based on your actual experience."</li>
                     <li><strong>Response Scale:</strong> 0 = Never, 1 = Almost Never, 2 = Sometimes, 3 = Fairly Often, 4 = Very Often</li>
-                    <li><strong>Completion Time:</strong> 3â€“5 minutes. No time limit, but encourage first instinct rather than overthinking.</li>
-                    <li><strong>Scoring:</strong> Items 4, 5, 7, 8 are reverse-scored (4 â€“ value). Sum all 10 items for total score (range 0â€“40). Higher scores = greater perceived stress.</li>
-                    <li><strong>Missing Data:</strong> If 1â€“2 items missing, prorate based on completed items. If â‰¥3 items missing, administer again.</li>
+                    <li><strong>Completion Time:</strong> 3–5 minutes. No time limit, but encourage first instinct rather than overthinking.</li>
+                    <li><strong>Scoring:</strong> Items 4, 5, 7, 8 are reverse-scored (4 – value). Sum all 10 items for total score (range 0–40). Higher scores = greater perceived stress.</li>
+                    <li><strong>Missing Data:</strong> If 1–2 items missing, prorate based on completed items. If ≥3 items missing, administer again.</li>
                   </ol>
                 </div>
 
@@ -166,27 +166,27 @@ export default function PSS10Runner({ onSave, onClose }) {
                   <div className="bg-white p-3 rounded border border-indigo-300 space-y-2 text-xs">
                     <p className="text-indigo-800 font-semibold">Community Adults (General Population):</p>
                     <ul className="text-indigo-800 list-disc list-inside space-y-0.5">
-                      <li>Mean: 13.0â€“14.5 (SD â‰ˆ 6.0â€“7.0)</li>
-                      <li>Percentiles: 25th â‰ˆ 9â€“10, 50th â‰ˆ 13â€“14, 75th â‰ˆ 18â€“19</li>
+                      <li>Mean: 13.0–14.5 (SD ≈ 6.0–7.0)</li>
+                      <li>Percentiles: 25th ≈ 9–10, 50th ≈ 13–14, 75th ≈ 18–19</li>
                       <li>Source: Cohen & Williamson (1988); U.S. national sample (N = 2,387)</li>
                     </ul>
                     <p className="text-indigo-800 font-semibold mt-2">University Students:</p>
                     <ul className="text-indigo-800 list-disc list-inside space-y-0.5">
-                      <li>Mean: 15.0â€“17.0 (SD â‰ˆ 6.5â€“7.5) â€” typically higher due to academic stress</li>
+                      <li>Mean: 15.0–17.0 (SD ≈ 6.5–7.5) — typically higher due to academic stress</li>
                       <li>Source: Multiple studies (Barg et al., 2018; Lee, 2012)</li>
                     </ul>
                     <p className="text-indigo-800 font-semibold mt-2">Clinical Populations:</p>
                     <ul className="text-indigo-800 list-disc list-inside space-y-0.5">
-                      <li>Anxiety disorders: Mean â‰ˆ 22â€“26</li>
-                      <li>Depression: Mean â‰ˆ 24â€“28</li>
-                      <li>Chronic pain: Mean â‰ˆ 19â€“23</li>
-                      <li>Cardiac rehabilitation: Mean â‰ˆ 16â€“20</li>
+                      <li>Anxiety disorders: Mean ≈ 22–26</li>
+                      <li>Depression: Mean ≈ 24–28</li>
+                      <li>Chronic pain: Mean ≈ 19–23</li>
+                      <li>Cardiac rehabilitation: Mean ≈ 16–20</li>
                     </ul>
                     <p className="text-indigo-800 font-semibold mt-2">Interpretation Guidelines:</p>
                     <ul className="text-indigo-800 list-disc list-inside space-y-0.5">
-                      <li><strong>0â€“13 (Low):</strong> Below average stress; effective coping</li>
-                      <li><strong>14â€“26 (Moderate):</strong> Average to elevated stress; consider stress management</li>
-                      <li><strong>27â€“40 (High):</strong> Significantly elevated; clinical intervention recommended</li>
+                      <li><strong>0–13 (Low):</strong> Below average stress; effective coping</li>
+                      <li><strong>14–26 (Moderate):</strong> Average to elevated stress; consider stress management</li>
+                      <li><strong>27–40 (High):</strong> Significantly elevated; clinical intervention recommended</li>
                     </ul>
                   </div>
                 </div>
@@ -226,15 +226,15 @@ export default function PSS10Runner({ onSave, onClose }) {
                     <p className="text-indigo-800 font-semibold">Exercise Prescription:</p>
                     <ul className="text-indigo-800 list-disc list-inside space-y-0.5">
                       <li>Aerobic exercise: 30 min moderate intensity, 5 days/week (reduces cortisol, improves mood)</li>
-                      <li>Mind-body exercise: Yoga, tai chi, qigong (2â€“3 sessions/week; reduces perceived stress by 20â€“30%)</li>
+                      <li>Mind-body exercise: Yoga, tai chi, qigong (2–3 sessions/week; reduces perceived stress by 20–30%)</li>
                       <li>Nature-based activity: Walking in green spaces (lowers rumination, improves stress recovery)</li>
                     </ul>
                     <p className="text-indigo-800 font-semibold mt-2">Adjunctive Strategies:</p>
                     <ul className="text-indigo-800 list-disc list-inside space-y-0.5">
-                      <li>Mindfulness-Based Stress Reduction (MBSR): 8-week program; effect size d = 0.60â€“0.80</li>
+                      <li>Mindfulness-Based Stress Reduction (MBSR): 8-week program; effect size d = 0.60–0.80</li>
                       <li>Cognitive Behavioral Therapy (CBT): Gold standard for stress management</li>
                       <li>Breathing exercises: Diaphragmatic breathing, box breathing (acute stress reduction)</li>
-                      <li>Sleep hygiene: 7â€“9 hours/night; poor sleep exacerbates stress</li>
+                      <li>Sleep hygiene: 7–9 hours/night; poor sleep exacerbates stress</li>
                       <li>Social support: Strengthen connections; isolation worsens stress perception</li>
                     </ul>
                   </div>
@@ -243,17 +243,17 @@ export default function PSS10Runner({ onSave, onClose }) {
                 <div>
                   <p className="font-semibold text-indigo-900 mb-2">Key References</p>
                   <div className="bg-white p-3 rounded border border-indigo-300 space-y-2 text-xs">
-                    <p className="text-indigo-800"><strong>Original Scale:</strong> Cohen S, Kamarck T, Mermelstein R. (1983). A global measure of perceived stress. <em>Journal of Health and Social Behavior, 24</em>(4), 385â€“396. <a href="https://pubmed.ncbi.nlm.nih.gov/6668417/" target="_blank" className="text-indigo-600 underline inline-flex items-center gap-1">PubMed <ExternalLink className="w-3 h-3" /></a></p>
+                    <p className="text-indigo-800"><strong>Original Scale:</strong> Cohen S, Kamarck T, Mermelstein R. (1983). A global measure of perceived stress. <em>Journal of Health and Social Behavior, 24</em>(4), 385–396. <a href="https://pubmed.ncbi.nlm.nih.gov/6668417/" target="_blank" className="text-indigo-600 underline inline-flex items-center gap-1">PubMed <ExternalLink className="w-3 h-3" /></a></p>
                     <p className="text-indigo-800"><strong>Normative Data:</strong> Cohen S, Williamson G. (1988). Perceived stress in a probability sample of the United States. In: Spacapan S, Oskamp S (eds). <em>The Social Psychology of Health</em>. Newbury Park, CA: Sage.</p>
-                    <p className="text-indigo-800"><strong>Psychometric Review:</strong> Lee E-H. (2012). Review of the psychometric evidence of the Perceived Stress Scale. <em>Asian Nursing Research, 6</em>(4), 121â€“127.</p>
-                    <p className="text-indigo-800"><strong>Exercise & Stress:</strong> Childs E, de Wit H. (2014). Exercise training reduces baseline sympathetic activity in healthy young men. <em>Medicine & Science in Sports & Exercise, 46</em>(5), 980â€“987.</p>
-                    <p className="text-indigo-800"><strong>MBSR Effectiveness:</strong> Khoury B, et al. (2015). Mindfulness-based stress reduction for healthy individuals: A meta-analysis. <em>Journal of Psychosomatic Research, 78</em>(6), 519â€“528.</p>
+                    <p className="text-indigo-800"><strong>Psychometric Review:</strong> Lee E-H. (2012). Review of the psychometric evidence of the Perceived Stress Scale. <em>Asian Nursing Research, 6</em>(4), 121–127.</p>
+                    <p className="text-indigo-800"><strong>Exercise & Stress:</strong> Childs E, de Wit H. (2014). Exercise training reduces baseline sympathetic activity in healthy young men. <em>Medicine & Science in Sports & Exercise, 46</em>(5), 980–987.</p>
+                    <p className="text-indigo-800"><strong>MBSR Effectiveness:</strong> Khoury B, et al. (2015). Mindfulness-based stress reduction for healthy individuals: A meta-analysis. <em>Journal of Psychosomatic Research, 78</em>(6), 519–528.</p>
                     <p className="text-indigo-800"><strong>Australian Guidelines:</strong> Beyond Blue: National Mental Health Survey; RACGP guidelines for mental health in primary care. <a href="https://www.beyondblue.org.au" target="_blank" className="text-indigo-600 underline inline-flex items-center gap-1">beyondblue.org.au <ExternalLink className="w-3 h-3" /></a></p>
                   </div>
                 </div>
 
                 <div className="bg-red-50 border border-red-300 p-3 rounded">
-                  <p className="text-indigo-800 text-xs"><strong>âš ï¸ CRITICAL:</strong> PSS-10 is a screening tool, NOT a diagnostic instrument. High scores indicate need for comprehensive mental health assessment. If client expresses suicidal ideation, self-harm, or severe distress, initiate immediate safety protocol and refer to emergency mental health services.</p>
+                  <p className="text-indigo-800 text-xs"><strong>⚠ï¸ CRITICAL:</strong> PSS-10 is a screening tool, NOT a diagnostic instrument. High scores indicate need for comprehensive mental health assessment. If client expresses suicidal ideation, self-harm, or severe distress, initiate immediate safety protocol and refer to emergency mental health services.</p>
                 </div>
               </CardContent>
             </Card>
@@ -262,24 +262,24 @@ export default function PSS10Runner({ onSave, onClose }) {
           <div className="space-y-6">
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Score Interpretation (/40)</p>
+              <p className="font-semibold text-slate-700">📊 Score Interpretation (/40)</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Score</th><th className="p-2 text-left">Stress Level</th><th className="p-2 text-left">Action</th></tr></thead>
                   <tbody>
-                    <tr className="border-t"><td className="p-2">0â€“13</td><td className="p-2 text-green-700">Low perceived stress</td><td className="p-2">Reinforce coping strategies</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">14â€“26</td><td className="p-2 text-yellow-700">Moderate perceived stress</td><td className="p-2">Stress management strategies; consider counselling</td></tr>
-                    <tr className="border-t"><td className="p-2">27â€“40</td><td className="p-2 text-red-700">High perceived stress</td><td className="p-2">Referral to psychologist or counsellor</td></tr>
+                    <tr className="border-t"><td className="p-2">0–13</td><td className="p-2 text-green-700">Low perceived stress</td><td className="p-2">Reinforce coping strategies</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">14–26</td><td className="p-2 text-yellow-700">Moderate perceived stress</td><td className="p-2">Stress management strategies; consider counselling</td></tr>
+                    <tr className="border-t"><td className="p-2">27–40</td><td className="p-2 text-red-700">High perceived stress</td><td className="p-2">Referral to psychologist or counsellor</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-slate-500">Items 4, 5, 7, 8 are reverse-scored. Normative mean ~13â€“14 (community adults). Source: Cohen et al. (1983).</p>
+              <p className="text-xs text-slate-500">Items 4, 5, 7, 8 are reverse-scored. Normative mean ~13–14 (community adults). Source: Cohen et al. (1983).</p>
             </div>
 
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>Cohen S, Kamarck T, & Mermelstein R. (1983). A global measure of perceived stress. <em>Journal of Health and Social Behavior, 24</em>(4), 385â€“396.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Cohen S, Kamarck T, & Mermelstein R. (1983). A global measure of perceived stress. <em>Journal of Health and Social Behavior, 24</em>(4), 385–396.</p>
             </div>
 
             <Card className="bg-blue-50 border-blue-200">
@@ -305,7 +305,7 @@ export default function PSS10Runner({ onSave, onClose }) {
             <Card className="bg-amber-50 border-amber-200">
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2 text-amber-800">
-                  âš ï¸ Clinical Considerations
+                  ⚠ï¸ Clinical Considerations
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-amber-800">

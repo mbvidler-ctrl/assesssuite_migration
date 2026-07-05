@@ -6,7 +6,7 @@ export default function AssessmentResultDisplay({ assessment, client, clientAsse
   const isVO2Result = ['cooper_test', '12_minute_walk_run_test'].includes(clientAssessment.additional_data?.measurement_type)
     || clientAssessment.additional_data?.vo2_max !== undefined;
   const displayUnit = isVO2Result ? 'ml/kg/min' : assessment.unit_of_measure;
-  const displayLabel = isVO2Result ? 'Estimated VOâ‚‚max' : 'Result';
+  const displayLabel = isVO2Result ? 'Estimated VO₂max' : 'Result';
 
   return (
     <div className="space-y-3">

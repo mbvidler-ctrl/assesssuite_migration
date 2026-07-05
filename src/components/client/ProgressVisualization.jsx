@@ -514,20 +514,20 @@ export default function ProgressVisualization({ client, conditions }) {
   }, [validAssessments, allAssessments]);
 
   const getTrendIndicator = (current, previous, assessmentName) => {
-    if (previous === null || previous === undefined) return 'â€”';
+    if (previous === null || previous === undefined) return '—';
     const change = current - previous;
     const isLowerBetterForThis = isLowerBetter(assessmentName);
     
-    if (change === 0) return 'â€”';
+    if (change === 0) return '—';
     if ((isLowerBetterForThis && change < 0) || (!isLowerBetterForThis && change > 0)) {
-      return 'â†‘';
+      return '↑';
     }
-    return 'â†“';
+    return '↓';
   };
 
   const getTrendIndicatorColor = (indicator) => {
-    if (indicator === 'â†‘') return 'text-green-600';
-    if (indicator === 'â†“') return 'text-red-600';
+    if (indicator === '↑') return 'text-green-600';
+    if (indicator === '↓') return 'text-red-600';
     return 'text-slate-400';
   };
 
@@ -599,7 +599,7 @@ export default function ProgressVisualization({ client, conditions }) {
   <div class="page-wrapper">
     <div class="header">
       <div class="client-name">${client.full_name || 'Client'}</div>
-      <div class="report-date">Assessment History Report â€” ${reportDate}</div>
+      <div class="report-date">Assessment History Report — ${reportDate}</div>
     </div>
 `;
 
@@ -621,14 +621,14 @@ export default function ProgressVisualization({ client, conditions }) {
 
       history.forEach((entry, idx) => {
         const previousResult = idx > 0 ? history[idx - 1].result : null;
-        let changeText = 'â€”';
+        let changeText = '—';
         if (previousResult !== null && previousResult !== undefined && entry.result !== null && entry.result !== undefined) {
           const change = entry.result - previousResult;
           changeText = change > 0 ? `+${change}` : `${change}`;
         }
 
         const trendIndicator = getTrendIndicator(entry.result, previousResult, name);
-        const trendClass = trendIndicator === 'â†‘' ? 'trend-up' : trendIndicator === 'â†“' ? 'trend-down' : 'trend-stable';
+        const trendClass = trendIndicator === '↑' ? 'trend-up' : trendIndicator === '↓' ? 'trend-down' : 'trend-stable';
 
         html += `
           <tr>
@@ -798,7 +798,7 @@ export default function ProgressVisualization({ client, conditions }) {
                           onClick={e => e.stopPropagation()}
                           className="w-4 h-4 cursor-pointer"
                         />
-                        <span>{expandedGroups[assessmentName] ? 'â–¼' : 'â–¶'}</span>
+                        <span>{expandedGroups[assessmentName] ? '▼' : '▶'}</span>
                         <span className="flex-1">{assessmentName}</span>
                       </div>
 
@@ -815,7 +815,7 @@ export default function ProgressVisualization({ client, conditions }) {
                           <tbody>
                             {history.map((entry, idx) => {
                               const previousResult = idx > 0 ? history[idx - 1].result : null;
-                              let changeText = 'â€”';
+                              let changeText = '—';
                               if (previousResult !== null && previousResult !== undefined && entry.result !== null && entry.result !== undefined) {
                                 const change = entry.result - previousResult;
                                 changeText = change > 0 ? `+${change}` : `${change}`;
@@ -1008,7 +1008,7 @@ export default function ProgressVisualization({ client, conditions }) {
                     </div>
                     <div className="flex items-center justify-between text-sm">
                       <span>Initial: <strong>{trend.firstValue}</strong></span>
-                      <span>â†’</span>
+                      <span>→</span>
                       <span>Latest: <strong>{trend.lastValue}</strong></span>
                     </div>
                     <p className="text-xs mt-2 capitalize">

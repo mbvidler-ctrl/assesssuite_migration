@@ -114,7 +114,7 @@ export default function PhysicalPerformanceTestPPTRunner({ client, onSave, onClo
 
     // Build SOAP text
     const soapLines = [
-      `â€¢ Physical Performance Test (PPT) - ${version}`,
+      `• Physical Performance Test (PPT) - ${version}`,
       `  Total Score: ${totalScore}/${maxScore}`,
       `  Assessment Date: ${assessmentDate}`,
       `  Gait Aid Used: ${usedGaitAid ? 'Yes' : 'No'}`,
@@ -185,24 +185,24 @@ export default function PhysicalPerformanceTestPPTRunner({ client, onSave, onClo
             <>
               {/* Reference */}
               <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-                <p className="font-semibold">ðŸ“– Reference</p>
-                <p>Reuben DB & Siu AL. (1990). An objective measure of physical function of elderly outpatients: the Physical Performance Test. <em>Journal of the American Geriatrics Society, 38</em>(10), 1105â€“1112.</p>
+                <p className="font-semibold">📖 Reference</p>
+                <p>Reuben DB & Siu AL. (1990). An objective measure of physical function of elderly outpatients: the Physical Performance Test. <em>Journal of the American Geriatrics Society, 38</em>(10), 1105–1112.</p>
               </div>
 
               {/* Norms */}
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-                <p className="font-semibold text-slate-700">ðŸ“Š Score Interpretation</p>
+                <p className="font-semibold text-slate-700">📊 Score Interpretation</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs border border-slate-300 rounded">
                     <thead className="bg-slate-200"><tr><th className="p-2 text-left">Score</th><th className="p-2 text-left">Interpretation</th></tr></thead>
                     <tbody>
-                      <tr className="border-t"><td className="p-2">â‰¥25/28</td><td className="p-2 text-green-700">Good function</td></tr>
-                      <tr className="border-t bg-white"><td className="p-2">19â€“24/28</td><td className="p-2 text-yellow-700">Mild impairment</td></tr>
+                      <tr className="border-t"><td className="p-2">≥25/28</td><td className="p-2 text-green-700">Good function</td></tr>
+                      <tr className="border-t bg-white"><td className="p-2">19–24/28</td><td className="p-2 text-yellow-700">Mild impairment</td></tr>
                       <tr className="border-t"><td className="p-2">&lt;19/28</td><td className="p-2 text-red-700">Frailty/reduced independence</td></tr>
                     </tbody>
                   </table>
                 </div>
-                <p className="text-xs text-slate-500">7-item max 28; 9-item max 36. Each task 0â€“4. Higher = better function. Source: Reuben & Siu (1990).</p>
+                <p className="text-xs text-slate-500">7-item max 28; 9-item max 36. Each task 0–4. Higher = better function. Source: Reuben & Siu (1990).</p>
               </div>
 
               <Card className="border-blue-200 bg-blue-50">
@@ -457,13 +457,13 @@ export default function PhysicalPerformanceTestPPTRunner({ client, onSave, onClo
 
           {state === "setup" && (
             <Button onClick={() => setState("safety")} className="bg-blue-600 hover:bg-blue-700">
-              Proceed to Safety Check â†’
+              Proceed to Safety Check →
             </Button>
           )}
 
           {state === "safety" && (
             <Button onClick={handleProceedToTasks} disabled={!safeToProc} className="bg-blue-600 hover:bg-blue-700">
-              Start Task Scoring â†’
+              Start Task Scoring →
             </Button>
           )}
 
@@ -473,7 +473,7 @@ export default function PhysicalPerformanceTestPPTRunner({ client, onSave, onClo
                 â† Previous
               </Button>
               <Button onClick={handleNextTask} className="bg-blue-600 hover:bg-blue-700">
-                {currentTaskIndex === tasks.length - 1 ? "Review Results" : "Next Task"} â†’
+                {currentTaskIndex === tasks.length - 1 ? "Review Results" : "Next Task"} →
               </Button>
             </div>
           )}

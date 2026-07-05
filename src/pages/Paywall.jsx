@@ -34,14 +34,14 @@ export default function Paywall() {
             <div style={{ position: 'absolute', top: '-12px', left: '50%', transform: 'translateX(-50%)', background: '#2563eb', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '3px 12px', borderRadius: '100px', whiteSpace: 'nowrap' }}>BEST VALUE</div>
             <div style={{ fontSize: '13px', fontWeight: 700, color: '#2563eb', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '8px' }}>Annual</div>
             <div style={{ fontSize: '36px', fontWeight: 900, color: '#0f172a', lineHeight: 1 }}>$45<span style={{ fontSize: '16px', fontWeight: 500, color: '#64748b' }}>/mo</span></div>
-            <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '6px' }}>Billed annually â€” $540/year. Save $120.</div>
+            <div style={{ fontSize: '13px', color: '#94a3b8', marginTop: '6px' }}>Billed annually — $540/year. Save $120.</div>
           </button>
         </div>
 
         <ul style={{ listStyle: 'none', padding: 0, margin: '0 0 32px', display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'left' }}>
           {['200+ standardised clinical assessments','Automated SOAP notes','Professional report generation','Nutrition & treatment protocol guidance','All future updates included'].map(f => (
             <li key={f} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '15px', color: '#374151' }}>
-              <span style={{ color: '#16a34a', fontWeight: 700 }}>âœ“</span> {f}
+              <span style={{ color: '#16a34a', fontWeight: 700 }}>✓</span> {f}
             </li>
           ))}
         </ul>

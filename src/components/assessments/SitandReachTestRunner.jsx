@@ -59,7 +59,7 @@ export default function SitandReachTestRunner({ client, onSave, onClose }) {
 
   const handleSave = () => {
     if (trials.length === 0) { toast.error("Add at least one trial"); return; }
-    const soap = `â€¢ Sit and Reach Test (Standard Box Method)\n  Best Score: ${best} cm${cat ? ` â€” ${cat.label}` : ""}\n  Trials: ${trials.map(t => t + " cm").join(", ")}\n  Box footline position: ${boxOffset} cm\n  Measures lower back and hamstring flexibility${notes ? `\n  Notes: ${notes}` : ""}\n  Reference: ACSM Guidelines for Exercise Testing and Prescription; Wells KF & Dillon EK (1952). The sit and reach: a test of back and leg flexibility. Research Quarterly, 23:115-118.`;
+    const soap = `• Sit and Reach Test (Standard Box Method)\n  Best Score: ${best} cm${cat ? ` — ${cat.label}` : ""}\n  Trials: ${trials.map(t => t + " cm").join(", ")}\n  Box footline position: ${boxOffset} cm\n  Measures lower back and hamstring flexibility${notes ? `\n  Notes: ${notes}` : ""}\n  Reference: ACSM Guidelines for Exercise Testing and Prescription; Wells KF & Dillon EK (1952). The sit and reach: a test of back and leg flexibility. Research Quarterly, 23:115-118.`;
     onSave({ status: "completed", result_value: best, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "flexibility_cm", best_cm: best, trials, box_offset_cm: parseFloat(boxOffset), classification: cat?.label } });
     toast.success("Saved.");
   };
@@ -94,7 +94,7 @@ export default function SitandReachTestRunner({ client, onSave, onClose }) {
               </div>
               {trials.map((v, i) => (
                 <div key={i} className="flex justify-between items-center bg-teal-50 px-3 py-2 rounded-lg">
-                  <span>Trial {i + 1}: <span className={`font-bold ${v === best ? "text-teal-600" : "text-slate-700"}`}>{v} cm{v === best ? " â˜…" : ""}</span></span>
+                  <span>Trial {i + 1}: <span className={`font-bold ${v === best ? "text-teal-600" : "text-slate-700"}`}>{v} cm{v === best ? " ★" : ""}</span></span>
                   <Button variant="ghost" size="icon" onClick={() => setTrials(trials.filter((_, x) => x !== i))}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
                 </div>
               ))}

@@ -63,7 +63,7 @@ export default function MedicalHistory({ data, onNext, onBack, canGoBack, onSave
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
         <p className="text-sm text-blue-800">
-          <strong>Additional Medical History (Optional):</strong> Use this section to document any conditions that haven't already been covered in the pre-exercise screening above â€” such as past surgeries, musculoskeletal injuries, neurological conditions, mental health diagnoses, or any other health concerns relevant to your care. If all conditions have already been captured, you may proceed without adding anything here.
+          <strong>Additional Medical History (Optional):</strong> Use this section to document any conditions that haven't already been covered in the pre-exercise screening above — such as past surgeries, musculoskeletal injuries, neurological conditions, mental health diagnoses, or any other health concerns relevant to your care. If all conditions have already been captured, you may proceed without adding anything here.
         </p>
       </div>
       <div className="space-y-4">

@@ -46,7 +46,7 @@ export default function RombergRunner({ onSave, onClose, initialData }) {
     }
 
     const soapText = [
-      `â€¢ Romberg Test of Standing Balance: ${interpretation}`,
+      `• Romberg Test of Standing Balance: ${interpretation}`,
       `  Eyes Open: ${eyesOpen > 0 ? eyesOpen.toFixed(1) + 's' : 'Not recorded'}`,
       `  Eyes Closed: ${eyesClosed > 0 ? eyesClosed.toFixed(1) + 's' : 'Not recorded'}`,
       data.observations ? `  Observations: ${data.observations}` : null,
@@ -171,27 +171,27 @@ export default function RombergRunner({ onSave, onClose, initialData }) {
                     <div className="space-y-2">
                       <div className="bg-white border border-purple-200 rounded p-3">
                         <p className="font-semibold text-green-700">Negative Romberg (Normal)</p>
-                        <p className="text-xs mt-1">â€¢ Stable stance with eyes open (â‰¥30 seconds)</p>
-                        <p className="text-xs">â€¢ Stable stance with eyes closed (â‰¥30 seconds)</p>
-                        <p className="text-xs">â€¢ Minimal sway in either condition</p>
+                        <p className="text-xs mt-1">• Stable stance with eyes open (≥30 seconds)</p>
+                        <p className="text-xs">• Stable stance with eyes closed (≥30 seconds)</p>
+                        <p className="text-xs">• Minimal sway in either condition</p>
                       </div>
                       <div className="bg-white border border-purple-200 rounded p-3">
                         <p className="font-semibold text-amber-700">Positive Romberg (Proprioceptive/Vestibular Deficit)</p>
-                        <p className="text-xs mt-1">â€¢ Stable with eyes open (normal vision compensation)</p>
-                        <p className="text-xs">â€¢ Instability, sway, or fall with eyes closed (vision-dependent balance)</p>
-                        <p className="text-xs">â€¢ Suggests: Proprioceptive neuropathy, vestibular dysfunction, dorsal column disease</p>
+                        <p className="text-xs mt-1">• Stable with eyes open (normal vision compensation)</p>
+                        <p className="text-xs">• Instability, sway, or fall with eyes closed (vision-dependent balance)</p>
+                        <p className="text-xs">• Suggests: Proprioceptive neuropathy, vestibular dysfunction, dorsal column disease</p>
                       </div>
                       <div className="bg-white border border-purple-200 rounded p-3">
                         <p className="font-semibold text-red-700">Unsteady Both Conditions (NOT True Romberg)</p>
-                        <p className="text-xs mt-1">â€¢ Imbalance with eyes open AND closed</p>
-                        <p className="text-xs">â€¢ Suggests: Cerebellar dysfunction, basal ganglia disorder, motor weakness</p>
+                        <p className="text-xs mt-1">• Imbalance with eyes open AND closed</p>
+                        <p className="text-xs">• Suggests: Cerebellar dysfunction, basal ganglia disorder, motor weakness</p>
                       </div>
                     </div>
                     <div className="pt-3 border-t border-purple-300">
                       <p className="font-semibold">Normal Duration:</p>
-                      <p className="text-xs">â€¢ Healthy adults: Can stand â‰¥30 seconds both conditions</p>
-                      <p className="text-xs">â€¢ Older adults: May show mild increased sway but remain stable</p>
-                      <p className="text-xs">â€¢ Loss of balance before 30s (particularly with eyes closed) = significant finding</p>
+                      <p className="text-xs">• Healthy adults: Can stand ≥30 seconds both conditions</p>
+                      <p className="text-xs">• Older adults: May show mild increased sway but remain stable</p>
+                      <p className="text-xs">• Loss of balance before 30s (particularly with eyes closed) = significant finding</p>
                     </div>
                   </div>
                 </div>
@@ -272,7 +272,7 @@ export default function RombergRunner({ onSave, onClose, initialData }) {
                 </div>
               </div>
               {timerSeconds >= 30 && (
-                <p className="mt-3 text-green-600 font-semibold text-lg">âœ“ 30 seconds completed</p>
+                <p className="mt-3 text-green-600 font-semibold text-lg">✓ 30 seconds completed</p>
               )}
             </div>
 

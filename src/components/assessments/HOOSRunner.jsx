@@ -140,12 +140,12 @@ export default function HOOSRunner({ onSave, onClose }) {
     const averageScore = Object.values(sectionScores).reduce((a, b) => a + b, 0) / Object.keys(sectionScores).length;
 
     // Build comprehensive SOAP text
-    let soapText = `â€¢ Hip Outcome Score (HOOS):\n`;
+    let soapText = `• Hip Outcome Score (HOOS):\n`;
     soapText += `  Average Score: ${averageScore.toFixed(1)}/100\n`;
     soapText += `  Subscale Scores:\n`;
     
     Object.entries(SECTIONS).forEach(([key, section]) => {
-      soapText += `    â€¢ ${section.name}: ${sectionScores[key]}/100\n`;
+      soapText += `    • ${section.name}: ${sectionScores[key]}/100\n`;
     });
 
     soapText += `\n  Detailed Responses:\n`;

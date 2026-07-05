@@ -66,7 +66,7 @@ export default function RecentActivity({ assessments, clients, isLoading }) {
                   <div className="flex items-center gap-2 text-sm text-slate-600">
                     <Calendar className="w-3 h-3" />
                     {format(new Date(assessment.assessment_date), "MMM d, yyyy")}
-                    <span className="text-slate-400">â€¢</span>
+                    <span className="text-slate-400">•</span>
                     <span>Score: {assessment.result_value}</span>
                   </div>
                 </div>

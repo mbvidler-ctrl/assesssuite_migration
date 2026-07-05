@@ -68,7 +68,7 @@ export default function EDSSRunner({ onSave, onClose }) {
       return;
     }
 
-    const soapText = `â€¢ Expanded Disability Status Scale (EDSS)\n  Score: ${edssScore} â€” ${interpretation?.level}\n  ${EDSS_SCORES.find(s => s.score === parseFloat(edssScore))?.label || ''}${notes ? `\n  Notes: ${notes}` : ''}`;
+    const soapText = `• Expanded Disability Status Scale (EDSS)\n  Score: ${edssScore} — ${interpretation?.level}\n  ${EDSS_SCORES.find(s => s.score === parseFloat(edssScore))?.label || ''}${notes ? `\n  Notes: ${notes}` : ''}`;
     onSave({
       result_value: parseFloat(edssScore),
       additional_data: {

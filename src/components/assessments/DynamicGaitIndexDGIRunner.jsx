@@ -20,12 +20,12 @@ const TASKS = [
   },
   {
     name: "Gait with horizontal head turns",
-    instructions: 'Say: "Walk from here to the mark. When I say \'look right\', turn your head right. When I say \'look left\', turn your head left." Call turns every 3â€“5 steps. Observe veering, stumbling, or imbalance.',
+    instructions: 'Say: "Walk from here to the mark. When I say \'look right\', turn your head right. When I say \'look left\', turn your head left." Call turns every 3–5 steps. Observe veering, stumbling, or imbalance.',
     scores: ["Cannot perform or needs assistance; severe imbalance", "Severe disruption to gait; stops, grabs support, or marked deviation", "Head turns cause slight change in gait speed or minor deviation; recovers", "Performs head turns with no change in gait speed or direction"]
   },
   {
     name: "Gait with vertical head turns",
-    instructions: 'Say: "Walk from here to the mark. When I say \'look up\', tip your head up. When I say \'look down\', tip your head down." Call turns every 3â€“5 steps. Observe loss of balance or veering.',
+    instructions: 'Say: "Walk from here to the mark. When I say \'look up\', tip your head up. When I say \'look down\', tip your head down." Call turns every 3–5 steps. Observe loss of balance or veering.',
     scores: ["Cannot perform or needs assistance; severe imbalance", "Severe disruption to gait; stops, grabs support, or marked deviation", "Head turns cause slight change in gait speed or minor deviation; recovers", "Performs head turns with no change in gait speed or direction"]
   },
   {
@@ -71,16 +71,16 @@ export default function DynamicGaitIndexDGIRunner({ client, onSave, onClose }) {
       return;
     }
 
-    const interpretation = totalScore < 19 ? "Increased fall risk (score < 19)" : "Low fall risk (score â‰¥ 19)";
-    const taskLines = TASKS.map((t, i) => `    ${t.name}: ${scores[i] ?? "â€”"}/3`).join("\n");
+    const interpretation = totalScore < 19 ? "Increased fall risk (score < 19)" : "Low fall risk (score ≥ 19)";
+    const taskLines = TASKS.map((t, i) => `    ${t.name}: ${scores[i] ?? "—"}/3`).join("\n");
 
-    const soapText = `â€¢ Dynamic Gait Index (DGI)\n  Total Score: ${totalScore}/24\n  Interpretation: ${interpretation}\n\n  Task Scores:\n${taskLines}${
+    const soapText = `• Dynamic Gait Index (DGI)\n  Total Score: ${totalScore}/24\n  Interpretation: ${interpretation}\n\n  Task Scores:\n${taskLines}${
       preVitals.heartRate || preVitals.bloodPressure
-        ? `\n  Pre-Test Vitals: HR ${preVitals.heartRate || "â€”"} bpm, BP ${preVitals.bloodPressure || "â€”"} mmHg\n`
+        ? `\n  Pre-Test Vitals: HR ${preVitals.heartRate || "—"} bpm, BP ${preVitals.bloodPressure || "—"} mmHg\n`
         : ""
     }${
       postVitals.heartRate || postVitals.bloodPressure
-        ? `  Post-Test Vitals: HR ${postVitals.heartRate || "â€”"} bpm, BP ${postVitals.bloodPressure || "â€”"} mmHg\n`
+        ? `  Post-Test Vitals: HR ${postVitals.heartRate || "—"} bpm, BP ${postVitals.bloodPressure || "—"} mmHg\n`
         : ""
     }${notes ? `  Clinical Notes: ${notes}\n` : ""}`;
 
@@ -149,7 +149,7 @@ export default function DynamicGaitIndexDGIRunner({ client, onSave, onClose }) {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="text-base font-semibold text-slate-800">DGI Task Scores</h3>
-              <span className="text-sm text-slate-500">{scoredCount}/8 scored â€¢ Running total: <strong>{totalScore}/24</strong></span>
+              <span className="text-sm text-slate-500">{scoredCount}/8 scored • Running total: <strong>{totalScore}/24</strong></span>
             </div>
             {TASKS.map((task, idx) => (
               <Card key={idx} className={`border-2 ${scores[idx] !== null ? "border-blue-200" : "border-slate-200"}`}>
@@ -187,7 +187,7 @@ export default function DynamicGaitIndexDGIRunner({ client, onSave, onClose }) {
             <Card className={`border-2 ${totalScore < 19 ? "border-red-300 bg-red-50" : "border-green-300 bg-green-50"}`}>
               <CardContent className="pt-4">
                 <p className={`text-center font-bold text-lg ${totalScore < 19 ? "text-red-800" : "text-green-800"}`}>
-                  Total: {totalScore}/24 â€” {totalScore < 19 ? "âš ï¸ Increased fall risk (< 19)" : "âœ“ Low fall risk (â‰¥ 19)"}
+                  Total: {totalScore}/24 — {totalScore < 19 ? "⚠ï¸ Increased fall risk (< 19)" : "✓ Low fall risk (≥ 19)"}
                 </p>
               </CardContent>
             </Card>

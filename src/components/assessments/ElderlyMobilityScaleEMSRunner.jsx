@@ -86,11 +86,11 @@ export default function ElderlyMobilityScaleEMSRunner({ client, onSave, onClose 
 
     const totalScore = Object.values(scores).reduce((acc, score) => acc + (score ?? 0), 0);
     let interpretation = "";
-    if (totalScore <= 10) interpretation = "High dependency (â‰¤10)";
-    else if (totalScore <= 14) interpretation = "Borderline (11â€“14)";
-    else interpretation = "Independent (15â€“20)";
+    if (totalScore <= 10) interpretation = "High dependency (≤10)";
+    else if (totalScore <= 14) interpretation = "Borderline (11–14)";
+    else interpretation = "Independent (15–20)";
 
-    let soapText = `â€¢ Elderly Mobility Scale (EMS) Assessment\n`;
+    let soapText = `• Elderly Mobility Scale (EMS) Assessment\n`;
     soapText += `  Total Score: ${totalScore}/20\n`;
     soapText += `  Interpretation: ${interpretation}\n`;
     soapText += `\n  Item Scores:\n`;
@@ -98,10 +98,10 @@ export default function ElderlyMobilityScaleEMSRunner({ client, onSave, onClose 
       soapText += `    - ${EMS_LABELS[key]}: ${val}/3\n`;
     });
     if (preVitals.heartRate || preVitals.bloodPressure) {
-      soapText += `\n  Pre-Test Vitals: HR ${preVitals.heartRate || "â€”"} bpm, BP ${preVitals.bloodPressure || "â€”"} mmHg\n`;
+      soapText += `\n  Pre-Test Vitals: HR ${preVitals.heartRate || "—"} bpm, BP ${preVitals.bloodPressure || "—"} mmHg\n`;
     }
     if (postVitals.heartRate || postVitals.bloodPressure) {
-      soapText += `  Post-Test Vitals: HR ${postVitals.heartRate || "â€”"} bpm, BP ${postVitals.bloodPressure || "â€”"} mmHg\n`;
+      soapText += `  Post-Test Vitals: HR ${postVitals.heartRate || "—"} bpm, BP ${postVitals.bloodPressure || "—"} mmHg\n`;
     }
     if (notes) soapText += `  Clinical Notes: ${notes}\n`;
 
@@ -150,7 +150,7 @@ export default function ElderlyMobilityScaleEMSRunner({ client, onSave, onClose 
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">Score Range:</p>
-                    <p className="text-slate-700"><strong>0â€“20 points</strong> (7 items Ã— 3 points max per item)</p>
+                    <p className="text-slate-700"><strong>0–20 points</strong> (7 items × 3 points max per item)</p>
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">Population:</p>
@@ -225,9 +225,9 @@ export default function ElderlyMobilityScaleEMSRunner({ client, onSave, onClose 
                 </CardHeader>
                 <CardContent className="text-sm space-y-3">
                   <div className="space-y-2 text-xs bg-slate-50 p-3 rounded">
-                    <p><strong>Score 0â€“10 (High Dependency):</strong> Severe functional limitation; requires substantial assistance; high fall risk; likely requires residential care.</p>
-                    <p><strong>Score 11â€“14 (Borderline):</strong> Moderate to significant functional limitation; mixed independence; elevated fall risk; may benefit from therapy/support.</p>
-                    <p><strong>Score 15â€“20 (Independent):</strong> Functional independence in mobility tasks; low fall risk; minimal need for assistance.</p>
+                    <p><strong>Score 0–10 (High Dependency):</strong> Severe functional limitation; requires substantial assistance; high fall risk; likely requires residential care.</p>
+                    <p><strong>Score 11–14 (Borderline):</strong> Moderate to significant functional limitation; mixed independence; elevated fall risk; may benefit from therapy/support.</p>
+                    <p><strong>Score 15–20 (Independent):</strong> Functional independence in mobility tasks; low fall risk; minimal need for assistance.</p>
                   </div>
                   <div>
                     <p className="font-semibold text-slate-900">Reliability &amp; Validity:</p>
@@ -242,8 +242,8 @@ export default function ElderlyMobilityScaleEMSRunner({ client, onSave, onClose 
                   <CardTitle className="text-base">References &amp; Evidence</CardTitle>
                 </CardHeader>
                 <CardContent className="text-xs text-slate-700 space-y-2">
-                  <p><strong>Tinetti, M. E.</strong> (1986). Performance-oriented assessment of mobility problems in elderly patients. <em>Journal of the American Geriatrics Society</em>, 34(2), 119â€“126.</p>
-                  <p><strong>Hubbard, I. J., Parsons, M. W., Neilson, C., &amp; Carey, L. M.</strong> (2007). Task-specific training: evidence for and translation to clinical practice. <em>Occupational Therapy International</em>, 14(4), 237â€“246.</p>
+                  <p><strong>Tinetti, M. E.</strong> (1986). Performance-oriented assessment of mobility problems in elderly patients. <em>Journal of the American Geriatrics Society</em>, 34(2), 119–126.</p>
+                  <p><strong>Hubbard, I. J., Parsons, M. W., Neilson, C., &amp; Carey, L. M.</strong> (2007). Task-specific training: evidence for and translation to clinical practice. <em>Occupational Therapy International</em>, 14(4), 237–246.</p>
                   <p><strong>Shumway-Cook, A., &amp; Woollacott, M. H.</strong> (2017). <em>Motor Control: Translating Research into Clinical Practice</em> (5th ed.). Wolters Kluwer.</p>
                   <Button
                     onClick={() => window.open('https://www.apta.org/', '_blank')}
@@ -266,7 +266,7 @@ export default function ElderlyMobilityScaleEMSRunner({ client, onSave, onClose 
                   <CardTitle className="text-base text-green-900">Assessment in Progress</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-green-800">
-                  <p>Follow the scoring guidance for each task. Score each item 0â€“3 based on client performance.</p>
+                  <p>Follow the scoring guidance for each task. Score each item 0–3 based on client performance.</p>
                 </CardContent>
               </Card>
 
@@ -322,7 +322,7 @@ export default function ElderlyMobilityScaleEMSRunner({ client, onSave, onClose 
               {/* Scoring */}
               <Card>
                 <CardHeader>
-                  <CardTitle className="text-base">EMS Item Scores (0â€“3 each)</CardTitle>
+                  <CardTitle className="text-base">EMS Item Scores (0–3 each)</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   {Object.entries(EMS_LABELS).map(([task, label]) => {
@@ -332,8 +332,8 @@ export default function ElderlyMobilityScaleEMSRunner({ client, onSave, onClose 
                       sitToStand: ["Unable without assistance","Able with assistance","Able with difficulty","Able normally"],
                       standing: ["Unable","Able with assistance","Able with aid","Able without aid"],
                       gait: ["Unable/unsafe","Assisted","With difficulty","Normal"],
-                      timedWalk: ["Unable",">14 seconds","10â€“14 seconds","<10 seconds"],
-                      functionalReach: ["Unable","<6 inches","6â€“10 inches",">10 inches"],
+                      timedWalk: ["Unable",">14 seconds","10–14 seconds","<10 seconds"],
+                      functionalReach: ["Unable","<6 inches","6–10 inches",">10 inches"],
                     };
                     return (
                       <div key={task} className="border border-slate-100 rounded-lg p-3 bg-slate-50">

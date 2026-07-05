@@ -8,7 +8,7 @@ import {
   Play, Square, RotateCcw, Shield, Activity, Flag, FileText, Timer
 } from "lucide-react";
 
-// â”€â”€â”€ Steps â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Steps ───────────────────────────────────────────────────────────────────
 const STEPS = [
   { id: "overview",      label: "Overview" },
   { id: "safety",        label: "Safety" },
@@ -19,14 +19,14 @@ const STEPS = [
   { id: "references",    label: "References" },
 ];
 
-// â”€â”€â”€ Normative Data (seconds) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Normative Data (seconds) ─────────────────────────────────────────────────
 // Based on published literature for wall squat / isometric squat endurance
 const NORMATIVE_DATA = [
-  { label: "18â€“29 yrs", ageMin: 18, ageMax: 29, male: { excellent: 100, good: 75, fair: 50, poor: 25 }, female: { excellent: 90, good: 65, fair: 45, poor: 20 } },
-  { label: "30â€“39 yrs", ageMin: 30, ageMax: 39, male: { excellent: 90, good: 65, fair: 45, poor: 20 }, female: { excellent: 80, good: 55, fair: 38, poor: 18 } },
-  { label: "40â€“49 yrs", ageMin: 40, ageMax: 49, male: { excellent: 75, good: 55, fair: 35, poor: 15 }, female: { excellent: 65, good: 45, fair: 30, poor: 15 } },
-  { label: "50â€“59 yrs", ageMin: 50, ageMax: 59, male: { excellent: 60, good: 45, fair: 28, poor: 12 }, female: { excellent: 55, good: 38, fair: 24, poor: 10 } },
-  { label: "60â€“69 yrs", ageMin: 60, ageMax: 69, male: { excellent: 50, good: 35, fair: 20, poor: 10 }, female: { excellent: 45, good: 30, fair: 18, poor: 8 } },
+  { label: "18–29 yrs", ageMin: 18, ageMax: 29, male: { excellent: 100, good: 75, fair: 50, poor: 25 }, female: { excellent: 90, good: 65, fair: 45, poor: 20 } },
+  { label: "30–39 yrs", ageMin: 30, ageMax: 39, male: { excellent: 90, good: 65, fair: 45, poor: 20 }, female: { excellent: 80, good: 55, fair: 38, poor: 18 } },
+  { label: "40–49 yrs", ageMin: 40, ageMax: 49, male: { excellent: 75, good: 55, fair: 35, poor: 15 }, female: { excellent: 65, good: 45, fair: 30, poor: 15 } },
+  { label: "50–59 yrs", ageMin: 50, ageMax: 59, male: { excellent: 60, good: 45, fair: 28, poor: 12 }, female: { excellent: 55, good: 38, fair: 24, poor: 10 } },
+  { label: "60–69 yrs", ageMin: 60, ageMax: 69, male: { excellent: 50, good: 35, fair: 20, poor: 10 }, female: { excellent: 45, good: 30, fair: 18, poor: 8 } },
   { label: "70+ yrs",   ageMin: 70, ageMax: 120, male: { excellent: 35, good: 22, fair: 12, poor: 5 }, female: { excellent: 30, good: 18, fair: 10, poor: 4 } },
 ];
 
@@ -49,7 +49,7 @@ function formatTime(s) {
   return m > 0 ? `${m}m ${sec}s` : `${sec}s`;
 }
 
-// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Main Component ───────────────────────────────────────────────────────────
 export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose }) {
   const [step, setStep] = useState(0);
 
@@ -113,7 +113,7 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
   };
   const handleReset = () => { setRunning(false); setFinished(false); setElapsed(0); setStopReason(""); };
 
-  // â”€â”€ Normatives â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Normatives ──────────────────────────────────────────────────────────────
   const clientAge = client?.date_of_birth
     ? Math.floor((Date.now() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000))
     : null;
@@ -124,23 +124,23 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
 
   const safetyAll = Object.values(safety).every(Boolean);
 
-  // â”€â”€ Clinical Flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Clinical Flags ──────────────────────────────────────────────────────────
   const flags = [];
   if (finished) {
-    if (elapsed < norms.poor) flags.push({ text: "Hold time below age/gender threshold â€” lower limb endurance deficit suspected", color: "bg-red-100 text-red-700 border-red-300" });
-    if (observations.knee_valgus) flags.push({ text: "Knee valgus observed â€” potential hip abductor weakness or neuromuscular control deficit", color: "bg-orange-100 text-orange-700 border-orange-300" });
-    if (observations.pain_provoked) flags.push({ text: "Pain provoked during testing â€” review loading tolerance before progressing", color: "bg-red-100 text-red-700 border-red-300" });
-    if (observations.required_guarding) flags.push({ text: "Guarding required â€” significant safety concern, reassess readiness", color: "bg-red-100 text-red-700 border-red-300" });
-    if (setup.pain_pre > 3) flags.push({ text: `Baseline pain was ${setup.pain_pre}/10 â€” result interpretation may be limited by pain`, color: "bg-yellow-100 text-yellow-700 border-yellow-300" });
-    if (elapsed >= 120) flags.push({ text: "Hold time â‰¥ 120 seconds â€” consider progressing to more demanding loading protocols", color: "bg-green-100 text-green-700 border-green-300" });
+    if (elapsed < norms.poor) flags.push({ text: "Hold time below age/gender threshold — lower limb endurance deficit suspected", color: "bg-red-100 text-red-700 border-red-300" });
+    if (observations.knee_valgus) flags.push({ text: "Knee valgus observed — potential hip abductor weakness or neuromuscular control deficit", color: "bg-orange-100 text-orange-700 border-orange-300" });
+    if (observations.pain_provoked) flags.push({ text: "Pain provoked during testing — review loading tolerance before progressing", color: "bg-red-100 text-red-700 border-red-300" });
+    if (observations.required_guarding) flags.push({ text: "Guarding required — significant safety concern, reassess readiness", color: "bg-red-100 text-red-700 border-red-300" });
+    if (setup.pain_pre > 3) flags.push({ text: `Baseline pain was ${setup.pain_pre}/10 — result interpretation may be limited by pain`, color: "bg-yellow-100 text-yellow-700 border-yellow-300" });
+    if (elapsed >= 120) flags.push({ text: "Hold time ≥ 120 seconds — consider progressing to more demanding loading protocols", color: "bg-green-100 text-green-700 border-green-300" });
   }
 
-  // â”€â”€ Interpretation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Interpretation ──────────────────────────────────────────────────────────
   const generateInterpretation = () => {
     if (!finished) return "";
     const parts = [];
-    parts.push(`Static Wall Squat Test completed at ${setup.knee_angle}Â° knee flexion on a ${setup.surface === "wall" ? "wall" : "freestanding"} surface.`);
-    parts.push(`Hold time: ${elapsed}s (${formatTime(elapsed)}) â€” classified as ${cls.label} relative to ${normGroup.label} ${clientGender} normative data.`);
+    parts.push(`Static Wall Squat Test completed at ${setup.knee_angle}° knee flexion on a ${setup.surface === "wall" ? "wall" : "freestanding"} surface.`);
+    parts.push(`Hold time: ${elapsed}s (${formatTime(elapsed)}) — classified as ${cls.label} relative to ${normGroup.label} ${clientGender} normative data.`);
     if (stopReason && stopReason !== "Voluntary stop") parts.push(`Test terminated due to: ${stopReason}.`);
     const obsArr = Object.entries(observations).filter(([,v]) => v).map(([k]) => k.replace(/_/g, " "));
     if (obsArr.length) parts.push(`Observations during test: ${obsArr.join(", ")}.`);
@@ -152,14 +152,14 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
   const generateSOAP = () => {
     const interp = generateInterpretation();
     const obsArr = Object.entries(observations).filter(([,v]) => v).map(([k]) => k.replace(/_/g, " "));
-    let text = `â€¢ Static Squat Test (Wall Squat)\n`;
-    text += `  Knee Angle: ${setup.knee_angle}Â° | Footwear: ${setup.footwear} | Surface: ${setup.surface}\n`;
+    let text = `• Static Squat Test (Wall Squat)\n`;
+    text += `  Knee Angle: ${setup.knee_angle}° | Footwear: ${setup.footwear} | Surface: ${setup.surface}\n`;
     text += `  Hold Time: ${elapsed}s | Classification: ${cls?.label || "N/A"}\n`;
     text += `  Pre-test Pain: ${setup.pain_pre}/10 | Post-test Pain: ${painPost}/10\n`;
     text += `  Pre-test Fatigue: ${setup.fatigue_pre}/10 | Post-test Fatigue: ${fatiguePost}/10\n`;
     if (obsArr.length) text += `  Observations: ${obsArr.join(", ")}\n`;
     text += `\n  Interpretation: ${interp}\n`;
-    if (flags.length) text += `\n  Clinical Flags:\n${flags.map(f => `  â€¢ ${f.text}`).join("\n")}\n`;
+    if (flags.length) text += `\n  Clinical Flags:\n${flags.map(f => `  • ${f.text}`).join("\n")}\n`;
     if (clinicalNotes) text += `\n  Notes: ${clinicalNotes}\n`;
     return text;
   };
@@ -189,11 +189,11 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
 
   const canSave = finished;
 
-  // â”€â”€â”€ Step Renderer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── Step Renderer ──────────────────────────────────────────────────────────
   const renderStep = () => {
     switch (STEPS[step].id) {
 
-      // â”€â”€ Overview â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Overview ────────────────────────────────────────────────────────────
       case "overview": return (
         <div className="space-y-5">
           <div className="bg-gradient-to-br from-violet-50 to-purple-50 rounded-xl p-5 border border-violet-100">
@@ -215,26 +215,26 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
           <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Test Parameters</p>
             <div className="grid grid-cols-2 gap-2 text-sm text-slate-700">
-              <span>ðŸ“ Knee angle: typically 90Â°</span>
+              <span>ðŸ“ Knee angle: typically 90°</span>
               <span>â± Duration: until failure</span>
               <span>ðŸ” Trials: 1 (best practice)</span>
-              <span>ðŸ“Š Score: Hold time in seconds</span>
+              <span>📊 Score: Hold time in seconds</span>
             </div>
           </div>
           <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
             <p className="text-xs font-semibold text-blue-700 uppercase tracking-wider mb-2">Standard Test Position</p>
             <ul className="text-sm text-blue-800 space-y-1">
-              <li>â€¢ Back flat against wall, feet shoulder-width apart</li>
-              <li>â€¢ Feet ~60 cm from wall, toes slightly out</li>
-              <li>â€¢ Knees positioned directly over toes (not caving inward)</li>
-              <li>â€¢ Knee angle at 90Â° (or prescribed angle)</li>
-              <li>â€¢ Arms crossed over chest or by sides (not resting on thighs)</li>
+              <li>• Back flat against wall, feet shoulder-width apart</li>
+              <li>• Feet ~60 cm from wall, toes slightly out</li>
+              <li>• Knees positioned directly over toes (not caving inward)</li>
+              <li>• Knee angle at 90° (or prescribed angle)</li>
+              <li>• Arms crossed over chest or by sides (not resting on thighs)</li>
             </ul>
           </div>
         </div>
       );
 
-      // â”€â”€ Safety â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Safety ──────────────────────────────────────────────────────────────
       case "safety": return (
         <div className="space-y-4">
           <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex gap-3">
@@ -274,13 +274,13 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
         </div>
       );
 
-      // â”€â”€ Instructions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Instructions ────────────────────────────────────────────────────────
       case "instructions": return (
         <div className="space-y-5">
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
             <h3 className="font-semibold text-blue-900 text-sm mb-2">Patient Instructions</h3>
             <p className="text-blue-800 text-sm leading-relaxed">
-              "Stand with your back flat against the wall and slide down until your knees are at about 90 degrees â€” like sitting on an invisible chair. Keep your feet flat on the floor and your knees in line with your toes. Hold this position for as long as you can. I will time you. Tell me when you cannot hold it any longer."
+              "Stand with your back flat against the wall and slide down until your knees are at about 90 degrees — like sitting on an invisible chair. Keep your feet flat on the floor and your knees in line with your toes. Hold this position for as long as you can. I will time you. Tell me when you cannot hold it any longer."
             </p>
           </div>
           <div>
@@ -288,9 +288,9 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
             <ol className="space-y-2 text-sm text-slate-700">
               {[
                 "Position client against a smooth, flat wall with feet ~60 cm from the base.",
-                "Instruct to slide down until knee angle is at 90Â° (use goniometer to confirm if needed).",
+                "Instruct to slide down until knee angle is at 90° (use goniometer to confirm if needed).",
                 "Feet shoulder-width apart, toes pointing slightly outward.",
-                "Arms crossed over chest â€” not resting on thighs.",
+                "Arms crossed over chest — not resting on thighs.",
                 "Start the timer once the client is in the correct position.",
                 "Observe for technique breakdown throughout: knee valgus, heel rise, trunk flexion.",
                 "Stop timing and record when client can no longer maintain position.",
@@ -314,14 +314,14 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
                 "Back loses contact with the wall",
                 "Pain provocation requiring cessation",
               ].map(s => (
-                <li key={s} className="flex gap-2"><span>â€¢</span><span>{s}</span></li>
+                <li key={s} className="flex gap-2"><span>•</span><span>{s}</span></li>
               ))}
             </ul>
           </div>
         </div>
       );
 
-      // â”€â”€ Setup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Setup ───────────────────────────────────────────────────────────────
       case "setup": return (
         <div className="space-y-5">
           <div className="grid grid-cols-2 gap-4">
@@ -351,12 +351,12 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
           <div>
             <div className="flex justify-between mb-1">
               <p className="text-xs font-semibold text-slate-600 uppercase tracking-wider">Knee Angle</p>
-              <span className="text-sm font-bold text-slate-800">{setup.knee_angle}Â°</span>
+              <span className="text-sm font-bold text-slate-800">{setup.knee_angle}°</span>
             </div>
             <input type="range" min={60} max={120} value={setup.knee_angle}
               onChange={e => setSetup(s => ({ ...s, knee_angle: parseInt(e.target.value) }))}
               className="w-full h-2 rounded-full accent-violet-600" />
-            <div className="flex justify-between text-xs text-slate-400 mt-0.5"><span>60Â°</span><span>90Â° (standard)</span><span>120Â°</span></div>
+            <div className="flex justify-between text-xs text-slate-400 mt-0.5"><span>60°</span><span>90° (standard)</span><span>120°</span></div>
           </div>
 
           {/* Baseline sliders */}
@@ -377,16 +377,16 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
         </div>
       );
 
-      // â”€â”€ Test â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Test ────────────────────────────────────────────────────────────────
       case "test": return (
         <div className="space-y-5">
           {/* Timer display */}
           <div className={`rounded-2xl border-2 p-8 text-center transition-all ${running ? 'border-violet-400 bg-violet-50' : finished ? (cls?.bg || 'border-slate-200 bg-slate-50') : 'border-slate-200 bg-slate-50'}`}>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-              {running ? "Timingâ€¦" : finished ? "Final Time" : "Ready"}
+              {running ? "Timing…" : finished ? "Final Time" : "Ready"}
             </p>
             <p className={`text-6xl font-bold tabular-nums ${running ? 'text-violet-700' : 'text-slate-900'}`}>{formatTime(elapsed)}</p>
-            {running && <p className="text-xs text-violet-500 mt-2 animate-pulse">Patient is holding the wall squatâ€¦</p>}
+            {running && <p className="text-xs text-violet-500 mt-2 animate-pulse">Patient is holding the wall squat…</p>}
             {finished && cls && <p className={`text-lg font-semibold mt-2 ${cls.color}`}>{cls.label}</p>}
           </div>
 
@@ -403,7 +403,7 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
                   <Square className="w-4 h-4" />Stop
                 </Button>
                 {[
-                  "Pain â€” unable to continue",
+                  "Pain — unable to continue",
                   "Knee valgus collapse",
                   "Heel rise",
                   "Lost wall contact",
@@ -470,18 +470,18 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
           {!finished && !running && (
             <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
               <p className="text-xs font-semibold text-violet-700 uppercase tracking-wider mb-1">Test Conditions</p>
-              <p className="text-sm text-violet-800">Knee angle: {setup.knee_angle}Â° | {setup.footwear} | {setup.surface === "wall" ? "Wall squat" : "Freestanding"}</p>
+              <p className="text-sm text-violet-800">Knee angle: {setup.knee_angle}° | {setup.footwear} | {setup.surface === "wall" ? "Wall squat" : "Freestanding"}</p>
             </div>
           )}
         </div>
       );
 
-      // â”€â”€ Results â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── Results ─────────────────────────────────────────────────────────────
       case "results": return (
         <div className="space-y-5">
           {!finished ? (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-center">
-              <p className="text-amber-700 font-medium">Complete the test first (Step 5 â€” Test).</p>
+              <p className="text-amber-700 font-medium">Complete the test first (Step 5 — Test).</p>
             </div>
           ) : (
             <>
@@ -490,18 +490,18 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
                 <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Hold Time</p>
                 <p className="text-5xl font-bold text-slate-900">{elapsed}<span className="text-2xl font-normal text-slate-500">s</span></p>
                 <p className={`text-lg font-semibold mt-1 ${cls?.color}`}>{cls?.label}</p>
-                <p className="text-xs text-slate-500 mt-1">{normGroup.label} â€” {clientGender}</p>
+                <p className="text-xs text-slate-500 mt-1">{normGroup.label} — {clientGender}</p>
               </div>
 
               {/* Normative table */}
               {clientAge && (
                 <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
-                  <p className="text-xs font-semibold text-violet-700 uppercase tracking-wider mb-2">Normative Reference â€” {normGroup.label} ({clientGender})</p>
+                  <p className="text-xs font-semibold text-violet-700 uppercase tracking-wider mb-2">Normative Reference — {normGroup.label} ({clientGender})</p>
                   <div className="grid grid-cols-4 gap-2">
                     {[
-                      ["Excellent", `â‰¥${norms.excellent}s`, "text-green-700 bg-green-50"],
-                      ["Good",      `${norms.good}â€“${norms.excellent - 1}s`, "text-blue-700 bg-blue-50"],
-                      ["Fair",      `${norms.fair}â€“${norms.good - 1}s`, "text-yellow-700 bg-yellow-50"],
+                      ["Excellent", `≥${norms.excellent}s`, "text-green-700 bg-green-50"],
+                      ["Good",      `${norms.good}–${norms.excellent - 1}s`, "text-blue-700 bg-blue-50"],
+                      ["Fair",      `${norms.fair}–${norms.good - 1}s`, "text-yellow-700 bg-yellow-50"],
                       ["Poor",      `<${norms.fair}s`, "text-red-700 bg-red-50"],
                     ].map(([lbl, range, colorCls]) => (
                       <div key={lbl} className={`rounded-lg p-2 text-center border border-slate-200 ${colorCls}`}>
@@ -516,10 +516,10 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
 
               {/* Test conditions summary */}
               <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 grid grid-cols-2 gap-2 text-sm">
-                <div><span className="text-slate-500 text-xs">Knee Angle</span><p className="font-semibold text-slate-800">{setup.knee_angle}Â°</p></div>
-                <div><span className="text-slate-500 text-xs">Stop Reason</span><p className="font-semibold text-slate-800">{stopReason || "â€”"}</p></div>
-                <div><span className="text-slate-500 text-xs">Pain Preâ†’Post</span><p className="font-semibold text-slate-800">{setup.pain_pre} â†’ {painPost}/10</p></div>
-                <div><span className="text-slate-500 text-xs">Fatigue Preâ†’Post</span><p className="font-semibold text-slate-800">{setup.fatigue_pre} â†’ {fatiguePost}/10</p></div>
+                <div><span className="text-slate-500 text-xs">Knee Angle</span><p className="font-semibold text-slate-800">{setup.knee_angle}°</p></div>
+                <div><span className="text-slate-500 text-xs">Stop Reason</span><p className="font-semibold text-slate-800">{stopReason || "—"}</p></div>
+                <div><span className="text-slate-500 text-xs">Pain Pre→Post</span><p className="font-semibold text-slate-800">{setup.pain_pre} → {painPost}/10</p></div>
+                <div><span className="text-slate-500 text-xs">Fatigue Pre→Post</span><p className="font-semibold text-slate-800">{setup.fatigue_pre} → {fatiguePost}/10</p></div>
               </div>
 
               {/* Flags */}
@@ -550,7 +550,7 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
         </div>
       );
 
-      // â”€â”€ References â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // ── References ──────────────────────────────────────────────────────────
       case "references": return (
         <div className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3">
@@ -559,7 +559,7 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
           {[
             { authors: "Bohannon RW.", title: "Test-retest reliability of hand-held dynamometry during a single session of strength assessment.", journal: "Phys Ther. 1986;66(2):206-9.", detail: "Foundational reliability data for isometric lower limb strength measures." },
             { authors: "Perez AJ, Kim SH, Natividad LO.", title: "Isometric wall squat test: reliability and clinical application in knee rehabilitation.", journal: "J Orthop Sports Phys Ther. 2018;48(4):290-297.", detail: "Established reliability and normative standards for the wall squat endurance test in clinical populations." },
-            { authors: "Ã˜sterÃ¥s H, Helbostad JL, Risberg MA, Kaasa S.", title: "Effect of type and dose of exercise on pain and function in knee osteoarthritis.", journal: "Ann Phys Rehabil Med. 2017;60:166-172.", detail: "Demonstrated efficacy of isometric quadriceps exercise as part of OA rehabilitation." },
+            { authors: "Østerås H, Helbostad JL, Risberg MA, Kaasa S.", title: "Effect of type and dose of exercise on pain and function in knee osteoarthritis.", journal: "Ann Phys Rehabil Med. 2017;60:166-172.", detail: "Demonstrated efficacy of isometric quadriceps exercise as part of OA rehabilitation." },
             { authors: "Lund H, Weile U, Christensen R, et al.", title: "A randomized controlled trial of aquatic and land-based exercise in patients with knee osteoarthritis.", journal: "J Rehabil Med. 2008;40(2):137-144.", detail: "Validated wall squat as a functional lower limb strength measure in OA cohorts." },
             { authors: "American College of Sports Medicine.", title: "ACSM's Guidelines for Exercise Testing and Prescription. 11th ed.", journal: "Wolters Kluwer. 2022.", detail: "Reference for isometric endurance testing protocols and normative data stratification." },
           ].map((ref, i) => (
@@ -591,7 +591,7 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
               <h1 className="text-white font-bold text-base">Static Squat Test (Wall Squat)</h1>
               <p className="text-violet-200 text-xs">{currentStep.label}</p>
             </div>
-            <button onClick={onClose} className="text-white/70 hover:text-white text-xl leading-none">Ã—</button>
+            <button onClick={onClose} className="text-white/70 hover:text-white text-xl leading-none">×</button>
           </div>
           <div className="flex gap-1">
             {STEPS.map((s, i) => (
@@ -611,7 +611,7 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
             <Shield className="w-3.5 h-3.5" />Safety
           </div>
           <div className={`flex items-center gap-1.5 text-xs font-medium ${finished ? 'text-violet-600' : running ? 'text-orange-500' : 'text-slate-400'}`}>
-            <Timer className="w-3.5 h-3.5" />{running ? `${elapsed}sâ€¦` : finished ? `${elapsed}s done` : "Not started"}
+            <Timer className="w-3.5 h-3.5" />{running ? `${elapsed}s…` : finished ? `${elapsed}s done` : "Not started"}
           </div>
           {finished && cls && (
             <div className={`flex items-center gap-1.5 text-xs font-medium ${cls.color}`}>

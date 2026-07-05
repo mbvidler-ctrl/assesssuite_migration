@@ -79,8 +79,8 @@ export default function SixMeterWalkStandaloneWrapper({ assessment, client, onCl
       // Generate SOAP note entry - pass additional_data, not the whole data object
       const formattedObjective = generateSOAPForSpecialMeasurements(assessment, data.additional_data || {});
       const objectiveText = formattedObjective
-        ? `â€¢ ${assessment.name}:\n${formattedObjective}${data.notes ? `\n  Clinical Notes: ${data.notes}` : ''}`
-        : `â€¢ ${assessment.name}: ${data.result_value} m/s\n${data.notes ? `  Clinical Notes: ${data.notes}\n` : ''}`;
+        ? `• ${assessment.name}:\n${formattedObjective}${data.notes ? `\n  Clinical Notes: ${data.notes}` : ''}`
+        : `• ${assessment.name}: ${data.result_value} m/s\n${data.notes ? `  Clinical Notes: ${data.notes}\n` : ''}`;
 
       // Find or create SOAP note for appointment
       let existingSoapNotes = await base44.entities.SOAPNote.filter({

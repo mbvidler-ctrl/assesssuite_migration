@@ -144,7 +144,7 @@ export default function ThirtyFifteenIFTRunner({ onSave, onClose }) {
         {saved && savedData && (
           <div className="px-6 pb-2">
             <div className="p-4 bg-green-50 border border-green-300 rounded-lg">
-              <p className="font-bold text-green-800 text-lg mb-2">âœ“ Results Saved Successfully</p>
+              <p className="font-bold text-green-800 text-lg mb-2">✓ Results Saved Successfully</p>
               <div className="text-sm text-green-700 space-y-1">
                 <p><strong>Final VIFT Speed:</strong> {savedData.vift_kmh} km/h</p>
                 {savedData.total_stages && <p><strong>Total Stages:</strong> {savedData.total_stages}</p>}

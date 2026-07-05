@@ -11,10 +11,10 @@ import {
 } from "lucide-react";
 
 const NORMATIVE_DATA = [
-  { ageMin: 18, ageMax: 39, label: "18â€“39 yrs", eyesOpen: { excellent: 45, good: 30, fair: 15, poor: 5 }, eyesClosed: { excellent: 25, good: 15, fair: 8, poor: 3 } },
-  { ageMin: 40, ageMax: 49, label: "40â€“49 yrs", eyesOpen: { excellent: 38, good: 25, fair: 12, poor: 4 }, eyesClosed: { excellent: 20, good: 12, fair: 6, poor: 2 } },
-  { ageMin: 50, ageMax: 59, label: "50â€“59 yrs", eyesOpen: { excellent: 28, good: 18, fair: 9, poor: 3 }, eyesClosed: { excellent: 15, good: 9, fair: 4, poor: 1 } },
-  { ageMin: 60, ageMax: 69, label: "60â€“69 yrs", eyesOpen: { excellent: 20, good: 12, fair: 6, poor: 2 }, eyesClosed: { excellent: 10, good: 6, fair: 3, poor: 1 } },
+  { ageMin: 18, ageMax: 39, label: "18–39 yrs", eyesOpen: { excellent: 45, good: 30, fair: 15, poor: 5 }, eyesClosed: { excellent: 25, good: 15, fair: 8, poor: 3 } },
+  { ageMin: 40, ageMax: 49, label: "40–49 yrs", eyesOpen: { excellent: 38, good: 25, fair: 12, poor: 4 }, eyesClosed: { excellent: 20, good: 12, fair: 6, poor: 2 } },
+  { ageMin: 50, ageMax: 59, label: "50–59 yrs", eyesOpen: { excellent: 28, good: 18, fair: 9, poor: 3 }, eyesClosed: { excellent: 15, good: 9, fair: 4, poor: 1 } },
+  { ageMin: 60, ageMax: 69, label: "60–69 yrs", eyesOpen: { excellent: 20, good: 12, fair: 6, poor: 2 }, eyesClosed: { excellent: 10, good: 6, fair: 3, poor: 1 } },
   { ageMin: 70, ageMax: 120, label: "70+ yrs", eyesOpen: { excellent: 12, good: 7, fair: 3, poor: 1 }, eyesClosed: { excellent: 5, good: 3, fair: 2, poor: 0 } },
 ];
 
@@ -110,7 +110,7 @@ function LegTimer({ side, color, data, onChange }) {
           <RotateCcw className="w-4 h-4" />
         </Button>
       </div>
-      <p className="text-xs text-slate-500 text-center">Start â†’ Stop to record a trial. Record up to 3 trials.</p>
+      <p className="text-xs text-slate-500 text-center">Start → Stop to record a trial. Record up to 3 trials.</p>
 
       {data.trials?.length > 0 && (
         <div className="space-y-1">
@@ -119,7 +119,7 @@ function LegTimer({ side, color, data, onChange }) {
             <div key={i} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-slate-200">
               <span className="text-sm text-slate-700 font-medium">Trial {i + 1}: <strong>{t}s</strong></span>
               {t === data.best_time && <Badge className="bg-green-100 text-green-700 text-xs">Best</Badge>}
-              <button onClick={() => removeTrial(i)} className="text-slate-400 hover:text-red-500 text-xs ml-2">Ã—</button>
+              <button onClick={() => removeTrial(i)} className="text-slate-400 hover:text-red-500 text-xs ml-2">×</button>
             </div>
           ))}
           <div className="bg-slate-50 rounded-lg px-3 py-2 border border-slate-200 flex justify-between items-center">
@@ -163,7 +163,7 @@ function QualityScorer({ side, data, onChange }) {
 
   return (
     <div className="space-y-3">
-      <h4 className="font-semibold text-slate-700">{side} Leg â€” Balance Quality</h4>
+      <h4 className="font-semibold text-slate-700">{side} Leg — Balance Quality</h4>
       {DIMENSIONS.map(dim => (
         <div key={dim.key}>
           <div className="flex justify-between items-center mb-1">
@@ -230,7 +230,7 @@ export default function StandingStorkTestRunner({ client, onSave, onClose }) {
   };
 
   const generateSOAP = () => {
-    let text = `â€¢ Standing Stork Test (Unipedal Stance)\n`;
+    let text = `• Standing Stork Test (Unipedal Stance)\n`;
     text += `  Eyes: ${setup.eyes === "open" ? "Open" : "Closed"} | Surface: ${setup.surface}\n`;
     text += `  Left leg: ${leftBest}s best (${leftData.trials?.length || 0} trials)\n`;
     text += `  Right leg: ${rightBest}s best (${rightData.trials?.length || 0} trials)\n`;
@@ -285,7 +285,7 @@ export default function StandingStorkTestRunner({ client, onSave, onClose }) {
                 <span className="text-sm">{item.label}</span>
               </label>
             ))}
-            {safetyAll && <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm">Safety confirmed âœ“</div>}
+            {safetyAll && <div className="bg-green-50 text-green-700 p-3 rounded-lg text-sm">Safety confirmed ✓</div>}
           </div>
         );
 
@@ -387,7 +387,7 @@ export default function StandingStorkTestRunner({ client, onSave, onClose }) {
               <h1 className="text-white font-bold">Standing Stork Test</h1>
               <p className="text-indigo-200 text-xs">{STEPS[step].label}</p>
             </div>
-            <button onClick={onClose} className="text-white text-2xl leading-none">Ã—</button>
+            <button onClick={onClose} className="text-white text-2xl leading-none">×</button>
           </div>
           <div className="flex gap-1">
             {STEPS.map((s, i) => (

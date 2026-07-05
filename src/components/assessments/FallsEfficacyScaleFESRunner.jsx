@@ -39,7 +39,7 @@ export default function FallsEfficacyScaleFESRunner({ client, onSave, onClose })
     const interpretation = totalScore <= 70 ? "Low fall concern" : totalScore <= 80 ? "Moderate fall concern" : "High fall concern";
 
     // Build soap_text for direct SOAP injection
-    let soapText = `â€¢ Falls Efficacy Scale (FES):\n  Total Score: ${totalScore}/100 (${interpretation})\n\n  Individual Item Scores (1=Not confident, 10=Completely confident):\n`;
+    let soapText = `• Falls Efficacy Scale (FES):\n  Total Score: ${totalScore}/100 (${interpretation})\n\n  Individual Item Scores (1=Not confident, 10=Completely confident):\n`;
     FES_ACTIVITIES.forEach((activity, i) => {
       soapText += `    ${i + 1}. ${activity}: ${responses[i]}/10\n`;
     });
@@ -86,9 +86,9 @@ export default function FallsEfficacyScaleFESRunner({ client, onSave, onClose })
               <p className="font-semibold text-blue-800">Clinician Instructions</p>
               <p><strong>Purpose:</strong> Measures fear of falling / fall-related self-efficacy across 10 activities of daily living.</p>
               <p><strong>Administration:</strong> Self-report or interviewer-administered. Ask the client to rate their <em>confidence</em> in performing each activity without falling (1 = not at all confident, 10 = completely confident).</p>
-              <p><strong>Scoring:</strong> Sum all items (range 10â€“100). Higher scores indicate greater confidence. Scores â‰¤70 = low concern, 71â€“80 = moderate concern, &gt;80 = high concern.</p>
+              <p><strong>Scoring:</strong> Sum all items (range 10–100). Higher scores indicate greater confidence. Scores ≤70 = low concern, 71–80 = moderate concern, &gt;80 = high concern.</p>
               <p><strong>Population:</strong> Community-dwelling older adults. Not suitable for clients who are completely unable to perform an activity.</p>
-              <p><strong>Reference form:</strong> <a href="https://www.physio-pedia.com/Falls_Efficacy_Scale" target="_blank" rel="noopener noreferrer" className="underline text-blue-700 hover:text-blue-900">FES Reference â†—</a></p>
+              <p><strong>Reference form:</strong> <a href="https://www.physio-pedia.com/Falls_Efficacy_Scale" target="_blank" rel="noopener noreferrer" className="underline text-blue-700 hover:text-blue-900">FES Reference ↗</a></p>
             </div>
 
             <p className="text-sm text-gray-500">
@@ -119,7 +119,7 @@ export default function FallsEfficacyScaleFESRunner({ client, onSave, onClose })
             {answeredCount === 10 && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800">
                 <strong>Total Score: {responses.reduce((a, b) => a + b, 0)}/100</strong>
-                {" â€” "}{responses.reduce((a, b) => a + b, 0) <= 70 ? "Low fall concern" : responses.reduce((a, b) => a + b, 0) <= 80 ? "Moderate fall concern" : "High fall concern"}
+                {" — "}{responses.reduce((a, b) => a + b, 0) <= 70 ? "Low fall concern" : responses.reduce((a, b) => a + b, 0) <= 80 ? "Moderate fall concern" : "High fall concern"}
               </div>
             )}
 

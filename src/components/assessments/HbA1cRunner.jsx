@@ -27,7 +27,7 @@ export default function HbA1cRunner({ client, onSave, onClose }) {
 
     const category = getCategory(value);
 
-    const soapText = `â€¢ HbA1c (Glycated Hemoglobin): ${value}%\n  Interpretation: ${category.label}\n  Reference Ranges: Normal <5.7% | Pre-diabetes 5.7â€“6.4% | Diabetes â‰¥6.5%\n`;
+    const soapText = `• HbA1c (Glycated Hemoglobin): ${value}%\n  Interpretation: ${category.label}\n  Reference Ranges: Normal <5.7% | Pre-diabetes 5.7–6.4% | Diabetes ≥6.5%\n`;
 
     onSave({
       status: "completed",
@@ -72,13 +72,13 @@ export default function HbA1cRunner({ client, onSave, onClose }) {
                     <Badge className={category.color}>{category.label}</Badge>
                   </div>
                   <div className="text-sm text-gray-600 space-y-1">
-                    <p>â€¢ Normal: &lt;5.7%</p>
-                    <p>â€¢ Pre-diabetes: 5.7â€“6.4%</p>
-                    <p>â€¢ Diabetes: â‰¥6.5%</p>
+                    <p>• Normal: &lt;5.7%</p>
+                    <p>• Pre-diabetes: 5.7–6.4%</p>
+                    <p>• Diabetes: ≥6.5%</p>
                   </div>
                   {category.label !== "Normal" && (
                     <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-800">
-                      <p className="font-semibold mb-1">âš  Scope of Practice Reminder</p>
+                      <p className="font-semibold mb-1">⚠ Scope of Practice Reminder</p>
                       {category.label === "Pre-diabetes" && (
                         <p>This result is in the pre-diabetes range. As an Exercise Physiologist, you may incorporate lifestyle and exercise interventions; however, <strong>diagnosis is outside your scope</strong>. Refer to the client's GP or a Credentialled Diabetes Educator (CDE) for medical review and management planning.</p>
                       )}

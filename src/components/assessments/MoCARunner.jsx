@@ -36,7 +36,7 @@ export default function MoCARunner({ onSave, onClose }) {
   const handleSave = () => {
     const total = calculateTotal();
     const interp = total >= 26 ? 'Normal Cognition' : total >= 18 ? 'Mild Cognitive Impairment' : 'Cognitive Impairment';
-    const soapText = `â€¢ Montreal Cognitive Assessment (MoCA)\n  Total Score: ${total}/30 â€” ${interp}\n  Education: ${education} years`;
+    const soapText = `• Montreal Cognitive Assessment (MoCA)\n  Total Score: ${total}/30 — ${interp}\n  Education: ${education} years`;
     onSave({
       result_value: total,
       additional_data: {
@@ -84,7 +84,7 @@ export default function MoCARunner({ onSave, onClose }) {
                 variant={education === '12+' ? 'default' : 'outline'}
                 onClick={() => setEducation('12+')}
               >
-                â‰¥ 12 years
+                ≥ 12 years
               </Button>
             </div>
           </div>
@@ -138,7 +138,7 @@ export default function MoCARunner({ onSave, onClose }) {
                     calculateTotal() >= 18 ? 'Mild Cognitive Impairment' : 'Cognitive Impairment'}
                 </p>
                 <p className="text-xs mt-1 text-slate-600">
-                  Cut-offs: â‰¥26 Normal, 18-25 MCI, &lt;18 Impaired
+                  Cut-offs: ≥26 Normal, 18-25 MCI, &lt;18 Impaired
                 </p>
               </div>
             )}

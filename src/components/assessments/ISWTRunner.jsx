@@ -144,7 +144,7 @@ export default function ISWTRunner({ onSave, onClose, initialData }) {
         <CardContent className="space-y-6">
            {/* Clinician Instructions */}
            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-2">
-             <p className="font-semibold">ðŸ“‹ Administration Instructions (Singh et al. 1992)</p>
+             <p className="font-semibold">📋 Administration Instructions (Singh et al. 1992)</p>
              <p><strong>Setup:</strong> 10m flat corridor marked with cones. Client walks (not runs) 10m shuttles at pace determined by audio beep. Speed increases each level. Test stops when client fails to reach the end-cone by the beep for 2 consecutive shuttles.</p>
              <p className="italic">"Walk up and down this 10m course, turning at each cone when you hear the beep. Try to keep pace with the beeps. If you need to, you may slow down, but continue as long as possible."</p>
              <p><strong>Record:</strong> Total distance covered (m). Measure SpO2, HR, RPE, and dyspnea immediately post-test.</p>
@@ -153,26 +153,26 @@ export default function ISWTRunner({ onSave, onClose, initialData }) {
 
            {/* Norms */}
            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-             <p className="font-semibold text-slate-700">ðŸ“Š Norms & MCID (ISWT distance in metres)</p>
+             <p className="font-semibold text-slate-700">📊 Norms & MCID (ISWT distance in metres)</p>
              <div className="overflow-x-auto">
                <table className="w-full text-xs border border-slate-300 rounded">
                  <thead className="bg-slate-200"><tr><th className="p-2 text-left">Population</th><th className="p-2 text-left">Typical Range</th><th className="p-2 text-left">MCID</th></tr></thead>
                  <tbody>
-                   <tr className="border-t"><td className="p-2">Healthy adults (30â€“60 yrs)</td><td className="p-2">400â€“600 m</td><td className="p-2">â€”</td></tr>
-                   <tr className="border-t bg-white"><td className="p-2">Mild COPD (FEVâ‚ &gt;60%)</td><td className="p-2">300â€“450 m</td><td className="p-2">48 m</td></tr>
-                   <tr className="border-t"><td className="p-2">Moderate COPD (FEVâ‚ 40â€“60%)</td><td className="p-2">150â€“300 m</td><td className="p-2">48 m</td></tr>
+                   <tr className="border-t"><td className="p-2">Healthy adults (30–60 yrs)</td><td className="p-2">400–600 m</td><td className="p-2">—</td></tr>
+                   <tr className="border-t bg-white"><td className="p-2">Mild COPD (FEVâ‚ &gt;60%)</td><td className="p-2">300–450 m</td><td className="p-2">48 m</td></tr>
+                   <tr className="border-t"><td className="p-2">Moderate COPD (FEVâ‚ 40–60%)</td><td className="p-2">150–300 m</td><td className="p-2">48 m</td></tr>
                    <tr className="border-t bg-white"><td className="p-2">Severe COPD (FEVâ‚ &lt;40%)</td><td className="p-2">&lt;150 m</td><td className="p-2">48 m</td></tr>
                  </tbody>
                </table>
              </div>
-             <p className="text-xs text-slate-500">MCID: 48 m (Revill et al. 1999). VO2max estimate: VO2peak (mL/kg/min) = 4.19 + 0.025 Ã— ISWT distance.</p>
+             <p className="text-xs text-slate-500">MCID: 48 m (Revill et al. 1999). VO2max estimate: VO2peak (mL/kg/min) = 4.19 + 0.025 × ISWT distance.</p>
            </div>
 
            {/* Reference */}
            <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-             <p className="font-semibold">ðŸ“– Reference</p>
-             <p>Singh SJ et al. (1992). Development of a shuttle walking test of disability in patients with chronic airways obstruction. <em>Thorax, 47</em>(12), 1019â€“1024.</p>
-             <p>Revill SM et al. (1999). The endurance shuttle walk: a new field test for the assessment of endurance capacity in chronic obstructive pulmonary disease. <em>Thorax, 54</em>(3), 213â€“222.</p>
+             <p className="font-semibold">📖 Reference</p>
+             <p>Singh SJ et al. (1992). Development of a shuttle walking test of disability in patients with chronic airways obstruction. <em>Thorax, 47</em>(12), 1019–1024.</p>
+             <p>Revill SM et al. (1999). The endurance shuttle walk: a new field test for the assessment of endurance capacity in chronic obstructive pulmonary disease. <em>Thorax, 54</em>(3), 213–222.</p>
            </div>
 
            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -221,12 +221,12 @@ export default function ISWTRunner({ onSave, onClose, initialData }) {
                <div className="flex items-start gap-3">
                  <Music className="w-5 h-5 text-green-600 mt-1 flex-shrink-0" />
                  <div>
-                   <p className="font-semibold text-green-900 mb-1">ðŸ”Š Built-in Audio Beeps</p>
+                   <p className="font-semibold text-green-900 mb-1">🔊 Built-in Audio Beeps</p>
                    <p className="text-sm text-green-800">This runner generates real-time audio beeps automatically during the test:</p>
                    <ul className="text-xs text-green-800 mt-2 space-y-1 ml-4 list-disc">
                      <li><strong>Triple beep (800 Hz):</strong> Signals level completion</li>
                    </ul>
-                   <p className="text-xs text-green-700 mt-2 font-semibold">âœ“ Ensure browser volume is enabled and device volume is set appropriately.</p>
+                   <p className="text-xs text-green-700 mt-2 font-semibold">✓ Ensure browser volume is enabled and device volume is set appropriately.</p>
                  </div>
                </div>
              </div>

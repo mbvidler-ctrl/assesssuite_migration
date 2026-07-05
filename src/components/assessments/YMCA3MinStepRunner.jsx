@@ -136,7 +136,7 @@ export default function YMCA3MinStepRunner({ client, onSave, onClose }) {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Info className="w-5 h-5 text-blue-600" />
-                  ðŸ“‹ Test Protocol
+                  📋 Test Protocol
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">
@@ -150,15 +150,15 @@ export default function YMCA3MinStepRunner({ client, onSave, onClose }) {
 
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Norms â€” YMCA Step Test (1-min recovery HR, bpm)</p>
+              <p className="font-semibold text-slate-700">📊 Norms — YMCA Step Test (1-min recovery HR, bpm)</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
-                  <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 18â€“29</th><th className="p-2 text-center">Men 40â€“49</th><th className="p-2 text-center">Women 18â€“29</th><th className="p-2 text-center">Women 40â€“49</th></tr></thead>
+                  <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 18–29</th><th className="p-2 text-center">Men 40–49</th><th className="p-2 text-center">Women 18–29</th><th className="p-2 text-center">Women 40–49</th></tr></thead>
                   <tbody>
                     <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">&lt;79</td><td className="p-2 text-center">&lt;85</td><td className="p-2 text-center">&lt;85</td><td className="p-2 text-center">&lt;91</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">80â€“89</td><td className="p-2 text-center">86â€“94</td><td className="p-2 text-center">86â€“97</td><td className="p-2 text-center">92â€“102</td></tr>
-                    <tr className="border-t"><td className="p-2">Average</td><td className="p-2 text-center">90â€“99</td><td className="p-2 text-center">95â€“104</td><td className="p-2 text-center">98â€“108</td><td className="p-2 text-center">103â€“112</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">Poor</td><td className="p-2 text-center">â‰¥100</td><td className="p-2 text-center">â‰¥105</td><td className="p-2 text-center">â‰¥109</td><td className="p-2 text-center">â‰¥113</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">80–89</td><td className="p-2 text-center">86–94</td><td className="p-2 text-center">86–97</td><td className="p-2 text-center">92–102</td></tr>
+                    <tr className="border-t"><td className="p-2">Average</td><td className="p-2 text-center">90–99</td><td className="p-2 text-center">95–104</td><td className="p-2 text-center">98–108</td><td className="p-2 text-center">103–112</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">Poor</td><td className="p-2 text-center">≥100</td><td className="p-2 text-center">≥105</td><td className="p-2 text-center">≥109</td><td className="p-2 text-center">≥113</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -167,7 +167,7 @@ export default function YMCA3MinStepRunner({ client, onSave, onClose }) {
 
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
+              <p className="font-semibold">📖 Reference</p>
               <p>Golding LA, Myers CR, & Sinning WE. (2000). <em>YMCA Fitness Testing and Assessment Manual</em> (4th ed.). Human Kinetics.</p>
             </div>
 
@@ -205,7 +205,7 @@ export default function YMCA3MinStepRunner({ client, onSave, onClose }) {
                 </div>
                 {timeRemaining === 0 && (
                   <p className="mt-4 text-center text-green-600 font-semibold text-lg">
-                    âœ“ Test Complete! Record heart rate NOW (first 5 seconds)
+                    ✓ Test Complete! Record heart rate NOW (first 5 seconds)
                   </p>
                 )}
               </CardContent>

@@ -41,7 +41,7 @@ export default function FunctionalReachRunner({ onSave, onClose }) {
     const maxReach = Math.max(...trials);
     
     // Build comprehensive SOAP text
-    let soapText = `â€¢ Functional Reach Test: ${avgReach} cm (average) â†’ ${interpretation.text}\n`;
+    let soapText = `• Functional Reach Test: ${avgReach} cm (average) → ${interpretation.text}\n`;
     soapText += `  Trials: ${trials.join(' cm, ')} cm\n`;
     soapText += `  Best Reach: ${maxReach} cm\n`;
     if (notes) soapText += `  Notes: ${notes}\n`;
@@ -74,7 +74,7 @@ export default function FunctionalReachRunner({ onSave, onClose }) {
         <CardContent className="space-y-6">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <p className="text-sm text-blue-800 mb-2">
-              <strong>Instructions:</strong> Stand with feet shoulder-width apart, raise arm to 90Â°. Reach forward as far as possible without taking a step.
+              <strong>Instructions:</strong> Stand with feet shoulder-width apart, raise arm to 90°. Reach forward as far as possible without taking a step.
             </p>
             <p className="text-xs text-blue-700">
               Measure the distance between starting position and maximum forward reach along the yardstick/ruler.
@@ -176,7 +176,7 @@ export default function FunctionalReachRunner({ onSave, onClose }) {
                 </div>
               </div>
               <div className="mt-3 text-xs text-slate-600 bg-white/70 rounded p-2">
-                <strong>Fall Risk Guidelines:</strong> â‰¥25cm = Low risk â€¢ 15-24cm = Moderate â€¢ 6-14cm = High (2x) â€¢ &lt;6cm = Very High (4x)
+                <strong>Fall Risk Guidelines:</strong> ≥25cm = Low risk • 15-24cm = Moderate • 6-14cm = High (2x) • &lt;6cm = Very High (4x)
               </div>
             </div>
           )}

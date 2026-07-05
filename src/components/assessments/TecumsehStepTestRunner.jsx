@@ -108,10 +108,10 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
   const handleSave = () => {
     const bpm = parseInt(recoveryHR);
     const soapLines = [
-      `â€¢ Tecumseh Step Test`,
+      `• Tecumseh Step Test`,
       `  Protocol: 20 cm step, 24 steps/min (96 bpm metronome), 3 minutes`,
       `  Pre-Exercise HR: ${preHR || "Not recorded"} bpm`,
-      `  Recovery HR (1-min post-exercise, 30-sec count Ã— 2): ${bpm} bpm`,
+      `  Recovery HR (1-min post-exercise, 30-sec count × 2): ${bpm} bpm`,
       `  Age Group: ${ageGroup || "Not specified"} | Gender: ${gender || "Not specified"}`,
       category ? `  Classification: ${category.label} aerobic fitness` : "",
       notes ? `  Notes: ${notes}` : "",
@@ -135,10 +135,10 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
   // Phase display helpers
   const phaseInfo = {
     idle:      { label: "Ready to Start", color: "text-slate-600", bg: "bg-slate-50" },
-    exercise:  { label: "âš¡ Exercise Phase â€” Step Up & Down", color: "text-blue-700", bg: "bg-blue-50" },
-    waiting:   { label: "â³ Recovery Wait â€” Client Resting (1 min)", color: "text-orange-700", bg: "bg-orange-50" },
-    measuring: { label: "â¤ï¸ Measure Pulse Now â€” 30 Seconds", color: "text-red-700", bg: "bg-red-50" },
-    done:      { label: "âœ… Measurement Window Complete â€” Enter HR Below", color: "text-green-700", bg: "bg-green-50" },
+    exercise:  { label: "⚡ Exercise Phase — Step Up & Down", color: "text-blue-700", bg: "bg-blue-50" },
+    waiting:   { label: "â³ Recovery Wait — Client Resting (1 min)", color: "text-orange-700", bg: "bg-orange-50" },
+    measuring: { label: "â¤ï¸ Measure Pulse Now — 30 Seconds", color: "text-red-700", bg: "bg-red-50" },
+    done:      { label: "✅ Measurement Window Complete — Enter HR Below", color: "text-green-700", bg: "bg-green-50" },
   };
 
   const progressPct = phase === "idle" || phase === "done" ? 100 : Math.round((elapsed / phaseMax) * 100);
@@ -149,7 +149,7 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Tecumseh Step Test</h2>
-          <p className="text-sm text-slate-500">Submaximal aerobic fitness â€” recovery heart rate protocol</p>
+          <p className="text-sm text-slate-500">Submaximal aerobic fitness — recovery heart rate protocol</p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
       </div>
@@ -158,14 +158,14 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
       <div className="border border-blue-200 rounded-lg overflow-hidden">
         <button onClick={() => setShowInstructions(v => !v)}
           className="w-full flex justify-between items-center bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900">
-          ðŸ“‹ Clinician Instructions &amp; Protocol
+          📋 Clinician Instructions &amp; Protocol
           {showInstructions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
         {showInstructions && (
           <div className="bg-white p-4 text-sm text-slate-700 space-y-3">
             <div className="grid md:grid-cols-3 gap-3">
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
-                <p className="font-bold text-slate-800 text-xs mb-1">ðŸªœ Equipment Setup</p>
+                <p className="font-bold text-slate-800 text-xs mb-1">🪜 Equipment Setup</p>
                 <ul className="text-xs text-slate-600 space-y-1 list-disc pl-4">
                   <li>Step height: <strong>20 cm (8 inches)</strong></li>
                   <li>Metronome: <strong>96 bpm</strong> (= 24 complete step cycles/min)</li>
@@ -179,7 +179,7 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
                 <ul className="text-xs text-slate-600 space-y-1 list-disc pl-4">
                   <li>4-beat cycle: Up-Up-Down-Down</li>
                   <li>Maintain cadence with metronome throughout</li>
-                  <li>Arms swing naturally â€” no holding rails</li>
+                  <li>Arms swing naturally — no holding rails</li>
                   <li>Stop if chest pain, dizziness, excessive dyspnoea</li>
                 </ul>
                 <p className="text-xs italic text-blue-700 mt-2">"Step up and down in time with the metronome for 3 minutes. Keep the same rhythm throughout."</p>
@@ -196,12 +196,12 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
               </div>
             </div>
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs">
-              <p className="font-semibold text-red-800">âš ï¸ Stop Test Immediately If:</p>
-              <p className="text-red-700">Chest pain or tightness Â· Severe dyspnoea Â· Dizziness or near-syncope Â· Pallor or cyanosis Â· Client requests to stop Â· Irregular pulse detected</p>
+              <p className="font-semibold text-red-800">⚠ï¸ Stop Test Immediately If:</p>
+              <p className="text-red-700">Chest pain or tightness · Severe dyspnoea · Dizziness or near-syncope · Pallor or cyanosis · Client requests to stop · Irregular pulse detected</p>
             </div>
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs">
-              <p className="font-semibold text-slate-700 mb-1">ðŸ“‹ Pre-Test Contraindications</p>
-              <p className="text-slate-600">Acute illness Â· Uncontrolled hypertension (resting BP &gt;180/100) Â· Recent MI or cardiac event Â· Severe musculoskeletal limitation preventing stepping Â· Pregnancy (caution)</p>
+              <p className="font-semibold text-slate-700 mb-1">📋 Pre-Test Contraindications</p>
+              <p className="text-slate-600">Acute illness · Uncontrolled hypertension (resting BP &gt;180/100) · Recent MI or cardiac event · Severe musculoskeletal limitation preventing stepping · Pregnancy (caution)</p>
             </div>
           </div>
         )}
@@ -239,7 +239,7 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
 
       {/* Normative Table */}
       <div className="border border-slate-200 rounded-lg p-3">
-        <p className="font-semibold text-slate-700 text-sm mb-2">ðŸ“Š Normative Data â€” Recovery HR (bpm, 1 min post-exercise)</p>
+        <p className="font-semibold text-slate-700 text-sm mb-2">📊 Normative Data — Recovery HR (bpm, 1 min post-exercise)</p>
         <div className="overflow-x-auto">
           <table className="w-full text-xs border border-slate-300 rounded overflow-hidden">
             <thead className="bg-slate-200">
@@ -260,8 +260,8 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
                   {AGE_GROUPS.map(ag => {
                     const mn = NORMS[ag].male;
                     const fn = NORMS[ag].female;
-                    const mVal = cat === "Excellent" ? `â‰¤${mn.Excellent}` : cat === "Good" ? `${mn.Excellent+1}â€“${mn.Good}` : cat === "Average" ? `${mn.Good+1}â€“${mn.Average}` : `>${mn.Average}`;
-                    const fVal = cat === "Excellent" ? `â‰¤${fn.Excellent}` : cat === "Good" ? `${fn.Excellent+1}â€“${fn.Good}` : cat === "Average" ? `${fn.Good+1}â€“${fn.Average}` : `>${fn.Average}`;
+                    const mVal = cat === "Excellent" ? `≤${mn.Excellent}` : cat === "Good" ? `${mn.Excellent+1}–${mn.Good}` : cat === "Average" ? `${mn.Good+1}–${mn.Average}` : `>${mn.Average}`;
+                    const fVal = cat === "Excellent" ? `≤${fn.Excellent}` : cat === "Good" ? `${fn.Excellent+1}–${fn.Good}` : cat === "Average" ? `${fn.Good+1}–${fn.Average}` : `>${fn.Average}`;
                     return (
                       <React.Fragment key={ag}>
                         <td className="p-2 text-center">{mVal}</td>
@@ -300,7 +300,7 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
             <p className="text-xs text-slate-500 mt-1 text-center">
               {phase === "exercise" && `${EXERCISE_DURATION - elapsed}s remaining`}
               {phase === "waiting" && `Pulse measurement starts in ${WAIT_DURATION - elapsed}s`}
-              {phase === "measuring" && `Count pulse â€” ${MEASURE_DURATION - elapsed}s remaining`}
+              {phase === "measuring" && `Count pulse — ${MEASURE_DURATION - elapsed}s remaining`}
             </p>
           </div>
         )}
@@ -317,12 +317,12 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
         {/* Phase Instructions */}
         {phase === "exercise" && (
           <div className="mx-4 mb-3 bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs text-blue-800">
-            ðŸŽµ Maintain cadence with metronome â€” 24 steps/min (96 bpm). Stay with the rhythm: Up-Up-Down-Down.
+            🎵 Maintain cadence with metronome — 24 steps/min (96 bpm). Stay with the rhythm: Up-Up-Down-Down.
           </div>
         )}
         {phase === "waiting" && (
           <div className="mx-4 mb-3 bg-orange-50 border border-orange-200 rounded-lg p-3 text-xs text-orange-800">
-            âœ‹ Client is seated and resting. Do NOT measure pulse yet. Wait for the full 1 minute before counting.
+            ✋ Client is seated and resting. Do NOT measure pulse yet. Wait for the full 1 minute before counting.
           </div>
         )}
         {phase === "measuring" && (
@@ -332,7 +332,7 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
         )}
         {phase === "done" && (
           <div className="mx-4 mb-3 mt-3 bg-green-50 border border-green-200 rounded-lg p-3 text-xs text-green-800">
-            âœ… 30-second counting window complete. Enter the pulse count below and multiply by 2 for HR (bpm).
+            ✅ 30-second counting window complete. Enter the pulse count below and multiply by 2 for HR (bpm).
           </div>
         )}
 
@@ -367,8 +367,8 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-end">
           <div>
             <Label className="text-xs font-semibold text-slate-600">30-Second Pulse Count</Label>
-            <p className="text-xs text-slate-500 mb-1">Enter beats counted over 30 sec â€” app will calculate bpm (Ã— 2)</p>
-            <Input type="number" placeholder="e.g. 45 beats â†’ 90 bpm"
+            <p className="text-xs text-slate-500 mb-1">Enter beats counted over 30 sec — app will calculate bpm (× 2)</p>
+            <Input type="number" placeholder="e.g. 45 beats → 90 bpm"
               onChange={e => setRecoveryHR(e.target.value ? String(parseInt(e.target.value) * 2) : "")}
               className="h-9 text-sm" />
           </div>
@@ -385,7 +385,7 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
             <div className="flex items-center justify-between">
               <div>
                 <p className={`font-bold text-base ${category.color}`}>{category.label} Aerobic Fitness</p>
-                <p className="text-xs text-slate-600 mt-0.5">Recovery HR: {recoveryHR} bpm Â· {ageGroup} years Â· {gender === "male" ? "Male" : "Female"}</p>
+                <p className="text-xs text-slate-600 mt-0.5">Recovery HR: {recoveryHR} bpm · {ageGroup} years · {gender === "male" ? "Male" : "Female"}</p>
               </div>
               <div className={`text-3xl font-bold ${category.color}`}>{recoveryHR}</div>
             </div>
@@ -403,11 +403,11 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
 
       {/* References */}
       <div className="bg-slate-100 border border-slate-200 rounded-lg p-4 text-xs text-slate-600 space-y-1">
-        <p className="font-semibold text-slate-700">ðŸ“– References</p>
-        <p>1. Montoye HJ, Willis PW III, Cunningham DA, &amp; Keller JB. (1969). Heart rate response to a modified Harvard step test: the Tecumseh study. <em>Research Quarterly for Exercise and Sport</em>, 40(1), 153â€“162.</p>
-        <p>2. Shephard RJ. (1969). A nomogram to calculate the oxygen cost of running at slow speeds. <em>Journal of Sports Medicine and Physical Fitness</em>, 9(1), 10â€“16.</p>
+        <p className="font-semibold text-slate-700">📖 References</p>
+        <p>1. Montoye HJ, Willis PW III, Cunningham DA, &amp; Keller JB. (1969). Heart rate response to a modified Harvard step test: the Tecumseh study. <em>Research Quarterly for Exercise and Sport</em>, 40(1), 153–162.</p>
+        <p>2. Shephard RJ. (1969). A nomogram to calculate the oxygen cost of running at slow speeds. <em>Journal of Sports Medicine and Physical Fitness</em>, 9(1), 10–16.</p>
         <p>3. American College of Sports Medicine. (2022). <em>ACSM's Guidelines for Exercise Testing and Prescription</em> (11th ed.). Wolters Kluwer.</p>
-        <p>4. Noonan V &amp; Dean E. (2000). Submaximal exercise testing: clinical application and interpretation. <em>Physical Therapy</em>, 80(8), 782â€“807.</p>
+        <p>4. Noonan V &amp; Dean E. (2000). Submaximal exercise testing: clinical application and interpretation. <em>Physical Therapy</em>, 80(8), 782–807.</p>
       </div>
 
       {/* Footer */}

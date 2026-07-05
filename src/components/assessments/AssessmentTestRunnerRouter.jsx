@@ -92,8 +92,8 @@ function ClientSelectorStep({ assessment, onSelect, onClose }) {
 // - If client is null and isStandaloneMode=false: Assumes client will be provided later (should not happen)
 //
 // Callers must respect this contract:
-// - Assessment Library (true standalone): NO client prop, isStandaloneMode={true} â†’ shows selector
-// - SOAP Notes, Client Profile, etc (already have client): PASS client prop, isStandaloneMode={false} â†’ goes straight to runner
+// - Assessment Library (true standalone): NO client prop, isStandaloneMode={true} → shows selector
+// - SOAP Notes, Client Profile, etc (already have client): PASS client prop, isStandaloneMode={false} → goes straight to runner
 // 
 // All four StandaloneWrapper components (400MeterWalk, 6MeterWalk, 8FootUpandGo, 6MinuteStep) now:
 // 1. Accept client prop
@@ -140,7 +140,7 @@ export default function AssessmentTestRunnerRouter({
     window.addEventListener('mouseup', onUp);
   };
 
-  // Floating notes panel â€” sits above the runner modal overlay
+  // Floating notes panel — sits above the runner modal overlay
   const notesSidebar = showNotes ? (
     <div
       className="fixed z-[10000] flex flex-col bg-white border border-slate-200 rounded-xl shadow-2xl"
@@ -151,7 +151,7 @@ export default function AssessmentTestRunnerRouter({
         onMouseDown={handleDragStart}
       >
         <span className="text-sm font-semibold text-slate-700">ðŸ“ Clinician Notes</span>
-        <button onClick={() => setShowNotes(false)} className="text-slate-400 hover:text-slate-600 text-lg leading-none">âœ•</button>
+        <button onClick={() => setShowNotes(false)} className="text-slate-400 hover:text-slate-600 text-lg leading-none">✕</button>
       </div>
       <textarea
         className="flex-1 w-full p-4 text-sm text-slate-700 bg-white border-none resize-none focus:outline-none focus:ring-0 placeholder-slate-400"
@@ -220,7 +220,7 @@ export default function AssessmentTestRunnerRouter({
     );
   }
 
-  // Assessments handled by TestRunner (not TestRunnerExtras) â€” force them through TestRunner
+  // Assessments handled by TestRunner (not TestRunnerExtras) — force them through TestRunner
   const testRunnerOnly = [
     'quickdash', 'quick dash',
 
@@ -231,7 +231,7 @@ export default function AssessmentTestRunnerRouter({
     'drop vertical jump', 'clock drawing', 'tinetti', 'poma',
     'dass-21', 'dass21', 'dass 21', 'hospital anxiety and depression', 'hads', 'clinical frailty scale',
   ];
-  // Precise GROC match â€” avoid matching "grocery"
+  // Precise GROC match — avoid matching "grocery"
   if (assessmentName.includes('global rating of change') || (assessmentName.includes('groc') && !assessmentName.includes('grocery'))) {
     return wrapWithNotes(
       <TestRunner

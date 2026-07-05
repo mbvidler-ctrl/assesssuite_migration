@@ -26,7 +26,7 @@ function useSidebar() {
   return context
 }
 
-// â”€â”€ SidebarProvider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarProvider ──────────────────────────────────────────────────────────
 function SidebarProviderInner(allProps, ref) {
   const { defaultOpen = true, open: openProp, onOpenChange: setOpenProp, className, style, children, ...props } = allProps
   const isMobile = useIsMobile()
@@ -74,7 +74,7 @@ function SidebarProviderInner(allProps, ref) {
 const SidebarProvider = React.forwardRef(SidebarProviderInner)
 SidebarProvider.displayName = "SidebarProvider"
 
-// â”€â”€ Sidebar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Sidebar ──────────────────────────────────────────────────────────────────
 function SidebarInner(allProps, ref) {
   const { side = "left", variant = "sidebar", collapsible = "offcanvas", className, children, ...props } = allProps
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
@@ -140,7 +140,7 @@ function SidebarInner(allProps, ref) {
 const Sidebar = React.forwardRef(SidebarInner)
 Sidebar.displayName = "Sidebar"
 
-// â”€â”€ SidebarTrigger â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarTrigger ───────────────────────────────────────────────────────────
 function SidebarTriggerInner(allProps, ref) {
   const { className, onClick, asChild = false, ...props } = allProps
   const { toggleSidebar } = useSidebar()
@@ -162,7 +162,7 @@ function SidebarTriggerInner(allProps, ref) {
 const SidebarTrigger = React.forwardRef(SidebarTriggerInner)
 SidebarTrigger.displayName = "SidebarTrigger"
 
-// â”€â”€ SidebarRail â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarRail ──────────────────────────────────────────────────────────────
 function SidebarRailInner(allProps, ref) {
   const { className, ...props } = allProps
   const { toggleSidebar } = useSidebar()
@@ -190,7 +190,7 @@ function SidebarRailInner(allProps, ref) {
 const SidebarRail = React.forwardRef(SidebarRailInner)
 SidebarRail.displayName = "SidebarRail"
 
-// â”€â”€ SidebarInset â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarInset ─────────────────────────────────────────────────────────────
 function SidebarInsetInner(allProps, ref) {
   const { className, ...props } = allProps
   return (
@@ -208,7 +208,7 @@ function SidebarInsetInner(allProps, ref) {
 const SidebarInset = React.forwardRef(SidebarInsetInner)
 SidebarInset.displayName = "SidebarInset"
 
-// â”€â”€ SidebarInput â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarInput ─────────────────────────────────────────────────────────────
 function SidebarInputInner(allProps, ref) {
   const { className, ...props } = allProps
   return <Input ref={ref} data-sidebar="input" className={cn("h-8 w-full bg-background shadow-none focus-visible:ring-2 focus-visible:ring-sidebar-ring", className)} {...props} />
@@ -216,7 +216,7 @@ function SidebarInputInner(allProps, ref) {
 const SidebarInput = React.forwardRef(SidebarInputInner)
 SidebarInput.displayName = "SidebarInput"
 
-// â”€â”€ SidebarHeader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarHeader ────────────────────────────────────────────────────────────
 function SidebarHeaderInner(allProps, ref) {
   const { className, ...props } = allProps
   return <div ref={ref} data-sidebar="header" className={cn("flex flex-col gap-2 p-2", className)} {...props} />
@@ -224,7 +224,7 @@ function SidebarHeaderInner(allProps, ref) {
 const SidebarHeader = React.forwardRef(SidebarHeaderInner)
 SidebarHeader.displayName = "SidebarHeader"
 
-// â”€â”€ SidebarFooter â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarFooter ────────────────────────────────────────────────────────────
 function SidebarFooterInner(allProps, ref) {
   const { className, ...props } = allProps
   return <div ref={ref} data-sidebar="footer" className={cn("flex flex-col gap-2 p-2", className)} {...props} />
@@ -232,7 +232,7 @@ function SidebarFooterInner(allProps, ref) {
 const SidebarFooter = React.forwardRef(SidebarFooterInner)
 SidebarFooter.displayName = "SidebarFooter"
 
-// â”€â”€ SidebarSeparator â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarSeparator ─────────────────────────────────────────────────────────
 function SidebarSeparatorInner(allProps, ref) {
   const { className, ...props } = allProps
   return <Separator ref={ref} data-sidebar="separator" className={cn("mx-2 w-auto bg-sidebar-border", className)} {...props} />
@@ -240,7 +240,7 @@ function SidebarSeparatorInner(allProps, ref) {
 const SidebarSeparator = React.forwardRef(SidebarSeparatorInner)
 SidebarSeparator.displayName = "SidebarSeparator"
 
-// â”€â”€ SidebarContent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarContent ───────────────────────────────────────────────────────────
 function SidebarContentInner(allProps, ref) {
   const { className, ...props } = allProps
   return <div ref={ref} data-sidebar="content" className={cn("flex min-h-0 flex-1 flex-col gap-2 overflow-auto group-data-[collapsible=icon]:overflow-hidden", className)} {...props} />
@@ -248,7 +248,7 @@ function SidebarContentInner(allProps, ref) {
 const SidebarContent = React.forwardRef(SidebarContentInner)
 SidebarContent.displayName = "SidebarContent"
 
-// â”€â”€ SidebarGroup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarGroup ─────────────────────────────────────────────────────────────
 function SidebarGroupInner(allProps, ref) {
   const { className, ...props } = allProps
   return <div ref={ref} data-sidebar="group" className={cn("relative flex w-full min-w-0 flex-col p-2", className)} {...props} />
@@ -256,7 +256,7 @@ function SidebarGroupInner(allProps, ref) {
 const SidebarGroup = React.forwardRef(SidebarGroupInner)
 SidebarGroup.displayName = "SidebarGroup"
 
-// â”€â”€ SidebarGroupLabel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarGroupLabel ────────────────────────────────────────────────────────
 function SidebarGroupLabelInner(allProps, ref) {
   const { className, asChild = false, ...props } = allProps
   const Comp = asChild ? Slot : "div"
@@ -276,7 +276,7 @@ function SidebarGroupLabelInner(allProps, ref) {
 const SidebarGroupLabel = React.forwardRef(SidebarGroupLabelInner)
 SidebarGroupLabel.displayName = "SidebarGroupLabel"
 
-// â”€â”€ SidebarGroupAction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarGroupAction ───────────────────────────────────────────────────────
 function SidebarGroupActionInner(allProps, ref) {
   const { className, asChild = false, ...props } = allProps
   const Comp = asChild ? Slot : "button"
@@ -297,7 +297,7 @@ function SidebarGroupActionInner(allProps, ref) {
 const SidebarGroupAction = React.forwardRef(SidebarGroupActionInner)
 SidebarGroupAction.displayName = "SidebarGroupAction"
 
-// â”€â”€ SidebarGroupContent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarGroupContent ──────────────────────────────────────────────────────
 function SidebarGroupContentInner(allProps, ref) {
   const { className, ...props } = allProps
   return <div ref={ref} data-sidebar="group-content" className={cn("w-full text-sm", className)} {...props} />
@@ -305,7 +305,7 @@ function SidebarGroupContentInner(allProps, ref) {
 const SidebarGroupContent = React.forwardRef(SidebarGroupContentInner)
 SidebarGroupContent.displayName = "SidebarGroupContent"
 
-// â”€â”€ SidebarMenu â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarMenu ──────────────────────────────────────────────────────────────
 function SidebarMenuInner(allProps, ref) {
   const { className, ...props } = allProps
   return <ul ref={ref} data-sidebar="menu" className={cn("flex w-full min-w-0 flex-col gap-1", className)} {...props} />
@@ -313,7 +313,7 @@ function SidebarMenuInner(allProps, ref) {
 const SidebarMenu = React.forwardRef(SidebarMenuInner)
 SidebarMenu.displayName = "SidebarMenu"
 
-// â”€â”€ SidebarMenuItem â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarMenuItem ──────────────────────────────────────────────────────────
 function SidebarMenuItemInner(allProps, ref) {
   const { className, ...props } = allProps
   return <li ref={ref} data-sidebar="menu-item" className={cn("group/menu-item relative", className)} {...props} />
@@ -321,7 +321,7 @@ function SidebarMenuItemInner(allProps, ref) {
 const SidebarMenuItem = React.forwardRef(SidebarMenuItemInner)
 SidebarMenuItem.displayName = "SidebarMenuItem"
 
-// â”€â”€ sidebarMenuButtonVariants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── sidebarMenuButtonVariants ────────────────────────────────────────────────
 const sidebarMenuButtonVariants = cva(
   "peer/menu-button flex w-full items-center gap-2 overflow-hidden rounded-md p-2 text-left text-sm outline-none ring-sidebar-ring transition-[width,height,padding] hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 active:bg-sidebar-accent active:text-sidebar-accent-foreground disabled:pointer-events-none disabled:opacity-50 group-has-[[data-sidebar=menu-action]]/menu-item:pr-8 aria-disabled:pointer-events-none aria-disabled:opacity-50 data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground data-[state=open]:hover:bg-sidebar-accent data-[state=open]:hover:text-sidebar-accent-foreground group-data-[collapsible=icon]:!size-8 group-data-[collapsible=icon]:!p-2 [&>span:last-child]:truncate [&>svg]:size-4 [&>svg]:shrink-0",
   {
@@ -340,7 +340,7 @@ const sidebarMenuButtonVariants = cva(
   }
 )
 
-// â”€â”€ SidebarMenuButton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarMenuButton ────────────────────────────────────────────────────────
 function SidebarMenuButtonInner(allProps, ref) {
   const { asChild = false, isActive = false, variant = "default", size = "default", tooltip, className, ...props } = allProps
   const Comp = asChild ? Slot : "button"
@@ -370,7 +370,7 @@ function SidebarMenuButtonInner(allProps, ref) {
 const SidebarMenuButton = React.forwardRef(SidebarMenuButtonInner)
 SidebarMenuButton.displayName = "SidebarMenuButton"
 
-// â”€â”€ SidebarMenuAction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarMenuAction ────────────────────────────────────────────────────────
 function SidebarMenuActionInner(allProps, ref) {
   const { className, asChild = false, showOnHover = false, ...props } = allProps
   const Comp = asChild ? Slot : "button"
@@ -395,7 +395,7 @@ function SidebarMenuActionInner(allProps, ref) {
 const SidebarMenuAction = React.forwardRef(SidebarMenuActionInner)
 SidebarMenuAction.displayName = "SidebarMenuAction"
 
-// â”€â”€ SidebarMenuBadge â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarMenuBadge ─────────────────────────────────────────────────────────
 function SidebarMenuBadgeInner(allProps, ref) {
   const { className, ...props } = allProps
   return (
@@ -418,7 +418,7 @@ function SidebarMenuBadgeInner(allProps, ref) {
 const SidebarMenuBadge = React.forwardRef(SidebarMenuBadgeInner)
 SidebarMenuBadge.displayName = "SidebarMenuBadge"
 
-// â”€â”€ SidebarMenuSkeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarMenuSkeleton ──────────────────────────────────────────────────────
 function SidebarMenuSkeletonInner(allProps, ref) {
   const { className, showIcon = false, ...props } = allProps
   const width = React.useMemo(function() { return (Math.floor(Math.random() * 40) + 50) + "%" }, [])
@@ -432,7 +432,7 @@ function SidebarMenuSkeletonInner(allProps, ref) {
 const SidebarMenuSkeleton = React.forwardRef(SidebarMenuSkeletonInner)
 SidebarMenuSkeleton.displayName = "SidebarMenuSkeleton"
 
-// â”€â”€ SidebarMenuSub â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarMenuSub ───────────────────────────────────────────────────────────
 function SidebarMenuSubInner(allProps, ref) {
   const { className, ...props } = allProps
   return (
@@ -451,14 +451,14 @@ function SidebarMenuSubInner(allProps, ref) {
 const SidebarMenuSub = React.forwardRef(SidebarMenuSubInner)
 SidebarMenuSub.displayName = "SidebarMenuSub"
 
-// â”€â”€ SidebarMenuSubItem â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarMenuSubItem ───────────────────────────────────────────────────────
 function SidebarMenuSubItemInner(allProps, ref) {
   return <li ref={ref} {...allProps} />
 }
 const SidebarMenuSubItem = React.forwardRef(SidebarMenuSubItemInner)
 SidebarMenuSubItem.displayName = "SidebarMenuSubItem"
 
-// â”€â”€ SidebarMenuSubButton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── SidebarMenuSubButton ─────────────────────────────────────────────────────
 function SidebarMenuSubButtonInner(allProps, ref) {
   const { asChild = false, size = "md", isActive, className, ...props } = allProps
   const Comp = asChild ? Slot : "a"

@@ -80,8 +80,8 @@ export default function SLRRunner({ onSave, onClose }) {
     const formatSide = (label, side) => {
       if (!side) return '';
       let s = `  ${label}:\n`;
-      s += `    Symptom onset angle: ${side.symptom_onset_angle_deg}Â°\n`;
-      if (side.max_flexion_angle_deg) s += `    Max flexion reached: ${side.max_flexion_angle_deg}Â°\n`;
+      s += `    Symptom onset angle: ${side.symptom_onset_angle_deg}°\n`;
+      if (side.max_flexion_angle_deg) s += `    Max flexion reached: ${side.max_flexion_angle_deg}°\n`;
       if (side.symptom_location) s += `    Symptom location: ${side.symptom_location}\n`;
       if (side.symptom_quality) s += `    Symptom quality: ${side.symptom_quality}\n`;
       if (side.ankle_dorsiflexion_effect) s += `    Effect of ankle dorsiflexion: ${side.ankle_dorsiflexion_effect}\n`;
@@ -90,7 +90,7 @@ export default function SLRRunner({ onSave, onClose }) {
       return s;
     };
 
-    let soapText = `â€¢ Straight Leg Raise Test (SLR):\n`;
+    let soapText = `• Straight Leg Raise Test (SLR):\n`;
     soapText += formatSide('Left', leftSide);
     soapText += formatSide('Right', rightSide);
     if (crossedSLR && crossedSLR !== 'not_tested') soapText += `  Crossed SLR: ${crossedSLR}\n`;
@@ -143,38 +143,38 @@ export default function SLRRunner({ onSave, onClose }) {
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Info className="w-5 h-5 text-blue-600" />
-                  ðŸ“‹ Test Protocol & Administration
+                  📋 Test Protocol & Administration
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">
                 <p><strong>Position:</strong> Client supine, tested leg relaxed, knee extended, ankle neutral.</p>
                 <p><strong>Procedure:</strong> Slowly flex hip with knee straight. Stop when symptoms are produced. Ask about location and quality. Apply sensitising manoeuvres (ankle dorsiflexion, cervical flexion).</p>
                 <p className="italic">"Tell me if you feel any pain, tingling, or numbness and exactly where you feel it."</p>
-                <p><strong>Positive:</strong> Radicular symptoms <strong>below the knee</strong>, onset between <strong>30â€“70Â°</strong>, increased by ankle dorsiflexion or cervical flexion, and relieved by opposite manoeuvres.</p>
+                <p><strong>Positive:</strong> Radicular symptoms <strong>below the knee</strong>, onset between <strong>30–70°</strong>, increased by ankle dorsiflexion or cervical flexion, and relieved by opposite manoeuvres.</p>
                 <p><strong>Interpretation:</strong> Pain only in hamstrings or low back without distal radiation = not positive for neural tension. Crossed SLR positive = high specificity for disc herniation.</p>
               </CardContent>
             </Card>
 
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Diagnostic Accuracy</p>
+              <p className="font-semibold text-slate-700">📊 Diagnostic Accuracy</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Metric</th><th className="p-2 text-center">SLR</th><th className="p-2 text-center">Crossed SLR</th></tr></thead>
                   <tbody>
-                    <tr className="border-t"><td className="p-2">Sensitivity</td><td className="p-2 text-center">~80â€“91%</td><td className="p-2 text-center">~28%</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">Specificity</td><td className="p-2 text-center">~26â€“38%</td><td className="p-2 text-center">~90%</td></tr>
+                    <tr className="border-t"><td className="p-2">Sensitivity</td><td className="p-2 text-center">~80–91%</td><td className="p-2 text-center">~28%</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">Specificity</td><td className="p-2 text-center">~26–38%</td><td className="p-2 text-center">~90%</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-slate-500">SLR: high sensitivity, low specificity. Crossed SLR: high specificity. Best used alongside neurological exam. Source: DevillÃ© et al. (2000).</p>
+              <p className="text-xs text-slate-500">SLR: high sensitivity, low specificity. Crossed SLR: high specificity. Best used alongside neurological exam. Source: Devillé et al. (2000).</p>
             </div>
 
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>DevillÃ© WLJM et al. (2000). The test of LasÃ¨gue: systematic review of the accuracy in diagnosing herniated discs. <em>Spine, 25</em>(9), 1140â€“1147.</p>
-              <p>Urban LM. (1981). The straight-leg-raising test: a review. <em>Journal of Orthopaedic and Sports Physical Therapy, 2</em>(3), 117â€“133.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Devillé WLJM et al. (2000). The test of Lasègue: systematic review of the accuracy in diagnosing herniated discs. <em>Spine, 25</em>(9), 1140–1147.</p>
+              <p>Urban LM. (1981). The straight-leg-raising test: a review. <em>Journal of Orthopaedic and Sports Physical Therapy, 2</em>(3), 117–133.</p>
             </div>
 
             <div className="grid md:grid-cols-2 gap-6">
@@ -184,7 +184,7 @@ export default function SLRRunner({ onSave, onClose }) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label>Symptom Onset Angle (Â°)</Label>
+                    <Label>Symptom Onset Angle (°)</Label>
                     <Input
                       type="number"
                       value={leftData.symptom_onset_angle}
@@ -194,7 +194,7 @@ export default function SLRRunner({ onSave, onClose }) {
                     />
                   </div>
                   <div>
-                    <Label>Max Flexion Reached (Â°)</Label>
+                    <Label>Max Flexion Reached (°)</Label>
                     <Input
                       type="number"
                       value={leftData.max_flexion_angle}
@@ -286,7 +286,7 @@ export default function SLRRunner({ onSave, onClose }) {
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label>Symptom Onset Angle (Â°)</Label>
+                    <Label>Symptom Onset Angle (°)</Label>
                     <Input
                       type="number"
                       value={rightData.symptom_onset_angle}
@@ -296,7 +296,7 @@ export default function SLRRunner({ onSave, onClose }) {
                     />
                   </div>
                   <div>
-                    <Label>Max Flexion Reached (Â°)</Label>
+                    <Label>Max Flexion Reached (°)</Label>
                     <Input
                       type="number"
                       value={rightData.max_flexion_angle}

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
 
-// Normative data for vertical jump height (cm) â€” Lewis et al. / ACSM
+// Normative data for vertical jump height (cm) — Lewis et al. / ACSM
 const NORMS = {
   male: [
     { ageMin: 15, ageMax: 19, excellent: 65, good: 55, avg: 45, fair: 38, poor: 0 },
@@ -60,8 +60,8 @@ export default function VerticalJumpTestSargentJumpRunner({ client, onSave, onCl
 
   const handleSave = () => {
     if (!standingReach || jumpReaches.length === 0) { toast.error("Enter standing reach and at least one jump trial"); return; }
-    const trialsText = jumpHeights.map((h, i) => `  Trial ${i + 1}: Reach ${jumpReaches[i]} cm â†’ Jump Height ${h} cm`).join("\n");
-    const soap = `â€¢ Vertical Jump Test (Sargent Jump)\n  Standing Reach: ${standingReach} cm\n  Best Jump Height: ${bestHeight} cm${cat ? ` â€” ${cat.label}` : ""}\n\n  Trials:\n${trialsText}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Measures explosive lower-body power. Jump height = jump reach âˆ’ standing reach.\n  Reference: ACSM; Lewis AM (1974) formula for peak power estimation.`;
+    const trialsText = jumpHeights.map((h, i) => `  Trial ${i + 1}: Reach ${jumpReaches[i]} cm → Jump Height ${h} cm`).join("\n");
+    const soap = `• Vertical Jump Test (Sargent Jump)\n  Standing Reach: ${standingReach} cm\n  Best Jump Height: ${bestHeight} cm${cat ? ` — ${cat.label}` : ""}\n\n  Trials:\n${trialsText}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Measures explosive lower-body power. Jump height = jump reach − standing reach.\n  Reference: ACSM; Lewis AM (1974) formula for peak power estimation.`;
     onSave({ status: "completed", result_value: bestHeight, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "vertical_jump_sargent", standing_reach_cm: parseFloat(standingReach), jump_reaches_cm: jumpReaches.map(parseFloat), jump_heights_cm: jumpHeights, best_jump_height_cm: bestHeight, classification: cat?.label } });
     toast.success("Saved.");
   };
@@ -76,24 +76,24 @@ export default function VerticalJumpTestSargentJumpRunner({ client, onSave, onCl
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 space-y-1">
-            <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />ðŸ“‹ Protocol & Administration</p>
+            <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" />📋 Protocol & Administration</p>
             <p><strong>Standing Reach:</strong> Dominant hand flat against wall, feet flat on ground. Mark highest fingertip point (chalk on fingertips).</p>
             <p><strong>Jump:</strong> From a standing position, jump as high as possible and touch the wall at peak. Countermovement (arm swing allowed).</p>
             <p className="italic">"Jump as high as you can and mark the wall at your highest point."</p>
-            <p><strong>Measure:</strong> Jump Height = Jump Reach âˆ’ Standing Reach. Record to nearest 0.5 cm.</p>
+            <p><strong>Measure:</strong> Jump Height = Jump Reach − Standing Reach. Record to nearest 0.5 cm.</p>
             <p><strong>Trials:</strong> 3 attempts with 30s rest. Record best height.</p>
           </div>
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Norms â€” Sargent Jump Height (cm)</p>
+            <p className="font-semibold text-slate-700">📊 Norms — Sargent Jump Height (cm)</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
-                <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20â€“29</th><th className="p-2 text-center">Men 40â€“49</th><th className="p-2 text-center">Women 20â€“29</th><th className="p-2 text-center">Women 40â€“49</th></tr></thead>
+                <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20–29</th><th className="p-2 text-center">Men 40–49</th><th className="p-2 text-center">Women 20–29</th><th className="p-2 text-center">Women 40–49</th></tr></thead>
                 <tbody>
-                  <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">â‰¥70</td><td className="p-2 text-center">â‰¥57</td><td className="p-2 text-center">â‰¥53</td><td className="p-2 text-center">â‰¥42</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">58â€“69</td><td className="p-2 text-center">47â€“56</td><td className="p-2 text-center">44â€“52</td><td className="p-2 text-center">33â€“41</td></tr>
-                  <tr className="border-t"><td className="p-2">Average</td><td className="p-2 text-center">48â€“57</td><td className="p-2 text-center">37â€“46</td><td className="p-2 text-center">35â€“43</td><td className="p-2 text-center">25â€“32</td></tr>
+                  <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">≥70</td><td className="p-2 text-center">≥57</td><td className="p-2 text-center">≥53</td><td className="p-2 text-center">≥42</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">58–69</td><td className="p-2 text-center">47–56</td><td className="p-2 text-center">44–52</td><td className="p-2 text-center">33–41</td></tr>
+                  <tr className="border-t"><td className="p-2">Average</td><td className="p-2 text-center">48–57</td><td className="p-2 text-center">37–46</td><td className="p-2 text-center">35–43</td><td className="p-2 text-center">25–32</td></tr>
                   <tr className="border-t bg-white"><td className="p-2">Poor</td><td className="p-2 text-center">&lt;48</td><td className="p-2 text-center">&lt;37</td><td className="p-2 text-center">&lt;35</td><td className="p-2 text-center">&lt;25</td></tr>
                 </tbody>
               </table>
@@ -102,8 +102,8 @@ export default function VerticalJumpTestSargentJumpRunner({ client, onSave, onCl
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
-            <p>Sargent DA. (1921). The physical test of a man. <em>American Physical Education Review, 26</em>(4), 188â€“194.</p>
+            <p className="font-semibold">📖 Reference</p>
+            <p>Sargent DA. (1921). The physical test of a man. <em>American Physical Education Review, 26</em>(4), 188–194.</p>
             <p>Johnson BL & Nelson JK. (1979). <em>Practical Measurements for Evaluation in Physical Education</em> (4th ed.). Burgess Publishing.</p>
           </div>
 
@@ -121,7 +121,7 @@ export default function VerticalJumpTestSargentJumpRunner({ client, onSave, onCl
               </div>
               {jumpReaches.map((jr, i) => (
                 <div key={i} className="flex justify-between items-center bg-indigo-50 px-3 py-2 rounded-lg">
-                  <span className="text-sm">Trial {i + 1}: Reach <span className="font-bold">{jr} cm</span> â†’ Height <span className="font-bold text-indigo-700">{jumpHeights[i]} cm</span></span>
+                  <span className="text-sm">Trial {i + 1}: Reach <span className="font-bold">{jr} cm</span> → Height <span className="font-bold text-indigo-700">{jumpHeights[i]} cm</span></span>
                   <Button variant="ghost" size="icon" onClick={() => setJumpReaches(jumpReaches.filter((_, x) => x !== i))}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
                 </div>
               ))}
@@ -144,7 +144,7 @@ export default function VerticalJumpTestSargentJumpRunner({ client, onSave, onCl
                 const rows = NORMS[gender === "male" ? "male" : "female"];
                 const row = rows?.find(r => age >= r.ageMin && age <= r.ageMax);
                 if (!row) return null;
-                return <p>Excellent â‰¥{row.excellent} | Good â‰¥{row.good} | Average â‰¥{row.avg} | Fair â‰¥{row.fair} cm</p>;
+                return <p>Excellent ≥{row.excellent} | Good ≥{row.good} | Average ≥{row.avg} | Fair ≥{row.fair} cm</p>;
               })()}
             </div>
           )}

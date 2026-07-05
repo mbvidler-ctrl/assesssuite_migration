@@ -123,12 +123,12 @@ export default function BodyMeasurementsRunner({ onSave, onClose, assessmentName
       };
     }
 
-    const soapText = `â€¢ ${assessmentName || 'Body Measurements'}\n  Result: ${resultValue}`;
+    const soapText = `• ${assessmentName || 'Body Measurements'}\n  Result: ${resultValue}`;
     onSave({
       result_value: resultValue,
       additional_data: { ...additionalData, soap_text: soapText },
       notes: notes,
-      unit_of_measure: isHeight ? "cm" : isWeight ? "kg" : isWaist ? "cm" : isBMI ? "kg/mÂ²" : "",
+      unit_of_measure: isHeight ? "cm" : isWeight ? "kg" : isWaist ? "cm" : isBMI ? "kg/m²" : "",
       assessment_date: new Date().toISOString().split('T')[0]
     });
   };
@@ -161,7 +161,7 @@ export default function BodyMeasurementsRunner({ onSave, onClose, assessmentName
                 <p><strong>Height:</strong> Measured barefoot, standing upright against stadiometer. Record in cm.</p>
                 <p><strong>Weight:</strong> Measured in light clothing, after voiding. Record in kg.</p>
                 <p><strong>Waist:</strong> Measured at midpoint between lowest rib and iliac crest, at end of normal expiration. Record in cm.</p>
-                <p><strong>BMI:</strong> Weight (kg) / HeightÂ² (mÂ²). Screening tool, doesn't measure body composition directly.</p>
+                <p><strong>BMI:</strong> Weight (kg) / Height² (m²). Screening tool, doesn't measure body composition directly.</p>
               </CardContent>
             </Card>
 
@@ -215,7 +215,7 @@ export default function BodyMeasurementsRunner({ onSave, onClose, assessmentName
               <Card className={`${bmiInterp.bg} border-2`}>
                 <CardHeader>
                   <CardTitle className={`text-xl ${bmiInterp.color}`}>
-                    BMI: {bmi} kg/mÂ²
+                    BMI: {bmi} kg/m²
                   </CardTitle>
                 </CardHeader>
                 <CardContent className={bmiInterp.color}>

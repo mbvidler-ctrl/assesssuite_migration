@@ -41,7 +41,7 @@ export default function GAD7GeneralizedAnxietyDisorder7Runner({ client, onSave, 
   const handleSave = () => {
     if (!allAnswered) { toast.error("Please answer all 7 questions"); return; }
     const qLines = QUESTIONS.map((q, i) => `  Q${i + 1} (${OPTIONS[responses[i]]}): ${responses[i]}`).join("\n");
-    const soap = `â€¢ GAD-7 Generalised Anxiety Disorder Scale\n  Total Score: ${total}/21 â€” ${interp.label}\n  Suggested action: ${interp.action}\n\n  Item Responses:\n${qLines}${functional !== null ? `\n  Functional Impairment: ${FUNCTIONAL_OPTS[functional]}` : ""}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: 0â€“4 minimal | 5â€“9 mild | 10â€“14 moderate | 15â€“21 severe\n  MCID: 5-point change. Refer if score â‰¥10 or Q9 > 0.\n  Reference: Spitzer RL et al. (2006). A brief measure for assessing generalised anxiety disorder. Arch Intern Med, 166(10):1092-7.`;
+    const soap = `• GAD-7 Generalised Anxiety Disorder Scale\n  Total Score: ${total}/21 — ${interp.label}\n  Suggested action: ${interp.action}\n\n  Item Responses:\n${qLines}${functional !== null ? `\n  Functional Impairment: ${FUNCTIONAL_OPTS[functional]}` : ""}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: 0–4 minimal | 5–9 mild | 10–14 moderate | 15–21 severe\n  MCID: 5-point change. Refer if score ≥10 or Q9 > 0.\n  Reference: Spitzer RL et al. (2006). A brief measure for assessing generalised anxiety disorder. Arch Intern Med, 166(10):1092-7.`;
     onSave({ status: "completed", result_value: total, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", responses, severity: interp.label, functional_impairment: functional !== null ? FUNCTIONAL_OPTS[functional] : null } });
     toast.success("GAD-7 saved.");
   };
@@ -52,10 +52,10 @@ export default function GAD7GeneralizedAnxietyDisorder7Runner({ client, onSave, 
         <div className="sticky top-0 bg-white z-10 p-5 border-b flex justify-between items-start">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">GAD-7</h2>
-            <p className="text-slate-500 text-sm mt-0.5">Generalised Anxiety Disorder â€” 7 items</p>
+            <p className="text-slate-500 text-sm mt-0.5">Generalised Anxiety Disorder — 7 items</p>
           </div>
           <div className="flex items-center gap-3">
-            {allAnswered && <div className={`px-3 py-1 rounded-full text-sm font-semibold border ${interp.color}`}>{total}/21 â€” {interp.label}</div>}
+            {allAnswered && <div className={`px-3 py-1 rounded-full text-sm font-semibold border ${interp.color}`}>{total}/21 — {interp.label}</div>}
             <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
           </div>
         </div>

@@ -11,16 +11,16 @@ const TASKS = [
   {
     name: "Unilateral Stance",
     description: "Stand on one leg on a foam surface. Eyes open. Score based on duration and quality.",
-    scoring: "0=Unable, 1=<5s, 2=5â€“10s, 3=10â€“20s, 4=20â€“30s with difficulty, 5=30s stable",
+    scoring: "0=Unable, 1=<5s, 2=5–10s, 3=10–20s, 4=20–30s with difficulty, 5=30s stable",
   },
   {
     name: "Tandem Walking",
     description: "Walk heel-to-toe along a 3m line. 10 steps total.",
-    scoring: "0=Unable, 1=â‰¥4 steps off, 2=2â€“3 steps off, 3=1 step off, 4=Completed with arm raise, 5=Perfect",
+    scoring: "0=Unable, 1=≥4 steps off, 2=2–3 steps off, 3=1 step off, 4=Completed with arm raise, 5=Perfect",
   },
   {
-    name: "180Â° Tandem Pivot",
-    description: "Turn 180Â° using small steps while maintaining tandem stance.",
+    name: "180° Tandem Pivot",
+    description: "Turn 180° using small steps while maintaining tandem stance.",
     scoring: "0=Unable, 1=Major difficulty, 2=Loses tandem 2+, 3=Loses tandem once, 4=Completed slowly, 5=Smooth and controlled",
   },
   {
@@ -31,17 +31,17 @@ const TASKS = [
   {
     name: "Hopping Forward",
     description: "Hop forward on one foot for 2m. Repeated on other foot.",
-    scoring: "0=Unable, 1=1â€“2 hops only, 2=<1m, 3=1â€“2m with difficulty, 4=2m with arm use, 5=2m controlled",
+    scoring: "0=Unable, 1=1–2 hops only, 2=<1m, 3=1–2m with difficulty, 4=2m with arm use, 5=2m controlled",
   },
   {
     name: "Crouch and Walk",
-    description: "Walk 3m in a crouched position (knees bent ~45Â°), return to start.",
+    description: "Walk 3m in a crouched position (knees bent ~45°), return to start.",
     scoring: "0=Unable, 1=Falls or uses support, 2=Cannot maintain crouch, 3=Crouch inconsistent, 4=Completed slowly, 5=Fluid and controlled",
   },
   {
     name: "Lateral Dodging",
     description: "Walk forward, dodge around 3 cones placed 1m apart.",
-    scoring: "0=Unable, 1=Hits â‰¥2 cones, 2=Hits 1 cone, 3=Avoids but slow, 4=Adequate with minor imbalance, 5=Smooth and fast",
+    scoring: "0=Unable, 1=Hits ≥2 cones, 2=Hits 1 cone, 3=Avoids but slow, 4=Adequate with minor imbalance, 5=Smooth and fast",
   },
   {
     name: "Walking and Looking",
@@ -76,8 +76,8 @@ const TASKS = [
 ];
 
 function getInterpretation(score) {
-  if (score >= 55) return { label: "Community Ambulatory â€” High Level", color: "text-green-700", bg: "bg-green-50 border-green-200" };
-  if (score >= 40) return { label: "Community Ambulatory â€” Moderate Level", color: "text-blue-700", bg: "bg-blue-50 border-blue-200" };
+  if (score >= 55) return { label: "Community Ambulatory — High Level", color: "text-green-700", bg: "bg-green-50 border-green-200" };
+  if (score >= 40) return { label: "Community Ambulatory — Moderate Level", color: "text-blue-700", bg: "bg-blue-50 border-blue-200" };
   if (score >= 25) return { label: "Limited Community Ambulation", color: "text-yellow-700", bg: "bg-yellow-50 border-yellow-200" };
   return { label: "Supervised/Supported Ambulation Required", color: "text-red-700", bg: "bg-red-50 border-red-200" };
 }
@@ -115,7 +115,7 @@ export default function CommunityBalanceMobilityScaleCBMRunner({ client, onSave,
       ? `\n\n  Post-Test Vitals:${postVitals.heartRate ? `\n    Heart Rate: ${postVitals.heartRate} bpm` : ""}${postVitals.bloodPressure ? `\n    Blood Pressure: ${postVitals.bloodPressure} mmHg` : ""}`
       : "";
 
-    const soap_text = `â€¢ Community Balance & Mobility Scale (CB&M)\n  Total Score: ${totalScore}/65\n  Classification: ${interp.label}` +
+    const soap_text = `• Community Balance & Mobility Scale (CB&M)\n  Total Score: ${totalScore}/65\n  Classification: ${interp.label}` +
       preVitalsText +
       `\n\n  Item Scores:\n${scoreLines}` +
       postVitalsText +
@@ -143,7 +143,7 @@ export default function CommunityBalanceMobilityScaleCBMRunner({ client, onSave,
       <div className="p-5 border-b bg-gradient-to-r from-blue-50 to-slate-50 flex justify-between items-start shrink-0">
         <div>
           <h2 className="text-xl font-bold text-slate-900">Community Balance & Mobility Scale (CB&M)</h2>
-          <p className="text-sm text-slate-500 mt-0.5">13 tasks Â· 0â€“65 total Â· Community-level balance assessment</p>
+          <p className="text-sm text-slate-500 mt-0.5">13 tasks · 0–65 total · Community-level balance assessment</p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
       </div>
@@ -171,21 +171,21 @@ export default function CommunityBalanceMobilityScaleCBMRunner({ client, onSave,
                   <li>3 metre straight walkway marked on floor</li>
                   <li>3 traffic cones</li>
                   <li>Stable 20cm step/stair</li>
-                  <li>Tray with 2â€“3 cups (partially filled)</li>
+                  <li>Tray with 2–3 cups (partially filled)</li>
                   <li>Stopwatch</li>
                   <li>Full flight of stairs (or equivalent)</li>
                 </ul>
               </div>
               <div>
                 <p className="font-semibold mb-1">General Scoring</p>
-                <p className="text-blue-800">Each of 13 tasks is rated 0â€“5. Total maximum = 65. Each task has specific behavioural criteria â€” observe the client and select the highest score that matches their performance.</p>
+                <p className="text-blue-800">Each of 13 tasks is rated 0–5. Total maximum = 65. Each task has specific behavioural criteria — observe the client and select the highest score that matches their performance.</p>
               </div>
               <div className="bg-amber-50 border border-amber-200 rounded p-3">
                 <p className="font-semibold text-amber-800 mb-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Stop Criteria</p>
                 <ul className="list-disc list-inside text-amber-800 space-y-0.5">
                   <li>Chest pain, dizziness, or loss of balance causing fall risk</li>
                   <li>Client refuses or expresses significant pain</li>
-                  <li>Clinician judgement â€” safety first</li>
+                  <li>Clinician judgement — safety first</li>
                 </ul>
               </div>
               <div className="bg-white border border-blue-200 rounded p-3 text-xs">
@@ -195,15 +195,15 @@ export default function CommunityBalanceMobilityScaleCBMRunner({ client, onSave,
                     <tr><th className="p-1.5 text-left">Score</th><th className="p-1.5 text-left">Classification</th></tr>
                   </thead>
                   <tbody>
-                    <tr className="border-t"><td className="p-1.5">55â€“65</td><td className="p-1.5">Community ambulatory â€” high level</td></tr>
-                    <tr className="border-t bg-blue-50"><td className="p-1.5">40â€“54</td><td className="p-1.5">Community ambulatory â€” moderate level</td></tr>
-                    <tr className="border-t"><td className="p-1.5">25â€“39</td><td className="p-1.5">Limited community ambulation</td></tr>
+                    <tr className="border-t"><td className="p-1.5">55–65</td><td className="p-1.5">Community ambulatory — high level</td></tr>
+                    <tr className="border-t bg-blue-50"><td className="p-1.5">40–54</td><td className="p-1.5">Community ambulatory — moderate level</td></tr>
+                    <tr className="border-t"><td className="p-1.5">25–39</td><td className="p-1.5">Limited community ambulation</td></tr>
                     <tr className="border-t bg-blue-50"><td className="p-1.5">&lt;25</td><td className="p-1.5">Supervised / supported ambulation</td></tr>
                   </tbody>
                 </table>
                 <p className="text-blue-600 mt-1.5">MCID: ~5 points. MDC: ~8 points. Falls risk increases significantly below 45.</p>
               </div>
-              <p className="text-xs text-blue-600 italic">Reference: Howe JA et al. (2006). The Community Balance and Mobility Scale â€“ a balance measure for individuals with mild-to-moderate neurological challenges. <em>Clin Rehabil, 20</em>(2), 160â€“170.</p>
+              <p className="text-xs text-blue-600 italic">Reference: Howe JA et al. (2006). The Community Balance and Mobility Scale – a balance measure for individuals with mild-to-moderate neurological challenges. <em>Clin Rehabil, 20</em>(2), 160–170.</p>
             </CardContent>
           )}
         </Card>
@@ -229,8 +229,8 @@ export default function CommunityBalanceMobilityScaleCBMRunner({ client, onSave,
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center justify-between">
-              <span>Task Scores (0â€“5 per task)</span>
-              <span className="text-sm font-normal text-slate-500">{answered}/13 rated Â· Running total: <strong>{totalScore}</strong>/65</span>
+              <span>Task Scores (0–5 per task)</span>
+              <span className="text-sm font-normal text-slate-500">{answered}/13 rated · Running total: <strong>{totalScore}</strong>/65</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -250,7 +250,7 @@ export default function CommunityBalanceMobilityScaleCBMRunner({ client, onSave,
                       type="number" min="0" max="5"
                       value={scores[task.name] ?? ""}
                       onChange={e => handleScoreChange(task.name, e.target.value)}
-                      placeholder="0â€“5"
+                      placeholder="0–5"
                       className={`w-16 text-center font-bold text-lg ${scores[task.name] !== undefined ? "border-blue-400 bg-blue-50" : ""}`}
                     />
                     <p className="text-xs text-slate-400 mt-0.5">/ 5</p>
@@ -292,7 +292,7 @@ export default function CommunityBalanceMobilityScaleCBMRunner({ client, onSave,
             <p className="text-sm text-slate-500">{answered}/13 tasks rated</p>
             {answered > 0 && (
               <div className={`mt-1 px-3 py-1 rounded-full border text-sm font-semibold inline-block ${interp.bg} ${interp.color}`}>
-                Score: {totalScore}/65 â€” {interp.label}
+                Score: {totalScore}/65 — {interp.label}
               </div>
             )}
           </div>

@@ -14,10 +14,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ SGRQ Question Definitions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── SGRQ Question Definitions ────────────────────────────────────────────────
 // Weights sourced from Jones PW (1991) original SGRQ manual
 
-// Part 1: Symptoms â€” each question weighted separately
+// Part 1: Symptoms — each question weighted separately
 const SYMPTOMS_QUESTIONS = [
   {
     id: "s1", text: "Over the last year, I have coughed:",
@@ -110,7 +110,7 @@ const SYMPTOMS_QUESTIONS = [
 // Symptom domain max weight (sum of max weights from each question)
 const SYMPTOMS_MAX = SYMPTOMS_QUESTIONS.reduce((sum, q) => sum + Math.max(...q.options.map(o => o.weight)), 0);
 
-// Part 2: Activity â€” which activities cause breathlessness (each checked = weight)
+// Part 2: Activity — which activities cause breathlessness (each checked = weight)
 const ACTIVITY_ITEMS = [
   { id: "a1", text: "Sitting or lying still", weight: 1.0000 },
   { id: "a2", text: "Washing or dressing yourself", weight: 2.6150 },
@@ -122,7 +122,7 @@ const ACTIVITY_ITEMS = [
 ];
 const ACTIVITY_MAX = ACTIVITY_ITEMS.reduce((s, i) => s + i.weight, 0);
 
-// Part 3: Impacts â€” true/false statements
+// Part 3: Impacts — true/false statements
 const IMPACT_ITEMS = [
   { id: "i1", text: "My cough or breathing is painful", weight: 1.2130 },
   { id: "i2", text: "My cough or breathing makes me tired", weight: 1.3970 },
@@ -149,7 +149,7 @@ const IMPACT_ITEMS = [
 ];
 const IMPACT_MAX = IMPACT_ITEMS.reduce((s, i) => s + i.weight, 0);
 
-// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function SectionHeader({ icon: Icon, title, color = "slate", subtitle }) {
   const bg = {
@@ -192,21 +192,21 @@ function ScorePill({ label, score, max = 100 }) {
   return (
     <div className={`border rounded-xl px-3 py-2.5 text-center ${color}`}>
       <p className="text-xs opacity-70">{label}</p>
-      <p className="text-xl font-bold">{pct !== null ? `${pct}` : "â€”"}</p>
+      <p className="text-xl font-bold">{pct !== null ? `${pct}` : "—"}</p>
       <p className="text-xs opacity-70">/100</p>
     </div>
   );
 }
 
 function domainLabel(score) {
-  if (score === null) return "â€”";
+  if (score === null) return "—";
   if (score <= 25) return "Mild";
   if (score <= 50) return "Moderate";
   if (score <= 75) return "High";
   return "Severe";
 }
 
-// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, onSave, onClose }) {
 
@@ -230,7 +230,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
   const [open, setOpen] = useState({ overview: true, instructions: true, setup: true, symptoms: true, activity: true, impact: true, refs: false });
   const tog = k => setOpen(p => ({ ...p, [k]: !p[k] }));
 
-  // â”€â”€ Scoring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Scoring ───────────────────────────────────────────────────────────────
 
   const symptomsScore = useMemo(() => {
     const required = SYMPTOMS_QUESTIONS.filter(q => !q.optional).map(q => q.id);
@@ -246,13 +246,13 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
   }, [symptomsR]);
 
   const activityScore = useMemo(() => {
-    // Unchecked = not limited (false) â€” only need at least 1 interaction OR symptoms complete to calculate
+    // Unchecked = not limited (false) — only need at least 1 interaction OR symptoms complete to calculate
     const weighted = ACTIVITY_ITEMS.reduce((sum, item) => sum + (activityR[item.id] === true ? item.weight : 0), 0);
     return Math.round((weighted / ACTIVITY_MAX) * 100);
   }, [activityR]);
 
   const impactScore = useMemo(() => {
-    // Unchecked = not true (false) â€” checkboxes default to not applicable
+    // Unchecked = not true (false) — checkboxes default to not applicable
     const weighted = IMPACT_ITEMS.reduce((sum, item) => sum + (impactR[item.id] === true ? item.weight : 0), 0);
     return Math.round((weighted / IMPACT_MAX) * 100);
   }, [impactR]);
@@ -271,7 +271,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
     return Math.round((allWeighted / totalMax) * 100);
   }, [symptomsScore, activityScore, impactScore, symptomsR, activityR, impactR]);
 
-  // â”€â”€ Progress â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Progress ──────────────────────────────────────────────────────────────
 
   const symptomsAnswered = SYMPTOMS_QUESTIONS.filter(q => symptomsR[q.id] !== undefined).length;
   const activityAnswered = ACTIVITY_ITEMS.filter(i => activityR[i.id] !== undefined).length;
@@ -282,7 +282,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
 
   const isComplete = symptomsScore !== null;
 
-  // â”€â”€ Interpretation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Interpretation ────────────────────────────────────────────────────────
 
   const interpretation = useMemo(() => {
     if (totalScore === null) return null;
@@ -304,7 +304,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
       return {
         level: "Moderate Respiratory Impact",
         color: "text-yellow-700", bg: "bg-yellow-50 border-yellow-200",
-        narrative: `SGRQ total score of ${totalScore}/100 indicates moderate respiratory disease burden${diagStr}. The highest burden domain is ${dominated.label} (${dominated.score}/100). Targeted intervention in exercise tolerance and symptom management is recommended. A score change of â‰¥4 points is the MCID for clinically meaningful improvement.`
+        narrative: `SGRQ total score of ${totalScore}/100 indicates moderate respiratory disease burden${diagStr}. The highest burden domain is ${dominated.label} (${dominated.score}/100). Targeted intervention in exercise tolerance and symptom management is recommended. A score change of ≥4 points is the MCID for clinically meaningful improvement.`
       };
     }
     if (totalScore <= 75) {
@@ -321,28 +321,28 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
     };
   }, [totalScore, symptomsScore, activityScore, impactScore, diagnosis]);
 
-  // â”€â”€ Flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Flags ─────────────────────────────────────────────────────────────────
 
   const flags = useMemo(() => {
     if (totalScore === null) return [];
     const f = [];
     if (totalScore > 25) f.push("Significant respiratory quality-of-life burden identified");
-    if (activityScore !== null && activityScore > 50) f.push("Reduced activity tolerance â€” exercise prescription indicated");
-    if (impactScore !== null && impactScore > 50) f.push("Psychosocial respiratory impact â€” consider psychological support");
-    if (symptomsScore !== null && symptomsScore > 60) f.push("Elevated symptom burden â€” pharmacotherapy review recommended");
+    if (activityScore !== null && activityScore > 50) f.push("Reduced activity tolerance — exercise prescription indicated");
+    if (impactScore !== null && impactScore > 50) f.push("Psychosocial respiratory impact — consider psychological support");
+    if (symptomsScore !== null && symptomsScore > 60) f.push("Elevated symptom burden — pharmacotherapy review recommended");
     if (totalScore > 40) f.push("Pulmonary rehabilitation candidate");
     if (totalScore > 50) f.push("Consider referral for specialist respiratory review");
-    if (oxygenUse) f.push("Patient on supplemental oxygen â€” monitor exercise safety carefully");
-    if (exacerbations && parseInt(exacerbations) >= 2) f.push("Frequent exacerbations â€” high-risk profile for decline");
-    if (activityScore !== null && activityScore > 75) f.push("Severe dyspnoea-driven functional limitation â€” exercise assessment required");
+    if (oxygenUse) f.push("Patient on supplemental oxygen — monitor exercise safety carefully");
+    if (exacerbations && parseInt(exacerbations) >= 2) f.push("Frequent exacerbations — high-risk profile for decline");
+    if (activityScore !== null && activityScore > 75) f.push("Severe dyspnoea-driven functional limitation — exercise assessment required");
     return f;
   }, [totalScore, activityScore, impactScore, symptomsScore, oxygenUse, exacerbations]);
 
-  // â”€â”€ SOAP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── SOAP ──────────────────────────────────────────────────────────────────
 
   const buildSOAP = () => {
     const lines = [
-      `â€¢ St George's Respiratory Questionnaire (SGRQ)`,
+      `• St George's Respiratory Questionnaire (SGRQ)`,
       ``,
       `  Domain Scores:`,
       `    Symptoms: ${symptomsScore !== null ? `${symptomsScore}/100 (${domainLabel(symptomsScore)})` : "Incomplete"}`,
@@ -354,7 +354,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
       interpretation ? `  ${interpretation.narrative}` : null,
       ``,
       flags.length ? `  Clinical Flags:` : null,
-      ...flags.map(f => `    âš‘ ${f}`),
+      ...flags.map(f => `    ⚑ ${f}`),
       ``,
       diagnosis ? `  Primary Diagnosis: ${diagnosis}` : null,
       smokingStatus ? `  Smoking Status: ${smokingStatus}` : null,
@@ -363,12 +363,12 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
       ``,
       notes ? `  Clinical Notes: ${notes}` : null,
       ``,
-      `  References: Jones PW et al. (1991) Respir Med; MCID â‰¥4 points (Jones PW 2005 COPD J); SchÃ¤fer et al. Manual Therapy.`,
+      `  References: Jones PW et al. (1991) Respir Med; MCID ≥4 points (Jones PW 2005 COPD J); Schäfer et al. Manual Therapy.`,
     ].filter(v => v !== null).join('\n');
     return lines;
   };
 
-  // â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Save ──────────────────────────────────────────────────────────────────
 
   const handleSave = () => {
     if (!isComplete) {
@@ -409,7 +409,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
     setSymptomsR({}); setActivityR({}); setImpactR({}); setNotes("");
   };
 
-  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -419,7 +419,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 z-10 flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">St George's Respiratory Questionnaire</h1>
-            <p className="text-sm text-slate-500 mt-0.5">SGRQ â€” Health-related quality of life in respiratory disease</p>
+            <p className="text-sm text-slate-500 mt-0.5">SGRQ — Health-related quality of life in respiratory disease</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -441,11 +441,11 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
 
         <div className="p-6 space-y-5">
 
-          {/* â”€â”€ SECTION 1: Overview â”€â”€ */}
+          {/* ── SECTION 1: Overview ── */}
           <Collapsible open={open.overview} onOpenChange={() => tog("overview")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={Info} title="1. Assessment Overview" color="slate"
-                subtitle="SGRQ â€” 0â€“100 scale. Higher = worse health status." />
+                subtitle="SGRQ — 0–100 scale. Higher = worse health status." />
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="mt-3 bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3 text-sm">
@@ -456,32 +456,32 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
                   ))}
                 </div>
                 <div className="grid grid-cols-4 gap-2 text-xs">
-                  <div className="bg-green-100 border border-green-300 rounded p-2 text-center"><p className="font-semibold text-green-800">0â€“25</p><p className="text-green-700">Mild</p></div>
-                  <div className="bg-yellow-100 border border-yellow-300 rounded p-2 text-center"><p className="font-semibold text-yellow-800">26â€“50</p><p className="text-yellow-700">Moderate</p></div>
-                  <div className="bg-orange-100 border border-orange-300 rounded p-2 text-center"><p className="font-semibold text-orange-800">51â€“75</p><p className="text-orange-700">High</p></div>
-                  <div className="bg-red-100 border border-red-300 rounded p-2 text-center"><p className="font-semibold text-red-800">76â€“100</p><p className="text-red-700">Severe</p></div>
+                  <div className="bg-green-100 border border-green-300 rounded p-2 text-center"><p className="font-semibold text-green-800">0–25</p><p className="text-green-700">Mild</p></div>
+                  <div className="bg-yellow-100 border border-yellow-300 rounded p-2 text-center"><p className="font-semibold text-yellow-800">26–50</p><p className="text-yellow-700">Moderate</p></div>
+                  <div className="bg-orange-100 border border-orange-300 rounded p-2 text-center"><p className="font-semibold text-orange-800">51–75</p><p className="text-orange-700">High</p></div>
+                  <div className="bg-red-100 border border-red-300 rounded p-2 text-center"><p className="font-semibold text-red-800">76–100</p><p className="text-red-700">Severe</p></div>
                 </div>
                 <p className="text-xs text-blue-800 bg-blue-50 border border-blue-100 rounded p-2">
-                  <strong>MCID:</strong> A change of â‰¥4 points is the minimum clinically important difference for the SGRQ total score (Jones PW, 2005).
+                  <strong>MCID:</strong> A change of ≥4 points is the minimum clinically important difference for the SGRQ total score (Jones PW, 2005).
                 </p>
               </div>
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 2: Instructions â”€â”€ */}
+          {/* ── SECTION 2: Instructions ── */}
           <div className="bg-blue-600 text-white rounded-lg px-4 py-3 text-sm">
-            <p className="font-semibold mb-2">ðŸ’¬ 2. Clinician Instructions</p>
+            <p className="font-semibold mb-2">💬 2. Clinician Instructions</p>
             <ul className="space-y-1 text-blue-100 text-xs list-disc list-inside">
               <li>Ask patient to answer based on their <strong>typical respiratory experience over the past year</strong></li>
-              <li>All questions must be completed â€” missing items invalidate domain scoring</li>
+              <li>All questions must be completed — missing items invalidate domain scoring</li>
               <li>Higher scores indicate greater impairment in that domain</li>
-              <li>Each domain is <strong>independently weighted</strong> â€” do not average manually</li>
+              <li>Each domain is <strong>independently weighted</strong> — do not average manually</li>
               <li>Familiar symptoms should be linked to their respiratory condition, not unrelated illness</li>
               <li>Mode: Clinician-administered or self-report both valid</li>
             </ul>
           </div>
 
-          {/* â”€â”€ SECTION 3: Setup â”€â”€ */}
+          {/* ── SECTION 3: Setup ── */}
           <Collapsible open={open.setup} onOpenChange={() => tog("setup")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={Activity} title="3. Questionnaire Setup" color="blue" />
@@ -536,7 +536,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 4: Symptoms Domain â”€â”€ */}
+          {/* ── SECTION 4: Symptoms Domain ── */}
           <Collapsible open={open.symptoms} onOpenChange={() => tog("symptoms")}>
             <CollapsibleTrigger className="w-full text-left">
               <div className="flex items-center gap-3">
@@ -556,7 +556,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
                     <CardContent className="p-4">
                       <div className="flex items-start gap-3 mb-3">
                         <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 ${symptomsR[q.id] !== undefined ? "bg-teal-600 text-white" : "bg-slate-200 text-slate-600"}`}>
-                          {symptomsR[q.id] !== undefined ? "âœ“" : qi + 1}
+                          {symptomsR[q.id] !== undefined ? "✓" : qi + 1}
                         </div>
                         <p className="text-sm font-medium text-slate-800">{q.text}{q.optional && <span className="ml-1 text-xs text-slate-400">(optional)</span>}</p>
                       </div>
@@ -572,7 +572,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 5: Activity Domain â”€â”€ */}
+          {/* ── SECTION 5: Activity Domain ── */}
           <Collapsible open={open.activity} onOpenChange={() => tog("activity")}>
             <CollapsibleTrigger className="w-full text-left">
               <div className="flex items-center gap-3">
@@ -617,7 +617,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 6: Impact Domain â”€â”€ */}
+          {/* ── SECTION 6: Impact Domain ── */}
           <Collapsible open={open.impact} onOpenChange={() => tog("impact")}>
             <CollapsibleTrigger className="w-full text-left">
               <div className="flex items-center gap-3">
@@ -662,7 +662,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 7â€“11: Scores + Interpretation + Flags â”€â”€ */}
+          {/* ── SECTION 7–11: Scores + Interpretation + Flags ── */}
           {isComplete && interpretation && (
             <div className="space-y-4">
 
@@ -678,7 +678,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
                     <div key={label} className="text-center">
                       <p className="text-slate-400 text-xs mb-1">{label}</p>
                       <p className="text-2xl font-bold">{score}</p>
-                      <p className="text-xs text-slate-300">/100 â€” {domainLabel(score)}</p>
+                      <p className="text-xs text-slate-300">/100 — {domainLabel(score)}</p>
                       <p className="text-xs text-slate-400 mt-1 leading-tight">{desc}</p>
                     </div>
                   ))}
@@ -727,7 +727,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
                   <div className="space-y-1.5">
                     {flags.map((f, i) => (
                       <div key={i} className="flex items-start gap-2">
-                        <span className="text-red-500 mt-0.5 flex-shrink-0">âš‘</span>
+                        <span className="text-red-500 mt-0.5 flex-shrink-0">⚑</span>
                         <p className="text-sm text-red-800">{f}</p>
                       </div>
                     ))}
@@ -737,7 +737,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
             </div>
           )}
 
-          {/* â”€â”€ Clinical Notes â”€â”€ */}
+          {/* ── Clinical Notes ── */}
           <div>
             <Label className="font-semibold block mb-2 text-sm">Clinical Notes</Label>
             <Textarea value={notes} onChange={e => setNotes(e.target.value)}
@@ -745,7 +745,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
               rows={3} />
           </div>
 
-          {/* â”€â”€ References â”€â”€ */}
+          {/* ── References ── */}
           <Collapsible open={open.refs} onOpenChange={() => tog("refs")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={ExternalLink} title="Evidence-Based References" color="amber" />
@@ -753,11 +753,11 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
             <CollapsibleContent>
               <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2.5 text-xs text-amber-800">
                 {[
-                  { text: "Jones PW, Quirk FH, Baveystock CM, Littlejohns P. A self-complete measure of health status for chronic airflow limitation: the St. George's Respiratory Questionnaire. Am Rev Respir Dis. 1992;145(6):1321â€“1327.", url: "https://pubmed.ncbi.nlm.nih.gov/1595997/" },
-                  { text: "Jones PW. St. George's Respiratory Questionnaire: MCID. COPD. 2005;2(1):75â€“79.", url: "https://pubmed.ncbi.nlm.nih.gov/17136966/" },
-                  { text: "Meguro M, Barley EA, Spencer S, Jones PW. Development and validation of an improved, COPD-specific version of the St. George Respiratory Questionnaire. Chest. 2007;132(2):456â€“463.", url: "https://pubmed.ncbi.nlm.nih.gov/17646240/" },
-                  { text: "Wilson CB, Jones PW, O'Leary CJ, Hansell DM, Cole PJ, Wilson R. Validation of the St. George's Respiratory Questionnaire in bronchiectasis. Am J Respir Crit Care Med. 1997;156(2 Pt 1):536â€“541.", url: "https://pubmed.ncbi.nlm.nih.gov/9279236/" },
-                  { text: "American Thoracic Society. ATS Statement: Guidelines for the Six-Minute Walk Test. Am J Respir Crit Care Med. 2002;166(1):111â€“117. [Context: respiratory QoL alongside functional testing]", url: "https://pubmed.ncbi.nlm.nih.gov/12091180/" },
+                  { text: "Jones PW, Quirk FH, Baveystock CM, Littlejohns P. A self-complete measure of health status for chronic airflow limitation: the St. George's Respiratory Questionnaire. Am Rev Respir Dis. 1992;145(6):1321–1327.", url: "https://pubmed.ncbi.nlm.nih.gov/1595997/" },
+                  { text: "Jones PW. St. George's Respiratory Questionnaire: MCID. COPD. 2005;2(1):75–79.", url: "https://pubmed.ncbi.nlm.nih.gov/17136966/" },
+                  { text: "Meguro M, Barley EA, Spencer S, Jones PW. Development and validation of an improved, COPD-specific version of the St. George Respiratory Questionnaire. Chest. 2007;132(2):456–463.", url: "https://pubmed.ncbi.nlm.nih.gov/17646240/" },
+                  { text: "Wilson CB, Jones PW, O'Leary CJ, Hansell DM, Cole PJ, Wilson R. Validation of the St. George's Respiratory Questionnaire in bronchiectasis. Am J Respir Crit Care Med. 1997;156(2 Pt 1):536–541.", url: "https://pubmed.ncbi.nlm.nih.gov/9279236/" },
+                  { text: "American Thoracic Society. ATS Statement: Guidelines for the Six-Minute Walk Test. Am J Respir Crit Care Med. 2002;166(1):111–117. [Context: respiratory QoL alongside functional testing]", url: "https://pubmed.ncbi.nlm.nih.gov/12091180/" },
                 ].map((ref, i) => (
                   <a key={i} href={ref.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2 hover:underline">
                     <ExternalLink className="w-3 h-3 flex-shrink-0 mt-0.5" />
@@ -768,7 +768,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ Actions â”€â”€ */}
+          {/* ── Actions ── */}
           <div className="flex justify-between items-center gap-3 pt-4 border-t border-slate-200">
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose}><X className="w-4 h-4 mr-2" />Cancel</Button>

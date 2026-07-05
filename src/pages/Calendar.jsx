@@ -31,7 +31,7 @@ const STATUS_STYLES = {
 const DEFAULT_STYLE = { bg: "#1a56db", border: "#1e40af", text: "#ffffff" };
 const getStyle = (status) => STATUS_STYLES[status] || DEFAULT_STYLE;
 
-// --- Time constants (defaults â€” overridden by user calendar settings) ---
+// --- Time constants (defaults — overridden by user calendar settings) ---
 const SLOT_HEIGHT = 16; // px per 15-min slot
 const HOUR_HEIGHT = SLOT_HEIGHT * 4; // 64px per hour
 const DEFAULT_START_HOUR = 4;
@@ -288,7 +288,7 @@ const TimeGridView = ({ days, events, onSlotClick, onEventClick, calSettings, wo
                       onClick={(e) => { e.stopPropagation(); onEventClick(event); }}
                     >
                       <p className="text-xs font-semibold leading-tight truncate">
-                        {moment(event.start).format("h:mma")} â€“ {moment(event.end).format("h:mma")}
+                        {moment(event.start).format("h:mma")} – {moment(event.end).format("h:mma")}
                       </p>
                       <p className="text-xs leading-tight truncate font-medium">
                         {event.title}
@@ -501,7 +501,7 @@ export default function CalendarPage() {
     if (view === "week") {
       const s = currentDate.clone().startOf("week");
       const e = currentDate.clone().endOf("week");
-      return `${s.format("D")} â€“ ${e.format("D MMM YYYY")}`;
+      return `${s.format("D")} – ${e.format("D MMM YYYY")}`;
     }
     return currentDate.format("MMMM YYYY");
   };

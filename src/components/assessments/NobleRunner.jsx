@@ -48,7 +48,7 @@ export default function NobleRunner({ onSave, onClose }) {
       const lines = [`  ${label} Knee:`];
       lines.push(`    Pain Reproduced: ${data.pain_reproduced === 'yes' ? 'Yes' : 'No'}`);
       if (data.pain_reproduced === 'yes') {
-        if (data.pain_angle) lines.push(`    Angle at Pain Onset: ${data.pain_angle}Â°`);
+        if (data.pain_angle) lines.push(`    Angle at Pain Onset: ${data.pain_angle}°`);
         if (data.pain_quality) lines.push(`    Pain Quality: ${data.pain_quality.charAt(0).toUpperCase() + data.pain_quality.slice(1)}`);
         if (data.pain_intensity) lines.push(`    Pain Intensity: ${data.pain_intensity.charAt(0).toUpperCase() + data.pain_intensity.slice(1)}`);
         if (data.typical_symptoms) {
@@ -62,7 +62,7 @@ export default function NobleRunner({ onSave, onClose }) {
 
     const overall = (leftData.pain_reproduced === 'yes' || rightData.pain_reproduced === 'yes') ? 'Positive' : 'Negative';
     const soapParts = [
-      `â€¢ Noble Compression Test: ${overall}`,
+      `• Noble Compression Test: ${overall}`,
       formatSide('Left', leftData, leftInterp),
       formatSide('Right', rightData, rightInterp),
     ].filter(Boolean);
@@ -119,9 +119,9 @@ export default function NobleRunner({ onSave, onClose }) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">
-                <p><strong>Position:</strong> Supine, knee flexed to 90Â°</p>
+                <p><strong>Position:</strong> Supine, knee flexed to 90°</p>
                 <p><strong>Procedure:</strong> Apply pressure over lateral femoral epicondyle, extend knee slowly</p>
-                <p><strong>Positive:</strong> Sharp lateral knee pain around 30Â° flexion that reproduces typical symptoms</p>
+                <p><strong>Positive:</strong> Sharp lateral knee pain around 30° flexion that reproduces typical symptoms</p>
               </CardContent>
             </Card>
 

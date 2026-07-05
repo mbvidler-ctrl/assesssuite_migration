@@ -21,7 +21,7 @@ export default function WaistCircumferenceRunner({ client, onSave, onClose }) {
       status: "completed",
       result_value: resultValue,
       additional_data: {
-        soap_text: `â€¢ Waist Circumference Measurement\n  Result: ${resultValue} cm\n  Risk Category: ${riskLevel}`,
+        soap_text: `• Waist Circumference Measurement\n  Result: ${resultValue} cm\n  Risk Category: ${riskLevel}`,
         measurement_type: "waist_circumference",
         waist_circumference: resultValue,
         notes,
@@ -92,11 +92,11 @@ export default function WaistCircumferenceRunner({ client, onSave, onClose }) {
 
           {/* Clinician Instructions */}
           <div className="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-2">
-            <p className="font-semibold">ðŸ“‹ Administration Instructions (WHO Protocol)</p>
+            <p className="font-semibold">📋 Administration Instructions (WHO Protocol)</p>
             <ul className="list-disc list-inside space-y-1">
               <li>Client should be standing, relaxed, with feet together and arms at sides</li>
               <li>Locate the measurement site: midway between the lowest rib margin and the top of the iliac crest (superior border)</li>
-              <li>Apply tape horizontally, parallel to the floor â€” snug but not compressing skin</li>
+              <li>Apply tape horizontally, parallel to the floor — snug but not compressing skin</li>
               <li>Measure at end of normal expiration (not forced)</li>
               <li>Record to nearest 0.1 cm; take two measurements and average if within 1 cm</li>
             </ul>
@@ -105,7 +105,7 @@ export default function WaistCircumferenceRunner({ client, onSave, onClose }) {
 
           {/* Norms & Interpretation */}
           <div className="mt-4 bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-slate-700 space-y-2">
-            <p className="font-semibold">ðŸ“Š Norms & Interpretation (WHO/NHMRC)</p>
+            <p className="font-semibold">📊 Norms & Interpretation (WHO/NHMRC)</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded mt-1">
                 <thead className="bg-slate-200">
@@ -117,17 +117,17 @@ export default function WaistCircumferenceRunner({ client, onSave, onClose }) {
                 </thead>
                 <tbody>
                   <tr className="border-t border-slate-200"><td className="p-2">Low / Normal risk</td><td className="p-2">&lt; 94 cm</td><td className="p-2">&lt; 80 cm</td></tr>
-                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">Increased risk</td><td className="p-2">94â€“101 cm</td><td className="p-2">80â€“87 cm</td></tr>
-                  <tr className="border-t border-slate-200"><td className="p-2">Substantially increased risk</td><td className="p-2">â‰¥ 102 cm</td><td className="p-2">â‰¥ 88 cm</td></tr>
+                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">Increased risk</td><td className="p-2">94–101 cm</td><td className="p-2">80–87 cm</td></tr>
+                  <tr className="border-t border-slate-200"><td className="p-2">Substantially increased risk</td><td className="p-2">≥ 102 cm</td><td className="p-2">≥ 88 cm</td></tr>
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-slate-500 mt-1">Increased risk = metabolic syndrome, cardiovascular disease, type 2 diabetes. Risk thresholds vary by ethnicity â€” lower thresholds apply for Asian populations (â‰¥90 cm men, â‰¥80 cm women).</p>
+            <p className="text-xs text-slate-500 mt-1">Increased risk = metabolic syndrome, cardiovascular disease, type 2 diabetes. Risk thresholds vary by ethnicity — lower thresholds apply for Asian populations (≥90 cm men, ≥80 cm women).</p>
           </div>
 
           {/* Reference */}
           <div className="mt-4 bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
+            <p className="font-semibold">📖 Reference</p>
             <p>World Health Organization. (2011). <em>Waist Circumference and Waist-Hip Ratio: Report of a WHO Expert Consultation</em>. WHO Press.</p>
             <p>National Health and Medical Research Council (NHMRC). (2013). Clinical practice guidelines for the management of overweight and obesity in adults. Commonwealth of Australia.</p>
           </div>

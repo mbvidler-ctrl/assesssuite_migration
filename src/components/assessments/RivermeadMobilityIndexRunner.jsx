@@ -147,7 +147,7 @@ export default function RivermeadMobilityIndexRunner({ client, onSave, onClose }
 
           {/* Save note */}
           {answeredCount === 0 && (
-            <p className="text-xs text-slate-400 text-center">You can save a partial assessment â€” at least 1 item is recommended.</p>
+            <p className="text-xs text-slate-400 text-center">You can save a partial assessment — at least 1 item is recommended.</p>
           )}
 
           {/* Actions */}

@@ -56,7 +56,7 @@ export default function FESRunner({ onSave, onClose }) {
     onSave({
       result_value: total,
       additional_data: {
-        soap_text: `â€¢ Falls Efficacy Scale (FES)\n  Total Score: ${total}/100 â€” ${interpretation?.level}`,
+        soap_text: `• Falls Efficacy Scale (FES)\n  Total Score: ${total}/100 — ${interpretation?.level}`,
         total_score: total,
         percentage_confidence: ((total / 100) * 100).toFixed(0),
         item_scores: scores,

@@ -151,7 +151,7 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                         ].map(({ label, value, unit, color, bg }) => (
                           <div key={label} className={`${bg} border rounded-lg p-3 text-center`}>
                             <p className="text-xs text-slate-500 mb-1">{label}</p>
-                            <p className={`text-2xl font-bold ${color}`}>{value ?? "â€”"}{unit && <span className="text-sm ml-1">{unit}</span>}</p>
+                            <p className={`text-2xl font-bold ${color}`}>{value ?? "—"}{unit && <span className="text-sm ml-1">{unit}</span>}</p>
                           </div>
                         ))}
                       </div>
@@ -167,8 +167,8 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                         <p className="font-semibold text-amber-800 mb-1">RSI Interpretation</p>
                         <div className="grid grid-cols-3 gap-2 text-center text-xs">
                           <div className="bg-red-100 rounded p-2"><p className="font-bold text-red-800">&lt; 1.0</p><p>Poor</p></div>
-                          <div className="bg-yellow-100 rounded p-2"><p className="font-bold text-yellow-800">1.0 â€“ 1.5</p><p>Average</p></div>
-                          <div className="bg-green-100 rounded p-2"><p className="font-bold text-green-800">&gt; 1.5</p><p>Goodâ€“Elite</p></div>
+                          <div className="bg-yellow-100 rounded p-2"><p className="font-bold text-yellow-800">1.0 – 1.5</p><p>Average</p></div>
+                          <div className="bg-green-100 rounded p-2"><p className="font-bold text-green-800">&gt; 1.5</p><p>Good–Elite</p></div>
                         </div>
                       </div>
                       {clientAssessment.additional_data.jumps?.length > 0 && (
@@ -191,8 +191,8 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                                     <td className="px-3 py-2">{i + 1}</td>
                                     <td className="px-3 py-2">{j.flight_time_ms}</td>
                                     <td className="px-3 py-2">{j.contact_time_ms}</td>
-                                    <td className="px-3 py-2 font-semibold text-purple-700">{j.flight_time_ms && j.contact_time_ms ? (j.flight_time_ms / j.contact_time_ms).toFixed(3) : "â€”"}</td>
-                                    {clientAssessment.additional_data.jumps.some(j => j.jump_height_cm) && <td className="px-3 py-2">{j.jump_height_cm ?? "â€”"}</td>}
+                                    <td className="px-3 py-2 font-semibold text-purple-700">{j.flight_time_ms && j.contact_time_ms ? (j.flight_time_ms / j.contact_time_ms).toFixed(3) : "—"}</td>
+                                    {clientAssessment.additional_data.jumps.some(j => j.jump_height_cm) && <td className="px-3 py-2">{j.jump_height_cm ?? "—"}</td>}
                                   </tr>
                                 ))}
                               </tbody>
@@ -250,8 +250,8 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                             <div key={label} className={`p-3 rounded-lg border ${label === 'Left' ? 'bg-blue-50 border-blue-200' : 'bg-green-50 border-green-200'}`}>
                               <p className="font-semibold text-slate-800 mb-2">{label} Side</p>
                               <div className="space-y-1 text-sm">
-                                {side.symptom_onset_angle_deg !== undefined && <p>Symptom onset angle: <strong>{side.symptom_onset_angle_deg}Â°</strong></p>}
-                                {side.max_flexion_angle_deg && <p>Max flexion: <strong>{side.max_flexion_angle_deg}Â°</strong></p>}
+                                {side.symptom_onset_angle_deg !== undefined && <p>Symptom onset angle: <strong>{side.symptom_onset_angle_deg}°</strong></p>}
+                                {side.max_flexion_angle_deg && <p>Max flexion: <strong>{side.max_flexion_angle_deg}°</strong></p>}
                                 {side.symptom_location && <p>Symptom location: <strong>{side.symptom_location}</strong></p>}
                                 {side.symptom_quality && <p>Symptom quality: <strong>{side.symptom_quality}</strong></p>}
                                 {side.ankle_dorsiflexion_effect && <p>Ankle dorsiflexion effect: <strong>{side.ankle_dorsiflexion_effect}</strong></p>}
@@ -324,7 +324,7 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                       const rightTrials = ad.right_trials ?? (ad.right_trial1 !== undefined ? [ad.right_trial1, ad.right_trial2].filter(v => v !== null && v !== undefined) : []);
                       const average = leftBest !== null && rightBest !== null ? ((leftBest + rightBest) / 2) : (ad.average_distance ?? null);
                       const asymmetry = leftBest !== null && rightBest !== null ? Math.abs(leftBest - rightBest) : (ad.asymmetry ?? null);
-                      const fmtCm = (v) => v !== null && v !== undefined ? `${typeof v === 'number' ? (v >= 0 ? '+' : '') + v.toFixed(1) : v} cm` : 'â€”';
+                      const fmtCm = (v) => v !== null && v !== undefined ? `${typeof v === 'number' ? (v >= 0 ? '+' : '') + v.toFixed(1) : v} cm` : '—';
                       return (
                         <div className="space-y-4">
                           <div className="grid grid-cols-2 gap-4">
@@ -362,7 +362,7 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                             </div>
                             <div>
                               <p className="text-xs text-slate-500">Asymmetry</p>
-                              <p className="text-2xl font-bold text-slate-800">{asymmetry !== null ? `${asymmetry.toFixed(1)} cm` : 'â€”'}</p>
+                              <p className="text-2xl font-bold text-slate-800">{asymmetry !== null ? `${asymmetry.toFixed(1)} cm` : '—'}</p>
                             </div>
                           </div>
                           <p className="text-xs text-slate-500 italic">Positive = overlap; Negative = gap between fingertips</p>
@@ -399,10 +399,10 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                                 {Object.entries(clientAssessment.additional_data.measurements).map(([site, data], i) => (
                                   <tr key={site} className={i % 2 === 0 ? "bg-white" : "bg-slate-50"}>
                                     <td className="px-3 py-2 font-medium capitalize">{site.replace(/_/g, ' ')}</td>
-                                    <td className="px-3 py-2 text-center">{data.trial1 ?? 'â€”'}</td>
-                                    <td className="px-3 py-2 text-center">{data.trial2 ?? 'â€”'}</td>
-                                    <td className="px-3 py-2 text-center">{data.trial3 ?? 'â€”'}</td>
-                                    <td className="px-3 py-2 text-center font-bold text-blue-700">{data.average ?? 'â€”'} mm</td>
+                                    <td className="px-3 py-2 text-center">{data.trial1 ?? '—'}</td>
+                                    <td className="px-3 py-2 text-center">{data.trial2 ?? '—'}</td>
+                                    <td className="px-3 py-2 text-center">{data.trial3 ?? '—'}</td>
+                                    <td className="px-3 py-2 text-center font-bold text-blue-700">{data.average ?? '—'} mm</td>
                                   </tr>
                                 ))}
                               </tbody>
@@ -479,7 +479,7 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                                     <div>
                                       <p className="font-medium text-slate-900">{i + 1}. {stage.name}</p>
                                       <p className={`text-sm ${passed ? 'text-green-700 font-semibold' : 'text-red-700 font-semibold'}`}>
-                                        {passed ? 'âœ“ Passed' : 'âœ— Failed'}
+                                        {passed ? '✓ Passed' : '✗ Failed'}
                                       </p>
                                     </div>
                                     {time && <p className="text-lg font-bold text-slate-700">{time}s</p>}
@@ -569,7 +569,7 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                                return (
                                  <tr key={item.q} className={i % 2 === 0 ? 'bg-white' : 'bg-slate-50'}>
                                    <td className="px-3 py-2">{item.q}. {item.text}</td>
-                                   <td className="px-3 py-2 text-center font-bold text-indigo-700">{score ?? 'â€”'}/4</td>
+                                   <td className="px-3 py-2 text-center font-bold text-indigo-700">{score ?? '—'}/4</td>
                                  </tr>
                                );
                              })}
@@ -581,10 +581,10 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                      <div className="bg-slate-50 border border-slate-200 rounded-lg p-3">
                        <p className="text-xs font-semibold text-slate-600 mb-2">Severity Thresholds</p>
                        <div className="grid grid-cols-2 gap-2 text-xs">
-                         <div className="bg-green-100 rounded p-2"><strong className="text-green-700">0â€“7:</strong> No insomnia</div>
-                         <div className="bg-yellow-100 rounded p-2"><strong className="text-yellow-700">8â€“14:</strong> Subthreshold</div>
-                         <div className="bg-orange-100 rounded p-2"><strong className="text-orange-700">15â€“21:</strong> Moderate</div>
-                         <div className="bg-red-100 rounded p-2"><strong className="text-red-700">22â€“28:</strong> Severe</div>
+                         <div className="bg-green-100 rounded p-2"><strong className="text-green-700">0–7:</strong> No insomnia</div>
+                         <div className="bg-yellow-100 rounded p-2"><strong className="text-yellow-700">8–14:</strong> Subthreshold</div>
+                         <div className="bg-orange-100 rounded p-2"><strong className="text-orange-700">15–21:</strong> Moderate</div>
+                         <div className="bg-red-100 rounded p-2"><strong className="text-red-700">22–28:</strong> Severe</div>
                        </div>
                      </div>
                    </div>
@@ -604,13 +604,13 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                               {values.left !== undefined && values.left !== null && (
                                 <div className="bg-blue-100 rounded p-2">
                                   <p className="text-xs text-slate-600">Left</p>
-                                  <p className="text-lg font-bold text-blue-700">{values.left}Â°</p>
+                                  <p className="text-lg font-bold text-blue-700">{values.left}°</p>
                                 </div>
                               )}
                               {values.right !== undefined && values.right !== null && (
                                 <div className="bg-green-100 rounded p-2">
                                   <p className="text-xs text-slate-600">Right</p>
-                                  <p className="text-lg font-bold text-green-700">{values.right}Â°</p>
+                                  <p className="text-lg font-bold text-green-700">{values.right}°</p>
                                 </div>
                               )}
                             </div>
@@ -655,8 +655,8 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                                 <div key={i} className="flex items-center justify-between px-3 py-1.5 rounded border border-slate-100 bg-white text-sm">
                                   <span className="text-slate-700">{i + 1}. {item}</span>
                                   {sc !== null
-                                    ? <span className={`text-xs font-semibold px-2 py-0.5 rounded ${SCORE_COLORS[sc]}`}>{sc} â€” {SCORE_LABELS[sc]}</span>
-                                    : <span className="text-xs text-slate-400">â€”</span>
+                                    ? <span className={`text-xs font-semibold px-2 py-0.5 rounded ${SCORE_COLORS[sc]}`}>{sc} — {SCORE_LABELS[sc]}</span>
+                                    : <span className="text-xs text-slate-400">—</span>
                                   }
                                 </div>
                               );
@@ -691,7 +691,7 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                       );
                     })()
                   ) : clientAssessment.additional_data?.soap_text ? (
-                    // Qualitative special tests â€” render the full SOAP text directly
+                    // Qualitative special tests — render the full SOAP text directly
                     <div className="space-y-3">
                       {clientAssessment.additional_data.measurement_type === 'anterior_drawer_knee' && (
                         <div className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-sm font-semibold ${
@@ -699,7 +699,7 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                             ? "bg-red-100 text-red-700"
                             : "bg-green-100 text-green-700"
                         }`}>
-                          {clientAssessment.result_value === 1 ? "âœ• Positive â€” ACL insufficiency suspected" : "âœ“ Negative â€” ACL likely intact"}
+                          {clientAssessment.result_value === 1 ? "✕ Positive — ACL insufficiency suspected" : "✓ Negative — ACL likely intact"}
                         </div>
                       )}
                       <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">

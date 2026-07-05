@@ -160,7 +160,7 @@ export default function SF36HealthSurveyRunner({ client, onSave, onClose }) {
     const mcs = Math.round((domains.VT.score + domains.SF.score + domains.RE.score + domains.MH.score) / 4);
 
     const soapText = [
-      `â€¢ SF-36 Health Survey (Short Form Health Survey)`,
+      `• SF-36 Health Survey (Short Form Health Survey)`,
       `  Physical Component Summary (PCS): ${pcs}/100`,
       `  Mental Component Summary (MCS): ${mcs}/100`,
       `  Domain Scores:`,
@@ -218,8 +218,8 @@ export default function SF36HealthSurveyRunner({ client, onSave, onClose }) {
 
         {/* Clinician Instructions */}
         <div className="bg-blue-600 text-white rounded-lg px-4 py-3 text-sm">
-          <p className="font-semibold mb-0.5">ðŸ’¬ Clinician Instructions</p>
-          <p className="text-blue-100">This questionnaire asks the patient about their health and how they feel over the <strong className="text-white">past 4 weeks</strong>. Read each question aloud or have the patient self-complete. For each item, ask the patient to choose the answer that best describes how they feel. There are no right or wrong answers â€” record the first response that comes to mind.</p>
+          <p className="font-semibold mb-0.5">💬 Clinician Instructions</p>
+          <p className="text-blue-100">This questionnaire asks the patient about their health and how they feel over the <strong className="text-white">past 4 weeks</strong>. Read each question aloud or have the patient self-complete. For each item, ask the patient to choose the answer that best describes how they feel. There are no right or wrong answers — record the first response that comes to mind.</p>
         </div>
 
         {/* Clinical Guidance */}
@@ -249,7 +249,7 @@ export default function SF36HealthSurveyRunner({ client, onSave, onClose }) {
                       <strong>Purpose:</strong> Assess overall health status across 8 domains (physical, role, pain, general health, vitality, social, emotional, mental health).
                     </p>
                     <p>
-                      <strong>Populations:</strong> Suitable for general population, chronic disease management, clinical trials, and population health surveillance (age â‰¥18 years).
+                      <strong>Populations:</strong> Suitable for general population, chronic disease management, clinical trials, and population health surveillance (age ≥18 years).
                     </p>
                     <p>
                       <strong>Scoring:</strong> 8 domain scores (0-100) are calculated and combined into two summary measures: Physical Component Summary (PCS) and Mental Component Summary (MCS).

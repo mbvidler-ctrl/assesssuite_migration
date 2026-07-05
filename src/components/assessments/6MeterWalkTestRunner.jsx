@@ -42,7 +42,7 @@ export default function SixMeterWalkTestRunner({ client, onSave, onClose }) {
       const timeS = parseFloat((timerMs / 1000).toFixed(2));
       const speedMs = parseFloat((6 / timeS).toFixed(3));
       setTrials(prev => [...prev, { time_s: timeS, speed_ms: speedMs }]);
-      toast.success(`Trial ${trials.length + 1}: ${timeS}s â€” ${speedMs} m/s`);
+      toast.success(`Trial ${trials.length + 1}: ${timeS}s — ${speedMs} m/s`);
       setIsRunning(false);
       setTimerMs(0);
     } else {
@@ -57,7 +57,7 @@ export default function SixMeterWalkTestRunner({ client, onSave, onClose }) {
     const speedMs = parseFloat((6 / t).toFixed(3));
     setTrials(prev => [...prev, { time_s: t, speed_ms: speedMs }]);
     setManualTime('');
-    toast.success(`Manual trial added: ${t}s â€” ${speedMs} m/s`);
+    toast.success(`Manual trial added: ${t}s — ${speedMs} m/s`);
   };
 
   const handleRemoveTrial = (idx) => setTrials(prev => prev.filter((_, i) => i !== idx));
@@ -69,7 +69,7 @@ export default function SixMeterWalkTestRunner({ client, onSave, onClose }) {
     if (speedMs >= 1.2) return { label: 'Community ambulation (fast)', color: 'bg-green-100 text-green-800' };
     if (speedMs >= 0.8) return { label: 'Community ambulation', color: 'bg-green-100 text-green-800' };
     if (speedMs >= 0.6) return { label: 'Limited community ambulation', color: 'bg-yellow-100 text-yellow-800' };
-    return { label: 'Household/limited ambulation â€” increased risk', color: 'bg-red-100 text-red-800' };
+    return { label: 'Household/limited ambulation — increased risk', color: 'bg-red-100 text-red-800' };
   };
 
   const handleSave = () => {
@@ -79,7 +79,7 @@ export default function SixMeterWalkTestRunner({ client, onSave, onClose }) {
       assessment_date: new Date().toISOString().split('T')[0],
       notes,
       additional_data: {
-        soap_text: `â€¢ 6-Metre Walk Test\n  Best Speed: ${bestTrial?.speed_ms} m/s (${bestTrial?.time_s?.toFixed(2)}s)\n  Average Speed: ${avgSpeed} m/s\n  Condition: ${testCondition === 'self_selected' ? 'Self-Selected' : 'Fast Speed'}\n  Interpretation: ${bestTrial ? getInterpretation(bestTrial.speed_ms).label : 'N/A'}${gaitAids ? `\n  Gait Aid: ${gaitAids}` : ''}`,
+        soap_text: `• 6-Metre Walk Test\n  Best Speed: ${bestTrial?.speed_ms} m/s (${bestTrial?.time_s?.toFixed(2)}s)\n  Average Speed: ${avgSpeed} m/s\n  Condition: ${testCondition === 'self_selected' ? 'Self-Selected' : 'Fast Speed'}\n  Interpretation: ${bestTrial ? getInterpretation(bestTrial.speed_ms).label : 'N/A'}${gaitAids ? `\n  Gait Aid: ${gaitAids}` : ''}`,
         measurement_type: '6_meter_walk_test',
         test_condition: testCondition,
         trials,
@@ -102,7 +102,7 @@ export default function SixMeterWalkTestRunner({ client, onSave, onClose }) {
         <div className="p-5 border-b bg-gradient-to-r from-violet-50 to-purple-50 flex justify-between items-start">
           <div>
             <h2 className="text-xl font-bold text-slate-900">6-Metre Walk Test</h2>
-            <p className="text-sm text-slate-500">Gait speed over 6m â€” multiple trials, best/average recorded</p>
+            <p className="text-sm text-slate-500">Gait speed over 6m — multiple trials, best/average recorded</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -112,11 +112,11 @@ export default function SixMeterWalkTestRunner({ client, onSave, onClose }) {
           <Card className="bg-blue-50 border-blue-200">
             <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2 text-blue-800"><Info className="w-4 h-4" />Protocol</CardTitle></CardHeader>
             <CardContent className="text-xs text-blue-800 space-y-1">
-              <p>â€¢ Mark a 10m walkway with start and finish lines. The client walks at their usual pace (self-selected) or as fast as safely possible (fast speed).</p>
-              <p>â€¢ Time only the middle 6m (allow 2m acceleration and 2m deceleration zones) to minimise acceleration effects.</p>
-              <p>â€¢ Conduct 3 trials. Allow at least 1 minute rest between trials.</p>
-              <p>â€¢ Record time in seconds over 6m. Speed (m/s) = 6 Ã· time.</p>
-              <p className="italic mt-1">References: Bohannon RW (1997). Comfortable and maximum walking speed of adults aged 20â€“79 years. Age Ageing. Graham JE et al. (2008). Walking speed threshold for classifying walking independence. Phys Ther.</p>
+              <p>• Mark a 10m walkway with start and finish lines. The client walks at their usual pace (self-selected) or as fast as safely possible (fast speed).</p>
+              <p>• Time only the middle 6m (allow 2m acceleration and 2m deceleration zones) to minimise acceleration effects.</p>
+              <p>• Conduct 3 trials. Allow at least 1 minute rest between trials.</p>
+              <p>• Record time in seconds over 6m. Speed (m/s) = 6 ÷ time.</p>
+              <p className="italic mt-1">References: Bohannon RW (1997). Comfortable and maximum walking speed of adults aged 20–79 years. Age Ageing. Graham JE et al. (2008). Walking speed threshold for classifying walking independence. Phys Ther.</p>
             </CardContent>
           </Card>
 

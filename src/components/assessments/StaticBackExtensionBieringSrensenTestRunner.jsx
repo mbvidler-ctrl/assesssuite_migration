@@ -11,21 +11,21 @@ import {
 import { toast } from "sonner";
 import BieringSorensenDiagrams from "./BieringSorensenDiagrams";
 
-// â”€â”€â”€ Normative Data (Biering-SÃ¸rensen 1984 + subsequent studies) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Normative Data (Biering-Sørensen 1984 + subsequent studies) ───────────────
 const NORMS = {
   male: [
-    { ageMin: 20, ageMax: 29, mean: 201, sd: 58, source: "Biering-SÃ¸rensen 1984 / Demoulin 2006" },
-    { ageMin: 30, ageMax: 39, mean: 189, sd: 53, source: "Biering-SÃ¸rensen 1984 / Demoulin 2006" },
-    { ageMin: 40, ageMax: 49, mean: 175, sd: 52, source: "Biering-SÃ¸rensen 1984 / Demoulin 2006" },
-    { ageMin: 50, ageMax: 59, mean: 164, sd: 56, source: "Biering-SÃ¸rensen 1984 / Demoulin 2006" },
-    { ageMin: 60, ageMax: 79, mean: 140, sd: 51, source: "Biering-SÃ¸rensen 1984 / Demoulin 2006" },
+    { ageMin: 20, ageMax: 29, mean: 201, sd: 58, source: "Biering-Sørensen 1984 / Demoulin 2006" },
+    { ageMin: 30, ageMax: 39, mean: 189, sd: 53, source: "Biering-Sørensen 1984 / Demoulin 2006" },
+    { ageMin: 40, ageMax: 49, mean: 175, sd: 52, source: "Biering-Sørensen 1984 / Demoulin 2006" },
+    { ageMin: 50, ageMax: 59, mean: 164, sd: 56, source: "Biering-Sørensen 1984 / Demoulin 2006" },
+    { ageMin: 60, ageMax: 79, mean: 140, sd: 51, source: "Biering-Sørensen 1984 / Demoulin 2006" },
   ],
   female: [
-    { ageMin: 20, ageMax: 29, mean: 189, sd: 60, source: "Biering-SÃ¸rensen 1984 / Demoulin 2006" },
-    { ageMin: 30, ageMax: 39, mean: 165, sd: 56, source: "Biering-SÃ¸rensen 1984 / Demoulin 2006" },
-    { ageMin: 40, ageMax: 49, mean: 152, sd: 58, source: "Biering-SÃ¸rensen 1984 / Demoulin 2006" },
-    { ageMin: 50, ageMax: 59, mean: 148, sd: 60, source: "Biering-SÃ¸rensen 1984 / Demoulin 2006" },
-    { ageMin: 60, ageMax: 79, mean: 131, sd: 53, source: "Biering-SÃ¸rensen 1984 / Demoulin 2006" },
+    { ageMin: 20, ageMax: 29, mean: 189, sd: 60, source: "Biering-Sørensen 1984 / Demoulin 2006" },
+    { ageMin: 30, ageMax: 39, mean: 165, sd: 56, source: "Biering-Sørensen 1984 / Demoulin 2006" },
+    { ageMin: 40, ageMax: 49, mean: 152, sd: 58, source: "Biering-Sørensen 1984 / Demoulin 2006" },
+    { ageMin: 50, ageMax: 59, mean: 148, sd: 60, source: "Biering-Sørensen 1984 / Demoulin 2006" },
+    { ageMin: 60, ageMax: 79, mean: 131, sd: 53, source: "Biering-Sørensen 1984 / Demoulin 2006" },
   ],
 };
 
@@ -41,8 +41,8 @@ function classifyResult(seconds, age, gender) {
   const z = (seconds - row.mean) / row.sd;
   if (z >= 1.0) return { label: "Excellent", sublabel: "> +1 SD above mean", color: "bg-green-100 text-green-800 border-green-300", z };
   if (z >= 0.0) return { label: "Above Average", sublabel: "Mean to +1 SD", color: "bg-teal-100 text-teal-800 border-teal-300", z };
-  if (z >= -1.0) return { label: "Below Average", sublabel: "Mean to âˆ’1 SD", color: "bg-yellow-100 text-yellow-800 border-yellow-300", z };
-  return { label: "Low Endurance", sublabel: "< âˆ’1 SD below mean", color: "bg-red-100 text-red-800 border-red-300", z };
+  if (z >= -1.0) return { label: "Below Average", sublabel: "Mean to −1 SD", color: "bg-yellow-100 text-yellow-800 border-yellow-300", z };
+  return { label: "Low Endurance", sublabel: "< −1 SD below mean", color: "bg-red-100 text-red-800 border-red-300", z };
 }
 
 function formatTime(s) {
@@ -53,14 +53,14 @@ function formatTime(s) {
 }
 
 function formatTimeLabel(s) {
-  if (!s && s !== 0) return "â€”";
+  if (!s && s !== 0) return "—";
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   if (m > 0) return `${m}m ${sec}s`;
   return `${Math.floor(s)}s`;
 }
 
-// â”€â”€â”€ Collapsible Section â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Collapsible Section ────────────────────────────────────────────────────────
 function Section({ title, icon: Icon, children, defaultOpen = false, accent = "blue" }) {
   const [open, setOpen] = useState(defaultOpen);
   const accentMap = {
@@ -88,7 +88,7 @@ function Section({ title, icon: Icon, children, defaultOpen = false, accent = "b
   );
 }
 
-// â”€â”€â”€ Pain Slider â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Pain Slider ─────────────────────────────────────────────────────────────
 function PainSlider({ value, onChange, label }) {
   const color = value <= 3 ? "text-green-600" : value <= 6 ? "text-yellow-600" : "text-red-600";
   return (
@@ -109,19 +109,19 @@ function PainSlider({ value, onChange, label }) {
   );
 }
 
-// â”€â”€â”€ STOP REASON OPTIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── STOP REASON OPTIONS ─────────────────────────────────────────────────────
 const STOP_REASONS = [
   "Fatigue",
   "Pain",
   "Loss of horizontal position",
-  ">10Â° trunk drop",
+  ">10° trunk drop",
   "Client requested stop",
   "Safety concern",
   "Reached maximum / test ceiling",
   "Other",
 ];
 
-// â”€â”€â”€ CONTRAINDICATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── CONTRAINDICATIONS ───────────────────────────────────────────────────────
 const CONTRAINDICATIONS = [
   { id: "acute_pain", label: "No acute severe lumbar pain present" },
   { id: "no_surgery", label: "No recent spinal surgery (< 3 months)" },
@@ -132,7 +132,7 @@ const CONTRAINDICATIONS = [
   { id: "consent", label: "Patient consent obtained" },
 ];
 
-// â”€â”€â”€ MAIN COMPONENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function StaticBackExtensionBieringSrensenTestRunner({ client, onSave, onClose }) {
   const [step, setStep] = useState(0); // 0=overview 1=safety 2=setup 3=test 4=technique 5=pain 6=results
 
@@ -193,7 +193,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
   const normRow = finalTime && age && client?.gender ? getNormativeRow(age, client.gender) : null;
   const classification = finalTime && age && client?.gender ? classifyResult(finalTime, age, client.gender) : null;
 
-  // â”€â”€ Timer Logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Timer Logic ──────────────────────────────────────────────────────────────
   const startTimer = () => {
     setElapsed(0);
     setFinalTime(null);
@@ -219,16 +219,16 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
     setStopReason("");
   };
 
-  // â”€â”€ Safety check helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Safety check helpers ────────────────────────────────────────────────────
   const allSafetyChecked = CONTRAINDICATIONS.every(c => safetyChecks[c.id]);
 
-  // â”€â”€ Auto-generated interpretation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Auto-generated interpretation ──────────────────────────────────────────
   const generateInterpretation = () => {
     if (!finalTime) return "";
     const timeLabel = formatTimeLabel(finalTime);
     const stoppedBy = stopReason === "Other" ? (otherStopReason || "unspecified reason") : (stopReason || "unspecified reason");
-    const classLabel = classification ? ` â€” classified as ${classification.label}` : "";
-    const normText = normRow ? ` compared to an age/sex normative mean of ${normRow.mean}s (Â±${normRow.sd}s)` : "";
+    const classLabel = classification ? ` — classified as ${classification.label}` : "";
+    const normText = normRow ? ` compared to an age/sex normative mean of ${normRow.mean}s (±${normRow.sd}s)` : "";
     const qualText = technique.qualityRating ? ` Technique quality was rated as ${technique.qualityRating.toLowerCase()}.` : "";
     const painText = symptoms.painDuring > 0
       ? ` Lumbar pain of ${symptoms.painDuring}/10 was reported during the test${symptoms.symptomsIncreased ? ", with symptoms increasing from baseline" : ""}.`
@@ -241,26 +241,26 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
       ? " Hold time is below the normative mean for this age and sex group, suggesting reduced lumbar extensor endurance."
       : " Hold time is within or above the normative range for this age and sex group.";
 
-    return `Biering-SÃ¸rensen Back Extension Test completed with a hold time of ${timeLabel} (${finalTime}s)${classLabel}${normText}. Test was stopped due to ${stoppedBy}.${qualText}${painText}${neuroText}${flagText}${modText} Findings may inform progressive trunk endurance rehabilitation and should be interpreted alongside clinical presentation and functional goals.`;
+    return `Biering-Sørensen Back Extension Test completed with a hold time of ${timeLabel} (${finalTime}s)${classLabel}${normText}. Test was stopped due to ${stoppedBy}.${qualText}${painText}${neuroText}${flagText}${modText} Findings may inform progressive trunk endurance rehabilitation and should be interpreted alongside clinical presentation and functional goals.`;
   };
 
-  // â”€â”€ Clinical flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Clinical flags ──────────────────────────────────────────────────────────
   const generateFlags = () => {
     const flags = [];
     if (!finalTime) return flags;
     if (finalTime < 60) flags.push({ label: "Very low lumbar extensor endurance", severity: "high" });
     else if (classification?.label === "Low Endurance") flags.push({ label: "Reduced lumbar extensor endurance", severity: "medium" });
     if (stopReason === "Pain" || symptoms.painDuring >= 4) flags.push({ label: "Pain-limited performance", severity: "medium" });
-    if (symptoms.neurologicalSymptoms) flags.push({ label: "Neurological symptoms noted â€” review urgently", severity: "high" });
-    if (technique.qualityRating === "Poor" || technique.excessiveLumbarExtension) flags.push({ label: "Technique limitations â€” reduced test validity", severity: "medium" });
-    if (setupData.testModified) flags.push({ label: "Modified test â€” interpret with caution", severity: "low" });
+    if (symptoms.neurologicalSymptoms) flags.push({ label: "Neurological symptoms noted — review urgently", severity: "high" });
+    if (technique.qualityRating === "Poor" || technique.excessiveLumbarExtension) flags.push({ label: "Technique limitations — reduced test validity", severity: "medium" });
+    if (setupData.testModified) flags.push({ label: "Modified test — interpret with caution", severity: "low" });
     if (symptoms.symptomsIncreased) flags.push({ label: "Symptoms increased during testing", severity: "medium" });
     if (finalTime > 0) flags.push({ label: "Consider progressive trunk endurance training", severity: "info" });
-    if (finalTime > 0) flags.push({ label: "Reassess after 6â€“8 week training block", severity: "info" });
+    if (finalTime > 0) flags.push({ label: "Reassess after 6–8 week training block", severity: "info" });
     return flags;
   };
 
-  // â”€â”€ SOAP text â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── SOAP text ───────────────────────────────────────────────────────────────
   const generateSoapText = () => {
     if (!finalTime) return "";
     const timeLabel = formatTimeLabel(finalTime);
@@ -271,18 +271,18 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
     const classLabel = classification ? ` (${classification.label})` : "";
     const norm = normRow ? ` Normative mean (${client?.gender}, ${age}yo): ${normRow.mean}s.` : "";
 
-    let soap = `â€¢ Biering-SÃ¸rensen Back Extension Test\n`;
+    let soap = `• Biering-Sørensen Back Extension Test\n`;
     soap += `  Hold Time: ${finalTime}s (${timeLabel})${classLabel}${norm}\n`;
     soap += `  Stopped due to: ${stopLabel}\n`;
     if (techSummary) soap += `  ${techSummary}. `;
     soap += `${painSummary}.${neuro}\n`;
-    if (setupData.testModified) soap += `  Modified test â€” interpret with caution.\n`;
+    if (setupData.testModified) soap += `  Modified test — interpret with caution.\n`;
     if (clinicalNotes) soap += `  Clinical Notes: ${clinicalNotes}\n`;
     soap += `  Interpretation: ${generateInterpretation()}`;
     return soap;
   };
 
-  // â”€â”€ Validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Validation ──────────────────────────────────────────────────────────────
   const canSave = () => {
     if (!finalTime) return false;
     if (!stopReason) return false;
@@ -291,7 +291,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
     return true;
   };
 
-  // â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Save ────────────────────────────────────────────────────────────────────
   const handleSave = () => {
     if (!canSave()) {
       toast.error("Complete all required fields: hold time, stop reason, pain score, and technique quality.");
@@ -320,7 +320,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
         interpretation: generateInterpretation(),
       },
     });
-    toast.success("Biering-SÃ¸rensen Test saved successfully.");
+    toast.success("Biering-Sørensen Test saved successfully.");
   };
 
   const steps = [
@@ -342,8 +342,8 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
         {/* Header */}
         <div className="px-5 py-4 border-b bg-gradient-to-r from-amber-50 to-stone-50 flex justify-between items-start shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Biering-SÃ¸rensen Back Extension Test</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Lumbar extensor endurance â€¢ Isometric hold assessment</p>
+            <h2 className="text-lg font-bold text-slate-900">Biering-Sørensen Back Extension Test</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Lumbar extensor endurance • Isometric hold assessment</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -367,12 +367,12 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-          {/* â”€â”€ STEP 0: OVERVIEW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 0: OVERVIEW ─────────────────────────────────────────────── */}
           {step === 0 && (
             <div className="space-y-4">
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
                 <h3 className="font-bold text-amber-900 mb-2 flex items-center gap-2"><Info className="w-4 h-4" />Assessment Overview</h3>
-                <p className="text-sm text-amber-800 mb-3">The Biering-SÃ¸rensen Test measures isometric endurance of the lumbar and hip extensor musculature. It is a validated clinical tool with strong predictive validity for low back pain onset and recurrence.</p>
+                <p className="text-sm text-amber-800 mb-3">The Biering-Sørensen Test measures isometric endurance of the lumbar and hip extensor musculature. It is a validated clinical tool with strong predictive validity for low back pain onset and recurrence.</p>
                 <div className="grid grid-cols-2 gap-2 text-xs">
                   {["Low back pain assessment", "Lumbar extensor endurance", "Trunk endurance testing", "Work conditioning", "Rehabilitation monitoring", "Return-to-work / FCE"].map(u => (
                     <div key={u} className="flex items-center gap-1.5 text-amber-700"><CheckCircle2 className="w-3 h-3 shrink-0" />{u}</div>
@@ -385,7 +385,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
                   <div className="flex gap-2"><span className="font-semibold min-w-24 text-slate-900">Position:</span><span>Patient prone on bench/plinth. ASIS/iliac crest at the bench edge. Lower body fixed.</span></div>
                   <div className="flex gap-2"><span className="font-semibold min-w-24 text-slate-900">Task:</span><span>Maintain upper body horizontal with arms crossed. Hold as long as safely possible.</span></div>
                   <div className="flex gap-2"><span className="font-semibold min-w-24 text-slate-900">Start:</span><span>Timer begins once horizontal position is achieved and stable.</span></div>
-                  <div className="flex gap-2"><span className="font-semibold min-w-24 text-slate-900">Stop:</span><span>Patient request, pain, neurological symptoms, or &gt;10Â° trunk drop.</span></div>
+                  <div className="flex gap-2"><span className="font-semibold min-w-24 text-slate-900">Stop:</span><span>Patient request, pain, neurological symptoms, or &gt;10° trunk drop.</span></div>
                   <div className="flex gap-2"><span className="font-semibold min-w-24 text-slate-900">Score:</span><span>Total hold time in seconds. Compare to age/sex normative data.</span></div>
                 </div>
               </Section>
@@ -398,7 +398,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-800">Video Reference</p>
-                    <p className="text-xs text-slate-500">Biering-SÃ¸rensen Test â€” setup &amp; administration demonstration</p>
+                    <p className="text-xs text-slate-500">Biering-Sørensen Test — setup &amp; administration demonstration</p>
                   </div>
                   <a
                     href="https://www.youtube.com/watch?v=pLnSRlop4vk&t=250s"
@@ -406,18 +406,18 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
                     rel="noopener noreferrer"
                     className="shrink-0 px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold rounded-lg transition-colors"
                   >
-                    Watch â†’
+                    Watch →
                   </a>
                 </div>
               </Section>
 
               <Button onClick={() => setStep(1)} className="w-full bg-amber-600 hover:bg-amber-700">
-                Begin Assessment â†’
+                Begin Assessment →
               </Button>
             </div>
           )}
 
-          {/* â”€â”€ STEP 1: SAFETY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 1: SAFETY ─────────────────────────────────────────────── */}
           {step === 1 && (
             <div className="space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-xl p-4">
@@ -461,13 +461,13 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(0)} className="flex-1">â† Back</Button>
                 <Button onClick={() => setStep(2)} className="flex-1 bg-amber-600 hover:bg-amber-700">
-                  {allSafetyChecked ? "Proceed to Setup â†’" : "Override & Continue â†’"}
+                  {allSafetyChecked ? "Proceed to Setup →" : "Override & Continue →"}
                 </Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 2: SETUP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 2: SETUP ──────────────────────────────────────────────── */}
           {step === 2 && (
             <div className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-900">
@@ -475,7 +475,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
                 <ol className="list-decimal list-inside space-y-1 text-blue-800">
                   <li>Patient lies prone on bench/plinth.</li>
                   <li>Align ASIS/iliac crest exactly with bench edge.</li>
-                  <li>Secure lower body â€” thighs, pelvis and calves.</li>
+                  <li>Secure lower body — thighs, pelvis and calves.</li>
                   <li>Instruct arms crossed over chest.</li>
                   <li>Patient holds trunk horizontal. Support initially then release.</li>
                   <li>Confirm stable horizontal position before starting timer.</li>
@@ -555,7 +555,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
 
               {/* Clinician Script */}
               <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                <h4 className="font-semibold text-green-800 text-sm mb-2">ðŸ“‹ Clinician Script</h4>
+                <h4 className="font-semibold text-green-800 text-sm mb-2">📋 Clinician Script</h4>
                 <p className="text-sm text-green-800 italic">
                   "Hold your upper body level with the bench for as long as you safely can. Keep your arms crossed over your chest. Tell me immediately if you feel sharp pain, dizziness, numbness, or need to stop for any reason."
                 </p>
@@ -563,18 +563,18 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(1)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(3)} className="flex-1 bg-amber-600 hover:bg-amber-700">Start Test â†’</Button>
+                <Button onClick={() => setStep(3)} className="flex-1 bg-amber-600 hover:bg-amber-700">Start Test →</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 3: TEST RUNNER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 3: TEST RUNNER ─────────────────────────────────────────── */}
           {step === 3 && (
             <div className="space-y-4">
               {/* Sticky timer */}
               <div className={`rounded-2xl p-6 text-center border-2 transition-colors ${isRunning ? "bg-amber-50 border-amber-400" : finalTime ? "bg-green-50 border-green-400" : "bg-slate-50 border-slate-200"}`}>
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-                  {isRunning ? "â–¶ TEST IN PROGRESS â€” HOLD POSITION" : finalTime ? "âœ“ Test Complete" : "Ready to Start"}
+                  {isRunning ? "▶ TEST IN PROGRESS — HOLD POSITION" : finalTime ? "✓ Test Complete" : "Ready to Start"}
                 </p>
                 <p className={`text-7xl font-mono font-bold ${isRunning ? "text-amber-700" : finalTime ? "text-green-700" : "text-slate-400"}`}>
                   {isRunning ? formatTime(elapsed) : finalTime ? formatTime(finalTime) : "0:00"}
@@ -641,18 +641,18 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(2)} className="flex-1">â† Back</Button>
                 <Button onClick={() => setStep(4)} disabled={!finalTime} className="flex-1 bg-amber-600 hover:bg-amber-700">
-                  Continue â†’ Technique
+                  Continue → Technique
                 </Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 4: TECHNIQUE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 4: TECHNIQUE ──────────────────────────────────────────── */}
           {step === 4 && (
             <div className="space-y-4">
               <div className="bg-purple-50 border border-purple-200 rounded-xl p-3 text-sm text-purple-800">
                 <Activity className="w-4 h-4 inline mr-1" />
-                <strong>Technique Quality Assessment</strong> â€” Rate what was observed during the test.
+                <strong>Technique Quality Assessment</strong> — Rate what was observed during the test.
               </div>
 
               {[
@@ -701,21 +701,21 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(3)} className="flex-1">â† Back</Button>
                 <Button onClick={() => setStep(5)} disabled={!technique.qualityRating} className="flex-1 bg-amber-600 hover:bg-amber-700">
-                  Continue â†’ Pain/Symptoms
+                  Continue → Pain/Symptoms
                 </Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 5: PAIN / SYMPTOMS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 5: PAIN / SYMPTOMS ────────────────────────────────────── */}
           {step === 5 && (
             <div className="space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 text-sm text-red-800">
                 <Flag className="w-4 h-4 inline mr-1" />
-                <strong>Pain & Symptom Response</strong> â€” Record patient-reported symptoms during and after the test.
+                <strong>Pain & Symptom Response</strong> — Record patient-reported symptoms during and after the test.
               </div>
 
-              <PainSlider value={symptoms.painDuring} onChange={v => setSymptoms(p => ({ ...p, painDuring: v }))} label="Pain During Test (0â€“10)" />
+              <PainSlider value={symptoms.painDuring} onChange={v => setSymptoms(p => ({ ...p, painDuring: v }))} label="Pain During Test (0–10)" />
 
               <div>
                 <Label className="text-sm font-medium text-slate-700">Pain Location (select all that apply)</Label>
@@ -763,23 +763,23 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
 
               {symptoms.neurologicalSymptoms && (
                 <div className="bg-red-100 border border-red-300 rounded-lg p-3 text-sm text-red-800 font-medium">
-                  âš  Neurological symptoms reported. Document clearly and consider urgent review.
+                  ⚠ Neurological symptoms reported. Document clearly and consider urgent review.
                 </div>
               )}
 
-              <PainSlider value={symptoms.postTestPain} onChange={v => setSymptoms(p => ({ ...p, postTestPain: v }))} label="Post-Test Pain Score (0â€“10)" />
-              <PainSlider value={symptoms.rpeAfter} onChange={v => setSymptoms(p => ({ ...p, rpeAfter: v }))} label="Perceived Exertion After Test â€” RPE (0â€“10)" />
+              <PainSlider value={symptoms.postTestPain} onChange={v => setSymptoms(p => ({ ...p, postTestPain: v }))} label="Post-Test Pain Score (0–10)" />
+              <PainSlider value={symptoms.rpeAfter} onChange={v => setSymptoms(p => ({ ...p, rpeAfter: v }))} label="Perceived Exertion After Test — RPE (0–10)" />
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(4)} className="flex-1">â† Back</Button>
                 <Button onClick={() => setStep(6)} className="flex-1 bg-amber-600 hover:bg-amber-700">
-                  View Results â†’
+                  View Results →
                 </Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 6: RESULTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 6: RESULTS ────────────────────────────────────────────── */}
           {step === 6 && (
             <div className="space-y-4">
 
@@ -791,7 +791,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
                   <p className="text-xl font-semibold mt-1">{finalTime}s</p>
                   {classification && (
                     <Badge className={`mt-2 text-sm ${classification.color}`}>
-                      {classification.label} â€” {classification.sublabel}
+                      {classification.label} — {classification.sublabel}
                     </Badge>
                   )}
                 </div>
@@ -811,7 +811,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
                     </div>
                     <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
                       <span className="text-slate-600">Standard Deviation</span>
-                      <span className="font-bold">Â±{normRow.sd}s</span>
+                      <span className="font-bold">±{normRow.sd}s</span>
                     </div>
                     <div className="flex justify-between items-center p-2 bg-slate-50 rounded-lg">
                       <span className="text-slate-600">Patient Result</span>
@@ -871,8 +871,8 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
               <Section title="Evidence-Based References" icon={BookOpen} accent="slate">
                 <div className="space-y-3 text-xs text-slate-600">
                   {[
-                    { num: 1, authors: "Biering-SÃ¸rensen F.", title: "Physical measurements as risk indicators for low-back trouble over a one-year period.", journal: "Spine. 1984;9(2):106â€“119." },
-                    { num: 2, authors: "Demoulin C, Vanderthommen M, Duysens C, Crielaard JM.", title: "Spinal muscle evaluation using the Sorensen test: a critical appraisal of the literature.", journal: "Joint Bone Spine. 2006;73(1):43â€“50." },
+                    { num: 1, authors: "Biering-Sørensen F.", title: "Physical measurements as risk indicators for low-back trouble over a one-year period.", journal: "Spine. 1984;9(2):106–119." },
+                    { num: 2, authors: "Demoulin C, Vanderthommen M, Duysens C, Crielaard JM.", title: "Spinal muscle evaluation using the Sorensen test: a critical appraisal of the literature.", journal: "Joint Bone Spine. 2006;73(1):43–50." },
                     { num: 3, authors: "Latimer J, Maher CG, Refshauge K, Colaco I.", title: "The reliability and validity of the Biering-Sorensen test in asymptomatic subjects and subjects reporting current or previous nonspecific low back pain.", journal: "Spine. 1999." },
                     { num: 4, authors: "Moreau CE, Green BN, Johnson CD, Moreau SR.", title: "Isometric back extension endurance tests: a review of the literature.", journal: "J Manipulative Physiol Ther. 2001." },
                     { num: 5, authors: "McGill SM.", title: "Low Back Disorders: Evidence-Based Prevention and Rehabilitation.", journal: "Human Kinetics." },
@@ -918,8 +918,8 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
         <div className="border-t px-5 py-3 bg-slate-50 flex justify-between items-center shrink-0">
           <Button variant="ghost" size="sm" onClick={onClose} className="text-slate-500">Cancel</Button>
           <div className="flex items-center gap-2 text-xs text-slate-400">
-            {finalTime && <span className="text-green-600 font-medium">âœ“ {formatTimeLabel(finalTime)} recorded</span>}
-            {technique.qualityRating && <span className="text-blue-600 font-medium">âœ“ Technique rated</span>}
+            {finalTime && <span className="text-green-600 font-medium">✓ {formatTimeLabel(finalTime)} recorded</span>}
+            {technique.qualityRating && <span className="text-blue-600 font-medium">✓ Technique rated</span>}
           </div>
           {step === 6 && (
             <Button onClick={handleSave} disabled={!canSave()} size="sm" className="bg-amber-600 hover:bg-amber-700">

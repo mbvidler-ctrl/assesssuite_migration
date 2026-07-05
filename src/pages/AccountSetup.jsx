@@ -43,7 +43,7 @@ export default function AccountSetup() {
         {/* Success banner */}
         {paymentSuccess && (
           <div style={{ background: "#d1fae5", border: "2px solid #10b981", borderRadius: "12px", padding: "16px 20px", marginBottom: "24px", textAlign: "center" }}>
-            <p style={{ color: "#065f46", fontWeight: 700, fontSize: "16px", margin: "0 0 4px 0" }}>ðŸŽ‰ Payment successful!</p>
+            <p style={{ color: "#065f46", fontWeight: 700, fontSize: "16px", margin: "0 0 4px 0" }}>🎉 Payment successful!</p>
             <p style={{ color: "#047857", fontSize: "14px", margin: 0 }}>Now create your account to access the platform.</p>
           </div>
         )}
@@ -87,7 +87,7 @@ export default function AccountSetup() {
             onClick={navigateToLogin}
             style={{ width: "100%", background: "#2563eb", color: "#fff", border: "none", borderRadius: "12px", padding: "18px", fontSize: "17px", fontWeight: 800, cursor: "pointer", letterSpacing: "-0.3px" }}
           >
-            Continue to Account Creation â†’
+            Continue to Account Creation →
           </button>
 
           <p style={{ textAlign: "center", marginTop: "16px", fontSize: "13px", color: "#94a3b8" }}>

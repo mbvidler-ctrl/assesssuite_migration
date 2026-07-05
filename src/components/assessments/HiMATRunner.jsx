@@ -37,7 +37,7 @@ export default function HiMATRunner({ onSave, onClose, initialData }) {
   const handleSave = () => {
     const total = calculateTotal();
     const interp = total >= 54 ? 'High-level mobility' : total >= 42 ? 'Good mobility' : 'Impaired mobility';
-    const soapText = `â€¢ High-Level Mobility Assessment Tool (HiMAT)\n  Total Score: ${total}/54 â€” ${interp}${observations ? `\n  Observations: ${observations}` : ''}`;
+    const soapText = `• High-Level Mobility Assessment Tool (HiMAT)\n  Total Score: ${total}/54 — ${interp}${observations ? `\n  Observations: ${observations}` : ''}`;
     onSave({
       result_value: total,
       additional_data: {

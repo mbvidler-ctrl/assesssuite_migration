@@ -33,16 +33,16 @@ const FREQ_OPTIONS = [
 ];
 
 const LATENCY_MIN_OPTIONS = [
-  { label: "â‰¤15 minutes", value: 0 },
-  { label: "16â€“30 minutes", value: 1 },
-  { label: "31â€“60 minutes", value: 2 },
+  { label: "≤15 minutes", value: 0 },
+  { label: "16–30 minutes", value: 1 },
+  { label: "31–60 minutes", value: 2 },
   { label: ">60 minutes", value: 3 },
 ];
 
 const DURATION_OPTIONS = [
   { label: "More than 7 hours", value: 0 },
-  { label: "6â€“7 hours", value: 1 },
-  { label: "5â€“6 hours", value: 2 },
+  { label: "6–7 hours", value: 1 },
+  { label: "5–6 hours", value: 2 },
   { label: "Less than 5 hours", value: 3 },
 ];
 
@@ -161,8 +161,8 @@ export default function PittsburghSleepQualityIndexPSQIRunner({ client, onSave, 
   const totalScore = allScored ? components.reduce((a, b) => a + b, 0) : null;
 
   const getInterpretation = (score) => {
-    if (score <= 5) return { label: "Good Sleep Quality", color: "green", detail: "Score â‰¤5 indicates good overall sleep quality. No significant sleep disturbance." };
-    if (score <= 10) return { label: "Poor Sleep Quality", color: "yellow", detail: "Score 6â€“10 indicates poor sleep quality. Consider sleep hygiene education and monitoring." };
+    if (score <= 5) return { label: "Good Sleep Quality", color: "green", detail: "Score ≤5 indicates good overall sleep quality. No significant sleep disturbance." };
+    if (score <= 10) return { label: "Poor Sleep Quality", color: "yellow", detail: "Score 6–10 indicates poor sleep quality. Consider sleep hygiene education and monitoring." };
     return { label: "Severely Disturbed Sleep", color: "red", detail: "Score >10 indicates severely disturbed sleep. Clinical intervention and referral recommended." };
   };
 
@@ -173,7 +173,7 @@ export default function PittsburghSleepQualityIndexPSQIRunner({ client, onSave, 
     }
     const interp = getInterpretation(totalScore);
     const compLabels = COMPONENTS.map((c, i) => `${c.label}: ${components[i]}/3`).join("\n  ");
-    const soapText = `â€¢ Pittsburgh Sleep Quality Index (PSQI)\n  Total Score: ${totalScore}/21 â€” ${interp.label}\n\n  Component Scores:\n  ${compLabels}`;
+    const soapText = `• Pittsburgh Sleep Quality Index (PSQI)\n  Total Score: ${totalScore}/21 — ${interp.label}\n\n  Component Scores:\n  ${compLabels}`;
     onSave({
       status: "completed",
       result_value: totalScore,
@@ -196,7 +196,7 @@ export default function PittsburghSleepQualityIndexPSQIRunner({ client, onSave, 
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-2xl font-bold text-slate-900">Pittsburgh Sleep Quality Index (PSQI)</h2>
-              <p className="text-slate-600 mt-1">Self-reported sleep quality assessment â€” past month</p>
+              <p className="text-slate-600 mt-1">Self-reported sleep quality assessment — past month</p>
             </div>
             <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
           </div>
@@ -215,10 +215,10 @@ export default function PittsburghSleepQualityIndexPSQIRunner({ client, onSave, 
 
           {showInfo && (
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-xs text-blue-800 space-y-2">
-              <p><strong>Purpose:</strong> The PSQI assesses sleep quality over the past month across 7 components. Each component scored 0â€“3; total score 0â€“21.</p>
-              <p><strong>Cut-off:</strong> Score &gt;5 = poor sleep quality (sensitivity 89.6%, specificity 86.5% â€” Buysse et al. 1989).</p>
+              <p><strong>Purpose:</strong> The PSQI assesses sleep quality over the past month across 7 components. Each component scored 0–3; total score 0–21.</p>
+              <p><strong>Cut-off:</strong> Score &gt;5 = poor sleep quality (sensitivity 89.6%, specificity 86.5% — Buysse et al. 1989).</p>
               <p><strong>Administration:</strong> Can be self-administered or clinician-assisted. Ask client to think about their <em>usual</em> sleep over the past month.</p>
-              <p><strong>Components:</strong> C1 Subjective Quality Â· C2 Latency Â· C3 Duration Â· C4 Efficiency Â· C5 Disturbances Â· C6 Medication Â· C7 Daytime Function</p>
+              <p><strong>Components:</strong> C1 Subjective Quality · C2 Latency · C3 Duration · C4 Efficiency · C5 Disturbances · C6 Medication · C7 Daytime Function</p>
             </div>
           )}
 
@@ -265,7 +265,7 @@ export default function PittsburghSleepQualityIndexPSQIRunner({ client, onSave, 
 
           {/* C4: Sleep Efficiency (auto-calculated from bedtime data) */}
           <div className="border border-slate-200 rounded-lg p-4">
-            <SectionHeader number={4} title="Habitual Sleep Efficiency" subtitle="Calculated from hours slept Ã· hours in bed" />
+            <SectionHeader number={4} title="Habitual Sleep Efficiency" subtitle="Calculated from hours slept ÷ hours in bed" />
             <p className="text-xs text-slate-500">Automatically calculated once sleep duration and hours in bed are entered above.</p>
             {c4 !== null && (
               <div className="mt-2">
@@ -328,7 +328,7 @@ export default function PittsburghSleepQualityIndexPSQIRunner({ client, onSave, 
                 <div key={i} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-slate-200">
                   <span className="text-xs text-slate-600">{comp.label}</span>
                   <span className={`text-sm font-bold ml-2 ${components[i] === null ? "text-slate-300" : components[i] === 0 ? "text-green-600" : components[i] === 1 ? "text-lime-600" : components[i] === 2 ? "text-yellow-600" : "text-red-600"}`}>
-                    {components[i] !== null ? `${components[i]}/3` : "â€“"}
+                    {components[i] !== null ? `${components[i]}/3` : "–"}
                   </span>
                 </div>
               ))}
@@ -338,7 +338,7 @@ export default function PittsburghSleepQualityIndexPSQIRunner({ client, onSave, 
               return (
                 <div className={`rounded-lg p-3 border ${interp.color === "green" ? "bg-green-100 border-green-300" : interp.color === "yellow" ? "bg-yellow-100 border-yellow-300" : "bg-red-100 border-red-300"}`}>
                   <p className={`font-bold text-lg ${interp.color === "green" ? "text-green-800" : interp.color === "yellow" ? "text-yellow-800" : "text-red-800"}`}>
-                    Total Score: {totalScore}/21 â€” {interp.label}
+                    Total Score: {totalScore}/21 — {interp.label}
                   </p>
                   <p className={`text-xs mt-1 ${interp.color === "green" ? "text-green-700" : interp.color === "yellow" ? "text-yellow-700" : "text-red-700"}`}>{interp.detail}</p>
                 </div>

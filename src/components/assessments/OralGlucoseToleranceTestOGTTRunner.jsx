@@ -26,7 +26,7 @@ const INTERPRETATIONS = [
   {
     condition: v => v >= 11.1,
     classification: "Diabetes Range",
-    clinical_meaning: "A 2-hour plasma glucose â‰¥11.1 mmol/L is consistent with diabetes mellitus when confirmed by a medical practitioner.",
+    clinical_meaning: "A 2-hour plasma glucose ≥11.1 mmol/L is consistent with diabetes mellitus when confirmed by a medical practitioner.",
     exercise_considerations: "Medical follow-up is required. Exercise should be prescribed cautiously with monitoring of blood glucose levels and potential medication effects.",
     color: "bg-red-50 border-red-300 text-red-800",
     badge: "bg-red-100 text-red-800",
@@ -52,7 +52,7 @@ export default function OralGlucoseToleranceTestOGTTRunner({ client, onSave, onC
     }
 
     const soapLines = [
-      `â€¢ Oral Glucose Tolerance Test (OGTT)`,
+      `• Oral Glucose Tolerance Test (OGTT)`,
       `  Source: External pathology / medical practitioner result`,
       fastingGlucose ? `  Fasting Blood Glucose: ${fastingGlucose} mmol/L` : null,
       `  2-Hour Blood Glucose: ${twoHourGlucose} mmol/L`,
@@ -88,7 +88,7 @@ export default function OralGlucoseToleranceTestOGTTRunner({ client, onSave, onC
         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between rounded-t-xl z-10">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Oral Glucose Tolerance Test (OGTT)</h2>
-            <p className="text-xs text-slate-500">Metabolic â€” Result documentation only</p>
+            <p className="text-xs text-slate-500">Metabolic — Result documentation only</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
@@ -105,7 +105,7 @@ export default function OralGlucoseToleranceTestOGTTRunner({ client, onSave, onC
 
           {/* Fasting glucose */}
           <div>
-            <Label className="font-medium">Fasting Blood Glucose (mmol/L) <span className="text-slate-400 font-normal text-xs">â€” optional</span></Label>
+            <Label className="font-medium">Fasting Blood Glucose (mmol/L) <span className="text-slate-400 font-normal text-xs">— optional</span></Label>
             <Input
               type="number"
               step="0.1"
@@ -127,7 +127,7 @@ export default function OralGlucoseToleranceTestOGTTRunner({ client, onSave, onC
               placeholder="e.g. 8.5"
               className="mt-1 max-w-xs"
             />
-            <p className="text-xs text-slate-500 mt-1">Reference thresholds: &lt;7.8 Normal | 7.8â€“11.0 Impaired | â‰¥11.1 Diabetes Range</p>
+            <p className="text-xs text-slate-500 mt-1">Reference thresholds: &lt;7.8 Normal | 7.8–11.0 Impaired | ≥11.1 Diabetes Range</p>
           </div>
 
           {/* Live interpretation */}
@@ -162,10 +162,10 @@ export default function OralGlucoseToleranceTestOGTTRunner({ client, onSave, onC
           {/* References */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
             <p className="font-semibold text-slate-700">References</p>
-            <p>â€¢ World Health Organization. Definition and diagnosis of diabetes mellitus and intermediate hyperglycaemia. WHO, 2006.</p>
-            <p>â€¢ American Diabetes Association. Standards of Medical Care in Diabetes. <em>Diabetes Care.</em></p>
-            <p>â€¢ Royal Australian College of General Practitioners (RACGP). Management of type 2 diabetes.</p>
-            <p>â€¢ Diabetes Australia Clinical Guidelines.</p>
+            <p>• World Health Organization. Definition and diagnosis of diabetes mellitus and intermediate hyperglycaemia. WHO, 2006.</p>
+            <p>• American Diabetes Association. Standards of Medical Care in Diabetes. <em>Diabetes Care.</em></p>
+            <p>• Royal Australian College of General Practitioners (RACGP). Management of type 2 diabetes.</p>
+            <p>• Diabetes Australia Clinical Guidelines.</p>
           </div>
 
           {/* Actions */}

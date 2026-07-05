@@ -52,7 +52,7 @@ export default function PTSDChecklistforDSM5PCL5Runner({ client, onSave, onClose
     if (score >= 33) {
       return {
         category: "Provisional PTSD diagnosis",
-        description: "Score â‰¥33 or symptom cluster method. Likely meets PTSD criteria per DSM-5.",
+        description: "Score ≥33 or symptom cluster method. Likely meets PTSD criteria per DSM-5.",
         color: "bg-red-50 border-red-300"
       };
     }
@@ -86,7 +86,7 @@ export default function PTSDChecklistforDSM5PCL5Runner({ client, onSave, onClose
     }
 
     const soapLines = [
-      `â€¢ PTSD Checklist for DSM-5 (PCL-5)`,
+      `• PTSD Checklist for DSM-5 (PCL-5)`,
       `  Client Name: ${client?.full_name || 'Not specified'}`,
       `  Assessor Name: ${assessorName || 'Not specified'}`,
       `  Assessment Date: ${assessmentDate}`,
@@ -118,7 +118,7 @@ export default function PTSDChecklistforDSM5PCL5Runner({ client, onSave, onClose
       `    - Negative alterations in cognition and mood (Items 8-14)`,
       `    - Alterations in arousal and reactivity (Items 15-20)`,
       ``,
-      `  Provisional PTSD Diagnosis: ${totalScore >= 33 ? 'Criterion met (score â‰¥33)' : 'Criterion not met'}`,
+      `  Provisional PTSD Diagnosis: ${totalScore >= 33 ? 'Criterion met (score ≥33)' : 'Criterion not met'}`,
     ].join('\n');
 
     onSave({
@@ -205,36 +205,36 @@ export default function PTSDChecklistforDSM5PCL5Runner({ client, onSave, onClose
 
               {/* Reference */}
               <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-                <p className="font-semibold">ðŸ“– Reference</p>
+                <p className="font-semibold">📖 Reference</p>
                 <p>Weathers FW, Litz BT, Keane TM, Palmieri PA, Marx BP, & Schnurr PP. (2013). The PTSD Checklist for DSM-5 (PCL-5). Scale available from the National Center for PTSD. www.ptsd.va.gov</p>
               </div>
 
               {/* Norms */}
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-                <p className="font-semibold text-slate-700">ðŸ“Š Score Interpretation (/80)</p>
+                <p className="font-semibold text-slate-700">📊 Score Interpretation (/80)</p>
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs border border-slate-300 rounded">
                     <thead className="bg-slate-200"><tr><th className="p-2 text-left">Score</th><th className="p-2 text-left">Interpretation</th></tr></thead>
                     <tbody>
                       <tr className="border-t"><td className="p-2">&lt;14</td><td className="p-2 text-green-700">Minimal/no PTSD symptoms</td></tr>
-                      <tr className="border-t bg-white"><td className="p-2">14â€“23</td><td className="p-2 text-yellow-700">Mild symptoms â€” monitor</td></tr>
-                      <tr className="border-t"><td className="p-2">24â€“32</td><td className="p-2 text-orange-700">Moderate symptoms â€” clinical assessment recommended</td></tr>
-                      <tr className="border-t bg-white"><td className="p-2">â‰¥33</td><td className="p-2 text-red-700">Provisional PTSD â€” referral to mental health</td></tr>
+                      <tr className="border-t bg-white"><td className="p-2">14–23</td><td className="p-2 text-yellow-700">Mild symptoms — monitor</td></tr>
+                      <tr className="border-t"><td className="p-2">24–32</td><td className="p-2 text-orange-700">Moderate symptoms — clinical assessment recommended</td></tr>
+                      <tr className="border-t bg-white"><td className="p-2">≥33</td><td className="p-2 text-red-700">Provisional PTSD — referral to mental health</td></tr>
                     </tbody>
                   </table>
                 </div>
-                <p className="text-xs text-slate-500">Past month timeframe. 0 = Not at all; 4 = Extremely. MCID: ~5â€“10 points for treatment response. Source: Weathers et al. (2013).</p>
+                <p className="text-xs text-slate-500">Past month timeframe. 0 = Not at all; 4 = Extremely. MCID: ~5–10 points for treatment response. Source: Weathers et al. (2013).</p>
               </div>
 
               <Card className="border-blue-200 bg-blue-50">
                 <CardHeader>
                   <CardTitle className="text-base flex items-center gap-2">
                     <Info className="w-5 h-5" />
-                    ðŸ“‹ Clinician Instructions
+                    📋 Clinician Instructions
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm text-blue-900 space-y-1">
-                  <p>Client rates how bothered by 20 PTSD symptoms in past month on 0â€“4 scale. Based on DSM-5 criteria. Administer with sensitivity â€” content may be distressing.</p>
+                  <p>Client rates how bothered by 20 PTSD symptoms in past month on 0–4 scale. Based on DSM-5 criteria. Administer with sensitivity — content may be distressing.</p>
                   <p className="italic">"The following questions ask about problems you may have had in response to a very stressful experience. Please read each carefully, then circle one of the numbers to indicate how much you have been bothered by that problem in the past month."</p>
                 </CardContent>
               </Card>
@@ -290,7 +290,7 @@ export default function PTSDChecklistforDSM5PCL5Runner({ client, onSave, onClose
                 </CardHeader>
                 <CardContent className="text-sm space-y-2">
                   <p className="font-semibold">
-                    Total 0â€“80. Provisional PTSD diagnosis: score â‰¥33 or symptom cluster method. Monitors treatment response.
+                    Total 0–80. Provisional PTSD diagnosis: score ≥33 or symptom cluster method. Monitors treatment response.
                   </p>
                 </CardContent>
               </Card>
@@ -345,7 +345,7 @@ export default function PTSDChecklistforDSM5PCL5Runner({ client, onSave, onClose
                 {/* Progress Info */}
                 <div className="bg-slate-50 p-3 rounded text-xs text-slate-600">
                   {currentQuestion + 1 === 20 ? "Last question" : `${20 - currentQuestion - 1} questions remaining`}
-                  {answeredCount > 0 && ` â€¢ ${answeredCount} answered`}
+                  {answeredCount > 0 && ` • ${answeredCount} answered`}
                 </div>
               </CardContent>
             </Card>
@@ -404,7 +404,7 @@ export default function PTSDChecklistforDSM5PCL5Runner({ client, onSave, onClose
               onClick={startQuestionnaire}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Start Questionnaire â†’
+              Start Questionnaire →
             </Button>
           )}
 
@@ -417,7 +417,7 @@ export default function PTSDChecklistforDSM5PCL5Runner({ client, onSave, onClose
                 onClick={handleNextQuestion}
                 className="bg-blue-600 hover:bg-blue-700"
               >
-                {currentQuestion === 19 ? "Complete" : "Next Question"} â†’
+                {currentQuestion === 19 ? "Complete" : "Next Question"} →
               </Button>
             </div>
           )}

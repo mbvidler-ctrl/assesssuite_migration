@@ -53,7 +53,7 @@ export default function IPAQRunner({ onSave, onClose }) {
     onSave({
       result_value: total,
       additional_data: {
-        soap_text: `â€¢ IPAQ (International Physical Activity Questionnaire)\n  Total: ${total.toFixed(0)} MET-min/week â€” ${category.level}\n  Vigorous: ${vigorous.toFixed(0)} | Moderate: ${moderate.toFixed(0)} | Walking: ${walking.toFixed(0)} MET-min/week`,
+        soap_text: `• IPAQ (International Physical Activity Questionnaire)\n  Total: ${total.toFixed(0)} MET-min/week — ${category.level}\n  Vigorous: ${vigorous.toFixed(0)} | Moderate: ${moderate.toFixed(0)} | Walking: ${walking.toFixed(0)} MET-min/week`,
         vigorous_days: parseInt(vigorousDays) || 0,
         vigorous_minutes: parseInt(vigorousMinutes) || 0,
         moderate_days: parseInt(moderateDays) || 0,

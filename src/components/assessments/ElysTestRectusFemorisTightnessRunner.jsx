@@ -38,7 +38,7 @@ export default function ElysTestRectusFemorisTightnessRunner({ client, onSave, o
     const isPositive = hipFlexionObserved;
     const interpretation = angle < 120 || isPositive ? "Positive (Rectus femoris tightness)" : "Negative (Normal flexibility)";
 
-    const soapText = `â€¢ Ely's Test (Rectus Femoris Tightness)\n  Knee Flexion Angle: ${angle}Â°\n  Hip Flexion Observed: ${isPositive ? "Yes (Positive)" : "No (Negative)"}\n  Interpretation: ${interpretation}\n  Normal: >120Â° knee flexion without hip flexion (buttock lifts from table)\n  Clinical Significance: Positive test suggests rectus femoris shortness/tightness`;
+    const soapText = `• Ely's Test (Rectus Femoris Tightness)\n  Knee Flexion Angle: ${angle}°\n  Hip Flexion Observed: ${isPositive ? "Yes (Positive)" : "No (Negative)"}\n  Interpretation: ${interpretation}\n  Normal: >120° knee flexion without hip flexion (buttock lifts from table)\n  Clinical Significance: Positive test suggests rectus femoris shortness/tightness`;
 
     const additional_data = {
       soap_text: soapText,
@@ -127,8 +127,8 @@ export default function ElysTestRectusFemorisTightnessRunner({ client, onSave, o
                   <div>
                     <p className="font-semibold">Interpretation:</p>
                     <ul className="list-disc list-inside ml-2 space-y-1 text-xs mt-1">
-                      <li><strong>Negative (Normal):</strong> Knee flexion &gt;120Â° WITHOUT hip flexion (buttock stays on table)</li>
-                      <li><strong>Positive (Tight):</strong> Hip flexion occurs (buttock lifts) OR knee flexion &lt;120Â° before hip rises</li>
+                      <li><strong>Negative (Normal):</strong> Knee flexion &gt;120° WITHOUT hip flexion (buttock stays on table)</li>
+                      <li><strong>Positive (Tight):</strong> Hip flexion occurs (buttock lifts) OR knee flexion &lt;120° before hip rises</li>
                       <li>Positive test suggests rectus femoris shortness and possible hip flexor tightness</li>
                     </ul>
                   </div>
@@ -150,9 +150,9 @@ export default function ElysTestRectusFemorisTightnessRunner({ client, onSave, o
                   <div>
                     <p className="font-semibold">Critical Observation Points:</p>
                     <ul className="list-disc list-inside ml-2 space-y-1 text-xs mt-1">
-                      <li><strong>Buttock Lift:</strong> Most important signâ€”does the hip flex/buttock rise from the table as you flex the knee?</li>
+                      <li><strong>Buttock Lift:</strong> Most important sign—does the hip flex/buttock rise from the table as you flex the knee?</li>
                       <li><strong>Angle Achieved:</strong> Measure knee flexion angle at which hip flexion begins or maximum flexion achieved</li>
-                      <li><strong>Normal Range:</strong> Typically 120â€“135Â° knee flexion before hip flexion occurs in normal individuals</li>
+                      <li><strong>Normal Range:</strong> Typically 120–135° knee flexion before hip flexion occurs in normal individuals</li>
                       <li><strong>Pain/Discomfort:</strong> Note any reported pain; may indicate other pathology</li>
                     </ul>
                   </div>
@@ -172,8 +172,8 @@ export default function ElysTestRectusFemorisTightnessRunner({ client, onSave, o
                   <div>
                     <p className="font-semibold text-slate-900">Normative Values:</p>
                     <div className="mt-2 bg-slate-50 p-3 rounded text-xs space-y-1">
-                      <p><strong>Negative (Normal):</strong> Knee flexion &gt;120Â° without hip flexion (buttock remains on table)</p>
-                      <p><strong>Positive (Tight):</strong> Hip flexion observed OR knee flexion &lt;120Â° when hip begins to rise</p>
+                      <p><strong>Negative (Normal):</strong> Knee flexion &gt;120° without hip flexion (buttock remains on table)</p>
+                      <p><strong>Positive (Tight):</strong> Hip flexion observed OR knee flexion &lt;120° when hip begins to rise</p>
                     </div>
                   </div>
                   <div>
@@ -194,9 +194,9 @@ export default function ElysTestRectusFemorisTightnessRunner({ client, onSave, o
                   <CardTitle className="text-base">References & Evidence</CardTitle>
                 </CardHeader>
                 <CardContent className="text-xs text-slate-700 space-y-2">
-                  <p><strong>Juhl, C. B., Lund, H., Lentz, T. A., & JÃ¸rgensen, A.</strong> (2016). The validity of the Ely test in detecting rectus femoris tightness: a systematic review. <em>Physiotherapy Theory and Practice</em>, 32(6), 382â€“389.</p>
+                  <p><strong>Juhl, C. B., Lund, H., Lentz, T. A., & Jørgensen, A.</strong> (2016). The validity of the Ely test in detecting rectus femoris tightness: a systematic review. <em>Physiotherapy Theory and Practice</em>, 32(6), 382–389.</p>
                   <p><a href="https://doi.org/10.1080/09593985.2016.1149025" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">https://doi.org/10.1080/09593985.2016.1149025</a></p>
-                  <p className="mt-2"><strong>Medina McKeon, J. M., & Hertel, J.</strong> (2008). Sex differences and representative values for six lower extremity flexibility tests. <em>Journal of Athletic Training</em>, 43(4), 383â€“389.</p>
+                  <p className="mt-2"><strong>Medina McKeon, J. M., & Hertel, J.</strong> (2008). Sex differences and representative values for six lower extremity flexibility tests. <em>Journal of Athletic Training</em>, 43(4), 383–389.</p>
                   <Button
                     onClick={() => window.open('https://www.apta.org/', '_blank')}
                     variant="outline"
@@ -241,7 +241,7 @@ export default function ElysTestRectusFemorisTightnessRunner({ client, onSave, o
                       max="180"
                       className="mt-1"
                     />
-                    <p className="text-xs text-slate-500 mt-1">Normal: &gt;120Â° without hip flexion</p>
+                    <p className="text-xs text-slate-500 mt-1">Normal: &gt;120° without hip flexion</p>
                   </div>
 
                   <div>

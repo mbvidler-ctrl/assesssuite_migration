@@ -26,12 +26,12 @@ const PCS_ITEMS = [
   { text: "I wonder whether something serious may happen.", subscale: "Magnification" },
 ];
 
-const SCORE_LABELS = ["0 â€“ Not at all", "1 â€“ Slight", "2 â€“ Moderate", "3 â€“ Great degree", "4 â€“ All the time"];
+const SCORE_LABELS = ["0 – Not at all", "1 – Slight", "2 – Moderate", "3 – Great degree", "4 – All the time"];
 
 function getInterpretation(total) {
-  if (total <= 20) return { level: "Low Catastrophizing", color: "text-green-700", bg: "bg-green-50 border-green-300", desc: "Scores â‰¤20 suggest minimal pain catastrophizing. Client is unlikely to have significant psychological barriers to recovery." };
-  if (total <= 29) return { level: "Moderate Catastrophizing", color: "text-orange-700", bg: "bg-orange-50 border-orange-300", desc: "Scores 21â€“29 indicate moderate catastrophizing. Consider addressing cognitive barriers alongside physical rehabilitation." };
-  return { level: "High Catastrophizing (Clinically Significant)", color: "text-red-700", bg: "bg-red-50 border-red-300", desc: "Scores â‰¥30 are clinically significant. Strong predictor of poor outcomes. Referral to psychology or pain management may be warranted." };
+  if (total <= 20) return { level: "Low Catastrophizing", color: "text-green-700", bg: "bg-green-50 border-green-300", desc: "Scores ≤20 suggest minimal pain catastrophizing. Client is unlikely to have significant psychological barriers to recovery." };
+  if (total <= 29) return { level: "Moderate Catastrophizing", color: "text-orange-700", bg: "bg-orange-50 border-orange-300", desc: "Scores 21–29 indicate moderate catastrophizing. Consider addressing cognitive barriers alongside physical rehabilitation." };
+  return { level: "High Catastrophizing (Clinically Significant)", color: "text-red-700", bg: "bg-red-50 border-red-300", desc: "Scores ≥30 are clinically significant. Strong predictor of poor outcomes. Referral to psychology or pain management may be warranted." };
 }
 
 export default function PainCatastrophizingScalePCSRunner({ client, onSave, onClose }) {
@@ -54,15 +54,15 @@ export default function PainCatastrophizingScalePCSRunner({ client, onSave, onCl
     }
 
     const soapLines = [
-      `â€¢ Pain Catastrophizing Scale (PCS)`,
-      `  Total Score: ${totalScore}/52 â†’ ${interp.level}`,
+      `• Pain Catastrophizing Scale (PCS)`,
+      `  Total Score: ${totalScore}/52 → ${interp.level}`,
       `  Subscale Scores:`,
       `    - Rumination: ${rumination}/16`,
       `    - Magnification: ${magnification}/12`,
       `    - Helplessness: ${helplessness}/24`,
       `  Item Responses:`,
       ...PCS_ITEMS.map((item, i) => `    Q${i+1} [${item.subscale}] (score: ${responses[i]}): ${item.text}`),
-      `  Clinical Significance: Scores â‰¥30 indicate clinically significant catastrophizing (Sullivan et al., 1995)`,
+      `  Clinical Significance: Scores ≥30 indicate clinically significant catastrophizing (Sullivan et al., 1995)`,
       `  Interpretation: ${interp.desc}`,
       notes ? `  Clinical Notes: ${notes}` : null,
     ].filter(Boolean).join('\n');
@@ -95,7 +95,7 @@ export default function PainCatastrophizingScalePCSRunner({ client, onSave, onCl
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-start z-10">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Pain Catastrophizing Scale (PCS)</h2>
-            <p className="text-sm text-slate-500">Sullivan et al., 1995 â€” 13-item self-report questionnaire</p>
+            <p className="text-sm text-slate-500">Sullivan et al., 1995 — 13-item self-report questionnaire</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
@@ -106,8 +106,8 @@ export default function PainCatastrophizingScalePCSRunner({ client, onSave, onCl
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-900 space-y-2">
             <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" /> Clinician Guidance</p>
             <p>The PCS measures the extent to which a person experiences catastrophic thinking about pain. It has three subscales: <strong>Rumination</strong> (inability to stop thinking about pain), <strong>Magnification</strong> (exaggerating threat), and <strong>Helplessness</strong> (inability to cope).</p>
-            <p><strong>Clinical cut-off: â‰¥30</strong> is considered clinically significant and is associated with increased disability, prolonged recovery, and poor response to standard treatment.</p>
-            <p><strong>Script:</strong> "Please read each statement and indicate the degree to which you have these thoughts and feelings when you are experiencing pain. Use the 0â€“4 scale â€” 0 means not at all, 4 means all the time."</p>
+            <p><strong>Clinical cut-off: ≥30</strong> is considered clinically significant and is associated with increased disability, prolonged recovery, and poor response to standard treatment.</p>
+            <p><strong>Script:</strong> "Please read each statement and indicate the degree to which you have these thoughts and feelings when you are experiencing pain. Use the 0–4 scale — 0 means not at all, 4 means all the time."</p>
           </div>
 
           {/* Questions */}
@@ -203,9 +203,9 @@ export default function PainCatastrophizingScalePCSRunner({ client, onSave, onCl
           {/* References */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
             <p className="font-semibold text-slate-700">References</p>
-            <p>â€¢ Sullivan MJL, Bishop SR, Pivik J. The Pain Catastrophizing Scale: Development and validation. <em>Psychol Assess.</em> 1995;7(4):524â€“532.</p>
-            <p>â€¢ Osman A, et al. The Pain Catastrophizing Scale: Further psychometric evaluation. <em>J Behav Med.</em> 2000;23(4):351â€“365.</p>
-            <p>â€¢ Sullivan MJL. The Pain Catastrophizing Scale: User manual. 2009.</p>
+            <p>• Sullivan MJL, Bishop SR, Pivik J. The Pain Catastrophizing Scale: Development and validation. <em>Psychol Assess.</em> 1995;7(4):524–532.</p>
+            <p>• Osman A, et al. The Pain Catastrophizing Scale: Further psychometric evaluation. <em>J Behav Med.</em> 2000;23(4):351–365.</p>
+            <p>• Sullivan MJL. The Pain Catastrophizing Scale: User manual. 2009.</p>
           </div>
         </div>
 

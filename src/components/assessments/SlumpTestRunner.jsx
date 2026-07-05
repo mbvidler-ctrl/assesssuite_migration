@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ Helper Components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helper Components ────────────────────────────────────────────────────────
 
 function SectionHeader({ icon: Icon, title, color = "slate", subtitle }) {
   const bg = {
@@ -77,7 +77,7 @@ function MultiSelect({ options, values, onChange }) {
   );
 }
 
-// â”€â”€â”€ Stage Image with caption â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Stage Image with caption ─────────────────────────────────────────────────
 
 const STAGE_IMAGES = {
   slump: "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&q=80",
@@ -86,7 +86,7 @@ const STAGE_IMAGES = {
   dorsiflex: "https://images.unsplash.com/photo-1616279967983-ec413476e824?w=400&q=80",
 };
 
-// â”€â”€â”€ Limb Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Limb Panel ───────────────────────────────────────────────────────────────
 
 const SYMPTOM_LOCATIONS = [
   "Lumbar only", "Buttock", "Posterior thigh", "Knee", "Posterior calf", "Foot/toes", "Diffuse leg", "Anterior thigh"
@@ -111,7 +111,7 @@ function LimbPanel({ side, data, onChange, isInjured }) {
 
         {/* Knee extension angle */}
         <div>
-          <Label className="text-xs font-semibold text-slate-600 block mb-1">Knee Extension Angle at Symptom Onset (Â°)</Label>
+          <Label className="text-xs font-semibold text-slate-600 block mb-1">Knee Extension Angle at Symptom Onset (°)</Label>
           <div className="flex items-center gap-2">
             <Input type="number" min="0" max="180" value={data.kneeAngle || ""} onChange={e => set("kneeAngle", e.target.value)}
               placeholder="e.g. 30" className="w-28" />
@@ -121,7 +121,7 @@ function LimbPanel({ side, data, onChange, isInjured }) {
 
         {/* Pain severity */}
         <div>
-          <Label className="text-xs font-semibold text-slate-600 block mb-1">Pain Severity (0â€“10)</Label>
+          <Label className="text-xs font-semibold text-slate-600 block mb-1">Pain Severity (0–10)</Label>
           <Input type="number" min="0" max="10" value={data.painSeverity || ""} onChange={e => set("painSeverity", e.target.value)}
             placeholder="0" className="w-20" />
         </div>
@@ -155,7 +155,7 @@ function LimbPanel({ side, data, onChange, isInjured }) {
           <Label className="text-xs font-semibold text-slate-600 block mb-2">Response to cervical extension release</Label>
           <RadioButtons
             options={[
-              { val: "decreased", label: "Symptoms decreased âœ“" },
+              { val: "decreased", label: "Symptoms decreased ✓" },
               { val: "unchanged", label: "Unchanged" },
               { val: "increased", label: "Symptoms increased" },
             ]}
@@ -186,7 +186,7 @@ function LimbPanel({ side, data, onChange, isInjured }) {
   );
 }
 
-// â”€â”€â”€ Safety items â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Safety items ──────────────────────────────────────────────────────────────
 
 const SAFETY_ITEMS = [
   { id: "no_acute_pain", label: "No severe acute lumbar pain", redFlag: false },
@@ -198,7 +198,7 @@ const SAFETY_ITEMS = [
   { id: "consent", label: "Patient consent obtained", redFlag: false },
 ];
 
-// â”€â”€â”€ Guided stages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Guided stages ────────────────────────────────────────────────────────────
 
 const SLUMP_STAGES = [
   {
@@ -233,7 +233,7 @@ const SLUMP_STAGES = [
   },
 ];
 
-// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 const INIT_LIMB = {
   kneeAngle: "", painSeverity: "", symptomTypes: [], symptomLocations: [],
@@ -272,7 +272,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
   const [open, setOpen] = useState({ overview: true, setup: true, stages: true, left: true, right: true, diff: true, refs: false });
   const tog = k => setOpen(p => ({ ...p, [k]: !p[k] }));
 
-  // â”€â”€ Derived â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Derived ───────────────────────────────────────────────────────────────
 
   const leftPositive = leftData.positive === true ||
     (leftData.familiarSymptoms === true && leftData.cervicalResponse === "decreased" && leftData.belowKnee === true);
@@ -281,7 +281,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
 
   const limbsComplete = (leftData.kneeAngle || leftData.positive !== null) && (rightData.kneeAngle || rightData.positive !== null);
 
-  // â”€â”€ Interpretation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Interpretation ────────────────────────────────────────────────────────
 
   const interpretation = useMemo(() => {
     if (!limbsComplete) return null;
@@ -296,7 +296,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
       const diff = Math.abs(parseFloat(leftAngle) - parseFloat(rightAngle));
       if (diff > 10) {
         const more = parseFloat(leftAngle) > parseFloat(rightAngle) ? "Left" : "Right";
-        comparisonText = `${more} limb demonstrated earlier symptom onset during knee extension (${diff}Â° asymmetry), indicating greater neural mechanosensitivity on the ${more.toLowerCase()} side.`;
+        comparisonText = `${more} limb demonstrated earlier symptom onset during knee extension (${diff}° asymmetry), indicating greater neural mechanosensitivity on the ${more.toLowerCase()} side.`;
       } else {
         comparisonText = "Bilateral knee extension angles were comparable, suggesting symmetrical neural mobility.";
       }
@@ -315,7 +315,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
       const locationStr = posData.symptomLocations?.length ? posData.symptomLocations.join(", ").toLowerCase() : "lower limb";
       const cervRelief = posData.cervicalResponse === "decreased";
       return {
-        level: `Positive Slump Test â€” ${positiveSide.charAt(0).toUpperCase() + positiveSide.slice(1)} Side`,
+        level: `Positive Slump Test — ${positiveSide.charAt(0).toUpperCase() + positiveSide.slice(1)} Side`,
         color: "text-orange-700", bg: "bg-orange-50 border-orange-200",
         narrative: `Positive ${positiveSide}-sided Slump Test with reproduction of familiar symptoms into ${locationStr}${posData.belowKnee ? ", including below-knee distribution" : ""}. ${cervRelief ? "Symptoms reduced following cervical extension release, confirming neural mechanosensitivity." : ""} ${comparisonText} Findings are consistent with ${positiveSide}-sided sciatic neural tension and possible lumbar nerve root irritation.`
       };
@@ -331,51 +331,51 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
     return null;
   }, [limbsComplete, leftPositive, rightPositive, leftData, rightData, symptomaticSide]);
 
-  // â”€â”€ Flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Flags ─────────────────────────────────────────────────────────────────
 
   const flags = useMemo(() => {
     const f = [];
     if (!interpretation) return f;
     if (leftPositive || rightPositive) f.push("Sciatic neural mechanosensitivity identified");
-    if (leftPositive && rightPositive) f.push("Bilateral neural involvement â€” lumbar canal or central pathology to consider");
-    if (leftData.belowKnee === true || rightData.belowKnee === true) f.push("Below-knee symptom distribution â€” higher specificity for radiculopathy");
-    if (leftData.familiarSymptoms === true || rightData.familiarSymptoms === true) f.push("Familiar symptom reproduction â€” clinically meaningful finding");
+    if (leftPositive && rightPositive) f.push("Bilateral neural involvement — lumbar canal or central pathology to consider");
+    if (leftData.belowKnee === true || rightData.belowKnee === true) f.push("Below-knee symptom distribution — higher specificity for radiculopathy");
+    if (leftData.familiarSymptoms === true || rightData.familiarSymptoms === true) f.push("Familiar symptom reproduction — clinically meaningful finding");
     if (leftPositive || rightPositive) f.push("Recommend SLR test comparison for convergent validity");
     if (leftPositive || rightPositive) f.push("Recommend lumbar neurological screen (myotomes, dermatomes, reflexes)");
-    if (irritability && parseInt(irritability) >= 7) f.push("Elevated symptom irritability â€” proceed with caution in further testing");
-    if (leftData.cervicalResponse === "unchanged" || rightData.cervicalResponse === "unchanged") f.push("No cervical release effect â€” consider non-neural or central origin");
+    if (irritability && parseInt(irritability) >= 7) f.push("Elevated symptom irritability — proceed with caution in further testing");
+    if (leftData.cervicalResponse === "unchanged" || rightData.cervicalResponse === "unchanged") f.push("No cervical release effect — consider non-neural or central origin");
     return f;
   }, [interpretation, leftPositive, rightPositive, leftData, rightData, irritability]);
 
-  // â”€â”€ SOAP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── SOAP ──────────────────────────────────────────────────────────────────
 
   const buildSOAP = () => {
     const lines = [
-      `â€¢ Slump Test â€” Neurodynamic Assessment`,
+      `• Slump Test — Neurodynamic Assessment`,
       ``,
       `  Left Side:`,
-      `    Knee extension angle at onset: ${leftData.kneeAngle || "â€”"}Â°`,
-      `    Pain severity: ${leftData.painSeverity || "â€”"}/10`,
+      `    Knee extension angle at onset: ${leftData.kneeAngle || "—"}°`,
+      `    Pain severity: ${leftData.painSeverity || "—"}/10`,
       leftData.symptomLocations?.length ? `    Distribution: ${leftData.symptomLocations.join(", ")}` : null,
-      `    Below-knee symptoms: ${leftData.belowKnee === true ? "Yes" : leftData.belowKnee === false ? "No" : "â€”"}`,
-      `    Familiar symptoms: ${leftData.familiarSymptoms === true ? "Yes" : leftData.familiarSymptoms === false ? "No" : "â€”"}`,
-      `    Cervical release response: ${leftData.cervicalResponse || "â€”"}`,
+      `    Below-knee symptoms: ${leftData.belowKnee === true ? "Yes" : leftData.belowKnee === false ? "No" : "—"}`,
+      `    Familiar symptoms: ${leftData.familiarSymptoms === true ? "Yes" : leftData.familiarSymptoms === false ? "No" : "—"}`,
+      `    Cervical release response: ${leftData.cervicalResponse || "—"}`,
       `    Result: ${leftPositive ? "POSITIVE" : "Negative"}`,
       ``,
       `  Right Side:`,
-      `    Knee extension angle at onset: ${rightData.kneeAngle || "â€”"}Â°`,
-      `    Pain severity: ${rightData.painSeverity || "â€”"}/10`,
+      `    Knee extension angle at onset: ${rightData.kneeAngle || "—"}°`,
+      `    Pain severity: ${rightData.painSeverity || "—"}/10`,
       rightData.symptomLocations?.length ? `    Distribution: ${rightData.symptomLocations.join(", ")}` : null,
-      `    Below-knee symptoms: ${rightData.belowKnee === true ? "Yes" : rightData.belowKnee === false ? "No" : "â€”"}`,
-      `    Familiar symptoms: ${rightData.familiarSymptoms === true ? "Yes" : rightData.familiarSymptoms === false ? "No" : "â€”"}`,
-      `    Cervical release response: ${rightData.cervicalResponse || "â€”"}`,
+      `    Below-knee symptoms: ${rightData.belowKnee === true ? "Yes" : rightData.belowKnee === false ? "No" : "—"}`,
+      `    Familiar symptoms: ${rightData.familiarSymptoms === true ? "Yes" : rightData.familiarSymptoms === false ? "No" : "—"}`,
+      `    Cervical release response: ${rightData.cervicalResponse || "—"}`,
       `    Result: ${rightPositive ? "POSITIVE" : "Negative"}`,
       ``,
       interpretation ? `  Interpretation: ${interpretation.level}` : null,
       interpretation ? `  ${interpretation.narrative}` : null,
       ``,
       flags.length ? `  Clinical Flags:` : null,
-      ...flags.map(f => `    âš‘ ${f}`),
+      ...flags.map(f => `    ⚑ ${f}`),
       ``,
       notes ? `  Notes: ${notes}` : null,
       ``,
@@ -384,7 +384,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
     return lines;
   };
 
-  // â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Save ──────────────────────────────────────────────────────────────────
 
   const handleSave = () => {
     if (!limbsComplete) {
@@ -427,7 +427,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
   const coreConsent = safetyChecks["consent"] && !safetyChecks["no_cauda_equina_off"] && safetyChecks["can_tolerate_sitting"];
   const hasConcern = safetyChecks["no_cauda_equina"] === false || safetyChecks["no_severe_deficit"] === false;
 
-  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
@@ -437,7 +437,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 z-10 flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Slump Test</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Neurodynamic assessment â€” sciatic nerve mechanosensitivity &amp; lumbar radiculopathy screening</p>
+            <p className="text-sm text-slate-500 mt-0.5">Neurodynamic assessment — sciatic nerve mechanosensitivity &amp; lumbar radiculopathy screening</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -448,18 +448,18 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
             <AlertCircle className={`w-4 h-4 flex-shrink-0 ${interpretation.color}`} />
             <span className={`text-sm font-semibold ${interpretation.color}`}>{interpretation.level}</span>
             <span className="text-xs text-slate-500 ml-auto">
-              L: {leftPositive ? "âœ“ Positive" : "Negative"} &nbsp;|&nbsp; R: {rightPositive ? "âœ“ Positive" : "Negative"}
+              L: {leftPositive ? "✓ Positive" : "Negative"} &nbsp;|&nbsp; R: {rightPositive ? "✓ Positive" : "Negative"}
             </span>
           </div>
         )}
 
         <div className="p-6 space-y-5">
 
-          {/* â”€â”€ SECTION 1: Overview â”€â”€ */}
+          {/* ── SECTION 1: Overview ── */}
           <Collapsible open={open.overview} onOpenChange={() => tog("overview")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={Info} title="1. Assessment Overview" color="slate"
-                subtitle="Slump Test â€” Neurodynamic lumbar/sciatic nerve assessment" />
+                subtitle="Slump Test — Neurodynamic lumbar/sciatic nerve assessment" />
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="mt-3 bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3 text-sm">
@@ -474,13 +474,13 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
                   <div className="bg-white border rounded p-2"><p className="font-semibold text-slate-700">Key Positive Criterion</p><p>Familiar symptoms + cervical extension relief</p></div>
                 </div>
                 <div className="bg-blue-50 border border-blue-200 rounded p-3 text-xs text-blue-800">
-                  <strong>Test sequence:</strong> Spinal slump â†’ Cervical flexion â†’ Knee extension â†’ Ankle dorsiflexion â†’ Cervical extension release
+                  <strong>Test sequence:</strong> Spinal slump → Cervical flexion → Knee extension → Ankle dorsiflexion → Cervical extension release
                 </div>
               </div>
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 2: Safety â”€â”€ */}
+          {/* ── SECTION 2: Safety ── */}
           {!safetyDone ? (
             <div className="border-2 border-amber-300 rounded-xl overflow-hidden">
               <div className="bg-amber-500 text-white px-4 py-3 flex items-center gap-2 font-semibold text-sm">
@@ -520,21 +520,21 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
             </div>
           )}
 
-          {/* â”€â”€ SECTION 3: Instructions â”€â”€ */}
+          {/* ── SECTION 3: Instructions ── */}
           <div className="bg-blue-600 text-white rounded-lg px-4 py-3 text-sm">
-            <p className="font-semibold mb-2">ðŸ’¬ 3. Clinical Instructions â€” Test Sequence</p>
+            <p className="font-semibold mb-2">💬 3. Clinical Instructions — Test Sequence</p>
             <ol className="space-y-1 text-blue-100 list-decimal list-inside text-xs">
               <li>Patient seated upright, hands behind back (prevents arm support compensation)</li>
-              <li>Thoracic and lumbar flexion â€” full spinal slump</li>
-              <li>Add cervical flexion (chin to chest) â€” maintained throughout</li>
-              <li>Passive knee extension â€” note angle at symptom onset</li>
-              <li>Add ankle dorsiflexion â€” observe symptom change</li>
-              <li>Release cervical flexion (extend neck) â€” <strong>symptom relief = positive neural test</strong></li>
+              <li>Thoracic and lumbar flexion — full spinal slump</li>
+              <li>Add cervical flexion (chin to chest) — maintained throughout</li>
+              <li>Passive knee extension — note angle at symptom onset</li>
+              <li>Add ankle dorsiflexion — observe symptom change</li>
+              <li>Release cervical flexion (extend neck) — <strong>symptom relief = positive neural test</strong></li>
             </ol>
             <p className="text-blue-200 text-xs mt-2">Differentiate: Hamstring stretch (normal) vs familiar neural symptoms (clinically significant).</p>
           </div>
 
-          {/* â”€â”€ SECTION 4: Setup â”€â”€ */}
+          {/* ── SECTION 4: Setup ── */}
           <Collapsible open={open.setup} onOpenChange={() => tog("setup")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={Activity} title="4. Test Setup" color="blue" />
@@ -552,18 +552,18 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
                     value={surface} onChange={setSurface} />
                 </div>
                 <div>
-                  <Label className="text-xs font-semibold text-slate-600 block mb-1">Baseline Pain (0â€“10)</Label>
+                  <Label className="text-xs font-semibold text-slate-600 block mb-1">Baseline Pain (0–10)</Label>
                   <Input type="number" min="0" max="10" value={baselinePain} onChange={e => setBaselinePain(e.target.value)} placeholder="0" className="w-20" />
                 </div>
                 <div>
-                  <Label className="text-xs font-semibold text-slate-600 block mb-1">Symptom Irritability (0â€“10)</Label>
+                  <Label className="text-xs font-semibold text-slate-600 block mb-1">Symptom Irritability (0–10)</Label>
                   <Input type="number" min="0" max="10" value={irritability} onChange={e => setIrritability(e.target.value)} placeholder="0" className="w-20" />
                 </div>
               </div>
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 5: Guided Stage Runner â”€â”€ */}
+          {/* ── SECTION 5: Guided Stage Runner ── */}
           <Collapsible open={open.stages} onOpenChange={() => tog("stages")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={ChevronRight} title="5. Step-by-Step Slump Runner" color="teal"
@@ -578,13 +578,13 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
                       <CardContent className="p-4">
                         <div className="flex items-start gap-3">
                           <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 mt-0.5 ${completed ? "bg-green-600 text-white" : "bg-slate-200 text-slate-600"}`}>
-                            {completed ? "âœ“" : stage.num}
+                            {completed ? "✓" : stage.num}
                           </div>
                           <div className="flex-1">
                             <p className="text-sm font-semibold text-slate-800">{stage.label}</p>
                             <p className="text-xs text-slate-600 mt-1">{stage.instruction}</p>
                             <div className="bg-amber-50 border border-amber-200 rounded px-2 py-1 mt-2 text-xs text-amber-800">
-                              ðŸ’¡ {stage.tip}
+                              💡 {stage.tip}
                             </div>
                             <div className="mt-3">
                               <Label className="text-xs font-semibold text-slate-600 block mb-1.5">Symptoms at this stage</Label>
@@ -600,7 +600,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
                                   onClick={() => setStageCompleted(p => ({ ...p, [stage.num]: !completed }))}
                                   className={`text-xs flex-shrink-0 ${!completed ? "bg-teal-600 hover:bg-teal-700" : ""}`}
                                 >
-                                  {completed ? "Undo" : "Confirm âœ“"}
+                                  {completed ? "Undo" : "Confirm ✓"}
                                 </Button>
                               </div>
                             </div>
@@ -614,7 +614,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 6 & 7: Bilateral Limb Findings â”€â”€ */}
+          {/* ── SECTION 6 & 7: Bilateral Limb Findings ── */}
           <div>
             <SectionHeader icon={Activity} title="6 & 7. Bilateral Limb Findings" color="purple"
               subtitle="Capture left and right side findings independently" />
@@ -626,7 +626,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
             </div>
           </div>
 
-          {/* â”€â”€ SECTION 8: Neural Differentiation â”€â”€ */}
+          {/* ── SECTION 8: Neural Differentiation ── */}
           <Collapsible open={open.diff} onOpenChange={() => tog("diff")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={Activity} title="8. Neural Differentiation Testing" color="indigo"
@@ -657,7 +657,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 9â€“11: Comparison, Interpretation, Flags â”€â”€ */}
+          {/* ── SECTION 9–11: Comparison, Interpretation, Flags ── */}
           {interpretation && (
             <div className="space-y-4">
 
@@ -667,14 +667,14 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
                 <div className="grid grid-cols-2 gap-4 text-sm">
                   <div>
                     <p className="text-slate-400 text-xs mb-1">Left Limb</p>
-                    <p className="font-bold text-lg">{leftPositive ? "âœ“ Positive" : "Negative"}</p>
-                    {leftData.kneeAngle && <p className="text-xs text-slate-300">Onset at {leftData.kneeAngle}Â°</p>}
+                    <p className="font-bold text-lg">{leftPositive ? "✓ Positive" : "Negative"}</p>
+                    {leftData.kneeAngle && <p className="text-xs text-slate-300">Onset at {leftData.kneeAngle}°</p>}
                     {leftData.cervicalResponse && <p className="text-xs text-slate-300">Cervical: {leftData.cervicalResponse}</p>}
                   </div>
                   <div>
                     <p className="text-slate-400 text-xs mb-1">Right Limb</p>
-                    <p className="font-bold text-lg">{rightPositive ? "âœ“ Positive" : "Negative"}</p>
-                    {rightData.kneeAngle && <p className="text-xs text-slate-300">Onset at {rightData.kneeAngle}Â°</p>}
+                    <p className="font-bold text-lg">{rightPositive ? "✓ Positive" : "Negative"}</p>
+                    {rightData.kneeAngle && <p className="text-xs text-slate-300">Onset at {rightData.kneeAngle}°</p>}
                     {rightData.cervicalResponse && <p className="text-xs text-slate-300">Cervical: {rightData.cervicalResponse}</p>}
                   </div>
                 </div>
@@ -690,24 +690,24 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
 
               {/* Positive criteria reminder */}
               <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
-                <p className="font-semibold text-indigo-900 mb-2 text-sm">Slump Test â€” Positive Criteria</p>
+                <p className="font-semibold text-indigo-900 mb-2 text-sm">Slump Test — Positive Criteria</p>
                 <div className="grid grid-cols-2 gap-3 text-xs text-indigo-800">
                   <div>
                     <p className="font-semibold mb-1">Positive (Neural):</p>
                     <ul className="space-y-0.5">
-                      <li>â€¢ Familiar symptoms reproduced</li>
-                      <li>â€¢ Below-knee distribution</li>
-                      <li>â€¢ Cervical extension relieves symptoms</li>
-                      <li>â€¢ Ankle dorsiflexion increases symptoms</li>
+                      <li>• Familiar symptoms reproduced</li>
+                      <li>• Below-knee distribution</li>
+                      <li>• Cervical extension relieves symptoms</li>
+                      <li>• Ankle dorsiflexion increases symptoms</li>
                     </ul>
                   </div>
                   <div>
                     <p className="font-semibold mb-1">Negative / Non-Neural:</p>
                     <ul className="space-y-0.5">
-                      <li>â€¢ Hamstring stretch sensation only</li>
-                      <li>â€¢ No symptom change with cervical movement</li>
-                      <li>â€¢ No distal neural reproduction</li>
-                      <li>â€¢ Symptoms local to lumbar spine only</li>
+                      <li>• Hamstring stretch sensation only</li>
+                      <li>• No symptom change with cervical movement</li>
+                      <li>• No distal neural reproduction</li>
+                      <li>• Symptoms local to lumbar spine only</li>
                     </ul>
                   </div>
                 </div>
@@ -720,7 +720,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
                   <div className="space-y-1.5">
                     {flags.map((f, i) => (
                       <div key={i} className="flex items-start gap-2">
-                        <span className="text-red-500 mt-0.5 flex-shrink-0">âš‘</span>
+                        <span className="text-red-500 mt-0.5 flex-shrink-0">⚑</span>
                         <p className="text-sm text-red-800">{f}</p>
                       </div>
                     ))}
@@ -730,7 +730,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
             </div>
           )}
 
-          {/* â”€â”€ Clinical Notes â”€â”€ */}
+          {/* ── Clinical Notes ── */}
           <div>
             <Label className="font-semibold block mb-2 text-sm">Clinical Notes</Label>
             <Textarea value={notes} onChange={e => setNotes(e.target.value)}
@@ -738,7 +738,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
               rows={3} />
           </div>
 
-          {/* â”€â”€ References â”€â”€ */}
+          {/* ── References ── */}
           <Collapsible open={open.refs} onOpenChange={() => tog("refs")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={ExternalLink} title="Evidence-Based References" color="amber" />
@@ -746,11 +746,11 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
             <CollapsibleContent>
               <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2.5 text-xs text-amber-800">
                 {[
-                  { text: "Majlesi J, Togay H, Ãœnalan H, Toprak S. The sensitivity and specificity of the Slump and the Straight Leg Raising tests in patients with lumbar disc herniation. J Clin Rheumatol. 2008;14(2):87â€“91.", url: "https://pubmed.ncbi.nlm.nih.gov/18391676/" },
-                  { text: "Maitland GD. Vertebral Manipulation. 5th ed. Butterworth-Heinemann; 1986. [Foundational neurodynamic text â€” library reference]", url: "https://www.elsevier.com/books/vertebral-manipulation/maitland/978-0-7506-0757-5" },
+                  { text: "Majlesi J, Togay H, Ünalan H, Toprak S. The sensitivity and specificity of the Slump and the Straight Leg Raising tests in patients with lumbar disc herniation. J Clin Rheumatol. 2008;14(2):87–91.", url: "https://pubmed.ncbi.nlm.nih.gov/18391676/" },
+                  { text: "Maitland GD. Vertebral Manipulation. 5th ed. Butterworth-Heinemann; 1986. [Foundational neurodynamic text — library reference]", url: "https://www.elsevier.com/books/vertebral-manipulation/maitland/978-0-7506-0757-5" },
                   { text: "Butler DS. The Sensitive Nervous System. Noigroup Publications; 2000. [Neural mechanosensitivity and neurodynamic testing principles]", url: "https://www.noigroup.com/product/the-sensitive-nervous-system/" },
                   { text: "Shacklock M. Clinical Neurodynamics: A New System of Neuromusculoskeletal Treatment. Elsevier; 2005.", url: "https://www.elsevier.com/books/clinical-neurodynamics/shacklock/978-0-7506-5456-2" },
-                  { text: "SchÃ¤fer A, Hall T, Briffa K. Classification of low back-related leg pain â€” a proposed patho-mechanism-based approach. Manual Therapy. 2009;14(2):222â€“230.", url: "https://pubmed.ncbi.nlm.nih.gov/17766743/" },
+                  { text: "Schäfer A, Hall T, Briffa K. Classification of low back-related leg pain — a proposed patho-mechanism-based approach. Manual Therapy. 2009;14(2):222–230.", url: "https://pubmed.ncbi.nlm.nih.gov/17766743/" },
                 ].map((ref, i) => (
                   <a key={i} href={ref.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2 hover:underline">
                     <ExternalLink className="w-3 h-3 flex-shrink-0 mt-0.5" />
@@ -761,7 +761,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ Actions â”€â”€ */}
+          {/* ── Actions ── */}
           <div className="flex justify-between items-center gap-3 pt-4 border-t border-slate-200">
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose}><X className="w-4 h-4 mr-2" />Cancel</Button>

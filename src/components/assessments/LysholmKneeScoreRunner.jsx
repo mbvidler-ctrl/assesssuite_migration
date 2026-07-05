@@ -123,7 +123,7 @@ export default function LysholmKneeScoreRunner({ client, onSave, onClose }) {
     const totalScore = getTotalScore();
     const grade = totalScore >= 95 ? 'Excellent' : totalScore >= 84 ? 'Good' : totalScore >= 65 ? 'Fair' : 'Poor';
 
-    let soapText = `â€¢ Lysholm Knee Score: ${totalScore}/100 (${grade})\n\n  Item Scores:\n`;
+    let soapText = `• Lysholm Knee Score: ${totalScore}/100 (${grade})\n\n  Item Scores:\n`;
     LYSHOLM_ITEMS.forEach(item => {
       const selectedOption = item.options.find(o => o.value === responses[item.id]);
       soapText += `  - ${item.label}: ${responses[item.id]} pts${selectedOption ? ` (${selectedOption.label.split(' (')[0]})` : ''}\n`;
@@ -234,7 +234,7 @@ export default function LysholmKneeScoreRunner({ client, onSave, onClose }) {
                     <a href="https://pubmed.ncbi.nlm.nih.gov/23628888/" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline text-xs ml-1">[PubMed]</a>
                   </li>
                   <li>
-                    <strong>Interpretation Guide:</strong> Scores â‰¥95 = Excellent function; 84-94 = Good; 65-83 = Fair; &lt;65 = Poor knee function
+                    <strong>Interpretation Guide:</strong> Scores ≥95 = Excellent function; 84-94 = Good; 65-83 = Fair; &lt;65 = Poor knee function
                   </li>
                 </ul>
               </div>

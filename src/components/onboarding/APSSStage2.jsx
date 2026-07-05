@@ -456,7 +456,7 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
           
           <div className="grid md:grid-cols-3 gap-4">
             <div>
-              <Label htmlFor="bmi">Body Mass Index (kg/mÂ²)</Label>
+              <Label htmlFor="bmi">Body Mass Index (kg/m²)</Label>
               <Input
                 id="bmi"
                 type="number"
@@ -466,7 +466,7 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
                 placeholder="Auto-calculated"
                 readOnly // Make BMI read-only as it's auto-calculated
               />
-              <p className="text-xs text-slate-500 mt-1">BMI â‰¥ 30 kg/mÂ²</p>
+              <p className="text-xs text-slate-500 mt-1">BMI ≥ 30 kg/m²</p>
             </div>
             <div>
               <Label htmlFor="waist">Waist circumference (cm)</Label>
@@ -496,7 +496,7 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
           <div className="bg-indigo-50 p-4 rounded-lg">
             <Label className="text-sm font-semibold text-indigo-900">Waist-to-Hip Ratio (WHR)</Label>
             <div className="text-2xl font-bold text-indigo-600 mt-1">
-              {formData.apss_s2_whr || "â€”"}
+              {formData.apss_s2_whr || "—"}
             </div>
             <p className="text-xs text-indigo-700 mt-1">
               Risk: Male &gt; 0.90, Female &gt; 0.85
@@ -511,8 +511,8 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
           <CardTitle className="text-base">12. Have you been told that you have high blood pressure?</CardTitle>
           <p className="text-sm text-slate-600">Either of the below increases the risk of heart disease:</p>
           <ul className="text-sm text-slate-600 list-disc ml-5">
-            <li>Systolic blood pressure â‰¥ 140 mmHg</li>
-            <li>Diastolic blood pressure â‰¥ 90 mmHg</li>
+            <li>Systolic blood pressure ≥ 140 mmHg</li>
+            <li>Diastolic blood pressure ≥ 90 mmHg</li>
           </ul>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -626,10 +626,10 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
           <CardTitle className="text-base">13. Have you been told that you have high cholesterol/blood lipids?</CardTitle>
           <p className="text-sm text-slate-600">Any of the below increases the risk of heart disease:</p>
           <ul className="text-sm text-slate-600 list-disc ml-5">
-            <li>Total cholesterol â‰¥ 5.2 mmol/L</li>
+            <li>Total cholesterol ≥ 5.2 mmol/L</li>
             <li>HDL &lt; 1.0 mmol/L</li>
-            <li>LDL â‰¥ 3.4 mmol/L</li>
-            <li>Triglycerides â‰¥ 1.7 mmol/L</li>
+            <li>LDL ≥ 3.4 mmol/L</li>
+            <li>Triglycerides ≥ 1.7 mmol/L</li>
           </ul>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -745,7 +745,7 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
       <Card>
         <CardHeader>
           <CardTitle className="text-base">14. Have you been told that you have high blood sugar (glucose)?</CardTitle>
-          <p className="text-sm text-slate-600">Fasting blood sugar (glucose) â‰¥ 5.5 mmol/L increases the risk of diabetes.</p>
+          <p className="text-sm text-slate-600">Fasting blood sugar (glucose) ≥ 5.5 mmol/L increases the risk of diabetes.</p>
         </CardHeader>
         <CardContent className="space-y-4">
           <RadioGroup value={formData.apss_s2_high_blood_sugar} onValueChange={(value) => handleChange("apss_s2_high_blood_sugar", value)}>

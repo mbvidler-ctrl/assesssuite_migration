@@ -21,7 +21,7 @@ const TEN_POINT_ITEMS = [
   { key: "allNumbers", label: "All numbers present", points: 1 },
   { key: "numbersOrder", label: "Numbers in correct order", points: 1 },
   { key: "numbersPositioned", label: "Numbers correctly positioned", points: 1 },
-  { key: "onlyOneToTwelve", label: "Only numbers 1â€“12 used", points: 1 },
+  { key: "onlyOneToTwelve", label: "Only numbers 1–12 used", points: 1 },
   { key: "twoHands", label: "Two hands drawn", points: 1 },
   { key: "correctTime", label: "Correct time shown", points: 2 },
   { key: "hourMinuteDist", label: "Hour/minute distinction correct", points: 1 },
@@ -45,7 +45,7 @@ function getSimpleInterpretation(score) {
 function getTenPointInterpretation(score) {
   if (score >= 8) return { label: "Normal", color: "bg-green-100 text-green-800" };
   if (score >= 6) return { label: "Mild impairment", color: "bg-yellow-100 text-yellow-800" };
-  return { label: "Moderateâ€“severe impairment", color: "bg-red-100 text-red-800" };
+  return { label: "Moderate–severe impairment", color: "bg-red-100 text-red-800" };
 }
 
 function emptyAttempt() {
@@ -88,7 +88,7 @@ function AttemptPanel({ attempt, index, onChange, onDelete, canDelete }) {
               size="sm"
               variant={attempt.scoringMethod === "simple" ? "default" : "outline"}
               onClick={() => onChange({ ...attempt, scoringMethod: "simple" })}
-            >0â€“5 Simple</Button>
+            >0–5 Simple</Button>
             <Button
               size="sm"
               variant={attempt.scoringMethod === "ten" ? "default" : "outline"}
@@ -100,7 +100,7 @@ function AttemptPanel({ attempt, index, onChange, onDelete, canDelete }) {
         {/* Simple scoring */}
         {attempt.scoringMethod === "simple" && (
           <div className="space-y-2">
-            <Label className="text-sm font-medium text-slate-700">Select Score (0â€“5)</Label>
+            <Label className="text-sm font-medium text-slate-700">Select Score (0–5)</Label>
             <div className="space-y-2">
               {SIMPLE_SCORE_CRITERIA.map(({ score, label }) => (
                 <button
@@ -112,13 +112,13 @@ function AttemptPanel({ attempt, index, onChange, onDelete, canDelete }) {
                       : "bg-white border-slate-200 hover:bg-slate-50 text-slate-700"
                   }`}
                 >
-                  <span className="font-bold mr-2">{score}</span>â€” {label}
+                  <span className="font-bold mr-2">{score}</span>— {label}
                 </button>
               ))}
             </div>
             {simpleInterp && (
               <div className={`mt-2 inline-flex px-3 py-1 rounded-full text-sm font-semibold ${simpleInterp.color}`}>
-                Score {attempt.simpleScore}/5 â€” {simpleInterp.label}
+                Score {attempt.simpleScore}/5 — {simpleInterp.label}
               </div>
             )}
           </div>
@@ -146,7 +146,7 @@ function AttemptPanel({ attempt, index, onChange, onDelete, canDelete }) {
               ))}
             </div>
             <div className={`mt-2 inline-flex px-3 py-1 rounded-full text-sm font-semibold ${tenInterp.color}`}>
-              Score {tenPointScore}/10 â€” {tenInterp.label}
+              Score {tenPointScore}/10 — {tenInterp.label}
             </div>
           </div>
         )}
@@ -211,7 +211,7 @@ export default function ClockDrawingTestRunner({ client, onSave, onClose }) {
       const score = attempt.scoringMethod === "simple" ? attempt.simpleScore : tenScore;
       const maxScore = attempt.scoringMethod === "simple" ? 5 : 10;
 
-      let text = `  Attempt ${i + 1} (${attempt.scoringMethod === "simple" ? "0â€“5 method" : "10-point method"}): ${score !== null ? score : "â€”"}/${maxScore}`;
+      let text = `  Attempt ${i + 1} (${attempt.scoringMethod === "simple" ? "0–5 method" : "10-point method"}): ${score !== null ? score : "—"}/${maxScore}`;
       if (attempt.abnormalPatterns.length > 0) {
         text += `\n    Patterns: ${attempt.abnormalPatterns.join("; ")}`;
       }
@@ -219,7 +219,7 @@ export default function ClockDrawingTestRunner({ client, onSave, onClose }) {
       return text;
     });
 
-    const soapText = `â€¢ Clock Drawing Test (instruction: "Draw a clock showing 10 past 11"):\n${attemptSummaries.join("\n")}${globalNotes ? `\n\n  General Notes: ${globalNotes}` : ""}`;
+    const soapText = `• Clock Drawing Test (instruction: "Draw a clock showing 10 past 11"):\n${attemptSummaries.join("\n")}${globalNotes ? `\n\n  General Notes: ${globalNotes}` : ""}`;
 
     // Use score from last attempt for result_value
     const last = attempts[attempts.length - 1];
@@ -269,20 +269,20 @@ export default function ClockDrawingTestRunner({ client, onSave, onClose }) {
                 <p>It assesses multiple brain areas: <strong>frontal lobe</strong> (planning/executive), <strong>parietal lobe</strong> (spatial awareness), <strong>temporal lobe</strong> (memory), and motor planning.</p>
 
                 <div>
-                  <p className="font-semibold text-slate-800 mb-1">Simple 0â€“5 Interpretation</p>
+                  <p className="font-semibold text-slate-800 mb-1">Simple 0–5 Interpretation</p>
                   <div className="space-y-1">
-                    <div className="flex gap-2 items-center"><Badge className="bg-green-100 text-green-800">4â€“5</Badge><span>Normal</span></div>
+                    <div className="flex gap-2 items-center"><Badge className="bg-green-100 text-green-800">4–5</Badge><span>Normal</span></div>
                     <div className="flex gap-2 items-center"><Badge className="bg-yellow-100 text-yellow-800">3</Badge><span>Possible mild impairment</span></div>
-                    <div className="flex gap-2 items-center"><Badge className="bg-red-100 text-red-800">0â€“2</Badge><span>Likely cognitive impairment</span></div>
+                    <div className="flex gap-2 items-center"><Badge className="bg-red-100 text-red-800">0–2</Badge><span>Likely cognitive impairment</span></div>
                   </div>
                 </div>
 
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">10-Point Interpretation</p>
                   <div className="space-y-1">
-                    <div className="flex gap-2 items-center"><Badge className="bg-green-100 text-green-800">8â€“10</Badge><span>Normal</span></div>
-                    <div className="flex gap-2 items-center"><Badge className="bg-yellow-100 text-yellow-800">6â€“7</Badge><span>Mild impairment</span></div>
-                    <div className="flex gap-2 items-center"><Badge className="bg-red-100 text-red-800">â‰¤5</Badge><span>Moderateâ€“severe impairment</span></div>
+                    <div className="flex gap-2 items-center"><Badge className="bg-green-100 text-green-800">8–10</Badge><span>Normal</span></div>
+                    <div className="flex gap-2 items-center"><Badge className="bg-yellow-100 text-yellow-800">6–7</Badge><span>Mild impairment</span></div>
+                    <div className="flex gap-2 items-center"><Badge className="bg-red-100 text-red-800">≤5</Badge><span>Moderate–severe impairment</span></div>
                   </div>
                 </div>
 
@@ -290,11 +290,11 @@ export default function ClockDrawingTestRunner({ client, onSave, onClose }) {
                   <p className="font-semibold text-slate-800 mb-1">Clinical Observation Tips</p>
                   <p className="text-xs text-slate-500 mb-1">How the patient approaches the task is often more informative than the score:</p>
                   <ul className="list-disc pl-4 space-y-1 text-xs">
-                    <li><strong>Numbers all on one side</strong> â†’ visuospatial deficit</li>
-                    <li><strong>Wrong time but good clock</strong> â†’ executive function issue</li>
-                    <li><strong>Hands reversed or same length</strong> â†’ conceptual deficit</li>
-                    <li><strong>Random numbers or letters</strong> â†’ delirium or severe dementia</li>
-                    <li><strong>Cannot start the task</strong> â†’ executive dysfunction</li>
+                    <li><strong>Numbers all on one side</strong> → visuospatial deficit</li>
+                    <li><strong>Wrong time but good clock</strong> → executive function issue</li>
+                    <li><strong>Hands reversed or same length</strong> → conceptual deficit</li>
+                    <li><strong>Random numbers or letters</strong> → delirium or severe dementia</li>
+                    <li><strong>Cannot start the task</strong> → executive dysfunction</li>
                   </ul>
                 </div>
               </div>

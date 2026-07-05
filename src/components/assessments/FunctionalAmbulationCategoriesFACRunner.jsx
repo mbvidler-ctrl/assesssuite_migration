@@ -7,11 +7,11 @@ import { toast } from "sonner";
 
 const LEVELS = [
   { score: 0, label: "Non-functional", desc: "Cannot ambulate, or requires assistance of 2 or more people.", color: "bg-red-100 text-red-800 border-red-300" },
-  { score: 1, label: "Ambulatory â€” dependent Level II", desc: "Requires continuous manual contact from 1 person (support/balance).", color: "bg-red-100 text-red-800 border-red-300" },
-  { score: 2, label: "Ambulatory â€” dependent Level I", desc: "Requires continuous or intermittent touching by person (balance/guarding).", color: "bg-orange-100 text-orange-800 border-orange-300" },
-  { score: 3, label: "Ambulatory â€” dependent supervision", desc: "Requires verbal cuing or supervisory presence without physical contact.", color: "bg-yellow-100 text-yellow-800 border-yellow-300" },
-  { score: 4, label: "Ambulatory â€” independent on level", desc: "Can walk independently on level surfaces only (not on stairs/ramps/uneven terrain).", color: "bg-teal-100 text-teal-800 border-teal-300" },
-  { score: 5, label: "Ambulatory â€” independent", desc: "Can walk independently on level surfaces and non-level surfaces, stairs, and ramps.", color: "bg-green-100 text-green-800 border-green-300" },
+  { score: 1, label: "Ambulatory — dependent Level II", desc: "Requires continuous manual contact from 1 person (support/balance).", color: "bg-red-100 text-red-800 border-red-300" },
+  { score: 2, label: "Ambulatory — dependent Level I", desc: "Requires continuous or intermittent touching by person (balance/guarding).", color: "bg-orange-100 text-orange-800 border-orange-300" },
+  { score: 3, label: "Ambulatory — dependent supervision", desc: "Requires verbal cuing or supervisory presence without physical contact.", color: "bg-yellow-100 text-yellow-800 border-yellow-300" },
+  { score: 4, label: "Ambulatory — independent on level", desc: "Can walk independently on level surfaces only (not on stairs/ramps/uneven terrain).", color: "bg-teal-100 text-teal-800 border-teal-300" },
+  { score: 5, label: "Ambulatory — independent", desc: "Can walk independently on level surfaces and non-level surfaces, stairs, and ramps.", color: "bg-green-100 text-green-800 border-green-300" },
 ];
 
 export default function FunctionalAmbulationCategoriesFACRunner({ client, onSave, onClose }) {
@@ -22,7 +22,7 @@ export default function FunctionalAmbulationCategoriesFACRunner({ client, onSave
 
   const handleSave = () => {
     if (selected === null) { toast.error("Select an ambulation level"); return; }
-    const soap = `â€¢ Functional Ambulation Categories (FAC)\n  Score: ${level.score}/5 â€” ${level.label}\n  Description: ${level.desc}${notes ? `\n  Notes: ${notes}` : ""}\n  FAC measures functional walking ability and dependence level.\n  Scores 0-2 = dependent; 3 = supervised; 4-5 = independent\n  MCID: 1 category point\n  Reference: Holden MK et al. (1984). Clinical gait assessment in the neurologically impaired. Phys Ther, 64(1):35-40.`;
+    const soap = `• Functional Ambulation Categories (FAC)\n  Score: ${level.score}/5 — ${level.label}\n  Description: ${level.desc}${notes ? `\n  Notes: ${notes}` : ""}\n  FAC measures functional walking ability and dependence level.\n  Scores 0-2 = dependent; 3 = supervised; 4-5 = independent\n  MCID: 1 category point\n  Reference: Holden MK et al. (1984). Clinical gait assessment in the neurologically impaired. Phys Ther, 64(1):35-40.`;
     onSave({ status: "completed", result_value: level.score, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "ordinal_scale", score: level.score, label: level.label } });
     toast.success("FAC saved.");
   };
@@ -31,7 +31,7 @@ export default function FunctionalAmbulationCategoriesFACRunner({ client, onSave
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-w-xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="p-5 border-b bg-gradient-to-r from-blue-50 to-indigo-50 flex justify-between items-start">
-          <div><h2 className="text-2xl font-bold text-slate-900">Functional Ambulation Categories</h2><p className="text-slate-500 text-sm mt-0.5">FAC â€” 6-level walking ability scale (0â€“5)</p></div>
+          <div><h2 className="text-2xl font-bold text-slate-900">Functional Ambulation Categories</h2><p className="text-slate-500 text-sm mt-0.5">FAC — 6-level walking ability scale (0–5)</p></div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
 

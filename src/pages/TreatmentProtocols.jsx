@@ -48,46 +48,46 @@ export default function TreatmentProtocols() {
 
   const commonConditions = [
     // Musculoskeletal
-    { name: "Osteoarthritis", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Rheumatoid Arthritis", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Psoriatic Arthritis", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Ankylosing Spondylitis", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Chronic Low Back Pain", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Thoracic Pain", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Cervical Pain", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Sacroiliac Joint Dysfunction", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Rotator Cuff Injury", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Rotator Cuff Tendinopathy", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Adhesive Capsulitis (Frozen Shoulder)", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Shoulder Impingement", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Lateral Epicondylalgia (Tennis Elbow)", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Medial Epicondylalgia (Golfer's Elbow)", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Carpal Tunnel Syndrome", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "De Quervain's Tenosynovitis", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Plantar Fasciitis", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Achilles Tendinopathy", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Hip Labral Tear", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Knee Meniscus Tear", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Post-Operative Knee Meniscectomy (Arthroscopic)", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Patellofemoral Pain Syndrome", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Chondromalacia Patellae", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Tibial Stress Syndrome (Shin Splints)", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Stress Fractures", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Osteoporosis", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Osteopenia", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Scoliosis", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Kyphosis", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Chronic Pain Syndrome", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Fibromyalgia", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Hypermobility Spectrum Disorder", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Ehlers-Danlos Syndrome (Hypermobile Type)", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Post-Operative THR", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Post-Operative TKR", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Post-Operative ACL Reconstruction", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Post-Operative Rotator Cuff Repair", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Post-Operative Spinal Fusion", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "Post-Operative Laminectomy", category: "musculoskeletal", icon: "ðŸ¦´" },
-    { name: "ORIF Fracture Rehabilitation", category: "musculoskeletal", icon: "ðŸ¦´" },
+    { name: "Osteoarthritis", category: "musculoskeletal", icon: "🦴" },
+    { name: "Rheumatoid Arthritis", category: "musculoskeletal", icon: "🦴" },
+    { name: "Psoriatic Arthritis", category: "musculoskeletal", icon: "🦴" },
+    { name: "Ankylosing Spondylitis", category: "musculoskeletal", icon: "🦴" },
+    { name: "Chronic Low Back Pain", category: "musculoskeletal", icon: "🦴" },
+    { name: "Thoracic Pain", category: "musculoskeletal", icon: "🦴" },
+    { name: "Cervical Pain", category: "musculoskeletal", icon: "🦴" },
+    { name: "Sacroiliac Joint Dysfunction", category: "musculoskeletal", icon: "🦴" },
+    { name: "Rotator Cuff Injury", category: "musculoskeletal", icon: "🦴" },
+    { name: "Rotator Cuff Tendinopathy", category: "musculoskeletal", icon: "🦴" },
+    { name: "Adhesive Capsulitis (Frozen Shoulder)", category: "musculoskeletal", icon: "🦴" },
+    { name: "Shoulder Impingement", category: "musculoskeletal", icon: "🦴" },
+    { name: "Lateral Epicondylalgia (Tennis Elbow)", category: "musculoskeletal", icon: "🦴" },
+    { name: "Medial Epicondylalgia (Golfer's Elbow)", category: "musculoskeletal", icon: "🦴" },
+    { name: "Carpal Tunnel Syndrome", category: "musculoskeletal", icon: "🦴" },
+    { name: "De Quervain's Tenosynovitis", category: "musculoskeletal", icon: "🦴" },
+    { name: "Plantar Fasciitis", category: "musculoskeletal", icon: "🦴" },
+    { name: "Achilles Tendinopathy", category: "musculoskeletal", icon: "🦴" },
+    { name: "Hip Labral Tear", category: "musculoskeletal", icon: "🦴" },
+    { name: "Knee Meniscus Tear", category: "musculoskeletal", icon: "🦴" },
+    { name: "Post-Operative Knee Meniscectomy (Arthroscopic)", category: "musculoskeletal", icon: "🦴" },
+    { name: "Patellofemoral Pain Syndrome", category: "musculoskeletal", icon: "🦴" },
+    { name: "Chondromalacia Patellae", category: "musculoskeletal", icon: "🦴" },
+    { name: "Tibial Stress Syndrome (Shin Splints)", category: "musculoskeletal", icon: "🦴" },
+    { name: "Stress Fractures", category: "musculoskeletal", icon: "🦴" },
+    { name: "Osteoporosis", category: "musculoskeletal", icon: "🦴" },
+    { name: "Osteopenia", category: "musculoskeletal", icon: "🦴" },
+    { name: "Scoliosis", category: "musculoskeletal", icon: "🦴" },
+    { name: "Kyphosis", category: "musculoskeletal", icon: "🦴" },
+    { name: "Chronic Pain Syndrome", category: "musculoskeletal", icon: "🦴" },
+    { name: "Fibromyalgia", category: "musculoskeletal", icon: "🦴" },
+    { name: "Hypermobility Spectrum Disorder", category: "musculoskeletal", icon: "🦴" },
+    { name: "Ehlers-Danlos Syndrome (Hypermobile Type)", category: "musculoskeletal", icon: "🦴" },
+    { name: "Post-Operative THR", category: "musculoskeletal", icon: "🦴" },
+    { name: "Post-Operative TKR", category: "musculoskeletal", icon: "🦴" },
+    { name: "Post-Operative ACL Reconstruction", category: "musculoskeletal", icon: "🦴" },
+    { name: "Post-Operative Rotator Cuff Repair", category: "musculoskeletal", icon: "🦴" },
+    { name: "Post-Operative Spinal Fusion", category: "musculoskeletal", icon: "🦴" },
+    { name: "Post-Operative Laminectomy", category: "musculoskeletal", icon: "🦴" },
+    { name: "ORIF Fracture Rehabilitation", category: "musculoskeletal", icon: "🦴" },
     
     // Cardio & Pulmonary
     { name: "Hypertension", category: "cardio_pulmonary", icon: "â¤ï¸" },
@@ -108,77 +108,77 @@ export default function TreatmentProtocols() {
     { name: "COPD", category: "cardio_pulmonary", icon: "ðŸ«" },
     
     // Metabolic
-    { name: "Type 2 Diabetes Mellitus", category: "metabolic", icon: "ðŸ’‰" },
-    { name: "Type 1 Diabetes Mellitus", category: "metabolic", icon: "ðŸ’‰" },
-    { name: "Pre-Diabetes", category: "metabolic", icon: "ðŸ’‰" },
-    { name: "Metabolic Syndrome", category: "metabolic", icon: "ðŸ’‰" },
-    { name: "Obesity Class I", category: "metabolic", icon: "âš–ï¸" },
-    { name: "Obesity Class II", category: "metabolic", icon: "âš–ï¸" },
-    { name: "Obesity Class III", category: "metabolic", icon: "âš–ï¸" },
-    { name: "Non-Alcoholic Fatty Liver Disease (NAFLD)", category: "metabolic", icon: "ðŸ’‰" },
-    { name: "Polycystic Ovary Syndrome (PCOS)", category: "metabolic", icon: "ðŸ’‰" },
-    { name: "Dyslipidaemia", category: "metabolic", icon: "ðŸ’‰" },
-    { name: "Hypercholesterolaemia", category: "metabolic", icon: "ðŸ’‰" },
-    { name: "Gout", category: "metabolic", icon: "ðŸ’‰" },
-    { name: "Hypothyroidism", category: "metabolic", icon: "ðŸ’‰" },
-    { name: "Hyperthyroidism", category: "metabolic", icon: "ðŸ’‰" },
-    { name: "Chronic Kidney Disease (Stage 1-4)", category: "metabolic", icon: "ðŸ’‰" },
-    { name: "Bariatric Surgery Pre/Post Rehabilitation", category: "metabolic", icon: "âš–ï¸" },
+    { name: "Type 2 Diabetes Mellitus", category: "metabolic", icon: "💉" },
+    { name: "Type 1 Diabetes Mellitus", category: "metabolic", icon: "💉" },
+    { name: "Pre-Diabetes", category: "metabolic", icon: "💉" },
+    { name: "Metabolic Syndrome", category: "metabolic", icon: "💉" },
+    { name: "Obesity Class I", category: "metabolic", icon: "⚖ï¸" },
+    { name: "Obesity Class II", category: "metabolic", icon: "⚖ï¸" },
+    { name: "Obesity Class III", category: "metabolic", icon: "⚖ï¸" },
+    { name: "Non-Alcoholic Fatty Liver Disease (NAFLD)", category: "metabolic", icon: "💉" },
+    { name: "Polycystic Ovary Syndrome (PCOS)", category: "metabolic", icon: "💉" },
+    { name: "Dyslipidaemia", category: "metabolic", icon: "💉" },
+    { name: "Hypercholesterolaemia", category: "metabolic", icon: "💉" },
+    { name: "Gout", category: "metabolic", icon: "💉" },
+    { name: "Hypothyroidism", category: "metabolic", icon: "💉" },
+    { name: "Hyperthyroidism", category: "metabolic", icon: "💉" },
+    { name: "Chronic Kidney Disease (Stage 1-4)", category: "metabolic", icon: "💉" },
+    { name: "Bariatric Surgery Pre/Post Rehabilitation", category: "metabolic", icon: "⚖ï¸" },
     
     // Neurological
-    { name: "Parkinson's Disease", category: "neurological", icon: "ðŸ§ " },
-    { name: "Multiple Sclerosis", category: "neurological", icon: "ðŸ§ " },
-    { name: "Motor Neuron Disease", category: "neurological", icon: "ðŸ§ " },
-    { name: "Peripheral Neuropathy", category: "neurological", icon: "ðŸ§ " },
-    { name: "Diabetic Neuropathy", category: "neurological", icon: "ðŸ§ " },
-    { name: "Traumatic Brain Injury (TBI)", category: "neurological", icon: "ðŸ§ " },
-    { name: "Stroke (Ischaemic)", category: "neurological", icon: "ðŸ§ " },
-    { name: "Stroke (Haemorrhagic)", category: "neurological", icon: "ðŸ§ " },
-    { name: "Spinal Cord Injury (Incomplete/Complete)", category: "neurological", icon: "ðŸ§ " },
-    { name: "Cerebral Palsy (Adult)", category: "neurological", icon: "ðŸ§ " },
-    { name: "Functional Neurological Disorder (FND)", category: "neurological", icon: "ðŸ§ " },
-    { name: "Dystonia", category: "neurological", icon: "ðŸ§ " },
-    { name: "Ataxia", category: "neurological", icon: "ðŸ§ " },
-    { name: "Cerebellar Degeneration", category: "neurological", icon: "ðŸ§ " },
-    { name: "Guillain-Barre Syndrome", category: "neurological", icon: "ðŸ§ " },
-    { name: "Post-Concussion Syndrome", category: "neurological", icon: "ðŸ§ " },
-    { name: "Vestibular Hypofunction", category: "neurological", icon: "ðŸ§ " },
-    { name: "BPPV", category: "neurological", icon: "ðŸ§ " },
+    { name: "Parkinson's Disease", category: "neurological", icon: "🧠" },
+    { name: "Multiple Sclerosis", category: "neurological", icon: "🧠" },
+    { name: "Motor Neuron Disease", category: "neurological", icon: "🧠" },
+    { name: "Peripheral Neuropathy", category: "neurological", icon: "🧠" },
+    { name: "Diabetic Neuropathy", category: "neurological", icon: "🧠" },
+    { name: "Traumatic Brain Injury (TBI)", category: "neurological", icon: "🧠" },
+    { name: "Stroke (Ischaemic)", category: "neurological", icon: "🧠" },
+    { name: "Stroke (Haemorrhagic)", category: "neurological", icon: "🧠" },
+    { name: "Spinal Cord Injury (Incomplete/Complete)", category: "neurological", icon: "🧠" },
+    { name: "Cerebral Palsy (Adult)", category: "neurological", icon: "🧠" },
+    { name: "Functional Neurological Disorder (FND)", category: "neurological", icon: "🧠" },
+    { name: "Dystonia", category: "neurological", icon: "🧠" },
+    { name: "Ataxia", category: "neurological", icon: "🧠" },
+    { name: "Cerebellar Degeneration", category: "neurological", icon: "🧠" },
+    { name: "Guillain-Barre Syndrome", category: "neurological", icon: "🧠" },
+    { name: "Post-Concussion Syndrome", category: "neurological", icon: "🧠" },
+    { name: "Vestibular Hypofunction", category: "neurological", icon: "🧠" },
+    { name: "BPPV", category: "neurological", icon: "🧠" },
     
     // Mental Health
-    { name: "Depression (Mild)", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Depression (Moderate)", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Depression (Severe)", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Generalised Anxiety Disorder", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Panic Disorder", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "PTSD", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Obsessive-Compulsive Disorder", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Bipolar Disorder", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Schizophrenia", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Schizoaffective Disorder", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Eating Disorders (AN/BN/BED)", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "ADHD", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Autism Spectrum Disorder", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Intellectual Disability", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Borderline Personality Disorder", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Substance Use Disorder - Alcohol", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Substance Use Disorder - Amphetamines", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Substance Use Disorder - Opioids", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Substance Use Disorder - Benzodiazepines", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Substance Use Disorder - Polysubstance", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Chronic Stress Disorder", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Insomnia", category: "mental_health", icon: "ðŸ§˜" },
-    { name: "Sleep Disorders", category: "mental_health", icon: "ðŸ§˜" },
+    { name: "Depression (Mild)", category: "mental_health", icon: "🧘" },
+    { name: "Depression (Moderate)", category: "mental_health", icon: "🧘" },
+    { name: "Depression (Severe)", category: "mental_health", icon: "🧘" },
+    { name: "Generalised Anxiety Disorder", category: "mental_health", icon: "🧘" },
+    { name: "Panic Disorder", category: "mental_health", icon: "🧘" },
+    { name: "PTSD", category: "mental_health", icon: "🧘" },
+    { name: "Obsessive-Compulsive Disorder", category: "mental_health", icon: "🧘" },
+    { name: "Bipolar Disorder", category: "mental_health", icon: "🧘" },
+    { name: "Schizophrenia", category: "mental_health", icon: "🧘" },
+    { name: "Schizoaffective Disorder", category: "mental_health", icon: "🧘" },
+    { name: "Eating Disorders (AN/BN/BED)", category: "mental_health", icon: "🧘" },
+    { name: "ADHD", category: "mental_health", icon: "🧘" },
+    { name: "Autism Spectrum Disorder", category: "mental_health", icon: "🧘" },
+    { name: "Intellectual Disability", category: "mental_health", icon: "🧘" },
+    { name: "Borderline Personality Disorder", category: "mental_health", icon: "🧘" },
+    { name: "Substance Use Disorder - Alcohol", category: "mental_health", icon: "🧘" },
+    { name: "Substance Use Disorder - Amphetamines", category: "mental_health", icon: "🧘" },
+    { name: "Substance Use Disorder - Opioids", category: "mental_health", icon: "🧘" },
+    { name: "Substance Use Disorder - Benzodiazepines", category: "mental_health", icon: "🧘" },
+    { name: "Substance Use Disorder - Polysubstance", category: "mental_health", icon: "🧘" },
+    { name: "Chronic Stress Disorder", category: "mental_health", icon: "🧘" },
+    { name: "Insomnia", category: "mental_health", icon: "🧘" },
+    { name: "Sleep Disorders", category: "mental_health", icon: "🧘" },
     
     // Geriatric
-    { name: "Falls Prevention (Elderly)", category: "geriatric", icon: "ðŸ‘´" },
-    { name: "Frailty Syndrome", category: "geriatric", icon: "ðŸ‘´" },
-    { name: "Sarcopenia", category: "geriatric", icon: "ðŸ‘´" },
+    { name: "Falls Prevention (Elderly)", category: "geriatric", icon: "👴" },
+    { name: "Frailty Syndrome", category: "geriatric", icon: "👴" },
+    { name: "Sarcopenia", category: "geriatric", icon: "👴" },
     
     // General
-    { name: "Cancer Rehabilitation", category: "general", icon: "ðŸŽ—ï¸" },
-    { name: "Chronic Fatigue Syndrome", category: "general", icon: "ðŸŽ—ï¸" },
-    { name: "Long COVID", category: "general", icon: "ðŸŽ—ï¸" },
+    { name: "Cancer Rehabilitation", category: "general", icon: "🎗ï¸" },
+    { name: "Chronic Fatigue Syndrome", category: "general", icon: "🎗ï¸" },
+    { name: "Long COVID", category: "general", icon: "🎗ï¸" },
   ];
 
   const categories = [
@@ -213,12 +213,12 @@ export default function TreatmentProtocols() {
             // DOI confirmed exists
             verifiedRefs.push({ ...ref, verified: true, doi });
           }
-          // else: DOI does not exist â€” silently drop it
+          // else: DOI does not exist — silently drop it
         } catch (error) {
-          // Network error â€” silently drop
+          // Network error — silently drop
         }
       }
-      // No DOI â€” silently drop
+      // No DOI — silently drop
     }
     return verifiedRefs;
   };
@@ -300,11 +300,11 @@ You are a senior exercise physiologist creating a detailed treatment protocol. I
 8. REFERENCES - CRITICAL INSTRUCTIONS:
 - ONLY include references that have a REAL, WORKING DOI that you are 100% certain exists
 - Every reference MUST include a complete DOI in format: https://doi.org/10.XXXX/XXXXX
-- The DOI will be verified programmatically against doi.org â€” fake or guessed DOIs will fail verification and be silently discarded
+- The DOI will be verified programmatically against doi.org — fake or guessed DOIs will fail verification and be silently discarded
 - If you are not certain a DOI is real and working, DO NOT include that reference at all
 - It is far better to return 0 references than to include any fabricated or uncertain citations
 - Prefer high-impact guidelines (ACSM, Cochrane, ESSA) and systematic reviews from well-known journals
-- NEVER guess, construct, or partially remember a DOI â€” only include DOIs you know with certainty
+- NEVER guess, construct, or partially remember a DOI — only include DOIs you know with certainty
 - Citation format: Author, A. B., & Author, C. D. (Year). Title of article. Journal Name, volume(issue), pages. https://doi.org/10.XXXX/XXXXX
 
 9. CLINICAL NOTE:
@@ -470,11 +470,11 @@ You are a senior exercise physiologist creating a detailed treatment protocol. I
 8. REFERENCES - CRITICAL INSTRUCTIONS:
 - ONLY include references that have a REAL, WORKING DOI that you are 100% certain exists
 - Every reference MUST include a complete DOI in format: https://doi.org/10.XXXX/XXXXX
-- The DOI will be verified programmatically against doi.org â€” fake or guessed DOIs will fail verification and be silently discarded
+- The DOI will be verified programmatically against doi.org — fake or guessed DOIs will fail verification and be silently discarded
 - If you are not certain a DOI is real and working, DO NOT include that reference at all
 - It is far better to return 0 references than to include any fabricated or uncertain citations
 - Prefer high-impact guidelines (ACSM, Cochrane, ESSA) and systematic reviews from well-known journals
-- NEVER guess, construct, or partially remember a DOI â€” only include DOIs you know with certainty
+- NEVER guess, construct, or partially remember a DOI — only include DOIs you know with certainty
 - Citation format: Author, A. B., & Author, C. D. (Year). Title of article. Journal Name, volume(issue), pages. https://doi.org/10.XXXX/XXXXX
 
 9. CLINICAL NOTE:
@@ -634,7 +634,7 @@ Be specific, evidence-based, and practical for clinical use.`,
                   <h3 className="font-semibold text-slate-900 text-base">Clinical Reminder</h3>
                 </div>
                 <p className="text-sm text-slate-600 leading-relaxed mb-5">
-                  Protocols are <strong>reference frameworks only</strong> â€” adapt to each client's unique presentation. Your clinical judgement applies at all times.
+                  Protocols are <strong>reference frameworks only</strong> — adapt to each client's unique presentation. Your clinical judgement applies at all times.
                 </p>
                 <div className="flex gap-3">
                   <button
@@ -647,7 +647,7 @@ Be specific, evidence-based, and practical for clinical use.`,
                     onClick={async () => {
                       setDisclaimerDismissed(true);
                       try {
-                        const ip = await fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>d.ip).catch(()=>'unknown');
+                        const ip = 'not-collected';
                         await base44.entities.LegalAcceptance.create({
                           user_email: currentUser?.email || 'unknown',
                           user_role: currentUser?.role === 'admin' ? 'Admin' : 'Clinician',
@@ -1228,7 +1228,7 @@ Be specific, evidence-based, and practical for clinical use.`,
                                    <ClickableReferences references={ref.citation} />
                                  </div>
                                  <div className="flex gap-1 flex-shrink-0">
-                                   <Badge className="bg-green-600 text-white text-xs">âœ“ Verified</Badge>
+                                   <Badge className="bg-green-600 text-white text-xs">✓ Verified</Badge>
                                    {ref.study_type && (
                                      <Badge variant="outline" className="text-xs">{ref.study_type}</Badge>
                                    )}

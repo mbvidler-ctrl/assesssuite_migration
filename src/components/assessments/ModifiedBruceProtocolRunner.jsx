@@ -109,12 +109,12 @@ export default function ModifiedBruceProtocolRunner({ client, onSave, onClose })
     const finalHR = stageData[stageData.length - 1].heartRate;
     
     const stageDetails = stageData.map(s => 
-      `  Stage ${s.stage}: ${s.speed} mph @ ${s.grade}% â€” HR: ${s.heartRate} bpm, Time: ${s.duration}s, RPE: ${s.rpe}`
+      `  Stage ${s.stage}: ${s.speed} mph @ ${s.grade}% — HR: ${s.heartRate} bpm, Time: ${s.duration}s, RPE: ${s.rpe}`
     ).join("\n");
 
     const stopReason = isRunning ? "Patient-initiated stop" : (postTestVitals.reasonForStop || "Completed all stages");
 
-    const soapText = `â€¢ Modified Bruce Protocol Test
+    const soapText = `• Modified Bruce Protocol Test
   Total Duration: ${totalTime} seconds (${(totalTime / 60).toFixed(1)} minutes)
   Stages Completed: ${maxStage} of 9
   Stop Reason: ${stopReason}
@@ -134,10 +134,10 @@ Post-Test Vitals:
   Heart Rate Recovery: ${Math.max(0, finalHR - parseInt(postTestVitals.heartRate))} bpm
 
 Interpretation:
-  â€¢ Modified Bruce test suitable for deconditioned/elderly populations
-  â€¢ Patient tolerated ${maxStage}/9 stages before ${stopReason.toLowerCase()}
-  â€¢ ${maxStage >= 5 ? "Good exercise tolerance achieved" : maxStage >= 3 ? "Moderate exercise tolerance" : "Limited exercise tolerance"}
-  â€¢ HR response: ${finalHR <= 85 ? 'Normal' : 'Elevated'}, Recovery: ${postTestVitals.heartRate < finalHR ? 'Normal' : 'Delayed'}${notes ? `
+  • Modified Bruce test suitable for deconditioned/elderly populations
+  • Patient tolerated ${maxStage}/9 stages before ${stopReason.toLowerCase()}
+  • ${maxStage >= 5 ? "Good exercise tolerance achieved" : maxStage >= 3 ? "Moderate exercise tolerance" : "Limited exercise tolerance"}
+  • HR response: ${finalHR <= 85 ? 'Normal' : 'Elevated'}, Recovery: ${postTestVitals.heartRate < finalHR ? 'Normal' : 'Delayed'}${notes ? `
 
 Additional Notes:
   ${notes}` : ''}
@@ -184,7 +184,7 @@ Reference: Bruce RA (1973); ACSM Guidelines for Exercise Testing and Prescriptio
             className="w-full flex justify-between items-center px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg font-semibold text-blue-900 hover:bg-blue-100 transition-colors"
             onClick={() => setExpandedSection(expandedSection === "instructions" ? null : "instructions")}
           >
-            <span>ðŸ“‹ Clinician Instructions & Evidence</span>
+            <span>📋 Clinician Instructions & Evidence</span>
             {expandedSection === "instructions" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
 
@@ -202,7 +202,7 @@ Reference: Bruce RA (1973); ACSM Guidelines for Exercise Testing and Prescriptio
                   <li><strong>Speed/Grade progression:</strong> Increases with each stage (see stage table below)</li>
                   <li><strong>Heart rate:</strong> Record at end of each stage (last 15 seconds)</li>
                   <li><strong>Blood pressure:</strong> Record at baseline, midway through test, and at termination</li>
-                  <li><strong>RPE (Rate of Perceived Exertion):</strong> Use Borg 6â€“20 scale (or 0â€“10 modified scale)</li>
+                  <li><strong>RPE (Rate of Perceived Exertion):</strong> Use Borg 6–20 scale (or 0–10 modified scale)</li>
                   <li><strong>Patient instruction:</strong> "Walk at a comfortable pace. Speed and incline will increase every 3 minutes. Tell me immediately if you feel chest pain, shortness of breath, dizziness, or fatigue."</li>
                 </ul>
               </div>
@@ -213,8 +213,8 @@ Reference: Bruce RA (1973); ACSM Guidelines for Exercise Testing and Prescriptio
                   <li>Chest pain or pressure</li>
                   <li>Severe dyspnoea or breathlessness preventing conversation</li>
                   <li>Dizziness, lightheadedness, or confusion</li>
-                  <li>Significant drop in systolic BP (â‰¥10 mmHg from peak despite increased workload)</li>
-                  <li>ST segment depression â‰¥2 mm (if ECG monitored)</li>
+                  <li>Significant drop in systolic BP (≥10 mmHg from peak despite increased workload)</li>
+                  <li>ST segment depression ≥2 mm (if ECG monitored)</li>
                   <li>Ventricular arrhythmias or heart rate {">"}220 bpm (or age-predicted max)</li>
                   <li>Patient request/volitional fatigue</li>
                   <li>Clinician concern for safety</li>
@@ -227,8 +227,8 @@ Reference: Bruce RA (1973); ACSM Guidelines for Exercise Testing and Prescriptio
                   <table className="w-full border border-slate-300">
                     <thead className="bg-slate-200"><tr><th className="p-2">Stage</th><th className="p-2">Speed (mph)</th><th className="p-2">Grade (%)</th><th className="p-2">Duration</th><th className="p-2">Notes</th></tr></thead>
                     <tbody>
-                      <tr className="border-t"><td className="p-2">1â€“2</td><td className="p-2 text-center">1.7</td><td className="p-2 text-center">0, 5</td><td className="p-2">3 min</td><td className="p-2">Warm-up (Modified only)</td></tr>
-                      <tr className="border-t bg-blue-100"><td className="p-2">3â€“9</td><td className="p-2">2.5â€“6.0</td><td className="p-2">10â€“22</td><td className="p-2">3 min</td><td className="p-2">Standard Bruce (3-min stages)</td></tr>
+                      <tr className="border-t"><td className="p-2">1–2</td><td className="p-2 text-center">1.7</td><td className="p-2 text-center">0, 5</td><td className="p-2">3 min</td><td className="p-2">Warm-up (Modified only)</td></tr>
+                      <tr className="border-t bg-blue-100"><td className="p-2">3–9</td><td className="p-2">2.5–6.0</td><td className="p-2">10–22</td><td className="p-2">3 min</td><td className="p-2">Standard Bruce (3-min stages)</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -238,12 +238,12 @@ Reference: Bruce RA (1973); ACSM Guidelines for Exercise Testing and Prescriptio
                 <p className="font-semibold">VO2max Estimation & Normative Data (ACSM)</p>
                 <div className="overflow-x-auto text-xs mt-2">
                   <table className="w-full border border-slate-300">
-                    <thead className="bg-slate-200"><tr><th className="p-2">Fitness Category</th><th className="p-2">Men 20â€“39</th><th className="p-2">Men 40â€“59</th><th className="p-2">Women 20â€“39</th><th className="p-2">Women 40â€“59</th></tr></thead>
+                    <thead className="bg-slate-200"><tr><th className="p-2">Fitness Category</th><th className="p-2">Men 20–39</th><th className="p-2">Men 40–59</th><th className="p-2">Women 20–39</th><th className="p-2">Women 40–59</th></tr></thead>
                     <tbody>
-                      <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">â‰¥52</td><td className="p-2 text-center">â‰¥45</td><td className="p-2 text-center">â‰¥41</td><td className="p-2 text-center">â‰¥35</td></tr>
-                      <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">43â€“51</td><td className="p-2 text-center">38â€“44</td><td className="p-2 text-center">35â€“40</td><td className="p-2 text-center">29â€“34</td></tr>
-                      <tr className="border-t"><td className="p-2">Fair</td><td className="p-2 text-center">34â€“42</td><td className="p-2 text-center">30â€“37</td><td className="p-2 text-center">27â€“34</td><td className="p-2 text-center">23â€“28</td></tr>
-                      <tr className="border-t bg-white"><td className="p-2">Poor</td><td className="p-2 text-center">â‰¤33</td><td className="p-2 text-center">â‰¤29</td><td className="p-2 text-center">â‰¤26</td><td className="p-2 text-center">â‰¤22</td></tr>
+                      <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">≥52</td><td className="p-2 text-center">≥45</td><td className="p-2 text-center">≥41</td><td className="p-2 text-center">≥35</td></tr>
+                      <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">43–51</td><td className="p-2 text-center">38–44</td><td className="p-2 text-center">35–40</td><td className="p-2 text-center">29–34</td></tr>
+                      <tr className="border-t"><td className="p-2">Fair</td><td className="p-2 text-center">34–42</td><td className="p-2 text-center">30–37</td><td className="p-2 text-center">27–34</td><td className="p-2 text-center">23–28</td></tr>
+                      <tr className="border-t bg-white"><td className="p-2">Poor</td><td className="p-2 text-center">≤33</td><td className="p-2 text-center">≤29</td><td className="p-2 text-center">≤26</td><td className="p-2 text-center">≤22</td></tr>
                     </tbody>
                   </table>
                 </div>
@@ -255,8 +255,8 @@ Reference: Bruce RA (1973); ACSM Guidelines for Exercise Testing and Prescriptio
                 <ul className="text-xs list-disc list-inside space-y-1 mt-1">
                   <li><strong>Risk stratification:</strong> Identifies high-risk patients for CAD, arrhythmias, and poor prognosis in cardiac rehabilitation settings</li>
                   <li><strong>Functional capacity:</strong> Stage achieved predicts work capacity and ADL tolerance</li>
-                  <li><strong>Diagnostic accuracy:</strong> ECG changes, BP drop, symptom cluster (chest pain + ST depression) = â†‘ pretest probability of CAD</li>
-                  <li><strong>Prognostic value:</strong> Early termination ({"<"}5 min) associated with â†‘ mortality risk; good functional capacity (&ge;10 min) = favorable prognosis</li>
+                  <li><strong>Diagnostic accuracy:</strong> ECG changes, BP drop, symptom cluster (chest pain + ST depression) = ↑ pretest probability of CAD</li>
+                  <li><strong>Prognostic value:</strong> Early termination ({"<"}5 min) associated with ↑ mortality risk; good functional capacity (&ge;10 min) = favorable prognosis</li>
                   <li><strong>Modality choice:</strong> Treadmill preferred over cycle ergometer for functional relevance (walking); modified Bruce for safety in deconditioned populations</li>
                 </ul>
               </div>
@@ -271,7 +271,7 @@ Reference: Bruce RA (1973); ACSM Guidelines for Exercise Testing and Prescriptio
                     </a>
                   </p>
                   <p>
-                    <strong>Original Bruce Protocol (1973):</strong> Bruce RA, Kusumi F, Hosmer D. <em>American Heart Journal, 85</em>(4):546â€“562.
+                    <strong>Original Bruce Protocol (1973):</strong> Bruce RA, Kusumi F, Hosmer D. <em>American Heart Journal, 85</em>(4):546–562.
                   </p>
                   <p>
                     <strong>Exercise Testing Nomogram:</strong> Download calculator at{" "}
@@ -295,7 +295,7 @@ Reference: Bruce RA (1973); ACSM Guidelines for Exercise Testing and Prescriptio
                     type="number"
                     value={preTestVitals.heartRate}
                     onChange={(e) => setPreTestVitals({ ...preTestVitals, heartRate: e.target.value })}
-                    placeholder="60â€“100 bpm typical"
+                    placeholder="60–100 bpm typical"
                   />
                 </div>
                 <div>
@@ -349,7 +349,7 @@ Reference: Bruce RA (1973); ACSM Guidelines for Exercise Testing and Prescriptio
                     />
                   </div>
                   <div>
-                    <Label>RPE (Borg 6â€“20 or 0â€“10)</Label>
+                    <Label>RPE (Borg 6–20 or 0–10)</Label>
                     <Input
                       id={`stageRPE_${currentStage}`}
                       type="text"

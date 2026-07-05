@@ -16,37 +16,37 @@ const FREQUENCY_OPTIONS = [
 
 // Physical demands checklist
 const PHYSICAL_DEMANDS = [
-  { id: "sitting", label: "Sitting â€“ seated position to perform tasks" },
-  { id: "standing", label: "Standing â€“ posture throughout activity" },
-  { id: "walking", label: "Walking/Running â€“ regularity and surface" },
-  { id: "sustained_posture", label: "Sustained Posture â€“ working in same posture for periods of time" },
-  { id: "bending", label: "Bending â€“ forward bending to perform tasks" },
-  { id: "trunk_twisting", label: "Trunk Twisting â€“ while sitting/standing to complete tasks" },
-  { id: "kneeling", label: "Kneeling â€“ posture to complete tasks" },
-  { id: "squatting", label: "Squatting/Crouching â€“ posture to complete tasks" },
+  { id: "sitting", label: "Sitting – seated position to perform tasks" },
+  { id: "standing", label: "Standing – posture throughout activity" },
+  { id: "walking", label: "Walking/Running – regularity and surface" },
+  { id: "sustained_posture", label: "Sustained Posture – working in same posture for periods of time" },
+  { id: "bending", label: "Bending – forward bending to perform tasks" },
+  { id: "trunk_twisting", label: "Trunk Twisting – while sitting/standing to complete tasks" },
+  { id: "kneeling", label: "Kneeling – posture to complete tasks" },
+  { id: "squatting", label: "Squatting/Crouching – posture to complete tasks" },
   { id: "climbing", label: "Climbing (stairs/ladders/structures)" },
-  { id: "lifting", label: "Lifting â€“ overhead/forward extension" },
-  { id: "carrying", label: "Carrying â€“ overhead/forward extension" },
-  { id: "reaching", label: "Reaching â€“ forward reaching/overhead reaching" },
-  { id: "pushing", label: "Pushing â€“ move objects away from the body" },
-  { id: "pulling", label: "Pulling â€“ move objects toward the body" },
-  { id: "grasping", label: "Grasping â€“ fine motor skills, regular use of hands â€“ tools, machinery" },
-  { id: "work_at_heights", label: "Work at Heights â€“ using ladders, footstools, scaffolding" },
-  { id: "driving", label: "Driving â€“ controlling the operation of a vehicle/Foot and Hand Controls" }
+  { id: "lifting", label: "Lifting – overhead/forward extension" },
+  { id: "carrying", label: "Carrying – overhead/forward extension" },
+  { id: "reaching", label: "Reaching – forward reaching/overhead reaching" },
+  { id: "pushing", label: "Pushing – move objects away from the body" },
+  { id: "pulling", label: "Pulling – move objects toward the body" },
+  { id: "grasping", label: "Grasping – fine motor skills, regular use of hands – tools, machinery" },
+  { id: "work_at_heights", label: "Work at Heights – using ladders, footstools, scaffolding" },
+  { id: "driving", label: "Driving – controlling the operation of a vehicle/Foot and Hand Controls" }
 ];
 
 // Environmental hazards
 const ENVIRONMENTAL_HAZARDS = [
-  { id: "dust", label: "Dust â€“ exposure" },
-  { id: "gases", label: "Gases â€“ exposure" },
-  { id: "fumes", label: "Fumes â€“ exposure" },
-  { id: "liquids", label: "Liquids â€“ working with/exposure" },
-  { id: "lighting", label: "Lighting â€“ darkness/eye strain" },
-  { id: "extreme_temps", label: "Extreme Temperatures â€“ temperatures are less than 15Â°C or more than 35Â°C" },
-  { id: "confined_spaces", label: "Confined Spaces â€“ areas where work is conducted that are not designed to be entered by a person" },
+  { id: "dust", label: "Dust – exposure" },
+  { id: "gases", label: "Gases – exposure" },
+  { id: "fumes", label: "Fumes – exposure" },
+  { id: "liquids", label: "Liquids – working with/exposure" },
+  { id: "lighting", label: "Lighting – darkness/eye strain" },
+  { id: "extreme_temps", label: "Extreme Temperatures – temperatures are less than 15°C or more than 35°C" },
+  { id: "confined_spaces", label: "Confined Spaces – areas where work is conducted that are not designed to be entered by a person" },
   { id: "slippery_surfaces", label: "Slippery or Uneven Surfaces" },
-  { id: "biological_hazards", label: "Biological Hazards â€“ contact with body fluids, bacteria, infectious diseases" },
-  { id: "ppe", label: "Wearing of Personal Protective Equipment â€“ Administrative control for any of the above demands" }
+  { id: "biological_hazards", label: "Biological Hazards – contact with body fluids, bacteria, infectious diseases" },
+  { id: "ppe", label: "Wearing of Personal Protective Equipment – Administrative control for any of the above demands" }
 ];
 
 export default function JobTaskAnalysisiCareforWorkCoverRunner({ client, onSave, onClose }) {
@@ -128,7 +128,7 @@ export default function JobTaskAnalysisiCareforWorkCoverRunner({ client, onSave,
       })
       .join("\n");
 
-    const soap = `â€¢ Job Task Analysis (JTA)\n  Role: ${role}\n  Date: ${jobDate}\n  Hours/Week: ${hoursInShift} hours Ã— ${daysPerWeek} days\n\n  Role Description:\n    ${roleDescription || "Not specified"}\n\n  Environment & Movements:\n    Environment: ${environment || "Not specified"}\n    Movements: ${movementsRequired || "Not specified"}\n    Hazards: ${hazards || "Not specified"}\n    Equipment: ${equipmentNeeded || "Not specified"}\n\n  Top 3 Physically Demanding Tasks:\n${topTasks.filter(t => t.task.trim()).map((t, i) => `    ${i + 1}. ${t.task} (${t.duration || "duration not specified"})\n       Requirement: ${t.requirement}\n       Suitable duties support: ${t.supportAvailable}`).join("\n")}\n\n  Physical Demands (Frequency):\n${physicalDemandsSummary || "None recorded"}\n\n  Environmental Hazards (Frequency):\n${hazardsSummary || "None recorded"}\n\n  Clinical Observations:\n    ${clinicalObservations || "None recorded"}\n\n  Additional Comments:\n    ${otherComments || "None recorded"}\n\n  Assessment Reference: Based on Job Task Analysis standardized protocol. See https://www.icare.nsw.gov.au/employers/forms-and-resources/working-with-a-treating-doctor`;
+    const soap = `• Job Task Analysis (JTA)\n  Role: ${role}\n  Date: ${jobDate}\n  Hours/Week: ${hoursInShift} hours × ${daysPerWeek} days\n\n  Role Description:\n    ${roleDescription || "Not specified"}\n\n  Environment & Movements:\n    Environment: ${environment || "Not specified"}\n    Movements: ${movementsRequired || "Not specified"}\n    Hazards: ${hazards || "Not specified"}\n    Equipment: ${equipmentNeeded || "Not specified"}\n\n  Top 3 Physically Demanding Tasks:\n${topTasks.filter(t => t.task.trim()).map((t, i) => `    ${i + 1}. ${t.task} (${t.duration || "duration not specified"})\n       Requirement: ${t.requirement}\n       Suitable duties support: ${t.supportAvailable}`).join("\n")}\n\n  Physical Demands (Frequency):\n${physicalDemandsSummary || "None recorded"}\n\n  Environmental Hazards (Frequency):\n${hazardsSummary || "None recorded"}\n\n  Clinical Observations:\n    ${clinicalObservations || "None recorded"}\n\n  Additional Comments:\n    ${otherComments || "None recorded"}\n\n  Assessment Reference: Based on Job Task Analysis standardized protocol. See https://www.icare.nsw.gov.au/employers/forms-and-resources/working-with-a-treating-doctor`;
 
     onSave({
       result_value: completedTopTasks,
@@ -180,7 +180,7 @@ export default function JobTaskAnalysisiCareforWorkCoverRunner({ client, onSave,
           >
             <span className="flex items-center gap-2">
               <Info className="w-5 h-5" />
-              ðŸ“‹ Protocol & Resources
+              📋 Protocol & Resources
             </span>
             {expandedSection === "instructions" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
@@ -209,7 +209,7 @@ export default function JobTaskAnalysisiCareforWorkCoverRunner({ client, onSave,
 
                 <div className="bg-white p-3 rounded border border-teal-200">
                   <p className="text-xs text-slate-700 flex gap-2">
-                    <span>ðŸ“š</span>
+                    <span>📚</span>
                     <span><strong>More Information:</strong> Visit <a href="https://www.icare.nsw.gov.au/employers/forms-and-resources/working-with-a-treating-doctor" target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:underline inline-flex items-center gap-1">the resources page <ExternalLink className="w-3 h-3" /></a> for additional guidance and templates.</span>
                   </p>
                 </div>

@@ -36,7 +36,7 @@ export default function WaistHipRatioRunner({ client, onSave, onClose }) {
     const whr = calculateWHR();
     const category = getWHRCategory(parseFloat(whr), sex);
     
-    const soapText = `â€¢ Waist-Hip Ratio Assessment\n  Result: ${whr}\n  Waist: ${waist} cm | Hip: ${hip} cm\n  Risk Category: ${category?.category || 'Unknown'}`;
+    const soapText = `• Waist-Hip Ratio Assessment\n  Result: ${whr}\n  Waist: ${waist} cm | Hip: ${hip} cm\n  Risk Category: ${category?.category || 'Unknown'}`;
     onSave({
       result_value: parseFloat(whr),
       additional_data: {
@@ -135,8 +135,8 @@ export default function WaistHipRatioRunner({ client, onSave, onClose }) {
               <div className="bg-white/70 rounded-lg p-4 text-sm">
                 <p className="font-semibold text-slate-900 mb-2">WHO Risk Cut-offs:</p>
                 <div className="space-y-1 text-slate-700">
-                  <p><strong>Men:</strong> &lt;0.90 Low â€¢ 0.90-0.99 Moderate â€¢ â‰¥1.00 High</p>
-                  <p><strong>Women:</strong> &lt;0.80 Low â€¢ 0.80-0.84 Moderate â€¢ â‰¥0.85 High</p>
+                  <p><strong>Men:</strong> &lt;0.90 Low • 0.90-0.99 Moderate • ≥1.00 High</p>
+                  <p><strong>Women:</strong> &lt;0.80 Low • 0.80-0.84 Moderate • ≥0.85 High</p>
                 </div>
               </div>
             </div>

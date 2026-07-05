@@ -71,7 +71,7 @@ export default function HipOutcomeScoreHOOSRunner({ client, onSave, onClose }) {
 
     const totalScore = (subscaleScores.reduce((sum, s) => sum + parseFloat(s.score), 0) / subscaleScores.length).toFixed(1);
 
-    let soapText = `â€¢ Hip Outcome Score (HOOS)\n  Total Average Score: ${totalScore}/100 (higher = better function)\n\n  Subscale Scores:\n`;
+    let soapText = `• Hip Outcome Score (HOOS)\n  Total Average Score: ${totalScore}/100 (higher = better function)\n\n  Subscale Scores:\n`;
     subscaleScores.forEach(s => { soapText += `    ${s.label}: ${s.score}/100\n`; });
     soapText += `\n  Individual Responses:\n`;
     HOOS_SUBSCALES.forEach(subscale => {
@@ -102,7 +102,7 @@ export default function HipOutcomeScoreHOOSRunner({ client, onSave, onClose }) {
         <div className="p-5 border-b bg-gradient-to-r from-blue-50 to-indigo-50 flex justify-between items-start shrink-0">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Hip Outcome Score (HOOS)</h2>
-            <p className="text-slate-500 text-sm mt-0.5">Patient-reported hip function â€” 40 items across 5 subscales</p>
+            <p className="text-slate-500 text-sm mt-0.5">Patient-reported hip function — 40 items across 5 subscales</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -127,7 +127,7 @@ export default function HipOutcomeScoreHOOSRunner({ client, onSave, onClose }) {
                 <div>
                   <p className="font-semibold mb-1">Administration</p>
                   <ul className="list-disc list-inside space-y-0.5 text-slate-600">
-                    <li>Self-administered by the patient (approximately 10â€“15 minutes)</li>
+                    <li>Self-administered by the patient (approximately 10–15 minutes)</li>
                     <li>Covers symptoms over the <strong>past week</strong></li>
                     <li>40 items across 5 subscales: Symptoms, Pain, ADL, Sport/Recreation, QoL</li>
                     <li>Each item rated 0 (None) to 4 (Extreme)</li>
@@ -136,17 +136,17 @@ export default function HipOutcomeScoreHOOSRunner({ client, onSave, onClose }) {
                 <div>
                   <p className="font-semibold mb-1">Scoring</p>
                   <ul className="list-disc list-inside space-y-0.5 text-slate-600">
-                    <li>Each subscale scored 0â€“100; <strong>higher score = better function / fewer symptoms</strong></li>
-                    <li>Formula: Score = 100 âˆ’ [(raw sum / max possible) Ã— 100]</li>
+                    <li>Each subscale scored 0–100; <strong>higher score = better function / fewer symptoms</strong></li>
+                    <li>Formula: Score = 100 − [(raw sum / max possible) × 100]</li>
                     <li>No composite total is recommended; subscales reported individually</li>
                   </ul>
                 </div>
                 <div>
                   <p className="font-semibold mb-1">Psychometric Properties</p>
                   <ul className="list-disc list-inside space-y-0.5 text-slate-600">
-                    <li>Excellent test-retest reliability (ICC 0.75â€“0.98 across subscales)</li>
+                    <li>Excellent test-retest reliability (ICC 0.75–0.98 across subscales)</li>
                     <li>Good content validity and responsiveness to change post-THA and after rehabilitation</li>
-                    <li>MCID: approximately 8â€“10 points per subscale</li>
+                    <li>MCID: approximately 8–10 points per subscale</li>
                   </ul>
                 </div>
                 <div>
@@ -157,7 +157,7 @@ export default function HipOutcomeScoreHOOSRunner({ client, onSave, onClose }) {
                    <p className="font-semibold mb-1">References & Links</p>
                    <a href="https://www.koos.nu/" target="_blank" rel="noopener noreferrer"
                      className="flex items-center gap-1 text-blue-600 hover:underline text-xs">
-                     <ExternalLink className="w-3 h-3" /> HOOS Official Website â€” koos.nu (free questionnaire PDF)
+                     <ExternalLink className="w-3 h-3" /> HOOS Official Website — koos.nu (free questionnaire PDF)
                    </a>
                  </div>
               </div>

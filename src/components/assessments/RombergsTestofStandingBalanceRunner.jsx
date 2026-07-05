@@ -20,7 +20,7 @@ function SelectField({ label, value, onChange, options }) {
         onChange={e => onChange(e.target.value)}
         className="mt-1 w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-300 bg-white"
       >
-        <option value="">â€” Select â€”</option>
+        <option value="">— Select —</option>
         {options.map(o => <option key={o} value={o}>{o}</option>)}
       </select>
     </div>
@@ -275,19 +275,19 @@ export default function RombergsTestofStandingBalanceRunner({ client, onSave, on
 
     const result = interp || {};
     const soapLines = [
-      `â€¢ Romberg's Test of Standing Balance`,
+      `• Romberg's Test of Standing Balance`,
       surfaceType ? `  Surface: ${surfaceType}` : null,
       footPosition ? `  Foot Position: ${footPosition}` : null,
       footwear ? `  Footwear: ${footwear}` : null,
       assistanceLevel ? `  Assistance Level: ${assistanceLevel}` : null,
-      eoTime !== null ? `  Eyes Open: ${eoTime}s${eoSwaySeverity ? ` â€” sway: ${eoSwaySeverity}` : ''}${eoSwayDirection ? ` (${eoSwayDirection})` : ''}` : null,
-      ecTime !== null ? `  Eyes Closed: ${ecTime}s${ecSwaySeverity ? ` â€” sway: ${ecSwaySeverity}` : ''}${ecSwayDirection ? ` (${ecSwayDirection})` : ''}` : null,
+      eoTime !== null ? `  Eyes Open: ${eoTime}s${eoSwaySeverity ? ` — sway: ${eoSwaySeverity}` : ''}${eoSwayDirection ? ` (${eoSwayDirection})` : ''}` : null,
+      ecTime !== null ? `  Eyes Closed: ${ecTime}s${ecSwaySeverity ? ` — sway: ${ecSwaySeverity}` : ''}${ecSwayDirection ? ` (${ecSwayDirection})` : ''}` : null,
       lossOfBalance === "Yes" ? `  Loss of Balance: Yes` : null,
       stepTaken === "Yes" ? `  Step Response: Yes` : null,
       requiresAssistance === "Yes" ? `  Required Assistance: Yes` : null,
       stopReason ? `  Reason Stopped: ${stopReason}` : null,
       result.rombergResult ? `  Result: ${result.rombergResult}` : null,
-      result.fallsRisk ? `  âš  Increased Falls Risk Identified` : null,
+      result.fallsRisk ? `  ⚠ Increased Falls Risk Identified` : null,
       result.summary ? `\n  Interpretation: ${result.summary}` : null,
       notes ? `  Clinical Notes: ${notes}` : null,
       `  Reference: Romberg MH (1853). Manual of Nervous Diseases of Man. The Sydenham Society, London.`,
@@ -341,7 +341,7 @@ export default function RombergsTestofStandingBalanceRunner({ client, onSave, on
         {/* Clinician Script */}
         <div className="px-5 pt-4 shrink-0">
           <div className="bg-blue-600 text-white rounded-lg p-4 text-sm">
-            <p className="font-semibold mb-1">ðŸ’¬ Clinician Script</p>
+            <p className="font-semibold mb-1">💬 Clinician Script</p>
             <p>"Stand with your feet together and arms by your sides. First keep your eyes open for up to 30 seconds. Then I'll ask you to close your eyes for another 30 seconds. Tell me immediately if you feel like you're going to fall."</p>
           </div>
         </div>
@@ -395,7 +395,7 @@ export default function RombergsTestofStandingBalanceRunner({ client, onSave, on
           </Section>
 
           {/* Eyes Closed */}
-          <Section title="ðŸ˜Œ Eyes Closed Result" defaultOpen={true}>
+          <Section title="😌 Eyes Closed Result" defaultOpen={true}>
             <TimerBlock
               label="Eyes Closed"
               timeHeld={ecTime}

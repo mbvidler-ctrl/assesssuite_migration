@@ -32,11 +32,11 @@ export default function GlobalRatingofChangeScaleGROCRunner({ client, onSave, on
     ? selected >= 2 ? "Clinically meaningful improvement"
     : selected <= -2 ? "Clinically meaningful deterioration"
     : selected === 0 ? "No change"
-    : "Below threshold for meaningful change (Â±1)"
+    : "Below threshold for meaningful change (±1)"
     : null;
 
   const handleSave = () => {
-    const soap = `â€¢ Global Rating of Change Scale (GROC)\n  Score: ${selected > 0 ? "+" : ""}${selected} / +7\n  Response: "${level.label}"\n  Interpretation: ${clinicalMeaning}${notes ? `\n  Notes: ${notes}` : ""}\n  MCID: Â±2 points (Â±1 is below threshold for meaningful change)\n  Reference: Jaeschke R et al. (1989). Measurement of health status: ascertaining the minimal clinically important difference. Control Clin Trials, 10(4):407-15.`;
+    const soap = `• Global Rating of Change Scale (GROC)\n  Score: ${selected > 0 ? "+" : ""}${selected} / +7\n  Response: "${level.label}"\n  Interpretation: ${clinicalMeaning}${notes ? `\n  Notes: ${notes}` : ""}\n  MCID: ±2 points (±1 is below threshold for meaningful change)\n  Reference: Jaeschke R et al. (1989). Measurement of health status: ascertaining the minimal clinically important difference. Control Clin Trials, 10(4):407-15.`;
     onSave({ status: "completed", result_value: selected, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "patient_reported", score: selected, label: level.label, clinical_meaning: clinicalMeaning } });
     toast.success("GROC saved.");
   };
@@ -45,7 +45,7 @@ export default function GlobalRatingofChangeScaleGROCRunner({ client, onSave, on
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-w-xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="p-5 border-b bg-gradient-to-r from-green-50 to-teal-50 flex justify-between items-start">
-          <div><h2 className="text-2xl font-bold text-slate-900">Global Rating of Change Scale</h2><p className="text-slate-500 text-sm mt-0.5">GROC â€” Patient-reported change (âˆ’7 to +7)</p></div>
+          <div><h2 className="text-2xl font-bold text-slate-900">Global Rating of Change Scale</h2><p className="text-slate-500 text-sm mt-0.5">GROC — Patient-reported change (−7 to +7)</p></div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
 

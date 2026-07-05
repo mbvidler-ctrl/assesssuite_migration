@@ -52,11 +52,11 @@ export default function FiveTimesSittoStandTest5xSTSRunner({ client, onSave, onC
 
   const totalTime = trials.length > 0 ? trials[trials.length - 1] : null;
   const isComplete = trials.length === 5;
-  const fallRisk = totalTime !== null ? (totalTime >= 15 ? "Elevated fall risk (â‰¥15s)" : "Lower fall risk (<15s)") : null;
+  const fallRisk = totalTime !== null ? (totalTime >= 15 ? "Elevated fall risk (≥15s)" : "Lower fall risk (<15s)") : null;
 
   const handleSave = () => {
     const trialLines = trials.map((t, i) => `  Stand ${i + 1}: ${t.toFixed(2)}s`).join('\n');
-    const soap_text = `Five Times Sit-to-Stand Test (5xSTS)\n\nTotal Time: ${totalTime.toFixed(2)}s â€” ${fallRisk}\n\nIndividual Stands:\n${trialLines}${notes ? `\n\nClinical Notes: ${notes}` : ''}`;
+    const soap_text = `Five Times Sit-to-Stand Test (5xSTS)\n\nTotal Time: ${totalTime.toFixed(2)}s — ${fallRisk}\n\nIndividual Stands:\n${trialLines}${notes ? `\n\nClinical Notes: ${notes}` : ''}`;
 
     onSave({
       status: "completed",
@@ -90,7 +90,7 @@ export default function FiveTimesSittoStandTest5xSTSRunner({ client, onSave, onC
           {/* Instructions */}
           <div className="bg-slate-50 rounded-lg p-4 text-sm text-slate-600 space-y-1">
             <p><strong>Instructions:</strong> Sit with arms crossed over chest. On 'go', stand fully and sit down 5 times as quickly and safely as possible.</p>
-            <p><strong>Scoring:</strong> â‰¥15s is associated with increased fall risk in older adults.</p>
+            <p><strong>Scoring:</strong> ≥15s is associated with increased fall risk in older adults.</p>
           </div>
 
           {/* Timer */}
@@ -133,7 +133,7 @@ export default function FiveTimesSittoStandTest5xSTSRunner({ client, onSave, onC
               {isComplete && (
                 <div className={`flex justify-between items-center px-4 py-3 border-t font-semibold ${totalTime >= 15 ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
                   <span>Total Time</span>
-                  <span className="font-mono">{totalTime.toFixed(2)}s â€” {fallRisk}</span>
+                  <span className="font-mono">{totalTime.toFixed(2)}s — {fallRisk}</span>
                 </div>
               )}
             </div>

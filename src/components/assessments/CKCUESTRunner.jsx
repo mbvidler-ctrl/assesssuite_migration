@@ -65,7 +65,7 @@ export default function CKCUESTRunner({ onSave, onClose }) {
       `  Trial ${t.trial_number}: ${t.touches} touches (${t.position})`
     ).join('\n');
 
-    const soapText = `â€¢ Closed Kinetic Chain Upper Extremity Stability Test (CKCUEST):\n  Position: ${position}\n${trialsText}\n  Best Score: ${bestTouches} touches in 15 seconds${notes ? `\n  Notes: ${notes}` : ''}`;
+    const soapText = `• Closed Kinetic Chain Upper Extremity Stability Test (CKCUEST):\n  Position: ${position}\n${trialsText}\n  Best Score: ${bestTouches} touches in 15 seconds${notes ? `\n  Notes: ${notes}` : ''}`;
 
     onSave({
       result_value: bestTouches,
@@ -101,32 +101,32 @@ export default function CKCUESTRunner({ onSave, onClose }) {
           <div className="space-y-6">
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>Goldbeck TG & Davies GJ. (2000). Test-retest reliability of the closed kinetic chain upper extremity stability test: a clinical field test. <em>Journal of Sport Rehabilitation, 9</em>(1), 35â€“45.</p>
-              <p>Tucci HT et al. (2014). Closed kinetic chain upper extremity stability test (CKCUEST) for overhead athletes. <em>International Journal of Sports Physical Therapy, 9</em>(1), 35â€“44.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Goldbeck TG & Davies GJ. (2000). Test-retest reliability of the closed kinetic chain upper extremity stability test: a clinical field test. <em>Journal of Sport Rehabilitation, 9</em>(1), 35–45.</p>
+              <p>Tucci HT et al. (2014). Closed kinetic chain upper extremity stability test (CKCUEST) for overhead athletes. <em>International Journal of Sports Physical Therapy, 9</em>(1), 35–44.</p>
             </div>
 
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Norms (Touches in 15 seconds)</p>
+              <p className="font-semibold text-slate-700">📊 Norms (Touches in 15 seconds)</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Population</th><th className="p-2 text-center">Males</th><th className="p-2 text-center">Females</th></tr></thead>
                   <tbody>
-                    <tr className="border-t"><td className="p-2">Healthy young adults</td><td className="p-2 text-center">21â€“22</td><td className="p-2 text-center">18â€“20</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">Overhead athletes</td><td className="p-2 text-center">23â€“26</td><td className="p-2 text-center">20â€“23</td></tr>
-                    <tr className="border-t"><td className="p-2">Return-to-sport threshold</td><td className="p-2 text-center" colSpan={2}>â‰¥21 touches (standard position)</td></tr>
+                    <tr className="border-t"><td className="p-2">Healthy young adults</td><td className="p-2 text-center">21–22</td><td className="p-2 text-center">18–20</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">Overhead athletes</td><td className="p-2 text-center">23–26</td><td className="p-2 text-center">20–23</td></tr>
+                    <tr className="border-t"><td className="p-2">Return-to-sport threshold</td><td className="p-2 text-center" colSpan={2}>≥21 touches (standard position)</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-slate-500">Tape strips 91 cm (36 in) apart. 3 trials â€” use best. Normalised score: touches Ã· (height in cm) Ã— 100. MCID: ~3 touches. Source: Goldbeck & Davies (2000).</p>
+              <p className="text-xs text-slate-500">Tape strips 91 cm (36 in) apart. 3 trials — use best. Normalised score: touches ÷ (height in cm) × 100. MCID: ~3 touches. Source: Goldbeck & Davies (2000).</p>
             </div>
 
             <Card className="bg-blue-50 border-blue-200">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Info className="w-5 h-5 text-blue-600" />
-                  ðŸ“‹ Test Protocol
+                  📋 Test Protocol
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">
@@ -197,7 +197,7 @@ export default function CKCUESTRunner({ onSave, onClose }) {
                   </Button>
                 </div>
                 {timerSeconds >= 15 && (
-                  <p className="mt-4 text-green-600 font-semibold text-center">âœ“ 15 seconds complete!</p>
+                  <p className="mt-4 text-green-600 font-semibold text-center">✓ 15 seconds complete!</p>
                 )}
               </CardContent>
             </Card>

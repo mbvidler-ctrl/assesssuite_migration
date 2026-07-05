@@ -158,7 +158,7 @@ export default function IncrementalShuttleWalkTestISWTRunner({ client, onSave, o
     const distanceMeters = shuttlesCompleted * 10;
     const assessmentDate = new Date().toISOString().split("T")[0];
     
-    const soap = `â€¢ Incremental Shuttle Walk Test (ISWT)\n  Distance: ${distanceMeters}m (${shuttlesCompleted} shuttles)\n  Final Level: ${currentLevel}\n  Duration: ${testDuration}s\n\n  Pre-Test Measures:\n    HR: ${preHeartRate} bpm | Oâ‚‚: ${preOxygen}% | Dyspnea: ${preDyspnea}/10\n\n  Post-Test Measures:\n    HR: ${postHeartRate || "â€”"} bpm | Oâ‚‚: ${postOxygen || "â€”"}% | Dyspnea: ${postDyspnea || "â€”"}/10${notes ? `\n\n  Stopping Reason: ${notes}` : ""}`;
+    const soap = `• Incremental Shuttle Walk Test (ISWT)\n  Distance: ${distanceMeters}m (${shuttlesCompleted} shuttles)\n  Final Level: ${currentLevel}\n  Duration: ${testDuration}s\n\n  Pre-Test Measures:\n    HR: ${preHeartRate} bpm | O₂: ${preOxygen}% | Dyspnea: ${preDyspnea}/10\n\n  Post-Test Measures:\n    HR: ${postHeartRate || "—"} bpm | O₂: ${postOxygen || "—"}% | Dyspnea: ${postDyspnea || "—"}/10${notes ? `\n\n  Stopping Reason: ${notes}` : ""}`;
 
     onSave({
       result_value: distanceMeters,
@@ -198,7 +198,7 @@ export default function IncrementalShuttleWalkTestISWTRunner({ client, onSave, o
               className="w-full flex justify-between items-center px-4 py-3 bg-blue-50 text-blue-800 font-semibold text-sm hover:bg-blue-100 transition-colors"
               onClick={() => setShowInfo(!showInfo)}
             >
-              <span>ðŸ“‹ Protocol & Resources</span>
+              <span>📋 Protocol & Resources</span>
               {showInfo ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
             </button>
             {showInfo && (
@@ -235,11 +235,11 @@ export default function IncrementalShuttleWalkTestISWTRunner({ client, onSave, o
                 <Input type="number" value={preHeartRate} onChange={e => setPreHeartRate(e.target.value)} disabled={isTestRunning} placeholder="e.g., 72" className="mt-1" />
               </div>
               <div>
-                <Label className="text-sm">Oâ‚‚ Saturation (%)</Label>
+                <Label className="text-sm">O₂ Saturation (%)</Label>
                 <Input type="number" value={preOxygen} onChange={e => setPreOxygen(e.target.value)} disabled={isTestRunning} placeholder="e.g., 97" className="mt-1" />
               </div>
               <div>
-                <Label className="text-sm">Dyspnea (0â€“10)</Label>
+                <Label className="text-sm">Dyspnea (0–10)</Label>
                 <Input type="number" value={preDyspnea} onChange={e => setPreDyspnea(e.target.value)} disabled={isTestRunning} placeholder="e.g., 0" className="mt-1" />
               </div>
             </div>
@@ -274,7 +274,7 @@ export default function IncrementalShuttleWalkTestISWTRunner({ client, onSave, o
               )}
               {isTestRunning && countdownSeconds === null && (
                 <div className="text-center mt-3">
-                  <p className="text-sm font-semibold text-indigo-600">Follow the beeps! ðŸŽµ</p>
+                  <p className="text-sm font-semibold text-indigo-600">Follow the beeps! 🎵</p>
                   <p className="text-xs text-indigo-500 mt-1">Next beep in {nextBeepTime ? Math.round((nextBeepTime - Date.now()) / 1000) : 0}s</p>
                 </div>
               )}
@@ -291,11 +291,11 @@ export default function IncrementalShuttleWalkTestISWTRunner({ client, onSave, o
                   <Input type="number" value={postHeartRate} onChange={e => setPostHeartRate(e.target.value)} placeholder="e.g., 95" className="mt-1" />
                 </div>
                 <div>
-                  <Label className="text-sm">Oâ‚‚ Saturation (%)</Label>
+                  <Label className="text-sm">O₂ Saturation (%)</Label>
                   <Input type="number" value={postOxygen} onChange={e => setPostOxygen(e.target.value)} placeholder="e.g., 95" className="mt-1" />
                 </div>
                 <div>
-                  <Label className="text-sm">Dyspnea (0â€“10)</Label>
+                  <Label className="text-sm">Dyspnea (0–10)</Label>
                   <Input type="number" value={postDyspnea} onChange={e => setPostDyspnea(e.target.value)} placeholder="e.g., 5" className="mt-1" />
                 </div>
               </div>

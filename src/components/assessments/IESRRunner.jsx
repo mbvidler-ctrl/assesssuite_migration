@@ -108,10 +108,10 @@ export default function IESRRunner({ onSave, onClose }) {
     });
 
     soapText += `\nSubscale Scores:\n`;
-    soapText += `  â€¢ Intrusion: ${intrusion}\n`;
-    soapText += `  â€¢ Avoidance: ${avoidance}\n`;
-    soapText += `  â€¢ Hyperarousal: ${hyperarousal}\n`;
-    soapText += `  â€¢ Total IES-R Score: ${total}/88 - ${interpretation?.level}\n`;
+    soapText += `  • Intrusion: ${intrusion}\n`;
+    soapText += `  • Avoidance: ${avoidance}\n`;
+    soapText += `  • Hyperarousal: ${hyperarousal}\n`;
+    soapText += `  • Total IES-R Score: ${total}/88 - ${interpretation?.level}\n`;
 
     if (notes && notes.trim()) {
       soapText += `\nClinical Notes: ${notes}\n`;
@@ -154,14 +154,14 @@ export default function IESRRunner({ onSave, onClose }) {
           <div className="space-y-6">
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Score Interpretation (/88)</p>
+              <p className="font-semibold text-slate-700">📊 Score Interpretation (/88)</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Total Score</th><th className="p-2 text-left">Interpretation</th></tr></thead>
                   <tbody>
                     <tr className="border-t"><td className="p-2">&lt;24</td><td className="p-2 text-green-700">Low PTSD concern</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">24â€“32</td><td className="p-2 text-yellow-700">Moderate concern â€” consider referral</td></tr>
-                    <tr className="border-t"><td className="p-2">â‰¥33</td><td className="p-2 text-red-700">High concern â€” probable PTSD; psychological referral indicated</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">24–32</td><td className="p-2 text-yellow-700">Moderate concern — consider referral</td></tr>
+                    <tr className="border-t"><td className="p-2">≥33</td><td className="p-2 text-red-700">High concern — probable PTSD; psychological referral indicated</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -170,9 +170,9 @@ export default function IESRRunner({ onSave, onClose }) {
 
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>Weiss DS & Marmar CR. (1997). The Impact of Event Scaleâ€”Revised. In J.P. Wilson & T.M. Keane (Eds.), <em>Assessing Psychological Trauma and PTSD</em> (pp. 399â€“411). Guilford Press.</p>
-              <p>Creamer M, Bell R, & Failla S. (2003). Psychometric properties of the Impact of Event Scaleâ€”Revised. <em>Behaviour Research and Therapy, 41</em>(12), 1489â€“1496.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Weiss DS & Marmar CR. (1997). The Impact of Event Scale—Revised. In J.P. Wilson & T.M. Keane (Eds.), <em>Assessing Psychological Trauma and PTSD</em> (pp. 399–411). Guilford Press.</p>
+              <p>Creamer M, Bell R, & Failla S. (2003). Psychometric properties of the Impact of Event Scale—Revised. <em>Behaviour Research and Therapy, 41</em>(12), 1489–1496.</p>
             </div>
 
             <Card className="bg-blue-50 border-blue-200">
@@ -198,7 +198,7 @@ export default function IESRRunner({ onSave, onClose }) {
             <Card className="bg-red-50 border-red-200">
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2 text-red-800">
-                  âš ï¸ Clinical Considerations
+                  ⚠ï¸ Clinical Considerations
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-red-800">

@@ -71,7 +71,7 @@ export default function LipidProfileRunner({ client, onSave, onClose }) {
     }
 
     // Build SOAP text
-    let soapText = `â€¢ Lipid Profile (${unit === "mgdl" ? "USA/mg/dL" : "Australian/mmol/L"}):\n`;
+    let soapText = `• Lipid Profile (${unit === "mgdl" ? "USA/mg/dL" : "Australian/mmol/L"}):\n`;
     soapText += `  Total Cholesterol: ${tcValue} ${unit === "mgdl" ? "mg/dL" : "mmol/L"} (${convertValue(tcValue, unit, unit === "mgdl" ? "mmol" : "mgdl")} ${unit === "mgdl" ? "mmol/L" : "mg/dL"}) - ${getCholesterolCategory(tcValue, unit).label}\n`;
     if (ldlValue) soapText += `  LDL Cholesterol: ${ldlValue} ${unit === "mgdl" ? "mg/dL" : "mmol/L"} (${convertValue(ldlValue, unit, unit === "mgdl" ? "mmol" : "mgdl")} ${unit === "mgdl" ? "mmol/L" : "mg/dL"}) - ${getLDLCategory(ldlValue, unit).label}\n`;
     if (hdlValue) soapText += `  HDL Cholesterol: ${hdlValue} ${unit === "mgdl" ? "mg/dL" : "mmol/L"} (${convertValue(hdlValue, unit, unit === "mgdl" ? "mmol" : "mgdl")} ${unit === "mgdl" ? "mmol/L" : "mg/dL"}) - ${getHDLCategory(hdlValue, unit).label}\n`;
@@ -166,8 +166,8 @@ export default function LipidProfileRunner({ client, onSave, onClose }) {
                   )}
                   <p className="text-xs text-gray-500 mt-1">
                     {unit === "mgdl" 
-                      ? "<200 normal, 200-239 borderline, â‰¥240 high" 
-                      : "<5.2 normal, 5.2-6.2 borderline, â‰¥6.2 high"}
+                      ? "<200 normal, 200-239 borderline, ≥240 high" 
+                      : "<5.2 normal, 5.2-6.2 borderline, ≥6.2 high"}
                   </p>
                   </div>
 
@@ -218,8 +218,8 @@ export default function LipidProfileRunner({ client, onSave, onClose }) {
                   )}
                   <p className="text-xs text-gray-500 mt-1">
                     {unit === "mgdl" 
-                      ? "<40 low, â‰¥60 protective" 
-                      : "<1.0 low, â‰¥1.5 protective"}
+                      ? "<40 low, ≥60 protective" 
+                      : "<1.0 low, ≥1.5 protective"}
                   </p>
                   </div>
 

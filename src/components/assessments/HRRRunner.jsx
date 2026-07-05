@@ -30,7 +30,7 @@ export default function HRRRunner({ onSave, onClose }) {
 
   const getInterpretation = (hrr1) => {
     if (hrr1 === null) return null;
-    if (hrr1 <= 12) return { text: 'Attenuated (â‰¤12 bpm) - Associated with increased mortality risk', color: 'text-red-600', bg: 'bg-red-50' };
+    if (hrr1 <= 12) return { text: 'Attenuated (≤12 bpm) - Associated with increased mortality risk', color: 'text-red-600', bg: 'bg-red-50' };
     if (hrr1 <= 15) return { text: 'Below optimal (13-15 bpm) - Consider further evaluation', color: 'text-yellow-600', bg: 'bg-yellow-50' };
     return { text: 'Normal (>15 bpm) - Favourable autonomic function', color: 'text-green-600', bg: 'bg-green-50' };
   };
@@ -59,9 +59,9 @@ export default function HRRRunner({ onSave, onClose }) {
     text += `Recovery Mode: ${recoveryMode.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}\n\n`;
     
     text += `Heart Rate Measurements:\n`;
-    text += `â€¢ Peak Exercise HR: ${peakHR} bpm\n`;
-    text += `â€¢ HR at 1 Minute: ${hr1Min} bpm (HRR1: ${hrr1} bpm)\n`;
-    if (hr2Min) text += `â€¢ HR at 2 Minutes: ${hr2Min} bpm (HRR2: ${hrr2} bpm)\n`;
+    text += `• Peak Exercise HR: ${peakHR} bpm\n`;
+    text += `• HR at 1 Minute: ${hr1Min} bpm (HRR1: ${hrr1} bpm)\n`;
+    if (hr2Min) text += `• HR at 2 Minutes: ${hr2Min} bpm (HRR2: ${hrr2} bpm)\n`;
     
     if (additionalMeasures.length > 0) {
       text += `\nAdditional Measurements:\n`;
@@ -69,7 +69,7 @@ export default function HRRRunner({ onSave, onClose }) {
         if (measure.hr) {
           const timeLabel = measure.label || `${measure.timepoint} min`;
           const hrr = peakHR && measure.hr ? parseInt(peakHR) - parseInt(measure.hr) : null;
-          text += `â€¢ HR at ${timeLabel}: ${measure.hr} bpm${hrr ? ` (HRR: ${hrr} bpm)` : ''}\n`;
+          text += `• HR at ${timeLabel}: ${measure.hr} bpm${hrr ? ` (HRR: ${hrr} bpm)` : ''}\n`;
         }
       });
     }
@@ -137,7 +137,7 @@ export default function HRRRunner({ onSave, onClose }) {
               <CardContent className="text-sm text-blue-800 space-y-2">
                 <p><strong>Procedure:</strong> Immediately after completing exercise, transition client to recovery mode (standing, sitting, or light walking) and record heart rate at exactly 1 and 2 minutes.</p>
                 <p><strong>HRR Calculation:</strong> Peak HR minus HR at recovery time point.</p>
-                <p><strong>Clinical Significance:</strong> HRR1 â‰¤12 bpm is associated with increased mortality risk. Higher HRR indicates better autonomic function.</p>
+                <p><strong>Clinical Significance:</strong> HRR1 ≤12 bpm is associated with increased mortality risk. Higher HRR indicates better autonomic function.</p>
               </CardContent>
             </Card>
 

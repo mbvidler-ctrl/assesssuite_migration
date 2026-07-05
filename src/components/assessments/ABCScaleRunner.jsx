@@ -60,7 +60,7 @@ export default function ABCScaleRunner({ onSave, onClose }) {
     onSave({
       result_value: avgScore,
       additional_data: {
-        soap_text: `â€¢ Activities-Specific Balance Confidence (ABC) Scale\n  Average Score: ${avgScore}% â€” ${interpretation.text}`,
+        soap_text: `• Activities-Specific Balance Confidence (ABC) Scale\n  Average Score: ${avgScore}% — ${interpretation.text}`,
         responses,
         average_score: avgScore,
         interpretation: interpretation.text,
@@ -120,9 +120,9 @@ export default function ABCScaleRunner({ onSave, onClose }) {
                    <div>
                      <p className="font-semibold mb-1">Score Interpretation</p>
                      <ul className="text-xs space-y-1 list-disc list-inside">
-                       <li><strong>â‰¥80%:</strong> High balance confidence â€” minimal fall risk</li>
-                       <li><strong>50â€“80%:</strong> Moderate balance confidence â€” some fall risk present</li>
-                       <li><strong>&lt;50%:</strong> Low balance confidence â€” high fall risk, recommend intervention</li>
+                       <li><strong>≥80%:</strong> High balance confidence — minimal fall risk</li>
+                       <li><strong>50–80%:</strong> Moderate balance confidence — some fall risk present</li>
+                       <li><strong>&lt;50%:</strong> Low balance confidence — high fall risk, recommend intervention</li>
                      </ul>
                    </div>
                  </CardContent>
@@ -205,18 +205,18 @@ export default function ABCScaleRunner({ onSave, onClose }) {
                   <div>
                     <p className="font-semibold mb-1">Reliability &amp; Validity</p>
                     <ul className="text-xs space-y-1 list-disc list-inside text-slate-600">
-                      <li>Test-retest reliability: ICC = 0.92â€“0.99 (excellent)</li>
-                      <li>Internal consistency: Cronbach Î± = 0.86â€“0.96 (excellent)</li>
-                      <li>Strong correlation with fall history (r = âˆ’0.36 to âˆ’0.76)</li>
+                      <li>Test-retest reliability: ICC = 0.92–0.99 (excellent)</li>
+                      <li>Internal consistency: Cronbach α = 0.86–0.96 (excellent)</li>
+                      <li>Strong correlation with fall history (r = −0.36 to −0.76)</li>
                       <li>Sensitive to change with intervention</li>
                     </ul>
                   </div>
                   <div>
                     <p className="font-semibold mb-1">Key References</p>
                     <ul className="text-xs space-y-2 text-slate-600">
-                      <li><strong>Powell LE, Myers AM.</strong> (1995). The Activities-Specific Balance Confidence (ABC) Scale. <em>The Journals of Gerontology</em>, 50A(1), M28â€“M34.</li>
-                      <li><strong>Talley KMC, Waltrous P, Grierson LEM.</strong> (2013). Validity and sensitivity of the Activities-Specific Balance Confidence Scale in community-dwelling older adults. <em>Journal of Geriatric Physical Therapy</em>, 36(1), 12â€“18.</li>
-                      <li><strong>Delbaere K, Close JCT, Algra A, et al.</strong> (2010). A multifactorial approach to understanding fall risk in older people. <em>Journal of the American Geriatrics Society</em>, 58(9), 1679â€“1685.</li>
+                      <li><strong>Powell LE, Myers AM.</strong> (1995). The Activities-Specific Balance Confidence (ABC) Scale. <em>The Journals of Gerontology</em>, 50A(1), M28–M34.</li>
+                      <li><strong>Talley KMC, Waltrous P, Grierson LEM.</strong> (2013). Validity and sensitivity of the Activities-Specific Balance Confidence Scale in community-dwelling older adults. <em>Journal of Geriatric Physical Therapy</em>, 36(1), 12–18.</li>
+                      <li><strong>Delbaere K, Close JCT, Algra A, et al.</strong> (2010). A multifactorial approach to understanding fall risk in older people. <em>Journal of the American Geriatrics Society</em>, 58(9), 1679–1685.</li>
                     </ul>
                   </div>
                 </CardContent>

@@ -31,7 +31,7 @@ export default function DualTaskGaitAssessmentRunner({ client, onSave, onClose }
     // Positive = slowing during dual task (worse), Negative = paradoxical (faster during dual task)
     const dualTaskCost = ((dualTime - singleTime) / singleTime) * 100;
 
-    const soapText = `â€¢ Dual-Task Gait Assessment:\n  Single-Task Time: ${singleTime} seconds\n  Dual-Task Time: ${dualTime} seconds\n  Dual-Task Cost: ${dualTaskCost.toFixed(2)}%\n  Cognitive Task: ${cognitiveTask}\n  Interpretation: ${dualTaskCost > 20 ? "Clinically significant (>20%) - increased fall risk" : dualTaskCost < 0 ? "Paradoxical response (faster during dual-task) - unusual" : "Within normal range (<20%)"}\n${notes ? `\n  Clinician Notes:\n    ${notes.replace(/\n/g, '\n    ')}` : ""}`;
+    const soapText = `• Dual-Task Gait Assessment:\n  Single-Task Time: ${singleTime} seconds\n  Dual-Task Time: ${dualTime} seconds\n  Dual-Task Cost: ${dualTaskCost.toFixed(2)}%\n  Cognitive Task: ${cognitiveTask}\n  Interpretation: ${dualTaskCost > 20 ? "Clinically significant (>20%) - increased fall risk" : dualTaskCost < 0 ? "Paradoxical response (faster during dual-task) - unusual" : "Within normal range (<20%)"}\n${notes ? `\n  Clinician Notes:\n    ${notes.replace(/\n/g, '\n    ')}` : ""}`;
 
     const additionalData = {
       measurement_type: "dual_task_gait_assessment",
@@ -66,20 +66,20 @@ export default function DualTaskGaitAssessmentRunner({ client, onSave, onClose }
 
             {/* Clinician Instructions */}
             <div className="bg-blue-600 text-white rounded-lg p-4 space-y-2">
-              <p className="font-semibold text-base">ðŸ“‹ Clinician Instructions</p>
+              <p className="font-semibold text-base">📋 Clinician Instructions</p>
               <ul className="text-sm space-y-1 list-disc list-inside">
                 <li>Set up a 10-metre walking course (or standard TUG course if preferred).</li>
-                <li><strong>Trial 1 â€” Single Task:</strong> Client walks the course at their comfortable pace. Record time in seconds.</li>
-                <li><strong>Trial 2 â€” Dual Task:</strong> Client walks the same course while simultaneously performing a cognitive task (e.g., counting backwards, naming animals). Record time in seconds.</li>
-                <li>Allow a rest period (1â€“2 min) between trials.</li>
-                <li>Dual-Task Cost (DTC%) is auto-calculated: DTC = ((Single âˆ’ Dual) / Single) Ã— 100. A positive % = slowing during dual task.</li>
+                <li><strong>Trial 1 — Single Task:</strong> Client walks the course at their comfortable pace. Record time in seconds.</li>
+                <li><strong>Trial 2 — Dual Task:</strong> Client walks the same course while simultaneously performing a cognitive task (e.g., counting backwards, naming animals). Record time in seconds.</li>
+                <li>Allow a rest period (1–2 min) between trials.</li>
+                <li>Dual-Task Cost (DTC%) is auto-calculated: DTC = ((Single − Dual) / Single) × 100. A positive % = slowing during dual task.</li>
                 <li>DTC &gt;20% is considered clinically significant for fall risk.</li>
               </ul>
             </div>
 
             {/* Script for Client */}
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
-              <p className="font-semibold text-green-800 text-sm">ðŸ—£ï¸ What to Say to the Client</p>
+              <p className="font-semibold text-green-800 text-sm">🗣ï¸ What to Say to the Client</p>
               <div className="space-y-2 text-sm text-slate-700">
                 <div className="bg-white rounded p-2 border border-green-100">
                   <p className="font-semibold text-green-700 text-xs uppercase mb-1">Single-Task Trial</p>
@@ -94,7 +94,7 @@ export default function DualTaskGaitAssessmentRunner({ client, onSave, onClose }
 
             {/* Cognitive Task Examples */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-2">
-              <p className="font-semibold text-slate-700 text-sm">ðŸ’¡ Example Cognitive Tasks</p>
+              <p className="font-semibold text-slate-700 text-sm">💡 Example Cognitive Tasks</p>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-white rounded p-2 border border-slate-100">
                   <p className="font-semibold text-slate-600">Serial Subtraction</p>
@@ -151,7 +151,7 @@ export default function DualTaskGaitAssessmentRunner({ client, onSave, onClose }
                <div className={`p-3 rounded-lg border ${((parseFloat(dualTaskTime) - parseFloat(singleTaskTime)) / parseFloat(singleTaskTime) * 100) > 20 ? 'bg-red-50 border-red-200' : ((parseFloat(dualTaskTime) - parseFloat(singleTaskTime)) / parseFloat(singleTaskTime) * 100) < 0 ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200'}`}>
                  <p className="text-sm font-semibold">
                    Dual-Task Cost: {((parseFloat(dualTaskTime) - parseFloat(singleTaskTime)) / parseFloat(singleTaskTime) * 100).toFixed(1)}%
-                   {((parseFloat(dualTaskTime) - parseFloat(singleTaskTime)) / parseFloat(singleTaskTime) * 100) > 20 ? " âš ï¸ Clinically significant (>20%)" : ((parseFloat(dualTaskTime) - parseFloat(singleTaskTime)) / parseFloat(singleTaskTime) * 100) < 0 ? " âš ï¸ Paradoxical response (faster during dual-task - unusual)" : " âœ“ Within normal range (<20%)"}
+                   {((parseFloat(dualTaskTime) - parseFloat(singleTaskTime)) / parseFloat(singleTaskTime) * 100) > 20 ? " ⚠ï¸ Clinically significant (>20%)" : ((parseFloat(dualTaskTime) - parseFloat(singleTaskTime)) / parseFloat(singleTaskTime) * 100) < 0 ? " ⚠ï¸ Paradoxical response (faster during dual-task - unusual)" : " ✓ Within normal range (<20%)"}
                  </p>
                </div>
              )}

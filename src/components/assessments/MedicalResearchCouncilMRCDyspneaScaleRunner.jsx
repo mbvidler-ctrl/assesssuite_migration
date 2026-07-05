@@ -6,11 +6,11 @@ import { Save, X, Info, ExternalLink, ChevronDown, ChevronUp } from "lucide-reac
 import { toast } from "sonner";
 
 const GRADES = [
-  { grade: 0, label: "No Breathlessness", desc: "No breathlessness except on strenuous exercise.", icon: "ðŸŸ¢" },
-  { grade: 1, label: "Slight Breathlessness", desc: "Breathlessness only when hurrying on the level or walking up a slight hill.", icon: "ðŸŸ¡" },
-  { grade: 2, label: "Moderate Breathlessness", desc: "Walks slower than most people on the level, or has to stop for breath when walking at their own pace on the level.", icon: "ðŸŸ " },
-  { grade: 3, label: "Severe Breathlessness", desc: "Stops for breath after walking about 100 m or after a few minutes on the level.", icon: "ðŸ”´" },
-  { grade: 4, label: "Very Severe Breathlessness", desc: "Too breathless to leave the house, or breathless when dressing or undressing.", icon: "ðŸ”´" },
+  { grade: 0, label: "No Breathlessness", desc: "No breathlessness except on strenuous exercise.", icon: "🟢" },
+  { grade: 1, label: "Slight Breathlessness", desc: "Breathlessness only when hurrying on the level or walking up a slight hill.", icon: "🟡" },
+  { grade: 2, label: "Moderate Breathlessness", desc: "Walks slower than most people on the level, or has to stop for breath when walking at their own pace on the level.", icon: "🟠" },
+  { grade: 3, label: "Severe Breathlessness", desc: "Stops for breath after walking about 100 m or after a few minutes on the level.", icon: "🔴" },
+  { grade: 4, label: "Very Severe Breathlessness", desc: "Too breathless to leave the house, or breathless when dressing or undressing.", icon: "🔴" },
 ];
 
 export default function MedicalResearchCouncilMRCDyspneaScaleRunner({ client, onSave, onClose }) {
@@ -22,25 +22,25 @@ export default function MedicalResearchCouncilMRCDyspneaScaleRunner({ client, on
 
   const getInterp = (g) => {
     if (g === 0) return "No significant breathlessness";
-    if (g === 1) return "Mild dyspnoea â€” minimal impact on daily function";
-    if (g === 2) return "Moderate dyspnoea â€” some functional limitation";
-    if (g === 3) return "Severe dyspnoea â€” significant functional limitation";
-    return "Very severe dyspnoea â€” major ADL limitation, housebound";
+    if (g === 1) return "Mild dyspnoea — minimal impact on daily function";
+    if (g === 2) return "Moderate dyspnoea — some functional limitation";
+    if (g === 3) return "Severe dyspnoea — significant functional limitation";
+    return "Very severe dyspnoea — major ADL limitation, housebound";
   };
 
   const handleSave = () => {
     if (selected === null) { toast.error("Select a grade"); return; }
-    const clinicalSignificance = selected <= 1 ? "Minimal functional limitation" : selected === 2 ? "Moderate functional limitation â€” activity modification recommended" : "Severe dyspnoea â€” consider pulmonary referral and rehabilitation";
-    const soap = `â€¢ MRC Dyspnoea Scale
-  Grade: ${selected}/4 â€” ${grade.label}
+    const clinicalSignificance = selected <= 1 ? "Minimal functional limitation" : selected === 2 ? "Moderate functional limitation — activity modification recommended" : "Severe dyspnoea — consider pulmonary referral and rehabilitation";
+    const soap = `• MRC Dyspnoea Scale
+  Grade: ${selected}/4 — ${grade.label}
   Description: ${grade.desc}
   Interpretation: ${getInterp(selected)}
   Clinical Significance: ${clinicalSignificance}${notes ? `
   Clinician Notes: ${notes}` : ""}
   Assessment: Grade ${selected} indicates ${selected >= 2 ? "significant breathlessness affecting functional capacity." : "minimal dyspnoea with preserved exercise tolerance."}
   Plan: ${selected >= 2 ? "Monitor dyspnoea trends, consider pulmonary physiology testing and specialist referral if worsening." : "Continue current activity level; reassess at next review."}
-  Evidence: mMRC (Modified MRC) â‰¥2 is GOLD COPD criterion for significant dyspnoea; correlates with 6MWT, quality of life, and mortality risk.
-  Reference: Bestall JC et al. (1999). Thorax, 54(7):581â€“586. GOLD Guidelines (2024).`;
+  Evidence: mMRC (Modified MRC) ≥2 is GOLD COPD criterion for significant dyspnoea; correlates with 6MWT, quality of life, and mortality risk.
+  Reference: Bestall JC et al. (1999). Thorax, 54(7):581–586. GOLD Guidelines (2024).`;
     onSave({ status: "completed", result_value: selected, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", mrc_grade: selected, grade_label: grade.label } });
     toast.success("Assessment saved to SOAP notes.");
   };
@@ -58,7 +58,7 @@ export default function MedicalResearchCouncilMRCDyspneaScaleRunner({ client, on
             className="w-full flex justify-between items-center px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg font-semibold text-blue-900 hover:bg-blue-100 transition-colors"
             onClick={() => setExpandedSection(expandedSection === "info" ? null : "info")}
           >
-            <span>ðŸ“‹ Clinical Instructions & Evidence</span>
+            <span>📋 Clinical Instructions & Evidence</span>
             {expandedSection === "info" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
 
@@ -72,15 +72,15 @@ export default function MedicalResearchCouncilMRCDyspneaScaleRunner({ client, on
 
               <div>
                 <p className="font-semibold">Clinical Context: Dyspnoea in COPD & Respiratory Disease</p>
-                <p>The MRC Dyspnoea Scale (and its modified version, mMRC) is a simple 5-grade assessment of dyspnoea-related functional limitation. Unlike lung function tests (FEV1, DLCO), it captures the patient's subjective experience of breathlessness during daily activities. The <strong>mMRC â‰¥2</strong> is a key criterion in GOLD COPD staging and predicts quality of life, exercise tolerance, and mortality risk.</p>
+                <p>The MRC Dyspnoea Scale (and its modified version, mMRC) is a simple 5-grade assessment of dyspnoea-related functional limitation. Unlike lung function tests (FEV1, DLCO), it captures the patient's subjective experience of breathlessness during daily activities. The <strong>mMRC ≥2</strong> is a key criterion in GOLD COPD staging and predicts quality of life, exercise tolerance, and mortality risk.</p>
               </div>
 
               <div>
                 <p className="font-semibold">Clinical Interpretation Rules</p>
                 <ul className="text-xs list-disc list-inside space-y-1 mt-1">
-                  <li><strong>Grade 0â€“1:</strong> Minimal dyspnoea; preserved activity tolerance; reassess periodically.</li>
+                  <li><strong>Grade 0–1:</strong> Minimal dyspnoea; preserved activity tolerance; reassess periodically.</li>
                   <li><strong>Grade 2:</strong> Threshold for "significant dyspnoea" in clinical guidelines; consider pulmonary function testing, exercise rehabilitation, and oxygen assessment.</li>
-                  <li><strong>Grade 3â€“4:</strong> Severe dyspnoea with major ADL limitation; urgent pulmonary assessment, specialist referral, and management optimization (inhalers, oxygen, palliative care) indicated.</li>
+                  <li><strong>Grade 3–4:</strong> Severe dyspnoea with major ADL limitation; urgent pulmonary assessment, specialist referral, and management optimization (inhalers, oxygen, palliative care) indicated.</li>
                 </ul>
               </div>
 
@@ -96,7 +96,7 @@ export default function MedicalResearchCouncilMRCDyspneaScaleRunner({ client, on
                     <strong>Original MRC Scale (1960):</strong> Medical Research Council. <em>Standardised questionnaires on respiratory symptoms.</em> British Medical Journal, 2, 1665.
                   </p>
                   <p>
-                    <strong>Validation Study (mMRC):</strong> Bestall JC et al. (1999). <em>Usefulness of the MRC dyspnoea scale as a measure of disability in patients with chronic obstructive pulmonary disease.</em> <em>Thorax, 54</em>(7):581â€“586.{" "}
+                    <strong>Validation Study (mMRC):</strong> Bestall JC et al. (1999). <em>Usefulness of the MRC dyspnoea scale as a measure of disability in patients with chronic obstructive pulmonary disease.</em> <em>Thorax, 54</em>(7):581–586.{" "}
                     <a href="https://thorax.bmj.com/content/54/7/581" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline inline-flex items-center gap-1">
                       DOI <ExternalLink className="w-3 h-3" />
                     </a>
@@ -141,27 +141,27 @@ export default function MedicalResearchCouncilMRCDyspneaScaleRunner({ client, on
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Grade Interpretation</p>
+            <p className="font-semibold text-slate-700">📊 Grade Interpretation</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Grade</th><th className="p-2 text-left">Clinical Significance</th></tr></thead>
                 <tbody>
                   <tr className="border-t"><td className="p-2">0</td><td className="p-2 text-green-700">Minimal impact on function</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">1</td><td className="p-2 text-teal-700">Mild dyspnoea â€” activity tolerated</td></tr>
-                  <tr className="border-t"><td className="p-2">2</td><td className="p-2 text-yellow-700">Moderate dyspnoea â€” functional limitation begins</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">3</td><td className="p-2 text-orange-700">Severe â€” significant ADL limitation</td></tr>
-                  <tr className="border-t"><td className="p-2">4</td><td className="p-2 text-red-700">Very severe â€” housebound, breathless at rest</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">1</td><td className="p-2 text-teal-700">Mild dyspnoea — activity tolerated</td></tr>
+                  <tr className="border-t"><td className="p-2">2</td><td className="p-2 text-yellow-700">Moderate dyspnoea — functional limitation begins</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">3</td><td className="p-2 text-orange-700">Severe — significant ADL limitation</td></tr>
+                  <tr className="border-t"><td className="p-2">4</td><td className="p-2 text-red-700">Very severe — housebound, breathless at rest</td></tr>
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-slate-500">mMRC â‰¥2 = significant dyspnoea in GOLD COPD guidelines. Correlates with 6MWT performance and quality of life. Source: Bestall et al. (1999).</p>
+            <p className="text-xs text-slate-500">mMRC ≥2 = significant dyspnoea in GOLD COPD guidelines. Correlates with 6MWT performance and quality of life. Source: Bestall et al. (1999).</p>
           </div>
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
+            <p className="font-semibold">📖 Reference</p>
             <p>Medical Research Council. (1960). Standardised questionnaires on respiratory symptoms. <em>British Medical Journal, 2</em>, 1665.</p>
-            <p>Bestall JC et al. (1999). Usefulness of the MRC dyspnoea scale as a measure of disability in patients with chronic obstructive pulmonary disease. <em>Thorax, 54</em>(7), 581â€“586.</p>
+            <p>Bestall JC et al. (1999). Usefulness of the MRC dyspnoea scale as a measure of disability in patients with chronic obstructive pulmonary disease. <em>Thorax, 54</em>(7), 581–586.</p>
           </div>
 
           {GRADES.map(g => (
@@ -179,7 +179,7 @@ export default function MedicalResearchCouncilMRCDyspneaScaleRunner({ client, on
 
           {selected !== null && (
             <div className={`border-2 rounded-xl p-4 ${selected <= 1 ? "bg-green-50 border-green-300 text-green-800" : selected === 2 ? "bg-yellow-50 border-yellow-300 text-yellow-800" : "bg-red-50 border-red-300 text-red-800"}`}>
-              <p className="font-semibold text-lg">Grade {selected} â€” {getInterp(selected)}</p>
+              <p className="font-semibold text-lg">Grade {selected} — {getInterp(selected)}</p>
             </div>
           )}
 

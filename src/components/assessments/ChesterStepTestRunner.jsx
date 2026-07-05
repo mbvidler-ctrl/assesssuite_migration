@@ -37,7 +37,7 @@ function InlineTimer({ stageNumber, onDone }) {
         </Button>
       )}
       {!isActive && seconds > 0 && (
-        <p className="text-sm text-slate-500">Timer stopped â€” enter HR and RPE below</p>
+        <p className="text-sm text-slate-500">Timer stopped — enter HR and RPE below</p>
       )}
     </div>
   );
@@ -149,7 +149,7 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
     ).join('\n');
 
     const additionalData = {
-      soap_text: `â€¢ Chester Step Test (Step Height: ${stepHeight} cm):\n${stagesText}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`,
+      soap_text: `• Chester Step Test (Step Height: ${stepHeight} cm):\n${stagesText}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`,
       stages: completedStages,
       stepHeight,
       predictedMaxHR,
@@ -194,9 +194,9 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">
                 <p><strong>3 minutes per stage</strong> at progressively increasing intensity</p>
-                <p><strong>Record HR at end of each stage:</strong> Measure 15 sec pulse Ã— 4</p>
+                <p><strong>Record HR at end of each stage:</strong> Measure 15 sec pulse × 4</p>
                 <p><strong>Record RPE on Borg scale</strong> (6-20)</p>
-                <p><strong>Stop when:</strong> HR â‰¥80% max HR ({targetHRRange ? `${targetHRRange[1]} bpm` : 'N/A'}) or client unable to continue</p>
+                <p><strong>Stop when:</strong> HR ≥80% max HR ({targetHRRange ? `${targetHRRange[1]} bpm` : 'N/A'}) or client unable to continue</p>
                 {predictedMaxHR && <p className="font-semibold mt-2">Predicted Max HR: {predictedMaxHR} bpm | Target Range: {targetHRRange[0]}-{targetHRRange[1]} bpm</p>}
               </CardContent>
             </Card>
@@ -208,7 +208,7 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
                 className="w-full flex items-center justify-between bg-slate-50 px-4 py-3 text-left"
                 onClick={() => setShowInfo(!showInfo)}
               >
-                <span className="font-semibold text-slate-800 text-sm">ðŸ“‹ Equipment, Administration & References</span>
+                <span className="font-semibold text-slate-800 text-sm">📋 Equipment, Administration & References</span>
                 {showInfo ? <ChevronUp className="w-4 h-4 text-slate-600" /> : <ChevronDown className="w-4 h-4 text-slate-600" />}
               </button>
 
@@ -217,17 +217,17 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
 
                   <div>
                     <h4 className="font-semibold text-slate-800 mb-1">Purpose</h4>
-                    <p className="text-slate-700">The Chester Step Test (CST) is a submaximal, multi-stage exercise test used to estimate aerobic fitness (VOâ‚‚max) from heart rate responses to stepping. It is safe, low-cost, and suitable for a wide range of populations including occupational and clinical groups.</p>
+                    <p className="text-slate-700">The Chester Step Test (CST) is a submaximal, multi-stage exercise test used to estimate aerobic fitness (VO₂max) from heart rate responses to stepping. It is safe, low-cost, and suitable for a wide range of populations including occupational and clinical groups.</p>
                   </div>
 
                   <div>
                     <h4 className="font-semibold text-slate-800 mb-1">Equipment Required</h4>
                     <ul className="list-disc list-inside text-slate-700 space-y-1">
-                      <li>Step box (15, 20, 25, or 30 cm â€” select based on fitness level)</li>
-                      <li><strong>Metronome</strong> (audible beep, app, or YouTube video to maintain cadence â€” <em>audio is not required</em>; can use visual timing or silent counting)</li>
-                      <li>Heart rate monitor or manually count pulse (15 sec Ã— 4)</li>
+                      <li>Step box (15, 20, 25, or 30 cm — select based on fitness level)</li>
+                      <li><strong>Metronome</strong> (audible beep, app, or YouTube video to maintain cadence — <em>audio is not required</em>; can use visual timing or silent counting)</li>
+                      <li>Heart rate monitor or manually count pulse (15 sec × 4)</li>
                       <li>Stopwatch or timer for 3-minute stages</li>
-                      <li>Borg RPE scale (6â€“20) â€” visible to client</li>
+                      <li>Borg RPE scale (6–20) — visible to client</li>
                     </ul>
                   </div>
 
@@ -274,7 +274,7 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
                   </div>
 
                   <div>
-                    <h4 className="font-semibold text-slate-800 mb-1">Borg RPE Scale (6â€“20)</h4>
+                    <h4 className="font-semibold text-slate-800 mb-1">Borg RPE Scale (6–20)</h4>
                     <div className="grid grid-cols-5 gap-1 text-xs text-center">
                       {[
                         [6, "No exertion", "bg-green-100"], [8, "Very light", "bg-green-100"],
@@ -293,8 +293,8 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
                   <div>
                     <h4 className="font-semibold text-slate-800 mb-1">Stop Criteria</h4>
                     <ul className="list-disc list-inside text-slate-700 space-y-1">
-                      <li>HR â‰¥ 80% of predicted maximum (220 âˆ’ age)</li>
-                      <li>RPE â‰¥ 17 (Very hard)</li>
+                      <li>HR ≥ 80% of predicted maximum (220 − age)</li>
+                      <li>RPE ≥ 17 (Very hard)</li>
                       <li>Client cannot maintain cadence</li>
                       <li>Chest pain, dizziness, or syncope</li>
                       <li>Client requests to stop</li>
@@ -310,14 +310,14 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
                       </a>
                       <a href="https://www.sralab.org/rehabilitation-measures/chester-step-test" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 underline">
                         <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                        Shirley Ryan AbilityLab â€“ Chester Step Test
+                        Shirley Ryan AbilityLab – Chester Step Test
                       </a>
                       <a href="https://www.physio-pedia.com/Chester_Step_Test" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 underline">
                         <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                        Physiopedia â€“ Chester Step Test
+                        Physiopedia – Chester Step Test
                       </a>
                     </div>
-                    <p className="text-xs text-slate-500 mt-2">Sykes K. (1998). The Chester Step Test: a simple yet effective tool for the prediction of aerobic capacity. <em>Physiotherapy, 84</em>(8), 395â€“402.</p>
+                    <p className="text-xs text-slate-500 mt-2">Sykes K. (1998). The Chester Step Test: a simple yet effective tool for the prediction of aerobic capacity. <em>Physiotherapy, 84</em>(8), 395–402.</p>
                   </div>
 
                 </div>
@@ -374,7 +374,7 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
                       onDone={() => setShowTimer(false)}
                     />
                   )}
-                  {!showTimer && <p className="text-sm text-orange-700">Timer complete â€” enter HR and RPE below</p>}
+                  {!showTimer && <p className="text-sm text-orange-700">Timer complete — enter HR and RPE below</p>}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label htmlFor="stage-hr" className="flex items-center gap-2">
@@ -389,7 +389,7 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
                         placeholder="Enter HR"
                         className="mt-1"
                       />
-                      <p className="text-xs text-slate-500 mt-1">15 sec pulse Ã— 4</p>
+                      <p className="text-xs text-slate-500 mt-1">15 sec pulse × 4</p>
                     </div>
                     <div>
                       <Label htmlFor="stage-rpe" className="flex items-center gap-2">
@@ -418,8 +418,8 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
                     }`}>
                       <p className="text-sm font-semibold">
                         {parseInt(currentStageHR) >= targetHRRange?.[1]
-                          ? 'âš ï¸ Target HR reached or exceeded'
-                          : 'âœ“ HR within safe range'
+                          ? '⚠ï¸ Target HR reached or exceeded'
+                          : '✓ HR within safe range'
                         }
                       </p>
                     </div>
@@ -431,7 +431,7 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
                       disabled={!currentStageHR || !currentStageRPE || stages.length >= 5}
                       className="flex-1"
                     >
-                      Next Stage â†’
+                      Next Stage →
                     </Button>
                     <Button
                       onClick={handleStopTest}
@@ -461,7 +461,7 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
                             <p className="text-sm text-slate-600">
                               HR: {stage.hr} bpm | RPE: {stage.rpe}
                               {parseInt(stage.hr) >= targetHRRange?.[1] && (
-                                <span className="ml-2 text-yellow-600 font-semibold">â€¢ Target reached</span>
+                                <span className="ml-2 text-yellow-600 font-semibold">• Target reached</span>
                               )}
                             </p>
                           )}

@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ Scoring Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Scoring Helpers ──────────────────────────────────────────────────────────
 
 const calcGaitScore = (seconds, distance = 4) => {
   if (!seconds || isNaN(parseFloat(seconds))) return null;
@@ -51,7 +51,7 @@ const calcGaitSpeed = (seconds, distance) => {
   return (distance / parseFloat(seconds)).toFixed(2);
 };
 
-// â”€â”€â”€ Helper Components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helper Components ────────────────────────────────────────────────────────
 
 function SectionHeader({ icon: Icon, title, color = "slate", subtitle }) {
   const bg = {
@@ -78,7 +78,7 @@ function ScorePill({ score, max, label, complete }) {
   return (
     <div className={`border rounded-xl px-4 py-3 text-center ${color}`}>
       <p className="text-xs font-medium opacity-70">{label}</p>
-      <p className="text-2xl font-bold mt-0.5">{complete ? score : "â€”"}<span className="text-sm font-normal">/{max}</span></p>
+      <p className="text-2xl font-bold mt-0.5">{complete ? score : "—"}<span className="text-sm font-normal">/{max}</span></p>
     </div>
   );
 }
@@ -115,7 +115,7 @@ function RadioButtons({ options, value, onChange }) {
   );
 }
 
-// â”€â”€â”€ Safety Flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Safety Flags ─────────────────────────────────────────────────────────────
 
 const SAFETY_ITEMS = [
   { id: "safe_stand", label: "Safe to stand independently", concern: false },
@@ -127,7 +127,7 @@ const SAFETY_ITEMS = [
   { id: "consent", label: "Patient consent obtained", concern: false },
 ];
 
-// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSave, onClose }) {
   // Safety
@@ -168,7 +168,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
   const [open, setOpen] = useState({ overview: true, setup: true, balance: true, gait: true, chair: true, refs: false });
   const tog = k => setOpen(p => ({ ...p, [k]: !p[k] }));
 
-  // â”€â”€ Derived scores â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Derived scores ────────────────────────────────────────────────────────
 
   const balanceScore = useMemo(() => calcBalanceScore(sideBySide, semiTandem, tandemResult), [sideBySide, semiTandem, tandemResult]);
 
@@ -191,7 +191,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
 
   const totalScore = allComplete ? (balanceScore || 0) + (gaitScore || 0) + (singleRiseAble === false ? 0 : (chairScore || 0)) : null;
 
-  // â”€â”€ Interpretation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Interpretation ────────────────────────────────────────────────────────
 
   const interpretation = useMemo(() => {
     if (totalScore === null) return null;
@@ -214,50 +214,50 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
     return { level, color, bg, narrative };
   }, [totalScore]);
 
-  // â”€â”€ Clinical flags â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Clinical flags ────────────────────────────────────────────────────────
 
   const flags = useMemo(() => {
     if (totalScore === null) return [];
     const f = [];
     if (totalScore <= 6) f.push("High falls risk");
-    if (totalScore <= 6) f.push("Frailty likely â€” refer for comprehensive frailty assessment");
-    if (gaitScore !== null && gaitScore <= 2) f.push("Reduced gait speed â€” mobility intervention indicated");
-    if (balanceScore !== null && balanceScore <= 2) f.push("Poor balance â€” targeted balance training recommended");
-    if (singleRiseAble === false) f.push("Unable to perform single chair rise â€” strength deficit significant");
-    if (chairScore !== null && chairScore <= 2) f.push("Impaired chair stand performance â€” reduced lower limb power");
+    if (totalScore <= 6) f.push("Frailty likely — refer for comprehensive frailty assessment");
+    if (gaitScore !== null && gaitScore <= 2) f.push("Reduced gait speed — mobility intervention indicated");
+    if (balanceScore !== null && balanceScore <= 2) f.push("Poor balance — targeted balance training recommended");
+    if (singleRiseAble === false) f.push("Unable to perform single chair rise — strength deficit significant");
+    if (chairScore !== null && chairScore <= 2) f.push("Impaired chair stand performance — reduced lower limb power");
     if (totalScore <= 9) f.push("Candidate for structured strength and balance program");
     if (totalScore <= 6) f.push("Recommend further falls risk assessment (TUG, BBS)");
-    if (gaitScore !== null && gaitScore <= 2) f.push("Sarcopenia screening trigger â€” consider SARC-F and grip strength");
+    if (gaitScore !== null && gaitScore <= 2) f.push("Sarcopenia screening trigger — consider SARC-F and grip strength");
     return f;
   }, [totalScore, gaitScore, balanceScore, chairScore, singleRiseAble]);
 
-  // â”€â”€ SOAP builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── SOAP builder ──────────────────────────────────────────────────────────
 
   const buildSOAP = () => {
     const gaitSpeedStr = gaitSpeed ? `${gaitSpeed} m/s` : "N/A";
     const lines = [
-      `â€¢ Short Physical Performance Battery (SPPB)`,
+      `• Short Physical Performance Battery (SPPB)`,
       ``,
       `  Domain Scores:`,
-      `    Balance: ${balanceScore !== null ? balanceScore : "â€”"}/4`,
-      `    Gait Speed: ${gaitScore !== null ? gaitScore : "â€”"}/4 (${gaitSpeedStr}, fastest ${fastestGait ? fastestGait + "s" : "â€”"} over ${walkDistance}m)`,
-      `    Chair Stand: ${singleRiseAble === false ? "0 (unable single rise)" : chairScore !== null ? chairScore + "/4 (" + chairStandTime + "s)" : "â€”/4"}`,
-      `    Total SPPB Score: ${totalScore !== null ? totalScore + "/12" : "â€”"}`,
+      `    Balance: ${balanceScore !== null ? balanceScore : "—"}/4`,
+      `    Gait Speed: ${gaitScore !== null ? gaitScore : "—"}/4 (${gaitSpeedStr}, fastest ${fastestGait ? fastestGait + "s" : "—"} over ${walkDistance}m)`,
+      `    Chair Stand: ${singleRiseAble === false ? "0 (unable single rise)" : chairScore !== null ? chairScore + "/4 (" + chairStandTime + "s)" : "—/4"}`,
+      `    Total SPPB Score: ${totalScore !== null ? totalScore + "/12" : "—"}`,
       ``,
       interpretation ? `  Interpretation: ${interpretation.level}` : null,
       interpretation ? `  ${interpretation.narrative}` : null,
       ``,
       flags.length > 0 ? `  Clinical Flags:` : null,
-      ...flags.map(f => `    âš‘ ${f}`),
+      ...flags.map(f => `    ⚑ ${f}`),
       ``,
       notes ? `  Clinician Notes: ${notes}` : null,
       ``,
-      `  References: Guralnik JM et al. (1994). J Gerontol 49(2):M85â€“M94. MCID = 1 point.`,
+      `  References: Guralnik JM et al. (1994). J Gerontol 49(2):M85–M94. MCID = 1 point.`,
     ].filter(v => v !== null).join('\n');
     return lines;
   };
 
-  // â”€â”€ Save â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Save ──────────────────────────────────────────────────────────────────
 
   const handleSave = () => {
     if (!allComplete) {
@@ -307,11 +307,11 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
     setBaselinePain(""); setBaselineFatigue(""); setNotes("");
   };
 
-  // â”€â”€ Safety helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Safety helpers ────────────────────────────────────────────────────────
   const hasSafetyConcern = SAFETY_ITEMS.filter(i => i.concern).some(i => safetyChecks[i.id]);
   const coreConsent = safetyChecks["consent"] && safetyChecks["safe_stand"] && safetyChecks["safe_walk"];
 
-  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto shadow-2xl">
@@ -320,7 +320,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 z-10 flex justify-between items-start">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Short Physical Performance Battery (SPPB)</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Balance Â· Gait Speed Â· Chair Stand Â· Total Score 0â€“12</p>
+            <p className="text-sm text-slate-500 mt-0.5">Balance · Gait Speed · Chair Stand · Total Score 0–12</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -339,11 +339,11 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
 
         <div className="p-6 space-y-5">
 
-          {/* â”€â”€ SECTION 1: Overview â”€â”€ */}
+          {/* ── SECTION 1: Overview ── */}
           <Collapsible open={open.overview} onOpenChange={() => tog("overview")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={Info} title="1. Assessment Overview" color="slate"
-                subtitle="Short Physical Performance Battery â€” Lower extremity functional performance" />
+                subtitle="Short Physical Performance Battery — Lower extremity functional performance" />
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="mt-3 bg-slate-50 border border-slate-200 rounded-lg p-4 space-y-3 text-sm">
@@ -354,20 +354,20 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
                   ))}
                 </div>
                 <div className="grid grid-cols-4 gap-2 text-xs">
-                  <div className="bg-white border rounded p-2 text-center"><p className="font-semibold text-slate-700">Score Range</p><p>0â€“12</p></div>
+                  <div className="bg-white border rounded p-2 text-center"><p className="font-semibold text-slate-700">Score Range</p><p>0–12</p></div>
                   <div className="bg-white border rounded p-2 text-center"><p className="font-semibold text-slate-700">MCID</p><p>1 point</p></div>
-                  <div className="bg-white border rounded p-2 text-center"><p className="font-semibold text-slate-700">Duration</p><p>10â€“15 min</p></div>
+                  <div className="bg-white border rounded p-2 text-center"><p className="font-semibold text-slate-700">Duration</p><p>10–15 min</p></div>
                   <div className="bg-white border rounded p-2 text-center"><p className="font-semibold text-slate-700">Domains</p><p>3</p></div>
                 </div>
               </div>
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 2: Safety Screen â”€â”€ */}
+          {/* ── SECTION 2: Safety Screen ── */}
           {!safetyDone ? (
             <div className="border-2 border-amber-300 rounded-xl overflow-hidden">
               <div className="bg-amber-500 text-white px-4 py-3 flex items-center gap-2 font-semibold text-sm">
-                <AlertTriangle className="w-4 h-4" /> 2. Safety Check â€” Complete Before Testing
+                <AlertTriangle className="w-4 h-4" /> 2. Safety Check — Complete Before Testing
               </div>
               <div className="p-4 bg-amber-50 space-y-3">
                 <div className="grid grid-cols-1 gap-2">
@@ -401,13 +401,13 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
             </div>
           )}
 
-          {/* â”€â”€ SECTION 3: Instructions â”€â”€ */}
+          {/* ── SECTION 3: Instructions ── */}
           <div className="bg-blue-600 text-white rounded-lg px-4 py-3 text-sm">
-            <p className="font-semibold mb-1">ðŸ’¬ 3. Clinician Instructions</p>
-            <p className="text-blue-100">SPPB consists of 3 domains: (1) Standing balance â€” three progressive positions; (2) Gait speed â€” 4-metre walk timed; (3) Chair stand â€” 5 sit-to-stands timed. Each domain scored 0â€“4. Total score = 0â€“12. Score &lt;10 predicts disability and mortality in older adults (MCID = 1 point).</p>
+            <p className="font-semibold mb-1">💬 3. Clinician Instructions</p>
+            <p className="text-blue-100">SPPB consists of 3 domains: (1) Standing balance — three progressive positions; (2) Gait speed — 4-metre walk timed; (3) Chair stand — 5 sit-to-stands timed. Each domain scored 0–4. Total score = 0–12. Score &lt;10 predicts disability and mortality in older adults (MCID = 1 point).</p>
           </div>
 
-          {/* â”€â”€ SECTION 4: Setup â”€â”€ */}
+          {/* ── SECTION 4: Setup ── */}
           <Collapsible open={open.setup} onOpenChange={() => tog("setup")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={Activity} title="4. Test Setup" color="blue" />
@@ -436,22 +436,22 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
                   />
                 </div>
                 <div>
-                  <Label className="text-xs font-semibold text-slate-600 block mb-1">Baseline Pain (0â€“10)</Label>
+                  <Label className="text-xs font-semibold text-slate-600 block mb-1">Baseline Pain (0–10)</Label>
                   <Input type="number" min="0" max="10" value={baselinePain} onChange={e => setBaselinePain(e.target.value)} placeholder="0" className="w-24" />
                 </div>
                 <div>
-                  <Label className="text-xs font-semibold text-slate-600 block mb-1">Baseline Fatigue (0â€“10)</Label>
+                  <Label className="text-xs font-semibold text-slate-600 block mb-1">Baseline Fatigue (0–10)</Label>
                   <Input type="number" min="0" max="10" value={baselineFatigue} onChange={e => setBaselineFatigue(e.target.value)} placeholder="0" className="w-24" />
                 </div>
               </div>
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 5: Balance â”€â”€ */}
+          {/* ── SECTION 5: Balance ── */}
           <Collapsible open={open.balance} onOpenChange={() => tog("balance")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={Activity} title="5. Balance Testing" color="teal"
-                subtitle="Three progressive positions â€” each held for 10 seconds" />
+                subtitle="Three progressive positions — each held for 10 seconds" />
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="mt-3 space-y-4">
@@ -459,7 +459,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
                 {/* Position 1: Side-by-side */}
                 <Card className="border-2 border-teal-200">
                   <CardHeader className="bg-teal-50 py-3 px-4">
-                    <CardTitle className="text-sm text-teal-900">Position 1 â€” Side-by-Side Stand</CardTitle>
+                    <CardTitle className="text-sm text-teal-900">Position 1 — Side-by-Side Stand</CardTitle>
                   </CardHeader>
                   <CardContent className="pt-4 space-y-3">
                     <p className="text-xs text-slate-600">Feet together, hold for 10 seconds. 1 point if achieved.</p>
@@ -469,7 +469,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
                     </div>
                     {sideBySide === true && (
                       <div className="bg-green-50 border border-green-200 rounded px-3 py-2 text-xs text-green-800">
-                        âœ“ Side-by-side completed. Proceed to semi-tandem.
+                        ✓ Side-by-side completed. Proceed to semi-tandem.
                       </div>
                     )}
                     {sideBySide === false && (
@@ -484,7 +484,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
                 {sideBySide === true && (
                   <Card className="border-2 border-teal-200">
                     <CardHeader className="bg-teal-50 py-3 px-4">
-                      <CardTitle className="text-sm text-teal-900">Position 2 â€” Semi-Tandem Stand</CardTitle>
+                      <CardTitle className="text-sm text-teal-900">Position 2 — Semi-Tandem Stand</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-4 space-y-3">
                       <p className="text-xs text-slate-600">Heel of one foot beside big toe of other foot. Hold 10 seconds. 1 additional point.</p>
@@ -505,16 +505,16 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
                 {sideBySide === true && semiTandem === true && (
                   <Card className="border-2 border-teal-200">
                     <CardHeader className="bg-teal-50 py-3 px-4">
-                      <CardTitle className="text-sm text-teal-900">Position 3 â€” Full Tandem Stand</CardTitle>
+                      <CardTitle className="text-sm text-teal-900">Position 3 — Full Tandem Stand</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-4 space-y-3">
-                      <p className="text-xs text-slate-600">Heel of one foot directly in front of other. Scored 0â€“2 based on hold time.</p>
+                      <p className="text-xs text-slate-600">Heel of one foot directly in front of other. Scored 0–2 based on hold time.</p>
                       <div>
                         <Label className="text-xs font-semibold text-slate-600 block mb-2">How long was tandem position held?</Label>
                         <RadioButtons
                           options={[
-                            { val: "10+", label: "â‰¥10 seconds (2 pts)" },
-                            { val: "3-9", label: "3â€“9 seconds (1 pt)" },
+                            { val: "10+", label: "≥10 seconds (2 pts)" },
+                            { val: "3-9", label: "3–9 seconds (1 pt)" },
                             { val: "<3", label: "< 3 seconds (0 pts)" }
                           ]}
                           value={tandemResult} onChange={setTandemResult}
@@ -531,7 +531,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
                       Balance Score: {balanceScore}/4
                     </p>
                     <p className="text-xs mt-0.5 text-slate-600">
-                      {balanceScore === 4 ? "Excellent balance performance" : balanceScore === 3 ? "Good balance â€” tandem limited" : balanceScore <= 2 ? "Reduced balance â€” falls risk elevated" : ""}
+                      {balanceScore === 4 ? "Excellent balance performance" : balanceScore === 3 ? "Good balance — tandem limited" : balanceScore <= 2 ? "Reduced balance — falls risk elevated" : ""}
                     </p>
                   </div>
                 )}
@@ -541,11 +541,11 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 6: Gait â”€â”€ */}
+          {/* ── SECTION 6: Gait ── */}
           <Collapsible open={open.gait} onOpenChange={() => tog("gait")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={Zap} title="6. Gait Speed Test" color="purple"
-                subtitle="Timed walk â€” 2 trials, use fastest time" />
+                subtitle="Timed walk — 2 trials, use fastest time" />
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="mt-3 space-y-4">
@@ -555,7 +555,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
                     options={[{ val: 4, label: "4 metres (standard)" }, { val: 6, label: "6 metres" }, { val: 10, label: "10 metres" }]}
                     value={walkDistance} onChange={setWalkDistance}
                   />
-                  {walkDistance !== 4 && <p className="text-xs text-amber-700 mt-1">âš  Non-standard distance. Score will be normalised to 4m equivalent.</p>}
+                  {walkDistance !== 4 && <p className="text-xs text-amber-700 mt-1">⚠ Non-standard distance. Score will be normalised to 4m equivalent.</p>}
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
@@ -596,11 +596,11 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 7: Chair Stand â”€â”€ */}
+          {/* ── SECTION 7: Chair Stand ── */}
           <Collapsible open={open.chair} onOpenChange={() => tog("chair")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={Activity} title="7. Chair Stand Test" color="green"
-                subtitle="Single rise screen â†’ 5Ã— sit-to-stand timed" />
+                subtitle="Single rise screen → 5× sit-to-stand timed" />
             </CollapsibleTrigger>
             <CollapsibleContent>
               <div className="mt-3 space-y-4">
@@ -608,25 +608,25 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
                 {/* Stage 1: Single rise */}
                 <Card className="border-2 border-green-200">
                   <CardHeader className="bg-green-50 py-3 px-4">
-                    <CardTitle className="text-sm text-green-900">Stage 1 â€” Single Chair Rise (Screen)</CardTitle>
+                    <CardTitle className="text-sm text-green-900">Stage 1 — Single Chair Rise (Screen)</CardTitle>
                   </CardHeader>
                   <CardContent className="pt-4">
-                    <p className="text-xs text-slate-600 mb-3">Ask patient to stand once from chair with arms folded. Chair height 43â€“47 cm. If unable, score = 0 and stop.</p>
+                    <p className="text-xs text-slate-600 mb-3">Ask patient to stand once from chair with arms folded. Chair height 43–47 cm. If unable, score = 0 and stop.</p>
                     <Label className="text-xs font-semibold text-slate-600 block mb-2">Able to rise without using hands?</Label>
                     <YesNoButtons value={singleRiseAble} onChange={v => { setSingleRiseAble(v); if (!v) { setChairStandTime(""); setChairStoppedEarly(null); }}} />
                     {singleRiseAble === false && (
                       <div className="mt-3 bg-red-50 border border-red-200 rounded px-3 py-2 text-xs text-red-800">
-                        Unable to perform single rise â€” Chair Stand Score = 0. Skip Stage 2.
+                        Unable to perform single rise — Chair Stand Score = 0. Skip Stage 2.
                       </div>
                     )}
                   </CardContent>
                 </Card>
 
-                {/* Stage 2: 5Ã— timed */}
+                {/* Stage 2: 5× timed */}
                 {singleRiseAble === true && (
                   <Card className="border-2 border-green-200">
                     <CardHeader className="bg-green-50 py-3 px-4">
-                      <CardTitle className="text-sm text-green-900">Stage 2 â€” Five Times Sit-to-Stand (Timed)</CardTitle>
+                      <CardTitle className="text-sm text-green-900">Stage 2 — Five Times Sit-to-Stand (Timed)</CardTitle>
                     </CardHeader>
                     <CardContent className="pt-4 space-y-4">
                       <p className="text-xs text-slate-600">Arms crossed over chest. Stand fully upright and sit down 5 times as fast as possible. Start timer on "Go", stop when standing for 5th time.</p>
@@ -644,7 +644,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
                             Chair Stand Score: {chairScore}/4
                           </p>
                           <p className="text-xs text-slate-600 mt-0.5">
-                            {chairScore === 4 ? "Excellent lower limb power" : chairScore === 3 ? "Good â€” within normal range" : chairScore === 2 ? "Moderate â€” consider strength intervention" : "Poor â€” significant lower limb weakness"}
+                            {chairScore === 4 ? "Excellent lower limb power" : chairScore === 3 ? "Good — within normal range" : chairScore === 2 ? "Moderate — consider strength intervention" : "Poor — significant lower limb weakness"}
                           </p>
                         </div>
                       )}
@@ -657,7 +657,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTIONS 8â€“12: Results, Interpretation, Flags â”€â”€ */}
+          {/* ── SECTIONS 8–12: Results, Interpretation, Flags ── */}
           {allComplete && interpretation && (
             <div className="space-y-4">
 
@@ -683,12 +683,12 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
                 <p className="font-semibold text-indigo-900 mb-2">Normative & Risk Classification</p>
                 <div className="grid grid-cols-4 gap-2 text-xs">
                   {[
-                    { range: "10â€“12", label: "High Function", sub: "Low risk", bg: "bg-green-100 border-green-300 text-green-800" },
-                    { range: "7â€“9", label: "Mild Limitation", sub: "Elevated risk", bg: "bg-yellow-100 border-yellow-300 text-yellow-800" },
-                    { range: "4â€“6", label: "Moderate Impairment", sub: "High risk", bg: "bg-orange-100 border-orange-300 text-orange-800" },
-                    { range: "0â€“3", label: "Severe Limitation", sub: "Very high risk", bg: "bg-red-100 border-red-300 text-red-800" },
+                    { range: "10–12", label: "High Function", sub: "Low risk", bg: "bg-green-100 border-green-300 text-green-800" },
+                    { range: "7–9", label: "Mild Limitation", sub: "Elevated risk", bg: "bg-yellow-100 border-yellow-300 text-yellow-800" },
+                    { range: "4–6", label: "Moderate Impairment", sub: "High risk", bg: "bg-orange-100 border-orange-300 text-orange-800" },
+                    { range: "0–3", label: "Severe Limitation", sub: "Very high risk", bg: "bg-red-100 border-red-300 text-red-800" },
                   ].map(r => (
-                    <div key={r.range} className={`border rounded-lg p-2 text-center ${r.bg} ${totalScore !== null && ((totalScore >= parseInt(r.range) && totalScore <= (parseInt(r.range.split("â€“")[1]))) ? "ring-2 ring-offset-1 ring-slate-700" : "opacity-70")}`}>
+                    <div key={r.range} className={`border rounded-lg p-2 text-center ${r.bg} ${totalScore !== null && ((totalScore >= parseInt(r.range) && totalScore <= (parseInt(r.range.split("–")[1]))) ? "ring-2 ring-offset-1 ring-slate-700" : "opacity-70")}`}>
                       <p className="font-bold text-base">{r.range}</p>
                       <p className="font-semibold">{r.label}</p>
                       <p className="opacity-70">{r.sub}</p>
@@ -696,9 +696,9 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
                   ))}
                 </div>
                 <div className="mt-3 text-xs text-indigo-800 space-y-1">
-                  <p>â€¢ Score &lt;10 predicts disability, institutionalisation, and mortality (Guralnik 1994)</p>
-                  <p>â€¢ Gait speed &lt;0.8 m/s associated with falls risk and sarcopenia</p>
-                  <p>â€¢ MCID = 1 point (Perera et al.)</p>
+                  <p>• Score &lt;10 predicts disability, institutionalisation, and mortality (Guralnik 1994)</p>
+                  <p>• Gait speed &lt;0.8 m/s associated with falls risk and sarcopenia</p>
+                  <p>• MCID = 1 point (Perera et al.)</p>
                 </div>
               </div>
 
@@ -709,7 +709,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
                   <div className="space-y-1.5">
                     {flags.map((f, i) => (
                       <div key={i} className="flex items-start gap-2">
-                        <span className="text-red-500 mt-0.5 flex-shrink-0">âš‘</span>
+                        <span className="text-red-500 mt-0.5 flex-shrink-0">⚑</span>
                         <p className="text-sm text-red-800">{f}</p>
                       </div>
                     ))}
@@ -719,7 +719,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
             </div>
           )}
 
-          {/* â”€â”€ Clinical Notes â”€â”€ */}
+          {/* ── Clinical Notes ── */}
           <div>
             <Label className="font-semibold block mb-2 text-sm">Clinical Notes</Label>
             <Textarea value={notes} onChange={e => setNotes(e.target.value)}
@@ -727,7 +727,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
               rows={3} />
           </div>
 
-          {/* â”€â”€ References â”€â”€ */}
+          {/* ── References ── */}
           <Collapsible open={open.refs} onOpenChange={() => tog("refs")}>
             <CollapsibleTrigger className="w-full text-left">
               <SectionHeader icon={ExternalLink} title="Evidence-Based References" color="amber" />
@@ -735,11 +735,11 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
             <CollapsibleContent>
               <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-2.5 text-xs text-amber-800">
                 {[
-                  { text: "Guralnik JM, Simonsick EM, Ferrucci L, et al. A Short Physical Performance Battery Assessing Lower Extremity Function. Journal of Gerontology. 1994;49(2):M85â€“M94.", url: "https://pubmed.ncbi.nlm.nih.gov/8126356/" },
-                  { text: "Guralnik JM, Ferrucci L, Pieper CF, et al. Lower Extremity Function and Subsequent Disability. New England Journal of Medicine. 1995;332:556â€“561.", url: "https://pubmed.ncbi.nlm.nih.gov/7838189/" },
+                  { text: "Guralnik JM, Simonsick EM, Ferrucci L, et al. A Short Physical Performance Battery Assessing Lower Extremity Function. Journal of Gerontology. 1994;49(2):M85–M94.", url: "https://pubmed.ncbi.nlm.nih.gov/8126356/" },
+                  { text: "Guralnik JM, Ferrucci L, Pieper CF, et al. Lower Extremity Function and Subsequent Disability. New England Journal of Medicine. 1995;332:556–561.", url: "https://pubmed.ncbi.nlm.nih.gov/7838189/" },
                   { text: "Pavasini R, Guralnik J, Brown JC, et al. Short Physical Performance Battery and all-cause mortality: systematic review and meta-analysis. BMC Medicine. 2016;14:215.", url: "https://pubmed.ncbi.nlm.nih.gov/27938375/" },
-                  { text: "Perera S, Mody SH, Woodman RC, Studenski SA. Meaningful change and responsiveness in common physical performance measures in older adults. J Am Geriatr Soc. 2006;54(5):743â€“749.", url: "https://pubmed.ncbi.nlm.nih.gov/16696738/" },
-                  { text: "Freiberger E, de Vreede P, Schoene D, et al. Performance-based physical function in older community-dwelling persons: a systematic review of instruments. Age and Ageing. 2012;41(6):712â€“721.", url: "https://pubmed.ncbi.nlm.nih.gov/22843639/" },
+                  { text: "Perera S, Mody SH, Woodman RC, Studenski SA. Meaningful change and responsiveness in common physical performance measures in older adults. J Am Geriatr Soc. 2006;54(5):743–749.", url: "https://pubmed.ncbi.nlm.nih.gov/16696738/" },
+                  { text: "Freiberger E, de Vreede P, Schoene D, et al. Performance-based physical function in older community-dwelling persons: a systematic review of instruments. Age and Ageing. 2012;41(6):712–721.", url: "https://pubmed.ncbi.nlm.nih.gov/22843639/" },
                 ].map((ref, i) => (
                   <a key={i} href={ref.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2 hover:underline">
                     <ExternalLink className="w-3 h-3 flex-shrink-0 mt-0.5" />
@@ -750,7 +750,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ Action Buttons â”€â”€ */}
+          {/* ── Action Buttons ── */}
           <div className="flex justify-between items-center gap-3 pt-4 border-t border-slate-200">
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose}><X className="w-4 h-4 mr-2" />Cancel</Button>

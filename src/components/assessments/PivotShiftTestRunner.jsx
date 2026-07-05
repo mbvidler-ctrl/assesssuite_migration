@@ -10,28 +10,28 @@ import { toast } from "sonner";
 const GRADES = [
   {
     value: 0,
-    label: "Grade 0 â€” Negative",
+    label: "Grade 0 — Negative",
     description: "No tibial movement. Normal ACL integrity (or patient guarding).",
     color: "bg-green-100 border-green-400 text-green-900",
     selectedColor: "bg-green-500 text-white border-green-500",
   },
   {
     value: 1,
-    label: "Grade 1 â€” Glide",
+    label: "Grade 1 — Glide",
     description: "Subtle anterior tibial glide. Possible partial ACL tear or lateral capsular laxity.",
     color: "bg-yellow-50 border-yellow-400 text-yellow-900",
     selectedColor: "bg-yellow-500 text-white border-yellow-500",
   },
   {
     value: 2,
-    label: "Grade 2 â€” Clunk",
-    description: "Palpable clunk as tibia reduces at ~20â€“30Â° flexion. Significant ACL deficiency.",
+    label: "Grade 2 — Clunk",
+    description: "Palpable clunk as tibia reduces at ~20–30° flexion. Significant ACL deficiency.",
     color: "bg-orange-50 border-orange-400 text-orange-900",
     selectedColor: "bg-orange-500 text-white border-orange-500",
   },
   {
     value: 3,
-    label: "Grade 3 â€” Locking",
+    label: "Grade 3 — Locking",
     description: "Tibial subluxation momentarily locks before reducing. Severe ACL damage.",
     color: "bg-red-50 border-red-400 text-red-900",
     selectedColor: "bg-red-500 text-white border-red-500",
@@ -53,7 +53,7 @@ export default function PivotShiftTestRunner({ client, onSave, onClose }) {
     }
     const worstGrade = Math.max(leftGrade, rightGrade);
     const gradeLabel = GRADES[worstGrade].label;
-    const soapText = `â€¢ Pivot Shift Test\n  Left: ${GRADES[leftGrade].label}\n  Right: ${GRADES[rightGrade].label}\n  Overall: ${gradeLabel}`;
+    const soapText = `• Pivot Shift Test\n  Left: ${GRADES[leftGrade].label}\n  Right: ${GRADES[rightGrade].label}\n  Overall: ${gradeLabel}`;
 
     onSave({
       status: "completed",
@@ -99,7 +99,7 @@ export default function PivotShiftTestRunner({ client, onSave, onClose }) {
             onClick={() => setShowClinicianInfo(!showClinicianInfo)}
             className="w-full flex justify-between items-center px-4 py-3 bg-indigo-50 border border-indigo-200 rounded-lg font-semibold text-indigo-900 text-sm hover:bg-indigo-100 transition-colors"
           >
-            <span className="flex items-center gap-2">ðŸ“‹ Clinician Instructions & Administration Guide</span>
+            <span className="flex items-center gap-2">📋 Clinician Instructions & Administration Guide</span>
             {showClinicianInfo ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
 
@@ -108,15 +108,15 @@ export default function PivotShiftTestRunner({ client, onSave, onClose }) {
               <CardContent className="pt-4 space-y-4 text-sm">
                 <div>
                   <p className="font-semibold text-indigo-900 mb-1">Purpose</p>
-                  <p className="text-indigo-800 text-xs">Most specific clinical test for ACL insufficiency. Assesses dynamic tibial subluxation/reduction during knee motion. Sensitivity 24â€“98%, Specificity 95â€“99% (varies with examiner experience and patient relaxation).</p>
+                  <p className="text-indigo-800 text-xs">Most specific clinical test for ACL insufficiency. Assesses dynamic tibial subluxation/reduction during knee motion. Sensitivity 24–98%, Specificity 95–99% (varies with examiner experience and patient relaxation).</p>
                 </div>
 
                 <div>
                   <p className="font-semibold text-indigo-900 mb-1">Patient Position</p>
                   <ul className="text-indigo-800 text-xs list-disc list-inside space-y-1">
                     <li>Supine on a firm treatment table, fully relaxed</li>
-                    <li>Hip flexed to <strong>20Â°</strong> with slight abduction</li>
-                    <li>Knee starting in near-full extension (0â€“10Â°)</li>
+                    <li>Hip flexed to <strong>20°</strong> with slight abduction</li>
+                    <li>Knee starting in near-full extension (0–10°)</li>
                   </ul>
                 </div>
 
@@ -124,11 +124,11 @@ export default function PivotShiftTestRunner({ client, onSave, onClose }) {
                   <p className="font-semibold text-indigo-900 mb-1">Step-by-Step Technique</p>
                   <ol className="text-indigo-800 text-xs list-decimal list-inside space-y-1">
                     <li>One hand on distal femur, other grasps proximal tibia</li>
-                    <li>Internally rotate tibia 15â€“30Â° with knee near-full extension</li>
+                    <li>Internally rotate tibia 15–30° with knee near-full extension</li>
                     <li>Apply gentle <strong>valgus stress</strong> (knee opening outward)</li>
                     <li>Slowly flex knee while maintaining valgus + internal rotation</li>
-                    <li>At 20â€“30Â°: feel/observe for tibial subluxation or "clunk" (positive)</li>
-                    <li>Slowly return to extension; repeat 3â€“5 trials</li>
+                    <li>At 20–30°: feel/observe for tibial subluxation or "clunk" (positive)</li>
+                    <li>Slowly return to extension; repeat 3–5 trials</li>
                     <li>Always test unaffected side first for comparison</li>
                   </ol>
                 </div>
@@ -136,17 +136,17 @@ export default function PivotShiftTestRunner({ client, onSave, onClose }) {
                 <div>
                   <p className="font-semibold text-indigo-900 mb-1">Key Tips</p>
                   <div className="bg-white p-3 rounded border border-indigo-200 space-y-1 text-xs text-indigo-800">
-                    <p><strong>Patient relaxation is critical</strong> â€” hamstring/quad guarding masks the test. Speak calmly; move slowly.</p>
-                    <p><strong>Hip at 20Â° (not 45Â°)</strong> â€” higher angles reduce sensitivity.</p>
-                    <p><strong>Internal rotation â‰¤15Â°</strong> â€” excessive rotation causes false positives in normal knees.</p>
-                    <p><strong>Bilateral comparison</strong> â€” always grade both sides.</p>
+                    <p><strong>Patient relaxation is critical</strong> — hamstring/quad guarding masks the test. Speak calmly; move slowly.</p>
+                    <p><strong>Hip at 20° (not 45°)</strong> — higher angles reduce sensitivity.</p>
+                    <p><strong>Internal rotation ≤15°</strong> — excessive rotation causes false positives in normal knees.</p>
+                    <p><strong>Bilateral comparison</strong> — always grade both sides.</p>
                   </div>
                 </div>
 
                 <div>
                   <p className="font-semibold text-indigo-900 mb-1">References</p>
                   <div className="bg-white p-3 rounded border border-indigo-200 space-y-1 text-xs text-indigo-700">
-                    <p>HÃ¶her J, et al. (2001). <em>AJSM 29</em>(2): 199â€“207. [Sensitivity 24â€“98%, Specificity 95â€“99%]</p>
+                    <p>Höher J, et al. (2001). <em>AJSM 29</em>(2): 199–207. [Sensitivity 24–98%, Specificity 95–99%]</p>
                     <p>Martinez-Cano DJ, et al. (2023). <em>Orthopaedic J Sports Med 11</em>(8).</p>
                     <p>AAOS ACL Management Guidelines (2014).</p>
                     <a href="https://www.youtube.com/watch?v=2TPfLOcxbTI" target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-indigo-600 hover:underline font-semibold">
@@ -161,26 +161,26 @@ export default function PivotShiftTestRunner({ client, onSave, onClose }) {
           {/* Technique diagram (text-based, no broken image) */}
           <Card className="border-slate-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm">Test Technique â€” Position Reference</CardTitle>
+              <CardTitle className="text-sm">Test Technique — Position Reference</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs text-slate-700 space-y-2">
                 <div className="grid grid-cols-2 gap-3">
                   <div className="bg-white rounded border border-slate-200 p-3">
                     <p className="font-semibold text-slate-800 mb-1">Starting position</p>
-                    <p>Supine Â· Hip 20Â° flexion Â· Knee ~0â€“10Â° (near full extension) Â· Tibia internally rotated 15â€“30Â°</p>
+                    <p>Supine · Hip 20° flexion · Knee ~0–10° (near full extension) · Tibia internally rotated 15–30°</p>
                   </div>
                   <div className="bg-white rounded border border-slate-200 p-3">
                     <p className="font-semibold text-slate-800 mb-1">Clinician hands</p>
-                    <p>Proximal hand: distal femur Â· Distal hand: proximal tibia behind tuberosity Â· Apply valgus stress</p>
+                    <p>Proximal hand: distal femur · Distal hand: proximal tibia behind tuberosity · Apply valgus stress</p>
                   </div>
                   <div className="bg-white rounded border border-slate-200 p-3">
                     <p className="font-semibold text-slate-800 mb-1">Movement</p>
-                    <p>Slowly flex knee maintaining valgus + internal rotation Â· Watch for shift/clunk at 20â€“30Â° flexion</p>
+                    <p>Slowly flex knee maintaining valgus + internal rotation · Watch for shift/clunk at 20–30° flexion</p>
                   </div>
                   <div className="bg-white rounded border border-slate-200 p-3">
                     <p className="font-semibold text-slate-800 mb-1">Positive finding</p>
-                    <p>Palpable/visible tibial subluxation (glide, clunk, or momentary lock) as knee is flexed past 20â€“30Â°</p>
+                    <p>Palpable/visible tibial subluxation (glide, clunk, or momentary lock) as knee is flexed past 20–30°</p>
                   </div>
                 </div>
               </div>
@@ -190,7 +190,7 @@ export default function PivotShiftTestRunner({ client, onSave, onClose }) {
           {/* LEFT side grading */}
           <Card className="border-indigo-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Left Knee â€” Grade</CardTitle>
+              <CardTitle className="text-base">Left Knee — Grade</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {GRADES.map((g) => (
@@ -211,7 +211,7 @@ export default function PivotShiftTestRunner({ client, onSave, onClose }) {
           {/* RIGHT side grading */}
           <Card className="border-indigo-200">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Right Knee â€” Grade</CardTitle>
+              <CardTitle className="text-base">Right Knee — Grade</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               {GRADES.map((g) => (
@@ -239,10 +239,10 @@ export default function PivotShiftTestRunner({ client, onSave, onClose }) {
                   <Badge className="bg-indigo-100 text-indigo-800">Right: {GRADES[rightGrade].label}</Badge>
                 </div>
                 {(leftGrade > 0 || rightGrade > 0) && (
-                  <p className="text-xs text-red-700 font-semibold">âš ï¸ Positive finding â€” orthopaedic referral and MRI recommended.</p>
+                  <p className="text-xs text-red-700 font-semibold">⚠ï¸ Positive finding — orthopaedic referral and MRI recommended.</p>
                 )}
                 {leftGrade === 0 && rightGrade === 0 && (
-                  <p className="text-xs text-green-700 font-semibold">âœ… Negative bilaterally â€” no dynamic ACL instability detected.</p>
+                  <p className="text-xs text-green-700 font-semibold">✅ Negative bilaterally — no dynamic ACL instability detected.</p>
                 )}
               </CardContent>
             </Card>

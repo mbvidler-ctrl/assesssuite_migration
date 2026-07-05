@@ -40,7 +40,7 @@ export default function APSSForm({ data, onNext, onBack, canGoBack, onSaveAndFin
     if (currentStage === 1) {
       setCurrentStage(2); // Move to Stage 2
     } else { // currentStage === 2, final submission
-      // Calculate total weighted minutes: (freq Ã— duration) per row, then add up
+      // Calculate total weighted minutes: (freq × duration) per row, then add up
       const lightWeeklyMinutes = (Number(formData.apss_q7_activity_light_freq) || 0) * (Number(formData.apss_q7_activity_light_duration) || 0);
       const moderateWeeklyMinutes = (Number(formData.apss_q7_activity_moderate_freq) || 0) * (Number(formData.apss_q7_activity_moderate_duration) || 0);
       const vigorousWeeklyMinutes = (Number(formData.apss_q7_activity_vigorous_freq) || 0) * (Number(formData.apss_q7_activity_vigorous_duration) || 0);
@@ -187,7 +187,7 @@ export default function APSSForm({ data, onNext, onBack, canGoBack, onSaveAndFin
       return {
         color: "green",
         title: "Continue with Caution",
-        message: "You are meeting physical activity guidelines (â‰¥150 minutes per week). Continue your current program and progress carefully under professional guidance."
+        message: "You are meeting physical activity guidelines (≥150 minutes per week). Continue your current program and progress carefully under professional guidance."
       };
     }
   };
@@ -490,8 +490,8 @@ export default function APSSForm({ data, onNext, onBack, canGoBack, onSaveAndFin
                     <div className="bg-slate-100 p-2 rounded">40 to &lt;55% HRmax*</div>
                     <div className="bg-blue-200 p-2 rounded">VERY LIGHT TO LIGHT RPE 1-2</div>
                     <div className="bg-slate-100 p-2 rounded text-xs">
-                      â€¢ An aerobic activity that does not cause a noticeable change in breathing rate<br/>
-                      â€¢ An intensity that can be conducted whilst talking comfortably or remain for 60 minutes
+                      • An aerobic activity that does not cause a noticeable change in breathing rate<br/>
+                      • An intensity that can be conducted whilst talking comfortably or remain for 60 minutes
                     </div>
 
                     {/* MODERATE */}
@@ -499,8 +499,8 @@ export default function APSSForm({ data, onNext, onBack, canGoBack, onSaveAndFin
                     <div className="bg-slate-100 p-2 rounded">55 to &lt;70% HRmax*</div>
                     <div className="bg-blue-300 p-2 rounded">MODERATE TO SOMEWHAT HARD RPE 3-4</div>
                     <div className="bg-slate-100 p-2 rounded text-xs">
-                      â€¢ An aerobic activity that is able to be conducted whilst still being able to talk, yet uninterrupted<br/>
-                      â€¢ An intensity that may last between 30 and 60 minutes
+                      • An aerobic activity that is able to be conducted whilst still being able to talk, yet uninterrupted<br/>
+                      • An intensity that may last between 30 and 60 minutes
                     </div>
 
                     {/* VIGOROUS */}
@@ -508,23 +508,23 @@ export default function APSSForm({ data, onNext, onBack, canGoBack, onSaveAndFin
                     <div className="bg-slate-100 p-2 rounded">70 to &lt;90% HRmax*</div>
                     <div className="bg-blue-400 p-2 rounded">HARD RPE 5-6</div>
                     <div className="bg-slate-100 p-2 rounded text-xs">
-                      â€¢ An aerobic activity where a conversation generally cannot be maintained<br/>
-                      â€¢ An intensity that may last up to 30 minutes
+                      • An aerobic activity where a conversation generally cannot be maintained<br/>
+                      • An intensity that may last up to 30 minutes
                     </div>
 
                     {/* HIGH */}
                     <div className="bg-orange-700 text-white p-2 rounded font-semibold">HIGH</div>
-                    <div className="bg-slate-100 p-2 rounded">â‰¥ 90% HRmax*</div>
+                    <div className="bg-slate-100 p-2 rounded">≥ 90% HRmax*</div>
                     <div className="bg-blue-500 text-white p-2 rounded">VERY HARD RPE 7</div>
                     <div className="bg-slate-100 p-2 rounded text-xs">
-                      â€¢ An aerobic activity in which it is difficult to talk at all<br/>
-                      â€¢ An intensity that generally cannot be sustained for longer than several minutes
+                      • An aerobic activity in which it is difficult to talk at all<br/>
+                      • An intensity that generally cannot be sustained for longer than several minutes
                     </div>
                   </div>
                   <p className="text-xs text-slate-600 mt-2">
                     * HRmax = estimated heart rate maximum. Calculated by subtracting age in years from 220 (e.g., for a 40 year old person = 220 - 40 = 180 beats per minute).<br/>
                     Note: Rating of Perceived Exertion (RPE) is a 7-point score. For further details, please reference the general principles of physical activity and exercise for adults.<br/>
-                    â€¡ Ref: Med Sport 11, 66-662.
+                    ‡ Ref: Med Sport 11, 66-662.
                   </p>
                 </CardContent>
               </Card>
@@ -616,21 +616,21 @@ export default function APSSForm({ data, onNext, onBack, canGoBack, onSaveAndFin
                 <CardContent className="pt-4">
                   <h5 className="font-semibold text-indigo-900 mb-2">Weighted Physical Activity/Exercise per Week</h5>
                   <p className="text-sm text-indigo-700 mb-2">
-                    Total minutes = (Light: freq Ã— duration) + (Moderate: freq Ã— duration) + (2 Ã— Vigorous: freq Ã— duration)
+                    Total minutes = (Light: freq × duration) + (Moderate: freq × duration) + (2 × Vigorous: freq × duration)
                   </p>
                   <div className="text-sm text-slate-600 mb-2">
                     <div>Light: {(Number(formData.apss_q7_activity_light_freq) || 0) * (Number(formData.apss_q7_activity_light_duration) || 0)} minutes/week</div>
                     <div>Moderate: {(Number(formData.apss_q7_activity_moderate_freq) || 0) * (Number(formData.apss_q7_activity_moderate_duration) || 0)} minutes/week</div>
-                    <div>Vigorous: {(Number(formData.apss_q7_activity_vigorous_freq) || 0) * (Number(formData.apss_q7_activity_vigorous_duration) || 0)} Ã— 2 = {((Number(formData.apss_q7_activity_vigorous_freq) || 0) * (Number(formData.apss_q7_activity_vigorous_duration) || 0) * 2)} minutes/week</div>
+                    <div>Vigorous: {(Number(formData.apss_q7_activity_vigorous_freq) || 0) * (Number(formData.apss_q7_activity_vigorous_duration) || 0)} × 2 = {((Number(formData.apss_q7_activity_vigorous_freq) || 0) * (Number(formData.apss_q7_activity_vigorous_duration) || 0) * 2)} minutes/week</div>
                   </div>
                   <div className="text-3xl font-bold text-indigo-600">
                     TOTAL = {totalMinutes} minutes per week
                   </div>
                   <div className="mt-3 text-sm text-indigo-700">
                     {totalMinutes < 150 ? (
-                      <p>â€¢ If your total is less than 150 minutes per week then light to moderate intensity exercise is recommended. Increase your volume and intensity slowly.</p>
+                      <p>• If your total is less than 150 minutes per week then light to moderate intensity exercise is recommended. Increase your volume and intensity slowly.</p>
                     ) : (
-                      <p>âœ“ You are meeting the recommended 150+ minutes of weighted physical activity per week.</p>
+                      <p>✓ You are meeting the recommended 150+ minutes of weighted physical activity per week.</p>
                     )}
                   </div>
                 </CardContent>

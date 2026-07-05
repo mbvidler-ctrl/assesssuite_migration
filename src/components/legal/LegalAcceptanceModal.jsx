@@ -19,7 +19,7 @@ export default function LegalAcceptanceModal({ isOpen, onAccept, user }) {
         document_set_version: "2.0.0",
         accepted_documents: ["session_acknowledgement"],
         accepted: true,
-        ip_address: await fetch('https://api.ipify.org?format=json').then(r => r.json()).then(d => d.ip).catch(() => 'unknown'),
+        ip_address: 'not-collected',
         user_agent: navigator.userAgent,
         session_timestamp: new Date().toISOString()
       });
@@ -55,7 +55,7 @@ export default function LegalAcceptanceModal({ isOpen, onAccept, user }) {
           Session Acknowledgement
         </h2>
         <p className="text-sm text-slate-500 text-center mb-6">
-          Required each session â€” your acceptance is logged with a timestamp.
+          Required each session — your acceptance is logged with a timestamp.
         </p>
 
         {/* Acknowledgement points */}

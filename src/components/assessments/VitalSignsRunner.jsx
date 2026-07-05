@@ -41,9 +41,9 @@ export default function VitalSignsRunner({ client, assessment, onSave, onClose, 
   const getHRRInterpretation = (hrr1) => {
     if (!hrr1) return null;
     const v = parseInt(hrr1);
-    if (v <= 12) return { text: 'Attenuated (â‰¤12 bpm) â€” Associated with increased mortality risk', color: 'text-red-600', bg: 'bg-red-50' };
-    if (v <= 15) return { text: 'Below optimal (13â€“15 bpm) â€” Consider further evaluation', color: 'text-yellow-600', bg: 'bg-yellow-50' };
-    return { text: 'Normal (>15 bpm) â€” Favourable autonomic function', color: 'text-green-600', bg: 'bg-green-50' };
+    if (v <= 12) return { text: 'Attenuated (≤12 bpm) — Associated with increased mortality risk', color: 'text-red-600', bg: 'bg-red-50' };
+    if (v <= 15) return { text: 'Below optimal (13–15 bpm) — Consider further evaluation', color: 'text-yellow-600', bg: 'bg-yellow-50' };
+    return { text: 'Normal (>15 bpm) — Favourable autonomic function', color: 'text-green-600', bg: 'bg-green-50' };
   };
 
   const isBloodPressure = assessmentName?.toLowerCase().includes('blood pressure');
@@ -110,7 +110,7 @@ export default function VitalSignsRunner({ client, assessment, onSave, onClose, 
       const hrr1Measure = hrrMeasures.find(m => m.label?.includes('1'));
       const hrr1Val = peak && hrr1Measure?.hr ? peak - parseInt(hrr1Measure.hr) : null;
       const interp = getHRRInterpretation(hrr1Val);
-      soapText = `â€¢ ${assessmentName || 'Heart Rate Recovery (HRR)'}:\n  Peak HR: ${hrrPeakHR || 'â€”'} bpm\n${measureLines.join('\n')}\n`;
+      soapText = `• ${assessmentName || 'Heart Rate Recovery (HRR)'}:\n  Peak HR: ${hrrPeakHR || '—'} bpm\n${measureLines.join('\n')}\n`;
       if (interp) soapText += `  Interpretation (1-min HRR): ${interp.text}\n`;
       if (notes?.trim()) soapText += `  Clinical Notes: ${notes}\n`;
       resultValue = hrr1Val;
@@ -124,7 +124,7 @@ export default function VitalSignsRunner({ client, assessment, onSave, onClose, 
     } else if (isBloodPressure) {
       resultValue = `${measurements.systolic}/${measurements.diastolic}`;
       const interp = getBPInterpretation(measurements.systolic, measurements.diastolic);
-      soapText = `â€¢ ${assessmentName || 'Blood Pressure'}:\n  Blood Pressure: ${resultValue} mmHg â†’ ${interp?.level || 'Unknown'}\n`;
+      soapText = `• ${assessmentName || 'Blood Pressure'}:\n  Blood Pressure: ${resultValue} mmHg → ${interp?.level || 'Unknown'}\n`;
       if (notes && notes.trim()) soapText += `  Clinical Notes: ${notes}\n`;
       additionalData = {
         systolic: parseInt(measurements.systolic),
@@ -140,18 +140,18 @@ export default function VitalSignsRunner({ client, assessment, onSave, onClose, 
       const postInterp = postVal ? getHRInterpretation(postVal) : null;
       resultValue = preVal || postVal;
       let hrLines = '';
-      if (preVal) hrLines += `  Pre-Exercise: ${preVal} bpm â†’ ${preInterp?.level || 'Unknown'}\n`;
-      if (postVal) hrLines += `  Post-Exercise: ${postVal} bpm â†’ ${postInterp?.level || 'Unknown'}\n`;
+      if (preVal) hrLines += `  Pre-Exercise: ${preVal} bpm → ${preInterp?.level || 'Unknown'}\n`;
+      if (postVal) hrLines += `  Post-Exercise: ${postVal} bpm → ${postInterp?.level || 'Unknown'}\n`;
 
       additionalPostMeasures.forEach((measure) => {
         if (measure.hr) {
           const interp = getHRInterpretation(measure.hr);
-          hrLines += `  ${measure.label || 'Additional'}: ${measure.hr} bpm â†’ ${interp?.level || 'Unknown'}\n`;
+          hrLines += `  ${measure.label || 'Additional'}: ${measure.hr} bpm → ${interp?.level || 'Unknown'}\n`;
         }
       });
 
       if (notes && notes.trim()) hrLines += `  Clinical Notes: ${notes}\n`;
-      soapText = `â€¢ ${assessmentName || 'Heart Rate (Pre/Post Exercise)'}:\n${hrLines}`;
+      soapText = `• ${assessmentName || 'Heart Rate (Pre/Post Exercise)'}:\n${hrLines}`;
       additionalData = {
         heart_rate_pre: preVal,
         heart_rate_post: postVal,
@@ -163,7 +163,7 @@ export default function VitalSignsRunner({ client, assessment, onSave, onClose, 
       } else {
         resultValue = measurements.heartRate;
         const interp = getHRInterpretation(measurements.heartRate);
-        soapText = `â€¢ ${assessmentName || 'Heart Rate'}:\n  Heart Rate: ${resultValue} bpm â†’ ${interp?.level || 'Unknown'}\n`;
+        soapText = `• ${assessmentName || 'Heart Rate'}:\n  Heart Rate: ${resultValue} bpm → ${interp?.level || 'Unknown'}\n`;
         if (notes && notes.trim()) soapText += `  Clinical Notes: ${notes}\n`;
         additionalData = {
           heart_rate: parseInt(measurements.heartRate),
@@ -179,10 +179,10 @@ export default function VitalSignsRunner({ client, assessment, onSave, onClose, 
         const postInterp = postVal ? getSpO2Interpretation(postVal) : null;
         resultValue = preVal || postVal;
         let lines = '';
-        if (preVal) lines += `  Pre-Exercise: ${preVal}% â†’ ${preInterp?.level || 'Unknown'}\n`;
-        if (postVal) lines += `  Post-Exercise: ${postVal}% â†’ ${postInterp?.level || 'Unknown'}\n`;
+        if (preVal) lines += `  Pre-Exercise: ${preVal}% → ${preInterp?.level || 'Unknown'}\n`;
+        if (postVal) lines += `  Post-Exercise: ${postVal}% → ${postInterp?.level || 'Unknown'}\n`;
         if (notes && notes.trim()) lines += `  Clinical Notes: ${notes}\n`;
-        soapText = `â€¢ ${assessmentName || 'SpO2 (Pre/Post Exercise)'}:\n${lines}`;
+        soapText = `• ${assessmentName || 'SpO2 (Pre/Post Exercise)'}:\n${lines}`;
         additionalData = {
           spo2_pre: preVal,
           spo2_post: postVal,
@@ -193,7 +193,7 @@ export default function VitalSignsRunner({ client, assessment, onSave, onClose, 
       } else {
         resultValue = measurements.spo2;
         const interp = getSpO2Interpretation(measurements.spo2);
-        soapText = `â€¢ ${assessmentName || 'SpO2'}:\n  SpO2: ${resultValue}% â†’ ${interp?.level || 'Unknown'}\n`;
+        soapText = `• ${assessmentName || 'SpO2'}:\n  SpO2: ${resultValue}% → ${interp?.level || 'Unknown'}\n`;
         if (notes && notes.trim()) soapText += `  Clinical Notes: ${notes}\n`;
         additionalData = {
           spo2: parseInt(measurements.spo2),
@@ -207,9 +207,9 @@ export default function VitalSignsRunner({ client, assessment, onSave, onClose, 
       if (measurements.heartRate) vitals.push(`HR: ${measurements.heartRate}`);
       if (measurements.spo2) vitals.push(`SpO2: ${measurements.spo2}%`);
       if (measurements.respiratoryRate) vitals.push(`RR: ${measurements.respiratoryRate}`);
-      if (measurements.temperature) vitals.push(`Temp: ${measurements.temperature}Â°C`);
+      if (measurements.temperature) vitals.push(`Temp: ${measurements.temperature}°C`);
       resultValue = vitals.join(', ');
-      soapText = `â€¢ ${assessmentName || 'Vital Signs'}:\n  ${resultValue}\n`;
+      soapText = `• ${assessmentName || 'Vital Signs'}:\n  ${resultValue}\n`;
       if (notes && notes.trim()) soapText += `  Clinical Notes: ${notes}\n`;
       additionalData = {
         systolic: measurements.systolic ? parseInt(measurements.systolic) : null,
@@ -516,7 +516,7 @@ export default function VitalSignsRunner({ client, assessment, onSave, onClose, 
                       />
                     </div>
                     <div>
-                      <Label>Temperature (Â°C)</Label>
+                      <Label>Temperature (°C)</Label>
                       <Input
                         type="number"
                         step="0.1"

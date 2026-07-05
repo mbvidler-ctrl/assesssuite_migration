@@ -108,7 +108,7 @@ export default function BruceProtocolRunner({ isModified, onSave, onClose }) {
       `  Stage ${s.stage} (${s.time} min): HR ${s.heartRate} bpm${s.systolic ? `, BP ${s.systolic}/${s.diastolic} mmHg` : ''}${s.rpe ? `, RPE ${s.rpe}` : ''}`
     ).join('\n');
 
-    const soapText = `â€¢ ${isModified ? 'Modified ' : ''}Bruce Protocol Treadmill Test:\n  Total Time: ${Math.floor(totalTime / 60)}:${(totalTime % 60).toString().padStart(2, '0')} (${totalTime}s)\n  Estimated VOâ‚‚max: ${calculateVO2Max()} mL/kg/min\n  Stages Completed: ${currentStage + 1}\n  Peak HR: ${peakHR} bpm | Peak BP: ${peakBP} mmHg\n  Termination: ${terminationReason}${symptoms ? `\n  Symptoms: ${symptoms}` : ''}${stageLines ? `\n  Stage Data:\n${stageLines}` : ''}${notes ? `\n  Notes: ${notes}` : ''}`;
+    const soapText = `• ${isModified ? 'Modified ' : ''}Bruce Protocol Treadmill Test:\n  Total Time: ${Math.floor(totalTime / 60)}:${(totalTime % 60).toString().padStart(2, '0')} (${totalTime}s)\n  Estimated VO₂max: ${calculateVO2Max()} mL/kg/min\n  Stages Completed: ${currentStage + 1}\n  Peak HR: ${peakHR} bpm | Peak BP: ${peakBP} mmHg\n  Termination: ${terminationReason}${symptoms ? `\n  Symptoms: ${symptoms}` : ''}${stageLines ? `\n  Stage Data:\n${stageLines}` : ''}${notes ? `\n  Notes: ${notes}` : ''}`;
 
     onSave({
       result_value: totalTime,
@@ -140,7 +140,7 @@ export default function BruceProtocolRunner({ isModified, onSave, onClose }) {
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-2xl font-bold text-slate-900">{isModified ? 'Modified ' : ''}Bruce Protocol</h2>
-              <p className="text-slate-600 mt-1">Maximal graded treadmill exercise test Â· VOâ‚‚max estimation</p>
+              <p className="text-slate-600 mt-1">Maximal graded treadmill exercise test · VO₂max estimation</p>
             </div>
             <Button variant="ghost" size="icon" onClick={onClose}>
               <X className="w-5 h-5" />
@@ -167,7 +167,7 @@ export default function BruceProtocolRunner({ isModified, onSave, onClose }) {
                 <div className="px-4 pb-4 space-y-4 text-sm text-blue-900">
                   <div>
                     <p className="font-semibold mb-1">Purpose</p>
-                    <p className="text-blue-800">The Bruce Protocol is a maximal graded exercise test (GXT) used to estimate cardiorespiratory fitness (VOâ‚‚max) and evaluate cardiovascular response to exercise. It is widely used in clinical and research settings for adults with suspected or known coronary artery disease, and in healthy populations for fitness assessment.</p>
+                    <p className="text-blue-800">The Bruce Protocol is a maximal graded exercise test (GXT) used to estimate cardiorespiratory fitness (VO₂max) and evaluate cardiovascular response to exercise. It is widely used in clinical and research settings for adults with suspected or known coronary artery disease, and in healthy populations for fitness assessment.</p>
                   </div>
 
                   <div>
@@ -177,7 +177,7 @@ export default function BruceProtocolRunner({ isModified, onSave, onClose }) {
                       <li>12-lead ECG or pulse oximeter (clinical setting)</li>
                       <li>Sphygmomanometer or automatic BP monitor</li>
                       <li>Stopwatch / timer</li>
-                      <li>Borg RPE Scale (6â€“20) â€” displayed to client</li>
+                      <li>Borg RPE Scale (6–20) — displayed to client</li>
                       <li>Emergency equipment accessible (AED, oxygen)</li>
                     </ul>
                   </div>
@@ -187,7 +187,7 @@ export default function BruceProtocolRunner({ isModified, onSave, onClose }) {
                     <ul className="list-disc list-inside text-blue-800 space-y-0.5">
                       <li>Client should fast 3 hours prior and avoid strenuous exercise for 24 hours</li>
                       <li>No smoking or caffeine within 3 hours of the test</li>
-                      <li>Record resting HR, BP, SpOâ‚‚, and RPE before commencing</li>
+                      <li>Record resting HR, BP, SpO₂, and RPE before commencing</li>
                       <li>Resting systolic BP must be &lt;160 mmHg and diastolic &lt;100 mmHg</li>
                       <li>Complete ACSM risk stratification prior to test</li>
                       <li>Obtain written informed consent</li>
@@ -210,7 +210,7 @@ export default function BruceProtocolRunner({ isModified, onSave, onClose }) {
                         {isModified && (
                           <>
                             <tr className="border-t bg-yellow-50"><td className="p-1.5">0</td><td className="p-1.5">1.7</td><td className="p-1.5">0%</td><td className="p-1.5">~2.3</td><td className="p-1.5">3 min</td></tr>
-                            <tr className="border-t"><td className="p-1.5">Â½</td><td className="p-1.5">1.7</td><td className="p-1.5">5%</td><td className="p-1.5">~3.5</td><td className="p-1.5">3 min</td></tr>
+                            <tr className="border-t"><td className="p-1.5">½</td><td className="p-1.5">1.7</td><td className="p-1.5">5%</td><td className="p-1.5">~3.5</td><td className="p-1.5">3 min</td></tr>
                           </>
                         )}
                         {BRUCE_STAGES.map(s => (
@@ -231,7 +231,7 @@ export default function BruceProtocolRunner({ isModified, onSave, onClose }) {
                     <ul className="list-disc list-inside text-red-800 text-xs space-y-0.5">
                       <li>Systolic BP &gt;250 mmHg or diastolic &gt;115 mmHg</li>
                       <li>Drop in systolic BP &gt;10 mmHg from baseline with increasing workload</li>
-                      <li>Moderateâ€“severe angina or chest pain</li>
+                      <li>Moderate–severe angina or chest pain</li>
                       <li>Signs of poor perfusion: cyanosis, pallor, cold/clammy skin</li>
                       <li>Sustained ventricular tachycardia (ECG)</li>
                       <li>Subject requests to stop</li>
@@ -240,23 +240,23 @@ export default function BruceProtocolRunner({ isModified, onSave, onClose }) {
                   </div>
 
                   <div className="bg-white border border-blue-200 rounded p-3">
-                    <p className="font-semibold text-blue-800 mb-2">VOâ‚‚max Normatives (mL/kg/min) â€” ACSM</p>
+                    <p className="font-semibold text-blue-800 mb-2">VO₂max Normatives (mL/kg/min) — ACSM</p>
                     <table className="w-full text-xs border-collapse">
                       <thead className="bg-blue-100">
-                        <tr><th className="p-1.5 text-left">Rating</th><th className="p-1.5 text-left">Men (40â€“49)</th><th className="p-1.5 text-left">Women (40â€“49)</th></tr>
+                        <tr><th className="p-1.5 text-left">Rating</th><th className="p-1.5 text-left">Men (40–49)</th><th className="p-1.5 text-left">Women (40–49)</th></tr>
                       </thead>
                       <tbody>
                         <tr className="border-t"><td className="p-1.5">Superior</td><td className="p-1.5">&gt;48.0</td><td className="p-1.5">&gt;36.9</td></tr>
-                        <tr className="border-t bg-blue-50"><td className="p-1.5">Excellent</td><td className="p-1.5">44.0â€“48.0</td><td className="p-1.5">33.0â€“36.9</td></tr>
-                        <tr className="border-t"><td className="p-1.5">Good</td><td className="p-1.5">37.1â€“43.9</td><td className="p-1.5">28.0â€“32.9</td></tr>
-                        <tr className="border-t bg-blue-50"><td className="p-1.5">Fair</td><td className="p-1.5">30.2â€“37.0</td><td className="p-1.5">22.0â€“27.9</td></tr>
+                        <tr className="border-t bg-blue-50"><td className="p-1.5">Excellent</td><td className="p-1.5">44.0–48.0</td><td className="p-1.5">33.0–36.9</td></tr>
+                        <tr className="border-t"><td className="p-1.5">Good</td><td className="p-1.5">37.1–43.9</td><td className="p-1.5">28.0–32.9</td></tr>
+                        <tr className="border-t bg-blue-50"><td className="p-1.5">Fair</td><td className="p-1.5">30.2–37.0</td><td className="p-1.5">22.0–27.9</td></tr>
                         <tr className="border-t"><td className="p-1.5">Poor</td><td className="p-1.5">&lt;30.2</td><td className="p-1.5">&lt;22.0</td></tr>
                       </tbody>
                     </table>
-                    <p className="text-xs text-blue-600 mt-1">VOâ‚‚max estimated via Bruce equation: 14.8 âˆ’ (1.379 Ã— T) + (0.451 Ã— TÂ²) âˆ’ (0.012 Ã— TÂ³) where T = total time in minutes.</p>
+                    <p className="text-xs text-blue-600 mt-1">VO₂max estimated via Bruce equation: 14.8 − (1.379 × T) + (0.451 × T²) − (0.012 × T³) where T = total time in minutes.</p>
                   </div>
 
-                  <p className="text-xs text-blue-600 italic">References: Bruce RA et al. (1973). Exercising testing in adult normal subjects and cardiac patients. <em>Pediatrics, 32</em>, 742â€“756. ACSM Guidelines for Exercise Testing and Prescription, 11th Ed.</p>
+                  <p className="text-xs text-blue-600 italic">References: Bruce RA et al. (1973). Exercising testing in adult normal subjects and cardiac patients. <em>Pediatrics, 32</em>, 742–756. ACSM Guidelines for Exercise Testing and Prescription, 11th Ed.</p>
                 </div>
               )}
             </div>
@@ -265,11 +265,11 @@ export default function BruceProtocolRunner({ isModified, onSave, onClose }) {
             <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 text-sm text-amber-900 space-y-2">
               <p className="font-semibold flex items-center gap-2">
                 <Info className="w-4 h-4 flex-shrink-0" />
-                Clinician Guidance â€” When to Record Vitals
+                Clinician Guidance — When to Record Vitals
               </p>
               <ul className="list-disc list-inside space-y-1 text-amber-800">
                 <li><strong>Pre-test (baseline):</strong> Record resting HR, BP, and RPE before starting. Ensure resting systolic BP &lt;160 mmHg and diastolic &lt;100 mmHg before proceeding.</li>
-                <li><strong>During each stage:</strong> Record HR, BP, and RPE in the <strong>last 30â€“60 seconds</strong> of each 3-minute stage (i.e., at ~2:00â€“2:30 into the stage), when values are closest to steady state for that workload.</li>
+                <li><strong>During each stage:</strong> Record HR, BP, and RPE in the <strong>last 30–60 seconds</strong> of each 3-minute stage (i.e., at ~2:00–2:30 into the stage), when values are closest to steady state for that workload.</li>
                 <li><strong>At test termination:</strong> Record peak HR, BP, RPE, and any symptoms immediately at the moment the client stops.</li>
                 <li><strong>Recovery (1, 3, 5 min post-exercise):</strong> Record HR and BP at 1, 3, and 5 minutes post-test to monitor recovery. BP should return toward baseline; a failure to recover may indicate cardiovascular risk.</li>
                 <li><strong>Stop immediately</strong> if systolic BP exceeds 250 mmHg, diastolic exceeds 115 mmHg, HR does not increase with increasing workload, or any absolute indication for termination arises (ACSM guidelines).</li>

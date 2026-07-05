@@ -871,7 +871,7 @@ ${reportData.ongoing_plan}`;
                     ? 'bg-green-500 text-white' 
                     : 'bg-gray-200 text-gray-500'
               }`}>
-                {index < currentStep ? 'âœ“' : index + 1}
+                {index < currentStep ? '✓' : index + 1}
               </div>
               {index < stepTitles.length - 1 && (
                 <div className={`w-12 h-1 ${index < currentStep ? 'bg-green-500' : 'bg-gray-200'}`} />
@@ -1243,7 +1243,7 @@ ${reportData.ongoing_plan}`;
                           onClick={() => removeGoal(index)}
                           className="text-red-500 hover:text-red-700"
                         >
-                          Ã—
+                          ×
                         </Button>
                       </div>
 

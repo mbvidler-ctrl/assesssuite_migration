@@ -13,14 +13,14 @@ export default function PeakExpiratoryFlowRatePEFRRunner({ client, onSave, onClo
   const [postTestVitals, setPostTestVitals] = useState({ systolic: "", diastolic: "", heartRate: "" });
   const [trialResults, setTrialResults] = useState([null, null, null]);
   const [notes, setNotes] = useState("");
-  // Removed isTesting state â€” form is always accessible
+  // Removed isTesting state — form is always accessible
   const [showClinicianInfo, setShowClinicianInfo] = useState(false);
 
   const handleEndTest = () => {
     const validResults = trialResults.filter(r => r !== null && r !== "" && !isNaN(r));
     const bestResult = validResults.length > 0 ? Math.max(...validResults) : 0;
     const additionalData = {
-      soap_text: `â€¢ Peak Expiratory Flow Rate (PEFR)\n  Best Result: ${bestResult} L/min\n  Trials: ${validResults.join(', ')} L/min`,
+      soap_text: `• Peak Expiratory Flow Rate (PEFR)\n  Best Result: ${bestResult} L/min\n  Trials: ${validResults.join(', ')} L/min`,
       measurement_type: "PEFR",
       pre_test_vitals: preTestVitals,
       post_test_vitals: postTestVitals,
@@ -115,7 +115,7 @@ export default function PeakExpiratoryFlowRatePEFRRunner({ client, onSave, onClo
                   <p className="text-blue-800"><strong>Peak Flow Meter (PFM)</strong></p>
                   <ul className="text-blue-800 list-disc list-inside space-y-1 text-xs">
                     <li><strong>Type:</strong> Mechanical or electronic peak flow meter; most common are mechanical "mini" peak flow meters</li>
-                    <li><strong>Accuracy:</strong> Most medical-grade meters are accurate to Â±10 L/min</li>
+                    <li><strong>Accuracy:</strong> Most medical-grade meters are accurate to ±10 L/min</li>
                     <li><strong>Portability:</strong> Lightweight, pocket-sized device (~100g); ideal for clinical and home use</li>
                     <li><strong>Sterilization:</strong> Mouthpiece is disposable or easily disinfected between patients</li>
                   </ul>
@@ -128,18 +128,18 @@ export default function PeakExpiratoryFlowRatePEFRRunner({ client, onSave, onClo
                   <div>
                     <p className="text-blue-800 font-semibold text-xs">Standard Clinical Peak Flow Meters:</p>
                     <ul className="text-blue-800 list-disc list-inside space-y-1 text-xs mt-1">
-                      <li><strong>Vitalograph ASMA-1</strong> â€” Gold standard mechanical peak flow meter, 50â€“800 L/min range. <a href="https://www.vitalograph.co.uk/products/peak-flow-meters" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">vitalograph.co.uk <ExternalLink className="w-3 h-3" /></a></li>
-                      <li><strong>Clement Clarke Mini-Wright</strong> â€” Widely used clinical mechanical meter, ATS-compliant. <a href="https://www.clement-clarke.com/peak-flow-meters" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">clement-clarke.com <ExternalLink className="w-3 h-3" /></a></li>
-                      <li><strong>Microlife PF 100</strong> â€” Electronic digital peak flow meter for accurate home and clinical use. <a href="https://www.microlife.com" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">microlife.com <ExternalLink className="w-3 h-3" /></a></li>
+                      <li><strong>Vitalograph ASMA-1</strong> — Gold standard mechanical peak flow meter, 50–800 L/min range. <a href="https://www.vitalograph.co.uk/products/peak-flow-meters" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">vitalograph.co.uk <ExternalLink className="w-3 h-3" /></a></li>
+                      <li><strong>Clement Clarke Mini-Wright</strong> — Widely used clinical mechanical meter, ATS-compliant. <a href="https://www.clement-clarke.com/peak-flow-meters" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">clement-clarke.com <ExternalLink className="w-3 h-3" /></a></li>
+                      <li><strong>Microlife PF 100</strong> — Electronic digital peak flow meter for accurate home and clinical use. <a href="https://www.microlife.com" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">microlife.com <ExternalLink className="w-3 h-3" /></a></li>
                     </ul>
                   </div>
                   <div>
                     <p className="text-blue-800 font-semibold text-xs">Australian Suppliers:</p>
                     <ul className="text-blue-800 list-disc list-inside space-y-1 text-xs mt-1">
-                      <li><strong>Medline Australia</strong> â€” Medical equipment supplier including respiratory devices. <a href="https://www.medline.com.au" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">medline.com.au <ExternalLink className="w-3 h-3" /></a></li>
-                      <li><strong>Instrumentation Industries (3i)</strong> â€” Spirometry and respiratory assessment equipment. <a href="https://www.3i.com.au" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">3i.com.au <ExternalLink className="w-3 h-3" /></a></li>
-                      <li><strong>Carers Direct</strong> â€” Home healthcare and respiratory monitoring equipment. <a href="https://www.carersdirect.com.au" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">carersdirect.com.au <ExternalLink className="w-3 h-3" /></a></li>
-                      <li><strong>National Asthma Council Australia</strong> â€” Information on certified peak flow devices. <a href="https://www.nationalasthma.org.au" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">nationalasthma.org.au <ExternalLink className="w-3 h-3" /></a></li>
+                      <li><strong>Medline Australia</strong> — Medical equipment supplier including respiratory devices. <a href="https://www.medline.com.au" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">medline.com.au <ExternalLink className="w-3 h-3" /></a></li>
+                      <li><strong>Instrumentation Industries (3i)</strong> — Spirometry and respiratory assessment equipment. <a href="https://www.3i.com.au" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">3i.com.au <ExternalLink className="w-3 h-3" /></a></li>
+                      <li><strong>Carers Direct</strong> — Home healthcare and respiratory monitoring equipment. <a href="https://www.carersdirect.com.au" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">carersdirect.com.au <ExternalLink className="w-3 h-3" /></a></li>
+                      <li><strong>National Asthma Council Australia</strong> — Information on certified peak flow devices. <a href="https://www.nationalasthma.org.au" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">nationalasthma.org.au <ExternalLink className="w-3 h-3" /></a></li>
                     </ul>
                   </div>
                 </div>
@@ -151,8 +151,8 @@ export default function PeakExpiratoryFlowRatePEFRRunner({ client, onSave, onClo
                   <li><strong>Patient Position:</strong> Seated or standing (consistent between trials). Relaxed posture, not slumped.</li>
                   <li><strong>Baseline:</strong> Patient must be seated for 5 minutes before testing to allow stabilization of airflow.</li>
                   <li><strong>Mouthpiece & Seal:</strong> Patient should grip peak flow meter with fingers clear of scale/indicator. Form tight seal around mouthpiece with lips (not teeth).</li>
-                  <li><strong>Instructions:</strong> "Take the deepest breath in you can, seal lips around the mouthpiece, and blow out as hard and fast as you can." Exhale should be brief and maximal (â‰¤1 second).</li>
-                  <li><strong>Trial Procedure:</strong> Perform <strong>minimum of 3 trials</strong>, with 1â€“2 minutes rest between attempts. <strong>Record the highest value</strong> achieved (best of 3).</li>
+                  <li><strong>Instructions:</strong> "Take the deepest breath in you can, seal lips around the mouthpiece, and blow out as hard and fast as you can." Exhale should be brief and maximal (≤1 second).</li>
+                  <li><strong>Trial Procedure:</strong> Perform <strong>minimum of 3 trials</strong>, with 1–2 minutes rest between attempts. <strong>Record the highest value</strong> achieved (best of 3).</li>
                   <li><strong>Failed Trial:</strong> Cough, incomplete seal, slow start, or hesitation = invalid trial. Repeat after 1-minute rest.</li>
                   <li><strong>Variability:</strong> Good technique yields results within 20 L/min of each other; if &gt;40 L/min difference, retest.</li>
                   <li><strong>Timing:</strong> At same time each day (typically morning) if monitoring asthma; note time of last bronchodilator use.</li>
@@ -162,10 +162,10 @@ export default function PeakExpiratoryFlowRatePEFRRunner({ client, onSave, onClo
               <div>
                 <p className="font-semibold text-blue-900 mb-2">Score Interpretation & Zones</p>
                 <div className="bg-white p-3 rounded border border-blue-300 space-y-2 text-xs">
-                  <p className="text-blue-800"><strong>Green Zone (â‰¥80% personal best or predicted):</strong> Good asthma control; proceed with normal activity.</p>
-                  <p className="text-blue-800"><strong>Yellow Zone (50â€“79% personal best):</strong> Caution; take reliever medication, monitor closely, escalate to regular treatment if persistent.</p>
+                  <p className="text-blue-800"><strong>Green Zone (≥80% personal best or predicted):</strong> Good asthma control; proceed with normal activity.</p>
+                  <p className="text-blue-800"><strong>Yellow Zone (50–79% personal best):</strong> Caution; take reliever medication, monitor closely, escalate to regular treatment if persistent.</p>
                   <p className="text-blue-800"><strong>Red Zone (&lt;50% personal best):</strong> Medical emergency; use reliever, seek urgent medical review or ED assessment.</p>
-                  <p className="text-blue-800"><strong>Predicted PEFR (Theoretical):</strong> Determined by age, gender, height using standardized nomograms (e.g., Nunn &amp; Gregg, 1989). Typical adult range: 380â€“760 L/min (males higher than females).</p>
+                  <p className="text-blue-800"><strong>Predicted PEFR (Theoretical):</strong> Determined by age, gender, height using standardized nomograms (e.g., Nunn &amp; Gregg, 1989). Typical adult range: 380–760 L/min (males higher than females).</p>
                 </div>
               </div>
 
@@ -182,16 +182,16 @@ export default function PeakExpiratoryFlowRatePEFRRunner({ client, onSave, onClo
               <div>
                 <p className="font-semibold text-blue-900 mb-2">Evidence Base & References</p>
                 <div className="bg-white p-3 rounded border border-blue-300 space-y-2 text-xs">
-                  <p className="text-blue-800"><strong>Standard Setting & Nomograms:</strong> Nunn AJ, Gregg I. (1989). New regression equations for predicting peak expiratory flow in adults. <em>BMJ, 298</em>(6680), 1068â€“1070. Widely used reference for predicted PEFR values.</p>
-                  <p className="text-blue-800"><strong>Technique & Reproducibility:</strong> Miller MR, et al. (2005). General considerations for lung function testing. <em>Eur Respir J, 26</em>(1), 153â€“161. (ERS/ATS standards).</p>
-                  <p className="text-blue-800"><strong>Clinical Utility â€” Asthma:</strong> National Asthma Council Australia. (2023). <em>Australian Asthma Handbook</em>. Peak flow monitoring recommended for asthma action plans. <a href="https://www.asthmahandbook.org.au" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">asthmahandbook.org.au <ExternalLink className="w-3 h-3" /></a></p>
+                  <p className="text-blue-800"><strong>Standard Setting & Nomograms:</strong> Nunn AJ, Gregg I. (1989). New regression equations for predicting peak expiratory flow in adults. <em>BMJ, 298</em>(6680), 1068–1070. Widely used reference for predicted PEFR values.</p>
+                  <p className="text-blue-800"><strong>Technique & Reproducibility:</strong> Miller MR, et al. (2005). General considerations for lung function testing. <em>Eur Respir J, 26</em>(1), 153–161. (ERS/ATS standards).</p>
+                  <p className="text-blue-800"><strong>Clinical Utility — Asthma:</strong> National Asthma Council Australia. (2023). <em>Australian Asthma Handbook</em>. Peak flow monitoring recommended for asthma action plans. <a href="https://www.asthmahandbook.org.au" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">asthmahandbook.org.au <ExternalLink className="w-3 h-3" /></a></p>
                   <p className="text-blue-800"><strong>COPD Assessment:</strong> Global Initiative for Chronic Obstructive Lung Disease (GOLD, 2024). PEFR not recommended for COPD diagnosis (use FEV1/FVC ratio); useful for monitoring bronchodilator response.</p>
                   <p className="text-blue-800"><strong>Australian Standards:</strong> ESSA (Exercise &amp; Sports Science Australia) Clinical Exercise Physiology guidelines recommend PEFR as part of pre-exercise respiratory screening and baseline lung function in ERP participants.</p>
                 </div>
               </div>
 
               <div className="bg-red-50 border border-red-300 p-3 rounded">
-                <p className="text-blue-800 text-xs"><strong>âš ï¸ IMPORTANT:</strong> PEFR is NOT a diagnostic test. A low or abnormal result requires further spirometry (FEV1/FVC) or physician assessment for diagnosis. Always refer patients with unexplained dyspnea, chest pain, or significant baseline changes to respiratory physician or GP.</p>
+                <p className="text-blue-800 text-xs"><strong>⚠ï¸ IMPORTANT:</strong> PEFR is NOT a diagnostic test. A low or abnormal result requires further spirometry (FEV1/FVC) or physician assessment for diagnosis. Always refer patients with unexplained dyspnea, chest pain, or significant baseline changes to respiratory physician or GP.</p>
               </div>
             </CardContent>
           </Card>

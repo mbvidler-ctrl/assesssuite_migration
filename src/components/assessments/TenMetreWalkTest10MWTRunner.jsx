@@ -18,15 +18,15 @@ function classify(speed) {
   return           { label: "Physiological Ambulator", color: "text-red-700",  bg: "bg-red-50 border-red-300",    desc: "Requires significant assistance, exercise only" };
 }
 
-// Normative gait speed (comfortable) by age group (m/s) â€” Perry & Burnfield / Fritz & Lusardi
+// Normative gait speed (comfortable) by age group (m/s) — Perry & Burnfield / Fritz & Lusardi
 const NORMS = [
-  { age: "20â€“29", male: 1.46, female: 1.34 },
-  { age: "30â€“39", male: 1.43, female: 1.34 },
-  { age: "40â€“49", male: 1.43, female: 1.39 },
-  { age: "50â€“59", male: 1.39, female: 1.31 },
-  { age: "60â€“69", male: 1.36, female: 1.24 },
-  { age: "70â€“79", male: 1.26, female: 1.13 },
-  { age: "80â€“89", male: 0.97, female: 0.94 },
+  { age: "20–29", male: 1.46, female: 1.34 },
+  { age: "30–39", male: 1.43, female: 1.34 },
+  { age: "40–49", male: 1.43, female: 1.39 },
+  { age: "50–59", male: 1.39, female: 1.31 },
+  { age: "60–69", male: 1.36, female: 1.24 },
+  { age: "70–79", male: 1.26, female: 1.13 },
+  { age: "80–89", male: 0.97, female: 0.94 },
 ];
 
 export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose }) {
@@ -87,9 +87,9 @@ export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose })
 
   const handleSave = () => {
     if (trials.length === 0) return;
-    const trialLines = trials.map((t, i) => `    Trial ${i + 1}: ${t.time}s â€” ${t.speed} m/s`).join("\n");
+    const trialLines = trials.map((t, i) => `    Trial ${i + 1}: ${t.time}s — ${t.speed} m/s`).join("\n");
     const soapText = [
-      `â€¢ 10-Metre Walk Test (10MWT)`,
+      `• 10-Metre Walk Test (10MWT)`,
       `  Pace: ${pace === "maximal" ? "Maximal" : "Comfortable"}`,
       `  Average Time: ${avgTime}s | Average Gait Speed: ${avgSpeed} m/s`,
       cat ? `  Classification: ${cat.label}` : "",
@@ -121,7 +121,7 @@ export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose })
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-900">10-Metre Walk Test (10MWT)</h2>
-          <p className="text-sm text-slate-500">Gait speed â€” functional mobility &amp; fall risk classification</p>
+          <p className="text-sm text-slate-500">Gait speed — functional mobility &amp; fall risk classification</p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
       </div>
@@ -130,7 +130,7 @@ export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose })
       <div className="border border-blue-200 rounded-lg overflow-hidden">
         <button onClick={() => setShowInstructions(v => !v)}
           className="w-full flex justify-between items-center bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900">
-          ðŸ“‹ Clinician Instructions &amp; Protocol
+          📋 Clinician Instructions &amp; Protocol
           {showInstructions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
         {showInstructions && (
@@ -148,7 +148,7 @@ export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose })
                 </ul>
               </div>
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
-                <p className="font-bold text-slate-800 text-xs">ðŸš¶ Instructions to Client</p>
+                <p className="font-bold text-slate-800 text-xs">🚶 Instructions to Client</p>
                 <div className="text-xs space-y-2">
                   <div className="bg-blue-50 rounded p-2 border border-blue-100">
                     <p className="font-semibold text-blue-800">Comfortable Pace:</p>
@@ -163,8 +163,8 @@ export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose })
             </div>
             <div className="grid md:grid-cols-3 gap-3">
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">
-                <p className="font-semibold text-amber-800">âš¡ Recommended Trials</p>
-                <p className="text-amber-700">Minimum 2 practice walks + 2â€“3 timed trials. Average the timed trials. Up to 4 trials supported.</p>
+                <p className="font-semibold text-amber-800">⚡ Recommended Trials</p>
+                <p className="text-amber-700">Minimum 2 practice walks + 2–3 timed trials. Average the timed trials. Up to 4 trials supported.</p>
               </div>
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs">
                 <p className="font-semibold text-green-800">ðŸ“ Key Metrics</p>
@@ -173,8 +173,8 @@ export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose })
                 <p className="text-green-700"><strong>Fall risk:</strong> &lt;0.8 m/s</p>
               </div>
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs">
-                <p className="font-semibold text-red-800">âš ï¸ Safety / Exclusions</p>
-                <p className="text-red-700">Unstable fracture Â· Severe pain on walking Â· Inability to follow instructions Â· Non-ambulatory without max assist</p>
+                <p className="font-semibold text-red-800">⚠ï¸ Safety / Exclusions</p>
+                <p className="text-red-700">Unstable fracture · Severe pain on walking · Inability to follow instructions · Non-ambulatory without max assist</p>
               </div>
             </div>
           </div>
@@ -220,7 +220,7 @@ export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose })
 
       {/* Normative Table */}
       <div className="border border-slate-200 rounded-lg p-3">
-        <p className="font-semibold text-slate-700 text-sm mb-2">ðŸ“Š Normative Gait Speed â€” Comfortable Pace (m/s)</p>
+        <p className="font-semibold text-slate-700 text-sm mb-2">📊 Normative Gait Speed — Comfortable Pace (m/s)</p>
         <div className="overflow-x-auto">
           <table className="w-full text-xs border border-slate-300 rounded overflow-hidden">
             <thead className="bg-slate-200">
@@ -242,7 +242,7 @@ export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose })
           </table>
         </div>
         <div className="mt-2 text-xs text-slate-500 space-y-0.5">
-          <p><strong>Gait Speed Classification:</strong> â‰¥1.22 m/s = Unlimited community Â· â‰¥1.0 = Community Â· â‰¥0.8 = Limited community Â· â‰¥0.6 = Household Â· &lt;0.6 = Physiological</p>
+          <p><strong>Gait Speed Classification:</strong> ≥1.22 m/s = Unlimited community · ≥1.0 = Community · ≥0.8 = Limited community · ≥0.6 = Household · &lt;0.6 = Physiological</p>
           <p>Source: Fritz &amp; Lusardi (2009); Perry &amp; Burnfield (2010); Bohannon &amp; Andrews (2011).</p>
         </div>
       </div>
@@ -250,14 +250,14 @@ export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose })
       {/* Timer / Trial Runner */}
       <div className="border border-slate-200 rounded-xl overflow-hidden">
         <div className="bg-slate-100 px-4 py-2 text-xs font-semibold text-slate-600 flex justify-between">
-          <span>Trial Runner â€” {pace === "maximal" ? "Maximal" : "Comfortable"} Pace</span>
+          <span>Trial Runner — {pace === "maximal" ? "Maximal" : "Comfortable"} Pace</span>
           <span>{trials.length}/{MAX_TRIALS} trials recorded</span>
         </div>
         <div className="bg-white p-4 text-center space-y-3">
           <div className={`text-6xl font-bold font-mono tabular-nums ${isTiming ? "text-blue-600" : "text-slate-300"}`}>
             {isTiming ? elapsed.toFixed(2) : trials.length > 0 ? parseFloat(trials[trials.length - 1].time).toFixed(2) : "0.00"}s
           </div>
-          {isTiming && <p className="text-xs text-blue-500 animate-pulse">â± Timing â€” press Stop when leading foot crosses the 12 m mark</p>}
+          {isTiming && <p className="text-xs text-blue-500 animate-pulse">â± Timing — press Stop when leading foot crosses the 12 m mark</p>}
           <div className="flex justify-center gap-3 flex-wrap">
             {!isTiming ? (
               <Button onClick={handleStart} disabled={trials.length >= MAX_TRIALS}
@@ -328,12 +328,12 @@ export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose })
 
       {/* References */}
       <div className="bg-slate-100 border border-slate-200 rounded-lg p-4 text-xs text-slate-600 space-y-1">
-        <p className="font-semibold text-slate-700">ðŸ“– References</p>
-        <p>1. Fritz S &amp; Lusardi M. (2009). White paper: "Walking speed: the sixth vital sign." <em>Journal of Geriatric Physical Therapy</em>, 32(2), 2â€“5.</p>
-        <p>2. Bohannon RW &amp; Andrews AW. (2011). Normal walking speed: a descriptive meta-analysis. <em>Physiotherapy</em>, 97(3), 182â€“189.</p>
+        <p className="font-semibold text-slate-700">📖 References</p>
+        <p>1. Fritz S &amp; Lusardi M. (2009). White paper: "Walking speed: the sixth vital sign." <em>Journal of Geriatric Physical Therapy</em>, 32(2), 2–5.</p>
+        <p>2. Bohannon RW &amp; Andrews AW. (2011). Normal walking speed: a descriptive meta-analysis. <em>Physiotherapy</em>, 97(3), 182–189.</p>
         <p>3. Perry J &amp; Burnfield JM. (2010). <em>Gait Analysis: Normal and Pathological Function</em> (2nd ed.). Slack Incorporated.</p>
-        <p>4. Middleton A, Fritz SL, Lusardi M. (2015). Walking speed: the functional vital sign. <em>Journal of Aging and Physical Activity</em>, 23(2), 314â€“322.</p>
-        <p>5. Graham JE, Ostir GV, Fisher SR, Ottenbacher KJ. (2008). Assessing walking speed in clinical research: a systematic review. <em>Journal of Evaluation in Clinical Practice</em>, 14(4), 552â€“562.</p>
+        <p>4. Middleton A, Fritz SL, Lusardi M. (2015). Walking speed: the functional vital sign. <em>Journal of Aging and Physical Activity</em>, 23(2), 314–322.</p>
+        <p>5. Graham JE, Ostir GV, Fisher SR, Ottenbacher KJ. (2008). Assessing walking speed in clinical research: a systematic review. <em>Journal of Evaluation in Clinical Practice</em>, 14(4), 552–562.</p>
       </div>
 
       {/* Footer */}

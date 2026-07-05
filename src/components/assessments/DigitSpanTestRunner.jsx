@@ -68,7 +68,7 @@ export default function DigitSpanTestRunner({ client, onSave, onClose }) {
     } else {
       const newErrors = errorCount + 1;
       if (newErrors >= 2) {
-        // Two consecutive failures â€” move to next phase or end
+        // Two consecutive failures — move to next phase or end
         setErrorCount(0);
         if (isForward) {
           // Move to backward phase
@@ -101,15 +101,15 @@ export default function DigitSpanTestRunner({ client, onSave, onClose }) {
     const bwMax = backwardTrials.filter(t => t.correct).reduce((max, t) => Math.max(max, t.length), 0);
 
     const fwLines = forwardTrials.map((t, i) =>
-      `    Trial ${i + 1} (${t.length} digits): Sequence [${t.sequence.join("-")}] â†’ Client said "${t.response}" â€” ${t.correct ? "âœ“ Correct" : "âœ— Incorrect"}`
+      `    Trial ${i + 1} (${t.length} digits): Sequence [${t.sequence.join("-")}] → Client said "${t.response}" — ${t.correct ? "✓ Correct" : "✗ Incorrect"}`
     ).join("\n");
 
     const bwLines = backwardTrials.map((t, i) =>
-      `    Trial ${i + 1} (${t.length} digits): Sequence [${t.sequence.join("-")}] (reversed: ${[...t.sequence].reverse().join("-")}) â†’ Client said "${t.response}" â€” ${t.correct ? "âœ“ Correct" : "âœ— Incorrect"}`
+      `    Trial ${i + 1} (${t.length} digits): Sequence [${t.sequence.join("-")}] (reversed: ${[...t.sequence].reverse().join("-")}) → Client said "${t.response}" — ${t.correct ? "✓ Correct" : "✗ Incorrect"}`
     ).join("\n");
 
     const soapText =
-      `â€¢ Digit Span Test:\n` +
+      `• Digit Span Test:\n` +
       `  Forward Digit Span: Longest correct = ${fwMax} digits\n` +
       (fwLines ? `${fwLines}\n` : "") +
       `  Backward Digit Span: Longest correct = ${bwMax} digits\n` +
@@ -157,7 +157,7 @@ export default function DigitSpanTestRunner({ client, onSave, onClose }) {
                 <p className="text-slate-700"><strong>Forward:</strong> Client repeats the digits in the <strong>same order</strong> you read them.</p>
                 <p className="text-slate-700"><strong>Backward:</strong> Client repeats the digits in <strong>reverse order</strong>.</p>
                 <p className="text-slate-700">Start with 3 digits. Increase by 1 after each correct trial. Two failures at the same length ends that phase.</p>
-                <p className="text-slate-700 font-medium">Normal range: Forward 5â€“7 digits, Backward 4â€“6 digits.</p>
+                <p className="text-slate-700 font-medium">Normal range: Forward 5–7 digits, Backward 4–6 digits.</p>
               </div>
               <Button onClick={() => startPhase("forward")} className="w-full">
                 <Play className="mr-2 w-4 h-4" /> Start Forward Digit Span
@@ -200,7 +200,7 @@ export default function DigitSpanTestRunner({ client, onSave, onClose }) {
               {/* Error indicator */}
               {errorCount > 0 && (
                 <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-sm text-orange-700">
-                  âš ï¸ {errorCount} failure{errorCount > 1 ? "s" : ""} at {trialLength} digits â€” one more failure ends this phase.
+                  ⚠ï¸ {errorCount} failure{errorCount > 1 ? "s" : ""} at {trialLength} digits — one more failure ends this phase.
                 </div>
               )}
 
@@ -217,7 +217,7 @@ export default function DigitSpanTestRunner({ client, onSave, onClose }) {
                     value={userInput}
                     onChange={e => setUserInput(e.target.value.replace(/\D/g, ""))}
                     onKeyDown={handleKeyDown}
-                    placeholder="e.g. 4 7 2 â†’ type 472"
+                    placeholder="e.g. 4 7 2 → type 472"
                     className="flex-1"
                     autoFocus
                   />
@@ -240,10 +240,10 @@ export default function DigitSpanTestRunner({ client, onSave, onClose }) {
                           ? <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
                           : <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
                         <span className="font-mono text-slate-700">
-                          [{t.sequence.join("-")}] â†’ "{t.response}"
+                          [{t.sequence.join("-")}] → "{t.response}"
                         </span>
                         <span className={`ml-auto font-medium ${t.correct ? "text-green-700" : "text-red-600"}`}>
-                          {t.length} digits â€” {t.correct ? "Correct" : "Incorrect"}
+                          {t.length} digits — {t.correct ? "Correct" : "Incorrect"}
                         </span>
                       </div>
                     ))}
@@ -260,7 +260,7 @@ export default function DigitSpanTestRunner({ client, onSave, onClose }) {
                   setPhase("done");
                 }
               }}>
-                {isForwardPhase ? "Skip to Backward Span â†’" : "End Test"}
+                {isForwardPhase ? "Skip to Backward Span →" : "End Test"}
               </Button>
             </div>
           )}
@@ -274,14 +274,14 @@ export default function DigitSpanTestRunner({ client, onSave, onClose }) {
                   <p className="text-4xl font-bold text-blue-800">
                     {forwardTrials.filter(t => t.correct).reduce((max, t) => Math.max(max, t.length), 0)}
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">digits (normal: 5â€“7)</p>
+                  <p className="text-xs text-slate-500 mt-1">digits (normal: 5–7)</p>
                 </div>
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 text-center">
                   <p className="text-xs font-semibold text-purple-600 uppercase mb-1">Backward Span</p>
                   <p className="text-4xl font-bold text-purple-800">
                     {backwardTrials.filter(t => t.correct).reduce((max, t) => Math.max(max, t.length), 0)}
                   </p>
-                  <p className="text-xs text-slate-500 mt-1">digits (normal: 4â€“6)</p>
+                  <p className="text-xs text-slate-500 mt-1">digits (normal: 4–6)</p>
                 </div>
               </div>
 
@@ -293,7 +293,7 @@ export default function DigitSpanTestRunner({ client, onSave, onClose }) {
                     {forwardTrials.map((t, i) => (
                       <div key={i} className={`flex items-center gap-3 text-sm px-3 py-2 rounded-lg ${t.correct ? "bg-green-50" : "bg-red-50"}`}>
                         {t.correct ? <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
-                        <span className="font-mono text-slate-700">[{t.sequence.join("-")}] â†’ "{t.response}"</span>
+                        <span className="font-mono text-slate-700">[{t.sequence.join("-")}] → "{t.response}"</span>
                         <span className={`ml-auto font-medium ${t.correct ? "text-green-700" : "text-red-600"}`}>{t.length} digits</span>
                       </div>
                     ))}
@@ -309,7 +309,7 @@ export default function DigitSpanTestRunner({ client, onSave, onClose }) {
                     {backwardTrials.map((t, i) => (
                       <div key={i} className={`flex items-center gap-3 text-sm px-3 py-2 rounded-lg ${t.correct ? "bg-green-50" : "bg-red-50"}`}>
                         {t.correct ? <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" /> : <XCircle className="w-4 h-4 text-red-500 shrink-0" />}
-                        <span className="font-mono text-slate-700">[{t.sequence.join("-")}] (rev: {[...t.sequence].reverse().join("-")}) â†’ "{t.response}"</span>
+                        <span className="font-mono text-slate-700">[{t.sequence.join("-")}] (rev: {[...t.sequence].reverse().join("-")}) → "{t.response}"</span>
                         <span className={`ml-auto font-medium ${t.correct ? "text-green-700" : "text-red-600"}`}>{t.length} digits</span>
                       </div>
                     ))}

@@ -25,10 +25,10 @@ const SSS_ITEMS = [
 ];
 
 const SOMATIC_OPTIONS = [
-  { value: 0, label: "0 â€” No symptoms" },
-  { value: 1, label: "1 â€” Few symptoms, generally mild" },
-  { value: 2, label: "2 â€” Moderate number of symptoms" },
-  { value: 3, label: "3 â€” Many symptoms, severe" },
+  { value: 0, label: "0 — No symptoms" },
+  { value: 1, label: "1 — Few symptoms, generally mild" },
+  { value: 2, label: "2 — Moderate number of symptoms" },
+  { value: 3, label: "3 — Many symptoms, severe" },
 ];
 
 function getInterpretation(wpi, sss) {
@@ -57,11 +57,11 @@ export default function WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner({
 
   const handleSave = () => {
     const soapText = [
-      `â€¢ WPI / SSS â€” Widespread Pain Index & Symptom Severity Scale`,
+      `• WPI / SSS — Widespread Pain Index & Symptom Severity Scale`,
       `  WPI Score: ${wpiScore}/19`,
       `  SSS Score: ${sssScore}/12`,
       `  Total: ${total}/31`,
-      `  ACR 2010 Fibromyalgia Criteria: ${meetsACR ? "MET â€” fibromyalgia criteria satisfied" : "Not met"}`,
+      `  ACR 2010 Fibromyalgia Criteria: ${meetsACR ? "MET — fibromyalgia criteria satisfied" : "Not met"}`,
       `  Pain regions: ${Object.keys(wpiRegions).filter(k => wpiRegions[k]).join(", ") || "None"}`,
       notes ? `  Notes: ${notes}` : "",
     ].filter(Boolean).join("\n");
@@ -90,7 +90,7 @@ export default function WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner({
       <div className="flex items-start justify-between">
         <div>
           <h2 className="text-xl font-bold text-slate-900">WPI / SSS</h2>
-          <p className="text-sm text-slate-500">Widespread Pain Index &amp; Symptom Severity Scale â€” ACR 2010 Fibromyalgia Criteria</p>
+          <p className="text-sm text-slate-500">Widespread Pain Index &amp; Symptom Severity Scale — ACR 2010 Fibromyalgia Criteria</p>
         </div>
         <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
       </div>
@@ -99,33 +99,33 @@ export default function WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner({
       <div className="border border-blue-200 rounded-lg overflow-hidden">
         <button onClick={() => setShowInstructions(v => !v)}
           className="w-full flex justify-between items-center bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-900">
-          ðŸ“‹ Clinician Instructions &amp; Diagnostic Criteria
+          📋 Clinician Instructions &amp; Diagnostic Criteria
           {showInstructions ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
         {showInstructions && (
           <div className="bg-white p-4 text-sm space-y-3">
             <div className="grid md:grid-cols-2 gap-3">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
-                <p className="font-bold text-blue-800 mb-1">WPI (0â€“19)</p>
+                <p className="font-bold text-blue-800 mb-1">WPI (0–19)</p>
                 <p className="text-blue-700">Ask client to indicate body regions where they have experienced pain in the last week. One point per region. Max = 19.</p>
                 <p className="italic text-blue-600 mt-1">"In how many of these areas have you had pain or tenderness over the last week?"</p>
               </div>
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-xs">
-                <p className="font-bold text-orange-800 mb-1">SSS (0â€“12)</p>
-                <p className="text-orange-700">Rate severity of fatigue, waking unrefreshed, and cognitive symptoms (0â€“3 each). Add somatic symptom burden (0â€“3). Max = 12.</p>
+                <p className="font-bold text-orange-800 mb-1">SSS (0–12)</p>
+                <p className="text-orange-700">Rate severity of fatigue, waking unrefreshed, and cognitive symptoms (0–3 each). Add somatic symptom burden (0–3). Max = 12.</p>
                 <p className="text-orange-700 mt-1"><strong>0</strong> = No problem | <strong>1</strong> = Mild | <strong>2</strong> = Moderate | <strong>3</strong> = Severe</p>
               </div>
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">
               <p className="font-semibold text-amber-800">ACR 2010 Fibromyalgia Diagnostic Criteria</p>
               <p className="text-amber-700 mt-1">Fibromyalgia is diagnosed when:</p>
-              <p className="text-amber-700">â€¢ WPI â‰¥ 7 AND SSS â‰¥ 5, OR</p>
-              <p className="text-amber-700">â€¢ WPI 3â€“6 AND SSS â‰¥ 9</p>
-              <p className="text-amber-700 mt-1">Symptoms must be present for â‰¥ 3 months and not better explained by another diagnosis.</p>
+              <p className="text-amber-700">• WPI ≥ 7 AND SSS ≥ 5, OR</p>
+              <p className="text-amber-700">• WPI 3–6 AND SSS ≥ 9</p>
+              <p className="text-amber-700 mt-1">Symptoms must be present for ≥ 3 months and not better explained by another diagnosis.</p>
             </div>
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs">
-              <p className="font-semibold text-purple-800">âš ï¸ Scope of Practice Note</p>
-              <p className="text-purple-700 mt-1">In many jurisdictions, Exercise Physiologists and allied health professionals are <strong>not authorised to diagnose</strong> fibromyalgia. This tool should be used to <strong>validate and support</strong> an existing medical diagnosis, monitor symptom severity over time, and inform exercise prescription â€” not as a standalone diagnostic instrument.</p>
+              <p className="font-semibold text-purple-800">⚠ï¸ Scope of Practice Note</p>
+              <p className="text-purple-700 mt-1">In many jurisdictions, Exercise Physiologists and allied health professionals are <strong>not authorised to diagnose</strong> fibromyalgia. This tool should be used to <strong>validate and support</strong> an existing medical diagnosis, monitor symptom severity over time, and inform exercise prescription — not as a standalone diagnostic instrument.</p>
               <p className="text-purple-700 mt-1">If criteria are met and no diagnosis exists, refer to the client's GP or rheumatologist for formal assessment.</p>
             </div>
           </div>
@@ -143,7 +143,7 @@ export default function WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner({
           {WPI_REGIONS.map(region => (
             <button key={region} onClick={() => toggleRegion(region)}
               className={`text-left text-xs px-3 py-2 rounded-lg border transition-colors ${wpiRegions[region] ? "bg-blue-600 text-white border-blue-600 font-semibold" : "bg-white text-slate-700 border-slate-300 hover:bg-slate-50"}`}>
-              {wpiRegions[region] ? "âœ“ " : ""}{region}
+              {wpiRegions[region] ? "✓ " : ""}{region}
             </button>
           ))}
         </div>
@@ -191,7 +191,7 @@ export default function WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner({
             <div>
               <p className="font-bold text-slate-900">WPI: {wpiScore}/19 &nbsp;|&nbsp; SSS: {sssScore}/12 &nbsp;|&nbsp; Total: {total}/31</p>
               <p className={`text-sm font-semibold mt-1 ${meetsACR ? "text-red-700" : "text-slate-600"}`}>
-                ACR 2010 Criteria: {meetsACR ? "âœ… MET â€” Fibromyalgia criteria satisfied" : "âŒ Not met"}
+                ACR 2010 Criteria: {meetsACR ? "✅ MET — Fibromyalgia criteria satisfied" : "âŒ Not met"}
               </p>
             </div>
           </div>
@@ -207,10 +207,10 @@ export default function WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner({
 
       {/* References */}
       <div className="bg-slate-100 border border-slate-200 rounded-lg p-4 text-xs text-slate-600 space-y-1">
-        <p className="font-semibold text-slate-700">ðŸ“– References</p>
-        <p>1. Wolfe F, Clauw DJ, Fitzcharles MA, et al. (2010). The American College of Rheumatology preliminary diagnostic criteria for fibromyalgia. <em>Arthritis Care &amp; Research</em>, 62(5), 600â€“610.</p>
-        <p>2. Wolfe F, Clauw DJ, Fitzcharles MA, et al. (2011). Fibromyalgia criteria and severity scales for clinical and epidemiological studies. <em>Journal of Rheumatology</em>, 38(6), 1113â€“1122.</p>
-        <p>3. Arnold LM, Bennett RM, Crofford LJ, et al. (2019). AAPT Diagnostic Criteria for Fibromyalgia. <em>Journal of Pain</em>, 20(6), 611â€“628.</p>
+        <p className="font-semibold text-slate-700">📖 References</p>
+        <p>1. Wolfe F, Clauw DJ, Fitzcharles MA, et al. (2010). The American College of Rheumatology preliminary diagnostic criteria for fibromyalgia. <em>Arthritis Care &amp; Research</em>, 62(5), 600–610.</p>
+        <p>2. Wolfe F, Clauw DJ, Fitzcharles MA, et al. (2011). Fibromyalgia criteria and severity scales for clinical and epidemiological studies. <em>Journal of Rheumatology</em>, 38(6), 1113–1122.</p>
+        <p>3. Arnold LM, Bennett RM, Crofford LJ, et al. (2019). AAPT Diagnostic Criteria for Fibromyalgia. <em>Journal of Pain</em>, 20(6), 611–628.</p>
       </div>
 
       <div className="flex justify-between pt-2 border-t">

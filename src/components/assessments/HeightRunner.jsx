@@ -33,7 +33,7 @@ export default function HeightRunner({ client, onSave, onClose }) {
 
     const resultValue = parseFloat(height);
     const additionalData = {
-      soap_text: `â€¢ Height Measurement\n  Result: ${resultValue} cm`,
+      soap_text: `• Height Measurement\n  Result: ${resultValue} cm`,
       measurement_type: "Height",
       protocol: [
         "Client removes shoes and bulky hair accessories.",
@@ -44,7 +44,7 @@ export default function HeightRunner({ client, onSave, onClose }) {
       ],
       equipment: "Stadiometer OR wall-mounted measuring tape with right-angle headpiece",
       references: [
-        "ESSA Outcome Measures Book â€“ Anthropometrics Section.",
+        "ESSA Outcome Measures Book – Anthropometrics Section.",
         "WHO (2008). Training Course on Child Growth Assessment. Height measurement protocol."
       ]
     };

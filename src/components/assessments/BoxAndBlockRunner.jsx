@@ -42,7 +42,7 @@ export default function BoxAndBlockRunner({ client, onSave, onClose, initialData
   const handleSave = () => {
     const dom = parseInt(data.dominant_count) || 0;
     const nonDom = parseInt(data.non_dominant_count) || 0;
-    const soapText = `â€¢ Box and Block Test\n  Dominant Hand (${data.dominant_hand}): ${dom} blocks\n  Non-Dominant Hand: ${nonDom} blocks\n  Asymmetry: ${Math.abs(dom - nonDom)} blocks${data.observations ? `\n  Observations: ${data.observations}` : ''}`;
+    const soapText = `• Box and Block Test\n  Dominant Hand (${data.dominant_hand}): ${dom} blocks\n  Non-Dominant Hand: ${nonDom} blocks\n  Asymmetry: ${Math.abs(dom - nonDom)} blocks${data.observations ? `\n  Observations: ${data.observations}` : ''}`;
     onSave({
       result_value: dom,
       additional_data: {
@@ -81,7 +81,7 @@ export default function BoxAndBlockRunner({ client, onSave, onClose, initialData
               className="w-full flex items-center justify-between bg-blue-50 px-4 py-3 text-left"
               onClick={() => setShowInstructions(!showInstructions)}
             >
-              <span className="font-semibold text-blue-900 text-sm">ðŸ“‹ Equipment, Instructions & References</span>
+              <span className="font-semibold text-blue-900 text-sm">📋 Equipment, Instructions & References</span>
               {showInstructions ? <ChevronUp className="w-4 h-4 text-blue-700" /> : <ChevronDown className="w-4 h-4 text-blue-700" />}
             </button>
             {showInstructions && (
@@ -89,7 +89,7 @@ export default function BoxAndBlockRunner({ client, onSave, onClose, initialData
                 <div>
                   <h4 className="font-semibold text-slate-800 mb-1">Equipment Required</h4>
                   <ul className="list-disc list-inside text-slate-700 space-y-1">
-                    <li>Standardised wooden box: <strong>53.7 cm long Ã— 25.4 cm wide Ã— 8.5 cm high</strong> with a central partition of the same height dividing it into two equal compartments</li>
+                    <li>Standardised wooden box: <strong>53.7 cm long × 25.4 cm wide × 8.5 cm high</strong> with a central partition of the same height dividing it into two equal compartments</li>
                     <li><strong>150 wooden blocks</strong>, each a <strong>2.5 cm cube</strong></li>
                     <li>All 150 blocks placed in one compartment at the start of each trial</li>
                     <li>Stopwatch (60-second count)</li>
@@ -121,7 +121,7 @@ export default function BoxAndBlockRunner({ client, onSave, onClose, initialData
                   <div className="space-y-1.5 mb-4">
                     <a href="https://www.fabrication-enterprises.com/products/box-and-block-test" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 underline">
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                      Fabrication Enterprises (US) â€“ Original manufacturer
+                      Fabrication Enterprises (US) – Original manufacturer
                     </a>
                     <a href="https://www.performancehealth.com/box-and-block-test" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 underline">
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />
@@ -129,7 +129,7 @@ export default function BoxAndBlockRunner({ client, onSave, onClose, initialData
                     </a>
                     <a href="https://www.stoeltingco.com/box-and-block-test.html" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 underline">
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                      Stoelting Co. â€“ Research-grade kit
+                      Stoelting Co. – Research-grade kit
                     </a>
                     <a href="https://www.physioworks.com.au" target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 text-blue-600 hover:text-blue-800 underline">
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />
@@ -148,7 +148,7 @@ export default function BoxAndBlockRunner({ client, onSave, onClose, initialData
                       className="flex items-center gap-2 text-blue-600 hover:text-blue-800 underline"
                     >
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                      Shirley Ryan AbilityLab â€“ Box and Block Test (Normative Data & Instructions)
+                      Shirley Ryan AbilityLab – Box and Block Test (Normative Data & Instructions)
                     </a>
                     <a
                       href="https://www.physio-pedia.com/Box_and_Block_Test"
@@ -157,7 +157,7 @@ export default function BoxAndBlockRunner({ client, onSave, onClose, initialData
                       className="flex items-center gap-2 text-blue-600 hover:text-blue-800 underline"
                     >
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                      Physiopedia â€“ Box and Block Test
+                      Physiopedia – Box and Block Test
                     </a>
                     <a
                       href="https://pubmed.ncbi.nlm.nih.gov/3908171/"
@@ -166,7 +166,7 @@ export default function BoxAndBlockRunner({ client, onSave, onClose, initialData
                       className="flex items-center gap-2 text-blue-600 hover:text-blue-800 underline"
                     >
                       <ExternalLink className="w-3 h-3 flex-shrink-0" />
-                      Mathiowetz et al. (1985) â€“ Original normative data (PubMed)
+                      Mathiowetz et al. (1985) – Original normative data (PubMed)
                     </a>
                   </div>
                 </div>
@@ -221,7 +221,7 @@ export default function BoxAndBlockRunner({ client, onSave, onClose, initialData
               </div>
             </div>
             {timerSeconds >= 60 && (
-              <p className="mt-2 text-green-600 font-semibold">âœ“ 60 seconds complete! Record block count below.</p>
+              <p className="mt-2 text-green-600 font-semibold">✓ 60 seconds complete! Record block count below.</p>
             )}
           </div>
 

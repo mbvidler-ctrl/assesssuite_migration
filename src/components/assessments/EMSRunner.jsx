@@ -115,7 +115,7 @@ export default function EMSRunner({ onSave, onClose }) {
     }
 
     // Build soap_text for SOAP notes
-    let soapText = `â€¢ Elderly Mobility Scale (EMS):\n  Total Score: ${total}/20 â€” ${interpretation.level}\n\n  Individual Item Scores:\n`;
+    let soapText = `• Elderly Mobility Scale (EMS):\n  Total Score: ${total}/20 — ${interpretation.level}\n\n  Individual Item Scores:\n`;
     EMS_ITEMS.forEach(item => {
       const score = scores[item.id];
       if (score !== undefined) {
@@ -215,7 +215,7 @@ export default function EMSRunner({ onSave, onClose }) {
                 <CardContent className={interpretation.color}>
                   <p className="font-semibold text-lg">{interpretation.level}</p>
                   {total < 14 && (
-                    <p className="text-sm mt-2">âš ï¸ Score suggests significant mobility limitation and increased risk of falls/dependence</p>
+                    <p className="text-sm mt-2">⚠ï¸ Score suggests significant mobility limitation and increased risk of falls/dependence</p>
                   )}
                 </CardContent>
               </Card>

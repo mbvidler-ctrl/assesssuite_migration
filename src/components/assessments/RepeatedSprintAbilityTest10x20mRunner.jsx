@@ -73,7 +73,7 @@ export default function RepeatedSprintAbilityTest10x20mRunner({ client, onSave, 
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
         {/* Header */}
         <div className="border-b pb-4">
-          <h1 className="text-3xl font-bold text-slate-900">Repeated Sprint Ability Test â€“ 10 x 20 m</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Repeated Sprint Ability Test – 10 x 20 m</h1>
           <p className="text-slate-600 mt-2">Assessment of maximum sprint speed and repeated fatigue resistance over shorter, high-frequency sprints</p>
         </div>
 
@@ -113,7 +113,7 @@ export default function RepeatedSprintAbilityTest10x20mRunner({ client, onSave, 
                     <ul className="list-disc list-inside space-y-1 ml-2">
                       <li>Client performs maximal sprint from start to 20m line and back (40m total)</li>
                       <li>Record sprint time to nearest 0.01 second</li>
-                      <li>20â€“30 second passive rest period between sprints</li>
+                      <li>20–30 second passive rest period between sprints</li>
                       <li>Repeat for 10 consecutive maximal sprints</li>
                     </ul>
                     <p><strong>Effort:</strong> Client should perform each sprint at maximum effort with complete recovery between sprints</p>
@@ -125,15 +125,15 @@ export default function RepeatedSprintAbilityTest10x20mRunner({ client, onSave, 
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <h4 className="font-semibold text-purple-900 mb-2">Interpretation</h4>
                   <div className="space-y-2 text-sm text-purple-800">
-                    <p><strong>Peak Sprint Time:</strong> Fastest sprintâ€”indicates maximum explosive power at short distance</p>
-                    <p><strong>Mean Sprint Time:</strong> Average across all 10 sprintsâ€”reflects overall sprint capacity</p>
-                    <p><strong>Performance Decrement (%):</strong> (Total Time / (Best Time Ã— 10) âˆ’ 1) Ã— 100 â†’ Indicates fatigue resistance</p>
+                    <p><strong>Peak Sprint Time:</strong> Fastest sprint—indicates maximum explosive power at short distance</p>
+                    <p><strong>Mean Sprint Time:</strong> Average across all 10 sprints—reflects overall sprint capacity</p>
+                    <p><strong>Performance Decrement (%):</strong> (Total Time / (Best Time × 10) − 1) × 100 → Indicates fatigue resistance</p>
                     <p className="mt-3">
                       <strong>Decrement Reference:</strong>
                     </p>
                     <ul className="list-disc list-inside space-y-1 ml-2">
                       <li>&lt;5%: Excellent fatigue resistance</li>
-                      <li>5â€“10%: Good fatigue resistance</li>
+                      <li>5–10%: Good fatigue resistance</li>
                       <li>&gt;10%: Poor fatigue resistance</li>
                     </ul>
                   </div>
@@ -175,7 +175,7 @@ export default function RepeatedSprintAbilityTest10x20mRunner({ client, onSave, 
         </CardHeader>
         <CardContent>
           <p className="text-sm text-gray-600 mb-4">
-            Enter the time (in seconds) for each maximal 20-meter sprint. Each sprint should be performed with maximum effort, followed by a 20â€“30 second recovery.
+            Enter the time (in seconds) for each maximal 20-meter sprint. Each sprint should be performed with maximum effort, followed by a 20–30 second recovery.
           </p>
           <div className="mt-4">
             {Array.from({ length: 10 }, (_, index) => (

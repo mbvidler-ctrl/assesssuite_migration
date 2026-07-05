@@ -65,7 +65,7 @@ export default function BoxandBlockTestRunner({ client, assessment, onSave, onCl
     const comparison = compareToNormativeData(resultValue, normativeData);
     const assessmentDate = new Date().toISOString().split("T")[0];
     
-    const soapText = `â€¢ Box and Block Test:\n  Blocks Moved: ${resultValue}\n  Dominant Hand: ${dominantHand}\n  Age: ${age}\n  Sex: ${sex}\n  Result: ${comparison}`;
+    const soapText = `• Box and Block Test:\n  Blocks Moved: ${resultValue}\n  Dominant Hand: ${dominantHand}\n  Age: ${age}\n  Sex: ${sex}\n  Result: ${comparison}`;
 
     const assessmentData = {
       status: "completed",

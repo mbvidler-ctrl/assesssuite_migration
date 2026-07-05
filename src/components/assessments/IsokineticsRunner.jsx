@@ -45,8 +45,8 @@ export default function IsokineticsRunner({ onSave, onClose }) {
     const asymmetry = calculateAsymmetry();
     const avgTorque = (parseFloat(testData.left_peak_torque_nm) + parseFloat(testData.right_peak_torque_nm)) / 2;
 
-    const romStr = testData.rom_start && testData.rom_end ? `${testData.rom_start}Â°â€“${testData.rom_end}Â°` : null;
-    const soapText = `â€¢ Isokinetic Dynamometry:\n  Joint: ${testData.joint} â€” ${testData.movement_pattern} @ ${testData.angular_velocity}Â°/s (${testData.repetitions} reps)\n  Left Peak Torque: ${testData.left_peak_torque_nm} Nm${testData.left_total_work_j ? ` | Total Work: ${testData.left_total_work_j} J` : ''}\n  Right Peak Torque: ${testData.right_peak_torque_nm} Nm${testData.right_total_work_j ? ` | Total Work: ${testData.right_total_work_j} J` : ''}${asymmetry ? `\n  Bilateral Asymmetry: ${asymmetry}%` : ''}${romStr ? `\n  ROM: ${romStr}` : ''}${notes ? `\n  Notes: ${notes}` : ''}`;
+    const romStr = testData.rom_start && testData.rom_end ? `${testData.rom_start}°–${testData.rom_end}°` : null;
+    const soapText = `• Isokinetic Dynamometry:\n  Joint: ${testData.joint} — ${testData.movement_pattern} @ ${testData.angular_velocity}°/s (${testData.repetitions} reps)\n  Left Peak Torque: ${testData.left_peak_torque_nm} Nm${testData.left_total_work_j ? ` | Total Work: ${testData.left_total_work_j} J` : ''}\n  Right Peak Torque: ${testData.right_peak_torque_nm} Nm${testData.right_total_work_j ? ` | Total Work: ${testData.right_total_work_j} J` : ''}${asymmetry ? `\n  Bilateral Asymmetry: ${asymmetry}%` : ''}${romStr ? `\n  ROM: ${romStr}` : ''}${notes ? `\n  Notes: ${notes}` : ''}`;
 
     onSave({
       result_value: parseFloat(avgTorque.toFixed(1)),
@@ -97,7 +97,7 @@ export default function IsokineticsRunner({ onSave, onClose }) {
               <CardContent className="text-sm text-blue-800 space-y-2">
                 <p><strong>Setup:</strong> Secure client per manufacturer guidelines, align dynamometer axis with joint</p>
                 <p><strong>Instruction:</strong> "Push and pull as hard and fast as possible through full range"</p>
-                <p><strong>Common speeds:</strong> 60Â°/s (strength), 180Â°/s (power), 300Â°/s (endurance)</p>
+                <p><strong>Common speeds:</strong> 60°/s (strength), 180°/s (power), 300°/s (endurance)</p>
                 <p><strong>Recording:</strong> Device captures peak torque and total work automatically</p>
               </CardContent>
             </Card>
@@ -149,7 +149,7 @@ export default function IsokineticsRunner({ onSave, onClose }) {
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <Label>Angular Velocity (Â°/s)</Label>
+                    <Label>Angular Velocity (°/s)</Label>
                     <Select
                       value={testData.angular_velocity}
                       onValueChange={(value) => setTestData({...testData, angular_velocity: value})}
@@ -158,12 +158,12 @@ export default function IsokineticsRunner({ onSave, onClose }) {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="60">60Â°/s (Strength)</SelectItem>
-                        <SelectItem value="90">90Â°/s</SelectItem>
-                        <SelectItem value="120">120Â°/s</SelectItem>
-                        <SelectItem value="180">180Â°/s (Power)</SelectItem>
-                        <SelectItem value="240">240Â°/s</SelectItem>
-                        <SelectItem value="300">300Â°/s (Endurance)</SelectItem>
+                        <SelectItem value="60">60°/s (Strength)</SelectItem>
+                        <SelectItem value="90">90°/s</SelectItem>
+                        <SelectItem value="120">120°/s</SelectItem>
+                        <SelectItem value="180">180°/s (Power)</SelectItem>
+                        <SelectItem value="240">240°/s</SelectItem>
+                        <SelectItem value="300">300°/s (Endurance)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -181,7 +181,7 @@ export default function IsokineticsRunner({ onSave, onClose }) {
 
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
-                    <Label>ROM Start Angle (Â°)</Label>
+                    <Label>ROM Start Angle (°)</Label>
                     <Input
                       type="number"
                       value={testData.rom_start}
@@ -191,7 +191,7 @@ export default function IsokineticsRunner({ onSave, onClose }) {
                     />
                   </div>
                   <div>
-                    <Label>ROM End Angle (Â°)</Label>
+                    <Label>ROM End Angle (°)</Label>
                     <Input
                       type="number"
                       value={testData.rom_end}
@@ -274,7 +274,7 @@ export default function IsokineticsRunner({ onSave, onClose }) {
                     <p className="text-sm text-slate-600">Bilateral Asymmetry</p>
                     <p className="text-4xl font-bold text-slate-900">{asymmetry}%</p>
                     {parseFloat(asymmetry) > 15 && (
-                      <p className="text-sm text-red-600 mt-1">âš ï¸ Clinically significant asymmetry</p>
+                      <p className="text-sm text-red-600 mt-1">⚠ï¸ Clinically significant asymmetry</p>
                     )}
                   </div>
                 )}

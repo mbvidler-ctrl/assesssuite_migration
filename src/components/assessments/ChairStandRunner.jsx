@@ -77,7 +77,7 @@ export default function ChairStandRunner({ duration = 30, onSave, onClose }) {
     const interpretation = getInterpretation(repetitions, duration);
     
     // Build comprehensive SOAP text
-    let soapText = `â€¢ ${duration}-Second Chair Stand Test: ${repetitions} repetitions â†’ ${interpretation.text}\n`;
+    let soapText = `• ${duration}-Second Chair Stand Test: ${repetitions} repetitions → ${interpretation.text}\n`;
     if (postHR) soapText += `  Post-Test Heart Rate: ${postHR} bpm\n`;
     if (rpe) soapText += `  RPE: ${rpe}/20\n`;
     if (dyspnea) soapText += `  Dyspnea: ${dyspnea}/10\n`;
@@ -117,14 +117,14 @@ export default function ChairStandRunner({ duration = 30, onSave, onClose }) {
         <CardContent className="space-y-6">
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
-            <p>Jones CJ, Rikli RE, & Beam WC. (1999). A 30-s chair-stand test as a measure of lower body strength in community-residing older adults. <em>Research Quarterly for Exercise and Sport, 70</em>(2), 113â€“119.</p>
+            <p className="font-semibold">📖 Reference</p>
+            <p>Jones CJ, Rikli RE, & Beam WC. (1999). A 30-s chair-stand test as a measure of lower body strength in community-residing older adults. <em>Research Quarterly for Exercise and Sport, 70</em>(2), 113–119.</p>
             <p>Rikli RE & Jones CJ. (2001). <em>Senior Fitness Test Manual</em>. Human Kinetics.</p>
           </div>
 
           {/* Clinician Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-1">
-            <p className="font-semibold">ðŸ“‹ Administration Instructions (Rikli & Jones Protocol)</p>
+            <p className="font-semibold">📋 Administration Instructions (Rikli & Jones Protocol)</p>
             <p><strong>Setup:</strong> Sturdy chair (~43 cm seat) against wall. Client seated in middle of chair, back straight, feet flat on floor, arms crossed over chest.</p>
             <p className="italic">"When I say 'Go', rise to a full standing position and sit back down again. Keep your arms across your chest. Do as many times as you can in {duration} seconds."</p>
             <p><strong>Count:</strong> Count each time client comes to a FULL standing position. If client is mid-stand when time expires, count it if they are more than halfway up.</p>
@@ -133,16 +133,16 @@ export default function ChairStandRunner({ duration = 30, onSave, onClose }) {
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Norms â€” 30-Second Chair Stand (repetitions)</p>
+            <p className="font-semibold text-slate-700">📊 Norms — 30-Second Chair Stand (repetitions)</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Age</th><th className="p-2 text-center">Men (avg range)</th><th className="p-2 text-center">Women (avg range)</th></tr></thead>
                 <tbody>
-                  <tr className="border-t"><td className="p-2">60â€“64</td><td className="p-2 text-center">14â€“19</td><td className="p-2 text-center">12â€“17</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">65â€“69</td><td className="p-2 text-center">12â€“18</td><td className="p-2 text-center">11â€“16</td></tr>
-                  <tr className="border-t"><td className="p-2">70â€“74</td><td className="p-2 text-center">12â€“17</td><td className="p-2 text-center">10â€“15</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">75â€“79</td><td className="p-2 text-center">11â€“17</td><td className="p-2 text-center">10â€“15</td></tr>
-                  <tr className="border-t"><td className="p-2">80â€“84</td><td className="p-2 text-center">10â€“15</td><td className="p-2 text-center">9â€“14</td></tr>
+                  <tr className="border-t"><td className="p-2">60–64</td><td className="p-2 text-center">14–19</td><td className="p-2 text-center">12–17</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">65–69</td><td className="p-2 text-center">12–18</td><td className="p-2 text-center">11–16</td></tr>
+                  <tr className="border-t"><td className="p-2">70–74</td><td className="p-2 text-center">12–17</td><td className="p-2 text-center">10–15</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">75–79</td><td className="p-2 text-center">11–17</td><td className="p-2 text-center">10–15</td></tr>
+                  <tr className="border-t"><td className="p-2">80–84</td><td className="p-2 text-center">10–15</td><td className="p-2 text-center">9–14</td></tr>
                 </tbody>
               </table>
             </div>

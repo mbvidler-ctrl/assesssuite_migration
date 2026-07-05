@@ -42,7 +42,7 @@ function hasRunner(name) {
   if (n.includes('harvard step')) return true;
   if (n.includes('box and block')) return true;
   if (n.includes('himat') || n.includes('high-level mobility')) return true;
-  if (n.includes('astrand') || n.includes('Ã¥strand')) return true;
+  if (n.includes('astrand') || n.includes('åstrand')) return true;
   if (n.includes('job task analysis') || n.includes('icare')) return true;
   if (n.includes('borg') && n.includes('rpe')) return true;
   if (n.includes('general movement screen')) return true;
@@ -81,7 +81,7 @@ function hasRunner(name) {
   if (n.includes('yo-yo') || n.includes('yoyo')) return true;
   if (n.includes('30-15') || n.includes('30 15') || n.includes('30:15')) return true;
   if (n.includes('repeated sprint ability')) return true;
-  if (n.includes('heart rate recovery') && (n.includes('1 and 2') || n.includes('â€“ 1') || n.includes('hrr'))) return true;
+  if (n.includes('heart rate recovery') && (n.includes('1 and 2') || n.includes('– 1') || n.includes('hrr'))) return true;
   if (n.includes('vo2max testing') || n.includes('vo2max test') || n.includes('maximal graded exercise') || n.includes('gxt')) return true;
   if (n.includes('hba1c') || n.includes('glycated hemoglobin')) return true;
   if (n.includes('lipid profile')) return true;

@@ -14,14 +14,14 @@ import {
 import { Toaster, toast } from "sonner";
 import UnifiedReportWizard from "@/components/reports/UnifiedReportWizard";
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────
 // REPORT TYPE DEFINITIONS
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────
 
 const australiaReportTypes = {
   gp_summary: { label: "GP Summary Letter", category: "general", description: "Summary for referring GP", region: "australia" },
   custom_report: { label: "Custom Report", category: "general", description: "Custom formatted report", region: "australia" },
-  progress_note: { label: "Progress / Extra Report", category: "general", description: "Free-form progress update or additional report â€” pulls all prior history", region: "australia" },
+  progress_note: { label: "Progress / Extra Report", category: "general", description: "Free-form progress update or additional report — pulls all prior history", region: "australia" },
   workcover_pmp: { label: "WorkCover PMP", category: "workcover", description: "Provisional Medical Plan", region: "australia" },
   workcover_progress: { label: "WorkCover Progress Report", category: "workcover", description: "Progress update for WorkCover", region: "australia" },
   workcover_discharge: { label: "WorkCover Discharge / RTW Summary", category: "workcover", description: "Discharge and return to work summary", region: "australia" },
@@ -37,7 +37,7 @@ const australiaReportTypes = {
   ndis_fce: { label: "NDIS Functional Capacity Evaluation", category: "ndis", description: "Comprehensive FCE across 7 NDIS domains", region: "australia" },
   ndis_discharge: { label: "NDIS Discharge / Transition Summary", category: "ndis", description: "Discharge summary with outcomes and recommendations", region: "australia" },
   sira_initial: { label: "NSW SIRA Initial Assessment", category: "workcover_nsw", description: "Initial assessment for NSW icare / SIRA clients", region: "australia" },
-  sira_ahtr: { label: "NSW SIRA â€” Allied Health Treatment Request (AHTR)", category: "workcover_nsw", description: "Treatment request for sessions beyond initial approval", region: "australia" },
+  sira_ahtr: { label: "NSW SIRA — Allied Health Treatment Request (AHTR)", category: "workcover_nsw", description: "Treatment request for sessions beyond initial approval", region: "australia" },
   sira_progress: { label: "NSW SIRA Progress Report", category: "workcover_nsw", description: "Progress update for NSW SIRA / icare", region: "australia" },
   sira_discharge: { label: "NSW SIRA Discharge Summary", category: "workcover_nsw", description: "Discharge summary for NSW SIRA", region: "australia" },
   worksafe_vic_initial: { label: "WorkSafe VIC Initial Assessment", category: "workcover_vic", description: "Initial assessment for WorkSafe Victoria clients", region: "australia" },
@@ -55,19 +55,19 @@ const australiaReportTypes = {
   maic_initial: { label: "MAIC QLD Initial Assessment", category: "tac_maic", description: "Initial assessment for MAIC QLD CTP clients", region: "australia" },
   maic_progress: { label: "MAIC QLD Progress Report", category: "tac_maic", description: "Progress update for MAIC QLD clients", region: "australia" },
   maic_discharge: { label: "MAIC QLD Discharge Summary", category: "tac_maic", description: "Discharge summary for MAIC QLD clients", region: "australia" },
-  ctp_initial: { label: "CTP Motor Accident â€” Initial Assessment", category: "ctp", description: "Initial assessment for other-state CTP motor accident clients", region: "australia" },
-  ctp_progress: { label: "CTP Motor Accident â€” Progress Report", category: "ctp", description: "Progress update for CTP clients", region: "australia" },
-  ctp_discharge: { label: "CTP Motor Accident â€” Discharge Summary", category: "ctp", description: "Discharge summary for CTP clients", region: "australia" },
+  ctp_initial: { label: "CTP Motor Accident — Initial Assessment", category: "ctp", description: "Initial assessment for other-state CTP motor accident clients", region: "australia" },
+  ctp_progress: { label: "CTP Motor Accident — Progress Report", category: "ctp", description: "Progress update for CTP clients", region: "australia" },
+  ctp_discharge: { label: "CTP Motor Accident — Discharge Summary", category: "ctp", description: "Discharge summary for CTP clients", region: "australia" },
   aged_care_assessment: { label: "Aged Care Assessment", category: "aged_care", description: "Functional assessment for aged care", region: "australia" },
-  hcp_initial: { label: "HCP â€” Initial Functional Assessment", category: "aged_care", description: "Initial assessment for Home Care Package clients", region: "australia" },
-  hcp_care_plan: { label: "HCP â€” Individual Care Plan", category: "aged_care", description: "Individual care plan for HCP clients", region: "australia" },
-  hcp_annual_review: { label: "HCP â€” Annual Review", category: "aged_care", description: "Annual review for Home Care Package clients", region: "australia" },
+  hcp_initial: { label: "HCP — Initial Functional Assessment", category: "aged_care", description: "Initial assessment for Home Care Package clients", region: "australia" },
+  hcp_care_plan: { label: "HCP — Individual Care Plan", category: "aged_care", description: "Individual care plan for HCP clients", region: "australia" },
+  hcp_annual_review: { label: "HCP — Annual Review", category: "aged_care", description: "Annual review for Home Care Package clients", region: "australia" },
   chsp_initial: { label: "CHSP Initial Assessment", category: "chsp", description: "Initial assessment for CHSP clients", region: "australia" },
   chsp_support_plan: { label: "CHSP Support Plan", category: "chsp", description: "Support plan for CHSP clients", region: "australia" },
   legal_fce: { label: "Functional Capacity Evaluation (FCE)", category: "legal", description: "Comprehensive FCE for legal / insurance / TPD", region: "australia" },
   legal_medico: { label: "Medico-Legal / Independent Medical Report", category: "legal", description: "Medico-legal report for solicitors / insurers", region: "australia" },
-  cancer_initial: { label: "Cancer / Oncology â€” Initial Assessment", category: "cancer", description: "Initial assessment for cancer exercise programs", region: "australia" },
-  cancer_progress: { label: "Cancer / Oncology â€” Progress Report", category: "cancer", description: "Progress update for cancer exercise program clients", region: "australia" },
+  cancer_initial: { label: "Cancer / Oncology — Initial Assessment", category: "cancer", description: "Initial assessment for cancer exercise programs", region: "australia" },
+  cancer_progress: { label: "Cancer / Oncology — Progress Report", category: "cancer", description: "Progress update for cancer exercise program clients", region: "australia" },
 };
 
 const usaReportTypes = {
@@ -76,24 +76,24 @@ const usaReportTypes = {
   us_progress_report: { label: "Progress Report / Re-examination", category: "common_usa", description: "Periodic reporting; demonstrates progress and ongoing skilled need", region: "usa", payers: ["Medicare Part B", "VA", "Workers' Comp", "Commercial", "Medicaid", "TRICARE"] },
   us_discharge_summary: { label: "Discharge Summary", category: "common_usa", description: "End of episode; documents outcomes, status, and recommendations", region: "usa", payers: ["Medicare Part B", "VA", "Workers' Comp", "Commercial", "Medicaid", "TRICARE"] },
   us_prior_auth: { label: "Prior Authorization / Medical Necessity Packet", category: "authorization", description: "Pre-auth or ongoing authorization for commercial/Medicaid plans", region: "usa", payers: ["Commercial", "Medicaid"] },
-  progress_note: { label: "Progress / Extra Report", category: "general", description: "Free-form progress update or additional report â€” pulls all prior history", region: "usa" },
+  progress_note: { label: "Progress / Extra Report", category: "general", description: "Free-form progress update or additional report — pulls all prior history", region: "usa" },
 };
 
 const ukReportTypes = {
-  uk_nhs_ers_initial: { label: "NHS ERS â€” Initial Assessment", category: "nhs_ers", description: "Baseline fitness, health screen, contraindications and goals for NHS Exercise Referral", region: "uk" },
-  uk_nhs_ers_progress: { label: "NHS ERS â€” Progress Report", category: "nhs_ers", description: "Mid-programme update to referring GP or practice nurse", region: "uk" },
-  uk_nhs_ers_completion: { label: "NHS ERS â€” Completion / Discharge Report", category: "nhs_ers", description: "Programme outcomes, adherence, and recommendations for ongoing activity", region: "uk" },
-  uk_cardiac_initial: { label: "Cardiac Rehab â€” Initial Clinical Assessment", category: "cardiac", description: "BACPR-aligned initial assessment: CPET, risk stratification, goals", region: "uk" },
-  uk_cardiac_completion: { label: "Cardiac Rehab â€” Phase III Completion Report", category: "cardiac", description: "Discharge outcomes including exercise capacity change and risk factor improvements", region: "uk" },
-  uk_cardiac_phase4: { label: "Cardiac Rehab â€” Phase IV Referral Letter", category: "cardiac", description: "Onward referral to community maintenance programme", region: "uk" },
-  uk_pulmonary_initial: { label: "Pulmonary Rehab â€” Initial Assessment", category: "pulmonary", description: "Spirometry, MRC dyspnoea, ISWT/6MWT, SGRQ/CAT baseline", region: "uk" },
-  uk_pulmonary_completion: { label: "Pulmonary Rehab â€” Completion Report", category: "pulmonary", description: "Outcome measures, exercise capacity change, PROM scores, onward referral", region: "uk" },
-  uk_cancer_initial: { label: "Cancer Rehab â€” Initial Exercise Assessment", category: "cancer_uk", description: "MOVE More / NHS cancer exercise initial assessment with HNA", region: "uk" },
-  uk_cancer_progress: { label: "Cancer Rehab â€” Progress Report", category: "cancer_uk", description: "Attendance, exercise capacity, and wellbeing outcomes for cancer rehab", region: "uk" },
-  uk_cancer_completion: { label: "Cancer Rehab â€” End-of-Programme Report", category: "cancer_uk", description: "Outcomes, recommendations, and onward referral for cancer exercise programme", region: "uk" },
-  uk_pmi_initial: { label: "PMI â€” Initial Assessment / Consultation Report", category: "pmi", description: "Initial assessment for BUPA, AXA Health, Aviva, Vitality or other PMI", region: "uk" },
-  uk_pmi_progress: { label: "PMI â€” Progress Report", category: "pmi", description: "Progress update for private medical insurance re-authorisation", region: "uk" },
-  uk_pmi_discharge: { label: "PMI â€” Discharge Report", category: "pmi", description: "Discharge summary for private medical insurance", region: "uk" },
+  uk_nhs_ers_initial: { label: "NHS ERS — Initial Assessment", category: "nhs_ers", description: "Baseline fitness, health screen, contraindications and goals for NHS Exercise Referral", region: "uk" },
+  uk_nhs_ers_progress: { label: "NHS ERS — Progress Report", category: "nhs_ers", description: "Mid-programme update to referring GP or practice nurse", region: "uk" },
+  uk_nhs_ers_completion: { label: "NHS ERS — Completion / Discharge Report", category: "nhs_ers", description: "Programme outcomes, adherence, and recommendations for ongoing activity", region: "uk" },
+  uk_cardiac_initial: { label: "Cardiac Rehab — Initial Clinical Assessment", category: "cardiac", description: "BACPR-aligned initial assessment: CPET, risk stratification, goals", region: "uk" },
+  uk_cardiac_completion: { label: "Cardiac Rehab — Phase III Completion Report", category: "cardiac", description: "Discharge outcomes including exercise capacity change and risk factor improvements", region: "uk" },
+  uk_cardiac_phase4: { label: "Cardiac Rehab — Phase IV Referral Letter", category: "cardiac", description: "Onward referral to community maintenance programme", region: "uk" },
+  uk_pulmonary_initial: { label: "Pulmonary Rehab — Initial Assessment", category: "pulmonary", description: "Spirometry, MRC dyspnoea, ISWT/6MWT, SGRQ/CAT baseline", region: "uk" },
+  uk_pulmonary_completion: { label: "Pulmonary Rehab — Completion Report", category: "pulmonary", description: "Outcome measures, exercise capacity change, PROM scores, onward referral", region: "uk" },
+  uk_cancer_initial: { label: "Cancer Rehab — Initial Exercise Assessment", category: "cancer_uk", description: "MOVE More / NHS cancer exercise initial assessment with HNA", region: "uk" },
+  uk_cancer_progress: { label: "Cancer Rehab — Progress Report", category: "cancer_uk", description: "Attendance, exercise capacity, and wellbeing outcomes for cancer rehab", region: "uk" },
+  uk_cancer_completion: { label: "Cancer Rehab — End-of-Programme Report", category: "cancer_uk", description: "Outcomes, recommendations, and onward referral for cancer exercise programme", region: "uk" },
+  uk_pmi_initial: { label: "PMI — Initial Assessment / Consultation Report", category: "pmi", description: "Initial assessment for BUPA, AXA Health, Aviva, Vitality or other PMI", region: "uk" },
+  uk_pmi_progress: { label: "PMI — Progress Report", category: "pmi", description: "Progress update for private medical insurance re-authorisation", region: "uk" },
+  uk_pmi_discharge: { label: "PMI — Discharge Report", category: "pmi", description: "Discharge summary for private medical insurance", region: "uk" },
   uk_fce: { label: "FCE / Work Capacity Assessment", category: "legal_uk", description: "Functional capacity evaluation for DWP, occupational health, or employer RTW", region: "uk" },
   uk_rtw_progress: { label: "Return to Work Progress Report", category: "legal_uk", description: "Functional progress report for employer, HR or occupational health", region: "uk" },
   uk_gp_summary: { label: "GP / Specialist Summary Letter", category: "general_uk", description: "Clinical summary letter to referring GP or specialist", region: "uk" },
@@ -101,72 +101,72 @@ const ukReportTypes = {
 };
 
 const canadaReportTypes = {
-  ca_wsib_initial: { label: "WSIB â€” Initial Assessment Report", category: "wsib", description: "Initial assessment for Ontario WSIB workplace injury claims", region: "canada" },
-  ca_wsib_faf: { label: "WSIB â€” Functional Abilities Form (FAF)", category: "wsib", description: "WSIB-required FAF (Form 2647A) for functional tolerances and work status", region: "canada" },
-  ca_wsib_progress: { label: "WSIB â€” Progress Report", category: "wsib", description: "Functional progress update for WSIB case manager", region: "canada" },
-  ca_wsib_rtw: { label: "WSIB â€” Return-to-Work Summary", category: "wsib", description: "RTW readiness and discharge summary for WSIB Ontario", region: "canada" },
-  ca_worksafebc_initial: { label: "WorkSafeBC â€” Initial Assessment", category: "worksafebc", description: "Initial assessment for WorkSafeBC workplace injury claims (BC)", region: "canada" },
-  ca_worksafebc_fca: { label: "WorkSafeBC â€” Functional Capacity Assessment (FCA)", category: "worksafebc", description: "Standardised FCA report for WorkSafeBC", region: "canada" },
-  ca_worksafebc_progress: { label: "WorkSafeBC â€” Progress Report", category: "worksafebc", description: "Functional progress update for WorkSafeBC adjudicator", region: "canada" },
-  ca_wcb_alberta_initial: { label: "WCB Alberta â€” Initial Assessment", category: "wcb_ab", description: "Initial assessment for WCB Alberta workplace injury claims", region: "canada" },
-  ca_wcb_alberta_fce: { label: "WCB Alberta â€” Functional Capacity Evaluation (FCE)", category: "wcb_ab", description: "FCE report for WCB Alberta claim resolution or dispute", region: "canada" },
-  ca_wcb_alberta_progress: { label: "WCB Alberta â€” Progress Report", category: "wcb_ab", description: "Functional progress update for WCB Alberta adjudicator", region: "canada" },
-  ca_ehb_initial: { label: "Extended Health Benefits â€” Initial Assessment", category: "ehb", description: "Initial assessment summary for group insurance / EHB providers", region: "canada" },
-  ca_ehb_progress: { label: "Extended Health Benefits â€” Progress Report", category: "ehb", description: "Progress report for EHB pre-approval of additional sessions", region: "canada" },
-  ca_vac_initial: { label: "Veterans Affairs Canada â€” Initial Assessment", category: "vac", description: "Initial assessment for VAC rehabilitation programme", region: "canada" },
-  ca_vac_progress: { label: "Veterans Affairs Canada â€” Progress Report", category: "vac", description: "Progress update for VAC case manager", region: "canada" },
+  ca_wsib_initial: { label: "WSIB — Initial Assessment Report", category: "wsib", description: "Initial assessment for Ontario WSIB workplace injury claims", region: "canada" },
+  ca_wsib_faf: { label: "WSIB — Functional Abilities Form (FAF)", category: "wsib", description: "WSIB-required FAF (Form 2647A) for functional tolerances and work status", region: "canada" },
+  ca_wsib_progress: { label: "WSIB — Progress Report", category: "wsib", description: "Functional progress update for WSIB case manager", region: "canada" },
+  ca_wsib_rtw: { label: "WSIB — Return-to-Work Summary", category: "wsib", description: "RTW readiness and discharge summary for WSIB Ontario", region: "canada" },
+  ca_worksafebc_initial: { label: "WorkSafeBC — Initial Assessment", category: "worksafebc", description: "Initial assessment for WorkSafeBC workplace injury claims (BC)", region: "canada" },
+  ca_worksafebc_fca: { label: "WorkSafeBC — Functional Capacity Assessment (FCA)", category: "worksafebc", description: "Standardised FCA report for WorkSafeBC", region: "canada" },
+  ca_worksafebc_progress: { label: "WorkSafeBC — Progress Report", category: "worksafebc", description: "Functional progress update for WorkSafeBC adjudicator", region: "canada" },
+  ca_wcb_alberta_initial: { label: "WCB Alberta — Initial Assessment", category: "wcb_ab", description: "Initial assessment for WCB Alberta workplace injury claims", region: "canada" },
+  ca_wcb_alberta_fce: { label: "WCB Alberta — Functional Capacity Evaluation (FCE)", category: "wcb_ab", description: "FCE report for WCB Alberta claim resolution or dispute", region: "canada" },
+  ca_wcb_alberta_progress: { label: "WCB Alberta — Progress Report", category: "wcb_ab", description: "Functional progress update for WCB Alberta adjudicator", region: "canada" },
+  ca_ehb_initial: { label: "Extended Health Benefits — Initial Assessment", category: "ehb", description: "Initial assessment summary for group insurance / EHB providers", region: "canada" },
+  ca_ehb_progress: { label: "Extended Health Benefits — Progress Report", category: "ehb", description: "Progress report for EHB pre-approval of additional sessions", region: "canada" },
+  ca_vac_initial: { label: "Veterans Affairs Canada — Initial Assessment", category: "vac", description: "Initial assessment for VAC rehabilitation programme", region: "canada" },
+  ca_vac_progress: { label: "Veterans Affairs Canada — Progress Report", category: "vac", description: "Progress update for VAC case manager", region: "canada" },
   progress_note: { label: "Progress / Extra Report", category: "general_ca", description: "Free-form progress update or additional report", region: "canada" },
 };
 
 const nzReportTypes = {
-  nz_acc_initial: { label: "ACC â€” Initial Assessment Report", category: "acc", description: "Initial assessment for ACC injury claim â€” injury, functional status, goals, treatment plan", region: "nz" },
-  nz_acc_progress: { label: "ACC â€” Progress Report (ACC32 Extension)", category: "acc", description: "Progress report submitted with ACC32 prior approval extension request", region: "nz" },
-  nz_acc_fce: { label: "ACC â€” Functional Capacity Evaluation (FCE)", category: "acc", description: "FCE report requested by ACC case manager at claim resolution", region: "nz" },
-  nz_acc_discharge: { label: "ACC â€” Discharge / Completion Summary", category: "acc", description: "Discharge summary at end of ACC-funded treatment", region: "nz" },
-  nz_disability_initial: { label: "Disability Support â€” Functional Assessment", category: "disability_nz", description: "Functional assessment report for Ministry of Health / Whaikaha disability support", region: "nz" },
-  nz_private_initial: { label: "Private Insurance â€” Initial Assessment", category: "private_nz", description: "Initial assessment for Southern Cross, NIB, or AIA NZ private health insurance", region: "nz" },
-  nz_private_progress: { label: "Private Insurance â€” Progress Report", category: "private_nz", description: "Progress update for private health insurance re-authorisation", region: "nz" },
+  nz_acc_initial: { label: "ACC — Initial Assessment Report", category: "acc", description: "Initial assessment for ACC injury claim — injury, functional status, goals, treatment plan", region: "nz" },
+  nz_acc_progress: { label: "ACC — Progress Report (ACC32 Extension)", category: "acc", description: "Progress report submitted with ACC32 prior approval extension request", region: "nz" },
+  nz_acc_fce: { label: "ACC — Functional Capacity Evaluation (FCE)", category: "acc", description: "FCE report requested by ACC case manager at claim resolution", region: "nz" },
+  nz_acc_discharge: { label: "ACC — Discharge / Completion Summary", category: "acc", description: "Discharge summary at end of ACC-funded treatment", region: "nz" },
+  nz_disability_initial: { label: "Disability Support — Functional Assessment", category: "disability_nz", description: "Functional assessment report for Ministry of Health / Whaikaha disability support", region: "nz" },
+  nz_private_initial: { label: "Private Insurance — Initial Assessment", category: "private_nz", description: "Initial assessment for Southern Cross, NIB, or AIA NZ private health insurance", region: "nz" },
+  nz_private_progress: { label: "Private Insurance — Progress Report", category: "private_nz", description: "Progress update for private health insurance re-authorisation", region: "nz" },
   progress_note: { label: "Progress / Extra Report", category: "general_nz", description: "Free-form progress update or additional report", region: "nz" },
 };
 
 const singaporeReportTypes = {
-  sg_healthiersg_initial: { label: "Healthier SG â€” Initial Assessment Report", category: "healthiersg", description: "Initial allied health assessment aligned to patient's Healthier SG Health Plan", region: "singapore" },
-  sg_healthiersg_progress: { label: "Healthier SG â€” Programme Progress Report", category: "healthiersg", description: "Progress update aligned to Healthier SG health plan goals", region: "singapore" },
-  sg_healthiersg_completion: { label: "Healthier SG â€” Completion / Discharge Report", category: "healthiersg", description: "Programme outcomes and completion summary for Healthier SG", region: "singapore" },
-  sg_cdmp_initial: { label: "CDMP â€” Initial Exercise Assessment", category: "cdmp", description: "Initial assessment for CDMP/MediSave chronic disease management programme", region: "singapore" },
-  sg_cdmp_progress: { label: "CDMP â€” Progress / Review Report", category: "cdmp", description: "Progress update for CDMP programme with chronic disease outcome measures", region: "singapore" },
-  sg_cdmp_discharge: { label: "CDMP â€” Discharge Summary", category: "cdmp", description: "Discharge summary with chronic disease outcomes (HbA1c, BP, lipids)", region: "singapore" },
-  sg_wica_initial: { label: "WICA â€” Work Injury Assessment", category: "wica", description: "Functional assessment for WICA work injury compensation claim", region: "singapore" },
-  sg_wica_rtw: { label: "WICA â€” Return-to-Work Plan", category: "wica", description: "RTW plan documentation for Ministry of Manpower work injury claim", region: "singapore" },
-  sg_corporate_initial: { label: "Corporate / Private Insurance â€” Initial Assessment", category: "private_sg", description: "Initial assessment for corporate group health scheme or private insurer", region: "singapore" },
+  sg_healthiersg_initial: { label: "Healthier SG — Initial Assessment Report", category: "healthiersg", description: "Initial allied health assessment aligned to patient's Healthier SG Health Plan", region: "singapore" },
+  sg_healthiersg_progress: { label: "Healthier SG — Programme Progress Report", category: "healthiersg", description: "Progress update aligned to Healthier SG health plan goals", region: "singapore" },
+  sg_healthiersg_completion: { label: "Healthier SG — Completion / Discharge Report", category: "healthiersg", description: "Programme outcomes and completion summary for Healthier SG", region: "singapore" },
+  sg_cdmp_initial: { label: "CDMP — Initial Exercise Assessment", category: "cdmp", description: "Initial assessment for CDMP/MediSave chronic disease management programme", region: "singapore" },
+  sg_cdmp_progress: { label: "CDMP — Progress / Review Report", category: "cdmp", description: "Progress update for CDMP programme with chronic disease outcome measures", region: "singapore" },
+  sg_cdmp_discharge: { label: "CDMP — Discharge Summary", category: "cdmp", description: "Discharge summary with chronic disease outcomes (HbA1c, BP, lipids)", region: "singapore" },
+  sg_wica_initial: { label: "WICA — Work Injury Assessment", category: "wica", description: "Functional assessment for WICA work injury compensation claim", region: "singapore" },
+  sg_wica_rtw: { label: "WICA — Return-to-Work Plan", category: "wica", description: "RTW plan documentation for Ministry of Manpower work injury claim", region: "singapore" },
+  sg_corporate_initial: { label: "Corporate / Private Insurance — Initial Assessment", category: "private_sg", description: "Initial assessment for corporate group health scheme or private insurer", region: "singapore" },
   progress_note: { label: "Progress / Extra Report", category: "general_sg", description: "Free-form progress update or additional report", region: "singapore" },
 };
 
 const irelandReportTypes = {
-  ie_hse_initial: { label: "HSE â€” Initial Assessment Report", category: "hse", description: "Initial assessment for HSE-commissioned cardiac, pulmonary, or cancer rehab programme", region: "ireland" },
-  ie_hse_progress: { label: "HSE â€” Progress Review Report", category: "hse", description: "Progress review note for HSE programme", region: "ireland" },
-  ie_hse_discharge: { label: "HSE â€” Discharge Summary", category: "hse", description: "Discharge summary for HSE-funded exercise physiology programme", region: "ireland" },
-  ie_cardiac_initial: { label: "Cardiac Rehab â€” Initial Assessment", category: "cardiac_ie", description: "Irish Heart Foundation-aligned cardiac rehab initial assessment", region: "ireland" },
-  ie_cardiac_completion: { label: "Cardiac Rehab â€” Completion Report", category: "cardiac_ie", description: "Cardiac rehab phase completion report with outcomes", region: "ireland" },
-  ie_piab_fce: { label: "PIAB â€” Functional Capacity Report", category: "piab", description: "Functional assessment / expert report for PIAB personal injury claim", region: "ireland" },
-  ie_private_initial: { label: "Private Health â€” Initial Assessment", category: "private_ie", description: "Initial assessment for VHI, Laya Healthcare or Irish Life Health", region: "ireland" },
-  ie_private_progress: { label: "Private Health â€” Progress Report", category: "private_ie", description: "Progress update for VHI / Laya / Irish Life Health re-authorisation", region: "ireland" },
-  ie_private_discharge: { label: "Private Health â€” Discharge Summary", category: "private_ie", description: "Discharge summary for private health insurance", region: "ireland" },
+  ie_hse_initial: { label: "HSE — Initial Assessment Report", category: "hse", description: "Initial assessment for HSE-commissioned cardiac, pulmonary, or cancer rehab programme", region: "ireland" },
+  ie_hse_progress: { label: "HSE — Progress Review Report", category: "hse", description: "Progress review note for HSE programme", region: "ireland" },
+  ie_hse_discharge: { label: "HSE — Discharge Summary", category: "hse", description: "Discharge summary for HSE-funded exercise physiology programme", region: "ireland" },
+  ie_cardiac_initial: { label: "Cardiac Rehab — Initial Assessment", category: "cardiac_ie", description: "Irish Heart Foundation-aligned cardiac rehab initial assessment", region: "ireland" },
+  ie_cardiac_completion: { label: "Cardiac Rehab — Completion Report", category: "cardiac_ie", description: "Cardiac rehab phase completion report with outcomes", region: "ireland" },
+  ie_piab_fce: { label: "PIAB — Functional Capacity Report", category: "piab", description: "Functional assessment / expert report for PIAB personal injury claim", region: "ireland" },
+  ie_private_initial: { label: "Private Health — Initial Assessment", category: "private_ie", description: "Initial assessment for VHI, Laya Healthcare or Irish Life Health", region: "ireland" },
+  ie_private_progress: { label: "Private Health — Progress Report", category: "private_ie", description: "Progress update for VHI / Laya / Irish Life Health re-authorisation", region: "ireland" },
+  ie_private_discharge: { label: "Private Health — Discharge Summary", category: "private_ie", description: "Discharge summary for private health insurance", region: "ireland" },
   ie_gp_summary: { label: "GP / Specialist Summary Letter", category: "general_ie", description: "Clinical summary letter to referring GP or specialist", region: "ireland" },
   progress_note: { label: "Progress / Extra Report", category: "general_ie", description: "Free-form progress update or additional report", region: "ireland" },
 };
 
 const southAfricaReportTypes = {
-  za_medaid_initial: { label: "Medical Aid â€” Initial Assessment Report", category: "medaid", description: "Initial assessment for South African medical aid scheme (Discovery, Momentum, Bonitas etc.)", region: "southafrica" },
-  za_medaid_progress: { label: "Medical Aid â€” Progress / Review Report", category: "medaid", description: "Progress update for medical aid scheme re-authorisation", region: "southafrica" },
-  za_medaid_discharge: { label: "Medical Aid â€” Discharge Summary", category: "medaid", description: "Discharge summary for medical aid scheme", region: "southafrica" },
-  za_coida_initial: { label: "COIDA â€” Initial Assessment & Treatment Plan", category: "coida", description: "Initial assessment supporting COIDA/Compensation Fund workplace injury claim", region: "southafrica" },
-  za_coida_progress: { label: "COIDA â€” Functional Progress Report", category: "coida", description: "Functional progress update supporting WCL5 progress medical report", region: "southafrica" },
-  za_coida_rtw: { label: "COIDA â€” Return-to-Work / Functional Capacity Report", category: "coida", description: "RTW and FCE report for Compensation Fund claim resolution", region: "southafrica" },
-  za_raf_initial: { label: "RAF â€” Road Accident Initial Assessment", category: "raf", description: "Initial assessment for Road Accident Fund motor vehicle injury claim", region: "southafrica" },
-  za_raf_progress: { label: "RAF â€” Progress Report", category: "raf", description: "Progress update for RAF motor accident injury claim", region: "southafrica" },
-  za_gems_initial: { label: "GEMS â€” Initial Assessment", category: "gems", description: "Initial assessment for GEMS government employees medical scheme", region: "southafrica" },
-  za_gems_progress: { label: "GEMS â€” Progress Report", category: "gems", description: "Progress update for GEMS scheme re-authorisation", region: "southafrica" },
+  za_medaid_initial: { label: "Medical Aid — Initial Assessment Report", category: "medaid", description: "Initial assessment for South African medical aid scheme (Discovery, Momentum, Bonitas etc.)", region: "southafrica" },
+  za_medaid_progress: { label: "Medical Aid — Progress / Review Report", category: "medaid", description: "Progress update for medical aid scheme re-authorisation", region: "southafrica" },
+  za_medaid_discharge: { label: "Medical Aid — Discharge Summary", category: "medaid", description: "Discharge summary for medical aid scheme", region: "southafrica" },
+  za_coida_initial: { label: "COIDA — Initial Assessment & Treatment Plan", category: "coida", description: "Initial assessment supporting COIDA/Compensation Fund workplace injury claim", region: "southafrica" },
+  za_coida_progress: { label: "COIDA — Functional Progress Report", category: "coida", description: "Functional progress update supporting WCL5 progress medical report", region: "southafrica" },
+  za_coida_rtw: { label: "COIDA — Return-to-Work / Functional Capacity Report", category: "coida", description: "RTW and FCE report for Compensation Fund claim resolution", region: "southafrica" },
+  za_raf_initial: { label: "RAF — Road Accident Initial Assessment", category: "raf", description: "Initial assessment for Road Accident Fund motor vehicle injury claim", region: "southafrica" },
+  za_raf_progress: { label: "RAF — Progress Report", category: "raf", description: "Progress update for RAF motor accident injury claim", region: "southafrica" },
+  za_gems_initial: { label: "GEMS — Initial Assessment", category: "gems", description: "Initial assessment for GEMS government employees medical scheme", region: "southafrica" },
+  za_gems_progress: { label: "GEMS — Progress Report", category: "gems", description: "Progress update for GEMS scheme re-authorisation", region: "southafrica" },
   progress_note: { label: "Progress / Extra Report", category: "general_za", description: "Free-form progress update or additional report", region: "southafrica" },
 };
 
@@ -220,9 +220,9 @@ const australiaRecommendations = {
   my_aged_care: ["aged_care_assessment", "gp_summary"],
 };
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────
 // MAIN PAGE
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────
 export default function Reports() {
   const [clients, setClients] = useState([]);
   const [userOrgId, setUserOrgId] = useState(null);
@@ -382,14 +382,14 @@ export default function Reports() {
             <CardContent className="pt-6 pb-4">
               <Tabs value={activeTab} onValueChange={setActiveTab}>
                 <TabsList className="flex flex-wrap gap-1 h-auto p-1">
-                  <TabsTrigger value="australia" className="text-sm">ðŸ‡¦ðŸ‡º Australia</TabsTrigger>
-                  <TabsTrigger value="usa" className="text-sm">ðŸ‡ºðŸ‡¸ USA</TabsTrigger>
-                  <TabsTrigger value="uk" className="text-sm">ðŸ‡¬ðŸ‡§ UK</TabsTrigger>
-                  <TabsTrigger value="canada" className="text-sm">ðŸ‡¨ðŸ‡¦ Canada</TabsTrigger>
-                  <TabsTrigger value="nz" className="text-sm">ðŸ‡³ðŸ‡¿ New Zealand</TabsTrigger>
-                  <TabsTrigger value="singapore" className="text-sm">ðŸ‡¸ðŸ‡¬ Singapore</TabsTrigger>
-                  <TabsTrigger value="ireland" className="text-sm">ðŸ‡®ðŸ‡ª Ireland</TabsTrigger>
-                  <TabsTrigger value="southafrica" className="text-sm">ðŸ‡¿ðŸ‡¦ South Africa</TabsTrigger>
+                  <TabsTrigger value="australia" className="text-sm">🇦🇺 Australia</TabsTrigger>
+                  <TabsTrigger value="usa" className="text-sm">🇺🇸 USA</TabsTrigger>
+                  <TabsTrigger value="uk" className="text-sm">🇬🇧 UK</TabsTrigger>
+                  <TabsTrigger value="canada" className="text-sm">🇨🇦 Canada</TabsTrigger>
+                  <TabsTrigger value="nz" className="text-sm">🇳🇿 New Zealand</TabsTrigger>
+                  <TabsTrigger value="singapore" className="text-sm">🇸🇬 Singapore</TabsTrigger>
+                  <TabsTrigger value="ireland" className="text-sm">🇮🇪 Ireland</TabsTrigger>
+                  <TabsTrigger value="southafrica" className="text-sm">🇿🇦 South Africa</TabsTrigger>
                 </TabsList>
               </Tabs>
             </CardContent>

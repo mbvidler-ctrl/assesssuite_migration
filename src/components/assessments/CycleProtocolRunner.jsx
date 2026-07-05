@@ -80,7 +80,7 @@ export default function CycleProtocolRunner({ protocol, onSave, onClose }) {
     const vo2max = calculateVO2Max();
 
     const soapText = [
-      `â€¢ ${info.title}`,
+      `• ${info.title}`,
       `  Protocol: ${protocol} | Age: ${age} | Weight: ${weight}kg`,
       vo2max ? `  Estimated VO2max: ${vo2max} ml/kg/min` : null,
       `  Duration: ${Math.floor(time / 60)}:${(time % 60).toString().padStart(2, '0')}`,
@@ -278,7 +278,7 @@ export default function CycleProtocolRunner({ protocol, onSave, onClose }) {
                   </div>
                   {calculateVO2Max() && (
                     <div className="mt-4 p-4 bg-green-50 rounded-lg border-2 border-green-200">
-                      <p className="text-sm text-green-700">Estimated VOâ‚‚max</p>
+                      <p className="text-sm text-green-700">Estimated VO₂max</p>
                       <p className="text-3xl font-bold text-green-900">{calculateVO2Max()} ml/kg/min</p>
                     </div>
                   )}

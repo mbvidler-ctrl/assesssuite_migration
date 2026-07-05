@@ -40,7 +40,7 @@ export default function TUGRunner({ onSave, onClose, initialData }) {
     else interpretation = 'Impaired mobility, assistance required';
 
     // Build comprehensive SOAP text
-    let soapText = `â€¢ Timed Up and Go (TUG): ${timeValue}s â†’ ${interpretation}\n`;
+    let soapText = `• Timed Up and Go (TUG): ${timeValue}s → ${interpretation}\n`;
     if (data.assistive_device && data.assistive_device !== 'none') {
       soapText += `  Assistive Device: ${data.assistive_device.replace(/_/g, ' ')}\n`;
     }
@@ -86,34 +86,34 @@ export default function TUGRunner({ onSave, onClose, initialData }) {
         <CardContent className="space-y-6">
           {/* Clinician Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-1">
-            <p className="font-semibold">ðŸ“‹ Administration Instructions (Podsiadlo & Richardson Protocol)</p>
+            <p className="font-semibold">📋 Administration Instructions (Podsiadlo & Richardson Protocol)</p>
             <p><strong>Setup:</strong> Standard armchair (~46 cm seat height), 3m measured from chair front.</p>
             <p className="italic">"When I say 'Go', stand up from the chair, walk to the line on the floor, turn around, walk back, and sit down. Walk at a safe and comfortable pace."</p>
             <p><strong>Timing:</strong> Start on "Go" (or when client begins to rise). Stop when client's back touches the chair back. Allow 1 practice trial.</p>
-            <p><strong>Assistive devices:</strong> Permitted â€” document device used. Same device must be used on follow-up assessments.</p>
+            <p><strong>Assistive devices:</strong> Permitted — document device used. Same device must be used on follow-up assessments.</p>
           </div>
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Norms & Interpretation</p>
+            <p className="font-semibold text-slate-700">📊 Norms & Interpretation</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Time</th><th className="p-2 text-left">Interpretation</th><th className="p-2 text-left">Population</th></tr></thead>
                 <tbody>
                   <tr className="border-t"><td className="p-2">&lt;10 s</td><td className="p-2 text-green-700">Normal</td><td className="p-2">Community-dwelling adults</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">10â€“20 s</td><td className="p-2 text-yellow-700">Mostly independent</td><td className="p-2">Good balance/gait</td></tr>
-                  <tr className="border-t"><td className="p-2">20â€“30 s</td><td className="p-2 text-orange-700">Variable mobility</td><td className="p-2">Needs further assessment</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">10–20 s</td><td className="p-2 text-yellow-700">Mostly independent</td><td className="p-2">Good balance/gait</td></tr>
+                  <tr className="border-t"><td className="p-2">20–30 s</td><td className="p-2 text-orange-700">Variable mobility</td><td className="p-2">Needs further assessment</td></tr>
                   <tr className="border-t bg-white"><td className="p-2">&gt;30 s</td><td className="p-2 text-red-700">High fall risk</td><td className="p-2">Dependent mobility</td></tr>
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-slate-500">MCID: 1.4 s (frail older adults). Cut-off â‰¥13.5 s for predicting falls in community dwellers. Source: Podsiadlo & Richardson (1991).</p>
+            <p className="text-xs text-slate-500">MCID: 1.4 s (frail older adults). Cut-off ≥13.5 s for predicting falls in community dwellers. Source: Podsiadlo & Richardson (1991).</p>
           </div>
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
-            <p>Podsiadlo D & Richardson S. (1991). The timed "Up & Go": a test of basic functional mobility for frail elderly persons. <em>Journal of the American Geriatrics Society, 39</em>(2), 142â€“148.</p>
+            <p className="font-semibold">📖 Reference</p>
+            <p>Podsiadlo D & Richardson S. (1991). The timed "Up & Go": a test of basic functional mobility for frail elderly persons. <em>Journal of the American Geriatrics Society, 39</em>(2), 142–148.</p>
           </div>
 
           {/* Timer */}
@@ -259,10 +259,10 @@ export default function TUGRunner({ onSave, onClose, initialData }) {
               'bg-red-50 border-red-200'
             } border`}>
               <p className="font-semibold text-slate-900">
-                {parseFloat(data.time_seconds) < 10 ? 'âœ“ Independent mobility' :
+                {parseFloat(data.time_seconds) < 10 ? '✓ Independent mobility' :
                  parseFloat(data.time_seconds) < 20 ? 'Mostly independent' :
-                 parseFloat(data.time_seconds) < 30 ? 'âš ï¸ Variable mobility, assistance may be needed' :
-                 'âš ï¸ Impaired mobility, assistance required'}
+                 parseFloat(data.time_seconds) < 30 ? '⚠ï¸ Variable mobility, assistance may be needed' :
+                 '⚠ï¸ Impaired mobility, assistance required'}
               </p>
               <p className="text-xs text-slate-600 mt-1">
                 &lt;10s = Normal, 10-20s = Mostly independent, 20-30s = Variable, &gt;30s = Impaired

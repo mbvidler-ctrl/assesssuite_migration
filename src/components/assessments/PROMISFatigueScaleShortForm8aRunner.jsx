@@ -96,7 +96,7 @@ export default function PROMISFatigueScaleShortForm8aRunner({ client, onSave, on
     }
 
     const soapLines = [
-      `â€¢ PROMIS Fatigue Scale â€“ Short Form 8a`,
+      `• PROMIS Fatigue Scale – Short Form 8a`,
       `  Assessment Date: ${assessmentDate}`,
       ``,
       `  Raw Score (sum of 8 items, 1-5 each): ${rawScore || 'Not provided'}`,
@@ -115,7 +115,7 @@ export default function PROMISFatigueScaleShortForm8aRunner({ client, onSave, on
       notes ? `    ${notes.replace(/\n/g, '\n    ')}` : `    None provided`,
       ``,
       `  Reference:`,
-      `    PROMIS Fatigue Short Form v1.0 â€“ Fatigue 8a`,
+      `    PROMIS Fatigue Short Form v1.0 – Fatigue 8a`,
       `    Source: HealthMeasures / PROMIS (https://www.healthmeasures.net)`,
     ].join('\n');
 
@@ -150,7 +150,7 @@ export default function PROMISFatigueScaleShortForm8aRunner({ client, onSave, on
         {/* Header */}
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-start z-10">
           <div>
-            <h2 className="text-2xl font-bold text-slate-900">PROMIS Fatigue Scale â€“ Short Form 8a</h2>
+            <h2 className="text-2xl font-bold text-slate-900">PROMIS Fatigue Scale – Short Form 8a</h2>
             <p className="text-sm text-slate-500">Patient-reported fatigue severity assessment</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -271,7 +271,7 @@ export default function PROMISFatigueScaleShortForm8aRunner({ client, onSave, on
                         max="40"
                         value={rawScore}
                         onChange={handleRawScoreChange}
-                        placeholder="8â€“40"
+                        placeholder="8–40"
                       />
                       <p className="text-xs text-slate-500 mt-1">Auto-converts to T-Score</p>
                     </div>
@@ -287,7 +287,7 @@ export default function PROMISFatigueScaleShortForm8aRunner({ client, onSave, on
                         step="0.1"
                         value={tScore}
                         onChange={handleTScoreChange}
-                        placeholder="33.1â€“77.8"
+                        placeholder="33.1–77.8"
                       />
                     </div>
                   </div>
@@ -347,7 +347,7 @@ export default function PROMISFatigueScaleShortForm8aRunner({ client, onSave, on
 
           {state === "setup" && (
             <Button onClick={startQuestionnaire} className="bg-blue-600 hover:bg-blue-700">
-              Start Assessment â†’
+              Start Assessment →
             </Button>
           )}
 
@@ -357,7 +357,7 @@ export default function PROMISFatigueScaleShortForm8aRunner({ client, onSave, on
               disabled={!isFormValid}
               className="bg-blue-600 hover:bg-blue-700"
             >
-              Review Results â†’
+              Review Results →
             </Button>
           )}
 

@@ -703,7 +703,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
 
   const isAstrand = () => {
     return assessment.name.toLowerCase().includes('astrand') || 
-           assessment.name.toLowerCase().includes('Ã¥strand');
+           assessment.name.toLowerCase().includes('åstrand');
   };
 
   const isJTA = () => {
@@ -1064,7 +1064,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
 
     // 1RM Testing - Show all exercises with side specificity
     if (data.measurement_type === 'one_rm' && data.one_rm_data) {
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       if (data.one_rm_data.exercises && data.one_rm_data.exercises.length > 0) {
         data.one_rm_data.exercises.forEach(ex => {
           const sideLabel = ex.side ? ` (${ex.side.toUpperCase()})` : '';
@@ -1077,7 +1077,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     }
     // Isometric Strength - Show all tests with sides
     else if (data.measurement_type === 'isometric_strength' && data.isometric_data) {
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       objectiveText += `  Average Force: ${data.isometric_data.average_force_kg} kg across ${data.isometric_data.total_tests} tests\n`;
       if (data.isometric_data.tests && data.isometric_data.tests.length > 0) {
         objectiveText += `\n  Individual Tests:\n`;
@@ -1089,38 +1089,38 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     }
     // Isokinetics - Show bilateral data
     else if (data.measurement_type === 'isokinetics' && data.isokinetics_data) {
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       const iso = data.isokinetics_data;
-      objectiveText += `  Joint: ${iso.joint_tested}, Movement: ${iso.movement_tested}, Speed: ${iso.angular_velocity_deg_sec}Â°/s\n`;
+      objectiveText += `  Joint: ${iso.joint_tested}, Movement: ${iso.movement_tested}, Speed: ${iso.angular_velocity_deg_sec}°/s\n`;
       objectiveText += `  Left Peak Torque: ${iso.left_peak_torque_nm} Nm\n`;
       objectiveText += `  Right Peak Torque: ${iso.right_peak_torque_nm} Nm\n`;
       if (iso.asymmetry_percent) {
-        objectiveText += `  Asymmetry: ${iso.asymmetry_percent}% ${iso.asymmetry_percent > 10 ? 'âš ï¸ Significant' : ''}\n`;
+        objectiveText += `  Asymmetry: ${iso.asymmetry_percent}% ${iso.asymmetry_percent > 10 ? '⚠ï¸ Significant' : ''}\n`;
       }
     }
     // Special Tests (Ely, Thomas, Ober) - Show bilateral results
     else if (data.measurement_type === 'special_test' && data.special_test_data) {
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       const st = data.special_test_data;
-      if (st.left_result) objectiveText += `  Left: ${st.left_result} ${st.left_angle_degrees ? `(${st.left_angle_degrees}Â°)` : ''}\n`;
-      if (st.right_result) objectiveText += `  Right: ${st.right_result} ${st.right_angle_degrees ? `(${st.right_angle_degrees}Â°)` : ''}\n`;
+      if (st.left_result) objectiveText += `  Left: ${st.left_result} ${st.left_angle_degrees ? `(${st.left_angle_degrees}°)` : ''}\n`;
+      if (st.right_result) objectiveText += `  Right: ${st.right_result} ${st.right_angle_degrees ? `(${st.right_angle_degrees}°)` : ''}\n`;
       if (st.interpretation) objectiveText += `  Interpretation: ${st.interpretation}\n`;
     }
     // SLR Test - Bilateral neural tension
     else if (data.measurement_type === 'slr' && data.slr_data) {
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       if (data.slr_data.left_data) {
-        objectiveText += `  Left: ${data.slr_data.left_data.angle_degrees}Â° - ${data.slr_data.left_data.interpretation}\n`;
+        objectiveText += `  Left: ${data.slr_data.left_data.angle_degrees}° - ${data.slr_data.left_data.interpretation}\n`;
         if (data.slr_data.left_data.pain_location) objectiveText += `    Pain: ${data.slr_data.left_data.pain_location}\n`;
       }
       if (data.slr_data.right_data) {
-        objectiveText += `  Right: ${data.slr_data.right_data.angle_degrees}Â° - ${data.slr_data.right_data.interpretation}\n`;
+        objectiveText += `  Right: ${data.slr_data.right_data.angle_degrees}° - ${data.slr_data.right_data.interpretation}\n`;
         if (data.slr_data.right_data.pain_location) objectiveText += `    Pain: ${data.slr_data.right_data.pain_location}\n`;
       }
     }
     // Slump Test - Bilateral
     else if (data.measurement_type === 'slump' && data.slump_data) {
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       if (data.slump_data.left_data) {
         objectiveText += `  Left: ${data.slump_data.left_data.interpretation}\n`;
         if (data.slump_data.left_data.symptoms) objectiveText += `    Symptoms: ${data.slump_data.left_data.symptoms}\n`;
@@ -1132,7 +1132,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     }
     // Knee Stability Tests - Bilateral
     else if (data.measurement_type === 'knee_stability' && data.knee_stability_data) {
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       if (data.knee_stability_data.left_interpretation) {
         objectiveText += `  Left: ${data.knee_stability_data.left_interpretation}\n`;
       }
@@ -1142,20 +1142,20 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     }
     // DASS-21 subscale display
     else if (data.depression_score !== undefined && data.anxiety_score !== undefined && data.stress_score !== undefined) {
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       objectiveText += `  Depression Score: ${data.depression_score}/42 (${data.depression_interpretation})\n`;
       objectiveText += `  Anxiety Score: ${data.anxiety_score}/42 (${data.anxiety_interpretation})\n`;
       objectiveText += `  Stress Score: ${data.stress_score}/42 (${data.stress_interpretation})\n`;
     }
     // HADS - Separate subscales
     else if (data.anxiety_score !== undefined && data.depression_score !== undefined && data.measurement_type !== 'dass21') {
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       objectiveText += `  Anxiety Score: ${data.anxiety_score}/21 (${data.anxiety_interpretation})\n`;
       objectiveText += `  Depression Score: ${data.depression_score}/21 (${data.depression_interpretation})\n`;
     }
     // Questionnaire-based assessments - show all questions and responses
     else if (assessmentData.additional_data && assessmentData.additional_data.measurement_type === 'questionnaire') {
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       objectiveText += `  Total Score: ${assessmentData.result_value}\n`;
 
       if (assessment.questions && assessmentData.additional_data.responses) {
@@ -1191,14 +1191,14 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       const domHand = data.dominant_hand ? data.dominant_hand.charAt(0).toUpperCase() + data.dominant_hand.slice(1) : 'Dominant';
       const nonDomHand = data.dominant_hand === 'right' ? 'Left' : 'Right';
 
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       objectiveText += `  - ${domHand} Hand Trials: ${data.dominant_trial_1 || 'N/A'}, ${data.dominant_trial_2 || 'N/A'}, ${data.dominant_trial_3 || 'N/A'} (kg). Best: ${data.dominant_best || 'N/A'} kg\n`;
       objectiveText += `  - ${nonDomHand} Hand Trials: ${data.non_dominant_trial_1 || 'N/A'}, ${data.non_dominant_trial_2 || 'N/A'}, ${data.non_dominant_trial_3 || 'N/A'} (kg). Best: ${data.non_dominant_best || 'N/A'} kg\n`;
     }
     // 6 Minute Walk Test
     else if (assessmentData.additional_data && assessmentData.additional_data.measurement_type === '6mwt') {
       const data = assessmentData.additional_data;
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       objectiveText += `  Total Distance: ${assessmentData.result_value} meters\n`;
       objectiveText += `  Laps Completed: ${data.sixmwt_laps || 'N/A'}\n`;
       objectiveText += `  Rest Periods: ${data.sixmwt_rest_periods || 0}\n\n`;
@@ -1226,7 +1226,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     // 2-Minute Step Test
     else if (assessmentData.additional_data && assessmentData.additional_data.measurement_type === '2min_step') {
       const data = assessmentData.additional_data;
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       objectiveText += `  Total Steps: ${assessmentData.result_value}\n\n`;
       objectiveText += `  Post-Test Scales:\n`;
       objectiveText += `    - RPE: ${data.two_min_step_rpe || 'N/A'}/20\n`;
@@ -1244,7 +1244,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     // Single Leg Stance
     else if (assessmentData.additional_data && assessmentData.additional_data.measurement_type === 'single_leg_stance') {
       const data = assessmentData.additional_data;
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       objectiveText += `  Eyes Open:\n`;
       objectiveText += `    - Left Leg: ${data.sls_left_eyes_open || 'N/A'} seconds\n`;
       objectiveText += `    - Right Leg: ${data.sls_right_eyes_open || 'N/A'} seconds\n`;
@@ -1279,7 +1279,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     // Blood Pressure
     else if (assessmentData.additional_data && assessmentData.additional_data.measurement_type === 'blood_pressure') {
       const data = assessmentData.additional_data;
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       objectiveText += `  Pre-Exercise: ${data.pre_exercise_systolic}/${data.pre_exercise_diastolic} mmHg\n`;
       if (data.post_exercise_systolic) {
         objectiveText += `  Post-Exercise: ${data.post_exercise_systolic}/${data.post_exercise_diastolic} mmHg\n`;
@@ -1296,7 +1296,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     // Heart Rate
     else if (assessmentData.additional_data && assessmentData.additional_data.measurement_type === 'heart_rate') {
       const data = assessmentData.additional_data;
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       objectiveText += `  Pre-Exercise: ${data.pre_exercise_hr} bpm\n`;
       if (data.post_exercise_hr) {
         objectiveText += `  Post-Exercise: ${data.post_exercise_hr} bpm\n`;
@@ -1322,7 +1322,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     // SpO2
     else if (assessmentData.additional_data && assessmentData.additional_data.measurement_type === 'spo2') {
       const data = assessmentData.additional_data;
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       objectiveText += `  Pre-Exercise: ${data.pre_exercise_spo2}%\n`;
       if (data.post_exercise_spo2) {
         objectiveText += `  Post-Exercise: ${data.post_exercise_spo2}%\n`;
@@ -1342,7 +1342,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     // Heart Rate Recovery
     else if (assessmentData.additional_data && assessmentData.additional_data.measurement_type === 'heart_rate_recovery') {
       const data = assessmentData.additional_data;
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       objectiveText += `  Peak Exercise HR: ${data.hrr_peak_hr || 'N/A'} bpm\n`;
       objectiveText += `  Recovery HR at 1 min: ${data.hrr_1min || 'N/A'} bpm\n`;
       if (data.hrr_2min) {
@@ -1374,14 +1374,14 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     // ROM Assessment
     else if (assessmentData.additional_data && assessmentData.additional_data.measurement_type === 'rom_assessment') {
       const romData = assessmentData.additional_data.rom_data;
-      objectiveText += `â€¢ ${assessment.name} - ${romData.jointName}:\n`;
+      objectiveText += `• ${assessment.name} - ${romData.jointName}:\n`;
 
       if (romData.measurements) {
         Object.entries(romData.measurements).forEach(([movement, values]) => {
           if (values.left || values.right) {
             objectiveText += `  - ${movement}: `;
-            if (values.left) objectiveText += `L: ${values.left}Â° `;
-            if (values.right) objectiveText += `R: ${values.right}Â°`;
+            if (values.left) objectiveText += `L: ${values.left}° `;
+            if (values.right) objectiveText += `R: ${values.right}°`;
             objectiveText += '\n';
           }
         });
@@ -1409,7 +1409,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       const painScore = assessmentData.result_value;
       const severity = painScore === 0 ? 'No Pain' : painScore <= 3 ? 'Mild' : painScore <= 6 ? 'Moderate' : 'Severe';
       
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       objectiveText += `  Overall Pain Score: ${painScore}/10 (${severity})\n`;
       
       if (data.pain_locations && data.pain_locations.length > 0) {
@@ -1440,7 +1440,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     }
     // All other specialized assessments with detailed data extraction
     else if (data.measurement_type) {
-      objectiveText += `â€¢ ${assessment.name}:\n`;
+      objectiveText += `• ${assessment.name}:\n`;
       
       // Extract all relevant data based on measurement type
       switch(data.measurement_type) {
@@ -1481,7 +1481,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
               const items = [
                 'Sitting to Standing', 'Standing Unsupported', 'Sitting Unsupported', 'Standing to Sitting',
                 'Transfers', 'Standing Eyes Closed', 'Standing Feet Together', 'Reaching Forward',
-                'Retrieving Object', 'Turning to Look Behind', 'Turning 360Â°', 'Placing Foot on Stool',
+                'Retrieving Object', 'Turning to Look Behind', 'Turning 360°', 'Placing Foot on Stool',
                 'Tandem Stance', 'Standing on One Foot'
               ];
               items.forEach((item, idx) => {
@@ -1576,7 +1576,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             objectiveText += `  Total Score: ${data.phq9_data.total_score}/27\n`;
             objectiveText += `  Severity: ${data.phq9_data.severity}\n`;
             if (data.phq9_data.suicidal_ideation_endorsed) {
-              objectiveText += `  âš ï¸ ALERT: Suicidal ideation endorsed - follow-up required\n`;
+              objectiveText += `  ⚠ï¸ ALERT: Suicidal ideation endorsed - follow-up required\n`;
             }
           }
           break;
@@ -1635,7 +1635,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             if (sixmwtData.post_dyspnea) objectiveText += `    Dyspnea: ${sixmwtData.post_dyspnea}/10\n`;
 
             if (sixmwtData.terminated && sixmwtData.termination_reason) {
-              objectiveText += `\n  âš ï¸ Test Terminated: ${sixmwtData.termination_reason}\n`;
+              objectiveText += `\n  ⚠ï¸ Test Terminated: ${sixmwtData.termination_reason}\n`;
             }
 
             if (sixmwtData.rest_periods_detail && sixmwtData.rest_periods_detail.length > 0) {
@@ -1681,7 +1681,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           if (data.cooper_data) {
             const cooperData = data.cooper_data;
             objectiveText += `  Distance: ${cooperData.distance_metres}m\n`;
-            objectiveText += `  Estimated VOâ‚‚max: ${cooperData.estimated_vo2max} ml/kg/min\n`;
+            objectiveText += `  Estimated VO₂max: ${cooperData.estimated_vo2max} ml/kg/min\n`;
             if (cooperData.rpe) objectiveText += `  RPE: ${cooperData.rpe}/20\n`;
             if (cooperData.notes && cooperData.notes.trim()) {
               objectiveText += `  Test Notes: ${cooperData.notes}\n`;
@@ -1691,7 +1691,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         case 'beep_test':
           if (data.beep_data || data.final_level) { const beepInfo = data.beep_data || data; objectiveText += `  20m Shuttle Run (Beep Test):\n  MSFT Result: Level ${beepInfo.final_level} Shuttle ${beepInfo.final_shuttle}\n`; if (beepInfo.total_shuttles_completed) objectiveText += `  Total Shuttles Completed: ${beepInfo.total_shuttles_completed}\n`; if (beepInfo.rpe_6_20) objectiveText += `  RPE: ${beepInfo.rpe_6_20}/20\n`; if (beepInfo.peak_hr_bpm) objectiveText += `  Peak HR: ${beepInfo.peak_hr_bpm} bpm\n`; if (beepInfo.termination_reason) objectiveText += `  Termination Reason: ${beepInfo.termination_reason}\n`; if (beepInfo.symptoms_reported?.trim()) objectiveText += `  Symptoms Reported: ${beepInfo.symptoms_reported}\n`; if (beepInfo.notes_deviation?.trim()) objectiveText += `  Protocol Notes: ${beepInfo.notes_deviation}\n`; } break;
         case '4_stage_balance':
-          if (data.four_stage_balance_data) { const fsb = data.four_stage_balance_data; objectiveText += `  Highest Stage Achieved: ${fsb.stage_achieved}/4\n  Fall Risk: ${fsb.fall_risk === 'increased' ? 'Increased âš ï¸' : 'Normal âœ“'}\n  Stage 1 (Feet Together): ${fsb.feet_together || '-'} (${fsb.feet_together_time?.toFixed(1) || '-'}s)\n  Stage 2 (Semi-Tandem): ${fsb.semi_tandem || '-'} (${fsb.semi_tandem_time?.toFixed(1) || '-'}s)\n  Stage 3 (Tandem): ${fsb.tandem || '-'} (${fsb.tandem_time?.toFixed(1) || '-'}s)\n  Stage 4 (Single Leg): ${fsb.single_leg || '-'} (${fsb.single_leg_time?.toFixed(1) || '-'}s)\n`; if (fsb.clinician_notes) objectiveText += `  Overall Notes: ${fsb.clinician_notes}\n`; if (fsb.stage_notes) Object.entries(fsb.stage_notes).forEach(([s, n]) => { if (n) objectiveText += `  Notes for ${s.replace(/_/g, ' ')}: ${n}\n`; }); } break;
+          if (data.four_stage_balance_data) { const fsb = data.four_stage_balance_data; objectiveText += `  Highest Stage Achieved: ${fsb.stage_achieved}/4\n  Fall Risk: ${fsb.fall_risk === 'increased' ? 'Increased ⚠ï¸' : 'Normal ✓'}\n  Stage 1 (Feet Together): ${fsb.feet_together || '-'} (${fsb.feet_together_time?.toFixed(1) || '-'}s)\n  Stage 2 (Semi-Tandem): ${fsb.semi_tandem || '-'} (${fsb.semi_tandem_time?.toFixed(1) || '-'}s)\n  Stage 3 (Tandem): ${fsb.tandem || '-'} (${fsb.tandem_time?.toFixed(1) || '-'}s)\n  Stage 4 (Single Leg): ${fsb.single_leg || '-'} (${fsb.single_leg_time?.toFixed(1) || '-'}s)\n`; if (fsb.clinician_notes) objectiveText += `  Overall Notes: ${fsb.clinician_notes}\n`; if (fsb.stage_notes) Object.entries(fsb.stage_notes).forEach(([s, n]) => { if (n) objectiveText += `  Notes for ${s.replace(/_/g, ' ')}: ${n}\n`; }); } break;
         case 'thessaly':
         case 'apleys':
         case 'noble':
@@ -1734,7 +1734,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     }
     else {
       // Standard assessment formatting
-      objectiveText += `â€¢ ${assessment.name}: ${assessmentData.result_value}`;
+      objectiveText += `• ${assessment.name}: ${assessmentData.result_value}`;
       if (assessment.unit_of_measure) {
         objectiveText += ` ${assessment.unit_of_measure}`;
       }
@@ -2902,7 +2902,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           </div>
         </div>
         {timerSeconds >= 120 && (
-          <p className="mt-2 text-green-600 font-semibold">âœ“ 2 minutes complete! Stop counting.</p>
+          <p className="mt-2 text-green-600 font-semibold">✓ 2 minutes complete! Stop counting.</p>
         )}
       </div>
 
@@ -3000,7 +3000,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           </div>
         </div>
         {timerSeconds >= 60 && (
-          <p className="mt-2 text-green-600 font-semibold">âœ“ 60 seconds reached! Maximum time achieved.</p>
+          <p className="mt-2 text-green-600 font-semibold">✓ 60 seconds reached! Maximum time achieved.</p>
         )}
       </div>
 
@@ -3373,7 +3373,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                 <p className="text-slate-600">Anterior Asymmetry</p>
                 <p className={`font-bold text-lg ${anteriorAsymmetry > 4 ? 'text-red-600' : 'text-slate-600'}`}>
                   {anteriorAsymmetry.toFixed(1)} cm
-                  {anteriorAsymmetry > 4 && <span className="text-xs block">âš ï¸ Elevated Risk</span>}
+                  {anteriorAsymmetry > 4 && <span className="text-xs block">⚠ï¸ Elevated Risk</span>}
                 </p>
               </div>
             </div>
@@ -3559,10 +3559,10 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
         <h4 className="font-semibold text-blue-900 mb-2">Instructions to Patient:</h4>
         <div className="text-sm text-blue-800 space-y-1">
-          <p>â€¢ "I'm going to show you four positions."</p>
-          <p>â€¢ "Try to stand in each position for 10 seconds."</p>
-          <p>â€¢ "You can hold your arms out, or move your body to help keep your balance, but don't move your feet."</p>
-          <p>â€¢ "For each position I will say, 'Ready, begin.' Then, I will start timing. After 10 seconds, I will say, 'Stop.'"</p>
+          <p>• "I'm going to show you four positions."</p>
+          <p>• "Try to stand in each position for 10 seconds."</p>
+          <p>• "You can hold your arms out, or move your body to help keep your balance, but don't move your feet."</p>
+          <p>• "For each position I will say, 'Ready, begin.' Then, I will start timing. After 10 seconds, I will say, 'Stop.'"</p>
         </div>
         <div className="mt-3 pt-3 border-t border-blue-300 text-sm text-blue-800">
           <p><strong>Test Protocol:</strong> Demonstrate each position. Stand next to patient, hold their arm, and help them assume the correct position. When steady, let go and time. If they hold for 10 seconds without moving feet or needing support, proceed to next position. If not, STOP the test.</p>
@@ -3600,7 +3600,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             </Button>
           </div>
           {timerSeconds >= 10 && (
-            <span className="text-green-600 font-semibold">âœ“ 10 seconds!</span>
+            <span className="text-green-600 font-semibold">✓ 10 seconds!</span>
           )}
         </div>
       </div>
@@ -3608,7 +3608,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       <div className="grid md:grid-cols-2 gap-4">
         {/* Stage 1: Feet Together */}
         <div className={`p-4 rounded-lg border-2 ${result.four_stage_feet_together === 'pass' ? 'bg-green-50 border-green-300' : result.four_stage_feet_together === 'fail' ? 'bg-red-50 border-red-300' : 'bg-slate-50 border-slate-200'}`}>
-          <h4 className="font-semibold text-slate-900 mb-2">â‘  Stand with feet side-by-side</h4>
+          <h4 className="font-semibold text-slate-900 mb-2">① Stand with feet side-by-side</h4>
           <p className="text-xs text-slate-600 mb-3">Feet together, touching</p>
           <div className="flex gap-2">
             <Button
@@ -3634,7 +3634,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
 
         {/* Stage 2: Semi-Tandem */}
         <div className={`p-4 rounded-lg border-2 ${result.four_stage_semi_tandem === 'pass' ? 'bg-green-50 border-green-300' : result.four_stage_semi_tandem === 'fail' ? 'bg-red-50 border-red-300' : 'bg-slate-50 border-slate-200'}`}>
-          <h4 className="font-semibold text-slate-900 mb-2">â‘¡ Place instep touching big toe</h4>
+          <h4 className="font-semibold text-slate-900 mb-2">② Place instep touching big toe</h4>
           <p className="text-xs text-slate-600 mb-3">Instep of one foot touching big toe of other foot</p>
           <div className="flex gap-2">
             <Button
@@ -3662,7 +3662,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
 
         {/* Stage 3: Tandem */}
         <div className={`p-4 rounded-lg border-2 ${result.four_stage_tandem === 'pass' ? 'bg-green-50 border-green-300' : result.four_stage_tandem === 'fail' ? 'bg-red-50 border-red-300' : 'bg-slate-50 border-slate-200'}`}>
-          <h4 className="font-semibold text-slate-900 mb-2">â‘¢ Tandem stand: heel touching toe</h4>
+          <h4 className="font-semibold text-slate-900 mb-2">③ Tandem stand: heel touching toe</h4>
           <p className="text-xs text-slate-600 mb-3">Place one foot in front of the other, heel touching toe</p>
           <div className="flex gap-2">
             <Button
@@ -3690,7 +3690,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
 
         {/* Stage 4: Single Leg */}
         <div className={`p-4 rounded-lg border-2 ${result.four_stage_single_leg === 'pass' ? 'bg-green-50 border-green-300' : result.four_stage_single_leg === 'fail' ? 'bg-red-50 border-red-300' : 'bg-slate-50 border-slate-200'}`}>
-          <h4 className="font-semibold text-slate-900 mb-2">â‘£ Stand on one foot</h4>
+          <h4 className="font-semibold text-slate-900 mb-2">④ Stand on one foot</h4>
           <p className="text-xs text-slate-600 mb-3">Stand on one foot (other foot lifted off ground)</p>
           <div className="flex gap-2">
             <Button
@@ -3730,7 +3730,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             }
           </p>
           {result.four_stage_tandem !== 'pass' && (
-            <p className="text-red-600 font-semibold mt-2">âš ï¸ Unable to hold tandem stance for 10 seconds = Increased risk of falling</p>
+            <p className="text-red-600 font-semibold mt-2">⚠ï¸ Unable to hold tandem stance for 10 seconds = Increased risk of falling</p>
           )}
         </div>
       )}
@@ -3767,8 +3767,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
               (values.left || values.right) && (
                 <p key={movement} className="text-green-800">
                   <strong>{movement}:</strong> 
-                  {values.left && ` L: ${values.left}Â°`}
-                  {values.right && ` R: ${values.right}Â°`}
+                  {values.left && ` L: ${values.left}°`}
+                  {values.right && ` R: ${values.right}°`}
                 </p>
               )
             ))}
@@ -4148,10 +4148,10 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             {isHabitualGaitSpeed() && (
               <div className="mt-3 pt-3 border-t">
                 <p className="text-sm font-semibold">
-                  {speed >= 1.0 ? 'âœ“ Normal community ambulation' : 
-                   speed >= 0.8 ? 'âš ï¸ Some limitation' : 
-                   speed >= 0.6 ? 'âš ï¸ Significant limitation' : 
-                   'âš ï¸ High fall/frailty risk'}
+                  {speed >= 1.0 ? '✓ Normal community ambulation' : 
+                   speed >= 0.8 ? '⚠ï¸ Some limitation' : 
+                   speed >= 0.6 ? '⚠ï¸ Significant limitation' : 
+                   '⚠ï¸ High fall/frailty risk'}
                 </p>
               </div>
             )}
@@ -4290,10 +4290,10 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
               {/* Clinician Instructions - always shown */}
               <div className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-lg p-5 shadow-md">
                 <h3 className="font-bold text-white mb-2 flex items-center gap-2">
-                  <span className="text-lg">ðŸ’¬</span> Clinician Instructions
+                  <span className="text-lg">💬</span> Clinician Instructions
                 </h3>
                 <div className="text-base leading-relaxed bg-white/10 backdrop-blur-sm rounded p-3 whitespace-pre-wrap">
-                  {assessment.instructions || `Administer the ${assessment.name} according to standardised protocol.\n\n${assessment.description ? `About: ${assessment.description}\n\n` : ''}${assessment.equipment_needed ? `Equipment needed: ${assessment.equipment_needed}\n\n` : ''}${assessment.contraindications ? `âš ï¸ Contraindications: ${assessment.contraindications}\n\n` : ''}${assessment.scoring_system ? `Scoring: ${assessment.scoring_system}` : 'Record the result below and add any clinical observations in the notes field.'}`}
+                  {assessment.instructions || `Administer the ${assessment.name} according to standardised protocol.\n\n${assessment.description ? `About: ${assessment.description}\n\n` : ''}${assessment.equipment_needed ? `Equipment needed: ${assessment.equipment_needed}\n\n` : ''}${assessment.contraindications ? `⚠ï¸ Contraindications: ${assessment.contraindications}\n\n` : ''}${assessment.scoring_system ? `Scoring: ${assessment.scoring_system}` : 'Record the result below and add any clinical observations in the notes field.'}`}
                 </div>
               </div>
 
@@ -4897,7 +4897,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                 <div className="space-y-4">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <p className="text-sm text-blue-800">
-                      Click below to start the Ã…strand-Rhyming cycle ergometer test.
+                      Click below to start the Åstrand-Rhyming cycle ergometer test.
                     </p>
                   </div>
                   <Button
@@ -4907,11 +4907,11 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                     size="lg"
                   >
                     <Play className="w-5 h-5 mr-2" />
-                    Start Ã…strand Test
+                    Start Åstrand Test
                   </Button>
                   {astrandData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                      <h4 className="font-semibold text-green-900 mb-2">Ã…strand Test Completed</h4>
+                      <h4 className="font-semibold text-green-900 mb-2">Åstrand Test Completed</h4>
                       <p className="text-2xl font-bold text-green-600">{astrandData.estimated_vo2max} ml/kg/min</p>
                       <p className="text-sm text-green-700">{astrandData.interpretation}</p>
                     </div>
@@ -5039,7 +5039,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                         phq9Data.suicidal_ideation_endorsed ? 'text-red-900' : 'text-green-900'
                       }`}>
                         PHQ-9 Completed
-                        {phq9Data.suicidal_ideation_endorsed && " âš ï¸"}
+                        {phq9Data.suicidal_ideation_endorsed && " ⚠ï¸"}
                       </h4>
                       <p className={`text-2xl font-bold ${
                         phq9Data.suicidal_ideation_endorsed ? 'text-red-600' : 'text-green-600'
@@ -5266,7 +5266,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {oneRMData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">1RM Testing Completed</h4>
-                      <p className="text-sm text-green-700">{oneRMData.additional_data?.exercise_tested || "Exercise"} â€” {oneRMData.result_value} {oneRMData.additional_data?.units || "kg"}</p>
+                      <p className="text-sm text-green-700">{oneRMData.additional_data?.exercise_tested || "Exercise"} — {oneRMData.result_value} {oneRMData.additional_data?.units || "kg"}</p>
                     </div>
                   )}
                 </div>
@@ -5484,7 +5484,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                     </div>
                   )}
                 </div>
-              ) : isNaughton() ? (<div className="space-y-4"><Button type="button" onClick={() => setShowNaughtonRunner(true)} className="w-full" size="lg"><Play className="w-5 h-5 mr-2" />Start Naughton Treadmill Protocol</Button>{naughtonData && (<div className="bg-green-50 border border-green-200 rounded-lg p-4"><h4 className="font-semibold text-green-900">Completed â€” Est. VOâ‚‚max: {naughtonData.additional_data?.estimated_vo2max} mL/kg/min</h4></div>)}</div>) : isBruceProtocol() || isModifiedBruce() ? (
+              ) : isNaughton() ? (<div className="space-y-4"><Button type="button" onClick={() => setShowNaughtonRunner(true)} className="w-full" size="lg"><Play className="w-5 h-5 mr-2" />Start Naughton Treadmill Protocol</Button>{naughtonData && (<div className="bg-green-50 border border-green-200 rounded-lg p-4"><h4 className="font-semibold text-green-900">Completed — Est. VO₂max: {naughtonData.additional_data?.estimated_vo2max} mL/kg/min</h4></div>)}</div>) : isBruceProtocol() || isModifiedBruce() ? (
                 <div className="space-y-4">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <p className="text-sm text-blue-800">Click below to perform {assessment.name}.</p>
@@ -5498,7 +5498,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                       <h4 className="font-semibold text-green-900 mb-2">Test Completed</h4>
                       <p className="text-sm text-green-700">
                         Time: {Math.floor(bruceData.total_time_seconds / 60)}:{(bruceData.total_time_seconds % 60).toString().padStart(2, '0')} | 
-                        VOâ‚‚max: {bruceData.estimated_vo2max} ml/kg/min
+                        VO₂max: {bruceData.estimated_vo2max} ml/kg/min
                       </p>
                     </div>
                   )}
@@ -5516,7 +5516,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">Test Completed</h4>
                       <p className="text-sm text-green-700">
-                        {cycleData.estimated_vo2max && `VOâ‚‚max: ${cycleData.estimated_vo2max} ml/kg/min`}
+                        {cycleData.estimated_vo2max && `VO₂max: ${cycleData.estimated_vo2max} ml/kg/min`}
                       </p>
                     </div>
                   )}
@@ -5543,7 +5543,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {cooperData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">Test Completed</h4>
-                      <p className="text-sm text-green-700">Distance: {cooperData.distance_metres}m | VOâ‚‚max: {cooperData.estimated_vo2max}</p>
+                      <p className="text-sm text-green-700">Distance: {cooperData.distance_metres}m | VO₂max: {cooperData.estimated_vo2max}</p>
                     </div>
                   )}
                 </div>
@@ -5556,7 +5556,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {beepData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">Test Completed</h4>
-                      <p className="text-sm text-green-700">Level: {beepData.final_level} | VOâ‚‚max: {beepData.estimated_vo2max}</p>
+                      <p className="text-sm text-green-700">Level: {beepData.final_level} | VO₂max: {beepData.estimated_vo2max}</p>
                     </div>
                   )}
                 </div>
@@ -6093,7 +6093,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                       <p className={`text-sm ${
                         fourStageBalanceData.fall_risk === 'increased' ? 'text-red-700' : 'text-green-700'
                       }`}>
-                        {fourStageBalanceData.fall_risk === 'increased' ? 'âš ï¸ Increased fall risk' : 'âœ“ Normal balance'}
+                        {fourStageBalanceData.fall_risk === 'increased' ? '⚠ï¸ Increased fall risk' : '✓ Normal balance'}
                       </p>
                     </div>
                   )}
@@ -6200,7 +6200,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                 <div className="space-y-4">
                   {!dass21Data ? (<Button type="button" onClick={() => setShowDASS21Runner(true)} className="w-full" size="lg"><Play className="w-5 h-5 mr-2" />Start DASS-21 Assessment</Button>) : (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
-                      <h4 className="font-semibold text-green-900">DASS-21 Completed âœ“</h4>
+                      <h4 className="font-semibold text-green-900">DASS-21 Completed ✓</h4>
                       <p className="text-sm text-green-700">Depression: {dass21Data.depression_score}/42 ({dass21Data.depression_interpretation}) | Anxiety: {dass21Data.anxiety_score}/42 ({dass21Data.anxiety_interpretation}) | Stress: {dass21Data.stress_score}/42 ({dass21Data.stress_interpretation})</p>
                       <Button type="button" onClick={() => handleSubmit({ preventDefault: () => {} })} disabled={isSubmitting} className="w-full bg-green-600 hover:bg-green-700">{isSubmitting ? 'Saving...' : 'Save DASS-21 to Client Record'}</Button>
                     </div>
@@ -6320,7 +6320,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {assessment.scoring_system && (
                   <div className="bg-amber-50 border border-amber-300 rounded-lg p-4">
                   <h3 className="font-semibold text-amber-900 mb-2 flex items-center gap-2">
-                   ðŸ“Š Norms & Interpretation
+                   📊 Norms & Interpretation
                   </h3>
                   <div className="text-sm text-amber-900 whitespace-pre-wrap">
                    {assessment.scoring_system}
@@ -6332,7 +6332,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {assessment.references && (
                   <div className="bg-slate-50 border border-slate-300 rounded-lg p-4">
                   <h3 className="font-semibold text-slate-900 mb-2 flex items-center gap-2">
-                   ðŸ“š References
+                   📚 References
                   </h3>
                   <div className="text-sm text-slate-700 whitespace-pre-wrap">
                    {assessment.references}
@@ -6714,7 +6714,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         />
       )}
 
-      {/* Ã…strand Test Runner Modal */}
+      {/* Åstrand Test Runner Modal */}
       {showAstrandRunner && (
         <AstrandTestRunner
           onSave={(data) => {

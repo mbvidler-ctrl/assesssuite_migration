@@ -89,9 +89,9 @@ export default function FMSRunner({ onSave, onClose }) {
     }
 
     const soapText = [
-      `â€¢ Functional Movement Screen (FMS)`,
-      `  Total Score: ${total}/21 â€” ${interpretation?.level}`,
-      Object.keys(painReported).length > 0 ? `  âš ï¸ Pain reported during testing â€” medical referral required` : null,
+      `• Functional Movement Screen (FMS)`,
+      `  Total Score: ${total}/21 — ${interpretation?.level}`,
+      Object.keys(painReported).length > 0 ? `  ⚠ï¸ Pain reported during testing — medical referral required` : null,
       notes ? `  Notes: ${notes}` : null,
     ].filter(Boolean).join('\n');
 
@@ -136,7 +136,7 @@ export default function FMSRunner({ onSave, onClose }) {
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">
                 <p><strong>Scoring:</strong> Each test scored 0-3. For bilateral tests, use the lower score.</p>
-                <p><strong>Total Score:</strong> 21 points maximum. â‰¤14 associated with increased injury risk.</p>
+                <p><strong>Total Score:</strong> 21 points maximum. ≤14 associated with increased injury risk.</p>
                 <p><strong>Pain:</strong> Any pain during testing = 0 for that movement and requires medical clearance.</p>
               </CardContent>
             </Card>
@@ -240,12 +240,12 @@ export default function FMSRunner({ onSave, onClose }) {
                   <p className="font-semibold text-2xl">Total Score: {total} / 21</p>
                   {total <= 14 && (
                     <p className="mt-3 text-sm">
-                      Scores â‰¤14 are associated with higher injury risk. Focus on correcting identified movement limitations.
+                      Scores ≤14 are associated with higher injury risk. Focus on correcting identified movement limitations.
                     </p>
                   )}
                   {Object.keys(painReported).length > 0 && (
                     <p className="mt-3 text-sm font-semibold">
-                      âš ï¸ Pain reported during testing. Medical clearance required before exercise participation.
+                      ⚠ï¸ Pain reported during testing. Medical clearance required before exercise participation.
                     </p>
                   )}
                 </CardContent>

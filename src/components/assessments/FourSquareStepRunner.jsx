@@ -33,8 +33,8 @@ export default function FourSquareStepRunner({ client, onSave, onClose, initialD
   };
 
   const getInterpretation = (time) => {
-    if (time > 15) return { text: "High fall risk (â‰¥15s)", color: "text-red-700 bg-red-50 border-red-200" };
-    if (time > 12) return { text: "Increased fall risk (12â€“15s)", color: "text-yellow-700 bg-yellow-50 border-yellow-200" };
+    if (time > 15) return { text: "High fall risk (≥15s)", color: "text-red-700 bg-red-50 border-red-200" };
+    if (time > 12) return { text: "Increased fall risk (12–15s)", color: "text-yellow-700 bg-yellow-50 border-yellow-200" };
     return { text: "Low fall risk (<12s)", color: "text-green-700 bg-green-50 border-green-200" };
   };
 
@@ -47,9 +47,9 @@ export default function FourSquareStepRunner({ client, onSave, onClose, initialD
 
     const interpretation = getInterpretation(best).text;
 
-    const soapText = `â€¢ Four Square Step Test (FSST)\n  Best Time: ${best.toFixed(2)}s\n  Interpretation: ${interpretation}\n\n  Trials:\n    Trial 1: ${data.trial1 ? data.trial1 + "s" : "â€”"}\n    Trial 2: ${data.trial2 ? data.trial2 + "s" : "â€”"}${
+    const soapText = `• Four Square Step Test (FSST)\n  Best Time: ${best.toFixed(2)}s\n  Interpretation: ${interpretation}\n\n  Trials:\n    Trial 1: ${data.trial1 ? data.trial1 + "s" : "—"}\n    Trial 2: ${data.trial2 ? data.trial2 + "s" : "—"}${
       data.observations ? `\n\n  Observations: ${data.observations}` : ""
-    }\n\n  Reference: Dite, W., & Temple, V. A. (2002). Development of a clinical measure of turning for older adults. American Journal of Physical Medicine & Rehabilitation, 81(3), 180â€“188.`;
+    }\n\n  Reference: Dite, W., & Temple, V. A. (2002). Development of a clinical measure of turning for older adults. American Journal of Physical Medicine & Rehabilitation, 81(3), 180–188.`;
 
     onSave({
       status: "completed",
@@ -99,7 +99,7 @@ export default function FourSquareStepRunner({ client, onSave, onClose, initialD
               <div>
                 <p className="font-semibold text-slate-900">Measurement:</p>
                 <p className="text-slate-700">
-                  <strong>Time to completion (seconds)</strong> â€” The faster the client completes the task, the better the balance and mobility. Best of two trials is recorded.
+                  <strong>Time to completion (seconds)</strong> — The faster the client completes the task, the better the balance and mobility. Best of two trials is recorded.
                 </p>
               </div>
               <div>
@@ -131,7 +131,7 @@ export default function FourSquareStepRunner({ client, onSave, onClose, initialD
                   <p className="font-semibold">Equipment Required:</p>
                   <ul className="list-disc list-inside ml-2 space-y-1 text-xs mt-1">
                     <li>4 canes or dowels (1 meter length, 1.5 inches diameter), placed perpendicular to each other forming a cross/square</li>
-                    <li>Open floor space â‰¥2 meters Ã— 2 meters</li>
+                    <li>Open floor space ≥2 meters × 2 meters</li>
                     <li>Stopwatch or timer (accurate to 0.01 seconds)</li>
                     <li>Client wearing comfortable, slip-resistant footwear</li>
                   </ul>
@@ -167,7 +167,7 @@ export default function FourSquareStepRunner({ client, onSave, onClose, initialD
                 <div className="bg-white p-3 rounded border border-amber-200">
                   <p className="font-semibold mb-2">Test Sequence:</p>
                   <p className="text-xs">
-                    <strong>Clockwise:</strong> Start in square 1 â†’ step into square 2 (forward-right) â†’ square 3 (back-right) â†’ square 4 (back-left) â†’ back to square 1 (forward-left)
+                    <strong>Clockwise:</strong> Start in square 1 → step into square 2 (forward-right) → square 3 (back-right) → square 4 (back-left) → back to square 1 (forward-left)
                   </p>
                   <p className="text-xs mt-1">
                     <strong>Counter-clockwise:</strong> Reverse the sequence in the opposite direction
@@ -189,7 +189,7 @@ export default function FourSquareStepRunner({ client, onSave, onClose, initialD
                 <div className="bg-white p-3 rounded border border-amber-200 italic">
                   <p className="font-semibold mb-1">Clinician Script:</p>
                   <p className="text-xs">
-                    "This test measures your balance and stepping ability. You'll step over these lines in a specific pattern. First, you'll step clockwise (1â†’2â†’3â†’4â†’1), then counter-clockwise in reverse. Both feet must touch each square before moving to the next. I'll time you as you complete the pattern. Let's do a practice trial first to make sure you understand."
+                    "This test measures your balance and stepping ability. You'll step over these lines in a specific pattern. First, you'll step clockwise (1→2→3→4→1), then counter-clockwise in reverse. Both feet must touch each square before moving to the next. I'll time you as you complete the pattern. Let's do a practice trial first to make sure you understand."
                   </p>
                 </div>
               </CardContent>
@@ -223,10 +223,10 @@ export default function FourSquareStepRunner({ client, onSave, onClose, initialD
                   </div>
                 </div>
                 <p className="text-xs text-slate-600 mt-3">
-                  <strong>Clockwise:</strong> 1â†’2â†’3â†’4â†’1
+                  <strong>Clockwise:</strong> 1→2→3→4→1
                 </p>
                 <p className="text-xs text-slate-600">
-                  <strong>Counter-clockwise:</strong> 1â†’4â†’3â†’2â†’1
+                  <strong>Counter-clockwise:</strong> 1→4→3→2→1
                 </p>
               </div>
             </CardContent>
@@ -248,18 +248,18 @@ export default function FourSquareStepRunner({ client, onSave, onClose, initialD
                 <div className="bg-white p-2 rounded border border-green-200">
                   <p className="font-semibold mb-1">Fall Risk Classification:</p>
                   <p><strong>&lt;12 seconds:</strong> Low fall risk; good balance and mobility</p>
-                  <p><strong>12â€“15 seconds:</strong> Increased fall risk; some balance or agility deficits</p>
-                  <p><strong>â‰¥15 seconds:</strong> High fall risk; significant balance/mobility limitations</p>
+                  <p><strong>12–15 seconds:</strong> Increased fall risk; some balance or agility deficits</p>
+                  <p><strong>≥15 seconds:</strong> High fall risk; significant balance/mobility limitations</p>
                 </div>
                 <div className="bg-white p-2 rounded border border-green-200">
                   <p className="font-semibold mb-1">Normative Values:</p>
-                  <p><strong>Healthy older adults (65â€“74):</strong> 8â€“12 seconds</p>
-                  <p><strong>Older adults (75+):</strong> 12â€“15 seconds</p>
-                  <p><strong>High fall risk (â‰¥15s):</strong> Increased likelihood of future falls; recommend fall prevention strategies</p>
+                  <p><strong>Healthy older adults (65–74):</strong> 8–12 seconds</p>
+                  <p><strong>Older adults (75+):</strong> 12–15 seconds</p>
+                  <p><strong>High fall risk (≥15s):</strong> Increased likelihood of future falls; recommend fall prevention strategies</p>
                 </div>
                 <div className="bg-white p-2 rounded border border-green-200">
                   <p className="font-semibold mb-1">Clinical Significance:</p>
-                  <p>Each 1-second increase is associated with 1.1Ã— increase in fall risk. Times â‰¥15s have 2â€“3Ã— higher fall risk. Used to identify need for balance training, assistive devices, or environmental modifications.</p>
+                  <p>Each 1-second increase is associated with 1.1× increase in fall risk. Times ≥15s have 2–3× higher fall risk. Used to identify need for balance training, assistive devices, or environmental modifications.</p>
                 </div>
               </CardContent>
             )}
@@ -278,7 +278,7 @@ export default function FourSquareStepRunner({ client, onSave, onClose, initialD
                 <strong>MDC (Minimal Detectable Change):</strong> ~1.5 seconds represents true change in performance; smaller differences may reflect measurement error.
               </p>
               <p>
-                <strong>Utility:</strong> Quick (â‰¤5 minutes), requires minimal equipment, applicable to community and clinical settings. Useful for screening, baseline assessment, and monitoring response to balance training.
+                <strong>Utility:</strong> Quick (≤5 minutes), requires minimal equipment, applicable to community and clinical settings. Useful for screening, baseline assessment, and monitoring response to balance training.
               </p>
             </CardContent>
           </Card>
@@ -297,13 +297,13 @@ export default function FourSquareStepRunner({ client, onSave, onClose, initialD
             {expandedSection === "references" && (
               <CardContent className="text-xs text-slate-700 space-y-2">
                 <p>
-                  <strong>Dite, W., &amp; Temple, V. A.</strong> (2002). Development of a clinical measure of turning for older adults. <em>American Journal of Physical Medicine &amp; Rehabilitation</em>, 81(3), 180â€“188.
+                  <strong>Dite, W., &amp; Temple, V. A.</strong> (2002). Development of a clinical measure of turning for older adults. <em>American Journal of Physical Medicine &amp; Rehabilitation</em>, 81(3), 180–188.
                 </p>
                 <p>
-                  <strong>Whitney, S. L., Wrisley, D. M., Furman, J. M., Soto-Varela, A., &amp; Brown, K. E.</strong> (2005). Reliability and validity of the Dynamic Gait Index in people with vestibular disorders. <em>Otology &amp; Neurotology</em>, 26(4), 716â€“721.
+                  <strong>Whitney, S. L., Wrisley, D. M., Furman, J. M., Soto-Varela, A., &amp; Brown, K. E.</strong> (2005). Reliability and validity of the Dynamic Gait Index in people with vestibular disorders. <em>Otology &amp; Neurotology</em>, 26(4), 716–721.
                 </p>
                 <p>
-                  <strong>Tinetti, M. E.</strong> (2003). Clinical practice: Preventing falls in elderly persons. <em>New England Journal of Medicine</em>, 348, 42â€“49.
+                  <strong>Tinetti, M. E.</strong> (2003). Clinical practice: Preventing falls in elderly persons. <em>New England Journal of Medicine</em>, 348, 42–49.
                 </p>
                 <Button
                   onClick={() => window.open("https://www.apta.org/", "_blank")}

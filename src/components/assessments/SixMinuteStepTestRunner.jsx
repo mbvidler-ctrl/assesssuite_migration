@@ -145,7 +145,7 @@ export default function SixMinuteStepTestRunner({ client, onSave, onClose }) {
         <div className="p-6 space-y-6">
           {/* Clinician Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-1">
-            <p className="font-semibold">ðŸ“‹ Administration Instructions (Butland Protocol)</p>
+            <p className="font-semibold">📋 Administration Instructions (Butland Protocol)</p>
             <p><strong>Step height:</strong> Standard = 20 cm. Client steps up and down at self-selected pace for 6 minutes. Count total step cycles (up-up-down-down = 1 step cycle).</p>
             <p className="italic">"Step up and down on the step for 6 minutes, pacing yourself. You may slow down or rest if needed. Try to step as many times as possible."</p>
             <p><strong>Safety:</strong> Supervise closely, especially in those with respiratory or cardiac conditions. Have chair nearby. Monitor SpO2 continuously if available.</p>
@@ -153,14 +153,14 @@ export default function SixMinuteStepTestRunner({ client, onSave, onClose }) {
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Normative Values â€” 6-Minute Step Test (20 cm, steps)</p>
+            <p className="font-semibold text-slate-700">📊 Normative Values — 6-Minute Step Test (20 cm, steps)</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Age</th><th className="p-2 text-center">Men (avg)</th><th className="p-2 text-center">Women (avg)</th></tr></thead>
                 <tbody>
-                  <tr className="border-t"><td className="p-2">55â€“64</td><td className="p-2 text-center">78â€“107</td><td className="p-2 text-center">72â€“94</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">65â€“74</td><td className="p-2 text-center">70â€“96</td><td className="p-2 text-center">64â€“85</td></tr>
-                  <tr className="border-t"><td className="p-2">75â€“84</td><td className="p-2 text-center">55â€“80</td><td className="p-2 text-center">50â€“70</td></tr>
+                  <tr className="border-t"><td className="p-2">55–64</td><td className="p-2 text-center">78–107</td><td className="p-2 text-center">72–94</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">65–74</td><td className="p-2 text-center">70–96</td><td className="p-2 text-center">64–85</td></tr>
+                  <tr className="border-t"><td className="p-2">75–84</td><td className="p-2 text-center">55–80</td><td className="p-2 text-center">50–70</td></tr>
                 </tbody>
               </table>
             </div>
@@ -169,7 +169,7 @@ export default function SixMinuteStepTestRunner({ client, onSave, onClose }) {
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
+            <p className="font-semibold">📖 Reference</p>
             <p>Rikli RE & Jones CJ. (2013). <em>Senior Fitness Test Manual</em> (2nd ed.). Human Kinetics.</p>
             <p>Butland RJ et al. (1982). Two-, six-, and 12-minute walking tests in respiratory disease. <em>British Medical Journal, 284</em>(6329), 1607.</p>
           </div>

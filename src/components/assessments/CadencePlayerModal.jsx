@@ -3,13 +3,13 @@ import { X, Music, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 /**
- * CadencePlayerModal â€” embeds a YouTube cadence/metronome video in a modal.
+ * CadencePlayerModal — embeds a YouTube cadence/metronome video in a modal.
  * Props:
  *   isOpen: boolean
  *   onClose: () => void
- *   youtubeUrl: string  â€” full YouTube URL (watch or search)
- *   title: string       â€” protocol name
- *   cadence: number     â€” steps/min
+ *   youtubeUrl: string  — full YouTube URL (watch or search)
+ *   title: string       — protocol name
+ *   cadence: number     — steps/min
  *   description: string
  */
 export default function CadencePlayerModal({ isOpen, onClose, youtubeUrl, title, cadence, description }) {
@@ -20,7 +20,7 @@ export default function CadencePlayerModal({ isOpen, onClose, youtubeUrl, title,
     if (!url) return null;
     // Already an embed
     if (url.includes("/embed/")) return url;
-    // Search URL â€” can't embed search pages, open externally
+    // Search URL — can't embed search pages, open externally
     if (url.includes("youtube.com/results")) return null;
     // Standard watch?v=
     const match = url.match(/[?&]v=([^&]+)/);
@@ -50,7 +50,7 @@ export default function CadencePlayerModal({ isOpen, onClose, youtubeUrl, title,
             <div>
               <p className="text-white font-bold text-sm">{title}</p>
               <p className="text-sky-200 text-xs mt-0.5">
-                Cadence Guide â€” {cadence} steps/min
+                Cadence Guide — {cadence} steps/min
               </p>
             </div>
           </div>
@@ -94,7 +94,7 @@ export default function CadencePlayerModal({ isOpen, onClose, youtubeUrl, title,
           <div className="flex items-center justify-between bg-sky-50 border border-sky-200 rounded-xl px-4 py-3">
             <div className="text-xs text-sky-800">
               <span className="font-semibold">{cadence} steps/min</span>
-              <span className="text-sky-600 ml-2">â€” maintain this rhythm throughout the test</span>
+              <span className="text-sky-600 ml-2">— maintain this rhythm throughout the test</span>
             </div>
             {youtubeUrl && (
               <a

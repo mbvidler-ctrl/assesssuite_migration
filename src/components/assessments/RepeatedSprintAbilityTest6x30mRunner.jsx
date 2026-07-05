@@ -111,7 +111,7 @@ export default function RepeatedSprintAbilityTest6x30mRunner({ client, onSave, o
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
         {/* Header */}
         <div className="border-b pb-4">
-          <h1 className="text-3xl font-bold text-slate-900">Repeated Sprint Ability Test â€“ 6 x 30 m</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Repeated Sprint Ability Test – 6 x 30 m</h1>
           <p className="text-slate-600 mt-2">Assessment of maximal sprint speed and repeated sprint fatigue resistance over longer distances</p>
         </div>
 
@@ -165,19 +165,19 @@ export default function RepeatedSprintAbilityTest6x30mRunner({ client, onSave, o
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <h4 className="font-semibold text-purple-900 mb-2">Interpretation</h4>
                   <div className="space-y-2 text-sm text-purple-800">
-                    <p><strong>Peak Sprint Time:</strong> Fastest sprintâ€”indicates maximum explosive power for longer distance</p>
-                    <p><strong>Mean Sprint Time:</strong> Average across all 6 sprintsâ€”reflects overall sprint capacity</p>
-                    <p><strong>Performance Decrement (%):</strong> (Total Time / (Best Time Ã— 6) âˆ’ 1) Ã— 100 â†’ Indicates fatigue resistance</p>
+                    <p><strong>Peak Sprint Time:</strong> Fastest sprint—indicates maximum explosive power for longer distance</p>
+                    <p><strong>Mean Sprint Time:</strong> Average across all 6 sprints—reflects overall sprint capacity</p>
+                    <p><strong>Performance Decrement (%):</strong> (Total Time / (Best Time × 6) − 1) × 100 → Indicates fatigue resistance</p>
                     <p className="mt-3">
                       <strong>Performance Decrement Reference:</strong>
                     </p>
                     <ul className="list-disc list-inside space-y-1 ml-2">
                       <li>&lt;5%: Excellent fatigue resistance</li>
-                      <li>5â€“10%: Good fatigue resistance</li>
+                      <li>5–10%: Good fatigue resistance</li>
                       <li>&gt;10%: Poor fatigue resistance</li>
                     </ul>
                     <p className="mt-3">
-                      <strong>Typical Values:</strong> Elite male athletes average 4.0â€“4.2 seconds per 30m sprint with &lt;5% decrement
+                      <strong>Typical Values:</strong> Elite male athletes average 4.0–4.2 seconds per 30m sprint with &lt;5% decrement
                     </p>
                   </div>
                 </div>

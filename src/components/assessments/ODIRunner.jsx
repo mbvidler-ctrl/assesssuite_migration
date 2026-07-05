@@ -45,8 +45,8 @@ const ODI_SECTIONS = [
     options: [
       "Pain does not prevent me walking any distance",
       "Pain prevents me walking more than 1 mile",
-      "Pain prevents me walking more than Â½ mile",
-      "Pain prevents me walking more than Â¼ mile",
+      "Pain prevents me walking more than ½ mile",
+      "Pain prevents me walking more than ¼ mile",
       "I can only walk using a stick or crutches",
       "I am in bed most of the time and have to crawl to the toilet"
     ]
@@ -57,7 +57,7 @@ const ODI_SECTIONS = [
       "I can sit in any chair as long as I like",
       "I can sit in my favorite chair as long as I like",
       "Pain prevents me sitting more than 1 hour",
-      "Pain prevents me from sitting more than Â½ hour",
+      "Pain prevents me from sitting more than ½ hour",
       "Pain prevents me from sitting more than 10 minutes",
       "Pain prevents me from sitting at all"
     ]
@@ -68,7 +68,7 @@ const ODI_SECTIONS = [
       "I can stand as long as I want without extra pain",
       "I can stand as long as I want but it gives me extra pain",
       "Pain prevents me from standing for more than 1 hour",
-      "Pain prevents me from standing for more than Â½ hour",
+      "Pain prevents me from standing for more than ½ hour",
       "Pain prevents me from standing for more than 10 minutes",
       "Pain prevents me from standing at all"
     ]
@@ -153,7 +153,7 @@ export default function ODIRunner({ onSave, onClose }) {
     }
 
     const soapLines = [
-      `â€¢ Oswestry Disability Index (ODI)`,
+      `• Oswestry Disability Index (ODI)`,
       `  Total Score: ${total}/50 (${percentage}% disability)`,
       `  Interpretation: ${interpretation?.level}`,
       ``,

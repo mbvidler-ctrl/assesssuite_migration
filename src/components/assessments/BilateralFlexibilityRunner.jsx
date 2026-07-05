@@ -30,7 +30,7 @@ export default function BilateralFlexibilityRunner({ testName, onSave, onClose, 
     const leftBest = calculateBest('left');
     const rightBest = calculateBest('right');
     const average = (leftBest + rightBest) / 2;
-    const soapText = `â€¢ ${testName}\n  Left Best: ${leftBest.toFixed(1)} | Right Best: ${rightBest.toFixed(1)}\n  Asymmetry: ${Math.abs(leftBest - rightBest).toFixed(1)}${data.observations ? `\n  Observations: ${data.observations}` : ''}`;
+    const soapText = `• ${testName}\n  Left Best: ${leftBest.toFixed(1)} | Right Best: ${rightBest.toFixed(1)}\n  Asymmetry: ${Math.abs(leftBest - rightBest).toFixed(1)}${data.observations ? `\n  Observations: ${data.observations}` : ''}`;
 
     onSave({
       result_value: average,

@@ -61,12 +61,12 @@ export default function HarvardStepRunner({ onSave, onClose, initialData }) {
     }
 
     const soapText = [
-      `â€¢ Harvard Step Test`,
+      `• Harvard Step Test`,
       `  Duration: ${data.duration_completed}s`,
       data.hr_1min ? `  HR 1-2 min: ${data.hr_1min} bpm` : null,
       data.hr_2min ? `  HR 2-3 min: ${data.hr_2min} bpm` : null,
       data.hr_3min ? `  HR 3-4 min: ${data.hr_3min} bpm` : null,
-      fitnessIndex ? `  Fitness Index: ${fitnessIndex} â€” ${interpretation}` : null,
+      fitnessIndex ? `  Fitness Index: ${fitnessIndex} — ${interpretation}` : null,
       data.reason_stopped ? `  Stopped: ${data.reason_stopped}` : null,
     ].filter(Boolean).join('\n');
 
@@ -135,15 +135,15 @@ export default function HarvardStepRunner({ onSave, onClose, initialData }) {
                     <li>Explain and demonstrate the 4-count stepping cycle: <em>up-up-down-down</em> at the metronome pace</li>
                     <li>Client steps continuously for <strong>5 minutes</strong> or until they cannot maintain the cadence</li>
                     <li>Immediately on stopping, client <strong>sits down</strong></li>
-                    <li>Measure pulse (30-second count Ã— 2) at: <strong>1â€“2 min, 2â€“3 min, and 3â€“4 min</strong> post-exercise</li>
+                    <li>Measure pulse (30-second count × 2) at: <strong>1–2 min, 2–3 min, and 3–4 min</strong> post-exercise</li>
                     <li>Record the number of seconds the exercise was maintained (max 300 s)</li>
                   </ol>
                 </div>
 
                 <div>
-                  <p className="font-semibold text-slate-800 mb-1">Scoring â€” Physical Fitness Index (PFI)</p>
+                  <p className="font-semibold text-slate-800 mb-1">Scoring — Physical Fitness Index (PFI)</p>
                   <div className="bg-slate-50 border border-slate-200 rounded p-3 font-mono text-xs mb-2">
-                    PFI = (Duration in seconds Ã— 100) Ã· (2 Ã— [HRâ‚ + HRâ‚‚ + HRâ‚ƒ])
+                    PFI = (Duration in seconds × 100) ÷ (2 × [HRâ‚ + HR₂ + HR₃])
                   </div>
                   <div className="overflow-x-auto">
                     <table className="text-xs w-full border border-slate-200 rounded">
@@ -154,7 +154,7 @@ export default function HarvardStepRunner({ onSave, onClose, initialData }) {
                         </tr>
                       </thead>
                       <tbody>
-                        {[['â‰¥ 90','Excellent'],['80â€“89','Good'],['65â€“79','Average'],['55â€“64','Below Average'],['< 55','Poor']].map(([score, label]) => (
+                        {[['≥ 90','Excellent'],['80–89','Good'],['65–79','Average'],['55–64','Below Average'],['< 55','Poor']].map(([score, label]) => (
                           <tr key={score} className="border-b last:border-0">
                             <td className="px-2 py-1 font-semibold">{score}</td>
                             <td className="px-2 py-1">{label}</td>
@@ -170,13 +170,13 @@ export default function HarvardStepRunner({ onSave, onClose, initialData }) {
                   <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded p-3 mb-2">
                     <AlertTriangle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
                     <div className="text-xs text-red-700 space-y-1">
-                      <p className="font-semibold">Absolute contraindications â€” do NOT perform if:</p>
+                      <p className="font-semibold">Absolute contraindications — do NOT perform if:</p>
                       <ul className="list-disc list-inside space-y-0.5">
                         <li>Acute cardiovascular event or unstable angina</li>
                         <li>Uncontrolled hypertension (resting SBP &gt; 180 or DBP &gt; 110 mmHg)</li>
                         <li>Acute musculoskeletal injury affecting lower limb function</li>
                         <li>Severe orthopaedic limitation preventing stepping</li>
-                        <li>Resting SpOâ‚‚ &lt; 90%</li>
+                        <li>Resting SpO₂ &lt; 90%</li>
                       </ul>
                     </div>
                   </div>
@@ -186,7 +186,7 @@ export default function HarvardStepRunner({ onSave, onClose, initialData }) {
                     <li>Severe dyspnoea or inability to breathe adequately</li>
                     <li>Dizziness, pre-syncope, or pallor</li>
                     <li>Leg cramping or severe pain</li>
-                    <li>Unable to maintain stepping cadence for â‰¥ 20 seconds</li>
+                    <li>Unable to maintain stepping cadence for ≥ 20 seconds</li>
                   </ul>
                 </div>
 
@@ -197,15 +197,15 @@ export default function HarvardStepRunner({ onSave, onClose, initialData }) {
                     <li>Full knee extension is required at the top of each step</li>
                     <li>Pulse counts should begin within 5 seconds of stopping exercise</li>
                     <li>Test-retest reliability is improved with consistent pacing and pulse measurement method</li>
-                    <li>Consider using a 30-second pulse count (multiply Ã— 2) to minimise measurement error</li>
+                    <li>Consider using a 30-second pulse count (multiply × 2) to minimise measurement error</li>
                   </ul>
                 </div>
 
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Psychometric Properties</p>
                   <ul className="list-disc list-inside text-slate-600 space-y-0.5">
-                    <li>Moderate correlation with VOâ‚‚max (r â‰ˆ 0.60â€“0.75)</li>
-                    <li>Test-retest reliability: ICC 0.79â€“0.89 in healthy adults</li>
+                    <li>Moderate correlation with VO₂max (r ≈ 0.60–0.75)</li>
+                    <li>Test-retest reliability: ICC 0.79–0.89 in healthy adults</li>
                     <li>Validity limited in populations with abnormal HR response (e.g., beta-blockers, cardiac conditions)</li>
                   </ul>
                 </div>
@@ -214,11 +214,11 @@ export default function HarvardStepRunner({ onSave, onClose, initialData }) {
                    <p className="font-semibold text-slate-800 mb-1">References & Links</p>
                    <a href="https://www.physio-pedia.com/Harvard_Step_Test" target="_blank" rel="noopener noreferrer"
                      className="flex items-center gap-1 text-blue-600 hover:underline text-xs">
-                     <ExternalLink className="w-3 h-3" /> Physio-pedia â€” Harvard Step Test Overview
+                     <ExternalLink className="w-3 h-3" /> Physio-pedia — Harvard Step Test Overview
                    </a>
                    <a href="https://www.topendsports.com/testing/tests/step-harvard.htm" target="_blank" rel="noopener noreferrer"
                      className="flex items-center gap-1 text-blue-600 hover:underline text-xs">
-                     <ExternalLink className="w-3 h-3" /> Topend Sports â€” Protocol & Norms
+                     <ExternalLink className="w-3 h-3" /> Topend Sports — Protocol & Norms
                    </a>
                  </div>
 
@@ -268,7 +268,7 @@ export default function HarvardStepRunner({ onSave, onClose, initialData }) {
               </div>
             </div>
             {timerSeconds >= 300 && (
-              <p className="mt-2 text-green-600 font-semibold">âœ“ 5 minutes complete!</p>
+              <p className="mt-2 text-green-600 font-semibold">✓ 5 minutes complete!</p>
             )}
           </div>
 

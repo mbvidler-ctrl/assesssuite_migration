@@ -26,8 +26,8 @@ const ITEMS = [
     label: "2. Supine to Sitting over Edge of Bed",
     grades: [
       { score: 0, desc: "Starting position: Side lying. Comes to sitting over side of bed with therapist's assistance." },
-      { score: 1, desc: "Side lying to sitting over side of bed â€” therapist assists patient with movement throughout." },
-      { score: 2, desc: "Side lying to sitting over side of bed â€” therapist provides assistance with legs over side of bed." },
+      { score: 1, desc: "Side lying to sitting over side of bed — therapist assists patient with movement throughout." },
+      { score: 2, desc: "Side lying to sitting over side of bed — therapist provides assistance with legs over side of bed." },
       { score: 3, desc: "Side lying to sitting over side of bed independently." },
       { score: 4, desc: "Side lying to sitting over side of bed independently in 10 seconds." },
       { score: 5, desc: "Side lying to sitting over side of bed independently in 5 seconds." },
@@ -80,10 +80,10 @@ const ITEMS = [
       { score: 0, desc: "Starting position: Sitting, arm resting on table. Raises affected arm to opposite shoulder." },
       { score: 1, desc: "Therapist places arm in position. Patient maintains position for 2 seconds." },
       { score: 2, desc: "Therapist places arm. Patient maintains for 10 seconds. Does not support with other hand." },
-      { score: 3, desc: "Patient holds arm above head for 2 seconds (shoulder at 90Â°)." },
+      { score: 3, desc: "Patient holds arm above head for 2 seconds (shoulder at 90°)." },
       { score: 4, desc: "Patient raises arm to above head, elbows straight, for 10 seconds." },
       { score: 5, desc: "Patient raises arm above head then lowers to touch top of head 10 times." },
-      { score: 6, desc: "Patient raises arm above head using both arms â€” raises affected arm independently." },
+      { score: 6, desc: "Patient raises arm above head using both arms — raises affected arm independently." },
     ],
   },
   {
@@ -92,8 +92,8 @@ const ITEMS = [
     grades: [
       { score: 0, desc: "Starting position: Forearm resting on table. Wrist extension: patient moves wrist to neutral." },
       { score: 1, desc: "Clinician places wrist in extension. Patient holds position for 2 seconds." },
-      { score: 2, desc: "Patient extends wrist at least 15Â°." },
-      { score: 3, desc: "Patient extends wrist with elbow at 90Â° in 3 directions (flexion, extension, mid-position)." },
+      { score: 2, desc: "Patient extends wrist at least 15°." },
+      { score: 3, desc: "Patient extends wrist with elbow at 90° in 3 directions (flexion, extension, mid-position)." },
       { score: 4, desc: "Patient pronates/supinates forearm and extends wrist in all 3 positions." },
       { score: 5, desc: "Patient uses fingers to press buttons (3 buttons, 14 seconds)." },
       { score: 6, desc: "Patient picks up small objects one at a time with pincer grip." },
@@ -106,7 +106,7 @@ const ITEMS = [
       { score: 0, desc: "Starting position: Arm at side. Picks up large ball with both hands and places on table." },
       { score: 1, desc: "Uses affected hand as assist, picks up large ball and places to side." },
       { score: 2, desc: "Picks up tennis ball from table with thumb and fingers. No pronation." },
-      { score: 3, desc: "Picks up ball â€” brings to mouth." },
+      { score: 3, desc: "Picks up ball — brings to mouth." },
       { score: 4, desc: "Picks up ball, places at specific location (15 cm in front)." },
       { score: 5, desc: "Draws horizontal lines to stop a vertical line 10 times in 20 seconds." },
       { score: 6, desc: "Holds pencil, draws continuous circles around dots on paper." },
@@ -129,10 +129,10 @@ export default function MotorAssessmentScaleMASStrokeRunner({ client, onSave, on
     const soapLines = ITEMS.map(item => {
       const grade = ITEMS.find(i => i.key === item.key);
       const gradeInfo = grade?.grades.find(g => g.score === parseInt(scores[item.key]));
-      return `  ${item.label}: ${scores[item.key]}/6${gradeInfo ? ` â€” ${gradeInfo.desc.split('.')[0]}` : ''}`;
+      return `  ${item.label}: ${scores[item.key]}/6${gradeInfo ? ` — ${gradeInfo.desc.split('.')[0]}` : ''}`;
     }).join('\n');
 
-    const soapText = `â€¢ Motor Assessment Scale (MAS-Stroke): Total ${totalScore}/48\n${soapLines}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`;
+    const soapText = `• Motor Assessment Scale (MAS-Stroke): Total ${totalScore}/48\n${soapLines}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`;
 
     onSave({
       result_value: totalScore,
@@ -157,7 +157,7 @@ export default function MotorAssessmentScaleMASStrokeRunner({ client, onSave, on
         <div className="p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 flex justify-between items-start">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">Motor Assessment Scale (MAS-Stroke)</h2>
-            <p className="text-slate-600 text-sm mt-1">Rate each item 0â€“6 based on the patient's best performance</p>
+            <p className="text-slate-600 text-sm mt-1">Rate each item 0–6 based on the patient's best performance</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -165,9 +165,9 @@ export default function MotorAssessmentScaleMASStrokeRunner({ client, onSave, on
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
-            <p>Carr JH, Shepherd RB, Nordholm L, & Lynne D. (1985). Investigation of a new motor assessment scale for stroke patients. <em>Physical Therapy, 65</em>(2), 175â€“180.</p>
-            <p>Poole JL & Whitney SL. (1988). Motor Assessment Scale for stroke patients: concurrent validity and interrater reliability. <em>Archives of Physical Medicine and Rehabilitation, 69</em>(3), 195â€“197.</p>
+            <p className="font-semibold">📖 Reference</p>
+            <p>Carr JH, Shepherd RB, Nordholm L, & Lynne D. (1985). Investigation of a new motor assessment scale for stroke patients. <em>Physical Therapy, 65</em>(2), 175–180.</p>
+            <p>Poole JL & Whitney SL. (1988). Motor Assessment Scale for stroke patients: concurrent validity and interrater reliability. <em>Archives of Physical Medicine and Rehabilitation, 69</em>(3), 195–197.</p>
           </div>
 
           {/* Instructions toggle */}
@@ -181,14 +181,14 @@ export default function MotorAssessmentScaleMASStrokeRunner({ client, onSave, on
             {showInstructions && (
               <CardContent className="text-sm text-blue-800 space-y-2 pt-0">
                 <p><strong>Purpose:</strong> The MAS assesses motor function and mobility in patients following stroke. It measures functional tasks in 8 areas.</p>
-                <p><strong>Scoring:</strong> Each item is scored from <strong>0 (cannot perform)</strong> to <strong>6 (performs optimally)</strong>. Total score = 0â€“48. Higher scores indicate better motor function.</p>
+                <p><strong>Scoring:</strong> Each item is scored from <strong>0 (cannot perform)</strong> to <strong>6 (performs optimally)</strong>. Total score = 0–48. Higher scores indicate better motor function.</p>
                 <p><strong>Instructions:</strong> Test the patient in each area using the criteria for each grade level. Assign the highest grade the patient can <em>consistently</em> achieve. Use the dropdown descriptions to guide grading.</p>
                 <p><strong>Interpretation:</strong></p>
                 <ul className="list-disc ml-4 space-y-1">
-                  <li>0â€“12: Severe impairment</li>
-                  <li>13â€“24: Moderately severe impairment</li>
-                  <li>25â€“36: Moderate impairment</li>
-                  <li>37â€“47: Mild impairment</li>
+                  <li>0–12: Severe impairment</li>
+                  <li>13–24: Moderately severe impairment</li>
+                  <li>25–36: Moderate impairment</li>
+                  <li>37–47: Mild impairment</li>
                   <li>48: No impairment (optimal)</li>
                 </ul>
               </CardContent>
@@ -205,7 +205,7 @@ export default function MotorAssessmentScaleMASStrokeRunner({ client, onSave, on
                   onValueChange={(val) => setScores(prev => ({ ...prev, [item.key]: val }))}
                 >
                   <SelectTrigger className="mt-1">
-                    <SelectValue placeholder="Select grade (0â€“6)..." />
+                    <SelectValue placeholder="Select grade (0–6)..." />
                   </SelectTrigger>
                   <SelectContent>
                     {item.grades.map(g => (

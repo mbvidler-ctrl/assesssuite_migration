@@ -9,10 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { X, Save, AlertTriangle, CheckCircle, XCircle, Activity } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ ACSM VOâ‚‚ FORMULAS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Treadmill: VOâ‚‚ (ml/kg/min) = (speed Ã— 0.1) + (speed Ã— grade Ã— 1.8) + 3.5
+// ─── ACSM VO₂ FORMULAS ─────────────────────────────────────────────────────
+// Treadmill: VO₂ (ml/kg/min) = (speed × 0.1) + (speed × grade × 1.8) + 3.5
 // speed in m/min, grade as decimal
-// Cycle: VOâ‚‚ (ml/kg/min) = (1.8 Ã— workload / body_mass) + 7
+// Cycle: VO₂ (ml/kg/min) = (1.8 × workload / body_mass) + 7
 // workload in kgm/min (1W = ~6 kgm/min)
 function calcTreadmillVO2(speedKmh, gradePercent) {
   const speedMmin = (speedKmh * 1000) / 60;
@@ -24,7 +24,7 @@ function calcCycleVO2(wattsNum, bodyMassKg) {
   return (1.8 * kgmMin) / bodyMassKg + 7;
 }
 
-// â”€â”€â”€ NORMATIVE VOâ‚‚ CLASSIFICATION (ACSM) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── NORMATIVE VO₂ CLASSIFICATION (ACSM) ───────────────────────────────────
 const VO2_NORMS = {
   male: {
     "20-29": [{ label: "Poor", max: 36 }, { label: "Fair", max: 43 }, { label: "Good", max: 51 }, { label: "Excellent", max: 55 }, { label: "Superior", max: Infinity }],
@@ -72,40 +72,40 @@ const CATEGORY_STYLE = {
   Superior: { color: "text-emerald-700", bg: "bg-emerald-50 border-emerald-200" },
 };
 
-// â”€â”€â”€ MAXIMAL CRITERIA VALIDATION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MAXIMAL CRITERIA VALIDATION ────────────────────────────────────────────
 function validateMaximalCriteria(peakHR, age, rer, rpe, vo2Plateau) {
   const aphr = age ? 220 - parseInt(age) : null;
   const hrPct = aphr && peakHR ? (parseFloat(peakHR) / aphr) * 100 : null;
   return [
-    { label: "RER â‰¥ 1.10", met: rer ? parseFloat(rer) >= 1.10 : null, value: rer ? `${rer}` : null, criterion: "â‰¥ 1.10" },
-    { label: "HR â‰¥ 90% age-predicted max", met: hrPct ? hrPct >= 90 : null, value: hrPct ? `${hrPct.toFixed(0)}%` : null, criterion: "â‰¥ 90% (220 âˆ’ age)" },
-    { label: "RPE â‰¥ 17/20", met: rpe ? parseInt(rpe) >= 17 : null, value: rpe ? `${rpe}/20` : null, criterion: "â‰¥ 17" },
-    { label: "VOâ‚‚ plateau observed", met: vo2Plateau === "yes" ? true : vo2Plateau === "no" ? false : null, value: vo2Plateau || null, criterion: "< 150 mL/min rise" },
+    { label: "RER ≥ 1.10", met: rer ? parseFloat(rer) >= 1.10 : null, value: rer ? `${rer}` : null, criterion: "≥ 1.10" },
+    { label: "HR ≥ 90% age-predicted max", met: hrPct ? hrPct >= 90 : null, value: hrPct ? `${hrPct.toFixed(0)}%` : null, criterion: "≥ 90% (220 − age)" },
+    { label: "RPE ≥ 17/20", met: rpe ? parseInt(rpe) >= 17 : null, value: rpe ? `${rpe}/20` : null, criterion: "≥ 17" },
+    { label: "VO₂ plateau observed", met: vo2Plateau === "yes" ? true : vo2Plateau === "no" ? false : null, value: vo2Plateau || null, criterion: "< 150 mL/min rise" },
   ];
 }
 
-// â”€â”€â”€ RISK FLAGS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── RISK FLAGS ─────────────────────────────────────────────────────────────
 function assessRiskFlags({ peakSBP, baseSBP, peakHR, age, rer, ecg, recovHR1, recovHR2, hrPct }) {
   const flags = [];
-  if (peakSBP && parseFloat(peakSBP) > 250) flags.push({ label: "Hypertensive response", detail: `Peak SBP ${peakSBP} mmHg â€” stop if >250/115 mmHg`, severity: "red" });
-  if (peakSBP && baseSBP && (parseFloat(baseSBP) - parseFloat(peakSBP)) > 10) flags.push({ label: "Exertional hypotension", detail: `SBP dropped â‰¥10 mmHg below baseline â€” high-risk sign`, severity: "red" });
-  if (rer && parseFloat(rer) > 1.30) flags.push({ label: "Very high RER (>1.30)", detail: `RER ${rer} â€” may indicate severe acidosis or hyperventilation`, severity: "yellow" });
-  if (ecg && ecg !== "normal") flags.push({ label: `ECG: ${ecg.replace(/_/g," ")}`, detail: "Abnormal ECG finding â€” cardiology review warranted", severity: "red" });
+  if (peakSBP && parseFloat(peakSBP) > 250) flags.push({ label: "Hypertensive response", detail: `Peak SBP ${peakSBP} mmHg — stop if >250/115 mmHg`, severity: "red" });
+  if (peakSBP && baseSBP && (parseFloat(baseSBP) - parseFloat(peakSBP)) > 10) flags.push({ label: "Exertional hypotension", detail: `SBP dropped ≥10 mmHg below baseline — high-risk sign`, severity: "red" });
+  if (rer && parseFloat(rer) > 1.30) flags.push({ label: "Very high RER (>1.30)", detail: `RER ${rer} — may indicate severe acidosis or hyperventilation`, severity: "yellow" });
+  if (ecg && ecg !== "normal") flags.push({ label: `ECG: ${ecg.replace(/_/g," ")}`, detail: "Abnormal ECG finding — cardiology review warranted", severity: "red" });
   if (recovHR1 && recovHR1 !== "" && peakHR && (parseFloat(peakHR) - parseFloat(recovHR1)) < 12)
-    flags.push({ label: "Impaired HRR (1 min)", detail: `Recovery HR drop <12 bpm at 1 min â€” associated with increased CV mortality`, severity: "yellow" });
+    flags.push({ label: "Impaired HRR (1 min)", detail: `Recovery HR drop <12 bpm at 1 min — associated with increased CV mortality`, severity: "yellow" });
   if (recovHR2 && recovHR2 !== "" && peakHR && (parseFloat(peakHR) - parseFloat(recovHR2)) < 22)
-    flags.push({ label: "Impaired HRR (2 min)", detail: `Recovery HR drop <22 bpm at 2 min â€” impaired autonomic recovery`, severity: "yellow" });
+    flags.push({ label: "Impaired HRR (2 min)", detail: `Recovery HR drop <22 bpm at 2 min — impaired autonomic recovery`, severity: "yellow" });
   return flags;
 }
 
-// â”€â”€â”€ AUTO INTERPRETATION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── AUTO INTERPRETATION ────────────────────────────────────────────────────
 function generateInterpretation({ modality, protocol, vo2Rel, vo2Abs, category, hrPct, rer, rpe, criteria, peakWorkload, bodyMass, rer_at_vt, ventilatory_threshold, termination, peakSBP, flags, recovHR1, recovHR2, economy }) {
   const criteriaCount = criteria.filter(c => c.met === true).length;
   const isMaximal = criteriaCount >= 2;
 
   let para = "";
   if (vo2Rel) {
-    para += `The client achieved a ${isMaximal ? "maximal" : "peak"} VOâ‚‚ of ${parseFloat(vo2Rel).toFixed(1)} ml/kg/min`;
+    para += `The client achieved a ${isMaximal ? "maximal" : "peak"} VO₂ of ${parseFloat(vo2Rel).toFixed(1)} ml/kg/min`;
     if (vo2Abs) para += ` (${parseFloat(vo2Abs).toFixed(2)} L/min)`;
     para += ` on a ${modality === "treadmill" ? "treadmill" : "cycle ergometer"} ${protocol ? `using the ${protocol} protocol` : ""}. `;
     if (category) para += `This places the client in the <strong>${category}</strong> category for their age and sex (ACSM norms). `;
@@ -114,11 +114,11 @@ function generateInterpretation({ modality, protocol, vo2Rel, vo2Abs, category, 
   if (rer) {
     const rerVal = parseFloat(rer);
     para += `Peak RER was ${rerVal.toFixed(2)}, `;
-    para += rerVal >= 1.10 ? "confirming maximal effort. " : "which does not confirm true maximal effort â€” interpret as peak VOâ‚‚. ";
+    para += rerVal >= 1.10 ? "confirming maximal effort. " : "which does not confirm true maximal effort — interpret as peak VO₂. ";
   }
   if (ventilatory_threshold && vo2Rel) {
     const vtPct = ((parseFloat(ventilatory_threshold) / parseFloat(vo2Rel)) * 100).toFixed(0);
-    para += `Ventilatory threshold occurred at ${ventilatory_threshold} ml/kg/min (${vtPct}% of peak VOâ‚‚). `;
+    para += `Ventilatory threshold occurred at ${ventilatory_threshold} ml/kg/min (${vtPct}% of peak VO₂). `;
   }
   if (economy && economy !== "") para += `Exercise economy was ${economy} ml/kg/min. `;
   if (recovHR1) para += `Heart rate recovery at 1 minute post-exercise was ${recovHR1} bpm${parseFloat(recovHR1) >= 12 ? " (normal)" : " (impaired)"}. `;
@@ -126,11 +126,11 @@ function generateInterpretation({ modality, protocol, vo2Rel, vo2Abs, category, 
     const redFlags = flags.filter(f => f.severity === "red");
     if (redFlags.length > 0) para += `<strong class="text-red-600">Clinical flags were identified: ${redFlags.map(f => f.label).join("; ")}. Cardiology review is recommended.</strong> `;
   }
-  if (!isMaximal) para += `<em>Note: Fewer than 2 maximal criteria were met â€” result represents peak VOâ‚‚ rather than true VOâ‚‚max.</em>`;
+  if (!isMaximal) para += `<em>Note: Fewer than 2 maximal criteria were met — result represents peak VO₂ rather than true VO₂max.</em>`;
   return para;
 }
 
-// â”€â”€â”€ COMPONENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── COMPONENT ───────────────────────────────────────────────────────────────
 export default function VO2maxGXTRunner({ client, onSave, onClose }) {
   // Config
   const [modality, setModality] = useState("treadmill");
@@ -146,7 +146,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
   const [baselineSBP, setBaselineSBP] = useState("");
   const [baselineDBP, setBaselineDBP] = useState("");
 
-  // ACSM formula inputs (auto-calculated VOâ‚‚)
+  // ACSM formula inputs (auto-calculated VO₂)
   const [peakSpeedKmh, setPeakSpeedKmh] = useState("");
   const [peakGradePct, setPeakGradePct] = useState("");
   const [peakWatts, setPeakWatts] = useState("");
@@ -182,7 +182,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
   // Notes
   const [notes, setNotes] = useState("");
 
-  // â”€â”€â”€ COMPUTED VALUES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── COMPUTED VALUES ───────────────────────────────────────────────────────
   const computedVO2 = useMemo(() => {
     if (modality === "treadmill" && peakSpeedKmh && peakGradePct !== "") {
       return calcTreadmillVO2(parseFloat(peakSpeedKmh), parseFloat(peakGradePct));
@@ -208,7 +208,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
 
   const vo2Category = useMemo(() => classifyVO2(peakVO2Rel, clientAge, clientSex), [peakVO2Rel, clientAge, clientSex]);
 
-  // Exercise economy: VOâ‚‚ at submaximal workload (approximated as %VOâ‚‚ at 65% HR reserve)
+  // Exercise economy: VO₂ at submaximal workload (approximated as %VO₂ at 65% HR reserve)
   const oxygenPulse = useMemo(() => {
     if (!peakVO2Abs || !peakHR) return null;
     return ((peakVO2Abs * 1000) / parseFloat(peakHR)).toFixed(1);
@@ -232,22 +232,22 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
     });
   }, [peakVO2Rel, peakVO2Abs, vo2Category, hrPct, peakRER, peakRPE, maximalCriteria, bodyMass, ventilatoryThreshold, terminationReason, peakSBP, riskFlags, recovHR1, recovHR2, modality, protocol]);
 
-  // â”€â”€â”€ SAVE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── SAVE ─────────────────────────────────────────────────────────────────
   const handleSave = () => {
-    if (!peakVO2Rel) { toast.error("Please enter peak workload data to calculate VOâ‚‚, or use manual override."); return; }
+    if (!peakVO2Rel) { toast.error("Please enter peak workload data to calculate VO₂, or use manual override."); return; }
     const criteriaNames = maximalCriteria.filter(c => c.met === true).map(c => c.label).join("; ") || "None met";
 
     const soapText = [
-      `â€¢ CPET / VOâ‚‚max GXT (${modality === "treadmill" ? "Treadmill" : "Cycle Ergometer"}, ${protocol || "Protocol not specified"})`,
-      `  Result Type: ${isMaximal ? "Maximal VOâ‚‚max" : "Peak VOâ‚‚ (sub-maximal criteria)"}`,
-      `  Peak VOâ‚‚: ${peakVO2Rel.toFixed(1)} ml/kg/min${peakVO2Abs ? ` (${peakVO2Abs.toFixed(2)} L/min)` : ""}`,
+      `• CPET / VO₂max GXT (${modality === "treadmill" ? "Treadmill" : "Cycle Ergometer"}, ${protocol || "Protocol not specified"})`,
+      `  Result Type: ${isMaximal ? "Maximal VO₂max" : "Peak VO₂ (sub-maximal criteria)"}`,
+      `  Peak VO₂: ${peakVO2Rel.toFixed(1)} ml/kg/min${peakVO2Abs ? ` (${peakVO2Abs.toFixed(2)} L/min)` : ""}`,
       vo2Category ? `  Normative Category: ${vo2Category} (ACSM, ${clientSex}, age ${clientAge})` : null,
       peakHR ? `  Peak HR: ${peakHR} bpm${hrPct ? ` (${hrPct.toFixed(0)}% age-predicted max)` : ""}` : null,
       peakRER ? `  Peak RER: ${peakRER}` : null,
       peakRPE ? `  Peak RPE: ${peakRPE}/20` : null,
-      oxygenPulse ? `  Oâ‚‚ Pulse: ${oxygenPulse} mL/beat` : null,
+      oxygenPulse ? `  O₂ Pulse: ${oxygenPulse} mL/beat` : null,
       ventilatoryThreshold ? `  Ventilatory Threshold: ${ventilatoryThreshold} ml/kg/min` : null,
-      peakVEVCO2 ? `  VE/VCOâ‚‚ slope: ${peakVEVCO2}` : null,
+      peakVEVCO2 ? `  VE/VCO₂ slope: ${peakVEVCO2}` : null,
       recovHR1 ? `  HRR 1 min: ${recovHR1} bpm` : null,
       recovHR2 ? `  HRR 2 min: ${recovHR2} bpm` : null,
       terminationReason ? `  Test Termination: ${terminationReason}` : null,
@@ -294,10 +294,10 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
       notes,
       assessment_date: new Date().toISOString().split("T")[0],
     });
-    toast.success("CPET / VOâ‚‚max GXT results saved.");
+    toast.success("CPET / VO₂max GXT results saved.");
   };
 
-  // â”€â”€â”€ UI HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── UI HELPERS ───────────────────────────────────────────────────────────
   const catStyle = vo2Category ? CATEGORY_STYLE[vo2Category] : null;
 
   return (
@@ -307,8 +307,8 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
         {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b bg-gradient-to-r from-blue-50 to-cyan-50 flex items-start justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-900">VOâ‚‚max Testing â€” Maximal GXT / CPET</h2>
-            <p className="text-sm text-slate-500 mt-0.5">Cardiopulmonary Exercise Testing Engine Â· ACSM Formula-Based</p>
+            <h2 className="text-xl font-bold text-slate-900">VO₂max Testing — Maximal GXT / CPET</h2>
+            <p className="text-sm text-slate-500 mt-0.5">Cardiopulmonary Exercise Testing Engine · ACSM Formula-Based</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -317,9 +317,9 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
 
           {/* Safety */}
           <div className="bg-amber-50 border border-amber-300 rounded-lg p-4 text-sm text-amber-900 space-y-1.5">
-            <p className="font-bold flex items-center gap-2"><AlertTriangle className="w-4 h-4" />Safety â€” Maximal Test Requirements</p>
+            <p className="font-bold flex items-center gap-2"><AlertTriangle className="w-4 h-4" />Safety — Maximal Test Requirements</p>
             <p><strong>Medical clearance required.</strong> Absolute contraindications: acute MI, unstable angina, uncontrolled arrhythmias, severe aortic stenosis, acute PE, acute myocarditis.</p>
-            <p><strong>Terminate immediately if:</strong> severe chest pain, marked dyspnoea, dizziness, pallor, serious arrhythmias, significant ECG changes, or â‰¥10 mmHg drop in SBP with increasing workload.</p>
+            <p><strong>Terminate immediately if:</strong> severe chest pain, marked dyspnoea, dizziness, pallor, serious arrhythmias, significant ECG changes, or ≥10 mmHg drop in SBP with increasing workload.</p>
           </div>
 
           {/* Demographics + Config */}
@@ -380,12 +380,12 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
                   </div>
                 </div>
                 <div>
-                  <Label className="text-xs">Body Mass (kg) â€” required for ACSM formula</Label>
+                  <Label className="text-xs">Body Mass (kg) — required for ACSM formula</Label>
                   <Input type="number" value={bodyMass} onChange={e => setBodyMass(e.target.value)} placeholder="e.g. 80" className="mt-1" />
                 </div>
                 {agePredictedMaxHR && (
                   <div className="bg-blue-50 border border-blue-200 rounded p-2 text-xs text-blue-800">
-                    Age-predicted max HR (220 âˆ’ {clientAge}) = <strong>{agePredictedMaxHR} bpm</strong>
+                    Age-predicted max HR (220 − {clientAge}) = <strong>{agePredictedMaxHR} bpm</strong>
                   </div>
                 )}
               </CardContent>
@@ -404,12 +404,12 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
             </CardContent>
           </Card>
 
-          {/* ACSM VOâ‚‚ Calculator */}
+          {/* ACSM VO₂ Calculator */}
           <Card className="border-blue-200 bg-blue-50/30">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2">
                 <Activity className="w-4 h-4 text-blue-600" />
-                ACSM VOâ‚‚ Calculator â€” Peak Workload
+                ACSM VO₂ Calculator — Peak Workload
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -423,7 +423,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
                     <Label className="text-xs">Peak Grade (%)</Label>
                     <Input type="number" step="0.5" value={peakGradePct} onChange={e => setPeakGradePct(e.target.value)} placeholder="e.g. 12" className="mt-1" />
                   </div>
-                  <p className="col-span-2 text-xs text-blue-700 font-medium">Formula: VOâ‚‚ = (speed Ã— 0.1) + (speed Ã— grade Ã— 1.8) + 3.5 &nbsp;[speed in m/min]</p>
+                  <p className="col-span-2 text-xs text-blue-700 font-medium">Formula: VO₂ = (speed × 0.1) + (speed × grade × 1.8) + 3.5 &nbsp;[speed in m/min]</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
@@ -431,13 +431,13 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
                     <Label className="text-xs">Peak Power (Watts)</Label>
                     <Input type="number" value={peakWatts} onChange={e => setPeakWatts(e.target.value)} placeholder="e.g. 250" className="mt-1" />
                   </div>
-                  <p className="text-xs text-blue-700 font-medium self-end pb-1">Formula: VOâ‚‚ = (1.8 Ã— kgm/min) / BM + 7 &nbsp;[requires body mass]</p>
+                  <p className="text-xs text-blue-700 font-medium self-end pb-1">Formula: VO₂ = (1.8 × kgm/min) / BM + 7 &nbsp;[requires body mass]</p>
                 </div>
               )}
 
               {computedVO2 && (
                 <div className="bg-blue-600 text-white rounded-lg p-3 text-center">
-                  <p className="text-xs opacity-80 mb-1">ACSM Calculated Peak VOâ‚‚</p>
+                  <p className="text-xs opacity-80 mb-1">ACSM Calculated Peak VO₂</p>
                   <p className="text-3xl font-bold">{computedVO2.toFixed(1)}</p>
                   <p className="text-xs opacity-80">ml/kg/min</p>
                   {peakVO2Abs && <p className="text-sm mt-1">{peakVO2Abs.toFixed(2)} L/min</p>}
@@ -445,7 +445,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
               )}
 
               <div>
-                <Label className="text-xs text-slate-500">Manual VOâ‚‚ Override (if gas analyser used â€” ml/kg/min)</Label>
+                <Label className="text-xs text-slate-500">Manual VO₂ Override (if gas analyser used — ml/kg/min)</Label>
                 <Input type="number" step="0.1" value={manualVO2Override} onChange={e => setManualVO2Override(e.target.value)} placeholder="Leave blank to use ACSM formula above" className="mt-1" />
               </div>
             </CardContent>
@@ -462,15 +462,15 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
                 <div>
                   <Label className="text-xs">Peak RER</Label>
                   <Input type="number" step="0.01" value={peakRER} onChange={e => setPeakRER(e.target.value)} placeholder="e.g. 1.15" className="mt-1" />
-                  {peakRER && <p className={`text-xs mt-1 ${parseFloat(peakRER) >= 1.10 ? "text-green-600" : "text-orange-600"}`}>{parseFloat(peakRER) >= 1.10 ? "âœ“ Maximal criterion met" : "âš  Below 1.10 threshold"}</p>}
+                  {peakRER && <p className={`text-xs mt-1 ${parseFloat(peakRER) >= 1.10 ? "text-green-600" : "text-orange-600"}`}>{parseFloat(peakRER) >= 1.10 ? "✓ Maximal criterion met" : "⚠ Below 1.10 threshold"}</p>}
                 </div>
                 <div>
-                  <Label className="text-xs">Peak RPE (6â€“20)</Label>
+                  <Label className="text-xs">Peak RPE (6–20)</Label>
                   <Input type="number" value={peakRPE} onChange={e => setPeakRPE(e.target.value)} placeholder="e.g. 19" className="mt-1" />
-                  {peakRPE && <p className={`text-xs mt-1 ${parseInt(peakRPE) >= 17 ? "text-green-600" : "text-orange-600"}`}>{parseInt(peakRPE) >= 17 ? "âœ“ Maximal criterion met" : "âš  Below 17 threshold"}</p>}
+                  {peakRPE && <p className={`text-xs mt-1 ${parseInt(peakRPE) >= 17 ? "text-green-600" : "text-orange-600"}`}>{parseInt(peakRPE) >= 17 ? "✓ Maximal criterion met" : "⚠ Below 17 threshold"}</p>}
                 </div>
                 <div>
-                  <Label className="text-xs">VOâ‚‚ Plateau Observed?</Label>
+                  <Label className="text-xs">VO₂ Plateau Observed?</Label>
                   <Select value={vo2Plateau} onValueChange={setVo2Plateau}>
                     <SelectTrigger className="mt-1"><SelectValue placeholder="Select" /></SelectTrigger>
                     <SelectContent>
@@ -485,16 +485,16 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
               <div className="border-t pt-3">
                 <p className="text-xs font-semibold text-slate-600 mb-2">CPET Respiratory Variables</p>
                 <div className="grid grid-cols-3 gap-3">
-                  <div><Label className="text-xs">Peak VÌ‡E (L/min)</Label><Input type="number" step="0.1" value={peakVE} onChange={e => setPeakVE(e.target.value)} placeholder="e.g. 120" className="mt-1" /></div>
+                  <div><Label className="text-xs">Peak V̇E (L/min)</Label><Input type="number" step="0.1" value={peakVE} onChange={e => setPeakVE(e.target.value)} placeholder="e.g. 120" className="mt-1" /></div>
                   <div>
-                    <Label className="text-xs">VE/VCOâ‚‚ slope (at AT)</Label>
+                    <Label className="text-xs">VE/VCO₂ slope (at AT)</Label>
                     <Input type="number" step="0.1" value={peakVEVCO2} onChange={e => setPeakVEVCO2(e.target.value)} placeholder="e.g. 28" className="mt-1" />
-                    {peakVEVCO2 && <p className={`text-xs mt-1 ${parseFloat(peakVEVCO2) < 34 ? "text-green-600" : parseFloat(peakVEVCO2) < 40 ? "text-yellow-600" : "text-red-600"}`}>{parseFloat(peakVEVCO2) < 34 ? "Normal" : parseFloat(peakVEVCO2) < 40 ? "Mildly elevated" : "Elevated â€” impaired ventilatory efficiency"}</p>}
+                    {peakVEVCO2 && <p className={`text-xs mt-1 ${parseFloat(peakVEVCO2) < 34 ? "text-green-600" : parseFloat(peakVEVCO2) < 40 ? "text-yellow-600" : "text-red-600"}`}>{parseFloat(peakVEVCO2) < 34 ? "Normal" : parseFloat(peakVEVCO2) < 40 ? "Mildly elevated" : "Elevated — impaired ventilatory efficiency"}</p>}
                   </div>
                   <div>
                     <Label className="text-xs">Ventilatory Threshold (ml/kg/min)</Label>
                     <Input type="number" step="0.1" value={ventilatoryThreshold} onChange={e => setVentilatoryThreshold(e.target.value)} placeholder="e.g. 28" className="mt-1" />
-                    {ventilatoryThreshold && peakVO2Rel && <p className="text-xs mt-1 text-blue-600">= {((parseFloat(ventilatoryThreshold) / peakVO2Rel) * 100).toFixed(0)}% of peak VOâ‚‚</p>}
+                    {ventilatoryThreshold && peakVO2Rel && <p className="text-xs mt-1 text-blue-600">= {((parseFloat(ventilatoryThreshold) / peakVO2Rel) * 100).toFixed(0)}% of peak VO₂</p>}
                   </div>
                 </div>
               </div>
@@ -511,7 +511,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
                 }
                 Maximal Criteria Validation ({criteriaMetCount}/4 met)
                 <Badge className={isMaximal ? "bg-green-600" : "bg-orange-500"}>
-                  {isMaximal ? "TRUE VOâ‚‚max" : "PEAK VOâ‚‚ only"}
+                  {isMaximal ? "TRUE VO₂max" : "PEAK VO₂ only"}
                 </Badge>
               </CardTitle>
             </CardHeader>
@@ -529,7 +529,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
               </div>
               {!isMaximal && (
                 <p className="text-xs text-orange-700 mt-2 bg-orange-50 p-2 rounded border border-orange-200">
-                  âš  Fewer than 2 maximal criteria met. Results represent <strong>peak VOâ‚‚</strong> (not true VOâ‚‚max). Clinical interpretation should reflect this limitation.
+                  ⚠ Fewer than 2 maximal criteria met. Results represent <strong>peak VO₂</strong> (not true VO₂max). Clinical interpretation should reflect this limitation.
                 </p>
               )}
             </CardContent>
@@ -538,7 +538,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
           {/* Normative Classification */}
           {peakVO2Rel && clientAge && (
             <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-base">Normative VOâ‚‚ Classification (ACSM)</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-base">Normative VO₂ Classification (ACSM)</CardTitle></CardHeader>
               <CardContent className="space-y-3">
                 {catStyle && (
                   <div className={`flex items-center justify-between p-4 rounded-lg border-2 ${catStyle.bg}`}>
@@ -556,7 +556,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
                 {oxygenPulse && (
                   <div className="grid grid-cols-3 gap-3 text-center text-xs">
                     <div className="bg-slate-50 rounded p-2 border">
-                      <p className="text-slate-500 mb-0.5">Oâ‚‚ Pulse</p>
+                      <p className="text-slate-500 mb-0.5">O₂ Pulse</p>
                       <p className="font-bold text-base text-slate-800">{oxygenPulse} mL/beat</p>
                       <p className="text-slate-400">Cardiac output proxy</p>
                     </div>
@@ -569,7 +569,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
                     )}
                     {ventilatoryThreshold && (
                       <div className="bg-slate-50 rounded p-2 border">
-                        <p className="text-slate-500 mb-0.5">VT / Peak VOâ‚‚</p>
+                        <p className="text-slate-500 mb-0.5">VT / Peak VO₂</p>
                         <p className="font-bold text-base text-slate-800">{((parseFloat(ventilatoryThreshold) / peakVO2Rel) * 100).toFixed(0)}%</p>
                         <p className="text-slate-400">Exercise economy</p>
                       </div>
@@ -599,7 +599,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
                             const isCurBand = getAgeBand(parseInt(clientAge)) === band;
                             return (
                               <td key={band} className={`p-1.5 text-center ${inRange && isCurBand ? "bg-blue-100 font-bold text-blue-800 ring-1 ring-blue-400 rounded" : ""}`}>
-                                {high === Infinity ? `â‰¥${low}` : low === 0 ? `<${high}` : `${low}â€“${high}`}
+                                {high === Infinity ? `≥${low}` : low === 0 ? `<${high}` : `${low}–${high}`}
                               </td>
                             );
                           })}
@@ -636,12 +636,12 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
                 <div>
                   <Label className="text-xs">HR at 1 min recovery (bpm)</Label>
                   <Input type="number" value={recovHR1} onChange={e => setRecovHR1(e.target.value)} placeholder="e.g. 155" className="mt-1" />
-                  {recovHR1 && peakHR && <p className={`text-xs mt-1 ${(parseFloat(peakHR) - parseFloat(recovHR1)) >= 12 ? "text-green-600" : "text-red-600"}`}>Drop: {(parseFloat(peakHR) - parseFloat(recovHR1)).toFixed(0)} bpm {(parseFloat(peakHR) - parseFloat(recovHR1)) >= 12 ? "âœ“ Normal" : "âš  Impaired"}</p>}
+                  {recovHR1 && peakHR && <p className={`text-xs mt-1 ${(parseFloat(peakHR) - parseFloat(recovHR1)) >= 12 ? "text-green-600" : "text-red-600"}`}>Drop: {(parseFloat(peakHR) - parseFloat(recovHR1)).toFixed(0)} bpm {(parseFloat(peakHR) - parseFloat(recovHR1)) >= 12 ? "✓ Normal" : "⚠ Impaired"}</p>}
                 </div>
                 <div>
                   <Label className="text-xs">HR at 2 min recovery (bpm)</Label>
                   <Input type="number" value={recovHR2} onChange={e => setRecovHR2(e.target.value)} placeholder="e.g. 130" className="mt-1" />
-                  {recovHR2 && peakHR && <p className={`text-xs mt-1 ${(parseFloat(peakHR) - parseFloat(recovHR2)) >= 22 ? "text-green-600" : "text-red-600"}`}>Drop: {(parseFloat(peakHR) - parseFloat(recovHR2)).toFixed(0)} bpm {(parseFloat(peakHR) - parseFloat(recovHR2)) >= 22 ? "âœ“ Normal" : "âš  Impaired"}</p>}
+                  {recovHR2 && peakHR && <p className={`text-xs mt-1 ${(parseFloat(peakHR) - parseFloat(recovHR2)) >= 22 ? "text-green-600" : "text-red-600"}`}>Drop: {(parseFloat(peakHR) - parseFloat(recovHR2)).toFixed(0)} bpm {(parseFloat(peakHR) - parseFloat(recovHR2)) >= 22 ? "✓ Normal" : "⚠ Impaired"}</p>}
                 </div>
                 <div>
                   <Label className="text-xs">SBP at 3 min recovery (mmHg)</Label>
@@ -653,7 +653,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
                 <Textarea value={recovSymptoms} onChange={e => setRecovSymptoms(e.target.value)} placeholder="Dyspnoea resolution, chest discomfort, dizziness, pallor, monitored until..." rows={2} className="mt-1" />
               </div>
               <div className="bg-slate-50 border rounded p-2 text-xs text-slate-600">
-                <strong>Clinical reference:</strong> HRR &lt;12 bpm at 1 min post-exercise is associated with 2Ã— increased mortality risk (Cole et al., 1999). HRR &lt;22 bpm at 2 min indicates impaired autonomic recovery.
+                <strong>Clinical reference:</strong> HRR &lt;12 bpm at 1 min post-exercise is associated with 2× increased mortality risk (Cole et al., 1999). HRR &lt;22 bpm at 2 min indicates impaired autonomic recovery.
               </div>
             </CardContent>
           </Card>
@@ -669,7 +669,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
                     <SelectTrigger className="mt-1"><SelectValue placeholder="Select reason" /></SelectTrigger>
                     <SelectContent>
                       <SelectItem value="volitional_exhaustion">Volitional Exhaustion</SelectItem>
-                      <SelectItem value="vo2_plateau">VOâ‚‚ Plateau Confirmed</SelectItem>
+                      <SelectItem value="vo2_plateau">VO₂ Plateau Confirmed</SelectItem>
                       <SelectItem value="symptoms">Symptoms (specify in notes)</SelectItem>
                       <SelectItem value="ecg_changes">ECG Changes</SelectItem>
                       <SelectItem value="bp_response">Abnormal BP Response</SelectItem>
@@ -704,7 +704,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
           {/* Auto Interpretation */}
           {interpretationPara && (
             <Card className="border-blue-200 bg-blue-50/40">
-              <CardHeader className="pb-2"><CardTitle className="text-base text-blue-900">ðŸ§  Auto-Generated CPET Interpretation</CardTitle></CardHeader>
+              <CardHeader className="pb-2"><CardTitle className="text-base text-blue-900">🧠 Auto-Generated CPET Interpretation</CardTitle></CardHeader>
               <CardContent>
                 <p className="text-sm text-blue-900 leading-relaxed" dangerouslySetInnerHTML={{ __html: interpretationPara }} />
                 <p className="text-xs text-blue-500 mt-2">Auto-generated based on entered data. Review and customise in clinical notes below.</p>
@@ -720,10 +720,10 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
 
           {/* References */}
           <div className="bg-slate-100 border border-slate-200 rounded p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold text-slate-700">ðŸ“– References</p>
+            <p className="font-semibold text-slate-700">📖 References</p>
             <p>ACSM (2022). <em>Guidelines for Exercise Testing and Prescription</em>, 11th ed. Wolters Kluwer.</p>
-            <p>Balady GJ et al. (2010). Clinician's Guide to CPET in Adults. <em>Circulation, 122</em>(2), 191â€“225.</p>
-            <p>Cole CR et al. (1999). Heart-rate recovery immediately after exercise. <em>NEJM, 341</em>(18), 1351â€“1357.</p>
+            <p>Balady GJ et al. (2010). Clinician's Guide to CPET in Adults. <em>Circulation, 122</em>(2), 191–225.</p>
+            <p>Cole CR et al. (1999). Heart-rate recovery immediately after exercise. <em>NEJM, 341</em>(18), 1351–1357.</p>
             <p>Guazzi M et al. (2017). EACPR/AHA Scientific Statement: Clinical Recommendations for Cardiopulmonary Exercise Testing Data Assessment. <em>JACC, 69</em>(13).</p>
           </div>
 
@@ -731,7 +731,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
           <div className="flex justify-between pt-2 border-t">
             <Button variant="outline" onClick={onClose}><X className="w-4 h-4 mr-2" />Cancel</Button>
             <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700 px-8">
-              <Save className="w-4 h-4 mr-2" />Save VOâ‚‚max GXT / CPET Results
+              <Save className="w-4 h-4 mr-2" />Save VO₂max GXT / CPET Results
             </Button>
           </div>
 

@@ -42,7 +42,7 @@ export function formatGROCForSOAP(data) {
 export function formatConleyForSOAP(data) {
   if (!data.conley_data) return '';
   const conley = data.conley_data;
-  const riskLevel = conley.total_score >= 2 ? 'âš ï¸ High fall risk' : 'âœ“ Low fall risk';
+  const riskLevel = conley.total_score >= 2 ? '⚠ï¸ High fall risk' : '✓ Low fall risk';
   return `  Total Score: ${conley.total_score}/12\n  Fall Risk: ${riskLevel}\n`;
 }
 
@@ -75,13 +75,13 @@ export function formatKneeStabilityForSOAP(data) {
     text += `  Left Knee: ${ks.left_result}`;
     if (ks.left_pain && ks.left_pain !== 'none') text += ` (Pain: ${ks.left_pain})`;
     text += '\n';
-    if (ks.left_interpretation) text += `    â†’ ${ks.left_interpretation}\n`;
+    if (ks.left_interpretation) text += `    → ${ks.left_interpretation}\n`;
   }
   if (ks.right_result) {
     text += `  Right Knee: ${ks.right_result}`;
     if (ks.right_pain && ks.right_pain !== 'none') text += ` (Pain: ${ks.right_pain})`;
     text += '\n';
-    if (ks.right_interpretation) text += `    â†’ ${ks.right_interpretation}\n`;
+    if (ks.right_interpretation) text += `    → ${ks.right_interpretation}\n`;
   }
   return text;
 }
@@ -123,10 +123,10 @@ export function format400MeterWalkForSOAP(data) {
     return `${mins}:${secs.toString().padStart(2, '0')}.${tenths}`;
   };
 
-  let text = `â€¢ 400-Metre Walk Test\n`;
+  let text = `• 400-Metre Walk Test\n`;
   text += `  Total Time: ${formatT(walkData.total_time_seconds)} (${Number(walkData.total_time_seconds).toFixed(1)}s)\n`;
   text += `  Distance Covered: ${walkData.distance_covered_m}m\n`;
-  text += `  Test Completed: ${walkData.completed !== false ? 'Yes' : `No${walkData.early_stop_reason ? ` â€” ${walkData.early_stop_reason}` : ''}`}\n`;
+  text += `  Test Completed: ${walkData.completed !== false ? 'Yes' : `No${walkData.early_stop_reason ? ` — ${walkData.early_stop_reason}` : ''}`}\n`;
 
   if (walkData.laps && walkData.laps.length > 0) {
     text += `  Lap Splits (${walkData.laps.length} laps):\n`;

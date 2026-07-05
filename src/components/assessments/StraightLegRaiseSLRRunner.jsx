@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Constants ───────────────────────────────────────────────────────────────
 
 const SAFETY_FLAGS = [
   { id: "acute_injury", label: "Acute lumbar injury (< 72 hours)" },
@@ -61,7 +61,7 @@ const INITIAL_SIDE = {
   endFeel: "",
 };
 
-// â”€â”€â”€ Helper Components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Helper Components ────────────────────────────────────────────────────────
 
 function SectionHeader({ icon: Icon, title, color = "slate" }) {
   const colors = {
@@ -154,7 +154,7 @@ function LegTestPanel({ side, data, onChange }) {
         {/* Angles */}
         <div className="grid grid-cols-2 gap-4">
           <div>
-            <Label className="text-xs font-semibold text-slate-600 block mb-1">Symptom Onset Angle (Â°)</Label>
+            <Label className="text-xs font-semibold text-slate-600 block mb-1">Symptom Onset Angle (°)</Label>
             <Input
               type="number" min="0" max="180"
               value={data.onsetAngle}
@@ -164,7 +164,7 @@ function LegTestPanel({ side, data, onChange }) {
             <p className="text-xs text-slate-500 mt-1">Leave blank if no symptoms</p>
           </div>
           <div>
-            <Label className="text-xs font-semibold text-slate-600 block mb-1">Maximum ROM Achieved (Â°) *</Label>
+            <Label className="text-xs font-semibold text-slate-600 block mb-1">Maximum ROM Achieved (°) *</Label>
             <Input
               type="number" min="0" max="180"
               value={data.maxAngle}
@@ -188,7 +188,7 @@ function LegTestPanel({ side, data, onChange }) {
         {/* Pain Severity */}
         <div>
           <Label className="text-xs font-semibold text-slate-600 block mb-2">
-            Pain Severity at Symptom Onset (0â€“10) â€” <span className="font-normal">0 = none, 10 = worst</span>
+            Pain Severity at Symptom Onset (0–10) — <span className="font-normal">0 = none, 10 = worst</span>
           </Label>
           <div className="flex items-center gap-3">
             <Input
@@ -254,19 +254,19 @@ function LegInterpChip({ data }) {
 
   let label, bg, text;
   if (isPositive && angle <= 70) {
-    label = `âš  Positive SLR â€” Neural tension at ${angle}Â°`;
+    label = `⚠ Positive SLR — Neural tension at ${angle}°`;
     bg = "bg-red-50 border-red-200"; text = "text-red-700";
   } else if (isPositive) {
-    label = `âš  Positive SLR â€” Symptoms reproduced`;
+    label = `⚠ Positive SLR — Symptoms reproduced`;
     bg = "bg-orange-50 border-orange-200"; text = "text-orange-700";
   } else if (angle < 60) {
-    label = `Limited ROM at ${angle}Â° â€” Hamstring/neural restriction`;
+    label = `Limited ROM at ${angle}° — Hamstring/neural restriction`;
     bg = "bg-amber-50 border-amber-200"; text = "text-amber-700";
   } else if (angle < 80) {
-    label = `Mild limitation at ${angle}Â° â€” Monitor`;
+    label = `Mild limitation at ${angle}° — Monitor`;
     bg = "bg-yellow-50 border-yellow-200"; text = "text-yellow-700";
   } else {
-    label = `Normal ROM at ${angle}Â° â€” Negative SLR`;
+    label = `Normal ROM at ${angle}° — Negative SLR`;
     bg = "bg-green-50 border-green-200"; text = "text-green-700";
   }
 
@@ -277,7 +277,7 @@ function LegInterpChip({ data }) {
   );
 }
 
-// â”€â”€â”€ Main Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
   // Safety screen
@@ -311,7 +311,7 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
 
   const hasRedFlag = safetyFlags.length > 0;
 
-  // â”€â”€ Derived Analysis â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Derived Analysis ──────────────────────────────────────────────────────
 
   const analysis = useMemo(() => {
     const lAngle = parseFloat(left.maxAngle);
@@ -328,38 +328,38 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
 
     // Flags
     const flags = [];
-    if (lPositive || rPositive) flags.push("Positive SLR â€” neural mechanosensitivity present");
-    if (lPositive && rPositive) flags.push("Bilateral positive SLR â€” consider central sensitisation");
+    if (lPositive || rPositive) flags.push("Positive SLR — neural mechanosensitivity present");
+    if (lPositive && rPositive) flags.push("Bilateral positive SLR — consider central sensitisation");
     if ((lBelowKnee || lNeural) && lPositive) flags.push("Left-sided lumbar radiculopathy suspected");
     if ((rBelowKnee || rNeural) && rPositive) flags.push("Right-sided lumbar radiculopathy suspected");
-    if (lAngle < 70 || rAngle < 70) flags.push("Reduced SLR ROM â€” neural or hamstring restriction");
-    if (diff > 10) flags.push(`Asymmetry > 10Â° (${diff}Â°) â€” unilateral pathology likely`);
-    if (!lPositive && !rPositive && (lAngle < 70 || rAngle < 70)) flags.push("Hamstring restriction â€” no neural reproduction");
+    if (lAngle < 70 || rAngle < 70) flags.push("Reduced SLR ROM — neural or hamstring restriction");
+    if (diff > 10) flags.push(`Asymmetry > 10° (${diff}°) — unilateral pathology likely`);
+    if (!lPositive && !rPositive && (lAngle < 70 || rAngle < 70)) flags.push("Hamstring restriction — no neural reproduction");
     if (lPositive || rPositive) flags.push("Recommend Slump Test for confirmation");
-    if ((lBelowKnee || rBelowKnee)) flags.push("Below-knee symptom distribution â€” neurological screen recommended");
+    if ((lBelowKnee || rBelowKnee)) flags.push("Below-knee symptom distribution — neurological screen recommended");
 
     // Auto-summary text
-    const lDesc = `Left SLR: ${lPositive ? "POSITIVE" : "negative"} â€” max ROM ${lAngle}Â°${left.onsetAngle ? `, onset at ${left.onsetAngle}Â°` : ""}. ${left.symptomTypes.filter(s => s !== "None").join(", ") || "No symptoms"}. Distribution: ${left.painDistribution.join(", ") || "none"}.`;
-    const rDesc = `Right SLR: ${rPositive ? "POSITIVE" : "negative"} â€” max ROM ${rAngle}Â°${right.onsetAngle ? `, onset at ${right.onsetAngle}Â°` : ""}. ${right.symptomTypes.filter(s => s !== "None").join(", ") || "No symptoms"}. Distribution: ${right.painDistribution.join(", ") || "none"}.`;
+    const lDesc = `Left SLR: ${lPositive ? "POSITIVE" : "negative"} — max ROM ${lAngle}°${left.onsetAngle ? `, onset at ${left.onsetAngle}°` : ""}. ${left.symptomTypes.filter(s => s !== "None").join(", ") || "No symptoms"}. Distribution: ${left.painDistribution.join(", ") || "none"}.`;
+    const rDesc = `Right SLR: ${rPositive ? "POSITIVE" : "negative"} — max ROM ${rAngle}°${right.onsetAngle ? `, onset at ${right.onsetAngle}°` : ""}. ${right.symptomTypes.filter(s => s !== "None").join(", ") || "No symptoms"}. Distribution: ${right.painDistribution.join(", ") || "none"}.`;
 
     // Interpretation paragraph
     let interp = "";
     if (lPositive && !rPositive) {
-      interp = `Positive left-sided SLR${left.onsetAngle ? ` with symptom onset at ${left.onsetAngle}Â°` : ""}. ${lBelowKnee ? "Familiar symptoms reproduced into posterior thigh and below knee, consistent with sciatic nerve mechanosensitivity and possible lumbar nerve root irritation (L4â€“S1)." : "Symptoms reproduced in posterior thigh without below-knee radiation."} Right SLR negative to ${rAngle}Â°. Findings suggest unilateral left-sided neural tension.`;
+      interp = `Positive left-sided SLR${left.onsetAngle ? ` with symptom onset at ${left.onsetAngle}°` : ""}. ${lBelowKnee ? "Familiar symptoms reproduced into posterior thigh and below knee, consistent with sciatic nerve mechanosensitivity and possible lumbar nerve root irritation (L4–S1)." : "Symptoms reproduced in posterior thigh without below-knee radiation."} Right SLR negative to ${rAngle}°. Findings suggest unilateral left-sided neural tension.`;
     } else if (rPositive && !lPositive) {
-      interp = `Positive right-sided SLR${right.onsetAngle ? ` with symptom onset at ${right.onsetAngle}Â°` : ""}. ${rBelowKnee ? "Familiar symptoms reproduced into posterior thigh and below knee, consistent with sciatic nerve mechanosensitivity and possible lumbar nerve root irritation (L4â€“S1)." : "Symptoms reproduced in posterior thigh without below-knee radiation."} Left SLR negative to ${lAngle}Â°. Findings suggest unilateral right-sided neural tension.`;
+      interp = `Positive right-sided SLR${right.onsetAngle ? ` with symptom onset at ${right.onsetAngle}°` : ""}. ${rBelowKnee ? "Familiar symptoms reproduced into posterior thigh and below knee, consistent with sciatic nerve mechanosensitivity and possible lumbar nerve root irritation (L4–S1)." : "Symptoms reproduced in posterior thigh without below-knee radiation."} Left SLR negative to ${lAngle}°. Findings suggest unilateral right-sided neural tension.`;
     } else if (lPositive && rPositive) {
-      interp = `Bilateral positive SLR findings. Left onset ${left.onsetAngle || "N/A"}Â°, right onset ${right.onsetAngle || "N/A"}Â°. Bilateral neural mechanosensitivity may reflect central sensitisation, diffuse lumbar pathology, or high neural irritability. Recommend Slump Test and comprehensive lumbar assessment.`;
+      interp = `Bilateral positive SLR findings. Left onset ${left.onsetAngle || "N/A"}°, right onset ${right.onsetAngle || "N/A"}°. Bilateral neural mechanosensitivity may reflect central sensitisation, diffuse lumbar pathology, or high neural irritability. Recommend Slump Test and comprehensive lumbar assessment.`;
     } else if (!lPositive && !rPositive && (lAngle < 70 || rAngle < 70)) {
-      interp = `SLR bilaterally negative for neural symptom reproduction. Limitation present${lAngle < 70 ? ` left (${lAngle}Â°)` : ""}${rAngle < 70 ? ` right (${rAngle}Â°)` : ""}. Findings suggest muscular flexibility limitation (hamstring restriction) rather than radiculopathy.`;
+      interp = `SLR bilaterally negative for neural symptom reproduction. Limitation present${lAngle < 70 ? ` left (${lAngle}°)` : ""}${rAngle < 70 ? ` right (${rAngle}°)` : ""}. Findings suggest muscular flexibility limitation (hamstring restriction) rather than radiculopathy.`;
     } else {
-      interp = `SLR assessment bilaterally negative. Left ${lAngle}Â°, Right ${rAngle}Â°. No neural symptom provocation noted. ROM within or near normal limits.`;
+      interp = `SLR assessment bilaterally negative. Left ${lAngle}°, Right ${rAngle}°. No neural symptom provocation noted. ROM within or near normal limits.`;
     }
 
     return { lAngle, rAngle, diff, lPositive, rPositive, flags, lDesc, rDesc, interp };
   }, [left, right]);
 
-  // â”€â”€ SOAP text builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── SOAP text builder ─────────────────────────────────────────────────────
 
   const buildSOAP = () => {
     if (!analysis) return "";
@@ -373,12 +373,12 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
       }).filter(Boolean);
 
     return [
-      `â€¢ Straight Leg Raise (SLR) Assessment â€” Neurodynamic & Orthopedic Test`,
+      `• Straight Leg Raise (SLR) Assessment — Neurodynamic & Orthopedic Test`,
       ``,
       `  Bilateral Results:`,
       `    ${lDesc}`,
       `    ${rDesc}`,
-      `    Bilateral asymmetry: ${diff}Â°`,
+      `    Bilateral asymmetry: ${diff}°`,
       ``,
       baselinePain ? `  Baseline Pain: ${baselinePain}/10` : null,
       symptomaticSide ? `  Symptomatic Side: ${symptomaticSide}` : null,
@@ -390,17 +390,17 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
       `    ${interp}`,
       ``,
       flags.length > 0 ? `  Clinical Flags:` : null,
-      ...flags.map(f => `    âš‘ ${f}`),
+      ...flags.map(f => `    ⚑ ${f}`),
       ``,
       notes ? `  Clinician Notes: ${notes}` : null,
       ``,
       `  References:`,
-      `    Scaia V, Baxter D, Cook C. (2012). Pain provocation-based SLR test for lumbar disc herniation. J Back Musculoskelet Rehabil 25(4):215â€“223.`,
+      `    Scaia V, Baxter D, Cook C. (2012). Pain provocation-based SLR test for lumbar disc herniation. J Back Musculoskelet Rehabil 25(4):215–223.`,
       `    Willhuber GO, Piuzzi NS. Straight Leg Raise Test. StatPearls Publishing; Updated 2023.`,
     ].filter(v => v !== null).join('\n');
   };
 
-  // â”€â”€ Validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Validation ────────────────────────────────────────────────────────────
 
   const canSave = left.maxAngle && right.maxAngle && left.positive && right.positive;
 
@@ -449,24 +449,24 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
     setSafetyDone(false);
   };
 
-  // â”€â”€ Render â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl max-w-4xl w-full max-h-[95vh] overflow-y-auto shadow-2xl">
 
-        {/* â”€â”€ Top Header â”€â”€ */}
+        {/* ── Top Header ── */}
         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-start z-10">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Straight Leg Raise (SLR) Assessment</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Neurodynamic Â· Lumbar Radiculopathy Â· Neural Tension Â· Hip Flexibility</p>
+            <p className="text-sm text-slate-500 mt-0.5">Neurodynamic · Lumbar Radiculopathy · Neural Tension · Hip Flexibility</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
 
         <div className="p-6 space-y-5">
 
-          {/* â”€â”€ SECTION 1: Overview â”€â”€ */}
+          {/* ── SECTION 1: Overview ── */}
           <Collapsible open={openSections.overview} onOpenChange={() => toggleSection("overview")}>
             <CollapsibleTrigger className="w-full">
               <SectionHeader icon={Info} title="1. Assessment Overview" color="slate" />
@@ -483,19 +483,19 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
                   </div>
                 </div>
                 <div className="grid grid-cols-3 gap-3 text-xs">
-                  <div className="bg-white border rounded p-2"><p className="font-semibold text-slate-700">Sensitivity</p><p className="text-slate-600">72â€“97% (lumbar disc herniation)</p></div>
-                  <div className="bg-white border rounded p-2"><p className="font-semibold text-slate-700">Specificity</p><p className="text-slate-600">11â€“66% (lumbar disc herniation)</p></div>
-                  <div className="bg-white border rounded p-2"><p className="font-semibold text-slate-700">Time</p><p className="text-slate-600">5â€“10 min bilateral</p></div>
+                  <div className="bg-white border rounded p-2"><p className="font-semibold text-slate-700">Sensitivity</p><p className="text-slate-600">72–97% (lumbar disc herniation)</p></div>
+                  <div className="bg-white border rounded p-2"><p className="font-semibold text-slate-700">Specificity</p><p className="text-slate-600">11–66% (lumbar disc herniation)</p></div>
+                  <div className="bg-white border rounded p-2"><p className="font-semibold text-slate-700">Time</p><p className="text-slate-600">5–10 min bilateral</p></div>
                 </div>
               </div>
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTION 2: Safety Screen â”€â”€ */}
+          {/* ── SECTION 2: Safety Screen ── */}
           {!safetyDone ? (
             <div className="border-2 border-amber-300 rounded-xl overflow-hidden">
               <div className="bg-amber-500 text-white px-4 py-3 flex items-center gap-2 font-semibold text-sm">
-                <AlertTriangle className="w-4 h-4" /> 2. Safety Screen â€” Complete Before Testing
+                <AlertTriangle className="w-4 h-4" /> 2. Safety Screen — Complete Before Testing
               </div>
               <div className="p-4 space-y-4 bg-amber-50">
                 <p className="text-sm text-amber-800 font-medium">Check any that apply to this patient:</p>
@@ -539,18 +539,18 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
           ) : (
             <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg px-4 py-2.5">
               <CheckCircle2 className="w-5 h-5 text-green-600" />
-              <span className="text-sm text-green-800 font-medium">Safety screen completed. {hasRedFlag ? "âš  Red flags noted â€” proceed with caution." : "No red flags identified."}</span>
+              <span className="text-sm text-green-800 font-medium">Safety screen completed. {hasRedFlag ? "⚠ Red flags noted — proceed with caution." : "No red flags identified."}</span>
               <button onClick={() => setSafetyDone(false)} className="ml-auto text-xs text-green-700 underline">Edit</button>
             </div>
           )}
 
-          {/* â”€â”€ SECTION 3: Clinician Instructions â”€â”€ */}
+          {/* ── SECTION 3: Clinician Instructions ── */}
           <div className="bg-blue-600 text-white rounded-lg px-4 py-3 text-sm">
-            <p className="font-semibold mb-1">ðŸ’¬ 3. Clinician Instructions</p>
-            <p className="text-blue-100">Patient lies supine with knee fully extended. Passively raise the limb into hip flexion while monitoring for symptom reproduction. Maintain neutral pelvis, avoid knee flexion, raise slowly (approx 10Â°/sec). Monitor symptom onset angle. Differentiate hamstring stretch sensation from neural pain (burning, radiating, familiar).</p>
+            <p className="font-semibold mb-1">💬 3. Clinician Instructions</p>
+            <p className="text-blue-100">Patient lies supine with knee fully extended. Passively raise the limb into hip flexion while monitoring for symptom reproduction. Maintain neutral pelvis, avoid knee flexion, raise slowly (approx 10°/sec). Monitor symptom onset angle. Differentiate hamstring stretch sensation from neural pain (burning, radiating, familiar).</p>
           </div>
 
-          {/* â”€â”€ SECTION 4: Test Setup â”€â”€ */}
+          {/* ── SECTION 4: Test Setup ── */}
           <Collapsible open={openSections.setup} onOpenChange={() => toggleSection("setup")}>
             <CollapsibleTrigger className="w-full">
               <SectionHeader icon={Activity} title="4. Test Setup" color="blue" />
@@ -586,7 +586,7 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
                   />
                 </div>
                 <div>
-                  <Label className="text-xs font-semibold text-slate-600 block mb-1">Baseline Pain (0â€“10)</Label>
+                  <Label className="text-xs font-semibold text-slate-600 block mb-1">Baseline Pain (0–10)</Label>
                   <Input
                     type="number" min="0" max="10"
                     value={baselinePain}
@@ -599,7 +599,7 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTIONS 5 & 6: Bilateral Test Runners â”€â”€ */}
+          {/* ── SECTIONS 5 & 6: Bilateral Test Runners ── */}
           <div>
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">5 & 6. Bilateral Test Runners</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -608,7 +608,7 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
             </div>
           </div>
 
-          {/* â”€â”€ SECTION 7: Modifiers â”€â”€ */}
+          {/* ── SECTION 7: Modifiers ── */}
           <Collapsible open={openSections.modifiers} onOpenChange={() => toggleSection("modifiers")}>
             <CollapsibleTrigger className="w-full">
               <SectionHeader icon={Zap} title="7. Symptom Modification Testing (Optional Neurodynamic Modifiers)" color="purple" />
@@ -629,7 +629,7 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ SECTIONS 8â€“11: Analysis, Interpretation, Flags â”€â”€ */}
+          {/* ── SECTIONS 8–11: Analysis, Interpretation, Flags ── */}
           {analysis && (
             <div className="space-y-4">
               {/* Comparative Analysis */}
@@ -638,17 +638,17 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
                 <div className="grid grid-cols-3 gap-3 text-center">
                   <div className="bg-white/10 rounded-lg p-3">
                     <p className="text-xs text-slate-300">Left Max ROM</p>
-                    <p className="text-2xl font-bold">{analysis.lAngle}Â°</p>
+                    <p className="text-2xl font-bold">{analysis.lAngle}°</p>
                     <Badge className={analysis.lPositive ? "bg-red-600 text-white" : "bg-green-600 text-white"}>{analysis.lPositive ? "Positive" : "Negative"}</Badge>
                   </div>
                   <div className="bg-white/10 rounded-lg p-3">
                     <p className="text-xs text-slate-300">Asymmetry</p>
-                    <p className="text-2xl font-bold">{analysis.diff}Â°</p>
-                    <p className={`text-xs mt-1 ${analysis.diff > 10 ? "text-amber-300" : "text-green-300"}`}>{analysis.diff > 10 ? "âš  Clinically significant" : "Within limits"}</p>
+                    <p className="text-2xl font-bold">{analysis.diff}°</p>
+                    <p className={`text-xs mt-1 ${analysis.diff > 10 ? "text-amber-300" : "text-green-300"}`}>{analysis.diff > 10 ? "⚠ Clinically significant" : "Within limits"}</p>
                   </div>
                   <div className="bg-white/10 rounded-lg p-3">
                     <p className="text-xs text-slate-300">Right Max ROM</p>
-                    <p className="text-2xl font-bold">{analysis.rAngle}Â°</p>
+                    <p className="text-2xl font-bold">{analysis.rAngle}°</p>
                     <Badge className={analysis.rPositive ? "bg-red-600 text-white" : "bg-green-600 text-white"}>{analysis.rPositive ? "Positive" : "Negative"}</Badge>
                   </div>
                 </div>
@@ -664,10 +664,10 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
               <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4">
                 <p className="font-semibold text-indigo-900 mb-2">10. Normative Reference Ranges</p>
                 <div className="text-sm text-indigo-800 space-y-1">
-                  <p>â€¢ 70â€“90Â° hip flexion commonly tolerated in asymptomatic individuals</p>
-                  <p>â€¢ Symptom reproduction between 30â€“70Â° may indicate neural involvement</p>
-                  <p>â€¢ Below-knee symptoms are more clinically meaningful than posterior thigh tightness alone</p>
-                  <p>â€¢ Asymmetry &gt;10Â° suggests unilateral pathology</p>
+                  <p>• 70–90° hip flexion commonly tolerated in asymptomatic individuals</p>
+                  <p>• Symptom reproduction between 30–70° may indicate neural involvement</p>
+                  <p>• Below-knee symptoms are more clinically meaningful than posterior thigh tightness alone</p>
+                  <p>• Asymmetry &gt;10° suggests unilateral pathology</p>
                 </div>
               </div>
 
@@ -678,7 +678,7 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
                   <div className="space-y-2">
                     {analysis.flags.map((f, i) => (
                       <div key={i} className="flex items-start gap-2">
-                        <span className="text-red-500 mt-0.5">âš‘</span>
+                        <span className="text-red-500 mt-0.5">⚑</span>
                         <p className="text-sm text-red-800">{f}</p>
                       </div>
                     ))}
@@ -688,7 +688,7 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
             </div>
           )}
 
-          {/* â”€â”€ SECTION 12: Clinical Notes â”€â”€ */}
+          {/* ── SECTION 12: Clinical Notes ── */}
           <div>
             <Label className="font-semibold block mb-2 text-sm">12. Clinical Notes</Label>
             <Textarea
@@ -699,7 +699,7 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
             />
           </div>
 
-          {/* â”€â”€ SECTION 13: References â”€â”€ */}
+          {/* ── SECTION 13: References ── */}
           <Collapsible open={openSections.references} onOpenChange={() => toggleSection("references")}>
             <CollapsibleTrigger className="w-full">
               <SectionHeader icon={ExternalLink} title="13. Evidence-Based References" color="amber" />
@@ -707,11 +707,11 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
             <CollapsibleContent>
               <div className="mt-3 bg-amber-50 border border-amber-200 rounded-lg p-4 space-y-3 text-xs text-amber-800">
                 {[
-                  { text: "Majlesi J, Togay H, Ãœnalan H, Toprak S. The sensitivity and specificity of the Slump and Straight Leg Raising tests in patients with lumbar disc herniation. J Clin Rheumatol. 2008;14(2):87â€“91.", url: "https://pubmed.ncbi.nlm.nih.gov/18391700/" },
-                  { text: "Scaia V, Baxter D, Cook C. The pain provocation-based straight leg raise test for diagnosis of lumbar disc herniation, lumbar radiculopathy and sciatica. J Back Musculoskelet Rehabil. 2012;25(4):215â€“223.", url: "https://pubmed.ncbi.nlm.nih.gov/23220805/" },
+                  { text: "Majlesi J, Togay H, Ünalan H, Toprak S. The sensitivity and specificity of the Slump and Straight Leg Raising tests in patients with lumbar disc herniation. J Clin Rheumatol. 2008;14(2):87–91.", url: "https://pubmed.ncbi.nlm.nih.gov/18391700/" },
+                  { text: "Scaia V, Baxter D, Cook C. The pain provocation-based straight leg raise test for diagnosis of lumbar disc herniation, lumbar radiculopathy and sciatica. J Back Musculoskelet Rehabil. 2012;25(4):215–223.", url: "https://pubmed.ncbi.nlm.nih.gov/23220805/" },
                   { text: "Willhuber GO, Piuzzi NS, Strahl A. Straight Leg Raise Test. StatPearls Publishing; Updated 2023.", url: "https://www.ncbi.nlm.nih.gov/books/NBK539717/" },
                   { text: "van der Windt DA, Simons E, Riphagen II et al. Physical examination for lumbar radiculopathy due to disc herniation in patients with low-back pain. Cochrane Database Syst Rev. 2010.", url: "https://pubmed.ncbi.nlm.nih.gov/20238349/" },
-                  { text: "Deville WL et al. The test of LasÃ¨gue: systematic review of the accuracy in diagnosing herniated discs. Spine. 2000;25(9):1140â€“1147.", url: "https://pubmed.ncbi.nlm.nih.gov/10788860/" },
+                  { text: "Deville WL et al. The test of Lasègue: systematic review of the accuracy in diagnosing herniated discs. Spine. 2000;25(9):1140–1147.", url: "https://pubmed.ncbi.nlm.nih.gov/10788860/" },
                 ].map((ref, i) => (
                   <a key={i} href={ref.url} target="_blank" rel="noopener noreferrer" className="flex items-start gap-2 hover:underline">
                     <ExternalLink className="w-3 h-3 flex-shrink-0 mt-0.5" />
@@ -722,7 +722,7 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
             </CollapsibleContent>
           </Collapsible>
 
-          {/* â”€â”€ Action Buttons â”€â”€ */}
+          {/* ── Action Buttons ── */}
           <div className="flex justify-between items-center gap-3 pt-4 border-t border-slate-200">
             <div className="flex gap-2">
               <Button variant="outline" onClick={onClose}><X className="w-4 h-4 mr-2" />Cancel</Button>

@@ -161,9 +161,9 @@ export default function K10Runner({ onSave, onClose }) {
                       <li><strong>Timeframe:</strong> Questions specifically ask about the past 4 weeks. This is a fixed window and should be used consistently.</li>
                       <li><strong>Response Format:</strong> 5-point Likert scale from "None of the time" (1) to "All of the time" (5).</li>
                       <li><strong>Auto-Skip Logic:</strong> If Q2 (nervous) is answered "1", Q3 (so nervous nothing could calm you) is automatically scored as 1. Same for Q5 (restless) and Q6 (too restless to sit still).</li>
-                      <li><strong>Completion Time:</strong> 2â€“3 minutes for client response.</li>
+                      <li><strong>Completion Time:</strong> 2–3 minutes for client response.</li>
                       <li><strong>Setting:</strong> Can be administered in clinic or self-completed. Ensure privacy and confidentiality.</li>
-                      <li><strong>Readability:</strong> Questions are written at approximately Year 6â€“7 literacy level, suitable for most Australian adults.</li>
+                      <li><strong>Readability:</strong> Questions are written at approximately Year 6–7 literacy level, suitable for most Australian adults.</li>
                     </ul>
                   </div>
 
@@ -189,20 +189,20 @@ export default function K10Runner({ onSave, onClose }) {
                   <div>
                     <p className="font-semibold text-blue-900 mb-2">Score Interpretation & Clinical Thresholds</p>
                     <div className="bg-white p-3 rounded border border-blue-300 space-y-2 text-xs">
-                      <p className="text-blue-800"><strong>Score 10â€“19 ("Likely well"):</strong> Client reports minimal psychological distress in the past 4 weeks. Consistent with general population norms. Continue monitoring; supportive care as needed.</p>
-                      <p className="text-blue-800"><strong>Score 20â€“24 ("Mild disorder likely"):</strong> Elevated distress but not severe. Warrants GP consultation; consider brief psychological intervention or support. Monitor at follow-up appointments.</p>
-                      <p className="text-blue-800"><strong>Score 25â€“29 ("Moderate disorder likely"):</strong> Significant distress. <strong>Recommend GP or psychology referral</strong> for comprehensive mental health assessment. May benefit from formal psychological or psychiatric evaluation.</p>
-                      <p className="text-blue-800"><strong>Score 30â€“50 ("Severe disorder likely"):</strong> High level of distress. <strong>Urgent GP or mental health referral warranted.</strong> Consider risk assessment (if applicable). Document and communicate findings to client's GP and relevant care team.</p>
+                      <p className="text-blue-800"><strong>Score 10–19 ("Likely well"):</strong> Client reports minimal psychological distress in the past 4 weeks. Consistent with general population norms. Continue monitoring; supportive care as needed.</p>
+                      <p className="text-blue-800"><strong>Score 20–24 ("Mild disorder likely"):</strong> Elevated distress but not severe. Warrants GP consultation; consider brief psychological intervention or support. Monitor at follow-up appointments.</p>
+                      <p className="text-blue-800"><strong>Score 25–29 ("Moderate disorder likely"):</strong> Significant distress. <strong>Recommend GP or psychology referral</strong> for comprehensive mental health assessment. May benefit from formal psychological or psychiatric evaluation.</p>
+                      <p className="text-blue-800"><strong>Score 30–50 ("Severe disorder likely"):</strong> High level of distress. <strong>Urgent GP or mental health referral warranted.</strong> Consider risk assessment (if applicable). Document and communicate findings to client's GP and relevant care team.</p>
                     </div>
                   </div>
 
                   <div>
                     <p className="font-semibold text-blue-900 mb-2">Referral Pathways in Australia</p>
                     <div className="bg-white p-3 rounded border border-blue-300 space-y-2 text-xs">
-                      <p className="text-blue-800"><strong>Medicare Mental Health Plans (MHCP):</strong> If a client scores â‰¥20, GP can refer for up to 10 psychological sessions with Medicare rebate under items 2715 (assessment) and 2717 (treatment).</p>
-                      <p className="text-blue-800"><strong>Beyond Blue:</strong> <a href="https://www.beyondblue.org.au/" target="_blank" className="text-blue-600 underline flex items-center gap-1">www.beyondblue.org.au <ExternalLink className="w-3 h-3" /></a> â€” Free phone counselling (1300 224 636) and online support for anyone experiencing anxiety or depression.</p>
-                      <p className="text-blue-800"><strong>Lifeline:</strong> <a href="https://www.lifeline.org.au/" target="_blank" className="text-blue-600 underline flex items-center gap-1">www.lifeline.org.au <ExternalLink className="w-3 h-3" /></a> â€” Crisis support (13 11 14) for people in distress.</p>
-                      <p className="text-blue-800"><strong>Australian Psychological Society:</strong> <a href="https://www.psychology.org.au/" target="_blank" className="text-blue-600 underline flex items-center gap-1">www.psychology.org.au <ExternalLink className="w-3 h-3" /></a> â€” Find registered psychologists in your area.</p>
+                      <p className="text-blue-800"><strong>Medicare Mental Health Plans (MHCP):</strong> If a client scores ≥20, GP can refer for up to 10 psychological sessions with Medicare rebate under items 2715 (assessment) and 2717 (treatment).</p>
+                      <p className="text-blue-800"><strong>Beyond Blue:</strong> <a href="https://www.beyondblue.org.au/" target="_blank" className="text-blue-600 underline flex items-center gap-1">www.beyondblue.org.au <ExternalLink className="w-3 h-3" /></a> — Free phone counselling (1300 224 636) and online support for anyone experiencing anxiety or depression.</p>
+                      <p className="text-blue-800"><strong>Lifeline:</strong> <a href="https://www.lifeline.org.au/" target="_blank" className="text-blue-600 underline flex items-center gap-1">www.lifeline.org.au <ExternalLink className="w-3 h-3" /></a> — Crisis support (13 11 14) for people in distress.</p>
+                      <p className="text-blue-800"><strong>Australian Psychological Society:</strong> <a href="https://www.psychology.org.au/" target="_blank" className="text-blue-600 underline flex items-center gap-1">www.psychology.org.au <ExternalLink className="w-3 h-3" /></a> — Find registered psychologists in your area.</p>
                       <p className="text-blue-800"><strong>WorkCover/Comcare:</strong> For work-injured clients, psychological services may be covered under workplace injury rehabilitation provisions.</p>
                     </div>
                   </div>
@@ -240,15 +240,15 @@ export default function K10Runner({ onSave, onClose }) {
 
             {/* Score Interpretation Reference */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Score Interpretation (/50)</p>
+              <p className="font-semibold text-slate-700">📊 Score Interpretation (/50)</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Score</th><th className="p-2 text-left">Interpretation</th><th className="p-2 text-left">Clinical Action</th></tr></thead>
                   <tbody>
-                    <tr className="border-t"><td className="p-2 font-medium">10â€“19</td><td className="p-2 text-green-700 font-medium">Likely well</td><td className="p-2">Continue supportive care; monitor at follow-ups</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2 font-medium">20â€“24</td><td className="p-2 text-yellow-700 font-medium">Mild distress likely</td><td className="p-2">GP consultation; consider brief intervention or monitoring</td></tr>
-                    <tr className="border-t"><td className="p-2 font-medium">25â€“29</td><td className="p-2 text-orange-700 font-medium">Moderate distress likely</td><td className="p-2"><strong>Recommend GP or psychology referral</strong> for comprehensive assessment</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2 font-medium">30â€“50</td><td className="p-2 text-red-700 font-medium">Severe distress likely</td><td className="p-2"><strong>Urgent mental health referral;</strong> consider risk assessment</td></tr>
+                    <tr className="border-t"><td className="p-2 font-medium">10–19</td><td className="p-2 text-green-700 font-medium">Likely well</td><td className="p-2">Continue supportive care; monitor at follow-ups</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2 font-medium">20–24</td><td className="p-2 text-yellow-700 font-medium">Mild distress likely</td><td className="p-2">GP consultation; consider brief intervention or monitoring</td></tr>
+                    <tr className="border-t"><td className="p-2 font-medium">25–29</td><td className="p-2 text-orange-700 font-medium">Moderate distress likely</td><td className="p-2"><strong>Recommend GP or psychology referral</strong> for comprehensive assessment</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2 font-medium">30–50</td><td className="p-2 text-red-700 font-medium">Severe distress likely</td><td className="p-2"><strong>Urgent mental health referral;</strong> consider risk assessment</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -260,7 +260,7 @@ export default function K10Runner({ onSave, onClose }) {
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
                   <div>
-                    <p className="font-bold text-red-900 mb-2">âš ï¸ IMPORTANT: This is a Screening Tool, NOT a Diagnosis</p>
+                    <p className="font-bold text-red-900 mb-2">⚠ï¸ IMPORTANT: This is a Screening Tool, NOT a Diagnosis</p>
                     <p className="text-sm text-red-800 mb-2">
                       The K10 <strong>cannot diagnose</strong> depression, anxiety, PTSD, or any mental health disorder. A high score indicates that further assessment by a mental health professional (psychologist, psychiatrist) is recommended, but does not confirm any diagnosis.
                     </p>
@@ -275,19 +275,19 @@ export default function K10Runner({ onSave, onClose }) {
             {/* Evidence Base */}
             <Card className="bg-slate-100 border-slate-300">
               <CardHeader>
-                <CardTitle className="text-lg">ðŸ“– Evidence Base & Key References</CardTitle>
+                <CardTitle className="text-lg">📖 Evidence Base & Key References</CardTitle>
               </CardHeader>
               <CardContent className="text-xs text-slate-700 space-y-3">
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Primary Development Study</p>
-                  <p>Kessler RC et al. (2002). Short screening scales to monitor population prevalences and trends in non-specific psychological distress. <em>Psychological Medicine, 32</em>(6), 959â€“976.</p>
+                  <p>Kessler RC et al. (2002). Short screening scales to monitor population prevalences and trends in non-specific psychological distress. <em>Psychological Medicine, 32</em>(6), 959–976.</p>
                   <a href="https://doi.org/10.1017/S0033291702006074" target="_blank" className="text-blue-600 underline flex items-center gap-1 mt-1">
                     View full text <ExternalLink className="w-3 h-3" />
                   </a>
                 </div>
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Australian Validation & Interpretation</p>
-                  <p>Andrews G & Slade T. (2001). Interpreting scores on the Kessler Psychological Distress Scale (K10). <em>Australian and New Zealand Journal of Public Health, 25</em>(6), 494â€“497.</p>
+                  <p>Andrews G & Slade T. (2001). Interpreting scores on the Kessler Psychological Distress Scale (K10). <em>Australian and New Zealand Journal of Public Health, 25</em>(6), 494–497.</p>
                   <a href="https://doi.org/10.1111/j.1467-842X.2001.tb00294.x" target="_blank" className="text-blue-600 underline flex items-center gap-1 mt-1">
                     View full text <ExternalLink className="w-3 h-3" />
                   </a>
@@ -301,7 +301,7 @@ export default function K10Runner({ onSave, onClose }) {
                 </div>
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Psychometric Properties</p>
-                  <p>Sensitivity 88%, Specificity 73% for detecting non-specific psychological distress. Test-retest reliability ICC = 0.80 (good). Cronbach's alpha â‰ˆ 0.93 (excellent internal consistency).</p>
+                  <p>Sensitivity 88%, Specificity 73% for detecting non-specific psychological distress. Test-retest reliability ICC = 0.80 (good). Cronbach's alpha ≈ 0.93 (excellent internal consistency).</p>
                 </div>
               </CardContent>
             </Card>
@@ -421,7 +421,7 @@ export default function K10Runner({ onSave, onClose }) {
             <Card className="bg-amber-50 border-amber-200">
               <CardContent className="py-4 text-xs text-amber-800 space-y-2">
                 <p><strong>Auto-Skip Logic:</strong> If Q2 "nervous" is answered "None of the time", Q3 "so nervous nothing could calm you" is automatically set to 1. Similarly, if Q5 "restless" is "None of the time", Q6 "too restless to sit still" is set to 1. This reflects the conditional structure of the original questionnaire.</p>
-                <p><strong>Scoring:</strong> Sum all 10 responses (range 10â€“50). Lower scores indicate less distress, higher scores indicate greater distress.</p>
+                <p><strong>Scoring:</strong> Sum all 10 responses (range 10–50). Lower scores indicate less distress, higher scores indicate greater distress.</p>
               </CardContent>
             </Card>
           </div>

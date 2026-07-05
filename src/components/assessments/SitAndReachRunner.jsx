@@ -25,7 +25,7 @@ export default function SitAndReachRunner({ onSave, onClose, initialData }) {
 
   const handleSave = () => {
     const best = calculateBest();
-    const soapText = `â€¢ Sit and Reach Test\n  Result: ${best?.toFixed(1) ?? 'N/A'} cm (best of trials)${data.observations ? `\n  Observations: ${data.observations}` : ''}`;
+    const soapText = `• Sit and Reach Test\n  Result: ${best?.toFixed(1) ?? 'N/A'} cm (best of trials)${data.observations ? `\n  Observations: ${data.observations}` : ''}`;
     onSave({
       result_value: best,
       additional_data: {

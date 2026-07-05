@@ -10,7 +10,7 @@ const BILATERAL_ITEMS = [
   {
     key: "littleFinger",
     label: "Little Finger",
-    description: "Passive dorsiflexion of 5th MCP joint >90Â°",
+    description: "Passive dorsiflexion of 5th MCP joint >90°",
   },
   {
     key: "thumb",
@@ -20,12 +20,12 @@ const BILATERAL_ITEMS = [
   {
     key: "elbow",
     label: "Elbow",
-    description: "Hyperextension of elbow >10Â°",
+    description: "Hyperextension of elbow >10°",
   },
   {
     key: "knee",
     label: "Knee",
-    description: "Hyperextension of knee >10Â°",
+    description: "Hyperextension of knee >10°",
   },
 ];
 
@@ -76,14 +76,14 @@ export default function BeightonHypermobilityScoreRunner({ client, onSave, onClo
       .filter(([, v]) => v)
       .map(([k]) => k.replace(/([A-Z])/g, ' $1').trim());
 
-    let soapText = `â€¢ Beighton Hypermobility Score: ${total}/9 â€” ${classification.label}\n`;
+    let soapText = `• Beighton Hypermobility Score: ${total}/9 — ${classification.label}\n`;
     soapText += `  Bilateral items:\n`;
     BILATERAL_ITEMS.forEach(item => {
       const left = scores[`left${item.key.charAt(0).toUpperCase() + item.key.slice(1)}`];
       const right = scores[`right${item.key.charAt(0).toUpperCase() + item.key.slice(1)}`];
-      soapText += `    ${item.label}: L ${left ? "+" : "âˆ’"} | R ${right ? "+" : "âˆ’"}\n`;
+      soapText += `    ${item.label}: L ${left ? "+" : "−"} | R ${right ? "+" : "−"}\n`;
     });
-    soapText += `  Trunk flexion (palms flat, knees straight): ${scores.trunkFlexion ? "+" : "âˆ’"}\n`;
+    soapText += `  Trunk flexion (palms flat, knees straight): ${scores.trunkFlexion ? "+" : "−"}\n`;
     if (positiveItems.length === 0) soapText += `  No positive items\n`;
     if (notes) soapText += `  Notes: ${notes}\n`;
 
@@ -110,7 +110,7 @@ export default function BeightonHypermobilityScoreRunner({ client, onSave, onClo
         <div className="p-5 border-b bg-gradient-to-r from-orange-50 to-amber-50 flex justify-between items-start shrink-0">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Beighton Hypermobility Score</h2>
-            <p className="text-sm text-slate-500 mt-0.5">9-point scale â€” passive range of motion only</p>
+            <p className="text-sm text-slate-500 mt-0.5">9-point scale — passive range of motion only</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -122,11 +122,11 @@ export default function BeightonHypermobilityScoreRunner({ client, onSave, onClo
             <p className="font-semibold flex items-center gap-2"><Info className="w-4 h-4" /> Clinician Instructions</p>
             <p><strong>Protocol:</strong> All items assessed passively. Do not apply force beyond the point of resistance. Record only ROM achieved passively.</p>
             <ul className="list-disc ml-5 space-y-1 text-xs mt-2">
-              <li><strong>Little fingers:</strong> Passive dorsiflexion of 5th MCP joint &gt;90Â° â€” 1 point each side</li>
-              <li><strong>Thumbs:</strong> Passive apposition of thumb to flexor aspect of forearm â€” 1 point each side</li>
-              <li><strong>Elbows:</strong> Passive hyperextension &gt;10Â° â€” 1 point each side</li>
-              <li><strong>Knees:</strong> Passive hyperextension &gt;10Â° â€” 1 point each side</li>
-              <li><strong>Trunk:</strong> Standing forward flexion â€” palms flat on floor with knees straight â€” 1 point</li>
+              <li><strong>Little fingers:</strong> Passive dorsiflexion of 5th MCP joint &gt;90° — 1 point each side</li>
+              <li><strong>Thumbs:</strong> Passive apposition of thumb to flexor aspect of forearm — 1 point each side</li>
+              <li><strong>Elbows:</strong> Passive hyperextension &gt;10° — 1 point each side</li>
+              <li><strong>Knees:</strong> Passive hyperextension &gt;10° — 1 point each side</li>
+              <li><strong>Trunk:</strong> Standing forward flexion — palms flat on floor with knees straight — 1 point</li>
             </ul>
             <p className="text-xs text-blue-700 mt-1 italic">Tap each button to toggle 0/1 for each item. Live score updates automatically.</p>
           </div>
@@ -185,7 +185,7 @@ export default function BeightonHypermobilityScoreRunner({ client, onSave, onClo
             </CardContent>
           </Card>
 
-          {/* Trunk Flexion â€” Axial Item */}
+          {/* Trunk Flexion — Axial Item */}
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm text-slate-700">Axial Item (1 pt)</CardTitle>
@@ -194,7 +194,7 @@ export default function BeightonHypermobilityScoreRunner({ client, onSave, onClo
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-medium text-slate-800">Trunk Flexion</p>
-                  <p className="text-xs text-slate-500 mt-0.5">Standing forward flexion â€” palms flat on floor, knees fully extended</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Standing forward flexion — palms flat on floor, knees fully extended</p>
                 </div>
                 <ScoreToggle checked={scores.trunkFlexion} onChange={() => toggle("trunkFlexion")} />
               </div>
@@ -203,7 +203,7 @@ export default function BeightonHypermobilityScoreRunner({ client, onSave, onClo
 
           {/* Score Interpretation Table */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Score Interpretation (Beighton Criteria)</p>
+            <p className="font-semibold text-slate-700">📊 Score Interpretation (Beighton Criteria)</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200">
@@ -214,21 +214,21 @@ export default function BeightonHypermobilityScoreRunner({ client, onSave, onClo
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="border-t"><td className="p-2">â‰¥5/9</td><td className="p-2 text-orange-600 font-semibold">Hypermobility Likely</td><td className="p-2">Screen for hEDS/HSD per 2017 criteria</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">4/9</td><td className="p-2 text-yellow-600 font-semibold">Borderline</td><td className="p-2">Contextual â€” consider age, sex, symptoms</td></tr>
-                  <tr className="border-t"><td className="p-2">â‰¤3/9</td><td className="p-2 text-green-600 font-semibold">Below Threshold</td><td className="p-2">Hypermobility syndrome unlikely</td></tr>
+                  <tr className="border-t"><td className="p-2">≥5/9</td><td className="p-2 text-orange-600 font-semibold">Hypermobility Likely</td><td className="p-2">Screen for hEDS/HSD per 2017 criteria</td></tr>
+                  <tr className="border-t bg-white"><td className="p-2">4/9</td><td className="p-2 text-yellow-600 font-semibold">Borderline</td><td className="p-2">Contextual — consider age, sex, symptoms</td></tr>
+                  <tr className="border-t"><td className="p-2">≤3/9</td><td className="p-2 text-green-600 font-semibold">Below Threshold</td><td className="p-2">Hypermobility syndrome unlikely</td></tr>
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-slate-500">Note: Beighton score alone is insufficient for hEDS diagnosis. 2017 criteria also require musculoskeletal symptoms and absence of alternative diagnoses. Threshold may vary (â‰¥4 in post-pubertal adults).</p>
+            <p className="text-xs text-slate-500">Note: Beighton score alone is insufficient for hEDS diagnosis. 2017 criteria also require musculoskeletal symptoms and absence of alternative diagnoses. Threshold may vary (≥4 in post-pubertal adults).</p>
           </div>
 
           {/* References */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– References</p>
-            <p>Beighton P, Solomon L, & Soskolne CL. (1973). Articular mobility in an African population. <em>Annals of the Rheumatic Diseases, 32</em>(5), 413â€“418.</p>
-            <p>Malfait F et al. (2017). The 2017 international classification of the Ehlers-Danlos syndromes. <em>American Journal of Medical Genetics Part C, 175</em>(1), 8â€“26.</p>
-            <p>Hakim AJ & Grahame R. (2003). A simple questionnaire to detect hypermobility: an adjunct to the assessment of patients with diffuse musculoskeletal pain. <em>International Journal of Clinical Practice, 57</em>(3), 163â€“166.</p>
+            <p className="font-semibold">📖 References</p>
+            <p>Beighton P, Solomon L, & Soskolne CL. (1973). Articular mobility in an African population. <em>Annals of the Rheumatic Diseases, 32</em>(5), 413–418.</p>
+            <p>Malfait F et al. (2017). The 2017 international classification of the Ehlers-Danlos syndromes. <em>American Journal of Medical Genetics Part C, 175</em>(1), 8–26.</p>
+            <p>Hakim AJ & Grahame R. (2003). A simple questionnaire to detect hypermobility: an adjunct to the assessment of patients with diffuse musculoskeletal pain. <em>International Journal of Clinical Practice, 57</em>(3), 163–166.</p>
           </div>
 
           {/* Clinical Notes */}

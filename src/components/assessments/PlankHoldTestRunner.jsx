@@ -104,7 +104,7 @@ export default function PlankHoldTestRunner({ client, onSave, onClose }) {
     const normativeData = getNormativeComparison(clientAge, clientSex, bestAttempt);
 
     const soapLines = [
-      `â€¢ Plank Hold Test (Core Endurance)`,
+      `• Plank Hold Test (Core Endurance)`,
       `  Client Age: ${clientAge} years`,
       `  Client Sex: ${clientSex}`,
       `  Assessment Date: ${assessmentDate}`,
@@ -326,11 +326,11 @@ export default function PlankHoldTestRunner({ client, onSave, onClose }) {
           {/* Reference */}
           <Card className="bg-slate-100 border-slate-200">
             <CardHeader>
-              <CardTitle className="text-base">ðŸ“– Reference</CardTitle>
+              <CardTitle className="text-base">📖 Reference</CardTitle>
             </CardHeader>
             <CardContent className="text-xs text-slate-600 space-y-1">
-              <p>McGill SM, Childs A, & Liebenson C. (1999). Endurance times for low back stabilization exercises: Clinical targets for testing and training from a normal database. <em>Archives of Physical Medicine and Rehabilitation, 80</em>(8), 941â€“944.</p>
-              <p>Schellenberg KL, Lang JM, Chan KM, & Burnham RS. (2007). A clinical tool for office assessment of lumbar spine stabilization endurance: Prone and supine bridge maneuvers. <em>American Journal of Physical Medicine & Rehabilitation, 86</em>(5), 380â€“386.</p>
+              <p>McGill SM, Childs A, & Liebenson C. (1999). Endurance times for low back stabilization exercises: Clinical targets for testing and training from a normal database. <em>Archives of Physical Medicine and Rehabilitation, 80</em>(8), 941–944.</p>
+              <p>Schellenberg KL, Lang JM, Chan KM, & Burnham RS. (2007). A clinical tool for office assessment of lumbar spine stabilization endurance: Prone and supine bridge maneuvers. <em>American Journal of Physical Medicine & Rehabilitation, 86</em>(5), 380–386.</p>
             </CardContent>
           </Card>
 

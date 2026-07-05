@@ -12,7 +12,7 @@ import {
 import { Save, X, Play, Square, RotateCcw, Zap, Activity, TrendingDown, Award, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ NORMS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── NORMS ─────────────────────────────────────────────────────────────────────
 const PEAK_POWER_NORMS = {
   male:   [{ label: "Elite",        min: 13.0, color: "bg-purple-100 text-purple-800" },
            { label: "Excellent",    min: 10.0, color: "bg-green-100 text-green-800" },
@@ -48,13 +48,13 @@ const FATIGUE_INTERP = [
   { max: 25, label: "Excellent anaerobic capacity maintenance", color: "text-green-700" },
   { max: 35, label: "Good anaerobic capacity", color: "text-teal-700" },
   { max: 45, label: "Average fatigue resistance", color: "text-yellow-700" },
-  { max: 60, label: "High fatigue â€” limited anaerobic endurance", color: "text-orange-700" },
-  { max: 100, label: "Very high fatigue â€” poor anaerobic capacity", color: "text-red-700" },
+  { max: 60, label: "High fatigue — limited anaerobic endurance", color: "text-orange-700" },
+  { max: 100, label: "Very high fatigue — poor anaerobic capacity", color: "text-red-700" },
 ];
 
-// â”€â”€â”€ HELPERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── HELPERS ────────────────────────────────────────────────────────────────────
 const classify = (norms, value) => norms.find(n => value >= n.min) || norms[norms.length - 1];
-const ergPower = (kp, rpm) => kp * rpm * 0.98; // Monark formula: W = kp Ã— rev/min Ã— 6m/rev Ã— 9.81/60 â‰ˆ kpÃ—rpmÃ—0.98
+const ergPower = (kp, rpm) => kp * rpm * 0.98; // Monark formula: W = kp × rev/min × 6m/rev × 9.81/60 ≈ kp×rpm×0.98
 
 function buildPowerCurve(intervals) {
   // intervals: array of 5-second rev counts
@@ -79,7 +79,7 @@ function calcTestValidity(peakW, meanW, minW, mass, resistance) {
   return { score: total, checks: scores };
 }
 
-// â”€â”€â”€ MAIN COMPONENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MAIN COMPONENT ─────────────────────────────────────────────────────────────
 export default function WingateAnaerobicTestRunner({ client, onSave, onClose, previousAssessments = [] }) {
   const [tab, setTab] = useState("setup");
   const [bodyMass, setBodyMass] = useState(client?.apss_s2_weight_kg?.toString() || "");
@@ -93,7 +93,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
   const [recoveryTime, setRecoveryTime] = useState(0);
   const timerRef = useRef(null);
 
-  // 6 Ã— 5-second interval rev counts
+  // 6 × 5-second interval rev counts
   const [intervals, setIntervals] = useState(["", "", "", "", "", ""]);
   const [peakPowerManual, setPeakPowerManual] = useState("");
   const [meanPowerManual, setMeanPowerManual] = useState("");
@@ -111,10 +111,10 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
   const res = parseFloat(resistance) || 0;
   const suggestedRes = mass > 0 ? (gender === "male" ? mass * 0.075 : mass * 0.065).toFixed(2) : "";
 
-  // â”€â”€â”€ DERIVED CALCULATIONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── DERIVED CALCULATIONS ───────────────────────────────────────────────────
   const intervalPowers = intervals.map(revs => {
     const r = parseFloat(revs);
-    return !isNaN(r) && r > 0 && res > 0 ? ergPower(res, r * 12) : null; // revs per 5s â†’ rpm (Ã—12)
+    return !isNaN(r) && r > 0 && res > 0 ? ergPower(res, r * 12) : null; // revs per 5s → rpm (×12)
   });
 
   const validPowers = intervalPowers.filter(p => p !== null);
@@ -129,7 +129,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
 
   const peakWkg  = peakW && mass > 0 ? peakW / mass : null;
   const meanWkg  = meanW && mass > 0 ? meanW / mass : null;
-  const totalWork = meanW ? meanW * 30 : null; // joules = W Ã— 30s
+  const totalWork = meanW ? meanW * 30 : null; // joules = W × 30s
 
   const fatigueIndex = peakW && minW && peakW > 0
     ? ((peakW - minW) / peakW) * 100 : null;
@@ -152,7 +152,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
     wPerKg: p && mass > 0 ? parseFloat((p / mass).toFixed(2)) : null,
   }));
 
-  // â”€â”€â”€ TIMER LOGIC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── TIMER LOGIC ────────────────────────────────────────────────────────────
   const startTest = () => {
     if (!resistance || !bodyMass) { toast.error("Set body mass and resistance first."); return; }
     setTestPhase("running"); setElapsed(0);
@@ -164,30 +164,30 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
   const stopRecovery = () => { clearInterval(timerRef.current); setTestPhase("done"); };
   useEffect(() => () => clearInterval(timerRef.current), []);
 
-  // â”€â”€â”€ SOAP EXPORT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── SOAP EXPORT ────────────────────────────────────────────────────────────
   const buildSOAP = () => {
     const lines = [
-      `â€¢ Wingate Anaerobic Test (WAnT) â€” 30-Second Maximal Cycle Sprint`,
+      `• Wingate Anaerobic Test (WAnT) — 30-Second Maximal Cycle Sprint`,
       `  Body Mass: ${mass} kg | Resistance: ${res} kp (${(res / mass * 1000).toFixed(1)} g/kg)`,
       `  Sport Profile: ${sport}`,
       ``,
       `  POWER OUTPUT:`,
-      `  Peak Power: ${peakW ? Math.round(peakW) : "N/A"} W${peakWkg ? ` (${peakWkg.toFixed(2)} W/kg)` : ""}${peakCat ? ` â€” ${peakCat.label}` : ""}`,
-      `  Mean Power: ${meanW ? Math.round(meanW) : "N/A"} W${meanWkg ? ` (${meanWkg.toFixed(2)} W/kg)` : ""}${meanCat ? ` â€” ${meanCat.label}` : ""}`,
+      `  Peak Power: ${peakW ? Math.round(peakW) : "N/A"} W${peakWkg ? ` (${peakWkg.toFixed(2)} W/kg)` : ""}${peakCat ? ` — ${peakCat.label}` : ""}`,
+      `  Mean Power: ${meanW ? Math.round(meanW) : "N/A"} W${meanWkg ? ` (${meanWkg.toFixed(2)} W/kg)` : ""}${meanCat ? ` — ${meanCat.label}` : ""}`,
       `  Minimum Power: ${minW ? Math.round(minW) : "N/A"} W`,
       `  Total Work: ${totalWork ? Math.round(totalWork) : "N/A"} J`,
       `  Peak Power Timing: ${peakTimingIndex >= 0 ? `${peakTimingIndex * 5}-${(peakTimingIndex + 1) * 5}s interval` : "N/A"}`,
       ``,
       `  ANAEROBIC CAPACITY:`,
-      `  Fatigue Index: ${fatigueIndex != null ? fatigueIndex.toFixed(1) : "N/A"}%${fatigueCat ? ` â€” ${fatigueCat.label}` : ""}`,
-      `  Power Decline: Peakâ†’Min = ${peakW && minW ? Math.round(peakW - minW) : "N/A"} W`,
+      `  Fatigue Index: ${fatigueIndex != null ? fatigueIndex.toFixed(1) : "N/A"}%${fatigueCat ? ` — ${fatigueCat.label}` : ""}`,
+      `  Power Decline: Peak→Min = ${peakW && minW ? Math.round(peakW - minW) : "N/A"} W`,
       ``,
       prevPeak ? `  COMPARISON TO PREVIOUS: Peak ${peakWkg ? peakWkg.toFixed(2) : "?"} vs ${prevPeak.toFixed(2)} W/kg (${peakWkg ? ((peakWkg - prevPeak) / prevPeak * 100).toFixed(1) : "?"} % change)\n` : "",
-      recHR1 || recHR2 || recHR3 ? `  RECOVERY HR: 1-min: ${recHR1 || "â€”"} bpm | 2-min: ${recHR2 || "â€”"} bpm | 3-min: ${recHR3 || "â€”"} bpm` : "",
+      recHR1 || recHR2 || recHR3 ? `  RECOVERY HR: 1-min: ${recHR1 || "—"} bpm | 2-min: ${recHR2 || "—"} bpm | 3-min: ${recHR3 || "—"} bpm` : "",
       rpe ? `  RPE (Borg 6-20): ${rpe}` : "",
       validity ? `  Test Validity Score: ${validity.score}/100` : "",
       notes ? `  Notes: ${notes}` : "",
-      `  Reference: Bar-Or O (1987). The Wingate anaerobic test. Sports Medicine, 4(6):381â€“394.`,
+      `  Reference: Bar-Or O (1987). The Wingate anaerobic test. Sports Medicine, 4(6):381–394.`,
       `  Reference: Inbar O, Bar-Or O, Skinner JS (1996). The Wingate Anaerobic Test. Human Kinetics.`,
     ].filter(Boolean).join("\n");
     return lines;
@@ -227,7 +227,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
     toast.success("Wingate Test saved.");
   };
 
-  // â”€â”€â”€ RENDER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── RENDER ─────────────────────────────────────────────────────────────────
   const timerProgress = Math.min((elapsed / 30) * 100, 100);
 
   return (
@@ -238,7 +238,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
         <div className="px-6 py-4 border-b bg-gradient-to-r from-rose-600 to-red-700 flex justify-between items-center">
           <div>
             <h2 className="text-xl font-bold text-white">Wingate Anaerobic Test</h2>
-            <p className="text-rose-200 text-sm">30-second maximal cycle ergometer sprint â€” Performance Lab Engine</p>
+            <p className="text-rose-200 text-sm">30-second maximal cycle ergometer sprint — Performance Lab Engine</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose} className="text-white hover:bg-white/20"><X className="w-5 h-5" /></Button>
         </div>
@@ -270,7 +270,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
                         <p className="font-bold text-blue-800 mb-2">Equipment Setup</p>
                         <ul className="text-blue-700 space-y-1 list-disc list-inside">
                           <li>Mechanically braked ergometer (Monark 834/894E or equivalent)</li>
-                          <li>Set seat height: slight knee bend (5â€“10Â°) at bottom of stroke</li>
+                          <li>Set seat height: slight knee bend (5–10°) at bottom of stroke</li>
                           <li>Toe clips / straps secured firmly</li>
                           <li>Calibrate ergometer resistance before each test</li>
                         </ul>
@@ -278,9 +278,9 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
                       <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                         <p className="font-bold text-green-800 mb-2">Warm-Up</p>
                         <ul className="text-green-700 space-y-1 list-disc list-inside">
-                          <li>5â€“10 min light cycling at 60â€“80 W</li>
-                          <li>3 Ã— 3-second sprint bursts (2 min apart)</li>
-                          <li>3â€“5 min rest before test</li>
+                          <li>5–10 min light cycling at 60–80 W</li>
+                          <li>3 × 3-second sprint bursts (2 min apart)</li>
+                          <li>3–5 min rest before test</li>
                           <li>Ensure HR has returned toward baseline</li>
                         </ul>
                       </div>
@@ -306,9 +306,9 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
                     </div>
                     <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">
                       <p className="font-semibold text-amber-800">Power Calculation (Monark Protocol)</p>
-                      <p className="text-amber-700 mt-1">Power (W) = Force (kp) Ã— Distance (m/5s) Ã— 9.81 / 5<br />
-                      Simplified: W = kp Ã— RPM Ã— 6 Ã— 9.81/60 â‰ˆ kp Ã— RPM Ã— 0.98<br />
-                      Where RPM = (revolutions per 5s) Ã— 12</p>
+                      <p className="text-amber-700 mt-1">Power (W) = Force (kp) × Distance (m/5s) × 9.81 / 5<br />
+                      Simplified: W = kp × RPM × 6 × 9.81/60 ≈ kp × RPM × 0.98<br />
+                      Where RPM = (revolutions per 5s) × 12</p>
                     </div>
                   </div>
                 )}
@@ -382,12 +382,12 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
 
               {/* Revolution Capture */}
               <div className="border border-slate-200 rounded-xl p-4">
-                <h3 className="font-semibold text-slate-700 mb-3 text-sm">ðŸ“Š Revolution Capture â€” 5-Second Intervals</h3>
-                <p className="text-xs text-slate-500 mb-3">Enter pedal revolution count for each 5-second window. Power is auto-calculated from Force Ã— RPM.</p>
+                <h3 className="font-semibold text-slate-700 mb-3 text-sm">📊 Revolution Capture — 5-Second Intervals</h3>
+                <p className="text-xs text-slate-500 mb-3">Enter pedal revolution count for each 5-second window. Power is auto-calculated from Force × RPM.</p>
                 <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
                   {intervals.map((val, i) => (
                     <div key={i} className="text-center">
-                      <p className="text-xs font-medium text-slate-600 mb-1">{i * 5}â€“{(i + 1) * 5}s</p>
+                      <p className="text-xs font-medium text-slate-600 mb-1">{i * 5}–{(i + 1) * 5}s</p>
                       <Input type="number" value={val} onChange={e => { const v = [...intervals]; v[i] = e.target.value; setIntervals(v); }}
                         className="text-center text-sm font-mono" placeholder="revs" />
                       {intervalPowers[i] != null && (
@@ -421,7 +421,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
               </div>
 
               <div>
-                <Label className="text-sm">RPE (Borg 6â€“20)</Label>
+                <Label className="text-sm">RPE (Borg 6–20)</Label>
                 <Input type="number" min="6" max="20" value={rpe} onChange={e => setRpe(e.target.value)} className="mt-1 w-24 text-sm" />
               </div>
             </TabsContent>
@@ -439,7 +439,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
                   <div key={card.label} className="border border-slate-200 rounded-xl p-3 text-center">
                     <div className="flex justify-center mb-1">{card.icon}</div>
                     <p className="text-xs text-slate-500 mb-1">{card.label}</p>
-                    <p className="text-2xl font-bold text-slate-900">{card.val != null ? Math.round(card.val) : "â€”"}<span className="text-sm font-normal ml-1">{card.unit}</span></p>
+                    <p className="text-2xl font-bold text-slate-900">{card.val != null ? Math.round(card.val) : "—"}<span className="text-sm font-normal ml-1">{card.unit}</span></p>
                     {card.sub && <p className="text-xs text-slate-500 mt-0.5">{card.sub}</p>}
                     {card.badge && <Badge className={`mt-1 text-xs ${card.badge.color}`}>{card.badge.label}</Badge>}
                   </div>
@@ -458,18 +458,18 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
                       style={{ width: `${Math.min(fatigueIndex, 100)}%` }} />
                   </div>
                   <p className={`text-sm font-medium ${fatigueCat?.color}`}>{fatigueCat?.label}</p>
-                  <p className="text-xs text-slate-500 mt-1">Formula: (Peak âˆ’ Min) / Peak Ã— 100. Lower = better anaerobic capacity maintenance.</p>
+                  <p className="text-xs text-slate-500 mt-1">Formula: (Peak − Min) / Peak × 100. Lower = better anaerobic capacity maintenance.</p>
                 </div>
               )}
 
               {/* Peak timing */}
               {peakTimingIndex >= 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm">
-                  <p className="font-semibold text-amber-800">âš¡ Peak Power Timing: {peakTimingIndex * 5}â€“{(peakTimingIndex + 1) * 5}s interval</p>
+                  <p className="font-semibold text-amber-800">⚡ Peak Power Timing: {peakTimingIndex * 5}–{(peakTimingIndex + 1) * 5}s interval</p>
                   <p className="text-amber-700 text-xs mt-1">
-                    {peakTimingIndex === 0 ? "Peak in first interval â€” excellent fast-twitch recruitment and immediate maximal effort." :
-                     peakTimingIndex === 1 ? "Peak in second interval â€” typical pattern; short acceleration phase." :
-                     "Delayed peak â€” may indicate slow engagement, pacing, or fatigue onset before test."}
+                    {peakTimingIndex === 0 ? "Peak in first interval — excellent fast-twitch recruitment and immediate maximal effort." :
+                     peakTimingIndex === 1 ? "Peak in second interval — typical pattern; short acceleration phase." :
+                     "Delayed peak — may indicate slow engagement, pacing, or fatigue onset before test."}
                   </p>
                 </div>
               )}
@@ -481,9 +481,9 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     {[
                       { key: "Peak Power", client: peakWkg.toFixed(2), norm: gender === "male" ? SPORT_NORMS[sport].pp_male : SPORT_NORMS[sport].pp_female },
-                      { key: "Mean Power", client: meanWkg?.toFixed(2) ?? "â€”", norm: gender === "male" ? SPORT_NORMS[sport].mp_male : SPORT_NORMS[sport].mp_female },
+                      { key: "Mean Power", client: meanWkg?.toFixed(2) ?? "—", norm: gender === "male" ? SPORT_NORMS[sport].mp_male : SPORT_NORMS[sport].mp_female },
                     ].map(row => {
-                      const diff = row.client !== "â€”" ? ((parseFloat(row.client) - row.norm) / row.norm * 100).toFixed(1) : null;
+                      const diff = row.client !== "—" ? ((parseFloat(row.client) - row.norm) / row.norm * 100).toFixed(1) : null;
                       return (
                         <div key={row.key} className="bg-slate-50 rounded-lg p-3 border border-slate-200">
                           <p className="font-semibold text-slate-600 mb-1">{row.key}</p>
@@ -500,7 +500,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
               {/* Previous comparison */}
               {prevPeak && peakWkg && (
                 <div className="border border-indigo-200 rounded-xl p-4 bg-indigo-50">
-                  <p className="font-semibold text-indigo-800 text-sm mb-2">ðŸ“ˆ Comparison to Previous Test</p>
+                  <p className="font-semibold text-indigo-800 text-sm mb-2">📈 Comparison to Previous Test</p>
                   <div className="flex gap-6 text-sm">
                     <div><p className="text-xs text-indigo-600">Previous</p><p className="font-bold text-indigo-900">{prevPeak.toFixed(2)} W/kg</p></div>
                     <div><p className="text-xs text-indigo-600">Current</p><p className="font-bold text-indigo-900">{peakWkg.toFixed(2)} W/kg</p></div>
@@ -524,7 +524,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
                   <div className="space-y-1">
                     {validity.checks.map(c => (
                       <div key={c.label} className="flex items-center gap-2 text-xs">
-                        <span>{c.pass ? "âœ…" : "âŒ"}</span>
+                        <span>{c.pass ? "✅" : "âŒ"}</span>
                         <span className={c.pass ? "text-slate-700" : "text-red-600"}>{c.label}</span>
                       </div>
                     ))}
@@ -552,7 +552,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
                 <>
                   {/* Power Curve */}
                   <div>
-                    <p className="font-semibold text-slate-700 mb-3 text-sm">âš¡ Power Curve (W) â€” 5-Second Intervals</p>
+                    <p className="font-semibold text-slate-700 mb-3 text-sm">⚡ Power Curve (W) — 5-Second Intervals</p>
                     <ResponsiveContainer width="100%" height={220}>
                       <AreaChart data={powerCurveData} margin={{ top: 5, right: 10, bottom: 5, left: 10 }}>
                         <defs>
@@ -573,7 +573,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
 
                   {/* Power Decline / Fatigue Curve */}
                   <div>
-                    <p className="font-semibold text-slate-700 mb-3 text-sm">ðŸ“‰ Fatigue Curve â€” Power Decline over 30s</p>
+                    <p className="font-semibold text-slate-700 mb-3 text-sm">📉 Fatigue Curve — Power Decline over 30s</p>
                     <ResponsiveContainer width="100%" height={180}>
                       <BarChart data={powerCurveData} margin={{ top: 5, right: 10, bottom: 5, left: 10 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -593,7 +593,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
                   {/* W/kg curve */}
                   {mass > 0 && (
                     <div>
-                      <p className="font-semibold text-slate-700 mb-3 text-sm">âš–ï¸ Relative Power Curve (W/kg)</p>
+                      <p className="font-semibold text-slate-700 mb-3 text-sm">⚖ï¸ Relative Power Curve (W/kg)</p>
                       <ResponsiveContainer width="100%" height={180}>
                         <LineChart data={powerCurveData} margin={{ top: 5, right: 10, bottom: 5, left: 10 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -609,7 +609,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
                   {/* Recovery HR */}
                   {(recHR1 && recHR2 && recHR3) && (
                     <div>
-                      <p className="font-semibold text-slate-700 mb-3 text-sm">ðŸ’“ Recovery Heart Rate</p>
+                      <p className="font-semibold text-slate-700 mb-3 text-sm">💓 Recovery Heart Rate</p>
                       <ResponsiveContainer width="100%" height={160}>
                         <LineChart data={[{ t: "1-min", hr: parseInt(recHR1) }, { t: "2-min", hr: parseInt(recHR2) }, { t: "3-min", hr: parseInt(recHR3) }]}>
                           <CartesianGrid strokeDasharray="3 3" />
@@ -633,7 +633,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
             {/* â•â•â• REPORT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
             <TabsContent value="report" className="p-6 space-y-5">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-                <p className="font-semibold text-slate-700 mb-2 text-sm">ðŸ“‹ SOAP Export Preview</p>
+                <p className="font-semibold text-slate-700 mb-2 text-sm">📋 SOAP Export Preview</p>
                 <pre className="text-xs text-slate-600 whitespace-pre-wrap font-mono leading-relaxed">{buildSOAP()}</pre>
               </div>
 
@@ -645,11 +645,11 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
 
               {/* References */}
               <div className="bg-slate-100 border border-slate-200 rounded-xl p-4 text-xs text-slate-600 space-y-1">
-                <p className="font-semibold text-slate-700">ðŸ“– References</p>
-                <p>1. Bar-Or O. (1987). The Wingate anaerobic test: an update on methodology, reliability and validity. <em>Sports Medicine</em>, 4(6), 381â€“394.</p>
+                <p className="font-semibold text-slate-700">📖 References</p>
+                <p>1. Bar-Or O. (1987). The Wingate anaerobic test: an update on methodology, reliability and validity. <em>Sports Medicine</em>, 4(6), 381–394.</p>
                 <p>2. Inbar O, Bar-Or O, Skinner JS. (1996). <em>The Wingate Anaerobic Test</em>. Human Kinetics.</p>
-                <p>3. Maud PJ, Shultz BB. (1989). Norms for the Wingate anaerobic test with comparison to another similar test. <em>Research Quarterly for Exercise and Sport</em>, 60(2), 144â€“151.</p>
-                <p>4. Zagatto AM, Beck WR, Gobatto CA. (2009). Validity of the running anaerobic sprint test for assessing anaerobic power. <em>Journal of Strength and Conditioning Research</em>, 23(6), 1820â€“1827.</p>
+                <p>3. Maud PJ, Shultz BB. (1989). Norms for the Wingate anaerobic test with comparison to another similar test. <em>Research Quarterly for Exercise and Sport</em>, 60(2), 144–151.</p>
+                <p>4. Zagatto AM, Beck WR, Gobatto CA. (2009). Validity of the running anaerobic sprint test for assessing anaerobic power. <em>Journal of Strength and Conditioning Research</em>, 23(6), 1820–1827.</p>
               </div>
             </TabsContent>
           </div>

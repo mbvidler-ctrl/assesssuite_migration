@@ -48,7 +48,7 @@ export default function RepeatedSprintAbilityTest7x35mRunner({ client, onSave, o
       setTotalTime(totalTime + time);
       setBestTime(Math.min(...newSprintTimes));
       setCurrentSprint(currentSprint + 1);
-      toast.success(`Sprint ${currentSprint} completed. Rest for 25â€“30 seconds.`);
+      toast.success(`Sprint ${currentSprint} completed. Rest for 25–30 seconds.`);
     }
   };
 
@@ -87,7 +87,7 @@ export default function RepeatedSprintAbilityTest7x35mRunner({ client, onSave, o
       <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-4">
         {/* Header */}
         <div className="border-b pb-4">
-          <h1 className="text-3xl font-bold text-slate-900">Repeated Sprint Ability Test â€“ 7 x 35 m</h1>
+          <h1 className="text-3xl font-bold text-slate-900">Repeated Sprint Ability Test – 7 x 35 m</h1>
           <p className="text-slate-600 mt-2">Assessment of maximal sprint speed and fatigue resistance over extended distance</p>
         </div>
 
@@ -127,7 +127,7 @@ export default function RepeatedSprintAbilityTest7x35mRunner({ client, onSave, o
                     <ul className="list-disc list-inside space-y-1 ml-2">
                       <li>Client performs maximal sprint from start to 35m line and back (70m total)</li>
                       <li>Record sprint time to nearest 0.01 second</li>
-                      <li>25â€“30 second passive rest period between sprints</li>
+                      <li>25–30 second passive rest period between sprints</li>
                       <li>Repeat for 7 consecutive maximal sprints</li>
                     </ul>
                     <p><strong>Effort:</strong> Client should perform each sprint at maximum effort</p>
@@ -139,15 +139,15 @@ export default function RepeatedSprintAbilityTest7x35mRunner({ client, onSave, o
                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                   <h4 className="font-semibold text-purple-900 mb-2">Interpretation</h4>
                   <div className="space-y-2 text-sm text-purple-800">
-                    <p><strong>Peak Sprint Time:</strong> Fastest sprintâ€”indicates maximum speed at longer distance</p>
-                    <p><strong>Mean Sprint Time:</strong> Average across all sprintsâ€”reflects overall sprint capacity</p>
-                    <p><strong>Fatigue Index (%):</strong> ((Total Time âˆ’ Best Time Ã— 7) / (Best Time Ã— 7)) Ã— 100</p>
+                    <p><strong>Peak Sprint Time:</strong> Fastest sprint—indicates maximum speed at longer distance</p>
+                    <p><strong>Mean Sprint Time:</strong> Average across all sprints—reflects overall sprint capacity</p>
+                    <p><strong>Fatigue Index (%):</strong> ((Total Time − Best Time × 7) / (Best Time × 7)) × 100</p>
                     <p className="mt-3">
                       <strong>Fatigue Index Reference:</strong>
                     </p>
                     <ul className="list-disc list-inside space-y-1 ml-2">
                       <li>&lt;5%: Excellent fatigue resistance</li>
-                      <li>5â€“10%: Good fatigue resistance</li>
+                      <li>5–10%: Good fatigue resistance</li>
                       <li>&gt;10%: Poor fatigue resistance</li>
                     </ul>
                   </div>

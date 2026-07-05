@@ -12,7 +12,7 @@ import {
 import { toast } from "sonner";
 import CadencePlayerModal from "./CadencePlayerModal";
 
-// â”€â”€â”€ PROTOCOLS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── PROTOCOLS ────────────────────────────────────────────────────────────────
 const PROTOCOLS = {
   ymca: {
     id: "ymca",
@@ -21,7 +21,7 @@ const PROTOCOLS = {
     cadence: 96,
     stepHeight: 30.5,
     recoveryAt: 60,
-    population: "General adults (18â€“65)",
+    population: "General adults (18–65)",
     description: "Submaximal aerobic fitness test. Step up-up-down-down at 96 steps/min for 3 minutes. Measure HR at 1 minute of recovery.",
     notes: "Most widely used submaximal step test. Recovery HR is the primary outcome.",
     cadenceUrl: "https://www.youtube.com/watch?v=iJwwJgCIHBU",
@@ -34,9 +34,9 @@ const PROTOCOLS = {
     cadence: { male: 96, female: 88 },
     stepHeight: 41.3,
     recoveryAt: 15,
-    population: "College-age adults (18â€“35)",
+    population: "College-age adults (18–35)",
     description: "Submaximal VO2max estimation. Males step at 24 cycles/min, females at 22 cycles/min for 3 minutes.",
-    notes: "VO2max estimated from recovery HR. Males: VO2max = 111.33 âˆ’ (0.42 Ã— HR). Females: VO2max = 65.81 âˆ’ (0.1847 Ã— HR).",
+    notes: "VO2max estimated from recovery HR. Males: VO2max = 111.33 − (0.42 × HR). Females: VO2max = 65.81 − (0.1847 × HR).",
     cadenceUrl: { male: "https://www.youtube.com/watch?v=mO0DiN5t8PE", female: "https://www.youtube.com/watch?v=Ln9rNK1eeBg" },
     cadenceDescription: { male: "96 BPM cadence track for the male Queen's College Step Test protocol.", female: "88 BPM cadence track for the female Queen's College Step Test protocol." },
   },
@@ -61,8 +61,8 @@ const PROTOCOLS = {
     stepHeight: 50.8,
     recoveryAt: 60,
     population: "Young athletic adults",
-    description: "5-minute step test at 120 steps/min (30 cycles/min). Score = (duration Ã— 100) / (2 Ã— sum of 3 recovery HRs).",
-    notes: "Fitness Index calculated from 3 recovery HRs (1â€“1:30, 2â€“2:30, 3â€“3:30 min post-exercise).",
+    description: "5-minute step test at 120 steps/min (30 cycles/min). Score = (duration × 100) / (2 × sum of 3 recovery HRs).",
+    notes: "Fitness Index calculated from 3 recovery HRs (1–1:30, 2–2:30, 3–3:30 min post-exercise).",
     cadenceUrl: "https://www.youtube.com/results?search_query=120+bpm+metronome",
     cadenceDescription: "120 BPM cadence resource for the Harvard Step Test cardiovascular endurance protocol.",
   },
@@ -79,7 +79,7 @@ const PROTOCOLS = {
   },
 };
 
-// â”€â”€â”€ NORMATIVE DATA (YMCA Recovery HR classification) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── NORMATIVE DATA (YMCA Recovery HR classification) ─────────────────────────
 const YMCA_NORMS = {
   male: {
     "18-25": [
@@ -235,7 +235,7 @@ function formatTime(s) {
   return `${m}:${String(sec).padStart(2, "0")}`;
 }
 
-// â”€â”€â”€ SAFETY ITEMS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── SAFETY ITEMS ─────────────────────────────────────────────────────────────
 const SAFETY_ITEMS = [
   { id: "safe_exercise", label: "Safe to perform aerobic exercise" },
   { id: "no_angina", label: "No unstable angina or uncontrolled cardiac symptoms" },
@@ -247,14 +247,14 @@ const SAFETY_ITEMS = [
   { id: "consent", label: "Patient consent obtained" },
 ];
 
-// â”€â”€â”€ STOP REASONS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── STOP REASONS ─────────────────────────────────────────────────────────────
 const STOP_REASONS = [
   "Completed full protocol", "Fatigue", "Dyspnoea", "Chest pain / discomfort",
   "Dizziness / light-headedness", "Lower limb pain", "Balance loss",
   "Clinician stopped test", "Client requested stop", "Other"
 ];
 
-// â”€â”€â”€ HELPER COMPONENTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── HELPER COMPONENTS ────────────────────────────────────────────────────────
 function Section({ title, icon: Icon, children, defaultOpen = false, accent = "blue" }) {
   const [open, setOpen] = useState(defaultOpen);
   const map = {
@@ -318,7 +318,7 @@ function ImageCard({ url, caption }) {
   );
 }
 
-// â”€â”€â”€ METRONOME HOOK â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── METRONOME HOOK ────────────────────────────────────────────────────────────
 function useMetronome(bpm, active) {
   const [beat, setBeat] = useState(false);
   const ref = useRef(null);
@@ -331,7 +331,7 @@ function useMetronome(bpm, active) {
   return beat;
 }
 
-// â”€â”€â”€ MAIN COMPONENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
 export default function StepTestAerobicStepTestRunner({ client, onSave, onClose }) {
   const [step, setStep] = useState(0);
 
@@ -498,11 +498,11 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
     const stopLabel = stopReason === "Other" ? (otherStopReason || "unspecified reason") : (stopReason || "unspecified");
     let score = "";
     if (ymcaClass) score = ` Recovery HR classification: ${ymcaClass.label}.`;
-    if (vo2max) score = ` Estimated VOâ‚‚max (Queens College): ${vo2max} mL/kg/min.`;
-    if (harvardIdx) score = ` Harvard Fitness Index: ${harvardIdx} (${harvardClass?.label || "â€”"}).`;
-    const hrRecText = hrRecovery ? ` HR recovery (post to 1-min): ${hrRecovery} bpm â€” ${hrRecovery >= 12 ? "adequate" : "reduced"} recovery response.` : "";
+    if (vo2max) score = ` Estimated VO₂max (Queens College): ${vo2max} mL/kg/min.`;
+    if (harvardIdx) score = ` Harvard Fitness Index: ${harvardIdx} (${harvardClass?.label || "—"}).`;
+    const hrRecText = hrRecovery ? ` HR recovery (post to 1-min): ${hrRecovery} bpm — ${hrRecovery >= 12 ? "adequate" : "reduced"} recovery response.` : "";
     const dyspText = duringSymptoms.dyspnea >= 5 ? " Significant dyspnoea was noted during the test." : "";
-    const balText = setup.balanceConcern ? " Balance concerns were noted â€” modify future testing as appropriate." : "";
+    const balText = setup.balanceConcern ? " Balance concerns were noted — modify future testing as appropriate." : "";
     return `${protocol.name} completed. ${fullDone} Stopped due to ${stopLabel}.${score}${hrRecText}${dyspText}${balText} Findings should be interpreted in the context of the client's clinical presentation and functional goals.`;
   };
 
@@ -510,17 +510,17 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
   const generateFlags = () => {
     const flags = [];
     if (!protocol) return flags;
-    if (!completedFull) flags.push({ label: "Incomplete protocol â€” reduced test validity", severity: "medium" });
+    if (!completedFull) flags.push({ label: "Incomplete protocol — reduced test validity", severity: "medium" });
     if (ymcaClass && ["Below Average", "Poor", "Very Poor"].includes(ymcaClass.label))
-      flags.push({ label: `Reduced aerobic fitness â€” ${ymcaClass.label}`, severity: "high" });
+      flags.push({ label: `Reduced aerobic fitness — ${ymcaClass.label}`, severity: "high" });
     if (hrRecovery !== null && hrRecovery < 12)
-      flags.push({ label: "Delayed HR recovery â€” impaired cardiovascular recovery", severity: "high" });
+      flags.push({ label: "Delayed HR recovery — impaired cardiovascular recovery", severity: "high" });
     if (duringSymptoms.dyspnea >= 5) flags.push({ label: "Dyspnoea-limited performance", severity: "medium" });
-    if (duringSymptoms.symptoms.includes("Chest pain")) flags.push({ label: "Chest pain during test â€” urgent review required", severity: "high" });
-    if (setup.balanceConcern) flags.push({ label: "Balance limitation noted â€” falls risk consideration", severity: "medium" });
-    if (recovery.dizziness) flags.push({ label: "Dizziness in recovery â€” monitor closely", severity: "medium" });
-    if (recovery.chestDiscomfort) flags.push({ label: "Chest discomfort in recovery â€” urgent review", severity: "high" });
-    if (vo2max && vo2max < 35) flags.push({ label: `Low estimated VOâ‚‚max (${vo2max} mL/kg/min)`, severity: "medium" });
+    if (duringSymptoms.symptoms.includes("Chest pain")) flags.push({ label: "Chest pain during test — urgent review required", severity: "high" });
+    if (setup.balanceConcern) flags.push({ label: "Balance limitation noted — falls risk consideration", severity: "medium" });
+    if (recovery.dizziness) flags.push({ label: "Dizziness in recovery — monitor closely", severity: "medium" });
+    if (recovery.chestDiscomfort) flags.push({ label: "Chest discomfort in recovery — urgent review", severity: "high" });
+    if (vo2max && vo2max < 35) flags.push({ label: `Low estimated VO₂max (${vo2max} mL/kg/min)`, severity: "medium" });
     flags.push({ label: "Review aerobic conditioning program", severity: "info" });
     return flags;
   };
@@ -536,15 +536,15 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
   const generateSoap = () => {
     if (!protocol) return "";
     const stopLabel = stopReason === "Other" ? (otherStopReason || "Other") : (stopReason || "Not recorded");
-    let lines = [`â€¢ Step Test (Aerobic Step Test) â€” ${protocol.name}`];
-    lines.push(`  Duration: ${Math.floor(elapsed)}s (${formatTime(Math.floor(elapsed))}) / ${duration}s â€” ${completedFull ? "Full protocol completed" : "Early termination"}`);
+    let lines = [`• Step Test (Aerobic Step Test) — ${protocol.name}`];
+    lines.push(`  Duration: ${Math.floor(elapsed)}s (${formatTime(Math.floor(elapsed))}) / ${duration}s — ${completedFull ? "Full protocol completed" : "Early termination"}`);
     lines.push(`  Stopped due to: ${stopLabel}`);
-    if (preVitals.hr) lines.push(`  Pre-test HR: ${preVitals.hr} bpm${preVitals.bp ? ` | BP: ${preVitals.bp}` : ""}${preVitals.spo2 ? ` | SpOâ‚‚: ${preVitals.spo2}%` : ""}`);
-    if (postVitals.hr) lines.push(`  Post-test HR: ${postVitals.hr} bpm${postVitals.bp ? ` | BP: ${postVitals.bp}` : ""}${postVitals.spo2 ? ` | SpOâ‚‚: ${postVitals.spo2}%` : ""}`);
+    if (preVitals.hr) lines.push(`  Pre-test HR: ${preVitals.hr} bpm${preVitals.bp ? ` | BP: ${preVitals.bp}` : ""}${preVitals.spo2 ? ` | SpO₂: ${preVitals.spo2}%` : ""}`);
+    if (postVitals.hr) lines.push(`  Post-test HR: ${postVitals.hr} bpm${postVitals.bp ? ` | BP: ${postVitals.bp}` : ""}${postVitals.spo2 ? ` | SpO₂: ${postVitals.spo2}%` : ""}`);
     if (recovery.hr1) lines.push(`  Recovery HR: 1-min: ${recovery.hr1} bpm${recovery.hr2 ? ` | 2-min: ${recovery.hr2} bpm` : ""}${recovery.hr3 ? ` | 3-min: ${recovery.hr3} bpm` : ""}`);
     if (hrRecovery) lines.push(`  HR Recovery (post to 1-min): ${hrRecovery} bpm (${hrRecovery >= 12 ? "adequate" : "reduced"})`);
     if (ymcaClass) lines.push(`  Aerobic Fitness Category: ${ymcaClass.label}`);
-    if (vo2max) lines.push(`  Estimated VOâ‚‚max: ${vo2max} mL/kg/min`);
+    if (vo2max) lines.push(`  Estimated VO₂max: ${vo2max} mL/kg/min`);
     if (harvardIdx) lines.push(`  Harvard Fitness Index: ${harvardIdx} (${harvardClass?.label})`);
     if (duringSymptoms.symptoms.length) lines.push(`  Symptoms during: ${duringSymptoms.symptoms.join(", ")}`);
     if (clinicalNotes) lines.push(`  Clinical Notes: ${clinicalNotes}`);
@@ -617,8 +617,8 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
         {/* Header */}
         <div className="px-5 py-4 border-b bg-gradient-to-r from-sky-50 to-blue-50 flex justify-between items-start shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Step Test â€” Aerobic Step Test</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Submaximal aerobic fitness â€¢ Cardiovascular response â€¢ Recovery capacity</p>
+            <h2 className="text-lg font-bold text-slate-900">Step Test — Aerobic Step Test</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Submaximal aerobic fitness • Cardiovascular response • Recovery capacity</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -636,7 +636,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
 
-          {/* â”€â”€ STEP 0: OVERVIEW â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 0: OVERVIEW ──────────────────────────────────────────── */}
           {step === 0 && (
             <div className="space-y-4">
               <div className="bg-sky-50 border border-sky-200 rounded-xl p-4">
@@ -654,7 +654,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                   {Object.values(PROTOCOLS).map(p => (
                     <div key={p.id} className="p-3 rounded-lg bg-slate-50 border">
                       <p className="font-semibold text-slate-900">{p.name}</p>
-                      <p className="text-xs text-slate-500 mt-0.5">{p.population} â€¢ {p.duration}s â€¢ {typeof p.cadence === "object" ? `${p.cadence.male}/${p.cadence.female} steps/min` : `${p.cadence} steps/min`} â€¢ {p.stepHeight}cm step</p>
+                      <p className="text-xs text-slate-500 mt-0.5">{p.population} • {p.duration}s • {typeof p.cadence === "object" ? `${p.cadence.male}/${p.cadence.female} steps/min` : `${p.cadence} steps/min`} • {p.stepHeight}cm step</p>
                       <p className="text-xs text-slate-600 mt-1">{p.description}</p>
                     </div>
                   ))}
@@ -673,7 +673,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                       <rect x="55" y="133" width="90" height="6" rx="2" fill="#64748b"/>
                       {/* Floor */}
                       <line x1="10" y1="139" x2="190" y2="139" stroke="#cbd5e1" strokeWidth="1.5"/>
-                      {/* Body â€” torso upright */}
+                      {/* Body — torso upright */}
                       <circle cx="100" cy="38" r="12" fill="#fbbf24" stroke="#f59e0b" strokeWidth="1.5"/>
                       <rect x="90" y="50" width="20" height="35" rx="6" fill="#3b82f6"/>
                       {/* Left arm */}
@@ -694,7 +694,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                     <p className="text-xs text-slate-500 text-center px-2 pb-2">Stand facing the step, upright posture, arms relaxed</p>
                   </div>
 
-                  {/* Diagram 2: Stepping Up â€” Full Foot Contact */}
+                  {/* Diagram 2: Stepping Up — Full Foot Contact */}
                   <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
                     <svg viewBox="0 0 200 160" className="w-full" xmlns="http://www.w3.org/2000/svg">
                       <rect width="200" height="160" fill="#f0fdf4"/>
@@ -703,24 +703,24 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                       <rect x="50" y="128" width="100" height="6" rx="2" fill="#64748b"/>
                       {/* Floor */}
                       <line x1="10" y1="134" x2="190" y2="134" stroke="#cbd5e1" strokeWidth="1.5"/>
-                      {/* Body â€” upright on step */}
+                      {/* Body — upright on step */}
                       <circle cx="100" cy="38" r="12" fill="#fbbf24" stroke="#f59e0b" strokeWidth="1.5"/>
                       <rect x="90" y="50" width="20" height="33" rx="6" fill="#16a34a"/>
                       {/* Arms natural swing */}
                       <line x1="90" y1="58" x2="73" y2="72" stroke="#16a34a" strokeWidth="5" strokeLinecap="round"/>
                       <line x1="110" y1="58" x2="127" y2="72" stroke="#16a34a" strokeWidth="5" strokeLinecap="round"/>
-                      {/* Lead leg â€” foot fully on step */}
+                      {/* Lead leg — foot fully on step */}
                       <line x1="107" y1="83" x2="115" y2="100" stroke="#15803d" strokeWidth="5" strokeLinecap="round"/>
                       <rect x="108" y="104" width="22" height="6" rx="2" fill="#15803d"/>
-                      {/* Trail leg â€” still on floor */}
+                      {/* Trail leg — still on floor */}
                       <line x1="93" y1="83" x2="82" y2="118" stroke="#15803d" strokeWidth="5" strokeLinecap="round"/>
                       <rect x="74" y="128" width="18" height="6" rx="2" fill="#15803d"/>
                       {/* Full foot label */}
                       <rect x="118" y="96" width="48" height="16" rx="3" fill="#dcfce7" stroke="#16a34a" strokeWidth="1"/>
-                      <text x="142" y="107" textAnchor="middle" fontSize="8" fill="#15803d" fontWeight="700">FULL FOOT âœ“</text>
+                      <text x="142" y="107" textAnchor="middle" fontSize="8" fill="#15803d" fontWeight="700">FULL FOOT ✓</text>
                       <text x="100" y="150" textAnchor="middle" fontSize="9" fill="#475569" fontWeight="600">Correct Step Technique</text>
                     </svg>
-                    <p className="text-xs text-slate-500 text-center px-2 pb-2">Lead foot placed fully flat on step â€” no toe-only contact</p>
+                    <p className="text-xs text-slate-500 text-center px-2 pb-2">Lead foot placed fully flat on step — no toe-only contact</p>
                   </div>
 
                   {/* Diagram 3: Step Height Measurement */}
@@ -773,7 +773,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                       <line x1="48" y1="52" x2="58" y2="44" stroke="#f97316" strokeWidth="5" strokeLinecap="round"/>
                       {/* Pulse point indicator */}
                       <circle cx="58" cy="44" r="5" fill="#ef4444" opacity="0.8"/>
-                      <text x="58" y="47" textAnchor="middle" fontSize="6" fill="white" fontWeight="700">â™¥</text>
+                      <text x="58" y="47" textAnchor="middle" fontSize="6" fill="white" fontWeight="700">♥</text>
                       {/* Pulse label */}
                       <rect x="30" y="28" width="24" height="13" rx="3" fill="#fee2e2" stroke="#fca5a5" strokeWidth="1"/>
                       <text x="42" y="35" textAnchor="middle" fontSize="6.5" fill="#dc2626" fontWeight="700">Carotid</text>
@@ -790,26 +790,26 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                       {/* Label */}
                       <text x="100" y="152" textAnchor="middle" fontSize="9" fill="#475569" fontWeight="600">Recovery HR Monitoring</text>
                     </svg>
-                    <p className="text-xs text-slate-500 text-center px-2 pb-2">Measure pulse at 1-min post-exercise â€” carotid or radial</p>
+                    <p className="text-xs text-slate-500 text-center px-2 pb-2">Measure pulse at 1-min post-exercise — carotid or radial</p>
                   </div>
 
                 </div>
                 <div className="mt-3 p-3 bg-blue-50 border border-blue-100 rounded-lg text-xs text-blue-700 space-y-1">
                   <p><strong>Key Stepping Technique:</strong></p>
-                  <p>â‘  Full foot on step â€” no toe-only contact</p>
-                  <p>â‘¡ Upright posture â€” no trunk lean</p>
-                  <p>â‘¢ Step up-up-down-down in sequence</p>
-                  <p>â‘£ Maintain cadence throughout</p>
-                  <p>â‘¤ Arms relaxed at sides or swinging naturally</p>
-                  <p>â‘¥ Breathe normally throughout</p>
+                  <p>① Full foot on step — no toe-only contact</p>
+                  <p>② Upright posture — no trunk lean</p>
+                  <p>③ Step up-up-down-down in sequence</p>
+                  <p>④ Maintain cadence throughout</p>
+                  <p>⑤ Arms relaxed at sides or swinging naturally</p>
+                  <p>⑥ Breathe normally throughout</p>
                 </div>
               </Section>
 
-              <Button onClick={() => setStep(1)} className="w-full bg-sky-600 hover:bg-sky-700">Begin Assessment â†’</Button>
+              <Button onClick={() => setStep(1)} className="w-full bg-sky-600 hover:bg-sky-700">Begin Assessment →</Button>
             </div>
           )}
 
-          {/* â”€â”€ STEP 1: SAFETY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 1: SAFETY ────────────────────────────────────────────── */}
           {step === 1 && (
             <div className="space-y-4">
               <div className="bg-red-50 border border-red-200 rounded-xl p-4">
@@ -830,16 +830,16 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
               }
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(0)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(2)} className="flex-1 bg-sky-600 hover:bg-sky-700">{allSafeClear ? "Proceed â†’" : "Override & Continue â†’"}</Button>
+                <Button onClick={() => setStep(2)} className="flex-1 bg-sky-600 hover:bg-sky-700">{allSafeClear ? "Proceed →" : "Override & Continue →"}</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 2: PROTOCOL SELECTION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 2: PROTOCOL SELECTION ────────────────────────────────── */}
           {step === 2 && (
             <div className="space-y-4">
               <div className="bg-sky-50 border border-sky-200 rounded-xl p-3 text-sm text-sky-800">
-                <Zap className="w-4 h-4 inline mr-1" /><strong>Select Protocol</strong> â€” Parameters will be auto-filled. You can override for Custom.
+                <Zap className="w-4 h-4 inline mr-1" /><strong>Select Protocol</strong> — Parameters will be auto-filled. You can override for Custom.
               </div>
               <div className="space-y-3">
                 {Object.values(PROTOCOLS).map(p => (
@@ -881,12 +881,12 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(1)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(3)} disabled={!protocolKey} className="flex-1 bg-sky-600 hover:bg-sky-700">Setup â†’</Button>
+                <Button onClick={() => setStep(3)} disabled={!protocolKey} className="flex-1 bg-sky-600 hover:bg-sky-700">Setup →</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 3: SETUP â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 3: SETUP ─────────────────────────────────────────────── */}
           {step === 3 && (
             <div className="space-y-4">
               {protocol && (
@@ -925,22 +925,22 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                 ))}
               </div>
               <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-                <h4 className="font-semibold text-green-800 text-sm mb-2">ðŸ“‹ Clinician Script</h4>
+                <h4 className="font-semibold text-green-800 text-sm mb-2">📋 Clinician Script</h4>
                 <p className="text-sm text-green-800 italic">"Step up and down in rhythm with the cadence cue for the full test duration. Maintain upright posture. Tell me immediately if you feel chest pain, severe breathlessness, dizziness, or loss of coordination."</p>
               </div>
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(2)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(4)} className="flex-1 bg-sky-600 hover:bg-sky-700">Pre-Test Vitals â†’</Button>
+                <Button onClick={() => setStep(4)} className="flex-1 bg-sky-600 hover:bg-sky-700">Pre-Test Vitals →</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 4: PRE-TEST VITALS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 4: PRE-TEST VITALS ──────────────────────────────────── */}
           {step === 4 && (
             <div className="space-y-4">
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 text-sm text-blue-800">
-                <Heart className="w-4 h-4 inline mr-1" /><strong>Pre-Test Physiological Baseline</strong> â€” Record before the test begins.
+                <Heart className="w-4 h-4 inline mr-1" /><strong>Pre-Test Physiological Baseline</strong> — Record before the test begins.
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <NumInput label="Heart Rate" value={preVitals.hr} onChange={v => setPreVitals(p => ({ ...p, hr: v }))} unit="bpm" placeholder="e.g. 68" min={30} max={200} />
@@ -948,18 +948,18 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                   <Label className="text-sm font-medium">Blood Pressure</Label>
                   <input value={preVitals.bp} onChange={e => setPreVitals(p => ({ ...p, bp: e.target.value }))} placeholder="e.g. 120/78" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400" />
                 </div>
-                <NumInput label="SpOâ‚‚" value={preVitals.spo2} onChange={v => setPreVitals(p => ({ ...p, spo2: v }))} unit="%" placeholder="e.g. 98" min={70} max={100} />
+                <NumInput label="SpO₂" value={preVitals.spo2} onChange={v => setPreVitals(p => ({ ...p, spo2: v }))} unit="%" placeholder="e.g. 98" min={70} max={100} />
               </div>
-              <RatingRow label="Pre-Test RPE (0â€“10)" value={preVitals.rpe} onChange={v => setPreVitals(p => ({ ...p, rpe: v }))} />
-              <RatingRow label="Pre-Test Dyspnea (0â€“10)" value={preVitals.dyspnea} onChange={v => setPreVitals(p => ({ ...p, dyspnea: v }))} />
+              <RatingRow label="Pre-Test RPE (0–10)" value={preVitals.rpe} onChange={v => setPreVitals(p => ({ ...p, rpe: v }))} />
+              <RatingRow label="Pre-Test Dyspnea (0–10)" value={preVitals.dyspnea} onChange={v => setPreVitals(p => ({ ...p, dyspnea: v }))} />
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(3)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(5)} className="flex-1 bg-sky-600 hover:bg-sky-700">Start Test â†’</Button>
+                <Button onClick={() => setStep(5)} className="flex-1 bg-sky-600 hover:bg-sky-700">Start Test →</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 5: GUIDED STEP RUNNER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 5: GUIDED STEP RUNNER ──────────────────────────────── */}
           {step === 5 && (
             <div className="space-y-4">
               {protocol && (
@@ -978,17 +978,17 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                     <Music className="w-5 h-5 text-sky-600" />
                     <div className="text-left">
                       <p className="font-semibold text-sm">Start Cadence Audio</p>
-                      <p className="text-xs text-sky-600">{cadence} steps/min â€” maintain this rhythm throughout</p>
+                      <p className="text-xs text-sky-600">{cadence} steps/min — maintain this rhythm throughout</p>
                     </div>
                   </div>
-                  <span className="text-xs font-medium bg-sky-600 text-white px-2.5 py-1 rounded-lg">Open â–¶</span>
+                  <span className="text-xs font-medium bg-sky-600 text-white px-2.5 py-1 rounded-lg">Open ▶</span>
                 </button>
               )}
 
               {/* Timer Block */}
               <div className={`rounded-2xl p-6 text-center border-2 transition-all ${timerState === "running" ? "bg-sky-50 border-sky-400" : timerState === "done" ? "bg-green-50 border-green-400" : "bg-slate-50 border-slate-200"}`}>
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-                  {timerState === "running" ? "â–¶ STEPPING â€” MAINTAIN RHYTHM" : timerState === "done" ? "âœ“ Test Complete" : timerState === "paused" ? "â¸ Paused" : "Ready to Start"}
+                  {timerState === "running" ? "▶ STEPPING — MAINTAIN RHYTHM" : timerState === "done" ? "✓ Test Complete" : timerState === "paused" ? "â¸ Paused" : "Ready to Start"}
                 </p>
                 <p className={`text-7xl font-mono font-bold transition-colors ${timerState === "running" ? "text-sky-700" : timerState === "done" ? "text-green-700" : "text-slate-400"}`}>
                   {formatTime(Math.floor(elapsed))}
@@ -1060,12 +1060,12 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(4)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(6)} disabled={timerState === "idle"} className="flex-1 bg-sky-600 hover:bg-sky-700">Post-Test / Recovery â†’</Button>
+                <Button onClick={() => setStep(6)} disabled={timerState === "idle"} className="flex-1 bg-sky-600 hover:bg-sky-700">Post-Test / Recovery →</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 6: POST-TEST + RECOVERY â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 6: POST-TEST + RECOVERY ─────────────────────────────── */}
           {step === 6 && (
             <div className="space-y-4">
               {/* Recovery Timer */}
@@ -1095,7 +1095,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                     <Label className="text-sm font-medium">Post-Test BP</Label>
                     <input value={postVitals.bp} onChange={e => setPostVitals(p => ({ ...p, bp: e.target.value }))} placeholder="e.g. 145/85" className="mt-1 w-full border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-sky-400" />
                   </div>
-                  <NumInput label="Post-Test SpOâ‚‚" value={postVitals.spo2} onChange={v => setPostVitals(p => ({ ...p, spo2: v }))} unit="%" min={70} max={100} />
+                  <NumInput label="Post-Test SpO₂" value={postVitals.spo2} onChange={v => setPostVitals(p => ({ ...p, spo2: v }))} unit="%" min={70} max={100} />
                 </div>
                 <RatingRow label="Post-Test RPE" value={postVitals.rpe} onChange={v => setPostVitals(p => ({ ...p, rpe: v }))} />
                 <RatingRow label="Post-Test Dyspnea" value={postVitals.dyspnea} onChange={v => setPostVitals(p => ({ ...p, dyspnea: v }))} />
@@ -1111,7 +1111,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                 </div>
                 {hrRecovery !== null && (
                   <div className={`p-2 rounded-lg text-sm font-medium ${hrRecovery >= 12 ? "bg-green-50 text-green-800 border border-green-200" : "bg-red-50 text-red-800 border border-red-200"}`}>
-                    HR Recovery (post â†’ 1-min): {hrRecovery} bpm â€” {hrRecovery >= 12 ? "Adequate" : "Reduced (< 12 bpm expected)"}
+                    HR Recovery (post → 1-min): {hrRecovery} bpm — {hrRecovery >= 12 ? "Adequate" : "Reduced (< 12 bpm expected)"}
                   </div>
                 )}
               </div>
@@ -1136,12 +1136,12 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
 
               <div className="flex gap-2">
                 <Button variant="outline" onClick={() => setStep(5)} className="flex-1">â† Back</Button>
-                <Button onClick={() => setStep(7)} disabled={!postVitals.hr || !recovery.hr1} className="flex-1 bg-sky-600 hover:bg-sky-700">View Results â†’</Button>
+                <Button onClick={() => setStep(7)} disabled={!postVitals.hr || !recovery.hr1} className="flex-1 bg-sky-600 hover:bg-sky-700">View Results →</Button>
               </div>
             </div>
           )}
 
-          {/* â”€â”€ STEP 7: RESULTS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+          {/* ── STEP 7: RESULTS ──────────────────────────────────────────── */}
           {step === 7 && (
             <div className="space-y-4">
 
@@ -1151,9 +1151,9 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                   {protocol?.name || "Step Test"} Result
                 </p>
                 {ymcaClass && <><p className="text-4xl font-bold">{ymcaClass.label}</p><p className="text-lg font-medium mt-1">Recovery HR: {recovery.hr1} bpm</p></>}
-                {vo2max && <><p className="text-4xl font-bold">{vo2max} <span className="text-xl">mL/kg/min</span></p><p className="text-lg font-medium mt-1">Estimated VOâ‚‚max (Queens College)</p></>}
-                {harvardIdx && <><p className="text-4xl font-bold">{harvardIdx}</p><p className="text-lg font-medium mt-1">Harvard Fitness Index â€” {harvardClass?.label}</p></>}
-                {!ymcaClass && !vo2max && !harvardIdx && <p className="text-xl font-medium">Recovery HR: {recovery.hr1 || "â€”"} bpm</p>}
+                {vo2max && <><p className="text-4xl font-bold">{vo2max} <span className="text-xl">mL/kg/min</span></p><p className="text-lg font-medium mt-1">Estimated VO₂max (Queens College)</p></>}
+                {harvardIdx && <><p className="text-4xl font-bold">{harvardIdx}</p><p className="text-lg font-medium mt-1">Harvard Fitness Index — {harvardClass?.label}</p></>}
+                {!ymcaClass && !vo2max && !harvardIdx && <p className="text-xl font-medium">Recovery HR: {recovery.hr1 || "—"} bpm</p>}
                 {hrRecovery !== null && <p className="text-sm mt-2 opacity-80">HR Recovery: {hrRecovery} bpm</p>}
               </div>
 
@@ -1161,17 +1161,17 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
               <Section title="Physiological Summary" icon={Heart} defaultOpen accent="blue">
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   {[
-                    ["Pre HR", `${preVitals.hr || "â€”"} bpm`],
-                    ["Post HR", `${postVitals.hr || "â€”"} bpm`],
-                    ["1-min Recovery", `${recovery.hr1 || "â€”"} bpm`],
-                    ["2-min Recovery", `${recovery.hr2 || "â€”"} bpm`],
-                    ["3-min Recovery", `${recovery.hr3 || "â€”"} bpm`],
-                    ["HR Recovery", hrRecovery !== null ? `${hrRecovery} bpm` : "â€”"],
-                    ["Pre BP", preVitals.bp || "â€”"],
-                    ["Post BP", postVitals.bp || "â€”"],
-                    ["Post SpOâ‚‚", postVitals.spo2 ? `${postVitals.spo2}%` : "â€”"],
+                    ["Pre HR", `${preVitals.hr || "—"} bpm`],
+                    ["Post HR", `${postVitals.hr || "—"} bpm`],
+                    ["1-min Recovery", `${recovery.hr1 || "—"} bpm`],
+                    ["2-min Recovery", `${recovery.hr2 || "—"} bpm`],
+                    ["3-min Recovery", `${recovery.hr3 || "—"} bpm`],
+                    ["HR Recovery", hrRecovery !== null ? `${hrRecovery} bpm` : "—"],
+                    ["Pre BP", preVitals.bp || "—"],
+                    ["Post BP", postVitals.bp || "—"],
+                    ["Post SpO₂", postVitals.spo2 ? `${postVitals.spo2}%` : "—"],
                     ["Duration", `${Math.floor(elapsed)}s / ${duration}s`],
-                    ["Full Protocol", completedFull === null ? "â€”" : completedFull ? "Yes âœ“" : "No"],
+                    ["Full Protocol", completedFull === null ? "—" : completedFull ? "Yes ✓" : "No"],
                     ["RPE (post)", postVitals.rpe],
                   ].map(([label, val]) => (
                     <div key={label} className="p-2 bg-slate-50 rounded-lg">
@@ -1190,8 +1190,8 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                     {(YMCA_NORMS[client.gender === "male" ? "male" : "female"]?.[getAgeGroup(age)] || []).map(row => (
                       <div key={row.label} className={`flex justify-between items-center px-3 py-1.5 rounded-lg ${ymcaClass?.label === row.label ? "bg-sky-100 border border-sky-300 font-bold" : "bg-slate-50"}`}>
                         <span>{row.label}</span>
-                        <span className="text-slate-500">{row.max === 999 ? `> ${row.min - 1}` : `${row.min}â€“${row.max}`} bpm</span>
-                        {ymcaClass?.label === row.label && <Badge className="bg-sky-600 text-white text-xs ml-2">â†‘ Client</Badge>}
+                        <span className="text-slate-500">{row.max === 999 ? `> ${row.min - 1}` : `${row.min}–${row.max}`} bpm</span>
+                        {ymcaClass?.label === row.label && <Badge className="bg-sky-600 text-white text-xs ml-2">↑ Client</Badge>}
                       </div>
                     ))}
                   </div>
@@ -1226,10 +1226,10 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                 <div className="space-y-3 text-xs text-slate-600">
                   {[
                     { n: 1, t: "YMCA of the USA.", s: "YMCA Fitness Testing and Assessment Manual. 4th ed. Human Kinetics; 2000." },
-                    { n: 2, t: "McArdle WD, Katch FI, Pechar GS.", s: "Reliability and interrelationships between maximal oxygen intake, physical work capacity and step-test scores in college women. Med Sci Sports. 1972;4(4):182â€“186." },
+                    { n: 2, t: "McArdle WD, Katch FI, Pechar GS.", s: "Reliability and interrelationships between maximal oxygen intake, physical work capacity and step-test scores in college women. Med Sci Sports. 1972;4(4):182–186." },
                     { n: 3, t: "Chatterjee S et al.", s: "Queen's College Step Test. A simple but effective predictor of maximal oxygen uptake in college-age men and women. Ergonomics. 1979." },
                     { n: 4, t: "American College of Sports Medicine.", s: "ACSM's Guidelines for Exercise Testing and Prescription. 11th ed. Lippincott Williams & Wilkins." },
-                    { n: 5, t: "Buckley JP, Sim J, Eston RG, Hession R, Fox R.", s: "Reliability and validity of measures taken during the Chester step test to predict aerobic power and to prescribe aerobic exercise. Br J Sports Med. 2004;38(2):197â€“205." },
+                    { n: 5, t: "Buckley JP, Sim J, Eston RG, Hession R, Fox R.", s: "Reliability and validity of measures taken during the Chester step test to predict aerobic power and to prescribe aerobic exercise. Br J Sports Med. 2004;38(2):197–205." },
                   ].map(r => (
                     <div key={r.n} className="p-2 bg-slate-50 rounded border border-slate-200">
                       <p><span className="font-semibold">{r.n}.</span> {r.t} <em>{r.s}</em></p>
@@ -1275,9 +1275,9 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
         <div className="border-t px-5 py-3 bg-slate-50 flex justify-between items-center shrink-0">
           <Button variant="ghost" size="sm" onClick={onClose} className="text-slate-500">Cancel</Button>
           <div className="flex items-center gap-2 text-xs text-slate-400">
-            {protocol && <span className="text-sky-600 font-medium">âœ“ {protocol.name}</span>}
-            {timerState === "done" && <span className="text-green-600 font-medium">âœ“ {formatTime(Math.floor(elapsed))} recorded</span>}
-            {recovery.hr1 && <span className="text-blue-600 font-medium">âœ“ Recovery HR</span>}
+            {protocol && <span className="text-sky-600 font-medium">✓ {protocol.name}</span>}
+            {timerState === "done" && <span className="text-green-600 font-medium">✓ {formatTime(Math.floor(elapsed))} recorded</span>}
+            {recovery.hr1 && <span className="text-blue-600 font-medium">✓ Recovery HR</span>}
           </div>
           {step === 7 && (
             <Button onClick={handleSave} disabled={!canSave()} size="sm" className="bg-sky-600 hover:bg-sky-700">

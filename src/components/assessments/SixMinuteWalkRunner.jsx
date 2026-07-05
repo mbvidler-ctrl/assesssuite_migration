@@ -121,7 +121,7 @@ export default function SixMinuteWalkRunner({ onSave, onClose }) {
 
   const handleCompleteTest = () => {
     // Build comprehensive SOAP text
-    let soapText = `â€¢ Six-Minute Walk Test: ${postTest.total_distance}m (${formatTime(timerSeconds)})\n`;
+    let soapText = `• Six-Minute Walk Test: ${postTest.total_distance}m (${formatTime(timerSeconds)})\n`;
     soapText += `  Pre-Test: HR ${preTest.hr} bpm, BP ${preTest.bp_sys}/${preTest.bp_dia}, SpO2 ${preTest.spo2}%, RPE ${preTest.rpe}\n`;
     soapText += `  Post-Test: HR ${postTest.hr} bpm, SpO2 ${postTest.spo2}%, RPE ${postTest.rpe}, Dyspnea ${postTest.dyspnea}/10\n`;
     if (duringTest.rests.length > 0) soapText += `  Rest Periods: ${duringTest.rests.length}\n`;
@@ -191,7 +191,7 @@ When the six minutes is up I will ask you to stop where you are. Do you have any
               {/* Standardized Instructions */}
               <Card className="bg-blue-50 border-blue-200">
                 <CardHeader>
-                  <CardTitle className="text-lg">ðŸ“‹ Standardized Instructions (Read to Client)</CardTitle>
+                  <CardTitle className="text-lg">📋 Standardized Instructions (Read to Client)</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="bg-white p-4 rounded-lg border border-blue-300 whitespace-pre-wrap text-sm">
@@ -586,10 +586,10 @@ When the six minutes is up I will ask you to stop where you are. Do you have any
               {/* Norms & Interpretation */}
               <Card className="bg-slate-50 border-slate-200">
                 <CardHeader>
-                  <CardTitle className="text-lg">ðŸ“Š Norms & Interpretation</CardTitle>
+                  <CardTitle className="text-lg">📊 Norms & Interpretation</CardTitle>
                 </CardHeader>
                 <CardContent className="text-sm space-y-3">
-                  <p className="font-semibold text-slate-700">Healthy Adults (Enright & Sherrill, 1998 â€” predicted 6MWT distance):</p>
+                  <p className="font-semibold text-slate-700">Healthy Adults (Enright & Sherrill, 1998 — predicted 6MWT distance):</p>
                   <div className="overflow-x-auto">
                     <table className="w-full text-xs border border-slate-300 rounded">
                       <thead className="bg-slate-200">
@@ -600,26 +600,26 @@ When the six minutes is up I will ask you to stop where you are. Do you have any
                         </tr>
                       </thead>
                       <tbody>
-                        <tr className="border-t border-slate-200"><td className="p-2">Healthy adults (general)</td><td className="p-2">400â€“700 m</td><td className="p-2">54 m</td></tr>
-                        <tr className="border-t border-slate-200 bg-white"><td className="p-2">COPD</td><td className="p-2">~332 m (moderate)</td><td className="p-2">25â€“54 m</td></tr>
-                        <tr className="border-t border-slate-200"><td className="p-2">Heart failure</td><td className="p-2">~300â€“400 m</td><td className="p-2">43 m</td></tr>
-                        <tr className="border-t border-slate-200 bg-white"><td className="p-2">Older adults â‰¥70 yrs</td><td className="p-2">300â€“500 m</td><td className="p-2">50 m</td></tr>
-                        <tr className="border-t border-slate-200"><td className="p-2">Pulmonary hypertension</td><td className="p-2">&lt;380 m = elevated mortality risk</td><td className="p-2">33â€“41 m</td></tr>
+                        <tr className="border-t border-slate-200"><td className="p-2">Healthy adults (general)</td><td className="p-2">400–700 m</td><td className="p-2">54 m</td></tr>
+                        <tr className="border-t border-slate-200 bg-white"><td className="p-2">COPD</td><td className="p-2">~332 m (moderate)</td><td className="p-2">25–54 m</td></tr>
+                        <tr className="border-t border-slate-200"><td className="p-2">Heart failure</td><td className="p-2">~300–400 m</td><td className="p-2">43 m</td></tr>
+                        <tr className="border-t border-slate-200 bg-white"><td className="p-2">Older adults ≥70 yrs</td><td className="p-2">300–500 m</td><td className="p-2">50 m</td></tr>
+                        <tr className="border-t border-slate-200"><td className="p-2">Pulmonary hypertension</td><td className="p-2">&lt;380 m = elevated mortality risk</td><td className="p-2">33–41 m</td></tr>
                       </tbody>
                     </table>
                   </div>
-                  <p className="text-xs text-slate-500">SpOâ‚‚ drop â‰¥4% during test = clinically significant desaturation. Test termination indicated if SpOâ‚‚ &lt;80%, severe chest pain, or pallor/cyanosis.</p>
+                  <p className="text-xs text-slate-500">SpO₂ drop ≥4% during test = clinically significant desaturation. Test termination indicated if SpO₂ &lt;80%, severe chest pain, or pallor/cyanosis.</p>
                 </CardContent>
               </Card>
 
               {/* Reference */}
               <Card className="bg-slate-100 border-slate-200">
                 <CardHeader>
-                  <CardTitle className="text-base">ðŸ“– Reference</CardTitle>
+                  <CardTitle className="text-base">📖 Reference</CardTitle>
                 </CardHeader>
                 <CardContent className="text-xs text-slate-600 space-y-1">
-                  <p>ATS Committee on Proficiency Standards for Clinical Pulmonary Function Laboratories. (2002). ATS statement: Guidelines for the six-minute walk test. <em>American Journal of Respiratory and Critical Care Medicine, 166</em>(1), 111â€“117.</p>
-                  <p>Enright PL & Sherrill DL. (1998). Reference equations for the six-minute walk in healthy adults. <em>American Journal of Respiratory and Critical Care Medicine, 158</em>(5), 1384â€“1387.</p>
+                  <p>ATS Committee on Proficiency Standards for Clinical Pulmonary Function Laboratories. (2002). ATS statement: Guidelines for the six-minute walk test. <em>American Journal of Respiratory and Critical Care Medicine, 166</em>(1), 111–117.</p>
+                  <p>Enright PL & Sherrill DL. (1998). Reference equations for the six-minute walk in healthy adults. <em>American Journal of Respiratory and Critical Care Medicine, 158</em>(5), 1384–1387.</p>
                 </CardContent>
               </Card>
 

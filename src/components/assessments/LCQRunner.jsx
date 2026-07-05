@@ -69,9 +69,9 @@ Total Score: ${score}/70
 Interpretation: ${interpretation}
 
 Domain Breakdown (estimated):
-â€¢ Physical Domain: ${physicalDomain.toFixed(1)}/21
-â€¢ Psychological Domain: ${psychologicalDomain.toFixed(1)}/28
-â€¢ Social Domain: ${socialDomain.toFixed(1)}/21
+• Physical Domain: ${physicalDomain.toFixed(1)}/21
+• Psychological Domain: ${psychologicalDomain.toFixed(1)}/28
+• Social Domain: ${socialDomain.toFixed(1)}/21
 
 Clinical Notes: ${clinicalNotes || "None"}`;
 
@@ -147,19 +147,19 @@ Clinical Notes: ${clinicalNotes || "None"}`;
                       <li><strong>Timeframe:</strong> Patient rates experience over the <strong>past 2 weeks</strong> (fixed window).</li>
                       <li><strong>Scale:</strong> 7-point Likert scale from "All the time" (1) to "Not at all" (7). Higher scores = better quality of life.</li>
                       <li><strong>Questions:</strong> 10 items covering physical symptoms (Q1-3), psychological impact (Q5, Q6, Q8, Q10), and social/functional impact (Q4, Q7, Q9).</li>
-                      <li><strong>Completion Time:</strong> 2â€“3 minutes.</li>
+                      <li><strong>Completion Time:</strong> 2–3 minutes.</li>
                       <li><strong>Setting:</strong> Can be self-completed or clinician-administered with verbal clarification if needed.</li>
-                      <li><strong>Missing Data:</strong> If â‰¤2 items missing, impute using mean of completed items. Do NOT report score if &gt;2 items missing.</li>
+                      <li><strong>Missing Data:</strong> If ≤2 items missing, impute using mean of completed items. Do NOT report score if &gt;2 items missing.</li>
                     </ul>
                   </div>
 
                   <div>
                     <p className="font-semibold text-blue-900 mb-2">Score Interpretation & Clinical Thresholds</p>
                     <div className="bg-white p-3 rounded border border-blue-300 space-y-2 text-xs">
-                      <p className="text-blue-800"><strong>Score â‰¥19 ("Good QoL"):</strong> Minimal cough-related quality of life impairment. Suggests adequate cough control.</p>
-                      <p className="text-blue-800"><strong>Score 14â€“18 ("Moderate QoL"):</strong> Moderate cough impact. Patient experiences functional limitation; consider treatment optimization.</p>
+                      <p className="text-blue-800"><strong>Score ≥19 ("Good QoL"):</strong> Minimal cough-related quality of life impairment. Suggests adequate cough control.</p>
+                      <p className="text-blue-800"><strong>Score 14–18 ("Moderate QoL"):</strong> Moderate cough impact. Patient experiences functional limitation; consider treatment optimization.</p>
                       <p className="text-blue-800"><strong>Score &lt;14 ("Poor QoL"):</strong> Significant cough burden. <strong>Urgent intervention recommended:</strong> escalate to cough clinic, pulmonary specialist, or optimize current therapy. Investigate underlying etiology if not already done.</p>
-                      <p className="text-blue-800"><strong>MCID (Minimal Clinically Important Difference):</strong> â‰ˆ 4 points = meaningful change from patient perspective. Track scores over time to evaluate treatment efficacy.</p>
+                      <p className="text-blue-800"><strong>MCID (Minimal Clinically Important Difference):</strong> ≈ 4 points = meaningful change from patient perspective. Track scores over time to evaluate treatment efficacy.</p>
                     </div>
                   </div>
 
@@ -186,19 +186,19 @@ Clinical Notes: ${clinicalNotes || "None"}`;
                     <p className="font-semibold text-blue-900 mb-2">Psychometric Properties</p>
                     <ul className="text-blue-800 list-disc list-inside space-y-1 text-xs">
                       <li><strong>Reliability (Test-Retest):</strong> ICC = 0.93 (excellent).</li>
-                      <li><strong>Internal Consistency:</strong> Cronbach's alpha = 0.87â€“0.93 across domains.</li>
+                      <li><strong>Internal Consistency:</strong> Cronbach's alpha = 0.87–0.93 across domains.</li>
                       <li><strong>Validity:</strong> Correlates with cough symptom frequency, duration, and patient's global cough severity rating; sensitive to treatment-induced change.</li>
-                      <li><strong>Responsiveness:</strong> Good discriminant validity (healthy vs. chronic cough patients). Effect sizes 0.8â€“1.5 for detecting meaningful clinical change.</li>
+                      <li><strong>Responsiveness:</strong> Good discriminant validity (healthy vs. chronic cough patients). Effect sizes 0.8–1.5 for detecting meaningful clinical change.</li>
                     </ul>
                   </div>
 
                   <div>
                     <p className="font-semibold text-blue-900 mb-2">Evidence Base & References</p>
                     <div className="bg-white p-3 rounded border border-blue-300 space-y-2 text-xs">
-                      <p><strong>Primary Development:</strong> Birring SS et al. (2003). Development of a symptom specific health status measure for patients with chronic cough: The Leicester Cough Questionnaire (LCQ). <em>Thorax, 58</em>(4), 339â€“343.</p>
-                      <p><strong>Validation:</strong> Birring SS, Prudon B, Carr AJ, et al. (2003). Development of a symptom specific health status measure for patients with chronic cough: The Leicester Cough Questionnaire (LCQ). <em>Thorax, 58</em>(4), 339â€“343. <a href="https://doi.org/10.1136/thorax.58.4.339" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">DOI <ExternalLink className="w-3 h-3" /></a></p>
+                      <p><strong>Primary Development:</strong> Birring SS et al. (2003). Development of a symptom specific health status measure for patients with chronic cough: The Leicester Cough Questionnaire (LCQ). <em>Thorax, 58</em>(4), 339–343.</p>
+                      <p><strong>Validation:</strong> Birring SS, Prudon B, Carr AJ, et al. (2003). Development of a symptom specific health status measure for patients with chronic cough: The Leicester Cough Questionnaire (LCQ). <em>Thorax, 58</em>(4), 339–343. <a href="https://doi.org/10.1136/thorax.58.4.339" target="_blank" className="text-blue-600 underline inline-flex items-center gap-1">DOI <ExternalLink className="w-3 h-3" /></a></p>
                       <p><strong>Clinical Use:</strong> Recommended by BTS (British Thoracic Society) and ERS (European Respiratory Society) for chronic cough assessment and follow-up in clinical practice.</p>
-                      <p><strong>MCID Study:</strong> Kelsall A et al. (2009). 10-year prospective follow-up of idiopathic pulmonary fibrosis: disease behaviour and prognosis. <em>American Journal of Respiratory and Critical Care Medicine, 180</em>(10), 1031â€“1039.</p>
+                      <p><strong>MCID Study:</strong> Kelsall A et al. (2009). 10-year prospective follow-up of idiopathic pulmonary fibrosis: disease behaviour and prognosis. <em>American Journal of Respiratory and Critical Care Medicine, 180</em>(10), 1031–1039.</p>
                     </div>
                   </div>
                 </CardContent>
@@ -253,7 +253,7 @@ Clinical Notes: ${clinicalNotes || "None"}`;
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
-                  <Label className="text-sm font-semibold text-amber-900">LCQ Total Score (0â€“70)</Label>
+                  <Label className="text-sm font-semibold text-amber-900">LCQ Total Score (0–70)</Label>
                   <Input
                     type="number"
                     min="0"
@@ -286,12 +286,12 @@ Clinical Notes: ${clinicalNotes || "None"}`;
                       </thead>
                       <tbody>
                         <tr className="border-t">
-                          <td className="p-2 font-medium">â‰¥19</td>
+                          <td className="p-2 font-medium">≥19</td>
                           <td className="p-2">Good cough-related QoL</td>
                           <td className="p-2">Continue current management; monitor regularly</td>
                         </tr>
                         <tr className="border-t bg-white">
-                          <td className="p-2 font-medium">14â€“18</td>
+                          <td className="p-2 font-medium">14–18</td>
                           <td className="p-2">Moderate cough-related QoL</td>
                           <td className="p-2">Optimize current therapy; consider treatment escalation</td>
                         </tr>
@@ -306,7 +306,7 @@ Clinical Notes: ${clinicalNotes || "None"}`;
                   <div className={`p-3 rounded-lg ${parseFloat(result) >= 19 ? 'bg-green-100 border border-green-300' : parseFloat(result) >= 14 ? 'bg-yellow-100 border border-yellow-300' : 'bg-red-100 border border-red-300'}`}>
                     <p className="font-semibold">
                       Score {result}/70 = <span className={parseFloat(result) >= 19 ? 'text-green-800' : parseFloat(result) >= 14 ? 'text-yellow-800' : 'text-red-800'}>
-                        {parseFloat(result) >= 19 ? 'Good QoL' : parseFloat(result) >= 14 ? 'Moderate QoL' : 'Poor QoL â€” Urgent intervention recommended'}
+                        {parseFloat(result) >= 19 ? 'Good QoL' : parseFloat(result) >= 14 ? 'Moderate QoL' : 'Poor QoL — Urgent intervention recommended'}
                       </span>
                     </p>
                   </div>

@@ -15,15 +15,15 @@ import ClientFunnelAnalytics from "@/components/analytics/ClientFunnelAnalytics"
 import DataQualityAnalytics from "@/components/analytics/DataQualityAnalytics";
 import AssessmentCoverageAnalytics from "@/components/analytics/AssessmentCoverageAnalytics";
 
-// â”€â”€ De-identification helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── De-identification helpers ─────────────────────────────────────────────
 
 const AGE_BANDS = [
   { label: "Under 18", min: 0, max: 17 },
-  { label: "18â€“29", min: 18, max: 29 },
-  { label: "30â€“44", min: 30, max: 44 },
-  { label: "45â€“59", min: 45, max: 59 },
-  { label: "60â€“69", min: 60, max: 69 },
-  { label: "70â€“79", min: 70, max: 79 },
+  { label: "18–29", min: 18, max: 29 },
+  { label: "30–44", min: 30, max: 44 },
+  { label: "45–59", min: 45, max: 59 },
+  { label: "60–69", min: 60, max: 69 },
+  { label: "70–79", min: 70, max: 79 },
   { label: "80+", min: 80, max: 999 },
 ];
 
@@ -62,7 +62,7 @@ function toChartData(countObj) {
 const EXPORT_MIN_GROUP = 10;
 const COLORS = ["#3b82f6", "#10b981", "#a855f7", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899", "#84cc16"];
 
-// â”€â”€ Reusable components â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Reusable components ───────────────────────────────────────────────────
 
 function StatCard({ icon: Icon, label, value, color = "blue" }) {
   const colors = {
@@ -88,7 +88,7 @@ function StatCard({ icon: Icon, label, value, color = "blue" }) {
   );
 }
 
-// â”€â”€ CSV export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── CSV export ────────────────────────────────────────────────────────────
 
 function exportCSV(rows, filename) {
   if (!rows.length) return;
@@ -104,7 +104,7 @@ function exportCSV(rows, filename) {
   URL.revokeObjectURL(url);
 }
 
-// â”€â”€ Main page â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── Main page ─────────────────────────────────────────────────────────────
 
 export default function AdminAnalytics() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -153,7 +153,7 @@ export default function AdminAnalytics() {
     funding: normaliseFunding(c.funding_source),
   })), [clients]);
 
-  // Population charts â€” no suppression for dashboard
+  // Population charts — no suppression for dashboard
   const ageChartData = toChartData(toCounts(deidentifiedClients, "age_group"));
   const genderChartData = toChartData(toCounts(deidentifiedClients, "gender"));
   const fundingChartData = toChartData(toCounts(deidentifiedClients, "funding"));
@@ -165,7 +165,7 @@ export default function AdminAnalytics() {
     .slice(0, 20)
     .map(([name, count]) => ({ name, count }));
 
-  // Assessment usage â€” skip unmapped, no suppression
+  // Assessment usage — skip unmapped, no suppression
   const assessmentCounts = useMemo(() => {
     return clientAssessments.reduce((acc, ca) => {
       const name = defMap[ca.assessment_id]?.name;
@@ -365,7 +365,7 @@ export default function AdminAnalytics() {
                             <div className="flex-1 min-w-0">
                               <div className="flex justify-between items-center mb-1">
                                 <span className="text-sm font-medium text-slate-800 truncate">{name}</span>
-                                <span className="text-sm font-bold text-slate-600 ml-2 shrink-0">{count}Ã—</span>
+                                <span className="text-sm font-bold text-slate-600 ml-2 shrink-0">{count}×</span>
                               </div>
                               <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                 <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400" style={{ width: `${pct}%` }} />

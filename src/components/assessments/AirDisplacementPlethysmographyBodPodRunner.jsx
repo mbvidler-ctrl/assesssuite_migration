@@ -58,7 +58,7 @@ export default function AirDisplacementPlethysmographyBodPodRunner({ client, onS
     if (!bodyFatPct && !fatMass) { toast.error("Enter body fat % or fat mass"); return; }
     const pct = computedFatPct?.toFixed(1);
     const ffm = fatFreeMass || (bodyMass && fatMass ? (parseFloat(bodyMass) - parseFloat(fatMass)).toFixed(1) : null);
-    const soap = `â€¢ Air Displacement Plethysmography (BOD POD)\n  Body Fat: ${pct}%${cat ? ` â€” ${cat.label}` : ""}\n  Body Mass: ${bodyMass || "N/A"} kg\n  Body Volume: ${bodyVolume || "N/A"} L\n  Body Density: ${bodyDensity || "N/A"} g/cc\n  Fat Mass: ${fatMass || "N/A"} kg\n  Fat-Free Mass: ${ffm || "N/A"} kg${resting ? `\n  Resting Metabolic Rate (Measured): ${resting} kcal/day` : ""}${notes ? `\n  Notes: ${notes}` : ""}\n  Reference: Siri equation: %BF = (4.95/D - 4.50) Ã— 100`;
+    const soap = `• Air Displacement Plethysmography (BOD POD)\n  Body Fat: ${pct}%${cat ? ` — ${cat.label}` : ""}\n  Body Mass: ${bodyMass || "N/A"} kg\n  Body Volume: ${bodyVolume || "N/A"} L\n  Body Density: ${bodyDensity || "N/A"} g/cc\n  Fat Mass: ${fatMass || "N/A"} kg\n  Fat-Free Mass: ${ffm || "N/A"} kg${resting ? `\n  Resting Metabolic Rate (Measured): ${resting} kcal/day` : ""}${notes ? `\n  Notes: ${notes}` : ""}\n  Reference: Siri equation: %BF = (4.95/D - 4.50) × 100`;
     onSave({ status: "completed", result_value: parseFloat(pct), notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "body_composition", body_fat_pct: parseFloat(pct), fat_mass_kg: fatMass ? parseFloat(fatMass) : null, fat_free_mass_kg: ffm ? parseFloat(ffm) : null, body_mass_kg: bodyMass ? parseFloat(bodyMass) : null, classification: cat?.label } });
     toast.success("BOD POD result saved.");
   };
@@ -67,7 +67,7 @@ export default function AirDisplacementPlethysmographyBodPodRunner({ client, onS
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-xl max-w-2xl w-full max-h-[95vh] overflow-hidden flex flex-col shadow-2xl" onClick={e => e.stopPropagation()}>
         <div className="p-5 border-b bg-gradient-to-r from-blue-50 to-cyan-50 flex justify-between items-start">
-          <div><h2 className="text-2xl font-bold text-slate-900">BOD POD â€” Air Displacement Plethysmography</h2><p className="text-slate-500 text-sm mt-0.5">Body composition by ADP</p></div>
+          <div><h2 className="text-2xl font-bold text-slate-900">BOD POD — Air Displacement Plethysmography</h2><p className="text-slate-500 text-sm mt-0.5">Body composition by ADP</p></div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
 
@@ -101,27 +101,27 @@ export default function AirDisplacementPlethysmographyBodPodRunner({ client, onS
 
           {/* Norms & Interpretation */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Body Fat % Classifications (ACSM)</p>
+            <p className="font-semibold text-slate-700">📊 Body Fat % Classifications (ACSM)</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
-                <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20â€“39</th><th className="p-2 text-center">Men 40â€“59</th><th className="p-2 text-center">Women 20â€“39</th><th className="p-2 text-center">Women 40â€“59</th></tr></thead>
+                <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20–39</th><th className="p-2 text-center">Men 40–59</th><th className="p-2 text-center">Women 20–39</th><th className="p-2 text-center">Women 40–59</th></tr></thead>
                 <tbody>
-                  <tr className="border-t border-slate-200"><td className="p-2">Essential fat</td><td className="p-2 text-center">2â€“5%</td><td className="p-2 text-center">2â€“5%</td><td className="p-2 text-center">10â€“13%</td><td className="p-2 text-center">10â€“13%</td></tr>
-                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">Athletic</td><td className="p-2 text-center">6â€“13%</td><td className="p-2 text-center">8â€“17%</td><td className="p-2 text-center">14â€“20%</td><td className="p-2 text-center">20â€“26%</td></tr>
-                  <tr className="border-t border-slate-200"><td className="p-2">Fitness</td><td className="p-2 text-center">14â€“17%</td><td className="p-2 text-center">18â€“21%</td><td className="p-2 text-center">21â€“24%</td><td className="p-2 text-center">27â€“30%</td></tr>
-                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">Acceptable</td><td className="p-2 text-center">18â€“24%</td><td className="p-2 text-center">22â€“27%</td><td className="p-2 text-center">25â€“31%</td><td className="p-2 text-center">31â€“36%</td></tr>
-                  <tr className="border-t border-slate-200"><td className="p-2">Obese</td><td className="p-2 text-center">â‰¥25%</td><td className="p-2 text-center">â‰¥28%</td><td className="p-2 text-center">â‰¥32%</td><td className="p-2 text-center">â‰¥37%</td></tr>
+                  <tr className="border-t border-slate-200"><td className="p-2">Essential fat</td><td className="p-2 text-center">2–5%</td><td className="p-2 text-center">2–5%</td><td className="p-2 text-center">10–13%</td><td className="p-2 text-center">10–13%</td></tr>
+                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">Athletic</td><td className="p-2 text-center">6–13%</td><td className="p-2 text-center">8–17%</td><td className="p-2 text-center">14–20%</td><td className="p-2 text-center">20–26%</td></tr>
+                  <tr className="border-t border-slate-200"><td className="p-2">Fitness</td><td className="p-2 text-center">14–17%</td><td className="p-2 text-center">18–21%</td><td className="p-2 text-center">21–24%</td><td className="p-2 text-center">27–30%</td></tr>
+                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">Acceptable</td><td className="p-2 text-center">18–24%</td><td className="p-2 text-center">22–27%</td><td className="p-2 text-center">25–31%</td><td className="p-2 text-center">31–36%</td></tr>
+                  <tr className="border-t border-slate-200"><td className="p-2">Obese</td><td className="p-2 text-center">≥25%</td><td className="p-2 text-center">≥28%</td><td className="p-2 text-center">≥32%</td><td className="p-2 text-center">≥37%</td></tr>
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-slate-500">BOD POD TEE Â±1â€“2% vs hydrostatic weighing. Siri equation: %BF = (4.95/D âˆ’ 4.50) Ã— 100. Source: ACSM Guidelines (2022).</p>
+            <p className="text-xs text-slate-500">BOD POD TEE ±1–2% vs hydrostatic weighing. Siri equation: %BF = (4.95/D − 4.50) × 100. Source: ACSM Guidelines (2022).</p>
           </div>
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
-            <p>Dempster P & Aitkens S. (1995). A new air displacement method for the determination of human body composition. <em>Medicine & Science in Sports & Exercise, 27</em>(12), 1692â€“1697.</p>
-            <p>Siri WE. (1956). The gross composition of the body. <em>Advances in Biological and Medical Physics, 4</em>, 239â€“280.</p>
+            <p className="font-semibold">📖 Reference</p>
+            <p>Dempster P & Aitkens S. (1995). A new air displacement method for the determination of human body composition. <em>Medicine & Science in Sports & Exercise, 27</em>(12), 1692–1697.</p>
+            <p>Siri WE. (1956). The gross composition of the body. <em>Advances in Biological and Medical Physics, 4</em>, 239–280.</p>
           </div>
 
           <div><Label>Clinical Notes</Label><Textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Clinical context, limitations, body composition goals..." rows={3} className="mt-1" /></div>

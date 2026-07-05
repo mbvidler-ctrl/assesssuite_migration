@@ -4,13 +4,13 @@ const FIELD_LABELS = {
   occurred_with_person: "Event occurred while with the person",
   reported_in_person: "Reported by participant in-person",
   reported_phone_email: "Reported via telephone or email",
-  unrelated: "UNRELATED â€” No evidence of causal relationship",
-  unlikely: "UNLIKELY â€” Little evidence of causal relationship",
-  possible: "POSSIBLE â€” Some evidence of causal relationship",
-  probably: "PROBABLY â€” Evidence suggests causal relationship",
-  definitely: "DEFINITELY â€” Clear evidence of causal relationship",
+  unrelated: "UNRELATED — No evidence of causal relationship",
+  unlikely: "UNLIKELY — Little evidence of causal relationship",
+  possible: "POSSIBLE — Some evidence of causal relationship",
+  probably: "PROBABLY — Evidence suggests causal relationship",
+  definitely: "DEFINITELY — Clear evidence of causal relationship",
   fall: "Fall (with/without injury)",
-  musculoskeletal_pain: "Musculoskeletal pain/injury (â‰¥2 days)",
+  musculoskeletal_pain: "Musculoskeletal pain/injury (≥2 days)",
   weight_loss: "Unintentional weight loss",
   drug_withdrawal: "Adverse drug withdrawal events",
   mood_alteration: "Mood alteration requiring health professional",
@@ -62,7 +62,7 @@ export default function AdverseEventPrintView({ event, client }) {
       <div style={{ textAlign: "center", marginBottom: 16 }}>
         <h1 style={{ fontSize: 18, fontWeight: 800, margin: 0, color: "#991b1b" }}>ADVERSE EVENT REPORT</h1>
         <p style={{ fontSize: 10, color: "#64748b", marginTop: 4 }}>
-          Report Date: {event.report_date ? new Date(event.report_date).toLocaleDateString("en-AU") : "â€”"} | Status: {event.status?.toUpperCase() || "SUBMITTED"}
+          Report Date: {event.report_date ? new Date(event.report_date).toLocaleDateString("en-AU") : "—"} | Status: {event.status?.toUpperCase() || "SUBMITTED"}
         </p>
       </div>
 
@@ -87,7 +87,7 @@ export default function AdverseEventPrintView({ event, client }) {
       <div style={{ marginBottom: 8 }}>
         <p style={{ fontWeight: 600, fontSize: 10, marginBottom: 2 }}>Event Description:</p>
         <p style={{ fontSize: 10, whiteSpace: "pre-wrap", background: "#f8fafc", padding: 8, borderRadius: 4, border: "1px solid #e2e8f0" }}>
-          {event.event_description || "â€”"}
+          {event.event_description || "—"}
         </p>
       </div>
       <Row label="Is SAE?" value={event.is_sae?.toUpperCase()} />
@@ -156,7 +156,7 @@ export default function AdverseEventPrintView({ event, client }) {
 
       {/* Signature */}
       <SectionTitle>Clinician Acknowledgment</SectionTitle>
-      <Row label="Acknowledged" value={event.clinician_acknowledgment ? "Yes â€” Reviewed and verified" : "No"} />
+      <Row label="Acknowledged" value={event.clinician_acknowledgment ? "Yes — Reviewed and verified" : "No"} />
       {event.digital_signature && (
         <div style={{ marginTop: 8 }}>
           <p style={{ fontSize: 10, fontWeight: 600, marginBottom: 4 }}>Digital Signature:</p>

@@ -93,7 +93,7 @@ export default function OnboardingEpisodes({ client, onReOnboardStarted }) {
         client_goals: null,
       });
 
-      toast.success("Re-onboarding started â€” previous episode archived.");
+      toast.success("Re-onboarding started — previous episode archived.");
       setShowReOnboardDialog(false);
       if (onReOnboardStarted) onReOnboardStarted();
       navigate(createPageUrl(`Onboarding?id=${client.id}`));
@@ -277,7 +277,7 @@ export default function OnboardingEpisodes({ client, onReOnboardStarted }) {
             <DialogDescription className="pt-2 space-y-2 text-sm text-slate-700">
               <p>This will start a fresh onboarding episode for this client.</p>
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 mt-2 space-y-1 text-sm text-green-800">
-                <p className="font-semibold">âœ“ What's kept:</p>
+                <p className="font-semibold">✓ What's kept:</p>
                 <ul className="ml-3 space-y-0.5 list-disc text-xs">
                   <li>Name, date of birth, contact details</li>
                   <li>Funding source &amp; referral info</li>
@@ -285,7 +285,7 @@ export default function OnboardingEpisodes({ client, onReOnboardStarted }) {
                 </ul>
               </div>
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2 space-y-1 text-sm text-amber-800">
-                <p className="font-semibold">âŸ³ What gets reset:</p>
+                <p className="font-semibold">⟳ What gets reset:</p>
                 <ul className="ml-3 space-y-0.5 list-disc text-xs">
                   <li>APSS Stage 1 &amp; 2 answers</li>
                   <li>Client goals</li>
@@ -302,7 +302,7 @@ export default function OnboardingEpisodes({ client, onReOnboardStarted }) {
               className="bg-purple-600 hover:bg-purple-700 text-white gap-2"
             >
               {isStarting ? (
-                <><span className="animate-spin">âŸ³</span> Starting...</>
+                <><span className="animate-spin">⟳</span> Starting...</>
               ) : (
                 <><RefreshCw className="w-4 h-4" /> Start Re-onboarding</>
               )}

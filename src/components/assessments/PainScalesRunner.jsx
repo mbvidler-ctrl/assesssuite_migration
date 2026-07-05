@@ -49,8 +49,8 @@ export default function PainScalesRunner({ onSave, onClose }) {
     };
 
     const soapText = [
-      `â€¢ Pain Rating Scales`,
-      `  Current Pain: ${currentPain}/10 â€” ${currentInterp?.level || ''}`,
+      `• Pain Rating Scales`,
+      `  Current Pain: ${currentPain}/10 — ${currentInterp?.level || ''}`,
       bestPain !== null ? `  Best Pain (24h): ${bestPain}/10` : null,
       worstPain !== null ? `  Worst Pain (24h): ${worstPain}/10` : null,
       location ? `  Location: ${formatLocation(location)}` : null,
@@ -94,15 +94,15 @@ export default function PainScalesRunner({ onSave, onClose }) {
           <div className="space-y-6">
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>Hawker GA et al. (2011). Measures of adult pain: Visual Analog Scale for Pain (VAS Pain), Numeric Rating Scale for Pain (NRS Pain). <em>Arthritis Care & Research, 63</em>(S11), S240â€“S252.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Hawker GA et al. (2011). Measures of adult pain: Visual Analog Scale for Pain (VAS Pain), Numeric Rating Scale for Pain (NRS Pain). <em>Arthritis Care & Research, 63</em>(S11), S240–S252.</p>
             </div>
 
             <Card className="bg-blue-50 border-blue-200">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <Info className="w-5 h-5 text-blue-600" />
-                  ðŸ“‹ Pain Scale Instructions
+                  📋 Pain Scale Instructions
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-blue-800 space-y-2">

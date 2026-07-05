@@ -156,7 +156,7 @@ export default function NutritionSummaryCard({ clientId, onCreatePlan, client })
             className="flex-1" 
             onClick={() => onCreatePlan()}
           >
-            View Full Plan â†’
+            View Full Plan →
           </Button>
         </div>
       </CardContent>

@@ -84,7 +84,7 @@ export default function ConstantMurleyScoreRunner({ client, onSave, onClose }) {
     const totalScore = getTotalScore();
     const adlTotal = Object.values(adlScores).reduce((sum, val) => sum + val, 0);
     const romScore = calculateROMScore();
-    const soapText = `â€¢ Constant-Murley Score: ${totalScore}/100\n\n  Subscores:\n  - Pain: ${pain}/15\n  - Activities of Daily Living: ${adlTotal}/20\n    â€¢ Work: ${adlScores.work}/4\n    â€¢ Recreation/Sport: ${adlScores.leisure}/4\n    â€¢ Sleep: ${adlScores.sleep}/2\n    â€¢ Positioning: ${adlScores.positioning}/10\n  - Range of Motion: ${romScore}/40\n    â€¢ Forward Flexion: ${rangeOfMotion.flexion || 'N/A'}Â°\n    â€¢ Abduction: ${rangeOfMotion.abduction || 'N/A'}Â°\n    â€¢ External Rotation: ${rangeOfMotion.externalRotation || 'N/A'}Â°\n    â€¢ Internal Rotation level: ${rangeOfMotion.internalRotation || 'N/A'}\n  - Strength: ${strength || 0}/25 lbs`;
+    const soapText = `• Constant-Murley Score: ${totalScore}/100\n\n  Subscores:\n  - Pain: ${pain}/15\n  - Activities of Daily Living: ${adlTotal}/20\n    • Work: ${adlScores.work}/4\n    • Recreation/Sport: ${adlScores.leisure}/4\n    • Sleep: ${adlScores.sleep}/2\n    • Positioning: ${adlScores.positioning}/10\n  - Range of Motion: ${romScore}/40\n    • Forward Flexion: ${rangeOfMotion.flexion || 'N/A'}°\n    • Abduction: ${rangeOfMotion.abduction || 'N/A'}°\n    • External Rotation: ${rangeOfMotion.externalRotation || 'N/A'}°\n    • Internal Rotation level: ${rangeOfMotion.internalRotation || 'N/A'}\n  - Strength: ${strength || 0}/25 lbs`;
 
     onSave({
       status: "completed",
@@ -148,15 +148,15 @@ export default function ConstantMurleyScoreRunner({ client, onSave, onClose }) {
                   <li><strong>Pain (15 pts):</strong> Most important component; assesses frequency and severity</li>
                   <li><strong>ADL (20 pts):</strong> Work, recreation/sport, sleep, and positioning ability</li>
                   <li><strong>ROM (40 pts):</strong> Forward flexion, abduction, external/internal rotation</li>
-                  <li><strong>Strength (25 pts):</strong> Abduction strength at 90Â° (1 lb = 1 point)</li>
+                  <li><strong>Strength (25 pts):</strong> Abduction strength at 90° (1 lb = 1 point)</li>
                 </ul>
               </div>
               <div>
                 <p className="font-semibold">Interpretation:</p>
                 <ul className="list-disc list-inside ml-4 space-y-1 text-xs mt-1">
-                  <li><strong>91â€“100:</strong> Excellent function</li>
-                  <li><strong>71â€“90:</strong> Good function</li>
-                  <li><strong>51â€“70:</strong> Moderate function</li>
+                  <li><strong>91–100:</strong> Excellent function</li>
+                  <li><strong>71–90:</strong> Good function</li>
+                  <li><strong>51–70:</strong> Moderate function</li>
                   <li><strong>&lt;50:</strong> Poor function</li>
                 </ul>
               </div>
@@ -190,10 +190,10 @@ export default function ConstantMurleyScoreRunner({ client, onSave, onClose }) {
             </CardHeader>
             <CardContent className="text-xs text-slate-700 space-y-3">
               <div>
-                <p><strong>Constant CR, Murley AH.</strong> (1987). A clinical method of functional assessment of the shoulder. <em>Clinical Orthopaedics and Related Research</em>, 214:160â€“164.</p>
+                <p><strong>Constant CR, Murley AH.</strong> (1987). A clinical method of functional assessment of the shoulder. <em>Clinical Orthopaedics and Related Research</em>, 214:160–164.</p>
               </div>
               <div>
-                <p><strong>Roy JS, MacDermid JC, Woodhouse LJ.</strong> (2009). A systematic review of the psychometric properties of the Constant-Murley Score. <em>Journal of Shoulder and Elbow Surgery</em>, 18(3):370â€“380.</p>
+                <p><strong>Roy JS, MacDermid JC, Woodhouse LJ.</strong> (2009). A systematic review of the psychometric properties of the Constant-Murley Score. <em>Journal of Shoulder and Elbow Surgery</em>, 18(3):370–380.</p>
               </div>
               <Button
                 onClick={() => window.open('https://www.jses-online.org/', '_blank')}
@@ -284,7 +284,7 @@ export default function ConstantMurleyScoreRunner({ client, onSave, onClose }) {
                 <p className="text-sm text-gray-600 mb-3">Enter degrees for each movement</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <Label>Forward Flexion (Â°)</Label>
+                    <Label>Forward Flexion (°)</Label>
                     <Input
                       type="number"
                       value={rangeOfMotion.flexion}
@@ -293,7 +293,7 @@ export default function ConstantMurleyScoreRunner({ client, onSave, onClose }) {
                     />
                   </div>
                   <div>
-                    <Label>Abduction (Â°)</Label>
+                    <Label>Abduction (°)</Label>
                     <Input
                       type="number"
                       value={rangeOfMotion.abduction}
@@ -302,7 +302,7 @@ export default function ConstantMurleyScoreRunner({ client, onSave, onClose }) {
                     />
                   </div>
                   <div>
-                    <Label>External Rotation (Â°)</Label>
+                    <Label>External Rotation (°)</Label>
                     <Input
                       type="number"
                       value={rangeOfMotion.externalRotation}
@@ -328,7 +328,7 @@ export default function ConstantMurleyScoreRunner({ client, onSave, onClose }) {
 
               <div>
                 <Label className="text-base font-semibold mb-2 block">4. Strength (0-25 points)</Label>
-                <p className="text-sm text-gray-600 mb-2">Measured in abduction at 90Â°, in pounds (1 lb = 1 point, max 25)</p>
+                <p className="text-sm text-gray-600 mb-2">Measured in abduction at 90°, in pounds (1 lb = 1 point, max 25)</p>
                 <Input
                   type="number"
                   value={strength}

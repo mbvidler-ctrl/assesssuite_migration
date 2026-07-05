@@ -153,14 +153,14 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
   };
 
   const safeFormatDate = (dateValue, formatString = 'dd/MM/yyyy') => {
-    if (!dateValue) return "â€”";
+    if (!dateValue) return "—";
     try {
       const date = new Date(dateValue);
-      if (isNaN(date.getTime())) return "â€”";
+      if (isNaN(date.getTime())) return "—";
       return format(date, formatString);
     } catch (error) {
       console.error("Error formatting date:", dateValue, error);
-      return "â€”";
+      return "—";
     }
   };
 
@@ -253,7 +253,7 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
             <div className="grid grid-cols-2 gap-2 text-sm mt-2">
               <div>
                 <p className="text-sm font-semibold text-slate-700">Full Name:</p>
-                <p className="text-slate-900">{client.full_name || "â€”"}</p>
+                <p className="text-slate-900">{client.full_name || "—"}</p>
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-700">Date of Birth:</p>
@@ -262,12 +262,12 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
               <div>
                 <p className="text-sm font-semibold text-slate-700">Gender:</p>
                 <p className="text-slate-900">
-                  {client.gender === "other" ? client.gender_other : client.gender || "â€”"}
+                  {client.gender === "other" ? client.gender_other : client.gender || "—"}
                 </p>
               </div>
               <div>
                 <p className="text-sm font-semibold text-slate-700">Pronouns:</p>
-                <p className="text-slate-900">{client.pronouns || "â€”"}</p>
+                <p className="text-slate-900">{client.pronouns || "—"}</p>
               </div>
             </div>
           </section>
@@ -891,8 +891,8 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
                     </p>
                     <p className="text-xs text-slate-600 mt-1">
                       {(client.apss_q7_total_minutes || 0) >= 150 ? 
-                        "âœ“ Meets minimum physical activity guidelines (â‰¥150 weighted minutes/week)" :
-                        "âš  Below minimum physical activity guidelines (<150 weighted minutes/week)"
+                        "✓ Meets minimum physical activity guidelines (≥150 weighted minutes/week)" :
+                        "⚠ Below minimum physical activity guidelines (<150 weighted minutes/week)"
                       }
                     </p>
                   </div>
@@ -946,7 +946,7 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
                             client.apss_s2_bmi < 30 ? 'text-yellow-600' :
                             'text-red-600'
                           }`}>
-                            {client.apss_s2_bmi} kg/mÂ²
+                            {client.apss_s2_bmi} kg/m²
                           </p>
                           <p className="text-xs text-slate-500">
                             {client.apss_s2_bmi < 18.5 ? 'Underweight' :
@@ -996,7 +996,7 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
                         <p className="text-xs font-semibold text-slate-600">Details:</p>
                         {client.apss_s2_family_history_records.map((record, idx) => (
                           <p key={idx} className="text-sm text-slate-600">
-                            â€¢ {record.relationship} - at age {record.age_at_event}
+                            • {record.relationship} - at age {record.age_at_event}
                           </p>
                         ))}
                       </div>
@@ -1068,7 +1068,7 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
                 {(client.apss_s2_high_blood_pressure !== null || client.apss_s2_systolic_bp || client.apss_s2_diastolic_bp || client.apss_s2_bp_medication !== null) && (
                   <div className="bg-white p-4 rounded border border-slate-200 space-y-2">
                     <h4 className="font-semibold text-slate-900">Q12. Have you been told that you have high blood pressure?</h4>
-                    <p className="text-xs text-slate-600 mb-2">Either of the below increases the risk of heart disease: Systolic BP â‰¥ 140 mmHg, Diastolic BP â‰¥ 90 mmHg</p>
+                    <p className="text-xs text-slate-600 mb-2">Either of the below increases the risk of heart disease: Systolic BP ≥ 140 mmHg, Diastolic BP ≥ 90 mmHg</p>
                     {client.apss_s2_high_blood_pressure !== null && (
                       <div className="flex justify-between items-center">
                         <p className="text-sm text-slate-700">Response:</p>
@@ -1083,7 +1083,7 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
                      <div className="space-y-1">
                        {(client.apss_s2_systolic_bp || client.apss_s2_diastolic_bp) && (
                          <p className="text-sm">
-                           <span className="font-medium">Measured BP:</span> {client.apss_s2_systolic_bp || 'â€”'}/{client.apss_s2_diastolic_bp || 'â€”'} mmHg
+                           <span className="font-medium">Measured BP:</span> {client.apss_s2_systolic_bp || '—'}/{client.apss_s2_diastolic_bp || '—'} mmHg
                          </p>
                        )}
                        {client.apss_s2_heart_rate && (
@@ -1116,7 +1116,7 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
                 {(client.apss_s2_high_cholesterol !== null || client.apss_s2_total_cholesterol || client.apss_s2_hdl || client.apss_s2_ldl || client.apss_s2_triglycerides || client.apss_s2_cholesterol_medication !== null) && (
                   <div className="bg-white p-4 rounded border border-slate-200 space-y-2">
                     <h4 className="font-semibold text-slate-900">Q13. Have you been told that you have high cholesterol/blood lipids?</h4>
-                    <p className="text-xs text-slate-600 mb-2">Any of the below increases risk: Total cholesterol â‰¥ 5.2 mmol/L, HDL &lt; 1.0 mmol/L, LDL â‰¥ 3.4 mmol/L, Triglycerides â‰¥ 1.7 mmol/L</p>
+                    <p className="text-xs text-slate-600 mb-2">Any of the below increases risk: Total cholesterol ≥ 5.2 mmol/L, HDL &lt; 1.0 mmol/L, LDL ≥ 3.4 mmol/L, Triglycerides ≥ 1.7 mmol/L</p>
                     {client.apss_s2_high_cholesterol !== null && (
                       <div className="flex justify-between items-center">
                         <p className="text-sm text-slate-700">Response:</p>
@@ -1161,7 +1161,7 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
                 {(client.apss_s2_high_blood_sugar !== null || client.apss_s2_fasting_glucose || client.apss_s2_glucose_medication !== null) && (
                   <div className="bg-white p-4 rounded border border-slate-200 space-y-2">
                     <h4 className="font-semibold text-slate-900">Q14. Have you been told that you have high blood sugar (glucose)?</h4>
-                    <p className="text-xs text-slate-600 mb-2">Fasting blood sugar (glucose) â‰¥ 5.5 mmol/L increases the risk of diabetes.</p>
+                    <p className="text-xs text-slate-600 mb-2">Fasting blood sugar (glucose) ≥ 5.5 mmol/L increases the risk of diabetes.</p>
                     {client.apss_s2_high_blood_sugar !== null && (
                       <div className="flex justify-between items-center">
                         <p className="text-sm text-slate-700">Response:</p>

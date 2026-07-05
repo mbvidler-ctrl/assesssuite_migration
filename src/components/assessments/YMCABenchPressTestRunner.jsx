@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 
-// â”€â”€â”€ ENDURANCE CLASSIFICATION â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── ENDURANCE CLASSIFICATION ──────────────────────────────────────────────
 const getEnduranceCategory = (reps, gender) => {
   const isMale = gender === "M";
   if (isMale) {
@@ -35,7 +35,7 @@ const colorForCategory = (category) => {
   }
 };
 
-// â”€â”€â”€ COMPONENT â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─── COMPONENT ──────────────────────────────────────────────────────────────
 export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
   const [isTesting, setIsTesting] = useState(false);
   const [testComplete, setTestComplete] = useState(false);
@@ -57,7 +57,7 @@ export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
     setIsTesting(true);
     setTestComplete(false);
     setRepetitions(0);
-    toast.success("Test started â€” maintain metronome cadence. Stop on signal or failure.");
+    toast.success("Test started — maintain metronome cadence. Stop on signal or failure.");
   };
 
   const handleStopTest = () => {
@@ -72,7 +72,7 @@ export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
     }
 
     const category = getEnduranceCategory(repetitions, gender);
-    const soapText = `â€¢ Allied Upper Body Endurance Press Test
+    const soapText = `• Allied Upper Body Endurance Press Test
   Standardized repetition endurance assessment for upper body muscular endurance
   
   CLIENT DETAILS:
@@ -128,7 +128,7 @@ export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
 
   const category = testComplete ? getEnduranceCategory(repetitions, gender) : null;
 
-  // â”€â”€â”€ RENDER â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ─── RENDER ─────────────────────────────────────────────────────────────
   return (
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[95vh] overflow-y-auto shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -156,7 +156,7 @@ export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
           {testComplete && category && (
             <Card className={`border-2 ${colorForCategory(category)}`}>
               <CardHeader>
-                <CardTitle>Test Results â€” Muscular Endurance Classification</CardTitle>
+                <CardTitle>Test Results — Muscular Endurance Classification</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="text-center">
@@ -203,7 +203,7 @@ export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
                 onClick={() => setShowProtocol(v => !v)}
                 className="w-full flex justify-between items-center bg-violet-50 px-4 py-3 text-sm font-semibold text-violet-900 hover:bg-violet-100 transition-colors"
               >
-                <span>ðŸ“‹ Clinician Instructions & Protocol</span>
+                <span>📋 Clinician Instructions & Protocol</span>
                 {showProtocol ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
               {showProtocol && (
@@ -211,7 +211,7 @@ export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
                   <div>
                     <p className="font-semibold">Equipment</p>
                     <ul className="text-xs list-disc list-inside space-y-0.5 text-violet-700 mt-1">
-                      <li>Flat bench (45Â° incline optional)</li>
+                      <li>Flat bench (45° incline optional)</li>
                       <li>Barbell with collars</li>
                       <li>Safety spotters (required)</li>
                       <li>Metronome (60 bpm)</li>
@@ -257,7 +257,7 @@ export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
               <CardHeader>
                 <CardTitle className="text-base flex items-center gap-2 text-red-900">
                   <AlertCircle className="w-5 h-5" />
-                  Safety â€” STOP Test Immediately
+                  Safety — STOP Test Immediately
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-red-800 space-y-1">
@@ -305,7 +305,7 @@ export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
                   </div>
                   <div className="flex gap-2 justify-center">
                     <Button onClick={() => setRepetitions(Math.max(0, repetitions - 1))} variant="outline" className="px-6">
-                      âˆ’
+                      −
                     </Button>
                     <Button onClick={() => setRepetitions(repetitions + 1)} className="bg-violet-600 hover:bg-violet-700 px-6">
                       +
@@ -331,8 +331,8 @@ export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
                     </select>
                   </div>
                   <div>
-                    <Label className="text-xs">RPE (Borg 0â€“10)</Label>
-                    <Input type="number" min="0" max="10" value={rpe} onChange={e => setRpe(e.target.value)} placeholder="0â€“10" className="mt-1" />
+                    <Label className="text-xs">RPE (Borg 0–10)</Label>
+                    <Input type="number" min="0" max="10" value={rpe} onChange={e => setRpe(e.target.value)} placeholder="0–10" className="mt-1" />
                   </div>
                 </div>
               )}
@@ -344,8 +344,8 @@ export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
                     <Input type="number" value={repetitions} onChange={e => setRepetitions(parseInt(e.target.value) || 0)} className="mt-1" />
                   </div>
                   <div>
-                    <Label className="text-xs">RPE (Borg 0â€“10)</Label>
-                    <Input type="number" min="0" max="10" value={rpe} onChange={e => setRpe(e.target.value)} placeholder="0â€“10" className="mt-1" />
+                    <Label className="text-xs">RPE (Borg 0–10)</Label>
+                    <Input type="number" min="0" max="10" value={rpe} onChange={e => setRpe(e.target.value)} placeholder="0–10" className="mt-1" />
                   </div>
                 </div>
               )}
@@ -374,7 +374,7 @@ export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
           {/* Norms Reference */}
           <Card className="border-slate-200">
             <CardHeader>
-              <CardTitle className="text-base">Endurance Classification â€” Repetitions</CardTitle>
+              <CardTitle className="text-base">Endurance Classification — Repetitions</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="overflow-x-auto text-xs">
@@ -388,10 +388,10 @@ export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
                   </thead>
                   <tbody>
                     {[
-                      { cat: "Excellent", men: "â‰¥36", women: "â‰¥35", bg: "bg-green-50" },
-                      { cat: "Good", men: "29â€“35", women: "27â€“34", bg: "bg-blue-50" },
-                      { cat: "Average", men: "22â€“28", women: "21â€“26", bg: "bg-amber-50" },
-                      { cat: "Poor", men: "10â€“21", women: "10â€“20", bg: "bg-orange-50" },
+                      { cat: "Excellent", men: "≥36", women: "≥35", bg: "bg-green-50" },
+                      { cat: "Good", men: "29–35", women: "27–34", bg: "bg-blue-50" },
+                      { cat: "Average", men: "22–28", women: "21–26", bg: "bg-amber-50" },
+                      { cat: "Poor", men: "10–21", women: "10–20", bg: "bg-orange-50" },
                       { cat: "Very Poor", men: "<10", women: "<10", bg: "bg-red-50" },
                     ].map(row => (
                       <tr key={row.cat} className={`border-b ${row.bg}`}>

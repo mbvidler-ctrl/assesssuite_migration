@@ -88,14 +88,14 @@ export default function HomeStepTestRunner({ client, onSave, onClose }) {
     let text = `Home Step Test:\n`;
     text += `Age: ${age} years\n\n`;
     text += `Pre-Test:\n`;
-    text += `â€¢ Heart Rate: ${preTestHR} bpm\n`;
-    text += `â€¢ RPE: ${preTestRPE}/10\n\n`;
+    text += `• Heart Rate: ${preTestHR} bpm\n`;
+    text += `• RPE: ${preTestRPE}/10\n\n`;
     text += `Post-Test:\n`;
-    text += `â€¢ Heart Rate: ${postTestHR} bpm\n`;
-    text += `â€¢ RPE: ${postTestRPE}/10\n\n`;
+    text += `• Heart Rate: ${postTestHR} bpm\n`;
+    text += `• RPE: ${postTestRPE}/10\n\n`;
     text += `Results:\n`;
-    text += `â€¢ Heart Rate Recovery: ${recoveryRate} bpm\n`;
-    text += `â€¢ Result (%): ${resultPercentage}%\n`;
+    text += `• Heart Rate Recovery: ${recoveryRate} bpm\n`;
+    text += `• Result (%): ${resultPercentage}%\n`;
     if (notes && notes.trim()) text += `\nNotes: ${notes}\n`;
     
     return text;
@@ -142,15 +142,15 @@ export default function HomeStepTestRunner({ client, onSave, onClose }) {
             )}
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Norms & Interpretation</p>
+              <p className="font-semibold text-slate-700">📊 Norms & Interpretation</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Post-Test HR</th><th className="p-2 text-left">Fitness Level (age-adjusted)</th></tr></thead>
                   <tbody>
                     <tr className="border-t"><td className="p-2">&lt;100 bpm</td><td className="p-2 text-green-700">Excellent cardiovascular fitness</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">100â€“115 bpm</td><td className="p-2 text-teal-700">Good fitness</td></tr>
-                    <tr className="border-t"><td className="p-2">116â€“130 bpm</td><td className="p-2 text-yellow-700">Average fitness</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">&gt;130 bpm</td><td className="p-2 text-red-700">Below average â€” further assessment recommended</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">100–115 bpm</td><td className="p-2 text-teal-700">Good fitness</td></tr>
+                    <tr className="border-t"><td className="p-2">116–130 bpm</td><td className="p-2 text-yellow-700">Average fitness</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">&gt;130 bpm</td><td className="p-2 text-red-700">Below average — further assessment recommended</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -159,8 +159,8 @@ export default function HomeStepTestRunner({ client, onSave, onClose }) {
 
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>Baker SE & Staab JS. (2003). The Home Step Test. <em>Journal of Cardiopulmonary Rehabilitation, 23</em>(2), 141â€“143.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Baker SE & Staab JS. (2003). The Home Step Test. <em>Journal of Cardiopulmonary Rehabilitation, 23</em>(2), 141–143.</p>
               <p>McArdle WD, Katch FI, & Katch VL. (2001). <em>Exercise Physiology: Energy, Nutrition, and Human Performance</em> (5th ed.). Lippincott Williams & Wilkins.</p>
             </div>
 

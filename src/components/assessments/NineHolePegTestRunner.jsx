@@ -127,10 +127,10 @@ export default function NineHolePegTestRunner({ client, onSave, onClose }) {
     const nonDomClass = nonDominantTime && gender ? classifyResult(nonDominantTime, gender, nonDominantSide) : null;
 
     const soapLines = [
-      `â€¢ Nine-Hole Peg Test (NHPT)`,
-      dominantTime ? `  Dominant Hand (${dominantSide}): ${dominantTime}s${domClass ? ` â€” ${domClass.label}` : ''}` : null,
-      nonDominantTime ? `  Non-Dominant Hand (${nonDominantSide}): ${nonDominantTime}s${nonDomClass ? ` â€” ${nonDomClass.label}` : ''}` : null,
-      normRef ? `  Reference Norms (${gender}): Right ${normRef.right.mean}s Â±${normRef.right.sd}, Left ${normRef.left.mean}s Â±${normRef.left.sd}` : null,
+      `• Nine-Hole Peg Test (NHPT)`,
+      dominantTime ? `  Dominant Hand (${dominantSide}): ${dominantTime}s${domClass ? ` — ${domClass.label}` : ''}` : null,
+      nonDominantTime ? `  Non-Dominant Hand (${nonDominantSide}): ${nonDominantTime}s${nonDomClass ? ` — ${nonDomClass.label}` : ''}` : null,
+      normRef ? `  Reference Norms (${gender}): Right ${normRef.right.mean}s ±${normRef.right.sd}, Left ${normRef.left.mean}s ±${normRef.left.sd}` : null,
     ].filter(Boolean).join('\n');
 
     onSave({
@@ -158,7 +158,7 @@ export default function NineHolePegTestRunner({ client, onSave, onClose }) {
         <div className="sticky top-0 bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between rounded-t-xl z-10">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Nine-Hole Peg Test (NHPT)</h2>
-            <p className="text-xs text-slate-500">Fine motor dexterity â€” Mathiowetz et al., 1985</p>
+            <p className="text-xs text-slate-500">Fine motor dexterity — Mathiowetz et al., 1985</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-4 h-4" /></Button>
         </div>
@@ -203,7 +203,7 @@ export default function NineHolePegTestRunner({ client, onSave, onClose }) {
                 <div>
                   <p className="font-semibold text-slate-800 mb-2">Equipment Required</p>
                   <ul className="list-disc pl-5 space-y-1 text-slate-600">
-                    <li>Jamar Nine-Hole Peg Board (standard 10cm Ã— 10cm board with 9 holes)</li>
+                    <li>Jamar Nine-Hole Peg Board (standard 10cm × 10cm board with 9 holes)</li>
                     <li>9 wooden pegs (diameter: ~6mm)</li>
                     <li>Container for pegs</li>
                     <li>Digital stopwatch (0.01s accuracy recommended)</li>
@@ -268,7 +268,7 @@ export default function NineHolePegTestRunner({ client, onSave, onClose }) {
                 <div>
                   <p className="font-semibold text-slate-800 mb-2">Instructional Video</p>
                   <a href="https://www.youtube.com/watch?v=kkyfI5OvfJo" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-blue-600 hover:underline font-medium">
-                    <ExternalLink className="w-3 h-3" />Watch Nine-Hole Peg Test demonstration â€” Central Piedmont OTA (YouTube)
+                    <ExternalLink className="w-3 h-3" />Watch Nine-Hole Peg Test demonstration — Central Piedmont OTA (YouTube)
                   </a>
                 </div>
 
@@ -277,22 +277,22 @@ export default function NineHolePegTestRunner({ client, onSave, onClose }) {
                   <ul className="space-y-1.5 text-xs">
                     <li>
                       <a href="https://pubmed.ncbi.nlm.nih.gov/3818032/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
-                        <ExternalLink className="w-3 h-3" /><strong>Mathiowetz et al. (1985)</strong> â€” Normative data in healthy adults; establishes reference values for age & gender
+                        <ExternalLink className="w-3 h-3" /><strong>Mathiowetz et al. (1985)</strong> — Normative data in healthy adults; establishes reference values for age & gender
                       </a>
                     </li>
                     <li>
                       <a href="https://pubmed.ncbi.nlm.nih.gov/19307571/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
-                        <ExternalLink className="w-3 h-3" /><strong>Earhart et al. (2011)</strong> â€” Sensitive outcome measure in Parkinson's disease; shows responsiveness to intervention
+                        <ExternalLink className="w-3 h-3" /><strong>Earhart et al. (2011)</strong> — Sensitive outcome measure in Parkinson's disease; shows responsiveness to intervention
                       </a>
                     </li>
                     <li>
                       <a href="https://pubmed.ncbi.nlm.nih.gov/11380024/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
-                        <ExternalLink className="w-3 h-3" /><strong>Oxford Grice et al. (2003)</strong> â€” High test-retest reliability (ICC = 0.93â€“0.97) and validity in healthy & patient populations
+                        <ExternalLink className="w-3 h-3" /><strong>Oxford Grice et al. (2003)</strong> — High test-retest reliability (ICC = 0.93–0.97) and validity in healthy & patient populations
                       </a>
                     </li>
                     <li>
                       <a href="https://www.sralab.org/rehabilitation-measures/nine-hole-peg-test" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-blue-600 hover:underline">
-                        <ExternalLink className="w-3 h-3" /><strong>Shirley Ryan AbilityLab</strong> â€” Comprehensive NHPT rehab measures summary & evidence synthesis
+                        <ExternalLink className="w-3 h-3" /><strong>Shirley Ryan AbilityLab</strong> — Comprehensive NHPT rehab measures summary & evidence synthesis
                       </a>
                     </li>
                   </ul>
@@ -338,8 +338,8 @@ export default function NineHolePegTestRunner({ client, onSave, onClose }) {
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs text-slate-600">
               <p className="font-semibold text-slate-700 mb-1">Normative Reference ({gender})</p>
               <div className="grid grid-cols-2 gap-2">
-                <div>Right hand: <strong>{normRef.right.mean}s</strong> (Â±{normRef.right.sd}s)</div>
-                <div>Left hand: <strong>{normRef.left.mean}s</strong> (Â±{normRef.left.sd}s)</div>
+                <div>Right hand: <strong>{normRef.right.mean}s</strong> (±{normRef.right.sd}s)</div>
+                <div>Left hand: <strong>{normRef.left.mean}s</strong> (±{normRef.left.sd}s)</div>
               </div>
               <p className="mt-1 text-slate-500">Source: Mathiowetz et al., 1985</p>
             </div>

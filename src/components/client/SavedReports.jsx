@@ -21,7 +21,7 @@ import { format } from "date-fns";
 import { Toaster, toast } from "sonner";
 import UnifiedReportWizard from "../reports/UnifiedReportWizard";
 
-// All report type labels â€” used for display in saved list
+// All report type labels — used for display in saved list
 const ALL_REPORT_LABELS = {
   gp_summary: "GP Summary Letter",
   gp_progress_letter: "GP Progress Letter",

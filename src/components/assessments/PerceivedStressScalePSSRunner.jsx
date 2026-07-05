@@ -50,7 +50,7 @@ export default function PerceivedStressScalePSSRunner({ client, onSave, onClose 
     const totalScore = adjustedResponses.reduce((acc, curr) => acc + curr, 0);
     const stressLevel = totalScore <= 13 ? 'Low Stress' : totalScore <= 26 ? 'Moderate Stress' : 'High Stress';
 
-    let soapText = `â€¢ Perceived Stress Scale (PSS-10): ${totalScore}/40 (${stressLevel})\n\n  Individual Responses:\n`;
+    let soapText = `• Perceived Stress Scale (PSS-10): ${totalScore}/40 (${stressLevel})\n\n  Individual Responses:\n`;
     PSS_QUESTIONS.forEach((q, i) => {
       const opt = RESPONSE_OPTIONS.find(o => o.value === responses[i]);
       soapText += `  Q${i+1}. ${q.text}\n      Answer: ${opt ? opt.label : responses[i]}${q.reversed ? ' (reversed)' : ''}\n`;

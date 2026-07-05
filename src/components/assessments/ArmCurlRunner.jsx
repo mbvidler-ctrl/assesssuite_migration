@@ -106,7 +106,7 @@ export default function ArmCurlRunner({ client, onSave, onClose }) {
     const comparison = getNormativeComparison();
 
     const soapText = [
-      `â€¢ 30-Second Seated Arm Curl Test`,
+      `• 30-Second Seated Arm Curl Test`,
       `  Right Arm: ${rightReps || 'NR'} reps | Left Arm: ${leftReps || 'NR'} reps`,
       `  Weight Used: ${weightKg} kg | Primary Side: ${testedSide} (${primaryReps} reps)`,
       comparison ? `  Normative Category: ${comparison.category}` : null,
@@ -174,8 +174,8 @@ export default function ArmCurlRunner({ client, onSave, onClose }) {
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded text-amber-900">
                   <strong>Standard Weights:</strong>
                   <ul className="list-disc list-inside ml-2 mt-1 space-y-1">
-                    <li><strong>Males:</strong> 8 lbs (3.6 kg) â€” select the closest available weight (4 kg)</li>
-                    <li><strong>Females:</strong> 5 lbs (2.3 kg) â€” select the closest available weight (2 kg)</li>
+                    <li><strong>Males:</strong> 8 lbs (3.6 kg) — select the closest available weight (4 kg)</li>
+                    <li><strong>Females:</strong> 5 lbs (2.3 kg) — select the closest available weight (2 kg)</li>
                   </ul>
                   <p className="text-xs mt-1 text-amber-700">Record the exact weight used below for documentation accuracy.</p>
                 </div>
@@ -387,20 +387,20 @@ export default function ArmCurlRunner({ client, onSave, onClose }) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-xs text-amber-800 space-y-1">
-                <p>â€¢ Only count full, controlled curls (extension to flexion to full return)</p>
-                <p>â€¢ Do not count partial reps or those in progress at 30 seconds</p>
-                <p>â€¢ Stop if client reports chest pain, severe breathlessness, or joint pain</p>
-                <p>â€¢ No body swinging or momentum - movement should be smooth and controlled</p>
+                <p>• Only count full, controlled curls (extension to flexion to full return)</p>
+                <p>• Do not count partial reps or those in progress at 30 seconds</p>
+                <p>• Stop if client reports chest pain, severe breathlessness, or joint pain</p>
+                <p>• No body swinging or momentum - movement should be smooth and controlled</p>
               </CardContent>
             </Card>
 
             {/* Reference */}
             <Card className="bg-slate-100 border-slate-200">
               <CardHeader>
-                <CardTitle className="text-base">ðŸ“– Reference</CardTitle>
+                <CardTitle className="text-base">📖 Reference</CardTitle>
               </CardHeader>
               <CardContent className="text-xs text-slate-600 space-y-1">
-                <p>Rikli RE & Jones CJ. (1999). Development and validation of a functional fitness test for community-residing older adults. <em>Journal of Aging and Physical Activity, 7</em>(2), 129â€“161.</p>
+                <p>Rikli RE & Jones CJ. (1999). Development and validation of a functional fitness test for community-residing older adults. <em>Journal of Aging and Physical Activity, 7</em>(2), 129–161.</p>
                 <p>Rikli RE & Jones CJ. (2013). <em>Senior Fitness Test Manual</em> (2nd ed.). Human Kinetics. [Normative data source for 30-second arm curl by age and sex]</p>
               </CardContent>
             </Card>

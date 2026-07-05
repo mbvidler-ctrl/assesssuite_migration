@@ -56,7 +56,7 @@ export default function QuestionnaireRunner({ assessment, onSave, onClose, initi
 
   const buildSoapText = (totalScore) => {
     const maxScore = getMaxPossibleScore();
-    let soapText = `â€¢ ${assessment.name}: ${totalScore}/${maxScore}\n\n  Individual Question Responses:\n`;
+    let soapText = `• ${assessment.name}: ${totalScore}/${maxScore}\n\n  Individual Question Responses:\n`;
     assessment.questions.forEach((q, i) => {
       const resp = responses[i];
       let label = resp;

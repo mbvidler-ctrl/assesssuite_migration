@@ -36,7 +36,7 @@ export default function WaisttoHipRatioWHRRunner({ client, onSave, onClose }) {
     if (!waist || !hip) { toast.error("Please enter both waist and hip measurements."); return; }
     if (!ratio || !risk) { toast.error("Invalid measurements."); return; }
 
-    const soapText = `â€¢ Waist-to-Hip Ratio (WHR)\n  WHR: ${ratio.toFixed(3)} â€” ${risk.label}\n  Waist: ${waist} cm | Hip: ${hip} cm\n  WHO Thresholds (Males): Low <0.90 | Moderate 0.90â€“0.99 | High â‰¥1.0\n  WHO Thresholds (Females): Low <0.80 | Moderate 0.80â€“0.84 | High â‰¥0.85\n  Elevated WHR indicates increased risk of CVD, T2DM, and metabolic syndrome.\n  MCID: ~0.02 with lifestyle intervention.\n  Reference: WHO (2008). Waist Circumference and Waist-Hip Ratio. ISBN: 9789241501491.`;
+    const soapText = `• Waist-to-Hip Ratio (WHR)\n  WHR: ${ratio.toFixed(3)} — ${risk.label}\n  Waist: ${waist} cm | Hip: ${hip} cm\n  WHO Thresholds (Males): Low <0.90 | Moderate 0.90–0.99 | High ≥1.0\n  WHO Thresholds (Females): Low <0.80 | Moderate 0.80–0.84 | High ≥0.85\n  Elevated WHR indicates increased risk of CVD, T2DM, and metabolic syndrome.\n  MCID: ~0.02 with lifestyle intervention.\n  Reference: WHO (2008). Waist Circumference and Waist-Hip Ratio. ISBN: 9789241501491.`;
 
     onSave({
       status: "completed",
@@ -118,14 +118,14 @@ export default function WaisttoHipRatioWHRRunner({ client, onSave, onClose }) {
 
           {/* Clinician Instructions */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800 space-y-2">
-            <p className="font-semibold">ðŸ“‹ Administration Instructions (WHO Protocol)</p>
+            <p className="font-semibold">📋 Administration Instructions (WHO Protocol)</p>
             <div className="space-y-3">
               <div>
                 <p className="font-medium">Waist Measurement:</p>
                 <ul className="list-disc list-inside space-y-1 text-blue-700 mt-1">
                   <li>Client standing, relaxed, feet together, arms at sides</li>
                   <li>Locate the narrowest point between the lowest rib margin and the iliac crest</li>
-                  <li>Apply tape horizontally, parallel to the floor â€” snug but not compressing skin</li>
+                  <li>Apply tape horizontally, parallel to the floor — snug but not compressing skin</li>
                   <li>Measure at end of normal expiration</li>
                 </ul>
               </div>
@@ -133,7 +133,7 @@ export default function WaisttoHipRatioWHRRunner({ client, onSave, onClose }) {
                 <p className="font-medium">Hip Measurement:</p>
                 <ul className="list-disc list-inside space-y-1 text-blue-700 mt-1">
                   <li>Locate the widest circumference over the buttocks / greater trochanters</li>
-                  <li>Apply tape horizontally at this level â€” keep parallel to floor</li>
+                  <li>Apply tape horizontally at this level — keep parallel to floor</li>
                   <li>Client should be relaxed with weight evenly distributed</li>
                   <li>Record to nearest 0.1 cm; repeat if measurements differ by &gt;1 cm</li>
                 </ul>
@@ -144,7 +144,7 @@ export default function WaisttoHipRatioWHRRunner({ client, onSave, onClose }) {
 
           {/* Norms Table */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-slate-700 space-y-2">
-            <p className="font-semibold">ðŸ“Š Norms & Risk Classification (WHO, 2008)</p>
+            <p className="font-semibold">📊 Norms & Risk Classification (WHO, 2008)</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
               <div>
                 <p className="font-medium text-slate-600 mb-1">Males</p>
@@ -157,8 +157,8 @@ export default function WaisttoHipRatioWHRRunner({ client, onSave, onClose }) {
                   </thead>
                   <tbody>
                     <tr className="border-t border-slate-200 bg-green-50"><td className="p-2">&lt; 0.90</td><td className="p-2 text-green-700 font-medium">Low</td></tr>
-                    <tr className="border-t border-slate-200 bg-yellow-50"><td className="p-2">0.90 â€“ 0.99</td><td className="p-2 text-yellow-700 font-medium">Moderate</td></tr>
-                    <tr className="border-t border-slate-200 bg-red-50"><td className="p-2">â‰¥ 1.00</td><td className="p-2 text-red-700 font-medium">High</td></tr>
+                    <tr className="border-t border-slate-200 bg-yellow-50"><td className="p-2">0.90 – 0.99</td><td className="p-2 text-yellow-700 font-medium">Moderate</td></tr>
+                    <tr className="border-t border-slate-200 bg-red-50"><td className="p-2">≥ 1.00</td><td className="p-2 text-red-700 font-medium">High</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -173,8 +173,8 @@ export default function WaisttoHipRatioWHRRunner({ client, onSave, onClose }) {
                   </thead>
                   <tbody>
                     <tr className="border-t border-slate-200 bg-green-50"><td className="p-2">&lt; 0.80</td><td className="p-2 text-green-700 font-medium">Low</td></tr>
-                    <tr className="border-t border-slate-200 bg-yellow-50"><td className="p-2">0.80 â€“ 0.84</td><td className="p-2 text-yellow-700 font-medium">Moderate</td></tr>
-                    <tr className="border-t border-slate-200 bg-red-50"><td className="p-2">â‰¥ 0.85</td><td className="p-2 text-red-700 font-medium">High</td></tr>
+                    <tr className="border-t border-slate-200 bg-yellow-50"><td className="p-2">0.80 – 0.84</td><td className="p-2 text-yellow-700 font-medium">Moderate</td></tr>
+                    <tr className="border-t border-slate-200 bg-red-50"><td className="p-2">≥ 0.85</td><td className="p-2 text-red-700 font-medium">High</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -185,9 +185,9 @@ export default function WaisttoHipRatioWHRRunner({ client, onSave, onClose }) {
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– References</p>
+            <p className="font-semibold">📖 References</p>
             <p>World Health Organization. (2008). <em>Waist Circumference and Waist-Hip Ratio: Report of a WHO Expert Consultation</em>. Geneva: WHO Press. ISBN: 9789241501491.</p>
-            <p>Lean, M.E.J., Han, T.S., & Morrison, C.E. (1995). Waist circumference as a measure for indicating need for weight management. <em>BMJ</em>, 311, 158â€“161.</p>
+            <p>Lean, M.E.J., Han, T.S., & Morrison, C.E. (1995). Waist circumference as a measure for indicating need for weight management. <em>BMJ</em>, 311, 158–161.</p>
           </div>
 
           {/* Action Buttons */}

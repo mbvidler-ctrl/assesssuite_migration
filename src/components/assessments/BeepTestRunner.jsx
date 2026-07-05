@@ -82,7 +82,7 @@ export default function BeepTestRunner({ onSave, onClose, client }) {
     const msftResultString = `Level ${finalLevel} Shuttle ${finalShuttle}`;
 
     const soapText = [
-      `â€¢ 20m Shuttle Run (Beep Test)`,
+      `• 20m Shuttle Run (Beep Test)`,
       `  Result: Level ${finalLevel} Shuttle ${finalShuttle}${totalShuttles ? ` (${totalShuttles} total shuttles)` : ''}`,
       calculateVO2Max() ? `  Estimated VO2max: ${calculateVO2Max()} ml/kg/min` : null,
       peakHr ? `  Peak HR: ${peakHr} bpm` : null,
@@ -135,7 +135,7 @@ export default function BeepTestRunner({ onSave, onClose, client }) {
             {/* Clinician Instructions */}
             <Card className="bg-gradient-to-r from-blue-600 to-blue-700 text-white border-0">
               <CardContent className="pt-4 space-y-2 text-sm">
-                <p className="font-bold text-base">ðŸ“‹ Clinician Instructions</p>
+                <p className="font-bold text-base">📋 Clinician Instructions</p>
                 <p><strong>Setup:</strong> Mark a flat 20m course with cones. Ensure the official beep test audio is ready (see app links below). Brief participant on the protocol.</p>
                 <p><strong>Protocol:</strong> Participant runs 20m shuttles in time with audio beeps. Speed increases each level (~0.5 km/h). Test ends when participant fails to reach the line before the beep on 2 consecutive shuttles.</p>
                 <p><strong>Termination criteria:</strong> Participant requests stop, clinician stops for safety, or 2 consecutive missed beeps.</p>
@@ -147,7 +147,7 @@ export default function BeepTestRunner({ onSave, onClose, client }) {
             {/* Beep Audio Apps */}
             <Card className="bg-amber-50 border-amber-300">
               <CardContent className="pt-4">
-                <p className="font-semibold text-amber-900 mb-2">ðŸ”Š Beep Test Audio â€” Where to Get It</p>
+                <p className="font-semibold text-amber-900 mb-2">🔊 Beep Test Audio — Where to Get It</p>
                 <p className="text-sm text-amber-800 mb-3">You need the official 20m beep test audio to run this assessment. Download a verified app:</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <a href="https://apps.apple.com/au/app/beep-test/id377146560" target="_blank" rel="noopener noreferrer"
@@ -157,11 +157,11 @@ export default function BeepTestRunner({ onSave, onClose, client }) {
                   </a>
                   <a href="https://play.google.com/store/search?q=beep+test&c=apps" target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2 bg-green-700 text-white rounded-lg px-3 py-2 text-sm hover:bg-green-800 transition-colors">
-                    <span className="text-lg">ðŸ¤–</span>
+                    <span className="text-lg">🤖</span>
                     <div><p className="font-semibold">Google Play (Android)</p><p className="text-xs text-green-200">Search "Beep Test" or "MSFT"</p></div>
                   </a>
                 </div>
-                <p className="text-xs text-amber-700 mt-2">Recommended: "Beep Test" by Fusion Sport, or "Sports Beep Test" â€” ensure it uses the 20m standard (LÃ©ger protocol).</p>
+                <p className="text-xs text-amber-700 mt-2">Recommended: "Beep Test" by Fusion Sport, or "Sports Beep Test" — ensure it uses the 20m standard (Léger protocol).</p>
               </CardContent>
             </Card>
 
@@ -182,28 +182,28 @@ export default function BeepTestRunner({ onSave, onClose, client }) {
 
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Normative Levels (Beep Test) by Age & Sex</p>
+              <p className="font-semibold text-slate-700">📊 Normative Levels (Beep Test) by Age & Sex</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Age</th><th className="p-2 text-center">Men Avg Level</th><th className="p-2 text-center">Women Avg Level</th><th className="p-2 text-center">Elite (Men)</th></tr></thead>
                   <tbody>
-                    <tr className="border-t"><td className="p-2">17â€“20</td><td className="p-2 text-center">11â€“12</td><td className="p-2 text-center">9â€“10</td><td className="p-2 text-center">â‰¥14</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">21â€“30</td><td className="p-2 text-center">10â€“12</td><td className="p-2 text-center">8â€“10</td><td className="p-2 text-center">â‰¥13</td></tr>
-                    <tr className="border-t"><td className="p-2">31â€“40</td><td className="p-2 text-center">9â€“11</td><td className="p-2 text-center">7â€“9</td><td className="p-2 text-center">â‰¥12</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">41â€“50</td><td className="p-2 text-center">8â€“10</td><td className="p-2 text-center">6â€“8</td><td className="p-2 text-center">â‰¥11</td></tr>
+                    <tr className="border-t"><td className="p-2">17–20</td><td className="p-2 text-center">11–12</td><td className="p-2 text-center">9–10</td><td className="p-2 text-center">≥14</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">21–30</td><td className="p-2 text-center">10–12</td><td className="p-2 text-center">8–10</td><td className="p-2 text-center">≥13</td></tr>
+                    <tr className="border-t"><td className="p-2">31–40</td><td className="p-2 text-center">9–11</td><td className="p-2 text-center">7–9</td><td className="p-2 text-center">≥12</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">41–50</td><td className="p-2 text-center">8–10</td><td className="p-2 text-center">6–8</td><td className="p-2 text-center">≥11</td></tr>
                   </tbody>
                 </table>
               </div>
-              <p className="text-xs text-slate-500">VO2max: Ramsbottom equation = 31.025 + 3.238Ã—Level âˆ’ 3.248Ã—Age + 0.1536Ã—(LevelÃ—Age). Source: Ramsbottom et al. (1988).</p>
+              <p className="text-xs text-slate-500">VO2max: Ramsbottom equation = 31.025 + 3.238×Level − 3.248×Age + 0.1536×(Level×Age). Source: Ramsbottom et al. (1988).</p>
             </div>
 
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– References</p>
-              <p>â€¢ LÃ©ger LA, Mercier D, Gadoury C, Lambert J. (1988). The multistage 20 metre shuttle run test for aerobic fitness. <em>Journal of Sports Sciences, 6</em>(2), 93â€“101. doi:10.1080/02640418808729800</p>
-              <p>â€¢ Ramsbottom R, Brewer J, Williams C. (1988). A progressive shuttle run test to estimate maximal oxygen uptake. <em>British Journal of Sports Medicine, 22</em>(4), 141â€“144.</p>
-              <p>â€¢ Tomkinson GR, LÃ©ger LA, Olds TS, Cazorla G. (2003). Secular trends in the performance of children and adolescents (1980â€“2000). <em>Sports Medicine, 33</em>(4), 285â€“300.</p>
-              <p className="pt-1 border-t border-slate-300 text-slate-500"><strong>VOâ‚‚max estimation:</strong> Ramsbottom equation â€” 31.025 + (3.238 Ã— Level) âˆ’ (3.248 Ã— Age) + (0.1536 Ã— Level Ã— Age). Note: shuttle speed starts at 8.5 km/h (Level 1) and increases by ~0.5 km/h each level.</p>
+              <p className="font-semibold">📖 References</p>
+              <p>• Léger LA, Mercier D, Gadoury C, Lambert J. (1988). The multistage 20 metre shuttle run test for aerobic fitness. <em>Journal of Sports Sciences, 6</em>(2), 93–101. doi:10.1080/02640418808729800</p>
+              <p>• Ramsbottom R, Brewer J, Williams C. (1988). A progressive shuttle run test to estimate maximal oxygen uptake. <em>British Journal of Sports Medicine, 22</em>(4), 141–144.</p>
+              <p>• Tomkinson GR, Léger LA, Olds TS, Cazorla G. (2003). Secular trends in the performance of children and adolescents (1980–2000). <em>Sports Medicine, 33</em>(4), 285–300.</p>
+              <p className="pt-1 border-t border-slate-300 text-slate-500"><strong>VO₂max estimation:</strong> Ramsbottom equation — 31.025 + (3.238 × Level) − (3.248 × Age) + (0.1536 × Level × Age). Note: shuttle speed starts at 8.5 km/h (Level 1) and increases by ~0.5 km/h each level.</p>
             </div>
 
             <Card>
@@ -251,7 +251,7 @@ export default function BeepTestRunner({ onSave, onClose, client }) {
 
                 {finalLevel && (
                   <div className="p-4 bg-yellow-50 rounded-lg border-2 border-yellow-200">
-                    <p className="text-sm text-yellow-700">Estimated VOâ‚‚max</p>
+                    <p className="text-sm text-yellow-700">Estimated VO₂max</p>
                     <p className="text-3xl font-bold text-yellow-900">{calculateVO2Max()} ml/kg/min</p>
                   </div>
                 )}
@@ -268,7 +268,7 @@ export default function BeepTestRunner({ onSave, onClose, client }) {
                 </div>
 
                 <div>
-                  <Label>RPE (6â€“20) *</Label>
+                  <Label>RPE (6–20) *</Label>
                   <Input
                     type="number"
                     value={rpe}

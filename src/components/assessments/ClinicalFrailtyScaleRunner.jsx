@@ -6,15 +6,15 @@ import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
 
 const LEVELS = [
-  { score: 1, label: "Very Fit", desc: "Robust, active, energetic, motivated and fit. These people commonly exercise regularly and are among the fittest for their age.", icon: "ðŸ’ª", color: "bg-green-100 border-green-400 text-green-900" },
+  { score: 1, label: "Very Fit", desc: "Robust, active, energetic, motivated and fit. These people commonly exercise regularly and are among the fittest for their age.", icon: "💪", color: "bg-green-100 border-green-400 text-green-900" },
   { score: 2, label: "Well", desc: "No active disease symptoms, but less fit than level 1. Often exercises or very active occasionally (e.g. seasonally).", icon: "ðŸƒ", color: "bg-green-50 border-green-300 text-green-800" },
-  { score: 3, label: "Managing Well", desc: "Medical problems are well controlled, but not regularly active beyond routine walking.", icon: "ðŸš¶", color: "bg-lime-100 border-lime-400 text-lime-900" },
+  { score: 3, label: "Managing Well", desc: "Medical problems are well controlled, but not regularly active beyond routine walking.", icon: "🚶", color: "bg-lime-100 border-lime-400 text-lime-900" },
   { score: 4, label: "Vulnerable", desc: "While not dependent on others, symptoms often limit activities. A common complaint is slowing down and/or fatigue.", icon: "ðŸ§", color: "bg-yellow-100 border-yellow-400 text-yellow-900" },
-  { score: 5, label: "Mildly Frail", desc: "More evident slowing, need help with high order IADLs (finances, transportation, heavy housework). Typically impaired shopping and walking outside alone.", icon: "ðŸ¦¯", color: "bg-orange-100 border-orange-400 text-orange-900" },
-  { score: 6, label: "Moderately Frail", desc: "Need help with all outside activities and with keeping house. Indoors, often have problems with stairs and need help with bathing.", icon: "ðŸ‘¨â€ðŸ¦½", color: "bg-orange-100 border-orange-500 text-orange-900" },
-  { score: 7, label: "Severely Frail", desc: "Completely dependent for personal care, from whatever cause (physical or cognitive). Even so, they seem stable without high risk of dying (within ~6 months).", icon: "ðŸ›Œ", color: "bg-red-100 border-red-400 text-red-900" },
+  { score: 5, label: "Mildly Frail", desc: "More evident slowing, need help with high order IADLs (finances, transportation, heavy housework). Typically impaired shopping and walking outside alone.", icon: "🦯", color: "bg-orange-100 border-orange-400 text-orange-900" },
+  { score: 6, label: "Moderately Frail", desc: "Need help with all outside activities and with keeping house. Indoors, often have problems with stairs and need help with bathing.", icon: "👨â€🦽", color: "bg-orange-100 border-orange-500 text-orange-900" },
+  { score: 7, label: "Severely Frail", desc: "Completely dependent for personal care, from whatever cause (physical or cognitive). Even so, they seem stable without high risk of dying (within ~6 months).", icon: "🛌", color: "bg-red-100 border-red-400 text-red-900" },
   { score: 8, label: "Very Severely Frail", desc: "Completely dependent, approaching end of life. Typically, they could not recover even from a minor illness.", icon: "ðŸ¥", color: "bg-red-200 border-red-500 text-red-900" },
-  { score: 9, label: "Terminally Ill", desc: "Approaching the end of life. This category applies to people with a life expectancy <6 months who are not otherwise evidently frail.", icon: "ðŸ•Šï¸", color: "bg-red-300 border-red-600 text-red-900" },
+  { score: 9, label: "Terminally Ill", desc: "Approaching the end of life. This category applies to people with a life expectancy <6 months who are not otherwise evidently frail.", icon: "🕊ï¸", color: "bg-red-300 border-red-600 text-red-900" },
 ];
 
 export default function ClinicalFrailtyScaleRunner({ client, onSave, onClose }) {
@@ -25,7 +25,7 @@ export default function ClinicalFrailtyScaleRunner({ client, onSave, onClose }) 
 
   const handleSave = () => {
     if (!selected) { toast.error("Select a frailty level"); return; }
-    const soap = `â€¢ Clinical Frailty Scale (CFS)\n  Score: ${selected}/9 â€” ${level.label}\n  Description: ${level.desc}${notes ? `\n  Notes: ${notes}` : ""}\n  Interpretation: 1â€“3 = fit | 4 = vulnerable | 5â€“6 = frail | 7â€“8 = severely frail | 9 = terminally ill\n  Reference: Rockwood et al. (2005). A global clinical measure of fitness and frailty in elderly people. CMAJ, 173(5):489-495.`;
+    const soap = `• Clinical Frailty Scale (CFS)\n  Score: ${selected}/9 — ${level.label}\n  Description: ${level.desc}${notes ? `\n  Notes: ${notes}` : ""}\n  Interpretation: 1–3 = fit | 4 = vulnerable | 5–6 = frail | 7–8 = severely frail | 9 = terminally ill\n  Reference: Rockwood et al. (2005). A global clinical measure of fitness and frailty in elderly people. CMAJ, 173(5):489-495.`;
     onSave({ status: "completed", result_value: selected, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "clinical_frailty_scale", frailty_label: level.label } });
     toast.success("Saved.");
   };

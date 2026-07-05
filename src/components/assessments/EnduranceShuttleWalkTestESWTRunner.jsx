@@ -106,7 +106,7 @@ export default function EnduranceShuttleWalkTestESWTRunner({ client, onSave, onC
 
     const estimatedDistance = calculateEstimatedDistance();
 
-    const soapText = `â€¢ Endurance Shuttle Walk Test (ESWT)
+    const soapText = `• Endurance Shuttle Walk Test (ESWT)
 
 Pre-Test Assessment:
   HR: ${restingHR || "not recorded"} bpm | BP: ${restingBP || "not recorded"} | SpO2: ${restingSpO2 || "not recorded"}%
@@ -133,10 +133,10 @@ Post-Test Assessment:
 
 Interpretation:
   Endurance capacity: ${
-    timeElapsed < 120 ? "Very low (<120s) â€” significant limitation" :
-    timeElapsed < 300 ? "Reduced (120â€“300s) â€” mild-moderate limitation" :
-    timeElapsed < 600 ? "Moderate (300â€“600s) â€” reasonable tolerance" :
-    "Better endurance (>600s) â€” improved functional tolerance"
+    timeElapsed < 120 ? "Very low (<120s) — significant limitation" :
+    timeElapsed < 300 ? "Reduced (120–300s) — mild-moderate limitation" :
+    timeElapsed < 600 ? "Moderate (300–600s) — reasonable tolerance" :
+    "Better endurance (>600s) — improved functional tolerance"
   }
   Responsiveness: Suitable for reassessment post-rehabilitation or intervention monitoring.
   Note: Interpret relative to client baseline and clinical context, not population norms.
@@ -194,9 +194,9 @@ Interpretation:
           <div className="bg-gradient-to-r from-blue-600 to-blue-500 p-6 text-white flex justify-between items-start sticky top-0 z-10">
             <div>
               <h1 className="text-2xl font-bold">Endurance Shuttle Walk Test</h1>
-              <p className="text-blue-100 text-sm mt-1">ESWT â€” Respiratory / Functional Capacity Assessment</p>
+              <p className="text-blue-100 text-sm mt-1">ESWT — Respiratory / Functional Capacity Assessment</p>
             </div>
-            <button onClick={onClose} className="text-white text-2xl leading-none hover:opacity-80">Ã—</button>
+            <button onClick={onClose} className="text-white text-2xl leading-none hover:opacity-80">×</button>
           </div>
 
           <div className="p-6 space-y-6">
@@ -214,21 +214,21 @@ Interpretation:
               <div className="border border-slate-200 rounded-lg p-4">
                 <h3 className="font-semibold text-slate-900 text-sm mb-2">Incremental Shuttle Walk Test (ISWT)</h3>
                 <ul className="text-xs text-slate-700 space-y-1">
-                  <li>â€¢ Increasing pace each minute</li>
-                  <li>â€¢ Pace increases by 0.5 km/h/min</li>
-                  <li>â€¢ Identifies peak walking speed</li>
-                  <li>â€¢ Test until exhaustion</li>
-                  <li>â€¢ Provides baseline speed for ESWT</li>
+                  <li>• Increasing pace each minute</li>
+                  <li>• Pace increases by 0.5 km/h/min</li>
+                  <li>• Identifies peak walking speed</li>
+                  <li>• Test until exhaustion</li>
+                  <li>• Provides baseline speed for ESWT</li>
                 </ul>
               </div>
               <div className="border border-blue-200 bg-blue-50 rounded-lg p-4">
                 <h3 className="font-semibold text-blue-900 text-sm mb-2">Endurance Shuttle Walk Test (ESWT)</h3>
                 <ul className="text-xs text-slate-700 space-y-1">
-                  <li>â€¢ Constant fixed pace</li>
-                  <li>â€¢ Usually 85% of peak ISWT speed</li>
-                  <li>â€¢ Can be based on clinical judgment</li>
-                  <li>â€¢ Test to symptom limitation</li>
-                  <li>â€¢ Assesses sustained endurance</li>
+                  <li>• Constant fixed pace</li>
+                  <li>• Usually 85% of peak ISWT speed</li>
+                  <li>• Can be based on clinical judgment</li>
+                  <li>• Test to symptom limitation</li>
+                  <li>• Assesses sustained endurance</li>
                 </ul>
               </div>
             </div>
@@ -242,45 +242,45 @@ Interpretation:
                   onChange={(e) => setQuickMode(e.target.checked)}
                   className="w-4 h-4 rounded border-slate-300"
                 />
-                <span className="text-sm font-medium text-slate-900">Quick Mode â€” Minimize instructions for experienced clinicians</span>
+                <span className="text-sm font-medium text-slate-900">Quick Mode — Minimize instructions for experienced clinicians</span>
               </label>
             </div>
 
             {/* Equipment & Setup */}
-            <CollapsibleSection title="ðŸ› ï¸ Equipment & Setup" section="setup">
+            <CollapsibleSection title="🛠ï¸ Equipment & Setup" section="setup">
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <p className="font-semibold text-slate-900 text-sm mb-3">Equipment Required</p>
                   <ul className="space-y-2 text-sm text-slate-700">
-                    <li className="flex gap-2"><span>â€¢</span> <span>10m flat indoor course</span></li>
-                    <li className="flex gap-2"><span>â€¢</span> <span>Two cones/markers</span></li>
-                    <li className="flex gap-2"><span>â€¢</span> <span>Standardised ESWT audio track</span></li>
-                    <li className="flex gap-2"><span>â€¢</span> <span>Pulse oximeter</span></li>
-                    <li className="flex gap-2"><span>â€¢</span> <span>Borg Dyspnoea Scale</span></li>
-                    <li className="flex gap-2"><span>â€¢</span> <span>Blood pressure monitor</span></li>
-                    <li className="flex gap-2"><span>â€¢</span> <span>Chair nearby (recovery)</span></li>
+                    <li className="flex gap-2"><span>•</span> <span>10m flat indoor course</span></li>
+                    <li className="flex gap-2"><span>•</span> <span>Two cones/markers</span></li>
+                    <li className="flex gap-2"><span>•</span> <span>Standardised ESWT audio track</span></li>
+                    <li className="flex gap-2"><span>•</span> <span>Pulse oximeter</span></li>
+                    <li className="flex gap-2"><span>•</span> <span>Borg Dyspnoea Scale</span></li>
+                    <li className="flex gap-2"><span>•</span> <span>Blood pressure monitor</span></li>
+                    <li className="flex gap-2"><span>•</span> <span>Chair nearby (recovery)</span></li>
                   </ul>
                 </div>
                 <div>
                   <p className="font-semibold text-slate-900 text-sm mb-3">Course Setup</p>
                   <div className="bg-white border border-slate-200 rounded p-3 mb-3">
                     <p className="text-xs text-slate-600 font-mono text-center">
-                      Cone A â€”â€”â€”â€”â€” 10m â€”â€”â€”â€”â€” Cone B<br/>
+                      Cone A ————— 10m ————— Cone B<br/>
                       (Start)                                    (Turn)
                     </p>
                   </div>
                   <ul className="space-y-2 text-sm text-slate-700">
-                    <li>â€¢ Flat, safe walking surface</li>
-                    <li>â€¢ Clear turns at cones</li>
-                    <li>â€¢ Audio within earshot</li>
-                    <li>â€¢ Clinician positioned for safety</li>
+                    <li>• Flat, safe walking surface</li>
+                    <li>• Clear turns at cones</li>
+                    <li>• Audio within earshot</li>
+                    <li>• Clinician positioned for safety</li>
                   </ul>
                 </div>
               </div>
             </CollapsibleSection>
 
             {/* Audio & Licensing */}
-            <CollapsibleSection title="ðŸ”Š Audio & Licensing" section="audio">
+            <CollapsibleSection title="🔊 Audio & Licensing" section="audio">
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
                 <p className="text-sm font-semibold text-amber-900 mb-2">Official ESWT Audio Required</p>
                 <p className="text-sm text-amber-800 mb-3">
@@ -296,28 +296,28 @@ Interpretation:
             </CollapsibleSection>
 
             {/* References */}
-            <CollapsibleSection title="ðŸ“š References & Evidence" section="references">
+            <CollapsibleSection title="📚 References & Evidence" section="references">
               <ul className="space-y-3 text-xs text-slate-700">
                 <li>
-                  <strong>Revill SM, Morgan MDL, Singh SJ, Hardman AE, Steele IC, Walters DJ.</strong> The endurance shuttle walk: a new field test for the assessment of endurance capacity in COPD. <em>Thorax</em> 1999;54(3):213â€“222.{" "}
+                  <strong>Revill SM, Morgan MDL, Singh SJ, Hardman AE, Steele IC, Walters DJ.</strong> The endurance shuttle walk: a new field test for the assessment of endurance capacity in COPD. <em>Thorax</em> 1999;54(3):213–222.{" "}
                   <a href="https://thorax.bmj.com/content/54/3/213" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                     Thorax Journal
                   </a>
                 </li>
                 <li>
-                  <strong>Holland AE, Spruit MA, Troosters T, et al.</strong> An official ERS/ATS technical standard: field walking tests in chronic respiratory disease. <em>European Respiratory Journal</em> 2014;44(6):1428â€“1446.{" "}
+                  <strong>Holland AE, Spruit MA, Troosters T, et al.</strong> An official ERS/ATS technical standard: field walking tests in chronic respiratory disease. <em>European Respiratory Journal</em> 2014;44(6):1428–1446.{" "}
                   <a href="https://erj.ersjournals.com/content/44/6/1428" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                     ERJ
                   </a>
                 </li>
                 <li>
-                  <strong>Singh SJ, Sodergren SC, Hyland ME, Williams JAG, Morgan MDL.</strong> A comparison of three disability measures in patients with chronic airway obstruction. <em>European Respiratory Journal</em> 1997;10:2779â€“2784.{" "}
+                  <strong>Singh SJ, Sodergren SC, Hyland ME, Williams JAG, Morgan MDL.</strong> A comparison of three disability measures in patients with chronic airway obstruction. <em>European Respiratory Journal</em> 1997;10:2779–2784.{" "}
                   <a href="https://erj.ersjournals.com/content/10/12/2779" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                     ERJ
                   </a>
                 </li>
                 <li>
-                  <strong>Spruit MA, Singh SJ, Garvey C, et al.</strong> An official ATS/ERS statement on pulmonary rehabilitation. <em>American Journal of Respiratory and Critical Care Medicine</em> 2013;188(8):e13â€“e64.{" "}
+                  <strong>Spruit MA, Singh SJ, Garvey C, et al.</strong> An official ATS/ERS statement on pulmonary rehabilitation. <em>American Journal of Respiratory and Critical Care Medicine</em> 2013;188(8):e13–e64.{" "}
                   <a href="https://www.atsjournals.org/doi/full/10.1164/rccm.201309-1634ST" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
                     AJRCCM
                   </a>
@@ -331,7 +331,7 @@ Interpretation:
                 <X className="w-4 h-4 mr-2" />Cancel
               </Button>
               <Button onClick={() => setStep("pre-test")} className="flex-1 bg-blue-600 hover:bg-blue-700">
-                Begin Assessment â†’
+                Begin Assessment →
               </Button>
             </div>
           </div>
@@ -350,7 +350,7 @@ Interpretation:
             <h1 className="text-2xl font-bold">ESWT Test Runner</h1>
             <p className="text-blue-100 text-sm mt-1">Step {step === "pre-test" ? "1" : step === "speed-selection" ? "2" : step === "during-test" ? "3" : "4"}</p>
           </div>
-          <button onClick={onClose} className="text-white text-2xl leading-none hover:opacity-80">Ã—</button>
+          <button onClick={onClose} className="text-white text-2xl leading-none hover:opacity-80">×</button>
         </div>
 
         <div className="p-6 space-y-6">
@@ -365,7 +365,7 @@ Interpretation:
               </div>
 
               {!quickMode && (
-                <CollapsibleSection title="ðŸ“‹ Baseline Vitals & Symptoms" section="vitals" compact>
+                <CollapsibleSection title="📋 Baseline Vitals & Symptoms" section="vitals" compact>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Label className="text-xs font-medium text-slate-700">Resting HR (bpm)</Label>
@@ -376,15 +376,15 @@ Interpretation:
                       <Input value={restingBP} onChange={(e) => setRestingBP(e.target.value)} placeholder="e.g., 120/80" className="mt-1" />
                     </div>
                     <div>
-                      <Label className="text-xs font-medium text-slate-700">Resting SpOâ‚‚ (%)</Label>
+                      <Label className="text-xs font-medium text-slate-700">Resting SpO₂ (%)</Label>
                       <Input value={restingSpO2} onChange={(e) => setRestingSpO2(e.target.value)} placeholder="e.g., 96" className="mt-1" />
                     </div>
                     <div>
-                      <Label className="text-xs font-medium text-slate-700">Baseline Dyspnoea (0â€“10)</Label>
+                      <Label className="text-xs font-medium text-slate-700">Baseline Dyspnoea (0–10)</Label>
                       <Input type="number" min="0" max="10" value={baselineDyspnoea} onChange={(e) => setBaselineDyspnoea(e.target.value)} className="mt-1" />
                     </div>
                     <div className="col-span-2">
-                      <Label className="text-xs font-medium text-slate-700">Baseline Leg Fatigue (0â€“10)</Label>
+                      <Label className="text-xs font-medium text-slate-700">Baseline Leg Fatigue (0–10)</Label>
                       <Input type="number" min="0" max="10" value={baselineLegFatigue} onChange={(e) => setBaselineLegFatigue(e.target.value)} className="mt-1" />
                     </div>
                   </div>
@@ -392,7 +392,7 @@ Interpretation:
               )}
 
               {!quickMode && (
-                <CollapsibleSection title="âš ï¸ Safety Screening" section="safety" compact>
+                <CollapsibleSection title="⚠ï¸ Safety Screening" section="safety" compact>
                   <div className="grid grid-cols-2 gap-4">
                     {[
                       { label: "Chest pain or angina present?", value: chestPain, setter: setChestPain },
@@ -433,10 +433,10 @@ Interpretation:
                 <div className="bg-red-50 border border-red-300 rounded-lg p-4 flex gap-3">
                   <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-red-900">
-                    <p className="font-semibold">âš ï¸ Safety Concern Detected</p>
+                    <p className="font-semibold">⚠ï¸ Safety Concern Detected</p>
                     <p className="mt-1">
                       {chestPain === "yes" && "Chest pain reported. Do not proceed. Review with clinician."}
-                      {restingSpO2 && parseFloat(restingSpO2) < 85 && " SpOâ‚‚ critically low. Assess safety before proceeding."}
+                      {restingSpO2 && parseFloat(restingSpO2) < 85 && " SpO₂ critically low. Assess safety before proceeding."}
                     </p>
                   </div>
                 </div>
@@ -447,7 +447,7 @@ Interpretation:
                   Back
                 </Button>
                 <Button onClick={() => setStep("speed-selection")} className="flex-1 bg-blue-600 hover:bg-blue-700">
-                  Proceed to Speed Selection â†’
+                  Proceed to Speed Selection →
                 </Button>
               </div>
             </>
@@ -488,7 +488,7 @@ Interpretation:
 
               {iswtCompleted === "no" && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <p className="text-sm font-semibold text-amber-900">âš ï¸ No ISWT Completed</p>
+                  <p className="text-sm font-semibold text-amber-900">⚠ï¸ No ISWT Completed</p>
                   <p className="text-sm text-amber-800 mt-2">
                     ESWT speed selection will be based on clinical judgment. Consider completing ISWT first for standardised speed derivation.
                   </p>
@@ -515,7 +515,7 @@ Interpretation:
                   Back
                 </Button>
                 <Button onClick={() => setStep("during-test")} className="flex-1 bg-blue-600 hover:bg-blue-700">
-                  Begin Test â†’
+                  Begin Test →
                 </Button>
               </div>
             </>
@@ -554,7 +554,7 @@ Interpretation:
               ) : (
                 <div className="space-y-3">
                   <p className="text-sm font-semibold text-slate-900 bg-blue-50 border border-blue-200 rounded p-3">
-                    Monitor: pace accuracy, symptoms, SpOâ‚‚ saturation, distress, gait quality
+                    Monitor: pace accuracy, symptoms, SpO₂ saturation, distress, gait quality
                   </p>
                   <div className="grid grid-cols-2 gap-3">
                     <Button onClick={() => setIsTestRunning(false)} className="bg-yellow-600 hover:bg-yellow-700 h-10">
@@ -587,7 +587,7 @@ Interpretation:
 
               {/* Results Summary */}
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <p className="text-sm font-semibold text-green-900 mb-2">âœ“ Test Completed</p>
+                <p className="text-sm font-semibold text-green-900 mb-2">✓ Test Completed</p>
                 <p className="text-sm text-green-800">
                   Duration: <strong>{formatTime(timeElapsed)}</strong> | Distance: <strong>{calculateEstimatedDistance()}m</strong> | Shuttles: <strong>{shuttleCount}</strong>
                 </p>
@@ -611,14 +611,14 @@ Interpretation:
               </div>
 
               {/* Post-Test Vitals */}
-              <CollapsibleSection title="ðŸ“Š Post-Test Vitals" section="post-vitals" compact>
+              <CollapsibleSection title="📊 Post-Test Vitals" section="post-vitals" compact>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <Label className="text-xs font-medium text-slate-700">Post HR (bpm) *</Label>
                     <Input value={postHR} onChange={(e) => setPostHR(e.target.value)} placeholder="e.g., 124" className="mt-1" />
                   </div>
                   <div>
-                    <Label className="text-xs font-medium text-slate-700">Post SpOâ‚‚ (%) *</Label>
+                    <Label className="text-xs font-medium text-slate-700">Post SpO₂ (%) *</Label>
                     <Input value={postSpO2} onChange={(e) => setPostSpO2(e.target.value)} placeholder="e.g., 91" className="mt-1" />
                   </div>
                   <div>
@@ -626,11 +626,11 @@ Interpretation:
                     <Input value={postBP} onChange={(e) => setPostBP(e.target.value)} placeholder="e.g., 140/88" className="mt-1" />
                   </div>
                   <div>
-                    <Label className="text-xs font-medium text-slate-700">Post Dyspnoea (0â€“10)</Label>
+                    <Label className="text-xs font-medium text-slate-700">Post Dyspnoea (0–10)</Label>
                     <Input type="number" min="0" max="10" value={postDyspnoea} onChange={(e) => setPostDyspnoea(e.target.value)} className="mt-1" />
                   </div>
                   <div className="col-span-2">
-                    <Label className="text-xs font-medium text-slate-700">Post Leg Fatigue (0â€“10)</Label>
+                    <Label className="text-xs font-medium text-slate-700">Post Leg Fatigue (0–10)</Label>
                     <Input type="number" min="0" max="10" value={postLegFatigue} onChange={(e) => setPostLegFatigue(e.target.value)} className="mt-1" />
                   </div>
                 </div>
@@ -645,7 +645,7 @@ Interpretation:
                   </div>
                   <div>
                     <Label className="text-xs font-medium text-slate-700">Clinical Notes & Interpretation</Label>
-                    <Textarea value={clinicalNotes} onChange={(e) => setClinicalNotes(e.target.value)} rows={3} className="mt-1" placeholder="Key observations: pace adherence, symptom progression, functional response, comparÂ­ison to prior ESWT, recommendations..." />
+                    <Textarea value={clinicalNotes} onChange={(e) => setClinicalNotes(e.target.value)} rows={3} className="mt-1" placeholder="Key observations: pace adherence, symptom progression, functional response, compar­ison to prior ESWT, recommendations..." />
                   </div>
                 </div>
               </CollapsibleSection>
@@ -656,14 +656,14 @@ Interpretation:
                 <div className="space-y-2 text-sm text-blue-800">
                   <p>
                     <strong>Endurance Capacity:</strong> {
-                      timeElapsed < 120 ? "Very low (<2 min) â€” significant functional limitation" :
-                      timeElapsed < 300 ? "Reduced (2â€“5 min) â€” mild-moderate limitation" :
-                      timeElapsed < 600 ? "Moderate (5â€“10 min) â€” reasonable functional tolerance" :
-                      "Better endurance (>10 min) â€” improved functional capacity"
+                      timeElapsed < 120 ? "Very low (<2 min) — significant functional limitation" :
+                      timeElapsed < 300 ? "Reduced (2–5 min) — mild-moderate limitation" :
+                      timeElapsed < 600 ? "Moderate (5–10 min) — reasonable functional tolerance" :
+                      "Better endurance (>10 min) — improved functional capacity"
                     }
                   </p>
                   <p className="text-xs italic">
-                    â„¹ï¸ Interpret relative to client baseline and prior ESWT results. ESWT is most useful for monitoring responsiveness to rehabilitation or intervention, not for comparing against population norms.
+                    ℹï¸ Interpret relative to client baseline and prior ESWT results. ESWT is most useful for monitoring responsiveness to rehabilitation or intervention, not for comparing against population norms.
                   </p>
                 </div>
               </div>

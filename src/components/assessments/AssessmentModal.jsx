@@ -205,16 +205,16 @@ Instructions: Stand on one foot as long as you can without holding on.<br/>
 Grading:<br/>
 4 = able to lift leg independently and hold more than 10 seconds<br/>
 3 = able to lift leg independently and hold 5-10 seconds<br/>
-2 = able to lift leg independently and hold â‰¥ 3 seconds<br/>
+2 = able to lift leg independently and hold ≥ 3 seconds<br/>
 1 = tries to lift leg unable to hold 3 seconds but remains standing independently<br/>
 0 = unable to try or needs assist to prevent fall<br/>
 Score: ___/4</li>
 </ol>
 <p><strong>TOTAL SCORE: ___/56</strong></p>
 <p><strong>INTERPRETATION:</strong><br/>
-â€¢ 41-56 = low fall risk<br/>
-â€¢ 21-40 = medium fall risk<br/>
-â€¢ 0-20 = high fall risk</p>`,
+• 41-56 = low fall risk<br/>
+• 21-40 = medium fall risk<br/>
+• 0-20 = high fall risk</p>`,
 
       'Timed Up and Go (TUG)': `
 <h3>Timed Up and Go (TUG) Test</h3>
@@ -375,8 +375,8 @@ Score: ___/4</li>
 </table>
 
 <h4>Predicted Distance Formulas:</h4>
-<p><strong>Men:</strong> (7.57 Ã— height cm) - (5.02 Ã— age) - (1.76 Ã— weight kg) - 309 meters</p>
-<p><strong>Women:</strong> (2.11 Ã— height cm) - (2.29 Ã— weight kg) - (5.78 Ã— age) + 667 meters</p>
+<p><strong>Men:</strong> (7.57 × height cm) - (5.02 × age) - (1.76 × weight kg) - 309 meters</p>
+<p><strong>Women:</strong> (2.11 × height cm) - (2.29 × weight kg) - (5.78 × age) + 667 meters</p>
 
 <p><strong>% Predicted:</strong> _____%</p>`,
 
@@ -438,9 +438,9 @@ Score: ___/4</li>
 <tr><td>3. Trouble falling or staying asleep, or sleeping too much</td><td>0</td><td>1</td><td>2</td><td>3</td></tr>
 <tr><td>4. Feeling tired or having little energy</td><td>0</td><td>1</td><td>2</td><td>3</td></tr>
 <tr><td>5. Poor appetite or overeating</td><td>0</td><td>1</td><td>2</td><td>3</td></tr>
-<tr><td>6. Feeling bad about yourself â€” or that you are a failure or have let yourself or your family down</td><td>0</td><td>1</td><td>2</td><td>3</td></tr>
+<tr><td>6. Feeling bad about yourself — or that you are a failure or have let yourself or your family down</td><td>0</td><td>1</td><td>2</td><td>3</td></tr>
 <tr><td>7. Trouble concentrating on things, such as reading the newspaper or watching television</td><td>0</td><td>1</td><td>2</td><td>3</td></tr>
-<tr><td>8. Moving or speaking so slowly that other people could have noticed? Or the opposite â€” being so fidgety or restless that you have been moving around a lot more than usual</td><td>0</td><td>1</td><td>2</td><td>3</td></tr>
+<tr><td>8. Moving or speaking so slowly that other people could have noticed? Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual</td><td>0</td><td>1</td><td>2</td><td>3</td></tr>
 <tr><td>9. Thoughts that you would be better off dead or of hurting yourself in some way</td><td>0</td><td>1</td><td>2</td><td>3</td></tr>
 </table>
 
@@ -467,7 +467,7 @@ Score: ___/4</li>
 
 <h4>Suicide Risk Assessment:</h4>
 <p><strong>Question 9 Score: _____</strong></p>
-<p>If patient scored â‰¥1 on question 9, immediate risk assessment required.</p>
+<p>If patient scored ≥1 on question 9, immediate risk assessment required.</p>
 
 <h4>Clinical Notes:</h4>
 <p>_________________________________________________</p>
@@ -938,7 +938,7 @@ Score: ___/4</li>
 <tr><td>Normal</td><td>&lt; 120</td><td>&lt; 80</td></tr>
 <tr><td>Elevated</td><td>120-129</td><td>&lt; 80</td></tr>
 <tr><td>Stage 1 Hypertension</td><td>130-139</td><td>80-89</td></tr>
-<tr><td>Stage 2 Hypertension</td><td>â‰¥ 140</td><td>â‰¥ 90</td></tr>
+<tr><td>Stage 2 Hypertension</td><td>≥ 140</td><td>≥ 90</td></tr>
 <tr><td>Hypertensive Crisis</td><td>&gt; 180</td><td>&gt; 120</td></tr>
 </table>
 
@@ -962,7 +962,7 @@ Score: ___/4</li>
 
 <h4>Measurement Methods:</h4>
 <ul>
-<li><strong>Manual Palpation:</strong> Radial or carotid pulse for 15 seconds Ã— 4</li>
+<li><strong>Manual Palpation:</strong> Radial or carotid pulse for 15 seconds × 4</li>
 <li><strong>Auscultation:</strong> Stethoscope over apex of heart</li>
 <li><strong>Heart Rate Monitor:</strong> Chest strap or wrist-based device</li>
 </ul>
@@ -1240,7 +1240,7 @@ Score: ___/4</li>
 <li><strong>Sport/Recreation:</strong> Sum of items SP1-SP4, normalize to 0-100</li>
 <li><strong>Quality of Life:</strong> Sum of items Q1-Q4, normalize to 0-100</li>
 </ul>
-<p><strong>Scoring Formula:</strong> ((Raw Score / Maximum Possible Score) Ã— 100) then subtract from 100<br>
+<p><strong>Scoring Formula:</strong> ((Raw Score / Maximum Possible Score) × 100) then subtract from 100<br>
 <strong>Higher scores = Better function</strong></p>`,
 
       'Knee Injury and Osteoarthritis Outcome Score (KOOS)': `
@@ -1338,7 +1338,7 @@ Score: ___/4</li>
 <li><strong>Sport/Recreation:</strong> Sum of items SP1-SP5, normalize to 0-100</li>
 <li><strong>Quality of Life:</strong> Sum of items Q1-Q4, normalize to 0-100</li>
 </ul>
-<p><strong>Scoring Formula:</strong> ((Raw Score / Maximum Possible Score) Ã— 100) then subtract from 100<br>
+<p><strong>Scoring Formula:</strong> ((Raw Score / Maximum Possible Score) × 100) then subtract from 100<br>
 <strong>Higher scores = Better function</strong></p>`,
 
       'Range of Motion (ROM) Assessment': `
@@ -1363,85 +1363,85 @@ Score: ___/4</li>
 <h4>CERVICAL SPINE</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Flexion</td><td>45-50Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Extension</td><td>45-75Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Lateral Flexion</td><td>45Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Rotation</td><td>60-80Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion</td><td>45-50°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Extension</td><td>45-75°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Lateral Flexion</td><td>45°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Rotation</td><td>60-80°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>THORACIC/LUMBAR SPINE</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Measurement</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Flexion</td><td>80-90Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Extension</td><td>20-30Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Lateral Flexion L</td><td>35Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Lateral Flexion R</td><td>35Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Rotation L</td><td>45Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Rotation R</td><td>45Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion</td><td>80-90°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Extension</td><td>20-30°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Lateral Flexion L</td><td>35°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Lateral Flexion R</td><td>35°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Rotation L</td><td>45°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Rotation R</td><td>45°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>SHOULDER</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Flexion</td><td>150-180Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Extension</td><td>40-60Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Abduction</td><td>150-180Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Adduction</td><td>30-50Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Internal Rotation</td><td>60-90Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>External Rotation</td><td>80-90Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Horizontal Abduction</td><td>30-45Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Horizontal Adduction</td><td>120-135Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion</td><td>150-180°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Extension</td><td>40-60°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Abduction</td><td>150-180°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Adduction</td><td>30-50°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Internal Rotation</td><td>60-90°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>External Rotation</td><td>80-90°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Horizontal Abduction</td><td>30-45°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Horizontal Adduction</td><td>120-135°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>ELBOW</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Flexion</td><td>140-150Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Extension</td><td>0Â° (or 0-10Â° hyperext)</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion</td><td>140-150°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Extension</td><td>0° (or 0-10° hyperext)</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>FOREARM</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Pronation</td><td>80-90Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Supination</td><td>80-90Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Pronation</td><td>80-90°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Supination</td><td>80-90°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>WRIST</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Flexion</td><td>60-80Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Extension</td><td>60-70Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Radial Deviation</td><td>20Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Ulnar Deviation</td><td>30-35Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion</td><td>60-80°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Extension</td><td>60-70°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Radial Deviation</td><td>20°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Ulnar Deviation</td><td>30-35°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>HIP</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Flexion (knee extended)</td><td>90Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Flexion (knee flexed)</td><td>120-135Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Extension</td><td>10-30Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Abduction</td><td>40-45Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Adduction</td><td>20-30Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Internal Rotation</td><td>30-45Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>External Rotation</td><td>45-60Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion (knee extended)</td><td>90°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion (knee flexed)</td><td>120-135°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Extension</td><td>10-30°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Abduction</td><td>40-45°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Adduction</td><td>20-30°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Internal Rotation</td><td>30-45°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>External Rotation</td><td>45-60°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>KNEE</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Flexion</td><td>130-150Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Extension</td><td>0Â° (or 0-10Â° hyperext)</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion</td><td>130-150°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Extension</td><td>0° (or 0-10° hyperext)</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>ANKLE</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Dorsiflexion</td><td>20Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Plantarflexion</td><td>40-50Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Inversion</td><td>30-35Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Eversion</td><td>15-20Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Dorsiflexion</td><td>20°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Plantarflexion</td><td>40-50°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Inversion</td><td>30-35°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Eversion</td><td>15-20°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>END-FEEL DOCUMENTATION</h4>
@@ -1498,85 +1498,85 @@ Score: ___/4</li>
 <h4>CERVICAL SPINE</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Flexion</td><td>45-50Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Extension</td><td>45-75Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Lateral Flexion</td><td>45Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Rotation</td><td>60-80Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion</td><td>45-50°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Extension</td><td>45-75°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Lateral Flexion</td><td>45°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Rotation</td><td>60-80°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>THORACIC/LUMBAR SPINE</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Measurement</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Flexion</td><td>80-90Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Extension</td><td>20-30Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Lateral Flexion L</td><td>35Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Lateral Flexion R</td><td>35Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Rotation L</td><td>45Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Rotation R</td><td>45Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion</td><td>80-90°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Extension</td><td>20-30°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Lateral Flexion L</td><td>35°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Lateral Flexion R</td><td>35°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Rotation L</td><td>45°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Rotation R</td><td>45°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>SHOULDER</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Flexion</td><td>150-180Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Extension</td><td>40-60Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Abduction</td><td>150-180Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Adduction</td><td>30-50Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Internal Rotation</td><td>60-90Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>External Rotation</td><td>80-90Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Horizontal Abduction</td><td>30-45Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Horizontal Adduction</td><td>120-135Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion</td><td>150-180°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Extension</td><td>40-60°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Abduction</td><td>150-180°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Adduction</td><td>30-50°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Internal Rotation</td><td>60-90°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>External Rotation</td><td>80-90°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Horizontal Abduction</td><td>30-45°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Horizontal Adduction</td><td>120-135°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>ELBOW</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Flexion</td><td>140-150Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Extension</td><td>0Â° (or 0-10Â° hyperext)</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion</td><td>140-150°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Extension</td><td>0° (or 0-10° hyperext)</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>FOREARM</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Pronation</td><td>80-90Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Supination</td><td>80-90Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Pronation</td><td>80-90°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Supination</td><td>80-90°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>WRIST</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Flexion</td><td>60-80Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Extension</td><td>60-70Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Radial Deviation</td><td>20Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Ulnar Deviation</td><td>30-35Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion</td><td>60-80°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Extension</td><td>60-70°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Radial Deviation</td><td>20°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Ulnar Deviation</td><td>30-35°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>HIP</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Flexion (knee extended)</td><td>90Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Flexion (knee flexed)</td><td>120-135Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Extension</td><td>10-30Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Abduction</td><td>40-45Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Adduction</td><td>20-30Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Internal Rotation</td><td>30-45Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>External Rotation</td><td>45-60Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion (knee extended)</td><td>90°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion (knee flexed)</td><td>120-135°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Extension</td><td>10-30°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Abduction</td><td>40-45°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Adduction</td><td>20-30°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Internal Rotation</td><td>30-45°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>External Rotation</td><td>45-60°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>KNEE</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Flexion</td><td>130-150Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Extension</td><td>0Â° (or 0-10Â° hyperext)</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Flexion</td><td>130-150°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Extension</td><td>0° (or 0-10° hyperext)</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>ANKLE</h4>
 <table border="1" cellpadding="5">
 <tr><th>Movement</th><th>Normal ROM</th><th>Left</th><th>Right</th><th>Pain (Y/N)</th><th>Comments</th></tr>
-<tr><td>Dorsiflexion</td><td>20Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Plantarflexion</td><td>40-50Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Inversion</td><td>30-35Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
-<tr><td>Eversion</td><td>15-20Â°</td><td>_____Â°</td><td>_____Â°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Dorsiflexion</td><td>20°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Plantarflexion</td><td>40-50°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Inversion</td><td>30-35°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
+<tr><td>Eversion</td><td>15-20°</td><td>_____°</td><td>_____°</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>END-FEEL DOCUMENTATION</h4>
@@ -1760,7 +1760,7 @@ Score: ___/4</li>
       '6 Minute Walk Test': 'ATS Committee on Proficiency Standards for Clinical Pulmonary Function Laboratories. (2002). ATS statement: guidelines for the six-minute walk test. American journal of respiratory and critical care medicine, 166(1), 111-117.',
       'Kessler Psychological Distress Scale (K10)': 'Kessler, R. C., Andrews, G., Colpe, L. J., et al. (2002). Short screening scales to monitor population prevalences and trends in non-specific psychological distress. Psychological medicine, 32(6), 959-976.',
       'PHQ-9': 'Kroenke, K., Spitzer, R. L., & Williams, J. B. (2001). The PHQâ€9: validity of a brief depression severity measure. Journal of general internal medicine, 16(9), 606-613.',
-      'GAD-7': 'Spitzer, R. L., Kroenke, K., Williams, J. B., & LÃ¶we, B. (2006). A brief measure for assessing generalized anxiety disorder: the GAD-7. Archives of internal medicine, 166(10), 1092-1097.',
+      'GAD-7': 'Spitzer, R. L., Kroenke, K., Williams, J. B., & Löwe, B. (2006). A brief measure for assessing generalized anxiety disorder: the GAD-7. Archives of internal medicine, 166(10), 1092-1097.',
       '2-Minute Step Test': 'Rikli, R. E., & Jones, C. J. (2013). Senior fitness test manual. Human Kinetics.',
       '30-Second Sit to Stand Test': 'Jones, C. J., Rikli, R. E., & Beam, W. C. (1999). A 30-s chair-stand test as a measure of lower body strength in community-residing older adults. Research quarterly for exercise and sport, 70(2), 113-119.',
       'Four-Stage Balance Test': 'Rossiter-Fornoff, J. E., Wolf, S. L., Wolfson, L. I., & Buchner, D. M. (1995). A cross-sectional validation study of the FICSIT common data base static balance measures. The Journals of Gerontology Series A: Biological Sciences and Medical Sciences, 50(6), M291-M297.',
@@ -1768,7 +1768,7 @@ Score: ___/4</li>
       'Blood Pressure (Pre/Post Exercise)': 'Whelton, P. K., Carey, R. M., Aronow, W. S., et al. (2018). 2017 ACC/AHA/AAPA/ABC/ACPM/AGS/APhA/ASH/ASPC/NMA/PCNA guideline for the prevention, detection, evaluation, and management of high blood pressure in adults. Hypertension, 71(6), e13-e115.',
       'Heart Rate (Pre/Post Exercise)': 'Tanaka, H., Monahan, K. D., & Seals, D. R. (2001). Age-predicted maximal heart rate revisited. Journal of the American College of Cardiology, 37(1), 153-156.',
       'Oxygen Saturation (SpO2) Pre/Post Exercise': 'Weisman, I. M., Marciniuk, D., Martinez, F. J., et al. (2003). ATS/ACCP statement on cardiopulmonary exercise testing. American journal of respiratory and critical care medicine, 167(2), 211-277.',
-      'Hip Outcome Score (HOOS)': 'Nilsdotter, A. K., Lohmander, L. S., KlÃ¤ssbo, M., & Roos, E. M. (2003). Hip disability and osteoarthritis outcome score (HOOS) - validity and responsiveness in total hip replacement. BMC Musculoskeletal Disorders, 4, 10.',
+      'Hip Outcome Score (HOOS)': 'Nilsdotter, A. K., Lohmander, L. S., Klässbo, M., & Roos, E. M. (2003). Hip disability and osteoarthritis outcome score (HOOS) - validity and responsiveness in total hip replacement. BMC Musculoskeletal Disorders, 4, 10.',
       'Knee Injury and Osteoarthritis Outcome Score (KOOS)': 'Roos, E. M., Roos, H. P., Lohmander, L. S., Ekdahl, C., & Beynnon, B. D. (1998). Knee Injury and Osteoarthritis Outcome Score (KOOS) - development of a self-administered outcome measure. Journal of Orthopaedic & Sports Physical Therapy, 28(2), 88-96.',
       'Job Task Analysis (iCare) for WorkCover': 'iCare NSW. (2020). Functional Capacity Evaluation Guidelines for Return to Work Assessments. WorkCover Queensland Guidelines for Workplace Rehabilitation and Return to Work Programs.'
     };

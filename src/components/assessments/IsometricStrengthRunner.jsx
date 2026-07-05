@@ -87,13 +87,13 @@ export default function IsometricStrengthRunner({ onSave, onClose }) {
 
     const testLines = tests.map(t => {
       if (t.side === 'bilateral') {
-        return `  ${t.joint} ${t.movement}: ${t.bilateral_force_kg} kg${t.angle_degrees ? ` @ ${t.angle_degrees}Â°` : ''}`;
+        return `  ${t.joint} ${t.movement}: ${t.bilateral_force_kg} kg${t.angle_degrees ? ` @ ${t.angle_degrees}°` : ''}`;
       } else {
-        return `  ${t.joint} ${t.movement}: L ${t.left_force_kg} kg / R ${t.right_force_kg} kg${t.angle_degrees ? ` @ ${t.angle_degrees}Â°` : ''}`;
+        return `  ${t.joint} ${t.movement}: L ${t.left_force_kg} kg / R ${t.right_force_kg} kg${t.angle_degrees ? ` @ ${t.angle_degrees}°` : ''}`;
       }
     }).join('\n');
 
-    const soapText = `â€¢ Isometric Strength Testing:\n${testLines}\n  Average Force: ${avgForce.toFixed(1)} kg${notes ? `\n  Notes: ${notes}` : ''}`;
+    const soapText = `• Isometric Strength Testing:\n${testLines}\n  Average Force: ${avgForce.toFixed(1)} kg${notes ? `\n  Notes: ${notes}` : ''}`;
 
     onSave({
       result_value: parseFloat(avgForce.toFixed(1)),
@@ -182,7 +182,7 @@ export default function IsometricStrengthRunner({ onSave, onClose }) {
                   </div>
 
                   <div>
-                    <Label>Test Angle (Â°)</Label>
+                    <Label>Test Angle (°)</Label>
                     <Input
                       type="number"
                       value={currentTest.angle_degrees}
@@ -280,7 +280,7 @@ export default function IsometricStrengthRunner({ onSave, onClose }) {
                           )}
                         </div>
                         {test.angle_degrees && (
-                          <p className="text-xs text-slate-500">Tested at {test.angle_degrees}Â°</p>
+                          <p className="text-xs text-slate-500">Tested at {test.angle_degrees}°</p>
                         )}
                       </div>
                       <Button

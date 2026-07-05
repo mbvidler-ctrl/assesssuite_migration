@@ -87,7 +87,7 @@ export default function SelectAssessments({ assessments, selectedIds, onChange, 
                       </Label>
                       {(hasSoapText || hasResult) && (
                         <Badge className="bg-green-100 text-green-700 text-xs px-1.5 py-0">
-                          âœ“ Results
+                          ✓ Results
                         </Badge>
                       )}
                     </div>
@@ -95,7 +95,7 @@ export default function SelectAssessments({ assessments, selectedIds, onChange, 
                       <span>{assessment.assessment_date ? format(new Date(assessment.assessment_date), 'dd/MM/yyyy') : 'No date'}</span>
                       {hasResult && (
                         <>
-                          <span className="text-slate-300">â€¢</span>
+                          <span className="text-slate-300">•</span>
                           <span className="font-medium text-slate-700">
                             {assessment.result_value} {assessment.unit_of_measure || ''}
                           </span>
@@ -104,7 +104,7 @@ export default function SelectAssessments({ assessments, selectedIds, onChange, 
                     </div>
                     {hasSoapText && (
                       <p className="text-xs text-slate-400 mt-1 truncate max-w-md">
-                        â€¢ {additional.soap_text.substring(0, 120)}{additional.soap_text.length > 120 ? '...' : ''}
+                        • {additional.soap_text.substring(0, 120)}{additional.soap_text.length > 120 ? '...' : ''}
                       </p>
                     )}
                   </div>

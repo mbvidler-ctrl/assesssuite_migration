@@ -34,7 +34,7 @@ export default function GroceryShelvingTestGSTRunner({ client, onSave, onClose }
         clearInterval(intervalRef.current);
         setElapsed(DURATION);
         setIsRunning(false);
-        toast.info("30 seconds complete â€” record repetitions");
+        toast.info("30 seconds complete — record repetitions");
       } else {
         setElapsed(e);
       }
@@ -52,7 +52,7 @@ export default function GroceryShelvingTestGSTRunner({ client, onSave, onClose }
     const r = parseInt(reps);
     if (!reps || isNaN(r) || r < 0) { toast.error("Enter repetitions completed"); return; }
     let interp = r >= 18 ? "Excellent" : r >= 14 ? "Good" : r >= 10 ? "Average" : "Below Average";
-    const soap = `â€¢ Grocery Shelving Test (GST)\n  Items Placed: ${r} in 30s â€” ${interp}\n  Side: ${side} | Weight: ${weight}\n  The GST evaluates functional upper limb endurance and overhead task performance.\n  Reference: Conditioning for a 30s overhead shelf-stacking task (upper limb functional endurance). ${notes ? `\n  Notes: ${notes}` : ""}`;
+    const soap = `• Grocery Shelving Test (GST)\n  Items Placed: ${r} in 30s — ${interp}\n  Side: ${side} | Weight: ${weight}\n  The GST evaluates functional upper limb endurance and overhead task performance.\n  Reference: Conditioning for a 30s overhead shelf-stacking task (upper limb functional endurance). ${notes ? `\n  Notes: ${notes}` : ""}`;
     onSave({ status: "completed", result_value: r, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "performance_timed", repetitions: r, duration_s: DURATION, side, weight, classification: interp } });
     toast.success("GST saved.");
   };

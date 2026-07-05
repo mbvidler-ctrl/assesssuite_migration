@@ -66,7 +66,7 @@ export default function SkinfoldRunner({ protocol = '7-site', onSave, onClose, i
     });
 
     // Build comprehensive SOAP text
-    let soapText = `â€¢ Skinfold Measurements (${protocol}):\n`;
+    let soapText = `• Skinfold Measurements (${protocol}):\n`;
     soapText += `  Total Sum: ${calculateTotalSum()}mm\n\n  Site Measurements:\n`;
     selectedSites.forEach(siteId => {
       const site = SKINFOLD_SITES.find(s => s.id === siteId);

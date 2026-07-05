@@ -555,8 +555,11 @@ export default function SOAPNoteModal({
     setShowTranscriptPanel(true);
     try {
       const result = await base44.functions.invoke('transcribeSession', { action: 'transcribe', audio_url: audioUrl });
-      if (result?.transcript) {
-        setSessionTranscript(prev => prev ? prev + '\n\n---\n\n' + result.transcript : result.transcript);
+      // functions.invoke returns the raw response envelope; the body is under
+      // .data (matching the response.data || response convention used elsewhere).
+      const payload = result?.data ?? result;
+      if (payload?.transcript) {
+        setSessionTranscript(prev => prev ? prev + '\n\n---\n\n' + payload.transcript : payload.transcript);
         toast.success('Transcription complete!');
       } else {
         toast.error('Transcription returned empty result.');
@@ -574,13 +577,14 @@ export default function SOAPNoteModal({
     setIsDissecting(true);
     try {
       const result = await base44.functions.invoke('transcribeSession', { action: 'dissect_to_soap', transcript: sessionTranscript });
-      if (result?.success) {
+      const payload = result?.data ?? result;
+      if (payload?.success) {
         setSoapNote(prev => ({
           ...prev,
-          subjective: result.subjective ? (prev.subjective ? prev.subjective + '\n\n' + result.subjective : result.subjective) : prev.subjective,
-          objective: result.objective ? (prev.objective ? prev.objective + '\n\n' + result.objective : result.objective) : prev.objective,
-          assessment: result.assessment ? (prev.assessment ? prev.assessment + '\n\n' + result.assessment : result.assessment) : prev.assessment,
-          plan: result.plan ? (prev.plan ? prev.plan + '\n\n' + result.plan : result.plan) : prev.plan,
+          subjective: payload.subjective ? (prev.subjective ? prev.subjective + '\n\n' + payload.subjective : payload.subjective) : prev.subjective,
+          objective: payload.objective ? (prev.objective ? prev.objective + '\n\n' + payload.objective : payload.objective) : prev.objective,
+          assessment: payload.assessment ? (prev.assessment ? prev.assessment + '\n\n' + payload.assessment : payload.assessment) : prev.assessment,
+          plan: payload.plan ? (prev.plan ? prev.plan + '\n\n' + payload.plan : payload.plan) : prev.plan,
         }));
         setShowTranscriptPanel(false);
         toast.success('SOAP note populated from transcript!');
@@ -857,15 +861,15 @@ export default function SOAPNoteModal({
         ? new Date(appointment.start_time).toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' })
         : new Date().toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-      lines.push(`SOAP NOTE â€” ${client?.full_name || 'Client'} â€” ${apptDate}`);
+      lines.push(`SOAP NOTE — ${client?.full_name || 'Client'} — ${apptDate}`);
       if (currentUser?.full_name) lines.push(`Clinician: ${currentUser.full_name}`);
       lines.push('');
       lines.push('SUBJECTIVE');
-      lines.push('â”€'.repeat(40));
+      lines.push('─'.repeat(40));
       lines.push(soapNote?.subjective || '');
       lines.push('');
       lines.push('OBJECTIVE');
-      lines.push('â”€'.repeat(40));
+      lines.push('─'.repeat(40));
       lines.push(soapNote?.objective || '');
       if (assessments && assessments.length > 0) {
         lines.push('');
@@ -876,32 +880,32 @@ export default function SOAPNoteModal({
           const resultVal = ca.result_value !== undefined && ca.result_value !== null ? ca.result_value : '';
           const unit = ca.unit_of_measure ? ` ${ca.unit_of_measure}` : '';
           if (soapText) {
-            lines.push(`â€¢ ${aName}: ${soapText}`);
+            lines.push(`• ${aName}: ${soapText}`);
           } else if (resultVal !== '') {
-            lines.push(`â€¢ ${aName}: ${resultVal}${unit}`);
+            lines.push(`• ${aName}: ${resultVal}${unit}`);
           } else {
-            lines.push(`â€¢ ${aName}`);
+            lines.push(`• ${aName}`);
           }
         });
       }
       lines.push('');
       lines.push('ASSESSMENT');
-      lines.push('â”€'.repeat(40));
+      lines.push('─'.repeat(40));
       lines.push(soapNote?.assessment || '');
       lines.push('');
       lines.push('PLAN');
-      lines.push('â”€'.repeat(40));
+      lines.push('─'.repeat(40));
       lines.push(soapNote?.plan || '');
       if (soapNote?.goals) {
         lines.push('');
         lines.push('GOALS');
-        lines.push('â”€'.repeat(40));
+        lines.push('─'.repeat(40));
         lines.push(soapNote.goals);
       }
       if (soapNote?.other) {
         lines.push('');
         lines.push('OTHER NOTES');
-        lines.push('â”€'.repeat(40));
+        lines.push('─'.repeat(40));
         lines.push(soapNote.other);
       }
 
@@ -1388,7 +1392,7 @@ export default function SOAPNoteModal({
                 onChange={(e) => handleInputChange("assessment", e.target.value)}
                 disabled={isLocked}
                 rows={4}
-                placeholder="Your professional interpretation of the subjective and objective dataâ€”what it means, the likely condition, contributing factors, and progress."
+                placeholder="Your professional interpretation of the subjective and objective data—what it means, the likely condition, contributing factors, and progress."
                 className={`mt-2 ${isLocked ? 'bg-slate-50' : ''} placeholder:text-slate-400`}
                 />
                 </div>

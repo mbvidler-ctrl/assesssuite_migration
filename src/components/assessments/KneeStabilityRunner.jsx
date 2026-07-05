@@ -11,12 +11,12 @@ import { toast } from "sonner";
 const TESTS = {
   "Lachman": {
     description: "ACL integrity test - most sensitive for ACL tears",
-    protocol: "Client supine, knee at 20-30Â°. Stabilize femur, translate tibia anteriorly. Assess endpoint quality.",
+    protocol: "Client supine, knee at 20-30°. Stabilize femur, translate tibia anteriorly. Assess endpoint quality.",
     grades: ["Normal - firm endpoint", "Grade I (3-5mm) - slight laxity", "Grade II (5-10mm) - moderate laxity", "Grade III (>10mm) - severe laxity, no endpoint"]
   },
   "Anterior Drawer": {
     description: "ACL integrity test - better in chronic injuries",
-    protocol: "Client supine, hip 45Â°, knee 90Â°. Sit on foot, pull tibia anteriorly. Assess translation and endpoint.",
+    protocol: "Client supine, hip 45°, knee 90°. Sit on foot, pull tibia anteriorly. Assess translation and endpoint.",
     grades: ["Normal - firm endpoint", "Grade I (3-5mm) - slight laxity", "Grade II (5-10mm) - moderate laxity", "Grade III (>10mm) - severe laxity, no endpoint"]
   },
   "Pivot Shift": {
@@ -82,7 +82,7 @@ export default function KneeStabilityRunner({ testType, onSave, onClose }) {
     const isPositive = (leftResult && !leftResult.includes("Normal") && !leftResult.includes("Negative")) ||
                        (rightResult && !rightResult.includes("Normal") && !rightResult.includes("Negative"));
 
-    let soapText = `â€¢ ${testType} Test:\n\n`;
+    let soapText = `• ${testType} Test:\n\n`;
     
     if (leftResult) {
       soapText += `  Left Knee:\n`;

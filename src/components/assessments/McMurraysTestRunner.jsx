@@ -62,7 +62,7 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
     const lateralPositive = lateralResults.filter(r => r === "positive").length;
     const totalPositive = medialPositive + lateralPositive;
 
-    const soapText = `â€¢ McMurray's Test\n  Medial Meniscus: ${medialPositive}/${medialResults.length} positive\n  Lateral Meniscus: ${lateralPositive}/${lateralResults.length} positive\n  Total Positive: ${totalPositive}/${medialResults.length + lateralResults.length}`;
+    const soapText = `• McMurray's Test\n  Medial Meniscus: ${medialPositive}/${medialResults.length} positive\n  Lateral Meniscus: ${lateralPositive}/${lateralResults.length} positive\n  Total Positive: ${totalPositive}/${medialResults.length + lateralResults.length}`;
 
     const additionalData = {
       soap_text: soapText,
@@ -104,7 +104,7 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
           className="w-full flex justify-between items-center px-4 py-3 bg-blue-50 border border-blue-200 rounded-lg font-semibold text-blue-900 hover:bg-blue-100 transition-colors"
           onClick={() => setExpandedSection(expandedSection === "instructions" ? null : "instructions")}
         >
-          <span>ðŸ“‹ Clinical Instructions & Evidence</span>
+          <span>📋 Clinical Instructions & Evidence</span>
           {expandedSection === "instructions" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
         </button>
 
@@ -123,7 +123,7 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
                 <div className="bg-white p-3 rounded border border-blue-200 space-y-2 text-xs">
                   <p className="text-blue-800"><strong>Medial Meniscus (C-shaped):</strong> More fixed posteriorly; more prone to degenerative tears and peripheral tears. Meniscal tears here often produce pain at medial joint line and may cause mechanical catching.</p>
                   <p className="text-blue-800"><strong>Lateral Meniscus (O-shaped):</strong> More mobile; prone to traumatic tears and bucket-handle tears (can cause acute locking with inability to extend knee fully). Positive McMurray's at lateral joint line suggests lateral meniscal tear.</p>
-                  <p className="text-blue-800"><strong>âš ï¸ Why McMurray's has low sensitivity:</strong> Not all meniscal tears produce a click. Tears posterior, on the central capsular surface, or degenerative tears may not be mechanically detected by McMurray's. False negatives are common, especially in chronic knee pain.</p>
+                  <p className="text-blue-800"><strong>⚠ï¸ Why McMurray's has low sensitivity:</strong> Not all meniscal tears produce a click. Tears posterior, on the central capsular surface, or degenerative tears may not be mechanically detected by McMurray's. False negatives are common, especially in chronic knee pain.</p>
                 </div>
               </div>
 
@@ -131,20 +131,20 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
                 <p className="font-semibold text-blue-900 mb-2">Detailed Administration: Step-by-Step</p>
                 <div className="bg-white p-3 rounded border border-blue-200 space-y-3">
                   <div className="border-l-4 border-red-400 pl-3">
-                    <p className="font-semibold text-red-900">ðŸ”´ <strong>Patient Position & Setup</strong></p>
+                    <p className="font-semibold text-red-900">🔴 <strong>Patient Position & Setup</strong></p>
                     <ul className="text-blue-800 text-xs list-disc list-inside mt-1 space-y-1">
                       <li><strong>Supine:</strong> Patient lies on back, knees fully extended initially.</li>
-                      <li><strong>Fully flex tested knee:</strong> Flex to ~90Â° (or more if tolerated).</li>
+                      <li><strong>Fully flex tested knee:</strong> Flex to ~90° (or more if tolerated).</li>
                       <li><strong>Hand placement:</strong> One hand grasps heel, other hand placed over knee joint (lateral aspect for medial meniscus test, medial for lateral meniscus test).</li>
                       <li><strong>Note:</strong> Some clinicians keep the test knee below the contralateral knee (resting on the contralateral extended leg) for stability.</li>
                     </ul>
                   </div>
 
                   <div className="border-l-4 border-amber-400 pl-3">
-                    <p className="font-semibold text-amber-900">ðŸŸ  <strong>Medial Meniscus McMurray's Test (Modified)</strong></p>
+                    <p className="font-semibold text-amber-900">🟠 <strong>Medial Meniscus McMurray's Test (Modified)</strong></p>
                     <ol className="text-blue-800 text-xs list-decimal list-inside mt-1 space-y-1">
-                      <li><strong>Starting position:</strong> Knee flexed 90Â°, foot flat on table.</li>
-                      <li><strong>Tibia rotation:</strong> With heel in hand, <strong>externally rotate</strong> (turn outward) the tibia/foot ~90Â° (patient's toes point outward).</li>
+                      <li><strong>Starting position:</strong> Knee flexed 90°, foot flat on table.</li>
+                      <li><strong>Tibia rotation:</strong> With heel in hand, <strong>externally rotate</strong> (turn outward) the tibia/foot ~90° (patient's toes point outward).</li>
                       <li><strong>Extend knee:</strong> While maintaining external rotation, slowly <strong>extend</strong> the knee from full flexion toward full extension.</li>
                       <li><strong>Palpate joint line:</strong> With other hand, palpate <strong>medial joint line</strong> during extension.</li>
                       <li><strong>Positive sign:</strong> <strong>Audible or palpable click/pop</strong> felt at medial joint line DURING extension, OR patient reports sharp pain at medial joint line that is reproducible.</li>
@@ -153,10 +153,10 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
                   </div>
 
                   <div className="border-l-4 border-emerald-400 pl-3">
-                    <p className="font-semibold text-emerald-900">ðŸŸ¢ <strong>Lateral Meniscus McMurray's Test (Modified)</strong></p>
+                    <p className="font-semibold text-emerald-900">🟢 <strong>Lateral Meniscus McMurray's Test (Modified)</strong></p>
                     <ol className="text-blue-800 text-xs list-decimal list-inside mt-1 space-y-1">
-                      <li><strong>Starting position:</strong> Knee flexed 90Â°, foot flat on table.</li>
-                      <li><strong>Tibia rotation:</strong> With heel in hand, <strong>internally rotate</strong> (turn inward) the tibia/foot ~90Â° (patient's toes point inward).</li>
+                      <li><strong>Starting position:</strong> Knee flexed 90°, foot flat on table.</li>
+                      <li><strong>Tibia rotation:</strong> With heel in hand, <strong>internally rotate</strong> (turn inward) the tibia/foot ~90° (patient's toes point inward).</li>
                       <li><strong>Extend knee:</strong> While maintaining internal rotation, slowly <strong>extend</strong> the knee toward full extension.</li>
                       <li><strong>Palpate joint line:</strong> With other hand, palpate <strong>lateral joint line</strong> during extension.</li>
                       <li><strong>Positive sign:</strong> <strong>Audible or palpable click/pop</strong> at lateral joint line DURING extension, OR sharp pain at lateral joint line.</li>
@@ -165,16 +165,16 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
                   </div>
 
                   <div className="border-l-4 border-purple-400 pl-3">
-                    <p className="font-semibold text-purple-900">ðŸŸ£ <strong>Key Clinical Cues to Give Patient</strong></p>
+                    <p className="font-semibold text-purple-900">🟣 <strong>Key Clinical Cues to Give Patient</strong></p>
                     <p className="text-blue-800 text-xs italic mt-1">"I'm going to gently move your knee. Tell me if you feel any clicking, catching, snapping, or sharp pain as I move it. A click or catch is what I'm listening for."</p>
                     <p className="text-blue-800 text-xs mt-2"><strong>Reassurance:</strong> "This is a gentle test and should not cause significant pain. If it becomes painful, let me know and I'll stop."</p>
                   </div>
 
                   <div className="border-l-4 border-blue-400 pl-3">
-                    <p className="font-semibold text-blue-900">ðŸ”µ <strong>Clinical Nuance: Click vs. Pain</strong></p>
+                    <p className="font-semibold text-blue-900">🔵 <strong>Clinical Nuance: Click vs. Pain</strong></p>
                     <p className="text-blue-800 text-xs mt-1"><strong>Mechanical click/pop:</strong> More specific for meniscal tear (displaced fragment). Stronger diagnostic indicator.</p>
                     <p className="text-blue-800 text-xs mt-2"><strong>Pain alone (no click):</strong> Less specific; may indicate meniscal tear, capsular irritation, OA, or other pathology. Sensitivity only ~57%.</p>
-                    <p className="text-blue-800 text-xs mt-2"><strong>âš ï¸ False positives:</strong> Crepitus (cartilage roughness) or ligament snapping can mimic a meniscal click. Distinguish by location and reproducibility.</p>
+                    <p className="text-blue-800 text-xs mt-2"><strong>⚠ï¸ False positives:</strong> Crepitus (cartilage roughness) or ligament snapping can mimic a meniscal click. Distinguish by location and reproducibility.</p>
                   </div>
                 </div>
               </div>
@@ -186,10 +186,10 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
                     <table className="w-full text-xs border border-blue-300 bg-white">
                       <thead className="bg-blue-200"><tr><th className="p-2 text-left">Test Characteristic</th><th className="p-2 text-left">Value</th><th className="p-2 text-left">Clinical Meaning</th></tr></thead>
                       <tbody>
-                        <tr className="border-t"><td className="p-2 font-medium">Sensitivity</td><td className="p-2">~50â€“70%*</td><td className="p-2">Misses ~30â€“50% of meniscal tears (many false negatives); cannot rule out tear</td></tr>
-                        <tr className="border-t"><td className="p-2 font-medium">Specificity</td><td className="p-2">~70â€“85%*</td><td className="p-2">If positive with click, somewhat likely a tear; but pain alone is non-specific</td></tr>
-                        <tr className="border-t"><td className="p-2 font-medium">Positive LR</td><td className="p-2">~2.0â€“3.0</td><td className="p-2">Moderately increases likelihood of tear; not diagnostic alone</td></tr>
-                        <tr className="border-t"><td className="p-2 font-medium">Negative LR</td><td className="p-2">~0.4â€“0.6</td><td className="p-2">Negative test still does NOT rule out tear</td></tr>
+                        <tr className="border-t"><td className="p-2 font-medium">Sensitivity</td><td className="p-2">~50–70%*</td><td className="p-2">Misses ~30–50% of meniscal tears (many false negatives); cannot rule out tear</td></tr>
+                        <tr className="border-t"><td className="p-2 font-medium">Specificity</td><td className="p-2">~70–85%*</td><td className="p-2">If positive with click, somewhat likely a tear; but pain alone is non-specific</td></tr>
+                        <tr className="border-t"><td className="p-2 font-medium">Positive LR</td><td className="p-2">~2.0–3.0</td><td className="p-2">Moderately increases likelihood of tear; not diagnostic alone</td></tr>
+                        <tr className="border-t"><td className="p-2 font-medium">Negative LR</td><td className="p-2">~0.4–0.6</td><td className="p-2">Negative test still does NOT rule out tear</td></tr>
                       </tbody>
                     </table>
                   </div>
@@ -200,10 +200,10 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
               <div>
                 <p className="font-semibold text-blue-900 mb-2">Clinical Decision-Making: Interpretation Scenarios</p>
                 <div className="bg-white p-3 rounded border border-blue-200 space-y-2">
-                  <p className="text-blue-800 text-xs"><strong>âœ… McMurray's POSITIVE (click/pop at joint line) + Joint-line tenderness + Thessaly positive:</strong> High likelihood of meniscal tear. Consider MRI referral for confirmation and surgical planning.</p>
-                  <p className="text-blue-800 text-xs"><strong>âš ï¸ McMurray's POSITIVE (pain only, no click) + Other tests negative:</strong> Non-specific; may indicate OA, capsular irritation, or referred pain. Does not strongly suggest tear. Continue conservative management.</p>
-                  <p className="text-blue-800 text-xs"><strong>âŒ McMurray's NEGATIVE but history of acute locking, catching, knee instability:</strong> Do NOT rule out meniscal tear; sensitivity is only ~50â€“60%. Perform Thessaly test, check for joint-line tenderness, and consider MRI if high clinical suspicion.</p>
-                  <p className="text-blue-800 text-xs"><strong>ðŸ“Š No mechanical symptoms but McMurray's positive:</strong> Low likelihood of acute tear; may indicate degenerative meniscal changes or OA. Monitor and reassess.</p>
+                  <p className="text-blue-800 text-xs"><strong>✅ McMurray's POSITIVE (click/pop at joint line) + Joint-line tenderness + Thessaly positive:</strong> High likelihood of meniscal tear. Consider MRI referral for confirmation and surgical planning.</p>
+                  <p className="text-blue-800 text-xs"><strong>⚠ï¸ McMurray's POSITIVE (pain only, no click) + Other tests negative:</strong> Non-specific; may indicate OA, capsular irritation, or referred pain. Does not strongly suggest tear. Continue conservative management.</p>
+                  <p className="text-blue-800 text-xs"><strong>âŒ McMurray's NEGATIVE but history of acute locking, catching, knee instability:</strong> Do NOT rule out meniscal tear; sensitivity is only ~50–60%. Perform Thessaly test, check for joint-line tenderness, and consider MRI if high clinical suspicion.</p>
+                  <p className="text-blue-800 text-xs"><strong>📊 No mechanical symptoms but McMurray's positive:</strong> Low likelihood of acute tear; may indicate degenerative meniscal changes or OA. Monitor and reassess.</p>
                 </div>
               </div>
 
@@ -240,9 +240,9 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
               <div>
                 <p className="font-semibold text-blue-900 mb-2">Evidence Base & References</p>
                 <div className="bg-white p-3 rounded border border-blue-200 space-y-2 text-xs">
-                  <p><strong>Classic Description:</strong> McMurray TP. (1942). The semilunar cartilages. <em>British Journal of Surgery, 29</em>(116):407â€“414. <a href="https://doi.org/10.1002/bjs.18002911625" target="_blank" className="text-blue-600 hover:underline inline-flex items-center gap-1">DOI <ExternalLink className="w-3 h-3" /></a></p>
-                  <p><strong>Modern Meta-Analysis:</strong> Hegedus EJ, Wang DX, Carino J, et al. (2015). Physical examination tests of the knee: a systematic review with meta-analysis. <em>British Journal of Sports Medicine, 49</em>(5):298â€“305. DOI: <a href="https://doi.org/10.1136/bjsports-2014-094119" target="_blank" className="text-blue-600 hover:underline inline-flex items-center gap-1">10.1136/bjsports-2014-094119 <ExternalLink className="w-3 h-3" /></a></p>
-                  <p><strong>Clinical Utility Review:</strong> Logerstedt DS, Snyder-Mackler L, Ritter RC, et al. (2010). Knee stability and movement coordination impairments: Knee ligament sprain revision of the APTA Clinical Practice Guideline. <em>Journal of Orthopaedic & Sports Physical Therapy, 40</em>(4):A1â€“A37.</p>
+                  <p><strong>Classic Description:</strong> McMurray TP. (1942). The semilunar cartilages. <em>British Journal of Surgery, 29</em>(116):407–414. <a href="https://doi.org/10.1002/bjs.18002911625" target="_blank" className="text-blue-600 hover:underline inline-flex items-center gap-1">DOI <ExternalLink className="w-3 h-3" /></a></p>
+                  <p><strong>Modern Meta-Analysis:</strong> Hegedus EJ, Wang DX, Carino J, et al. (2015). Physical examination tests of the knee: a systematic review with meta-analysis. <em>British Journal of Sports Medicine, 49</em>(5):298–305. DOI: <a href="https://doi.org/10.1136/bjsports-2014-094119" target="_blank" className="text-blue-600 hover:underline inline-flex items-center gap-1">10.1136/bjsports-2014-094119 <ExternalLink className="w-3 h-3" /></a></p>
+                  <p><strong>Clinical Utility Review:</strong> Logerstedt DS, Snyder-Mackler L, Ritter RC, et al. (2010). Knee stability and movement coordination impairments: Knee ligament sprain revision of the APTA Clinical Practice Guideline. <em>Journal of Orthopaedic & Sports Physical Therapy, 40</em>(4):A1–A37.</p>
                   <p><strong>ESSA / APA Guidelines:</strong> Australian Physiotherapy Association and Exercise & Sports Science Australia recommend clinical examination clusters (not single tests) for meniscal tear detection; MRI when clinically indicated.</p>
                 </div>
               </div>
@@ -309,7 +309,7 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
                    <CardTitle className="text-base">Step 2: Medial Meniscus Test (External Rotation)</CardTitle>
                  </CardHeader>
                  <CardContent className="space-y-3">
-                   <p className="text-sm text-slate-700 italic">Externally rotate tibia ~90Â°, then slowly extend knee. Palpate medial joint line. Listen/feel for click or sharp pain.</p>
+                   <p className="text-sm text-slate-700 italic">Externally rotate tibia ~90°, then slowly extend knee. Palpate medial joint line. Listen/feel for click or sharp pain.</p>
                    <div className="space-y-2">
                      {medialResults.map((result, idx) => (
                        <div key={idx} className="flex items-center gap-2">
@@ -332,7 +332,7 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
                    </div>
                    {testingStage === "medial" && (
                      <Button onClick={handleMedialComplete} disabled={medialResults.length === 0} className="w-full">
-                       Complete Medial Test â†’ Lateral Test
+                       Complete Medial Test → Lateral Test
                      </Button>
                    )}
                  </CardContent>
@@ -346,7 +346,7 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
                    <CardTitle className="text-base">Step 3: Lateral Meniscus Test (Internal Rotation)</CardTitle>
                  </CardHeader>
                  <CardContent className="space-y-3">
-                   <p className="text-sm text-slate-700 italic">Internally rotate tibia ~90Â°, then slowly extend knee. Palpate lateral joint line. Listen/feel for click or sharp pain.</p>
+                   <p className="text-sm text-slate-700 italic">Internally rotate tibia ~90°, then slowly extend knee. Palpate lateral joint line. Listen/feel for click or sharp pain.</p>
                    <div className="space-y-2">
                      {lateralResults.map((result, idx) => (
                        <div key={idx} className="flex items-center gap-2">
@@ -369,7 +369,7 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
                    </div>
                    {testingStage === "lateral" && (
                      <Button onClick={handleLateralComplete} disabled={lateralResults.length === 0} className="w-full">
-                       Complete Lateral Test â†’ Post-Test Vitals
+                       Complete Lateral Test → Post-Test Vitals
                      </Button>
                    )}
                  </CardContent>
@@ -428,9 +428,9 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
                <div className="bg-slate-100 rounded p-3 text-sm">
                  <p className="font-semibold text-slate-700 mb-2">Test Progress</p>
                  <div className="space-y-1 text-xs text-slate-600">
-                   <p>âœ… Pre-Test Vitals</p>
-                   <p className={medialResults.length > 0 ? "âœ…" : "â³"}> Medial Meniscus: {medialResults.length} trials</p>
-                   <p className={lateralResults.length > 0 ? "âœ…" : "â³"}> Lateral Meniscus: {lateralResults.length} trials</p>
+                   <p>✅ Pre-Test Vitals</p>
+                   <p className={medialResults.length > 0 ? "✅" : "â³"}> Medial Meniscus: {medialResults.length} trials</p>
+                   <p className={lateralResults.length > 0 ? "✅" : "â³"}> Lateral Meniscus: {lateralResults.length} trials</p>
                    <p className={testingStage === "complete" ? "â³" : ""}> Post-Test Vitals</p>
                  </div>
                </div>

@@ -37,7 +37,7 @@ export default function ClientFunnelAnalytics({ clients, clientAssessments, soap
                   </div>
                   <div className="flex items-center gap-3">
                     {dropOff > 0 && (
-                      <span className="text-xs text-red-500">âˆ’{dropOff} drop-off</span>
+                      <span className="text-xs text-red-500">−{dropOff} drop-off</span>
                     )}
                     <span className="font-bold text-slate-800">{stage.count}</span>
                     <span className="text-xs text-slate-400 w-10 text-right">{pct}%</span>

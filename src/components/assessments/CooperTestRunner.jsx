@@ -44,7 +44,7 @@ export default function CooperTestRunner({ onSave, onClose }) {
     }
 
     const soapText = [
-      `â€¢ Cooper 12-Minute Run/Walk Test`,
+      `• Cooper 12-Minute Run/Walk Test`,
       `  Distance: ${distance} m`,
       calculateVO2Max() ? `  Estimated VO2max: ${calculateVO2Max()} ml/kg/min` : null,
       rpe ? `  RPE: ${rpe}/20` : null,
@@ -143,7 +143,7 @@ export default function CooperTestRunner({ onSave, onClose }) {
 
                 {distance && (
                   <div className="p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
-                    <p className="text-sm text-blue-700">Estimated VOâ‚‚max</p>
+                    <p className="text-sm text-blue-700">Estimated VO₂max</p>
                     <p className="text-3xl font-bold text-blue-900">{calculateVO2Max()} ml/kg/min</p>
                   </div>
                 )}

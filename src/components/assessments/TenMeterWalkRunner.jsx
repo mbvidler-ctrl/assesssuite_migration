@@ -97,7 +97,7 @@ export default function TenMeterWalkRunner({ onSave, onClose }) {
     const interpretation = getSpeedInterpretation(avgSpeed);
 
     const soapText = [
-      `â€¢ 10 Metre Walk Test (${walkingSpeed === 'fast' ? 'Fast' : 'Comfortable'} pace)`,
+      `• 10 Metre Walk Test (${walkingSpeed === 'fast' ? 'Fast' : 'Comfortable'} pace)`,
       `  Avg Speed: ${avgSpeed} m/s | Avg Time: ${avgTime}s | ${interpretation.text}`,
       assistiveDevice !== 'none' ? `  Assistive Device: ${assistiveDevice.replace(/_/g, ' ')}` : null,
       notes ? `  Notes: ${notes}` : null,
@@ -319,7 +319,7 @@ export default function TenMeterWalkRunner({ onSave, onClose }) {
                           <p className="font-semibold text-slate-900">
                             Trial {index + 1}: {trial.time}s
                             <span className="text-blue-600 ml-2">({speed} m/s)</span>
-                            {trial.steps && ` â€¢ ${trial.steps} steps`}
+                            {trial.steps && ` • ${trial.steps} steps`}
                           </p>
                           {trial.observations && (
                             <p className="text-sm text-slate-600 mt-1">{trial.observations}</p>
@@ -367,7 +367,7 @@ export default function TenMeterWalkRunner({ onSave, onClose }) {
                   <div className="text-xs text-slate-600 bg-white/70 rounded p-3">
                     <p><strong>Speed Classifications:</strong></p>
                     <ul className="list-disc list-inside mt-1 space-y-0.5">
-                      <li>â‰¥1.2 m/s: Community Ambulator</li>
+                      <li>≥1.2 m/s: Community Ambulator</li>
                       <li>0.8-1.19 m/s: Limited Community Ambulator</li>
                       <li>0.4-0.79 m/s: Household Ambulator</li>
                       <li>&lt;0.4 m/s: Non-Functional Ambulator</li>

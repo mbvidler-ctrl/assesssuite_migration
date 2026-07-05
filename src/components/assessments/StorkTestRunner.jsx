@@ -32,7 +32,7 @@ export default function StorkTestRunner({ onSave, onClose, initialData }) {
     const asymmetry = Math.abs(leftTime - rightTime);
 
     // Build comprehensive SOAP text
-    let soapText = `â€¢ Stork Balance Stand Test:\n`;
+    let soapText = `• Stork Balance Stand Test:\n`;
     soapText += `  Left Leg: ${leftTime}s\n`;
     soapText += `  Right Leg: ${rightTime}s\n`;
     soapText += `  Best Time: ${best}s\n`;
@@ -105,7 +105,7 @@ export default function StorkTestRunner({ onSave, onClose, initialData }) {
               </div>
             </div>
             {timerSeconds >= 60 && (
-              <p className="mt-2 text-green-600 font-semibold">âœ“ 60 seconds - Maximum time achieved!</p>
+              <p className="mt-2 text-green-600 font-semibold">✓ 60 seconds - Maximum time achieved!</p>
             )}
           </div>
 

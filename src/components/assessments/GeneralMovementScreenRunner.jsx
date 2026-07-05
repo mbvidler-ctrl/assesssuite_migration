@@ -17,14 +17,14 @@ const GMS_TESTS = [
   { key: "shoulder_mob",     label: "Shoulder Mobility (L & R)",   description: "Reach one hand over shoulder, other behind back. Observe range and symmetry. Score the worse side." },
   { key: "trunk_rotation",   label: "Trunk Rotation (L & R)",      description: "Seated or standing, rotate torso fully to each side. Score the worse side." },
   { key: "hip_mob",          label: "Hip Mobility / 4-Point Rock",  description: "In 4-point kneeling, rock hips back toward heels then forward. Observe hip and lumbar control." },
-  { key: "overhead_reach",   label: "Overhead Reach / Wall Angel",  description: "Stand with back against wall, arms at 90Â°/90Â°. Raise arms overhead while maintaining contact with wall." },
+  { key: "overhead_reach",   label: "Overhead Reach / Wall Angel",  description: "Stand with back against wall, arms at 90°/90°. Raise arms overhead while maintaining contact with wall." },
 ];
 
 const SCORE_OPTIONS = [
-  { value: 0, label: "0 â€“ Pain / Unsafe" },
-  { value: 1, label: "1 â€“ Cannot Complete" },
-  { value: 2, label: "2 â€“ Minor Compensation" },
-  { value: 3, label: "3 â€“ Clean Pattern" },
+  { value: 0, label: "0 – Pain / Unsafe" },
+  { value: 1, label: "1 – Cannot Complete" },
+  { value: 2, label: "2 – Minor Compensation" },
+  { value: 3, label: "3 – Clean Pattern" },
 ];
 
 const scoreColor = (v) => {
@@ -64,7 +64,7 @@ export default function GeneralMovementScreenRunner({ client, onSave, onClose })
       `  ${t.label}: ${scores[t.key]}/3`
     ).join('\n');
 
-    const soapText = `General Movement Screen:\n\nTotal Score: ${totalScore}/${maxScore}\n${scoreLines}${painTests.length > 0 ? `\n  âš  Pain provoked: ${painTests.join(', ')}` : ''}${notes ? `\n  Notes: ${notes}` : ''}`;
+    const soapText = `General Movement Screen:\n\nTotal Score: ${totalScore}/${maxScore}\n${scoreLines}${painTests.length > 0 ? `\n  ⚠ Pain provoked: ${painTests.join(', ')}` : ''}${notes ? `\n  Notes: ${notes}` : ''}`;
 
     onSave({
       status: "completed",
@@ -90,7 +90,7 @@ export default function GeneralMovementScreenRunner({ client, onSave, onClose })
           <div className="flex justify-between items-start">
             <div>
               <h2 className="text-2xl font-bold text-slate-900">General Movement Screen</h2>
-              <p className="text-slate-600 mt-1">Score each movement pattern 0â€“3</p>
+              <p className="text-slate-600 mt-1">Score each movement pattern 0–3</p>
             </div>
             <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
           </div>
@@ -112,10 +112,10 @@ export default function GeneralMovementScreenRunner({ client, onSave, onClose })
 
           {/* Scoring key */}
           <div className="flex flex-wrap gap-2 text-xs">
-            <span className="px-2 py-1 rounded bg-red-100 text-red-800 font-medium">0 â€“ Pain / Unsafe</span>
-            <span className="px-2 py-1 rounded bg-orange-100 text-orange-800 font-medium">1 â€“ Cannot Complete</span>
-            <span className="px-2 py-1 rounded bg-yellow-100 text-yellow-800 font-medium">2 â€“ Minor Compensation</span>
-            <span className="px-2 py-1 rounded bg-green-100 text-green-800 font-medium">3 â€“ Clean Pattern</span>
+            <span className="px-2 py-1 rounded bg-red-100 text-red-800 font-medium">0 – Pain / Unsafe</span>
+            <span className="px-2 py-1 rounded bg-orange-100 text-orange-800 font-medium">1 – Cannot Complete</span>
+            <span className="px-2 py-1 rounded bg-yellow-100 text-yellow-800 font-medium">2 – Minor Compensation</span>
+            <span className="px-2 py-1 rounded bg-green-100 text-green-800 font-medium">3 – Clean Pattern</span>
           </div>
 
           {/* Tests */}
@@ -153,7 +153,7 @@ export default function GeneralMovementScreenRunner({ client, onSave, onClose })
               <p className="text-3xl font-bold text-slate-900">{totalScore} / {answeredCount * 3}</p>
               <p className="text-xs text-slate-500">{answeredCount} of {GMS_TESTS.length} tests scored</p>
               {scores && Object.values(scores).some(v => v === 0) && (
-                <p className="text-xs text-red-600 mt-1 font-medium">âš  Pain provoked in one or more tests â€” consider further assessment</p>
+                <p className="text-xs text-red-600 mt-1 font-medium">⚠ Pain provoked in one or more tests — consider further assessment</p>
               )}
             </div>
           )}

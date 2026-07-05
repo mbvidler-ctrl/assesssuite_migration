@@ -52,7 +52,7 @@ export default function EightFootUpandGoRunner({ client, onSave, onClose }) {
   const getInterpretation = (timeS) => {
     if (timeS <= 8.1) return { label: 'Low fall risk', color: 'bg-green-100 text-green-800' };
     if (timeS <= 9.2) return { label: 'Moderate fall risk', color: 'bg-yellow-100 text-yellow-800' };
-    return { label: 'High fall risk â€” increased mobility limitations', color: 'bg-red-100 text-red-800' };
+    return { label: 'High fall risk — increased mobility limitations', color: 'bg-red-100 text-red-800' };
   };
 
   const handleSave = () => {
@@ -65,7 +65,7 @@ export default function EightFootUpandGoRunner({ client, onSave, onClose }) {
       assessment_date: new Date().toISOString().split('T')[0],
       notes,
       additional_data: {
-        soap_text: `â€¢ 8-Foot Up-and-Go Test\n  Best Time: ${bestTrial?.time_s?.toFixed(2)}s\n  Interpretation: ${bestTrial ? getInterpretation(bestTrial.time_s).label : 'N/A'}\n  Chair Height: ${chairHeight} | Assistance: ${assistanceUsed}`,
+        soap_text: `• 8-Foot Up-and-Go Test\n  Best Time: ${bestTrial?.time_s?.toFixed(2)}s\n  Interpretation: ${bestTrial ? getInterpretation(bestTrial.time_s).label : 'N/A'}\n  Chair Height: ${chairHeight} | Assistance: ${assistanceUsed}`,
         measurement_type: '8_foot_up_and_go',
         trials,
         best_time_s: bestTrial?.time_s,
@@ -86,7 +86,7 @@ export default function EightFootUpandGoRunner({ client, onSave, onClose }) {
         <div className="p-5 border-b bg-gradient-to-r from-cyan-50 to-blue-50 flex justify-between items-start">
           <div>
             <h2 className="text-xl font-bold text-slate-900">8-Foot Up-and-Go Test</h2>
-            <p className="text-sm text-slate-500">Timed mobility â€” sit-to-stand, walk 8ft, return, sit down</p>
+            <p className="text-sm text-slate-500">Timed mobility — sit-to-stand, walk 8ft, return, sit down</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -95,11 +95,11 @@ export default function EightFootUpandGoRunner({ client, onSave, onClose }) {
           {/* Safety */}
           <Card className="bg-amber-50 border-amber-200">
             <CardContent className="pt-4 text-xs text-amber-800 space-y-1">
-              <p className="font-semibold flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" />Safety â€” ensure:</p>
-              <p>â€¢ Clear path 8 feet ahead with no obstacles</p>
-              <p>â€¢ Sturdy chair against wall to prevent sliding</p>
-              <p>â€¢ Clinician positioned to provide assistance if needed</p>
-              <p>â€¢ Proper footwear or bare feet (consistent across trials)</p>
+              <p className="font-semibold flex items-center gap-1"><AlertTriangle className="w-3.5 h-3.5" />Safety — ensure:</p>
+              <p>• Clear path 8 feet ahead with no obstacles</p>
+              <p>• Sturdy chair against wall to prevent sliding</p>
+              <p>• Clinician positioned to provide assistance if needed</p>
+              <p>• Proper footwear or bare feet (consistent across trials)</p>
             </CardContent>
           </Card>
 
@@ -108,7 +108,7 @@ export default function EightFootUpandGoRunner({ client, onSave, onClose }) {
             <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2 text-blue-800"><Info className="w-4 h-4" />Protocol</CardTitle></CardHeader>
             <CardContent className="text-xs text-blue-800 space-y-1">
               <p>1. Client sits in chair with back straight, feet flat, hands on thighs</p>
-              <p>2. Demonstrate test at 50% speed â€” client practices once</p>
+              <p>2. Demonstrate test at 50% speed — client practices once</p>
               <p>3. On 'GO': client stands, walks 8 feet (2.44m), around cone, returns, sits</p>
               <p>4. Time: from GO until buttocks touch chair</p>
               <p>5. Perform 2 trials, rest 1 min between trials</p>
@@ -209,25 +209,25 @@ export default function EightFootUpandGoRunner({ client, onSave, onClose }) {
 
           {/* Norms & Interpretation */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">ðŸ“Š Norms & Interpretation (Rikli & Jones â€” older adults)</p>
+            <p className="font-semibold text-slate-700">📊 Norms & Interpretation (Rikli & Jones — older adults)</p>
             <div className="overflow-x-auto">
               <table className="w-full text-xs border border-slate-300 rounded">
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Time</th><th className="p-2 text-left">Classification</th><th className="p-2 text-left">Fall Risk</th></tr></thead>
                 <tbody>
-                  <tr className="border-t border-slate-200"><td className="p-2">â‰¤ 8.1 s</td><td className="p-2">Normal / Low concern</td><td className="p-2 text-green-600">Low</td></tr>
-                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">8.2â€“9.2 s</td><td className="p-2">Borderline</td><td className="p-2 text-yellow-600">Moderate</td></tr>
-                  <tr className="border-t border-slate-200"><td className="p-2">â‰¥ 9.3 s</td><td className="p-2">Mobility limitation</td><td className="p-2 text-red-600">High</td></tr>
+                  <tr className="border-t border-slate-200"><td className="p-2">≤ 8.1 s</td><td className="p-2">Normal / Low concern</td><td className="p-2 text-green-600">Low</td></tr>
+                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">8.2–9.2 s</td><td className="p-2">Borderline</td><td className="p-2 text-yellow-600">Moderate</td></tr>
+                  <tr className="border-t border-slate-200"><td className="p-2">≥ 9.3 s</td><td className="p-2">Mobility limitation</td><td className="p-2 text-red-600">High</td></tr>
                 </tbody>
               </table>
             </div>
-            <p className="text-xs text-slate-500">MCID: 0.67 s. Community-dwelling older adults aged 60â€“94. Best of 2 trials used. Source: Rikli & Jones (2013).</p>
+            <p className="text-xs text-slate-500">MCID: 0.67 s. Community-dwelling older adults aged 60–94. Best of 2 trials used. Source: Rikli & Jones (2013).</p>
           </div>
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-            <p className="font-semibold">ðŸ“– Reference</p>
-            <p>Rikli RE & Jones CJ. (1999). Development and validation of a functional fitness test for community-residing older adults. <em>Journal of Aging and Physical Activity, 7</em>(2), 129â€“161.</p>
-            <p>Podsiadlo D & Richardson S. (1991). The Timed "Up & Go": a test of basic functional mobility for frail elderly persons. <em>Journal of the American Geriatrics Society, 39</em>(2), 142â€“148.</p>
+            <p className="font-semibold">📖 Reference</p>
+            <p>Rikli RE & Jones CJ. (1999). Development and validation of a functional fitness test for community-residing older adults. <em>Journal of Aging and Physical Activity, 7</em>(2), 129–161.</p>
+            <p>Podsiadlo D & Richardson S. (1991). The Timed "Up & Go": a test of basic functional mobility for frail elderly persons. <em>Journal of the American Geriatrics Society, 39</em>(2), 142–148.</p>
           </div>
 
           {/* Notes */}

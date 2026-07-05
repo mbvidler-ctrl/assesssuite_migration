@@ -58,11 +58,11 @@ export default function GirthMeasurementsRunner({ onSave, onClose, initialData }
         if (m.right) parts.push(`R: ${m.right} cm`);
         return `  ${site.name}: ${parts.join(', ')}`;
       } else {
-        return `  ${site.name}: ${m.center ?? 'â€”'} cm`;
+        return `  ${site.name}: ${m.center ?? '—'} cm`;
       }
     }).join('\n');
 
-    const soapText = `â€¢ Girth Measurements:\n${siteLines}${observations ? `\n\n  Observations: ${observations}` : ''}`;
+    const soapText = `• Girth Measurements:\n${siteLines}${observations ? `\n\n  Observations: ${observations}` : ''}`;
 
     onSave({
       result_value: selectedSites.length,

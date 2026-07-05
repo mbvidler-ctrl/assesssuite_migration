@@ -84,7 +84,7 @@ export default function SPADIRunner({ client, onSave, onClose }) {
 
   const handleSave = () => {
     const soapLines = [
-      `â€¢ Shoulder Pain and Disability Index (SPADI)`,
+      `• Shoulder Pain and Disability Index (SPADI)`,
       `  Assessment Date: ${assessmentDate}`,
       ``,
       `  Subscale Scores:`,
@@ -96,10 +96,10 @@ export default function SPADIRunner({ client, onSave, onClose }) {
       `    Score interpretation: <20% Minimal, 20-40% Mild, 40-60% Moderate, >60% Severe disability`,
       ``,
       `  Pain Items (0=no pain, 10=worst pain):`,
-      ...PAIN_ITEMS.map((item, i) => `    ${i + 1}. ${item} â†’ ${painScores[i]}/10`),
+      ...PAIN_ITEMS.map((item, i) => `    ${i + 1}. ${item} → ${painScores[i]}/10`),
       ``,
       `  Disability Items (0=no difficulty, 10=can't do):`,
-      ...DISABILITY_ITEMS.map((item, i) => `    ${i + 1}. ${item} â†’ ${disabilityScores[i]}/10`),
+      ...DISABILITY_ITEMS.map((item, i) => `    ${i + 1}. ${item} → ${disabilityScores[i]}/10`),
       notes ? `\n  Clinical Notes: ${notes}` : null,
       ``,
       `  Reference: Roach KE et al. (1991). Development of a shoulder pain and disability index. Arthritis Care & Research, 4(4), 143-149.`,
@@ -131,7 +131,7 @@ export default function SPADIRunner({ client, onSave, onClose }) {
         <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-start z-10">
           <div>
             <h2 className="text-xl font-bold text-slate-900">Shoulder Pain and Disability Index (SPADI)</h2>
-            <p className="text-sm text-slate-500">{client?.full_name} Â· 13-item subscale assessment</p>
+            <p className="text-sm text-slate-500">{client?.full_name} · 13-item subscale assessment</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}><X className="w-5 h-5" /></Button>
         </div>
@@ -164,7 +164,7 @@ export default function SPADIRunner({ client, onSave, onClose }) {
                   </div>
                 </CardContent>
               </Card>
-              <p className="text-base font-semibold text-slate-700 mb-3">How severe is your painâ€¦</p>
+              <p className="text-base font-semibold text-slate-700 mb-3">How severe is your pain…</p>
               {PAIN_ITEMS.map((item, i) => (
                 <ScaleInput key={i} label={item} index={i} value={painScores[i]} onChange={(v) => setPain(i, v)} />
               ))}
@@ -182,7 +182,7 @@ export default function SPADIRunner({ client, onSave, onClose }) {
                   </div>
                 </CardContent>
               </Card>
-              <p className="text-base font-semibold text-slate-700 mb-3">How much difficulty do you haveâ€¦</p>
+              <p className="text-base font-semibold text-slate-700 mb-3">How much difficulty do you have…</p>
               {DISABILITY_ITEMS.map((item, i) => (
                 <ScaleInput key={i} label={item} index={i} value={disabilityScores[i]} onChange={(v) => setDisability(i, v)} />
               ))}

@@ -9,16 +9,16 @@ import { toast } from "sonner";
 
 // GOLD Classification based on FEV1% predicted
 function goldClassify(fev1pct) {
-  if (fev1pct >= 80) return { stage: "GOLD 1 â€” Mild", color: "bg-green-100 text-green-800 border-green-300" };
-  if (fev1pct >= 50) return { stage: "GOLD 2 â€” Moderate", color: "bg-yellow-100 text-yellow-800 border-yellow-300" };
-  if (fev1pct >= 30) return { stage: "GOLD 3 â€” Severe", color: "bg-orange-100 text-orange-800 border-orange-300" };
-  return { stage: "GOLD 4 â€” Very Severe", color: "bg-red-100 text-red-800 border-red-300" };
+  if (fev1pct >= 80) return { stage: "GOLD 1 — Mild", color: "bg-green-100 text-green-800 border-green-300" };
+  if (fev1pct >= 50) return { stage: "GOLD 2 — Moderate", color: "bg-yellow-100 text-yellow-800 border-yellow-300" };
+  if (fev1pct >= 30) return { stage: "GOLD 3 — Severe", color: "bg-orange-100 text-orange-800 border-orange-300" };
+  return { stage: "GOLD 4 — Very Severe", color: "bg-red-100 text-red-800 border-red-300" };
 }
 
 function ObstructionLabel({ ratio }) {
   if (ratio === null) return null;
   if (ratio < 0.7) return <span className="text-red-600 font-semibold">Obstruction likely (FEV1/FVC &lt;0.7)</span>;
-  return <span className="text-green-600 font-semibold">No obstruction (FEV1/FVC â‰¥0.7)</span>;
+  return <span className="text-green-600 font-semibold">No obstruction (FEV1/FVC ≥0.7)</span>;
 }
 
 const EMPTY_TRIAL = { fvc: "", fev1: "", pef: "" };
@@ -46,7 +46,7 @@ export default function ForcedVitalCapacityFVCSpirometryRunner({ client, onSave,
 
   const removeTrial = (i) => setTrials(trials.filter((_, idx) => idx !== i));
 
-  // Best values (highest FVC and FEV1 across trials â€” ATS/ERS criterion)
+  // Best values (highest FVC and FEV1 across trials — ATS/ERS criterion)
   const validTrials = trials.filter((t) => t.fvc && !isNaN(parseFloat(t.fvc)));
   const bestFVC = validTrials.length > 0 ? Math.max(...validTrials.map((t) => parseFloat(t.fvc))) : null;
   const bestFEV1 =
@@ -73,7 +73,7 @@ export default function ForcedVitalCapacityFVCSpirometryRunner({ client, onSave,
           `  Trial ${i + 1}: FVC ${t.fvc}L${t.fev1 ? ` | FEV1 ${t.fev1}L` : ""}${t.pef ? ` | PEF ${t.pef} L/min` : ""}`
       )
       .join("\n");
-    const soap = `â€¢ FVC Spirometry (ATS/ERS standards)\n  Best FVC: ${bestFVC}L${fvcPct ? ` (${fvcPct}% predicted)` : ""}\n  Best FEV1: ${bestFEV1 ?? "N/A"}L${fev1pct ? ` (${fev1pct}% predicted)` : ""}\n  FEV1/FVC Ratio: ${fev1FvcRatio ?? "N/A"}\n  Best PEF: ${bestPEF ?? "N/A"} L/min${gold ? `\n  GOLD Classification: ${gold.stage}` : ""}${fev1FvcRatio !== null ? `\n  ${fev1FvcRatio < 0.7 ? "Obstructive pattern (FEV1/FVC <0.7)" : "No obstruction detected (FEV1/FVC â‰¥0.7)"}` : ""}\n  Trials:\n${trialLines}${notes ? `\n  Notes: ${notes}` : ""}\n  Reference: GOLD (2023). Global Strategy for COPD; ATS/ERS Task Force (2005). Standardisation of Spirometry. ERJ, 26(2):319-338.`;
+    const soap = `• FVC Spirometry (ATS/ERS standards)\n  Best FVC: ${bestFVC}L${fvcPct ? ` (${fvcPct}% predicted)` : ""}\n  Best FEV1: ${bestFEV1 ?? "N/A"}L${fev1pct ? ` (${fev1pct}% predicted)` : ""}\n  FEV1/FVC Ratio: ${fev1FvcRatio ?? "N/A"}\n  Best PEF: ${bestPEF ?? "N/A"} L/min${gold ? `\n  GOLD Classification: ${gold.stage}` : ""}${fev1FvcRatio !== null ? `\n  ${fev1FvcRatio < 0.7 ? "Obstructive pattern (FEV1/FVC <0.7)" : "No obstruction detected (FEV1/FVC ≥0.7)"}` : ""}\n  Trials:\n${trialLines}${notes ? `\n  Notes: ${notes}` : ""}\n  Reference: GOLD (2023). Global Strategy for COPD; ATS/ERS Task Force (2005). Standardisation of Spirometry. ERJ, 26(2):319-338.`;
     onSave({
       status: "completed",
       result_value: bestFVC,
@@ -104,7 +104,7 @@ export default function ForcedVitalCapacityFVCSpirometryRunner({ client, onSave,
         <div className="p-6 border-b bg-gradient-to-r from-sky-50 to-blue-50 flex justify-between items-start">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">FVC Spirometry</h2>
-            <p className="text-slate-600 text-sm mt-1">Forced Vital Capacity â€” ATS/ERS standards</p>
+            <p className="text-slate-600 text-sm mt-1">Forced Vital Capacity — ATS/ERS standards</p>
             <p className="text-xs text-slate-500 mt-1">Client: {client?.full_name || "Unknown"}</p>
           </div>
           <Button variant="ghost" size="icon" onClick={onClose}>
@@ -243,7 +243,7 @@ export default function ForcedVitalCapacityFVCSpirometryRunner({ client, onSave,
                   <p><strong>Position:</strong> Seated upright, feet flat on floor, back supported</p>
                   <p><strong>Nose clip:</strong> Applied to prevent nasal airflow</p>
                   <p><strong>Mouthpiece:</strong> Sealed lips around mouthpiece; no air leakage</p>
-                  <p><strong>Manoeuvre:</strong> Maximal inhalation â†’ seal lips immediately â†’ blast out as hard and fast as possible until lungs are completely empty â†’ encourage forcefully throughout test</p>
+                  <p><strong>Manoeuvre:</strong> Maximal inhalation → seal lips immediately → blast out as hard and fast as possible until lungs are completely empty → encourage forcefully throughout test</p>
                 </div>
                 <div className="bg-white p-3 rounded border border-blue-200">
                   <p className="font-semibold mb-1">Acceptability Criteria (ATS/ERS):</p>
@@ -258,7 +258,7 @@ export default function ForcedVitalCapacityFVCSpirometryRunner({ client, onSave,
                 </div>
                 <div className="bg-white p-3 rounded border border-blue-200 italic">
                   <p className="font-semibold mb-1">Clinician Script:</p>
-                  <p>"I'd like you to measure your lung function. You'll take a deep breath in, then blow out as hard and as fast as you can until your lungs are empty. We might need to do this 3â€“5 times to get good results. Let me know if you have any questions."</p>
+                  <p>"I'd like you to measure your lung function. You'll take a deep breath in, then blow out as hard and as fast as you can until your lungs are empty. We might need to do this 3–5 times to get good results. Let me know if you have any questions."</p>
                 </div>
               </CardContent>
             )}
@@ -278,22 +278,22 @@ export default function ForcedVitalCapacityFVCSpirometryRunner({ client, onSave,
             {expandedSection === "interpretation" && (
               <CardContent className="text-xs text-green-900 space-y-2">
                 <div className="bg-white p-2 rounded border border-green-200">
-                  <p className="font-semibold mb-1">FEV1/FVC Ratio â€” Obstruction Marker:</p>
-                  <p><strong>â‰¥0.7 (â‰¥70%):</strong> Normal; no airflow obstruction</p>
+                  <p className="font-semibold mb-1">FEV1/FVC Ratio — Obstruction Marker:</p>
+                  <p><strong>≥0.7 (≥70%):</strong> Normal; no airflow obstruction</p>
                   <p><strong>&lt;0.7 (&lt;70%):</strong> Obstructive airway disease (COPD, asthma)</p>
                 </div>
                 <div className="bg-white p-2 rounded border border-green-200">
-                  <p className="font-semibold mb-1">FEV1 % Predicted â€” Severity (GOLD):</p>
-                  <p><strong>â‰¥80%:</strong> Normal or Mild obstruction</p>
-                  <p><strong>50â€“79%:</strong> Moderate obstruction</p>
-                  <p><strong>30â€“49%:</strong> Severe obstruction</p>
+                  <p className="font-semibold mb-1">FEV1 % Predicted — Severity (GOLD):</p>
+                  <p><strong>≥80%:</strong> Normal or Mild obstruction</p>
+                  <p><strong>50–79%:</strong> Moderate obstruction</p>
+                  <p><strong>30–49%:</strong> Severe obstruction</p>
                   <p><strong>&lt;30%:</strong> Very Severe obstruction</p>
                 </div>
                 <div className="bg-white p-2 rounded border border-green-200">
                   <p className="font-semibold mb-1">Pattern Recognition:</p>
                   <p><strong>Obstructive Pattern:</strong> FEV1/FVC &lt;0.7; FVC normal or reduced; FEV1 reduced</p>
                   <p><strong>Restrictive Pattern:</strong> FEV1/FVC normal or high; both FVC and FEV1 reduced proportionally</p>
-                  <p><strong>Mixed Pattern:</strong> Both obstruction (FEV1/FVC &lt;0.7) and restriction (â†“ FVC)</p>
+                  <p><strong>Mixed Pattern:</strong> Both obstruction (FEV1/FVC &lt;0.7) and restriction (↓ FVC)</p>
                 </div>
               </CardContent>
             )}
@@ -313,7 +313,7 @@ export default function ForcedVitalCapacityFVCSpirometryRunner({ client, onSave,
             {expandedSection === "references" && (
               <CardContent className="text-xs text-slate-700 space-y-2">
                 <p>
-                  <strong>Miller, M. R., Hankinson, J., Brusasco, V., Burgos, F., Casaburi, R., Coates, A., et al.</strong> (2005). Standardisation of spirometry. <em>European Respiratory Journal</em>, 26(2), 319â€“338.
+                  <strong>Miller, M. R., Hankinson, J., Brusasco, V., Burgos, F., Casaburi, R., Coates, A., et al.</strong> (2005). Standardisation of spirometry. <em>European Respiratory Journal</em>, 26(2), 319–338.
                 </p>
                 <p>
                   <strong>GOLD (Global Initiative for Chronic Obstructive Lung Disease).</strong> (2023). Global Strategy for the Diagnosis, Management, and Prevention of COPD. Retrieved from{" "}
@@ -353,7 +353,7 @@ export default function ForcedVitalCapacityFVCSpirometryRunner({ client, onSave,
               <strong>Position:</strong> Seated upright, nose clip on, feet flat.
             </p>
             <p>
-              <strong>Manoeuvre:</strong> Maximal inhalation â†’ seal lips â†’ blast out as hard and fast as possible until lungs are empty. Encourage forcefully throughout.
+              <strong>Manoeuvre:</strong> Maximal inhalation → seal lips → blast out as hard and fast as possible until lungs are empty. Encourage forcefully throughout.
             </p>
             <p>
               <strong>Acceptability:</strong> 3 acceptable efforts minimum. Best FVC and best FEV1 may come from different blows.
@@ -466,17 +466,17 @@ export default function ForcedVitalCapacityFVCSpirometryRunner({ client, onSave,
               </div>
               <div className="bg-sky-50 border border-sky-200 rounded-xl p-4 text-center">
                 <p className="text-xs text-slate-500">Best FEV1</p>
-                <p className="text-3xl font-bold text-sky-700">{bestFEV1 ?? "â€”"} L</p>
+                <p className="text-3xl font-bold text-sky-700">{bestFEV1 ?? "—"} L</p>
                 {fev1pct && <p className="text-sm text-sky-600">{fev1pct}% predicted</p>}
               </div>
               <div className="bg-slate-50 border rounded-xl p-3 text-center">
                 <p className="text-xs text-slate-500">FEV1/FVC Ratio</p>
-                <p className="text-2xl font-bold">{fev1FvcRatio ?? "â€”"}</p>
+                <p className="text-2xl font-bold">{fev1FvcRatio ?? "—"}</p>
                 {fev1FvcRatio && <ObstructionLabel ratio={fev1FvcRatio} />}
               </div>
               <div className="bg-slate-50 border rounded-xl p-3 text-center">
                 <p className="text-xs text-slate-500">Best PEF</p>
-                <p className="text-2xl font-bold">{bestPEF ?? "â€”"}</p>
+                <p className="text-2xl font-bold">{bestPEF ?? "—"}</p>
                 {bestPEF && <p className="text-xs text-slate-500">L/min</p>}
               </div>
             </div>

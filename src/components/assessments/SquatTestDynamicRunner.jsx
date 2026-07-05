@@ -96,7 +96,7 @@ export default function SquatTestDynamicRunner({ client, onSave, onClose }) {
     const qualityCheck = Object.values(observations).filter(v => v).length;
 
     const soapText = [
-      `â€¢ Dynamic Squat Test - Lower Limb Strength & Muscular Endurance`,
+      `• Dynamic Squat Test - Lower Limb Strength & Muscular Endurance`,
       ``,
       `  Test Parameters:`,
       `    Duration: ${testDuration} seconds`,
@@ -109,33 +109,33 @@ export default function SquatTestDynamicRunner({ client, onSave, onClose }) {
       `    Normative Comparison: ${interpretation.level}`,
       ``,
       `  Test Quality Observations (${qualityCheck}/5):`,
-      observations.chestUp ? `    âœ“ Maintained upright chest position` : `    â€¢ Chest collapsed (poor form)`,
-      observations.kneeTracking ? `    âœ“ Knees tracked over toes` : `    â€¢ Knees valgus/varus (alignment issue)`,
-      observations.fullDepth ? `    âœ“ Achieved full depth (thighs parallel or below)` : `    â€¢ Shallow squats (reduced range)`,
-      observations.noCompensation ? `    âœ“ No compensatory patterns observed` : `    â€¢ Asymmetrical movement/compensations noted`,
-      observations.consistentPace ? `    âœ“ Maintained consistent pace throughout` : `    â€¢ Pace declined (fatigue evident)`,
+      observations.chestUp ? `    ✓ Maintained upright chest position` : `    • Chest collapsed (poor form)`,
+      observations.kneeTracking ? `    ✓ Knees tracked over toes` : `    • Knees valgus/varus (alignment issue)`,
+      observations.fullDepth ? `    ✓ Achieved full depth (thighs parallel or below)` : `    • Shallow squats (reduced range)`,
+      observations.noCompensation ? `    ✓ No compensatory patterns observed` : `    • Asymmetrical movement/compensations noted`,
+      observations.consistentPace ? `    ✓ Maintained consistent pace throughout` : `    • Pace declined (fatigue evident)`,
       ``,
       `  Interpretation Criteria (60-second test):`,
-      `    â€¢ Excellent: â‰¥40 squats (strong lower limb power & endurance)`,
-      `    â€¢ Good: 30-39 squats (above-average function)`,
-      `    â€¢ Fair: 20-29 squats (average function)`,
-      `    â€¢ Poor: 10-19 squats (below-average function; consider targeted training)`,
-      `    â€¢ Very Poor: <10 squats (significant weakness; screen for pathology)`,
+      `    • Excellent: ≥40 squats (strong lower limb power & endurance)`,
+      `    • Good: 30-39 squats (above-average function)`,
+      `    • Fair: 20-29 squats (average function)`,
+      `    • Poor: 10-19 squats (below-average function; consider targeted training)`,
+      `    • Very Poor: <10 squats (significant weakness; screen for pathology)`,
       ``,
       preTestNotes ? `  Pre-Test Notes: ${preTestNotes}` : null,
       notes ? `  Additional Notes: ${notes}` : null,
       postTestNotes ? `  Post-Test Notes: ${postTestNotes}` : null,
       ``,
       `  Clinical Relevance:`,
-      `    â€¢ Measures quadriceps, gluteal, and calf endurance`,
-      `    â€¢ Correlates with functional mobility and fall risk (elderly)`,
-      `    â€¢ Useful for baseline assessment and rehabilitation progress`,
-      `    â€¢ Sensitive to training response in rehabilitation`,
+      `    • Measures quadriceps, gluteal, and calf endurance`,
+      `    • Correlates with functional mobility and fall risk (elderly)`,
+      `    • Useful for baseline assessment and rehabilitation progress`,
+      `    • Sensitive to training response in rehabilitation`,
       ``,
       `  References:`,
-      `    â€¢ Lower Limb Strength & Endurance Testing - ESSA guidelines`,
-      `    â€¢ Correlated with 30-Second Sit-to-Stand Test and SPPB`,
-      `    â€¢ Age-adjusted normative data available (NHANES, ESSA databases)`,
+      `    • Lower Limb Strength & Endurance Testing - ESSA guidelines`,
+      `    • Correlated with 30-Second Sit-to-Stand Test and SPPB`,
+      `    • Age-adjusted normative data available (NHANES, ESSA databases)`,
     ].filter(Boolean).join('\n');
 
     onSave({
@@ -265,7 +265,7 @@ export default function SquatTestDynamicRunner({ client, onSave, onClose }) {
                       <li>Clinician counts repetitions aloud (for patient awareness) or counts silently</li>
                       <li>Encourage patient: "Keep going, maintain quality"</li>
                       <li>Monitor for form breakdown; cue if needed ("Chest up", "Knees out")</li>
-                      <li>When timer reaches 0 seconds, say "Stop" â€” patient finishes current rep</li>
+                      <li>When timer reaches 0 seconds, say "Stop" — patient finishes current rep</li>
                       <li>Record final count and observe form quality during test</li>
                     </ol>
                   </div>
@@ -349,29 +349,29 @@ export default function SquatTestDynamicRunner({ client, onSave, onClose }) {
                   
                   <div className="space-y-2">
                     <div className="bg-green-50 border border-green-300 rounded p-3">
-                      <p className="font-semibold text-green-700 text-sm">Excellent: â‰¥40 Squats</p>
+                      <p className="font-semibold text-green-700 text-sm">Excellent: ≥40 Squats</p>
                       <p className="text-xs text-green-800">Exceptional lower limb strength and endurance; excellent functional capacity</p>
-                      <p className="text-xs text-green-600 mt-1">â€¢ Athlete-level performance; excellent for age/sex</p>
+                      <p className="text-xs text-green-600 mt-1">• Athlete-level performance; excellent for age/sex</p>
                     </div>
                     <div className="bg-blue-50 border border-blue-300 rounded p-3">
                       <p className="font-semibold text-blue-700 text-sm">Good: 30-39 Squats</p>
                       <p className="text-xs text-blue-800">Above-average lower limb strength; good functional mobility</p>
-                      <p className="text-xs text-blue-600 mt-1">â€¢ Suitable for independent ADLs and most recreational activities</p>
+                      <p className="text-xs text-blue-600 mt-1">• Suitable for independent ADLs and most recreational activities</p>
                     </div>
                     <div className="bg-amber-50 border border-amber-300 rounded p-3">
                       <p className="font-semibold text-amber-700 text-sm">Fair: 20-29 Squats</p>
                       <p className="text-xs text-amber-800">Average lower limb strength; adequate for basic functional activities</p>
-                      <p className="text-xs text-amber-600 mt-1">â€¢ May benefit from targeted lower limb strengthening program</p>
+                      <p className="text-xs text-amber-600 mt-1">• May benefit from targeted lower limb strengthening program</p>
                     </div>
                     <div className="bg-orange-50 border border-orange-300 rounded p-3">
                       <p className="font-semibold text-orange-700 text-sm">Poor: 10-19 Squats</p>
                       <p className="text-xs text-orange-800">Below-average lower limb strength; difficulty with stairs, rising from chairs</p>
-                      <p className="text-xs text-orange-600 mt-1">â€¢ Significant risk for functional decline; recommend strengthening intervention</p>
+                      <p className="text-xs text-orange-600 mt-1">• Significant risk for functional decline; recommend strengthening intervention</p>
                     </div>
                     <div className="bg-red-50 border border-red-300 rounded p-3">
                       <p className="font-semibold text-red-700 text-sm">Very Poor: &lt;10 Squats</p>
                       <p className="text-xs text-red-800">Severely limited lower limb strength; high fall risk (elderly)</p>
-                      <p className="text-xs text-red-600 mt-1">â€¢ Screen for underlying pathology; recommend medical evaluation</p>
+                      <p className="text-xs text-red-600 mt-1">• Screen for underlying pathology; recommend medical evaluation</p>
                     </div>
                   </div>
 

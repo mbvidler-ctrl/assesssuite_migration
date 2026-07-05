@@ -64,7 +64,7 @@ export default function LEFSRunner({ onSave, onClose }) {
       `Q${index + 1}. ${activity}: ${scores[index]}`
     ).join("\n");
 
-    const soapText = `â€¢ Lower Extremity Functional Scale (LEFS): ${total} score (0-80)\n  Side: ${side}\n  Total Score: ${total}\n  Interpretation: ${interpretation?.level}\n\n  Item Responses:\n${itemDetails}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`;
+    const soapText = `• Lower Extremity Functional Scale (LEFS): ${total} score (0-80)\n  Side: ${side}\n  Total Score: ${total}\n  Interpretation: ${interpretation?.level}\n\n  Item Responses:\n${itemDetails}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`;
 
     onSave({
       result_value: total,
@@ -99,19 +99,19 @@ export default function LEFSRunner({ onSave, onClose }) {
           <div className="space-y-6">
             {/* Reference */}
             <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
-              <p className="font-semibold">ðŸ“– Reference</p>
-              <p>Binkley JM, Stratford PW, Lott SA, & Riddle DL. (1999). The Lower Extremity Functional Scale (LEFS): Scale development, measurement properties, and clinical application. <em>Physical Therapy, 79</em>(4), 371â€“383.</p>
+              <p className="font-semibold">📖 Reference</p>
+              <p>Binkley JM, Stratford PW, Lott SA, & Riddle DL. (1999). The Lower Extremity Functional Scale (LEFS): Scale development, measurement properties, and clinical application. <em>Physical Therapy, 79</em>(4), 371–383.</p>
             </div>
 
             {/* Norms */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">ðŸ“Š Score Interpretation (/80)</p>
+              <p className="font-semibold text-slate-700">📊 Score Interpretation (/80)</p>
               <div className="overflow-x-auto">
                 <table className="w-full text-xs border border-slate-300 rounded">
                   <thead className="bg-slate-200"><tr><th className="p-2 text-left">Score</th><th className="p-2 text-left">Interpretation</th></tr></thead>
                   <tbody>
-                    <tr className="border-t"><td className="p-2">60â€“80</td><td className="p-2 text-green-700">Minimal functional limitation</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">40â€“59</td><td className="p-2 text-yellow-700">Moderate functional limitation</td></tr>
+                    <tr className="border-t"><td className="p-2">60–80</td><td className="p-2 text-green-700">Minimal functional limitation</td></tr>
+                    <tr className="border-t bg-white"><td className="p-2">40–59</td><td className="p-2 text-yellow-700">Moderate functional limitation</td></tr>
                     <tr className="border-t"><td className="p-2">&lt;40</td><td className="p-2 text-red-700">Severe functional limitation</td></tr>
                   </tbody>
                 </table>
