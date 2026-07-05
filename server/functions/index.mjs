@@ -36,6 +36,7 @@ import getMissingTestRunners from './getMissingTestRunners.mjs';
 import stripeWebhook from './stripeWebhook.mjs';
 import syncStripeSubscription from './syncStripeSubscription.mjs';
 import verifyTestAssessmentData from './verifyTestAssessmentData.mjs';
+import verifyReferences from './verifyReferences.mjs';
 import transcribeSession from './transcribeSession.mjs';
 
 const REGISTRY = {
@@ -54,6 +55,7 @@ const REGISTRY = {
   stripeWebhook,
   syncStripeSubscription,
   verifyTestAssessmentData,
+  verifyReferences,
   transcribeSession,
 };
 

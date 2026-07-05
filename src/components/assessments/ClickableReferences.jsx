@@ -1,7 +1,11 @@
 import React from "react";
-import { ExternalLink } from "lucide-react";
+import { ExternalLink, ShieldCheck, ShieldAlert } from "lucide-react";
 
-export default function ClickableReferences({ references }) {
+// `verified` is optional and backward-compatible:
+//   true  -> references were confirmed against academic databases (green badge)
+//   false -> references were NOT independently verified (amber caution)
+//   undefined -> no badge (unchanged behaviour for existing callers)
+export default function ClickableReferences({ references, verified }) {
   if (!references) return null;
 
   // Deduplicate references by trimming and comparing
@@ -191,6 +195,18 @@ export default function ClickableReferences({ references }) {
 
   return (
     <div className="text-slate-700 text-sm">
+      {verified === true && (
+        <div className="mb-2 inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-0.5">
+          <ShieldCheck className="w-3 h-3" />
+          Verified against academic databases
+        </div>
+      )}
+      {verified === false && (
+        <div className="mb-2 inline-flex items-center gap-1 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-0.5">
+          <ShieldAlert className="w-3 h-3" />
+          References not independently verified
+        </div>
+      )}
       {linkifyReferences(dedupedReferences)}
     </div>
   );

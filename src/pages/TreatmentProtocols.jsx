@@ -198,29 +198,45 @@ export default function TreatmentProtocols() {
     return matchesSearch && matchesCategory;
   });
 
+  // Verify references against free academic databases via the server-side
+  // verifyReferences function (OpenAlex/PubMed). This replaces the old
+  // existence-only DOI check, which passed the dominant fabrication mode of a
+  // real DOI attached to the wrong paper. Verified references are kept (with
+  // their canonical DOI); mismatched/unverifiable references are removed with a
+  // visible count. On service failure we NEVER assert "verified" — references
+  // are kept but marked unverified so nothing false is presented as confirmed.
   const validateReferences = async (references) => {
     if (!references || references.length === 0) return [];
-    
-    const verifiedRefs = [];
-    for (const ref of references) {
-      const doiMatch = ref.citation.match(/10\.\d{4,}\/[^\s]+/);
-      if (doiMatch) {
-        const doi = doiMatch[0].replace(/[.,;)]+$/, ''); // strip trailing punctuation
-        try {
-          const response = await fetch(`https://doi.org/api/handles/${doi}`);
-          const data = await response.json();
-          if (data && data.responseCode === 1) {
-            // DOI confirmed exists
-            verifiedRefs.push({ ...ref, verified: true, doi });
-          }
-          // else: DOI does not exist — silently drop it
-        } catch (error) {
-          // Network error — silently drop
-        }
-      }
-      // No DOI — silently drop
+    const citations = references.map((ref) => {
+      const text = ref.citation || '';
+      const doiMatch = text.match(/10\.\d{4,}\/[^\s"'<>]+/);
+      return { doi: doiMatch ? doiMatch[0].replace(/[.,;)]+$/, '') : undefined, title: text };
+    });
+    let results = null;
+    try {
+      const resp = await base44.functions.invoke('verifyReferences', { citations });
+      const payload = resp?.data ?? resp;
+      results = payload?.results || null;
+    } catch (e) {
+      results = null;
     }
-    return verifiedRefs;
+    if (!results) {
+      return references.map((ref) => ({ ...ref, verified: false, verification: 'unverifiable' }));
+    }
+    const kept = [];
+    let removed = 0;
+    references.forEach((ref, i) => {
+      const r = results[i];
+      if (r && r.verdict === 'verified') {
+        kept.push({ ...ref, verified: true, verification: 'verified', doi: r.canonical?.doi || ref.doi, canonical: r.canonical });
+      } else {
+        removed += 1;
+      }
+    });
+    if (removed > 0) {
+      toast.warning(`${removed} reference${removed > 1 ? 's' : ''} could not be verified against academic databases and ${removed > 1 ? 'were' : 'was'} removed.`);
+    }
+    return kept;
   };
 
   useEffect(() => {
