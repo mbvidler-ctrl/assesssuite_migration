@@ -42,6 +42,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { openDatabase, createEntityRepository } from './db.mjs';
 import { hashPassword } from './auth.mjs';
+import { buildDass21Payload } from '../src/lib/clinical/dass21.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
@@ -147,6 +148,17 @@ const CATALOGUE_ASSESSMENTS = [
     has_normatives: true,
     has_instructions: true,
     has_references: true,
+    // Lower time is better (functional mobility). Values are SYNTHETIC examples
+    // for demonstration only — real norms must be sourced and cleared in the
+    // clinical-claims audit register before production use.
+    normative_direction: 'lower_better',
+    normative_source: 'SYNTHETIC example data — not clinically verified (see docs/qa/20260705-clinical-claims-audit-register.md)',
+    normative_data: [
+      { age_min: 60, age_max: 69, gender: 'both', mean: 8.5, std_dev: 1.8, percentile_25: 7.2, percentile_75: 9.8 },
+      { age_min: 70, age_max: 79, gender: 'both', mean: 9.2, std_dev: 2.2, percentile_25: 7.6, percentile_75: 10.8,
+        clinical_inference: { above_p75: 'A slower time in this range may indicate elevated falls risk; further balance assessment may be warranted. (Illustrative curated example — clinician review required.)' } },
+      { age_min: 80, age_max: 99, gender: 'both', mean: 11.5, std_dev: 3.0, percentile_25: 9.0, percentile_75: 13.5 },
+    ],
   },
   {
     name: 'Six-Minute Walk Test',
@@ -165,6 +177,13 @@ const CATALOGUE_ASSESSMENTS = [
     has_normatives: true,
     has_instructions: true,
     has_references: true,
+    // Greater distance is better (functional exercise capacity). SYNTHETIC.
+    normative_direction: 'higher_better',
+    normative_source: 'SYNTHETIC example data — not clinically verified (see docs/qa/20260705-clinical-claims-audit-register.md)',
+    normative_data: [
+      { age_min: 40, age_max: 59, gender: 'both', mean: 560, std_dev: 90, percentile_25: 500, percentile_75: 620 },
+      { age_min: 60, age_max: 79, gender: 'both', mean: 480, std_dev: 100, percentile_25: 410, percentile_75: 550 },
+    ],
   },
   {
     name: 'DASS-21',
@@ -205,6 +224,14 @@ const CATALOGUE_ASSESSMENTS = [
     has_normatives: true,
     has_instructions: true,
     has_references: true,
+    // Higher repetition count is better (lower-limb strength). SYNTHETIC.
+    normative_direction: 'higher_better',
+    normative_source: 'SYNTHETIC example data — not clinically verified (see docs/qa/20260705-clinical-claims-audit-register.md)',
+    normative_data: [
+      { age_min: 60, age_max: 69, gender: 'both', mean: 14, std_dev: 3.5, percentile_25: 12, percentile_75: 17,
+        clinical_inference: { below_p25: 'A result below the 25th percentile may indicate reduced lower-limb strength; consider a targeted strengthening programme and clinical review. (Illustrative curated example — clinician review required.)' } },
+      { age_min: 70, age_max: 79, gender: 'both', mean: 12, std_dev: 3.0, percentile_25: 10, percentile_75: 15 },
+    ],
   },
 ];
 
@@ -543,6 +570,30 @@ export function runSeed({ db, entityNames }) {
         clinician.email,
       ),
     );
+    // A thorough DASS-21 completed assessment (totals + all 21 individual
+    // answers) so the completed view and SOAP objective can be exercised
+    // end to end. Built via the shared payload builder (single source).
+    const dassAssessment = assessmentCatalogue.find((a) => a.name === 'DASS-21');
+    if (dassAssessment) {
+      const dassRawScores = { 0: 2, 1: 1, 2: 3, 3: 0, 4: 2, 5: 1, 6: 0, 7: 2, 8: 1, 9: 3, 10: 2, 11: 2, 12: 3, 13: 1, 14: 0, 15: 2, 16: 2, 17: 1, 18: 0, 19: 1, 20: 3 };
+      const dassPayload = buildDass21Payload(dassRawScores, 'DASS-21 completed at intake (synthetic seed data)');
+      const dassCA = repoFor('ClientAssessment').create(
+        {
+          org_id: org.id,
+          client_id: client.id,
+          assessment_id: dassAssessment.id,
+          appointment_id: appointment.id,
+          status: 'completed',
+          result_value: dassPayload.result_value,
+          assessment_date: isoDate(seedYear, seedMonth, seedDay),
+          notes: dassPayload.notes,
+          additional_data: dassPayload.additional_data,
+          source: 'live',
+        },
+        clinician.email,
+      );
+      clientAssessments.push(dassCA);
+    }
     note(`  -> ${clientAssessments.length} ClientAssessment row(s)`);
 
     // --- SOAPNotes (1-2) ---

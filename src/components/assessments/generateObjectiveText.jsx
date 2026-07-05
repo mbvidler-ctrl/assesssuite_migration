@@ -8,6 +8,9 @@
  * 3. Generic formatting as last resort
  */
 
+import { deriveItems, buildItemBlockText, soapTextHasItemBlock } from "@/lib/clinical/assessmentResults";
+import { DASS21_QUESTIONS, DASS21_OPTIONS } from "@/lib/clinical/dass21";
+
 export function generateObjectiveText(assessment, assessmentData) {
   const rawDs = assessmentData.assessment_date || new Date().toISOString().split('T')[0];
   // Handle both date-only strings (YYYY-MM-DD) and full ISO strings
@@ -25,6 +28,17 @@ export function generateObjectiveText(assessment, assessmentData) {
   // ============================================================================
   if (data.soap_text) {
     objectiveText += data.soap_text.trim().split('\n').map(line => '  ' + line).join('\n') + '\n';
+    // If the pre-formatted soap_text is summary-only (no per-item block) but the
+    // record carries individual answers, surface them so the objective is
+    // thorough (totals AND individual answers). Deduplicated by marker/Q1 check.
+    if (!soapTextHasItemBlock(data.soap_text)) {
+      const questions = data.measurement_type === 'dass21' ? DASS21_QUESTIONS : null;
+      const options = data.measurement_type === 'dass21' ? DASS21_OPTIONS : null;
+      const items = deriveItems(data, { questions, options });
+      if (items.length > 0) {
+        objectiveText += buildItemBlockText(items).split('\n').map(line => '  ' + line).join('\n') + '\n';
+      }
+    }
   } else {
     // ============================================================================
     // PRIORITY 2: Fall back to measurement_type-specific formatting
@@ -68,6 +82,15 @@ export function generateObjectiveText(assessment, assessmentData) {
   // ============================================================================
   // Add global notes and barriers if not already included in soap_text
   // ============================================================================
+  // Normative interpretation (P-B): a data-driven statement precomputed at save
+  // time and stored on additional_data.interpretation. Surfaced here so it
+  // reaches the SOAP objective. Absent normative data -> nothing is added.
+  if (data.interpretation && typeof data.interpretation === 'string' && data.interpretation.trim()) {
+    if (!data.soap_text || !data.soap_text.includes(data.interpretation.trim())) {
+      objectiveText += `  Normative interpretation: ${data.interpretation.trim()}\n`;
+    }
+  }
+
   if (assessmentData.notes && assessmentData.notes.trim()) {
     if (!data.soap_text || !data.soap_text.includes(assessmentData.notes)) {
       objectiveText += `  Clinical Notes: ${assessmentData.notes}\n`;

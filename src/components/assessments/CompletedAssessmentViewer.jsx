@@ -18,6 +18,9 @@ import {
 } from "lucide-react";
 import { format, differenceInYears } from "date-fns";
 import AssessmentResultDisplay from "./AssessmentResultDisplay";
+import { deriveItems, hasBespokeItemRenderer } from "@/lib/clinical/assessmentResults";
+import { DASS21_QUESTIONS, DASS21_OPTIONS } from "@/lib/clinical/dass21";
+import { generateInterpretation } from "@/lib/clinical/generateInterpretation";
 
 export default function CompletedAssessmentViewer({ assessment, client, clientAssessment, onClose }) {
   const clientAge = differenceInYears(new Date(), new Date(client.date_of_birth));
@@ -35,42 +38,38 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
 
   const normativeData = getNormativeData();
 
+  // Direction-aware normative comparison via the shared clinical module, so the
+  // completed view and the SOAP objective agree, and a lower-is-better test
+  // (e.g. Timed Up and Go) never reads a slow time as "above average".
   const getNormativeComparison = (score, normData) => {
     if (!normData) return null;
-    const { mean, percentile_25, percentile_75 } = normData;
-    if (score >= percentile_75) {
-      return {
-        level: "Above Average (Top 25%)",
-        color: "text-green-600",
-        bgColor: "bg-green-100",
-        icon: TrendingUp,
-        description: `Score (${score}) is above the 75th percentile (${percentile_75}) for clients aged ${normData.age_min}-${normData.age_max} and gender ${normData.gender}.`
-      };
-    } else if (score >= mean) {
-      return {
-        level: "Average to Above Average",
-        color: "text-blue-600",
-        bgColor: "bg-blue-100",
-        icon: TrendingUp,
-        description: `Score (${score}) is above the mean (${mean}) for clients aged ${normData.age_min}-${normData.age_max} and gender ${normData.gender}.`
-      };
-    } else if (score >= percentile_25) {
-      return {
-        level: "Average",
-        color: "text-yellow-600",
-        bgColor: "bg-yellow-100",
-        icon: Minus,
-        description: `Score (${score}) is within the average range (between 25th percentile ${percentile_25} and 75th percentile ${percentile_75}) for clients aged ${normData.age_min}-${normData.age_max} and gender ${normData.gender}.`
-      };
-    } else {
-      return {
-        level: "Below Average (Bottom 25%)",
-        color: "text-red-600",
-        bgColor: "bg-red-100",
-        icon: TrendingDown,
-        description: `Score (${score}) is below the 25th percentile (${percentile_25}) for clients aged ${normData.age_min}-${normData.age_max} and gender ${normData.gender}.`
-      };
-    }
+    const interp = generateInterpretation({
+      resultValue: score,
+      norm: {
+        ...normData,
+        direction: assessment.normative_direction,
+        source: assessment.normative_source,
+        clinical_inference: normData.clinical_inference,
+      },
+      unit: assessment.unit_of_measure || "",
+      ageLabel: `${normData.age_min}-${normData.age_max}`,
+      genderLabel: normData.gender,
+      subjectName: (client.full_name || "The client").split(" ")[0],
+    });
+    if (!interp) return null;
+    const styleByEnum = {
+      above_average: { color: "text-green-600", bgColor: "bg-green-100", icon: TrendingUp },
+      average: { color: "text-yellow-600", bgColor: "bg-yellow-100", icon: Minus },
+      below_average: { color: "text-red-600", bgColor: "bg-red-100", icon: TrendingDown },
+    };
+    const s = styleByEnum[interp.normativeEnum] || styleByEnum.average;
+    return {
+      level: interp.performanceLevel,
+      color: s.color,
+      bgColor: s.bgColor,
+      icon: s.icon,
+      description: interp.comparisonText,
+    };
   };
 
   const normativeComparison = clientAssessment.result_value !== null && clientAssessment.result_value !== undefined
@@ -740,6 +739,94 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                       </p>
                     </div>
                   )}
+
+                  {/* Full item-level results (P-A): totals AND every individual answer,
+                      shown for any family whose data carries per-item detail and that
+                      does not already have a bespoke full-item table above. */}
+                  {(() => {
+                    const ad = clientAssessment.additional_data || {};
+                    if (isDASS21) {
+                      const subs = [
+                        { name: "Depression", score: ad.depression_score, level: ad.depression_interpretation },
+                        { name: "Anxiety", score: ad.anxiety_score, level: ad.anxiety_interpretation },
+                        { name: "Stress", score: ad.stress_score, level: ad.stress_interpretation },
+                      ];
+                      const items = deriveItems(ad, { questions: DASS21_QUESTIONS, options: DASS21_OPTIONS });
+                      return (
+                        <div className="mt-4">
+                          <h4 className="font-medium text-slate-900 mb-2">DASS-21 Subscale Scores</h4>
+                          <div className="grid grid-cols-3 gap-3 text-center mb-2">
+                            {subs.map((s) => (
+                              <div key={s.name} className="rounded-lg border border-slate-200 p-3 bg-slate-50">
+                                <p className="text-xs font-medium mb-1">{s.name}</p>
+                                <p className="text-2xl font-bold">{s.score}/42</p>
+                                <p className="text-xs text-slate-600">{s.level}</p>
+                              </div>
+                            ))}
+                          </div>
+                          <p className="text-xs text-slate-500 mb-3">Severity bands: Lovibond &amp; Lovibond (1995), DASS Manual (2nd ed.).</p>
+                          {items.length > 0 && (
+                            <div>
+                              <h4 className="font-medium text-slate-900 mb-2">All Item Responses ({items.length})</h4>
+                              <div className="overflow-x-auto">
+                                <table className="min-w-full text-sm border border-slate-200">
+                                  <thead className="bg-slate-50">
+                                    <tr>
+                                      <th className="px-2 py-1 text-left font-medium text-slate-500">#</th>
+                                      <th className="px-2 py-1 text-left font-medium text-slate-500">Item</th>
+                                      <th className="px-2 py-1 text-left font-medium text-slate-500">Score</th>
+                                      <th className="px-2 py-1 text-left font-medium text-slate-500">Response</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {items.map((it) => (
+                                      <tr key={it.number} className="border-t border-slate-100">
+                                        <td className="px-2 py-1 align-top">{it.number}</td>
+                                        <td className="px-2 py-1 align-top">{it.question_text}{it.category ? ` [${it.category}]` : ""}</td>
+                                        <td className="px-2 py-1 align-top font-medium">{it.value}</td>
+                                        <td className="px-2 py-1 align-top text-slate-600">{it.response_label}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    }
+                    if (!isISI && !hasBespokeItemRenderer(ad.measurement_type)) {
+                      const items = deriveItems(ad, {});
+                      if (items.length > 0) {
+                        return (
+                          <div className="mt-4">
+                            <h4 className="font-medium text-slate-900 mb-2">All Recorded Responses ({items.length})</h4>
+                            <div className="overflow-x-auto">
+                              <table className="min-w-full text-sm border border-slate-200">
+                                <thead className="bg-slate-50">
+                                  <tr>
+                                    <th className="px-2 py-1 text-left font-medium text-slate-500">#</th>
+                                    <th className="px-2 py-1 text-left font-medium text-slate-500">Item</th>
+                                    <th className="px-2 py-1 text-left font-medium text-slate-500">Value</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {items.map((it) => (
+                                    <tr key={it.number} className="border-t border-slate-100">
+                                      <td className="px-2 py-1 align-top">{it.number}</td>
+                                      <td className="px-2 py-1 align-top">{it.question_text || `Item ${it.number}`}</td>
+                                      <td className="px-2 py-1 align-top font-medium">{it.value}{it.response_label ? ` — ${it.response_label}` : ""}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </div>
+                        );
+                      }
+                    }
+                    return null;
+                  })()}
                 </div>
 
                 <div>

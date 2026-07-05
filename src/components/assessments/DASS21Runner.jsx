@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
+import { buildDass21Payload } from "@/lib/clinical/dass21";
 
 const DASS21_QUESTIONS = [
   { category: "S", text: "I found it hard to wind down" },
@@ -103,23 +104,10 @@ export default function DASS21Runner({ client, onSave, onClose }) {
       return;
     }
 
-    onSave({
-      status: 'completed',
-      result_value: (depression || 0) + (anxiety || 0) + (stress || 0),
-      additional_data: {
-        soap_text: `• DASS-21\n  Depression: ${depression}/42 — ${depressionInterpretation.level}\n  Anxiety: ${anxiety}/42 — ${anxietyInterpretation.level}\n  Stress: ${stress}/42 — ${stressInterpretation.level}`,
-        depression_score: depression,
-        anxiety_score: anxiety,
-        stress_score: stress,
-        depression_interpretation: depressionInterpretation.level,
-        anxiety_interpretation: anxietyInterpretation.level,
-        stress_interpretation: stressInterpretation.level,
-        raw_scores: scores,
-        measurement_type: 'dass21'
-      },
-      notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
-    });
+    // Shared builder: summary (totals + subscale severity) followed by every
+    // individual item answer, plus a structured items[] array — so the SOAP
+    // objective and the completed view both show totals AND individual answers.
+    onSave(buildDass21Payload(scores, notes));
   };
 
   return (

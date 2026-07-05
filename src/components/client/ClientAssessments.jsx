@@ -18,8 +18,9 @@ import {
 import AssessmentLibraryModal from '../assessments/AssessmentLibraryModal';
 import AssessmentTestRunnerRouter from '../assessments/AssessmentTestRunnerRouter';
 import CompletedAssessmentViewer from '../assessments/CompletedAssessmentViewer';
-import { format } from 'date-fns';
+import { format, differenceInYears } from 'date-fns';
 import { toast } from 'sonner';
+import { generateInterpretation, selectNorm } from '@/lib/clinical/generateInterpretation';
 
 export default function ClientAssessments({ client, clientAssessments, allAssessments, onAssessmentUpdate }) {
   const parseDate = (dateString) => {
@@ -95,13 +96,57 @@ export default function ClientAssessments({ client, clientAssessments, allAssess
 
   const handleAssessmentSave = async (clientAssessmentId, resultData) => {
     try {
-      await base44.entities.ClientAssessment.update(clientAssessmentId, {
+      const update = {
         status: resultData.status || "completed",
         result_value: resultData.result_value,
         assessment_date: resultData.assessment_date || new Date().toISOString().split("T")[0],
         notes: resultData.notes,
         additional_data: resultData.additional_data,
-      });
+      };
+      // Forward top-level clinical fields that runners may set. These were
+      // previously dropped here, silently discarding normative comparisons and
+      // barriers computed by the runner. Only set when the runner provided them.
+      if (resultData.barriers !== undefined) update.barriers = resultData.barriers;
+      if (resultData.normative_comparison !== undefined) update.normative_comparison = resultData.normative_comparison;
+      if (resultData.percentile !== undefined) update.percentile = resultData.percentile;
+      if (resultData.is_flagged !== undefined) update.is_flagged = resultData.is_flagged;
+
+      // P-B: compute a data-driven normative interpretation at save time when the
+      // catalogue assessment carries normative_data and the runner did not
+      // already supply one. Best-effort; never blocks the save; degrades
+      // silently when normative data or client age/gender are absent.
+      try {
+        const cat = runningTest?.assessment;
+        const norms = cat?.normative_data;
+        const rv = update.result_value;
+        if (Array.isArray(norms) && norms.length > 0 && typeof rv === 'number' && !Number.isNaN(rv)
+            && client?.date_of_birth && update.normative_comparison === undefined) {
+          const age = differenceInYears(new Date(), new Date(client.date_of_birth));
+          const norm = selectNorm(norms, age, client.gender);
+          if (norm) {
+            const interp = generateInterpretation({
+              resultValue: rv,
+              norm: { ...norm, direction: cat.normative_direction, source: cat.normative_source, clinical_inference: norm.clinical_inference },
+              unit: cat.unit_of_measure || '',
+              ageLabel: `${norm.age_min}-${norm.age_max}`,
+              genderLabel: norm.gender,
+              subjectName: (client.full_name || 'The client').split(' ')[0],
+            });
+            if (interp) {
+              update.normative_comparison = interp.normativeEnum;
+              update.additional_data = {
+                ...(update.additional_data || {}),
+                interpretation: interp.comparisonText,
+                normative: { applied: true, band: interp.band, source: interp.source, z: interp.zScore },
+              };
+            }
+          }
+        }
+      } catch (e) {
+        // normative interpretation is best-effort; never block a save on it
+      }
+
+      await base44.entities.ClientAssessment.update(clientAssessmentId, update);
       toast.success("Assessment saved successfully.");
       onAssessmentUpdate();
     } catch (error) {
