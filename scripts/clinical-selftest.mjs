@@ -77,16 +77,24 @@ ok('lower_better: direction clause says lower is better', lower.comparisonText.i
 const curated = generateInterpretation({
   resultValue: 18, unit: 's',
   norm: { mean: 9, std_dev: 3, percentile_25: 7, percentile_75: 11, direction: 'lower_better',
-    clinical_inference: { above_p75: 'This may indicate elevated falls risk; further balance assessment may be warranted.' } },
+    clinical_inference: { below_average: 'This may indicate elevated falls risk; further balance assessment may be warranted.' } },
 });
-ok('curated inference emitted when band matches', curated.comparisonText.includes('elevated falls risk'));
+ok('curated inference emitted when performance level matches', curated.comparisonText.includes('elevated falls risk'));
 ok('curated flagged', curated.hasCuratedInference === true);
 const noCurated = generateInterpretation({
   resultValue: 8, unit: 's',
   norm: { mean: 9, std_dev: 3, percentile_25: 7, percentile_75: 11, direction: 'lower_better',
-    clinical_inference: { above_p75: 'x' } },
+    clinical_inference: { below_average: 'x' } },
 });
-ok('no curated inference when band does not match', noCurated.hasCuratedInference === false);
+ok('no curated inference when performance level does not match', noCurated.hasCuratedInference === false);
+
+// ---- generateInterpretation: a zero score must not render "Infinity times" ----
+const zeroScore = generateInterpretation({ resultValue: 0, unit: 'reps', norm: { mean: 15, std_dev: 3, percentile_25: 12, percentile_75: 17, direction: 'higher_better' } });
+ok('zero score -> no Infinity in text', zeroScore && !/Infinity/.test(zeroScore.comparisonText), zeroScore && zeroScore.comparisonText);
+ok('zero score -> "well below" phrasing', zeroScore && zeroScore.comparisonText.includes('well below'));
+// curated inference now agrees in direction with the performance label (safety):
+const dirSafe = generateInterpretation({ resultValue: 18, unit: 's', norm: { mean: 9, std_dev: 3, percentile_25: 7, percentile_75: 11, direction: 'lower_better', clinical_inference: { below_average: 'reduced performance clause' } } });
+ok('curated clause fires under below_average for a poor lower_better result', dirSafe.normativeEnum === 'below_average' && dirSafe.comparisonText.includes('reduced performance clause'));
 
 // ---- generateInterpretation: degrade silently ----
 ok('null norm -> null', generateInterpretation({ resultValue: 5, norm: null }) === null);

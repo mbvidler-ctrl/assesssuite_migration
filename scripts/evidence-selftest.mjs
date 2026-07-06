@@ -10,7 +10,8 @@ const skipIfNet = (n, r) => { if (r.networkError) { skip++; console.log(`[SKIP] 
 // ---- pure logic (no network) ----
 ok('titleSimilarity identical = 1', Math.abs(titleSimilarity('Timed Up and Go test reliability', 'Timed Up and Go test reliability') - 1) < 0.01);
 ok('titleSimilarity unrelated low', titleSimilarity('body fat skinfold equation', 'timed up and go falls risk') < 0.3);
-ok('titleSimilarity containment matches', titleSimilarity('McMurray test', 'The McMurray test for meniscus tears: a systematic review') >= 0.6);
+ok('titleSimilarity containment matches (>=3 tokens)', titleSimilarity('McMurray meniscus test', 'The McMurray test for meniscus tears: a systematic review') >= 0.6);
+ok('titleSimilarity 2-token fragment does NOT over-credit', titleSimilarity('heart disease', 'A large systematic review of cardiac rehabilitation exercise in coronary heart disease patients') < 0.6);
 
 // A DOI OpenAlex definitely holds: Podsiadlo & Richardson (1991), the TUG paper.
 const TUG_DOI = '10.1111/j.1532-5415.1991.tb01616.x';

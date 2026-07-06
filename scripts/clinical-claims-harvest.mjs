@@ -34,8 +34,10 @@ for (const f of files) {
   const counts = {};
   for (const [k, re] of Object.entries(PATTERNS)) {
     const m = text.match(re) || [];
-    counts[k] = m.length;
-    totals[k] += m.length;
+    // DOIs are counted by unique value per file so the total agrees with the
+    // deduplicated inventory below; other markers count raw occurrences.
+    counts[k] = k === 'doi' ? new Set(m.map((d) => d.replace(/[.,;)\]]+$/, '').toLowerCase())).size : m.length;
+    totals[k] += counts[k];
   }
   // Collect unique DOIs with a line reference.
   const doiSet = new Set();

@@ -96,14 +96,17 @@ export function generateInterpretation({
   if (ageLabel) cohortBits.push(`aged ${ageLabel}`);
   const cohort = cohortBits.length ? ` for ${cohortBits.join(" ")}` : "";
 
-  // Numeric comparison to the mean (always true regardless of direction).
+  // Numeric comparison to the mean (always true regardless of direction). The
+  // "N times" ratio is only meaningful for positive values; a zero score (or a
+  // zero mean) falls back to a plain "well above/below" phrasing rather than
+  // rendering "Infinity times".
   let relation;
   if (resultValue > norm.mean) {
-    const factor = (resultValue / norm.mean).toFixed(1);
-    relation = `${factor} times higher than`;
+    const ratio = norm.mean > 0 ? resultValue / norm.mean : Infinity;
+    relation = Number.isFinite(ratio) ? `${ratio.toFixed(1)} times higher than` : "well above";
   } else if (resultValue < norm.mean) {
-    const factor = (norm.mean / resultValue).toFixed(1);
-    relation = `${factor} times lower than`;
+    const ratio = resultValue > 0 ? norm.mean / resultValue : Infinity;
+    relation = Number.isFinite(ratio) ? `${ratio.toFixed(1)} times lower than` : "well below";
   } else {
     relation = "at";
   }
@@ -130,12 +133,18 @@ export function generateInterpretation({
     directionClause = ` For this measure, ${dirWord} scores indicate better performance; this result is ${perf.label.toLowerCase()}.`;
   }
 
-  // Curated clinical inference ONLY (never generated). Keyed by band; a
-  // '*' key may hold a default curated clause for the assessment.
+  // Curated clinical inference ONLY (never generated). Keyed by the
+  // DIRECTION-AWARE performance level (above_average | average | below_average),
+  // NOT the raw statistical band — so a curated clause always agrees in
+  // direction with the performance label shown in the same sentence, and a
+  // clinician curates by "poor/typical/good performance" rather than by a
+  // raw percentile band that flips meaning between higher- and lower-is-better
+  // tests. A '*' key may hold a default clause. (`band` below is retained as
+  // informational metadata only and does not drive any clinical statement.)
   const band = computeBand(resultValue, norm);
   let inferenceClause = "";
   if (norm.clinical_inference && typeof norm.clinical_inference === "object") {
-    const curated = norm.clinical_inference[band] || norm.clinical_inference["*"];
+    const curated = norm.clinical_inference[perf.enum] || norm.clinical_inference["*"];
     if (typeof curated === "string" && curated.trim()) {
       inferenceClause = ` ${curated.trim()}`;
     }

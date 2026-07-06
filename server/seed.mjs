@@ -156,7 +156,7 @@ const CATALOGUE_ASSESSMENTS = [
     normative_data: [
       { age_min: 60, age_max: 69, gender: 'both', mean: 8.5, std_dev: 1.8, percentile_25: 7.2, percentile_75: 9.8 },
       { age_min: 70, age_max: 79, gender: 'both', mean: 9.2, std_dev: 2.2, percentile_25: 7.6, percentile_75: 10.8,
-        clinical_inference: { above_p75: 'A slower time in this range may indicate elevated falls risk; further balance assessment may be warranted. (Illustrative curated example — clinician review required.)' } },
+        clinical_inference: { below_average: 'A slower time in this range may indicate elevated falls risk; further balance assessment may be warranted. (Illustrative curated example — clinician review required.)' } },
       { age_min: 80, age_max: 99, gender: 'both', mean: 11.5, std_dev: 3.0, percentile_25: 9.0, percentile_75: 13.5 },
     ],
   },
@@ -229,7 +229,7 @@ const CATALOGUE_ASSESSMENTS = [
     normative_source: 'SYNTHETIC example data — not clinically verified (see docs/qa/20260705-clinical-claims-audit-register.md)',
     normative_data: [
       { age_min: 60, age_max: 69, gender: 'both', mean: 14, std_dev: 3.5, percentile_25: 12, percentile_75: 17,
-        clinical_inference: { below_p25: 'A result below the 25th percentile may indicate reduced lower-limb strength; consider a targeted strengthening programme and clinical review. (Illustrative curated example — clinician review required.)' } },
+        clinical_inference: { below_average: 'A result below the 25th percentile may indicate reduced lower-limb strength; consider a targeted strengthening programme and clinical review. (Illustrative curated example — clinician review required.)' } },
       { age_min: 70, age_max: 79, gender: 'both', mean: 12, std_dev: 3.0, percentile_25: 10, percentile_75: 15 },
     ],
   },

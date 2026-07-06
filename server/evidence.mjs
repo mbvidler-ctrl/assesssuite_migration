@@ -43,7 +43,12 @@ export function titleSimilarity(a, b) {
   for (const t of A) if (B.has(t)) inter += 1;
   const union = A.size + B.size - inter;
   const jaccard = inter / union;
-  const containment = inter / Math.min(A.size, B.size);
+  // The containment boost lets a short cited title that is a genuine subset of
+  // the canonical title match — but only when there are at least 3 significant
+  // shared tokens, so a 1-2 word generic fragment ("heart disease") cannot alone
+  // yield a "verified" verdict.
+  const minSize = Math.min(A.size, B.size);
+  const containment = minSize >= 3 ? inter / minSize : 0;
   return Math.max(jaccard, containment * 0.95);
 }
 function extractDoi(s) {

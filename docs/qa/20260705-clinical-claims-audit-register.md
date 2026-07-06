@@ -52,7 +52,7 @@ Verdicts: `verified` (checked correct against cited source), `defect` (confirmed
 
 ## Enumeration status
 
-- **Category-2 harvest RUN** (`scripts/clinical-claims-harvest.mjs` → `20260706-clinical-claims-harvest.md`): 307 runners scanned, 185 carry clinical-claim markers, 19 hard DOI literals inventoried (with file+line) for Tranche-3 verification, plus 46 named normative tables, 466 severity/cutoff markers, 211 MET/VO2/body-composition formula markers, 215 diagnostic-stat markers. Re-runnable to refresh. The rows above remain the hand-triaged highest-risk instances; the annex is the full worklist.
+- **Category-2 harvest RUN** (`scripts/clinical-claims-harvest.mjs` → `20260706-clinical-claims-harvest.md`): 307 runners scanned, 185 carry clinical-claim markers, 17 hard DOI literals inventoried (with file+line) for Tranche-3 verification, plus 46 named normative tables, 466 severity/cutoff markers, 211 MET/VO2/body-composition formula markers, 215 diagnostic-stat markers. Re-runnable to refresh. The rows above remain the hand-triaged highest-risk instances; the annex is the full worklist.
 - Category-1 clinical claims cannot be audited from generated output in the shim (the LLM integration is mocked). They are governed by design controls (citation-request, the verification service, clinician sign-off), not by output inspection.
 - The citation-verification service (PubMed E-utilities / OpenAlex / Crossref, all zero-cost) is designed in the sprint mission order (Annex A, Priority 4) and is the tooling backbone for Tranche 3.
 
@@ -83,3 +83,12 @@ Serves the client's request to enrich onboarding for conditions and medications 
 - `CL-TX-PROTOCOL-REFS` (generation) — retrieval-grounded generation: `searchEvidence` fetches real references, the model is told to cite only from them, and the displayed references are the retrieved real works (real by construction), then re-verified. Fabricated citations can no longer be introduced at generation.
 - Onboarding enrichment extended to the client-facing multi-row `MedicalHistory` form (per-row ICD-10-CM suggestions; degrades silently).
 - Category-2 harvest run — full constant/DOI inventory annexed at `20260706-clinical-claims-harvest.md`.
+
+## Post-verification hardening (6 July 2026)
+
+A multi-agent testing team independently verified the builds (suites/build, clinical-safety, privacy egress, live adversarial probing, register accuracy). Overall verdict: pass-with-concerns — build clean, all suites green, five clinical-safety properties held, no data leak, no false "verified". The findings it raised were then fixed:
+
+- **Zero-score guard** — a legitimate zero result (e.g. 0 reps) previously rendered "Infinity times lower than the reference mean"; now phrased "well below". (`generateInterpretation.js`)
+- **Direction-safe curated inference** — the curated `clinical_inference` clause is now keyed on the direction-aware performance level (`above_average`/`average`/`below_average`) rather than a raw statistical band, so a curated clause can never contradict the performance label in the same sentence, and a clinician curates by poor/typical/good performance regardless of test direction. Seed curations re-keyed accordingly. (`generateInterpretation.js`, `seed.mjs`)
+- **Title-match containment gate** — the citation matcher's containment boost now requires ≥3 shared significant tokens, so a 1–2 word generic fragment cannot alone yield "verified" (the real-DOI-wrong-paper defence was never breached). (`evidence.mjs`)
+- **DOI count corrected** — the harvest over-counted in-file duplicate DOI matches (19 raw vs 17 unique); the total now counts unique DOIs (17), matching the inventory.
