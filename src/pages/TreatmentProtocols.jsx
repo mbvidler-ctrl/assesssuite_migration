@@ -262,11 +262,26 @@ export default function TreatmentProtocols() {
       } else {
         // Generate protocol using AI
         toast.info("Generating protocol from latest research...", { duration: 2000 });
-        
+
+        // Retrieval-grounded generation: fetch REAL references up front so the
+        // protocol is grounded and its citations are real by construction, not
+        // invented by the model.
+        let retrievedRefs = [];
+        try {
+          const ev = await base44.functions.invoke('searchEvidence', { query: condition.name, limit: 6 });
+          const evp = ev?.data ?? ev;
+          retrievedRefs = Array.isArray(evp?.results) ? evp.results : [];
+        } catch (e) {
+          retrievedRefs = [];
+        }
+        const groundingBlock = retrievedRefs
+          .map((r, i) => `[${i + 1}] ${(r.authors || []).slice(0, 3).join(', ')}${r.year ? ` (${r.year})` : ''}. ${r.title}. https://doi.org/${r.doi}`)
+          .join('\n');
+
         let result;
         try {
           result = await base44.integrations.Core.InvokeLLM({
-            prompt: `Create a comprehensive, evidence-based exercise rehabilitation protocol for: ${condition.name}
+            prompt: (groundingBlock ? `VERIFIED REFERENCES you may cite (do NOT invent, guess, or add any others):\n${groundingBlock}\n\n` : '') + `Create a comprehensive, evidence-based exercise rehabilitation protocol for: ${condition.name}
 
 You are a senior exercise physiologist creating a detailed treatment protocol. Include:
 
@@ -601,11 +616,20 @@ Be specific, evidence-based, and practical for clinical use.`,
           });
         }
 
-        // Validate references before displaying
+        // Ground the citations: replace any model-produced references with the
+        // real retrieved works (verified by construction). validateReferences
+        // then runs as a safety net (it also confirms each retrieved ref).
+        if (retrievedRefs.length > 0) {
+          result.references = retrievedRefs.map((r) => ({
+            citation: `${(r.authors || []).slice(0, 3).join(', ')}${r.year ? ` (${r.year})` : ''}. ${r.title}. https://doi.org/${r.doi}`,
+            key_finding: '',
+            study_type: 'retrieved',
+          }));
+        }
         if (result.references) {
           result.references = await validateReferences(result.references);
         }
-        
+
         setProtocolData(result);
       }
     } catch (error) {

@@ -37,6 +37,7 @@ import stripeWebhook from './stripeWebhook.mjs';
 import syncStripeSubscription from './syncStripeSubscription.mjs';
 import verifyTestAssessmentData from './verifyTestAssessmentData.mjs';
 import verifyReferences from './verifyReferences.mjs';
+import searchEvidence from './searchEvidence.mjs';
 import medicalLookup from './medicalLookup.mjs';
 import transcribeSession from './transcribeSession.mjs';
 
@@ -57,6 +58,7 @@ const REGISTRY = {
   syncStripeSubscription,
   verifyTestAssessmentData,
   verifyReferences,
+  searchEvidence,
   medicalLookup,
   transcribeSession,
 };

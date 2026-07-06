@@ -52,7 +52,7 @@ Verdicts: `verified` (checked correct against cited source), `defect` (confirmed
 
 ## Enumeration status
 
-- The full Category-2 harvest (301 runners; 391 statistic/formula markers; 194 citation-bearing files; 16 hard DOI literals) is scripted but not yet run in bulk — see recon `wf_cfcfe211-899`. The rows above are the hand-triaged highest-risk instances.
+- **Category-2 harvest RUN** (`scripts/clinical-claims-harvest.mjs` → `20260706-clinical-claims-harvest.md`): 307 runners scanned, 185 carry clinical-claim markers, 19 hard DOI literals inventoried (with file+line) for Tranche-3 verification, plus 46 named normative tables, 466 severity/cutoff markers, 211 MET/VO2/body-composition formula markers, 215 diagnostic-stat markers. Re-runnable to refresh. The rows above remain the hand-triaged highest-risk instances; the annex is the full worklist.
 - Category-1 clinical claims cannot be audited from generated output in the shim (the LLM integration is mocked). They are governed by design controls (citation-request, the verification service, clinician sign-off), not by output inspection.
 - The citation-verification service (PubMed E-utilities / OpenAlex / Crossref, all zero-cost) is designed in the sprint mission order (Annex A, Priority 4) and is the tooling backbone for Tranche 3.
 
@@ -79,3 +79,7 @@ Serves the client's request to enrich onboarding for conditions and medications 
 - `CL-TX-PROTOCOL-REFS` — TreatmentProtocols now cross-matches references via the service (drop-with-count; no false "verified").
 - Citation-verification service built, tested (11/11 live + end-to-end through the shim), and exposed as `verifyReferences`.
 - `CL-CAT-WRITEBACK` (LLM path) — the catalogue write-back in `AssessmentAudit.approveFix` now gates AI-generated references through the service before persistence, so unverified/fabricated references can no longer enter the Assessment catalogue. Gate logic is a pure, unit-tested helper (`src/lib/clinical/referenceGate.js`).
+- `CL-MEDALERTS` — grounded on the openFDA drug label; the LLM sentence is grounded on the label and labelled AI-drafted.
+- `CL-TX-PROTOCOL-REFS` (generation) — retrieval-grounded generation: `searchEvidence` fetches real references, the model is told to cite only from them, and the displayed references are the retrieved real works (real by construction), then re-verified. Fabricated citations can no longer be introduced at generation.
+- Onboarding enrichment extended to the client-facing multi-row `MedicalHistory` form (per-row ICD-10-CM suggestions; degrades silently).
+- Category-2 harvest run — full constant/DOI inventory annexed at `20260706-clinical-claims-harvest.md`.

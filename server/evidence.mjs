@@ -27,8 +27,12 @@ function normaliseTitle(s) {
     .replace(/\s+/g, ' ')
     .trim();
 }
+// Keep short-but-meaningful clinical tokens (e.g. "up", "go", "6mwt") so short
+// titles still match; only drop trivial stopwords. This makes title matching
+// robust to "&" vs "and" and to punctuation differences.
+const STOPWORDS = new Set(['the', 'and', 'for', 'with', 'from', 'a', 'an', 'of', 'to', 'in', 'on', 'at', 'by']);
 function tokenSet(s) {
-  return new Set(normaliseTitle(s).split(' ').filter((t) => t.length > 2));
+  return new Set(normaliseTitle(s).split(' ').filter((t) => t.length > 1 && !STOPWORDS.has(t)));
 }
 // Jaccard over significant tokens, with a containment boost (a short cited
 // title fully contained in the canonical title still matches).
@@ -106,14 +110,14 @@ async function openAlexByDoi(doi) {
   return { networkError: false, work: normaliseOpenAlexWork(w) };
 }
 async function openAlexByTitle(title) {
-  const url = `https://api.openalex.org/works?filter=title.search:${encodeURIComponent(title)}&per-page=3&mailto=${encodeURIComponent(MAILTO)}`;
+  const url = `https://api.openalex.org/works?filter=title.search:${encodeURIComponent(title)}&per-page=8&mailto=${encodeURIComponent(MAILTO)}`;
   const res = await throttled(() => getJson(url));
   if (!res.ok) return { networkError: !res.status, works: [] };
   const works = res.json && Array.isArray(res.json.results) ? res.json.results.map(normaliseOpenAlexWork).filter(Boolean) : [];
   return { networkError: false, works };
 }
 async function pubmedByTitle(title) {
-  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(title)}%5BTitle%5D&retmax=3&retmode=json`;
+  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(title)}%5BTitle%5D&retmax=6&retmode=json`;
   const s = await throttled(() => getJson(searchUrl), 12000);
   if (!s.ok) return { networkError: !s.status, works: [] };
   const ids = (s.json && s.json.esearchresult && s.json.esearchresult.idlist) || [];
@@ -223,6 +227,32 @@ export async function verifyCitation(input, { useCache = true } = {}) {
   out.input = { doi: norm.doi || null, title: norm.title || null };
   if (useCache) _cache.set(key, out);
   return out;
+}
+
+// Retrieve real, citable evidence for a clinical topic so generation can be
+// GROUNDED — the model is given a fixed list of genuine references and told to
+// cite only from it, instead of inventing DOIs. Prefers review/guideline
+// literature, most-cited first. Returns real works only (never fabricated).
+export async function searchEvidence(query, { limit = 5, reviewsOnly = true } = {}) {
+  const q = String(query || '').trim();
+  if (!q) return { query: q, results: [], networkError: false };
+  const filters = [`title.search:${q}`];
+  if (reviewsOnly) filters.push('type:review');
+  const url =
+    `https://api.openalex.org/works?filter=${encodeURIComponent(filters.join(','))}` +
+    `&per-page=${limit}&sort=cited_by_count:desc&mailto=${encodeURIComponent(MAILTO)}`;
+  let res = await throttled(() => getJson(url));
+  // Fall back to non-review search if the review filter is too narrow.
+  if (res.ok && (!res.json || !Array.isArray(res.json.results) || res.json.results.length === 0) && reviewsOnly) {
+    const url2 = `https://api.openalex.org/works?filter=${encodeURIComponent(`title.search:${q}`)}&per-page=${limit}&sort=cited_by_count:desc&mailto=${encodeURIComponent(MAILTO)}`;
+    res = await throttled(() => getJson(url2));
+  }
+  if (!res.ok) return { query: q, results: [], networkError: !res.status };
+  const results = (res.json && Array.isArray(res.json.results) ? res.json.results : [])
+    .map(normaliseOpenAlexWork)
+    .filter((w) => w && w.title && w.doi)
+    .map((w) => ({ title: w.title, authors: w.authors.slice(0, 4), year: w.year, doi: w.doi, source: 'openalex' }));
+  return { query: q, results, networkError: false };
 }
 
 export async function verifyCitations(citations, opts) {

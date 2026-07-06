@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -44,10 +45,40 @@ export default function MedicalHistory({ data, onNext, onBack, canGoBack, onSave
     onNext({ medical_conditions: filledConditions });
   };
 
+  // Per-row ICD-10-CM code suggestions (decision-support; degrades silently,
+  // including when unauthenticated on a client-facing onboarding form).
+  const [icdByIndex, setIcdByIndex] = useState({});
+  const [selectedByIndex, setSelectedByIndex] = useState({});
+  const debounceRefs = useRef({});
+
+  const runIcdLookup = (index, term) => {
+    if (debounceRefs.current[index]) clearTimeout(debounceRefs.current[index]);
+    const t = (term || '').trim();
+    if (t.length < 3) { setIcdByIndex(prev => ({ ...prev, [index]: [] })); return; }
+    debounceRefs.current[index] = setTimeout(async () => {
+      try {
+        const resp = await base44.functions.invoke('medicalLookup', { conditions: [t] });
+        const payload = resp?.data ?? resp;
+        setIcdByIndex(prev => ({ ...prev, [index]: (payload?.conditions?.[0]?.matches || []).slice(0, 5) }));
+      } catch (e) {
+        setIcdByIndex(prev => ({ ...prev, [index]: [] }));
+      }
+    }, 500);
+  };
+
+  const selectIcd = (index, m) => {
+    const newConditions = [...conditions];
+    newConditions[index] = { ...newConditions[index], condition_name: m.name, icd10_code: m.code, icd10_name: m.name };
+    setConditions(newConditions);
+    setSelectedByIndex(prev => ({ ...prev, [index]: m }));
+    setIcdByIndex(prev => ({ ...prev, [index]: [] }));
+  };
+
   const handleConditionChange = (index, field, value) => {
     const newConditions = [...conditions];
     newConditions[index][field] = value;
     setConditions(newConditions);
+    if (field === 'condition_name') runIcdLookup(index, value);
   };
 
   const addCondition = () => {
@@ -94,6 +125,22 @@ export default function MedicalHistory({ data, onNext, onBack, canGoBack, onSave
                     placeholder="e.g., Left Shoulder Bursitis"
                     className="mt-1"
                   />
+                  {(icdByIndex[index] || []).length > 0 && (
+                    <div className="mt-1 flex flex-wrap gap-1">
+                      <span className="text-xs text-slate-500 w-full">Suggested ICD-10-CM codes — optional:</span>
+                      {icdByIndex[index].map((m) => (
+                        <button
+                          type="button"
+                          key={m.code}
+                          onClick={() => selectIcd(index, m)}
+                          className="text-xs px-2 py-0.5 rounded border bg-white border-slate-200 text-slate-700 hover:bg-slate-100"
+                        >
+                          {m.code} — {m.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {selectedByIndex[index] && <p className="text-xs text-green-700 mt-1">Coded as {selectedByIndex[index].code}</p>}
                 </div>
                 <div>
                     <Label htmlFor={`medication_${index}`} className="text-sm font-medium text-slate-700">
