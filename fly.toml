@@ -1,0 +1,24 @@
+# Fly.io configuration — AssessSuite private demo (durable lane, 7 July 2026).
+# Neutral app name by design (workplace-confidentiality constraint).
+# Always-on single machine in Sydney; synthetic data reseeds on boot.
+app = "unimatter-demo"
+primary_region = "syd"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[env]
+  ALLOW_OPEN_REGISTRATION = "0"
+  PORT = "8787"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
