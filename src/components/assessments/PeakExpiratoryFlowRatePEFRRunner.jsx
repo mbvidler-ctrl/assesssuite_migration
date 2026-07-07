@@ -191,7 +191,7 @@ export default function PeakExpiratoryFlowRatePEFRRunner({ client, onSave, onClo
               </div>
 
               <div className="bg-red-50 border border-red-300 p-3 rounded">
-                <p className="text-blue-800 text-xs"><strong>⚠ï¸ IMPORTANT:</strong> PEFR is NOT a diagnostic test. A low or abnormal result requires further spirometry (FEV1/FVC) or physician assessment for diagnosis. Always refer patients with unexplained dyspnea, chest pain, or significant baseline changes to respiratory physician or GP.</p>
+                <p className="text-blue-800 text-xs"><strong>⚠ IMPORTANT:</strong> PEFR is NOT a diagnostic test. A low or abnormal result requires further spirometry (FEV1/FVC) or physician assessment for diagnosis. Always refer patients with unexplained dyspnea, chest pain, or significant baseline changes to respiratory physician or GP.</p>
               </div>
             </CardContent>
           </Card>

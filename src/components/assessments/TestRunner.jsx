@@ -1095,7 +1095,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       objectiveText += `  Left Peak Torque: ${iso.left_peak_torque_nm} Nm\n`;
       objectiveText += `  Right Peak Torque: ${iso.right_peak_torque_nm} Nm\n`;
       if (iso.asymmetry_percent) {
-        objectiveText += `  Asymmetry: ${iso.asymmetry_percent}% ${iso.asymmetry_percent > 10 ? '⚠ï¸ Significant' : ''}\n`;
+        objectiveText += `  Asymmetry: ${iso.asymmetry_percent}% ${iso.asymmetry_percent > 10 ? '⚠ Significant' : ''}\n`;
       }
     }
     // Special Tests (Ely, Thomas, Ober) - Show bilateral results
@@ -1576,7 +1576,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             objectiveText += `  Total Score: ${data.phq9_data.total_score}/27\n`;
             objectiveText += `  Severity: ${data.phq9_data.severity}\n`;
             if (data.phq9_data.suicidal_ideation_endorsed) {
-              objectiveText += `  ⚠ï¸ ALERT: Suicidal ideation endorsed - follow-up required\n`;
+              objectiveText += `  ⚠ ALERT: Suicidal ideation endorsed - follow-up required\n`;
             }
           }
           break;
@@ -1635,7 +1635,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             if (sixmwtData.post_dyspnea) objectiveText += `    Dyspnea: ${sixmwtData.post_dyspnea}/10\n`;
 
             if (sixmwtData.terminated && sixmwtData.termination_reason) {
-              objectiveText += `\n  ⚠ï¸ Test Terminated: ${sixmwtData.termination_reason}\n`;
+              objectiveText += `\n  ⚠ Test Terminated: ${sixmwtData.termination_reason}\n`;
             }
 
             if (sixmwtData.rest_periods_detail && sixmwtData.rest_periods_detail.length > 0) {
@@ -1691,7 +1691,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         case 'beep_test':
           if (data.beep_data || data.final_level) { const beepInfo = data.beep_data || data; objectiveText += `  20m Shuttle Run (Beep Test):\n  MSFT Result: Level ${beepInfo.final_level} Shuttle ${beepInfo.final_shuttle}\n`; if (beepInfo.total_shuttles_completed) objectiveText += `  Total Shuttles Completed: ${beepInfo.total_shuttles_completed}\n`; if (beepInfo.rpe_6_20) objectiveText += `  RPE: ${beepInfo.rpe_6_20}/20\n`; if (beepInfo.peak_hr_bpm) objectiveText += `  Peak HR: ${beepInfo.peak_hr_bpm} bpm\n`; if (beepInfo.termination_reason) objectiveText += `  Termination Reason: ${beepInfo.termination_reason}\n`; if (beepInfo.symptoms_reported?.trim()) objectiveText += `  Symptoms Reported: ${beepInfo.symptoms_reported}\n`; if (beepInfo.notes_deviation?.trim()) objectiveText += `  Protocol Notes: ${beepInfo.notes_deviation}\n`; } break;
         case '4_stage_balance':
-          if (data.four_stage_balance_data) { const fsb = data.four_stage_balance_data; objectiveText += `  Highest Stage Achieved: ${fsb.stage_achieved}/4\n  Fall Risk: ${fsb.fall_risk === 'increased' ? 'Increased ⚠ï¸' : 'Normal ✓'}\n  Stage 1 (Feet Together): ${fsb.feet_together || '-'} (${fsb.feet_together_time?.toFixed(1) || '-'}s)\n  Stage 2 (Semi-Tandem): ${fsb.semi_tandem || '-'} (${fsb.semi_tandem_time?.toFixed(1) || '-'}s)\n  Stage 3 (Tandem): ${fsb.tandem || '-'} (${fsb.tandem_time?.toFixed(1) || '-'}s)\n  Stage 4 (Single Leg): ${fsb.single_leg || '-'} (${fsb.single_leg_time?.toFixed(1) || '-'}s)\n`; if (fsb.clinician_notes) objectiveText += `  Overall Notes: ${fsb.clinician_notes}\n`; if (fsb.stage_notes) Object.entries(fsb.stage_notes).forEach(([s, n]) => { if (n) objectiveText += `  Notes for ${s.replace(/_/g, ' ')}: ${n}\n`; }); } break;
+          if (data.four_stage_balance_data) { const fsb = data.four_stage_balance_data; objectiveText += `  Highest Stage Achieved: ${fsb.stage_achieved}/4\n  Fall Risk: ${fsb.fall_risk === 'increased' ? 'Increased ⚠' : 'Normal ✓'}\n  Stage 1 (Feet Together): ${fsb.feet_together || '-'} (${fsb.feet_together_time?.toFixed(1) || '-'}s)\n  Stage 2 (Semi-Tandem): ${fsb.semi_tandem || '-'} (${fsb.semi_tandem_time?.toFixed(1) || '-'}s)\n  Stage 3 (Tandem): ${fsb.tandem || '-'} (${fsb.tandem_time?.toFixed(1) || '-'}s)\n  Stage 4 (Single Leg): ${fsb.single_leg || '-'} (${fsb.single_leg_time?.toFixed(1) || '-'}s)\n`; if (fsb.clinician_notes) objectiveText += `  Overall Notes: ${fsb.clinician_notes}\n`; if (fsb.stage_notes) Object.entries(fsb.stage_notes).forEach(([s, n]) => { if (n) objectiveText += `  Notes for ${s.replace(/_/g, ' ')}: ${n}\n`; }); } break;
         case 'thessaly':
         case 'apleys':
         case 'noble':
@@ -3373,7 +3373,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                 <p className="text-slate-600">Anterior Asymmetry</p>
                 <p className={`font-bold text-lg ${anteriorAsymmetry > 4 ? 'text-red-600' : 'text-slate-600'}`}>
                   {anteriorAsymmetry.toFixed(1)} cm
-                  {anteriorAsymmetry > 4 && <span className="text-xs block">⚠ï¸ Elevated Risk</span>}
+                  {anteriorAsymmetry > 4 && <span className="text-xs block">⚠ Elevated Risk</span>}
                 </p>
               </div>
             </div>
@@ -3730,7 +3730,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             }
           </p>
           {result.four_stage_tandem !== 'pass' && (
-            <p className="text-red-600 font-semibold mt-2">⚠ï¸ Unable to hold tandem stance for 10 seconds = Increased risk of falling</p>
+            <p className="text-red-600 font-semibold mt-2">⚠ Unable to hold tandem stance for 10 seconds = Increased risk of falling</p>
           )}
         </div>
       )}
@@ -4149,9 +4149,9 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
               <div className="mt-3 pt-3 border-t">
                 <p className="text-sm font-semibold">
                   {speed >= 1.0 ? '✓ Normal community ambulation' : 
-                   speed >= 0.8 ? '⚠ï¸ Some limitation' : 
-                   speed >= 0.6 ? '⚠ï¸ Significant limitation' : 
-                   '⚠ï¸ High fall/frailty risk'}
+                   speed >= 0.8 ? '⚠ Some limitation' : 
+                   speed >= 0.6 ? '⚠ Significant limitation' : 
+                   '⚠ High fall/frailty risk'}
                 </p>
               </div>
             )}
@@ -4293,7 +4293,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   <span className="text-lg">💬</span> Clinician Instructions
                 </h3>
                 <div className="text-base leading-relaxed bg-white/10 backdrop-blur-sm rounded p-3 whitespace-pre-wrap">
-                  {assessment.instructions || `Administer the ${assessment.name} according to standardised protocol.\n\n${assessment.description ? `About: ${assessment.description}\n\n` : ''}${assessment.equipment_needed ? `Equipment needed: ${assessment.equipment_needed}\n\n` : ''}${assessment.contraindications ? `⚠ï¸ Contraindications: ${assessment.contraindications}\n\n` : ''}${assessment.scoring_system ? `Scoring: ${assessment.scoring_system}` : 'Record the result below and add any clinical observations in the notes field.'}`}
+                  {assessment.instructions || `Administer the ${assessment.name} according to standardised protocol.\n\n${assessment.description ? `About: ${assessment.description}\n\n` : ''}${assessment.equipment_needed ? `Equipment needed: ${assessment.equipment_needed}\n\n` : ''}${assessment.contraindications ? `⚠ Contraindications: ${assessment.contraindications}\n\n` : ''}${assessment.scoring_system ? `Scoring: ${assessment.scoring_system}` : 'Record the result below and add any clinical observations in the notes field.'}`}
                 </div>
               </div>
 
@@ -5039,7 +5039,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                         phq9Data.suicidal_ideation_endorsed ? 'text-red-900' : 'text-green-900'
                       }`}>
                         PHQ-9 Completed
-                        {phq9Data.suicidal_ideation_endorsed && " ⚠ï¸"}
+                        {phq9Data.suicidal_ideation_endorsed && " ⚠"}
                       </h4>
                       <p className={`text-2xl font-bold ${
                         phq9Data.suicidal_ideation_endorsed ? 'text-red-600' : 'text-green-600'
@@ -6093,7 +6093,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                       <p className={`text-sm ${
                         fourStageBalanceData.fall_risk === 'increased' ? 'text-red-700' : 'text-green-700'
                       }`}>
-                        {fourStageBalanceData.fall_risk === 'increased' ? '⚠ï¸ Increased fall risk' : '✓ Normal balance'}
+                        {fourStageBalanceData.fall_risk === 'increased' ? '⚠ Increased fall risk' : '✓ Normal balance'}
                       </p>
                     </div>
                   )}

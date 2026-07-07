@@ -45,7 +45,7 @@ export default function PHQ9PatientHealthQuestionnaire9Runner({ client, onSave, 
   const handleSave = () => {
     if (!allAnswered) { toast.error("Please answer all 9 questions"); return; }
     const qLines = QUESTIONS.map((q, i) => `  Q${i + 1} (${OPTIONS[responses[i]]}): ${responses[i]}`).join("\n");
-    const soap = `• PHQ-9 Depression Scale\n  Total Score: ${total}/27 — ${interp.label}\n  Suggested action: ${interp.action}\n\n  Item Responses:\n${qLines}${functional !== null ? `\n  Functional Impairment: ${FUNCTIONAL_OPTS[functional]}` : ""}${q9Positive ? `\n  ⚠ï¸ Suicidal ideation screen (Q9): POSITIVE — requires immediate risk assessment` : ""}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: 0–4 minimal | 5–9 mild | 10–14 moderate | 15–19 mod-severe | 20–27 severe\n  MCID: 5-point change. Score ≥10 = likely major depressive disorder.\n  Reference: Kroenke K et al. (2001). The PHQ-9. J Gen Intern Med, 16(9):606-13.`;
+    const soap = `• PHQ-9 Depression Scale\n  Total Score: ${total}/27 — ${interp.label}\n  Suggested action: ${interp.action}\n\n  Item Responses:\n${qLines}${functional !== null ? `\n  Functional Impairment: ${FUNCTIONAL_OPTS[functional]}` : ""}${q9Positive ? `\n  ⚠ Suicidal ideation screen (Q9): POSITIVE — requires immediate risk assessment` : ""}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: 0–4 minimal | 5–9 mild | 10–14 moderate | 15–19 mod-severe | 20–27 severe\n  MCID: 5-point change. Score ≥10 = likely major depressive disorder.\n  Reference: Kroenke K et al. (2001). The PHQ-9. J Gen Intern Med, 16(9):606-13.`;
     onSave({ status: "completed", result_value: total, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", responses, severity: interp.label, q9_suicidal_ideation: q9Positive, functional_impairment: functional !== null ? FUNCTIONAL_OPTS[functional] : null } });
     toast.success("PHQ-9 saved.");
   };
@@ -74,7 +74,7 @@ export default function PHQ9PatientHealthQuestionnaire9Runner({ client, onSave, 
             <Card key={i} className={`${responses[i] !== null ? "border-blue-200 bg-blue-50/20" : ""} ${i === 8 && responses[8] > 0 ? "border-red-300 bg-red-50" : ""}`}>
               <CardHeader className="pb-2">
                 <CardTitle className={`text-sm font-medium ${i === 8 ? "text-red-700" : "text-slate-700"}`}>
-                  Q{i + 1}. {q}{i === 8 && " ⚠ï¸"}
+                  Q{i + 1}. {q}{i === 8 && " ⚠"}
                 </CardTitle>
               </CardHeader>
               <CardContent>

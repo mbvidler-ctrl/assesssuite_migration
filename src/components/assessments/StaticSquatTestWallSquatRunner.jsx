@@ -215,9 +215,9 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
           <div className="bg-slate-50 rounded-xl p-4 border border-slate-200">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Test Parameters</p>
             <div className="grid grid-cols-2 gap-2 text-sm text-slate-700">
-              <span>ðŸ“ Knee angle: typically 90°</span>
-              <span>â± Duration: until failure</span>
-              <span>ðŸ” Trials: 1 (best practice)</span>
+              <span>📐 Knee angle: typically 90°</span>
+              <span>⏱ Duration: until failure</span>
+              <span>🔁 Trials: 1 (best practice)</span>
               <span>📊 Score: Hold time in seconds</span>
             </div>
           </div>

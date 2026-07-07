@@ -79,7 +79,7 @@ export default function DualTaskGaitAssessmentRunner({ client, onSave, onClose }
 
             {/* Script for Client */}
             <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
-              <p className="font-semibold text-green-800 text-sm">🗣ï¸ What to Say to the Client</p>
+              <p className="font-semibold text-green-800 text-sm">🗣 What to Say to the Client</p>
               <div className="space-y-2 text-sm text-slate-700">
                 <div className="bg-white rounded p-2 border border-green-100">
                   <p className="font-semibold text-green-700 text-xs uppercase mb-1">Single-Task Trial</p>
@@ -151,7 +151,7 @@ export default function DualTaskGaitAssessmentRunner({ client, onSave, onClose }
                <div className={`p-3 rounded-lg border ${((parseFloat(dualTaskTime) - parseFloat(singleTaskTime)) / parseFloat(singleTaskTime) * 100) > 20 ? 'bg-red-50 border-red-200' : ((parseFloat(dualTaskTime) - parseFloat(singleTaskTime)) / parseFloat(singleTaskTime) * 100) < 0 ? 'bg-yellow-50 border-yellow-200' : 'bg-green-50 border-green-200'}`}>
                  <p className="text-sm font-semibold">
                    Dual-Task Cost: {((parseFloat(dualTaskTime) - parseFloat(singleTaskTime)) / parseFloat(singleTaskTime) * 100).toFixed(1)}%
-                   {((parseFloat(dualTaskTime) - parseFloat(singleTaskTime)) / parseFloat(singleTaskTime) * 100) > 20 ? " ⚠ï¸ Clinically significant (>20%)" : ((parseFloat(dualTaskTime) - parseFloat(singleTaskTime)) / parseFloat(singleTaskTime) * 100) < 0 ? " ⚠ï¸ Paradoxical response (faster during dual-task - unusual)" : " ✓ Within normal range (<20%)"}
+                   {((parseFloat(dualTaskTime) - parseFloat(singleTaskTime)) / parseFloat(singleTaskTime) * 100) > 20 ? " ⚠ Clinically significant (>20%)" : ((parseFloat(dualTaskTime) - parseFloat(singleTaskTime)) / parseFloat(singleTaskTime) * 100) < 0 ? " ⚠ Paradoxical response (faster during dual-task - unusual)" : " ✓ Within normal range (<20%)"}
                  </p>
                </div>
              )}

@@ -418,7 +418,7 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
                     }`}>
                       <p className="text-sm font-semibold">
                         {parseInt(currentStageHR) >= targetHRRange?.[1]
-                          ? '⚠ï¸ Target HR reached or exceeded'
+                          ? '⚠ Target HR reached or exceeded'
                           : '✓ HR within safe range'
                         }
                       </p>

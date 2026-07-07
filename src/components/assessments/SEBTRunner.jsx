@@ -121,7 +121,7 @@ export default function SEBTRunner({ onSave, onClose }) {
 
             <Card className="bg-amber-50 border-amber-200">
               <CardHeader>
-                <CardTitle className="text-sm text-amber-800">⚠ï¸ Contraindications</CardTitle>
+                <CardTitle className="text-sm text-amber-800">⚠ Contraindications</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-amber-800">
                 <p>Acute lower limb injury, severe ankle instability, recent surgery. Provide close supervision and spotting.</p>

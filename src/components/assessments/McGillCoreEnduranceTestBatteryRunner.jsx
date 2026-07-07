@@ -178,7 +178,7 @@ export default function McGillCoreEnduranceTestBatteryRunner({ client, onSave, o
 
                     <p className="text-blue-800 text-xs mt-2"><strong>Low Back Pain Patients:</strong> Generally show reduced absolute times AND/OR altered ratios (imbalance).</p>
 
-                    <p className="text-blue-800 text-xs mt-2"><strong>⚠ï¸ Most Important: Ratio-Based Interpretation</strong></p>
+                    <p className="text-blue-800 text-xs mt-2"><strong>⚠ Most Important: Ratio-Based Interpretation</strong></p>
                     <p className="text-blue-800 text-xs italic">Do NOT rely on absolute times alone. Ratios identify structural imbalances associated with LBP risk:</p>
                     <ul className="text-blue-800 text-xs list-disc list-inside ml-2 space-y-1 mt-1">
                       <li><strong>Flexor:Extensor Ratio &lt;1.0:</strong> Normal (extensor &gt; flexor). Ratio &gt;1.0 indicates flexor dominance or extensor weakness → anterior core dominance → ↑ LBP risk.</li>

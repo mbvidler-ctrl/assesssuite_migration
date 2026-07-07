@@ -168,7 +168,7 @@ export default function ObersTestITBTightnessRunner({ client, onSave, onClose })
                     <div className="bg-white p-3 rounded border border-purple-100 space-y-2 text-xs">
                       <p className="text-purple-800"><strong>Sensitivity:</strong> ~45–80% (varies by study). Many patients with ITBS may have negative Ober's.</p>
                       <p className="text-purple-800"><strong>Specificity:</strong> ~40–80% (non-specific). ITB tightness alone doesn't diagnose ITBS; often requires symptom reproduction + imaging.</p>
-                      <p className="text-purple-800"><strong>⚠ï¸ Clinical note:</strong> A tight ITB is not synonymous with ITB syndrome. Approximately 10–15% of asymptomatic runners have ITB tightness. Test must be combined with pain history, lateral knee pain reproduction (Noble's test, ITB palpation), and functional assessment.</p>
+                      <p className="text-purple-800"><strong>⚠ Clinical note:</strong> A tight ITB is not synonymous with ITB syndrome. Approximately 10–15% of asymptomatic runners have ITB tightness. Test must be combined with pain history, lateral knee pain reproduction (Noble's test, ITB palpation), and functional assessment.</p>
                     </div>
                   </div>
 
@@ -176,8 +176,8 @@ export default function ObersTestITBTightnessRunner({ client, onSave, onClose })
                     <p className="font-semibold text-purple-900 mb-2">Clinical Interpretation Scenarios</p>
                     <div className="bg-white p-3 rounded border border-purple-100 space-y-2 text-xs">
                       <p className="text-purple-800"><strong>✅ Ober's POSITIVE + Lateral knee pain + Pain with running:</strong> Strong likelihood of ITB syndrome. Recommend hip abductor strengthening, hip mobility work, running load management, consider foam rolling/massage.</p>
-                      <p className="text-purple-800"><strong>⚠ï¸ Ober's POSITIVE but NO lateral knee pain:</strong> May indicate tightness without current dysfunction. Monitor; recommend preventive hip/glute strengthening.</p>
-                      <p className="text-purple-800"><strong>âŒ Ober's NEGATIVE + Lateral knee pain:</strong> Pain may be from other sources (patellofemoral, knee OA, other ligament/capsule). Do NOT rule out ITBS; sensitivity is only ~50–60%.</p>
+                      <p className="text-purple-800"><strong>⚠ Ober's POSITIVE but NO lateral knee pain:</strong> May indicate tightness without current dysfunction. Monitor; recommend preventive hip/glute strengthening.</p>
+                      <p className="text-purple-800"><strong>❌ Ober's NEGATIVE + Lateral knee pain:</strong> Pain may be from other sources (patellofemoral, knee OA, other ligament/capsule). Do NOT rule out ITBS; sensitivity is only ~50–60%.</p>
                     </div>
                   </div>
 
@@ -373,8 +373,8 @@ export default function ObersTestITBTightnessRunner({ client, onSave, onClose })
                       <p>Left Side: <Badge variant={bilateralResults.left === "positive" ? "destructive" : "outline"}>{bilateralResults.left === "positive" ? "Tight ITB" : "Normal"}</Badge></p>
                       <p>Right Side: <Badge variant={bilateralResults.right === "positive" ? "destructive" : "outline"}>{bilateralResults.right === "positive" ? "Tight ITB" : "Normal"}</Badge></p>
                       <p className="mt-2 font-semibold">
-                        {bilateralResults.left === "positive" && bilateralResults.right === "positive" ? "⚠ï¸ Bilateral ITB tightness detected" :
-                         bilateralResults.left === "positive" || bilateralResults.right === "positive" ? "⚠ï¸ Unilateral ITB tightness detected" :
+                        {bilateralResults.left === "positive" && bilateralResults.right === "positive" ? "⚠ Bilateral ITB tightness detected" :
+                         bilateralResults.left === "positive" || bilateralResults.right === "positive" ? "⚠ Unilateral ITB tightness detected" :
                          "✅ No ITB tightness detected"}
                       </p>
                     </div>

@@ -98,7 +98,7 @@ export default function LTestofFunctionalMobilityRunner({ client, onSave, onClos
 
         {/* L-Test Setup Diagram */}
         <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
-          <p className="font-semibold text-slate-700 mb-3">ðŸ“ Test Setup</p>
+          <p className="font-semibold text-slate-700 mb-3">📐 Test Setup</p>
           <div className="flex justify-center bg-white p-4 rounded border border-slate-300">
             <svg viewBox="0 0 300 300" className="w-64 h-64" xmlns="http://www.w3.org/2000/svg">
               {/* Grid background */}

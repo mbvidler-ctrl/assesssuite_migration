@@ -152,7 +152,7 @@ export default function BeepTestRunner({ onSave, onClose, client }) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <a href="https://apps.apple.com/au/app/beep-test/id377146560" target="_blank" rel="noopener noreferrer"
                     className="flex items-center gap-2 bg-black text-white rounded-lg px-3 py-2 text-sm hover:bg-gray-800 transition-colors">
-                    <span className="text-lg">ðŸŽ</span>
+                    <span className="text-lg">🍎</span>
                     <div><p className="font-semibold">App Store (iOS)</p><p className="text-xs text-gray-300">Search "Beep Test" or "Multistage Fitness"</p></div>
                   </a>
                   <a href="https://play.google.com/store/search?q=beep+test&c=apps" target="_blank" rel="noopener noreferrer"

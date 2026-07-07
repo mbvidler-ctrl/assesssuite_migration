@@ -426,7 +426,7 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                       </div>
                       {clientAssessment.additional_data.stage_heart_rates && Object.keys(clientAssessment.additional_data.stage_heart_rates).length > 0 && (
                         <div>
-                          <p className="text-sm font-semibold text-slate-700 mb-2">â¤ï¸ Heart Rate Log</p>
+                          <p className="text-sm font-semibold text-slate-700 mb-2">❤ Heart Rate Log</p>
                           <div className="grid grid-cols-4 gap-2">
                             {Object.entries(clientAssessment.additional_data.stage_heart_rates)
                               .filter(([, v]) => v)

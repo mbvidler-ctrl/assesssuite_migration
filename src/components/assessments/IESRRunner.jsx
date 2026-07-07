@@ -198,7 +198,7 @@ export default function IESRRunner({ onSave, onClose }) {
             <Card className="bg-red-50 border-red-200">
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2 text-red-800">
-                  ⚠ï¸ Clinical Considerations
+                  ⚠ Clinical Considerations
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-red-800">

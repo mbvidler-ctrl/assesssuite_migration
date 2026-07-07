@@ -68,7 +68,7 @@ export default function LachmanTestRunner({ client, onSave, onClose }) {
 
           {/* Anatomical Diagram */}
           <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-4">
-            <p className="font-semibold text-slate-800 mb-3">ðŸ” Test Setup & Anatomy</p>
+            <p className="font-semibold text-slate-800 mb-3">🔍 Test Setup & Anatomy</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* SVG Diagram */}
               <div className="flex justify-center items-center bg-white rounded border border-slate-200 p-4">

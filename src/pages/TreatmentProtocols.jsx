@@ -90,31 +90,31 @@ export default function TreatmentProtocols() {
     { name: "ORIF Fracture Rehabilitation", category: "musculoskeletal", icon: "🦴" },
     
     // Cardio & Pulmonary
-    { name: "Hypertension", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "Hypotension", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "Postural Orthostatic Tachycardia Syndrome (POTS)", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "Coronary Artery Disease", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "Angina", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "Myocardial Infarction (Post-MI Rehab)", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "Congestive Heart Failure (HFrEF/HFpEF)", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "Dilated Cardiomyopathy", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "Arrhythmias (AF/SVT/PVCs)", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "Peripheral Arterial Disease", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "Deep Vein Thrombosis (Post-Acute)", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "Aortic Aneurysm", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "Endocarditis (Post-Acute Recovery)", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "Chronic Oedema", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "Lymphoedema", category: "cardio_pulmonary", icon: "â¤ï¸" },
-    { name: "COPD", category: "cardio_pulmonary", icon: "ðŸ«" },
+    { name: "Hypertension", category: "cardio_pulmonary", icon: "❤" },
+    { name: "Hypotension", category: "cardio_pulmonary", icon: "❤" },
+    { name: "Postural Orthostatic Tachycardia Syndrome (POTS)", category: "cardio_pulmonary", icon: "❤" },
+    { name: "Coronary Artery Disease", category: "cardio_pulmonary", icon: "❤" },
+    { name: "Angina", category: "cardio_pulmonary", icon: "❤" },
+    { name: "Myocardial Infarction (Post-MI Rehab)", category: "cardio_pulmonary", icon: "❤" },
+    { name: "Congestive Heart Failure (HFrEF/HFpEF)", category: "cardio_pulmonary", icon: "❤" },
+    { name: "Dilated Cardiomyopathy", category: "cardio_pulmonary", icon: "❤" },
+    { name: "Arrhythmias (AF/SVT/PVCs)", category: "cardio_pulmonary", icon: "❤" },
+    { name: "Peripheral Arterial Disease", category: "cardio_pulmonary", icon: "❤" },
+    { name: "Deep Vein Thrombosis (Post-Acute)", category: "cardio_pulmonary", icon: "❤" },
+    { name: "Aortic Aneurysm", category: "cardio_pulmonary", icon: "❤" },
+    { name: "Endocarditis (Post-Acute Recovery)", category: "cardio_pulmonary", icon: "❤" },
+    { name: "Chronic Oedema", category: "cardio_pulmonary", icon: "❤" },
+    { name: "Lymphoedema", category: "cardio_pulmonary", icon: "❤" },
+    { name: "COPD", category: "cardio_pulmonary", icon: "🫁" },
     
     // Metabolic
     { name: "Type 2 Diabetes Mellitus", category: "metabolic", icon: "💉" },
     { name: "Type 1 Diabetes Mellitus", category: "metabolic", icon: "💉" },
     { name: "Pre-Diabetes", category: "metabolic", icon: "💉" },
     { name: "Metabolic Syndrome", category: "metabolic", icon: "💉" },
-    { name: "Obesity Class I", category: "metabolic", icon: "⚖ï¸" },
-    { name: "Obesity Class II", category: "metabolic", icon: "⚖ï¸" },
-    { name: "Obesity Class III", category: "metabolic", icon: "⚖ï¸" },
+    { name: "Obesity Class I", category: "metabolic", icon: "⚖" },
+    { name: "Obesity Class II", category: "metabolic", icon: "⚖" },
+    { name: "Obesity Class III", category: "metabolic", icon: "⚖" },
     { name: "Non-Alcoholic Fatty Liver Disease (NAFLD)", category: "metabolic", icon: "💉" },
     { name: "Polycystic Ovary Syndrome (PCOS)", category: "metabolic", icon: "💉" },
     { name: "Dyslipidaemia", category: "metabolic", icon: "💉" },
@@ -123,7 +123,7 @@ export default function TreatmentProtocols() {
     { name: "Hypothyroidism", category: "metabolic", icon: "💉" },
     { name: "Hyperthyroidism", category: "metabolic", icon: "💉" },
     { name: "Chronic Kidney Disease (Stage 1-4)", category: "metabolic", icon: "💉" },
-    { name: "Bariatric Surgery Pre/Post Rehabilitation", category: "metabolic", icon: "⚖ï¸" },
+    { name: "Bariatric Surgery Pre/Post Rehabilitation", category: "metabolic", icon: "⚖" },
     
     // Neurological
     { name: "Parkinson's Disease", category: "neurological", icon: "🧠" },
@@ -176,9 +176,9 @@ export default function TreatmentProtocols() {
     { name: "Sarcopenia", category: "geriatric", icon: "👴" },
     
     // General
-    { name: "Cancer Rehabilitation", category: "general", icon: "🎗ï¸" },
-    { name: "Chronic Fatigue Syndrome", category: "general", icon: "🎗ï¸" },
-    { name: "Long COVID", category: "general", icon: "🎗ï¸" },
+    { name: "Cancer Rehabilitation", category: "general", icon: "🎗" },
+    { name: "Chronic Fatigue Syndrome", category: "general", icon: "🎗" },
+    { name: "Long COVID", category: "general", icon: "🎗" },
   ];
 
   const categories = [
@@ -744,7 +744,7 @@ Be specific, evidence-based, and practical for clinical use.`,
                             loadProtocol({ 
                               name: searchTerm.trim(), 
                               category: 'general', 
-                              icon: 'ðŸ”' 
+                              icon: '🔍' 
                             });
                           }
                         }}
@@ -758,7 +758,7 @@ Be specific, evidence-based, and practical for clinical use.`,
                         onClick={() => loadProtocol({ 
                           name: searchTerm.trim(), 
                           category: 'general', 
-                          icon: 'ðŸ”' 
+                          icon: '🔍' 
                         })}
                       >
                         <Search className="w-4 h-4 mr-2" />

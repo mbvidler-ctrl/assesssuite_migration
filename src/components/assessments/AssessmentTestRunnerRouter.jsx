@@ -150,7 +150,7 @@ export default function AssessmentTestRunnerRouter({
         className="flex items-center justify-between px-4 py-3 border-b border-slate-200 rounded-t-xl bg-slate-50 cursor-grab active:cursor-grabbing select-none"
         onMouseDown={handleDragStart}
       >
-        <span className="text-sm font-semibold text-slate-700">ðŸ“ Clinician Notes</span>
+        <span className="text-sm font-semibold text-slate-700">📝 Clinician Notes</span>
         <button onClick={() => setShowNotes(false)} className="text-slate-400 hover:text-slate-600 text-lg leading-none">✕</button>
       </div>
       <textarea
@@ -171,7 +171,7 @@ export default function AssessmentTestRunnerRouter({
       style={{ top: pos.y, left: pos.x }}
       title="Open clinician notes"
     >
-      <span className="text-base">ðŸ“</span>
+      <span className="text-base">📝</span>
       <span className="text-slate-500 text-xs" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>Notes</span>
     </button>
   );

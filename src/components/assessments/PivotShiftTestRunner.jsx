@@ -239,7 +239,7 @@ export default function PivotShiftTestRunner({ client, onSave, onClose }) {
                   <Badge className="bg-indigo-100 text-indigo-800">Right: {GRADES[rightGrade].label}</Badge>
                 </div>
                 {(leftGrade > 0 || rightGrade > 0) && (
-                  <p className="text-xs text-red-700 font-semibold">⚠ï¸ Positive finding — orthopaedic referral and MRI recommended.</p>
+                  <p className="text-xs text-red-700 font-semibold">⚠ Positive finding — orthopaedic referral and MRI recommended.</p>
                 )}
                 {leftGrade === 0 && rightGrade === 0 && (
                   <p className="text-xs text-green-700 font-semibold">✅ Negative bilaterally — no dynamic ACL instability detected.</p>

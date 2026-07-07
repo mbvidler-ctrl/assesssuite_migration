@@ -91,7 +91,7 @@ export default function FMSRunner({ onSave, onClose }) {
     const soapText = [
       `• Functional Movement Screen (FMS)`,
       `  Total Score: ${total}/21 — ${interpretation?.level}`,
-      Object.keys(painReported).length > 0 ? `  ⚠ï¸ Pain reported during testing — medical referral required` : null,
+      Object.keys(painReported).length > 0 ? `  ⚠ Pain reported during testing — medical referral required` : null,
       notes ? `  Notes: ${notes}` : null,
     ].filter(Boolean).join('\n');
 
@@ -245,7 +245,7 @@ export default function FMSRunner({ onSave, onClose }) {
                   )}
                   {Object.keys(painReported).length > 0 && (
                     <p className="mt-3 text-sm font-semibold">
-                      ⚠ï¸ Pain reported during testing. Medical clearance required before exercise participation.
+                      ⚠ Pain reported during testing. Medical clearance required before exercise participation.
                     </p>
                   )}
                 </CardContent>

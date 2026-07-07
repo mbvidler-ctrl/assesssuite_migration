@@ -132,7 +132,7 @@ export default function BESSRunner({ onSave, onClose }) {
 
             <Card className="bg-amber-50 border-amber-200">
               <CardHeader>
-                <CardTitle className="text-sm text-amber-800">⚠ï¸ Contraindications</CardTitle>
+                <CardTitle className="text-sm text-amber-800">⚠ Contraindications</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-amber-800">
                 <p><strong>Relative:</strong> Acute ankle/knee injury, severe dizziness, acute vestibular dysfunction. Provide spotting for all conditions. Stop if client at risk of falling.</p>

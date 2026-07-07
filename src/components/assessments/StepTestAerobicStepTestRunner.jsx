@@ -744,7 +744,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                       <text x="100" y="118" textAnchor="middle" fontSize="7" fill="#e2e8f0">12 inches / 30.5 cm</text>
                       {/* Tape measure icon */}
                       <rect x="140" y="82" width="28" height="12" rx="3" fill="#fbbf24" stroke="#f59e0b" strokeWidth="1"/>
-                      <text x="154" y="91" textAnchor="middle" fontSize="7" fill="#78350f" fontWeight="700">ðŸ“ Measure</text>
+                      <text x="154" y="91" textAnchor="middle" fontSize="7" fill="#78350f" fontWeight="700">📏 Measure</text>
                       {/* Protocol reference */}
                       <rect x="46" y="136" width="108" height="18" rx="3" fill="#dbeafe" stroke="#93c5fd" strokeWidth="1"/>
                       <text x="100" y="143" textAnchor="middle" fontSize="7" fill="#1e40af">YMCA: 30.5cm | Queens: 41.3cm</text>
@@ -829,7 +829,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                 : <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-sm text-yellow-800"><AlertTriangle className="w-4 h-4 inline mr-1" />Confirm all items. If concerns exist, document in clinical notes before proceeding.</div>
               }
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(0)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(0)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(2)} className="flex-1 bg-sky-600 hover:bg-sky-700">{allSafeClear ? "Proceed →" : "Override & Continue →"}</Button>
               </div>
             </div>
@@ -880,7 +880,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
               )}
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(3)} disabled={!protocolKey} className="flex-1 bg-sky-600 hover:bg-sky-700">Setup →</Button>
               </div>
             </div>
@@ -930,7 +930,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(2)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(2)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(4)} className="flex-1 bg-sky-600 hover:bg-sky-700">Pre-Test Vitals →</Button>
               </div>
             </div>
@@ -953,7 +953,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
               <RatingRow label="Pre-Test RPE (0–10)" value={preVitals.rpe} onChange={v => setPreVitals(p => ({ ...p, rpe: v }))} />
               <RatingRow label="Pre-Test Dyspnea (0–10)" value={preVitals.dyspnea} onChange={v => setPreVitals(p => ({ ...p, dyspnea: v }))} />
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(3)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(3)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(5)} className="flex-1 bg-sky-600 hover:bg-sky-700">Start Test →</Button>
               </div>
             </div>
@@ -988,7 +988,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
               {/* Timer Block */}
               <div className={`rounded-2xl p-6 text-center border-2 transition-all ${timerState === "running" ? "bg-sky-50 border-sky-400" : timerState === "done" ? "bg-green-50 border-green-400" : "bg-slate-50 border-slate-200"}`}>
                 <p className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-1">
-                  {timerState === "running" ? "▶ STEPPING — MAINTAIN RHYTHM" : timerState === "done" ? "✓ Test Complete" : timerState === "paused" ? "â¸ Paused" : "Ready to Start"}
+                  {timerState === "running" ? "▶ STEPPING — MAINTAIN RHYTHM" : timerState === "done" ? "✓ Test Complete" : timerState === "paused" ? "⏸ Paused" : "Ready to Start"}
                 </p>
                 <p className={`text-7xl font-mono font-bold transition-colors ${timerState === "running" ? "text-sky-700" : timerState === "done" ? "text-green-700" : "text-slate-400"}`}>
                   {formatTime(Math.floor(elapsed))}
@@ -1016,7 +1016,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
                 <div className="mt-4 flex justify-center gap-3 flex-wrap">
                   {timerState === "idle" && <Button onClick={startTimer} size="lg" className="bg-sky-600 hover:bg-sky-700 px-8"><Play className="w-5 h-5 mr-2" />Start Test</Button>}
                   {timerState === "running" && <>
-                    <Button onClick={pauseTimer} variant="outline" size="lg">â¸ Pause</Button>
+                    <Button onClick={pauseTimer} variant="outline" size="lg">⏸ Pause</Button>
                     <Button onClick={stopTimer} variant="destructive" size="lg"><Square className="w-5 h-5 mr-2" />Stop</Button>
                   </>}
                   {timerState === "paused" && <>
@@ -1059,7 +1059,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(4)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(4)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(6)} disabled={timerState === "idle"} className="flex-1 bg-sky-600 hover:bg-sky-700">Post-Test / Recovery →</Button>
               </div>
             </div>
@@ -1135,7 +1135,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(5)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(5)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(7)} disabled={!postVitals.hr || !recovery.hr1} className="flex-1 bg-sky-600 hover:bg-sky-700">View Results →</Button>
               </div>
             </div>
@@ -1252,7 +1252,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
               )}
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(6)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(6)} className="flex-1">← Back</Button>
                 <Button onClick={handleSave} disabled={!canSave()} className="flex-1 bg-sky-600 hover:bg-sky-700">
                   <Save className="w-4 h-4 mr-2" />Save Assessment
                 </Button>

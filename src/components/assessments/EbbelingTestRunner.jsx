@@ -493,10 +493,10 @@ export default function EbbelingTestRunner({ client, onSave, onClose }) {
               <p className="text-sm text-purple-700">Steady-State Heart Rate (Avg of Min 3 & 4)</p>
               <p className="text-4xl font-bold text-purple-600">{steadyStateHR} bpm</p>
               {parseFloat(steadyStateHR) < hrTarget50 && (
-                <p className="text-xs text-yellow-600 mt-1">⚠ï¸ Below target range - consider increasing speed</p>
+                <p className="text-xs text-yellow-600 mt-1">⚠ Below target range - consider increasing speed</p>
               )}
               {parseFloat(steadyStateHR) > hrTarget70 && (
-                <p className="text-xs text-yellow-600 mt-1">⚠ï¸ Above target range - consider decreasing speed</p>
+                <p className="text-xs text-yellow-600 mt-1">⚠ Above target range - consider decreasing speed</p>
               )}
             </div>
           </CardContent>

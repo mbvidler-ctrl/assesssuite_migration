@@ -156,7 +156,7 @@ export default function TUDSRunner({ onSave, onClose }) {
             <Card className="bg-amber-50 border-amber-200">
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2 text-amber-800">
-                  ⚠ï¸ Contraindications
+                  ⚠ Contraindications
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-amber-800">

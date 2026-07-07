@@ -73,7 +73,7 @@ export default function PHQ9Runner({ onSave, onClose }) {
       `  Item Responses (Over the last 2 weeks, how often bothered by...):`,
       questionLines,
       functionalImpact ? `  Functional Impact: ${functionalImpact}` : null,
-      responses[8] > 0 ? `  ⚠ï¸ ALERT: Suicidal ideation endorsed (Q9) — clinical follow-up and safety planning required.` : null,
+      responses[8] > 0 ? `  ⚠ ALERT: Suicidal ideation endorsed (Q9) — clinical follow-up and safety planning required.` : null,
     ].filter(Boolean).join('\n');
 
     onSave({

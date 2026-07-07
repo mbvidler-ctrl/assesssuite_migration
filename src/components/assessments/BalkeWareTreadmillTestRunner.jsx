@@ -187,7 +187,7 @@ export default function BalkeWareTreadmillTestRunner({ client, onSave, onClose }
           {/* Pre-test vitals */}
           <Card className="border-orange-200 bg-orange-50">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-orange-800">⚠ï¸ Pre-Test Vitals</CardTitle>
+              <CardTitle className="text-sm text-orange-800">⚠ Pre-Test Vitals</CardTitle>
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div>
@@ -234,7 +234,7 @@ export default function BalkeWareTreadmillTestRunner({ client, onSave, onClose }
           {(isRunning || testFinished) && currentMinute > 0 && (
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm">â¤ï¸ Heart Rate Log — enter at the end of each minute</CardTitle>
+                <CardTitle className="text-sm">❤ Heart Rate Log — enter at the end of each minute</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid grid-cols-4 gap-2 max-h-48 overflow-y-auto">

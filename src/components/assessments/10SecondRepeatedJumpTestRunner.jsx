@@ -235,7 +235,7 @@ export default function TenSecondRepeatedJumpTestRunner({ client, onSave, onClos
             {testRunning && (
               <div className="flex flex-col items-center gap-3 p-6 bg-blue-50 rounded-lg border-2 border-blue-200">
                 <Button onClick={handleTimerClick} size="lg" className="w-full h-24 text-xl font-bold bg-blue-600 hover:bg-blue-700">
-                  {clickPhase === "flight" ? "🦵 TAKEOFF — Click Now" : "ðŸ“ LANDED — Click Now"}
+                  {clickPhase === "flight" ? "🦵 TAKEOFF — Click Now" : "📍 LANDED — Click Now"}
                 </Button>
                 <p className="text-sm text-slate-600 text-center">Rhythm: <strong>Takeoff → Land → Takeoff → Land…</strong></p>
               </div>

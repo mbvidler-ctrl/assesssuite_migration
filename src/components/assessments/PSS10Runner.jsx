@@ -253,7 +253,7 @@ export default function PSS10Runner({ onSave, onClose }) {
                 </div>
 
                 <div className="bg-red-50 border border-red-300 p-3 rounded">
-                  <p className="text-indigo-800 text-xs"><strong>⚠ï¸ CRITICAL:</strong> PSS-10 is a screening tool, NOT a diagnostic instrument. High scores indicate need for comprehensive mental health assessment. If client expresses suicidal ideation, self-harm, or severe distress, initiate immediate safety protocol and refer to emergency mental health services.</p>
+                  <p className="text-indigo-800 text-xs"><strong>⚠ CRITICAL:</strong> PSS-10 is a screening tool, NOT a diagnostic instrument. High scores indicate need for comprehensive mental health assessment. If client expresses suicidal ideation, self-harm, or severe distress, initiate immediate safety protocol and refer to emergency mental health services.</p>
                 </div>
               </CardContent>
             </Card>
@@ -305,7 +305,7 @@ export default function PSS10Runner({ onSave, onClose }) {
             <Card className="bg-amber-50 border-amber-200">
               <CardHeader>
                 <CardTitle className="text-sm flex items-center gap-2 text-amber-800">
-                  ⚠ï¸ Clinical Considerations
+                  ⚠ Clinical Considerations
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-amber-800">

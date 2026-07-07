@@ -180,9 +180,9 @@ export default function K10Runner({ onSave, onClose }) {
                   <div>
                     <p className="font-semibold text-blue-900 mb-2">What K10 Does NOT Do</p>
                     <div className="bg-white p-3 rounded border border-blue-300 space-y-2">
-                      <p className="text-blue-800"><strong>âŒ K10 is NOT diagnostic:</strong> High scores do not diagnose depression, anxiety, PTSD, or any specific mental health disorder. Diagnosis requires comprehensive assessment by a qualified mental health professional (psychologist, psychiatrist).</p>
-                      <p className="text-blue-800"><strong>âŒ K10 does not measure:</strong> Specific symptoms of particular disorders, functional impairment in detail, suicidality, substance use, personality traits, or cognitive ability.</p>
-                      <p className="text-blue-800"><strong>âŒ K10 is not:</strong> A replacement for clinical interview, comprehensive mental health assessment, or formal diagnostic instruments (e.g., DSM-5 criteria).</p>
+                      <p className="text-blue-800"><strong>❌ K10 is NOT diagnostic:</strong> High scores do not diagnose depression, anxiety, PTSD, or any specific mental health disorder. Diagnosis requires comprehensive assessment by a qualified mental health professional (psychologist, psychiatrist).</p>
+                      <p className="text-blue-800"><strong>❌ K10 does not measure:</strong> Specific symptoms of particular disorders, functional impairment in detail, suicidality, substance use, personality traits, or cognitive ability.</p>
+                      <p className="text-blue-800"><strong>❌ K10 is not:</strong> A replacement for clinical interview, comprehensive mental health assessment, or formal diagnostic instruments (e.g., DSM-5 criteria).</p>
                     </div>
                   </div>
 
@@ -260,7 +260,7 @@ export default function K10Runner({ onSave, onClose }) {
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-6 h-6 text-red-600 flex-shrink-0 mt-1" />
                   <div>
-                    <p className="font-bold text-red-900 mb-2">⚠ï¸ IMPORTANT: This is a Screening Tool, NOT a Diagnosis</p>
+                    <p className="font-bold text-red-900 mb-2">⚠ IMPORTANT: This is a Screening Tool, NOT a Diagnosis</p>
                     <p className="text-sm text-red-800 mb-2">
                       The K10 <strong>cannot diagnose</strong> depression, anxiety, PTSD, or any mental health disorder. A high score indicates that further assessment by a mental health professional (psychologist, psychiatrist) is recommended, but does not confirm any diagnosis.
                     </p>

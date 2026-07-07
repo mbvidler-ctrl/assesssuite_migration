@@ -254,7 +254,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
 
           <div className="flex-1 overflow-y-auto">
 
-            {/* â•â•â• SETUP â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            {/* ═══ SETUP ═══════════════════════════════════════════════════════ */}
             <TabsContent value="setup" className="p-6 space-y-5">
               {/* Protocol */}
               <div className="border border-blue-200 rounded-xl overflow-hidden">
@@ -352,7 +352,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
               </div>
             </TabsContent>
 
-            {/* â•â•â• LIVE TEST â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            {/* ═══ LIVE TEST ════════════════════════════════════════════════════ */}
             <TabsContent value="live" className="p-6 space-y-5">
               {/* Timer */}
               <div className="rounded-2xl border-2 border-rose-200 bg-rose-50 p-6 text-center space-y-3">
@@ -426,7 +426,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
               </div>
             </TabsContent>
 
-            {/* â•â•â• RESULTS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            {/* ═══ RESULTS ══════════════════════════════════════════════════════ */}
             <TabsContent value="results" className="p-6 space-y-5">
               {/* Power summary cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -524,7 +524,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
                   <div className="space-y-1">
                     {validity.checks.map(c => (
                       <div key={c.label} className="flex items-center gap-2 text-xs">
-                        <span>{c.pass ? "✅" : "âŒ"}</span>
+                        <span>{c.pass ? "✅" : "❌"}</span>
                         <span className={c.pass ? "text-slate-700" : "text-red-600"}>{c.label}</span>
                       </div>
                     ))}
@@ -546,7 +546,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
               )}
             </TabsContent>
 
-            {/* â•â•â• GRAPHS â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            {/* ═══ GRAPHS ═══════════════════════════════════════════════════════ */}
             <TabsContent value="graphs" className="p-6 space-y-6">
               {powerCurveData.some(d => d.power != null) ? (
                 <>
@@ -593,7 +593,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
                   {/* W/kg curve */}
                   {mass > 0 && (
                     <div>
-                      <p className="font-semibold text-slate-700 mb-3 text-sm">⚖ï¸ Relative Power Curve (W/kg)</p>
+                      <p className="font-semibold text-slate-700 mb-3 text-sm">⚖ Relative Power Curve (W/kg)</p>
                       <ResponsiveContainer width="100%" height={180}>
                         <LineChart data={powerCurveData} margin={{ top: 5, right: 10, bottom: 5, left: 10 }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
@@ -630,7 +630,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
               )}
             </TabsContent>
 
-            {/* â•â•â• REPORT â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+            {/* ═══ REPORT ═══════════════════════════════════════════════════════ */}
             <TabsContent value="report" className="p-6 space-y-5">
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
                 <p className="font-semibold text-slate-700 mb-2 text-sm">📋 SOAP Export Preview</p>

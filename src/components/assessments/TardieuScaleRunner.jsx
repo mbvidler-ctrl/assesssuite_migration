@@ -348,7 +348,7 @@ export default function TardieuScaleRunner({ client, onSave, onClose }) {
               <p className="text-amber-700 mt-1"><strong>R1</strong> = angle of catch on fast stretch (V3) | <strong>R2</strong> = full passive ROM on slow stretch (V1)</p>
             </div>
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs">
-              <p className="font-semibold text-red-800">⚠ï¸ Safety &amp; Contraindications</p>
+              <p className="font-semibold text-red-800">⚠ Safety &amp; Contraindications</p>
               <p className="text-red-700">Do not perform during acute pain, fracture, dislocation, or severe spasm. Move limb smoothly — avoid forcing past resistance. Monitor for autonomic dysreflexia in SCI clients.</p>
             </div>
           </div>

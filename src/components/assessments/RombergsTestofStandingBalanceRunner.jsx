@@ -380,7 +380,7 @@ export default function RombergsTestofStandingBalanceRunner({ client, onSave, on
           </Section>
 
           {/* Eyes Open */}
-          <Section title="ðŸ‘ Eyes Open Result" defaultOpen={true}>
+          <Section title="👁 Eyes Open Result" defaultOpen={true}>
             <TimerBlock
               label="Eyes Open"
               timeHeld={eoTime}

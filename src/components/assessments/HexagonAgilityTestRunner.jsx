@@ -162,7 +162,7 @@ export default function HexagonAgilityTestRunner({ client, onSave, onClose }) {
                 </div>
 
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-900">
-                  <p className="font-semibold mb-1">⚠ï¸ Scoring & Recording</p>
+                  <p className="font-semibold mb-1">⚠ Scoring & Recording</p>
                   <p>This tool records the <strong>best trial time only</strong>. Performance interpretation is automated and displayed during assessment. For official test administration, refer to primary sources and follow test protocols precisely.</p>
                 </div>
 

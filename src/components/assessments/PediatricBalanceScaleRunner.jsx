@@ -177,7 +177,7 @@ export default function PediatricBalanceScaleRunner({ client, onSave, onClose })
               </div>
 
               <div className="bg-red-50 border border-red-300 p-3 rounded">
-                <p className="text-purple-800 text-xs"><strong>⚠ï¸ IMPORTANT:</strong> PBS is a screening and outcome measure, NOT a diagnostic tool. Abnormal findings require comprehensive pediatric neuromotor assessment, including neurological examination and developmental history. Always refer children with severe balance impairment or suspected neurological disorder to pediatric neurologist or rehabilitation specialist.</p>
+                <p className="text-purple-800 text-xs"><strong>⚠ IMPORTANT:</strong> PBS is a screening and outcome measure, NOT a diagnostic tool. Abnormal findings require comprehensive pediatric neuromotor assessment, including neurological examination and developmental history. Always refer children with severe balance impairment or suspected neurological disorder to pediatric neurologist or rehabilitation specialist.</p>
               </div>
             </CardContent>
           </Card>

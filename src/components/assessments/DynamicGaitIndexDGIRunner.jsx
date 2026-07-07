@@ -187,7 +187,7 @@ export default function DynamicGaitIndexDGIRunner({ client, onSave, onClose }) {
             <Card className={`border-2 ${totalScore < 19 ? "border-red-300 bg-red-50" : "border-green-300 bg-green-50"}`}>
               <CardContent className="pt-4">
                 <p className={`text-center font-bold text-lg ${totalScore < 19 ? "text-red-800" : "text-green-800"}`}>
-                  Total: {totalScore}/24 — {totalScore < 19 ? "⚠ï¸ Increased fall risk (< 19)" : "✓ Low fall risk (≥ 19)"}
+                  Total: {totalScore}/24 — {totalScore < 19 ? "⚠ Increased fall risk (< 19)" : "✓ Low fall risk (≥ 19)"}
                 </p>
               </CardContent>
             </Card>

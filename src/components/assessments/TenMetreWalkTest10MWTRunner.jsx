@@ -137,7 +137,7 @@ export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose })
           <div className="bg-white p-4 text-sm text-slate-700 space-y-3">
             <div className="grid md:grid-cols-2 gap-3">
               <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 space-y-2">
-                <p className="font-bold text-slate-800 text-xs">ðŸ Track Setup</p>
+                <p className="font-bold text-slate-800 text-xs">🏁 Track Setup</p>
                 <ul className="text-xs text-slate-600 space-y-1 list-disc pl-4">
                   <li>Total walkway: <strong>14 m</strong> minimum (2 m acceleration + 10 m timed + 2 m deceleration)</li>
                   <li>Mark start and stop lines clearly with tape</li>
@@ -167,13 +167,13 @@ export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose })
                 <p className="text-amber-700">Minimum 2 practice walks + 2–3 timed trials. Average the timed trials. Up to 4 trials supported.</p>
               </div>
               <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-xs">
-                <p className="font-semibold text-green-800">ðŸ“ Key Metrics</p>
+                <p className="font-semibold text-green-800">📏 Key Metrics</p>
                 <p className="text-green-700"><strong>MCID:</strong> 0.10 m/s (meaningful change)</p>
                 <p className="text-green-700"><strong>MDC:</strong> 0.13 m/s (true change beyond error)</p>
                 <p className="text-green-700"><strong>Fall risk:</strong> &lt;0.8 m/s</p>
               </div>
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs">
-                <p className="font-semibold text-red-800">⚠ï¸ Safety / Exclusions</p>
+                <p className="font-semibold text-red-800">⚠ Safety / Exclusions</p>
                 <p className="text-red-700">Unstable fracture · Severe pain on walking · Inability to follow instructions · Non-ambulatory without max assist</p>
               </div>
             </div>
@@ -257,7 +257,7 @@ export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose })
           <div className={`text-6xl font-bold font-mono tabular-nums ${isTiming ? "text-blue-600" : "text-slate-300"}`}>
             {isTiming ? elapsed.toFixed(2) : trials.length > 0 ? parseFloat(trials[trials.length - 1].time).toFixed(2) : "0.00"}s
           </div>
-          {isTiming && <p className="text-xs text-blue-500 animate-pulse">â± Timing — press Stop when leading foot crosses the 12 m mark</p>}
+          {isTiming && <p className="text-xs text-blue-500 animate-pulse">⏱ Timing — press Stop when leading foot crosses the 12 m mark</p>}
           <div className="flex justify-center gap-3 flex-wrap">
             {!isTiming ? (
               <Button onClick={handleStart} disabled={trials.length >= MAX_TRIALS}

@@ -123,7 +123,7 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
                 <div className="bg-white p-3 rounded border border-blue-200 space-y-2 text-xs">
                   <p className="text-blue-800"><strong>Medial Meniscus (C-shaped):</strong> More fixed posteriorly; more prone to degenerative tears and peripheral tears. Meniscal tears here often produce pain at medial joint line and may cause mechanical catching.</p>
                   <p className="text-blue-800"><strong>Lateral Meniscus (O-shaped):</strong> More mobile; prone to traumatic tears and bucket-handle tears (can cause acute locking with inability to extend knee fully). Positive McMurray's at lateral joint line suggests lateral meniscal tear.</p>
-                  <p className="text-blue-800"><strong>⚠ï¸ Why McMurray's has low sensitivity:</strong> Not all meniscal tears produce a click. Tears posterior, on the central capsular surface, or degenerative tears may not be mechanically detected by McMurray's. False negatives are common, especially in chronic knee pain.</p>
+                  <p className="text-blue-800"><strong>⚠ Why McMurray's has low sensitivity:</strong> Not all meniscal tears produce a click. Tears posterior, on the central capsular surface, or degenerative tears may not be mechanically detected by McMurray's. False negatives are common, especially in chronic knee pain.</p>
                 </div>
               </div>
 
@@ -174,7 +174,7 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
                     <p className="font-semibold text-blue-900">🔵 <strong>Clinical Nuance: Click vs. Pain</strong></p>
                     <p className="text-blue-800 text-xs mt-1"><strong>Mechanical click/pop:</strong> More specific for meniscal tear (displaced fragment). Stronger diagnostic indicator.</p>
                     <p className="text-blue-800 text-xs mt-2"><strong>Pain alone (no click):</strong> Less specific; may indicate meniscal tear, capsular irritation, OA, or other pathology. Sensitivity only ~57%.</p>
-                    <p className="text-blue-800 text-xs mt-2"><strong>⚠ï¸ False positives:</strong> Crepitus (cartilage roughness) or ligament snapping can mimic a meniscal click. Distinguish by location and reproducibility.</p>
+                    <p className="text-blue-800 text-xs mt-2"><strong>⚠ False positives:</strong> Crepitus (cartilage roughness) or ligament snapping can mimic a meniscal click. Distinguish by location and reproducibility.</p>
                   </div>
                 </div>
               </div>
@@ -201,8 +201,8 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
                 <p className="font-semibold text-blue-900 mb-2">Clinical Decision-Making: Interpretation Scenarios</p>
                 <div className="bg-white p-3 rounded border border-blue-200 space-y-2">
                   <p className="text-blue-800 text-xs"><strong>✅ McMurray's POSITIVE (click/pop at joint line) + Joint-line tenderness + Thessaly positive:</strong> High likelihood of meniscal tear. Consider MRI referral for confirmation and surgical planning.</p>
-                  <p className="text-blue-800 text-xs"><strong>⚠ï¸ McMurray's POSITIVE (pain only, no click) + Other tests negative:</strong> Non-specific; may indicate OA, capsular irritation, or referred pain. Does not strongly suggest tear. Continue conservative management.</p>
-                  <p className="text-blue-800 text-xs"><strong>âŒ McMurray's NEGATIVE but history of acute locking, catching, knee instability:</strong> Do NOT rule out meniscal tear; sensitivity is only ~50–60%. Perform Thessaly test, check for joint-line tenderness, and consider MRI if high clinical suspicion.</p>
+                  <p className="text-blue-800 text-xs"><strong>⚠ McMurray's POSITIVE (pain only, no click) + Other tests negative:</strong> Non-specific; may indicate OA, capsular irritation, or referred pain. Does not strongly suggest tear. Continue conservative management.</p>
+                  <p className="text-blue-800 text-xs"><strong>❌ McMurray's NEGATIVE but history of acute locking, catching, knee instability:</strong> Do NOT rule out meniscal tear; sensitivity is only ~50–60%. Perform Thessaly test, check for joint-line tenderness, and consider MRI if high clinical suspicion.</p>
                   <p className="text-blue-800 text-xs"><strong>📊 No mechanical symptoms but McMurray's positive:</strong> Low likelihood of acute tear; may indicate degenerative meniscal changes or OA. Monitor and reassess.</p>
                 </div>
               </div>
@@ -429,9 +429,9 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
                  <p className="font-semibold text-slate-700 mb-2">Test Progress</p>
                  <div className="space-y-1 text-xs text-slate-600">
                    <p>✅ Pre-Test Vitals</p>
-                   <p className={medialResults.length > 0 ? "✅" : "â³"}> Medial Meniscus: {medialResults.length} trials</p>
-                   <p className={lateralResults.length > 0 ? "✅" : "â³"}> Lateral Meniscus: {lateralResults.length} trials</p>
-                   <p className={testingStage === "complete" ? "â³" : ""}> Post-Test Vitals</p>
+                   <p className={medialResults.length > 0 ? "✅" : "⏳"}> Medial Meniscus: {medialResults.length} trials</p>
+                   <p className={lateralResults.length > 0 ? "✅" : "⏳"}> Lateral Meniscus: {lateralResults.length} trials</p>
+                   <p className={testingStage === "complete" ? "⏳" : ""}> Post-Test Vitals</p>
                  </div>
                </div>
              )}

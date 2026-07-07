@@ -124,7 +124,7 @@ export default function WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner({
               <p className="text-amber-700 mt-1">Symptoms must be present for ≥ 3 months and not better explained by another diagnosis.</p>
             </div>
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs">
-              <p className="font-semibold text-purple-800">⚠ï¸ Scope of Practice Note</p>
+              <p className="font-semibold text-purple-800">⚠ Scope of Practice Note</p>
               <p className="text-purple-700 mt-1">In many jurisdictions, Exercise Physiologists and allied health professionals are <strong>not authorised to diagnose</strong> fibromyalgia. This tool should be used to <strong>validate and support</strong> an existing medical diagnosis, monitor symptom severity over time, and inform exercise prescription — not as a standalone diagnostic instrument.</p>
               <p className="text-purple-700 mt-1">If criteria are met and no diagnosis exists, refer to the client's GP or rheumatologist for formal assessment.</p>
             </div>
@@ -191,7 +191,7 @@ export default function WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner({
             <div>
               <p className="font-bold text-slate-900">WPI: {wpiScore}/19 &nbsp;|&nbsp; SSS: {sssScore}/12 &nbsp;|&nbsp; Total: {total}/31</p>
               <p className={`text-sm font-semibold mt-1 ${meetsACR ? "text-red-700" : "text-slate-600"}`}>
-                ACR 2010 Criteria: {meetsACR ? "✅ MET — Fibromyalgia criteria satisfied" : "âŒ Not met"}
+                ACR 2010 Criteria: {meetsACR ? "✅ MET — Fibromyalgia criteria satisfied" : "❌ Not met"}
               </p>
             </div>
           </div>

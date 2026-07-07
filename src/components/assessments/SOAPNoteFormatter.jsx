@@ -42,7 +42,7 @@ export function formatGROCForSOAP(data) {
 export function formatConleyForSOAP(data) {
   if (!data.conley_data) return '';
   const conley = data.conley_data;
-  const riskLevel = conley.total_score >= 2 ? '⚠ï¸ High fall risk' : '✓ Low fall risk';
+  const riskLevel = conley.total_score >= 2 ? '⚠ High fall risk' : '✓ Low fall risk';
   return `  Total Score: ${conley.total_score}/12\n  Fall Risk: ${riskLevel}\n`;
 }
 

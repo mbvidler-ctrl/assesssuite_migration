@@ -215,7 +215,7 @@ export default function EMSRunner({ onSave, onClose }) {
                 <CardContent className={interpretation.color}>
                   <p className="font-semibold text-lg">{interpretation.level}</p>
                   {total < 14 && (
-                    <p className="text-sm mt-2">⚠ï¸ Score suggests significant mobility limitation and increased risk of falls/dependence</p>
+                    <p className="text-sm mt-2">⚠ Score suggests significant mobility limitation and increased risk of falls/dependence</p>
                   )}
                 </CardContent>
               </Card>

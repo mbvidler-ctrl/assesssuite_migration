@@ -229,7 +229,7 @@ export default function RepeatedJumpRunner({ onSave, onClose }) {
                       size="lg"
                       className="w-full h-28 text-2xl font-bold bg-blue-600 hover:bg-blue-700 shadow-lg"
                     >
-                      {clickPhase === "flight" ? "⬇ï¸ Click to End Flight Time" : "⬆ï¸ Click to End Contact Time"}
+                      {clickPhase === "flight" ? "⬇ Click to End Flight Time" : "⬆ Click to End Contact Time"}
                     </Button>
                     <p className="text-sm text-slate-600 text-center font-medium">
                       Click rhythm: <strong>Flight → Contact → Flight → Contact</strong>

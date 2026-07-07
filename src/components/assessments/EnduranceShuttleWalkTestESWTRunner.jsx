@@ -247,7 +247,7 @@ Interpretation:
             </div>
 
             {/* Equipment & Setup */}
-            <CollapsibleSection title="🛠ï¸ Equipment & Setup" section="setup">
+            <CollapsibleSection title="🛠 Equipment & Setup" section="setup">
               <div className="grid grid-cols-2 gap-6">
                 <div>
                   <p className="font-semibold text-slate-900 text-sm mb-3">Equipment Required</p>
@@ -392,7 +392,7 @@ Interpretation:
               )}
 
               {!quickMode && (
-                <CollapsibleSection title="⚠ï¸ Safety Screening" section="safety" compact>
+                <CollapsibleSection title="⚠ Safety Screening" section="safety" compact>
                   <div className="grid grid-cols-2 gap-4">
                     {[
                       { label: "Chest pain or angina present?", value: chestPain, setter: setChestPain },
@@ -433,7 +433,7 @@ Interpretation:
                 <div className="bg-red-50 border border-red-300 rounded-lg p-4 flex gap-3">
                   <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div className="text-sm text-red-900">
-                    <p className="font-semibold">⚠ï¸ Safety Concern Detected</p>
+                    <p className="font-semibold">⚠ Safety Concern Detected</p>
                     <p className="mt-1">
                       {chestPain === "yes" && "Chest pain reported. Do not proceed. Review with clinician."}
                       {restingSpO2 && parseFloat(restingSpO2) < 85 && " SpO₂ critically low. Assess safety before proceeding."}
@@ -488,7 +488,7 @@ Interpretation:
 
               {iswtCompleted === "no" && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-                  <p className="text-sm font-semibold text-amber-900">⚠ï¸ No ISWT Completed</p>
+                  <p className="text-sm font-semibold text-amber-900">⚠ No ISWT Completed</p>
                   <p className="text-sm text-amber-800 mt-2">
                     ESWT speed selection will be based on clinical judgment. Consider completing ISWT first for standardised speed derivation.
                   </p>
@@ -637,7 +637,7 @@ Interpretation:
               </CollapsibleSection>
 
               {/* Additional Notes */}
-              <CollapsibleSection title="ðŸ“ Clinical Observations" section="notes" compact>
+              <CollapsibleSection title="📝 Clinical Observations" section="notes" compact>
                 <div className="space-y-4">
                   <div>
                     <Label className="text-xs font-medium text-slate-700">Adverse Events (if any)</Label>
@@ -663,7 +663,7 @@ Interpretation:
                     }
                   </p>
                   <p className="text-xs italic">
-                    ℹï¸ Interpret relative to client baseline and prior ESWT results. ESWT is most useful for monitoring responsiveness to rehabilitation or intervention, not for comparing against population norms.
+                    ℹ Interpret relative to client baseline and prior ESWT results. ESWT is most useful for monitoring responsiveness to rehabilitation or intervention, not for comparing against population norms.
                   </p>
                 </div>
               </div>

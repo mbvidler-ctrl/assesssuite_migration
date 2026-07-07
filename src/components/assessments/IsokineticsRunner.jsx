@@ -274,7 +274,7 @@ export default function IsokineticsRunner({ onSave, onClose }) {
                     <p className="text-sm text-slate-600">Bilateral Asymmetry</p>
                     <p className="text-4xl font-bold text-slate-900">{asymmetry}%</p>
                     {parseFloat(asymmetry) > 15 && (
-                      <p className="text-sm text-red-600 mt-1">⚠ï¸ Clinically significant asymmetry</p>
+                      <p className="text-sm text-red-600 mt-1">⚠ Clinically significant asymmetry</p>
                     )}
                   </div>
                 )}

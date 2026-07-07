@@ -136,8 +136,8 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
   const phaseInfo = {
     idle:      { label: "Ready to Start", color: "text-slate-600", bg: "bg-slate-50" },
     exercise:  { label: "⚡ Exercise Phase — Step Up & Down", color: "text-blue-700", bg: "bg-blue-50" },
-    waiting:   { label: "â³ Recovery Wait — Client Resting (1 min)", color: "text-orange-700", bg: "bg-orange-50" },
-    measuring: { label: "â¤ï¸ Measure Pulse Now — 30 Seconds", color: "text-red-700", bg: "bg-red-50" },
+    waiting:   { label: "⏳ Recovery Wait — Client Resting (1 min)", color: "text-orange-700", bg: "bg-orange-50" },
+    measuring: { label: "❤ Measure Pulse Now — 30 Seconds", color: "text-red-700", bg: "bg-red-50" },
     done:      { label: "✅ Measurement Window Complete — Enter HR Below", color: "text-green-700", bg: "bg-green-50" },
   };
 
@@ -175,7 +175,7 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
                 </ul>
               </div>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                <p className="font-bold text-blue-800 text-xs mb-1">ðŸƒ Exercise Phase (3 min)</p>
+                <p className="font-bold text-blue-800 text-xs mb-1">🏃 Exercise Phase (3 min)</p>
                 <ul className="text-xs text-slate-600 space-y-1 list-disc pl-4">
                   <li>4-beat cycle: Up-Up-Down-Down</li>
                   <li>Maintain cadence with metronome throughout</li>
@@ -185,7 +185,7 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
                 <p className="text-xs italic text-blue-700 mt-2">"Step up and down in time with the metronome for 3 minutes. Keep the same rhythm throughout."</p>
               </div>
               <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                <p className="font-bold text-orange-800 text-xs mb-1">â¤ï¸ Recovery HR Measurement</p>
+                <p className="font-bold text-orange-800 text-xs mb-1">❤ Recovery HR Measurement</p>
                 <ul className="text-xs text-slate-600 space-y-1 list-disc pl-4">
                   <li>Client sits immediately after stepping</li>
                   <li>Wait exactly <strong>1 minute post-exercise</strong></li>
@@ -196,7 +196,7 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
               </div>
             </div>
             <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-xs">
-              <p className="font-semibold text-red-800">⚠ï¸ Stop Test Immediately If:</p>
+              <p className="font-semibold text-red-800">⚠ Stop Test Immediately If:</p>
               <p className="text-red-700">Chest pain or tightness · Severe dyspnoea · Dizziness or near-syncope · Pallor or cyanosis · Client requests to stop · Irregular pulse detected</p>
             </div>
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-xs">
@@ -327,7 +327,7 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
         )}
         {phase === "measuring" && (
           <div className="mx-4 mb-3 bg-red-50 border border-red-200 rounded-lg p-3 text-xs text-red-800 font-semibold">
-            â¤ï¸ COUNT PULSE NOW for 30 seconds. Palpate radial or carotid. Count until timer reaches 0:00.
+            ❤ COUNT PULSE NOW for 30 seconds. Palpate radial or carotid. Count until timer reaches 0:00.
           </div>
         )}
         {phase === "done" && (

@@ -34,7 +34,7 @@ const STAGES = [
     instruction: "Ask the client to place one foot directly in front of the other so the heel of the front foot touches the toes of the back foot (heel-to-toe).",
     clientCue: "\"Now place one foot directly in front of the other so your heel is touching your toes. Hold this position for 10 seconds.\"",
     icon: "🚶",
-    clinicianNote: "⚠ï¸ This is the critical stage for fall risk assessment. If this stage is not held for 10 seconds, the client is considered at increased risk of falling. Ensure the heel-to-toe contact is maintained."
+    clinicianNote: "⚠ This is the critical stage for fall risk assessment. If this stage is not held for 10 seconds, the client is considered at increased risk of falling. Ensure the heel-to-toe contact is maintained."
   },
   {
     id: "single_leg",

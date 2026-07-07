@@ -79,9 +79,9 @@ function suggestGrade(interview) {
 // ─── Risk flags ───────────────────────────────────────────────────────────────
 function getRiskFlags(interview, observations) {
   const flags = [];
-  if (interview["needs_supervision"] === "yes" || observations.includes("Falls risk concern identified") || observations.includes("Balance impairment observed")) flags.push("⚠ï¸ Falls risk concern");
+  if (interview["needs_supervision"] === "yes" || observations.includes("Falls risk concern identified") || observations.includes("Balance impairment observed")) flags.push("⚠ Falls risk concern");
   if (interview["needs_dressing_help"] === "yes" || interview["needs_bathing_help"] === "yes" || interview["needs_toileting_help"] === "yes") flags.push("👤 Carer/support needs identified");
-  if (observations.includes("Falls risk concern identified") || observations.includes("Balance impairment observed")) flags.push("ðŸ  Home safety review may be required");
+  if (observations.includes("Falls risk concern identified") || observations.includes("Balance impairment observed")) flags.push("🏠 Home safety review may be required");
   if (observations.includes("Balance impairment observed") || observations.includes("Fatigue limits function") || interview["needs_gait_aid"] === "yes") flags.push("🩺 Physiotherapy/OT referral may be appropriate");
   return flags;
 }

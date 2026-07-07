@@ -124,7 +124,7 @@ export default function HADSRunner({ onSave, onClose }) {
 
             <Card className="bg-amber-50 border-amber-200">
               <CardHeader>
-                <CardTitle className="text-sm text-amber-800">⚠ï¸ Clinical Considerations</CardTitle>
+                <CardTitle className="text-sm text-amber-800">⚠ Clinical Considerations</CardTitle>
               </CardHeader>
               <CardContent className="text-sm text-amber-800">
                 <p>Scores ≥11 indicate probable presence of mood disorder. Recommend referral to GP or mental health professional for further assessment. High scores may affect exercise tolerance, motivation, and safety.</p>

@@ -60,7 +60,7 @@ const QUESTIONS = [
   {
     id: 5,
     domain: "Falls",
-    icon: "⚠ï¸",
+    icon: "⚠",
     script: "How many times have you fallen in the last year?",
     example: "Include any unplanned descent to the ground, regardless of injury",
     options: [
@@ -395,7 +395,7 @@ export default function SARCFQuestionnaireRunner({ client, onSave, onClose }) {
           )}
 
           {/* Notes */}
-          <Section title="ðŸ“ Clinical Notes">
+          <Section title="📝 Clinical Notes">
             <Textarea
               value={notes}
               onChange={e => setNotes(e.target.value)}

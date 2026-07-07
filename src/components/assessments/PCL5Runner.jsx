@@ -176,7 +176,7 @@ export default function PCL5Runner({ client, onSave, onClose }) {
                       <p className="text-red-800"><strong>Moderate (28–43):</strong> Moderate symptom severity; likely meets full PTSD criteria.</p>
                       <p className="text-red-800"><strong>Severe (44–58):</strong> Severe PTSD symptoms; significant functional impairment.</p>
                       <p className="text-red-800"><strong>Extreme (59–80):</strong> Extreme PTSD severity; urgent treatment needed.</p>
-                      <p className="text-red-800 mt-2"><strong>⚠ï¸ Clinical Cutoff:</strong> Score ≥33 suggests probable PTSD diagnosis. Score ≥31 (alternative cutoff) also used in some populations.</p>
+                      <p className="text-red-800 mt-2"><strong>⚠ Clinical Cutoff:</strong> Score ≥33 suggests probable PTSD diagnosis. Score ≥31 (alternative cutoff) also used in some populations.</p>
                     </div>
                   </div>
 
@@ -195,8 +195,8 @@ export default function PCL5Runner({ client, onSave, onClose }) {
                     <p className="font-semibold text-red-900 mb-2">Clinical Decision-Making</p>
                     <div className="bg-white p-3 rounded border border-red-100 space-y-2 text-xs">
                       <p className="text-red-800"><strong>✅ Score ≥33 + trauma history + functional impairment:</strong> Probable PTSD. Recommend specialist referral (psychiatry/trauma-informed psychology), evidence-based treatment (CBT, EMDR, prolonged exposure).</p>
-                      <p className="text-red-800"><strong>⚠ï¸ Score 14–32 + trauma history:</strong> Subclinical PTSD; elevated risk. Recommend psychoeducation, stress management, peer support, repeat assessment in 4 weeks.</p>
-                      <p className="text-red-800"><strong>âŒ Score &lt;14 + trauma history:</strong> Minimal symptoms. Monitor; normal stress response. Reassure and offer support.</p>
+                      <p className="text-red-800"><strong>⚠ Score 14–32 + trauma history:</strong> Subclinical PTSD; elevated risk. Recommend psychoeducation, stress management, peer support, repeat assessment in 4 weeks.</p>
+                      <p className="text-red-800"><strong>❌ Score &lt;14 + trauma history:</strong> Minimal symptoms. Monitor; normal stress response. Reassure and offer support.</p>
                       <p className="text-red-800"><strong>🆘 Score &gt;59 + acute distress:</strong> Urgent psychiatric evaluation; assess suicide/self-harm risk, crisis support, possible inpatient treatment.</p>
                     </div>
                   </div>
@@ -283,7 +283,7 @@ export default function PCL5Runner({ client, onSave, onClose }) {
                       <p className="text-sm text-slate-600 mt-2">/ 80</p>
                       <p className={`text-lg font-semibold ${severity.color} mt-3`}>{severity.level} PTSD Severity</p>
                       {totalScore >= 33 && (
-                        <p className="text-xs text-red-700 mt-2 font-semibold">⚠ï¸ Score indicates probable PTSD diagnosis</p>
+                        <p className="text-xs text-red-700 mt-2 font-semibold">⚠ Score indicates probable PTSD diagnosis</p>
                       )}
                     </div>
                   </CardContent>

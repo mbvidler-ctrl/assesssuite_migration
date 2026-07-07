@@ -261,8 +261,8 @@ export default function TUGRunner({ onSave, onClose, initialData }) {
               <p className="font-semibold text-slate-900">
                 {parseFloat(data.time_seconds) < 10 ? '✓ Independent mobility' :
                  parseFloat(data.time_seconds) < 20 ? 'Mostly independent' :
-                 parseFloat(data.time_seconds) < 30 ? '⚠ï¸ Variable mobility, assistance may be needed' :
-                 '⚠ï¸ Impaired mobility, assistance required'}
+                 parseFloat(data.time_seconds) < 30 ? '⚠ Variable mobility, assistance may be needed' :
+                 '⚠ Impaired mobility, assistance required'}
               </p>
               <p className="text-xs text-slate-600 mt-1">
                 &lt;10s = Normal, 10-20s = Mostly independent, 20-30s = Variable, &gt;30s = Impaired

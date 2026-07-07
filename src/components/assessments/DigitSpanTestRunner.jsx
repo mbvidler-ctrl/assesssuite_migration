@@ -200,7 +200,7 @@ export default function DigitSpanTestRunner({ client, onSave, onClose }) {
               {/* Error indicator */}
               {errorCount > 0 && (
                 <div className="bg-orange-50 border border-orange-200 rounded-lg px-3 py-2 text-sm text-orange-700">
-                  ⚠ï¸ {errorCount} failure{errorCount > 1 ? "s" : ""} at {trialLength} digits — one more failure ends this phase.
+                  ⚠ {errorCount} failure{errorCount > 1 ? "s" : ""} at {trialLength} digits — one more failure ends this phase.
                 </div>
               )}
 

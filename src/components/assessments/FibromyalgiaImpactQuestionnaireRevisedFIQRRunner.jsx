@@ -148,7 +148,7 @@ export default function FibromyalgiaImpactQuestionnaireRevisedFIQRRunner({ clien
 
         {/* Script */}
         <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-slate-700">
-          <p className="font-semibold text-green-800 mb-1">🗣ï¸ What to Say to the Client</p>
+          <p className="font-semibold text-green-800 mb-1">🗣 What to Say to the Client</p>
           <p className="italic">"I'm going to ask you about how fibromyalgia has affected you over the <strong>past 7 days</strong>. For each item, please choose a number from 0 to 10 that best reflects your experience. There are no right or wrong answers."</p>
         </div>
 
