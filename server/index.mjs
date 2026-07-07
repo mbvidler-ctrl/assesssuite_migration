@@ -26,6 +26,21 @@ const repoRoot = path.join(__dirname, '..');
 const distDir = path.join(repoRoot, 'dist');
 const uploadsDir = path.join(__dirname, 'uploads');
 
+// Load .env.local for local runs (set-if-absent, so real environment variables
+// — e.g. Fly secrets in production — always take precedence and are never
+// overwritten). Keeps secrets like OPENAI_API_KEY out of the codebase.
+(function loadDotEnvLocal() {
+  const file = path.join(repoRoot, '.env.local');
+  if (!fs.existsSync(file)) return;
+  for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
+    const m = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/.exec(line);
+    if (!m) continue;
+    const key = m[1];
+    let val = m[2].replace(/^["']|["']$/g, '');
+    if (process.env[key] === undefined) process.env[key] = val;
+  }
+})();
+
 const PORT = Number(process.env.PORT) || 8787;
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@local.test';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'change-me-local';

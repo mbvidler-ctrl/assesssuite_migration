@@ -45,6 +45,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 
 import { instantiateSchema, extractJsonKeysFromPrompt } from './mocks/schema-instantiator.mjs';
+import { invokeLLM as invokeRealLLM, llmEnabled } from './llm.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsDir = path.join(__dirname, 'uploads');
@@ -107,18 +108,32 @@ function sendJson(res, status, payload) {
 // InvokeLLM
 // ---------------------------------------------------------------------------
 
-function handleInvokeLLM(body) {
+async function handleInvokeLLM(body) {
   const { prompt, response_json_schema: schema } = body || {};
+  const schemaObj = schema && typeof schema === 'object' ? { ...schema, type: schema.type || 'object' } : null;
+  const jsonKeys = schemaObj ? null : extractJsonKeysFromPrompt(prompt);
 
-  if (schema && typeof schema === 'object') {
-    return instantiateSchema({ ...schema, type: schema.type || 'object' }, 'response');
+  // Real model path (engagement election E6). De-identification is applied
+  // inside invokeRealLLM before any egress. The prompt's own wording drives
+  // prose-vs-JSON for the no-schema case, so the heuristic is not needed here.
+  // Any failure falls through to the deterministic mock so the demo never
+  // hard-fails on a network/API error.
+  if (llmEnabled()) {
+    try {
+      return await invokeRealLLM({ prompt, schema: schemaObj });
+    } catch (err) {
+      console.log('[llm] real model failed, falling back to mock:', err.message);
+    }
+  }
+
+  if (schemaObj) {
+    return instantiateSchema(schemaObj, 'response');
   }
 
   // No schema: check whether the prompt itself asks for a JSON-shaped
   // response by embedding an example object literal (PrivateHealthInitial
   // Assessment.jsx pattern) — if so, return a JSON string so the caller's
   // own JSON.parse succeeds; otherwise return placeholder prose.
-  const jsonKeys = extractJsonKeysFromPrompt(prompt);
   if (jsonKeys && jsonKeys.length > 0) {
     const obj = {};
     for (const key of jsonKeys) {
@@ -224,7 +239,7 @@ export async function handleCoreIntegration(req, res, { endpointName, outboxEmai
 
   switch (endpointName) {
     case 'InvokeLLM': {
-      const result = handleInvokeLLM(body);
+      const result = await handleInvokeLLM(body);
       // InvokeLLM's real response is either a bare string or a bare object,
       // never wrapped — but HTTP responses need a body. The SDK's axios
       // response-data unwrapping happens beneath JSON parsing, so a JSON

@@ -1372,8 +1372,15 @@ function AssessmentCard({ result, onApplyFix, onApproveFix, onRejectFix, isFixin
 
                     {fix.status === 'ready' && fix.data && (
                       <div className="space-y-2">
-                        <div className="bg-slate-100 p-3 rounded text-sm max-h-48 overflow-auto">
-                          <pre className="whitespace-pre-wrap">{JSON.stringify(fix.data, null, 2)}</pre>
+                        <div className="bg-slate-100 p-3 rounded text-sm max-h-64 overflow-auto space-y-2">
+                          {Object.entries(fix.data).map(([field, value]) => (
+                            <div key={field}>
+                              <div className="font-semibold text-slate-700 capitalize">{String(field).replace(/_/g, ' ')}</div>
+                              <div className="whitespace-pre-wrap text-slate-600">
+                                {typeof value === 'string' ? value : JSON.stringify(value, null, 2)}
+                              </div>
+                            </div>
+                          ))}
                         </div>
                         <div className="flex gap-2">
                           <Button 

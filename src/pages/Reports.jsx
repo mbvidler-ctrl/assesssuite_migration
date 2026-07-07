@@ -268,11 +268,19 @@ export default function Reports() {
       if (memberships.length > 0) {
         const primary = memberships.find(m => m.is_primary) || memberships[0];
         setUserOrgId(primary.org_id);
+        // isLoading is cleared by loadClients() once the org is known.
       } else {
+        // No organisation (e.g. a platform administrator). Do not hang the
+        // page: clear loading and render the empty state. Only surface the
+        // "contact support" prompt to ordinary users, for whom it is an error.
         setUserOrgId(null);
-        toast.error("You don't belong to any organization. Please contact support.");
+        setIsLoading(false);
+        if (user?.role !== "admin") {
+          toast.error("You don't belong to any organization. Please contact support.");
+        }
       }
     } catch (error) {
+      setIsLoading(false);
       toast.error("Failed to load user organization.");
     }
   };

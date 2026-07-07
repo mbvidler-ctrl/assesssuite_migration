@@ -47,6 +47,33 @@ import { buildDass21Payload } from '../src/lib/clinical/dass21.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
 
+/**
+ * Loads de-identified catalogue records imported from the client's live
+ * application (JSON Lines under server/data-import/, one object per line;
+ * authorised content-only import per mission UM-AUTO-20260707 Amendment 3).
+ * Returns [] when the directory or files are absent, so the seed degrades to
+ * the built-in synthetic catalogue with no import present.
+ */
+function loadImportedCatalogue(prefix) {
+  const dir = path.join(__dirname, 'data-import');
+  if (!fs.existsSync(dir)) return [];
+  const out = [];
+  for (const file of fs.readdirSync(dir)) {
+    if (!file.startsWith(prefix) || !file.endsWith('.jsonl')) continue;
+    const text = fs.readFileSync(path.join(dir, file), 'utf8');
+    for (const line of text.split(/\r?\n/)) {
+      if (!line.trim()) continue;
+      try {
+        const rec = JSON.parse(line);
+        if (rec && rec.is_deleted !== true) out.push(rec);
+      } catch {
+        /* skip malformed line */
+      }
+    }
+  }
+  return out;
+}
+
 const SEED_PASSWORD = process.env.SEED_PASSWORD || 'SeedDemo!2026';
 
 // ---------------------------------------------------------------------------
@@ -775,7 +802,16 @@ export function runSeed({ db, entityNames }) {
   seedOrgMember(orgBeta, betaClinician, 'clinician');
 
   // --- Catalogues (only if empty) ---
-  const assessmentCatalogue = seedCatalogue('Assessment', CATALOGUE_ASSESSMENTS);
+  // Merge the built-in synthetic definitions (which the client clusters and the
+  // DASS-21 per-question exemplar depend on) with the imported live catalogue.
+  // Synthetic names win on collision so those wired shapes are preserved; every
+  // other imported assessment is added, giving the full launch-state library.
+  const syntheticNames = new Set(CATALOGUE_ASSESSMENTS.map((a) => a.name));
+  const importedAssessments = loadImportedCatalogue('assessment-part')
+    .filter((a) => a && a.name && !syntheticNames.has(a.name));
+  const mergedAssessments = [...CATALOGUE_ASSESSMENTS, ...importedAssessments];
+  note(`Assessment catalogue: ${CATALOGUE_ASSESSMENTS.length} synthetic + ${importedAssessments.length} imported = ${mergedAssessments.length}`);
+  const assessmentCatalogue = seedCatalogue('Assessment', mergedAssessments);
   seedCatalogue('Exercise', CATALOGUE_EXERCISES);
 
   // --- Org Alpha clients (4, incl. one deliberate near-duplicate pair for G7) ---
