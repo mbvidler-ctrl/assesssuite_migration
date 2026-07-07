@@ -819,6 +819,24 @@ export function runSeed({ db, entityNames }) {
   const assessmentCatalogue = seedCatalogue('Assessment', mergedAssessments);
   seedCatalogue('Exercise', CATALOGUE_EXERCISES);
 
+  // Treatment protocols: load the client-authorised live export (same catalogue
+  // export that produced the assessment library). The TreatmentProtocols page
+  // does a cache lookup by condition_name and only calls the model on a miss —
+  // so seeding these curated, reference-grounded protocols makes matched
+  // conditions render instantly AND avoids a model call (and its credit spend)
+  // for each one. Deduplicated on condition_name (the app's lookup key; first
+  // occurrence wins) so the export's intentional variants collapse cleanly.
+  if (entityNames.has('TreatmentProtocol')) {
+    const seenProtocol = new Set();
+    const importedProtocols = loadImportedCatalogue('treatmentprotocol-part').filter((p) => {
+      if (!p || !p.condition_name || seenProtocol.has(p.condition_name)) return false;
+      seenProtocol.add(p.condition_name);
+      return true;
+    });
+    note(`TreatmentProtocol catalogue: ${importedProtocols.length} imported (deduped on condition_name)`);
+    seedCatalogue('TreatmentProtocol', importedProtocols);
+  }
+
   // --- Org Alpha clients (4, incl. one deliberate near-duplicate pair for G7) ---
   const graceEllington = seedClientCluster({
     org: orgAlpha,
