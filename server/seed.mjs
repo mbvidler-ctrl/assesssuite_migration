@@ -678,21 +678,33 @@ export function runSeed({ db, entityNames }) {
   const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@local.test';
   const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'change-me-local';
   {
+    // A minimal profile is set so the admin lands on the admin surfaces rather
+    // than the profile-setup wizard (Layout gates on clinician_name before the
+    // admin check). Admins skip the subscription gate, but subscription_status is
+    // set active for good measure.
+    const adminProfile = {
+      full_name: 'Local Administrator',
+      clinician_name: 'Local Administrator',
+      profession: 'Exercise Physiologist',
+      role: 'admin',
+      account_status: 'active',
+      subscription_status: 'active',
+    };
     const existingAdmin = findOne('User', (u) => u.role === 'admin');
     if (!existingAdmin) {
       const { password_hash, salt } = hashPassword(ADMIN_PASSWORD);
       const admin = repoFor('User').create(
-        {
-          email: ADMIN_EMAIL,
-          full_name: 'Local Administrator',
-          role: 'admin',
-          account_status: 'active',
-          password_hash,
-          salt,
-        },
+        { email: ADMIN_EMAIL, ...adminProfile, password_hash, salt },
         ADMIN_EMAIL,
       );
       note(`Bootstrap admin created: ${admin.email} (id ${admin.id})`);
+    } else if (!existingAdmin.clinician_name) {
+      repoFor('User').update(existingAdmin.id, {
+        clinician_name: adminProfile.clinician_name,
+        profession: adminProfile.profession,
+        subscription_status: 'active',
+      });
+      note(`Bootstrap admin profile backfilled: ${existingAdmin.email}`);
     } else {
       note(`Bootstrap admin already present: ${existingAdmin.email} (id ${existingAdmin.id})`);
     }

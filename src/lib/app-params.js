@@ -47,7 +47,15 @@ const resolveServerUrl = () => {
 	if (isNode) return explicit;
 	const origin = window.location.origin;
 	if (!explicit) return origin;
-	if (isLocalhostOrigin(explicit) && !isLocalhostOrigin(origin)) return origin;
+	// A localhost backend that was baked or stored from a different local workflow
+	// must not override the origin actually serving the app. Two cases:
+	//  - remote origin (deployed / tunnel) with a localhost value baked in; and
+	//  - the single-origin shim served from one localhost port (e.g. :8787) while a
+	//    stale value points at another localhost port (e.g. the :5173 vite-dev proxy).
+	// In both, prefer the current origin. When origin and explicit are the same
+	// localhost port (the vite-dev-proxy workflow), explicit is kept.
+	const norm = (u) => (u || "").replace(/\/$/, "");
+	if (isLocalhostOrigin(explicit) && norm(explicit) !== norm(origin)) return origin;
 	return explicit;
 }
 

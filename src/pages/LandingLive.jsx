@@ -694,11 +694,16 @@ export default function LandingLive() {
             <div style={{fontSize:'48px',marginBottom:'16px'}}>🚀</div>
             <h2 style={{fontSize:'26px',fontWeight:800,color:'#0f172a',marginBottom:'12px',letterSpacing:'-0.5px'}}>Coming Soon</h2>
             <p style={{fontSize:'16px',color:'#64748b',marginBottom:'8px',lineHeight:1.6}}>AssessSuite Clinical launches on</p>
-            <div style={{background:'#eff6ff',color:'#2563eb',fontSize:'22px',fontWeight:800,padding:'14px 24px',borderRadius:'12px',display:'inline-block',marginBottom:'20px',letterSpacing:'-0.5px'}}>June 8, 2026</div>
+            <div style={{background:'#eff6ff',color:'#2563eb',fontSize:'22px',fontWeight:800,padding:'14px 24px',borderRadius:'12px',display:'inline-block',marginBottom:'20px',letterSpacing:'-0.5px'}}>13 July 2026</div>
             <p style={{fontSize:'14px',color:'#94a3b8',marginBottom:'28px',lineHeight:1.6}}>We're putting the finishing touches on the platform. Check back on launch day to sign up and get started.</p>
-            <button onClick={() => setShowComingSoon(false)} style={{background:'#2563eb',color:'#fff',border:'none',borderRadius:'10px',padding:'14px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'}}>
-              Got it
-            </button>
+            <div style={{display:'flex',gap:'12px',justifyContent:'center',flexWrap:'wrap'}}>
+              <button onClick={() => setShowComingSoon(false)} style={{background:'#2563eb',color:'#fff',border:'none',borderRadius:'10px',padding:'14px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'}}>
+                Got it
+              </button>
+              <button onClick={() => { setShowComingSoon(false); navigate('/testing-bypass'); }} style={{background:'#fff',color:'#2563eb',border:'2px solid #2563eb',borderRadius:'10px',padding:'14px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'}}>
+                Testing Bypass
+              </button>
+            </div>
           </div>
         </div>
       )}

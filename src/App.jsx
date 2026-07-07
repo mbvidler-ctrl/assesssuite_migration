@@ -21,6 +21,7 @@ import AccountSetup from '@/pages/AccountSetup';
 import SignIn from '@/pages/SignIn';
 import Signup from '@/pages/Signup';
 import PaymentRequired from './pages/PaymentRequired';
+import TestingBypass from '@/pages/TestingBypass';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -55,6 +56,7 @@ const AuthenticatedApp = () => {
       <Route path="/" element={<LandingLive />} />
       <Route path="/Landing" element={<Landing />} />
       <Route path="/login" element={<Login />} />
+      <Route path="/testing-bypass" element={<TestingBypass />} />
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
