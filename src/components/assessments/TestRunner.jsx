@@ -1912,8 +1912,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         if (sixMWTData.assessment_date) {
           updateData.assessment_date = sixMWTData.assessment_date;
         }
-      } else if (isDASS21()) { if (!dass21Data) { toast.error("Please complete the DASS-21 questionnaire first."); setIsSubmitting(false); return; } const d21=dass21Data.additional_data||dass21Data; updateData.result_value=(d21.depression_score||0)+(d21.anxiety_score||0)+(d21.stress_score||0); updateData.additional_data=d21;
-      } else if (isHADSTest()) { const hd=hadsData.additional_data||hadsData; updateData.result_value=(hd.anxiety_score||0)+(hd.depression_score||0); updateData.additional_data=hd;
+      } else if (isDASS21()) { if (!dass21Data) { toast.error("Please complete the DASS-21 questionnaire first."); setIsSubmitting(false); return; } const d21=dass21Data.additional_data||dass21Data; updateData.result_value=(d21.depression_score||0)+(d21.anxiety_score||0)+(d21.stress_score||0); updateData.additional_data=d21; if (dass21Data.assessment_date) { updateData.assessment_date = dass21Data.assessment_date; }
+      } else if (isHADSTest()) { const hd=hadsData.additional_data||hadsData; updateData.result_value=(hd.anxiety_score||0)+(hd.depression_score||0); updateData.additional_data=hd; if (hadsData.assessment_date) { updateData.assessment_date = hadsData.assessment_date; }
       } else if (isClinicalFrailtyScaleTest()) {
         updateData.result_value = clinicalFrailtyScaleData.frailty_score;
         updateData.additional_data = clinicalFrailtyScaleData.additional_data || clinicalFrailtyScaleData;

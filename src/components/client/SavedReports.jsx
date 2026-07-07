@@ -97,8 +97,16 @@ export default function SavedReports({ client }) {
     if (!client || !client.id) return;
     setIsLoading(true);
     try {
-      const reportsData = await base44.entities.SavedReport.filter({ client_id: client.id });
-      setReports(reportsData.sort((a, b) => new Date(b.report_date) - new Date(a.report_date)));
+      // Reports may be saved under either the current SavedReport entity (the
+      // report wizard) or the legacy ClientReport entity (older generators);
+      // surface both so no generated report is invisible in the client profile.
+      const [savedReports, clientReports] = await Promise.all([
+        base44.entities.SavedReport.filter({ client_id: client.id }).catch(() => []),
+        base44.entities.ClientReport.filter({ client_id: client.id }).catch(() => []),
+      ]);
+      const combined = [...(savedReports || []), ...(clientReports || [])];
+      combined.sort((a, b) => new Date(b.report_date || b.created_date || 0) - new Date(a.report_date || a.created_date || 0));
+      setReports(combined);
     } catch (error) {
       console.error("Error loading reports:", error);
       toast.error("Failed to load reports");

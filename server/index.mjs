@@ -145,6 +145,13 @@ function sendJson(res, status, body) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Content-Length': Buffer.byteLength(payload),
+    // API responses must never be cached by the browser: entity reads (SOAP
+    // notes, saved reports, assessments) were being served stale for minutes
+    // after a save, so newly-saved records did not appear in the client profile
+    // until the heuristic cache expired.
+    'Cache-Control': 'no-store, no-cache, must-revalidate',
+    'Pragma': 'no-cache',
+    'Expires': '0',
   });
   res.end(payload);
 }
