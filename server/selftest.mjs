@@ -795,7 +795,7 @@ async function runChecks(baseUrl, appId) {
       baseUrl,
       appId,
       `/api/apps/${appId}/integration-endpoints/Core/InvokeLLM`,
-      { method: 'POST', body: { prompt: 'Write a short clinical note.' } },
+      { method: 'POST', token: adminToken, body: { prompt: 'Write a short clinical note.' } },
     );
     record(
       'InvokeLLM without response_json_schema returns a raw string',
@@ -827,7 +827,7 @@ async function runChecks(baseUrl, appId) {
       baseUrl,
       appId,
       `/api/apps/${appId}/integration-endpoints/Core/InvokeLLM`,
-      { method: 'POST', body: { prompt: 'Give medication alerts', response_json_schema: schema } },
+      { method: 'POST', token: adminToken, body: { prompt: 'Give medication alerts', response_json_schema: schema } },
     );
     record(
       'InvokeLLM with response_json_schema returns the schema-shaped object directly',
@@ -844,6 +844,7 @@ async function runChecks(baseUrl, appId) {
   {
     const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/integration-endpoints/Core/SendEmail`, {
       method: 'POST',
+      token: adminToken,
       body: { to: 'selftest@example.com', subject: 'Selftest', body: 'Body text' },
     });
     record('SendEmail returns a success shape', status === 200 && Boolean(body), `status=${status} body=${JSON.stringify(body)}`);
@@ -851,6 +852,7 @@ async function runChecks(baseUrl, appId) {
   {
     const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/integration-endpoints/Core/SendSMS`, {
       method: 'POST',
+      token: adminToken,
       body: { to: '+61400000000', body: 'Text message' },
     });
     record('SendSMS returns a success shape', status === 200 && Boolean(body), `status=${status} body=${JSON.stringify(body)}`);
@@ -862,7 +864,7 @@ async function runChecks(baseUrl, appId) {
       baseUrl,
       appId,
       `/api/apps/${appId}/integration-endpoints/Core/GenerateImage`,
-      { method: 'POST', body: { prompt: 'a cat' } },
+      { method: 'POST', token: adminToken, body: { prompt: 'a cat' } },
     );
     record('GenerateImage returns {url}', status === 200 && typeof body?.url === 'string', `status=${status} body=${JSON.stringify(body)}`);
   }
@@ -880,7 +882,7 @@ async function runChecks(baseUrl, appId) {
       `--${boundary}--\r\n`;
     const res = await fetch(`${baseUrl}/api/apps/${appId}/integration-endpoints/Core/UploadFile`, {
       method: 'POST',
-      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'X-App-Id': appId },
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'X-App-Id': appId, Authorization: `Bearer ${adminToken}` },
       body: multipartBody,
     });
     const body = await res.json().catch(() => null);
@@ -915,7 +917,7 @@ async function runChecks(baseUrl, appId) {
       baseUrl,
       appId,
       `/api/apps/${appId}/integration-endpoints/Core/ExtractDataFromUploadedFile`,
-      { method: 'POST', body: { file_url: uploadedFileUrl, json_schema: schema } },
+      { method: 'POST', token: adminToken, body: { file_url: uploadedFileUrl, json_schema: schema } },
     );
     record(
       'ExtractDataFromUploadedFile returns {status, output} honouring json_schema',

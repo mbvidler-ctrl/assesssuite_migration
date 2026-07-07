@@ -30,6 +30,7 @@ const uploadsDir = path.join(__dirname, 'uploads');
 // — e.g. Fly secrets in production — always take precedence and are never
 // overwritten). Keeps secrets like OPENAI_API_KEY out of the codebase.
 (function loadDotEnvLocal() {
+  if (process.env.SELFTEST === '1') return; // tests use the deterministic mock
   const file = path.join(repoRoot, '.env.local');
   if (!fs.existsSync(file)) return;
   for (const line of fs.readFileSync(file, 'utf8').split(/\r?\n/)) {
@@ -733,6 +734,13 @@ async function requestListener(req, res) {
       /^\/api\/apps\/([^/]+)\/integration-endpoints\/Core\/([^/]+)$/.exec(pathname);
     if (integrationMatch && req.method === 'POST') {
       const [, , endpointName] = integrationMatch;
+      // Require an authenticated session: these endpoints reach the real model
+      // (and email/SMS/upload) and spend a real API key. Without this gate,
+      // anyone with the public URL could burn the key. The in-app SDK forwards
+      // the session bearer token on integration calls, so authenticated use is
+      // unaffected.
+      const integrationUser = resolveSessionUser(req);
+      if (!integrationUser) return sendError(res, 401, 'authentication required');
       return handleCoreIntegration(req, res, { endpointName, outboxEmail, outboxSms });
     }
     if (/^\/api\/apps\/[^/]+\/integration-endpoints\//.test(pathname)) {

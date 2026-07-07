@@ -200,13 +200,9 @@ export default function Landing() {
   };
 
   const handleEmailSubmit = () => {
-    const base = selectedPlan === 'annual' 
-      ? 'https://buy.stripe.com/3cIbJ2fBX4V34GLbR124001' 
-      : 'https://buy.stripe.com/8x2dRagG15Z7a15f3d24002';
-    const url = capturedEmail 
-      ? base + '?prefilled_email=' + encodeURIComponent(capturedEmail)
-      : base;
-    window.open(url, '_self');
+    // Payments are simulated in this demonstration — do not open a live Stripe
+    // checkout.
+    window.alert('Payments are simulated in this demonstration environment — no real charge is made. In the live product this begins secure Stripe checkout.');
   };
 
   useEffect(() => {
@@ -863,13 +859,7 @@ export default function Landing() {
             />
             <button
               onClick={() => {
-                const base = selectedPlan === 'annual' 
-                  ? 'https://buy.stripe.com/3cIbJ2fBX4V34GLbR124001' 
-                  : 'https://buy.stripe.com/8x2dRagG15Z7a15f3d24002';
-                const url = capturedEmail 
-                  ? base + '?prefilled_email=' + encodeURIComponent(capturedEmail)
-                  : base;
-                window.open(url, '_self');
+                window.alert('Payments are simulated in this demonstration environment — no real charge is made. In the live product this begins secure Stripe checkout.');
               }}
               style={{width:'100%',background:'#2563eb',color:'#fff',border:'none',borderRadius:'10px',padding:'16px',fontSize:'17px',fontWeight:700,cursor:'pointer',marginBottom:'12px'}}
             >

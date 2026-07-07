@@ -20,13 +20,14 @@
 export function selectNorm(normativeData, age, gender) {
   if (!Array.isArray(normativeData) || normativeData.length === 0) return null;
   if (!Number.isFinite(age)) return null;
+  // Case-insensitive gender match: client gender is stored lower-case, but the
+  // imported live catalogue's normative rows use mixed case ("Male"/"Female").
+  const g = String(gender ?? "").toLowerCase();
   return (
-    normativeData.find(
-      (n) =>
-        age >= n.age_min &&
-        age <= n.age_max &&
-        (n.gender === gender || n.gender === "both")
-    ) || null
+    normativeData.find((n) => {
+      const ng = String(n.gender ?? "").toLowerCase();
+      return age >= n.age_min && age <= n.age_max && (ng === g || ng === "both");
+    }) || null
   );
 }
 

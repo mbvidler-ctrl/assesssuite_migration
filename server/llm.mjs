@@ -37,8 +37,10 @@ export function deidentify(input) {
     .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}/g, () => bump('[REDACTED_EMAIL]'))
     // Australian phone numbers (mobile / landline, spaced or not)
     .replace(/(?:\+?61|0)[\s-]?[2-478](?:[\s-]?\d){8}/g, () => bump('[REDACTED_PHONE]'))
-    // Medicare (10-11 digits), DVA/NDIS/provider numbers (7+ digit or alnum runs)
-    .replace(/\b\d{9,11}\b/g, () => bump('[REDACTED_ID]'))
+    // Medicare / DVA / NDIS / member / account numbers — any run of 7+ digits,
+    // optionally spaced or hyphenated.
+    .replace(/\b\d[\d\s-]{5,}\d\b/g, (m) => (/\d{7,}/.test(m.replace(/[\s-]/g, '')) ? bump('[REDACTED_ID]') : m))
+    .replace(/\b\d{7,}\b/g, () => bump('[REDACTED_ID]'))
     .replace(/\b(?:DVA|NDIS|MRN|URN|PRV|AEP)[-\s]?[A-Z0-9]{3,}\b/gi, () => bump('[REDACTED_ID]'))
     // Dates of birth (dd/mm/yyyy, yyyy-mm-dd)
     .replace(/\b(?:\d{1,2}[\/\-]\d{1,2}[\/\-]\d{2,4}|\d{4}-\d{2}-\d{2})\b/g, () => bump('[REDACTED_DATE]'));

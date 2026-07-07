@@ -81,7 +81,7 @@ export default function Layout({ children, currentPageName }) {
         try {
           acceptances = await base44.entities.LegalAcceptance.filter({
             user_email: user.email,
-            document_set_version: "1.0.0"
+            document_set_version: "2.0.0"
           });
           if (!acceptances) acceptances = [];
         } catch (e) {

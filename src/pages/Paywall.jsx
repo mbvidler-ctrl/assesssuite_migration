@@ -4,13 +4,14 @@ import { useAuth } from "@/lib/AuthContext";
 export default function Paywall() {
   const { user, logout } = useAuth();
 
-  const handleMonthly = () => {
-    window.open('https://buy.stripe.com/8x2dRagG15Z7a15f3d24002', '_blank');
+  // Payments are simulated in this demonstration — never open a live Stripe
+  // checkout. The real subscription flow is exercised through the mocked
+  // createCheckoutSession function elsewhere; here we simply acknowledge.
+  const simulatedCheckout = () => {
+    window.alert('Payments are simulated in this demonstration environment — no real charge is made. In the live product this begins secure Stripe checkout.');
   };
-
-  const handleAnnual = () => {
-    window.open('https://buy.stripe.com/3cIbJ2fBX4V34GLbR124001', '_blank');
-  };
+  const handleMonthly = simulatedCheckout;
+  const handleAnnual = simulatedCheckout;
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'Inter, -apple-system, sans-serif' }}>
