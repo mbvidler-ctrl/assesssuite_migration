@@ -125,7 +125,7 @@ export default function FourHundredMeterWalkStandaloneWrapper({
         appointment_id: appointmentId,
         status: 'completed',
         result_value: testData.result_value,
-        assessment_date: new Date().toISOString().split('T')[0],
+        assessment_date: testData.assessment_date || new Date().toISOString().split('T')[0],
         notes: testData.notes,
         additional_data: testData.additional_data || {}
       });
