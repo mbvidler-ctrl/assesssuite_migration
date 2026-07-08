@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import { FileText, Edit2, Check, X } from "lucide-react";
 
 export default function ReviewExport({ reportHtml, client, clinician, onEditHtml }) {
@@ -42,11 +43,11 @@ export default function ReviewExport({ reportHtml, client, clinician, onEditHtml
 
       {isEditing ? (
         <div className="space-y-2">
-          <p className="text-xs text-slate-500">Edit the HTML directly below. Tweak wording, remove sections, or add custom content.</p>
-          <textarea
-            className="w-full h-[55vh] font-mono text-xs border rounded p-3 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+          <p className="text-xs text-slate-500">Edit the report below. Tweak wording, remove sections, or add custom content.</p>
+          <RichTextEditor
             value={editableHtml}
-            onChange={(e) => setEditableHtml(e.target.value)}
+            onChange={setEditableHtml}
+            className="max-h-[60vh] overflow-y-auto"
           />
         </div>
       ) : (

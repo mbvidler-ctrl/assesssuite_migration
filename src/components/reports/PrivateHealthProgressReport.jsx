@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ClientCondition, ClientAssessment, Assessment, User, ClientReport, Appointment } from "@/entities/all";
@@ -282,15 +283,6 @@ const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref
   );
 });
 
-function isValidJson(str) {
-  try {
-    JSON.parse(str);
-  } catch (e) {
-    return false;
-  }
-  return true;
-}
-
 export default function PrivateHealthProgressReport({ client, onClose, editingReport }) {
   const [currentStep, setCurrentStep] = useState(0); // Initial step is 0 (Select Location)
   const [isLoading, setIsLoading] = useState(true);
@@ -304,8 +296,6 @@ export default function PrivateHealthProgressReport({ client, onClose, editingRe
   const [historicGoals, setHistoricGoals] = useState([]);
   const [selectedHistoricGoalIds, setSelectedHistoricGoalIds] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [editableContent, setEditableContent] = useState("");
-
 
   const [reportData, setReportData] = useState(() => {
     if (editingReport && editingReport.report_data) {
@@ -405,10 +395,9 @@ export default function PrivateHealthProgressReport({ client, onClose, editingRe
         // Extract goals from reports and onboarding
         extractGoalsFromReports(reports);
 
-        // If editing report, set reportData and editableContent, and jump to review step
+        // If editing report, set reportData and jump to review step
         if (editingReport && editingReport.report_data) {
           setReportData(editingReport.report_data);
-          setEditableContent(JSON.stringify(editingReport.report_data, null, 2));
           setCurrentStep(stepTitles.length - 1); // Jump to "Review & Print"
         }
 
@@ -489,7 +478,6 @@ export default function PrivateHealthProgressReport({ client, onClose, editingRe
         toast.error("Please provide both a clinical summary and an ongoing plan.");
         return;
       }
-      setEditableContent(JSON.stringify(reportData, null, 2)); // Prepare content for review step
     }
 
     if (currentStep < stepTitles.length - 1) {
@@ -649,7 +637,8 @@ Write a comprehensive "Clinical Summary" section (3-4 paragraphs) that:
 3. Addresses progress toward treatment goals
 4. Highlights any barriers or challenges encountered
 
-Use professional clinical language suitable for a GP or specialist.`;
+Use professional clinical language suitable for a GP or specialist.
+Return clean HTML using only <p>, <ul>, <li>, and <strong> tags — no markdown, no code fences, no newline characters.`;
 
       const summary = await InvokeLLM({ prompt });
       setReportData(prev => ({ ...prev, clinical_summary: summary }));
@@ -667,7 +656,8 @@ Write a concise "Ongoing Management Plan" section (2-3 paragraphs) that:
 3. Outlines any additional referrals or investigations needed
 4. Provides a timeframe for next review
 
-Be specific and actionable for the referring practitioner.`;
+Be specific and actionable for the referring practitioner.
+Return clean HTML using only <p>, <ul>, <li>, and <strong> tags — no markdown, no code fences, no newline characters.`;
 
       const plan = await InvokeLLM({ prompt: planPrompt });
       setReportData(prev => ({ ...prev, ongoing_plan: plan }));
@@ -689,7 +679,9 @@ Be specific and actionable for the referring practitioner.`;
 
     setIsGenerating(true);
     try {
-      const prompt = `Please tidy and improve the following clinical summary for a progress report. Make it more professional and well-structured:
+      const prompt = `Please tidy and improve the following clinical summary for a progress report. Make it more professional and well-structured.
+
+Return clean HTML using only <p>, <ul>, <li>, and <strong> tags — no markdown, no code fences, no commentary.
 
 ${reportData.clinical_summary}`;
 
@@ -712,7 +704,9 @@ ${reportData.clinical_summary}`;
 
     setIsGenerating(true);
     try {
-      const prompt = `Please tidy and improve the following ongoing management plan. Make it more professional and well-structured:
+      const prompt = `Please tidy and improve the following ongoing management plan. Make it more professional and well-structured.
+
+Return clean HTML using only <p>, <ul>, <li>, and <strong> tags — no markdown, no code fences, no commentary.
 
 ${reportData.ongoing_plan}`;
 
@@ -730,19 +724,9 @@ ${reportData.ongoing_plan}`;
   const handleSaveReport = async () => {
     setIsSaving(true);
     try {
-      let dataToSave = reportData;
-      if (isEditing) {
-        if (!isValidJson(editableContent)) {
-          toast.error("Invalid JSON in editable content. Please correct it.");
-          setIsSaving(false);
-          return;
-        }
-        dataToSave = JSON.parse(editableContent);
-      }
-      
       // Add selected location ID to report data
-      dataToSave = {
-        ...dataToSave,
+      const dataToSave = {
+        ...reportData,
         clinic_location_id: selectedLocation?.id || null
       };
 
@@ -843,7 +827,7 @@ ${reportData.ongoing_plan}`;
     );
   }
 
-  const currentReportDataForPrint = isEditing && isValidJson(editableContent) ? JSON.parse(editableContent) : reportData;
+  const currentReportDataForPrint = reportData;
 
   return (
     <>
@@ -1355,12 +1339,10 @@ ${reportData.ongoing_plan}`;
                   AI Tidy
                 </Button>
               </div>
-              <Textarea
-                id="clinical_summary"
+              <RichTextEditor
                 value={reportData.clinical_summary}
-                onChange={(e) => setReportData(prev => ({ ...prev, clinical_summary: e.target.value }))}
+                onChange={(value) => setReportData(prev => ({ ...prev, clinical_summary: value }))}
                 placeholder="Summary of client's progress, engagement, and outcomes..."
-                rows={8}
               />
             </div>
 
@@ -1378,12 +1360,10 @@ ${reportData.ongoing_plan}`;
                   AI Tidy
                 </Button>
               </div>
-              <Textarea
-                id="ongoing_plan"
+              <RichTextEditor
                 value={reportData.ongoing_plan}
-                onChange={(e) => setReportData(prev => ({ ...prev, ongoing_plan: e.target.value }))}
+                onChange={(value) => setReportData(prev => ({ ...prev, ongoing_plan: value }))}
                 placeholder="Recommendations for ongoing treatment, session frequency, and next review..."
-                rows={6}
               />
             </div>
 
@@ -1432,23 +1412,113 @@ ${reportData.ongoing_plan}`;
             </div>
 
             {isEditing ? (
-              <div className="space-y-4">
-                <Label className="text-sm font-medium text-slate-700">
-                  Edit Report Data (JSON format):
-                </Label>
-                <Textarea
-                  value={editableContent}
-                  onChange={(e) => setEditableContent(e.target.value)}
-                  rows={25}
-                  className="font-mono text-sm"
-                />
-                {!isValidJson(editableContent) && editableContent.trim() !== "" && (
-                  <p className="text-xs text-red-500">
-                    Warning: Invalid JSON format. Please correct it before saving.
-                  </p>
-                )}
+              <div className="space-y-6 max-h-[65vh] overflow-y-auto px-1">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit_recipient_name">Recipient Name</Label>
+                    <Input
+                      id="edit_recipient_name"
+                      value={reportData.recipient_name || ""}
+                      onChange={(e) => setReportData(prev => ({ ...prev, recipient_name: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_recipient_clinic">Recipient Clinic</Label>
+                    <Input
+                      id="edit_recipient_clinic"
+                      value={reportData.recipient_clinic || ""}
+                      onChange={(e) => setReportData(prev => ({ ...prev, recipient_clinic: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="edit_recipient_address">Recipient Address</Label>
+                  <Textarea
+                    id="edit_recipient_address"
+                    value={reportData.recipient_address || ""}
+                    onChange={(e) => setReportData(prev => ({ ...prev, recipient_address: e.target.value }))}
+                    rows={2}
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="edit_letter_date">Letter Date</Label>
+                    <Input
+                      id="edit_letter_date"
+                      type="date"
+                      value={reportData.letter_date || ""}
+                      onChange={(e) => setReportData(prev => ({ ...prev, letter_date: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_period_start">Period Start</Label>
+                    <Input
+                      id="edit_period_start"
+                      type="date"
+                      value={reportData.period_start || ""}
+                      onChange={(e) => setReportData(prev => ({ ...prev, period_start: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_period_end">Period End</Label>
+                    <Input
+                      id="edit_period_end"
+                      type="date"
+                      value={reportData.period_end || ""}
+                      onChange={(e) => setReportData(prev => ({ ...prev, period_end: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit_total_sessions">Total Sessions Completed</Label>
+                    <Input
+                      id="edit_total_sessions"
+                      value={reportData.total_sessions || ""}
+                      onChange={(e) => setReportData(prev => ({ ...prev, total_sessions: e.target.value }))}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_attendance_rate">Session Attendance</Label>
+                    <Input
+                      id="edit_attendance_rate"
+                      value={reportData.attendance_rate || ""}
+                      onChange={(e) => setReportData(prev => ({ ...prev, attendance_rate: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label>Clinical Summary</Label>
+                  <RichTextEditor
+                    value={reportData.clinical_summary}
+                    onChange={(value) => setReportData(prev => ({ ...prev, clinical_summary: value }))}
+                  />
+                </div>
+
+                <div>
+                  <Label>Ongoing Management Plan</Label>
+                  <RichTextEditor
+                    value={reportData.ongoing_plan}
+                    onChange={(value) => setReportData(prev => ({ ...prev, ongoing_plan: value }))}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="edit_additional_notes">Additional Notes</Label>
+                  <Textarea
+                    id="edit_additional_notes"
+                    value={reportData.additional_notes || ""}
+                    onChange={(e) => setReportData(prev => ({ ...prev, additional_notes: e.target.value }))}
+                    rows={3}
+                  />
+                </div>
+
                 <p className="text-xs text-slate-500">
-                  Tip: Edit the JSON data above to modify report content. Be careful to maintain valid JSON format.
+                  Assessment results and treatment goals are edited on their own steps — use Back to reach them. All other keys of the saved report are preserved unchanged.
                 </p>
               </div>
             ) : (
@@ -1473,13 +1543,12 @@ ${reportData.ongoing_plan}`;
                   <Button 
                     onClick={() => {
                       setCurrentStep(0);
-                      setReportData(prev => ({ 
-                        ...prev, 
-                        clinical_summary: "", 
+                      setReportData(prev => ({
+                        ...prev,
+                        clinical_summary: "",
                         ongoing_plan: "",
                         additional_notes: ""
                       })); // Clear generated content
-                      setEditableContent("");
                       setIsEditing(false);
                     }} 
                     variant="outline"
@@ -1489,7 +1558,7 @@ ${reportData.ongoing_plan}`;
                 )}
                 <Button
                   onClick={handleSaveReport}
-                  disabled={isSaving || (isEditing && !isValidJson(editableContent))}
+                  disabled={isSaving}
                   variant="outline"
                 >
                   {isSaving ? (

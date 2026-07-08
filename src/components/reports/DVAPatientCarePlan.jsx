@@ -163,7 +163,6 @@ export default function DVAPatientCarePlan({ client, onClose, editingReport }) {
 
   // New state for editing functionality
   const [isEditing, setIsEditing] = useState(false);
-  const [editableContent, setEditableContent] = useState(""); // JSON string of reportDetailsToSave
 
   const [isSaving, setIsSaving] = useState(false); // State for saving loading indicator
   const printRef = useRef(null);
@@ -252,7 +251,6 @@ export default function DVAPatientCarePlan({ client, onClose, editingReport }) {
         setManagementPlan(reportData.managementPlan || "");
         setFinalReport(editingReport.html_content); // The stored HTML for display
         setReportDetailsToSave(reportData); // The structured data
-        setEditableContent(JSON.stringify(reportData, null, 2)); // The JSON string for editing
         setCurrentStep(6); // Jump directly to new review step (Step 6)
       } else {
         // Normal new report flow
@@ -628,7 +626,9 @@ Return only the improved plain text version with clear structure, no additional 
     }
   };
 
-  const handleGenerateFinalReport = async () => {
+  // Builds the report HTML and the structured report-data object from the
+  // current field values. Pure with respect to component state.
+  const buildFinalReport = () => {
     const tableHTML = buildAssessmentTableHTML();
     const reportDate = format(new Date(), 'dd/MM/yyyy');
 
@@ -738,8 +738,6 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
 </table>
 `;
 
-    setFinalReport(reportHtml); // Set the generated HTML to finalReport
-
     // Prepare data for saving
     const reportDetails = {
       client_id: client.id,
@@ -775,8 +773,14 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
       })),
       html_content: reportHtml, // Store the generated HTML content for saving
     };
+
+    return { reportHtml, reportDetails };
+  };
+
+  const handleGenerateFinalReport = async () => {
+    const { reportHtml, reportDetails } = buildFinalReport();
+    setFinalReport(reportHtml);
     setReportDetailsToSave(reportDetails);
-    setEditableContent(JSON.stringify(reportDetails, null, 2)); // Store as JSON string for editing
 
     // Save goals to client record for use in End Cycle Report
     try {
@@ -848,7 +852,7 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
   };
 
   const handleSaveReport = async () => {
-    if (!reportDetailsToSave && !editableContent.trim()) {
+    if (!finalReport && (!reportDetailsToSave || Object.keys(reportDetailsToSave).length === 0)) {
       toast.error("Report content or details are missing. Please generate the report first.");
       return;
     }
@@ -856,26 +860,16 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
     let dataToSave;
     let htmlContentToSave;
 
-    try {
-      if (isEditing) {
-        dataToSave = JSON.parse(editableContent);
-        // If html_content is updated within the editable JSON, use that. Otherwise, rely on printRef.
-        // Also ensure selectedLocationId from the JSON is respected
-        const selectedLoc = locations.find(loc => loc.id === dataToSave.selectedLocationId);
-        if (!selectedLoc) {
-             toast.error("Selected location in JSON not found. Please select a valid location.");
-             return;
-        }
-        setSelectedLocation(selectedLoc); // Update the state for printable report render
-        htmlContentToSave = dataToSave.html_content || printRef.current?.innerHTML || "";
-      } else {
-        dataToSave = reportDetailsToSave;
-        htmlContentToSave = printRef.current?.innerHTML || "";
-      }
-    } catch (jsonError) {
-      toast.error("Invalid JSON format in editable content. Please correct it.");
-      console.error("JSON parse error:", jsonError);
-      return;
+    if (isEditing) {
+      // Rebuild the report from the current field values so edits are reflected
+      const { reportHtml, reportDetails } = buildFinalReport();
+      setFinalReport(reportHtml);
+      setReportDetailsToSave(reportDetails);
+      dataToSave = reportDetails;
+      htmlContentToSave = reportHtml;
+    } else {
+      dataToSave = reportDetailsToSave;
+      htmlContentToSave = printRef.current?.innerHTML || "";
     }
 
     setIsSaving(true);
@@ -958,10 +952,10 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
 
       {/* Hidden printable version */}
       <div className="hidden">
-        {(finalReport || (isEditing && editableContent)) && clinician && (
+        {finalReport && clinician && (
           <PrintableReport
             ref={printRef}
-            reportContent={isEditing && editableContent ? JSON.parse(editableContent).html_content : finalReport}
+            reportContent={finalReport}
             client={client}
             clinician={selectedLocation ? { ...clinician, ...selectedLocation } : clinician} // Pass merged clinician/location data
           />
@@ -1454,12 +1448,20 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
             )}
 
             {/* Step 6: Review & Print (formerly Step 5) */}
-            {currentStep === 6 && (finalReport || editableContent) && (
+            {currentStep === 6 && finalReport && (
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <h3 className="text-xl font-semibold text-slate-900">Review Report</h3>
                   <Button
-                    onClick={() => setIsEditing(!isEditing)}
+                    onClick={() => {
+                      if (isEditing) {
+                        // Rebuild the report from the edited fields before returning to view mode
+                        const { reportHtml, reportDetails } = buildFinalReport();
+                        setFinalReport(reportHtml);
+                        setReportDetailsToSave(reportDetails);
+                      }
+                      setIsEditing(!isEditing);
+                    }}
                     variant="outline"
                     size="sm"
                   >
@@ -1469,19 +1471,97 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
                 </div>
 
                 {isEditing ? (
-                  <div className="space-y-4">
-                    <Label className="text-sm font-medium text-slate-700">
-                      Edit Report Data (JSON format):
-                    </Label>
-                    <Textarea
-                      value={editableContent}
-                      onChange={(e) => setEditableContent(e.target.value)}
-                      rows={25}
-                      className="font-mono text-sm"
-                    />
+                  <div className="space-y-6 max-h-[65vh] overflow-y-auto px-1">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="edit_referring_clinician">Referring Clinician</Label>
+                        <Input
+                          id="edit_referring_clinician"
+                          value={referringClinician}
+                          onChange={(e) => setReferringClinician(e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit_referral_date">Referral Date for This Cycle</Label>
+                        <Input
+                          id="edit_referral_date"
+                          type="date"
+                          value={referralDate}
+                          onChange={(e) => setReferralDate(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="edit_previous_treatment">Previous Treatment</Label>
+                      <Textarea
+                        id="edit_previous_treatment"
+                        value={previousTreatment}
+                        onChange={(e) => setPreviousTreatment(e.target.value)}
+                        rows={3}
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="edit_client_consented"
+                        checked={clientConsented}
+                        onCheckedChange={(checked) => setClientConsented(checked === true)}
+                      />
+                      <Label htmlFor="edit_client_consented">Client has consented to this Patient Care Plan</Label>
+                    </div>
+
+                    <div>
+                      <Label>Goals have been set and agreed to with the client</Label>
+                      <RadioGroup
+                        value={goalsAgreed}
+                        onValueChange={setGoalsAgreed}
+                        className="flex gap-6 mt-2"
+                      >
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="yes" id="edit_goals_agreed_yes" />
+                          <Label htmlFor="edit_goals_agreed_yes">Yes</Label>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <RadioGroupItem value="no" id="edit_goals_agreed_no" />
+                          <Label htmlFor="edit_goals_agreed_no">No</Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="edit_client_goals">Client Goals (one per line)</Label>
+                      <Textarea
+                        id="edit_client_goals"
+                        value={clientGoalsText}
+                        onChange={(e) => setClientGoalsText(e.target.value)}
+                        rows={4}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="edit_interpretation">Interpretation of Outcome Measures and Additional Comments</Label>
+                      <Textarea
+                        id="edit_interpretation"
+                        value={interpretation}
+                        onChange={(e) => setInterpretation(e.target.value)}
+                        rows={8}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="edit_management_plan">Proposed Management Plan</Label>
+                      <Textarea
+                        id="edit_management_plan"
+                        value={managementPlan}
+                        onChange={(e) => setManagementPlan(e.target.value)}
+                        rows={8}
+                      />
+                    </div>
+
                     <p className="text-xs text-slate-500">
-                      Tip: Edit the JSON data above to modify report content. Be careful to maintain valid JSON format.
-                      Any changes here will update the report's content if you save.
+                      Assessment selections and the signature are edited on their own steps — use Back to reach them.
+                      The report is rebuilt from these fields when you return to View Mode or save.
                     </p>
                   </div>
                 ) : (

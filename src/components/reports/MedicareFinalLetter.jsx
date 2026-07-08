@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import { ClientCondition, ClientAssessment, Assessment, User, ClientReport } from "@/entities/all";
 import { InvokeLLM } from "@/integrations/Core";
 import { Printer, Loader2, ChevronLeft, ChevronRight, X, Wand2, Save, Plus, Edit } from "lucide-react";
@@ -152,7 +153,6 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
   const [isSaving, setIsSaving] = useState(false);
   const [clinician, setClinician] = useState(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [editableContent, setEditableContent] = useState("");
 
   const [reportData, setReportData] = useState(() => {
     if (editingReport && editingReport.report_data) {
@@ -183,9 +183,6 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
 
   useEffect(() => {
     loadInitialData();
-    if (editingReport && editingReport.report_data) {
-      setEditableContent(JSON.stringify(editingReport.report_data, null, 2));
-    }
   }, []);
 
   const loadInitialData = async () => {
@@ -241,10 +238,6 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
         return;
       }
     }
-    // Update editable content if moving to the final review step
-    if (currentStep === stepTitles.length - 1) { // If it's the last step (Review & Print, now step 5)
-      setEditableContent(JSON.stringify(reportData, null, 2));
-    }
     setCurrentStep(prev => prev + 1);
   };
 
@@ -262,18 +255,8 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
   const handleSaveReport = async () => {
     setIsSaving(true);
     try {
-      let dataToSave = reportData;
-      
-      if (isEditing && editableContent) {
-        try {
-          dataToSave = JSON.parse(editableContent);
-        } catch (parseError) {
-          toast.error("Invalid JSON format. Please fix the JSON data.");
-          setIsSaving(false);
-          return;
-        }
-      }
-      
+      const dataToSave = reportData;
+
       if (editingReport) {
         await ClientReport.update(editingReport.id, {
           report_data: dataToSave,
@@ -347,13 +330,6 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
   };
 
   const getDisplayReportData = () => {
-    if (isEditing && editableContent) {
-      try {
-        return JSON.parse(editableContent);
-      } catch (e) {
-        return reportData;
-      }
-    }
     return reportData;
   };
 
@@ -573,12 +549,11 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
             <div className="space-y-6">
               <div>
                 <Label className="text-sm font-medium text-slate-700">Program Summary</Label>
-                <Textarea
+                <RichTextEditor
                   value={reportData.summary}
-                  onChange={(e) => handleChange('summary', e.target.value)}
+                  onChange={(value) => handleChange('summary', value)}
                   placeholder="Describe the program duration, number of sessions attended, and overall participation..."
                   className="mt-1"
-                  rows={8}
                 />
               </div>
 
@@ -600,23 +575,21 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
             <div className="space-y-6">
               <div>
                 <Label className="text-sm font-medium text-slate-700">Goals Achieved</Label>
-                <Textarea
+                <RichTextEditor
                   value={reportData.goals_achieved}
-                  onChange={(e) => handleChange('goals_achieved', e.target.value)}
+                  onChange={(value) => handleChange('goals_achieved', value)}
                   placeholder="Describe the goals that were achieved during the program..."
                   className="mt-1"
-                  rows={8}
                 />
               </div>
 
               <div>
                 <Label className="text-sm font-medium text-slate-700">Recommendations</Label>
-                <Textarea
+                <RichTextEditor
                   value={reportData.recommendations}
-                  onChange={(e) => handleChange('recommendations', e.target.value)}
+                  onChange={(value) => handleChange('recommendations', value)}
                   placeholder="Provide recommendations for ongoing management or further referrals..."
                   className="mt-1"
-                  rows={8}
                 />
               </div>
 
@@ -645,15 +618,27 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
                 <div className="bg-slate-50 rounded-lg p-6 text-left space-y-4 max-w-2xl mx-auto">
                   <div>
                     <h5 className="font-semibold text-slate-800">Program Summary:</h5>
-                    <p className="text-slate-600 whitespace-pre-wrap">{reportData.summary || 'Not provided'}</p>
+                    {reportData.summary ? (
+                      <div className="text-slate-600" dangerouslySetInnerHTML={{ __html: reportData.summary.replace(/\n/g, '<br />') }} />
+                    ) : (
+                      <p className="text-slate-600">Not provided</p>
+                    )}
                   </div>
                   <div>
                     <h5 className="font-semibold text-slate-800">Goals Achieved:</h5>
-                    <p className="text-slate-600 whitespace-pre-wrap">{reportData.goals_achieved || 'Not provided'}</p>
+                    {reportData.goals_achieved ? (
+                      <div className="text-slate-600" dangerouslySetInnerHTML={{ __html: reportData.goals_achieved.replace(/\n/g, '<br />') }} />
+                    ) : (
+                      <p className="text-slate-600">Not provided</p>
+                    )}
                   </div>
                   <div>
                     <h5 className="font-semibold text-slate-800">Recommendations:</h5>
-                    <p className="text-slate-600 whitespace-pre-wrap">{reportData.recommendations || 'Not provided'}</p>
+                    {reportData.recommendations ? (
+                      <div className="text-slate-600" dangerouslySetInnerHTML={{ __html: reportData.recommendations.replace(/\n/g, '<br />') }} />
+                    ) : (
+                      <p className="text-slate-600">Not provided</p>
+                    )}
                   </div>
                 </div>
 
@@ -677,12 +662,7 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
               <div className="flex items-center justify-between">
                 <h3 className="text-xl font-semibold text-slate-900">Review Report</h3>
                 <Button
-                  onClick={() => {
-                    setIsEditing(!isEditing);
-                    if (!isEditing) { // If switching to edit mode, refresh editableContent
-                      setEditableContent(JSON.stringify(reportData, null, 2));
-                    }
-                  }}
+                  onClick={() => setIsEditing(!isEditing)}
                   variant="outline"
                   size="sm"
                 >
@@ -692,19 +672,72 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
               </div>
 
               {isEditing ? (
-                <div className="space-y-4">
-                  <Label className="text-sm font-medium text-slate-700">
-                    Edit Report Data (JSON format):
-                  </Label>
-                  <Textarea
-                    value={editableContent}
-                    onChange={(e) => setEditableContent(e.target.value)}
-                    rows={25}
-                    className="font-mono text-sm"
-                  />
-                  <p className="text-xs text-slate-500">
-                    Tip: Edit the JSON data above to modify report content. Be careful to maintain valid JSON format.
-                  </p>
+                <div className="space-y-6 max-h-[65vh] overflow-y-auto px-1">
+                  <div className="grid md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="edit_gp_name">GP/Provider Name</Label>
+                      <Input
+                        id="edit_gp_name"
+                        value={reportData.gp_name || ""}
+                        onChange={(e) => handleChange('gp_name', e.target.value)}
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="edit_gp_clinic_name">Clinic/Practice Name</Label>
+                      <Input
+                        id="edit_gp_clinic_name"
+                        value={reportData.gp_clinic_name || ""}
+                        onChange={(e) => handleChange('gp_clinic_name', e.target.value)}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit_gp_address">Recipient Address</Label>
+                    <Textarea
+                      id="edit_gp_address"
+                      value={reportData.gp_address || ""}
+                      onChange={(e) => handleChange('gp_address', e.target.value)}
+                      rows={3}
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="edit_letter_date">Letter Date</Label>
+                    <Input
+                      id="edit_letter_date"
+                      type="date"
+                      value={reportData.letter_date || ""}
+                      onChange={(e) => handleChange('letter_date', e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Program Summary</Label>
+                    <RichTextEditor
+                      value={reportData.summary}
+                      onChange={(value) => handleChange('summary', value)}
+                      placeholder="Describe the program duration, number of sessions attended, and overall participation..."
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Goals Achieved</Label>
+                    <RichTextEditor
+                      value={reportData.goals_achieved}
+                      onChange={(value) => handleChange('goals_achieved', value)}
+                      placeholder="Describe the goals that were achieved during the program..."
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Recommendations</Label>
+                    <RichTextEditor
+                      value={reportData.recommendations}
+                      onChange={(value) => handleChange('recommendations', value)}
+                      placeholder="Provide recommendations for ongoing management or further referrals..."
+                    />
+                  </div>
                 </div>
               ) : (
                 <div className="bg-white border-2 border-slate-200 rounded-lg p-8 shadow-lg max-h-[70vh] overflow-y-auto">

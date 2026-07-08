@@ -166,7 +166,6 @@ export default function GPSummary({ client, onClose, editingReport }) { // Added
 
   // Added new states for edit mode
   const [isEditing, setIsEditing] = useState(false);
-  const [editableContent, setEditableContent] = useState("");
 
   const [isSaving, setIsSaving] = useState(false);
 
@@ -194,7 +193,6 @@ export default function GPSummary({ client, onClose, editingReport }) { // Added
     loadInitialData();
     if (editingReport) {
       setLetterData(editingReport.report_data);
-      setEditableContent(JSON.stringify(editingReport.report_data, null, 2));
       setCurrentStep(3); // Start at review step if editing an existing report
     }
   }, [editingReport]);
@@ -243,13 +241,12 @@ export default function GPSummary({ client, onClose, editingReport }) { // Added
       return;
     }
     
-    // When moving from step 2 to step 3 (review), initialize editableContent
+    // Default to view mode when entering the review step
     if (currentStep === 2) {
-      setEditableContent(JSON.stringify(letterData, null, 2));
-      setIsEditing(false); // Default to view mode when entering step 3
+      setIsEditing(false);
     }
 
-    if (currentStep < stepTitles.length - 1) { 
+    if (currentStep < stepTitles.length - 1) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -302,7 +299,8 @@ Write a concise clinical summary paragraph (150-200 words) that:
 3. Notes any barriers to rehabilitation and progress from recent sessions
 4. Uses professional medical terminology suitable for a GP
 
-Format as a single flowing paragraph without bullet points.`;
+Format as a single flowing paragraph without bullet points.
+Return plain text only — no HTML tags, no markdown, no code fences.`;
 
       const summary = await InvokeLLM({ prompt });
       handleChange('clinical_summary', summary);
@@ -384,7 +382,8 @@ Write a concise management plan paragraph (100-150 words) that outlines:
 3.  Expected outcomes or benefits based on recent progress.
 4.  Mention that a full assessment and detailed management plan can be provided upon request or is attached.
 
-Format as a single flowing paragraph without bullet points, suitable for a professional letter.`;
+Format as a single flowing paragraph without bullet points, suitable for a professional letter.
+Return plain text only — no HTML tags, no markdown, no code fences.`;
 
       const plan = await InvokeLLM({ prompt });
       handleChange('management_plan', plan);
@@ -426,19 +425,7 @@ Return only the improved plain text version with clear structure, no additional 
   };
 
   const handleToggleEditMode = () => {
-    if (isEditing) { // Currently in edit mode, switching to view mode
-      try {
-        const parsedData = JSON.parse(editableContent);
-        setLetterData(parsedData); // Update letterData from edited JSON
-        setIsEditing(false);
-      } catch (e) {
-        toast.error("Invalid JSON format. Please correct it before switching to view mode.");
-        console.error("JSON parsing error:", e);
-      }
-    } else { // Currently in view mode, switching to edit mode
-      setEditableContent(JSON.stringify(letterData, null, 2)); // Populate with current letterData
-      setIsEditing(true);
-    }
+    setIsEditing(!isEditing);
   };
 
   const handlePrint = () => {
@@ -491,17 +478,8 @@ Return only the improved plain text version with clear structure, no additional 
   const handleSaveReport = async () => {
     setIsSaving(true);
     try {
-      let dataToSave = letterData; // Default to current letterData
-      if (isEditing) {
-        try {
-          dataToSave = JSON.parse(editableContent);
-        } catch (e) {
-          toast.error("Invalid JSON format in editable content. Please correct before saving.");
-          setIsSaving(false);
-          return;
-        }
-      }
-      
+      const dataToSave = letterData;
+
       if (editingReport) {
         await ClientReport.update(editingReport.id, {
           org_id: client.org_id,
@@ -546,20 +524,10 @@ Return only the improved plain text version with clear structure, no additional 
       <Toaster position="top-center" richColors />
       <div className="hidden">
         {/* The hidden PrintableReport for the printRef */}
-        {currentStep === 3 && clinician && ( 
-          <PrintableReport 
-            ref={printRef} 
-            letterData={isEditing && editableContent ? (() => {
-              try {
-                const parsed = JSON.parse(editableContent);
-                if (typeof parsed === 'object' && parsed !== null) {
-                  return parsed;
-                }
-              } catch (e) {
-                console.warn("Invalid JSON in editableContent for print preview (silent fallback):", e);
-              }
-              return letterData; // Fallback to current letterData if invalid or parsing fails
-            })() : letterData}
+        {currentStep === 3 && clinician && (
+          <PrintableReport
+            ref={printRef}
+            letterData={letterData}
             client={client}
             clinician={clinician}
           />
@@ -846,19 +814,85 @@ Return only the improved plain text version with clear structure, no additional 
 
             {/* Conditional Full Report Preview or Edit Area */}
             {isEditing ? (
-              <div className="space-y-4">
-                <Label className="text-sm font-medium text-slate-700">
-                  Edit Report Data (JSON format):
-                </Label>
-                <Textarea
-                  value={editableContent}
-                  onChange={(e) => setEditableContent(e.target.value)}
-                  rows={25}
-                  className="font-mono text-sm"
-                />
-                <p className="text-xs text-slate-500">
-                  Tip: Edit the JSON data above to modify report content. Be careful to maintain valid JSON format.
-                </p>
+              <div className="space-y-6 max-h-[65vh] overflow-y-auto px-1">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit_gp_name">GP Name</Label>
+                    <Input
+                      id="edit_gp_name"
+                      value={letterData.gp_name || ""}
+                      onChange={(e) => handleChange('gp_name', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_gp_clinic_name">GP Clinic Name</Label>
+                    <Input
+                      id="edit_gp_clinic_name"
+                      value={letterData.gp_clinic_name || ""}
+                      onChange={(e) => handleChange('gp_clinic_name', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="edit_gp_address">GP Address</Label>
+                  <Textarea
+                    id="edit_gp_address"
+                    value={letterData.gp_address || ""}
+                    onChange={(e) => handleChange('gp_address', e.target.value)}
+                    rows={2}
+                  />
+                </div>
+
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="edit_letter_date">Letter Date</Label>
+                    <Input
+                      id="edit_letter_date"
+                      type="date"
+                      value={letterData.letter_date || ""}
+                      onChange={(e) => handleChange('letter_date', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="edit_referral_date">Referral Date</Label>
+                    <Input
+                      id="edit_referral_date"
+                      type="date"
+                      value={letterData.referral_date || ""}
+                      onChange={(e) => handleChange('referral_date', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="edit_referral_type">Referral Type</Label>
+                  <Input
+                    id="edit_referral_type"
+                    value={letterData.referral_type || ""}
+                    onChange={(e) => handleChange('referral_type', e.target.value)}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="edit_clinical_summary">Clinical Summary</Label>
+                  <Textarea
+                    id="edit_clinical_summary"
+                    value={letterData.clinical_summary || ""}
+                    onChange={(e) => handleChange('clinical_summary', e.target.value)}
+                    rows={10}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="edit_management_plan">Management Plan</Label>
+                  <Textarea
+                    id="edit_management_plan"
+                    value={letterData.management_plan || ""}
+                    onChange={(e) => handleChange('management_plan', e.target.value)}
+                    rows={8}
+                  />
+                </div>
               </div>
             ) : (
               <div className="bg-white border-2 border-slate-200 rounded-lg p-8 shadow-lg max-h-[70vh] overflow-y-auto">

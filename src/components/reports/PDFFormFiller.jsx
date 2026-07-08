@@ -2,14 +2,15 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import { ClientCondition, ClientAssessment, Assessment, User, ClientReport } from "@/entities/all";
 import { InvokeLLM } from "@/integrations/Core";
-import { FileDown, Printer, AlertCircle, Loader2, Save, Edit } from "lucide-react";
+import { FileDown, Printer, AlertCircle, Loader2, Save, Edit, Plus, Trash2 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
-import ReactMarkdown from "react-markdown";
 
 // Import specialized components
 import DVAPatientCarePlan from "./DVAPatientCarePlan";
@@ -199,7 +200,6 @@ function Form32Generator({ client, onClose, editingReport }) {
   const [isSaving, setIsSaving] = useState(false);
   const printRef = useRef(null);
   const [generatedContent, setGeneratedContent] = useState(editingReport ? editingReport.report_data : null);
-  const [editableContent, setEditableContent] = useState(editingReport ? JSON.stringify(editingReport.report_data, null, 2) : "");
   const [isEditing, setIsEditing] = useState(false);
   const [clinician, setClinician] = useState(null);
   const [clientData, setClientData] = useState({ conditions: [], assessments: [] });
@@ -296,6 +296,7 @@ Based on the data, populate the JSON schema below.
 - For 'barriers', identify potential barriers from the assessment notes or client goals.
 - Use Australian date format DD/MM/YYYY for all dates.
 - If data is not available, use "Not specified" or leave blank appropriately.
+- Every string value must be plain text only — no HTML tags, no markdown, no code fences.
 `;
 
     const schema = {
@@ -361,9 +362,8 @@ Based on the data, populate the JSON schema below.
     try {
       const { prompt, schema } = buildPmpPromptAndSchema();
       const reportData = await InvokeLLM({ prompt, response_json_schema: schema });
-      
-      setGeneratedContent(reportData);
-      setEditableContent(typeof reportData === 'string' ? reportData : JSON.stringify(reportData, null, 2));
+
+      setGeneratedContent(typeof reportData === 'string' ? JSON.parse(reportData) : reportData);
       setCurrentStep(2); // Move to review step
 
     } catch (err) {
@@ -381,7 +381,7 @@ Based on the data, populate the JSON schema below.
       if (editingReport) {
         // Update existing report
         await ClientReport.update(editingReport.id, {
-          report_data: JSON.parse(editableContent), // Parse back to object for storage
+          report_data: generatedContent,
           html_content: printRef.current?.innerHTML || ""
         });
         toast.success("Report updated successfully!");
@@ -392,7 +392,7 @@ Based on the data, populate the JSON schema below.
           report_type: "workcover_pmp",
           report_name: `WorkCover Provider Management Plan - ${format(new Date(), 'dd/MM/yyyy')}`,
           report_date: new Date().toISOString().split('T')[0],
-          report_data: JSON.parse(editableContent), // Parse back to object for storage
+          report_data: generatedContent,
           html_content: printRef.current?.innerHTML || ""
         });
         toast.success("Report saved to client file successfully!");
@@ -403,6 +403,61 @@ Based on the data, populate the JSON schema below.
     } finally {
       setIsSaving(false);
     }
+  };
+
+  // Structured-edit helpers: all edits are applied directly to the report-data
+  // object so the saved shape is identical to the generated shape.
+  const updateReportField = (field, value) => {
+    setGeneratedContent(prev => ({ ...prev, [field]: value }));
+  };
+
+  const updateOutcomeMeasure = (index, field, value) => {
+    setGeneratedContent(prev => ({
+      ...prev,
+      outcome_measures: (prev.outcome_measures || []).map((om, i) =>
+        i === index ? { ...om, [field]: value } : om
+      )
+    }));
+  };
+
+  const addOutcomeMeasure = () => {
+    setGeneratedContent(prev => ({
+      ...prev,
+      outcome_measures: [
+        ...(prev.outcome_measures || []),
+        { measure_name: "", initial_result: "", current_result: "", anticipated_outcome: "" }
+      ]
+    }));
+  };
+
+  const removeOutcomeMeasure = (index) => {
+    setGeneratedContent(prev => ({
+      ...prev,
+      outcome_measures: (prev.outcome_measures || []).filter((_, i) => i !== index)
+    }));
+  };
+
+  const updateBarrier = (index, field, value) => {
+    setGeneratedContent(prev => ({
+      ...prev,
+      barriers: (prev.barriers || []).map((b, i) =>
+        i === index ? { ...b, [field]: value } : b
+      )
+    }));
+  };
+
+  const addBarrier = () => {
+    setGeneratedContent(prev => ({
+      ...prev,
+      barriers: [...(prev.barriers || []), { barrier: "", strategy: "" }]
+    }));
+  };
+
+  const removeBarrier = (index) => {
+    setGeneratedContent(prev => ({
+      ...prev,
+      barriers: (prev.barriers || []).filter((_, i) => i !== index)
+    }));
   };
 
   const handlePrint = () => {
@@ -478,9 +533,9 @@ Based on the data, populate the JSON schema below.
       <Toaster position="top-center" richColors />
       <div className="hidden">
         {generatedContent && clinician && (
-          <PrintableReport 
-            ref={printRef} 
-            reportContent={isEditing ? JSON.parse(editableContent) : generatedContent} // Pass object to PrintableReport
+          <PrintableReport
+            ref={printRef}
+            reportContent={generatedContent} // Pass object to PrintableReport
             client={client}
             clinician={clinician}
             title={template?.name || "Clinical Report"}
@@ -609,22 +664,195 @@ Based on the data, populate the JSON schema below.
             </div>
 
             {isEditing ? (
-              <div className="space-y-4">
-                <Label className="text-sm font-medium text-slate-700">
-                  Edit Report Content (JSON/Markdown is supported):
-                </Label>
-                <Textarea
-                  value={editableContent}
-                  onChange={(e) => setEditableContent(e.target.value)}
-                  rows={20}
-                  className="font-mono text-sm"
-                />
+              <div className="space-y-6 max-h-[65vh] overflow-y-auto px-1">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="pmp_worker_name">Worker Name</Label>
+                    <Input
+                      id="pmp_worker_name"
+                      value={generatedContent.worker_name || ""}
+                      onChange={(e) => updateReportField('worker_name', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pmp_worker_dob">Date of Birth (DD/MM/YYYY)</Label>
+                    <Input
+                      id="pmp_worker_dob"
+                      value={generatedContent.worker_dob || ""}
+                      onChange={(e) => updateReportField('worker_dob', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pmp_worker_doi">Date of Injury (DD/MM/YYYY)</Label>
+                    <Input
+                      id="pmp_worker_doi"
+                      value={generatedContent.worker_doi || ""}
+                      onChange={(e) => updateReportField('worker_doi', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pmp_claim_number">Claim Number</Label>
+                    <Input
+                      id="pmp_claim_number"
+                      value={generatedContent.claim_number || ""}
+                      onChange={(e) => updateReportField('claim_number', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pmp_referring_doctor">Referring Doctor</Label>
+                    <Input
+                      id="pmp_referring_doctor"
+                      value={generatedContent.referring_doctor || ""}
+                      onChange={(e) => updateReportField('referring_doctor', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pmp_worker_occupation">Worker Occupation</Label>
+                    <Input
+                      id="pmp_worker_occupation"
+                      value={generatedContent.worker_occupation || ""}
+                      onChange={(e) => updateReportField('worker_occupation', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pmp_initial_consult_date">Initial Consultation Date (DD/MM/YYYY)</Label>
+                    <Input
+                      id="pmp_initial_consult_date"
+                      value={generatedContent.initial_consult_date || ""}
+                      onChange={(e) => updateReportField('initial_consult_date', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pmp_approved_consults">Consultations Approved to Date</Label>
+                    <Input
+                      id="pmp_approved_consults"
+                      value={generatedContent.approved_consults || ""}
+                      onChange={(e) => updateReportField('approved_consults', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="pmp_required_consults">Consultations Required in This Plan</Label>
+                    <Input
+                      id="pmp_required_consults"
+                      value={generatedContent.required_consults || ""}
+                      onChange={(e) => updateReportField('required_consults', e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="pmp_diagnosis">Diagnosis</Label>
+                  <Textarea
+                    id="pmp_diagnosis"
+                    value={generatedContent.diagnosis || ""}
+                    onChange={(e) => updateReportField('diagnosis', e.target.value)}
+                    rows={2}
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="pmp_treatment_plan">Treatment Plan</Label>
+                  <Textarea
+                    id="pmp_treatment_plan"
+                    value={generatedContent.treatment_plan || ""}
+                    onChange={(e) => updateReportField('treatment_plan', e.target.value)}
+                    rows={8}
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Outcome Measures</Label>
+                    <Button onClick={addOutcomeMeasure} variant="outline" size="sm">
+                      <Plus className="w-4 h-4 mr-1" /> Add Measure
+                    </Button>
+                  </div>
+                  {(generatedContent.outcome_measures || []).map((om, index) => (
+                    <div key={index} className="border rounded-lg p-3 space-y-2">
+                      <div className="flex items-start justify-between gap-2">
+                        <Input
+                          value={om.measure_name || ""}
+                          onChange={(e) => updateOutcomeMeasure(index, 'measure_name', e.target.value)}
+                          placeholder="Outcome measure"
+                        />
+                        <Button
+                          onClick={() => removeOutcomeMeasure(index)}
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-700 shrink-0"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                      <div className="grid md:grid-cols-3 gap-2">
+                        <Input
+                          value={om.initial_result || ""}
+                          onChange={(e) => updateOutcomeMeasure(index, 'initial_result', e.target.value)}
+                          placeholder="Initial result"
+                        />
+                        <Input
+                          value={om.current_result || ""}
+                          onChange={(e) => updateOutcomeMeasure(index, 'current_result', e.target.value)}
+                          placeholder="Current result"
+                        />
+                        <Input
+                          value={om.anticipated_outcome || ""}
+                          onChange={(e) => updateOutcomeMeasure(index, 'anticipated_outcome', e.target.value)}
+                          placeholder="Anticipated outcome"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <Label>Barriers and Strategies</Label>
+                    <Button onClick={addBarrier} variant="outline" size="sm">
+                      <Plus className="w-4 h-4 mr-1" /> Add Barrier
+                    </Button>
+                  </div>
+                  {(generatedContent.barriers || []).map((barrier, index) => (
+                    <div key={index} className="border rounded-lg p-3">
+                      <div className="flex items-start gap-2">
+                        <div className="grid md:grid-cols-2 gap-2 flex-1">
+                          <Textarea
+                            value={barrier.barrier || ""}
+                            onChange={(e) => updateBarrier(index, 'barrier', e.target.value)}
+                            placeholder="Barrier"
+                            rows={2}
+                          />
+                          <Textarea
+                            value={barrier.strategy || ""}
+                            onChange={(e) => updateBarrier(index, 'strategy', e.target.value)}
+                            placeholder="Recommended strategy"
+                            rows={2}
+                          />
+                        </div>
+                        <Button
+                          onClick={() => removeBarrier(index)}
+                          variant="ghost"
+                          size="icon"
+                          className="text-red-500 hover:text-red-700 shrink-0"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
-              <div className="bg-slate-50 rounded-md border p-6 max-h-[60vh] overflow-y-auto prose prose-blue max-w-none">
-                <ReactMarkdown>
-                  {JSON.stringify(generatedContent, null, 2)}
-                </ReactMarkdown>
+              <div className="bg-white border-2 border-slate-200 rounded-lg p-8 shadow-lg max-h-[60vh] overflow-y-auto">
+                {clinician && (
+                  <PrintableReport
+                    reportContent={generatedContent}
+                    client={client}
+                    clinician={clinician}
+                    title={template?.name || "Clinical Report"}
+                    formType={'workcover_pmp'}
+                  />
+                )}
               </div>
             )}
 
@@ -908,6 +1136,7 @@ function GenericReportFiller({ client, formType, onClose, editingReport }) {
 You are an expert Australian Exercise Physiologist writing a clinical report for a **${template.name}**.
 The client is ${client.full_name}.
 Format your entire output using basic HTML formatting (use <h2>, <h3>, <p>, <strong>, <ul>, <li> tags).
+Return clean HTML only — no markdown, no code fences, no <html> or <body> wrapper.
 
 **Client & Assessment Data:**
 - Client: ${JSON.stringify(client, null, 2)}
@@ -1198,7 +1427,12 @@ Begin with the first section - no introduction text.
                     <h3 className="text-xl font-semibold text-slate-900">Review & Edit Report</h3>
                     <div className="flex gap-2">
                         <Button
-                        onClick={() => setIsEditing(!isEditing)}
+                        onClick={() => {
+                            if (isEditing) {
+                                setGeneratedContent(editableContent); // Keep edits when returning to View Mode
+                            }
+                            setIsEditing(!isEditing);
+                        }}
                         variant="outline"
                         size="sm"
                         >
@@ -1211,16 +1445,15 @@ Begin with the first section - no introduction text.
                     {isEditing ? (
                     <div className="space-y-4">
                         <Label className="text-sm font-medium text-slate-700">
-                        Edit Report Content (HTML is supported):
+                        Edit Report Content:
                         </Label>
-                        <Textarea
+                        <RichTextEditor
                         value={editableContent}
-                        onChange={(e) => setEditableContent(e.target.value)}
-                        rows={20}
-                        className="font-mono text-sm"
+                        onChange={setEditableContent}
+                        className="max-h-[60vh] overflow-y-auto"
                         />
                         <p className="text-xs text-slate-500">
-                          Tip: You can edit the HTML directly or modify the text content.
+                          Tip: Edit the report exactly as it will appear. Changes are kept when you switch back to View Mode.
                         </p>
                     </div>
                     ) : (

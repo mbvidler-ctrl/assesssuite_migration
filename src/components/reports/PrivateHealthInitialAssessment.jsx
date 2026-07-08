@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import RichTextEditor from "@/components/ui/RichTextEditor";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ClientCondition, ClientAssessment, Assessment, User, ClientReport } from "@/entities/all";
@@ -782,6 +783,11 @@ Generate comprehensive content for the following sections, ensuring each section
   "recommendations": "Any additional recommendations for the client or referring practitioner, including potential referrals or further investigations."
 }
 
+Output format requirements:
+- Return raw JSON only — no code fences, no commentary before or after the JSON object.
+- For "clinical_interpretation", "treatment_plan", and "recommendations": the value must be clean HTML using only <p>, <ul>, <li>, and <strong> tags — no markdown, and no newline characters inside the value.
+- For "client_demographics" and "assessment_findings": the value must be plain prose with no markup.
+
 Use professional clinical language suitable for a GP or specialist.`;
 
       const generatedContentRaw = await InvokeLLM({ prompt: interpretationPrompt });
@@ -836,7 +842,9 @@ Use professional clinical language suitable for a GP or specialist.`;
 
     setIsGenerating(true);
     try {
-      const prompt = `Please tidy and improve the following clinical interpretation. Make it more professional and well-structured:
+      const prompt = `Please tidy and improve the following clinical interpretation. Make it more professional and well-structured.
+
+Return clean HTML using only <p>, <ul>, <li>, and <strong> tags — no markdown, no code fences, no commentary.
 
 ${reportData.clinical_interpretation}`;
 
@@ -860,7 +868,9 @@ ${reportData.clinical_interpretation}`;
     setIsGenerating(true);
     try {
       const currentPlan = reportData.management_plan || reportData.treatment_plan;
-      const prompt = `Please tidy and improve the following management plan. Make it more professional and well-structured:
+      const prompt = `Please tidy and improve the following management plan. Make it more professional and well-structured.
+
+Return clean HTML using only <p>, <ul>, <li>, and <strong> tags — no markdown, no code fences, no commentary.
 
 ${currentPlan}`;
 
@@ -1548,12 +1558,10 @@ ${currentPlan}`;
                   AI Tidy
                 </Button>
               </div>
-              <Textarea
-                id="clinical_interpretation"
+              <RichTextEditor
                 value={reportData.clinical_interpretation}
-                onChange={(e) => setReportData(prev => ({ ...prev, clinical_interpretation: e.target.value }))}
+                onChange={(value) => setReportData(prev => ({ ...prev, clinical_interpretation: value }))}
                 placeholder="Summary of findings, functional limitations, and clinical impressions..."
-                rows={8}
               />
             </div>
 
@@ -1571,24 +1579,20 @@ ${currentPlan}`;
                   AI Tidy
                 </Button>
               </div>
-              <Textarea
-                id="management_plan"
+              <RichTextEditor
                 value={reportData.management_plan || reportData.treatment_plan} // Use management_plan or fallback to treatment_plan
-                onChange={(e) => setReportData(prev => ({ ...prev, management_plan: e.target.value, treatment_plan: e.target.value }))}
+                onChange={(value) => setReportData(prev => ({ ...prev, management_plan: value, treatment_plan: value }))}
                 placeholder="Detailed exercise therapy approach, interventions, and progression strategy..."
-                rows={8}
               />
             </div>
 
             {/* Recommendations */}
             <div>
               <Label htmlFor="recommendations">Recommendations (AI Generated)</Label>
-              <Textarea
-                id="recommendations"
+              <RichTextEditor
                 value={reportData.recommendations}
-                onChange={(e) => setReportData(prev => ({ ...prev, recommendations: e.target.value }))}
+                onChange={(value) => setReportData(prev => ({ ...prev, recommendations: value }))}
                 placeholder="AI will generate additional recommendations..."
-                rows={5}
               />
             </div>
 
@@ -1753,31 +1757,25 @@ ${currentPlan}`;
 
                   <div>
                     <Label htmlFor="edit_interpretation">Clinical Interpretation</Label>
-                    <Textarea
-                      id="edit_interpretation"
+                    <RichTextEditor
                       value={reportData.clinical_interpretation}
-                      onChange={(e) => setReportData(prev => ({ ...prev, clinical_interpretation: e.target.value }))}
-                      rows={5}
+                      onChange={(value) => setReportData(prev => ({ ...prev, clinical_interpretation: value }))}
                     />
                   </div>
 
                   <div>
-                    <Label htmlFor="edit_plan">Treatment Plan</Label>
-                    <Textarea
-                      id="edit_plan"
-                      value={reportData.treatment_plan}
-                      onChange={(e) => setReportData(prev => ({ ...prev, treatment_plan: e.target.value }))}
-                      rows={5}
+                    <Label htmlFor="edit_plan">Proposed Management Plan</Label>
+                    <RichTextEditor
+                      value={reportData.management_plan || reportData.treatment_plan}
+                      onChange={(value) => setReportData(prev => ({ ...prev, management_plan: value, treatment_plan: value }))}
                     />
                   </div>
 
                   <div>
                     <Label htmlFor="edit_recommendations">Recommendations</Label>
-                    <Textarea
-                      id="edit_recommendations"
+                    <RichTextEditor
                       value={reportData.recommendations}
-                      onChange={(e) => setReportData(prev => ({ ...prev, recommendations: e.target.value }))}
-                      rows={4}
+                      onChange={(value) => setReportData(prev => ({ ...prev, recommendations: value }))}
                     />
                   </div>
                 </div>

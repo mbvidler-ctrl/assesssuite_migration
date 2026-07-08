@@ -161,8 +161,7 @@ export default function MedicareReferralAcceptance({ client, onClose, editingRep
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [locations, setLocations] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
-  const [editableContent, setEditableContent] = useState("");
-  
+
   const [letterData, setLetterData] = useState(() => {
     if (editingReport && editingReport.report_data) {
       return editingReport.report_data;
@@ -192,7 +191,6 @@ export default function MedicareReferralAcceptance({ client, onClose, editingRep
     loadInitialData();
     if (editingReport && editingReport.report_data) {
       setCurrentStep(3); // Go directly to review step (new index 3)
-      setEditableContent(JSON.stringify(editingReport.report_data, null, 2));
     }
   }, []);
 
@@ -235,7 +233,6 @@ export default function MedicareReferralAcceptance({ client, onClose, editingRep
         toast.error("Please provide next appointment details");
         return;
       }
-      setEditableContent(JSON.stringify(letterData, null, 2)); // Initialize editableContent when moving to step 3
     }
     setCurrentStep(currentStep + 1);
   };
@@ -251,17 +248,7 @@ export default function MedicareReferralAcceptance({ client, onClose, editingRep
     setLetterData(prev => ({ ...prev, [field]: value }));
   };
 
-  const displayLetterData = useMemo(() => {
-    if (isEditing) {
-      try {
-        return JSON.parse(editableContent);
-      } catch (e) {
-        // If JSON is invalid during editing, fall back to the last valid state or initial letterData
-        return letterData;
-      }
-    }
-    return letterData;
-  }, [isEditing, editableContent, letterData]);
+  const displayLetterData = useMemo(() => letterData, [letterData]);
 
   const handlePrint = () => {
     if (!printRef.current) {
@@ -376,16 +363,7 @@ export default function MedicareReferralAcceptance({ client, onClose, editingRep
 
   const handleSaveReport = async () => {
     setIsSaving(true);
-    let dataToSave = letterData; // Default to current state (if not in edit mode)
-    if (isEditing) {
-      try {
-        dataToSave = JSON.parse(editableContent);
-      } catch (e) {
-        toast.error("Invalid JSON in editable content. Please fix before saving.");
-        setIsSaving(false);
-        return;
-      }
-    }
+    const dataToSave = letterData;
 
     try {
       // Ensure printRef.current has the latest data for HTML content
@@ -667,19 +645,84 @@ export default function MedicareReferralAcceptance({ client, onClose, editingRep
                 </div>
 
                 {isEditing ? (
-                  <div className="space-y-4">
-                    <Label className="text-sm font-medium text-slate-700">
-                      Edit Report Data (JSON format):
-                    </Label>
-                    <Textarea
-                      value={editableContent}
-                      onChange={(e) => setEditableContent(e.target.value)}
-                      rows={25}
-                      className="font-mono text-sm"
-                    />
-                    <p className="text-xs text-slate-500">
-                      Tip: Edit the JSON data above to modify report content. Be careful to maintain valid JSON format. Invalid JSON will prevent saving.
-                    </p>
+                  <div className="space-y-6 max-h-[65vh] overflow-y-auto px-1">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="edit_gp_name">GP Name</Label>
+                        <Input
+                          id="edit_gp_name"
+                          value={letterData.gp_name || ""}
+                          onChange={(e) => handleChange('gp_name', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit_gp_clinic_name">GP Clinic Name</Label>
+                        <Input
+                          id="edit_gp_clinic_name"
+                          value={letterData.gp_clinic_name || ""}
+                          onChange={(e) => handleChange('gp_clinic_name', e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="edit_gp_address">GP Address</Label>
+                      <Textarea
+                        id="edit_gp_address"
+                        value={letterData.gp_address || ""}
+                        onChange={(e) => handleChange('gp_address', e.target.value)}
+                        rows={2}
+                      />
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="edit_letter_date">Letter Date</Label>
+                        <Input
+                          id="edit_letter_date"
+                          type="date"
+                          value={letterData.letter_date || ""}
+                          onChange={(e) => handleChange('letter_date', e.target.value)}
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="edit_referral_date">Referral Date</Label>
+                        <Input
+                          id="edit_referral_date"
+                          type="date"
+                          value={letterData.referral_date || ""}
+                          onChange={(e) => handleChange('referral_date', e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="edit_referral_type">Referral Type</Label>
+                      <Input
+                        id="edit_referral_type"
+                        value={letterData.referral_type || ""}
+                        onChange={(e) => handleChange('referral_type', e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="edit_next_appointment">Next Appointment Details</Label>
+                      <Input
+                        id="edit_next_appointment"
+                        value={letterData.next_appointment_text || ""}
+                        onChange={(e) => handleChange('next_appointment_text', e.target.value)}
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="edit_session_details">Additional Notes</Label>
+                      <Textarea
+                        id="edit_session_details"
+                        value={letterData.session_details || ""}
+                        onChange={(e) => handleChange('session_details', e.target.value)}
+                        rows={4}
+                      />
+                    </div>
                   </div>
                 ) : (
                   <div className="bg-white border-2 border-slate-200 rounded-lg p-8 shadow-lg max-h-[70vh] overflow-y-auto">
