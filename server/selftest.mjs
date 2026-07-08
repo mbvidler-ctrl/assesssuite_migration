@@ -443,6 +443,23 @@ async function runChecks(baseUrl, appId) {
     userAToken = verifyA.access_token;
     userBToken = verifyB.access_token;
 
+    // OTP verification no longer activates accounts (approval is an admin
+    // decision). Approve both fixtures the way the product now does it:
+    // an admin User-entity update, as AdminApprovals performs.
+    const { body: allUsers } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User`, {
+      token: adminToken,
+    });
+    for (const email of [emailA, emailB]) {
+      const fixtureUser = (allUsers || []).find((u) => u.email === email);
+      if (fixtureUser) {
+        await api(baseUrl, appId, `/api/apps/${appId}/entities/User/${fixtureUser.id}`, {
+          method: 'PUT',
+          token: adminToken,
+          body: { account_status: 'active' },
+        });
+      }
+    }
+
     await api(baseUrl, appId, `/api/apps/${appId}/entities/OrganizationMember`, {
       method: 'POST',
       token: adminToken,
@@ -491,6 +508,151 @@ async function runChecks(baseUrl, appId) {
       'org B user listing Client does not see org A records',
       status === 200 && Array.isArray(body) && !body.some((r) => r.id === clientAId),
       `status=${status}`,
+    );
+  }
+
+  // --- Hard gates: anonymous writes refused; approval gate enforced ---
+  {
+    const { status } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
+      method: 'POST',
+      body: { full_name: 'Anonymous Injection Attempt' },
+    });
+    record('anonymous entity create is refused (401)', status === 401, `status=${status}`);
+  }
+  {
+    const { status } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client/${clientAId}`, {
+      method: 'PUT',
+      body: { full_name: 'Anonymous Tamper' },
+    });
+    record('anonymous entity update is refused (401)', status === 401, `status=${status}`);
+  }
+  {
+    const { status } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client/bulk`, {
+      method: 'POST',
+      body: [{ full_name: 'Anonymous Bulk' }],
+    });
+    record('anonymous bulk create is refused (401)', status === 401, `status=${status}`);
+  }
+  {
+    // A registered-but-unapproved (pending) user: clinical entities refused
+    // outright; setup entities writable; approval then unlocks access.
+    const pendingEmail = `pending-user-${Date.now()}@example.com`;
+    await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+      method: 'POST',
+      body: { email: pendingEmail, password: 'password123456' },
+    });
+    const { body: verifyPending } = await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
+      method: 'POST',
+      body: { email: pendingEmail, otp_code: '000000' },
+    });
+    const pendingToken = verifyPending?.access_token;
+    record(
+      'verify-otp leaves a new account pending (email verified, not activated)',
+      Boolean(pendingToken),
+      `token=${Boolean(pendingToken)}`,
+    );
+
+    const { status: clinicalReadStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
+      token: pendingToken,
+    });
+    record('pending user reading a clinical entity is refused (403)', clinicalReadStatus === 403, `status=${clinicalReadStatus}`);
+
+    const { status: clinicalWriteStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/SOAPNote`, {
+      method: 'POST',
+      token: pendingToken,
+      body: { note_name: 'Pending user probe' },
+    });
+    record('pending user writing a clinical entity is refused (403)', clinicalWriteStatus === 403, `status=${clinicalWriteStatus}`);
+
+    const { status: setupWriteStatus, body: pendingOrg } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Organization`, {
+      method: 'POST',
+      token: pendingToken,
+      body: { name: 'Pending User Clinic' },
+    });
+    record('pending user may still create setup entities (Organization)', setupWriteStatus === 200 && Boolean(pendingOrg?.id), `status=${setupWriteStatus}`);
+
+    const { status: catalogueStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Assessment`, {
+      token: pendingToken,
+    });
+    record('pending user may still read the assessment catalogue', catalogueStatus === 200, `status=${catalogueStatus}`);
+
+    // Self-activation via updateMe must be stripped.
+    await api(baseUrl, appId, `/api/apps/${appId}/entities/User/me`, {
+      method: 'PUT',
+      token: pendingToken,
+      body: { account_status: 'active', clinician_name: 'Pending Probe' },
+    });
+    const { body: meAfter } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User/me`, {
+      token: pendingToken,
+    });
+    record(
+      'updateMe strips self-service account_status changes',
+      meAfter?.account_status === 'pending' && meAfter?.clinician_name === 'Pending Probe',
+      `account_status=${meAfter?.account_status}`,
+    );
+
+    // Clinical functions refused while pending.
+    const { status: fnStatus } = await api(baseUrl, appId, `/api/apps/${appId}/functions/transcribeSession`, {
+      method: 'POST',
+      token: pendingToken,
+      body: { action: 'transcribe', audio_url: '/uploads/probe.webm' },
+    });
+    record('pending user calling a clinical function is refused (403)', fnStatus === 403, `status=${fnStatus}`);
+
+    // Admin approval unlocks clinical access (the AdminApprovals path).
+    const { body: usersForApproval } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User`, {
+      token: adminToken,
+    });
+    const pendingUserRecord = (usersForApproval || []).find((u) => u.email === pendingEmail);
+    await api(baseUrl, appId, `/api/apps/${appId}/entities/User/${pendingUserRecord.id}`, {
+      method: 'PUT',
+      token: adminToken,
+      body: { account_status: 'active' },
+    });
+    const { status: postApprovalStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
+      token: pendingToken,
+    });
+    record('admin approval unlocks clinical entity access', postApprovalStatus === 200, `status=${postApprovalStatus}`);
+  }
+  {
+    // Payment-failure recovery: a suspended account is restored to active by
+    // a successful checkout (the one billing event permitted to touch
+    // account_status); a pending account never is (asserted above).
+    const suspendedEmail = `suspended-user-${Date.now()}@example.com`;
+    await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+      method: 'POST',
+      body: { email: suspendedEmail, password: 'password123456' },
+    });
+    const { body: allUsersNow } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User`, {
+      token: adminToken,
+    });
+    const suspendedUser = (allUsersNow || []).find((u) => u.email === suspendedEmail);
+    await api(baseUrl, appId, `/api/apps/${appId}/entities/User/${suspendedUser.id}`, {
+      method: 'PUT',
+      token: adminToken,
+      body: { account_status: 'suspended' },
+    });
+    await api(baseUrl, appId, `/api/apps/${appId}/functions/stripeWebhook`, {
+      method: 'POST',
+      body: {
+        type: 'checkout.session.completed',
+        data: {
+          object: {
+            client_reference_id: suspendedUser.id,
+            customer: 'mock_cus_restore',
+            subscription: 'mock_sub_restore',
+            customer_email: suspendedEmail,
+          },
+        },
+      },
+    });
+    const { body: restored } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User/${suspendedUser.id}`, {
+      token: adminToken,
+    });
+    record(
+      'successful payment restores a suspended account to active',
+      restored?.account_status === 'active' && restored?.subscription_status === 'active',
+      `account_status=${restored?.account_status}`,
     );
   }
 
@@ -758,9 +920,12 @@ async function runChecks(baseUrl, appId) {
       token: stripeUserToken,
     });
     record(
-      'stripeWebhook wrote User entitlement fields',
+      'stripeWebhook wrote entitlement fields without activating approval',
       meStatus === 200 &&
-        meBody?.account_status === 'active' &&
+        // Payment success flips entitlement only; approval (account_status)
+        // remains 'pending' until an admin approves — the hard approval gate.
+        meBody?.account_status === 'pending' &&
+        meBody?.email_verified === true &&
         meBody?.subscription_status === 'active' &&
         meBody?.stripe_customer_id === mockCustomerId &&
         meBody?.stripe_subscription_id === mockSubscriptionId &&

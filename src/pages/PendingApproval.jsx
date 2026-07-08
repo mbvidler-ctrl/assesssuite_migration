@@ -17,17 +17,57 @@ export default function PendingApproval() {
 
   const isSuspended = accountStatus === 'suspended';
   const isRejected = accountStatus === 'rejected';
+  const isBlocked = isSuspended || isRejected;
+
+  const statusTitle = isSuspended
+    ? 'Account Suspended'
+    : isRejected
+      ? 'Account Not Approved'
+      : 'Awaiting Approval';
+
+  const statusMessage = isSuspended ? (
+    <>
+      Your account has been suspended. Please contact us at{' '}
+      <a href="mailto:admin@assesssuite.com" className="text-blue-600 underline">admin@assesssuite.com</a>
+      {' '}or call{' '}
+      <a href="tel:1800317553" className="text-blue-600 underline">1800 317 553</a>
+      {' '}to resolve this.
+    </>
+  ) : isRejected ? (
+    <>
+      Your account application was not approved. If you believe this is an
+      error, please contact us at{' '}
+      <a href="mailto:admin@assesssuite.com" className="text-blue-600 underline">admin@assesssuite.com</a>
+      {' '}or call{' '}
+      <a href="tel:1800317553" className="text-blue-600 underline">1800 317 553</a>.
+    </>
+  ) : (
+    <>
+      Your account is awaiting administrator approval. You will be able to
+      access client and assessment features once your account has been
+      approved. Questions? Contact{' '}
+      <a href="mailto:admin@assesssuite.com" className="text-blue-600 underline">admin@assesssuite.com</a>.
+    </>
+  );
 
   const handleCompletePayment = async () => {
     setIsRedirecting(true);
     try {
       const currentUser = await base44.auth.me();
+      // Parameter names and response envelope aligned with the function's
+      // actual contract (plan/userId/userEmail in; { url } out under .data)
+      // — the previous snake_case parameters were never read and
+      // result.sessionUrl never existed, so this button could not work.
       const result = await base44.functions.invoke("createCheckoutSession", {
-        price_id: "price_1TaUtnQ515tU8HKQjGJQeBqw",
-        customer_email: currentUser.email,
+        plan: "monthly",
+        userId: currentUser.id,
+        userEmail: currentUser.email,
+        userName: currentUser.full_name,
       });
-      if (result?.sessionUrl) {
-        window.location.href = result.sessionUrl;
+      const payload = result?.data ?? result;
+      const url = payload?.url;
+      if (url) {
+        window.location.href = url;
       }
     } catch (e) {
       console.error("Checkout error", e);
@@ -40,23 +80,19 @@ export default function PendingApproval() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 flex items-center justify-center p-6">
       <Card className="max-w-md w-full">
         <CardHeader>
-          <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isSuspended || isRejected ? 'bg-red-100' : 'bg-yellow-100'}`}>
-            {isSuspended || isRejected
+          <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${isBlocked ? 'bg-red-100' : 'bg-yellow-100'}`}>
+            {isBlocked
               ? <XCircle className="w-8 h-8 text-red-600" />
               : <Clock className="w-8 h-8 text-yellow-600" />
             }
           </div>
           <CardTitle className="text-center text-2xl">
-            Account Suspended
+            {statusTitle}
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4 text-center">
           <p className="text-slate-600">
-            Your account has been suspended. Please contact us at{' '}
-            <a href="mailto:admin@assesssuite.com" className="text-blue-600 underline">admin@assesssuite.com</a>
-            {' '}or call{' '}
-            <a href="tel:1800317553" className="text-blue-600 underline">1800 317 553</a>
-            {' '}to resolve this.
+            {statusMessage}
           </p>
           <div className="pt-4 border-t">
             {!isSuspended && !isRejected && (

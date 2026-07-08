@@ -18,7 +18,14 @@
 // own handle so it remains independently usable.
 
 import { openDatabase, createOutboxRepository } from '../db.mjs';
-import { createEntitiesAccessor, readJsonBody, resolveUser, respond, createUpdateMe } from './_shared.mjs';
+import {
+  createEntitiesAccessor,
+  readRawBody,
+  parseJsonBody,
+  resolveUser,
+  respond,
+  createUpdateMe,
+} from './_shared.mjs';
 import { stripAuthFields } from './_auth-bridge.mjs';
 
 import assignOrganizations from './assignOrganizations.mjs';
@@ -63,6 +70,20 @@ const REGISTRY = {
   transcribeSession,
 };
 
+// Functions that read or produce clinical content: require a session AND an
+// approved (active) account for non-admins — mirroring the entities router's
+// hard approval gate. Billing functions (createCheckoutSession,
+// createPortalSession, syncStripeSubscription) stay available while pending
+// (entitlement is a separate axis from approval), and stripeWebhook is
+// tokenless by design (Stripe calls it; signature-verified in real mode).
+const REQUIRES_ACTIVE_ACCOUNT = new Set([
+  'getComorbidityReport',
+  'verifyReferences',
+  'searchEvidence',
+  'medicalLookup',
+  'transcribeSession',
+]);
+
 let state = null;
 
 function buildState(db, entityNames) {
@@ -106,15 +127,31 @@ export default async function handleFunction(req, res, { functionName }) {
 
   const { db, entities, outboxEmail, outboxSms } = ensureState();
 
-  const body = await readJsonBody(req);
+  // The body is read ONCE as raw bytes, then parsed. Both forms go on ctx:
+  // stripeWebhook needs the exact raw bytes for Stripe-Signature HMAC
+  // verification when real Stripe mode is enabled (re-serialised JSON would
+  // not match the bytes Stripe signed). Every other handler keeps using the
+  // parsed ctx.body exactly as before — behaviour is unchanged.
+  const rawBody = await readRawBody(req);
+  const body = parseJsonBody(rawBody);
   const sessionUser = resolveUser(req, db);
   const user = sessionUser ? stripAuthFields(sessionUser) : null;
   const updateMe = createUpdateMe(db, sessionUser);
+
+  if (REQUIRES_ACTIVE_ACCOUNT.has(functionName)) {
+    if (!user) {
+      return respond(res, 401, { error: 'authentication required' });
+    }
+    if (user.role !== 'admin' && user.account_status !== 'active') {
+      return respond(res, 403, { error: 'account pending approval' });
+    }
+  }
 
   const ctx = {
     user,
     entities,
     body,
+    rawBody,
     request: req,
     respond: (status, json) => respond(res, status, json),
     updateMe,

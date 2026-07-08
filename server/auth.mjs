@@ -68,7 +68,16 @@ export function generateOtp() {
  * Fields that updateMe must never be permitted to change, per the
  * authorisation model in the contract.
  */
-export const UPDATE_ME_GUARDED_FIELDS = new Set(['role', 'email', 'id', 'created_date']);
+export const UPDATE_ME_GUARDED_FIELDS = new Set([
+  'role',
+  'email',
+  'id',
+  'created_date',
+  // Approval state is an admin decision (AdminApprovals) — self-service
+  // activation via updateMe (ProfileSetup previously set 'active') is refused.
+  'account_status',
+  'email_verified',
+]);
 
 /**
  * Strips guarded fields from an updateMe payload.

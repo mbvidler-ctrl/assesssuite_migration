@@ -199,11 +199,10 @@ export default function ProfileSetup() {
         await base44.auth.updateMe({ role: "user" });
       }
 
-      // Create user profile with the form data and set account_status to active
-      await base44.auth.updateMe({
-        ...formData,
-        account_status: "active"
-      });
+      // Create user profile with the form data. Account activation is an
+      // admin approval decision (AdminApprovals) — the server refuses
+      // self-service account_status changes, so none is sent here.
+      await base44.auth.updateMe({ ...formData });
 
       // Redirect to Stripe payment via checkout session
       const res = await createCheckoutSession({ plan: "monthly", userId: currentUser.id, userEmail: currentUser.email, userName: currentUser.full_name });

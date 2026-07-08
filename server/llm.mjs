@@ -19,6 +19,11 @@ const MODEL_FAST = process.env.OPENAI_MODEL_FAST || 'gpt-4.1-mini';
 const MODEL_QUALITY = process.env.OPENAI_MODEL_QUALITY || 'gpt-4.1';
 
 export function llmEnabled() {
+  // SELFTEST must always use the deterministic mock, even if a key is
+  // present in the inherited environment (defence in depth — .env.local is
+  // already skipped under SELFTEST, but a shell-exported key would
+  // otherwise leak real calls into test runs).
+  if (process.env.SELFTEST === '1') return false;
   return Boolean(process.env.OPENAI_API_KEY);
 }
 

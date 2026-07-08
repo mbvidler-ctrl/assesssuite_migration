@@ -72,6 +72,15 @@ export default function Layout({ children, currentPageName }) {
           return;
         }
 
+        // Hard approval gate: any non-admin account that is not approved
+        // (pending, rejected, invited, or missing status) is held at the
+        // approval page. Approval is granted by an administrator via
+        // AdminApprovals; the server refuses self-service status changes.
+        if (freshUser.account_status !== "active") {
+          navigate("/PendingApproval");
+          return;
+        }
+
         if (!freshUser.subscription_status || freshUser.subscription_status !== "active") {
            navigate("/PaymentRequired");
            return;

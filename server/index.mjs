@@ -248,6 +248,60 @@ function orgIdsForUser(userEmail) {
 
 const ENTITY_ROUTE_RE = /^\/api\/apps\/([^/]+)\/entities\/([^/]+)(?:\/(.*))?$/;
 
+// Entities holding client/clinical records: refused entirely to authenticated
+// non-admin users whose account is not approved (account_status !== 'active').
+const CLINICAL_ENTITIES = new Set([
+  'AdverseEvent',
+  'Appointment',
+  'AssessmentRequest',
+  'Client',
+  'ClientAssessment',
+  'ClientCondition',
+  'ClientDocument',
+  'ClientNutritionPlan',
+  'ClientOnboardingEpisode',
+  'ClientReport',
+  'Payment',
+  'SOAPNote',
+  'SavedReport',
+]);
+
+// Entities a not-yet-approved user may still WRITE: profile/organisation
+// setup and legal acceptance necessarily happen before approval.
+const PRE_APPROVAL_WRITE_ENTITIES = new Set([
+  'Organization',
+  'OrganizationMember',
+  'LegalAcceptance',
+  'ClinicPolicy',
+]);
+
+/**
+ * Hard authorisation gate for the entities router. Sends the refusal and
+ * returns true when the request must not proceed:
+ *  - every mutation requires a session (an anonymous caller could previously
+ *    create records);
+ *  - a non-admin session whose account_status is not 'active' cannot touch
+ *    clinical entities at all, and may write only the setup entities.
+ */
+function entityAccessDenied(req, res, entityName, sessionUser, isAdmin) {
+  const isMutation = req.method !== 'GET';
+  if (isMutation && !sessionUser) {
+    sendError(res, 401, 'authentication required');
+    return true;
+  }
+  if (sessionUser && !isAdmin && sessionUser.account_status !== 'active') {
+    if (CLINICAL_ENTITIES.has(entityName)) {
+      sendError(res, 403, 'account pending approval');
+      return true;
+    }
+    if (isMutation && !PRE_APPROVAL_WRITE_ENTITIES.has(entityName)) {
+      sendError(res, 403, 'account pending approval');
+      return true;
+    }
+  }
+  return false;
+}
+
 async function handleEntitiesRoute(req, res, url, match) {
   const [, appId, entityName, rest] = match;
 
@@ -273,6 +327,8 @@ async function handleEntitiesRoute(req, res, url, match) {
 
   // User collection: list/get/update restricted to admins.
   const isUserCollection = entityName === 'User';
+
+  if (entityAccessDenied(req, res, entityName, sessionUser, isAdmin)) return;
 
   if (req.method === 'GET' && !rest) {
     if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
@@ -400,6 +456,7 @@ async function handleBulk(req, res, entityName) {
   const sessionUser = resolveSessionUser(req);
   const isAdmin = sessionUser?.role === 'admin';
   if (entityName === 'User' && !isAdmin) return sendError(res, 403, 'admin access required');
+  if (entityAccessDenied(req, res, entityName, sessionUser, isAdmin)) return;
 
   const body = await readJsonBody(req);
 
@@ -432,6 +489,7 @@ async function handleUpdateMany(req, res, entityName) {
   const sessionUser = resolveSessionUser(req);
   const isAdmin = sessionUser?.role === 'admin';
   if (entityName === 'User' && !isAdmin) return sendError(res, 403, 'admin access required');
+  if (entityAccessDenied(req, res, entityName, sessionUser, isAdmin)) return;
 
   const body = await readJsonBody(req);
   const { query, data } = body || {};
@@ -524,7 +582,15 @@ async function handleAuthRoute(req, res, url, appId, action) {
     if (String(otp_code) !== '000000' && String(otp_code) !== String(user.otp_code)) {
       return sendError(res, 401, 'invalid verification code');
     }
-    const updated = userRepo.update(user.id, { account_status: 'active', otp_code: null });
+    // Email verification must not activate the account: activation is an
+    // admin approval decision (AdminApprovals). Never demote an already-active
+    // user who happens to pass through the OTP path.
+    const nextStatus = user.account_status === 'active' ? 'active' : 'pending';
+    const updated = userRepo.update(user.id, {
+      account_status: nextStatus,
+      email_verified: true,
+      otp_code: null,
+    });
     const token = sessions.create(user.id);
     return sendJson(res, 200, { access_token: token, user: stripAuthFields(updated) });
   }
