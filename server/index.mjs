@@ -278,18 +278,19 @@ const PRE_APPROVAL_WRITE_ENTITIES = new Set([
 /**
  * Hard authorisation gate for the entities router. Sends the refusal and
  * returns true when the request must not proceed:
- *  - every mutation requires a session (an anonymous caller could previously
- *    create records);
+ *  - every request requires a session (an anonymous caller could previously
+ *    read any non-org-scoped collection — enumerating tenants and catalogues
+ *    — and create records);
  *  - a non-admin session whose account_status is not 'active' cannot touch
  *    clinical entities at all, and may write only the setup entities.
  */
 function entityAccessDenied(req, res, entityName, sessionUser, isAdmin) {
-  const isMutation = req.method !== 'GET';
-  if (isMutation && !sessionUser) {
+  if (!sessionUser) {
     sendError(res, 401, 'authentication required');
     return true;
   }
-  if (sessionUser && !isAdmin && sessionUser.account_status !== 'active') {
+  const isMutation = req.method !== 'GET';
+  if (!isAdmin && sessionUser.account_status !== 'active') {
     if (CLINICAL_ENTITIES.has(entityName)) {
       sendError(res, 403, 'account pending approval');
       return true;
@@ -300,6 +301,54 @@ function entityAccessDenied(req, res, entityName, sessionUser, isAdmin) {
     }
   }
   return false;
+}
+
+/** The caller's primary org id (is_primary membership, else first). */
+function primaryOrgIdForUser(userEmail) {
+  if (!orgMemberRepo || !userEmail) return null;
+  const memberships = orgMemberRepo.listAll().filter((m) => m.user_email === userEmail);
+  const primary = memberships.find((m) => m.is_primary) || memberships[0];
+  return primary?.org_id || null;
+}
+
+/** Whether an entity is organisation-scoped (carries org_id), by payload or sample. */
+function entityCarriesOrgId(entityName, data) {
+  if (data && typeof data === 'object' && 'org_id' in data) return true;
+  const repo = repoFor(entityName);
+  const sample = repo?.listAll()[0];
+  return sample ? 'org_id' in sample : false;
+}
+
+/**
+ * Forces the org_id of a non-admin WRITE to an organisation the caller
+ * belongs to, closing the cross-tenant injection vector (a caller-supplied
+ * foreign or null org_id was previously trusted). Mutates `data.org_id`.
+ * Returns { ok } or { ok:false, status, message }.
+ * OrganizationMember is exempt (it is how a user joins an org, so it cannot
+ * require prior membership) — instead a non-admin may only enrol their own
+ * email. Organization carries no org_id and passes through.
+ */
+function enforceWriteOrgScope(entityName, data, sessionUser, { isCreate }) {
+  if (entityName === 'OrganizationMember') {
+    if (isCreate && data && data.user_email && data.user_email !== sessionUser.email) {
+      return { ok: false, status: 403, message: 'you may only add your own account to an organisation' };
+    }
+    return { ok: true };
+  }
+  if (!entityCarriesOrgId(entityName, data)) return { ok: true };
+  const orgIds = orgIdsForUser(sessionUser.email);
+  const supplied = data?.org_id;
+  if (supplied !== undefined && supplied !== null) {
+    if (!orgIds.includes(supplied)) {
+      return { ok: false, status: 403, message: 'org_id is outside your organisations' };
+    }
+    return { ok: true }; // a member org — keep it.
+  }
+  if (!isCreate) return { ok: true }; // update without an org_id change — leave as is.
+  const primary = primaryOrgIdForUser(sessionUser.email);
+  if (!primary) return { ok: false, status: 403, message: 'no organisation membership' };
+  data.org_id = primary;
+  return { ok: true };
 }
 
 async function handleEntitiesRoute(req, res, url, match) {
@@ -343,6 +392,14 @@ async function handleEntitiesRoute(req, res, url, match) {
     if (!isAdmin && !isUserCollection && !isWithinOrgScope(record, sessionUser)) {
       return sendError(res, 404, 'record not found');
     }
+    // Organization carries no org_id, so isWithinOrgScope cannot scope it —
+    // a non-admin may read only organisations they belong to (the record's
+    // own id is the org id), else the org name and subscription status leak
+    // cross-tenant.
+    if (!isAdmin && entityName === 'Organization'
+      && !orgIdsForUser(sessionUser.email).includes(record.id)) {
+      return sendError(res, 404, 'record not found');
+    }
     const stripped = isUserCollection ? stripAuthFields(record) : record;
     return sendJson(res, 200, stripped);
   }
@@ -351,12 +408,11 @@ async function handleEntitiesRoute(req, res, url, match) {
     const data = await readJsonBody(req);
     const createdBy = sessionUser?.email || null;
     if (!isAdmin && entityName !== 'User') {
-      // Non-admin writes are stamped with created_by and (where the entity
-      // carries org_id) auto-scoped to the requester's own org if absent.
-      if ('org_id' in (data || {}) === false) {
-        const orgIds = orgIdsForUser(createdBy);
-        if (orgIds.length === 1) data.org_id = orgIds[0];
-      }
+      // Non-admin writes are org-scoped to a membership the caller holds; a
+      // caller-supplied foreign or null org_id is rejected/replaced, closing
+      // the cross-tenant injection vector.
+      const scope = enforceWriteOrgScope(entityName, data, sessionUser, { isCreate: true });
+      if (!scope.ok) return sendError(res, scope.status, scope.message);
     }
     const record = repo.create(data, createdBy);
     const stripped = isUserCollection ? stripAuthFields(record) : record;
@@ -371,6 +427,11 @@ async function handleEntitiesRoute(req, res, url, match) {
       return sendError(res, 404, 'record not found');
     }
     const data = await readJsonBody(req);
+    if (!isAdmin && entityName !== 'User') {
+      // Prevent relocating a record into another tenant via a mutated org_id.
+      const scope = enforceWriteOrgScope(entityName, data, sessionUser, { isCreate: false });
+      if (!scope.ok) return sendError(res, scope.status, scope.message);
+    }
     const record = repo.update(rest, data);
     const stripped = isUserCollection ? stripAuthFields(record) : record;
     return sendJson(res, 200, stripped);
@@ -413,11 +474,17 @@ function isWithinOrgScope(record, sessionUser) {
 /** Merges an org-scoping constraint into a query object for non-admin requesters. */
 function scopeQueryToOrg(query, entityName, sessionUser, isAdmin) {
   if (isAdmin) return query || {};
+  const orgIds = orgIdsForUser(sessionUser?.email);
+  // Organization carries no org_id; its own id IS the org id, so scope the
+  // list to the caller's memberships by id (else all org names/subscription
+  // states enumerate cross-tenant).
+  if (entityName === 'Organization') {
+    return { ...(query || {}), id: { $in: orgIds } };
+  }
   const repo = repoFor(entityName);
   const sample = repo?.listAll()[0];
   const carriesOrgId = sample ? 'org_id' in sample : entityName !== 'User';
   if (!carriesOrgId) return query || {};
-  const orgIds = orgIdsForUser(sessionUser?.email);
   return { ...(query || {}), org_id: { $in: orgIds } };
 }
 
@@ -464,6 +531,13 @@ async function handleBulk(req, res, entityName) {
     // bulkCreate: JSON array of records.
     const items = Array.isArray(body) ? body : body.items || [];
     const createdBy = sessionUser?.email || null;
+    if (!isAdmin && entityName !== 'User') {
+      // Same cross-tenant scoping as single create, per item.
+      for (const item of items) {
+        const scope = enforceWriteOrgScope(entityName, item, sessionUser, { isCreate: true });
+        if (!scope.ok) return sendError(res, scope.status, scope.message);
+      }
+    }
     const created = items.map((item) => repo.create(item, createdBy));
     const result = entityName === 'User' ? created.map(stripAuthFields) : created;
     return sendJson(res, 200, result);
@@ -643,6 +717,14 @@ async function handleAuthRoute(req, res, url, appId, action) {
 
 async function handleInviteUser(req, res) {
   if (req.method !== 'POST') return sendError(res, 405, 'method not allowed');
+  // Inviting a user and assigning its role is an administrator action. The
+  // endpoint previously performed no authorisation check, so an anonymous
+  // caller could mint an admin account or escalate any existing user to
+  // admin by email — an account-takeover primitive that bypassed every
+  // org-scoping and approval control (admin authority is keyed on role).
+  const sessionUser = resolveSessionUser(req);
+  if (!sessionUser) return sendError(res, 401, 'authentication required');
+  if (sessionUser.role !== 'admin') return sendError(res, 403, 'admin access required');
   const { user_email, role } = await readJsonBody(req);
   if (!user_email || !['user', 'admin'].includes(role)) {
     return sendError(res, 400, 'user_email and a valid role are required');

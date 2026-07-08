@@ -84,6 +84,14 @@ const REQUIRES_ACTIVE_ACCOUNT = new Set([
   'transcribeSession',
 ]);
 
+// Functions that require a session but not approval — billing actions a
+// pending user must still be able to take (checkout/portal). Anonymous
+// reachability of these was a Stripe-abuse vector in real mode.
+const REQUIRES_SESSION = new Set([
+  'createCheckoutSession',
+  'createPortalSession',
+]);
+
 let state = null;
 
 function buildState(db, entityNames) {
@@ -144,6 +152,10 @@ export default async function handleFunction(req, res, { functionName }) {
     }
     if (user.role !== 'admin' && user.account_status !== 'active') {
       return respond(res, 403, { error: 'account pending approval' });
+    }
+  } else if (REQUIRES_SESSION.has(functionName)) {
+    if (!user) {
+      return respond(res, 401, { error: 'authentication required' });
     }
   }
 

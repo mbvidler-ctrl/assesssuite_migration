@@ -632,8 +632,12 @@ async function runChecks(baseUrl, appId) {
       token: adminToken,
       body: { account_status: 'suspended' },
     });
+    // Mock-mode stripeWebhook requires an admin session (no signature to
+    // verify, no real Stripe origin — the anonymous path was an account
+    // suspend/entitlement primitive).
     await api(baseUrl, appId, `/api/apps/${appId}/functions/stripeWebhook`, {
       method: 'POST',
+      token: adminToken,
       body: {
         type: 'checkout.session.completed',
         data: {
@@ -654,6 +658,47 @@ async function runChecks(baseUrl, appId) {
       restored?.account_status === 'active' && restored?.subscription_status === 'active',
       `account_status=${restored?.account_status}`,
     );
+    // Anonymous mock-mode webhook is refused.
+    const { status: anonWebhookStatus } = await api(baseUrl, appId, `/api/apps/${appId}/functions/stripeWebhook`, {
+      method: 'POST',
+      body: { type: 'customer.subscription.deleted', data: { object: { metadata: { userId: suspendedUser.id } } } },
+    });
+    record('anonymous mock stripeWebhook is refused (401)', anonWebhookStatus === 401, `status=${anonWebhookStatus}`);
+    // Anonymous invite-user is refused (was an anonymous admin-mint primitive).
+    const { status: anonInviteStatus } = await api(baseUrl, appId, `/api/apps/${appId}/users/invite-user`, {
+      method: 'POST',
+      body: { user_email: `anon-invite-${Date.now()}@example.com`, role: 'admin' },
+    });
+    record('anonymous invite-user is refused (401)', anonInviteStatus === 401, `status=${anonInviteStatus}`);
+    // Cross-tenant org_id injection on create is refused for a non-admin.
+    const { status: injectStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
+      method: 'POST',
+      token: userAToken,
+      body: { org_id: orgBId, full_name: 'Cross-tenant Injection' },
+    });
+    record('cross-tenant org_id injection on create is refused (403)', injectStatus === 403, `status=${injectStatus}`);
+    // A non-admin create without org_id is auto-scoped to the caller's org.
+    const { status: autoStatus, body: autoClient } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
+      method: 'POST',
+      token: userAToken,
+      body: { full_name: 'Auto-scoped Client' },
+    });
+    record('non-admin create auto-scopes org_id to the caller org',
+      autoStatus === 200 && autoClient?.org_id === orgAId, `status=${autoStatus} org_id=${autoClient?.org_id}`);
+    // Anonymous entity read is refused (tenant/catalogue enumeration closed).
+    const { status: anonReadStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Organization`);
+    record('anonymous entity read is refused (401)', anonReadStatus === 401, `status=${anonReadStatus}`);
+    // A non-admin cannot read another tenant's Organization by id.
+    const { status: crossOrgStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Organization/${orgBId}`, {
+      token: userAToken,
+    });
+    record('cross-tenant Organization read is refused (404)', crossOrgStatus === 404, `status=${crossOrgStatus}`);
+    // Anonymous checkout function is refused.
+    const { status: anonCheckoutStatus } = await api(baseUrl, appId, `/api/apps/${appId}/functions/createCheckoutSession`, {
+      method: 'POST',
+      body: { plan: 'monthly' },
+    });
+    record('anonymous createCheckoutSession is refused (401)', anonCheckoutStatus === 401, `status=${anonCheckoutStatus}`);
   }
 
   // --- Unknown entity / unknown function ---
@@ -891,6 +936,7 @@ async function runChecks(baseUrl, appId) {
       `/api/apps/${appId}/functions/stripeWebhook`,
       {
         method: 'POST',
+        token: adminToken,
         body: {
           type: 'checkout.session.completed',
           data: {

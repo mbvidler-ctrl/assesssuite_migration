@@ -21,7 +21,7 @@ import { recordMockSubscription } from '../mocks/stripe.mjs';
 import { stripeEnabled, verifyStripeSignatureHeader } from '../stripeGateway.mjs';
 
 export default async function stripeWebhook(ctx) {
-  const { body: event, rawBody, request, entities, respond } = ctx;
+  const { body: event, rawBody, request, entities, respond, user } = ctx;
 
   if (stripeEnabled()) {
     const secret = process.env.STRIPE_WEBHOOK_SECRET || '';
@@ -38,6 +38,14 @@ export default async function stripeWebhook(ctx) {
     if (!verdict.ok) {
       return respond(400, { message: 'Invalid signature' });
     }
+  } else {
+    // Mock mode has no signing secret to verify against, and there is no
+    // real Stripe to originate the call — so the only legitimate caller is
+    // internal QA. Without this gate an anonymous caller could grant
+    // entitlement, lift an admin-imposed suspension, or suspend any user by
+    // email (a denial-of-service primitive). Require an admin session.
+    if (!user) return respond(401, { message: 'authentication required' });
+    if (user.role !== 'admin') return respond(403, { message: 'admin access required' });
   }
 
   if (!event || typeof event !== 'object' || !event.type) {
