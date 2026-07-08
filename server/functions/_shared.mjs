@@ -85,22 +85,41 @@ export function createEntitiesAccessor(db, entityNames) {
 }
 
 /**
- * Reads the request body as JSON (functions in this app are never invoked
- * with multipart bodies — only the Core integrations endpoints are).
- * Returns {} for an empty body, matching `req.json().catch(() => ({}))`
- * patterns seen in the captured source (e.g. getComorbidityReport).
+ * Reads the request body as raw bytes. Split out from readJsonBody so the
+ * dispatcher can hand the EXACT body bytes to handlers that need them —
+ * stripeWebhook verifies an HMAC-SHA256 signature over the raw payload when
+ * real Stripe mode is enabled, and re-serialised JSON would not match the
+ * bytes Stripe signed.
  */
-export async function readJsonBody(req) {
+export async function readRawBody(req) {
   const chunks = [];
   for await (const chunk of req) chunks.push(chunk);
-  if (chunks.length === 0) return {};
-  const raw = Buffer.concat(chunks).toString('utf8');
+  return chunks.length === 0 ? Buffer.alloc(0) : Buffer.concat(chunks);
+}
+
+/**
+ * Parses raw body bytes as JSON. Returns {} for an empty or invalid body,
+ * matching `req.json().catch(() => ({}))` patterns seen in the captured
+ * source (e.g. getComorbidityReport).
+ */
+export function parseJsonBody(rawBody) {
+  if (!rawBody || rawBody.length === 0) return {};
+  const raw = rawBody.toString('utf8');
   if (!raw) return {};
   try {
     return JSON.parse(raw);
   } catch {
     return {};
   }
+}
+
+/**
+ * Reads the request body as JSON (functions in this app are never invoked
+ * with multipart bodies — only the Core integrations endpoints are).
+ * Behaviour is unchanged: identical to the pre-split implementation.
+ */
+export async function readJsonBody(req) {
+  return parseJsonBody(await readRawBody(req));
 }
 
 /**
