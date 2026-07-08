@@ -3,6 +3,7 @@ import { Client } from "@/entities/Client";
 import { Assessment } from "@/entities/Assessment";
 import { ClientAssessment } from "@/entities/ClientAssessment";
 import { User } from "@/entities/User";
+import { OrganizationMember } from "@/entities/all";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,8 +35,13 @@ export default function NewAssessment() {
       setIsLoading(true);
       try {
         const userData = await User.me();
+        // Organisation-scoped, not creator-scoped: clinicians in the same
+        // organisation share the client list (previously created_by-filtered,
+        // hiding colleagues' clients on this page).
+        const memberships = await OrganizationMember.filter({ user_email: userData.email });
+        const primaryOrgId = (memberships.find(m => m.is_primary) || memberships[0])?.org_id;
         const [clientData, assessmentData] = await Promise.all([
-          Client.filter({ created_by: userData.email }),
+          primaryOrgId ? Client.filter({ org_id: primaryOrgId }) : Promise.resolve([]),
           Assessment.list()
         ]);
         setClients(clientData);

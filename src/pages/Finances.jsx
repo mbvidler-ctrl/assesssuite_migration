@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from "react";
 import { User } from "@/entities/User";
-import { Appointment, Payment, Client } from "@/entities/all";
+import { Appointment, Payment, Client, OrganizationMember } from "@/entities/all";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,16 +64,29 @@ export default function Finances() {
     try {
       const user = await User.me();
       setCurrentUser(user);
-      
+
+      // Organisation-scoped, not creator-scoped: in a multi-clinician
+      // organisation every clinician sees the organisation's finances
+      // (previously filtered by created_by, hiding colleagues' records).
+      const memberships = await OrganizationMember.filter({ user_email: user.email });
+      const primaryOrgId = (memberships.find(m => m.is_primary) || memberships[0])?.org_id;
+      if (!primaryOrgId) {
+        toast.error("No organisation found for your account.");
+        setAppointments([]);
+        setPayments([]);
+        setClients([]);
+        return;
+      }
+
       const [appointmentsData, paymentsData, clientsData] = await Promise.all([
-        Appointment.filter({ created_by: user.email }),
-        Payment.list(),
-        Client.filter({ created_by: user.email })
+        Appointment.filter({ org_id: primaryOrgId }),
+        Payment.filter({ org_id: primaryOrgId }),
+        Client.filter({ org_id: primaryOrgId })
       ]);
 
-      // Filter payments to only include those for current user's appointments
+      // Keep payments joined to the organisation's appointments.
       const userAppointmentIds = new Set(appointmentsData.map(apt => apt.id));
-      const userPayments = paymentsData.filter(payment => 
+      const userPayments = paymentsData.filter(payment =>
         userAppointmentIds.has(payment.appointment_id)
       );
 
