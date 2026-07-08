@@ -1374,7 +1374,7 @@ function renderRichText(text) {
       while (i < lines.length && lines[i].includes("|")) { block.push(lines[i]); i++; }
       const rows = block
         .map((r) => r.trim().replace(/^\|/, "").replace(/\|$/, "").split("|").map((c) => c.trim()))
-        .filter((cells) => !cells.every((c) => /^[-:\s]*$/.test(c)));
+        .filter((cells) => !cells.every((c) => /^(?:[-\s]|:)*$/.test(c)));
       if (rows.length) {
         const [head, ...bodyRows] = rows;
         out.push(
