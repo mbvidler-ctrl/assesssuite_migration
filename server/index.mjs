@@ -330,8 +330,25 @@ function entityCarriesOrgId(entityName, data) {
  */
 function enforceWriteOrgScope(entityName, data, sessionUser, { isCreate }) {
   if (entityName === 'OrganizationMember') {
-    if (isCreate && data && data.user_email && data.user_email !== sessionUser.email) {
+    // A non-admin may only enrol their OWN account, and only into an
+    // organisation they already belong to or one they are founding (no
+    // existing members). Without the founding/membership check, any
+    // authenticated user could join any organisation by id and gain
+    // org-scoped read/write to that tenant — a full isolation break.
+    if (data && data.user_email && data.user_email !== sessionUser.email) {
       return { ok: false, status: 403, message: 'you may only add your own account to an organisation' };
+    }
+    const targetOrg = data?.org_id;
+    if (isCreate && targetOrg) {
+      const callerOrgs = orgIdsForUser(sessionUser.email);
+      if (!callerOrgs.includes(targetOrg)) {
+        const existingMembers = orgMemberRepo
+          ? orgMemberRepo.listAll().filter((m) => m.org_id === targetOrg)
+          : [];
+        if (existingMembers.length > 0) {
+          return { ok: false, status: 403, message: 'you cannot join an existing organisation' };
+        }
+      }
     }
     return { ok: true };
   }
@@ -546,6 +563,21 @@ async function handleBulk(req, res, entityName) {
   if (req.method === 'PUT') {
     // bulkUpdate: JSON array of records, each carrying its own id.
     const items = Array.isArray(body) ? body : body.items || [];
+    if (!isAdmin && entityName !== 'User') {
+      // Mirror the single-PUT guards: a non-admin may only update records
+      // within their own org, and may not relocate one into another tenant.
+      // Without this, bulkUpdate was a cross-tenant edit/relocate-by-id hole.
+      for (const item of items) {
+        if (!item.id) continue;
+        const existing = repo.getById(item.id);
+        if (!existing) continue;
+        if (!isWithinOrgScope(existing, sessionUser)) {
+          return sendError(res, 404, 'record not found');
+        }
+        const scope = enforceWriteOrgScope(entityName, item, sessionUser, { isCreate: false });
+        if (!scope.ok) return sendError(res, scope.status, scope.message);
+      }
+    }
     const updated = items
       .map((item) => (item.id ? repo.update(item.id, item) : null))
       .filter(Boolean);
@@ -567,6 +599,12 @@ async function handleUpdateMany(req, res, entityName) {
 
   const body = await readJsonBody(req);
   const { query, data } = body || {};
+  if (!isAdmin && entityName !== 'User') {
+    // The query is org-scoped, but the data payload could still relocate the
+    // matched (own-org) records into another tenant via a mutated org_id.
+    const scope = enforceWriteOrgScope(entityName, data, sessionUser, { isCreate: false });
+    if (!scope.ok) return sendError(res, scope.status, scope.message);
+  }
   const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
   const matched = repo.listAll().filter((record) => matchesQuery(record, scopedQuery));
   const updated = matched.map((record) => repo.update(record.id, data));

@@ -408,6 +408,8 @@ async function runChecks(baseUrl, appId) {
   let userAToken = null;
   let userBToken = null;
   let clientAId = null;
+  let emailA = null;
+  let emailB = null;
   {
     const { body: orgA } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Organization`, {
       method: 'POST',
@@ -422,8 +424,8 @@ async function runChecks(baseUrl, appId) {
     orgAId = orgA.id;
     orgBId = orgB.id;
 
-    const emailA = `org-a-user-${Date.now()}@example.com`;
-    const emailB = `org-b-user-${Date.now()}@example.com`;
+    emailA = `org-a-user-${Date.now()}@example.com`;
+    emailB = `org-b-user-${Date.now()}@example.com`;
     await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
       method: 'POST',
       body: { email: emailA, password: 'password123456' },
@@ -699,6 +701,42 @@ async function runChecks(baseUrl, appId) {
       body: { plan: 'monthly' },
     });
     record('anonymous createCheckoutSession is refused (401)', anonCheckoutStatus === 401, `status=${anonCheckoutStatus}`);
+
+    // --- Second-pass regressions: sibling write paths of the org_id fix ---
+    // Self-enrolment into an existing populated foreign org must be refused
+    // (org B already has userB), else any user joins any tenant by id.
+    const { status: joinStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/OrganizationMember`, {
+      method: 'POST',
+      token: userAToken,
+      body: { user_email: emailA, org_id: orgBId },
+    });
+    record('self-enrolment into an existing foreign org is refused (403)', joinStatus === 403, `status=${joinStatus}`);
+    // Founding membership into a brand-new empty org is allowed (ProfileSetup).
+    const { body: newOrg } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Organization`, {
+      method: 'POST', token: userAToken, body: { name: `Founded by A ${Date.now()}` },
+    });
+    const { status: foundStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/OrganizationMember`, {
+      method: 'POST', token: userAToken, body: { user_email: emailA, org_id: newOrg.id, is_primary: false },
+    });
+    record('founding a membership in a new empty org is allowed', foundStatus === 200, `status=${foundStatus}`);
+    // bulkUpdate must not relocate an own record into a foreign org.
+    const { body: ownClient } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
+      method: 'POST', token: userAToken, body: { full_name: 'Bulk Relocate Probe' },
+    });
+    const { status: bulkPutStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client/bulk`, {
+      method: 'PUT', token: userAToken, body: [{ id: ownClient.id, org_id: orgBId }],
+    });
+    record('bulkUpdate relocating a record to a foreign org is refused (403)', bulkPutStatus === 403, `status=${bulkPutStatus}`);
+    // bulkUpdate must not edit a foreign record by id.
+    const { status: bulkForeignStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client/bulk`, {
+      method: 'PUT', token: userBToken, body: [{ id: ownClient.id, full_name: 'edited by B' }],
+    });
+    record('bulkUpdate editing a foreign record by id is refused (404)', bulkForeignStatus === 404, `status=${bulkForeignStatus}`);
+    // update-many PATCH must not relocate matched records into a foreign org.
+    const { status: patchStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client/update-many`, {
+      method: 'PATCH', token: userAToken, body: { query: {}, data: { org_id: orgBId } },
+    });
+    record('update-many relocating records to a foreign org is refused (403)', patchStatus === 403, `status=${patchStatus}`);
   }
 
   // --- Unknown entity / unknown function ---
