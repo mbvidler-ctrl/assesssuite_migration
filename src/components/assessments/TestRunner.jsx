@@ -11,6 +11,7 @@ import { useSearchParams } from "react-router-dom";
 import { useEffect } from "react";
 import AppointmentReminderModal from '../calendar/AppointmentReminderModal';
 import BodyPainChart from './BodyPainChart';
+import { resolveAssessmentDate } from './assessmentDate';
 import ROMAssessmentRunner from './ROMAssessmentRunner';
 import EbbelingTestRunner from './EbbelingTestRunner';
 import MoCARunner from './MoCARunner';
@@ -1781,12 +1782,15 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       if (needsCreate) {
         const tc = (isStandaloneMode && selectedClient) ? selectedClient : client;
         if (!tc?.id) { toast.error("No client found. Cannot save."); setIsSubmitting(false); return; }
-        assessmentToUpdate = await base44.entities.ClientAssessment.create({ org_id: tc.org_id, client_id: tc.id, assessment_id: assessment.id, status: 'pending', assessment_date: result.assessment_date });
+        assessmentToUpdate = await base44.entities.ClientAssessment.create({ org_id: tc.org_id, client_id: tc.id, assessment_id: assessment.id, status: 'pending', assessment_date: resolveAssessmentDate(result.assessment_date) });
       }
 
       let updateData = {
         status: 'completed',
-        assessment_date: result.assessment_date,
+        // Base date: the visible Assessment Date field (the runner-provided date
+        // for manual-entry branches). Dedicated-runner branches override this
+        // below with the date resolved from their own runner payload.
+        assessment_date: resolveAssessmentDate(result.assessment_date),
         notes: result.notes,
         barriers: result.barriers,
         appointment_id: appointmentId || clientAssessment?.appointment_id
@@ -1796,127 +1800,162 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       if (isIESR()) {
         updateData.result_value = iesrData.result_value;
         updateData.additional_data = { iesr_data: iesrData, measurement_type: 'iesr' };
+        updateData.assessment_date = resolveAssessmentDate(iesrData?.assessment_date);
       } else if (isPCL5()) {
         updateData.result_value = pcl5Data.result_value;
         updateData.additional_data = { pcl5_data: pcl5Data, measurement_type: 'pcl5' };
+        updateData.assessment_date = resolveAssessmentDate(pcl5Data?.assessment_date);
       } else if (isISI()) {
         updateData.result_value = isiData.result_value;
         updateData.additional_data = { isi_data: isiData, measurement_type: 'isi' };
+        updateData.assessment_date = resolveAssessmentDate(isiData?.assessment_date);
       } else if (isMRCDyspnea()) {
         updateData.result_value = mrcDyspneaData.result_value;
         updateData.additional_data = { mrc_dyspnea_data: mrcDyspneaData, measurement_type: 'mrc_dyspnea' };
+        updateData.assessment_date = resolveAssessmentDate(mrcDyspneaData?.assessment_date);
       } else if (isCAT()) {
         updateData.result_value = catData.result_value;
         updateData.additional_data = { cat_data: catData, measurement_type: 'cat' };
+        updateData.assessment_date = resolveAssessmentDate(catData?.assessment_date);
       } else if (isCCQ()) {
         updateData.result_value = ccqData.result_value;
         updateData.additional_data = { ccq_data: ccqData, measurement_type: 'ccq' };
+        updateData.assessment_date = resolveAssessmentDate(ccqData?.assessment_date);
       } else if (isLCQ()) {
         updateData.result_value = lcqData.result_value;
         updateData.additional_data = { lcq_data: lcqData, measurement_type: 'lcq' };
+        updateData.assessment_date = resolveAssessmentDate(lcqData?.assessment_date);
       } else if (isIKDC()) {
         updateData.result_value = ikdcData.result_value;
         updateData.additional_data = { ikdc_data: ikdcData, measurement_type: 'ikdc' };
+        updateData.assessment_date = resolveAssessmentDate(ikdcData?.assessment_date);
       } else if (isFIM()) {
         updateData.result_value = fimData.result_value;
         updateData.additional_data = { fim_data: fimData, measurement_type: 'fim' };
+        updateData.assessment_date = resolveAssessmentDate(fimData?.assessment_date);
       } else if (isBarthel()) {
         updateData.result_value = barthelData.result_value;
         updateData.additional_data = { barthel_data: barthelData, measurement_type: 'barthel' };
+        updateData.assessment_date = resolveAssessmentDate(barthelData?.assessment_date);
       } else if (isModifiedRankin()) { updateData.result_value = modifiedRankinData.result_value; updateData.additional_data = modifiedRankinData.additional_data || { modified_rankin_data: modifiedRankinData, measurement_type: 'modified_rankin' };
-      } else if (isRivermead()) { updateData.result_value = rivermeadData.result_value; updateData.additional_data = { rivermead_data: rivermeadData, measurement_type: 'rivermead' };
+      updateData.assessment_date = resolveAssessmentDate(modifiedRankinData?.assessment_date);
+      } else if (isRivermead()) { updateData.result_value = rivermeadData.result_value; updateData.additional_data = { rivermead_data: rivermeadData, measurement_type: 'rivermead' }; updateData.assessment_date = resolveAssessmentDate(rivermeadData?.assessment_date);
       } else if (isRMDQ()) {
         updateData.result_value = rmdqData.result_value;
         updateData.additional_data = { rmdq_data: rmdqData, measurement_type: 'rmdq' };
+        updateData.assessment_date = resolveAssessmentDate(rmdqData?.assessment_date);
       } else if (isQuickDASH()) {
         updateData.result_value = quickDASHData.result_value;
         updateData.additional_data = { quick_dash_data: quickDASHData, measurement_type: 'quick_dash' };
+        updateData.assessment_date = resolveAssessmentDate(quickDASHData?.assessment_date);
       } else if (isFAAM()) {
         updateData.result_value = faamData.result_value;
         updateData.additional_data = faamData.additional_data || { faam_data: faamData, measurement_type: 'faam' };
+        updateData.assessment_date = resolveAssessmentDate(faamData?.assessment_date);
       } else if (isABCScale()) {
         updateData.result_value = abcScaleData.result_value;
         updateData.additional_data = abcScaleData.additional_data || { abc_scale_data: abcScaleData, measurement_type: 'abc_scale' };
+        updateData.assessment_date = resolveAssessmentDate(abcScaleData?.assessment_date);
       } else if (isChalder()) {
         updateData.result_value = chalderData.result_value;
         updateData.additional_data = chalderData.additional_data || { chalder_data: chalderData, measurement_type: 'chalder' };
+        updateData.assessment_date = resolveAssessmentDate(chalderData?.assessment_date);
       } else if (isPSQI()) {
         updateData.result_value = psqiData.result_value;
         updateData.additional_data = psqiData.additional_data || { psqi_data: psqiData, measurement_type: 'psqi' };
+        updateData.assessment_date = resolveAssessmentDate(psqiData?.assessment_date);
       } else if (isSARCF()) {
         updateData.result_value = sarcfData.result_value;
         updateData.additional_data = sarcfData.additional_data || { sarcf_data: sarcfData, measurement_type: 'sarcf' };
+        updateData.assessment_date = resolveAssessmentDate(sarcfData?.assessment_date);
       } else if (isNDI()) {
         updateData.result_value = ndiData.result_value;
         updateData.additional_data = ndiData.additional_data || { ndi_data: ndiData, measurement_type: 'ndi' };
+        updateData.assessment_date = resolveAssessmentDate(ndiData?.assessment_date);
       } else if (isODI()) {
         updateData.result_value = odiData.result_value;
         updateData.additional_data = odiData.additional_data || { odi_data: odiData, measurement_type: 'odi' };
+        updateData.assessment_date = resolveAssessmentDate(odiData?.assessment_date);
       } else if (isASES()) {
         updateData.result_value = asesData.result_value;
         updateData.additional_data = asesData.additional_data || { ases_data: asesData, measurement_type: 'ases' };
+        updateData.assessment_date = resolveAssessmentDate(asesData?.assessment_date);
       } else if (isDEXA()) {
         updateData.result_value = dexaData.result_value;
         updateData.additional_data = dexaData.additional_data || { dexa_data: dexaData, measurement_type: 'dexa' };
+        updateData.assessment_date = resolveAssessmentDate(dexaData?.assessment_date);
       } else if (isConley()) {
         updateData.result_value = conleyData.result_value;
         updateData.additional_data = conleyData.additional_data || { conley_data: conleyData, measurement_type: 'conley' };
+        updateData.assessment_date = resolveAssessmentDate(conleyData?.assessment_date);
       } else if (isPSS()) {
         updateData.result_value = pssData.result_value;
         updateData.additional_data = pssData.additional_data || { pss_data: pssData, measurement_type: 'pss' };
+        updateData.assessment_date = resolveAssessmentDate(pssData?.assessment_date);
       } else if (isConstantMurley()) {
         updateData.result_value = constantMurleyData.result_value;
         updateData.additional_data = constantMurleyData.additional_data || { constant_murley_data: constantMurleyData, measurement_type: 'constant_murley' };
+        updateData.assessment_date = resolveAssessmentDate(constantMurleyData?.assessment_date);
       } else if (isLysholm()) {
         updateData.result_value = lysholmData.result_value;
         updateData.additional_data = lysholmData.additional_data || { lysholm_data: lysholmData, measurement_type: 'lysholm' };
+        updateData.assessment_date = resolveAssessmentDate(lysholmData?.assessment_date);
       } else if (isACLRSI()) {
         updateData.result_value = aclrsiData.result_value;
         updateData.additional_data = aclrsiData.additional_data || { ...aclrsiData, measurement_type: 'aclrsi' };
+        updateData.assessment_date = resolveAssessmentDate(aclrsiData?.assessment_date);
       } else if (isGROC()) {
         updateData.result_value = grocData.result_value;
         updateData.additional_data = grocData.additional_data || { groc_data: grocData, measurement_type: 'groc' };
+        updateData.assessment_date = resolveAssessmentDate(grocData?.assessment_date);
       } else if (isSGRQ()) {
         updateData.result_value = sgrqData.result_value;
         updateData.additional_data = sgrqData.additional_data || { sgrq_data: sgrqData, measurement_type: 'sgrq' };
+        updateData.assessment_date = resolveAssessmentDate(sgrqData?.assessment_date);
       } else if (isFABQ()) {
         updateData.result_value = fabqData.result_value;
         updateData.additional_data = fabqData.additional_data || { fabq_data: fabqData, measurement_type: 'fabq' };
+        updateData.assessment_date = resolveAssessmentDate(fabqData?.assessment_date);
       } else if (isSingleLegHop()) {
         updateData.result_value = singleLegHopData.result_value;
         updateData.additional_data = singleLegHopData.additional_data || { single_leg_hop_data: singleLegHopData, measurement_type: 'single_leg_hop' };
+        updateData.assessment_date = resolveAssessmentDate(singleLegHopData?.assessment_date);
       } else if (isDropVerticalJump()) {
         updateData.result_value = dropVerticalJumpData.result_value;
         updateData.additional_data = dropVerticalJumpData.additional_data || { drop_vertical_jump_data: dropVerticalJumpData, measurement_type: 'drop_vertical_jump' };
+        updateData.assessment_date = resolveAssessmentDate(dropVerticalJumpData?.assessment_date);
       } else if (isVerticalJump()) {
         updateData.result_value = verticalJumpData.result_value;
         updateData.additional_data = verticalJumpData.additional_data || { vertical_jump_data: verticalJumpData, measurement_type: 'vertical_jump' };
+        updateData.assessment_date = resolveAssessmentDate(verticalJumpData?.assessment_date);
       } else if (isClockDrawing()) {
         updateData.result_value = clockDrawingData.result_value;
         updateData.additional_data = clockDrawingData.additional_data || { clock_drawing_data: clockDrawingData, measurement_type: 'clock_drawing' };
+        updateData.assessment_date = resolveAssessmentDate(clockDrawingData?.assessment_date);
       } else if (isTMT()) {
         updateData.result_value = tmtData.result_value;
         updateData.additional_data = tmtData.additional_data || { tmt_data: tmtData, measurement_type: 'tmt' };
+        updateData.assessment_date = resolveAssessmentDate(tmtData?.assessment_date);
       } else if (isTinetti()) {
         updateData.result_value = tinettiData.result_value;
         updateData.additional_data = tinettiData.additional_data || { tinetti_data: tinettiData, measurement_type: 'tinetti' };
+        updateData.assessment_date = resolveAssessmentDate(tinettiData?.assessment_date);
       } else if (is6MWT()) {
         updateData.result_value = sixMWTData.distance_metres;
         updateData.additional_data = sixMWTData.additional_data || {
           sixmwt_data: sixMWTData,
           measurement_type: 'six_minute_walk'
         };
+        updateData.assessment_date = resolveAssessmentDate(sixMWTData?.assessment_date);
         if (sixMWTData.notes && !result.notes.includes(sixMWTData.notes)) {
           updateData.notes = sixMWTData.notes + (result.notes ? '\n\n' + result.notes : '');
         }
-        if (sixMWTData.assessment_date) {
-          updateData.assessment_date = sixMWTData.assessment_date;
-        }
-      } else if (isDASS21()) { if (!dass21Data) { toast.error("Please complete the DASS-21 questionnaire first."); setIsSubmitting(false); return; } const d21=dass21Data.additional_data||dass21Data; updateData.result_value=(d21.depression_score||0)+(d21.anxiety_score||0)+(d21.stress_score||0); updateData.additional_data=d21; if (dass21Data.assessment_date) { updateData.assessment_date = dass21Data.assessment_date; }
-      } else if (isHADSTest()) { const hd=hadsData.additional_data||hadsData; updateData.result_value=(hd.anxiety_score||0)+(hd.depression_score||0); updateData.additional_data=hd; if (hadsData.assessment_date) { updateData.assessment_date = hadsData.assessment_date; }
+      } else if (isDASS21()) { if (!dass21Data) { toast.error("Please complete the DASS-21 questionnaire first."); setIsSubmitting(false); return; } const d21=dass21Data.additional_data||dass21Data; updateData.result_value=(d21.depression_score||0)+(d21.anxiety_score||0)+(d21.stress_score||0); updateData.additional_data=d21; updateData.assessment_date = resolveAssessmentDate(dass21Data?.assessment_date);
+      } else if (isHADSTest()) { const hd=hadsData.additional_data||hadsData; updateData.result_value=(hd.anxiety_score||0)+(hd.depression_score||0); updateData.additional_data=hd; updateData.assessment_date = resolveAssessmentDate(hadsData?.assessment_date);
       } else if (isClinicalFrailtyScaleTest()) {
         updateData.result_value = clinicalFrailtyScaleData.frailty_score;
         updateData.additional_data = clinicalFrailtyScaleData.additional_data || clinicalFrailtyScaleData;
+        updateData.assessment_date = resolveAssessmentDate(clinicalFrailtyScaleData?.assessment_date);
       } else if (isQuestionnaireAssessment()) {
         const score = calculateQuestionnaireScore();
         updateData.result_value = score;
@@ -2022,6 +2061,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           ten_meter_walk_data: tenMeterWalkData,
           measurement_type: 'ten_meter_walk'
         };
+        updateData.assessment_date = resolveAssessmentDate(tenMeterWalkData?.assessment_date);
         // Merge notes from test runner
         if (tenMeterWalkData.notes) {
           updateData.notes = tenMeterWalkData.notes + (result.notes ? '\n\n' + result.notes : '');
@@ -2031,6 +2071,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           updateData.result_value = fourStageBalanceData.stage_achieved;
           updateData.notes = fourStageBalanceData.clinician_notes || fourStageBalanceData.notes || updateData.notes;
           updateData.additional_data = { four_stage_balance_data: fourStageBalanceData, measurement_type: '4_stage_balance' };
+          updateData.assessment_date = resolveAssessmentDate(fourStageBalanceData?.assessment_date);
         } else {
           const feetTogether = result.four_stage_feet_together;
           const semiTandem = result.four_stage_semi_tandem;
@@ -2086,30 +2127,35 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
               rom_data: romData,
               measurement_type: 'rom_assessment'
             };
+            updateData.assessment_date = resolveAssessmentDate(romData?.assessment_date);
           } else if (isEbbelingTest()) {
             updateData.result_value = parseFloat(result.result_value);
             updateData.additional_data = {
               ...result.ebbeling_data,
               measurement_type: 'ebbeling_sst'
             };
+            updateData.assessment_date = resolveAssessmentDate(result.ebbeling_data?.assessment_date);
           } else if (isMoCATest()) {
             updateData.result_value = mocaData.total;
             updateData.additional_data = mocaData.additional_data || {
               moca_data: mocaData,
               measurement_type: 'moca'
             };
+            updateData.assessment_date = resolveAssessmentDate(mocaData?.assessment_date);
           } else if (isMMTTest()) {
             updateData.result_value = parseFloat(mmtData.result_value || mmtData.averageGrade || mmtData.additional_data?.average_grade || 0);
             updateData.additional_data = mmtData.additional_data || {
               mmt_data: mmtData,
               measurement_type: 'mmt'
             };
+            updateData.assessment_date = resolveAssessmentDate(mmtData?.assessment_date);
           } else if (isWaistHipRatio()) {
             updateData.result_value = whrData.whr_value;
             updateData.additional_data = whrData.additional_data || {
               whr_data: whrData,
               measurement_type: 'whr'
             };
+            updateData.assessment_date = resolveAssessmentDate(whrData?.assessment_date);
           } else if (isBMITest()) {
             const heightM = parseFloat(result.height_cm) / 100;
             const weightKg = parseFloat(result.weight_kg);
@@ -2154,244 +2200,288 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
               berg_data: bergData,
               measurement_type: 'berg_balance'
             };
+            updateData.assessment_date = resolveAssessmentDate(bergData?.assessment_date);
           } else if (isTUG()) {
             updateData.result_value = tugData.result_value || tugData.averageTime || tugData.additional_data?.best_time;
             updateData.additional_data = tugData.additional_data || {
               tug_data: tugData,
               measurement_type: 'tug'
             };
+            updateData.assessment_date = resolveAssessmentDate(tugData?.assessment_date);
           } else if (isChairStand()) {
             updateData.result_value = chairStandData.repetitions;
             updateData.additional_data = chairStandData.additional_data || {
               chair_stand_data: chairStandData,
               measurement_type: 'chair_stand'
             };
+            updateData.assessment_date = resolveAssessmentDate(chairStandData?.assessment_date);
           } else if (isFunctionalReach()) {
             const _frAD = functionalReachData.additional_data || {};
             updateData.result_value = _frAD.averageReach ?? functionalReachData.averageReach ?? functionalReachData.result_value;
             updateData.additional_data = functionalReachData.additional_data || { functional_reach_data: functionalReachData, measurement_type: 'functional_reach' };
+            updateData.assessment_date = resolveAssessmentDate(functionalReachData?.assessment_date);
           } else if (isBackScratch()) {
             updateData.result_value = backScratchData.result_value;
             updateData.additional_data = backScratchData.additional_data || {
               back_scratch_data: backScratchData,
               measurement_type: 'back_scratch'
             };
+            updateData.assessment_date = resolveAssessmentDate(backScratchData?.assessment_date);
           } else if (isSitAndReach()) {
             updateData.result_value = sitReachData.best_score;
             updateData.additional_data = sitReachData.additional_data || {
               sit_reach_data: sitReachData,
               measurement_type: 'sit_and_reach'
             };
+            updateData.assessment_date = resolveAssessmentDate(sitReachData?.assessment_date);
           } else if (isRomberg()) {
             updateData.result_value = parseFloat(rombergData.eyes_closed_time) || 0;
             updateData.additional_data = rombergData.additional_data || {
               romberg_data: rombergData,
               measurement_type: 'romberg'
             };
+            updateData.assessment_date = resolveAssessmentDate(rombergData?.assessment_date);
           } else if (isStorkTest()) {
             updateData.result_value = storkData.best_time;
             updateData.additional_data = storkData.additional_data || {
               stork_data: storkData,
               measurement_type: 'stork'
             };
+            updateData.assessment_date = resolveAssessmentDate(storkData?.assessment_date);
           } else if (isCTSIB()) {
             updateData.result_value = ctsibData.result_value ?? ctsibData.conditions_completed;
             updateData.additional_data = ctsibData.additional_data || {
               ctsib_data: ctsibData,
               measurement_type: 'ctsib'
             };
+            updateData.assessment_date = resolveAssessmentDate(ctsibData?.assessment_date);
           } else if (isFourSquareStep()) {
             updateData.result_value = fourSquareData.best_time;
             updateData.additional_data = fourSquareData.additional_data || {
               four_square_data: fourSquareData,
               measurement_type: 'four_square_step'
             };
+            updateData.assessment_date = resolveAssessmentDate(fourSquareData?.assessment_date);
           } else if (isSkinfold()) {
             updateData.result_value = skinfoldData.total_sum;
             updateData.additional_data = skinfoldData.additional_data || {
               skinfold_data: skinfoldData,
               measurement_type: 'skinfold'
             };
+            updateData.assessment_date = resolveAssessmentDate(skinfoldData?.assessment_date);
           } else if (isGirthMeasurement()) {
             updateData.result_value = girthData.sites.length;
             updateData.additional_data = girthData.additional_data || {
               girth_data: girthData,
               measurement_type: 'girth'
             };
+            updateData.assessment_date = resolveAssessmentDate(girthData?.assessment_date);
           } else if (isISWT()) {
             updateData.result_value = iswtData.total_distance;
             updateData.additional_data = iswtData.additional_data || {
               iswt_data: iswtData,
               measurement_type: 'iswt'
             };
+            updateData.assessment_date = resolveAssessmentDate(iswtData?.assessment_date);
           } else if (isHarvardStep()) {
             updateData.result_value = harvardData.result_value ?? harvardData.fitness_index ?? harvardData.additional_data?.fitness_index;
             updateData.additional_data = harvardData.additional_data || {
               harvard_data: harvardData,
               measurement_type: 'harvard_step'
             };
+            updateData.assessment_date = resolveAssessmentDate(harvardData?.assessment_date);
           } else if (isBoxAndBlock()) {
             updateData.result_value = boxBlockData.total_blocks;
             updateData.additional_data = boxBlockData.additional_data || {
               box_block_data: boxBlockData,
               measurement_type: 'box_and_block'
             };
+            updateData.assessment_date = resolveAssessmentDate(boxBlockData?.assessment_date);
           } else if (isHiMAT()) {
             updateData.result_value = himatData.total;
             updateData.additional_data = himatData.additional_data || {
               himat_data: himatData,
               measurement_type: 'himat'
             };
+            updateData.assessment_date = resolveAssessmentDate(himatData?.assessment_date);
           } else if (isAstrand()) {
             updateData.result_value = astrandData.result_value || astrandData.estimated_vo2max;
             updateData.additional_data = astrandData.additional_data || {
               astrand_data: astrandData,
               measurement_type: 'astrand'
             };
+            updateData.assessment_date = resolveAssessmentDate(astrandData?.assessment_date);
           } else if (isJTA()) {
             updateData.result_value = jtaData.tasks ? jtaData.tasks.length : 0;
             updateData.additional_data = jtaData.additional_data || {
               jta_data: jtaData,
               measurement_type: 'jta'
               };
+              updateData.assessment_date = resolveAssessmentDate(jtaData?.assessment_date);
               } else if (isBorgRPE()) {
               updateData.result_value = borgRPEData.rpe_value;
               updateData.additional_data = borgRPEData.additional_data || {
               borg_rpe_data: borgRPEData,
               measurement_type: 'borg_rpe'
               };
+              updateData.assessment_date = resolveAssessmentDate(borgRPEData?.assessment_date);
               } else if (isGeneralMovementScreen()) {
                 updateData.result_value = gmsData.result_value ?? gmsData.total_score ?? gmsData.additional_data?.total_score;
                 updateData.additional_data = gmsData.additional_data || {
                   gms_data: gmsData,
                   measurement_type: 'general_movement_screen'
                 };
+                updateData.assessment_date = resolveAssessmentDate(gmsData?.assessment_date);
               } else if (isGAD7()) {
                 updateData.result_value = gad7Data.result_value ?? gad7Data.total_score ?? gad7Data?.additional_data?.total_score;
                 updateData.additional_data = gad7Data.additional_data || { gad7_data: gad7Data, measurement_type: 'gad7' };
+                updateData.assessment_date = resolveAssessmentDate(gad7Data?.assessment_date);
               } else if (isPHQ9()) {
                 updateData.result_value = phq9Data.result_value ?? phq9Data.total_score ?? phq9Data?.additional_data?.total_score;
                 updateData.additional_data = phq9Data.additional_data || { phq9_data: phq9Data, measurement_type: 'phq9' };
+                updateData.assessment_date = resolveAssessmentDate(phq9Data?.assessment_date);
               } else if (isArmCurl()) {
                 updateData.result_value = armCurlData.primary_side_reps;
                 updateData.additional_data = armCurlData.additional_data || {
                   arm_curl_data: armCurlData,
                   measurement_type: 'arm_curl'
                 };
+                updateData.assessment_date = resolveAssessmentDate(armCurlData?.assessment_date);
               } else if (isK10()) {
                 updateData.result_value = k10Data.result_value ?? k10Data.total_score ?? k10Data?.additional_data?.total_score;
                 updateData.additional_data = k10Data.additional_data || { k10_data: k10Data, measurement_type: 'k10' };
+                updateData.assessment_date = resolveAssessmentDate(k10Data?.assessment_date);
               } else if (isHOOS()) {
                 updateData.result_value = hoosData.average_score;
                 updateData.additional_data = hoosData.additional_data || {
                   hoos_data: hoosData,
                   measurement_type: 'hoos'
                 };
+                updateData.assessment_date = resolveAssessmentDate(hoosData?.assessment_date);
               } else if (isKOOS()) {
                 updateData.result_value = koosData.average_score;
                 updateData.additional_data = koosData.additional_data || {
                   koos_data: koosData,
                   measurement_type: 'koos'
                 };
+                updateData.assessment_date = resolveAssessmentDate(koosData?.assessment_date);
               } else if (isPediatricBalance()) {
                 updateData.result_value = result.additional_data.pbs_data.result_value;
                 updateData.additional_data = result.additional_data.pbs_data.additional_data || {
                   pbs_data: result.additional_data.pbs_data,
                   measurement_type: 'pediatric_balance'
                 };
+                updateData.assessment_date = resolveAssessmentDate(result.additional_data.pbs_data?.assessment_date);
               } else if (isRepeatedJump()) {
                 updateData.result_value = repeatedJumpData.result_value;
                 updateData.additional_data = repeatedJumpData.additional_data;
+                updateData.assessment_date = resolveAssessmentDate(repeatedJumpData?.assessment_date);
               } else if (isCKCUEST()) {
                 updateData.result_value = ckcuestData.best_touches;
                 updateData.additional_data = ckcuestData.additional_data || {
                   ckcuest_data: ckcuestData,
                   measurement_type: 'ckcuest'
                 };
+                updateData.assessment_date = resolveAssessmentDate(ckcuestData?.assessment_date);
               } else if (isOneRM()) {
                 updateData.result_value = oneRMData.result_value;
                 updateData.additional_data = oneRMData.additional_data || {
                   one_rm_data: oneRMData,
                   measurement_type: 'one_rm'
                 };
+                updateData.assessment_date = resolveAssessmentDate(oneRMData?.assessment_date);
               } else if (isIsometricStrength()) {
                 updateData.result_value = isometricData.result_value || isometricData.average_force_kg || isometricData.additional_data?.tests?.[0]?.best;
                 updateData.additional_data = isometricData.additional_data || {
                   isometric_data: isometricData,
                   measurement_type: 'isometric_strength'
                 };
+                updateData.assessment_date = resolveAssessmentDate(isometricData?.assessment_date);
               } else if (isIsokinetics()) {
                 updateData.result_value = isokineticsData.result_value;
                 updateData.additional_data = isokineticsData.additional_data || {
                   isokinetics_data: isokineticsData,
                   measurement_type: 'isokinetics'
                 };
+                updateData.assessment_date = resolveAssessmentDate(isokineticsData?.assessment_date);
               } else if (isElyTest() || isThomasTest() || isOberTest()) {
                 updateData.result_value = specialTestData.result_value;
                 updateData.additional_data = specialTestData.additional_data || {
                   special_test_data: specialTestData,
                   measurement_type: 'special_test'
                 };
+                updateData.assessment_date = resolveAssessmentDate(specialTestData?.assessment_date);
               } else if (isSLR()) {
                 updateData.result_value = slrData.result_value;
                 updateData.additional_data = slrData.additional_data || {
                   slr_data: slrData,
                   measurement_type: 'slr'
                 };
+                updateData.assessment_date = resolveAssessmentDate(slrData?.assessment_date);
               } else if (isSlump()) {
                 updateData.result_value = slumpData.result_value;
                 updateData.additional_data = slumpData.additional_data || {
                   slump_data: slumpData,
                   measurement_type: 'slump'
                 };
+                updateData.assessment_date = resolveAssessmentDate(slumpData?.assessment_date);
               } else if (isLachman() || isAnteriorDrawer() || isPivotShift() || isMcMurray()) {
                 updateData.result_value = kneeStabilityData.result_value;
                 updateData.additional_data = kneeStabilityData.additional_data || {
                   knee_stability_data: kneeStabilityData,
                   measurement_type: 'knee_stability'
                 };
+                updateData.assessment_date = resolveAssessmentDate(kneeStabilityData?.assessment_date);
               } else if (isThessaly()) {
                 updateData.result_value = thessalyData.result_value;
                 updateData.additional_data = thessalyData.additional_data || {
                   thessaly_data: thessalyData,
                   measurement_type: 'thessaly'
                 };
+                updateData.assessment_date = resolveAssessmentDate(thessalyData?.assessment_date);
               } else if (isApleys()) {
                 updateData.result_value = apleysData.result_value;
                 updateData.additional_data = apleysData.additional_data || {
                   apleys_data: apleysData,
                   measurement_type: 'apleys'
                 };
+                updateData.assessment_date = resolveAssessmentDate(apleysData?.assessment_date);
               } else if (isNoble()) {
                 updateData.result_value = nobleData.result_value;
                 updateData.additional_data = nobleData.additional_data || {
                   noble_data: nobleData,
                   measurement_type: 'noble'
                 };
+                updateData.assessment_date = resolveAssessmentDate(nobleData?.assessment_date);
               } else if (isNaughton()) { updateData.result_value = naughtonData.result_value; updateData.additional_data = naughtonData.additional_data || { naughton_data: naughtonData, measurement_type: 'treadmill_protocol' };
+              updateData.assessment_date = resolveAssessmentDate(naughtonData?.assessment_date);
               } else if (isBruceProtocol() || isModifiedBruce()) { updateData.result_value = bruceData.result_value;
                 updateData.additional_data = bruceData.additional_data || {
                   bruce_data: bruceData,
                   measurement_type: 'treadmill_protocol'
                 };
+                updateData.assessment_date = resolveAssessmentDate(bruceData?.assessment_date);
               } else if (isYMCACycle() || isAstrandCycle() || isWingate()) {
                 updateData.result_value = cycleData.result_value;
                 updateData.additional_data = cycleData.additional_data || {
                   cycle_data: cycleData,
                   measurement_type: 'cycle_protocol'
                 };
+                updateData.assessment_date = resolveAssessmentDate(cycleData?.assessment_date);
               } else if (isTwoMinuteWalk()) {
                 updateData.result_value = twoMinWalkData.result_value;
                 updateData.additional_data = twoMinWalkData.additional_data || {
                   two_min_walk_data: twoMinWalkData,
                   measurement_type: 'two_minute_walk'
                 };
+                updateData.assessment_date = resolveAssessmentDate(twoMinWalkData?.assessment_date);
               } else if (isCooperTest()) {
                 updateData.result_value = cooperData.result_value;
                 updateData.additional_data = cooperData.additional_data || {
                   cooper_data: cooperData,
                   measurement_type: 'cooper_test'
                 };
+                updateData.assessment_date = resolveAssessmentDate(cooperData?.assessment_date);
                 if (cooperData.notes && !result.notes.includes(cooperData.notes)) {
                   updateData.notes = cooperData.notes + (result.notes ? '\n\n' + result.notes : '');
                 }
@@ -2401,6 +2491,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   ...beepData,
                   measurement_type: 'beep_test'
                 };
+                updateData.assessment_date = resolveAssessmentDate(beepData?.assessment_date);
                 // Merge test notes if present
                 if (beepData.notes_deviation && !result.notes.includes(beepData.notes_deviation)) {
                   updateData.notes = (beepData.notes_deviation || '') + (result.notes ? '\n\n' + result.notes : '');
@@ -2411,98 +2502,115 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   yoyo_data: yoyoData,
                   measurement_type: 'yoyo_test'
                 };
+                updateData.assessment_date = resolveAssessmentDate(yoyoData?.assessment_date);
               } else if (isThirtyFifteenIFT()) {
                updateData.result_value = thirtyFifteenData.result_value || thirtyFifteenData.vift_kmh;
                updateData.notes = thirtyFifteenData.notes || updateData.notes;
                updateData.additional_data = { ...(thirtyFifteenData.additional_data || {}), measurement_type: 'thirty_fifteen_ift', vift_kmh: thirtyFifteenData.vift_kmh || thirtyFifteenData.result_value, total_stages: thirtyFifteenData.total_stages, rpe: thirtyFifteenData.rpe };
+               updateData.assessment_date = resolveAssessmentDate(thirtyFifteenData?.assessment_date);
               } else if (isRSATest()) {
                 updateData.result_value = rsaData.result_value;
                 updateData.additional_data = rsaData.additional_data || {
                   rsa_data: rsaData,
                   measurement_type: 'rsa_test'
                 };
+                updateData.assessment_date = resolveAssessmentDate(rsaData?.assessment_date);
               } else if (isHRRTest()) {
                 updateData.result_value = hrrData.result_value;
                 updateData.additional_data = hrrData.additional_data || {
                   hrr_data: hrrData,
                   measurement_type: 'hrr_test'
                 };
+                updateData.assessment_date = resolveAssessmentDate(hrrData?.assessment_date);
               } else if (isVO2maxGXT()) {
                 updateData.result_value = vo2maxGXTData.result_value;
                 updateData.additional_data = vo2maxGXTData.additional_data || {
                   vo2max_gxt_data: vo2maxGXTData,
                   measurement_type: 'vo2max_gxt'
                 };
+                updateData.assessment_date = resolveAssessmentDate(vo2maxGXTData?.assessment_date);
               } else if (isHbA1c()) {
                 updateData.result_value = hba1cData.result_value;
                 updateData.additional_data = hba1cData.additional_data || {
                   hba1c_data: hba1cData,
                   measurement_type: 'hba1c'
                 };
+                updateData.assessment_date = resolveAssessmentDate(hba1cData?.assessment_date);
               } else if (isLipidProfile()) {
                 updateData.result_value = lipidProfileData.result_value;
                 updateData.additional_data = lipidProfileData.additional_data || {
                   lipid_profile_data: lipidProfileData,
                   measurement_type: 'lipid_profile'
                 };
+                updateData.assessment_date = resolveAssessmentDate(lipidProfileData?.assessment_date);
               } else if (isMETCalculation()) {
                 updateData.result_value = metCalcData.result_value;
                 updateData.additional_data = metCalcData.additional_data || {
                   met_calc_data: metCalcData,
                   measurement_type: 'met_calculation'
                 };
+                updateData.assessment_date = resolveAssessmentDate(metCalcData?.assessment_date);
               } else if (isSixMinuteStep()) {
                 updateData.result_value = sixMinStepData.result_value;
                 updateData.additional_data = sixMinStepData.additional_data || {
                   six_min_step_data: sixMinStepData,
                   measurement_type: 'six_minute_step'
                 };
+                updateData.assessment_date = resolveAssessmentDate(sixMinStepData?.assessment_date);
               } else if (isPPT()) {
                 updateData.result_value = pptData.result_value;
                 updateData.additional_data = pptData.additional_data || {
                   ppt_data: pptData,
                   measurement_type: 'ppt'
                 };
+                updateData.assessment_date = resolveAssessmentDate(pptData?.assessment_date);
               } else if (isCBM()) {
                 updateData.result_value = cbmData.result_value;
                 updateData.additional_data = cbmData.additional_data || {
                   cbm_data: cbmData,
                   measurement_type: 'cbm'
                 };
+                updateData.assessment_date = resolveAssessmentDate(cbmData?.assessment_date);
               } else if (isBESTest()) {
                 updateData.result_value = bestestData.result_value;
                 updateData.additional_data = bestestData.additional_data || {
                   bestest_data: bestestData,
                   measurement_type: 'bestest'
                 };
+                updateData.assessment_date = resolveAssessmentDate(bestestData?.assessment_date);
               } else if (isEMS()) {
                 updateData.result_value = emsData.result_value;
                 updateData.additional_data = emsData.additional_data || {
                   ems_data: emsData,
                   measurement_type: 'ems'
                 };
+                updateData.assessment_date = resolveAssessmentDate(emsData?.assessment_date);
               } else if (isYMCA3MinStep()) {
                 updateData.result_value = ymca3MinStepData.result_value;
                 updateData.additional_data = ymca3MinStepData.additional_data || {
                   ymca_3min_step_data: ymca3MinStepData,
                   measurement_type: 'ymca_3min_step'
                 };
+                updateData.assessment_date = resolveAssessmentDate(ymca3MinStepData?.assessment_date);
               } else if (isDGI()) {
                 updateData.result_value = dgiData.result_value;
                 updateData.additional_data = dgiData.additional_data || {
                   dgi_data: dgiData,
                   measurement_type: 'dgi'
                 };
+                updateData.assessment_date = resolveAssessmentDate(dgiData?.assessment_date);
               } else if (isRockportWalk()) {
                 updateData.result_value = rockportData.result_value;
                 updateData.additional_data = rockportData.additional_data || {
                   rockport_data: rockportData,
                   measurement_type: 'rockport_walk'
                 };
+                updateData.assessment_date = resolveAssessmentDate(rockportData?.assessment_date);
               } else if ((isHabitualGaitSpeed() || isFastGaitSpeed() || is4MeterGaitSpeed()) && gaitSpeedData) {
         updateData.result_value = gaitSpeedData.result_value;
         updateData.notes = gaitSpeedData.notes || updateData.notes;
         updateData.additional_data = gaitSpeedData.additional_data || { measurement_type: 'habitual_gait', average_speed_ms: gaitSpeedData.result_value };
+        updateData.assessment_date = resolveAssessmentDate(gaitSpeedData?.assessment_date);
       } else if ((isHabitualGaitSpeed() || isFastGaitSpeed() || is4MeterGaitSpeed()) && !gaitSpeedData) {
         const distance = parseFloat(result.gait_distance) || 4;
         const times = [parseFloat(result.gait_time_trial1)||0,parseFloat(result.gait_time_trial2)||0,parseFloat(result.gait_time_trial3)||0].filter(t=>t>0);

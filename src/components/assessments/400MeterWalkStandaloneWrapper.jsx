@@ -3,6 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { Loader2 } from "lucide-react";
 import FourHundredMeterWalkTestRunner from "./400MeterWalkTestRunner";
 import ClientSelectorModal from "./ClientSelectorModal";
+import { saveAssessmentToSOAP } from "./TestRunnerSOAPHelper";
+import { resolveAssessmentDate } from "./assessmentDate";
 
 export default function FourHundredMeterWalkStandaloneWrapper({ 
   assessment,
@@ -47,48 +49,79 @@ export default function FourHundredMeterWalkStandaloneWrapper({
 
     try {
       const now = new Date();
-      const dateStr = new Date().toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' });
-      
-      // Build objective text same way as TestRunnerExtras
+      // Resolve the completed assessment's date once (runner-provided date,
+      // else today, local) and key the SOAP objective text to it - the same
+      // date the shared SOAP helper uses to find or create the appointment.
+      const assessmentDate = resolveAssessmentDate(testData.assessment_date);
+      const dp = assessmentDate.split('-').map(Number);
+      const assessmentDateObj = (dp.length === 3 && !isNaN(dp[0]) && dp[0] > 1900) ? new Date(dp[0], dp[1] - 1, dp[2]) : new Date();
+      const dateStr = assessmentDateObj.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+      // Build objective text same way as TestRunnerExtras: prefer the runner's
+      // formatted soap_text, else fall back to a field-by-field dump.
       let objectiveText = `Assessment completed on ${dateStr}:\n\n`;
-      
-      if (testData.result_value !== null && testData.result_value !== undefined) {
-        objectiveText += `• ${assessment.name}: ${testData.result_value}s\n`;
+
+      if (testData.additional_data?.soap_text) {
+        objectiveText += testData.additional_data.soap_text;
+        if (testData.notes && testData.notes.trim() && !objectiveText.includes(testData.notes)) {
+          objectiveText += `\n  Clinical Notes: ${testData.notes}\n`;
+        }
+      } else {
+        if (testData.result_value !== null && testData.result_value !== undefined) {
+          objectiveText += `• ${assessment.name}: ${testData.result_value}s\n`;
+        }
+
+        // Add additional data fields
+        if (testData.additional_data && typeof testData.additional_data === 'object') {
+          const skipKeys = ['measurement_type', 'soap_text', 'responses'];
+          Object.entries(testData.additional_data).forEach(([key, value]) => {
+            if (skipKeys.includes(key)) return;
+            if (value === null || value === undefined || value === '') return;
+            if (typeof value === 'object' && !Array.isArray(value)) {
+              objectiveText += `\n  ${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:\n`;
+              Object.entries(value).forEach(([subKey, subValue]) => {
+                if (subValue === null || subValue === undefined || subValue === '') return;
+                objectiveText += `    - ${subKey.replace(/_/g, ' ')}: ${subValue}\n`;
+              });
+            } else if (Array.isArray(value) && value.length > 0) {
+              objectiveText += `  ${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}: ${value.join(', ')}\n`;
+            } else {
+              objectiveText += `  ${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}: ${value}\n`;
+            }
+          });
+        }
+
+        if (testData.notes && testData.notes.trim()) {
+          objectiveText += `\n  Clinical Notes: ${testData.notes}\n`;
+        }
       }
-      
-      // Add additional data fields
-      if (testData.additional_data && typeof testData.additional_data === 'object') {
-        const skipKeys = ['measurement_type', 'soap_text', 'responses'];
-        Object.entries(testData.additional_data).forEach(([key, value]) => {
-          if (skipKeys.includes(key)) return;
-          if (value === null || value === undefined || value === '') return;
-          if (typeof value === 'object' && !Array.isArray(value)) {
-            objectiveText += `\n  ${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}:\n`;
-            Object.entries(value).forEach(([subKey, subValue]) => {
-              if (subValue === null || subValue === undefined || subValue === '') return;
-              objectiveText += `    - ${subKey.replace(/_/g, ' ')}: ${subValue}\n`;
-            });
-          } else if (Array.isArray(value) && value.length > 0) {
-            objectiveText += `  ${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}: ${value.join(', ')}\n`;
-          } else {
-            objectiveText += `  ${key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}: ${value}\n`;
-          }
-        });
-      }
-      
-      if (testData.notes && testData.notes.trim()) {
-        objectiveText += `\n  Clinical Notes: ${testData.notes}\n`;
-      }
+
+      const updateData = {
+        status: 'completed',
+        result_value: testData.result_value,
+        assessment_date: assessmentDate,
+        notes: testData.notes,
+        additional_data: testData.additional_data || {}
+      };
 
       // If an existing clientAssessment record exists, update it
       if (clientAssessment?.id) {
-        await base44.entities.ClientAssessment.update(clientAssessment.id, {
-          status: 'completed',
-          result_value: testData.result_value,
-          assessment_date: testData.assessment_date || new Date().toISOString().split('T')[0],
-          notes: testData.notes,
-          additional_data: testData.additional_data || {}
-        });
+        await base44.entities.ClientAssessment.update(clientAssessment.id, updateData);
+
+        // Write the SOAP objective via the shared helper (same as the sibling
+        // runners). Without an appointment_id it finds or creates the
+        // appointment keyed to updateData.assessment_date.
+        try {
+          await saveAssessmentToSOAP({
+            clientToUse: selectedClient,
+            appointmentId: clientAssessment.appointment_id,
+            objectiveText,
+            assessmentToUpdateId: clientAssessment.id,
+            updateData
+          });
+        } catch (soapError) {
+          console.error("SOAP note error:", soapError);
+        }
 
         if (onSave) onSave(testData);
         onClose();
@@ -118,17 +151,27 @@ export default function FourHundredMeterWalkStandaloneWrapper({
         appointmentId = newAppt.id;
       }
 
-      await base44.entities.ClientAssessment.create({
+      const createdAssessment = await base44.entities.ClientAssessment.create({
         org_id: selectedClient.org_id,
         client_id: selectedClient.id,
         assessment_id: assessment.id,
         appointment_id: appointmentId,
-        status: 'completed',
-        result_value: testData.result_value,
-        assessment_date: testData.assessment_date || new Date().toISOString().split('T')[0],
-        notes: testData.notes,
-        additional_data: testData.additional_data || {}
+        ...updateData
       });
+
+      // Write the SOAP objective via the shared helper (same as the sibling
+      // runners), against the appointment found or created above.
+      try {
+        await saveAssessmentToSOAP({
+          clientToUse: selectedClient,
+          appointmentId,
+          objectiveText,
+          assessmentToUpdateId: createdAssessment.id,
+          updateData
+        });
+      } catch (soapError) {
+        console.error("SOAP note error:", soapError);
+      }
 
       if (onSave) onSave(testData);
       onClose();
