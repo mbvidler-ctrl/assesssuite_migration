@@ -562,10 +562,12 @@ export default function SOAPNoteModal({
         setSessionTranscript(prev => prev ? prev + '\n\n---\n\n' + payload.transcript : payload.transcript);
         toast.success('Transcription complete!');
       } else {
+        setLastTranscribedUrl(null); // allow retry
         toast.error('Transcription returned empty result.');
       }
     } catch (error) {
       console.error('Transcription error:', error);
+      setLastTranscribedUrl(null); // allow retry
       toast.error('Transcription failed. Please try again.');
     } finally {
       setIsTranscribing(false);
@@ -1232,7 +1234,22 @@ export default function SOAPNoteModal({
                             </span>
                           )}
                         </p>
-
+                        {!isLocked && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() => transcribeAudio(audio.url)}
+                            disabled={isTranscribing || isRecording || isSavingAudio}
+                          >
+                            {isTranscribing ? (
+                              <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                            ) : (
+                              <FileText className="w-3 h-3 mr-1" />
+                            )}
+                            Transcribe
+                          </Button>
+                        )}
                       </div>
                       <audio controls className="w-full h-8">
                         <source src={audio.url} type="audio/webm" />
@@ -1244,6 +1261,22 @@ export default function SOAPNoteModal({
                   <div className="bg-white rounded-lg p-2 border border-purple-100">
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-xs font-medium text-slate-700">Session Recording</p>
+                      {!isLocked && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => transcribeAudio(soapNote.session_audio_url)}
+                          disabled={isTranscribing || isRecording || isSavingAudio}
+                        >
+                          {isTranscribing ? (
+                            <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                          ) : (
+                            <FileText className="w-3 h-3 mr-1" />
+                          )}
+                          Transcribe
+                        </Button>
+                      )}
                     </div>
                     <audio controls className="w-full h-8">
                       <source src={soapNote.session_audio_url} type="audio/webm" />
@@ -1254,6 +1287,52 @@ export default function SOAPNoteModal({
               </div>
             )}
 
+            {/* Transcript panel: populated by transcribeAudio, consumed by dissectToSOAP */}
+            {showTranscriptPanel && (
+              <div className="mt-3 bg-white rounded-lg p-3 border border-purple-100">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-slate-700">Session Transcript</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2"
+                    onClick={() => setShowTranscriptPanel(false)}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </div>
+                {isTranscribing && (
+                  <p className="text-xs text-slate-500 flex items-center gap-2 mb-2">
+                    <Loader2 className="w-3 h-3 animate-spin" />
+                    Transcribing audio...
+                  </p>
+                )}
+                <Textarea
+                  value={sessionTranscript}
+                  onChange={(e) => setSessionTranscript(e.target.value)}
+                  rows={6}
+                  placeholder="Transcript will appear here once transcription completes."
+                  className="text-sm"
+                />
+                {!isLocked && (
+                  <div className="flex justify-end mt-2">
+                    <Button
+                      size="sm"
+                      onClick={dissectToSOAP}
+                      disabled={isDissecting || isTranscribing || !sessionTranscript}
+                      className="bg-purple-600 hover:bg-purple-700"
+                    >
+                      {isDissecting ? (
+                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      ) : (
+                        <Sparkles className="w-4 h-4 mr-2" />
+                      )}
+                      Dissect to SOAP
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
 
           </div>
 
