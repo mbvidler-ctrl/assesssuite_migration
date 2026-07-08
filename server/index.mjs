@@ -10,7 +10,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 
-import { openDatabase, createEntityRepository, createSessionRepository, createOutboxRepository } from './db.mjs';
+import { openDatabase, createEntityRepository, createSessionRepository, createOutboxRepository, loadOrgScopedEntities } from './db.mjs';
 import { matchesQuery, applySortSkipLimit, applyProjection } from './query.mjs';
 import {
   hashPassword,
@@ -275,6 +275,41 @@ const PRE_APPROVAL_WRITE_ENTITIES = new Set([
   'ClinicPolicy',
 ]);
 
+// Tenant-scoped entities, derived statically from the schema (carry org_id).
+const ORG_SCOPED_ENTITIES = loadOrgScopedEntities();
+
+// Shared reference catalogues: readable by any authenticated user, but
+// mutated by admins only. They are global (no org_id), so a non-admin write
+// or a deleteMany would corrupt or wipe every tenant's catalogue at once.
+const GLOBAL_READONLY_ENTITIES = new Set(['Assessment', 'Exercise', 'TreatmentProtocol']);
+
+/**
+ * Central write-authorisation for a non-admin entity mutation. Returns
+ * { ok } or { ok:false, status, message }. Layers, in order:
+ *  - User: never writable via the generic entity API (admin/register/invite
+ *    only) — the create path was previously un-gated, an admin-mint vector;
+ *  - shared catalogues: admin-only writes;
+ *  - LegalAcceptance: a user may only write their own acceptance;
+ *  - Organization: create (founding) allowed; update/delete gated by
+ *    isWithinOrgScope at the call site;
+ *  - org-scoped entities: enforceWriteOrgScope (forces org_id to a member org).
+ */
+function writeAuthDenied(entityName, data, sessionUser, { isCreate }) {
+  if (entityName === 'User') {
+    return { ok: false, status: 403, message: 'admin access required' };
+  }
+  if (GLOBAL_READONLY_ENTITIES.has(entityName)) {
+    return { ok: false, status: 403, message: 'admin access required to modify a shared catalogue' };
+  }
+  if (entityName === 'LegalAcceptance') {
+    if (isCreate && data && data.user_email && data.user_email !== sessionUser.email) {
+      return { ok: false, status: 403, message: 'you may only record your own acceptance' };
+    }
+    return { ok: true };
+  }
+  return enforceWriteOrgScope(entityName, data, sessionUser, { isCreate });
+}
+
 /**
  * Hard authorisation gate for the entities router. Sends the refusal and
  * returns true when the request must not proceed:
@@ -311,14 +346,6 @@ function primaryOrgIdForUser(userEmail) {
   return primary?.org_id || null;
 }
 
-/** Whether an entity is organisation-scoped (carries org_id), by payload or sample. */
-function entityCarriesOrgId(entityName, data) {
-  if (data && typeof data === 'object' && 'org_id' in data) return true;
-  const repo = repoFor(entityName);
-  const sample = repo?.listAll()[0];
-  return sample ? 'org_id' in sample : false;
-}
-
 /**
  * Forces the org_id of a non-admin WRITE to an organisation the caller
  * belongs to, closing the cross-tenant injection vector (a caller-supplied
@@ -330,18 +357,22 @@ function entityCarriesOrgId(entityName, data) {
  */
 function enforceWriteOrgScope(entityName, data, sessionUser, { isCreate }) {
   if (entityName === 'OrganizationMember') {
-    // A non-admin may only enrol their OWN account, and only into an
-    // organisation they already belong to or one they are founding (no
-    // existing members). Without the founding/membership check, any
-    // authenticated user could join any organisation by id and gain
-    // org-scoped read/write to that tenant — a full isolation break.
+    // A non-admin may only enrol their OWN account. On CREATE, into an org
+    // they already belong to or one they are founding (no existing members).
+    // On UPDATE, the org_id may not be relocated to an org they are not
+    // already a member of — otherwise a member could move their own
+    // membership into another tenant and gain its scope (the update path
+    // previously fell through unchecked).
     if (data && data.user_email && data.user_email !== sessionUser.email) {
       return { ok: false, status: 403, message: 'you may only add your own account to an organisation' };
     }
     const targetOrg = data?.org_id;
-    if (isCreate && targetOrg) {
+    if (targetOrg !== undefined && targetOrg !== null) {
       const callerOrgs = orgIdsForUser(sessionUser.email);
       if (!callerOrgs.includes(targetOrg)) {
+        if (!isCreate) {
+          return { ok: false, status: 403, message: 'you cannot move a membership to another organisation' };
+        }
         const existingMembers = orgMemberRepo
           ? orgMemberRepo.listAll().filter((m) => m.org_id === targetOrg)
           : [];
@@ -352,7 +383,7 @@ function enforceWriteOrgScope(entityName, data, sessionUser, { isCreate }) {
     }
     return { ok: true };
   }
-  if (!entityCarriesOrgId(entityName, data)) return { ok: true };
+  if (!ORG_SCOPED_ENTITIES.has(entityName)) return { ok: true };
   const orgIds = orgIdsForUser(sessionUser.email);
   const supplied = data?.org_id;
   if (supplied !== undefined && supplied !== null) {
@@ -361,7 +392,10 @@ function enforceWriteOrgScope(entityName, data, sessionUser, { isCreate }) {
     }
     return { ok: true }; // a member org — keep it.
   }
-  if (!isCreate) return { ok: true }; // update without an org_id change — leave as is.
+  // No org_id supplied: on create, force to the caller's primary org (never
+  // let a null-org record persist — that collapsed list scoping); on update,
+  // leave the existing org_id untouched.
+  if (!isCreate) return { ok: true };
   const primary = primaryOrgIdForUser(sessionUser.email);
   if (!primary) return { ok: false, status: 403, message: 'no organisation membership' };
   data.org_id = primary;
@@ -406,15 +440,7 @@ async function handleEntitiesRoute(req, res, url, match) {
     const record = repo.getById(rest);
     if (!record) return sendError(res, 404, 'record not found');
     if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
-    if (!isAdmin && !isUserCollection && !isWithinOrgScope(record, sessionUser)) {
-      return sendError(res, 404, 'record not found');
-    }
-    // Organization carries no org_id, so isWithinOrgScope cannot scope it —
-    // a non-admin may read only organisations they belong to (the record's
-    // own id is the org id), else the org name and subscription status leak
-    // cross-tenant.
-    if (!isAdmin && entityName === 'Organization'
-      && !orgIdsForUser(sessionUser.email).includes(record.id)) {
+    if (!isAdmin && !isUserCollection && !isWithinOrgScope(record, sessionUser, entityName)) {
       return sendError(res, 404, 'record not found');
     }
     const stripped = isUserCollection ? stripAuthFields(record) : record;
@@ -424,12 +450,11 @@ async function handleEntitiesRoute(req, res, url, match) {
   if (req.method === 'POST' && !rest) {
     const data = await readJsonBody(req);
     const createdBy = sessionUser?.email || null;
-    if (!isAdmin && entityName !== 'User') {
-      // Non-admin writes are org-scoped to a membership the caller holds; a
-      // caller-supplied foreign or null org_id is rejected/replaced, closing
-      // the cross-tenant injection vector.
-      const scope = enforceWriteOrgScope(entityName, data, sessionUser, { isCreate: true });
-      if (!scope.ok) return sendError(res, scope.status, scope.message);
+    if (!isAdmin) {
+      // Central write-authorisation: refuses User/catalogue writes and scopes
+      // org-bearing writes to a membership the caller holds.
+      const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: true });
+      if (!auth.ok) return sendError(res, auth.status, auth.message);
     }
     const record = repo.create(data, createdBy);
     const stripped = isUserCollection ? stripAuthFields(record) : record;
@@ -440,14 +465,13 @@ async function handleEntitiesRoute(req, res, url, match) {
     if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
     const existing = repo.getById(rest);
     if (!existing) return sendError(res, 404, 'record not found');
-    if (!isAdmin && !isUserCollection && !isWithinOrgScope(existing, sessionUser)) {
+    if (!isAdmin && !isUserCollection && !isWithinOrgScope(existing, sessionUser, entityName)) {
       return sendError(res, 404, 'record not found');
     }
     const data = await readJsonBody(req);
-    if (!isAdmin && entityName !== 'User') {
-      // Prevent relocating a record into another tenant via a mutated org_id.
-      const scope = enforceWriteOrgScope(entityName, data, sessionUser, { isCreate: false });
-      if (!scope.ok) return sendError(res, scope.status, scope.message);
+    if (!isAdmin) {
+      const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: false });
+      if (!auth.ok) return sendError(res, auth.status, auth.message);
     }
     const record = repo.update(rest, data);
     const stripped = isUserCollection ? stripAuthFields(record) : record;
@@ -458,7 +482,10 @@ async function handleEntitiesRoute(req, res, url, match) {
     const existing = repo.getById(rest);
     if (!existing) return sendError(res, 404, 'record not found');
     if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
-    if (!isAdmin && !isUserCollection && !isWithinOrgScope(existing, sessionUser)) {
+    if (!isAdmin && GLOBAL_READONLY_ENTITIES.has(entityName)) {
+      return sendError(res, 403, 'admin access required to modify a shared catalogue');
+    }
+    if (!isAdmin && !isUserCollection && !isWithinOrgScope(existing, sessionUser, entityName)) {
       return sendError(res, 404, 'record not found');
     }
     repo.remove(rest);
@@ -467,6 +494,10 @@ async function handleEntitiesRoute(req, res, url, match) {
 
   if (req.method === 'DELETE' && !rest) {
     // DELETE-with-body deleteMany.
+    if (!isAdmin && (isUserCollection || GLOBAL_READONLY_ENTITIES.has(entityName))) {
+      // Never let a non-admin bulk-delete Users or a shared catalogue.
+      return sendError(res, 403, 'admin access required');
+    }
     const query = await readJsonBody(req);
     const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
     const all = repo.listAll();
@@ -478,14 +509,26 @@ async function handleEntitiesRoute(req, res, url, match) {
   return sendError(res, 404, 'route not found');
 }
 
-/** Whether a non-admin session user may see/write a record, based on org_id scoping. */
-function isWithinOrgScope(record, sessionUser) {
-  if (!('org_id' in record) || record.org_id === undefined || record.org_id === null) {
-    return true; // entity does not carry org_id — no scoping applies.
-  }
+/**
+ * Whether a non-admin session user may see/write a specific record. Scoping is
+ * keyed off the STATIC entity classification, and fails CLOSED: an org-scoped
+ * record with a missing/null org_id is denied (previously such a record was
+ * treated as universally visible/writable — a cross-tenant hole).
+ */
+function isWithinOrgScope(record, sessionUser, entityName) {
   if (!sessionUser) return false;
   const orgIds = orgIdsForUser(sessionUser.email);
-  return orgIds.includes(record.org_id);
+  if (entityName === 'Organization') {
+    return orgIds.includes(record.id);
+  }
+  if (entityName === 'LegalAcceptance') {
+    return record.user_email === sessionUser.email;
+  }
+  if (ORG_SCOPED_ENTITIES.has(entityName)) {
+    if (record.org_id === undefined || record.org_id === null) return false; // fail closed.
+    return orgIds.includes(record.org_id);
+  }
+  return true; // global reference catalogues — readable by any authenticated user.
 }
 
 /** Merges an org-scoping constraint into a query object for non-admin requesters. */
@@ -498,10 +541,10 @@ function scopeQueryToOrg(query, entityName, sessionUser, isAdmin) {
   if (entityName === 'Organization') {
     return { ...(query || {}), id: { $in: orgIds } };
   }
-  const repo = repoFor(entityName);
-  const sample = repo?.listAll()[0];
-  const carriesOrgId = sample ? 'org_id' in sample : entityName !== 'User';
-  if (!carriesOrgId) return query || {};
+  if (entityName === 'LegalAcceptance') {
+    return { ...(query || {}), user_email: sessionUser?.email };
+  }
+  if (!ORG_SCOPED_ENTITIES.has(entityName)) return query || {};
   return { ...(query || {}), org_id: { $in: orgIds } };
 }
 
@@ -548,11 +591,11 @@ async function handleBulk(req, res, entityName) {
     // bulkCreate: JSON array of records.
     const items = Array.isArray(body) ? body : body.items || [];
     const createdBy = sessionUser?.email || null;
-    if (!isAdmin && entityName !== 'User') {
-      // Same cross-tenant scoping as single create, per item.
+    if (!isAdmin) {
+      // Same central write-authorisation as single create, per item.
       for (const item of items) {
-        const scope = enforceWriteOrgScope(entityName, item, sessionUser, { isCreate: true });
-        if (!scope.ok) return sendError(res, scope.status, scope.message);
+        const auth = writeAuthDenied(entityName, item, sessionUser, { isCreate: true });
+        if (!auth.ok) return sendError(res, auth.status, auth.message);
       }
     }
     const created = items.map((item) => repo.create(item, createdBy));
@@ -563,19 +606,20 @@ async function handleBulk(req, res, entityName) {
   if (req.method === 'PUT') {
     // bulkUpdate: JSON array of records, each carrying its own id.
     const items = Array.isArray(body) ? body : body.items || [];
-    if (!isAdmin && entityName !== 'User') {
-      // Mirror the single-PUT guards: a non-admin may only update records
-      // within their own org, and may not relocate one into another tenant.
-      // Without this, bulkUpdate was a cross-tenant edit/relocate-by-id hole.
+    if (!isAdmin) {
+      // Mirror the single-PUT guards: refuse User/catalogue writes, only
+      // update records within the caller's org, and never relocate one into
+      // another tenant. Without this, bulkUpdate was a cross-tenant
+      // edit/relocate-by-id hole.
       for (const item of items) {
         if (!item.id) continue;
         const existing = repo.getById(item.id);
         if (!existing) continue;
-        if (!isWithinOrgScope(existing, sessionUser)) {
+        if (!isWithinOrgScope(existing, sessionUser, entityName)) {
           return sendError(res, 404, 'record not found');
         }
-        const scope = enforceWriteOrgScope(entityName, item, sessionUser, { isCreate: false });
-        if (!scope.ok) return sendError(res, scope.status, scope.message);
+        const auth = writeAuthDenied(entityName, item, sessionUser, { isCreate: false });
+        if (!auth.ok) return sendError(res, auth.status, auth.message);
       }
     }
     const updated = items
@@ -599,11 +643,12 @@ async function handleUpdateMany(req, res, entityName) {
 
   const body = await readJsonBody(req);
   const { query, data } = body || {};
-  if (!isAdmin && entityName !== 'User') {
-    // The query is org-scoped, but the data payload could still relocate the
-    // matched (own-org) records into another tenant via a mutated org_id.
-    const scope = enforceWriteOrgScope(entityName, data, sessionUser, { isCreate: false });
-    if (!scope.ok) return sendError(res, scope.status, scope.message);
+  if (!isAdmin) {
+    // Refuse User/catalogue writes; the query is org-scoped, but the data
+    // payload could still relocate the matched (own-org) records into another
+    // tenant via a mutated org_id.
+    const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: false });
+    if (!auth.ok) return sendError(res, auth.status, auth.message);
   }
   const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
   const matched = repo.listAll().filter((record) => matchesQuery(record, scopedQuery));

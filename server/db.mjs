@@ -24,10 +24,10 @@ const entitySchemasPath = path.join(
  * entity (its schema carries only the custom fields; auth fields such as
  * role/email/password_hash live inside the JSON blob alongside them).
  */
-export function loadEntityNames() {
-  const raw = fs.readFileSync(entitySchemasPath, 'utf8');
-  const parsed = JSON.parse(raw);
-  const names = parsed.schemas.map((entry) => entry.entity_name);
+/** Reads capture + local schema entries as one array. */
+function loadAllSchemaEntries() {
+  const parsed = JSON.parse(fs.readFileSync(entitySchemasPath, 'utf8'));
+  const entries = [...parsed.schemas];
   // Local-only entities absent from the live capture. The capture file stays
   // pristine (it is provenance evidence); additions live beside the shim.
   // Payment: imported by src/entities/all.js and used by Finances.jsx, but
@@ -36,10 +36,28 @@ export function loadEntityNames() {
   if (fs.existsSync(localSchemasPath)) {
     const local = JSON.parse(fs.readFileSync(localSchemasPath, 'utf8'));
     for (const entry of local.schemas) {
-      if (!names.includes(entry.entity_name)) names.push(entry.entity_name);
+      if (!entries.some((e) => e.entity_name === entry.entity_name)) entries.push(entry);
     }
   }
-  return names;
+  return entries;
+}
+
+export function loadEntityNames() {
+  return loadAllSchemaEntries().map((entry) => entry.entity_name);
+}
+
+/**
+ * The set of entity names whose schema carries an org_id property — i.e. the
+ * tenant-scoped entities. Derived statically from the schemas rather than by
+ * sampling stored data, so an empty collection or a null-org_id row can never
+ * silently disable scoping (a fail-open the runtime heuristic suffered from).
+ */
+export function loadOrgScopedEntities() {
+  return new Set(
+    loadAllSchemaEntries()
+      .filter((entry) => 'org_id' in (entry.entity_schema?.properties || {}))
+      .map((entry) => entry.entity_name),
+  );
 }
 
 /**

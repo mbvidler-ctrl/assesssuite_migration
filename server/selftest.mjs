@@ -737,6 +737,53 @@ async function runChecks(baseUrl, appId) {
       method: 'PATCH', token: userAToken, body: { query: {}, data: { org_id: orgBId } },
     });
     record('update-many relocating records to a foreign org is refused (403)', patchStatus === 403, `status=${patchStatus}`);
+
+    // --- Third-pass regressions: structural scoping model ---
+    // Privilege escalation: non-admin cannot mint an admin via the generic
+    // User create path (register/invite are the only user-creation paths).
+    const { status: userCreateStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User`, {
+      method: 'POST', token: userAToken, body: { email: `mint-${Date.now()}@x.test`, role: 'admin', account_status: 'active' },
+    });
+    record('non-admin User create is refused (403)', userCreateStatus === 403, `status=${userCreateStatus}`);
+    // Shared catalogues (Assessment/TreatmentProtocol/Exercise) are admin-write-only.
+    const { status: catCreateStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Assessment`, {
+      method: 'POST', token: userAToken, body: { name: 'rogue catalogue entry' },
+    });
+    record('non-admin catalogue write is refused (403)', catCreateStatus === 403, `status=${catCreateStatus}`);
+    const { status: catWipeStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Assessment`, {
+      method: 'DELETE', token: userAToken, body: {},
+    });
+    record('non-admin catalogue deleteMany is refused (403)', catWipeStatus === 403, `status=${catWipeStatus}`);
+    // Non-admin can still READ the catalogue (legitimate).
+    const { status: catReadStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Assessment`, {
+      token: userAToken,
+    });
+    record('non-admin catalogue read still works (200)', catReadStatus === 200, `status=${catReadStatus}`);
+    // OrganizationMember relocation via UPDATE paths is refused.
+    const { body: aMemberships } = await api(baseUrl, appId, `/api/apps/${appId}/entities/OrganizationMember?q=${encodeURIComponent(JSON.stringify({ user_email: emailA }))}`, {
+      token: adminToken,
+    });
+    const aMembershipId = (aMemberships || [])[0]?.id;
+    const { status: memPutStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/OrganizationMember/${aMembershipId}`, {
+      method: 'PUT', token: userAToken, body: { org_id: orgBId },
+    });
+    record('OrganizationMember relocation via PUT is refused (403)', memPutStatus === 403, `status=${memPutStatus}`);
+    const { status: memPatchStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/OrganizationMember/update-many`, {
+      method: 'PATCH', token: userAToken, body: { query: { user_email: emailA }, data: { org_id: orgBId } },
+    });
+    record('OrganizationMember relocation via update-many is refused (403)', memPatchStatus === 403, `status=${memPatchStatus}`);
+    // Create on an org-scoped entity with org_id omitted must land scoped to
+    // the caller org, never null/global (ClinicPolicy is empty in the seed).
+    const { body: policy } = await api(baseUrl, appId, `/api/apps/${appId}/entities/ClinicPolicy`, {
+      method: 'POST', token: userAToken, body: { policy_name: 'scope-check' },
+    });
+    record('org-scoped create with org_id omitted is backfilled to the caller org (never null)',
+      policy?.org_id === orgAId, `org_id=${policy?.org_id}`);
+    // That record must not be readable by another tenant.
+    const { status: policyCrossStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/ClinicPolicy/${policy.id}`, {
+      token: userBToken,
+    });
+    record('backfilled org-scoped record is not readable cross-tenant (404)', policyCrossStatus === 404, `status=${policyCrossStatus}`);
   }
 
   // --- Unknown entity / unknown function ---
