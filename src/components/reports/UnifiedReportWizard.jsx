@@ -12,6 +12,8 @@ import SelectDateRange from "./wizard-steps/SelectDateRange";
 import SelectAssessments from "./wizard-steps/SelectAssessments";
 import SectionEditor from "./wizard-steps/SectionEditor";
 import ReviewExport from "./wizard-steps/ReviewExport";
+import OutcomeTable from "./wizard-steps/OutcomeTable";
+import { outcomeComparisonHtml } from "@/lib/clinical/outcomeComparison";
 
 // --- Meta-template definitions (controls length & AI tone) ---
 export const META_TEMPLATES = {
@@ -1390,10 +1392,17 @@ function renderRichText(text) {
   return out.join("");
 }
 
+// The section under which the data-driven outcome table is embedded: the
+// first active section whose name mentions outcomes (e.g. "Baseline Outcome
+// Measures & Results", "Outcome Measures (baseline vs current)").
+function findOutcomeSection(activeSections) {
+  return (activeSections || []).find((s) => /outcome/i.test(s)) || null;
+}
+
 // A concise GP letter: letterhead, recipient block, salutation, RE line,
 // letter body (generated sections as prose with a bold lead-in and outcome
 // data as a table), and sign-off.
-function buildGpLetterHtml(template, activeSections, content, client, clinician) {
+function buildGpLetterHtml(template, activeSections, content, client, clinician, outcomeAssessments) {
   const today = format(new Date(), "dd MMMM yyyy");
   const clientDOB = client.date_of_birth ? format(new Date(client.date_of_birth), "dd/MM/yyyy") : "N/A";
   const age = client.date_of_birth ? Math.floor((new Date() - new Date(client.date_of_birth)) / 31557600000) : null;
@@ -1405,12 +1414,17 @@ function buildGpLetterHtml(template, activeSections, content, client, clinician)
   const clinicianLine = clinician
     ? `${clinician.full_name || ""}${clinician.profession ? `<br/>${clinician.profession}` : ""}${clinician.provider_number ? `<br/>Provider No: ${clinician.provider_number}` : ""}`
     : "";
+  // I2/G9: embed the data-driven outcome comparison table under the outcome
+  // section so baseline-vs-current data is never left to LLM prose alone.
+  const outcomeSection = findOutcomeSection(activeSections);
+  const outcomeHtml = outcomeComparisonHtml(outcomeAssessments);
   const body = activeSections
     .filter((s) => !s.toLowerCase().includes("signature") && !s.toLowerCase().includes("attachment"))
     .map((section) => {
       const text = content[section];
-      if (!text?.trim()) return "";
-      return `<div class="lp"><span class="lead">${section}:</span> ${renderRichText(text)}</div>`;
+      const tableHtml = section === outcomeSection ? outcomeHtml : "";
+      if (!text?.trim() && !tableHtml) return "";
+      return `<div class="lp"><span class="lead">${section}:</span> ${tableHtml}${text?.trim() ? renderRichText(text) : ""}</div>`;
     })
     .join("");
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/>
@@ -1440,10 +1454,14 @@ ${body}
 </body></html>`;
 }
 
-function buildReportHtml(template, activeSections, content, client, clinician, dateRange) {
+function buildReportHtml(template, activeSections, content, client, clinician, dateRange, outcomeAssessments) {
   if (template.id === "GP_SUMMARY_LETTER") {
-    return buildGpLetterHtml(template, activeSections, content, client, clinician);
+    return buildGpLetterHtml(template, activeSections, content, client, clinician, outcomeAssessments);
   }
+  // I2/G9: data-driven outcome comparison table, embedded under the report's
+  // outcome section (where one exists) instead of relying on LLM prose.
+  const outcomeSection = findOutcomeSection(activeSections);
+  const outcomeHtml = outcomeComparisonHtml(outcomeAssessments);
   const today = format(new Date(), "dd MMMM yyyy");
   const clientDOB = client.date_of_birth ? format(new Date(client.date_of_birth), "dd/MM/yyyy") : "N/A";
   const age = client.date_of_birth ? Math.floor((new Date() - new Date(client.date_of_birth)) / 31557600000) : null;
@@ -1462,6 +1480,9 @@ function buildReportHtml(template, activeSections, content, client, clinician, d
   .section{margin-bottom:24px;page-break-inside:avoid;}
   .section h2{font-size:14px;color:#1a56db;border-bottom:1px solid #e2e8f0;padding-bottom:4px;margin-bottom:8px;}
   .section p{margin:0;line-height:1.7;white-space:pre-wrap;}
+  table.outcome{border-collapse:collapse;width:100%;margin:8px 0;font-size:12px;}
+  table.outcome th,table.outcome td{border:1px solid #cbd5e1;padding:5px 8px;text-align:left;}
+  table.outcome th{background:#eff6ff;}
   .sig-area{margin-top:40px;border-top:1px solid #e2e8f0;padding-top:16px;}
   .sig-area img{max-width:200px;display:block;margin:8px 0;}
   .footer{margin-top:40px;border-top:1px solid #e2e8f0;padding-top:8px;font-size:10px;color:#999;text-align:center;}
@@ -1483,8 +1504,9 @@ function buildReportHtml(template, activeSections, content, client, clinician, d
 </div>
 ${activeSections.filter(s => !s.toLowerCase().includes('signature') && !s.toLowerCase().includes('attachment')).map(section => {
   const text = content[section];
-  if (!text?.trim()) return '';
-  return `<div class="section"><h2>${section}</h2><p>${text.trim()}</p></div>`;
+  const tableHtml = section === outcomeSection ? outcomeHtml : '';
+  if (!text?.trim() && !tableHtml) return '';
+  return `<div class="section"><h2>${section}</h2>${tableHtml}${text?.trim() ? `<p>${text.trim()}</p>` : ''}</div>`;
 }).join('')}
 ${activeSections.filter(s => s.toLowerCase().includes('signature')).map(section => {
   const text = content[section];
@@ -1649,7 +1671,14 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
         (assessmentLibrary || []).forEach(a => { libraryMap[a.id] = a; });
         const enriched = results.map(ca => {
           const lib = libraryMap[ca.assessment_id];
-          return { ...ca, name: ca.name || lib?.name || "Unknown Assessment", unit_of_measure: ca.unit_of_measure || lib?.unit_of_measure || "" };
+          return {
+            ...ca,
+            name: ca.name || lib?.name || "Unknown Assessment",
+            unit_of_measure: ca.unit_of_measure || lib?.unit_of_measure || "",
+            // Direction of benefit from the catalogue — drives the
+            // direction-aware interpretation in the outcome table.
+            normative_direction: ca.normative_direction || lib?.normative_direction || null,
+          };
         });
         const completed = enriched.filter(a =>
           a.status === "completed" ||
@@ -1703,6 +1732,23 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
     setActiveSections(prev => prev.filter(s => s !== sectionName));
   };
 
+  // The assessments feeding the outcome comparison table. Mirrors the AI
+  // context rule in SectionEditor.buildFullContext: the clinician's explicit
+  // selection wins; otherwise all completed assessments (within the chosen
+  // date range, where one is set).
+  const getOutcomeAssessments = () => {
+    if (selectedAssessmentIds && selectedAssessmentIds.length > 0) {
+      return clientAssessments.filter(a => selectedAssessmentIds.includes(a.id));
+    }
+    if (dateRange?.start && dateRange?.end) {
+      return clientAssessments.filter(a => {
+        const d = new Date(a.assessment_date || a.created_date);
+        return d >= new Date(dateRange.start) && d <= new Date(dateRange.end);
+      });
+    }
+    return clientAssessments;
+  };
+
   const handleNext = () => {
     if (!isEditing && step === 0 && !reportTypeKey) { toast.error("Please select a report type"); return; }
     if (step === STEPS.length - 2) {
@@ -1713,7 +1759,7 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
         toast.error("This report type is not yet available. Please choose another report type.");
         return;
       }
-      const html = buildReportHtml(reportTemplate, activeSections, sectionContent, client, clinician, dateRange);
+      const html = buildReportHtml(reportTemplate, activeSections, sectionContent, client, clinician, dateRange, getOutcomeAssessments());
       setReportHtml(html);
     }
     setStep(s => Math.min(s + 1, totalSteps - 1));
@@ -1725,7 +1771,7 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
     setIsSaving(true);
     try {
       // Build HTML if not already built (safety net)
-      const finalHtml = reportHtml || buildReportHtml(reportTemplate, activeSections, sectionContent, client, clinician, dateRange);
+      const finalHtml = reportHtml || buildReportHtml(reportTemplate, activeSections, sectionContent, client, clinician, dateRange, getOutcomeAssessments());
 
       const payload = {
         client_id: client.id,
@@ -1764,8 +1810,12 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
 
   const SectionStep = () => {
     const optional = (reportTemplate?.optional || []).filter(s => !activeSections.includes(s));
+    const hasOutcomeSection = activeSections.some(s => /outcome/i.test(s));
     return (
       <div className="space-y-3">
+        {hasOutcomeSection && (
+          <OutcomeTable assessments={getOutcomeAssessments()} />
+        )}
         {optional.length > 0 && (
           <div className="flex flex-wrap gap-2 pb-2 border-b border-slate-100">
             <span className="text-xs text-slate-500 self-center">Add optional section:</span>
