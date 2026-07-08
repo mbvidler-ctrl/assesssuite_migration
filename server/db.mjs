@@ -24,10 +24,22 @@ const entitySchemasPath = path.join(
  * entity (its schema carries only the custom fields; auth fields such as
  * role/email/password_hash live inside the JSON blob alongside them).
  */
-function loadEntityNames() {
+export function loadEntityNames() {
   const raw = fs.readFileSync(entitySchemasPath, 'utf8');
   const parsed = JSON.parse(raw);
-  return parsed.schemas.map((entry) => entry.entity_name);
+  const names = parsed.schemas.map((entry) => entry.entity_name);
+  // Local-only entities absent from the live capture. The capture file stays
+  // pristine (it is provenance evidence); additions live beside the shim.
+  // Payment: imported by src/entities/all.js and used by Finances.jsx, but
+  // never registered on the live platform — the page could never load data.
+  const localSchemasPath = path.join(__dirname, 'local-entity-schemas.json');
+  if (fs.existsSync(localSchemasPath)) {
+    const local = JSON.parse(fs.readFileSync(localSchemasPath, 'utf8'));
+    for (const entry of local.schemas) {
+      if (!names.includes(entry.entity_name)) names.push(entry.entity_name);
+    }
+  }
+  return names;
 }
 
 /**

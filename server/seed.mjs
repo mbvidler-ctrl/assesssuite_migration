@@ -576,6 +576,24 @@ export function runSeed({ db, entityNames }) {
     );
     note(`  -> Appointment (id ${appointment.id})`);
 
+    // --- Payment (1, against the appointment) ---
+    // Payment is a local-addition entity (server/local-entity-schemas.json):
+    // Finances.jsx lists payments by appointment membership and reads
+    // amount/status/payment_date/payment_method.
+    repoFor('Payment').create(
+      {
+        org_id: org.id,
+        client_id: client.id,
+        appointment_id: appointment.id,
+        amount: 145.0,
+        status: 'processed',
+        payment_date: isoDate(seedYear, seedMonth, seedDay),
+        payment_method: 'card',
+      },
+      clinician.email,
+    );
+    note('  -> Payment (1)');
+
     // --- ClientAssessments (1-2), referencing real Assessment ids when present ---
     const assessmentsToUse = assessmentCatalogue.slice(0, 2);
     const clientAssessments = assessmentsToUse.map((assessment, idx) =>

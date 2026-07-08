@@ -218,17 +218,12 @@ async function main() {
     try {
       const db = new DatabaseSync(dbFile);
       db.exec('PRAGMA journal_mode = WAL;');
-      // entityNames: derive the same way server/db.mjs does, by reading the
-      // captured schema file directly (avoids re-importing db.mjs's
-      // openDatabase(), which would attempt to wipe the file again).
-      const schemaPath = path.join(
-        repoRoot,
-        'docs',
-        'source-capture',
-        '20260702-live-entity-schemas.json',
-      );
-      const schemaJson = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
-      const entityNames = new Set(schemaJson.schemas.map((entry) => entry.entity_name));
+      // entityNames: use db.mjs's own loader (captured schemas + local
+      // additions such as Payment) WITHOUT calling openDatabase(), which
+      // would attempt to wipe the file again. loadEntityNames() only reads
+      // the schema JSON files — no database side effects.
+      const { loadEntityNames } = await import(pathToFileURL(path.join(repoRoot, 'server', 'db.mjs')).href);
+      const entityNames = new Set(loadEntityNames());
 
       const seedModuleUrl = pathToFileURL(seedModulePath).href;
       const { runSeed } = await import(seedModuleUrl);
@@ -381,11 +376,18 @@ async function main() {
         },
         required: ['summary'],
       };
+      // Integrations require a session (auth gate added 7 July); the app
+      // only ever calls them from an authenticated context, so the probe
+      // authenticates as the seeded clinician.
       const { status, body } = await api(
         baseUrl,
         appId,
         `/api/apps/${appId}/integration-endpoints/Core/InvokeLLM`,
-        { method: 'POST', body: { prompt: 'Summarise smoke test findings', response_json_schema: schema } },
+        {
+          method: 'POST',
+          token: alphaClinicianToken,
+          body: { prompt: 'Summarise smoke test findings', response_json_schema: schema },
+        },
       );
       record(
         'integration InvokeLLM with response_json_schema returns a schema-shaped object',

@@ -1,0 +1,21 @@
+{
+  "note": "Local-only entity registrations absent from the live Base44 capture (docs/source-capture/20260702-live-entity-schemas.json, kept pristine as provenance evidence). Merged into the shim's entity list by server/db.mjs loadEntityNames().",
+  "schemas": [
+    {
+      "entity_name": "Payment",
+      "source": "local-addition 2026-07-08 (UM-AUTO-20260708-ASSESSSUITE-FINAL-HARDENING-DEPLOY)",
+      "reason": "src/entities/all.js exports Payment and src/pages/Finances.jsx lists/filters it (appointment_id, amount, status, payment_date, payment_method), but the live platform registered no such entity — the Finances page could never load payment data. Registered locally so the page functions; storage is the same schemaless JSON-blob table as every other entity.",
+      "entity_schema": {
+        "properties": {
+          "appointment_id": { "type": "string", "description": "Appointment this payment relates to" },
+          "client_id": { "type": "string", "description": "Client the payment was made for" },
+          "org_id": { "type": "string", "description": "Owning organisation (org scoping)" },
+          "amount": { "type": "number", "description": "Payment amount in AUD" },
+          "status": { "type": "string", "enum": ["processed", "pending", "refunded", "failed"], "description": "Payment state" },
+          "payment_date": { "type": "string", "format": "date", "description": "Date the payment was taken" },
+          "payment_method": { "type": "string", "description": "e.g. card, cash, direct-deposit, funding-scheme" }
+        }
+      }
+    }
+  ]
+}
