@@ -6,12 +6,17 @@ import { Loader2, CreditCard, CheckCircle } from "lucide-react";
 export default function PaymentRequired() {
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubscribe = async (priceId) => {
+  const handleSubscribe = async (plan) => {
     setIsLoading(true);
     try {
       const user = await base44.auth.me();
+      // Send `plan` ("monthly" | "annual") rather than a hard-coded priceId.
+      // The captured price ids belong to the client's original Stripe
+      // account and do not exist in the live account; a body-supplied
+      // priceId wins in the backend and would 500 with "No such price".
+      // The backend resolves the price from STRIPE_PRICE_ID_* by plan.
       const response = await base44.functions.invoke("createCheckoutSession", {
-        priceId,
+        plan,
         userEmail: user.email,
         userId: user.id,
         successUrl: window.location.origin + "/Dashboard",
@@ -58,7 +63,7 @@ export default function PaymentRequired() {
             </ul>
             <Button
               className="w-full bg-blue-600 hover:bg-blue-700"
-              onClick={() => handleSubscribe("price_1Taa4JLVAtM9m2RxYjU9KlU3")}
+              onClick={() => handleSubscribe("monthly")}
               disabled={isLoading}
             >
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
@@ -80,31 +85,13 @@ export default function PaymentRequired() {
             </ul>
             <Button
               className="w-full bg-blue-600 hover:bg-blue-700"
-              onClick={() => handleSubscribe("price_1Taa4JLVAtM9m2RxyELX4Rfv")}
+              onClick={() => handleSubscribe("annual")}
               disabled={isLoading}
             >
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
               Get Started Annually
             </Button>
           </div>
-        </div>
-
-        {/* $1 Test Plan */}
-        <div className="bg-slate-50 rounded-2xl border border-slate-200 p-4 text-left">
-          <div className="flex justify-between items-center mb-1">
-            <h2 className="text-base font-semibold text-slate-600">Test Plan</h2>
-            <span className="text-lg font-bold text-slate-500">$1<span className="text-sm font-normal text-slate-400">/mo</span></span>
-          </div>
-          <p className="text-xs text-slate-400 mb-3">For testing purposes only</p>
-          <Button
-            variant="outline"
-            className="w-full text-slate-600"
-            onClick={() => handleSubscribe("price_1TbH07LVAtM9m2RxqiPCaZ8M")}
-            disabled={isLoading}
-          >
-            {isLoading ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-            Start $1 Test
-          </Button>
         </div>
 
         <p className="text-xs text-slate-400">Secured by Stripe. Cancel anytime from your account settings.</p>
