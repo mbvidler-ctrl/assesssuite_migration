@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function Astrand6MinuteCycleTestRunner({ client, onSave, onClose }) {
   const [age, setAge] = useState("");
@@ -61,7 +62,7 @@ export default function Astrand6MinuteCycleTestRunner({ client, onSave, onClose 
       result_value: resultValue,
       additional_data: additionalData,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Test saved successfully.");
   };

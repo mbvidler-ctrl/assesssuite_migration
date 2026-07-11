@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, Save } from 'lucide-react';
+import { todayLocal } from "@/lib/localDate";
 
 export default function BackScratchRunner({ onSave, onClose, initialData }) {
   const [data, setData] = useState({
@@ -57,7 +58,7 @@ export default function BackScratchRunner({ onSave, onClose, initialData }) {
         measurement_type: 'back_scratch'
       },
       notes: data.observations,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

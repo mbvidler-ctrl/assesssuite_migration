@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const SECTIONS = [
   {
@@ -71,7 +72,7 @@ export default function OswestryDisabilityIndexODIRunner({ client, onSave, onClo
     if (!allAnswered) { toast.error("Please answer all 10 sections"); return; }
     const lines = SECTIONS.map(s => `  ${s.label}: ${responses[s.id]}/5`).join("\n");
     const soap = `• Oswestry Disability Index (ODI)\n  Score: ${rawScore}/50 (${percentage}%) — ${interp.label}\n  ${interp.desc}\n\n  Section Scores:\n${lines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  MCID: 10–12.8 percentage points\n  Reference: Fairbank JC et al. (1980). The Oswestry low back pain disability questionnaire. Physiotherapy, 66(8):271-3.`;
-    onSave({ status: "completed", result_value: parseFloat(percentage), notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", raw_score: rawScore, percentage: parseFloat(percentage), section_scores: responses, disability_level: interp.label } });
+    onSave({ status: "completed", result_value: parseFloat(percentage), notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "questionnaire", raw_score: rawScore, percentage: parseFloat(percentage), section_scores: responses, disability_level: interp.label } });
     toast.success("ODI saved.");
   };
 

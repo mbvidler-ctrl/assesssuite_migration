@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const GMS_TESTS = [
   { key: "squat",            label: "Deep Squat",                  description: "Stand with feet shoulder-width apart, arms overhead. Squat as deep as possible while maintaining upright torso." },
@@ -38,7 +39,7 @@ const scoreColor = (v) => {
 export default function GeneralMovementScreenRunner({ client, onSave, onClose }) {
   const [scores, setScores] = useState({});
   const [notes, setNotes] = useState("");
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
   const [showInstructions, setShowInstructions] = useState(false);
 
   const handleScoreChange = (key, value) => {

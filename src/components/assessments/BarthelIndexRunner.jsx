@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const ITEMS = [
   {
@@ -151,7 +152,7 @@ export default function BarthelIndexRunner({ client, assessment, onSave, onClose
         item_scores: scores,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
   };
 

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── VISA-P QUESTIONS ──────────────────────────────────────────────────────
 const VISA_P_QUESTIONS = [
@@ -128,7 +129,7 @@ export default function VISAPRunner({ client, onSave, onClose }) {
         soap_text: soapText,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("VISA-P assessment saved.");
     setTimeout(() => onClose(), 500);

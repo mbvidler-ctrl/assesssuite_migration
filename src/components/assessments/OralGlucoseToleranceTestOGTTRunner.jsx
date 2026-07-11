@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Save, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const INTERPRETATIONS = [
   {
@@ -75,7 +76,7 @@ export default function OralGlucoseToleranceTestOGTTRunner({ client, onSave, onC
         soap_text: soapLines,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("OGTT results saved.");
   };

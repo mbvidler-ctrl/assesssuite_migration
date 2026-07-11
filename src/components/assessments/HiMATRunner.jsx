@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { X, Save } from 'lucide-react';
+import { todayLocal } from "@/lib/localDate";
 
 const HIMAT_ITEMS = [
   { id: 1, name: 'Walking', max: 5 },
@@ -47,7 +48,7 @@ export default function HiMATRunner({ onSave, onClose, initialData }) {
         interpretation: interp,
       },
       notes: observations,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

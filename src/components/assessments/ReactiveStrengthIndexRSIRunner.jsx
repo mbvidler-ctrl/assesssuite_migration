@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // RSI = Jump Height (m) / Ground Contact Time (s)
 // RSI norms (modified RSI from drop jump)
@@ -40,7 +41,7 @@ export default function ReactiveStrengthIndexRSIRunner({ client, onSave, onClose
     if (trials.length === 0) { toast.error("Record at least one trial"); return; }
     const trialLines = trials.map((t, i) => `  Trial ${i + 1}: Jump ${t.jumpHeight}cm | GCT ${t.contactTime}ms | RSI ${t.rsi}`).join("\n");
     const soap = `• Reactive Strength Index (RSI) — Drop Jump\n  Best RSI: ${best.rsi} (${cat.label})\n  Jump Height: ${best.jumpHeight}cm | Ground Contact Time: ${best.contactTime}ms\n  Drop Height: ${dropHeight}cm\n\n  All Trials:\n${trialLines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  RSI = Jump Height (m) ÷ Ground Contact Time (s)\n  Elite athletes typically >2.5; general population 1.0–2.0\n  Reference: Young WB (1995). Laboratory strength assessment of athletes. NSCA Journal. McClymont D (2003).`;
-    onSave({ status: "completed", result_value: best.rsi, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "reactive_strength", best_rsi: best.rsi, best_jump_height_cm: best.jumpHeight, best_contact_time_ms: best.contactTime, drop_height_cm: parseFloat(dropHeight), trials, classification: cat.label } });
+    onSave({ status: "completed", result_value: best.rsi, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "reactive_strength", best_rsi: best.rsi, best_jump_height_cm: best.jumpHeight, best_contact_time_ms: best.contactTime, drop_height_cm: parseFloat(dropHeight), trials, classification: cat.label } });
     toast.success("RSI saved.");
   };
 

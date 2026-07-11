@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const ACL_RSI_QUESTIONS = [
   { text: "Are you confident that you can perform at your previous level of sport?", id: "q1" },
@@ -64,7 +65,7 @@ export default function ACLRSIRunner({ client, onSave, onClose }) {
         }
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0]
+      assessment_date: todayLocal()
     });
 
     toast.success("Assessment saved successfully.");

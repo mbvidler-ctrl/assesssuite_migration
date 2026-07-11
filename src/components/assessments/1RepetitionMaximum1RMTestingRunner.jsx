@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Plus, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const SUGGESTED_EXERCISES = [
   "Leg Press (Machine)",
@@ -214,7 +215,7 @@ export default function OneRepetitionMaximum1RMTestingRunner({ client, onSave, o
       result_value: parseFloat(oneRmLoad),
       additional_data: additionalData,
       notes: clinicianNotes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
 
     toast.success("1RM test saved successfully!");

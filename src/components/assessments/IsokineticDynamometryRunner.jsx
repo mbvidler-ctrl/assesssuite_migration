@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // H:Q ratio interpretation
 function interpretHQ(ratio) {
@@ -49,7 +50,7 @@ export default function IsokineticDynamometryRunner({ client, onSave, onClose })
     const maxPeak = Math.max(...validSets.map(s => parseFloat(s.peakTorque)));
     const setLines = validSets.map((s, i) => `  ${s.side} ${s.speed}${s.customSpeed ? ` (${s.customSpeed}°/s)` : ""}: Peak ${s.peakTorque}Nm${s.avgTorque ? ` | Avg ${s.avgTorque}Nm` : ""}${s.work ? ` | Work ${s.work}J` : ""}${s.power ? ` | Power ${s.power}W` : ""}${s.reps ? ` | ${s.reps} reps` : ""}`).join("\n");
     const soap = `• Isokinetic Dynamometry — ${joint}\n  Device: ${device || "Not specified"}\n  Pre-test HR: ${preHR || "N/A"} bpm | Post-test HR: ${postHR || "N/A"} bpm\n\n  Results:\n${setLines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Hamstring:Quadriceps ratio norms: 0.55–0.80 at 60°/s. <0.55 indicates increased injury risk.\n  Reference: Coombs R & Garbutt G (2002). Developments in the use of the hamstring/quadriceps ratio for assessment of muscle balance. J Sports Sci Med, 1(3):56-62.`;
-    onSave({ status: "completed", result_value: maxPeak, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "isokinetic_dynamometry", joint, device, pre_hr: preHR ? parseInt(preHR) : null, post_hr: postHR ? parseInt(postHR) : null, sets: validSets.map(s => ({ side: s.side, speed_deg_per_s: s.customSpeed || s.speed, peak_torque_nm: parseFloat(s.peakTorque), avg_torque_nm: s.avgTorque ? parseFloat(s.avgTorque) : null, work_j: s.work ? parseFloat(s.work) : null, power_w: s.power ? parseFloat(s.power) : null, reps: s.reps ? parseInt(s.reps) : null })) } });
+    onSave({ status: "completed", result_value: maxPeak, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "isokinetic_dynamometry", joint, device, pre_hr: preHR ? parseInt(preHR) : null, post_hr: postHR ? parseInt(postHR) : null, sets: validSets.map(s => ({ side: s.side, speed_deg_per_s: s.customSpeed || s.speed, peak_torque_nm: parseFloat(s.peakTorque), avg_torque_nm: s.avgTorque ? parseFloat(s.avgTorque) : null, work_j: s.work ? parseFloat(s.work) : null, power_w: s.power ? parseFloat(s.power) : null, reps: s.reps ? parseInt(s.reps) : null })) } });
     toast.success("Isokinetics saved.");
   };
 

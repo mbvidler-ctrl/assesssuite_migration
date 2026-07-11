@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { todayLocal } from "@/lib/localDate";
 
 const EXTRACTION_SCHEMA = {
   type: "object",
@@ -257,7 +258,7 @@ export default function ClientDataExtractor({
             assessment_id: matchedAssessment.id,
             status: 'completed',
             result_value: assessment.result_value,
-            assessment_date: assessment.test_date || new Date().toISOString().split('T')[0],
+            assessment_date: assessment.test_date || todayLocal(),
             notes: `Extracted from document. ${assessment.notes || ''}`
           });
         }

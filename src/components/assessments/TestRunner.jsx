@@ -80,6 +80,7 @@ import EMSRunner from './EMSRunner';
 import YMCA3MinStepRunner from './YMCA3MinStepRunner';
 import DynamicGaitIndexRunner from './DynamicGaitIndexDGIRunner';
 import RockportWalkRunner from './RockportWalkRunner';
+import { todayLocal } from "@/lib/localDate";
 import TenMeterWalkRunner from './TenMeterWalkRunner';
 import DASS21Runner from './DASS21Runner';
 import HADSRunner from './HADSRunner';
@@ -1055,7 +1056,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
   };
 
   const generateObjectiveFromAssessment = (assessment, assessmentData) => {
-    const rawDs = assessmentData.assessment_date || new Date().toISOString().split('T')[0];
+    const rawDs = assessmentData.assessment_date || todayLocal();
     const dp = rawDs.split('-').map(Number);
     const today = (dp.length === 3 && !isNaN(dp[0]) && dp[0] > 1900) ? new Date(dp[0], dp[1]-1, dp[2]) : new Date();
     const dateStr = today.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' });

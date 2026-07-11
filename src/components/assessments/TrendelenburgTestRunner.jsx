@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Save, X, Play, Square, ChevronDown, ChevronUp } from "lucide-react";
+import { todayLocal } from "@/lib/localDate";
 
 const SIGNS = [
   { key: "hip_drop", label: "Contralateral Hip Drop", description: "Pelvis on the non-standing side drops below horizontal — positive Trendelenburg sign, indicates ipsilateral gluteus medius/minimus weakness." },
@@ -140,7 +141,7 @@ export default function TrendelenburgTestRunner({ client, onSave, onClose }) {
       status: "completed",
       result_value: overallResult === "Positive" ? 1 : 0,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         measurement_type: "Trendelenburg_Test",
         left_result: left.result,

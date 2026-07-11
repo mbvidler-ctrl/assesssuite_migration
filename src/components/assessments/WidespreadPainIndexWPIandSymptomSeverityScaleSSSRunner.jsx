@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
+import { todayLocal } from "@/lib/localDate";
 
 // WPI body regions
 const WPI_REGIONS = [
@@ -69,7 +70,7 @@ export default function WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner({
     onSave({
       result_value: total,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: soapText,
         wpi_score: wpiScore,

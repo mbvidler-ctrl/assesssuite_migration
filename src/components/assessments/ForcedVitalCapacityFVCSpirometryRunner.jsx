@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Trash2, Info, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // GOLD Classification based on FEV1% predicted
 function goldClassify(fev1pct) {
@@ -78,7 +79,7 @@ export default function ForcedVitalCapacityFVCSpirometryRunner({ client, onSave,
       status: "completed",
       result_value: bestFVC,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: soap,
         measurement_type: "spirometry",

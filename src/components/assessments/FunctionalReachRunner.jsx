@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { X, Plus, Trash2 } from 'lucide-react';
+import { todayLocal } from "@/lib/localDate";
 
 export default function FunctionalReachRunner({ onSave, onClose }) {
   const [trials, setTrials] = useState([]);
@@ -57,7 +58,7 @@ export default function FunctionalReachRunner({ onSave, onClose }) {
         measurement_type: 'functional_reach'
       },
       notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

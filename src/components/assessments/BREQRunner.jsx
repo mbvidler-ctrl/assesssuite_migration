@@ -4,6 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // BREQ-2 items with subscale mapping
 // Markland & Tobin (2004)
@@ -123,7 +124,7 @@ export default function BREQRunner({ client, onSave, onClose }) {
         responses,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
   };
 

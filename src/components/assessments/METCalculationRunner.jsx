@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { X, Save, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function METCalculationRunner({ client, onSave, onClose }) {
   const [formData, setFormData] = useState({
@@ -174,7 +175,7 @@ export default function METCalculationRunner({ client, onSave, onClose }) {
         quality: calculations.met_quality_flag
       },
       notes: formData.clinical_notes,
-      assessment_date: new Date().toISOString().split("T")[0]
+      assessment_date: todayLocal()
     });
   };
 

@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Save, X, Users } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { todayLocal } from "@/lib/localDate";
 
 const activities = [
   "Walk around the house",
@@ -84,7 +85,7 @@ export default function ActivitiesspecificBalanceConfidenceABCScaleRunner({ clie
         measurement_type: 'abc_scale'
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
   };
 

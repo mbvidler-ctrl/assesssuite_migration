@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { X, Play, Square, RotateCcw } from "lucide-react";
+import { todayLocal } from "@/lib/localDate";
 
 function getSPPBScore(seconds) {
   if (seconds >= 10) return 4;
@@ -81,7 +82,7 @@ export default function TandemStandBalanceTestRunner({ client, onSave, onClose }
     onSave({
       result_value: score,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: soapText,
         best_time: bestTime,

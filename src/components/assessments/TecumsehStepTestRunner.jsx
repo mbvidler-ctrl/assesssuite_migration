@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Play, Square, ChevronDown, ChevronUp } from "lucide-react";
+import { todayLocal } from "@/lib/localDate";
 
 // Full normative table: [age_group][gender] = {Excellent, Good, Average, Poor}
 // Values are upper bounds (bpm). "Poor" = anything above Average upper bound.
@@ -120,7 +121,7 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
     onSave({
       result_value: bpm,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: soapLines,
         pre_hr: parseInt(preHR) || null,

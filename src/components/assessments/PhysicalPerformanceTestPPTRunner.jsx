@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Save, X, AlertTriangle, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const TASKS = {
   "7-item": [
@@ -43,7 +44,7 @@ const SAFETY_CONCERNS = [
 export default function PhysicalPerformanceTestPPTRunner({ client, onSave, onClose }) {
   const [state, setState] = useState("setup"); // setup, safety, tasks, complete
   const [version, setVersion] = useState("7-item");
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
   const [assessorName, setAssessorName] = useState("");
   const [usedGaitAid, setUsedGaitAid] = useState(false);
   const [supervisionLevel, setSupervisionLevel] = useState("independent");

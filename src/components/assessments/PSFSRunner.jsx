@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function PSFSRunner({ onSave, onClose }) {
   const [activities, setActivities] = useState([{ activity: "", score: "" }]);
@@ -72,7 +73,7 @@ export default function PSFSRunner({ onSave, onClose }) {
         soap_text: soapText,
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
     });
 
     toast.success("PSFS saved successfully.");

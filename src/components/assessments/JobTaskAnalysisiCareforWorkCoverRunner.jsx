@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Info, ChevronDown, ChevronUp, AlertCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // Frequency options
 const FREQUENCY_OPTIONS = [
@@ -53,7 +54,7 @@ export default function JobTaskAnalysisiCareforWorkCoverRunner({ client, onSave,
   const [expandedSection, setExpandedSection] = useState("instructions");
   
   // Job task basic info
-  const [jobDate, setJobDate] = useState(new Date().toISOString().split("T")[0]);
+  const [jobDate, setJobDate] = useState(todayLocal());
   const [role, setRole] = useState("");
   const [roleDescription, setRoleDescription] = useState("");
   const [hoursInShift, setHoursInShift] = useState("");

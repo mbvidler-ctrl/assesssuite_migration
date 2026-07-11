@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const FABQ_ITEMS = {
   physical: [
@@ -86,7 +87,7 @@ export default function FABQRunner({ onSave, onClose }) {
         interpretation: getInterpretation()
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

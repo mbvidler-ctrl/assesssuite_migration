@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // Chalder Fatigue Scale — 11-item bimodal + Likert scoring
 const PHYSICAL_Q = [
@@ -55,7 +56,7 @@ export default function ChalderFatigueScaleRunner({ client, onSave, onClose }) {
     if (!allAnswered) { toast.error("Please answer all 11 questions"); return; }
     const qLines = allQs.map((q, i) => `  Q${i + 1} (${OPTIONS_LIKERT[responses[i]]}): ${responses[i]}`).join("\n");
     const soap = `• Chalder Fatigue Scale (CFS-11)\n  Bimodal Score: ${bimodalScore}/11 — ${interp.label}\n  Likert Total: ${likertScore}/33\n  Physical Subscale: ${physicalScore}/24 | Mental Subscale: ${mentalScore}/9\n\n  Item Responses:\n${qLines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: Bimodal score ≥4 = significant fatigue. Caseness: ≥4 bimodal points.\n  Reference: Chalder T et al. (1993). Development of a fatigue scale. J Psychosom Res, 37(2):147-53.`;
-    onSave({ result_value: bimodalScore, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", responses, bimodal_score: bimodalScore, likert_score: likertScore, physical_subscale: physicalScore, mental_subscale: mentalScore, fatigue_level: interp.label } });
+    onSave({ result_value: bimodalScore, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "questionnaire", responses, bimodal_score: bimodalScore, likert_score: likertScore, physical_subscale: physicalScore, mental_subscale: mentalScore, fatigue_level: interp.label } });
   };
 
   return (

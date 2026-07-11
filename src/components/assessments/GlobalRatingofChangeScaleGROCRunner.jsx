@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const LEVELS = [
   { score: -7, label: "A very great deal worse", color: "bg-red-200 text-red-900 border-red-400" },
@@ -37,7 +38,7 @@ export default function GlobalRatingofChangeScaleGROCRunner({ client, onSave, on
 
   const handleSave = () => {
     const soap = `• Global Rating of Change Scale (GROC)\n  Score: ${selected > 0 ? "+" : ""}${selected} / +7\n  Response: "${level.label}"\n  Interpretation: ${clinicalMeaning}${notes ? `\n  Notes: ${notes}` : ""}\n  MCID: ±2 points (±1 is below threshold for meaningful change)\n  Reference: Jaeschke R et al. (1989). Measurement of health status: ascertaining the minimal clinically important difference. Control Clin Trials, 10(4):407-15.`;
-    onSave({ status: "completed", result_value: selected, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "patient_reported", score: selected, label: level.label, clinical_meaning: clinicalMeaning } });
+    onSave({ status: "completed", result_value: selected, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "patient_reported", score: selected, label: level.label, clinical_meaning: clinicalMeaning } });
     toast.success("GROC saved.");
   };
 

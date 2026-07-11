@@ -9,6 +9,7 @@ import { Printer, Loader2, ChevronLeft, ChevronRight, X, Wand2, Save, Edit } fro
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
 import { ClientReport } from "@/entities/ClientReport";
+import { todayLocal } from "@/lib/localDate";
 
 const PrintableReport = React.forwardRef(({ letterData, client, clinician }, ref) => {
   if (!letterData || !client || !clinician) {
@@ -173,9 +174,9 @@ export default function GPSummary({ client, onClose, editingReport }) { // Added
     gp_name: client.primary_gp_name || "",
     gp_clinic_name: client.primary_gp_clinic_name || "",
     gp_address: client.primary_gp_address || "",
-    letter_date: new Date().toISOString().split('T')[0],
+    letter_date: todayLocal(),
     referral_type: client.medicare_referral_type || "Private (GPCMP Exhausted)",
-    referral_date: client.referral_date || new Date().toISOString().split('T')[0],
+    referral_date: client.referral_date || todayLocal(),
     clinical_summary: "",
     management_plan: ""
   });
@@ -486,7 +487,7 @@ Return only the improved plain text version with clear structure, no additional 
           client_id: client.id,
           report_type: "gp_summary",
           report_name: `GP Treatment Summary - ${format(new Date(), 'dd/MM/yyyy')}`,
-          report_date: new Date().toISOString().split('T')[0],
+          report_date: todayLocal(),
           report_data: dataToSave,
           html_content: printRef.current?.outerHTML || ""
         });
@@ -497,7 +498,7 @@ Return only the improved plain text version with clear structure, no additional 
           client_id: client.id,
           report_type: "gp_summary",
           report_name: `GP Treatment Summary - ${format(new Date(), 'dd/MM/yyyy')}`,
-          report_date: new Date().toISOString().split('T')[0],
+          report_date: todayLocal(),
           report_data: dataToSave,
           html_content: printRef.current?.outerHTML || ""
         });

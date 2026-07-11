@@ -9,6 +9,7 @@ import {
   ChevronDown, ChevronUp, Clock, Activity, BookOpen, Brain, Flag, FileText, Eye
 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── STIMULUS CARDS ────────────────────────────────────────────────────────────
 // 50-item lists matching Golden CJ standard form
@@ -417,7 +418,7 @@ export default function StroopTestRunner({ client, onSave, onClose }) {
       status: "completed",
       result_value: t3?.time || 0,
       notes: clinicalNotes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: generateSoap(),
         measurement_type: "stroop_test",

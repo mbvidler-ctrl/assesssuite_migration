@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { X, Save, Info, Activity } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function BorgRPERunner({ onSave, onClose }) {
   const [selectedScale, setSelectedScale] = useState("borg_6_20");
@@ -89,7 +90,7 @@ export default function BorgRPERunner({ onSave, onClose }) {
         activity_description: activityDescription,
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

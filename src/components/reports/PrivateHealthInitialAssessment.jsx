@@ -11,6 +11,7 @@ import { InvokeLLM } from "@/integrations/Core";
 import { ChevronLeft, ChevronRight, Loader2, Printer, Sparkles, Save, Edit, X } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
+import { todayLocal } from "@/lib/localDate";
 
 const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref) => {
   const formatDate = (date) => {
@@ -376,7 +377,7 @@ export default function PrivateHealthInitialAssessment({ client, onClose, editin
       recipient_name: client.primary_gp_name || "",
       recipient_clinic: client.primary_gp_clinic_name || "",
       recipient_address: client.primary_gp_address || "",
-      letter_date: new Date().toISOString().split('T')[0],
+      letter_date: todayLocal(),
       referral_date: client.referral_date || "",
       referral_reason: client.referral_reason || "",
       conditions: [], // Array of ClientCondition objects
@@ -903,7 +904,7 @@ ${currentPlan}`;
           client_id: client.id,
           report_type: "private_health_initial",
           report_name: `Private Health Initial Assessment - ${format(new Date(), 'dd/MM/yyyy')}`,
-          report_date: new Date().toISOString().split('T')[0],
+          report_date: todayLocal(),
           report_data: dataToSave,
           html_content: printRef.current?.innerHTML || ""
         });

@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const FUNCTION_ITEMS = [
   "Brush or comb your hair",
@@ -116,7 +117,7 @@ export default function FibromyalgiaImpactQuestionnaireRevisedFIQRRunner({ clien
         soap_text: soapText,
       },
       notes: soapText,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
 
     toast.success("Assessment saved successfully.");

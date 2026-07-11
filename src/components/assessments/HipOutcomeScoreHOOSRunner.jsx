@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const HOOS_SUBSCALES = [
   { name: "Symptoms", label: "Symptoms", items: ["S1", "S2", "S3", "S4", "S5"] },
@@ -89,7 +90,7 @@ export default function HipOutcomeScoreHOOSRunner({ client, onSave, onClose }) {
       result_value: parseFloat(totalScore),
       additional_data: { soap_text: soapText, measurement_type: "questionnaire", subscaleScores, responses },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("HOOS saved successfully.");
   };

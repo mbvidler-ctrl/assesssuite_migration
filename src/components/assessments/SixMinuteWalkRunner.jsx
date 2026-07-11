@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Play, Pause, RotateCcw, X, Save, AlertTriangle, CheckCircle2, Activity } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function SixMinuteWalkRunner({ onSave, onClose }) {
   const [phase, setPhase] = useState('pre'); // pre, running, post, recovery
@@ -150,7 +151,7 @@ export default function SixMinuteWalkRunner({ onSave, onClose }) {
         measurement_type: '6mwt'
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

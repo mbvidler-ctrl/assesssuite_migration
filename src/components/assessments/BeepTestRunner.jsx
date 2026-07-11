@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function BeepTestRunner({ onSave, onClose, client }) {
   const [finalLevel, setFinalLevel] = useState('');
@@ -104,7 +105,7 @@ export default function BeepTestRunner({ onSave, onClose, client }) {
       msft_result_string: msftResultString,
       estimated_vo2max: calculateVO2Max(),
       normative_comparison: getNormativeComparison(),
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
       notes: [
         symptomsReported && `Symptoms: ${symptomsReported}`,
         protocolNotes && `Protocol Notes: ${protocolNotes}`

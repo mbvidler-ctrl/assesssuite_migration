@@ -46,6 +46,7 @@ import VitalsQuickEntry from './VitalsQuickEntry';
 import PendingAssessmentsModal from './PendingAssessmentsModal';
 import AssessmentTestRunnerRouter from '../assessments/AssessmentTestRunnerRouter';
 import ComplianceSection from './ComplianceSection';
+import { todayLocal } from "@/lib/localDate";
 
 export default function SOAPNoteModal({
   appointment,
@@ -1822,7 +1823,7 @@ export default function SOAPNoteModal({
                                   assessment_id: assessment.id,
                                   appointment_id: appointment.id,
                                   status: 'pending',
-                                  assessment_date: new Date().toISOString().split('T')[0]
+                                  assessment_date: todayLocal()
                                 });
                                 
                                 setRunningAssessment({

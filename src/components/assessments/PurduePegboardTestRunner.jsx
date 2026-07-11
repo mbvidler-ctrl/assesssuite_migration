@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Play, Pause, AlertTriangle, Info, ExternalLink, BookOpen, Video } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // Normative data by age group and sex (number of pegs in 30 seconds)
 const NORMATIVE_DATA = {
@@ -38,7 +39,7 @@ export default function PurduePegboardTestRunner({ client, onSave, onClose }) {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [scores, setScores] = useState({ rightHand: null, leftHand: null, bothHands: null, assembly: null });
   const [notes, setNotes] = useState("");
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
   const [isTestComplete, setIsTestComplete] = useState(false);
   const timerRef = useRef(null);
 

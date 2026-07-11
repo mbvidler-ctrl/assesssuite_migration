@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function BioelectricalImpedanceAnalysisBIARunner({ client, onSave, onClose }) {
   const [height, setHeight] = useState("");
@@ -85,7 +86,7 @@ export default function BioelectricalImpedanceAnalysisBIARunner({ client, onSave
         basal_metabolic_rate: basalMetabolicRate,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
   };
 

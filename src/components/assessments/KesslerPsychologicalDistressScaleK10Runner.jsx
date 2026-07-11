@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const QUESTIONS = [
   "Tired out for no good reason",
@@ -47,7 +48,7 @@ export default function KesslerPsychologicalDistressScaleK10Runner({ client, onS
     if (!allAnswered) { toast.error("Please answer all 10 questions"); return; }
     const qLines = QUESTIONS.map((q, i) => `  Q${i + 1} (${OPTIONS.find(o => o.value === responses[i])?.label}): ${responses[i]}`).join("\n");
     const soap = `• K10 Psychological Distress Scale\n  Total Score: ${total}/50 — ${interp.label}\n  Recommended action: ${interp.action}\n\n  Item Responses:\n${qLines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: 10–19 well | 20–24 mild | 25–29 moderate | 30–50 severe\n  Reference: Kessler RC et al. (2002). Short screening scales to monitor population prevalences and trends in non-specific psychological distress. Psychol Med, 32(6):959-76.`;
-    onSave({ status: "completed", result_value: total, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", responses, distress_level: interp.label } });
+    onSave({ status: "completed", result_value: total, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "questionnaire", responses, distress_level: interp.label } });
     toast.success("K10 saved.");
   };
 

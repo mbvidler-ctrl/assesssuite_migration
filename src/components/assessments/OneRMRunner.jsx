@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Save, Plus, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const COMMON_EXERCISES = [
   "Bench Press", "Back Squat", "Deadlift", "Overhead Press", "Front Squat",
@@ -67,7 +68,7 @@ export default function OneRMRunner({ onSave, onClose }) {
         total_exercises_tested: exercises.length,
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

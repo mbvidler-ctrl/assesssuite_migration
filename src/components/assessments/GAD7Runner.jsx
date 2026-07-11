@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const GAD7_QUESTIONS = [
   "Feeling nervous, anxious, or on edge",
@@ -67,7 +68,7 @@ export default function GAD7Runner({ onSave, onClose }) {
         functional_impact: functionalImpact,
         measurement_type: 'gad7'
       },
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

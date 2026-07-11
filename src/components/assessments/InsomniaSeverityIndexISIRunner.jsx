@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const questions = [
   {
@@ -88,7 +89,7 @@ export default function InsomniaSeverityIndexISIRunner({ client, onSave, onClose
         severity,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     
     toast.success("Assessment saved successfully.");

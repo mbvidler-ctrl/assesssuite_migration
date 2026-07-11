@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ACSM body fat % classification norms
 const FAT_NORMS = {
@@ -59,7 +60,7 @@ export default function AirDisplacementPlethysmographyBodPodRunner({ client, onS
     const pct = computedFatPct?.toFixed(1);
     const ffm = fatFreeMass || (bodyMass && fatMass ? (parseFloat(bodyMass) - parseFloat(fatMass)).toFixed(1) : null);
     const soap = `• Air Displacement Plethysmography (BOD POD)\n  Body Fat: ${pct}%${cat ? ` — ${cat.label}` : ""}\n  Body Mass: ${bodyMass || "N/A"} kg\n  Body Volume: ${bodyVolume || "N/A"} L\n  Body Density: ${bodyDensity || "N/A"} g/cc\n  Fat Mass: ${fatMass || "N/A"} kg\n  Fat-Free Mass: ${ffm || "N/A"} kg${resting ? `\n  Resting Metabolic Rate (Measured): ${resting} kcal/day` : ""}${notes ? `\n  Notes: ${notes}` : ""}\n  Reference: Siri equation: %BF = (4.95/D - 4.50) × 100`;
-    onSave({ status: "completed", result_value: parseFloat(pct), notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "body_composition", body_fat_pct: parseFloat(pct), fat_mass_kg: fatMass ? parseFloat(fatMass) : null, fat_free_mass_kg: ffm ? parseFloat(ffm) : null, body_mass_kg: bodyMass ? parseFloat(bodyMass) : null, classification: cat?.label } });
+    onSave({ status: "completed", result_value: parseFloat(pct), notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "body_composition", body_fat_pct: parseFloat(pct), fat_mass_kg: fatMass ? parseFloat(fatMass) : null, fat_free_mass_kg: ffm ? parseFloat(ffm) : null, body_mass_kg: bodyMass ? parseFloat(bodyMass) : null, classification: cat?.label } });
     toast.success("BOD POD result saved.");
   };
 

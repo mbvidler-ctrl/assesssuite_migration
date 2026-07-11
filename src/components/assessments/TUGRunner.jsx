@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, Save, Play, Pause, RotateCcw } from 'lucide-react';
+import { todayLocal } from "@/lib/localDate";
 
 export default function TUGRunner({ onSave, onClose, initialData }) {
   const [timerRunning, setTimerRunning] = useState(false);
@@ -66,7 +67,7 @@ export default function TUGRunner({ onSave, onClose, initialData }) {
         interpretation,
         measurement_type: 'tug'
       },
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

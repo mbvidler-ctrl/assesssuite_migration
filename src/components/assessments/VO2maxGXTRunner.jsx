@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { X, Save, AlertTriangle, CheckCircle, XCircle, Activity } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── ACSM VO₂ FORMULAS ─────────────────────────────────────────────────────
 // Treadmill: VO₂ (ml/kg/min) = (speed × 0.1) + (speed × grade × 1.8) + 3.5
@@ -292,7 +293,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
         interpretation: interpretationPara ? interpretationPara.replace(/<[^>]+>/g, "") : null,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("CPET / VO₂max GXT results saved.");
   };

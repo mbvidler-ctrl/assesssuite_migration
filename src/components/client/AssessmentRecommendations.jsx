@@ -6,6 +6,7 @@ import { Lightbulb, Plus, Loader2, Sparkles, ChevronDown, ChevronUp } from 'luci
 import { ClientAssessment } from '@/entities/all';
 import { toast } from 'sonner';
 import { base44 } from '@/api/base44Client';
+import { todayLocal } from "@/lib/localDate";
 
 // Derive a list of clinical conditions from APSS Stage 2 fields on the client object
 function extractApssConditions(client) {
@@ -162,7 +163,7 @@ Focus on assessments that will:
         org_id: org_id,
         client_id: clientId,
         assessment_id: assessment.id,
-        assessment_date: new Date().toISOString().split('T')[0],
+        assessment_date: todayLocal(),
         status: "pending",
       });
       toast.success(`"${assessment.name}" has been added.`);

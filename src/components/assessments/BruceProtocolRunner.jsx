@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Save, Info, Play, Pause, StopCircle, BookOpen, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const BRUCE_STAGES = [
   { stage: 1, speed: 1.7, grade: 10, mets: 4.6 },
@@ -124,7 +125,7 @@ export default function BruceProtocolRunner({ isModified, onSave, onClose }) {
         termination_reason: terminationReason,
       },
       notes,
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
     });
   };
 

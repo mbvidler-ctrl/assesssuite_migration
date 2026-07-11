@@ -12,6 +12,7 @@ import {
   Info, ExternalLink, Activity, Zap, AlertCircle, ChevronDown
 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── Scoring Helpers ──────────────────────────────────────────────────────────
 
@@ -294,7 +295,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
         soap_text: soap,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("SPPB Assessment saved.");
   };

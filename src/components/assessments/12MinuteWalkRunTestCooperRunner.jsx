@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const VO2_CATEGORIES = {
   male: [
@@ -47,7 +48,7 @@ export default function TwelveMinuteWalkRunTestCooperRunner({ client, onSave, on
   const [notes, setNotes] = useState("");
   const [isRunning, setIsRunning] = useState(false);
   const [timeLeft, setTimeLeft] = useState(720);
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
   const timerRef = useRef(null);
 
   const clientAge = client?.date_of_birth

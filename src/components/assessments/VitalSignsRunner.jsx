@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, AlertTriangle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function VitalSignsRunner({ client, assessment, onSave, onClose, assessmentName }) {
   const [measurements, setMeasurements] = useState({
@@ -229,7 +230,7 @@ export default function VitalSignsRunner({ client, assessment, onSave, onClose, 
         measurement_type: 'vital_signs'
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     };
 
     onSave(assessmentData);

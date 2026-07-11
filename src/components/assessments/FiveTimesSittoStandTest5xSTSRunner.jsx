@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Save, X, Play, Square, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function FiveTimesSittoStandTest5xSTSRunner({ client, onSave, onClose }) {
   const [elapsed, setElapsed] = useState(0);
@@ -62,7 +63,7 @@ export default function FiveTimesSittoStandTest5xSTSRunner({ client, onSave, onC
       status: "completed",
       result_value: parseFloat(totalTime.toFixed(2)),
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text,
         measurement_type: '5sts',

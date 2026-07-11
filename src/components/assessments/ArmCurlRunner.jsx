@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Save, Play, Pause, RotateCcw, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const NORMATIVE_DATA = [
   { sex: "male", age_min: 60, age_max: 64, low: 16, mid_low: 16, mid_high: 22, high: 22 },
@@ -128,7 +129,7 @@ export default function ArmCurlRunner({ client, onSave, onClose }) {
         normative_category: comparison?.category || null,
         test_duration: 30
       },
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

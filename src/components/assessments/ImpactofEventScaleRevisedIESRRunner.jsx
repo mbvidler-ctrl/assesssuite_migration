@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const questions = [
   "Any reminder brought back feelings about it.",
@@ -73,7 +74,7 @@ export default function ImpactofEventScaleRevisedIESRRunner({ client, onSave, on
         subscale_scores: subscaleScores
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0]
+      assessment_date: todayLocal()
     });
 
     toast.success("Assessment saved successfully.");

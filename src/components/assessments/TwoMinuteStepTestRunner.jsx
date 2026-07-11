@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, RotateCcw, Plus, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const NORMS = [
   { ageMin: 60, ageMax: 64, male: [87, 115], female: [75, 107] },
@@ -34,7 +35,7 @@ export default function TwoMinuteStepTestRunner({ client, onSave, onClose }) {
   const [bpPost, setBpPost] = useState("");
   const [symptoms, setSymptoms] = useState("");
   const [notes, setNotes] = useState("");
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
 
   const [timeLeft, setTimeLeft] = useState(120);
   const [isRunning, setIsRunning] = useState(false);

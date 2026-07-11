@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { todayLocal } from "@/lib/localDate";
 
 const DEFAULT_TEXTS = {
   consent_primary_text: "I consent to receive clinical assessment and treatment services. I understand that this may involve physical examination, movement assessment, and therapeutic interventions.",
@@ -36,7 +37,7 @@ function emptyPolicy(orgId) {
     org_id: orgId || "",
     policy_name: "Standard Consent Policy",
     version_label: "v1.0",
-    effective_date: new Date().toISOString().split("T")[0],
+    effective_date: todayLocal(),
     is_active: true,
     show_primary_consent: true,
     show_privacy_consent: true,
@@ -107,7 +108,7 @@ export default function ClinicPolicies() {
       policy_name: policy.policy_name + " (Copy)",
       version_label: policy.version_label + "-copy",
       is_active: false,
-      effective_date: new Date().toISOString().split("T")[0],
+      effective_date: todayLocal(),
     };
     setEditingId(null);
     setEditingPolicy(copy);

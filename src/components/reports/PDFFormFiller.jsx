@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect } from "react";
+import { todayLocal } from "@/lib/localDate";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -391,7 +392,7 @@ Based on the data, populate the JSON schema below.
           client_id: client.id,
           report_type: "workcover_pmp",
           report_name: `WorkCover Provider Management Plan - ${format(new Date(), 'dd/MM/yyyy')}`,
-          report_date: new Date().toISOString().split('T')[0],
+          report_date: todayLocal(),
           report_data: generatedContent,
           html_content: printRef.current?.innerHTML || ""
         });
@@ -1220,7 +1221,7 @@ Begin with the first section - no introduction text.
                     client_id: client.id,
                     report_type: formType,
                     report_name: `${reportNames[formType] || "Report"} - ${format(new Date(), 'dd/MM/yyyy')}`,
-                    report_date: new Date().toISOString().split('T')[0],
+                    report_date: todayLocal(),
                     report_data: { html: contentToSave },
                     html_content: printRef.current?.innerHTML || ""
                 });

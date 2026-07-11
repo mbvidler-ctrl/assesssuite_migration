@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info, ChevronDown, ChevronUp, ExternalLink, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const ITEMS = [
   { 
@@ -190,7 +191,7 @@ export default function HighLevelMobilityAssessmentToolHiMATRunner({ client, onS
     onSave({
       result_value: totalScore,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: soap,
         measurement_type: "questionnaire",

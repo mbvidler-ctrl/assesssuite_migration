@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function LTestofFunctionalMobilityRunner({ client, onSave, onClose }) {
   const [preVitals, setPreVitals] = useState({ heartRate: "", bloodPressure: "" });
@@ -62,7 +63,7 @@ export default function LTestofFunctionalMobilityRunner({ client, onSave, onClos
     if (preVitals.heartRate) soapText += `  Pre-Test HR: ${preVitals.heartRate} bpm, BP: ${preVitals.bloodPressure}\n`;
     if (postVitals.heartRate) soapText += `  Post-Test HR: ${postVitals.heartRate} bpm, BP: ${postVitals.bloodPressure}\n`;
     if (notes.trim()) soapText += `  Clinical Notes: ${notes}`;
-    onSave({ status: "completed", result_value: parseFloat(bestTime.toFixed(2)), additional_data: { measurement_type: "LTestofFunctionalMobility", trials: trialsInSeconds, pre_vitals: preVitals, post_vitals: postVitals, soap_text: soapText }, notes: soapText, assessment_date: new Date().toISOString().split("T")[0] });
+    onSave({ status: "completed", result_value: parseFloat(bestTime.toFixed(2)), additional_data: { measurement_type: "LTestofFunctionalMobility", trials: trialsInSeconds, pre_vitals: preVitals, post_vitals: postVitals, soap_text: soapText }, notes: soapText, assessment_date: todayLocal() });
     toast.success("Assessment recorded — please confirm and save.");
   };
 

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Save, X, Info, ChevronDown, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const SECTIONS = {
   symptoms: {
@@ -145,7 +146,7 @@ export default function KneeInjuryandOsteoarthritisOutcomeScoreKOOSRunner({ clie
       result_value: parseFloat(avg),
       additional_data: { soap_text: soapText, measurement_type: "questionnaire", section_scores: sectionScores, responses },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("KOOS results saved.");
   };

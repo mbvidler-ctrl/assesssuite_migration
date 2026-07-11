@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import BieringSorensenDiagrams from "./BieringSorensenDiagrams";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── Normative Data (Biering-Sørensen 1984 + subsequent studies) ───────────────
 const NORMS = {
@@ -302,7 +303,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
       status: "completed",
       result_value: finalTime,
       notes: clinicalNotes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: soap,
         measurement_type: "endurance_hold",

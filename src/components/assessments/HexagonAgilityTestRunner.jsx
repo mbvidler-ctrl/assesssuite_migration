@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Play, Square, Trash2, Info, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // Hexagon Agility Test norms (seconds for 3 circuits)
 const NORMS = {
@@ -61,7 +62,7 @@ export default function HexagonAgilityTestRunner({ client, onSave, onClose }) {
   const handleSave = () => {
     if (trials.length === 0) { toast.error("Record at least one trial"); return; }
     const soap = `• Hexagon Agility Test\n  Best Time: ${best}s (3 circuits, ~${(best * 100 / 30.48).toFixed(0)}cm sides)${cat ? ` — ${cat.level}` : ""}\n  All Trials: ${trials.map(t => t + "s").join(", ")}${notes ? `\n  Notes: ${notes}` : ""}\n  Assesses agility, speed, and lower limb coordination.\n  Reference: Johnson BL & Nelson JK (1979). Practical Measurements for Evaluation in Physical Education. NSCA Performance Testing.`;
-    onSave({ status: "completed", result_value: best, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "agility_timed", best_time_s: best, trials, classification: cat?.level } });
+    onSave({ status: "completed", result_value: best, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "agility_timed", best_time_s: best, trials, classification: cat?.level } });
     toast.success("Hexagon Test saved.");
   };
 

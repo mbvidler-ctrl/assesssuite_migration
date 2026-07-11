@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function StepTapTest15secondsRunner({ client, onSave, onClose }) {
   const [isRunning, setIsRunning] = useState(false);
@@ -57,7 +58,7 @@ export default function StepTapTest15secondsRunner({ client, onSave, onClose }) 
       age,
       gender,
     };
-    onSave({ status: "completed", result_value, additional_data, notes, assessment_date: new Date().toISOString().split("T")[0] });
+    onSave({ status: "completed", result_value, additional_data, notes, assessment_date: todayLocal() });
     toast.success("Data saved.");
   };
 

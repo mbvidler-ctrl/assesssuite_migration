@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
+import { todayLocal } from "@/lib/localDate";
 
 export default function WeightRunner({ client, onSave, onClose }) {
   const [weight, setWeight] = useState("");
@@ -29,7 +30,7 @@ export default function WeightRunner({ client, onSave, onClose }) {
     onSave({
       result_value: w,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: soapLines,
         weight_kg: w,

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Timer, Trash2, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function TenSecondRepeatedJumpTestRunner({ client, onSave, onClose }) {
   const [testRunning, setTestRunning] = useState(false);
@@ -16,7 +17,7 @@ export default function TenSecondRepeatedJumpTestRunner({ client, onSave, onClos
   const [currentContactStart, setCurrentContactStart] = useState(null);
   const [jumps, setJumps] = useState([]);
   const [notes, setNotes] = useState("");
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
   const testTimerRef = useRef(null);
   const startTimeRef = useRef(null);
 

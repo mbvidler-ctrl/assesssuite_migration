@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Info, ClipboardList, BarChart2 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const NORMS = [
   { gender: "Male", age: "17–19", excellent: "≥ 251", good: "221–250", average: "191–220", belowAvg: "161–190", poor: "< 161" },
@@ -92,7 +93,7 @@ Notes: ${notes || "None"}`;
         age,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Standing Long Jump saved.");
   };

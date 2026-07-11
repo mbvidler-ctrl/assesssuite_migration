@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // Subscale groupings (0-indexed)
 // Rumination: items 8,9,10,11 (0-indexed: 7,8,9,10)
@@ -81,7 +82,7 @@ export default function PainCatastrophizingScalePCSRunner({ client, onSave, onCl
         soap_text: soapLines,
       },
       notes: notes || `Total: ${totalScore}/52 | Rumination: ${rumination} | Magnification: ${magnification} | Helplessness: ${helplessness}`,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
 
     toast.success("PCS saved successfully.");

@@ -13,6 +13,7 @@ import { AlertTriangle, Upload, X, Loader2, Save, Printer, Pencil } from "lucide
 import { toast } from "sonner";
 import { createRoot } from "react-dom/client";
 import AdverseEventPrintView from "./AdverseEventPrintView";
+import { todayLocal } from "@/lib/localDate";
 
 export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted, readOnly = false, existingEvent = null, onEdit }) {
   const [currentUser, setCurrentUser] = useState(null);
@@ -165,7 +166,7 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
         attachment_type: file.type,
         attachment_name: file.name,
         attachment_url: file_url,
-        attached_date: new Date().toISOString().split('T')[0]
+        attached_date: todayLocal()
       }]);
       toast.success("Attachment uploaded");
     } catch (error) {

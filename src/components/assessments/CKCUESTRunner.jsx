@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { X, Save, Play, Pause, RotateCcw, Info, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function CKCUESTRunner({ onSave, onClose }) {
   const [timerRunning, setTimerRunning] = useState(false);
@@ -78,7 +79,7 @@ export default function CKCUESTRunner({ onSave, onClose }) {
         position_used: position,
       },
       notes,
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
     });
   };
 

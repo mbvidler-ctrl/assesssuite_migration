@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const PHQ9_QUESTIONS = [
   "Little interest or pleasure in doing things",
@@ -58,7 +59,7 @@ export default function PHQ9Runner({ onSave, onClose }) {
 
     const total = calculateTotal();
     const interpretation = getInterpretation(total);
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocal();
 
     const questionLines = PHQ9_QUESTIONS.map((q, i) => {
       const val = responses[i];

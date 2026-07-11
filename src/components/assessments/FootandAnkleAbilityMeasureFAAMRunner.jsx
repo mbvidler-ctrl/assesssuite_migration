@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Save, X, Info, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const ADL_ITEMS = [
   "Standing",
@@ -103,7 +104,7 @@ export default function FootandAnkleAbilityMeasureFAAMRunner({ client, onSave, o
       status: "completed",
       result_value: parseFloat(adlScore || 0),
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         measurement_type: "questionnaire",
         soap_text,

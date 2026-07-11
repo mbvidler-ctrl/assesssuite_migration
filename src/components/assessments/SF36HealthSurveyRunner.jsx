@@ -8,6 +8,7 @@ import { Save, X, ExternalLink, ChevronDown, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { todayLocal } from "@/lib/localDate";
 
 const SF36_QUESTIONS = [
   // Physical Functioning (PF) - Questions 3a-3j
@@ -196,7 +197,7 @@ export default function SF36HealthSurveyRunner({ client, onSave, onClose }) {
         soap_text: soapText,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("SF-36 Health Survey saved successfully.");
   };

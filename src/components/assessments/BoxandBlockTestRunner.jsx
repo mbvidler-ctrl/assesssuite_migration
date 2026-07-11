@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 
 export default function BoxandBlockTestRunner({ client, assessment, onSave, onClose }) {
@@ -63,7 +64,7 @@ export default function BoxandBlockTestRunner({ client, assessment, onSave, onCl
     const resultValue = blocksMoved;
     const normativeData = getNormativeData(age, sex, dominantHand);
     const comparison = compareToNormativeData(resultValue, normativeData);
-    const assessmentDate = new Date().toISOString().split("T")[0];
+    const assessmentDate = todayLocal();
     
     const soapText = `• Box and Block Test:\n  Blocks Moved: ${resultValue}\n  Dominant Hand: ${dominantHand}\n  Age: ${age}\n  Sex: ${sex}\n  Result: ${comparison}`;
 

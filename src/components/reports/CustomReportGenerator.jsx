@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { todayLocal } from "@/lib/localDate";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
@@ -161,7 +162,7 @@ Return the improved version with proper formatting:`;
         client_id: client.id,
         report_type: "custom_report",
         report_name: `Custom Report - ${format(new Date(), 'dd/MM/yyyy')}`,
-        report_date: new Date().toISOString().split('T')[0],
+        report_date: todayLocal(),
         report_data: { content: finalReport },
         html_content: printRef.current?.innerHTML || ""
       });

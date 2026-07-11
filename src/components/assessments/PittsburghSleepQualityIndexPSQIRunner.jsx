@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Info, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // PSQI Components and scoring
 const COMPONENTS = [
@@ -178,7 +179,7 @@ export default function PittsburghSleepQualityIndexPSQIRunner({ client, onSave, 
       status: "completed",
       result_value: totalScore,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: soapText,
         components: { c1, c2, c3, c4, c5, c6, c7 },

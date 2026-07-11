@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInYears, parseISO } from "date-fns";
+import { todayLocal } from "@/lib/localDate";
 
 const TOTAL_SECONDS = 360; // 6 minutes
 
@@ -46,7 +47,7 @@ export default function SixMinuteStepTestRunner({ client, onSave, onClose }) {
   const [timeLeft, setTimeLeft] = useState(TOTAL_SECONDS);
   const [symptoms, setSymptoms] = useState("");
   const [notes, setNotes] = useState("");
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
 
   const intervalRef = useRef(null);
 

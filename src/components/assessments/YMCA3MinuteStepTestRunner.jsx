@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Save, X, Play, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── FITNESS CLASSIFICATION (RECOVERY HR) ──────────────────────────────────
 const FITNESS_CATEGORIES = {
@@ -132,7 +133,7 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
         symptoms,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Assessment saved.");
   };

@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ChevronRight, Save, ChevronDown, ChevronUp, BookOpen } from "lucide-react";
+import { todayLocal } from "@/lib/localDate";
 
 // ── Balance Items ─────────────────────────────────────────────────────────────
 const balanceItems = [
@@ -245,7 +246,7 @@ export default function TinettiRunner({ client, onSave, onClose }) {
         measurement_type: 'tinetti'
       },
       notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
 
     toast.success("Tinetti POMA saved!");

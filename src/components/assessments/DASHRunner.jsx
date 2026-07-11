@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, ChevronLeft, ChevronRight, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const DASH_QUESTIONS = [
   // Section A: Physical Function (items 1-21)
@@ -138,7 +139,7 @@ export default function DASHRunner({ client, onSave, onClose }) {
         soap_text,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     
     toast.success("DASH assessment saved successfully.");

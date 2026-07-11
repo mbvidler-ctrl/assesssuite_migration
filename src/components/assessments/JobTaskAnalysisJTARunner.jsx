@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function JobTaskAnalysisJTARunner({ client, onSave, onClose }) {
   const [tasks, setTasks] = useState([]);
@@ -41,7 +42,7 @@ export default function JobTaskAnalysisJTARunner({ client, onSave, onClose }) {
         recommendations,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Assessment saved.");
   };

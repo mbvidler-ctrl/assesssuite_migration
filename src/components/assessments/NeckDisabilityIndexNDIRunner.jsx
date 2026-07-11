@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Save, X, ClipboardList } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const sections = [
   {
@@ -169,7 +170,7 @@ export default function NeckDisabilityIndexNDIRunner({ client, onSave, onClose }
         soap_text: soapText,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
   };
 

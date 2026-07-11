@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Save, ChevronRight, ChevronLeft, CheckCircle, AlertCircle, RotateCcw } from "lucide-react";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── Joint + movement definitions ───────────────────────────────────────────
 const JOINTS = [
@@ -180,7 +181,7 @@ export default function VisualROMAssessmentRunner({ onSave, onClose }) {
           sum + j.movements.reduce((s, m) => s + (getResult(j.key, m).rom ?? 0), 0), 0
         ) / totalMovements : 0),
       notes: globalNotes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         measurement_type: "visual_rom",
         soap_text: soapText,

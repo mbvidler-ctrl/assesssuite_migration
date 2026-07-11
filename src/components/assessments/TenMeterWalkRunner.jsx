@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { X, Save, Play, Pause, RotateCcw, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function TenMeterWalkRunner({ onSave, onClose }) {
   const [timerRunning, setTimerRunning] = useState(false);
@@ -115,7 +116,7 @@ export default function TenMeterWalkRunner({ onSave, onClose }) {
         interpretation: interpretation.text,
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

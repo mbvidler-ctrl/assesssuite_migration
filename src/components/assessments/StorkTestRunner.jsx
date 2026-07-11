@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, Save, Play, Pause, RotateCcw } from 'lucide-react';
+import { todayLocal } from "@/lib/localDate";
 
 export default function StorkTestRunner({ onSave, onClose, initialData }) {
   const [timerRunning, setTimerRunning] = useState(false);
@@ -50,7 +51,7 @@ export default function StorkTestRunner({ onSave, onClose, initialData }) {
         observations: data.observations,
         measurement_type: 'stork_test'
       },
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

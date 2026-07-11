@@ -12,6 +12,7 @@ import { InvokeLLM } from "@/integrations/Core";
 import { ChevronLeft, ChevronRight, Loader2, Printer, Sparkles, Save, Edit } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
+import { todayLocal } from "@/lib/localDate";
 
 const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref) => {
   const formatDate = (date) => {
@@ -306,9 +307,9 @@ export default function PrivateHealthProgressReport({ client, onClose, editingRe
       recipient_name: client.primary_gp_name || "",
       recipient_clinic: client.primary_gp_clinic_name || "",
       recipient_address: client.primary_gp_address || "",
-      letter_date: new Date().toISOString().split('T')[0],
+      letter_date: todayLocal(),
       period_start: "",
-      period_end: new Date().toISOString().split('T')[0],
+      period_end: todayLocal(),
       total_sessions: "",
       attendance_rate: "", // Changed from session_frequency
       attendance_notes: "",
@@ -509,7 +510,7 @@ export default function PrivateHealthProgressReport({ client, onClose, editingRe
 
     const newGoals = selectedGoals.map(g => ({
       goal: g.goal,
-      date_assessed: new Date().toISOString().split('T')[0],
+      date_assessed: todayLocal(),
       status: "not_met",
       outcome_notes: ""
     }));
@@ -528,7 +529,7 @@ export default function PrivateHealthProgressReport({ client, onClose, editingRe
       ...prev,
       treatment_goals: [...prev.treatment_goals, {
         goal: "",
-        date_assessed: new Date().toISOString().split('T')[0],
+        date_assessed: todayLocal(),
         status: "not_met",
         outcome_notes: ""
       }]
@@ -742,7 +743,7 @@ ${reportData.ongoing_plan}`;
           client_id: client.id,
           report_type: "private_health_progress",
           report_name: `Private Health Progress Report - ${format(new Date(), 'dd/MM/yyyy')}`,
-          report_date: new Date().toISOString().split('T')[0],
+          report_date: todayLocal(),
           report_data: dataToSave,
           html_content: printRef.current?.outerHTML || ""
         });

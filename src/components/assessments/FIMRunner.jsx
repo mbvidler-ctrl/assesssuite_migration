@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const FIM_ITEMS = {
   selfCare: [
@@ -114,7 +115,7 @@ export default function FIMRunner({ onSave, onClose }) {
         measurement_type: 'fim'
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // Jones & Rikli (2002) Senior Fitness Test norms — Chair Sit & Reach (cm)
 const NORMS = {
@@ -57,7 +58,7 @@ export default function ChairSitandReachTestRunner({ client, onSave, onClose }) 
   const handleSave = () => {
     if (trials.length === 0) { toast.error("Add at least one trial"); return; }
     const soap = `• Chair Sit and Reach Test (Senior Fitness Test)\n  Best Result: ${best} cm${cat ? ` — ${cat.label}` : ""}\n  Trials: ${trials.map(t => `${t} cm`).join(", ")}${notes ? `\n  Notes: ${notes}` : ""}\n  Positive = fingertips beyond foot; Negative = fingertips short of foot\n  Normative Reference: Rikli & Jones (2001) Senior Fitness Test Manual\n  Reference: Jones CJ, Rikli RE (2002). Measuring functional fitness of older adults. The Journal on Active Aging.`;
-    onSave({ status: "completed", result_value: best, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "chair_sit_and_reach", trials, best_cm: best, classification: cat?.label } });
+    onSave({ status: "completed", result_value: best, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "chair_sit_and_reach", trials, best_cm: best, classification: cat?.label } });
     toast.success("Saved.");
   };
 

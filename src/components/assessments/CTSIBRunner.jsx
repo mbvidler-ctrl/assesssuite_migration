@@ -4,6 +4,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, Save, Play, Pause, RotateCcw } from 'lucide-react';
+import { todayLocal } from "@/lib/localDate";
 
 const CONDITIONS = [
   { id: 'firm_eyes_open', name: 'Firm Surface, Eyes Open', surface: 'firm', vision: 'open' },
@@ -57,7 +58,7 @@ export default function CTSIBRunner({ onSave, onClose, initialData }) {
         interpretation: completed === 4 ? 'All 4 conditions completed' : `${completed}/4 conditions completed`,
       },
       notes: observations,
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
     });
   };
 

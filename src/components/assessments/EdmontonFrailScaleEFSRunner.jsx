@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const DOMAINS = [
   {
@@ -84,7 +85,7 @@ export default function EdmontonFrailScaleEFSRunner({ client, onSave, onClose })
     if (!allAnswered) { toast.error("Please answer all 9 domains"); return; }
     const lines = DOMAINS.map(d => `  ${d.label}: ${scores[d.key]}`).join("\n");
     const soap = `• Edmonton Frail Scale (EFS)\n  Total Score: ${total}/17 — ${interp.label}\n\n  Domain Scores:\n${lines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: 0–4 not frail | 5–6 vulnerable | 7–8 mild | 9–10 moderate | 11+ severe\n  Reference: Rolfson DB et al. (2006). Validity and reliability of the Edmonton Frail Scale. Age and Ageing, 35(5):526-529.`;
-    onSave({ status: "completed", result_value: total, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "edmonton_frail_scale", domain_scores: scores, frailty_category: interp.label } });
+    onSave({ status: "completed", result_value: total, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "edmonton_frail_scale", domain_scores: scores, frailty_category: interp.label } });
     toast.success("EFS saved.");
   };
 

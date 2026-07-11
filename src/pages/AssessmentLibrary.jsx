@@ -15,6 +15,7 @@ import AssessmentModal from "../components/assessments/AssessmentModal";
 import AddToClientModal from "../components/client/AddToClientModal";
 import CreateAssessmentModal from "../components/assessments/CreateAssessmentModal";
 import FeedbackModal from "../components/assessments/FeedbackModal";
+import { todayLocal } from "@/lib/localDate";
 
 export default function AssessmentLibrary() {
   const [assessments, setAssessments] = useState([]);
@@ -207,7 +208,7 @@ export default function AssessmentLibrary() {
             client_id: preSelectedClientId,
             assessment_id: assessment.id,
             status: 'pending',
-            assessment_date: new Date().toISOString().split('T')[0],
+            assessment_date: todayLocal(),
             appointment_id: appointmentId
           });
           break; // Success, exit retry loop

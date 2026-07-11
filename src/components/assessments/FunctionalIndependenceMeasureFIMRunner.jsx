@@ -6,6 +6,7 @@ import { Save, X, ChevronDown, ChevronUp, Info, ExternalLink } from "lucide-reac
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { saveAssessmentToSOAP } from "./TestRunnerSOAPHelper";
+import { todayLocal } from "@/lib/localDate";
 
 const SCORE_LEVELS = [
   { value: 7, label: "7 – Complete Independence", description: "Activity performed safely, without modification, equipment, or assistance, within reasonable time." },
@@ -123,7 +124,7 @@ export default function FunctionalIndependenceMeasureFIMRunner({ client, assessm
 
       const soap_text = `Functional Independence Measure (FIM)\n\nTotal Score: ${totalScore}/126\nMotor Subscale: ${motorScore}/91\nCognitive Subscale: ${cogScore}/35\n\nIndividual Item Scores:\n${sectionLines}${notes ? `\n\nClinical Notes: ${notes}` : ''}`;
 
-      const assessmentDate = new Date().toISOString().split("T")[0];
+      const assessmentDate = todayLocal();
       const updateData = {
         status: "completed",
         result_value: totalScore,

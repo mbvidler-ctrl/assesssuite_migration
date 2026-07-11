@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, AlertTriangle, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const QUESTIONS = [
   "Feeling nervous, anxious, or on edge",
@@ -42,7 +43,7 @@ export default function GAD7GeneralizedAnxietyDisorder7Runner({ client, onSave, 
     if (!allAnswered) { toast.error("Please answer all 7 questions"); return; }
     const qLines = QUESTIONS.map((q, i) => `  Q${i + 1} (${OPTIONS[responses[i]]}): ${responses[i]}`).join("\n");
     const soap = `• GAD-7 Generalised Anxiety Disorder Scale\n  Total Score: ${total}/21 — ${interp.label}\n  Suggested action: ${interp.action}\n\n  Item Responses:\n${qLines}${functional !== null ? `\n  Functional Impairment: ${FUNCTIONAL_OPTS[functional]}` : ""}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Interpretation: 0–4 minimal | 5–9 mild | 10–14 moderate | 15–21 severe\n  MCID: 5-point change. Refer if score ≥10 or Q9 > 0.\n  Reference: Spitzer RL et al. (2006). A brief measure for assessing generalised anxiety disorder. Arch Intern Med, 166(10):1092-7.`;
-    onSave({ status: "completed", result_value: total, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", responses, severity: interp.label, functional_impairment: functional !== null ? FUNCTIONAL_OPTS[functional] : null } });
+    onSave({ status: "completed", result_value: total, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "questionnaire", responses, severity: interp.label, functional_impairment: functional !== null ? FUNCTIONAL_OPTS[functional] : null } });
     toast.success("GAD-7 saved.");
   };
 

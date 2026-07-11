@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, Save } from 'lucide-react';
+import { todayLocal } from "@/lib/localDate";
 
 const BERG_ITEMS = [
   { id: 1, name: 'Sitting to Standing', description: 'Stand up from sitting without using hands' },
@@ -63,7 +64,7 @@ export default function BergBalanceRunner({ onSave, onClose, initialData }) {
         interpretation,
         measurement_type: 'berg_balance'
       },
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

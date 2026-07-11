@@ -9,6 +9,7 @@ import { Save, X, Play, AlertTriangle, ExternalLink, ChevronDown } from "lucide-
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { todayLocal } from "@/lib/localDate";
 
 export default function RepeatedSprintAbilityTest6x30mRunner({ client, onSave, onClose }) {
   const [sprintTimes, setSprintTimes] = useState([]);
@@ -43,7 +44,7 @@ export default function RepeatedSprintAbilityTest6x30mRunner({ client, onSave, o
         resultValue,
         additionalData,
         notes,
-        assessmentDate: new Date().toISOString().split("T")[0],
+        assessmentDate: todayLocal(),
       });
     }
   }, [sprintTimes, preTestVitals, postTestVitals, onSave, notes]);

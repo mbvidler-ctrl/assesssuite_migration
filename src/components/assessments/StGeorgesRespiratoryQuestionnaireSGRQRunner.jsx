@@ -13,6 +13,7 @@ import {
   Info, ExternalLink, Activity, AlertCircle, ChevronDown, ChevronRight, Wind
 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── SGRQ Question Definitions ────────────────────────────────────────────────
 // Weights sourced from Jones PW (1991) original SGRQ manual
@@ -399,7 +400,7 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
         soap_text: buildSOAP(),
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("SGRQ saved successfully.");
   };

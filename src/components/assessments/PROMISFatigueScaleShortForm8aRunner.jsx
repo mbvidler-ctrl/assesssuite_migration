@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, AlertCircle, ExternalLink, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // PROMIS Fatigue SF8a raw-to-T-score conversion table
 const SCORING_TABLE = [
@@ -49,7 +50,7 @@ export default function PROMISFatigueScaleShortForm8aRunner({ client, onSave, on
   const [rawScore, setRawScore] = useState("");
   const [tScore, setTScore] = useState("");
   const [notes, setNotes] = useState("");
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
   const [assessorName, setAssessorName] = useState("");
 
   const getInterpretation = (score) => {

@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Plus, Trash2, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const SIMPLE_SCORE_CRITERIA = [
   { score: 5, label: "Perfect clock: correct circle, numbers in correct order and placement, correct time shown" },
@@ -234,7 +235,7 @@ export default function ClockDrawingTestRunner({ client, onSave, onClose }) {
         attempts,
       },
       notes: globalNotes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Assessment saved.");
   };

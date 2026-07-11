@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
+import { todayLocal } from "@/lib/localDate";
 
 export default function StaticSquatTestRunner({ client, onSave, onClose }) {
   const [isRunning, setIsRunning] = useState(false);
@@ -128,7 +129,7 @@ export default function StaticSquatTestRunner({ client, onSave, onClose }) {
         interpretation: interpretation.level,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0]
+      assessment_date: todayLocal()
     });
     toast.success("Static Squat Test saved successfully.");
   };

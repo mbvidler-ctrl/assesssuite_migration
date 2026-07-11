@@ -6,12 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, AlertCircle, ExternalLink, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function QuebecBackPainDisabilityScaleQBPDSRunner({ client, onSave, onClose }) {
   const [state, setState] = useState("setup"); // setup, score_entry, complete
   const [totalScore, setTotalScore] = useState("");
   const [notes, setNotes] = useState("");
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
   const [assessorName, setAssessorName] = useState("");
 
   const getInterpretation = (score) => {

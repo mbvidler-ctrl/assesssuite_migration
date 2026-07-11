@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // Wells & Dillon (1952) / ACSM norms for standard sit-and-reach (cm, box method)
 const NORMS = {
@@ -60,7 +61,7 @@ export default function SitandReachTestRunner({ client, onSave, onClose }) {
   const handleSave = () => {
     if (trials.length === 0) { toast.error("Add at least one trial"); return; }
     const soap = `• Sit and Reach Test (Standard Box Method)\n  Best Score: ${best} cm${cat ? ` — ${cat.label}` : ""}\n  Trials: ${trials.map(t => t + " cm").join(", ")}\n  Box footline position: ${boxOffset} cm\n  Measures lower back and hamstring flexibility${notes ? `\n  Notes: ${notes}` : ""}\n  Reference: ACSM Guidelines for Exercise Testing and Prescription; Wells KF & Dillon EK (1952). The sit and reach: a test of back and leg flexibility. Research Quarterly, 23:115-118.`;
-    onSave({ status: "completed", result_value: best, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "flexibility_cm", best_cm: best, trials, box_offset_cm: parseFloat(boxOffset), classification: cat?.label } });
+    onSave({ status: "completed", result_value: best, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "flexibility_cm", best_cm: best, trials, box_offset_cm: parseFloat(boxOffset), classification: cat?.label } });
     toast.success("Saved.");
   };
 

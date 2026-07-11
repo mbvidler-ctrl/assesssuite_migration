@@ -9,6 +9,7 @@ import { Save, X, Play, AlertTriangle, ExternalLink, ChevronDown } from "lucide-
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { todayLocal } from "@/lib/localDate";
 
 export default function RepeatedSprintAbilityTest10x20mRunner({ client, onSave, onClose }) {
   const [sprintTimes, setSprintTimes] = useState(Array(10).fill(""));
@@ -50,7 +51,7 @@ export default function RepeatedSprintAbilityTest10x20mRunner({ client, onSave, 
         measurement_type: "repeated_sprint_ability_test",
         sprint_times: sprintTimes,
       };
-      onSave({ status: "completed", result_value: resultValue, additional_data: additionalData, notes, assessment_date: new Date().toISOString().split("T")[0] });
+      onSave({ status: "completed", result_value: resultValue, additional_data: additionalData, notes, assessment_date: todayLocal() });
       toast.success("Test completed successfully.");
     } else {
       toast.error("No sprints recorded. Please start the test first.");

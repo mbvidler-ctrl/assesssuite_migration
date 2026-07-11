@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { X, Play, Square, ChevronDown, ChevronUp } from "lucide-react";
+import { todayLocal } from "@/lib/localDate";
 
 const STAGES = [
   { label: "Stage 1", watts: 25, duration: 120 },
@@ -74,7 +75,7 @@ export default function TriLevelArmErgometerTestRunner({ client, onSave, onClose
     onSave({
       result_value: finalHR || avgHR || 0,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: soapText,
         stage1_hr: parseFloat(heartRates[0]) || null,

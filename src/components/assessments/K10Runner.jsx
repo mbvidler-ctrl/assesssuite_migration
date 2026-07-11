@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { X, Save, Info, AlertTriangle, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const K10_QUESTIONS = [
   "In the past 4 weeks, about how often did you feel tired out for no good reason?",
@@ -86,7 +87,7 @@ export default function K10Runner({ onSave, onClose }) {
       total_score: total,
       severity: interpretation.severity,
       risk_level: interpretation.risk,
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
       additional_data: {
         measurement_type: "k10_distress_scale",
         total_score: total,

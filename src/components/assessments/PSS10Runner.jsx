@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const PSS_10_ITEMS = [
   { id: 1, text: "In the last month, how often have you been upset because of something that happened unexpectedly?", reversed: false },
@@ -88,7 +89,7 @@ export default function PSS10Runner({ onSave, onClose }) {
         interpretation: interpretation?.level
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

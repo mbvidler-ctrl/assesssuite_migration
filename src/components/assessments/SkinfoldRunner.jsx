@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, Save } from 'lucide-react';
+import { todayLocal } from "@/lib/localDate";
 
 const SKINFOLD_SITES = [
   { id: 'triceps', name: 'Triceps', description: 'Midpoint of upper arm, vertical fold' },
@@ -86,7 +87,7 @@ export default function SkinfoldRunner({ protocol = '7-site', onSave, onClose, i
         measurement_type: 'skinfold'
       },
       notes: observations,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

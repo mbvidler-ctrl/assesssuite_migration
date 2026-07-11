@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function WaistCircumferenceRunner({ client, onSave, onClose }) {
   const [waistCircumference, setWaistCircumference] = useState("");
@@ -27,7 +28,7 @@ export default function WaistCircumferenceRunner({ client, onSave, onClose }) {
         notes,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Measurement saved successfully.");
   };

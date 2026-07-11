@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { X, Save, Trash2, Plus, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function MedicineBallThrowRunner({ client, onSave, onClose }) {
   const [trials, setTrials] = useState([]);
@@ -58,7 +59,7 @@ export default function MedicineBallThrowRunner({ client, onSave, onClose }) {
         post_test_vitals: postTestVitals,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
   };
 

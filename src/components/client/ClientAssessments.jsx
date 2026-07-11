@@ -21,6 +21,7 @@ import CompletedAssessmentViewer from '../assessments/CompletedAssessmentViewer'
 import { format, differenceInYears } from 'date-fns';
 import { toast } from 'sonner';
 import { generateInterpretation, selectNorm } from '@/lib/clinical/generateInterpretation';
+import { todayLocal } from "@/lib/localDate";
 
 export default function ClientAssessments({ client, clientAssessments, allAssessments, onAssessmentUpdate }) {
   const parseDate = (dateString) => {
@@ -62,7 +63,7 @@ export default function ClientAssessments({ client, clientAssessments, allAssess
         org_id: client.org_id,
         client_id: client.id,
         assessment_id: assessment.id,
-        assessment_date: new Date().toISOString().split('T')[0],
+        assessment_date: todayLocal(),
         status: "pending",
       });
       onAssessmentUpdate();
@@ -107,7 +108,7 @@ export default function ClientAssessments({ client, clientAssessments, allAssess
       const update = {
         status: resultData.status || "completed",
         result_value: resultData.result_value,
-        assessment_date: resultData.assessment_date || new Date().toISOString().split("T")[0],
+        assessment_date: resultData.assessment_date || todayLocal(),
         notes: resultData.notes,
         additional_data: resultData.additional_data,
       };

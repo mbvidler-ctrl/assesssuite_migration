@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Info, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { todayLocal } from "@/lib/localDate";
 
 const PCL5_ITEMS = [
   "Repeated, disturbing, and unwanted memories of the stressful experience",
@@ -35,7 +36,7 @@ export default function PTSDChecklistforDSM5PCL5Runner({ client, onSave, onClose
   const [assessmentState, setAssessmentState] = useState("setup"); // setup, questionnaire, complete
   const [responses, setResponses] = useState(Array(20).fill(null));
   const [notes, setNotes] = useState("");
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
   const [assessorName, setAssessorName] = useState("");
   const [currentQuestion, setCurrentQuestion] = useState(0);
 

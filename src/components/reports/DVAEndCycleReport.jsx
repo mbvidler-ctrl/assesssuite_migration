@@ -11,6 +11,7 @@ import { Plus, Trash2, Printer, Save, X, Loader2 } from "lucide-react"; // Updat
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { todayLocal } from "@/lib/localDate";
 
 // Helper function to build the assessment table HTML
 const buildAssessmentTableHTML = (clientAssessments) => {
@@ -424,7 +425,7 @@ export default function DVAEndCycleReport({ client, onClose, editingReport }) {
   const [showPreview, setShowPreview] = useState(false);
 
   const [reportData, setReportData] = useState({
-    reportDate: editingReport?.report_data?.reportDate || new Date().toISOString().split('T')[0],
+    reportDate: editingReport?.report_data?.reportDate || todayLocal(),
     cycleStartDate: editingReport?.report_data?.cycleStartDate || "",
     cycleEndDate: editingReport?.report_data?.cycleEndDate || "",
     totalSessions: editingReport?.report_data?.totalSessions || "",
@@ -432,7 +433,7 @@ export default function DVAEndCycleReport({ client, onClose, editingReport }) {
   });
 
   const [clientGoals, setClientGoals] = useState(editingReport?.report_data?.clientGoals || [
-    { goal: "", dateAssessed: new Date().toISOString().split('T')[0], status: "" }
+    { goal: "", dateAssessed: todayLocal(), status: "" }
   ]);
 
   const [conditions, setConditions] = useState([]);
@@ -536,7 +537,7 @@ export default function DVAEndCycleReport({ client, onClose, editingReport }) {
       const goalLines = client.client_goals.split('\n').filter(line => line.trim());
       const newGoals = goalLines.map(goalText => ({
         goal: goalText.trim(),
-        dateAssessed: new Date().toISOString().split('T')[0],
+        dateAssessed: todayLocal(),
         status: ""
       }));
       
@@ -589,7 +590,7 @@ export default function DVAEndCycleReport({ client, onClose, editingReport }) {
   };
 
   const handleAddGoal = () => {
-    setClientGoals([...clientGoals, { goal: "", dateAssessed: new Date().toISOString().split('T')[0], status: "" }]);
+    setClientGoals([...clientGoals, { goal: "", dateAssessed: todayLocal(), status: "" }]);
   };
 
   const handleRemoveGoal = (index) => {

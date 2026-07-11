@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, Save } from 'lucide-react';
+import { todayLocal } from "@/lib/localDate";
 
 export default function BilateralFlexibilityRunner({ testName, onSave, onClose, initialData }) {
   const [data, setData] = useState({
@@ -42,7 +43,7 @@ export default function BilateralFlexibilityRunner({ testName, onSave, onClose, 
         asymmetry: Math.abs(leftBest - rightBest),
       },
       notes: data.observations,
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
       left_trial1: parseFloat(data.left_trial1) || null,
       left_trial2: parseFloat(data.left_trial2) || null,
       left_trial3: parseFloat(data.left_trial3) || null,

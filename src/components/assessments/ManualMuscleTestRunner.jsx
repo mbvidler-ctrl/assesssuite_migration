@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { X, Plus, Trash2 } from 'lucide-react';
+import { todayLocal } from "@/lib/localDate";
 
 const MMT_GRADES = [
   { value: 0, label: '0 - No contraction', description: 'No visible or palpable muscle contraction' },
@@ -86,7 +87,7 @@ export default function ManualMuscleTestRunner({ initialData, onSave, onClose })
         average_grade: parseFloat(avgGrade),
       },
       notes: '',
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
     });
   };
 

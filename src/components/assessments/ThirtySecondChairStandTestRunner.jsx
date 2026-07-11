@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { X, Play, Square, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const NORMS = [
   { age: "60–64", male: "14–19", female: "12–17", below: "<14 / <12" },
@@ -97,7 +98,7 @@ export default function ThirtySecondChairStandTestRunner({ client, onSave, onClo
         interpretation: interp?.label,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Assessment saved.");
   };

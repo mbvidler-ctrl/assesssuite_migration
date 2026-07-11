@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle, ChevronDown, ChevronUp, BookOpen, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function TimedPushUpTestPressUpTestRunner({ client, onSave, onClose }) {
   const [showInstructions, setShowInstructions] = useState(false);
@@ -85,7 +86,7 @@ export default function TimedPushUpTestPressUpTestRunner({ client, onSave, onClo
       result_value,
       additional_data,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Results saved successfully.");
   };
