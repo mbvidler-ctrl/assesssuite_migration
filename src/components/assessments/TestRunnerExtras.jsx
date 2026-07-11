@@ -516,7 +516,9 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
         } catch (soapError) { console.error("SOAP note error:", soapError); }
         
         toast.success("Assessment saved successfully!");
-        if (onComplete) onComplete(updateData);
+        // No payload: this runner already persisted the record; a truthy
+        // payload would trigger a redundant second update in the host.
+        if (onComplete) onComplete();
         onClose();
       } catch (error) {
         console.error("Auto-submit save error:", error?.message || error);
@@ -690,7 +692,9 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
       }
 
       toast.success("Assessment saved successfully!");
-      if (onComplete) onComplete(updateData);
+      // No payload: this runner already persisted the record; a truthy
+      // payload would trigger a redundant second update in the host.
+      if (onComplete) onComplete();
       onClose();
       } catch (error) {
       console.error("Save error:", error?.message || error);

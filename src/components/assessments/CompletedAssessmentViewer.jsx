@@ -625,11 +625,11 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                         ))}
                       </div>
 
-                      {(rd.soap_text || clientAssessment.additional_data.soap_text) && (
+                      {(rd.additional_data?.soap_text || rd.soap_text || clientAssessment.additional_data.soap_text) && (
                         <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                           <p className="text-sm font-semibold text-slate-700 mb-2">SOAP Summary</p>
                           <pre className="text-sm text-slate-800 whitespace-pre-wrap font-sans leading-relaxed">
-                            {rd.soap_text || clientAssessment.additional_data.soap_text}
+                            {rd.additional_data?.soap_text || rd.soap_text || clientAssessment.additional_data.soap_text}
                           </pre>
                         </div>
                       )}

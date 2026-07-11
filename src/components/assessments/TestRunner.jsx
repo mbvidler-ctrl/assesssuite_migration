@@ -2215,7 +2215,12 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
               risk_category: riskCategory,
               measurement_type: 'waist_circumference'
             };
-          } else if (isBergBalance() && bergData) {
+          } else if (isBergBalance()) {
+            // Guard-and-return, not a bare && short-circuit: Berg has no manual
+            // result field, so falling through to the generic else would write
+            // a NaN result_value as 'completed' (silent data loss). Block the
+            // save instead, matching the sibling questionnaire branches.
+            if (!bergData) { toast.error("Please complete the Berg Balance Scale first."); setIsSubmitting(false); return; }
             updateData.result_value = bergData.result_value ?? bergData.total;
             updateData.additional_data = bergData.additional_data || {
               berg_data: bergData,
@@ -2729,7 +2734,12 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       }
 
         toast.success("Assessment completed successfully!");
-      if (onComplete) onComplete(updateData);
+      // Signal completion with no payload: this runner already persisted the
+      // record and SOAP note above. ClientAssessments.handleAssessmentSave
+      // treats a falsy payload as a completion-only refresh, so passing
+      // updateData here would trigger a redundant second PUT and a double
+      // success toast on the Client Profile workflow.
+      if (onComplete) onComplete();
       setShowReminders(true); // Show reminders after completing assessment
       // onClose(); // Removed, as closure is handled by handleCloseReminders
     } catch (error) {
