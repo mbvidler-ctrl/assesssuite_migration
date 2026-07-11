@@ -95,6 +95,14 @@ export default function ClientAssessments({ client, clientAssessments, allAssess
   };
 
   const handleAssessmentSave = async (clientAssessmentId, resultData) => {
+    // Runners that orchestrate their own persistence invoke onComplete with no
+    // payload; there is nothing further to save, and treating the undefined
+    // payload as a failure produced a false "Failed to save assessment." toast
+    // after every successful TestRunner completion.
+    if (!resultData) {
+      onAssessmentUpdate();
+      return;
+    }
     try {
       const update = {
         status: resultData.status || "completed",

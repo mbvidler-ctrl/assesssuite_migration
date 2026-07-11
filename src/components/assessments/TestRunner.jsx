@@ -2215,6 +2215,17 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
               measurement_type: 'chair_stand'
             };
             updateData.assessment_date = resolveAssessmentDate(chairStandData?.assessment_date);
+          } else if (isOneMinuteSitToStand() && chairStandData) {
+            // isChairStand() deliberately excludes '1-minute' names, so without
+            // this branch the 1MSTS fell into the generic else and stored
+            // result_value NaN -> null. Guarded on chairStandData because the
+            // detector matches on name alone.
+            updateData.result_value = chairStandData.repetitions;
+            updateData.additional_data = chairStandData.additional_data || {
+              chair_stand_data: chairStandData,
+              measurement_type: '1_minute_sit_to_stand'
+            };
+            updateData.assessment_date = resolveAssessmentDate(chairStandData?.assessment_date);
           } else if (isFunctionalReach()) {
             const _frAD = functionalReachData.additional_data || {};
             updateData.result_value = _frAD.averageReach ?? functionalReachData.averageReach ?? functionalReachData.result_value;
@@ -2682,7 +2693,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       }
 
         toast.success("Assessment completed successfully!");
-      if (onComplete) onComplete();
+      if (onComplete) onComplete(updateData);
       setShowReminders(true); // Show reminders after completing assessment
       // onClose(); // Removed, as closure is handled by handleCloseReminders
     } catch (error) {
@@ -8321,7 +8332,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       )}
 
       {showNaughtonRunner && (<NaughtonTreadmillProtocolRunner client={selectedClient || client} onSave={(data) => { setNaughtonData(data); setResult(prev => ({ ...prev, notes: data.notes || prev.notes })); setShowNaughtonRunner(false); }} onClose={() => setShowNaughtonRunner(false)} />)}
-      {showOneMinuteSitToStandRunner && (<OneMinuteSitToStandTestRunner client={selectedClient || client} onSave={(data) => { setChairStandData({ repetitions: data.resultValue, measurement_type: '1_minute_sit_to_stand', ...data.additionalData, interpretation: data.additionalData?.interpretation || '' }); setResult(prev => ({ ...prev, notes: data.notes || prev.notes })); setShowOneMinuteSitToStandRunner(false); }} onClose={() => setShowOneMinuteSitToStandRunner(false)} />)}
+      {showOneMinuteSitToStandRunner && (<OneMinuteSitToStandTestRunner client={selectedClient || client} onSave={(data) => { setChairStandData({ repetitions: data.result_value ?? data.repetitions, measurement_type: '1_minute_sit_to_stand', interpretation: data.interpretation || '', additional_data: data.additional_data, assessment_date: data.assessment_date }); setResult(prev => ({ ...prev, notes: data.notes || prev.notes })); setShowOneMinuteSitToStandRunner(false); }} onClose={() => setShowOneMinuteSitToStandRunner(false)} />)}
 
       {/* Modified Rankin Scale Runner */}
       {showModifiedRankinRunner && (<ModifiedRankinScaleRunner client={selectedClient || client} onSave={(data) => { setModifiedRankinData(data); setShowModifiedRankinRunner(false); }} onClose={() => setShowModifiedRankinRunner(false)} />)}

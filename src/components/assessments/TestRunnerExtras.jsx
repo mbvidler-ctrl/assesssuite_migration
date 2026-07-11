@@ -515,7 +515,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
         } catch (soapError) { console.error("SOAP note error:", soapError); }
         
         toast.success("Assessment saved successfully!");
-        if (onComplete) onComplete();
+        if (onComplete) onComplete(updateData);
         onClose();
       } catch (error) {
         console.error("Auto-submit save error:", error?.message || error);
@@ -689,7 +689,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
       }
 
       toast.success("Assessment saved successfully!");
-      if (onComplete) onComplete();
+      if (onComplete) onComplete(updateData);
       onClose();
       } catch (error) {
       console.error("Save error:", error?.message || error);
