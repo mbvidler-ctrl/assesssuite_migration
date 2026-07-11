@@ -970,7 +970,24 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
                 <Label>Digital Signature</Label>
                 <div className="border-2 border-slate-300 rounded-lg bg-white">
                   <canvas
-                    ref={signatureRef}
+                    ref={(node) => {
+                      signatureRef.current = node;
+                      // Hydrate the saved signature the moment the canvas
+                      // mounts: the load effect can fire before the dialog's
+                      // canvas exists, so a ref callback is the reliable
+                      // rehydration point. dataset.hydrated guards against
+                      // redrawing over in-progress strokes on re-renders.
+                      if (node && formData.digital_signature && !node.dataset.hydrated) {
+                        node.dataset.hydrated = "1";
+                        const ctx = node.getContext("2d");
+                        const img = new Image();
+                        img.onload = () => {
+                          ctx.clearRect(0, 0, node.width, node.height);
+                          ctx.drawImage(img, 0, 0);
+                        };
+                        img.src = formData.digital_signature;
+                      }
+                    }}
                     width={600}
                     height={150}
                     className="w-full cursor-crosshair touch-none"
