@@ -2157,6 +2157,18 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
               measurement_type: 'whr'
             };
             updateData.assessment_date = resolveAssessmentDate(whrData?.assessment_date);
+          } else if ((isBMITest() || isWaistCircumference() || isHeightTest() || isWeightTest()) && bodyMeasurementsData) {
+            // BodyMeasurementsRunner emits the standard contract; without this
+            // branch Height/Weight fell to the generic else (result_value
+            // NaN -> null) and BMI/Waist read manual result fields the runner
+            // flow never populates. Runner data wins; the manual-entry
+            // branches below remain as the fallback.
+            updateData.result_value = parseFloat(bodyMeasurementsData.result_value);
+            updateData.additional_data = bodyMeasurementsData.additional_data || {
+              body_measurements_data: bodyMeasurementsData,
+              measurement_type: 'body_measurements'
+            };
+            updateData.assessment_date = resolveAssessmentDate(bodyMeasurementsData?.assessment_date);
           } else if (isBMITest()) {
             const heightM = parseFloat(result.height_cm) / 100;
             const weightKg = parseFloat(result.weight_kg);
@@ -7742,7 +7754,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         <BodyMeasurementsRunner
           assessmentName={assessment.name}
           onSave={(data) => {
-            setBodyMeasurementsData(data.additional_data);
+            setBodyMeasurementsData(data);
             setResult(prev => ({
               ...prev,
               notes: data.notes || prev.notes,
