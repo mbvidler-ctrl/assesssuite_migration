@@ -109,6 +109,21 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
           digital_signature: existingEvent.digital_signature || ""
         });
         setAttachments(existingEvent.attachments || []);
+        // Rehydrate the saved signature onto the canvas: the canvas is
+        // uncontrolled (pixels only ever come from pointer events), so an
+        // existing record's stored data URL must be drawn back explicitly —
+        // otherwise a completed form reopens with a blank signature even
+        // though the record (and the print view) retain it.
+        if (signatureRef.current) {
+          const canvas = signatureRef.current;
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          if (existingEvent.digital_signature) {
+            const img = new Image();
+            img.onload = () => ctx.drawImage(img, 0, 0);
+            img.src = existingEvent.digital_signature;
+          }
+        }
         if (readOnly) {
           setCurrentUser({ full_name: existingEvent.clinician_name, email: existingEvent.clinician_email, provider_number: existingEvent.clinician_provider_number });
         } else {
