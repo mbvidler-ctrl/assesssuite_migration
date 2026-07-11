@@ -28,6 +28,7 @@ import Consent from "../components/onboarding/Consent";
 import QuickOnboardModal from "../components/onboarding/QuickOnboardModal";
 import ReferralUploader from "../components/documents/ReferralUploader";
 import { findPotentialDuplicates } from "@/lib/clientDuplicates";
+import { todayLocal } from "@/lib/localDate";
 
 const steps = [
   { id: 1, title: "Personal Information", component: PersonalInfo, clientCanComplete: true },
@@ -119,6 +120,12 @@ export default function Onboarding() {
 
   const clientIdRef = useRef(clientId);
   useEffect(() => { clientIdRef.current = clientId; }, [clientId]);
+
+  // Step changes are pure component state (no navigation), so the router
+  // performs no scroll restoration; reset the window explicitly.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [currentStep]);
 
   const autoSaveInProgressRef = useRef(false);
 
@@ -245,9 +252,10 @@ Send this email to: ${email}`;
     setIsSubmitting(true);
     try {
       let client;
-      if (clientId) {
-        client = await base44.entities.Client.update(clientId, updatedData);
-        client = { id: clientId, ...client };
+      const effectiveClientId = clientIdRef.current;
+      if (effectiveClientId) {
+        client = await base44.entities.Client.update(effectiveClientId, updatedData);
+        client = { id: effectiveClientId, ...client };
       } else {
         const currentUser = await base44.auth.me();
         let memberships = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email });
@@ -261,6 +269,10 @@ Send this email to: ${email}`;
         }
 
         client = await base44.entities.Client.create({ ...updatedData, org_id: orgId, assigned_clinician_email: currentUser.email });
+        if (client?.id) {
+          clientIdRef.current = client.id;
+          window.history.replaceState(null, '', `?id=${client.id}`);
+        }
       }
 
       const generatedLink = `${window.location.origin}${createPageUrl(`Onboarding?id=${client.id}&client=true`)}`;
@@ -313,13 +325,13 @@ Send this email to: ${email}`;
     const apssConditions = extractConditionsFromAPSS(allFormData);
     const allConditions = [...(medicalConditions || []), ...apssConditions];
     if (!clientRecord || allConditions.length === 0) return;
-    if (clientRecord.id === clientId) {
+    if (clientRecord.id === clientIdRef.current) {
       const oldConditions = await base44.entities.ClientCondition.filter({ client_id: clientRecord.id });
       for (const condition of oldConditions) await base44.entities.ClientCondition.delete(condition.id);
     }
     const conditionsToCreate = allConditions
       .filter(c => c.condition_name?.trim())
-      .map(c => ({ ...c, client_id: clientRecord.id, org_id: clientRecord.org_id, condition_type: c.condition_type || 'primary', pain_level: c.pain_level ? Number(c.pain_level) : undefined }));
+      .map(c => ({ ...c, client_id: clientRecord.id, org_id: clientRecord.org_id, condition_type: c.condition_type || 'primary', pain_level: (c.pain_level !== '' && c.pain_level != null) ? Number(c.pain_level) : undefined }));
     if (conditionsToCreate.length > 0) await base44.entities.ClientCondition.bulkCreate(conditionsToCreate);
   };
 
@@ -355,10 +367,12 @@ Send this email to: ${email}`;
     setIsSubmitting(true);
     try {
       let client;
-      if (clientId) {
-        const updatedClient = await base44.entities.Client.update(clientId, clientDataFromForm);
-        client = { id: clientId, org_id: clientDataFromForm.org_id, ...updatedClient };
+      const effectiveClientId = clientIdRef.current;
+      if (effectiveClientId) {
+        const updatedClient = await base44.entities.Client.update(effectiveClientId, clientDataFromForm);
+        client = { id: effectiveClientId, org_id: clientDataFromForm.org_id, ...updatedClient };
         if (isClientView) {
+          await saveConditions(client, medical_conditions, clientDataFromForm);
           toast.success("Thank you! Your information has been saved.");
           return;
         }
@@ -382,6 +396,10 @@ Send this email to: ${email}`;
         }
 
         client = await base44.entities.Client.create({ ...clientDataFromForm, org_id: orgId, assigned_clinician_email: currentUser.email });
+        if (client?.id) {
+          clientIdRef.current = client.id;
+          window.history.replaceState(null, '', `?id=${client.id}`);
+        }
         toast.success("Client created successfully!");
       }
 
@@ -399,7 +417,7 @@ Send this email to: ${email}`;
               org_id: client.org_id,
               episode_number: (existingEpisodes.length || 0) + 1,
               episode_label: `Episode ${(existingEpisodes.length || 0) + 1}`,
-              episode_date: new Date().toISOString().split('T')[0],
+              episode_date: todayLocal(),
               funding_source: clientDataFromForm.funding_source || null,
               referral_source: clientDataFromForm.referral_source || null,
               referral_source_name: clientDataFromForm.referral_source_name || null,
@@ -444,19 +462,29 @@ Send this email to: ${email}`;
       if (!silentAutoSave) toast.error("Name and date of birth are required.");
       return;
     }
+    // Coalesce overlapping silent auto-saves (APSS debounce, signature pen
+    // lifts): a second silent save while one is in flight would otherwise
+    // race the create branch and mint a duplicate client.
+    if (silentAutoSave && autoSaveInProgressRef.current) return;
+    autoSaveInProgressRef.current = true;
     setIsSubmitting(true);
     try {
       const { medical_conditions, ...clientData } = updatedData;
       let client;
-      if (clientId) {
-        client = await base44.entities.Client.update(clientId, clientData);
-        client = { id: clientId, org_id: clientData.org_id, ...client };
+      const effectiveClientId = clientIdRef.current;
+      if (effectiveClientId) {
+        client = await base44.entities.Client.update(effectiveClientId, clientData);
+        client = { id: effectiveClientId, org_id: clientData.org_id, ...client };
         if (!silentAutoSave) toast.success("Progress saved!");
       } else {
         const currentUser = await base44.auth.me();
         const { orgId } = await getOrCreateOrg(currentUser);
 
         client = await base44.entities.Client.create({ ...clientData, org_id: orgId, assigned_clinician_email: currentUser.email });
+        if (client?.id) {
+          clientIdRef.current = client.id;
+          window.history.replaceState(null, '', `?id=${client.id}`);
+        }
         if (!silentAutoSave) toast.success("Client created! You can continue anytime.");
       }
       await saveConditions(client, medical_conditions, updatedData);
@@ -465,6 +493,7 @@ Send this email to: ${email}`;
       console.error("Error saving:", error);
       if (!silentAutoSave) toast.error(`Failed to save: ${error.message || 'Unknown error'}`);
     } finally {
+      autoSaveInProgressRef.current = false;
       setIsSubmitting(false);
     }
   };

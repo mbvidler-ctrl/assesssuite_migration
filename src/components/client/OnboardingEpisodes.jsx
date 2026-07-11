@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { parseDateOnlyLocal } from "@/lib/localDate";
 import { toast } from "sonner";
 import {
   History,
@@ -184,7 +185,7 @@ export default function OnboardingEpisodes({ client, onReOnboardStarted }) {
                             {ep.episode_date && (
                               <span className="text-xs text-slate-500 flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
-                                {new Date(ep.episode_date).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}
+                                {parseDateOnlyLocal(ep.episode_date).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}
                               </span>
                             )}
                             {ep.funding_source && (
@@ -253,7 +254,7 @@ export default function OnboardingEpisodes({ client, onReOnboardStarted }) {
                             <div className="text-sm text-slate-700 space-y-0.5 bg-slate-50 p-2.5 rounded border border-slate-200">
                               {ep.referral_source_name && <p><span className="font-medium">From:</span> {ep.referral_source_name}</p>}
                               {ep.referral_reason && <p><span className="font-medium">Reason:</span> {ep.referral_reason}</p>}
-                              {ep.referral_date && <p><span className="font-medium">Date:</span> {new Date(ep.referral_date).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}</p>}
+                              {ep.referral_date && <p><span className="font-medium">Date:</span> {parseDateOnlyLocal(ep.referral_date).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}</p>}
                             </div>
                           </div>
                         )}
