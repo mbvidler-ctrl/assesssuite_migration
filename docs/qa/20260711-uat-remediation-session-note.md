@@ -28,7 +28,9 @@ A completed assessment must reach the ClientAssessment record with: (1) `result_
 
 ## Verification
 
-selftest 98/98, smoke 10/10, gate 13/13, `vite build` clean. End-to-end journeys driven in-browser: full long-form onboarding (single client, history persisted, episode dated correctly, new labels live), 1MSTS completion (correct persistence + SOAP, no false toast), AE signature reopen, onboarding report read-back. Fresh-context adversarial refutation over the diff (two lanes hand-verified during a spend-limit interruption, four re-run on Sonnet).
+selftest 98/98, smoke 10/10, gate 13/13, `vite build` clean. End-to-end journeys driven in-browser: full long-form onboarding (single client, history persisted, episode dated correctly, new labels live), 1MSTS completion (correct persistence + SOAP, no false toast), AE signature reopen, onboarding report read-back.
+
+Fresh-context adversarial refutation over the diff (Sonnet lanes) found **four real regressions — two HIGH — all fixed in `3554f79`**: (1) the onboarding in-flight lock only covered silent autosaves, so a slow-connection race could still duplicate a client — fixed with a shared serialized-create promise (`clientCreationRef`/`awaitInFlightCreate`), re-verified in-browser (one client per onboarding); (2) the Berg branch's bare `&& bergData` short-circuit could write a NaN result as 'completed' (Berg has no manual field) — fixed with guard-and-return; (3) `onComplete(updateData)` caused a redundant second PUT + double toast per Client-Profile completion — reverted to no-payload `onComplete()` (the falsy guard already fixes D6); (4) ROM SOAP summary resolved through `rom_data` but not `rom_data.additional_data.soap_text` — fixed.
 
 ## Reusable lessons
 
