@@ -185,11 +185,11 @@ export default function AssessmentTestRunnerRouter({
 
   // Check for dedicated interactive runners
   if (assessmentName.includes('6') && assessmentName.includes('meter') && assessmentName.includes('walk')) {
-    return wrapWithNotes(<SixMeterWalkStandaloneWrapper assessment={assessment} client={selectedClient} onClose={onClose} clinicianNotes={clinicianNotes} />);
+    return wrapWithNotes(<SixMeterWalkStandaloneWrapper assessment={assessment} client={selectedClient} clientAssessment={clientAssessment} onSave={onSave} onClose={onClose} clinicianNotes={clinicianNotes} />);
   }
 
   if (assessmentName.includes('8') && assessmentName.includes('foot') && assessmentName.includes('go')) {
-    return wrapWithNotes(<EightFootUpandGoStandaloneWrapper assessment={assessment} client={selectedClient} onClose={onClose} clinicianNotes={clinicianNotes} />);
+    return wrapWithNotes(<EightFootUpandGoStandaloneWrapper assessment={assessment} client={selectedClient} clientAssessment={clientAssessment} onSave={onSave} onClose={onClose} clinicianNotes={clinicianNotes} />);
   }
 
   if (assessmentName.includes('400') && assessmentName.includes('meter') && assessmentName.includes('walk')) {
@@ -197,7 +197,7 @@ export default function AssessmentTestRunnerRouter({
   }
 
   if (assessmentName.includes('6') && assessmentName.includes('minute') && assessmentName.includes('step')) {
-    return wrapWithNotes(<SixMinuteStepTestStandaloneWrapper assessment={assessment} client={selectedClient} onClose={onClose} clinicianNotes={clinicianNotes} />);
+    return wrapWithNotes(<SixMinuteStepTestStandaloneWrapper assessment={assessment} client={selectedClient} clientAssessment={clientAssessment} onSave={onSave} onClose={onClose} clinicianNotes={clinicianNotes} />);
   }
 
   if (assessmentName.toLowerCase().includes('functional independence measure') || (assessmentName.includes('fim') && assessmentName.includes('functional'))) {
