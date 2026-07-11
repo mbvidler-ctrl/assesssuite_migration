@@ -47,7 +47,7 @@ export default function PaymentRequired() {
           <CreditCard className="w-8 h-8 text-blue-600" />
         </div>
         <h1 className="text-3xl font-bold text-slate-900">Activate Your Subscription</h1>
-        <p className="text-slate-600 text-lg">Choose a plan to access Allied Assess.</p>
+        <p className="text-slate-600 text-lg">Choose a plan to access AssessSuite.</p>
 
         <div className="grid gap-4">
           {/* Monthly */}

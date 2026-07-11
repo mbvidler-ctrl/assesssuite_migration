@@ -38,7 +38,7 @@ export default function ClientDataExporter({ client, isOpen, onClose }) {
     conditions: "Medical Conditions",
     medications: "Current Medications",
     goals: "Client Goals",
-    apss: "APSS Pre-Exercise Screening",
+    apss: "Pre-Exercise Screening",
     cultural: "Cultural Considerations",
     assessments: "Assessment Results",
     soapNotes: "SOAP Notes",
@@ -262,9 +262,9 @@ export default function ClientDataExporter({ client, isOpen, onClose }) {
       if (isFullExport || selectedSections.apss) {
         htmlContent += `
           <div class="section">
-            <h2>APSS Pre-Exercise Screening</h2>
-            <div class="info-row"><span class="label">Stage 1:</span><span class="value">${client.apss_completed ? '<span class="badge badge-green">Completed</span>' : '<span class="badge badge-yellow">Pending</span>'}</span></div>
-            <div class="info-row"><span class="label">Stage 2:</span><span class="value">${client.apss_stage2_completed ? '<span class="badge badge-green">Completed</span>' : '<span class="badge badge-yellow">Pending</span>'}</span></div>
+            <h2>Pre-Exercise Screening</h2>
+            <div class="info-row"><span class="label">Safety Screen:</span><span class="value">${client.apss_completed ? '<span class="badge badge-green">Completed</span>' : '<span class="badge badge-yellow">Pending</span>'}</span></div>
+            <div class="info-row"><span class="label">Clinical Risk Review:</span><span class="value">${client.apss_stage2_completed ? '<span class="badge badge-green">Completed</span>' : '<span class="badge badge-yellow">Pending</span>'}</span></div>
           </div>
         `;
       }

@@ -193,7 +193,7 @@ Focus on assessments that will:
           </div>
           {isExpanded ? <ChevronUp className="w-5 h-5 text-yellow-700" /> : <ChevronDown className="w-5 h-5 text-yellow-700" />}
         </div>
-        {!isExpanded && <p className="text-sm text-yellow-700">Based on the client's conditions and APSS screening results</p>}
+        {!isExpanded && <p className="text-sm text-yellow-700">Based on the client's conditions and pre-exercise screening results</p>}
       </CardHeader>
       {isExpanded && (
         <CardContent>

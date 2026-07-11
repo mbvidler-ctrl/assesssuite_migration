@@ -209,8 +209,8 @@ export default function OnboardingEpisodes({ client, onReOnboardStarted }) {
                           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Completion Status</p>
                           <div className="grid grid-cols-2 gap-1.5 text-sm">
                             {[
-                              ["APSS Stage 1", ep.apss_completed],
-                              ["APSS Stage 2", ep.apss_stage2_completed],
+                              ["Safety Screen", ep.apss_completed],
+                              ["Clinical Risk Review", ep.apss_stage2_completed],
                               ["Consent Confirmed", ep.consent_confirmed],
                               ["Privacy Consent", ep.privacy_consent],
                               ["Assessment Consent", ep.assessment_consent],
@@ -288,7 +288,7 @@ export default function OnboardingEpisodes({ client, onReOnboardStarted }) {
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2 space-y-1 text-sm text-amber-800">
                 <p className="font-semibold">⟳ What gets reset:</p>
                 <ul className="ml-3 space-y-0.5 list-disc text-xs">
-                  <li>APSS Stage 1 &amp; 2 answers</li>
+                  <li>Safety Screen &amp; Clinical Risk Review answers</li>
                   <li>Client goals</li>
                   <li>Consent flags</li>
                 </ul>

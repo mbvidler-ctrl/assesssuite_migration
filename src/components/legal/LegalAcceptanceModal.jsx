@@ -16,7 +16,10 @@ export default function LegalAcceptanceModal({ isOpen, onAccept, user }) {
         user_email: user.email,
         user_role: user.role === 'admin' ? 'Admin' : 'Clinician',
         document_set_id: "allied-assess-session-acknowledgement-v1",
-        document_set_version: "2.0.0",
+        // 2.1.0: acknowledgement wording rebranded Allied Assess -> AssessSuite
+        // (11 July 2026). The document_set_id is a stored data key referenced by
+        // historical LegalAcceptance records and deliberately does not change.
+        document_set_version: "2.1.0",
         accepted_documents: ["session_acknowledgement"],
         accepted: true,
         ip_address: 'not-collected',
@@ -45,8 +48,8 @@ export default function LegalAcceptanceModal({ isOpen, onAccept, user }) {
         {/* Logo / Header */}
         <div className="flex items-center justify-center mb-6">
           <img
-            src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68746e3e91f52664774f3d05/c1a23eb59_AlliedAssessBETTER.png"
-            alt="Allied Assess"
+            src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/4c24cafdd_Logo-Transparent1.png"
+            alt="AssessSuite Clinical"
             className="h-12 w-auto"
           />
         </div>
@@ -63,7 +66,7 @@ export default function LegalAcceptanceModal({ isOpen, onAccept, user }) {
           <div className="flex items-start gap-3 bg-slate-50 rounded-lg p-3">
             <ShieldCheck className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-slate-700">
-              Allied Assess provides <strong>clinical guidance only</strong>. I retain full professional and legal responsibility for all clinical decisions and client outcomes.
+              AssessSuite provides <strong>clinical guidance only</strong>. I retain full professional and legal responsibility for all clinical decisions and client outcomes.
             </p>
           </div>
 

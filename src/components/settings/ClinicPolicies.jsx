@@ -259,7 +259,7 @@ export default function ClinicPolicies() {
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-slate-700 mb-3">Consent Items — toggle which appear on the APSS consent form</p>
+            <p className="text-sm font-semibold text-slate-700 mb-3">Consent Items — toggle which appear on the pre-exercise screening consent form</p>
             <div className="space-y-3">
               {CONSENT_ITEMS.map(item => (
                 <div key={item.key} className={`border rounded-lg overflow-hidden ${editingPolicy[item.key] ? 'border-blue-200 bg-blue-50/30' : 'border-slate-200 bg-slate-50'}`}>

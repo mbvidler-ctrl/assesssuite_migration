@@ -52,7 +52,7 @@ export default function OnboardingStatus({ client, conditions = [] }) {
       },
       {
         id: 4,
-        name: 'APSS Stage 1',
+        name: 'Safety Screen',
         icon: ClipboardList,
         required: [],
         optional: [],
@@ -62,7 +62,7 @@ export default function OnboardingStatus({ client, conditions = [] }) {
       },
       {
         id: 5,
-        name: 'APSS Stage 2',
+        name: 'Clinical Risk Review',
         icon: ClipboardList,
         required: [],
         optional: [],

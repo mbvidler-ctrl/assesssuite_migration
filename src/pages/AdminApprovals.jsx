@@ -1680,7 +1680,7 @@ export default function AdminApprovals() {
                 </Button>
                 <Button
                   onClick={() => {
-                    window.open(`mailto:${viewingUser.email}?subject=Password Reset - Allied Assess&body=Hi ${viewingUser.full_name || 'there'},%0D%0A%0D%0ATo reset your password, please visit: ${window.location.origin}`, '_blank');
+                    window.open(`mailto:${viewingUser.email}?subject=Password Reset - AssessSuite&body=Hi ${viewingUser.full_name || 'there'},%0D%0A%0D%0ATo reset your password, please visit: ${window.location.origin}`, '_blank');
                     toast.success("Opening email client");
                   }}
                   variant="outline"

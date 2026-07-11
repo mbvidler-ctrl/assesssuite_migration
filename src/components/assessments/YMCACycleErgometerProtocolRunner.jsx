@@ -184,7 +184,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
   Estimated VO2max of ${vo2maxResult.vo2Max} ml/kg/min reflects good exercise tolerance and cardiovascular efficiency.
   
   IP STATEMENT:
-  This assessment is independently developed by Allied Assess.
+  This assessment is independently developed by AssessSuite.
   It does not reproduce YMCA proprietary manuals or materials.`;
 
     onSave({

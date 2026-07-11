@@ -39,7 +39,7 @@ export default function Signup() {
         <div className="flex items-center gap-3 mb-3">
           <img
             src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/358c0c514_Logo-Transparent1.png"
-            alt="Allied Assess"
+            alt="AssessSuite Clinical"
             className="h-40 brightness-0 invert"
           />
         </div>
@@ -66,7 +66,7 @@ export default function Signup() {
           <div className="md:hidden flex justify-center">
             <img
               src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/358c0c514_Logo-Transparent1.png"
-              alt="Allied Assess"
+              alt="AssessSuite Clinical"
               className="h-10"
             />
           </div>

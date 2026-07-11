@@ -371,7 +371,7 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
           )}
 
           <div className="space-y-4 mt-6 bg-slate-50 border border-slate-200 rounded-lg p-4">
-            <h3 className="font-semibold text-slate-900 text-base">Stage 1 - Adult Pre-Exercise Screening (APSS)</h3>
+            <h3 className="font-semibold text-slate-900 text-base">Safety Screen - Adult Pre-Exercise Screening (APSS)</h3>
             <p className="text-xs text-slate-600">If you answer YES to any of the following, medical clearance from your doctor may be required before commencing exercise</p>
             
             <div className="space-y-4">

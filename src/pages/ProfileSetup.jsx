@@ -242,7 +242,7 @@ export default function ProfileSetup() {
               </div>
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome to Allied Assess</h1>
+              <h1 className="text-3xl font-bold text-slate-900 mb-2">Welcome to AssessSuite</h1>
               <p className="text-lg text-slate-600">
                 Let's set up your professional profile to get started
               </p>

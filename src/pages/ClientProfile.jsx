@@ -547,7 +547,7 @@ export default function ClientProfile() {
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2">
                       <ClipboardList className="w-5 h-5 text-blue-600" />
-                      APSS Pre-Exercise Screening
+                      Pre-Exercise Screening
                     </CardTitle>
                     <Button variant="ghost" size="sm" onClick={() => setShowAPSSModal(true)}>
                       <Edit className="w-4 h-4" />
@@ -558,7 +558,7 @@ export default function ClientProfile() {
                   <div className="grid grid-cols-2 gap-3">
                     <div className={`p-3 rounded-lg border ${client.apss_completed ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'}`}>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-700">Stage 1</span>
+                        <span className="text-sm font-medium text-slate-700">Safety Screen</span>
                         {client.apss_completed ? (
                           <Badge className="bg-green-100 text-green-700 border-0">Completed</Badge>
                         ) : (
@@ -568,7 +568,7 @@ export default function ClientProfile() {
                     </div>
                     <div className={`p-3 rounded-lg border ${client.apss_stage2_completed ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'}`}>
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-slate-700">Stage 2</span>
+                        <span className="text-sm font-medium text-slate-700">Clinical Risk Review</span>
                         {client.apss_stage2_completed ? (
                           <Badge className="bg-green-100 text-green-700 border-0">Completed</Badge>
                         ) : (
@@ -578,7 +578,7 @@ export default function ClientProfile() {
                     </div>
                   </div>
                   <Button variant="outline" size="sm" className="w-full mt-3" onClick={() => setShowAPSSModal(true)}>
-                    {client.apss_completed || client.apss_stage2_completed ? 'Update APSS' : 'Complete APSS'}
+                    {client.apss_completed || client.apss_stage2_completed ? 'Update Screening' : 'Complete Screening'}
                   </Button>
                 </CardContent>
               </Card>
