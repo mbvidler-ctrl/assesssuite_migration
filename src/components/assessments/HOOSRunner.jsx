@@ -162,11 +162,12 @@ export default function HOOSRunner({ onSave, onClose }) {
     onSave({
       responses,
       section_scores: sectionScores,
-      average_score: averageScore.toFixed(1),
+      average_score: parseFloat(averageScore.toFixed(1)),
+      result_value: parseFloat(averageScore.toFixed(1)),
       additional_data: {
         measurement_type: "HOOS",
         section_scores: sectionScores,
-        average_score: averageScore.toFixed(1),
+        average_score: parseFloat(averageScore.toFixed(1)),
         soap_text: soapText
       },
       notes: soapText,

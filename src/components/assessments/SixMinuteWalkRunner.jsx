@@ -121,6 +121,11 @@ export default function SixMinuteWalkRunner({ onSave, onClose }) {
   };
 
   const handleCompleteTest = () => {
+    const dist = parseFloat(postTest.total_distance);
+    if (!Number.isFinite(dist)) {
+      toast.error("Enter the total distance walked before saving.");
+      return;
+    }
     // Build comprehensive SOAP text
     let soapText = `• Six-Minute Walk Test: ${postTest.total_distance}m (${formatTime(timerSeconds)})\n`;
     soapText += `  Pre-Test: HR ${preTest.hr} bpm, BP ${preTest.bp_sys}/${preTest.bp_dia}, SpO2 ${preTest.spo2}%, RPE ${preTest.rpe}\n`;

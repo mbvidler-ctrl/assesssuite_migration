@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { todayLocal } from "@/lib/localDate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +28,7 @@ export default function ThirtyFifteenIFTRunner({ onSave, onClose }) {
       total_stages: totalStages ? parseInt(totalStages) : null,
       rpe: rpe ? parseInt(rpe) : null,
       notes: notes,
-      assessment_date: new Date().toISOString(),
+      assessment_date: todayLocal(),
       additional_data: {
         measurement_type: 'thirty_fifteen_ift',
         vift_kmh: parseFloat(vift),

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from "react";
+import { todayLocal } from "@/lib/localDate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -102,7 +103,7 @@ export default function CBMRunner({ onSave, onClose }) {
         score_sheet_name: uploadedFile?.name || null,
       },
       notes: notes,
-      assessment_date: new Date().toISOString()
+      assessment_date: todayLocal()
     });
   };
 

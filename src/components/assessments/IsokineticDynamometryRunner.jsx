@@ -47,6 +47,10 @@ export default function IsokineticDynamometryRunner({ client, onSave, onClose })
 
   const handleSave = () => {
     const validSets = sets.filter(s => s.peakTorque && !isNaN(parseFloat(s.peakTorque)));
+    if (validSets.length === 0) {
+      toast.error("Enter at least one Peak Torque value before saving.");
+      return;
+    }
     const maxPeak = Math.max(...validSets.map(s => parseFloat(s.peakTorque)));
     const setLines = validSets.map((s, i) => `  ${s.side} ${s.speed}${s.customSpeed ? ` (${s.customSpeed}°/s)` : ""}: Peak ${s.peakTorque}Nm${s.avgTorque ? ` | Avg ${s.avgTorque}Nm` : ""}${s.work ? ` | Work ${s.work}J` : ""}${s.power ? ` | Power ${s.power}W` : ""}${s.reps ? ` | ${s.reps} reps` : ""}`).join("\n");
     const soap = `• Isokinetic Dynamometry — ${joint}\n  Device: ${device || "Not specified"}\n  Pre-test HR: ${preHR || "N/A"} bpm | Post-test HR: ${postHR || "N/A"} bpm\n\n  Results:\n${setLines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Hamstring:Quadriceps ratio norms: 0.55–0.80 at 60°/s. <0.55 indicates increased injury risk.\n  Reference: Coombs R & Garbutt G (2002). Developments in the use of the hamstring/quadriceps ratio for assessment of muscle balance. J Sports Sci Med, 1(3):56-62.`;

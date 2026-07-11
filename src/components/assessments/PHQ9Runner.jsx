@@ -80,6 +80,9 @@ export default function PHQ9Runner({ onSave, onClose }) {
     onSave({
       status: "completed",
       result_value: total,
+      total_score: total,
+      severity: interpretation.severity,
+      suicidal_ideation_endorsed: responses[8] > 0,
       additional_data: {
         responses,
         severity: interpretation.severity,

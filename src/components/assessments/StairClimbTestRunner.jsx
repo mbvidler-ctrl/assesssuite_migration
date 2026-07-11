@@ -39,6 +39,10 @@ export default function StairClimbTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
+    if (recorded === null) {
+      toast.error("Run the timer and record a time before saving.");
+      return;
+    }
     const soap = `• Stair Climb Test\n  Stairs: ${stairCount} steps | Time: ${recorded}s | Handrail: ${handrailUse ? "Yes" : "No"} | Gait: ${gaitStability} | Device: ${assistiveDevice}${notes ? `\n  Notes: ${notes}` : ""}`;
     onSave({ status: "completed", result_value: recorded, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "stair_climb_test", time_seconds: recorded, stair_count: parseInt(stairCount) || null, handrail_use: handrailUse, gait_stability: gaitStability, assistive_device: assistiveDevice } });
     toast.success("Saved.");

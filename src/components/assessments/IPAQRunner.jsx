@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { todayLocal } from "@/lib/localDate";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -68,7 +69,7 @@ export default function IPAQRunner({ onSave, onClose }) {
         activity_category: category.level
       },
       notes: notes,
-      assessment_date: new Date().toISOString()
+      assessment_date: todayLocal()
     });
   };
 

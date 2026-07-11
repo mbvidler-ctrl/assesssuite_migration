@@ -41,6 +41,7 @@ export default function WaistHipRatioRunner({ client, onSave, onClose }) {
     onSave({
       result_value: parseFloat(whr),
       additional_data: {
+        measurement_type: 'whr',
         soap_text: soapText,
         waist_cm: parseFloat(waist),
         hip_cm: parseFloat(hip),

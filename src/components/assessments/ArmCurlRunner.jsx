@@ -103,6 +103,10 @@ export default function ArmCurlRunner({ client, onSave, onClose }) {
 
   const handleSave = () => {
     const primaryReps = testedSide === 'right' ? parseFloat(rightReps) : parseFloat(leftReps);
+    if (isNaN(primaryReps)) {
+      toast.error("Enter repetitions for the selected primary side before saving.");
+      return;
+    }
     const asymmetry = (rightReps && leftReps) ? Math.abs(parseFloat(rightReps) - parseFloat(leftReps)) : 0;
     const comparison = getNormativeComparison();
 
@@ -116,6 +120,7 @@ export default function ArmCurlRunner({ client, onSave, onClose }) {
     onSave({
       result_value: primaryReps,
       additional_data: {
+        measurement_type: 'arm_curl',
         soap_text: soapText,
         primary_side_reps: primaryReps,
         right_arm_reps: rightReps ? parseFloat(rightReps) : null,

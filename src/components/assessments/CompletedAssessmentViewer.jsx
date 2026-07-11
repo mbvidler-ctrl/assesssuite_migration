@@ -587,16 +587,21 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                        </div>
                      </div>
                    </div>
-                  ) : clientAssessment.additional_data?.measurement_type === 'rom_assessment' && clientAssessment.additional_data?.measurements ? (
+                  ) : clientAssessment.additional_data?.measurement_type === 'rom_assessment' && (clientAssessment.additional_data?.measurements || clientAssessment.additional_data?.rom_data?.measurements) ? (
+                    (() => {
+                      // The persisted shape nests the detail under rom_data;
+                      // resolve through it so stored records render.
+                      const rd = clientAssessment.additional_data.rom_data || clientAssessment.additional_data;
+                      return (
                     <div className="space-y-4">
                       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                         <p className="text-sm font-semibold text-blue-900 mb-2">Joint Assessed</p>
-                        <p className="text-lg font-bold text-blue-700">{clientAssessment.additional_data.jointName || 'ROM Assessment'}</p>
+                        <p className="text-lg font-bold text-blue-700">{rd.jointName || 'ROM Assessment'}</p>
                       </div>
 
                       <div className="space-y-3">
                         <p className="text-sm font-semibold text-slate-700">Measurements by Movement</p>
-                        {Object.entries(clientAssessment.additional_data.measurements).map(([movement, values]) => (
+                        {Object.entries(rd.measurements || {}).map(([movement, values]) => (
                           <div key={movement} className="bg-slate-50 border border-slate-200 rounded-lg p-3">
                             <p className="font-medium text-slate-900 mb-2">{movement}</p>
                             <div className="grid grid-cols-2 gap-3">
@@ -613,22 +618,24 @@ export default function CompletedAssessmentViewer({ assessment, client, clientAs
                                 </div>
                               )}
                             </div>
-                            {clientAssessment.additional_data.comments?.[movement] && (
-                              <p className="text-xs text-slate-600 mt-2 italic">Note: {clientAssessment.additional_data.comments[movement]}</p>
+                            {rd.comments?.[movement] && (
+                              <p className="text-xs text-slate-600 mt-2 italic">Note: {rd.comments[movement]}</p>
                             )}
                           </div>
                         ))}
                       </div>
 
-                      {clientAssessment.additional_data.soap_text && (
+                      {(rd.soap_text || clientAssessment.additional_data.soap_text) && (
                         <div className="bg-slate-50 border border-slate-200 rounded-lg p-4">
                           <p className="text-sm font-semibold text-slate-700 mb-2">SOAP Summary</p>
                           <pre className="text-sm text-slate-800 whitespace-pre-wrap font-sans leading-relaxed">
-                            {clientAssessment.additional_data.soap_text}
+                            {rd.soap_text || clientAssessment.additional_data.soap_text}
                           </pre>
                         </div>
                       )}
                     </div>
+                      );
+                    })()
                   ) : clientAssessment.additional_data?.measurement_type === 'womac' && clientAssessment.additional_data?.item_scores ? (
                     (() => {
                       const ad = clientAssessment.additional_data;

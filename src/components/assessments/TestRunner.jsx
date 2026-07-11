@@ -1375,8 +1375,10 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     }
     // ROM Assessment
     else if (assessmentData.additional_data && assessmentData.additional_data.measurement_type === 'rom_assessment') {
-      const romData = assessmentData.additional_data.rom_data;
-      objectiveText += `• ${assessment.name} - ${romData.jointName}:\n`;
+      // rom_data is absent when the ROM module was never opened; degrade
+      // instead of crashing the whole save.
+      const romData = assessmentData.additional_data.rom_data || assessmentData.additional_data || {};
+      objectiveText += `• ${assessment.name} - ${romData.jointName || 'ROM Assessment'}:\n`;
 
       if (romData.measurements) {
         Object.entries(romData.measurements).forEach(([movement, values]) => {
@@ -1666,8 +1668,9 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             if (walkData.assistive_device && walkData.assistive_device !== 'none') {
               objectiveText += `  Assistive Device: ${walkData.assistive_device}\n`;
             }
-            objectiveText += `\n  Individual Trials (${walkData.trials.length}):\n`;
-            walkData.trials.forEach((trial, idx) => {
+            const trialList = walkData.trials || [];
+            objectiveText += `\n  Individual Trials (${trialList.length}):\n`;
+            trialList.forEach((trial, idx) => {
               const speed = (10 / parseFloat(trial.time)).toFixed(2);
               objectiveText += `    Trial ${idx + 1}: ${trial.time}s (${speed} m/s)`;
               if (trial.steps) objectiveText += ` - ${trial.steps} steps`;
@@ -1942,7 +1945,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         updateData.additional_data = tinettiData.additional_data || { tinetti_data: tinettiData, measurement_type: 'tinetti' };
         updateData.assessment_date = resolveAssessmentDate(tinettiData?.assessment_date);
       } else if (is6MWT()) {
-        updateData.result_value = sixMWTData.distance_metres;
+        if (!sixMWTData) { toast.error("Please complete the 6-Minute Walk Test first."); setIsSubmitting(false); return; }
+        updateData.result_value = parseFloat(sixMWTData.result_value ?? sixMWTData.distance_metres);
         updateData.additional_data = sixMWTData.additional_data || {
           sixmwt_data: sixMWTData,
           measurement_type: 'six_minute_walk'
@@ -1952,8 +1956,9 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           updateData.notes = sixMWTData.notes + (result.notes ? '\n\n' + result.notes : '');
         }
       } else if (isDASS21()) { if (!dass21Data) { toast.error("Please complete the DASS-21 questionnaire first."); setIsSubmitting(false); return; } const d21=dass21Data.additional_data||dass21Data; updateData.result_value=(d21.depression_score||0)+(d21.anxiety_score||0)+(d21.stress_score||0); updateData.additional_data=d21; updateData.assessment_date = resolveAssessmentDate(dass21Data?.assessment_date);
-      } else if (isHADSTest()) { const hd=hadsData.additional_data||hadsData; updateData.result_value=(hd.anxiety_score||0)+(hd.depression_score||0); updateData.additional_data=hd; updateData.assessment_date = resolveAssessmentDate(hadsData?.assessment_date);
+      } else if (isHADSTest()) { if (!hadsData) { toast.error("Please complete the HADS questionnaire first."); setIsSubmitting(false); return; } const hd=hadsData.additional_data||hadsData; updateData.result_value=(hd.anxiety_score||0)+(hd.depression_score||0); updateData.additional_data=hd; updateData.assessment_date = resolveAssessmentDate(hadsData?.assessment_date);
       } else if (isClinicalFrailtyScaleTest()) {
+        if (!clinicalFrailtyScaleData) { toast.error("Please complete the Clinical Frailty Scale first."); setIsSubmitting(false); return; }
         updateData.result_value = clinicalFrailtyScaleData.frailty_score;
         updateData.additional_data = clinicalFrailtyScaleData.additional_data || clinicalFrailtyScaleData;
         updateData.assessment_date = resolveAssessmentDate(clinicalFrailtyScaleData?.assessment_date);
@@ -2064,7 +2069,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         };
         updateData.assessment_date = resolveAssessmentDate(tenMeterWalkData?.assessment_date);
         // Merge notes from test runner
-        if (tenMeterWalkData.notes) {
+        if (tenMeterWalkData?.notes) {
           updateData.notes = tenMeterWalkData.notes + (result.notes ? '\n\n' + result.notes : '');
         }
       } else if (is4StageBalanceTest()) {
@@ -2137,11 +2142,13 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             };
             updateData.assessment_date = resolveAssessmentDate(result.ebbeling_data?.assessment_date);
           } else if (isMoCATest()) {
-            updateData.result_value = mocaData.total;
-            updateData.additional_data = mocaData.additional_data || {
-              moca_data: mocaData,
-              measurement_type: 'moca'
-            };
+            if (!mocaData) {
+              toast.error("Please complete the MoCA assessment first.");
+              setIsSubmitting(false);
+              return;
+            }
+            updateData.result_value = parseFloat(mocaData.result_value ?? mocaData.additional_data?.total);
+            updateData.additional_data = { ...(mocaData.additional_data || { moca_data: mocaData }), measurement_type: 'moca' };
             updateData.assessment_date = resolveAssessmentDate(mocaData?.assessment_date);
           } else if (isMMTTest()) {
             updateData.result_value = parseFloat(mmtData.result_value || mmtData.averageGrade || mmtData.additional_data?.average_grade || 0);
@@ -2151,7 +2158,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             };
             updateData.assessment_date = resolveAssessmentDate(mmtData?.assessment_date);
           } else if (isWaistHipRatio()) {
-            updateData.result_value = whrData.whr_value;
+            if (!whrData) { toast.error("Please complete the Waist-Hip measurement first."); setIsSubmitting(false); return; }
+            updateData.result_value = parseFloat(whrData.result_value ?? whrData.additional_data?.whr_value);
             updateData.additional_data = whrData.additional_data || {
               whr_data: whrData,
               measurement_type: 'whr'
@@ -2207,8 +2215,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
               risk_category: riskCategory,
               measurement_type: 'waist_circumference'
             };
-          } else if (isBergBalance()) {
-            updateData.result_value = bergData.total;
+          } else if (isBergBalance() && bergData) {
+            updateData.result_value = bergData.result_value ?? bergData.total;
             updateData.additional_data = bergData.additional_data || {
               berg_data: bergData,
               measurement_type: 'berg_balance'
@@ -2266,7 +2274,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             };
             updateData.assessment_date = resolveAssessmentDate(rombergData?.assessment_date);
           } else if (isStorkTest()) {
-            updateData.result_value = storkData.best_time;
+            if (!storkData) { toast.error("Please complete the Stork Test first."); setIsSubmitting(false); return; }
+            updateData.result_value = storkData.result_value ?? storkData.additional_data?.best_time;
             updateData.additional_data = storkData.additional_data || {
               stork_data: storkData,
               measurement_type: 'stork'
@@ -2361,11 +2370,13 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                 updateData.additional_data = gad7Data.additional_data || { gad7_data: gad7Data, measurement_type: 'gad7' };
                 updateData.assessment_date = resolveAssessmentDate(gad7Data?.assessment_date);
               } else if (isPHQ9()) {
+                if (!phq9Data) { toast.error("Please complete the PHQ-9 questionnaire first."); setIsSubmitting(false); return; }
                 updateData.result_value = phq9Data.result_value ?? phq9Data.total_score ?? phq9Data?.additional_data?.total_score;
                 updateData.additional_data = phq9Data.additional_data || { phq9_data: phq9Data, measurement_type: 'phq9' };
                 updateData.assessment_date = resolveAssessmentDate(phq9Data?.assessment_date);
               } else if (isArmCurl()) {
-                updateData.result_value = armCurlData.primary_side_reps;
+                if (!armCurlData) { toast.error("Please complete the Arm Curl test first."); setIsSubmitting(false); return; }
+                updateData.result_value = armCurlData.result_value ?? armCurlData.additional_data?.primary_side_reps;
                 updateData.additional_data = armCurlData.additional_data || {
                   arm_curl_data: armCurlData,
                   measurement_type: 'arm_curl'
@@ -2376,7 +2387,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                 updateData.additional_data = k10Data.additional_data || { k10_data: k10Data, measurement_type: 'k10' };
                 updateData.assessment_date = resolveAssessmentDate(k10Data?.assessment_date);
               } else if (isHOOS()) {
-                updateData.result_value = hoosData.average_score;
+                if (!hoosData) { toast.error("Please complete the HOOS questionnaire first."); setIsSubmitting(false); return; }
+                updateData.result_value = parseFloat(hoosData.result_value ?? hoosData.average_score);
                 updateData.additional_data = hoosData.additional_data || {
                   hoos_data: hoosData,
                   measurement_type: 'hoos'
@@ -2528,6 +2540,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                 };
                 updateData.assessment_date = resolveAssessmentDate(yoyoData?.assessment_date);
               } else if (isThirtyFifteenIFT()) {
+               if (!thirtyFifteenData) { toast.error("Please run the 30-15 IFT before completing."); setIsSubmitting(false); return; }
                updateData.result_value = thirtyFifteenData.result_value || thirtyFifteenData.vift_kmh;
                updateData.notes = thirtyFifteenData.notes || updateData.notes;
                updateData.additional_data = { ...(thirtyFifteenData.additional_data || {}), measurement_type: 'thirty_fifteen_ift', vift_kmh: thirtyFifteenData.vift_kmh || thirtyFifteenData.result_value, total_stages: thirtyFifteenData.total_stages, rpe: thirtyFifteenData.rpe };
@@ -2582,6 +2595,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                 };
                 updateData.assessment_date = resolveAssessmentDate(sixMinStepData?.assessment_date);
               } else if (isPPT()) {
+                if (!pptData) { toast.error("Please complete the Physical Performance Test first."); setIsSubmitting(false); return; }
                 updateData.result_value = pptData.result_value;
                 updateData.additional_data = pptData.additional_data || {
                   ppt_data: pptData,
@@ -2642,6 +2656,15 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         const speed = avgTime>0?(distance/avgTime).toFixed(2):0;
         updateData.result_value = parseFloat(speed);
         updateData.additional_data = { gait_distance:distance, average_time:avgTime.toFixed(2), speed_mps:parseFloat(speed), measurement_type:'habitual_gait' };
+      } else if (isVitalSignsAssessment(assessment.name) && vitalSignsData) {
+        // VitalSignsRunner data takes precedence: the wiring stores the whole
+        // runner payload; without this branch the manual-field reads below
+        // saw only empty inputs and persisted nothing from the runner.
+        const rawVital = vitalSignsData.result_value;
+        const parsedVital = typeof rawVital === 'string' ? parseFloat(rawVital) : rawVital;
+        updateData.result_value = (typeof parsedVital === 'number' && !isNaN(parsedVital)) ? parsedVital : null;
+        updateData.additional_data = vitalSignsData.additional_data || {};
+        updateData.assessment_date = resolveAssessmentDate(vitalSignsData.assessment_date);
       } else if (isVitalSignsAssessment(assessment.name)) {
         // For vital signs, store the primary result and additional data
         if (isBloodPressureAssessment(assessment.name)) {
@@ -4566,7 +4589,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {mocaData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">MoCA Completed</h4>
-                      <p className="text-2xl font-bold text-green-600">{mocaData.total}/30</p>
+                      <p className="text-2xl font-bold text-green-600">{mocaData.result_value ?? mocaData.additional_data?.total}/30</p>
                     </div>
                   )}
                 </div>
@@ -4613,8 +4636,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {whrData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">Measurements Complete</h4>
-                      <p className="text-2xl font-bold text-green-600">WHR: {whrData.whr_value}</p>
-                      <p className="text-sm text-green-700">{whrData.risk_category}</p>
+                      <p className="text-2xl font-bold text-green-600">WHR: {whrData.result_value ?? whrData.additional_data?.whr_value}</p>
+                      <p className="text-sm text-green-700">{whrData.additional_data?.whr_category ?? whrData.risk_category}</p>
                     </div>
                   )}
                 </div>
@@ -4637,8 +4660,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {bergData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">Berg Completed</h4>
-                      <p className="text-2xl font-bold text-green-600">{bergData.total}/56</p>
-                      <p className="text-sm text-green-700">{bergData.interpretation}</p>
+                      <p className="text-2xl font-bold text-green-600">{bergData.result_value ?? bergData.additional_data?.total ?? bergData.total}/56</p>
+                      <p className="text-sm text-green-700">{bergData.additional_data?.interpretation ?? bergData.interpretation}</p>
                     </div>
                   )}
                 </div>
@@ -4829,8 +4852,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {storkData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">Stork Test Completed</h4>
-                      <p className="text-lg font-bold text-green-600">Best: {storkData.best_time}s</p>
-                      <p className="text-sm text-green-700">{storkData.interpretation}</p>
+                      <p className="text-lg font-bold text-green-600">Best: {storkData.additional_data?.best_time ?? storkData.result_value}s</p>
+                      <p className="text-sm text-green-700">{storkData.additional_data?.observations ?? storkData.interpretation}</p>
                     </div>
                   )}
                 </div>
@@ -6143,15 +6166,15 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {sixMWTData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">6MWT Completed</h4>
-                      <p className="text-3xl font-bold text-green-600">{sixMWTData.distance_metres}m</p>
-                      {sixMWTData.test_duration && (
-                        <p className="text-sm text-green-700 mt-1">Test Duration: {Math.floor(sixMWTData.test_duration / 60)}:{(sixMWTData.test_duration % 60).toString().padStart(2, '0')}</p>
+                      <p className="text-3xl font-bold text-green-600">{sixMWTData.result_value ?? sixMWTData.distance_metres}m</p>
+                      {(sixMWTData.additional_data?.sixmwt_test_duration ?? sixMWTData.test_duration) && (
+                        <p className="text-sm text-green-700 mt-1">Test Duration: {Math.floor((sixMWTData.additional_data?.sixmwt_test_duration ?? sixMWTData.test_duration) / 60)}:{((sixMWTData.additional_data?.sixmwt_test_duration ?? sixMWTData.test_duration) % 60).toString().padStart(2, '0')}</p>
                       )}
-                      {sixMWTData.laps_completed && (
-                        <p className="text-sm text-green-700">Laps: {sixMWTData.laps_completed}</p>
+                      {(sixMWTData.additional_data?.sixmwt_laps ?? sixMWTData.laps_completed) && (
+                        <p className="text-sm text-green-700">Laps: {sixMWTData.additional_data?.sixmwt_laps ?? sixMWTData.laps_completed}</p>
                       )}
-                      {sixMWTData.rest_periods_count > 0 && (
-                        <p className="text-sm text-amber-700">Rest Periods: {sixMWTData.rest_periods_count}</p>
+                      {(sixMWTData.additional_data?.sixmwt_rest_periods ?? sixMWTData.rest_periods_count) > 0 && (
+                        <p className="text-sm text-amber-700">Rest Periods: {sixMWTData.additional_data?.sixmwt_rest_periods ?? sixMWTData.rest_periods_count}</p>
                       )}
                     </div>
                   )}
@@ -6879,32 +6902,10 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         />
       )}
 
-      {/* 6MWT Runner Modal */}
-      {show6MWTRunner && (
-        <SixMinuteWalkRunner
-          onSave={(data) => {
-            // Update result state with all 6MWT data
-            setResult(prev => ({
-              ...prev,
-              result_value: data.result_value?.toString() || '',
-              notes: data.notes || prev.notes,
-              sixmwt_pre_hr: data.sixmwt_pre_hr?.toString() || '',
-              sixmwt_pre_bp_sys: data.sixmwt_pre_bp_sys?.toString() || '',
-              sixmwt_pre_bp_dia: data.sixmwt_pre_bp_dia?.toString() || '',
-              sixmwt_pre_spo2: data.sixmwt_pre_spo2?.toString() || '',
-              sixmwt_pre_rpe: data.sixmwt_pre_rpe?.toString() || '',
-              sixmwt_post_hr: data.sixmwt_post_hr?.toString() || '',
-              sixmwt_post_spo2: data.sixmwt_post_spo2?.toString() || '',
-              sixmwt_post_rpe: data.sixmwt_post_rpe?.toString() || '',
-              sixmwt_post_dyspnea: data.sixmwt_post_dyspnea?.toString() || '',
-              sixmwt_laps: data.sixmwt_laps?.toString() || '',
-              sixmwt_rest_periods: data.sixmwt_rest_periods?.toString() || ''
-            }));
-            setShow6MWTRunner(false);
-          }}
-          onClose={() => setShow6MWTRunner(false)}
-        />
-      )}
+      {/* 6MWT Runner Modal: rendered once, further down, via the
+          setSixMWTData wiring the is6MWT() submit branch reads. A second
+          instance previously mounted here on the same show6MWTRunner flag,
+          reading top-level keys the runner never emits — removed. */}
 
       {/* Borg RPE Runner Modal */}
       {showBorgRPERunner && (
@@ -7637,7 +7638,10 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {showTenMeterWalkRunner && (
         <TenMeterWalkRunner
           onSave={(data) => {
-            setTenMeterWalkData(data);
+            // Flatten on store: every host read site (submit branch, SOAP
+            // formatter, display panel, rehydration) expects the detail keys
+            // at the top level, but the runner nests them in additional_data.
+            setTenMeterWalkData({ ...data.additional_data, notes: data.notes, assessment_date: data.assessment_date });
             setResult(prev => ({
               ...prev,
               notes: data.notes || prev.notes,
@@ -7687,7 +7691,10 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         <ClinicalFrailtyScaleRunner
           client={selectedClient || client}
           onSave={(data) => {
-            setClinicalFrailtyScaleData(data.additional_data);
+            // Merge the top-level score and date into the stored fragment: the
+            // submit branch reads .frailty_score, which the runner emits only
+            // as result_value; the fragment alone loses the score.
+            setClinicalFrailtyScaleData({ ...data.additional_data, frailty_score: data.result_value, assessment_date: data.assessment_date });
             setResult(prev => ({
               ...prev,
               notes: data.notes || prev.notes,
@@ -7705,7 +7712,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         <VitalSignsRunner
           assessmentName={assessment.name}
           onSave={(data) => {
-            setVitalSignsData(data.additional_data);
+            setVitalSignsData(data);
             setResult(prev => ({
               ...prev,
               notes: data.notes || prev.notes,

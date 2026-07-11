@@ -38,6 +38,7 @@ export default function StorkTestRunner({ onSave, onClose, initialData }) {
     soapText += `  Right Leg: ${rightTime}s\n`;
     soapText += `  Best Time: ${best}s\n`;
     soapText += `  Asymmetry: ${asymmetry.toFixed(1)}s\n`;
+    if (data.result) soapText += `  Test Result: ${data.result === 'positive' ? 'Positive (balance loss)' : 'Negative (normal)'}\n`;
     if (data.observations) soapText += `  Observations: ${data.observations}\n`;
 
     onSave({
@@ -48,6 +49,7 @@ export default function StorkTestRunner({ onSave, onClose, initialData }) {
         right_time: rightTime || null,
         best_time: best,
         asymmetry,
+        result: data.result,
         observations: data.observations,
         measurement_type: 'stork_test'
       },
