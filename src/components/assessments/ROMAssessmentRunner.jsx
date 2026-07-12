@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { X, Save, Info, Target, MessageSquare, Ruler } from "lucide-react";
+import { todayLocal } from "@/lib/localDate";
 
 // ROM Data for all joints
 const ROM_DATA = {
@@ -915,7 +916,7 @@ export default function ROMAssessmentRunner({ onSave, onClose, initialData }) {
         soap_text: soapText,
         measurement_type: 'rom_assessment'
       },
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     };
     if (onSave) onSave(data);
   };

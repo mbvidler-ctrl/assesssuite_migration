@@ -74,23 +74,16 @@ export default function TestRunnerPage() {
     }
   };
 
-  const handleSaveAndExit = async (result, notes, barriers, normativeComparison, additionalData) => {
+  // The TestRunner component persists the completed record and SOAP note
+  // itself before invoking onComplete, so no second update is issued here —
+  // the previous redundant update overwrote runner-saved additional_data
+  // with an empty object on the deep-link /TestRunner flow.
+  const handleSaveAndExit = async () => {
     if (!clientAssessment) return;
 
     try {
-      const updateData = {
-        result_value: result,
-        notes: notes,
-        status: 'completed',
-        assessment_date: new Date().toISOString().split('T')[0],
-        normative_comparison: normativeComparison,
-        barriers: barriers,
-        additional_data: additionalData || {}
-      };
-
-      await base44.entities.ClientAssessment.update(clientAssessment.id, updateData);
       toast.success("Assessment completed successfully!");
-      
+
       if (returnTo) {
         const decodedUrl = decodeURIComponent(returnTo);
         try {

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, X, AlertTriangle, ChevronDown, ChevronUp, BookOpen } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const SIDE_OPTIONS = ["Left", "Right", "Bilateral"];
 const END_FEEL_OPTIONS = [
@@ -90,7 +91,7 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
         overall_result: isPositive ? "Positive" : "Negative",
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
   };
 

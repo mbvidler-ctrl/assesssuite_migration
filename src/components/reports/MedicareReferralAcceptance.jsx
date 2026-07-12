@@ -1,5 +1,6 @@
 
 import React, { useState, useRef, useEffect, useMemo } from "react";
+import { todayLocal } from "@/lib/localDate";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -170,9 +171,9 @@ export default function MedicareReferralAcceptance({ client, onClose, editingRep
       gp_name: client.primary_gp_name || "",
       gp_clinic_name: client.primary_gp_clinic_name || "",
       gp_address: client.primary_gp_address || "",
-      letter_date: new Date().toISOString().split('T')[0],
+      letter_date: todayLocal(),
       referral_type: client.medicare_referral_type || "Referral outside Medicare allocation",
-      referral_date: client.referral_date || new Date().toISOString().split('T')[0],
+      referral_date: client.referral_date || todayLocal(),
       next_appointment_text: "",
       session_details: ""
     };
@@ -382,7 +383,7 @@ export default function MedicareReferralAcceptance({ client, onClose, editingRep
           client_id: client.id,
           report_type: "medicare_referral_acceptance",
           report_name: `Medicare Referral Acceptance - ${format(new Date(), 'dd/MM/yyyy')}`,
-          report_date: new Date().toISOString().split('T')[0],
+          report_date: todayLocal(),
           report_data: dataToSave,
           html_content: htmlContent,
           location_id: selectedLocation?.id || null, // Save selected location ID

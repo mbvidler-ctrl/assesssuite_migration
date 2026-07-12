@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, ChevronDown, ChevronUp, ExternalLink, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const GRADES = [
   {
@@ -59,7 +60,7 @@ export default function PivotShiftTestRunner({ client, onSave, onClose }) {
       status: "completed",
       result_value: worstGrade,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: soapText,
         measurement_type: "pivot_shift_test",

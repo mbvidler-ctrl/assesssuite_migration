@@ -12,6 +12,7 @@ import {
   Info, ExternalLink, Activity, AlertCircle, ChevronDown, ChevronRight
 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── Helper Components ────────────────────────────────────────────────────────
 
@@ -410,7 +411,7 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
         soap_text: buildSOAP(),
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Slump Test saved.");
   };

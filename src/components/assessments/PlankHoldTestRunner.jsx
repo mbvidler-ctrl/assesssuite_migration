@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Play, Pause, AlertTriangle, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // Normative data based on McGill Core Endurance Test (Plank variant)
 // Age groups and sex-based reference values in seconds
@@ -38,7 +39,7 @@ export default function PlankHoldTestRunner({ client, onSave, onClose }) {
   const [testAttempts, setTestAttempts] = useState([]);
   const [currentAttempt, setCurrentAttempt] = useState(0);
   const [notes, setNotes] = useState("");
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
   const [showInstructions, setShowInstructions] = useState(true);
   const timerRef = useRef(null);
 

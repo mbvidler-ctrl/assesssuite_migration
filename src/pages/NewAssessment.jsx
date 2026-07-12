@@ -13,6 +13,7 @@ import { Search, User as UserIcon, CheckCircle, ClipboardPlus, ArrowRight, Loade
 import { Toaster, toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { todayLocal } from "@/lib/localDate";
 
 export default function NewAssessment() {
   const navigate = useNavigate();
@@ -99,7 +100,7 @@ export default function NewAssessment() {
         client_id: selectedClientId,
         assessment_id: assessmentId,
         status: 'pending',
-        assessment_date: new Date().toISOString().split('T')[0]
+        assessment_date: todayLocal()
       }));
 
       await ClientAssessment.bulkCreate(assessmentsToCreate);

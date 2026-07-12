@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Info, AlertCircle, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const IKDC_QUESTIONS = [
   // SYMPTOMS SUBSCALE (5 items)
@@ -49,7 +50,7 @@ export default function InternationalKneeDocumentationCommitteeIKDCRunner({ clie
     }
 
     const totalScore = calculateIKDCScore();
-    const assessmentDate = new Date().toISOString().split("T")[0];
+    const assessmentDate = todayLocal();
 
     // Generate SOAP objective text
     const symptomsScore = Object.keys(responses)

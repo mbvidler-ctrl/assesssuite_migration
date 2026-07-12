@@ -13,6 +13,7 @@ import {
   Info, ExternalLink, RotateCcw, Activity, Zap, AlertCircle
 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -432,7 +433,7 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
         soap_text: soap,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("SLR Assessment saved.");
   };

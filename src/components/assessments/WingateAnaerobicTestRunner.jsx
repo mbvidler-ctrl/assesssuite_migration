@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { Save, X, Play, Square, RotateCcw, Zap, Activity, TrendingDown, Award, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── NORMS ─────────────────────────────────────────────────────────────────────
 const PEAK_POWER_NORMS = {
@@ -199,7 +200,7 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
       status: "completed",
       result_value: peakW ? parseFloat(peakW.toFixed(1)) : null,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: buildSOAP(),
         measurement_type: "anaerobic_power",

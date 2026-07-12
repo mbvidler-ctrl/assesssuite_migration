@@ -409,7 +409,7 @@ export default function LandingLive() {
         {showSuccess && (
           <div style={{ background: '#d1fae5', borderBottom: '2px solid #10b981', padding: '20px', textAlign: 'center', position: 'sticky', top: 0, zIndex: 999 }}>
             <p style={{ fontSize: '18px', fontWeight: '600', color: '#065f46', margin: '0 0 10px 0' }}>
-              🎉 Payment successful! Welcome to Assess Suite Clinical.
+              🎉 Payment successful! Welcome to AssessSuite Clinical.
             </p>
             <p style={{ color: '#047857', margin: '0 0 14px 0' }}>
               Click below to create your account and get started.

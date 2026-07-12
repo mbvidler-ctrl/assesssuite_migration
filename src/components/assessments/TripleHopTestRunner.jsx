@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
+import { todayLocal } from "@/lib/localDate";
 
 function getLSI(tested, contralateral) {
   if (!tested || !contralateral || parseFloat(contralateral) === 0) return null;
@@ -57,7 +58,7 @@ export default function TripleHopTestRunner({ client, onSave, onClose }) {
     onSave({
       result_value: tested ? parseFloat(tested) : null,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: soapText,
         tested_side: side,

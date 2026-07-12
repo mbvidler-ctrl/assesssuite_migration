@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { todayLocal } from "@/lib/localDate";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -62,7 +63,7 @@ export default function BESSRunner({ onSave, onClose }) {
         interpretation: interpretation?.level
       },
       notes: notes,
-      assessment_date: new Date().toISOString()
+      assessment_date: todayLocal()
     });
   };
 

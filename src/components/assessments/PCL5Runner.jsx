@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const PCL5_ITEMS = [
   { id: 1, text: "Repeated, disturbing, and unwanted memories of the stressful experience?" },
@@ -86,7 +87,7 @@ export default function PCL5Runner({ client, onSave, onClose }) {
         raw_responses: responses,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("PCL-5 assessment completed and saved.");
   };

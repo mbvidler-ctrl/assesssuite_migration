@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function LachmanTestRunner({ client, onSave, onClose }) {
   const [kneeFlexion, setKneeFlexion] = useState("25");
@@ -45,7 +46,7 @@ export default function LachmanTestRunner({ client, onSave, onClose }) {
       result_value: resultValue,
       additional_data: additionalData,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
 
     toast.success("Lachman Test results saved.");

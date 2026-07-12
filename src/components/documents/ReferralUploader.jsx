@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import HistoricalAssessmentExtractor from './HistoricalAssessmentExtractor';
+import { todayLocal } from "@/lib/localDate";
 
 const REFERRAL_EXTRACTION_SCHEMA = {
   type: "object",
@@ -382,7 +383,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
             appointment_id: null,
             status: 'completed',
             result_value: assessment.result_value,
-            assessment_date: assessment.test_date || new Date().toISOString().split('T')[0],
+            assessment_date: assessment.test_date || todayLocal(),
             notes: `Historical result from external report. ${assessment.performed_by ? `Performed by: ${assessment.performed_by}. ` : ''}${assessment.notes || ''}`
           });
         }

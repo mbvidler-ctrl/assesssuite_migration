@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, Save, AlertCircle } from "lucide-react";
+import { todayLocal } from "@/lib/localDate";
 
 const scoreOptions = [
   { score: 0, label: "No symptoms", description: "No symptoms at all." },
@@ -67,7 +68,7 @@ export default function ModifiedRankinScaleMRSRunner({ clientId, appointmentId, 
         appointment_id: appointmentId,
         status: "completed",
         result_value: selectedScore,
-        assessment_date: new Date().toISOString().split("T")[0],
+        assessment_date: todayLocal(),
         notes: clinicalNotes,
         additional_data: {
           collateral_used: collateralUsed,

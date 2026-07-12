@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Save, Play, Pause, RotateCcw, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const NORMATIVE_DATA = [
   { sex: "male", age_min: 60, age_max: 64, low: 16, mid_low: 16, mid_high: 22, high: 22 },
@@ -102,6 +103,10 @@ export default function ArmCurlRunner({ client, onSave, onClose }) {
 
   const handleSave = () => {
     const primaryReps = testedSide === 'right' ? parseFloat(rightReps) : parseFloat(leftReps);
+    if (isNaN(primaryReps)) {
+      toast.error("Enter repetitions for the selected primary side before saving.");
+      return;
+    }
     const asymmetry = (rightReps && leftReps) ? Math.abs(parseFloat(rightReps) - parseFloat(leftReps)) : 0;
     const comparison = getNormativeComparison();
 
@@ -115,6 +120,7 @@ export default function ArmCurlRunner({ client, onSave, onClose }) {
     onSave({
       result_value: primaryReps,
       additional_data: {
+        measurement_type: 'arm_curl',
         soap_text: soapText,
         primary_side_reps: primaryReps,
         right_arm_reps: rightReps ? parseFloat(rightReps) : null,
@@ -128,7 +134,7 @@ export default function ArmCurlRunner({ client, onSave, onClose }) {
         normative_category: comparison?.category || null,
         test_duration: 30
       },
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

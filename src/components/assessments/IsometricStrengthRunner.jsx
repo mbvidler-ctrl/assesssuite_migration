@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Save, Plus, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const JOINTS = [
   { joint: "Shoulder", movements: ["Flexion", "Extension", "Abduction", "Adduction", "Internal Rotation", "External Rotation"] },
@@ -104,7 +105,7 @@ export default function IsometricStrengthRunner({ onSave, onClose }) {
         average_force_kg: parseFloat(avgForce.toFixed(1)),
       },
       notes,
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
     });
   };
 

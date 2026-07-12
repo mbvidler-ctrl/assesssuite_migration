@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const RSA_PROTOCOLS = {
   "6 × 30 m (straight)": { sprints: 6, distance: 30, recovery: "20-30", isShuttle: false, key: "6x30" },
@@ -138,7 +139,7 @@ export default function RSARunner({ testName, assessment, onSave, onClose, clien
         protocol: selectedProtocolName,
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
     });
   };
 

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Save, Info, Play, Pause, StopCircle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function CycleProtocolRunner({ protocol, onSave, onClose }) {
   const [time, setTime] = useState(0);
@@ -102,7 +103,7 @@ export default function CycleProtocolRunner({ protocol, onSave, onClose }) {
         estimated_vo2max: vo2max,
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

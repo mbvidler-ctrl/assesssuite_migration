@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Save, X, RotateCcw, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── Question Definitions ────────────────────────────────────────────────────
 const QUESTIONS = [
@@ -250,7 +251,7 @@ export default function SARCFQuestionnaireRunner({ client, onSave, onClose }) {
     onSave({
       result_value: total,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         measurement_type: "sarc_f_questionnaire",
         soap_text: soapLines,

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle, ChevronDown, ChevronUp, ExternalLink, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function McMurraysTestRunner({ client, onSave, onClose }) {
   const [preTestVitals, setPreTestVitals] = useState({ systolic: "", diastolic: "", heartRate: "" });
@@ -79,7 +80,7 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
       result_value: totalPositive,
       additional_data: additionalData,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("McMurray's Test completed and saved.");
   };

@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function MaximalPushUpTestRunner({ client, onSave, onClose }) {
   const [trials, setTrials] = useState([]);
@@ -62,7 +63,7 @@ export default function MaximalPushUpTestRunner({ client, onSave, onClose }) {
         soap_text: soapText
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Assessment saved successfully.");
   };

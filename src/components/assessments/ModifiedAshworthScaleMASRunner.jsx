@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { X, Save, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const MUSCLES = [
   "Elbow Flexors",
@@ -68,10 +69,10 @@ export default function ModifiedAshworthScaleMASRunner({ client, onSave, onClose
       additional_data: {
         soap_text: soapText,
         muscles: muscles.map(m => ({ muscle: m.muscle, score: m.score })),
-        assessment_date: new Date().toISOString().split("T")[0]
+        assessment_date: todayLocal()
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0]
+      assessment_date: todayLocal()
     });
   };
 

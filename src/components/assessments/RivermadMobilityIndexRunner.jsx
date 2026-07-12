@@ -8,6 +8,7 @@ import { Save, X, ExternalLink, ChevronDown, Info } from "lucide-react";
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { todayLocal } from "@/lib/localDate";
 
 const RMI_TASKS = [
   { id: 1, name: "Turning in Bed", description: "Can client turn in bed unaided?" },
@@ -81,7 +82,7 @@ export default function RivermadMobilityIndexRunner({ client, onSave, onClose })
         completed_at: new Date().toISOString()
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
 
     const successMsg = statusMap.complete ? "Assessment completed and saved" : statusMap.partial ? "Partial assessment saved" : "Draft saved (no items scored)";

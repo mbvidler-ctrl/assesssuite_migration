@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const GRADES = [
   { grade: 0, label: "No Breathlessness", desc: "No breathlessness except on strenuous exercise.", icon: "🟢" },
@@ -41,7 +42,7 @@ export default function MedicalResearchCouncilMRCDyspneaScaleRunner({ client, on
   Plan: ${selected >= 2 ? "Monitor dyspnoea trends, consider pulmonary physiology testing and specialist referral if worsening." : "Continue current activity level; reassess at next review."}
   Evidence: mMRC (Modified MRC) ≥2 is GOLD COPD criterion for significant dyspnoea; correlates with 6MWT, quality of life, and mortality risk.
   Reference: Bestall JC et al. (1999). Thorax, 54(7):581–586. GOLD Guidelines (2024).`;
-    onSave({ status: "completed", result_value: selected, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", mrc_grade: selected, grade_label: grade.label } });
+    onSave({ status: "completed", result_value: selected, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "questionnaire", mrc_grade: selected, grade_label: grade.label } });
     toast.success("Assessment saved to SOAP notes.");
   };
 

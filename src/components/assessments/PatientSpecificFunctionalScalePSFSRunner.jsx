@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function PatientSpecificFunctionalScalePSFSRunner({ client, onSave, onClose }) {
   const [activities, setActivities] = useState([{ name: "", score: "" }]);
@@ -53,7 +54,7 @@ export default function PatientSpecificFunctionalScalePSFSRunner({ client, onSav
       result_value: meanScore,
       additional_data: additionalData,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     setIsSaving(false);
     toast.success("Assessment saved successfully.");

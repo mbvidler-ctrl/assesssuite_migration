@@ -8,7 +8,7 @@ import { generateSOAPForSpecialMeasurements } from "./SOAPObjectiveGenerator";
 // Wrapper to handle standalone 6-Minute Step Test from assessment library
 // If called with client prop, skips ClientSelectorModal and goes straight to test runner
 // Only shows ClientSelectorModal when client is null (true standalone mode)
-export default function SixMinuteStepTestStandaloneWrapper({ assessment, client, onClose }) {
+export default function SixMinuteStepTestStandaloneWrapper({ assessment, client, clientAssessment, onSave, onClose, clinicianNotes }) {
   const [selectedClient, setSelectedClient] = useState(client || null);
   const [allClients, setAllClients] = useState([]);
   const [showClientSelector, setShowClientSelector] = useState(!client);
@@ -39,45 +39,62 @@ export default function SixMinuteStepTestStandaloneWrapper({ assessment, client,
 
     try {
       const now = new Date();
-      
-      // Find or create appointment for today
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
-      const tomorrowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
-      
-      let existingAppts = await base44.entities.Appointment.filter({
-        client_id: selectedClient.id,
-        start_time: { $gte: todayStart, $lt: tomorrowStart }
-      });
 
-      let appointmentId = existingAppts?.[0]?.id;
-      
+      // Update the launched pending record when one exists — creating a new
+      // record here left the pending assessment stuck at "pending" and
+      // produced a duplicate completed row.
+      let appointmentId = clientAssessment?.appointment_id;
+
       if (!appointmentId) {
-        const newAppt = await base44.entities.Appointment.create({
-          org_id: selectedClient.org_id,
+        // Find or create appointment for today
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+        const tomorrowStart = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).toISOString();
+
+        let existingAppts = await base44.entities.Appointment.filter({
           client_id: selectedClient.id,
-          title: `${assessment.name}`,
-          start_time: now.toISOString(),
-          end_time: new Date(now.getTime() + 60 * 60000).toISOString(),
-          status: 'completed'
+          start_time: { $gte: todayStart, $lt: tomorrowStart }
         });
-        appointmentId = newAppt.id;
+
+        appointmentId = existingAppts?.[0]?.id;
+
+        if (!appointmentId) {
+          const newAppt = await base44.entities.Appointment.create({
+            org_id: selectedClient.org_id,
+            client_id: selectedClient.id,
+            title: `${assessment.name}`,
+            start_time: now.toISOString(),
+            end_time: new Date(now.getTime() + 60 * 60000).toISOString(),
+            status: 'completed'
+          });
+          appointmentId = newAppt.id;
+        }
       }
 
-      // Create client assessment
-      await base44.entities.ClientAssessment.create({
-        org_id: selectedClient.org_id,
-        client_id: selectedClient.id,
-        assessment_id: assessment.id,
-        appointment_id: appointmentId,
+      const recordData = {
         status: 'completed',
         result_value: data.result_value,
         assessment_date: data.assessment_date,
         notes: data.notes,
         additional_data: data.additional_data
-      });
+      };
+
+      if (clientAssessment?.id) {
+        await base44.entities.ClientAssessment.update(clientAssessment.id, { ...recordData, appointment_id: appointmentId });
+      } else {
+        await base44.entities.ClientAssessment.create({
+          org_id: selectedClient.org_id,
+          client_id: selectedClient.id,
+          assessment_id: assessment.id,
+          appointment_id: appointmentId,
+          ...recordData
+        });
+      }
 
       // Generate SOAP note entry
-      const objectiveText = `• ${assessment.name}:\n  Steps completed: ${data.result_value}\n  Step height: ${data.additional_data.step_height} cm\n  Age: ${data.additional_data.age}, Gender: ${data.additional_data.gender}\n${data.notes ? `\n  Notes: ${data.notes}` : ''}`;
+      let objectiveText = `• ${assessment.name}:\n  Steps completed: ${data.result_value}\n  Step height: ${data.additional_data.step_height} cm\n  Age: ${data.additional_data.age}, Gender: ${data.additional_data.gender}\n${data.notes ? `\n  Notes: ${data.notes}` : ''}`;
+      if (clinicianNotes && clinicianNotes.trim()) {
+        objectiveText += `\n\nClinician Notes (recorded during assessment):\n${clinicianNotes.trim()}`;
+      }
 
       // Find or create SOAP note for appointment
       let existingSoapNotes = await base44.entities.SOAPNote.filter({
@@ -106,6 +123,7 @@ export default function SixMinuteStepTestStandaloneWrapper({ assessment, client,
       }
 
       toast.success("6-Minute Step Test saved successfully!");
+      if (onSave) onSave(data);
       onClose();
     } catch (error) {
       console.error("Error saving assessment:", error);

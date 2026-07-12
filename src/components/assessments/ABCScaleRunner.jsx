@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { X, Save, Info, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const ABC_ACTIVITIES = [
   "Walk around the house",
@@ -66,7 +67,7 @@ export default function ABCScaleRunner({ onSave, onClose }) {
         interpretation: interpretation.text,
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

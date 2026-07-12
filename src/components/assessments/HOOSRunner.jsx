@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const SECTIONS = {
   symptoms: {
@@ -161,15 +162,16 @@ export default function HOOSRunner({ onSave, onClose }) {
     onSave({
       responses,
       section_scores: sectionScores,
-      average_score: averageScore.toFixed(1),
+      average_score: parseFloat(averageScore.toFixed(1)),
+      result_value: parseFloat(averageScore.toFixed(1)),
       additional_data: {
         measurement_type: "HOOS",
         section_scores: sectionScores,
-        average_score: averageScore.toFixed(1),
+        average_score: parseFloat(averageScore.toFixed(1)),
         soap_text: soapText
       },
       notes: soapText,
-      assessment_date: new Date().toISOString().split("T")[0]
+      assessment_date: todayLocal()
     });
   };
 

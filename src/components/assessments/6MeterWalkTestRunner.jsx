@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, RotateCcw, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // 6MWT: 6-metre instrumented corridor, 3 trials, middle 2m timed (acceleration/deceleration excluded)
 const TRIALS_TARGET = 3;
@@ -76,7 +77,7 @@ export default function SixMeterWalkTestRunner({ client, onSave, onClose }) {
     if (trials.length === 0) { toast.error("Complete at least one trial."); return; }
     onSave({
       result_value: bestTrial?.speed_ms,
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
       notes,
       additional_data: {
         soap_text: `• 6-Metre Walk Test\n  Best Speed: ${bestTrial?.speed_ms} m/s (${bestTrial?.time_s?.toFixed(2)}s)\n  Average Speed: ${avgSpeed} m/s\n  Condition: ${testCondition === 'self_selected' ? 'Self-Selected' : 'Fast Speed'}\n  Interpretation: ${bestTrial ? getInterpretation(bestTrial.speed_ms).label : 'N/A'}${gaitAids ? `\n  Gait Aid: ${gaitAids}` : ''}`,

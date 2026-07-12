@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Save, X, Play, Square, RotateCcw, ExternalLink, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const MAX_TIME = 300; // 5 minutes
 
@@ -45,7 +46,7 @@ export default function GroovedPegboardTestRunner({ client, onSave, onClose }) {
   });
 
   const [notes, setNotes] = useState("");
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
   const intervalRef = useRef(null);
 
   const isAssembly = phase === "assembly";

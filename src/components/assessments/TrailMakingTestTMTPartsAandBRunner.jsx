@@ -9,6 +9,7 @@ import {
   ChevronDown, ChevronUp, Clock, Activity, BookOpen, Flag, FileText, Brain, Eye
 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── NORMATIVE DATA (Tombaugh 2004, age-stratified, seconds) ─────────────────
 const NORMS = {
@@ -425,7 +426,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
       status: "completed",
       result_value: timeB,
       notes: clinicalNotes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: generateSoap(),
         measurement_type: "TMT_AB",

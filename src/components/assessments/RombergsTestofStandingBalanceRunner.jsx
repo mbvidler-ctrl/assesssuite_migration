@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Save, X, Play, Square, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const MAX_SECONDS = 30;
 
@@ -296,7 +297,7 @@ export default function RombergsTestofStandingBalanceRunner({ client, onSave, on
     onSave({
       result_value: ecTime !== null ? ecTime : eoTime,
       notes,
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: soapLines,
         measurement_type: "Romberg's Test",

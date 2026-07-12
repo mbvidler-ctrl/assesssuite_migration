@@ -200,7 +200,7 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-orange-800">
             <Target className="w-5 h-5" />
-            APSS Stage 2 (Recommended)
+            Clinical Risk Review (Recommended)
           </CardTitle>
           <p className="text-sm text-orange-600">
             <strong>AIM:</strong> This stage is to be completed with an exercise professional to determine appropriate exercise prescription based on established risk factors.
@@ -974,7 +974,7 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
           {canGoBack && (
             <Button type="button" variant="outline" onClick={onBack}>
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Stage 1
+              Back to Safety Screen
             </Button>
           )}
           {onSaveAndFinishLater && (
@@ -984,7 +984,7 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
           )}
         </div>
         <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-          Complete Stage 2
+          Complete Clinical Risk Review
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>

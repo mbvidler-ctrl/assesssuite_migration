@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // Rikli & Jones (2001) Senior Fitness Test norms — Back Scratch (cm)
 const NORMS = {
@@ -71,7 +72,7 @@ export default function BackScratchTestRunner({ client, onSave, onClose }) {
   const handleSave = () => {
     if (leftTrials.length === 0 && rightTrials.length === 0) { toast.error("Record at least one trial"); return; }
     const soap = `• Back Scratch Test (Senior Fitness Test)\n  Best Left: ${bestLeft !== null ? bestLeft + " cm" : "N/A"}${catLeft ? ` — ${catLeft.label}` : ""}\n  Best Right: ${bestRight !== null ? bestRight + " cm" : "N/A"}${catRight ? ` — ${catRight.label}` : ""}\n  Positive = overlap; Negative = gap${notes ? `\n  Notes: ${notes}` : ""}\n  Assesses upper body (shoulder) flexibility\n  Reference: Rikli RE & Jones CJ (2001). Senior Fitness Test Manual. Human Kinetics.`;
-    onSave({ status: "completed", result_value: best, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "back_scratch", best_left_cm: bestLeft, best_right_cm: bestRight, left_trials: leftTrials, right_trials: rightTrials, left_classification: catLeft?.label, right_classification: catRight?.label } });
+    onSave({ status: "completed", result_value: best, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "back_scratch", best_left_cm: bestLeft, best_right_cm: bestRight, left_trials: leftTrials, right_trials: rightTrials, left_classification: catLeft?.label, right_classification: catRight?.label } });
     toast.success("Saved.");
   };
 

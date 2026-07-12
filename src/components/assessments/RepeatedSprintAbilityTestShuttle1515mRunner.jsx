@@ -9,6 +9,7 @@ import { Save, X, Play, AlertTriangle, ExternalLink, ChevronDown } from "lucide-
 import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { todayLocal } from "@/lib/localDate";
 
 export default function RepeatedSprintAbilityTestShuttle1515mRunner({ client, onSave, onClose }) {
   const [preTestVitals, setPreTestVitals] = useState({ heartRate: "", bloodPressure: "" });
@@ -76,7 +77,7 @@ export default function RepeatedSprintAbilityTestShuttle1515mRunner({ client, on
       result_value: resultValue,
       additional_data: additionalData,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Test data saved.");
   };

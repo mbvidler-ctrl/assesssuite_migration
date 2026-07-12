@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // Normative data for vertical jump height (cm) — Lewis et al. / ACSM
 const NORMS = {
@@ -62,7 +63,7 @@ export default function VerticalJumpTestSargentJumpRunner({ client, onSave, onCl
     if (!standingReach || jumpReaches.length === 0) { toast.error("Enter standing reach and at least one jump trial"); return; }
     const trialsText = jumpHeights.map((h, i) => `  Trial ${i + 1}: Reach ${jumpReaches[i]} cm → Jump Height ${h} cm`).join("\n");
     const soap = `• Vertical Jump Test (Sargent Jump)\n  Standing Reach: ${standingReach} cm\n  Best Jump Height: ${bestHeight} cm${cat ? ` — ${cat.label}` : ""}\n\n  Trials:\n${trialsText}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Measures explosive lower-body power. Jump height = jump reach − standing reach.\n  Reference: ACSM; Lewis AM (1974) formula for peak power estimation.`;
-    onSave({ status: "completed", result_value: bestHeight, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "vertical_jump_sargent", standing_reach_cm: parseFloat(standingReach), jump_reaches_cm: jumpReaches.map(parseFloat), jump_heights_cm: jumpHeights, best_jump_height_cm: bestHeight, classification: cat?.label } });
+    onSave({ status: "completed", result_value: bestHeight, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "vertical_jump_sargent", standing_reach_cm: parseFloat(standingReach), jump_reaches_cm: jumpReaches.map(parseFloat), jump_heights_cm: jumpHeights, best_jump_height_cm: bestHeight, classification: cat?.label } });
     toast.success("Saved.");
   };
 

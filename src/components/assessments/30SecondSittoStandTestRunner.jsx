@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { todayLocal } from "@/lib/localDate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -82,7 +83,7 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
         symptoms: symptoms,
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Assessment saved successfully.");
   };

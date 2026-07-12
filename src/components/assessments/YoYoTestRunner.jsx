@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { todayLocal } from "@/lib/localDate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -29,8 +30,17 @@ export default function YoYoTestRunner({ onSave, onClose }) {
       final_shuttle: shuttle ? parseInt(shuttle) : null,
       total_distance_metres: parseFloat(distance),
       rpe: rpe ? parseInt(rpe) : null,
+      additional_data: {
+        measurement_type: 'yoyo_test',
+        test_type: testType,
+        final_level: level ? parseFloat(level) : null,
+        final_shuttle: shuttle ? parseInt(shuttle) : null,
+        total_distance_metres: parseFloat(distance),
+        rpe: rpe ? parseInt(rpe) : null,
+        soap_text: `• Yo-Yo ${testType} Intermittent Recovery Test: ${distance} m${level ? `, final level ${level}` : ''}${shuttle ? `, shuttle ${shuttle}` : ''}${rpe ? `, RPE ${rpe}/20` : ''}`
+      },
       notes: notes,
-      assessment_date: new Date().toISOString()
+      assessment_date: todayLocal()
     });
   };
 

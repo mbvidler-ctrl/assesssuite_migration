@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const BMI_CATEGORIES = [
   { max: 18.5, label: "Underweight",       risk: "Increased",    color: "bg-yellow-100 text-yellow-800 border-yellow-300" },
@@ -49,7 +50,7 @@ export default function BodyMassIndexBMIRunner({ client, onSave, onClose }) {
     onSave({
       status: "completed",
       result_value: parseFloat(bmi.toFixed(2)),
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       notes,
       additional_data: {
         soap_text: `• Body Mass Index (BMI) Assessment\n  Height: ${heightCm} cm | Weight: ${weight} kg\n  BMI: ${bmi.toFixed(2)} kg/m²\n  Classification: ${category.label} (Health Risk: ${category.risk})${notes ? `\n  Notes: ${notes}` : ""}`,

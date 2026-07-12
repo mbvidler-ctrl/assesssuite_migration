@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { parseDateOnlyLocal } from "@/lib/localDate";
 import { toast } from "sonner";
 import {
   History,
@@ -184,7 +185,7 @@ export default function OnboardingEpisodes({ client, onReOnboardStarted }) {
                             {ep.episode_date && (
                               <span className="text-xs text-slate-500 flex items-center gap-1">
                                 <Calendar className="w-3 h-3" />
-                                {new Date(ep.episode_date).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}
+                                {parseDateOnlyLocal(ep.episode_date).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}
                               </span>
                             )}
                             {ep.funding_source && (
@@ -208,8 +209,8 @@ export default function OnboardingEpisodes({ client, onReOnboardStarted }) {
                           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Completion Status</p>
                           <div className="grid grid-cols-2 gap-1.5 text-sm">
                             {[
-                              ["APSS Stage 1", ep.apss_completed],
-                              ["APSS Stage 2", ep.apss_stage2_completed],
+                              ["Safety Screen", ep.apss_completed],
+                              ["Clinical Risk Review", ep.apss_stage2_completed],
                               ["Consent Confirmed", ep.consent_confirmed],
                               ["Privacy Consent", ep.privacy_consent],
                               ["Assessment Consent", ep.assessment_consent],
@@ -253,7 +254,7 @@ export default function OnboardingEpisodes({ client, onReOnboardStarted }) {
                             <div className="text-sm text-slate-700 space-y-0.5 bg-slate-50 p-2.5 rounded border border-slate-200">
                               {ep.referral_source_name && <p><span className="font-medium">From:</span> {ep.referral_source_name}</p>}
                               {ep.referral_reason && <p><span className="font-medium">Reason:</span> {ep.referral_reason}</p>}
-                              {ep.referral_date && <p><span className="font-medium">Date:</span> {new Date(ep.referral_date).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}</p>}
+                              {ep.referral_date && <p><span className="font-medium">Date:</span> {parseDateOnlyLocal(ep.referral_date).toLocaleDateString("en-AU", { day: "numeric", month: "short", year: "numeric" })}</p>}
                             </div>
                           </div>
                         )}
@@ -287,7 +288,7 @@ export default function OnboardingEpisodes({ client, onReOnboardStarted }) {
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mt-2 space-y-1 text-sm text-amber-800">
                 <p className="font-semibold">⟳ What gets reset:</p>
                 <ul className="ml-3 space-y-0.5 list-disc text-xs">
-                  <li>APSS Stage 1 &amp; 2 answers</li>
+                  <li>Safety Screen &amp; Clinical Risk Review answers</li>
                   <li>Client goals</li>
                   <li>Consent flags</li>
                 </ul>

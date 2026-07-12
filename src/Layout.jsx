@@ -88,9 +88,12 @@ export default function Layout({ children, currentPageName }) {
 
         let acceptances = [];
         try {
+          // Must match LegalAcceptanceModal's document_set_version exactly —
+          // a mismatch re-shows the modal on every navigation (the 7 July
+          // legal-modal loop). 2.1.0 = AssessSuite rebrand of the wording.
           acceptances = await base44.entities.LegalAcceptance.filter({
             user_email: user.email,
-            document_set_version: "2.0.0"
+            document_set_version: "2.1.0"
           });
           if (!acceptances) acceptances = [];
         } catch (e) {
@@ -233,7 +236,7 @@ export default function Layout({ children, currentPageName }) {
           <header className="bg-white/60 backdrop-blur-sm border-b border-slate-200/60 px-6 py-4 md:hidden">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="hover:bg-slate-100 p-2 rounded-lg transition-colors duration-200" />
-              <h1 className="text-xl font-bold text-slate-900">Allied Assess</h1>
+              <h1 className="text-xl font-bold text-slate-900">AssessSuite</h1>
             </div>
           </header>
           <div className="flex-1">{children}</div>

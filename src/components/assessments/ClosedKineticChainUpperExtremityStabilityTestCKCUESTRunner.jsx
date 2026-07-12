@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const NORMATIVE_DATA = [
   { group: "Male Athletes (collegiate)", mean: 21.9, sd: 4.7 },
@@ -20,7 +21,7 @@ export default function ClosedKineticChainUpperExtremityStabilityTestCKCUESTRunn
   const [trial2, setTrial2] = useState("");
   const [trial3, setTrial3] = useState("");
   const [notes, setNotes] = useState("");
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
   const [showInstructions, setShowInstructions] = useState(false);
 
   const t1 = parseFloat(trial1) || 0;

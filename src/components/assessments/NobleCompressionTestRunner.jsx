@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const PAIN_TYPES = ["Sharp", "Burning", "Aching", "Stabbing", "Pressure", "Tingling", "None"];
 const PAIN_LOCATIONS = ["Lateral femoral condyle", "Distal ITB", "Gerdy's tubercle", "Along ITB tract", "Other"];
@@ -53,7 +54,7 @@ export default function NobleCompressionTestRunner({ client, onSave, onClose }) 
         soap_text: soapLines,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
   };
 

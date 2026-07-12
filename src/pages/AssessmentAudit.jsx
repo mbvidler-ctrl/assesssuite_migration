@@ -23,6 +23,7 @@ import {
   ShieldCheck
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function AssessmentAudit() {
   const [currentUser, setCurrentUser] = useState(null);
@@ -61,7 +62,7 @@ export default function AssessmentAudit() {
     try {
       // Get org_id from existing assessments or use known value
       const orgId = '6953a08980390d0dd6646237';
-      const today = new Date().toISOString().split('T')[0];
+      const today = todayLocal();
 
       // Check if Superagent One already exists
       const existingClients = await base44.entities.Client.filter({ email: 'superagent@test.com' });
@@ -940,7 +941,7 @@ COMPONENT REQUIREMENTS:
 2. Capture all relevant data based on assessment type (pre/post vitals, multiple trials, etc.)
 3. Calculate result_value automatically from captured data
 4. Store extra data in additional_data object with measurement_type identifier
-5. Call onSave({ status: 'completed', result_value, additional_data: {...}, notes, assessment_date: new Date().toISOString().split('T')[0] })
+5. Call onSave({ status: 'completed', result_value, additional_data: {...}, notes, assessment_date: todayLocal() }) — import { todayLocal } from "@/lib/localDate" (never derive the date via toISOString(), which records the prior UTC day before 10:00 AEST)
 6. Professional clinical design with Tailwind CSS
 7. Include validation and helpful user feedback with toast notifications
 
@@ -1012,7 +1013,7 @@ Return only requested fields as JSON.`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `assessment-audit-${new Date().toISOString().split('T')[0]}.csv`;
+    a.download = `assessment-audit-${todayLocal()}.csv`;
     a.click();
   };
 

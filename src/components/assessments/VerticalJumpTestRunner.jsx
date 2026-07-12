@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, X, Plus, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const NORMS_CM = {
   male: [
@@ -66,7 +67,7 @@ export default function VerticalJumpTestRunner({ client, onSave, onClose }) {
   const handleSave = () => {
     if (trials.length === 0) { toast.error("Record at least one trial"); return; }
     const soap = `• Vertical Jump Test\n  Best Height: ${best} cm${cat ? ` — ${cat.label}` : ""}\n  Method: ${method === "jump_mat" ? "Jump mat/force plate" : method === "sargent" ? "Sargent (reach) method" : "Other"}\n  Trials: ${trials.map(t => `${t} cm`).join(", ")}${notes ? `\n  Notes: ${notes}` : ""}\n  Measures lower-body explosive power (anaerobic power/force production)\n  Reference: ACSM; Harman et al. (1991). Estimation of human power output from maximal vertical jump. J Strength Cond Res.`;
-    onSave({ status: "completed", result_value: best, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "vertical_jump", best_cm: best, trials, method, classification: cat?.label } });
+    onSave({ status: "completed", result_value: best, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "vertical_jump", best_cm: best, trials, method, classification: cat?.label } });
     toast.success("Saved.");
   };
 

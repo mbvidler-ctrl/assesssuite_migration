@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const getRisk = (ratio, gender) => {
   if (!ratio || isNaN(ratio)) return null;
@@ -51,7 +52,7 @@ export default function WaisttoHipRatioWHRRunner({ client, onSave, onClose }) {
         risk: risk.label,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Assessment saved successfully.");
   };

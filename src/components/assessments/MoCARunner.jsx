@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { X } from 'lucide-react';
+import { todayLocal } from "@/lib/localDate";
 
 const MOCA_QUESTIONS = [
   { id: 'visuospatial', label: 'Visuospatial/Executive (Trail Making, Cube, Clock)', max: 5 },
@@ -46,7 +47,7 @@ export default function MoCARunner({ onSave, onClose }) {
         total,
         interpretation: interp,
       },
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Save, X, ChevronDown, ChevronUp, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const SECTIONS = [
   {
@@ -117,7 +118,7 @@ export default function FuglMeyerAssessmentFMARunner({ client, onSave, onClose }
       status: "completed",
       result_value: totalScore,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         measurement_type: "performance",
         soap_text,

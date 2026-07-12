@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const PBS_ITEMS = [
   {
@@ -203,7 +204,7 @@ export default function PediatricBalanceRunner({ onSave, onClose }) {
 
     const total = calculateTotal();
     const interpretation = getInterpretation(total);
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocal();
 
     const itemLines = PBS_ITEMS.map(item => {
       const score = scores[item.id];

@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { AlertTriangle, Save, X, ChevronDown, ChevronUp, Music, BookOpen, Volume2 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const LEVEL_VO2 = [
   { level: 1, vo2: 26.8 }, { level: 2, vo2: 30.2 }, { level: 3, vo2: 32.9 },
@@ -53,7 +54,7 @@ export default function TwentyMeterShuttleRunBeepTestRunner({ client, onSave, on
       await onSave({
         status: "completed",
         result_value: level,
-        assessment_date: new Date().toISOString().split("T")[0],
+        assessment_date: todayLocal(),
         additional_data: {
           soap_text: soapText,
           final_level: level,

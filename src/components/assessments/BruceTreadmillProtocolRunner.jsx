@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const stages = [
   { stage: 1, speed: 1.7, grade: 10 },
@@ -77,7 +78,7 @@ export default function BruceTreadmillProtocolRunner({ client, onSave, onClose }
       result_value: vo2Max,
       additional_data: additionalData,
       notes: "",
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Test data saved.");
   };

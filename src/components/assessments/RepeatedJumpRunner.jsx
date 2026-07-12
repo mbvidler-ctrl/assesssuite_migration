@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { X, Save, Trash2, Info, Timer, Play } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function RepeatedJumpRunner({ onSave, onClose }) {
   const [testRunning, setTestRunning] = useState(false);
@@ -149,7 +150,7 @@ export default function RepeatedJumpRunner({ onSave, onClose }) {
         fatigue_index: fatigueIndex,
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
     toast.success("Test data saved successfully!");
   };

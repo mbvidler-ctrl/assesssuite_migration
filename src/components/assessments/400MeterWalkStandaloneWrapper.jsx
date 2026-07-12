@@ -6,12 +6,13 @@ import ClientSelectorModal from "./ClientSelectorModal";
 import { saveAssessmentToSOAP } from "./TestRunnerSOAPHelper";
 import { resolveAssessmentDate } from "./assessmentDate";
 
-export default function FourHundredMeterWalkStandaloneWrapper({ 
+export default function FourHundredMeterWalkStandaloneWrapper({
   assessment,
   client,
   clientAssessment,
   onSave,
-  onClose 
+  onClose,
+  clinicianNotes
 }) {
   const [selectedClient, setSelectedClient] = useState(client || null);
   const [clients, setClients] = useState([]);
@@ -94,6 +95,10 @@ export default function FourHundredMeterWalkStandaloneWrapper({
         if (testData.notes && testData.notes.trim()) {
           objectiveText += `\n  Clinical Notes: ${testData.notes}\n`;
         }
+      }
+
+      if (clinicianNotes && clinicianNotes.trim()) {
+        objectiveText += `\n\nClinician Notes (recorded during assessment):\n${clinicianNotes.trim()}`;
       }
 
       const updateData = {

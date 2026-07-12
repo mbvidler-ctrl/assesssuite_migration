@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const SEBT_DIRECTIONS = [
   "Anterior", "Anterolateral", "Lateral", "Posterolateral",
@@ -62,7 +63,7 @@ export default function SEBTRunner({ onSave, onClose }) {
         y_balance_composite: compositeScore
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

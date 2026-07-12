@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, ChevronLeft, ChevronRight, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // DSQ-2 symptom items — rated for Frequency (0-4) and Severity (0-4)
 const SYMPTOM_DOMAINS = [
@@ -266,7 +267,7 @@ export default function DePaulSymptomQuestionnaireDSQ2Runner({ client, onSave, o
         soap_text,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
   };
 

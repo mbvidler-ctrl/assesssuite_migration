@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { X, Save, Play, Pause, RotateCcw, Square } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const NORMS = [
   { population: "Healthy older adults (60–80 yrs)", range: "142–175 m", mcid: "~12 m", color: "text-green-700" },
@@ -96,7 +97,7 @@ export default function TwoMinuteWalkRunner({ client, onSave, onClose }) {
         symptoms: symptoms || null,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("2MWT saved.");
   };

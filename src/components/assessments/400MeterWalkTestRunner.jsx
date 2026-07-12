@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Pause, RotateCcw, AlertTriangle, Flag } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // 400m = 10 laps of a 40m course (standard protocol)
 const LAP_DISTANCE_M = 40;
@@ -110,7 +111,7 @@ export default function FourHundredMeterWalkTestRunner({ client, assessment, onS
     onSave({
       status: "completed",
       result_value: parseFloat(totalTime.toFixed(1)),
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
       notes: clinicianNotes,
       additional_data: {
         soap_text: soapLines,

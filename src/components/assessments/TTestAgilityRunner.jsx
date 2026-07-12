@@ -9,6 +9,7 @@ import {
   ChevronDown, ChevronUp, Clock, Activity, BookOpen, Flag, FileText, Zap, Target
 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── NORMATIVE DATA ────────────────────────────────────────────────────────────
 // Pauole et al. 2000 + Semenick 1990 + sport-adjusted ranges
@@ -378,7 +379,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
       status: "completed",
       result_value: bestTime,
       notes: clinicalNotes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: generateSoap(),
         measurement_type: "T_test_agility",

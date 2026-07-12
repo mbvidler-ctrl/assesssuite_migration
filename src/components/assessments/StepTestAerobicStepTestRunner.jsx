@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import CadencePlayerModal from "./CadencePlayerModal";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── PROTOCOLS ────────────────────────────────────────────────────────────────
 const PROTOCOLS = {
@@ -570,7 +571,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
       status: "completed",
       result_value: Number(recovery.hr1) || Number(postVitals.hr),
       notes: clinicalNotes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: generateSoap(),
         measurement_type: "step_test",

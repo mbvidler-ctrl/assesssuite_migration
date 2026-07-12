@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Play, Pause, RotateCcw, X, Save, AlertTriangle, CheckCircle2, Activity } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function SixMinuteWalkRunner({ onSave, onClose }) {
   const [phase, setPhase] = useState('pre'); // pre, running, post, recovery
@@ -120,6 +121,11 @@ export default function SixMinuteWalkRunner({ onSave, onClose }) {
   };
 
   const handleCompleteTest = () => {
+    const dist = parseFloat(postTest.total_distance);
+    if (!Number.isFinite(dist)) {
+      toast.error("Enter the total distance walked before saving.");
+      return;
+    }
     // Build comprehensive SOAP text
     let soapText = `• Six-Minute Walk Test: ${postTest.total_distance}m (${formatTime(timerSeconds)})\n`;
     soapText += `  Pre-Test: HR ${preTest.hr} bpm, BP ${preTest.bp_sys}/${preTest.bp_dia}, SpO2 ${preTest.spo2}%, RPE ${preTest.rpe}\n`;
@@ -150,7 +156,7 @@ export default function SixMinuteWalkRunner({ onSave, onClose }) {
         measurement_type: '6mwt'
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

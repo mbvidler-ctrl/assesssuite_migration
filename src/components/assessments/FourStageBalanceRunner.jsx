@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { X, Save, Play, Pause, RotateCcw, AlertTriangle, CheckCircle2, ChevronRight, Printer } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const STAGES = [
   {
@@ -130,7 +131,7 @@ export default function FourStageBalanceRunner({ onSave, onClose }) {
       status: 'completed',
       result_value: stageAchieved,
       notes: soapText,
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
       additional_data: {
         measurement_type: 'four_stage_balance_test',
         soap_text: soapText,

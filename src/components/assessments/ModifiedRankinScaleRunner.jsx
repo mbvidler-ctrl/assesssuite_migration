@@ -7,6 +7,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Badge } from "@/components/ui/badge";
 import { X, Save, Info, CheckCircle2, ChevronDown, AlertTriangle, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── Grade definitions ────────────────────────────────────────────────────────
 const MRS_GRADES = [
@@ -199,7 +200,7 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
         measurement_type: "modified_rankin",
       },
       notes: clinicalReasoning,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Modified Rankin Scale saved.");
   };

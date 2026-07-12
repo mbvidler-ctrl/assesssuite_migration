@@ -8,6 +8,7 @@ import { X, Users } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import { saveAssessmentToSOAP } from './TestRunnerSOAPHelper';
+import { todayLocal } from "@/lib/localDate";
 
 export default function QuestionnaireRunner({ assessment, onSave, onClose, initialResponses = {}, isStandaloneMode = false, client }) {
   const [responses, setResponses] = useState(initialResponses);
@@ -76,7 +77,7 @@ export default function QuestionnaireRunner({ assessment, onSave, onClose, initi
     setIsSubmitting(true);
     try {
       const totalScore = calculateTotalScore();
-      const assessmentDate = new Date().toISOString().split('T')[0];
+      const assessmentDate = todayLocal();
       const soapText = buildSoapText(totalScore);
 
       const additionalData = {

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, ChevronDown, ChevronUp, Volume2, ExternalLink, Music } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ISWT pace table with shuttle intervals
 const ISWT_PACE = [
@@ -156,7 +157,7 @@ export default function IncrementalShuttleWalkTestISWTRunner({ client, onSave, o
       timerRef.current = null;
     }
     const distanceMeters = shuttlesCompleted * 10;
-    const assessmentDate = new Date().toISOString().split("T")[0];
+    const assessmentDate = todayLocal();
     
     const soap = `• Incremental Shuttle Walk Test (ISWT)\n  Distance: ${distanceMeters}m (${shuttlesCompleted} shuttles)\n  Final Level: ${currentLevel}\n  Duration: ${testDuration}s\n\n  Pre-Test Measures:\n    HR: ${preHeartRate} bpm | O₂: ${preOxygen}% | Dyspnea: ${preDyspnea}/10\n\n  Post-Test Measures:\n    HR: ${postHeartRate || "—"} bpm | O₂: ${postOxygen || "—"}% | Dyspnea: ${postDyspnea || "—"}/10${notes ? `\n\n  Stopping Reason: ${notes}` : ""}`;
 

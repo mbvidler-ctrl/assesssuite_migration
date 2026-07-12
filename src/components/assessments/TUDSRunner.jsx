@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Save, Play, Pause, RotateCcw, Info, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function TUDSRunner({ onSave, onClose }) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -117,7 +118,7 @@ export default function TUDSRunner({ onSave, onClose }) {
         interpretation: interpretation?.level
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

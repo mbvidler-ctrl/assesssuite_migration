@@ -7,6 +7,8 @@ import { base44 } from "@/api/base44Client";
 import { Search, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
+import { format } from "date-fns";
+import { todayLocal } from "@/lib/localDate";
 
 export default function ImportToSOAPModal({ isOpen, onClose, protocolData, conditionName }) {
   const [clients, setClients] = useState([]);
@@ -88,13 +90,14 @@ export default function ImportToSOAPModal({ isOpen, onClose, protocolData, condi
   const handleSelectClient = async (client) => {
     try {
       const planText = generatePlanText();
-      const today = new Date();
-      const todayDateStr = today.toISOString().split('T')[0];
-      
-      // Check if there's a SOAP note for today
+      const todayDateStr = todayLocal();
+
+      // Check if there's a SOAP note for today. note_date may be a full
+      // timestamp, so convert it to the same LOCAL calendar day before
+      // comparing — a UTC comparison shifts morning notes to yesterday.
       const allClientNotes = await base44.entities.SOAPNote.filter({ client_id: client.id });
       const todayNote = allClientNotes.find(note => {
-        const noteDate = new Date(note.note_date).toISOString().split('T')[0];
+        const noteDate = format(new Date(note.note_date), 'yyyy-MM-dd');
         return noteDate === todayDateStr;
       });
 

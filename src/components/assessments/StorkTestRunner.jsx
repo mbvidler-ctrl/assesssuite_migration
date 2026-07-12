@@ -5,6 +5,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, Save, Play, Pause, RotateCcw } from 'lucide-react';
+import { todayLocal } from "@/lib/localDate";
 
 export default function StorkTestRunner({ onSave, onClose, initialData }) {
   const [timerRunning, setTimerRunning] = useState(false);
@@ -37,6 +38,7 @@ export default function StorkTestRunner({ onSave, onClose, initialData }) {
     soapText += `  Right Leg: ${rightTime}s\n`;
     soapText += `  Best Time: ${best}s\n`;
     soapText += `  Asymmetry: ${asymmetry.toFixed(1)}s\n`;
+    if (data.result) soapText += `  Test Result: ${data.result === 'positive' ? 'Positive (balance loss)' : 'Negative (normal)'}\n`;
     if (data.observations) soapText += `  Observations: ${data.observations}\n`;
 
     onSave({
@@ -47,10 +49,11 @@ export default function StorkTestRunner({ onSave, onClose, initialData }) {
         right_time: rightTime || null,
         best_time: best,
         asymmetry,
+        result: data.result,
         observations: data.observations,
         measurement_type: 'stork_test'
       },
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

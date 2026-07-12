@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, RotateCcw, AlertTriangle, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function EightFootUpandGoRunner({ client, onSave, onClose }) {
   const [timerMs, setTimerMs] = useState(0);
@@ -62,7 +63,7 @@ export default function EightFootUpandGoRunner({ client, onSave, onClose }) {
     }
     onSave({
       result_value: bestTrial?.time_s,
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
       notes,
       additional_data: {
         soap_text: `• 8-Foot Up-and-Go Test\n  Best Time: ${bestTrial?.time_s?.toFixed(2)}s\n  Interpretation: ${bestTrial ? getInterpretation(bestTrial.time_s).label : 'N/A'}\n  Chair Height: ${chairHeight} | Assistance: ${assistanceUsed}`,

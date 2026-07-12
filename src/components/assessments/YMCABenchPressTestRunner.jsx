@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── ENDURANCE CLASSIFICATION ──────────────────────────────────────────────
 const getEnduranceCategory = (reps, gender) => {
@@ -120,7 +121,7 @@ export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
         soap_text: soapText,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Assessment saved.");
     setTimeout(() => onClose(), 500);

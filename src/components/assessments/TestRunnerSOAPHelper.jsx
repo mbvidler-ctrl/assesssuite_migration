@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { todayLocal } from "@/lib/localDate";
 
 async function ensureSoapText(assessmentToUpdateId) {
   // Legacy enrichment that POSTed to a foreign Base44 app
@@ -12,7 +13,7 @@ async function ensureSoapText(assessmentToUpdateId) {
 
 export async function saveAssessmentToSOAP({ clientToUse, appointmentId, objectiveText, assessmentToUpdateId, updateData, assessment }) {
   if (!objectiveText && updateData?.additional_data?.soap_text) {
-    const rawDs = (updateData.assessment_date || '').length === 10 ? updateData.assessment_date : new Date().toISOString().split('T')[0];
+    const rawDs = (updateData.assessment_date || '').length === 10 ? updateData.assessment_date : todayLocal();
     const [y2, m2, d2] = rawDs.split('-').map(Number);
     const dateStr2 = new Date(y2, m2-1, d2).toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' });
     objectiveText = 'Assessment completed on ' + dateStr2 + ':\n\n' + updateData.additional_data.soap_text;
@@ -28,7 +29,7 @@ export async function saveAssessmentToSOAP({ clientToUse, appointmentId, objecti
   if (!finalAppointmentId) {
     const rawDate = (updateData.assessment_date || '').length === 10
       ? updateData.assessment_date
-      : new Date().toISOString().split('T')[0];
+      : todayLocal();
     const [y, m, d] = rawDate.split('-').map(Number);
     const assessmentDate = new Date(y, m - 1, d);
 

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function BruininksOseretskyTestofMotorProficiencyBOT2Runner({ client, onSave, onClose }) {
   const [preVitals, setPreVitals] = useState({ heartRate: "", bloodPressure: "" });
@@ -45,7 +46,7 @@ export default function BruininksOseretskyTestofMotorProficiencyBOT2Runner({ cli
       trials: trialData,
       notes,
     };
-    onSave({ status: "completed", result_value: resultValue, additional_data: additionalData, notes, assessment_date: new Date().toISOString().split("T")[0] });
+    onSave({ status: "completed", result_value: resultValue, additional_data: additionalData, notes, assessment_date: todayLocal() });
     toast.success("Assessment saved successfully.");
   };
 

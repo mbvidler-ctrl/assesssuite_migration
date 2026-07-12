@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Save, X, Play, Square, RotateCcw, Hand, ExternalLink, ChevronDown, ChevronUp, CheckCircle, AlertCircle, BookOpen } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const NORMS = {
   male:   { right: { mean: 19.0, sd: 3.2 }, left: { mean: 20.6, sd: 3.9 } },
@@ -146,7 +147,7 @@ export default function NineHolePegTestRunner({ client, onSave, onClose }) {
         soap_text: soapLines,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
   };
 

@@ -735,7 +735,7 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
           {client.apss_completed && (
             <section className="apss-section apss-stage-1-block mb-4">
               <h2 className="text-base font-bold text-slate-900 mb-2 border-b border-slate-300 pb-1">
-                APSS Stage 1 - Pre-Exercise Screening
+                Safety Screen - Pre-Exercise Screening
               </h2>
               <div className="space-y-2">
                 <p className="text-xs text-slate-600">
@@ -912,7 +912,7 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
           {client.apss_stage2_completed && (
             <section className="apss-section apss-stage-2-block mb-4">
               <h2 className="text-base font-bold text-slate-900 mb-2 border-b border-slate-300 pb-1">
-                APSS Stage 2 - Risk Factor Assessment
+                Clinical Risk Review - Risk Factor Assessment
               </h2>
               <div className="space-y-2">
                 <p className="text-xs text-slate-600">

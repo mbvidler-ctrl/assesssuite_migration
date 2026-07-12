@@ -665,7 +665,7 @@ export default function APSSForm({ data, onNext, onBack, canGoBack, onSaveAndFin
           {(canGoBack || currentStage === 2) && (
             <Button type="button" variant="outline" onClick={handleBack}>
               <ArrowLeft className="w-4 h-4 mr-2" />
-              {currentStage === 2 ? "Back to Stage 1" : "Back"}
+              {currentStage === 2 ? "Back to Safety Screen" : "Back"}
             </Button>
           )}
           {onSaveAndFinishLater && currentStage === 1 && (
@@ -700,7 +700,7 @@ export default function APSSForm({ data, onNext, onBack, canGoBack, onSaveAndFin
           )}
         </div>
         <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
-          {currentStage === 1 ? "Next: Stage 2" : "Complete APSS Form"}
+          {currentStage === 1 ? "Next: Clinical Risk Review" : "Complete Screening Form"}
           <ArrowRight className="w-4 h-4 ml-2" />
         </Button>
       </div>

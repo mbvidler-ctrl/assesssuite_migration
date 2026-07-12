@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle, Info, Zap, Heart, Trash2, Clock, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 function InlineTimer({ stageNumber, onDone }) {
   const [seconds, setSeconds] = useState(180);
@@ -160,7 +161,7 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
       result_value: resultValue,
       additional_data: additionalData,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
   };
 

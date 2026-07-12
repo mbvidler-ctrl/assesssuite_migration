@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { X, Play, Pause, RotateCcw, Plus, Minus } from 'lucide-react';
+import { todayLocal } from "@/lib/localDate";
 
 export default function ChairStandRunner({ duration = 30, onSave, onClose }) {
   const [timerRunning, setTimerRunning] = useState(false);
@@ -96,7 +97,7 @@ export default function ChairStandRunner({ duration = 30, onSave, onClose }) {
         measurement_type: 'chair_stand'
       },
       notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

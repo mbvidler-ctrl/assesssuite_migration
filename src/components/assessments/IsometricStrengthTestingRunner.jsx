@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Plus, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const MUSCLE_GROUPS = [
   { label: "Grip Strength - Right", value: "grip_right", side: "right" },
@@ -120,7 +121,7 @@ export default function IsometricStrengthTestingRunner({ client, onSave, onClose
         symmetry_analysis: symmetryAnalysis,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
 
     toast.success("Isometric strength testing saved successfully.");

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const ITEMS = [
   { id: "gait_level", label: "1. Gait on Level Surface" },
@@ -43,7 +44,7 @@ export default function FunctionalGaitAssessmentFGARunner({ client, onSave, onCl
     const lines = ITEMS.map(it => `  ${it.label}: ${scores[it.id]}/3`).join("\n");
     const interpLabel = interp ? interp.label : "Partial assessment";
     const soap = `• Functional Gait Assessment (FGA)\n  Total Score: ${total}/30 — ${interpLabel}\n\n  Item Scores:\n${lines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Cutoff: <22/30 = fall risk in community-dwelling older adults\n  MCID: 4 points\n  Reference: Wrisley DM et al. (2004). Functional Gait Assessment: concurrent, discriminative, and predictive validity in community-dwelling older adults. Phys Ther, 84:906-918.`;
-    onSave({ status: "completed", result_value: total, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "performance_based", total_score: total, item_scores: scores, fall_risk: interpLabel } });
+    onSave({ status: "completed", result_value: total, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "performance_based", total_score: total, item_scores: scores, fall_risk: interpLabel } });
     toast.success("FGA saved.");
   };
 

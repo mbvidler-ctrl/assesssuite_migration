@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, X, Play, Square, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function SixMeterWalkTestSimpleRunner({ client, onSave, onClose }) {
   const [trials, setTrials] = useState([]);
@@ -49,7 +50,7 @@ export default function SixMeterWalkTestSimpleRunner({ client, onSave, onClose }
     const avg = avgSpeed.toFixed(3);
     const trialLines = trials.map((t, i) => `  Trial ${i + 1}: ${t.time}s → ${t.speed} m/s`).join("\n");
     const soap = `• 6-Metre Walk Test\n  Average Speed: ${avg} m/s — ${interp?.label}\n  Trials:\n${trialLines}${assistiveDevice !== "none" ? `\n  Assistive Device: ${assistiveDevice}` : ""}${notes ? `\n  Notes: ${notes}` : ""}\n  Reference: ≥1.0 m/s community ambulation | 0.8–0.99 limited | <0.8 household/non-functional`;
-    onSave({ result_value: parseFloat(avg), notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "6_meter_walk_test", average_speed_ms: parseFloat(avg), trials, assistive_device: assistiveDevice, interpretation: interp?.label } });
+    onSave({ result_value: parseFloat(avg), notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "6_meter_walk_test", average_speed_ms: parseFloat(avg), trials, assistive_device: assistiveDevice, interpretation: interp?.label } });
     toast.success("Saved.");
   };
 

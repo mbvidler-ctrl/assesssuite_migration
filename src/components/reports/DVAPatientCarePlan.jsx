@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
+import { todayLocal } from "@/lib/localDate";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -132,7 +133,7 @@ export default function DVAPatientCarePlan({ client, onClose, editingReport }) {
   const [locations, setLocations] = useState([]);
 
   // Step 1: DVA-specific details (formerly Step 0)
-  const [referralDate, setReferralDate] = useState(new Date().toISOString().split('T')[0]);
+  const [referralDate, setReferralDate] = useState(todayLocal());
   const [clientConsented, setClientConsented] = useState(false);
   const [referringClinician, setReferringClinician] = useState("");
   const [previousTreatment, setPreviousTreatment] = useState("");
@@ -239,7 +240,7 @@ export default function DVAPatientCarePlan({ client, onClose, editingReport }) {
           setSelectedLocation(mainLoc || null);
         }
 
-        setReferralDate(reportData.referralDate || new Date().toISOString().split('T')[0]);
+        setReferralDate(reportData.referralDate || todayLocal());
         setClientConsented(reportData.clientConsented || false);
         setReferringClinician(reportData.referringClinician || "");
         setPreviousTreatment(reportData.previousTreatment || "");
@@ -880,7 +881,7 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
           client_id: client.id,
           report_type: "dva_patient_care_plan",
           report_name: `DVA Patient Care Plan - ${format(new Date(), 'dd/MM/yyyy')}`,
-          report_date: new Date().toISOString().split('T')[0],
+          report_date: todayLocal(),
           report_data: dataToSave,
           html_content: htmlContentToSave,
         });
@@ -891,7 +892,7 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
           client_id: client.id,
           report_type: "dva_patient_care_plan",
           report_name: `DVA Patient Care Plan - ${format(new Date(), 'dd/MM/yyyy')}`,
-          report_date: new Date().toISOString().split('T')[0],
+          report_date: todayLocal(),
           report_data: dataToSave,
           html_content: htmlContentToSave,
         });

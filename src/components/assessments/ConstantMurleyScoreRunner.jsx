@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info, AlertCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function ConstantMurleyScoreRunner({ client, onSave, onClose }) {
   const [pain, setPain] = useState(15); // 0-15, where 15 is no pain
@@ -102,7 +103,7 @@ export default function ConstantMurleyScoreRunner({ client, onSave, onClose }) {
         }
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Assessment saved successfully.");
   };

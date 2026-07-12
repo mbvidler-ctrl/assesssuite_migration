@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
+import { todayLocal } from "@/lib/localDate";
 
 const MUSCLE_GROUPS = {
   "Upper Limb": [
@@ -289,7 +290,7 @@ export default function TardieuScaleRunner({ client, onSave, onClose }) {
     onSave({
       result_value: primaryR2 - primaryR1,
       notes: header.clinician_notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: lines.join("\n"),
         entries,

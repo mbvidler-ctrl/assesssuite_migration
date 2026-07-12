@@ -150,7 +150,7 @@ export default function Dashboard() {
                 {getGreeting()}, {user.clinician_name}!
               </h1>
               <p className="text-lg text-slate-600">
-                Welcome to your Allied Assess dashboard
+                Welcome to your AssessSuite dashboard
               </p>
               <div className="flex items-center justify-center gap-4 mt-4 text-sm text-slate-500">
                 <div className="flex items-center gap-1">

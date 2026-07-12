@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info, FileText } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function GenericQuestionnaireRunner({ client, assessment, onSave, onClose }) {
   const [score, setScore] = useState("");
@@ -20,7 +21,7 @@ export default function GenericQuestionnaireRunner({ client, assessment, onSave,
     const name = assessment?.name || "Assessment";
     const unit = assessment?.unit_of_measure || "points";
     const soap = `• ${name}\n  Score: ${numericScore} ${unit}${assessment?.scoring_system ? `\n  Scoring: ${assessment.scoring_system}` : ""}${Object.keys(subscores).length > 0 ? `\n  Subscores: ${Object.entries(subscores).map(([k, v]) => `${k}: ${v}`).join(", ")}` : ""}${notes ? `\n  Notes: ${notes}` : ""}`;
-    onSave({ status: "completed", result_value: numericScore, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", assessment_name: name, administered_by: administeredBy, subscores: Object.keys(subscores).length > 0 ? subscores : undefined } });
+    onSave({ status: "completed", result_value: numericScore, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "questionnaire", assessment_name: name, administered_by: administeredBy, subscores: Object.keys(subscores).length > 0 ? subscores : undefined } });
     toast.success(`${name} saved.`);
   };
 

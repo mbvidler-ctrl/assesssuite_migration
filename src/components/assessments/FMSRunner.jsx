@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const FMS_TESTS = [
   { id: 1, name: "Deep Squat", bilateral: true },
@@ -106,7 +107,7 @@ export default function FMSRunner({ onSave, onClose }) {
         interpretation: interpretation?.level
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

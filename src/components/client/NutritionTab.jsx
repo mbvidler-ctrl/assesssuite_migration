@@ -156,18 +156,25 @@ export default function NutritionTab({ client, onUpdate }) {
         <head>
           <title>Nutrition Plan - ${client.full_name}</title>
           <style>
-            body { font-family: Arial, sans-serif; margin: 2rem; line-height: 1.6; }
-            h1 { color: #1e293b; border-bottom: 3px solid #3b82f6; padding-bottom: 0.5rem; }
-            h2 { color: #3b82f6; margin-top: 1.5rem; }
-            .warning-box { background: #fef3c7; border: 2px solid #f59e0b; padding: 1rem; margin: 1.5rem 0; border-radius: 0.5rem; }
-            .scope-box { background: #dbeafe; border: 2px solid #3b82f6; padding: 1rem; margin: 1.5rem 0; border-radius: 0.5rem; }
-            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
-            .info-item { padding: 0.75rem; background: #f8fafc; border-radius: 0.375rem; }
-            .info-label { font-weight: bold; color: #475569; font-size: 0.875rem; }
-            .info-value { color: #1e293b; margin-top: 0.25rem; }
-            ul { margin-left: 1.5rem; }
-            li { margin-bottom: 0.5rem; }
-            .footer { margin-top: 2rem; padding-top: 1rem; border-top: 1px solid #cbd5e0; font-size: 0.875rem; color: #64748b; }
+            /* Print-tuned: A4 page control, compact house type scale (10pt),
+               and atomic blocks so cards never split across page boundaries.
+               Mirrors the PrintableOnboardingReport print discipline. */
+            @page { size: A4; margin: 15mm; }
+            body { font-family: Arial, sans-serif; font-size: 10pt; color: #1e293b; margin: 0; line-height: 1.35; }
+            h1 { font-size: 16pt; color: #1e293b; border-bottom: 3px solid #3b82f6; padding-bottom: 4px; margin: 0 0 8px 0; }
+            h2 { font-size: 12pt; color: #3b82f6; margin: 12px 0 4px 0; break-after: avoid; page-break-after: avoid; }
+            h3 { font-size: 11pt; break-after: avoid; page-break-after: avoid; }
+            p { margin: 2px 0 6px 0; }
+            .warning-box { background: #fef3c7; border: 1px solid #f59e0b; padding: 8px; margin: 8px 0; border-radius: 4px; break-inside: avoid; page-break-inside: avoid; }
+            .scope-box { background: #dbeafe; border: 1px solid #3b82f6; padding: 8px; margin: 8px 0; border-radius: 4px; break-inside: avoid; page-break-inside: avoid; }
+            .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin: 6px 0; break-inside: avoid; page-break-inside: avoid; }
+            .info-item { padding: 6px; background: #f8fafc; border-radius: 4px; break-inside: avoid; page-break-inside: avoid; }
+            .info-label { font-weight: bold; color: #475569; font-size: 8.5pt; }
+            .info-value { color: #1e293b; margin-top: 2px; }
+            ul { margin: 4px 0 4px 18px; padding: 0; }
+            li { margin-bottom: 2px; break-inside: avoid; page-break-inside: avoid; }
+            .footer { margin-top: 12px; padding-top: 8px; border-top: 1px solid #cbd5e0; font-size: 8.5pt; color: #64748b; break-inside: avoid; page-break-inside: avoid; }
+            * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           </style>
         </head>
         <body>

@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Save, X, Info, ChevronDown, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // Official LCQ — 19 items, 7-point Likert (1=Always/Severely, 7=Never/Not at all)
 // Higher score = better cough-related QoL
@@ -153,7 +154,7 @@ export default function LeicesterCoughQuestionnaireLCQRunner({ client, onSave, o
         responses,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("LCQ results saved.");
   };

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { todayLocal } from "@/lib/localDate";
 
 const ASSESSMENT_EXTRACTION_SCHEMA = {
   type: "object",
@@ -192,7 +193,7 @@ export default function HistoricalAssessmentExtractor({
           appointment_id: null,
           status: 'completed',
           result_value: assessment.result_value,
-          assessment_date: assessment.test_date || new Date().toISOString().split('T')[0],
+          assessment_date: assessment.test_date || todayLocal(),
           notes: notes.trim(),
           source: 'uploaded'
         });

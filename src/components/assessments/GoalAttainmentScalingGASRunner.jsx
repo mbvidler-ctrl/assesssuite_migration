@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const emptyGoal = () => ({ goal: "", importance: 0, difficulty: 0, attainmentLevel: null });
 
@@ -45,7 +46,7 @@ export default function GoalAttainmentScalingGASRunner({ client, onSave, onClose
         goals,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
 
     toast.success("Assessment saved successfully.");

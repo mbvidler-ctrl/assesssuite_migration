@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { X } from 'lucide-react';
+import { todayLocal } from "@/lib/localDate";
 
 export default function WaistHipRatioRunner({ client, onSave, onClose }) {
   const [waist, setWaist] = useState('');
@@ -40,6 +41,7 @@ export default function WaistHipRatioRunner({ client, onSave, onClose }) {
     onSave({
       result_value: parseFloat(whr),
       additional_data: {
+        measurement_type: 'whr',
         soap_text: soapText,
         waist_cm: parseFloat(waist),
         hip_cm: parseFloat(hip),
@@ -47,7 +49,7 @@ export default function WaistHipRatioRunner({ client, onSave, onClose }) {
         sex,
         whr_category: category?.category || 'Unknown'
       },
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

@@ -1,3 +1,6 @@
+// Relative import (not the @/ alias): this module is also loaded by the Node
+// seeder and server scripts, where the Vite alias does not resolve.
+import { todayLocal } from "../localDate.js";
 // Canonical DASS-21 constants — single source of truth shared by the runner,
 // the SOAP objective writer, and the completed-assessment viewer, so the item
 // wording and the severity cutoffs cannot drift between surfaces.
@@ -119,7 +122,7 @@ export function buildDass21Payload(rawScores, notes = "") {
       measurement_type: "dass21",
     },
     notes,
-    assessment_date: new Date().toISOString().split("T")[0],
+    assessment_date: todayLocal(),
   };
 }
 

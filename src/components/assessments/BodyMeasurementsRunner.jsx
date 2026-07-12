@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function BodyMeasurementsRunner({ onSave, onClose, assessmentName }) {
   const [measurements, setMeasurements] = useState({
@@ -129,7 +130,7 @@ export default function BodyMeasurementsRunner({ onSave, onClose, assessmentName
       additional_data: { ...additionalData, soap_text: soapText },
       notes: notes,
       unit_of_measure: isHeight ? "cm" : isWeight ? "kg" : isWaist ? "cm" : isBMI ? "kg/m²" : "",
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

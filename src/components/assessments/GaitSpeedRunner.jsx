@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, Play, Square, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function GaitSpeedRunner({ onSave, onClose, assessmentName }) {
   const [speed, setSpeed] = useState("");
@@ -119,7 +120,7 @@ export default function GaitSpeedRunner({ onSave, onClose, assessmentName }) {
         gait_distance: parseFloat(distance),
         average_time: avgTime,
       },
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

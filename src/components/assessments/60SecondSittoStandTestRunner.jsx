@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, RotateCcw, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const NORMS = [
   { ageMin: 60, ageMax: 69, male: [29, 37], female: [24, 33] },
@@ -33,7 +34,7 @@ export default function SixtySecondSittoStandTestRunner({ client, onSave, onClos
   const [hrPost, setHrPost] = useState("");
   const [bpPost, setBpPost] = useState("");
   const [notes, setNotes] = useState("");
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split("T")[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
   const intervalRef = useRef(null);
 
   const clientAge = client?.date_of_birth

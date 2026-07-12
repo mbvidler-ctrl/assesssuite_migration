@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Save, X, Play, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── FITNESS CLASSIFICATION (RECOVERY HR) ──────────────────────────────────
 const FITNESS_CATEGORIES = {
@@ -112,7 +113,7 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
   ${symptoms ? `Symptoms noted: ${symptoms}` : "No symptoms reported."}
   
   IP STATEMENT:
-  This assessment is an independently developed Allied Assess submaximal step recovery test.
+  This assessment is an independently developed AssessSuite submaximal step recovery test.
   It does not use YMCA branding, copyrighted materials, or proprietary scoring sheets.
   The protocol is based on submaximal exercise physiology principles and recovery heart rate assessment.`;
 
@@ -132,7 +133,7 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
         symptoms,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Assessment saved.");
   };
@@ -164,7 +165,7 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
             {/* IP Disclaimer */}
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800 flex gap-2">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-              <p>This is an independently developed Allied Assess assessment. It does not use YMCA branding, copyrighted materials, or proprietary scoring sheets.</p>
+              <p>This is an independently developed AssessSuite assessment. It does not use YMCA branding, copyrighted materials, or proprietary scoring sheets.</p>
             </div>
 
             {/* Protocol */}

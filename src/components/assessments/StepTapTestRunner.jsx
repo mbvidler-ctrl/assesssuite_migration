@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Play, Square, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // Step Tap Test: count alternating foot taps on step in set time (15s or 30s)
 // Normative data from Lord et al. (senior balance tests)
@@ -50,7 +51,7 @@ export default function StepTapTestRunner({ client, onSave, onClose }) {
   const handleSave = () => {
     if (!reps || isNaN(r) || r < 0) { toast.error("Enter taps completed"); return; }
     const soap = `• Step Tap Test\n  Taps: ${r} in ${duration}s\n  Rate: ${rate} taps/sec\n  Step Height: ${stepHeight} cm${notes ? `\n  Notes: ${notes}` : ""}\n  Assesses lower limb agility, coordination, and dynamic balance\n  Reference: Lord SR et al. (2003). Balance, reaction time, and falls in older people. J Am Geriatr Soc.`;
-    onSave({ status: "completed", result_value: r, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "performance_timed", taps: r, duration_s: duration, rate_per_sec: parseFloat(rate), step_height_cm: parseFloat(stepHeight) } });
+    onSave({ status: "completed", result_value: r, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "performance_timed", taps: r, duration_s: duration, rate_per_sec: parseFloat(rate), step_height_cm: parseFloat(stepHeight) } });
     toast.success("Step Tap Test saved.");
   };
 

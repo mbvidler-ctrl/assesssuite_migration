@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { todayLocal } from "@/lib/localDate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -56,7 +57,7 @@ export default function PPTRunner({ onSave, onClose }) {
       safety_observations: safetyObservations,
       interpretation: interpretation?.text,
       notes: notes,
-      assessment_date: new Date().toISOString()
+      assessment_date: todayLocal()
     });
   };
 

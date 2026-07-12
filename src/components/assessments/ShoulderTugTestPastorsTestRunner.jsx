@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { todayLocal } from "@/lib/localDate";
 
 export default function ShoulderTugTestPastorsTestRunner({ client, onSave, onClose }) {
   const [steps, setSteps] = useState("");
@@ -118,7 +119,7 @@ export default function ShoulderTugTestPastorsTestRunner({ client, onSave, onClo
         fall_risk: interpretation.risk,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
 
     toast.success("Shoulder Tug Test saved successfully.");

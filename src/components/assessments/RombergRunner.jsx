@@ -8,6 +8,7 @@ import { X, Save, Play, Pause, RotateCcw, ExternalLink, ChevronDown, Info } from
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { toast } from 'sonner';
+import { todayLocal } from "@/lib/localDate";
 
 export default function RombergRunner({ onSave, onClose, initialData }) {
   const [timerRunning, setTimerRunning] = useState(false);
@@ -65,7 +66,7 @@ export default function RombergRunner({ onSave, onClose, initialData }) {
         measurement_type: 'romberg'
       },
       notes: data.observations,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
     toast.success("Romberg Test results saved.");
   };

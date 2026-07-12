@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function HydrostaticWeighingRunner({ client, onSave, onClose }) {
   const [landWeight, setLandWeight] = useState("");
@@ -74,7 +75,7 @@ export default function HydrostaticWeighingRunner({ client, onSave, onClose }) {
       soap_text: soapText
     };
 
-    onSave({ status: "completed", result_value: resultValue, additional_data: additionalData, notes, assessment_date: new Date().toISOString().split("T")[0] });
+    onSave({ status: "completed", result_value: resultValue, additional_data: additionalData, notes, assessment_date: todayLocal() });
     toast.success("Assessment saved successfully.");
   };
 

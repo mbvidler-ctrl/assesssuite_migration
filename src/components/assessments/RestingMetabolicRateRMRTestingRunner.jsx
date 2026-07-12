@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function RestingMetabolicRateRMRTestingRunner({ client, onSave, onClose }) {
   const [weight, setWeight] = useState("");
@@ -58,7 +59,7 @@ export default function RestingMetabolicRateRMRTestingRunner({ client, onSave, o
       result_value: bmr,
       additional_data: additionalData,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Assessment saved.");
   };

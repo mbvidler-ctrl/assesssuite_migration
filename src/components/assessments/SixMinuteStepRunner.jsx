@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Play, Pause, RotateCcw, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function SixMinuteStepRunner({ onSave, onClose }) {
   const [timerRunning, setTimerRunning] = useState(false);
@@ -68,7 +69,7 @@ export default function SixMinuteStepRunner({ onSave, onClose }) {
       result_value: parseInt(totalSteps),
       total_steps: parseInt(totalSteps),
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: soapText,
         measurement_type: 'six_minute_step',

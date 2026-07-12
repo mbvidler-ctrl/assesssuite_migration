@@ -80,6 +80,7 @@ import ReactiveStrengthIndexRSIRunner from './ReactiveStrengthIndexRSIRunner';
 import TriLevelArmErgometerTestRunner from './TriLevelArmErgometerTestRunner';
 import BruceProtocolRunner from './BruceProtocolRunner';
 import OneRMRunner from './OneRMRunner';
+import { todayLocal } from "@/lib/localDate";
 import ActivitiesspecificBalanceConfidenceABCScaleRunner from './ActivitiesspecificBalanceConfidenceABCScaleRunner';
 import AQoLRunner from './AQoLRunner';
 import BalkeWareTreadmillTestRunner from './BalkeWareTreadmillTestRunner';
@@ -438,7 +439,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
   const [showRunner, setShowRunner] = useState(true);
   const [notes, setNotes] = useState(clientAssessment?.notes || "");
   const [barriers, setBarriers] = useState(clientAssessment?.barriers || "");
-  const [assessmentDate, setAssessmentDate] = useState(clientAssessment?.assessment_date || new Date().toISOString().split('T')[0]);
+  const [assessmentDate, setAssessmentDate] = useState(clientAssessment?.assessment_date || todayLocal());
 
   const [selectedClient, setSelectedClient] = useState(client);
   const [allClients, setAllClients] = useState([]);
@@ -480,7 +481,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
           assessmentToUpdate = await base44.entities.ClientAssessment.create({
             org_id: clientToUse.org_id, client_id: clientToUse.id,
             assessment_id: assessment.id, status: 'pending',
-            assessment_date: data.assessment_date || new Date().toISOString().split('T')[0]
+            assessment_date: data.assessment_date || todayLocal()
           });
         }
         
@@ -493,7 +494,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
         const updateData = {
           status: 'completed', result_value: resultValue,
           notes: data.notes || '', barriers: '',
-          assessment_date: data.assessment_date || new Date().toISOString().split('T')[0],
+          assessment_date: data.assessment_date || todayLocal(),
           additional_data: data.additional_data || {},
           appointment_id: appointmentId || clientAssessment?.appointment_id
         };
@@ -515,6 +516,8 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
         } catch (soapError) { console.error("SOAP note error:", soapError); }
         
         toast.success("Assessment saved successfully!");
+        // No payload: this runner already persisted the record; a truthy
+        // payload would trigger a redundant second update in the host.
         if (onComplete) onComplete();
         onClose();
       } catch (error) {
@@ -603,7 +606,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
       await base44.entities.ClientAssessment.update(assessmentToUpdate.id, updateData);
 
       // Generate objective text for SOAP - include ALL data from the runner
-       const rawDs = assessmentDate || new Date().toISOString().split('T')[0];
+       const rawDs = assessmentDate || todayLocal();
        const dp = rawDs.split('-').map(Number);
        const today = (dp.length === 3 && !isNaN(dp[0]) && dp[0] > 1900) ? new Date(dp[0], dp[1]-1, dp[2]) : new Date();
        const dateStr = today.toLocaleDateString('en-AU', { day: '2-digit', month: '2-digit', year: 'numeric' });
@@ -689,6 +692,8 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
       }
 
       toast.success("Assessment saved successfully!");
+      // No payload: this runner already persisted the record; a truthy
+      // payload would trigger a redundant second update in the host.
       if (onComplete) onComplete();
       onClose();
       } catch (error) {

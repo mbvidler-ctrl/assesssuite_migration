@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const PARQ_QUESTIONS = [
   "Has your doctor ever said that you have a heart condition and that you should only do physical activity recommended by a doctor?",
@@ -42,7 +43,7 @@ export default function PARQRunner({ onSave, onClose }) {
         other_reasons: otherReasons
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // CCQ domains and items
 const DOMAINS = [
@@ -84,7 +85,7 @@ export default function ClinicalCOPDQuestionnaireCCQRunner({ client, onSave, onC
     const mMean = domainMean(mentalIds);
     const lines = allItems.map((item, i) => `  Q${i + 1}: ${responses[item.id]}/6`).join("\n");
     const soap = `• Clinical COPD Questionnaire (CCQ)\n  Total Score (mean): ${totalMean.toFixed(2)}/6 — ${interp.label}\n  Symptom Domain: ${sMean?.toFixed(2)} | Functional: ${fMean?.toFixed(2)} | Mental: ${mMean?.toFixed(2)}\n\n  Item Responses:\n${lines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  MCID: 0.4 points | Scale: 0 (best) to 6 (worst)\n  Reference: van der Molen T et al. (2003). Development, validity, reliability of CCQ. Health Qual Life Outcomes, 1:13.`;
-    onSave({ status: "completed", result_value: parseFloat(totalMean.toFixed(2)), notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", responses, total_mean: parseFloat(totalMean.toFixed(2)), symptom_domain: parseFloat(sMean?.toFixed(2)), functional_domain: parseFloat(fMean?.toFixed(2)), mental_domain: parseFloat(mMean?.toFixed(2)), control_level: interp.label } });
+    onSave({ status: "completed", result_value: parseFloat(totalMean.toFixed(2)), notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "questionnaire", responses, total_mean: parseFloat(totalMean.toFixed(2)), symptom_domain: parseFloat(sMean?.toFixed(2)), functional_domain: parseFloat(fMean?.toFixed(2)), mental_domain: parseFloat(mMean?.toFixed(2)), control_level: interp.label } });
     toast.success("CCQ saved.");
   };
 

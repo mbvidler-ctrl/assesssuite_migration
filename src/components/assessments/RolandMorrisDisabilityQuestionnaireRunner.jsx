@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const STATEMENTS = [
   "Because of my back (or leg) pain, I am unable to care for myself without my partner's help.",
@@ -52,7 +53,7 @@ export default function RolandMorrisDisabilityQuestionnaireRunner({ client, onSa
     const checkedItems = checked.map((c, i) => c ? i + 1 : null).filter(x => x !== null);
     const checkedLines = checkedItems.length > 0 ? `\n  Items answered 'yes': ${checkedItems.join(", ")}` : "";
     const soap = `• Roland-Morris Disability Questionnaire\n  Total Score: ${total}/24 — ${getInterpretation(total)}${checkedLines}${notes ? `\n  Notes: ${notes}` : ""}\n  Interpretation: 0 = no disability | 1–4 = minimal | 5–8 = moderate | 9–16 = severe | 17+ = very severe\n  MCID: 5 points\n  Reference: Roland & Morris (1983). Back pain measures and outcome prediction for acute admissions to hospital following the occurrence of low back pain.`;
-    onSave({ status: "completed", result_value: total, notes, assessment_date: new Date().toISOString().split("T")[0], additional_data: { soap_text: soap, measurement_type: "questionnaire", items_checked: checked, disability_level: getInterpretation(total) } });
+    onSave({ status: "completed", result_value: total, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "questionnaire", items_checked: checked, disability_level: getInterpretation(total) } });
     toast.success("Saved.");
   };
 

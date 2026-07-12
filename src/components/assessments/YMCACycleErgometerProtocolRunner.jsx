@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle, Info, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── VO2MAX CLASSIFICATION (ACSM) ──────────────────────────────────────────
 const getVO2Classification = (vo2, age, gender) => {
@@ -183,7 +184,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
   Estimated VO2max of ${vo2maxResult.vo2Max} ml/kg/min reflects good exercise tolerance and cardiovascular efficiency.
   
   IP STATEMENT:
-  This assessment is independently developed by Allied Assess.
+  This assessment is independently developed by AssessSuite.
   It does not reproduce YMCA proprietary manuals or materials.`;
 
     onSave({
@@ -202,7 +203,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
         soap_text: soapText,
       },
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Assessment saved.");
     setTimeout(() => onClose(), 500);

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Save, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // PASE weights per the Washburn et al. 1993 scoring algorithm
 const LEISURE_ITEMS = [
@@ -119,7 +120,7 @@ export default function PhysicalActivityScalefortheElderlyPASERunner({ onSave, o
 
     const score = calcScore();
     const interp = getInterpretation(score);
-    const today = new Date().toISOString().split('T')[0];
+    const today = todayLocal();
 
     const leisureLines = LEISURE_ITEMS.map(item => {
       const hrs = leisureResponses[item.id];

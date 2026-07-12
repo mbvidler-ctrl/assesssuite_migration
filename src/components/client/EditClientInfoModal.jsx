@@ -242,7 +242,7 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
       case 'goals': return 'Edit Client Goals';
       case 'cultural': return 'Edit Cultural Considerations';
       case 'medications': return 'Edit Current Medications';
-      case 'apss': return 'APSS Pre-Exercise Screening';
+      case 'apss': return 'Pre-Exercise Screening';
       default: return 'Edit Client Information';
     }
   };
@@ -257,10 +257,10 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
       });
       setApssData(prev => ({ ...prev, ...apssFormData, apss_completed: true }));
       setShowAPSSForm(false);
-      toast.success('APSS Stage 1 completed successfully');
+      toast.success('Safety Screen completed successfully');
     } catch (error) {
       console.error('Failed to save APSS:', error);
-      toast.error('Failed to save APSS data');
+      toast.error('Failed to save Safety Screen data');
     } finally {
       setIsSubmitting(false);
     }
@@ -276,10 +276,10 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
       });
       setApssData(prev => ({ ...prev, ...stage2Data, apss_stage2_completed: true }));
       setShowAPSSStage2(false);
-      toast.success('APSS Stage 2 completed successfully');
+      toast.success('Clinical Risk Review completed successfully');
     } catch (error) {
       console.error('Failed to save APSS Stage 2:', error);
-      toast.error('Failed to save APSS Stage 2 data');
+      toast.error('Failed to save Clinical Risk Review data');
     } finally {
       setIsSubmitting(false);
     }
@@ -668,7 +668,7 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
               <div className="flex items-center justify-between mb-3">
                 <h3 className="font-semibold text-slate-900 flex items-center gap-2">
                   <ClipboardList className="w-5 h-5 text-blue-600" />
-                  APSS Pre-Exercise Screening
+                  Pre-Exercise Screening
                 </h3>
               </div>
               
@@ -676,7 +676,7 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
                 {/* APSS Stage 1 */}
                 <div className={`p-3 rounded-lg border-2 ${apssData.apss_completed ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'}`}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-slate-700">Stage 1</span>
+                    <span className="text-sm font-medium text-slate-700">Safety Screen</span>
                     {apssData.apss_completed ? (
                       <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Completed</span>
                     ) : (
@@ -690,14 +690,14 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
                     className="w-full"
                     onClick={() => setShowAPSSForm(true)}
                   >
-                    {apssData.apss_completed ? 'Redo Stage 1' : 'Complete Stage 1'}
+                    {apssData.apss_completed ? 'Redo Safety Screen' : 'Complete Safety Screen'}
                   </Button>
                 </div>
 
                 {/* APSS Stage 2 */}
                 <div className={`p-3 rounded-lg border-2 ${apssData.apss_stage2_completed ? 'bg-green-50 border-green-200' : 'bg-slate-50 border-slate-200'}`}>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-slate-700">Stage 2</span>
+                    <span className="text-sm font-medium text-slate-700">Clinical Risk Review</span>
                     {apssData.apss_stage2_completed ? (
                       <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Completed</span>
                     ) : (
@@ -711,7 +711,7 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
                     className="w-full"
                     onClick={() => setShowAPSSStage2(true)}
                   >
-                    {apssData.apss_stage2_completed ? 'Redo Stage 2' : 'Complete Stage 2'}
+                    {apssData.apss_stage2_completed ? 'Redo Clinical Risk Review' : 'Complete Clinical Risk Review'}
                   </Button>
                 </div>
               </div>
@@ -723,7 +723,7 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
             <Dialog open={showAPSSForm} onOpenChange={setShowAPSSForm}>
               <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>APSS Stage 1 - Pre-Exercise Screening</DialogTitle>
+                  <DialogTitle>Safety Screen - Pre-Exercise Screening</DialogTitle>
                 </DialogHeader>
                 <APSSForm
                   data={apssData}
@@ -741,7 +741,7 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
             <Dialog open={showAPSSStage2} onOpenChange={setShowAPSSStage2}>
               <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
-                  <DialogTitle>APSS Stage 2 - Detailed Screening</DialogTitle>
+                  <DialogTitle>Clinical Risk Review - Detailed Screening</DialogTitle>
                 </DialogHeader>
                 <APSSStage2
                   data={apssData}

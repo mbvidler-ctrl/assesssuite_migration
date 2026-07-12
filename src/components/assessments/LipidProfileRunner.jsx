@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function LipidProfileRunner({ client, onSave, onClose }) {
   const [totalCholesterol, setTotalCholesterol] = useState("");
@@ -95,7 +96,7 @@ export default function LipidProfileRunner({ client, onSave, onClose }) {
         soap_text: soapText
       },
       notes: soapText,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
     });
     toast.success("Assessment saved successfully.");
     onClose();

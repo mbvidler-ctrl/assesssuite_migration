@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Save, X, Info, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 const PAIN_ITEMS = [
   "At its worst?",
@@ -57,7 +58,7 @@ export default function SPADIRunner({ client, onSave, onClose }) {
   const [painScores, setPainScores] = useState({});
   const [disabilityScores, setDisabilityScores] = useState({});
   const [notes, setNotes] = useState("");
-  const [assessmentDate, setAssessmentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [assessmentDate, setAssessmentDate] = useState(todayLocal());
 
   const setPain = (i, val) => setPainScores(prev => ({ ...prev, [i]: val }));
   const setDisability = (i, val) => setDisabilityScores(prev => ({ ...prev, [i]: val }));

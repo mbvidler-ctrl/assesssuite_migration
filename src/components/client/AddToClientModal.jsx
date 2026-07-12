@@ -4,6 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
+import { todayLocal } from "@/lib/localDate";
 
 export default function AddToClientModal({ assessment, onClose, onAssessmentAdded }) {
   const [clients, setClients] = useState([]);
@@ -76,7 +77,7 @@ export default function AddToClientModal({ assessment, onClose, onAssessmentAdde
             org_id: selectedClient.org_id,
             client_id: selectedClientId,
             assessment_id: assessment.id,
-            assessment_date: new Date().toISOString().split('T')[0],
+            assessment_date: todayLocal(),
             status: "pending",
           });
           break; // Success

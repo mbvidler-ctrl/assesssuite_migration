@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, Play, Pause, StopCircle } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 export default function CooperTestRunner({ onSave, onClose }) {
   const [time, setTime] = useState(0);
@@ -60,7 +61,7 @@ export default function CooperTestRunner({ onSave, onClose }) {
         rpe: rpe ? parseInt(rpe) : null,
       },
       notes: notes,
-      assessment_date: new Date().toISOString().split('T')[0]
+      assessment_date: todayLocal()
     });
   };
 

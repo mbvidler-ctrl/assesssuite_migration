@@ -10,9 +10,10 @@
 
 import { deriveItems, buildItemBlockText, soapTextHasItemBlock } from "@/lib/clinical/assessmentResults";
 import { DASS21_QUESTIONS, DASS21_OPTIONS } from "@/lib/clinical/dass21";
+import { todayLocal } from "@/lib/localDate";
 
 export function generateObjectiveText(assessment, assessmentData) {
-  const rawDs = assessmentData.assessment_date || new Date().toISOString().split('T')[0];
+  const rawDs = assessmentData.assessment_date || todayLocal();
   // Handle both date-only strings (YYYY-MM-DD) and full ISO strings
   const datePart = rawDs.includes('T') ? rawDs.split('T')[0] : rawDs;
   const dp = datePart.split('-').map(Number);

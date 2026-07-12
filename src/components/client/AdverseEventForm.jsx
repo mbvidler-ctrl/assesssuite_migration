@@ -13,6 +13,7 @@ import { AlertTriangle, Upload, X, Loader2, Save, Printer, Pencil } from "lucide
 import { toast } from "sonner";
 import { createRoot } from "react-dom/client";
 import AdverseEventPrintView from "./AdverseEventPrintView";
+import { todayLocal } from "@/lib/localDate";
 
 export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted, readOnly = false, existingEvent = null, onEdit }) {
   const [currentUser, setCurrentUser] = useState(null);
@@ -109,6 +110,21 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
           digital_signature: existingEvent.digital_signature || ""
         });
         setAttachments(existingEvent.attachments || []);
+        // Rehydrate the saved signature onto the canvas: the canvas is
+        // uncontrolled (pixels only ever come from pointer events), so an
+        // existing record's stored data URL must be drawn back explicitly —
+        // otherwise a completed form reopens with a blank signature even
+        // though the record (and the print view) retain it.
+        if (signatureRef.current) {
+          const canvas = signatureRef.current;
+          const ctx = canvas.getContext('2d');
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          if (existingEvent.digital_signature) {
+            const img = new Image();
+            img.onload = () => ctx.drawImage(img, 0, 0);
+            img.src = existingEvent.digital_signature;
+          }
+        }
         if (readOnly) {
           setCurrentUser({ full_name: existingEvent.clinician_name, email: existingEvent.clinician_email, provider_number: existingEvent.clinician_provider_number });
         } else {
@@ -150,7 +166,7 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
         attachment_type: file.type,
         attachment_name: file.name,
         attachment_url: file_url,
-        attached_date: new Date().toISOString().split('T')[0]
+        attached_date: todayLocal()
       }]);
       toast.success("Attachment uploaded");
     } catch (error) {
@@ -954,7 +970,24 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
                 <Label>Digital Signature</Label>
                 <div className="border-2 border-slate-300 rounded-lg bg-white">
                   <canvas
-                    ref={signatureRef}
+                    ref={(node) => {
+                      signatureRef.current = node;
+                      // Hydrate the saved signature the moment the canvas
+                      // mounts: the load effect can fire before the dialog's
+                      // canvas exists, so a ref callback is the reliable
+                      // rehydration point. dataset.hydrated guards against
+                      // redrawing over in-progress strokes on re-renders.
+                      if (node && formData.digital_signature && !node.dataset.hydrated) {
+                        node.dataset.hydrated = "1";
+                        const ctx = node.getContext("2d");
+                        const img = new Image();
+                        img.onload = () => {
+                          ctx.clearRect(0, 0, node.width, node.height);
+                          ctx.drawImage(img, 0, 0);
+                        };
+                        img.src = formData.digital_signature;
+                      }
+                    }}
                     width={600}
                     height={150}
                     className="w-full cursor-crosshair touch-none"

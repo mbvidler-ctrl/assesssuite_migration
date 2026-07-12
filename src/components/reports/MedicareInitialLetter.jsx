@@ -11,6 +11,7 @@ import { InvokeLLM } from "@/integrations/Core";
 import { Printer, Loader2, ChevronLeft, ChevronRight, X, Save, Edit } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
+import { todayLocal } from "@/lib/localDate";
 
 const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref) => {
   const formatDate = (date) => {
@@ -183,8 +184,8 @@ export default function MedicareInitialLetter({ client, onClose, editingReport }
       gp_name: client.primary_gp_name || "",
       gp_clinic_name: client.primary_gp_clinic_name || "",
       gp_address: client.primary_gp_address || "",
-      letter_date: new Date().toISOString().split('T')[0],
-      assessment_date: new Date().toISOString().split('T')[0],
+      letter_date: todayLocal(),
+      assessment_date: todayLocal(),
       presenting_concerns: "",
       medical_history: "",
       assessment_findings: "",
@@ -349,7 +350,7 @@ export default function MedicareInitialLetter({ client, onClose, editingReport }
           client_id: client.id,
           report_type: "medicare_initial",
           report_name: `Medicare Initial Assessment - ${format(new Date(), 'dd/MM/yyyy')}`,
-          report_date: new Date().toISOString().split('T')[0],
+          report_date: todayLocal(),
           report_data: dataToSave,
           html_content: printRef.current?.innerHTML || ""
         });

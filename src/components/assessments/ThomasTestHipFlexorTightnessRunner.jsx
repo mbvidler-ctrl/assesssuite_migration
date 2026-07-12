@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -433,7 +434,7 @@ export default function ThomasTestHipFlexorTightnessRunner({ client, onSave, onC
     onSave({
       result_value: hip,
       notes,
-      assessment_date: new Date().toISOString().split("T")[0],
+      assessment_date: todayLocal(),
       additional_data: {
         soap_text: soapLines,
         test_mode: testMode,
