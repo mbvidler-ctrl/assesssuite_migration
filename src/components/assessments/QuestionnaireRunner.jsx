@@ -12,6 +12,13 @@ import { todayLocal } from "@/lib/localDate";
 
 export default function QuestionnaireRunner({ assessment, onSave, onClose, initialResponses = {}, isStandaloneMode = false, client }) {
   const [responses, setResponses] = useState(initialResponses);
+  // Selection is tracked by OPTION INDEX (unique per question), not by value:
+  // instruments like VISA-A/P repeat point values across options (Q8's A/B/C
+  // rows all contain 0), and value-keyed radios both highlighted every
+  // same-valued option and attributed the wrong option label in the SOAP
+  // record — a clinical-documentation defect even though the score was
+  // correct. `responses` stays value-keyed (the persistence contract).
+  const [selectedOptions, setSelectedOptions] = useState({});
   const [selectedClient, setSelectedClient] = useState(client);
   const [allClients, setAllClients] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -62,7 +69,14 @@ export default function QuestionnaireRunner({ assessment, onSave, onClose, initi
       const resp = responses[i];
       let label = resp;
       if (q.question_type === 'yes_no') label = resp === 1 ? 'Yes' : 'No';
-      else if (q.options) { const opt = q.options.find(o => o.value === parseFloat(resp)); label = opt ? opt.label : resp; }
+      else if (q.options) {
+        // Prefer the actually-selected option (index-tracked); fall back to
+        // a value lookup only for externally-hydrated responses.
+        const opt = selectedOptions[i] !== undefined
+          ? q.options[selectedOptions[i]]
+          : q.options.find(o => o.value === parseFloat(resp));
+        label = opt ? opt.label : resp;
+      }
       soapText += `  Q${i+1}. ${q.question_text}\n      Answer: ${label}\n`;
     });
     return soapText;
@@ -210,13 +224,17 @@ export default function QuestionnaireRunner({ assessment, onSave, onClose, initi
                 </RadioGroup>
               ) : question.options && question.options.length > 0 ? (
                 <RadioGroup
-                  value={responses[index]?.toString()}
-                  onValueChange={(value) => setResponses({...responses, [index]: parseFloat(value)})}
+                  value={selectedOptions[index]?.toString()}
+                  onValueChange={(value) => {
+                    const optIdx = parseInt(value, 10);
+                    setSelectedOptions({ ...selectedOptions, [index]: optIdx });
+                    setResponses({ ...responses, [index]: question.options[optIdx]?.value ?? 0 });
+                  }}
                 >
                   <div className="space-y-2">
                     {question.options.map((option, optIndex) => (
                       <div key={optIndex} className="flex items-center space-x-2">
-                        <RadioGroupItem value={option.value.toString()} id={`q${index}-opt${optIndex}`} />
+                        <RadioGroupItem value={optIndex.toString()} id={`q${index}-opt${optIndex}`} />
                         <Label htmlFor={`q${index}-opt${optIndex}`} className="cursor-pointer flex-1">
                           {option.label}
                         </Label>
