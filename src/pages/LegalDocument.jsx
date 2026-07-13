@@ -13,10 +13,13 @@ import { useAuth } from "@/lib/AuthContext";
 // INVARIANT: SUITE_VERSION stays RC-2026.07.11 — it is the immutable content
 // identifier recorded in acceptance events; the flip is display-only.
 function applyEffectiveHeaders(content, effectiveDate) {
+  // Trailing two spaces preserve the markdown hard line break — the source
+  // header lines use it so each metadata line renders on its own line; dropping
+  // it would collapse them into one paragraph.
   return content
-    .replace(/^\*\*Release status:\*\*.*$/m, "**Release status:** Effective")
-    .replace(/^\*\*Effective date:\*\*.*$/m, `**Effective date:** ${effectiveDate}`)
-    .replace(/^\*\*Approved by:\*\*.*$/m, "**Approved by:** Assess Suite Pty Ltd");
+    .replace(/^\*\*Release status:\*\*.*$/m, "**Release status:** Effective  ")
+    .replace(/^\*\*Effective date:\*\*.*$/m, `**Effective date:** ${effectiveDate}  `)
+    .replace(/^\*\*Approved by:\*\*.*$/m, "**Approved by:** Assess Suite Pty Ltd  ");
 }
 
 // Public, unauthenticated route: /legal/:slug. Single source of truth for

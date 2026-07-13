@@ -553,6 +553,15 @@ async function handleEntitiesRoute(req, res, url, match) {
     if (!isAdmin && GLOBAL_READONLY_ENTITIES.has(entityName)) {
       return sendError(res, 403, 'admin access required to modify a shared catalogue');
     }
+    // Retention: a Client is the root of a clinical record and its hard delete
+    // orphans every child (assessments, notes, documents…). Non-admins must
+    // use archive (archived:true) — the raw DELETE would otherwise bypass the
+    // archive convention and destroy records that must be retained.
+    // Item-level deletes (SOAPNote, ClientAssessment, ClientDocument …) remain
+    // ordinary clinician workflow; only the Client root is protected here.
+    if (!isAdmin && entityName === 'Client') {
+      return sendError(res, 403, 'clients are archived, not deleted');
+    }
     if (!isAdmin && !isUserCollection && !isWithinOrgScope(existing, sessionUser, entityName)) {
       return sendError(res, 404, 'record not found');
     }
@@ -565,6 +574,10 @@ async function handleEntitiesRoute(req, res, url, match) {
     if (!isAdmin && (isUserCollection || GLOBAL_READONLY_ENTITIES.has(entityName))) {
       // Never let a non-admin bulk-delete Users or a shared catalogue.
       return sendError(res, 403, 'admin access required');
+    }
+    if (!isAdmin && entityName === 'Client') {
+      // Same retention rule as the single-record path: clients are archived.
+      return sendError(res, 403, 'clients are archived, not deleted');
     }
     const query = await readJsonBody(req);
     const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
@@ -820,7 +833,11 @@ async function handleAuthRoute(req, res, url, appId, action) {
     }
     const { email, otp_code } = await readJsonBody(req);
     const user = findUserByEmail(email);
-    if (!user) return sendError(res, 404, 'user not found');
+    // Unknown email returns the SAME generic 401 as a known-email-wrong-code,
+    // so this endpoint is not an account-existence oracle (consistent with the
+    // resend/reset hardening). Registration's 409 remains the standard
+    // account-taken UX and is a deliberate, separate tradeoff.
+    if (!user) return sendError(res, 401, 'invalid or expired verification code');
     // Lockout window after repeated failures.
     if (user.otp_locked_until && Date.parse(user.otp_locked_until) > Date.now()) {
       return sendError(res, 429, 'too many attempts — try again later');
@@ -906,6 +923,9 @@ async function handleAuthRoute(req, res, url, appId, action) {
   if (action === 'reset-password' && req.method === 'POST') {
     const { reset_token, new_password } = await readJsonBody(req);
     if (!reset_token) return sendError(res, 400, 'invalid or expired reset token');
+    if (typeof new_password !== 'string' || new_password.length < 8) {
+      return sendError(res, 400, 'a new password of at least 8 characters is required');
+    }
     const user = userRepo.listAll().find((u) => u.reset_token === reset_token);
     if (!user || !user.reset_token_expires || Date.parse(user.reset_token_expires) < Date.now()) {
       return sendError(res, 400, 'invalid or expired reset token');
@@ -917,6 +937,9 @@ async function handleAuthRoute(req, res, url, appId, action) {
 
   if (action === 'change-password' && req.method === 'POST') {
     const { user_id, current_password, new_password } = await readJsonBody(req);
+    if (typeof new_password !== 'string' || new_password.length < 8) {
+      return sendError(res, 400, 'a new password of at least 8 characters is required');
+    }
     const user = userRepo.getById(user_id);
     if (!user || !verifyPassword(current_password, user.password_hash, user.salt)) {
       return sendError(res, 401, 'current password is incorrect');
@@ -1090,7 +1113,12 @@ async function requestListener(req, res) {
     // Auth routes.
     const authMatch = /^\/api\/apps\/([^/]+)\/auth\/([^/]+)$/.exec(pathname);
     if (authMatch) {
-      return handleAuthRoute(req, res, url, authMatch[1], authMatch[2]);
+      // MUST await (like the entities route below): handleAuthRoute is async,
+      // and an unawaited rejection escapes this listener's try/catch — no HTTP
+      // response is written (client hangs) and Node crashes on the unhandled
+      // rejection. A reset/change-password with a missing new_password is one
+      // reachable trigger; see the presence guards in those handlers.
+      return await handleAuthRoute(req, res, url, authMatch[1], authMatch[2]);
     }
     const logoutMatch = /^\/api\/apps\/auth\/logout$/.exec(pathname);
     if (logoutMatch && req.method === 'GET') {

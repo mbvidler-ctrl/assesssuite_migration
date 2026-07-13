@@ -62,7 +62,9 @@ export default function Layout({ children, currentPageName }) {
           base44.auth.updateMe({ last_active: new Date().toISOString() }).catch(() => {});
         }
 
-        if (!user.clinician_name) {
+        // Use freshUser consistently for every routing decision (the earlier
+        // `user` read can be stale relative to the forced refresh above).
+        if (!freshUser.clinician_name) {
           navigate("/ProfileSetup");
           return;
         }
@@ -115,7 +117,7 @@ export default function Layout({ children, currentPageName }) {
         let events = [];
         try {
           events = await base44.entities.LegalAcceptanceEvent.filter({
-            user_email: user.email,
+            user_email: freshUser.email,
             suite_version: SUITE_VERSION
           });
           if (!events) events = [];

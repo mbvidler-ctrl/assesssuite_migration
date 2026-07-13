@@ -1157,8 +1157,10 @@ async function runChecks(baseUrl, appId) {
       const { body: allAfter } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User`, { token: adminToken });
       const rejAfter = (allAfter || []).find((u) => u.email === rejectedEmail);
       record(
-        'stripeWebhook never activates a rejected account',
-        rejAfter?.account_status === 'rejected' && rejAfter?.subscription_status === 'active',
+        'stripeWebhook never activates a rejected account and writes no entitlement linkage',
+        // A refused account is neither activated nor given a live subscription
+        // record (no entitlement is written for a NEVER_ACTIVATE status).
+        rejAfter?.account_status === 'rejected' && rejAfter?.subscription_status !== 'active',
         `account_status=${rejAfter?.account_status} subscription_status=${rejAfter?.subscription_status}`,
       );
     }

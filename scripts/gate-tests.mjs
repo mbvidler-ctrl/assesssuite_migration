@@ -159,6 +159,12 @@ async function main() {
   record('L1.2b', visibleWhenAsked, `archived client visible via explicit archived:true query=${visibleWhenAsked}`);
   const archGet = await api(`/api/apps/${APP}/entities/Client/${archId}`, { token: alphaTok });
   record('L1.2c', archGet.status === 200 && archGet.data?.archived === true, `archived client still retrievable by id (retention) → ${archGet.status}`);
+  // A non-admin cannot bypass archive by hard-DELETEing the client via the raw
+  // API (that orphans children and destroys retained records).
+  const hardDel = await api(`/api/apps/${APP}/entities/Client/${archId}`, { method: 'DELETE', token: alphaTok });
+  record('L1.2d', hardDel.status === 403, `non-admin hard DELETE of a Client refused → ${hardDel.status} (expect 403)`);
+  const stillThere = await api(`/api/apps/${APP}/entities/Client/${archId}`, { token: alphaTok });
+  record('L1.2e', stillThere.status === 200, `client survives the refused delete → ${stillThere.status}`);
 
   // Self-service deactivation: works for the caller, refuses clinical access,
   // admin restores (mirrors AdminApprovals) so re-runs stay idempotent.
