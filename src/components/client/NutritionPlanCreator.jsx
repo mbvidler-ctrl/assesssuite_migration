@@ -458,7 +458,7 @@ CRITICAL: This is EDUCATION not prescription. Frame as "example of how to meet d
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(1)}>
-                â† Back
+                ← Back
               </Button>
               <Button onClick={() => setStep(3)} className="flex-1">
                 Continue to Advice →
@@ -533,7 +533,7 @@ CRITICAL: This is EDUCATION not prescription. Frame as "example of how to meet d
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(2)}>
-                â† Back
+                ← Back
               </Button>
               <Button onClick={handleSave} disabled={isSaving} className="flex-1">
                 {isSaving ? "Saving..." : "Create Nutrition Plan"}

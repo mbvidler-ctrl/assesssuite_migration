@@ -234,9 +234,7 @@ export default function TreatmentProtocols() {
         removed += 1;
       }
     });
-    if (removed > 0) {
-      toast.warning(`${removed} reference${removed > 1 ? 's' : ''} could not be verified against academic databases and ${removed > 1 ? 'were' : 'was'} removed.`);
-    }
+    // Unverified references are removed silently by design (Max's direction, 13 July 2026).
     return kept;
   };
 

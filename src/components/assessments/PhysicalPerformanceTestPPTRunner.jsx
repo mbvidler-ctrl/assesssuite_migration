@@ -471,7 +471,7 @@ export default function PhysicalPerformanceTestPPTRunner({ client, onSave, onClo
           {state === "tasks" && (
             <div className="flex gap-2">
               <Button variant="outline" onClick={handlePreviousTask} disabled={currentTaskIndex === 0}>
-                â† Previous
+                ← Previous
               </Button>
               <Button onClick={handleNextTask} className="bg-blue-600 hover:bg-blue-700">
                 {currentTaskIndex === tasks.length - 1 ? "Review Results" : "Next Task"} →

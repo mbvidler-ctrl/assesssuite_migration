@@ -459,10 +459,10 @@ Score: ___/4</li>
 <h4>Functional Assessment:</h4>
 <p>If you checked off any problems, how difficult have these problems made it for you to do your work, take care of things at home, or get along with other people?</p>
 <ul>
-<li>â˜ Not difficult at all</li>
-<li>â˜ Somewhat difficult</li>
-<li>â˜ Very difficult</li>
-<li>â˜ Extremely difficult</li>
+<li>☐ Not difficult at all</li>
+<li>☐ Somewhat difficult</li>
+<li>☐ Very difficult</li>
+<li>☐ Extremely difficult</li>
 </ul>
 
 <h4>Suicide Risk Assessment:</h4>
@@ -508,10 +508,10 @@ Score: ___/4</li>
 <h4>Functional Assessment:</h4>
 <p>If you checked off any problems, how difficult have these problems made it for you to do your work, take care of things at home, or get along with other people?</p>
 <ul>
-<li>â˜ Not difficult at all</li>
-<li>â˜ Somewhat difficult</li>
-<li>â˜ Very difficult</li>
-<li>â˜ Extremely difficult</li>
+<li>☐ Not difficult at all</li>
+<li>☐ Somewhat difficult</li>
+<li>☐ Very difficult</li>
+<li>☐ Extremely difficult</li>
 </ul>
 
 <h4>Clinical Notes:</h4>
@@ -643,7 +643,7 @@ Score: ___/4</li>
 </ul>
 
 <h4>Clinical Notes:</h4>
-<p><strong>Use of arms:</strong> â˜ Yes â˜ No</p>
+<p><strong>Use of arms:</strong> ☐ Yes ☐ No</p>
 <p><strong>Balance issues:</strong> ________________</p>
 <p><strong>Fatigue level:</strong> ________________</p>
 <p><strong>Other observations:</strong> ________________</p>`,
@@ -664,25 +664,25 @@ Score: ___/4</li>
 <h4>Stage 1: Side-by-Side Stand</h4>
 <p><strong>Instructions:</strong> "Stand with your feet side by side, touching each other. I will time you for up to 10 seconds."</p>
 <p><strong>Time held: _____ seconds (up to 10)</strong></p>
-<p>â˜ Held for full 10 seconds â˜ Could not hold for 10 seconds</p>
+<p>☐ Held for full 10 seconds ☐ Could not hold for 10 seconds</p>
 <p><em>If unable to hold for 10 seconds, STOP TEST</em></p>
 
 <h4>Stage 2: Semi-Tandem Stand</h4>
 <p><strong>Instructions:</strong> "Place the heel of one foot beside the big toe of your other foot. You may put either foot forward. I will time you for up to 10 seconds."</p>
 <p><strong>Time held: _____ seconds (up to 10)</strong></p>
-<p>â˜ Held for full 10 seconds â˜ Could not hold for 10 seconds</p>
+<p>☐ Held for full 10 seconds ☐ Could not hold for 10 seconds</p>
 <p><em>If unable to hold for 10 seconds, STOP TEST</em></p>
 
 <h4>Stage 3: Tandem Stand</h4>
 <p><strong>Instructions:</strong> "Place one foot directly in front of the other, heel touching toe. You may put either foot forward. I will time you for up to 10 seconds."</p>
 <p><strong>Time held: _____ seconds (up to 10)</strong></p>
-<p>â˜ Held for full 10 seconds â˜ Could not hold for 10 seconds</p>
+<p>☐ Held for full 10 seconds ☐ Could not hold for 10 seconds</p>
 <p><em>If unable to hold for 10 seconds, STOP TEST</em></p>
 
 <h4>Stage 4: One-Leg Stand</h4>
 <p><strong>Instructions:</strong> "Stand on one leg for as long as you can. You may choose which leg to stand on. I will time you for up to 10 seconds."</p>
 <p><strong>Time held: _____ seconds (up to 10)</strong></p>
-<p>â˜ Held for full 10 seconds â˜ Could not hold for 10 seconds</p>
+<p>☐ Held for full 10 seconds ☐ Could not hold for 10 seconds</p>
 
 <h4>Overall Results:</h4>
 <table border="1" cellpadding="5">
@@ -703,7 +703,7 @@ Score: ___/4</li>
 </ul>
 
 <h4>Clinical Notes:</h4>
-<p><strong>Preferred stance leg:</strong> â˜ Right â˜ Left</p>
+<p><strong>Preferred stance leg:</strong> ☐ Right ☐ Left</p>
 <p><strong>Balance strategies observed:</strong> ________________</p>
 <p><strong>Other observations:</strong> ________________</p>`,
 
@@ -756,13 +756,13 @@ Score: ___/4</li>
 <h4>Summary:</h4>
 <p><strong>Best Eyes Open Time: _____ seconds</strong></p>
 <p><strong>Best Eyes Closed Time: _____ seconds</strong></p>
-<p><strong>Dominant Leg: â˜ Right â˜ Left</strong></p>
-<p><strong>Required Support/Supervision: â˜ Yes â˜ No</strong></p>
+<p><strong>Dominant Leg: ☐ Right ☐ Left</strong></p>
+<p><strong>Required Support/Supervision: ☐ Yes ☐ No</strong></p>
 
 <h4>Reason for Stopping (check all that apply):</h4>
-<p>â˜ Completed 60 seconds &nbsp;&nbsp; â˜ Hands moved from position</p>
-<p>â˜ Supporting foot shifted &nbsp;&nbsp; â˜ Lifted foot touched ground/leg</p>
-<p>â˜ Loss of balance &nbsp;&nbsp; â˜ Client chose to stop</p>
+<p>☐ Completed 60 seconds &nbsp;&nbsp; ☐ Hands moved from position</p>
+<p>☐ Supporting foot shifted &nbsp;&nbsp; ☐ Lifted foot touched ground/leg</p>
+<p>☐ Loss of balance &nbsp;&nbsp; ☐ Client chose to stop</p>
 
 <h4>Age-Based Norms (seconds) - Eyes Open:</h4>
 <table border="1" cellpadding="5">
@@ -783,10 +783,10 @@ Score: ___/4</li>
 </ul>
 
 <h4>Balance Strategies Observed:</h4>
-<p>â˜ Hip strategy (hip movements to maintain balance)</p>
-<p>â˜ Ankle strategy (ankle movements to maintain balance)</p>
-<p>â˜ Step strategy (stepping to regain balance)</p>
-<p>â˜ Upper extremity compensation</p>
+<p>☐ Hip strategy (hip movements to maintain balance)</p>
+<p>☐ Ankle strategy (ankle movements to maintain balance)</p>
+<p>☐ Step strategy (stepping to regain balance)</p>
+<p>☐ Upper extremity compensation</p>
 
 <h4>Clinical Notes:</h4>
 <p>_________________________________________________</p>
@@ -841,13 +841,13 @@ Score: ___/4</li>
 <h4>Summary:</h4>
 <p><strong>Best Eyes Open Time: _____ seconds</strong></p>
 <p><strong>Best Eyes Closed Time: _____ seconds</strong></p>
-<p><strong>Dominant Leg: â˜ Right â˜ Left</strong></p>
-<p><strong>Required Support/Supervision: â˜ Yes â˜ No</strong></p>
+<p><strong>Dominant Leg: ☐ Right ☐ Left</strong></p>
+<p><strong>Required Support/Supervision: ☐ Yes ☐ No</strong></p>
 
 <h4>Reason for Stopping (check all that apply):</h4>
-<p>â˜ Completed 60 seconds &nbsp;&nbsp; â˜ Hands moved from position</p>
-<p>â˜ Supporting foot shifted &nbsp;&nbsp; â˜ Lifted foot touched ground/leg</p>
-<p>â˜ Loss of balance &nbsp;&nbsp; â˜ Client chose to stop</p>
+<p>☐ Completed 60 seconds &nbsp;&nbsp; ☐ Hands moved from position</p>
+<p>☐ Supporting foot shifted &nbsp;&nbsp; ☐ Lifted foot touched ground/leg</p>
+<p>☐ Loss of balance &nbsp;&nbsp; ☐ Client chose to stop</p>
 
 <h4>Age-Based Norms (seconds) - Eyes Open:</h4>
 <table border="1" cellpadding="5">
@@ -868,10 +868,10 @@ Score: ___/4</li>
 </ul>
 
 <h4>Balance Strategies Observed:</h4>
-<p>â˜ Hip strategy (hip movements to maintain balance)</p>
-<p>â˜ Ankle strategy (ankle movements to maintain balance)</p>
-<p>â˜ Step strategy (stepping to regain balance)</p>
-<p>â˜ Upper extremity compensation</p>
+<p>☐ Hip strategy (hip movements to maintain balance)</p>
+<p>☐ Ankle strategy (ankle movements to maintain balance)</p>
+<p>☐ Step strategy (stepping to regain balance)</p>
+<p>☐ Upper extremity compensation</p>
 
 <h4>Clinical Notes:</h4>
 <p>_________________________________________________</p>
@@ -945,7 +945,7 @@ Score: ___/4</li>
 <h4>Exercise Response Analysis:</h4>
 <p><strong>Pre-Exercise Classification:</strong> ________________________</p>
 <p><strong>Peak Post-Exercise BP:</strong> ______ / ______ mmHg</p>
-<p><strong>Recovery Pattern:</strong> â˜ Normal â˜ Delayed â˜ Hypertensive</p>
+<p><strong>Recovery Pattern:</strong> ☐ Normal ☐ Delayed ☐ Hypertensive</p>
 <p><strong>Time to Return to Baseline:</strong> __________ minutes</p>
 
 <h4>Clinical Interpretation:</h4>
@@ -1126,9 +1126,9 @@ Score: ___/4</li>
 
 <h4>Symptoms Assessment:</h4>
 <p>Check any symptoms experienced during exercise:</p>
-<p>â˜ Shortness of breath â˜ Chest tightness â˜ Dizziness</p>
-<p>â˜ Fatigue â˜ Leg cramping â˜ Nausea</p>
-<p>â˜ Headache â˜ Confusion â˜ None</p>
+<p>☐ Shortness of breath ☐ Chest tightness ☐ Dizziness</p>
+<p>☐ Fatigue ☐ Leg cramping ☐ Nausea</p>
+<p>☐ Headache ☐ Confusion ☐ None</p>
 
 <p><strong>Other symptoms:</strong> ________________________</p>
 
@@ -1143,8 +1143,8 @@ Score: ___/4</li>
 
 <h4>Clinical Recommendations:</h4>
 <p><strong>Exercise Tolerance:</strong> ________________________</p>
-<p><strong>Oxygen Supplementation Needed:</strong> â˜ Yes â˜ No</p>
-<p><strong>Follow-up Required:</strong> â˜ Yes â˜ No</p>
+<p><strong>Oxygen Supplementation Needed:</strong> ☐ Yes ☐ No</p>
+<p><strong>Follow-up Required:</strong> ☐ Yes ☐ No</p>
 <p><strong>Referral Indicated:</strong> ________________________</p>
 
 <h4>Clinical Notes:</h4>
@@ -1160,31 +1160,31 @@ Score: ___/4</li>
 
 <table border="1" cellpadding="5">
 <tr><th>Question</th><th>None (0)</th><th>Mild (1)</th><th>Moderate (2)</th><th>Severe (3)</th><th>Extreme (4)</th></tr>
-<tr><td>S1. Do you feel grinding, hear clicking or any other type of noise when your hip moves?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>S2. Difficulties stretching your hip fully?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>S3. Difficulties striding out when walking?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>S4. Morning stiffness after first wakening?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>S5. Hip stiffness later in the day?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
+<tr><td>S1. Do you feel grinding, hear clicking or any other type of noise when your hip moves?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>S2. Difficulties stretching your hip fully?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>S3. Difficulties striding out when walking?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>S4. Morning stiffness after first wakening?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>S5. Hip stiffness later in the day?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
 </table>
 
 <h4>PAIN</h4>
 <p>P1. How often do you experience hip pain?</p>
 <table border="1" cellpadding="5">
-<tr><td>Never (0) â˜</td><td>Monthly (1) â˜</td><td>Weekly (2) â˜</td><td>Daily (3) â˜</td><td>Always (4) â˜</td></tr>
+<tr><td>Never (0) ☐</td><td>Monthly (1) ☐</td><td>Weekly (2) ☐</td><td>Daily (3) ☐</td><td>Always (4) ☐</td></tr>
 </table>
 
 <p>What amount of hip pain have you experienced the last week during the following activities?</p>
 <table border="1" cellpadding="5">
 <tr><th>Activity</th><th>None (0)</th><th>Mild (1)</th><th>Moderate (2)</th><th>Severe (3)</th><th>Extreme (4)</th></tr>
-<tr><td>P2. Twisting/pivoting on your hip</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P3. Straightening hip fully</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P4. Bending hip fully</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P5. Walking on flat surface</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P6. Going up or down stairs</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P7. At night while in bed</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P8. Sitting or lying</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P9. Standing upright</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P10. Walking on hard surface</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
+<tr><td>P2. Twisting/pivoting on your hip</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P3. Straightening hip fully</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P4. Bending hip fully</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P5. Walking on flat surface</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P6. Going up or down stairs</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P7. At night while in bed</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P8. Sitting or lying</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P9. Standing upright</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P10. Walking on hard surface</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
 </table>
 
 <h4>FUNCTION, ACTIVITIES OF DAILY LIVING</h4>
@@ -1192,23 +1192,23 @@ Score: ___/4</li>
 
 <table border="1" cellpadding="5">
 <tr><th>Activity</th><th>None (0)</th><th>Mild (1)</th><th>Moderate (2)</th><th>Severe (3)</th><th>Extreme (4)</th></tr>
-<tr><td>A1. Descending stairs</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A2. Ascending stairs</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A3. Rising from sitting</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A4. Standing</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A5. Bending to floor/pick up object</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A6. Walking on flat surface</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A7. Getting in/out of car</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A8. Going shopping</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A9. Putting on socks/stockings</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A10. Rising from bed</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A11. Taking off socks/stockings</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A12. Lying in bed</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A13. Getting in/out of bath</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A14. Sitting</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A15. Getting on/off toilet</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A16. Heavy domestic duties</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A17. Light domestic duties</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
+<tr><td>A1. Descending stairs</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A2. Ascending stairs</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A3. Rising from sitting</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A4. Standing</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A5. Bending to floor/pick up object</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A6. Walking on flat surface</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A7. Getting in/out of car</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A8. Going shopping</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A9. Putting on socks/stockings</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A10. Rising from bed</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A11. Taking off socks/stockings</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A12. Lying in bed</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A13. Getting in/out of bath</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A14. Sitting</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A15. Getting on/off toilet</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A16. Heavy domestic duties</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A17. Light domestic duties</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
 </table>
 
 <h4>FUNCTION, SPORT AND RECREATION</h4>
@@ -1216,19 +1216,19 @@ Score: ___/4</li>
 
 <table border="1" cellpadding="5">
 <tr><th>Activity</th><th>None (0)</th><th>Mild (1)</th><th>Moderate (2)</th><th>Severe (3)</th><th>Extreme (4)</th></tr>
-<tr><td>SP1. Squatting</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>SP2. Running</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>SP3. Jumping</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>SP4. Turning/twisting on loaded leg</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
+<tr><td>SP1. Squatting</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>SP2. Running</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>SP3. Jumping</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>SP4. Turning/twisting on loaded leg</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
 </table>
 
 <h4>FUNCTION, HIP-RELATED QUALITY OF LIFE</h4>
 <table border="1" cellpadding="5">
 <tr><th>Question</th><th>Not at all (0)</th><th>Mildly (1)</th><th>Moderately (2)</th><th>Severely (3)</th><th>Extremely (4)</th></tr>
-<tr><td>Q1. How often are you aware of your hip?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>Q2. Have you modified your lifestyle to avoid activities potentially damaging to your hip?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>Q3. How much trouble have you had with lack of confidence in your hip?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>Q4. In general, how much difficulty do you have with your hip?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
+<tr><td>Q1. How often are you aware of your hip?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>Q2. Have you modified your lifestyle to avoid activities potentially damaging to your hip?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>Q3. How much trouble have you had with lack of confidence in your hip?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>Q4. In general, how much difficulty do you have with your hip?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
 </table>
 
 <h4>Scoring Instructions:</h4>
@@ -1252,36 +1252,36 @@ Score: ___/4</li>
 
 <table border="1" cellpadding="5">
 <tr><th>Question</th><th>Never (0)</th><th>Rarely (1)</th><th>Sometimes (2)</th><th>Often (3)</th><th>Always (4)</th></tr>
-<tr><td>S1. Do you feel grinding, hear clicking or any other type of noise when your knee moves?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>S2. Do you feel catching or hanging up of your knee when moving?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>S3. Can you straighten your knee fully?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>S4. Can you bend your knee fully?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
+<tr><td>S1. Do you feel grinding, hear clicking or any other type of noise when your knee moves?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>S2. Do you feel catching or hanging up of your knee when moving?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>S3. Can you straighten your knee fully?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>S4. Can you bend your knee fully?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
 </table>
 
 <table border="1" cellpadding="5">
 <tr><th>Question</th><th>None (0)</th><th>Mild (1)</th><th>Moderate (2)</th><th>Severe (3)</th><th>Extreme (4)</th></tr>
-<tr><td>S5. How severe is your knee joint stiffness after first wakening in the morning?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>S6. How severe is your knee stiffness after sitting, lying or resting later in the day?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>S7. Degree of swelling in your knee?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
+<tr><td>S5. How severe is your knee joint stiffness after first wakening in the morning?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>S6. How severe is your knee stiffness after sitting, lying or resting later in the day?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>S7. Degree of swelling in your knee?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
 </table>
 
 <h4>PAIN</h4>
 <p>P1. How often do you experience knee pain?</p>
 <table border="1" cellpadding="5">
-<tr><td>Never (0) â˜</td><td>Monthly (1) â˜</td><td>Weekly (2) â˜</td><td>Daily (3) â˜</td><td>Always (4) â˜</td></tr>
+<tr><td>Never (0) ☐</td><td>Monthly (1) ☐</td><td>Weekly (2) ☐</td><td>Daily (3) ☐</td><td>Always (4) ☐</td></tr>
 </table>
 
 <p>What amount of knee pain have you experienced the last week during the following activities?</p>
 <table border="1" cellpadding="5">
 <tr><th>Activity</th><th>None (0)</th><th>Mild (1)</th><th>Moderate (2)</th><th>Severe (3)</th><th>Extreme (4)</th></tr>
-<tr><td>P2. Twisting/pivoting on your knee</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P3. Straightening knee fully</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P4. Bending knee fully</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P5. Walking on flat surface</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P6. Going up or down stairs</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P7. At night while in bed</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P8. Sitting or lying</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>P9. Standing upright</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
+<tr><td>P2. Twisting/pivoting on your knee</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P3. Straightening knee fully</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P4. Bending knee fully</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P5. Walking on flat surface</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P6. Going up or down stairs</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P7. At night while in bed</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P8. Sitting or lying</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>P9. Standing upright</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
 </table>
 
 <h4>FUNCTION, ACTIVITIES OF DAILY LIVING</h4>
@@ -1289,23 +1289,23 @@ Score: ___/4</li>
 
 <table border="1" cellpadding="5">
 <tr><th>Activity</th><th>None (0)</th><th>Mild (1)</th><th>Moderate (2)</th><th>Severe (3)</th><th>Extreme (4)</th></tr>
-<tr><td>A1. Descending stairs</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A2. Ascending stairs</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A3. Rising from sitting</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A4. Standing</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A5. Bending to floor/pick up object</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A6. Walking on flat surface</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A7. Getting in/out of car</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A8. Going shopping</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A9. Putting on socks/stockings</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A10. Rising from bed</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A11. Taking off socks/stockings</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A12. Lying in bed</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A13. Getting in/out of bath</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A14. Sitting</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A15. Getting on/off toilet</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A16. Heavy domestic duties</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>A17. Light domestic duties</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
+<tr><td>A1. Descending stairs</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A2. Ascending stairs</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A3. Rising from sitting</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A4. Standing</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A5. Bending to floor/pick up object</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A6. Walking on flat surface</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A7. Getting in/out of car</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A8. Going shopping</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A9. Putting on socks/stockings</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A10. Rising from bed</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A11. Taking off socks/stockings</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A12. Lying in bed</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A13. Getting in/out of bath</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A14. Sitting</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A15. Getting on/off toilet</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A16. Heavy domestic duties</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>A17. Light domestic duties</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
 </table>
 
 <h4>FUNCTION, SPORT AND RECREATION</h4>
@@ -1313,20 +1313,20 @@ Score: ___/4</li>
 
 <table border="1" cellpadding="5">
 <tr><th>Activity</th><th>None (0)</th><th>Mild (1)</th><th>Moderate (2)</th><th>Severe (3)</th><th>Extreme (4)</th></tr>
-<tr><td>SP1. Squatting</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>SP2. Running</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>SP3. Jumping</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>SP4. Turning/twisting on injured knee</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>SP5. Kneeling</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
+<tr><td>SP1. Squatting</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>SP2. Running</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>SP3. Jumping</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>SP4. Turning/twisting on injured knee</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>SP5. Kneeling</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
 </table>
 
 <h4>FUNCTION, KNEE-RELATED QUALITY OF LIFE</h4>
 <table border="1" cellpadding="5">
 <tr><th>Question</th><th>Not at all (0)</th><th>Mildly (1)</th><th>Moderately (2)</th><th>Severely (3)</th><th>Extremely (4)</th></tr>
-<tr><td>Q1. How often are you aware of your knee?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>Q2. Have you modified your lifestyle to avoid activities potentially damaging to your knee?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>Q3. How much trouble have you had with lack of confidence in your knee?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
-<tr><td>Q4. In general, how much difficulty do you have with your knee?</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td><td>â˜</td></tr>
+<tr><td>Q1. How often are you aware of your knee?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>Q2. Have you modified your lifestyle to avoid activities potentially damaging to your knee?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>Q3. How much trouble have you had with lack of confidence in your knee?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
+<tr><td>Q4. In general, how much difficulty do you have with your knee?</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td><td>☐</td></tr>
 </table>
 
 <h4>Scoring Instructions:</h4>
@@ -1447,9 +1447,9 @@ Score: ___/4</li>
 <h4>END-FEEL DOCUMENTATION</h4>
 <table border="1" cellpadding="5">
 <tr><th>Joint/Movement</th><th>End-Feel Type</th><th>Normal/Abnormal</th><th>Notes</th></tr>
-<tr><td>________________</td><td>â˜ Soft â˜ Firm â˜ Hard â˜ Empty</td><td>_____</td><td>________________</td></tr>
-<tr><td>________________</td><td>â˜ Soft â˜ Firm â˜ Hard â˜ Empty</td><td>_____</td><td>________________</td></tr>
-<tr><td>________________</td><td>â˜ Soft â˜ Firm â˜ Hard â˜ Empty</td><td>_____</td><td>________________</td></tr>
+<tr><td>________________</td><td>☐ Soft ☐ Firm ☐ Hard ☐ Empty</td><td>_____</td><td>________________</td></tr>
+<tr><td>________________</td><td>☐ Soft ☐ Firm ☐ Hard ☐ Empty</td><td>_____</td><td>________________</td></tr>
+<tr><td>________________</td><td>☐ Soft ☐ Firm ☐ Hard ☐ Empty</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>End-Feel Reference:</h4>
@@ -1465,7 +1465,7 @@ Score: ___/4</li>
 <p>_________________________________________________</p>
 <p><strong>Quality of movement:</strong></p>
 <p>_________________________________________________</p>
-<p><strong>Crepitus present:</strong> â˜ Yes â˜ No &nbsp;&nbsp; Location: _____________</p>
+<p><strong>Crepitus present:</strong> ☐ Yes ☐ No &nbsp;&nbsp; Location: _____________</p>
 
 <h4>SUMMARY & RECOMMENDATIONS:</h4>
 <p><strong>Joints with limited ROM:</strong></p>
@@ -1582,9 +1582,9 @@ Score: ___/4</li>
 <h4>END-FEEL DOCUMENTATION</h4>
 <table border="1" cellpadding="5">
 <tr><th>Joint/Movement</th><th>End-Feel Type</th><th>Normal/Abnormal</th><th>Notes</th></tr>
-<tr><td>________________</td><td>â˜ Soft â˜ Firm â˜ Hard â˜ Empty</td><td>_____</td><td>________________</td></tr>
-<tr><td>________________</td><td>â˜ Soft â˜ Firm â˜ Hard â˜ Empty</td><td>_____</td><td>________________</td></tr>
-<tr><td>________________</td><td>â˜ Soft â˜ Firm â˜ Hard â˜ Empty</td><td>_____</td><td>________________</td></tr>
+<tr><td>________________</td><td>☐ Soft ☐ Firm ☐ Hard ☐ Empty</td><td>_____</td><td>________________</td></tr>
+<tr><td>________________</td><td>☐ Soft ☐ Firm ☐ Hard ☐ Empty</td><td>_____</td><td>________________</td></tr>
+<tr><td>________________</td><td>☐ Soft ☐ Firm ☐ Hard ☐ Empty</td><td>_____</td><td>________________</td></tr>
 </table>
 
 <h4>End-Feel Reference:</h4>
@@ -1600,7 +1600,7 @@ Score: ___/4</li>
 <p>_________________________________________________</p>
 <p><strong>Quality of movement:</strong></p>
 <p>_________________________________________________</p>
-<p><strong>Crepitus present:</strong> â˜ Yes â˜ No &nbsp;&nbsp; Location: _____________</p>
+<p><strong>Crepitus present:</strong> ☐ Yes ☐ No &nbsp;&nbsp; Location: _____________</p>
 
 <h4>SUMMARY & RECOMMENDATIONS:</h4>
 <p><strong>Joints with limited ROM:</strong></p>
@@ -1717,7 +1717,7 @@ Score: ___/4</li>
 
 <h4>PART I: RECOMMENDATIONS</h4>
 <table border="1" cellpadding="5">
-<tr><th>Return to Work Capacity</th><th>â˜ Full duties</th><th>â˜ Modified duties</th><th>â˜ Not suitable</th></tr>
+<tr><th>Return to Work Capacity</th><th>☐ Full duties</th><th>☐ Modified duties</th><th>☐ Not suitable</th></tr>
 </table>
 
 <p><strong>Specific Recommendations:</strong></p>
@@ -1742,7 +1742,7 @@ Score: ___/4</li>
 <tr><td>7-8</td><td>_____</td><td>_____</td><td>_______________</td><td>_______________</td></tr>
 </table>
 
-<p><strong>Follow-up Required:</strong> â˜ Yes â˜ No</p>
+<p><strong>Follow-up Required:</strong> ☐ Yes ☐ No</p>
 <p><strong>If yes, when:</strong> _________________________</p>
 
 <p><strong>Assessor Signature:</strong> _______________________ <strong>Date:</strong> _________</p>
@@ -1759,12 +1759,12 @@ Score: ___/4</li>
       'Hand Grip Strength': 'Mathiowetz, V., Weber, K., Volland, G., & Kashman, N. (1984). Reliability and validity of grip and pinch strength evaluations. Journal of hand surgery, 9(2), 222-226.',
       '6 Minute Walk Test': 'ATS Committee on Proficiency Standards for Clinical Pulmonary Function Laboratories. (2002). ATS statement: guidelines for the six-minute walk test. American journal of respiratory and critical care medicine, 166(1), 111-117.',
       'Kessler Psychological Distress Scale (K10)': 'Kessler, R. C., Andrews, G., Colpe, L. J., et al. (2002). Short screening scales to monitor population prevalences and trends in non-specific psychological distress. Psychological medicine, 32(6), 959-976.',
-      'PHQ-9': 'Kroenke, K., Spitzer, R. L., & Williams, J. B. (2001). The PHQâ€9: validity of a brief depression severity measure. Journal of general internal medicine, 16(9), 606-613.',
+      'PHQ-9': 'Kroenke, K., Spitzer, R. L., & Williams, J. B. (2001). The PHQ-9: validity of a brief depression severity measure. Journal of general internal medicine, 16(9), 606-613.',
       'GAD-7': 'Spitzer, R. L., Kroenke, K., Williams, J. B., & Löwe, B. (2006). A brief measure for assessing generalized anxiety disorder: the GAD-7. Archives of internal medicine, 166(10), 1092-1097.',
       '2-Minute Step Test': 'Rikli, R. E., & Jones, C. J. (2013). Senior fitness test manual. Human Kinetics.',
       '30-Second Sit to Stand Test': 'Jones, C. J., Rikli, R. E., & Beam, W. C. (1999). A 30-s chair-stand test as a measure of lower body strength in community-residing older adults. Research quarterly for exercise and sport, 70(2), 113-119.',
       'Four-Stage Balance Test': 'Rossiter-Fornoff, J. E., Wolf, S. L., Wolfson, L. I., & Buchner, D. M. (1995). A cross-sectional validation study of the FICSIT common data base static balance measures. The Journals of Gerontology Series A: Biological Sciences and Medical Sciences, 50(6), M291-M297.',
-      'Single Leg Stance Test': 'Vellas, B. J., Wayne, S. J., Romero, L., Baumgartner, R. N., & Rubenstein, L. Z., & Garry, P. J. (1997). Oneâ€leg balance is an important predictor of injurious falls in older persons. Journal of the American Geriatrics Society, 45(6), 735-738.',
+      'Single Leg Stance Test': 'Vellas, B. J., Wayne, S. J., Romero, L., Baumgartner, R. N., & Rubenstein, L. Z., & Garry, P. J. (1997). One-leg balance is an important predictor of injurious falls in older persons. Journal of the American Geriatrics Society, 45(6), 735-738.',
       'Blood Pressure (Pre/Post Exercise)': 'Whelton, P. K., Carey, R. M., Aronow, W. S., et al. (2018). 2017 ACC/AHA/AAPA/ABC/ACPM/AGS/APhA/ASH/ASPC/NMA/PCNA guideline for the prevention, detection, evaluation, and management of high blood pressure in adults. Hypertension, 71(6), e13-e115.',
       'Heart Rate (Pre/Post Exercise)': 'Tanaka, H., Monahan, K. D., & Seals, D. R. (2001). Age-predicted maximal heart rate revisited. Journal of the American College of Cardiology, 37(1), 153-156.',
       'Oxygen Saturation (SpO2) Pre/Post Exercise': 'Weisman, I. M., Marciniuk, D., Martinez, F. J., et al. (2003). ATS/ACCP statement on cardiopulmonary exercise testing. American journal of respiratory and critical care medicine, 167(2), 211-277.',

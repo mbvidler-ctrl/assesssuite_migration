@@ -211,7 +211,7 @@ export default function APSSForm({ data, onNext, onBack, canGoBack, onSaveAndFin
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-blue-800">
                 <FileText className="w-5 h-5" />
-                Adult Pre-exercise Screening System (APSS) - Stage 1
+                Safety Screen — Adult Pre-Exercise Screening (APSS)
               </CardTitle>
               <p className="text-sm text-blue-600">
                 Please tick your response to each question.
@@ -222,7 +222,7 @@ export default function APSSForm({ data, onNext, onBack, canGoBack, onSaveAndFin
           {/* Stage 1: Questions 1-6 */}
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg text-slate-900">Stage 1 (Compulsory) - Pre-Exercise Health Questions</CardTitle>
+              <CardTitle className="text-lg text-slate-900">Safety Screen (Compulsory) — Pre-Exercise Health Questions</CardTitle>
               <p className="text-sm text-slate-600">Answer YES or NO to each question</p>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -456,7 +456,7 @@ export default function APSSForm({ data, onNext, onBack, canGoBack, onSaveAndFin
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-purple-800">
                 <FileText className="w-5 h-5" />
-                Adult Pre-exercise Screening System (APSS) - Stage 2
+                Clinical Risk Review — Adult Pre-Exercise Screening (APSS)
               </CardTitle>
               <p className="text-sm text-purple-600">
                 Recommended Risk Assessment.

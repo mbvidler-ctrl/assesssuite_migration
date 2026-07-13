@@ -460,7 +460,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
               )}
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(0)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(0)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(2)} className="flex-1 bg-amber-600 hover:bg-amber-700">
                   {allSafetyChecked ? "Proceed to Setup →" : "Override & Continue →"}
                 </Button>
@@ -563,7 +563,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(3)} className="flex-1 bg-amber-600 hover:bg-amber-700">Start Test →</Button>
               </div>
             </div>
@@ -640,7 +640,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(2)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(2)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(4)} disabled={!finalTime} className="flex-1 bg-amber-600 hover:bg-amber-700">
                   Continue → Technique
                 </Button>
@@ -700,7 +700,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(3)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(3)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(5)} disabled={!technique.qualityRating} className="flex-1 bg-amber-600 hover:bg-amber-700">
                   Continue → Pain/Symptoms
                 </Button>
@@ -772,7 +772,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
               <PainSlider value={symptoms.rpeAfter} onChange={v => setSymptoms(p => ({ ...p, rpeAfter: v }))} label="Perceived Exertion After Test — RPE (0–10)" />
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(4)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(4)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(6)} className="flex-1 bg-amber-600 hover:bg-amber-700">
                   View Results →
                 </Button>
@@ -906,7 +906,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
               )}
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(5)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(5)} className="flex-1">← Back</Button>
                 <Button onClick={handleSave} disabled={!canSave()} className="flex-1 bg-amber-600 hover:bg-amber-700">
                   <Save className="w-4 h-4 mr-2" /> Save Assessment
                 </Button>

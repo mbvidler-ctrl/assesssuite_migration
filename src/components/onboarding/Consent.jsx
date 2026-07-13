@@ -7,17 +7,18 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, CheckCircle, Loader2, PenTool, RotateCcw, FileText, AlertCircle } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 
+// Standard wording removed at Max's direction 13 July 2026 — clinician supplies own policy text; pro-forma policies may ship later.
 const DEFAULT_POLICY = {
   show_primary_consent: true,
   show_privacy_consent: true,
   show_assessment_consent: true,
   show_pricing_consent: true,
   show_cancellation_policy: true,
-  consent_primary_text: "I consent to receive clinical assessment and treatment services. I understand that this may involve physical examination, movement assessment, and therapeutic interventions.",
-  consent_privacy_text: "I consent to the collection, storage, and use of my personal health information for the purpose of providing clinical services and maintaining medical records in accordance with privacy regulations.",
-  consent_assessment_text: "I consent to participate in various physical and psychological assessment tests as recommended by my clinician. I understand the purpose, risks, and benefits of these assessments.",
-  consent_pricing_text: "I confirm that the pricing schedule for services has been explained to me and I agree to the stated fees and payment terms.",
-  cancellation_policy_text: "I understand that appointments cancelled with less than 24 hours notice may incur a cancellation fee. I agree to provide adequate notice when cancelling or rescheduling appointments.",
+  consent_primary_text: "",
+  consent_privacy_text: "",
+  consent_assessment_text: "",
+  consent_pricing_text: "",
+  cancellation_policy_text: "",
   policy_name: "Default Policy",
   version_label: "v1.0"
 };
@@ -246,7 +247,9 @@ export default function Consent({ data, onNext, onBack, canGoBack, isSubmitting,
                 />
                 <div className="flex-1">
                   <Label htmlFor={item.formKey} className="font-semibold text-slate-900 cursor-pointer">{item.label}</Label>
-                  <p className="text-sm text-slate-600 mt-1">{activePolicy?.[item.textKey]}</p>
+                  {activePolicy?.[item.textKey]?.trim() ? (
+                    <p className="text-sm text-slate-600 mt-1">{activePolicy[item.textKey]}</p>
+                  ) : null}
                 </div>
                 {formData[item.formKey] && <CheckCircle className="w-5 h-5 text-green-500 shrink-0" />}
               </div>

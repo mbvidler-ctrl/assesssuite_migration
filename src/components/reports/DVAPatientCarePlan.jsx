@@ -670,7 +670,7 @@ Return only the improved plain text version with clear structure, no additional 
 </tr>
 <tr>
 <td style="border: 1px solid #000; padding: 8px; background-color: #f8f9fa; font-weight: bold;">Has the client consented to this Patient Care Plan?</td>
-<td style="border: 1px solid #000; padding: 8px;">${clientConsented ? 'Yes ☑' : 'No â˜'}</td>
+<td style="border: 1px solid #000; padding: 8px;">${clientConsented ? 'Yes ☑' : 'No ☐'}</td>
 </tr>
 </tbody>
 </table>
@@ -683,7 +683,7 @@ Return only the improved plain text version with clear structure, no additional 
 <tbody>
 <tr>
 <td style="border: 1px solid #000; padding: 8px; width: 40%; background-color: #f8f9fa; font-weight: bold;">Goals have been set and agreed to with the client:</td>
-<td style="border: 1px solid #000; padding: 8px; width: 60%;">${goalsAgreed === 'yes' ? 'Yes ☑ No â˜' : 'Yes â˜ No ☑'}</td>
+<td style="border: 1px solid #000; padding: 8px; width: 60%;">${goalsAgreed === 'yes' ? 'Yes ☑ No ☐' : 'Yes ☐ No ☑'}</td>
 </tr>
 <tr>
 <td colspan="2" style="border: 1px solid #000; padding: 12px;">
