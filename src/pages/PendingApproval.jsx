@@ -43,37 +43,19 @@ export default function PendingApproval() {
     </>
   ) : (
     <>
-      Your account is awaiting administrator approval. You will be able to
-      access client and assessment features once your account has been
-      approved. Questions? Contact{' '}
+      {/* Launch model: payment activates the account, so a pending user's
+          next step is checkout, not waiting on an administrator. */}
+      Your account is nearly ready — completing your subscription activates
+      it immediately. Questions? Contact{' '}
       <a href="mailto:admin@assesssuite.com" className="text-blue-600 underline">admin@assesssuite.com</a>.
     </>
   );
 
-  const handleCompletePayment = async () => {
+  const handleCompletePayment = () => {
+    // Route to PaymentRequired so the user chooses monthly or annual — the
+    // previous direct checkout call hardcoded the monthly plan.
     setIsRedirecting(true);
-    try {
-      const currentUser = await base44.auth.me();
-      // Parameter names and response envelope aligned with the function's
-      // actual contract (plan/userId/userEmail in; { url } out under .data)
-      // — the previous snake_case parameters were never read and
-      // result.sessionUrl never existed, so this button could not work.
-      const result = await base44.functions.invoke("createCheckoutSession", {
-        plan: "monthly",
-        userId: currentUser.id,
-        userEmail: currentUser.email,
-        userName: currentUser.full_name,
-      });
-      const payload = result?.data ?? result;
-      const url = payload?.url;
-      if (url) {
-        window.location.href = url;
-      }
-    } catch (e) {
-      console.error("Checkout error", e);
-    } finally {
-      setIsRedirecting(false);
-    }
+    window.location.href = "/PaymentRequired";
   };
 
   return (

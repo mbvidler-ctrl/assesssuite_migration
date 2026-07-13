@@ -19,6 +19,7 @@
 
 import { recordMockSubscription } from '../mocks/stripe.mjs';
 import { stripeEnabled, verifyStripeSignatureHeader } from '../stripeGateway.mjs';
+import { sendEmail, welcomeEmail } from '../email.mjs';
 
 export default async function stripeWebhook(ctx) {
   const { body: event, rawBody, request, entities, respond, user } = ctx;
@@ -55,23 +56,30 @@ export default async function stripeWebhook(ctx) {
   try {
     if (event.type === 'checkout.session.completed') {
       const s = event.data?.object || {};
-      // Payment success flips ENTITLEMENT only. Approval (account_status) is
-      // an admin decision and is no longer set 'active' here — the captured
-      // source's payment-driven activation is superseded by the hard approval
-      // gate. Sole exception: a payment-failure suspension is lifted by a
-      // successful payment (restore suspended -> active); pending/rejected
-      // are never changed by billing events.
+      // Launch model (Max's direction, 13 July 2026): successful payment
+      // AUTO-APPROVES. A pending account activates on checkout completion and
+      // a payment-failure suspension is lifted — the admin-approval queue is
+      // no longer a gate in the ordinary signup path. Two exclusions:
+      // 'rejected' is never activated by payment (an admin rejection cannot
+      // be bought around), and 'deactivated' (self-service account closure)
+      // is not reopened by a stray billing event.
       const entitlement = {
         subscription_status: 'active',
         stripe_customer_id: s.customer,
         stripe_subscription_id: s.subscription,
         subscription_start_date: new Date().toISOString(),
       };
+      const NEVER_ACTIVATE = new Set(['rejected', 'deactivated']);
       const dataFor = (existingUser) => (
-        existingUser?.account_status === 'suspended'
-          ? { ...entitlement, account_status: 'active' }
-          : entitlement
+        NEVER_ACTIVATE.has(existingUser?.account_status)
+          ? entitlement
+          : { ...entitlement, account_status: 'active' }
       );
+      const maybeWelcome = (existingUser) => {
+        if (!existingUser?.email) return;
+        if (existingUser.account_status === 'active' || NEVER_ACTIVATE.has(existingUser.account_status)) return;
+        sendEmail({ to: existingUser.email, ...welcomeEmail(existingUser.clinician_name || existingUser.full_name) }).catch(() => {});
+      };
       let updated = false;
 
       if (!stripeEnabled() && s.customer && s.subscription) {
@@ -92,6 +100,7 @@ export default async function stripeWebhook(ctx) {
           }
           if (existing) {
             await entities.User.update(s.client_reference_id, dataFor(existing));
+            maybeWelcome(existing);
             updated = true;
           }
         } catch {
@@ -105,6 +114,7 @@ export default async function stripeWebhook(ctx) {
         const matchedUser = users?.find((u) => u.email?.toLowerCase() === email);
         if (matchedUser) {
           await entities.User.update(matchedUser.id, dataFor(matchedUser));
+          maybeWelcome(matchedUser);
           updated = true;
         }
       }
