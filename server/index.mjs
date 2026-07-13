@@ -108,6 +108,7 @@ function bootstrapAdmin() {
       full_name: 'Local Administrator',
       role: 'admin',
       account_status: 'active',
+      email_verified: true,
       password_hash,
       salt,
     },
@@ -784,6 +785,15 @@ async function handleAuthRoute(req, res, url, appId, action) {
     if (!user || !verifyPassword(password, user.password_hash, user.salt)) {
       return sendError(res, 401, 'invalid email or password');
     }
+    // A registered-but-unverified account has a valid password hash from the
+    // moment of registration, so without this check login mints a full
+    // session for an account that never completed OTP verification — the
+    // verification step becomes cosmetic. email_verified is set true only by
+    // verify-otp, a successful reset-password, or trusted server-side
+    // provisioning (bootstrap admin) — never by registration itself.
+    if (!user.email_verified) {
+      return sendError(res, 403, 'please verify your email before signing in — request a new code from the registration page');
+    }
     const token = sessions.create(user.id);
     return sendJson(res, 200, { access_token: token, user: stripAuthFields(user) });
   }
@@ -797,33 +807,43 @@ async function handleAuthRoute(req, res, url, appId, action) {
     if (!email || !password) {
       return sendError(res, 400, 'email and password are required');
     }
-    if (findUserByEmail(email)) {
+    const existing = findUserByEmail(email);
+    // A verified account owns this email outright — standard account-taken
+    // 409. An existing but never-verified account (e.g. the user never
+    // received the original code) is instead treated as a fresh verification
+    // attempt on the same record, so the frontend's existing otpSent flow
+    // resumes it rather than dead-ending in a 409 the user cannot act on.
+    if (existing && existing.email_verified) {
       return sendError(res, 409, 'a user with this email already exists');
+    }
+    if (existing && existing.otp_last_sent_at && Date.now() - Date.parse(existing.otp_last_sent_at) < RESEND_MIN_INTERVAL_MS) {
+      return sendJson(res, 200, { message: 'registered', user_id: existing.id, otp_required: true });
     }
     const { password_hash, salt } = hashPassword(password);
     const { password: _pw, ...customFields } = payload;
     const otpCode = generateOtp();
-    const user = userRepo.create(
-      {
-        ...customFields,
-        email,
-        role: 'user',
-        account_status: 'pending',
-        password_hash,
-        salt,
-        otp_code: otpCode,
-        otp_expires: new Date(Date.now() + OTP_TTL_MS).toISOString(),
-        otp_attempts: 0,
-        otp_last_sent_at: new Date().toISOString(),
-      },
-      email,
-    );
+    const otpFields = {
+      otp_code: otpCode,
+      otp_expires: new Date(Date.now() + OTP_TTL_MS).toISOString(),
+      otp_attempts: 0,
+      otp_locked_until: null,
+      otp_last_sent_at: new Date().toISOString(),
+    };
+    const user = existing
+      ? userRepo.update(existing.id, { ...customFields, password_hash, salt, ...otpFields })
+      : userRepo.create(
+          { ...customFields, email, role: 'user', account_status: 'pending', password_hash, salt, ...otpFields },
+          email,
+        );
     // The initial verification code is sent HERE — previously only resend-otp
     // ever wrote an email, so a real user could never complete signup once the
-    // fixed-code bypass was removed. Admin is notified of every registration.
+    // fixed-code bypass was removed. Admin is notified only of genuinely new
+    // registrations, not repeat attempts on an existing unverified account.
     await sendEmail({ to: email, ...otpEmail(otpCode) });
-    const notify = adminNotifyEmail(email);
-    await sendEmail(notify);
+    if (!existing) {
+      const notify = adminNotifyEmail(email);
+      await sendEmail(notify);
+    }
     return sendJson(res, 200, { message: 'registered', user_id: user.id, otp_required: true });
   }
 
@@ -931,7 +951,12 @@ async function handleAuthRoute(req, res, url, appId, action) {
       return sendError(res, 400, 'invalid or expired reset token');
     }
     const { password_hash, salt } = hashPassword(new_password);
-    userRepo.update(user.id, { password_hash, salt, reset_token: null, reset_token_expires: null });
+    // Completing a reset via a token that was emailed to the address is
+    // proof of ownership equivalent to OTP verification — required so an
+    // admin-invited user (created with no password, account_status:'invited')
+    // can reach an email_verified state and actually log in afterward, given
+    // login now refuses unverified accounts.
+    userRepo.update(user.id, { password_hash, salt, email_verified: true, reset_token: null, reset_token_expires: null });
     return sendJson(res, 200, { status: 'reset' });
   }
 

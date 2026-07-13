@@ -498,6 +498,7 @@ export function runSeed({ db, entityNames }) {
         role: 'user',
         account_status: 'active',
         subscription_status: 'active',
+        email_verified: true,
         password_hash,
         salt,
         clinician_name,
@@ -845,6 +846,7 @@ export function runSeed({ db, entityNames }) {
       role: 'admin',
       account_status: 'active',
       subscription_status: 'active',
+      email_verified: true,
     };
     const existingAdmin = findOne('User', (u) => u.role === 'admin');
     if (!existingAdmin) {

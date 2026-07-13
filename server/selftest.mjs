@@ -613,6 +613,56 @@ async function runChecks(baseUrl, appId) {
       record('resend-otp responds 200 within the throttle window (no enumeration signal)', resendStatus === 200, `status=${resendStatus}`);
     }
 
+    // Login must not be a verification bypass: a registered-but-unverified
+    // account has a valid password hash from the moment of registration, so
+    // login must refuse it (403) until verify-otp runs — otherwise the OTP
+    // step is cosmetic. Re-registering the same unverified email must resume
+    // the verification flow (fresh code, 200 otp_required) rather than a
+    // blind 409 that strands the user with no way to complete signup.
+    {
+      const bypassEmail = `otp-bypass-${Date.now()}@example.com`;
+      const bypassPassword = 'password123456';
+      await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: bypassEmail, password: bypassPassword },
+      });
+      const { status: preVerifyLoginStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/login`, {
+        method: 'POST', body: { email: bypassEmail, password: bypassPassword },
+      });
+      record(
+        'login refuses an unverified-but-correct-password account (403, not a session)',
+        preVerifyLoginStatus === 403,
+        `status=${preVerifyLoginStatus}`,
+      );
+
+      const { status: reRegisterStatus, body: reRegisterBody } = await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: bypassEmail, password: bypassPassword },
+      });
+      record(
+        're-registering an existing unverified email resumes verification (200, otp_required) instead of 409',
+        reRegisterStatus === 200 && reRegisterBody?.otp_required === true,
+        `status=${reRegisterStatus} otp_required=${reRegisterBody?.otp_required}`,
+      );
+
+      const { status: postVerifyStatus, body: postVerifyBody } = await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
+        method: 'POST', body: { email: bypassEmail, otp_code: '000000' },
+      });
+      record('verify-otp succeeds after re-registration resumed the flow', postVerifyStatus === 200 && Boolean(postVerifyBody?.access_token), `status=${postVerifyStatus}`);
+
+      const { status: postVerifyLoginStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/login`, {
+        method: 'POST', body: { email: bypassEmail, password: bypassPassword },
+      });
+      record('login succeeds once the account is genuinely verified', postVerifyLoginStatus === 200, `status=${postVerifyLoginStatus}`);
+
+      const { status: verifiedReRegisterStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: bypassEmail, password: bypassPassword },
+      });
+      record(
+        're-registering an already-verified email is still refused (409, standard account-taken UX)',
+        verifiedReRegisterStatus === 409,
+        `status=${verifiedReRegisterStatus}`,
+      );
+    }
+
     const { status: clinicalReadStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
       token: pendingToken,
     });
