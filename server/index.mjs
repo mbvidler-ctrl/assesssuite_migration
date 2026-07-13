@@ -272,8 +272,37 @@ const PRE_APPROVAL_WRITE_ENTITIES = new Set([
   'Organization',
   'OrganizationMember',
   'LegalAcceptance',
+  'LegalAcceptanceEvent',
   'ClinicPolicy',
 ]);
+
+// Mirrors src/lib/legal/documentRegistry.js SUITE_VERSION and
+// PRACTITIONER_NOTICE_IDS' eventType values. Keep both in sync: bump this
+// when the suite version changes, and add/remove an event type here if a
+// mandatory practitioner notice is added or retired. This is the server-side
+// half of the L-15/L-08 fix — the old model relied solely on the client
+// (Layout.jsx) gate, which any direct API caller could bypass entirely.
+const LEGAL_SUITE_VERSION = 'RC-2026.07.11';
+const REQUIRED_NOTICE_EVENT_TYPES = [
+  'collection_notice_acknowledgement',
+  'professional_use_acknowledgement',
+  'ai_transparency_consent',
+];
+
+/**
+ * True if sessionUser has recorded every mandatory practitioner-notice event
+ * at the current suite version. Fails open (returns true) only if the
+ * LegalAcceptanceEvent entity is not yet registered at all — a migration
+ * safety valve, not a normal runtime path.
+ */
+function hasCurrentLegalAcceptance(userEmail) {
+  const repo = repoFor('LegalAcceptanceEvent');
+  if (!repo) return true;
+  const events = repo
+    .listAll()
+    .filter((e) => e.user_email === userEmail && e.suite_version === LEGAL_SUITE_VERSION);
+  return REQUIRED_NOTICE_EVENT_TYPES.every((t) => events.some((e) => e.event_type === t));
+}
 
 // Tenant-scoped entities, derived statically from the schema (carry org_id).
 const ORG_SCOPED_ENTITIES = loadOrgScopedEntities();
@@ -307,6 +336,16 @@ function writeAuthDenied(entityName, data, sessionUser, { isCreate }) {
     }
     return { ok: true };
   }
+  if (entityName === 'LegalAcceptanceEvent') {
+    // Same self-only integrity rule as LegalAcceptance, plus the generic
+    // org-scope enforcement below (LegalAcceptanceEvent carries org_id, so it
+    // is auto-scoped by ORG_SCOPED_ENTITIES/enforceWriteOrgScope — this branch
+    // only adds the user_email self-check on top).
+    if (isCreate && data && data.user_email && data.user_email !== sessionUser.email) {
+      return { ok: false, status: 403, message: 'you may only record your own acceptance or consent' };
+    }
+    return enforceWriteOrgScope(entityName, data, sessionUser, { isCreate });
+  }
   return enforceWriteOrgScope(entityName, data, sessionUser, { isCreate });
 }
 
@@ -334,6 +373,16 @@ function entityAccessDenied(req, res, entityName, sessionUser, isAdmin) {
       sendError(res, 403, 'account pending approval');
       return true;
     }
+  }
+  // Server-side half of the L-15/L-08 fix: clinical access requires the
+  // mandatory practitioner notices to be recorded at the current suite
+  // version, not merely the client-side Layout.jsx gate having been shown
+  // once. Also re-gates an already-approved user whose acceptance predates a
+  // suite version bump (the reacceptance-trigger requirement in policy-suite
+  // doc 27 clause 6) — a stale acceptance is treated the same as none.
+  if (!isAdmin && CLINICAL_ENTITIES.has(entityName) && !hasCurrentLegalAcceptance(sessionUser.email)) {
+    sendError(res, 403, 'current legal acceptance required');
+    return true;
   }
   return false;
 }

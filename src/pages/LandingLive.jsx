@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useAuth } from "@/lib/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 
 // Icon map by funder tag
 const tagIcon = (tag) => {
@@ -184,9 +184,6 @@ const countryButtons = [
 
 export default function LandingLive() {
   const [activeCountry, setActiveCountry] = useState("au");
-  const [showComingSoon, setShowComingSoon] = useState(false);
-  const [showPrivacy, setShowPrivacy] = useState(false);
-  const [showTerms, setShowTerms] = useState(false);
   const navigate = useNavigate();
 
   const showSuccess = new URLSearchParams(window.location.search).get('success') === 'true';
@@ -430,7 +427,7 @@ export default function LandingLive() {
             <a href="#assessments">Assessments</a>
             <a href="#reporting">Reports</a>
             <a href="#pricing">Pricing</a>
-            <a onClick={() => setShowComingSoon(true)} className="nav-cta" style={{display:'inline-block',border: 'none', cursor: 'pointer', textDecoration:'none', color:'#fff'}}>Sign In / Sign Up →</a>
+            <a onClick={() => navigate('/register')} className="nav-cta" style={{display:'inline-block',border: 'none', cursor: 'pointer', textDecoration:'none', color:'#fff'}}>Sign In / Sign Up →</a>
           </div>
         </nav>
 
@@ -438,7 +435,7 @@ export default function LandingLive() {
           <h1>Exercise Physiology at its Clinical Best.</h1>
           <p>AssessSuite Clinical gives clinicians the tools to assess with greater accuracy, document more efficiently, and deliver more consistent client care. Designed specifically for Exercise Physiologists, the platform brings together assessments, clinical notes, outcome tracking, and professional reporting into one modern workflow built for growing practices and evolving healthcare systems.</p>
           <div className="hero-ctas">
-            <button onClick={() => setShowComingSoon(true)} className="btn-primary" style={{display:'inline-block',cursor:'pointer',border:'none'}}>Sign In / Sign Up →</button>
+            <button onClick={() => navigate('/register')} className="btn-primary" style={{display:'inline-block',cursor:'pointer',border:'none'}}>Sign In / Sign Up →</button>
           </div>
         </section>
 
@@ -522,7 +519,7 @@ export default function LandingLive() {
                <ul className="pricing-features">
                  {["Unlimited assessments","Unlimited clients","All 226+ EP assessments","Automated SOAP notes","Full report generation","Multi-clinician support","All future updates included"].map(f => <li key={f}>{f}</li>)}
                </ul>
-               <button onClick={() => setShowComingSoon(true)} className="btn-primary" style={{width:"100%",textAlign:"center",display:"block",border:'none',cursor:'pointer',color:'#fff'}}>Get Started →</button>
+               <button onClick={() => navigate('/register')} className="btn-primary" style={{width:"100%",textAlign:"center",display:"block",border:'none',cursor:'pointer',color:'#fff'}}>Get Started →</button>
              </div>
              <div className="pricing-card featured">
                <div className="popular-badge">BEST VALUE</div>
@@ -533,7 +530,7 @@ export default function LandingLive() {
                <ul className="pricing-features">
                  {["Unlimited assessments","Unlimited clients","All 226+ EP assessments","Automated SOAP notes","Full report generation","Multi-clinician support","All future updates included"].map(f => <li key={f}>{f}</li>)}
                </ul>
-               <button onClick={() => setShowComingSoon(true)} className="btn-primary" style={{width:"100%",textAlign:"center",display:"block",border:'none',cursor:'pointer',color:'#fff'}}>Get Started →</button>
+               <button onClick={() => navigate('/register')} className="btn-primary" style={{width:"100%",textAlign:"center",display:"block",border:'none',cursor:'pointer',color:'#fff'}}>Get Started →</button>
              </div>
            </div>
            <p className="pricing-note">One subscription = one clinician. Each EP in your practice needs their own subscription.</p>
@@ -587,7 +584,7 @@ export default function LandingLive() {
         <section className="final-cta">
           <h2>Ready to spend less time documenting<br />and more time with clients?</h2>
           <p>Join Exercise Physiologists already using AssessSuite Clinical to run better assessments, write better reports, and reclaim their clinical time.</p>
-          <button onClick={() => setShowComingSoon(true)} className="btn-white" style={{display:"inline-block",border:'none',cursor:'pointer',color:'#fff'}}>Sign In / Sign Up →</button>
+          <button onClick={() => navigate('/register')} className="btn-white" style={{display:"inline-block",border:'none',cursor:'pointer',color:'#fff'}}>Sign In / Sign Up →</button>
         </section>
 
         <footer>
@@ -619,8 +616,8 @@ export default function LandingLive() {
 
             <div className="footer-col">
               <div className="footer-col-title">Legal</div>
-              <a href="#privacy-policy" onClick={(e) => { e.preventDefault(); setShowPrivacy(true); }} style={{color:"#fff"}}>Privacy Policy</a>
-              <a href="#terms" onClick={(e) => { e.preventDefault(); setShowTerms(true); }} style={{color:"#fff"}}>Terms of Service</a>
+              <Link to="/legal/privacy" style={{color:"#fff"}}>Privacy Policy</Link>
+              <Link to="/legal/terms" style={{color:"#fff"}}>Terms of Service</Link>
             </div>
           </div>
 
@@ -632,81 +629,13 @@ export default function LandingLive() {
 
       </div>
 
-      {/* Privacy Policy Modal - outside .lp div to avoid CSS interference */}
-      {showPrivacy && (
-        <div style={{display:'flex',position:'fixed',inset:0,background:'rgba(15,23,42,0.65)',zIndex:99999,alignItems:'center',justifyContent:'center',padding:'24px'}} onClick={(e)=>{if(e.target===e.currentTarget)setShowPrivacy(false)}}>
-          <div style={{background:'#fff',borderRadius:'20px',padding:'48px 40px',maxWidth:'680px',width:'100%',maxHeight:'80vh',overflowY:'auto',boxShadow:'0 8px 48px rgba(15,23,42,0.2)',fontFamily:'Inter,sans-serif'}}>
-            <h2 style={{fontSize:'26px',fontWeight:800,color:'#0f172a',marginBottom:'20px',letterSpacing:'-0.5px'}}>Privacy Policy</h2>
-            <div style={{fontSize:'14px',color:'#475569',lineHeight:1.8}}>
-              <p style={{marginBottom:'16px'}}><strong>Assess Suite Pty Ltd</strong> (ABN 53 694 044 481) is committed to protecting your privacy in accordance with the <em>Privacy Act 1988</em> (Cth) and the Australian Privacy Principles (APPs).</p>
-              <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>1. Information We Collect</h3>
-              <p style={{marginBottom:'12px'}}>We collect personal information necessary to provide the AssessSuite Clinical platform, including your name, email address, professional registration details, and clinical data entered into the platform on behalf of clients.</p>
-              <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>2. How We Use Your Information</h3>
-              <p style={{marginBottom:'12px'}}>Personal information is used solely to deliver and improve the AssessSuite Clinical platform. We do not sell, rent, or share your personal information with third parties for marketing purposes.</p>
-              <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>3. Data Storage & Security</h3>
-              <p style={{marginBottom:'12px'}}>All data is stored on secure Australian-based servers. We implement industry-standard security measures including encryption at rest and in transit. Access is restricted to authorised personnel only.</p>
-              <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>4. Client Health Data</h3>
-              <p style={{marginBottom:'12px'}}>Health information entered into the platform relates to your clients and is treated as sensitive information under the Privacy Act. You, as the clinician, are responsible for obtaining appropriate consent from your clients prior to recording their data.</p>
-              <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>5. Access & Correction</h3>
-              <p style={{marginBottom:'12px'}}>You may request access to or correction of your personal information at any time by contacting us at <a href="mailto:admin@assesssuite.com" style={{color:'#2563eb'}}>admin@assesssuite.com</a>.</p>
-              <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>6. Contact</h3>
-              <p style={{marginBottom:'12px'}}>For privacy-related enquiries, contact our Privacy Officer at <a href="mailto:admin@assesssuite.com" style={{color:'#2563eb'}}>admin@assesssuite.com</a> or call 1800 317 553.</p>
-              <p style={{marginTop:'24px',fontSize:'12px',color:'#94a3b8'}}>Last updated: June 2026</p>
-            </div>
-            <button onClick={()=>setShowPrivacy(false)} style={{marginTop:'28px',background:'#2563eb',color:'#fff',border:'none',borderRadius:'10px',padding:'12px 28px',fontSize:'15px',fontWeight:700,cursor:'pointer'}}>Close</button>
-          </div>
-        </div>
-      )}
-
-      {/* Terms of Service Modal - outside .lp div to avoid CSS interference */}
-      {showTerms && (
-        <div style={{display:'flex',position:'fixed',inset:0,background:'rgba(15,23,42,0.65)',zIndex:99999,alignItems:'center',justifyContent:'center',padding:'24px'}} onClick={(e)=>{if(e.target===e.currentTarget)setShowTerms(false)}}>
-          <div style={{background:'#fff',borderRadius:'20px',padding:'48px 40px',maxWidth:'680px',width:'100%',maxHeight:'80vh',overflowY:'auto',boxShadow:'0 8px 48px rgba(15,23,42,0.2)',fontFamily:'Inter,sans-serif'}}>
-            <h2 style={{fontSize:'26px',fontWeight:800,color:'#0f172a',marginBottom:'20px',letterSpacing:'-0.5px'}}>Terms of Service</h2>
-            <div style={{fontSize:'14px',color:'#475569',lineHeight:1.8}}>
-              <p style={{marginBottom:'16px'}}>These Terms of Service govern your use of the AssessSuite Clinical platform provided by <strong>Assess Suite Pty Ltd</strong> (ABN 53 694 044 481).</p>
-              <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>1. Acceptance of Terms</h3>
-              <p style={{marginBottom:'12px'}}>By accessing or using AssessSuite Clinical, you agree to be bound by these Terms. If you do not agree, you must not use the platform.</p>
-              <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>2. Permitted Use</h3>
-              <p style={{marginBottom:'12px'}}>AssessSuite Clinical is licensed for use by registered Exercise Physiologists and allied health professionals within their professional scope of practice. You must not use the platform for unlawful purposes or in a manner inconsistent with your professional registration obligations.</p>
-              <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>3. Subscription & Payment</h3>
-              <p style={{marginBottom:'12px'}}>Subscriptions are billed as selected (monthly or annually). Payments are processed securely via Stripe. You may cancel at any time; cancellation takes effect at the end of the current billing period. No refunds are provided for partial periods.</p>
-              <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>4. Clinical Responsibility</h3>
-              <p style={{marginBottom:'12px'}}>AssessSuite Clinical is a documentation and assessment tool. It does not replace clinical judgment. You remain fully responsible for all clinical decisions made in relation to your clients. Assess Suite Pty Ltd accepts no liability for clinical outcomes.</p>
-              <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>5. Intellectual Property</h3>
-              <p style={{marginBottom:'12px'}}>All platform content, software, and materials are the intellectual property of Assess Suite Pty Ltd. You may not reproduce, distribute, or create derivative works without express written permission.</p>
-              <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>6. Limitation of Liability</h3>
-              <p style={{marginBottom:'12px'}}>To the maximum extent permitted by law, Assess Suite Pty Ltd's liability is limited to the amount paid by you in the 12 months preceding the claim. We exclude liability for indirect, consequential, or special damages.</p>
-              <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>7. Governing Law</h3>
-              <p style={{marginBottom:'12px'}}>These Terms are governed by the laws of Queensland, Australia. Any disputes will be subject to the exclusive jurisdiction of Queensland courts.</p>
-              <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>8. Contact</h3>
-              <p style={{marginBottom:'12px'}}>For any questions regarding these Terms, contact us at <a href="mailto:admin@assesssuite.com" style={{color:'#2563eb'}}>admin@assesssuite.com</a>.</p>
-              <p style={{marginTop:'24px',fontSize:'12px',color:'#94a3b8'}}>Last updated: June 2026</p>
-            </div>
-            <button onClick={()=>setShowTerms(false)} style={{marginTop:'28px',background:'#2563eb',color:'#fff',border:'none',borderRadius:'10px',padding:'12px 28px',fontSize:'15px',fontWeight:700,cursor:'pointer'}}>Close</button>
-          </div>
-        </div>
-      )}
-
-      {showComingSoon && (
-        <div style={{position:'fixed',inset:0,background:'rgba(15,23,42,0.65)',zIndex:99999,display:'flex',alignItems:'center',justifyContent:'center',padding:'24px'}}>
-          <div style={{background:'#fff',borderRadius:'20px',padding:'48px 40px',maxWidth:'420px',width:'100%',textAlign:'center',boxShadow:'0 8px 48px rgba(15,23,42,0.2)',fontFamily:'Inter,sans-serif'}}>
-            <div style={{fontSize:'48px',marginBottom:'16px'}}>🚀</div>
-            <h2 style={{fontSize:'26px',fontWeight:800,color:'#0f172a',marginBottom:'12px',letterSpacing:'-0.5px'}}>Coming Soon</h2>
-            <p style={{fontSize:'16px',color:'#64748b',marginBottom:'8px',lineHeight:1.6}}>AssessSuite Clinical launches on</p>
-            <div style={{background:'#eff6ff',color:'#2563eb',fontSize:'22px',fontWeight:800,padding:'14px 24px',borderRadius:'12px',display:'inline-block',marginBottom:'20px',letterSpacing:'-0.5px'}}>13 July 2026</div>
-            <p style={{fontSize:'14px',color:'#94a3b8',marginBottom:'28px',lineHeight:1.6}}>We're putting the finishing touches on the platform. Check back on launch day to sign up and get started.</p>
-            <div style={{display:'flex',gap:'12px',justifyContent:'center',flexWrap:'wrap'}}>
-              <button onClick={() => setShowComingSoon(false)} style={{background:'#2563eb',color:'#fff',border:'none',borderRadius:'10px',padding:'14px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'}}>
-                Got it
-              </button>
-              <button onClick={() => { setShowComingSoon(false); navigate('/testing-bypass'); }} style={{background:'#fff',color:'#2563eb',border:'2px solid #2563eb',borderRadius:'10px',padding:'14px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'}}>
-                Testing Bypass
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Privacy Policy and Terms of Service modals removed — this stale,
+          June-2026-dated inline copy predated and diverged from the approved
+          policy suite (RC-2026.07.11). The footer links above now point to
+          the real /legal/privacy and /legal/terms routes, which render the
+          approved suite text verbatim (src/legal-content/, documentRegistry.js).
+          The "Coming Soon" gate on every sign-in/sign-up CTA was removed the
+          same way — CTAs now navigate to /register directly. */}
     </>
   );
 }

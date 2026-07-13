@@ -120,6 +120,27 @@ async function api(baseUrl, appId, methodPath, { method = 'GET', token, body } =
   return { status: res.status, body: json, res };
 }
 
+// Seeds the three mandatory practitioner-notice LegalAcceptanceEvent rows for
+// a fixture user — clinical-entity access now requires these (server/index.mjs
+// hasCurrentLegalAcceptance), mirroring the real ProfileSetup flow. The caller
+// must already hold membership in orgId (LegalAcceptanceEvent is org-scoped),
+// so call this AFTER the fixture's OrganizationMember row exists.
+const LEGAL_SUITE_VERSION = 'RC-2026.07.11';
+async function seedRequiredLegalAcceptance(baseUrl, appId, token, email, orgId) {
+  const eventTypes = [
+    'collection_notice_acknowledgement',
+    'professional_use_acknowledgement',
+    'ai_transparency_consent',
+  ];
+  for (const event_type of eventTypes) {
+    await api(baseUrl, appId, `/api/apps/${appId}/entities/LegalAcceptanceEvent`, {
+      method: 'POST',
+      token,
+      body: { event_type, user_email: email, org_id: orgId, suite_version: LEGAL_SUITE_VERSION, actor_capacity: 'selftest fixture' },
+    });
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Checks
 // ---------------------------------------------------------------------------
@@ -473,6 +494,14 @@ async function runChecks(baseUrl, appId) {
       body: { org_id: orgBId, user_email: emailB, role: 'member', is_primary: true },
     });
 
+    // Clinical entity access now also requires the mandatory practitioner
+    // notices (server/index.mjs hasCurrentLegalAcceptance) — seed both
+    // fixture users the way ProfileSetup does, or every Client check below
+    // would fail on "current legal acceptance required" rather than testing
+    // org-scoping as intended.
+    await seedRequiredLegalAcceptance(baseUrl, appId, userAToken, emailA, orgAId);
+    await seedRequiredLegalAcceptance(baseUrl, appId, userBToken, emailB, orgBId);
+
     const { status: createStatus, body: client } = await api(
       baseUrl,
       appId,
@@ -572,6 +601,16 @@ async function runChecks(baseUrl, appId) {
       body: { name: 'Pending User Clinic' },
     });
     record('pending user may still create setup entities (Organization)', setupWriteStatus === 200 && Boolean(pendingOrg?.id), `status=${setupWriteStatus}`);
+
+    // Mirror ProfileSetup: an Organization is always created together with an
+    // OrganizationMember row, and the mandatory notices are recorded before
+    // the user is ever gated on clinical access.
+    await api(baseUrl, appId, `/api/apps/${appId}/entities/OrganizationMember`, {
+      method: 'POST',
+      token: pendingToken,
+      body: { org_id: pendingOrg.id, user_email: pendingEmail, role: 'owner', is_primary: true },
+    });
+    await seedRequiredLegalAcceptance(baseUrl, appId, pendingToken, pendingEmail, pendingOrg.id);
 
     const { status: catalogueStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Assessment`, {
       token: pendingToken,

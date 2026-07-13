@@ -455,6 +455,37 @@ export function runSeed({ db, entityNames }) {
     return record;
   }
 
+  // Seeded demo users represent already-onboarded clinicians, so they need
+  // the mandatory practitioner-notice events ProfileSetup would have written
+  // — otherwise every seeded user would trip the new legal-acceptance gate
+  // (server/index.mjs hasCurrentLegalAcceptance) despite being an
+  // established account. Version/event-type list mirrors
+  // src/lib/legal/documentRegistry.js — keep both in sync.
+  const LEGAL_SUITE_VERSION = 'RC-2026.07.11';
+  const REQUIRED_NOTICE_EVENT_TYPES = [
+    'collection_notice_acknowledgement',
+    'professional_use_acknowledgement',
+    'ai_transparency_consent',
+  ];
+  function seedLegalAcceptance(org, user) {
+    for (const event_type of REQUIRED_NOTICE_EVENT_TYPES) {
+      findOrCreate(
+        'LegalAcceptanceEvent',
+        (e) => e.org_id === org.id && e.user_email === user.email
+          && e.event_type === event_type && e.suite_version === LEGAL_SUITE_VERSION,
+        {
+          event_type,
+          user_email: user.email,
+          org_id: org.id,
+          suite_version: LEGAL_SUITE_VERSION,
+          actor_capacity: 'seed fixture',
+        },
+        user.email,
+      );
+    }
+    note(`LegalAcceptanceEvent (mandatory notices) seeded for ${user.email}`);
+  }
+
   // -------------------------------------------------------------------------
   // Assessment / Exercise catalogues (only seeded if the tables are empty,
   // per the task brief — "if none exist").
@@ -823,6 +854,12 @@ export function runSeed({ db, entityNames }) {
   seedOrgMember(orgAlpha, alphaClinician, 'clinician');
   seedOrgMember(orgBeta, betaOwner, 'owner');
   seedOrgMember(orgBeta, betaClinician, 'clinician');
+
+  // --- Legal acceptance (mandatory practitioner notices) ---
+  seedLegalAcceptance(orgAlpha, alphaOwner);
+  seedLegalAcceptance(orgAlpha, alphaClinician);
+  seedLegalAcceptance(orgBeta, betaOwner);
+  seedLegalAcceptance(orgBeta, betaClinician);
 
   // --- Catalogues (only if empty) ---
   // Merge the built-in synthetic definitions (which the client clusters and the

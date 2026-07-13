@@ -19,9 +19,10 @@ import Paywall from '@/pages/Paywall';
 import CreateAccount from '@/pages/CreateAccount';
 import AccountSetup from '@/pages/AccountSetup';
 import SignIn from '@/pages/SignIn';
-import Signup from '@/pages/Signup';
 import PaymentRequired from './pages/PaymentRequired';
 import TestingBypass from '@/pages/TestingBypass';
+import LegalDocument from '@/pages/LegalDocument';
+import LegalNotices from '@/pages/LegalNotices';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -62,10 +63,12 @@ const AuthenticatedApp = () => {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/Paywall" element={<Paywall />} />
       <Route path="/PaymentRequired" element={<PaymentRequired />} />
+      <Route path="/legal/:slug" element={<LegalDocument />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/CreateAccount" element={<CreateAccount />} />
         <Route path="/AccountSetup" element={<AccountSetup />} />
         <Route path="/signin" element={<SignIn />} />
+        <Route path="/LegalNotices" element={<LegalNotices />} />
         <Route element={<LayoutWrapper currentPageName={mainPageKey}><Outlet /></LayoutWrapper>}>
           {Object.entries(Pages).map(([path, Page]) => (
             <Route key={path} path={`/${path}`} element={<Page />} />
@@ -88,7 +91,10 @@ function App() {
         <Router>
           <NavigationTracker />
           <Routes>
-            <Route path="/signup" element={<Signup />} />
+            {/* Signup.jsx is an incomplete duplicate of the OTP-based Register.jsx
+                flow (no OTP, dead legal-link stubs) — retired as a live entry
+                point, not deleted. See docs/qa/ session note. */}
+            <Route path="/signup" element={<Navigate to="/register" replace />} />
             <Route path="*" element={<AuthenticatedApp />} />
           </Routes>
         </Router>

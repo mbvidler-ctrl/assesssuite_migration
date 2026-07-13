@@ -47,6 +47,8 @@ import PendingAssessmentsModal from './PendingAssessmentsModal';
 import AssessmentTestRunnerRouter from '../assessments/AssessmentTestRunnerRouter';
 import ComplianceSection from './ComplianceSection';
 import { todayLocal } from "@/lib/localDate";
+import { recordLegalEvent } from "@/lib/legal/recordAcceptance";
+import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
 
 export default function SOAPNoteModal({
   appointment,
@@ -96,6 +98,7 @@ export default function SOAPNoteModal({
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isSavingAudio, setIsSavingAudio] = useState(false);
+  const [showRecordingConsent, setShowRecordingConsent] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
@@ -438,9 +441,34 @@ export default function SOAPNoteModal({
     toast.success("Session details updated");
   };
 
+  // Recording consent is captured per session, immediately before capture
+  // starts — not at signup — per policy-suite doc 27 clause 2 ("Recording/
+  // transcription consent ... per participant and session/function", a
+  // requirement that a signup-time tick cannot satisfy). This records the
+  // clinician's own consent-and-authority event for this specific session;
+  // the client's own consent remains the treating practice's separate duty
+  // under the Patient Collection Notice and Consent Pack (policy-suite doc 12).
+  const handleConfirmRecording = async () => {
+    setShowRecordingConsent(false);
+    try {
+      await recordLegalEvent({
+        eventType: EVENT_TYPES.RECORDING_CONSENT,
+        userEmail: currentUser?.email,
+        orgId: client?.org_id,
+        actorCapacity: "clinician",
+        sessionContext: soapNote?.id || appointment?.id || `virtual-${client?.id}-${Date.now()}`,
+      });
+    } catch (error) {
+      console.error("Failed to record recording consent", error);
+      toast.error("Failed to record consent. Recording not started.");
+      return;
+    }
+    startRecording();
+  };
+
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
@@ -1198,7 +1226,7 @@ export default function SOAPNoteModal({
                 {!isRecording ? (
                   !isLocked && (
                     <Button
-                      onClick={startRecording}
+                      onClick={() => setShowRecordingConsent(true)}
                       disabled={isSavingAudio || isTranscribing}
                       className="bg-purple-600 hover:bg-purple-700"
                       size="sm"
@@ -1886,6 +1914,31 @@ export default function SOAPNoteModal({
               className="bg-red-600 hover:bg-red-700"
             >
               Delete SOAP Note
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Recording consent — captured per session, immediately before capture
+          starts (see handleConfirmRecording). Distinct from, and in addition
+          to, the client's own consent obtained by the treating practice. */}
+      <AlertDialog open={showRecordingConsent} onOpenChange={setShowRecordingConsent}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Session recording consent</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>Before recording this session, confirm:</p>
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                <li>You have obtained the client's (and any other participant's) consent to record this session, in accordance with your state or territory's recording laws.</li>
+                <li>The recording will be uploaded and, if you request transcription, sent to AssessSuite's transcription provider.</li>
+                <li>Your own consent to this recording and its processing is being logged for this specific session.</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRecording} className="bg-purple-600 hover:bg-purple-700">
+              Confirm and start recording
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

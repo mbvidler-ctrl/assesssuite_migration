@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
+import { createPageUrl } from "@/utils";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -20,7 +21,12 @@ export default function Login() {
     setLoading(true);
     try {
       await base44.auth.loginViaEmailPassword(email, password);
-      window.location.href = "/";
+      // Not "/" — App.jsx's root route renders the marketing LandingLive page
+      // unconditionally for every visitor, authenticated or not, so a
+      // post-login redirect there dead-ends and never reaches the
+      // ProfileSetup/PendingApproval/PaymentRequired/LegalNotices gate chain
+      // in Layout.jsx. Route into the authenticated app directly instead.
+      window.location.href = createPageUrl("Dashboard");
     } catch (err) {
       setError(err.message || "Invalid email or password");
     } finally {

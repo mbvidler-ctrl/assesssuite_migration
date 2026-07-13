@@ -17,6 +17,10 @@ export const ClientReport = base44.entities.ClientReport;
 export const ClinicPolicy = base44.entities.ClinicPolicy;
 export const Exercise = base44.entities.Exercise;
 export const LegalAcceptance = base44.entities.LegalAcceptance;
+// LegalAcceptanceEvent (added 2026-07-13, launch/legal-and-consent-integration):
+// the distinct-event replacement for the monolithic LegalAcceptance stub —
+// see src/lib/legal/documentRegistry.js.
+export const LegalAcceptanceEvent = base44.entities.LegalAcceptanceEvent;
 export const Organization = base44.entities.Organization;
 export const OrganizationMember = base44.entities.OrganizationMember;
 // Not present in docs/source-capture/20260702-live-entity-schemas.json (19

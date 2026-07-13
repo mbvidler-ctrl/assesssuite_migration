@@ -25,9 +25,25 @@ import { Toaster, toast } from 'sonner';
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { createCheckoutSession } from "@/functions/createCheckoutSession";
+import PractitionerNoticesSection from "@/components/legal/PractitionerNoticesSection";
+import PracticeAgreementSection from "@/components/legal/PracticeAgreementSection";
+import { recordLegalEvents } from "@/lib/legal/recordAcceptance";
+import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
 
 export default function ProfileSetup() {
   const navigate = useNavigate();
+  const [isNewOrg, setIsNewOrg] = useState(null); // null = not yet determined
+  const [notices, setNotices] = useState({
+    collectionNotice: false,
+    clinicalUse: false,
+    aiTransparency: false,
+    marketing: false,
+  });
+  const [agreement, setAgreement] = useState({
+    jurisdictions: [],
+    adultOnlyConfirmed: false,
+    contractAccepted: false,
+  });
   const [formData, setFormData] = useState({
     country: "australia",
     clinician_name: "", // Renamed from full_name
@@ -54,6 +70,13 @@ export default function ProfileSetup() {
     const fetchUser = async () => {
       try {
         const currentUser = await base44.auth.me();
+        try {
+          const existingMembers = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email });
+          setIsNewOrg(!existingMembers || existingMembers.length === 0);
+        } catch (e) {
+          console.error("Failed to determine organisation membership", e);
+          setIsNewOrg(true); // safest default: show the fuller (agreement) step rather than silently skip it
+        }
         setFormData(prev => {
           const updatedData = {
             ...prev,
@@ -99,6 +122,20 @@ export default function ProfileSetup() {
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const handleNoticeChange = (field, value) => {
+    setNotices(prev => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: "" }));
+    }
+  };
+
+  const handleAgreementChange = (field, value) => {
+    setAgreement(prev => ({ ...prev, [field]: value }));
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: "" }));
     }
@@ -165,6 +202,16 @@ export default function ProfileSetup() {
     if (!formData.professional_bio.trim()) newErrors.professional_bio = "Professional bio is required";
     if (formData.specializations.length === 0) newErrors.specializations = "At least one specialization is required";
 
+    if (!notices.collectionNotice) newErrors.collectionNotice = "Required to continue";
+    if (!notices.clinicalUse) newErrors.clinicalUse = "Required to continue";
+    if (!notices.aiTransparency) newErrors.aiTransparency = "Required to continue";
+
+    if (isNewOrg) {
+      if (agreement.jurisdictions.length === 0) newErrors.jurisdictions = "Select at least one state or territory";
+      if (!agreement.adultOnlyConfirmed) newErrors.adultOnlyConfirmed = "Required to continue";
+      if (!agreement.contractAccepted) newErrors.contractAccepted = "Required to continue";
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -185,10 +232,15 @@ export default function ProfileSetup() {
       // Create organization (only if user doesn't already have one)
       let org;
       const existingMembers = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email });
-      if (existingMembers && existingMembers.length > 0) {
+      const foundingNewOrg = !existingMembers || existingMembers.length === 0;
+      if (!foundingNewOrg) {
         org = { id: existingMembers[0].org_id };
       } else {
-        org = await base44.entities.Organization.create({ name: formData.clinic_name });
+        org = await base44.entities.Organization.create({
+          name: formData.clinic_name,
+          served_jurisdictions: agreement.jurisdictions,
+          adult_only_confirmed: agreement.adultOnlyConfirmed,
+        });
         await base44.entities.OrganizationMember.create({
           org_id: org.id,
           user_email: currentUser.email,
@@ -203,6 +255,37 @@ export default function ProfileSetup() {
       // admin approval decision (AdminApprovals) — the server refuses
       // self-service account_status changes, so none is sent here.
       await base44.auth.updateMe({ ...formData });
+
+      // Record the mandatory practitioner notices — every user, every time
+      // they pass through this page (the events are additive; re-recording
+      // the same current-version event is harmless and matches the
+      // append-only model in policy-suite doc 27 clause 5).
+      const actorCapacity = foundingNewOrg ? "practice owner" : "invited clinician";
+      const events = [
+        { eventType: EVENT_TYPES.COLLECTION_NOTICE_ACKNOWLEDGEMENT, documentId: "collection-notice" },
+        { eventType: EVENT_TYPES.PROFESSIONAL_USE_ACKNOWLEDGEMENT, documentId: "clinical-use-notice" },
+        { eventType: EVENT_TYPES.AI_TRANSPARENCY_CONSENT, documentId: "ai-notice" },
+      ].map((e) => ({ ...e, userEmail: currentUser.email, orgId: org.id, actorCapacity }));
+      if (notices.marketing) {
+        events.push({ eventType: EVENT_TYPES.MARKETING_CONSENT, userEmail: currentUser.email, orgId: org.id, actorCapacity });
+      }
+      if (foundingNewOrg) {
+        events.push({
+          eventType: EVENT_TYPES.CONTRACT_ACCEPTANCE,
+          documentId: "terms",
+          userEmail: currentUser.email,
+          orgId: org.id,
+          actorCapacity,
+        });
+      }
+      try {
+        await recordLegalEvents(events);
+      } catch (legalError) {
+        console.error("Failed to record legal acceptance events", legalError);
+        toast.error("Failed to record your notice acknowledgements. Please try again.");
+        setIsSaving(false);
+        return;
+      }
 
       // Redirect to Stripe payment via checkout session
       const res = await createCheckoutSession({ plan: "monthly", userId: currentUser.id, userEmail: currentUser.email, userName: currentUser.full_name });
@@ -259,6 +342,26 @@ export default function ProfileSetup() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
+                <div>
+                  {/* clinician_name has no source elsewhere in this flow: Register.jsx
+                      only collects email/password, and currentUser.full_name is never
+                      set by any prior step, so validateForm's "Your full name is
+                      required" check could never be satisfied without this field. */}
+                  <Label htmlFor="clinician_name" className="text-sm font-medium text-slate-700">
+                    Your Full Name *
+                  </Label>
+                  <Input
+                    id="clinician_name"
+                    value={formData.clinician_name}
+                    onChange={(e) => handleInputChange("clinician_name", e.target.value)}
+                    placeholder="Your full name"
+                    className={`mt-1 ${errors.clinician_name ? "border-red-500" : ""}`}
+                  />
+                  {errors.clinician_name && (
+                    <p className="text-red-500 text-sm mt-1">{errors.clinician_name}</p>
+                  )}
+                </div>
+
                 <div className="grid md:grid-cols-2 gap-4">
                   <div>
                     <Label htmlFor="profession" className="text-sm font-medium text-slate-700">
@@ -571,6 +674,12 @@ export default function ProfileSetup() {
                 </div>
               </CardContent>
             </Card>
+
+            {isNewOrg && (
+              <PracticeAgreementSection values={agreement} onChange={handleAgreementChange} errors={errors} />
+            )}
+
+            <PractitionerNoticesSection values={notices} onChange={handleNoticeChange} errors={errors} />
 
             {/* Submit Button */}
             <div className="flex justify-center">

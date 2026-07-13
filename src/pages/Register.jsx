@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Mail, Lock, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
+import { createPageUrl } from "@/utils";
 
 export default function Register() {
   const [email, setEmail] = useState("");
@@ -45,7 +46,10 @@ export default function Register() {
     try {
       const response = await base44.auth.verifyOtp({ email, otpCode });
       await base44.auth.setToken(response.access_token);
-      window.location.href = "/";
+      // Not "/" — see the identical note in Login.jsx. A brand-new user must
+      // reach the ProfileSetup/legal-acceptance gate chain, not the
+      // marketing page App.jsx renders unconditionally at the root path.
+      window.location.href = createPageUrl("Dashboard");
     } catch (err) {
       setError(err.message || "Verification failed");
     } finally {
