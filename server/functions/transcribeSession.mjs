@@ -46,7 +46,7 @@ import { deidentify, invokeLLM, llmEnabled } from '../llm.mjs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Must match uploadsDir in server/integrations.mjs (where handleUploadFile
 // writes) and server/index.mjs (which serves GET /uploads/*).
-const uploadsDir = path.join(__dirname, '..', 'uploads');
+const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads');
 
 const TRANSCRIBE_URL = 'https://api.openai.com/v1/audio/transcriptions';
 // whisper-1 is the single well-known dedicated audio model (~USD 0.006 per
@@ -207,6 +207,13 @@ function buildSoapPrompt(transcript) {
 export default async function transcribeSession(ctx) {
   const { body, respond } = ctx;
   const { action } = body || {};
+
+  // Launch posture: transcription is disabled for users unless expressly
+  // enabled (TRANSCRIPTION_ENABLED=1). The code path is kept intact — this
+  // is a switch, not a removal. SELFTEST keeps the regression suite running.
+  if (process.env.TRANSCRIPTION_ENABLED !== '1' && process.env.SELFTEST !== '1') {
+    return respond(403, { error: 'Transcription is not enabled on this deployment.' });
+  }
 
   if (action === 'transcribe') {
     const { audio_url } = body || {};

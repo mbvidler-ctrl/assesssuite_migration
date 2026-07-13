@@ -50,6 +50,7 @@ import { todayLocal } from "@/lib/localDate";
 import { recordLegalEvent } from "@/lib/legal/recordAcceptance";
 import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
 import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function SOAPNoteModal({
   appointment,
@@ -60,6 +61,11 @@ export default function SOAPNoteModal({
   hasNext = false,
   sessionInfo = null
 }) {
+  // Transcription launch switch (public settings, server-enforced too):
+  // recording stays available; Transcribe/Dissect surfaces hide when off.
+  const { appPublicSettings } = useAuth();
+  const transcriptionEnabled = appPublicSettings?.public_settings?.transcription_enabled === true;
+
   const [soapNote, setSoapNote] = useState(null);
   const [originalSoapNote, setOriginalSoapNote] = useState(null);
   const [assessments, setAssessments] = useState([]);
@@ -1264,7 +1270,7 @@ export default function SOAPNoteModal({
                             </span>
                           )}
                         </p>
-                        {!isLocked && (
+                        {transcriptionEnabled && !isLocked && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -1291,7 +1297,7 @@ export default function SOAPNoteModal({
                   <div className="bg-white rounded-lg p-2 border border-purple-100">
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-xs font-medium text-slate-700">Session Recording</p>
-                      {!isLocked && (
+                      {transcriptionEnabled && !isLocked && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1318,7 +1324,7 @@ export default function SOAPNoteModal({
             )}
 
             {/* Transcript panel: populated by transcribeAudio, consumed by dissectToSOAP */}
-            {showTranscriptPanel && (
+            {transcriptionEnabled && showTranscriptPanel && (
               <div className="mt-3 bg-white rounded-lg p-3 border border-purple-100">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-medium text-slate-700">Session Transcript</p>
