@@ -26,7 +26,7 @@ const navigationItems = [
   { title: "Settings", url: createPageUrl("MyProfile"), icon: UserIcon },
 ];
 
-const BYPASS_PATHS = ["/ProfileSetup", "/PendingApproval", "/Signup", "/Home", "/PaymentRequired", "/LegalNotices"];
+const BYPASS_PATHS = ["/ProfileSetup", "/PendingApproval", "/Signup", "/Home", "/PaymentRequired", "/LegalNotices", "/AccountDeactivated"];
 
 const REQUIRED_NOTICE_EVENT_TYPES = [
   "collection_notice_acknowledgement",
@@ -67,22 +67,32 @@ export default function Layout({ children, currentPageName }) {
           return;
         }
 
-        if (user.account_status === "suspended") {
-          navigate("/PendingApproval");
-          return;
-        }
-
         if (freshUser.role === "admin") {
           setIsLoading(false);
           return;
         }
 
-        // Hard approval gate: any non-admin account that is not approved
-        // (pending, rejected, invited, or missing status) is held at the
-        // approval page. Approval is granted by an administrator via
-        // AdminApprovals; the server refuses self-service status changes.
-        if (freshUser.account_status !== "active") {
+        // Launch account-status routing (13 July 2026):
+        // - pending/invited -> PaymentRequired: payment activates the account
+        //   (checkout auto-approve in stripeWebhook), so the next step for an
+        //   unactivated account is checkout, not an approval queue.
+        // - suspended/rejected -> PendingApproval, which carries the
+        //   per-status messaging (payment-failure recovery / rejection).
+        // - deactivated -> the dedicated AccountDeactivated notice (self-
+        //   service closure; reactivation is an administrator action).
+        // The server independently refuses clinical access for any
+        // non-active status — this routing is UX, not the enforcement point.
+        const status = freshUser.account_status;
+        if (status === "deactivated") {
+          navigate("/AccountDeactivated");
+          return;
+        }
+        if (status === "suspended" || status === "rejected") {
           navigate("/PendingApproval");
+          return;
+        }
+        if (status !== "active") {
+          navigate("/PaymentRequired");
           return;
         }
 

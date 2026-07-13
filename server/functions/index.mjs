@@ -47,6 +47,7 @@ import verifyReferences from './verifyReferences.mjs';
 import searchEvidence from './searchEvidence.mjs';
 import medicalLookup from './medicalLookup.mjs';
 import transcribeSession from './transcribeSession.mjs';
+import deactivateAccount from './deactivateAccount.mjs';
 
 const REGISTRY = {
   assignOrganizations,
@@ -68,6 +69,7 @@ const REGISTRY = {
   searchEvidence,
   medicalLookup,
   transcribeSession,
+  deactivateAccount,
 };
 
 // Functions that read or produce clinical content: require a session AND an
@@ -90,6 +92,10 @@ const REQUIRES_ACTIVE_ACCOUNT = new Set([
 const REQUIRES_SESSION = new Set([
   'createCheckoutSession',
   'createPortalSession',
+  // Self-service deactivation needs a session but must work from any
+  // account status (an unapproved or suspended user may still close their
+  // account).
+  'deactivateAccount',
 ]);
 
 let state = null;

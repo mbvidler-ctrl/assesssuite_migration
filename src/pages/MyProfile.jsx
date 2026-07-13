@@ -34,6 +34,16 @@ import {
 import { Toaster, toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ClinicPolicies from "../components/settings/ClinicPolicies";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export default function MyProfile() {
   const [user, setUser] = useState(null);
@@ -53,6 +63,27 @@ export default function MyProfile() {
   const [newSpecialization, setNewSpecialization] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeactivating, setIsDeactivating] = useState(false);
+  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
+
+  const handleDeactivateAccount = () => setShowDeactivateDialog(true);
+
+  const confirmDeactivate = async () => {
+    setShowDeactivateDialog(false);
+    setIsDeactivating(true);
+    try {
+      const result = await base44.functions.invoke("deactivateAccount", {});
+      const payload = result?.data ?? result;
+      if (payload?.status !== "deactivated") {
+        throw new Error(payload?.error || "Deactivation failed");
+      }
+      base44.auth.logout(window.location.origin + "/");
+    } catch (error) {
+      console.error("Deactivation failed", error);
+      toast.error("Failed to deactivate your account. Please try again or contact support.");
+      setIsDeactivating(false);
+    }
+  };
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [uploadingLocationId, setUploadingLocationId] = useState(null);
 
@@ -698,6 +729,57 @@ export default function MyProfile() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Deactivate account — self-service closure; records are retained
+              (never deleted) per the Records Retention policy. */}
+          <Card className="bg-white/80 backdrop-blur-sm border-slate-200/60 shadow-lg">
+            <CardContent className="py-6">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-semibold text-slate-900">Deactivate Account</h3>
+                  <p className="text-sm text-slate-600">
+                    Closes your access to AssessSuite. Your practice's clinical records are
+                    retained securely — nothing is deleted — in line with professional
+                    record-keeping obligations. Reactivation requires contacting support.
+                  </p>
+                </div>
+                <Button
+                  onClick={handleDeactivateAccount}
+                  disabled={isDeactivating}
+                  variant="outline"
+                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 shrink-0"
+                >
+                  {isDeactivating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                  Deactivate
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <AlertDialog open={showDeactivateDialog} onOpenChange={setShowDeactivateDialog}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Deactivate your account?</AlertDialogTitle>
+                <AlertDialogDescription className="space-y-2">
+                  <span className="block">
+                    You will be signed out and your access closed. Your subscription is not
+                    cancelled automatically — cancel it via Manage Subscription first if that
+                    is your intention.
+                  </span>
+                  <span className="block">
+                    Your practice's records are retained securely and are not deleted.
+                    Reactivation requires contacting admin@assesssuite.com.
+                  </span>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDeactivate} className="bg-red-600 hover:bg-red-700">
+                  Deactivate account
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
     </>

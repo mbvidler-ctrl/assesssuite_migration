@@ -133,6 +133,57 @@ async function main() {
   const roleUnchanged = betaAfter.data?.role === betaBeforeRole;
   record('G8.17b', webhook.status === 200 && roleUnchanged, `after checkout.session.completed webhook, role unchanged ('${betaBeforeRole}' → '${betaAfter.data?.role}')`);
 
+  // ---- L1: launch posture (this harness runs against a NORMAL server — no
+  //      SELFTEST bypass — so these exercise the real production behaviours) ----
+
+  // Transcription is refused for users unless TRANSCRIPTION_ENABLED=1.
+  const transcribe = await api(`/api/apps/${APP}/functions/transcribeSession`, {
+    method: 'POST', token: alphaTok, body: { action: 'transcribe', audio_url: '/uploads/probe.webm' },
+  });
+  record('L1.1', transcribe.status === 403, `transcribeSession refused when TRANSCRIPTION_ENABLED unset → ${transcribe.status} (expect 403)`);
+
+  // Client "delete" is an archive: hidden from lists, retained, retrievable.
+  const archProbe = await api(`/api/apps/${APP}/entities/Client`, {
+    method: 'POST', token: alphaTok, body: { full_name: 'Archive Probe Client' },
+  });
+  const archId = archProbe.data?.id;
+  await api(`/api/apps/${APP}/entities/Client/${archId}`, {
+    method: 'PUT', token: alphaTok, body: { archived: true, archived_date: new Date().toISOString() },
+  });
+  const listAfterArch = await api(`/api/apps/${APP}/entities/Client`, { token: alphaTok });
+  const hiddenFromList = Array.isArray(listAfterArch.data) && !listAfterArch.data.some((c) => c.id === archId);
+  record('L1.2a', hiddenFromList, `archived client hidden from default list=${hiddenFromList}`);
+  const archListQ = encodeURIComponent(JSON.stringify({ archived: true }));
+  const archList = await api(`/api/apps/${APP}/entities/Client?q=${archListQ}`, { token: alphaTok });
+  const visibleWhenAsked = Array.isArray(archList.data) && archList.data.some((c) => c.id === archId);
+  record('L1.2b', visibleWhenAsked, `archived client visible via explicit archived:true query=${visibleWhenAsked}`);
+  const archGet = await api(`/api/apps/${APP}/entities/Client/${archId}`, { token: alphaTok });
+  record('L1.2c', archGet.status === 200 && archGet.data?.archived === true, `archived client still retrievable by id (retention) → ${archGet.status}`);
+
+  // Self-service deactivation: works for the caller, refuses clinical access,
+  // admin restores (mirrors AdminApprovals) so re-runs stay idempotent.
+  const deact = await api(`/api/apps/${APP}/functions/deactivateAccount`, {
+    method: 'POST', token: betaTok, body: {},
+  });
+  record('L1.3a', deact.status === 200 && deact.data?.status === 'deactivated', `deactivateAccount self-service → ${deact.status}`);
+  const usersAfter = await api(`/api/apps/${APP}/entities/User`, { token: adminTok });
+  const betaRow = usersAfter.data?.find((u) => u.email === betaAfter.data?.email);
+  record('L1.3b', betaRow?.account_status === 'deactivated', `account_status recorded as deactivated=${betaRow?.account_status}`);
+  const clinicalWhileDeactivated = await api(`/api/apps/${APP}/entities/Client`, { token: betaTok });
+  record('L1.3c', clinicalWhileDeactivated.status === 403, `deactivated account refused clinical access → ${clinicalWhileDeactivated.status} (expect 403)`);
+  await api(`/api/apps/${APP}/entities/User/${betaRow?.id}`, {
+    method: 'PUT', token: adminTok, body: { account_status: 'active' },
+  });
+  const restored = await api(`/api/apps/${APP}/entities/User`, { token: adminTok });
+  const betaRestored = restored.data?.find((u) => u.id === betaRow?.id);
+  record('L1.3d', betaRestored?.account_status === 'active', `admin reactivation restores active=${betaRestored?.account_status}`);
+
+  // The bootstrap admin cannot self-deactivate (would orphan the deployment).
+  const adminDeact = await api(`/api/apps/${APP}/functions/deactivateAccount`, {
+    method: 'POST', token: adminTok, body: {},
+  });
+  record('L1.4', adminDeact.status === 403, `admin self-deactivation refused → ${adminDeact.status} (expect 403)`);
+
   console.log(`\nGate tests complete: ${pass}/${pass + fail} passed.`);
   if (fail > 0) process.exitCode = 1;
 }
