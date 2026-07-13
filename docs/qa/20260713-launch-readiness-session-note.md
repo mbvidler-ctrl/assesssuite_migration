@@ -1,0 +1,37 @@
+# Launch-readiness session note — 13 July 2026
+
+**Mission:** UM-AUTO-20260713-ASSESSSUITE-LAUNCH-READINESS. **Branch:** `launch/legal-and-consent-integration` (pushed; not merged; not DNS-cut). **Executed:** Sonnet 5 under the approved plan (Fable 5 in plan mode).
+**Baseline after this session:** selftest **102/102**, gate-tests **22/22**, smoke **10/10**, build clean, lint at the 7-error pre-existing baseline (no new).
+**Production:** `assesssuite-production.fly.dev` deployed and verified (mock Stripe, legal RC, transcription off) — go-live is now a runbook of Maxwell-reserved steps.
+
+## What shipped (by workstream)
+
+- **W0 — auth + email hardening.** `register` now sends the initial OTP (previously only resend did, so real signup was impossible once the fixed code was removed); random 6-digit OTP with 10-min expiry, attempt-lockout (5→15 min), and per-account send throttle; `000000` accepted only under `SELFTEST=1`; reset tokens carry a 60-min expiry and the email carries a real `${APP_URL}/reset-password?token=` link. New `server/email.mjs`: Resend adapter behind the house mock-fallback pattern (`RESEND_API_KEY` set→real send + outbox audit row; unset→outbox only; SELFTEST always outbox; failures logged never thrown). Admin-notify email on registration; welcome email on activation (once, on pending→active). `/testing-bypass` route dev-gated.
+- **W1 — content/UX.** Unverified-reference toast removed (silent removal kept). Consent standard wording removed from all three duplicated constants; editor placeholder + client-facing blank-guards + "Clear text" relabel; helper line "shown to clients during onboarding". CP1252 mojibake repaired (555 sites / 16 files, reverse-decode with glyph whitelist; the KOOS flag is ❗ not ●). APSS screening-form headings → Safety Screen / Clinical Risk Review.
+- **W2 — VISA-A / VISA-P.** `questions[]` populated in `server/data-import/assessment-part-4.jsonl` (Q1–6 0–10, Q7 0/4/7/10, Q8 one 15-option question carrying the published A/B/C band values; VISA-P uses the validated Visentini 1998 bands, provenance noted). Routes into the existing generic `QuestionnaireRunner`. **`QuestionnaireRunner` selection changed to option-INDEX keying** — value-keyed radios mis-attributed the Q8 option label in the SOAP note when values repeat (proved: selecting C-row NIL recorded "A — no pain: NIL"); scoring/persistence shape unchanged.
+- **W3 — retention.** New self-only `deactivateAccount` function → `account_status:'deactivated'` (admin refused); Layout routes it to a dedicated `AccountDeactivated` notice; MyProfile control + retention notice; reactivation is admin. Client "delete" → `archived:true` (both entry points) with honest dialog copy; archived clients filtered server-side from every list unless queried with `archived`, still retrievable by id. Fixes the pre-existing orphaning + false-cascade-copy defect.
+- **W4 — transcription switch.** `TRANSCRIPTION_ENABLED` (default off) via `handlePublicSettings` → `useAuth().appPublicSettings`; SOAPNoteModal hides Transcribe/Dissect (Record + consent stay); `transcribeSession` returns 403 when off (except SELFTEST). One switch, two enforcement points.
+- **W5 — payment auto-approve.** `checkout.session.completed` activates `pending`→`active` and restores `suspended`; `rejected` and `deactivated` are never payment-activated; welcome email fires. Paywall simulation retired (route → PaymentRequired); PendingApproval routes to the two-plan chooser instead of hardcoding monthly.
+- **W6 — production infra.** `runCatalogueSeed` shares the catalogue core with the demo seed but creates no synthetic tenants/users/clients and writes no credential file; `server/seed-catalogue.mjs` entrypoint. `fly.production.toml`: image CMD overridden (no reseed on boot), one 3 GB encrypted volume at `/app/server/data`, uploads relocated onto it via `UPLOADS_DIR` (read identically by all three consumers). `render.yaml` retired. Deployed; catalogue seeded once (232 assessments incl. VISA-A/P 8q each, 42 protocols); verified admin-strong, default-password-rejected, zero clients/tenants, registration open, `000000` rejected in production.
+- **W7 — legal flip plumbing.** `LEGAL_STATUS`/`LEGAL_EFFECTIVE_DATE` via public settings → LegalDocument renders "Version 1.0 — Effective <date>" and overrides the markdown DRAFT header lines at render. **Invariant: `SUITE_VERSION`/`LEGAL_SUITE_VERSION` stay `RC-2026.07.11`** — the flip is display-only; bumping them stales every acceptance.
+
+## Verification performed
+
+- Full suites green (102/22/10) after each workstream; build + lint clean.
+- Extended coverage: OTP wrong-code/lockout/throttle (selftest); webhook auto-approve + rejected-exclusion (selftest); transcription 403, archive hide/retain, deactivation cycle + admin-restore + admin-self-refusal (gate-tests L1.1–L1.4).
+- Production live checks (curl/fetch): public settings payload, admin login with the strong secret, default-password rejection, catalogue counts + VISA question counts, zero clients, open registration, `000000` rejected. Probe registration cleaned up.
+- Browser (local): login → dashboard; MyProfile deactivate control + retention notice present; public settings reach the client (`transcription_enabled:false`, `legal.status:rc`); Policies editor helper line + blanked defaults; assessment library shows VISA-A/P verified with 8-item.
+- VISA Q8 label fix proven by a colliding-value logic test (C-row NIL vs A-row NIL).
+- Adversarial multi-agent QA over the five new surfaces (auth/email, payment, deactivation/archive, switches) — see the run result appended to the delivery report.
+
+## Reserved to Maxwell (not done this session — approval triggers)
+
+DNS cutover; live Stripe secret keys; the legal `LEGAL_STATUS=effective` flip; public domain cutover; merge to `main`; any contact with Brenton (ask-sheet drafted at `docs/launch/20260713-brenton-stripe-ask-sheet.md`); the real live payment test. Go-live runbook: `docs/launch/20260713-go-live-runbook.md`.
+
+## Flagged for Maxwell
+
+- **Stripe secret key was never actually supplied** (masked dashboard string in the email; the restricted key has no permissions). The ask-sheet covers it.
+- Resend account + `assesssuite.com` SPF/DKIM/DMARC must be done before real OTP email delivers (email is now the sole signup path).
+- Brenton's "fix the live Base44 app as a backup?" is out of scope (live Base44 is an approval trigger) — Maxwell to answer.
+- Production admin password stored at `Unimatter\00_System\autonomy\credentials\20260713-assesssuite-production-admin.txt` — move to Bitwarden and delete.
+- Post-launch: two-tier pricing + transcription re-enable; roll the Stripe keys (they transited email/PDF).
