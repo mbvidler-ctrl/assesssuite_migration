@@ -3,6 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import { FileText, Edit2, Check, X } from "lucide-react";
+import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 
 // --- Report-html edit partitioning -------------------------------------------
 //
@@ -198,6 +199,8 @@ export default function ReviewExport({ reportHtml, client, clinician, onEditHtml
           </div>
         )}
       </div>
+
+      <AIDisclosureNote />
 
       {isEditing ? (
         <div className="space-y-2">

@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { base44 } from "@/api/base44Client";
+import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 import {
   Search,
   BookOpen,
@@ -902,6 +903,8 @@ Be specific, evidence-based, and practical for clinical use.`,
                       </div>
                     </CardContent>
                   </Card>
+
+                  <AIDisclosureNote />
 
                   {/* Overview */}
                   <Card className="bg-white/80 backdrop-blur-sm border-slate-200/60">

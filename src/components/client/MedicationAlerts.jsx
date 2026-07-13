@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import AIDisclosureNote from '@/components/legal/AIDisclosureNote';
 
 export default function MedicationAlerts({ conditions, client }) {
     const [alerts, setAlerts] = useState([]);
@@ -156,6 +157,7 @@ export default function MedicationAlerts({ conditions, client }) {
                             </li>
                         ))}
                     </ul>
+                    <AIDisclosureNote className="mt-3" />
                 </div>
             )}
 

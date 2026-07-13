@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calculator, BookOpen, AlertTriangle, Sparkles, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import FoodDiaryTemplate from "../nutrition/FoodDiaryTemplate";
+import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 
 export default function NutritionPlanCreator({ isOpen, onClose, client, onSuccess }) {
   const [step, setStep] = useState(1);
@@ -485,6 +486,7 @@ CRITICAL: This is EDUCATION not prescription. Frame as "example of how to meet d
                 </>
               )}
             </Button>
+            <AIDisclosureNote />
 
             <div>
               <Label>General Healthy Eating Advice</Label>

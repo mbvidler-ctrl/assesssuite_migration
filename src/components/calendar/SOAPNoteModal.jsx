@@ -49,6 +49,7 @@ import ComplianceSection from './ComplianceSection';
 import { todayLocal } from "@/lib/localDate";
 import { recordLegalEvent } from "@/lib/legal/recordAcceptance";
 import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
+import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 
 export default function SOAPNoteModal({
   appointment,
@@ -1360,6 +1361,7 @@ export default function SOAPNoteModal({
                     </Button>
                   </div>
                 )}
+                <AIDisclosureNote className="mt-2" />
               </div>
             )}
 
@@ -1503,6 +1505,7 @@ export default function SOAPNoteModal({
                 placeholder="Your professional interpretation of the subjective and objective data—what it means, the likely condition, contributing factors, and progress."
                 className={`mt-2 ${isLocked ? 'bg-slate-50' : ''} placeholder:text-slate-400`}
                 />
+                <AIDisclosureNote className="mt-1" />
                 </div>
 
                 <div>
@@ -1595,7 +1598,8 @@ export default function SOAPNoteModal({
                 placeholder="What will happen next: treatment plan, exercises, education, referrals, goals for the next session, and any follow-up actions."
                 className={`mt-2 ${isLocked ? 'bg-slate-50' : ''} placeholder:text-slate-400`}
                 />
-                
+                <AIDisclosureNote className="mt-1" />
+
                 {/* Plan Attachments */}
                 {soapNote?.plan_attachments && soapNote.plan_attachments.length > 0 && (
                   <div className="mt-3 space-y-2">

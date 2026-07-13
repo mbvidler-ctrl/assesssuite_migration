@@ -8,6 +8,7 @@ import { InvokeLLM, UploadFile } from "@/api/integrations";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { META_TEMPLATES, REPORT_META_TEMPLATE_MAP } from "@/components/reports/UnifiedReportWizard";
+import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 
 const SECTION_GUIDANCE = {
   "Referral Details": {
@@ -841,6 +842,8 @@ Write ONLY the "${section}" section. Return ONLY plain text — no HTML, no mark
               ? `${content[activeSection].trim().split(/\s+/).length} words`
               : 'Empty — type freely or use AI Generate'}
           </p>
+
+          {!isSignatureSection && !isAttachmentSection && <AIDisclosureNote />}
         </div>
       </div>
     </div>
