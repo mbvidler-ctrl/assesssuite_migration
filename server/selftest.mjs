@@ -583,6 +583,36 @@ async function runChecks(baseUrl, appId) {
       `token=${Boolean(pendingToken)}`,
     );
 
+    // OTP hardening: a wrong code is refused (the fixed 000000 works here
+    // only because this suite runs under SELFTEST=1), and repeated failures
+    // lock the account out (429), including for a subsequently-correct code.
+    {
+      const lockEmail = `otp-lock-${Date.now()}@example.com`;
+      await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: lockEmail, password: 'password123456' },
+      });
+      const { status: wrongStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
+        method: 'POST', body: { email: lockEmail, otp_code: 'not-a-code' },
+      });
+      record('verify-otp refuses a wrong code (401)', wrongStatus === 401, `status=${wrongStatus}`);
+      for (let i = 0; i < 4; i += 1) {
+        await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
+          method: 'POST', body: { email: lockEmail, otp_code: 'not-a-code' },
+        });
+      }
+      const { status: lockedStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
+        method: 'POST', body: { email: lockEmail, otp_code: '000000' },
+      });
+      record('verify-otp locks out after repeated failures (429, even for a then-correct code)', lockedStatus === 429, `status=${lockedStatus}`);
+      // Registration writes the initial OTP email (the F1 fix): the register
+      // handler itself must have recorded a verification-code email; the
+      // resend path throttles a second code inside the send interval.
+      const { status: resendStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/resend-otp`, {
+        method: 'POST', body: { email: lockEmail },
+      });
+      record('resend-otp responds 200 within the throttle window (no enumeration signal)', resendStatus === 200, `status=${resendStatus}`);
+    }
+
     const { status: clinicalReadStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
       token: pendingToken,
     });
@@ -1090,11 +1120,12 @@ async function runChecks(baseUrl, appId) {
       token: stripeUserToken,
     });
     record(
-      'stripeWebhook wrote entitlement fields without activating approval',
+      'stripeWebhook checkout auto-approves a pending account (launch model)',
       meStatus === 200 &&
-        // Payment success flips entitlement only; approval (account_status)
-        // remains 'pending' until an admin approves — the hard approval gate.
-        meBody?.account_status === 'pending' &&
+        // Launch model (13 July 2026): successful payment activates a
+        // pending account (auto-approve). 'rejected' is asserted separately
+        // below as never payment-activatable.
+        meBody?.account_status === 'active' &&
         meBody?.email_verified === true &&
         meBody?.subscription_status === 'active' &&
         meBody?.stripe_customer_id === mockCustomerId &&
@@ -1102,6 +1133,35 @@ async function runChecks(baseUrl, appId) {
         typeof meBody?.subscription_start_date === 'string',
       `status=${meStatus} body=${JSON.stringify(meBody)}`,
     );
+
+    // A rejected account must never be activated by a billing event — an
+    // admin rejection cannot be bought around.
+    {
+      const rejectedEmail = `rejected-pay-${Date.now()}@example.com`;
+      await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: rejectedEmail, password: 'password123456' },
+      });
+      const { body: allForReject } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User`, { token: adminToken });
+      const rejUser = (allForReject || []).find((u) => u.email === rejectedEmail);
+      await api(baseUrl, appId, `/api/apps/${appId}/entities/User/${rejUser.id}`, {
+        method: 'PUT', token: adminToken, body: { account_status: 'rejected' },
+      });
+      await api(baseUrl, appId, `/api/apps/${appId}/functions/stripeWebhook`, {
+        method: 'POST',
+        token: adminToken,
+        body: {
+          type: 'checkout.session.completed',
+          data: { object: { customer: `mock_cus_rej_${Date.now()}`, subscription: `mock_sub_rej_${Date.now()}`, client_reference_id: rejUser.id, customer_email: rejectedEmail } },
+        },
+      });
+      const { body: allAfter } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User`, { token: adminToken });
+      const rejAfter = (allAfter || []).find((u) => u.email === rejectedEmail);
+      record(
+        'stripeWebhook never activates a rejected account',
+        rejAfter?.account_status === 'rejected' && rejAfter?.subscription_status === 'active',
+        `account_status=${rejAfter?.account_status} subscription_status=${rejAfter?.subscription_status}`,
+      );
+    }
 
     // 3. syncStripeSubscription reflects the mock store.
     const { status: syncStatus, body: syncBody } = await api(

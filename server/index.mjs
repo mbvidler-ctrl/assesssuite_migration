@@ -18,13 +18,17 @@ import {
   parseBearerToken,
   stripAuthFields,
   sanitizeUpdateMePayload,
+  generateOtp,
 } from './auth.mjs';
 import { handleCoreIntegration } from './integrations.mjs';
+import { initEmail, sendEmail, otpEmail, resetEmail, welcomeEmail, adminNotifyEmail, inviteEmail } from './email.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
 const distDir = path.join(repoRoot, 'dist');
-const uploadsDir = path.join(__dirname, 'uploads');
+// Must resolve identically to server/integrations.mjs (write) and
+// server/functions/transcribeSession.mjs (read) — one env var, three readers.
+const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
 
 // Load .env.local for local runs (set-if-absent, so real environment variables
 // — e.g. Fly secrets in production — always take precedence and are never
@@ -53,6 +57,14 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'change-me-local';
 // the registration/OTP flows, so they remain enabled there.
 const ALLOW_OPEN_REGISTRATION =
   process.env.ALLOW_OPEN_REGISTRATION === '1' || process.env.SELFTEST === '1';
+// OTP / reset hardening (launch): random per-user codes with expiry, attempt
+// lockout, and per-account send throttles. The fixed 000000 code is accepted
+// only under SELFTEST=1 (see verify-otp).
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_LOCKOUT_MS = 15 * 60 * 1000;
+const RESEND_MIN_INTERVAL_MS = 30 * 1000;
+const RESET_TTL_MS = 60 * 60 * 1000;
 // Default app id used for the dev-only /functions/<name> relative path when it
 // is served in single-process production (mirrors the vite proxy rewrite).
 const DEFAULT_APP_ID = process.env.DEFAULT_APP_ID || 'local-assesssuite';
@@ -63,6 +75,7 @@ const { db, entityNames } = openDatabase();
 const sessions = createSessionRepository(db);
 const outboxEmail = createOutboxRepository(db, 'email');
 const outboxSms = createOutboxRepository(db, 'sms');
+initEmail(outboxEmail);
 
 const userRepo = createEntityRepository(db, 'User');
 const orgMemberRepo = entityNames.has('OrganizationMember')
@@ -523,6 +536,12 @@ async function handleEntitiesRoute(req, res, url, match) {
       if (!auth.ok) return sendError(res, auth.status, auth.message);
     }
     const record = repo.update(rest, data);
+    // Welcome email on activation (admin approval path; the payment
+    // auto-approve path sends its own from stripeWebhook). Fire-and-forget —
+    // an email failure must not fail the update.
+    if (isUserCollection && existing.account_status !== 'active' && record.account_status === 'active') {
+      sendEmail({ to: record.email, ...welcomeEmail(record.clinician_name || record.full_name) }).catch(() => {});
+    }
     const stripped = isUserCollection ? stripAuthFields(record) : record;
     return sendJson(res, 200, stripped);
   }
@@ -611,6 +630,15 @@ function handleList(req, res, repo, entityName, sessionUser, isAdmin, url) {
   query = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
 
   let records = repo.listAll().filter((record) => matchesQuery(record, query));
+  // Archived clients (retention model: user-facing "delete" archives, never
+  // destroys) are excluded from EVERY list/filter unless the caller asks for
+  // them explicitly with an `archived` key in the query — one enforcement
+  // point covering all ~20 client-picker surfaces, so components cannot
+  // disagree about what archived means. Get-by-id still returns an archived
+  // record (restore/inspection path).
+  if (entityName === 'Client' && !Object.prototype.hasOwnProperty.call(query || {}, 'archived')) {
+    records = records.filter((record) => record.archived !== true);
+  }
   records = applySortSkipLimit(records, {
     sort: params.get('sort'),
     limit: params.get('limit'),
@@ -761,6 +789,7 @@ async function handleAuthRoute(req, res, url, appId, action) {
     }
     const { password_hash, salt } = hashPassword(password);
     const { password: _pw, ...customFields } = payload;
+    const otpCode = generateOtp();
     const user = userRepo.create(
       {
         ...customFields,
@@ -769,33 +798,62 @@ async function handleAuthRoute(req, res, url, appId, action) {
         account_status: 'pending',
         password_hash,
         salt,
-        otp_code: '000000',
+        otp_code: otpCode,
+        otp_expires: new Date(Date.now() + OTP_TTL_MS).toISOString(),
+        otp_attempts: 0,
+        otp_last_sent_at: new Date().toISOString(),
       },
       email,
     );
+    // The initial verification code is sent HERE — previously only resend-otp
+    // ever wrote an email, so a real user could never complete signup once the
+    // fixed-code bypass was removed. Admin is notified of every registration.
+    await sendEmail({ to: email, ...otpEmail(otpCode) });
+    const notify = adminNotifyEmail(email);
+    await sendEmail(notify);
     return sendJson(res, 200, { message: 'registered', user_id: user.id, otp_required: true });
   }
 
   if (action === 'verify-otp' && req.method === 'POST') {
     if (!ALLOW_OPEN_REGISTRATION) {
-      // The blanket 000000 code would otherwise return a session for any known
-      // email without a password; disabled with registration for the demo.
       return sendError(res, 403, 'account verification is disabled for this deployment');
     }
     const { email, otp_code } = await readJsonBody(req);
     const user = findUserByEmail(email);
     if (!user) return sendError(res, 404, 'user not found');
-    if (String(otp_code) !== '000000' && String(otp_code) !== String(user.otp_code)) {
-      return sendError(res, 401, 'invalid verification code');
+    // Lockout window after repeated failures.
+    if (user.otp_locked_until && Date.parse(user.otp_locked_until) > Date.now()) {
+      return sendError(res, 429, 'too many attempts — try again later');
     }
-    // Email verification must not activate the account: activation is an
-    // admin approval decision (AdminApprovals). Never demote an already-active
-    // user who happens to pass through the OTP path.
+    // The fixed test code is honoured ONLY under SELFTEST (the isolated test
+    // server). In every real deployment the stored, expiring, per-user code is
+    // the sole accepted value — the previous unconditional 000000 acceptance
+    // was a session-mint primitive for any known email.
+    const selftestBypass = process.env.SELFTEST === '1' && String(otp_code) === '000000';
+    const storedValid =
+      user.otp_code &&
+      String(otp_code) === String(user.otp_code) &&
+      user.otp_expires &&
+      Date.parse(user.otp_expires) > Date.now();
+    if (!selftestBypass && !storedValid) {
+      const attempts = (Number(user.otp_attempts) || 0) + 1;
+      const lockFields =
+        attempts >= OTP_MAX_ATTEMPTS
+          ? { otp_locked_until: new Date(Date.now() + OTP_LOCKOUT_MS).toISOString(), otp_attempts: 0 }
+          : { otp_attempts: attempts };
+      userRepo.update(user.id, lockFields);
+      return sendError(res, 401, 'invalid or expired verification code');
+    }
+    // Email verification must not activate the account. Activation is granted
+    // by successful subscription payment (stripeWebhook) or by an admin.
     const nextStatus = user.account_status === 'active' ? 'active' : 'pending';
     const updated = userRepo.update(user.id, {
       account_status: nextStatus,
       email_verified: true,
       otp_code: null,
+      otp_expires: null,
+      otp_attempts: 0,
+      otp_locked_until: null,
     });
     const token = sessions.create(user.id);
     return sendJson(res, 200, { access_token: token, user: stripAuthFields(updated) });
@@ -808,7 +866,18 @@ async function handleAuthRoute(req, res, url, appId, action) {
     const { email } = await readJsonBody(req);
     const user = findUserByEmail(email);
     if (user) {
-      outboxEmail.record({ to: email, subject: 'Your verification code', body: 'Code: 000000' });
+      // Per-account send throttle: one code per RESEND_MIN_INTERVAL_MS.
+      if (user.otp_last_sent_at && Date.now() - Date.parse(user.otp_last_sent_at) < RESEND_MIN_INTERVAL_MS) {
+        return sendJson(res, 200, { status: 'sent' }); // do not reveal throttling to enumeration
+      }
+      const otpCode = generateOtp();
+      userRepo.update(user.id, {
+        otp_code: otpCode,
+        otp_expires: new Date(Date.now() + OTP_TTL_MS).toISOString(),
+        otp_attempts: 0,
+        otp_last_sent_at: new Date().toISOString(),
+      });
+      await sendEmail({ to: email, ...otpEmail(otpCode) });
     }
     return sendJson(res, 200, { status: 'sent' });
   }
@@ -817,19 +886,32 @@ async function handleAuthRoute(req, res, url, appId, action) {
     const { email } = await readJsonBody(req);
     const user = findUserByEmail(email);
     if (user) {
+      if (user.reset_last_request_at && Date.now() - Date.parse(user.reset_last_request_at) < RESEND_MIN_INTERVAL_MS) {
+        return sendJson(res, 200, { status: 'sent' });
+      }
       const resetToken = randomUUID();
-      userRepo.update(user.id, { reset_token: resetToken });
-      outboxEmail.record({ to: email, subject: 'Password reset', body: `Reset token: ${resetToken}` });
+      userRepo.update(user.id, {
+        reset_token: resetToken,
+        reset_token_expires: new Date(Date.now() + RESET_TTL_MS).toISOString(),
+        reset_last_request_at: new Date().toISOString(),
+      });
+      // Single-origin production serves the SPA from APP_URL; local default
+      // matches the shim origin (dist/ is served when built).
+      const origin = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+      await sendEmail({ to: email, ...resetEmail(`${origin}/reset-password?token=${resetToken}`) });
     }
     return sendJson(res, 200, { status: 'sent' });
   }
 
   if (action === 'reset-password' && req.method === 'POST') {
     const { reset_token, new_password } = await readJsonBody(req);
+    if (!reset_token) return sendError(res, 400, 'invalid or expired reset token');
     const user = userRepo.listAll().find((u) => u.reset_token === reset_token);
-    if (!user) return sendError(res, 400, 'invalid or expired reset token');
+    if (!user || !user.reset_token_expires || Date.parse(user.reset_token_expires) < Date.now()) {
+      return sendError(res, 400, 'invalid or expired reset token');
+    }
     const { password_hash, salt } = hashPassword(new_password);
-    userRepo.update(user.id, { password_hash, salt, reset_token: null });
+    userRepo.update(user.id, { password_hash, salt, reset_token: null, reset_token_expires: null });
     return sendJson(res, 200, { status: 'reset' });
   }
 
@@ -870,7 +952,7 @@ async function handleInviteUser(req, res) {
   } else {
     user = userRepo.update(user.id, { role });
   }
-  outboxEmail.record({ to: user_email, subject: 'You have been invited', body: `Role: ${role}` });
+  await sendEmail({ to: user_email, ...inviteEmail(role) });
   return sendJson(res, 200, { status: 'invited', user: stripAuthFields(user) });
 }
 
@@ -887,7 +969,27 @@ function handleLogout(req, res, url) {
 // ---------------------------------------------------------------------------
 
 function handlePublicSettings(req, res, appId) {
-  return sendJson(res, 200, { id: appId, public_settings: {} });
+  // The single runtime config channel the frontend already reads
+  // (src/lib/AuthContext.jsx -> appPublicSettings via useAuth()).
+  // - transcription_enabled: launch posture is OFF for users (Max's
+  //   direction, 13 July 2026); flip with TRANSCRIPTION_ENABLED=1. Recording
+  //   remains available; only Transcribe/Dissect are gated.
+  // - legal: the policy-suite display status. RC until Maxwell's go-live
+  //   flip (LEGAL_STATUS=effective + LEGAL_EFFECTIVE_DATE). INVARIANT: the
+  //   flip changes DISPLAY ONLY — SUITE_VERSION / LEGAL_SUITE_VERSION stay
+  //   RC-2026.07.11 (the immutable content identifier recorded in
+  //   LegalAcceptanceEvent rows); bumping them would stale every acceptance
+  //   and lock out all active users.
+  return sendJson(res, 200, {
+    id: appId,
+    public_settings: {
+      transcription_enabled: process.env.TRANSCRIPTION_ENABLED === '1',
+      legal: {
+        status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',
+        effective_date: process.env.LEGAL_EFFECTIVE_DATE || null,
+      },
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------

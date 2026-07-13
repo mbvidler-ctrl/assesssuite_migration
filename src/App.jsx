@@ -15,7 +15,8 @@ import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import Paywall from '@/pages/Paywall';
+// Paywall.jsx (simulated checkout for the demo) is retired for launch — the
+// route redirects to the real PaymentRequired flow; the file stays on disk.
 import CreateAccount from '@/pages/CreateAccount';
 import AccountSetup from '@/pages/AccountSetup';
 import SignIn from '@/pages/SignIn';
@@ -23,6 +24,7 @@ import PaymentRequired from './pages/PaymentRequired';
 import TestingBypass from '@/pages/TestingBypass';
 import LegalDocument from '@/pages/LegalDocument';
 import LegalNotices from '@/pages/LegalNotices';
+import AccountDeactivated from '@/pages/AccountDeactivated';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -57,11 +59,14 @@ const AuthenticatedApp = () => {
       <Route path="/" element={<LandingLive />} />
       <Route path="/Landing" element={<Landing />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/testing-bypass" element={<TestingBypass />} />
+      {/* Dev-only: hardcodes seeded demo credentials. Excluded from production
+          builds; the underlying control is that those accounts do not exist in
+          the production database (catalogue-only seed + strong admin secret). */}
+      {import.meta.env.DEV && <Route path="/testing-bypass" element={<TestingBypass />} />}
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/Paywall" element={<Paywall />} />
+      <Route path="/Paywall" element={<Navigate to="/PaymentRequired" replace />} />
       <Route path="/PaymentRequired" element={<PaymentRequired />} />
       <Route path="/legal/:slug" element={<LegalDocument />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
@@ -69,6 +74,7 @@ const AuthenticatedApp = () => {
         <Route path="/AccountSetup" element={<AccountSetup />} />
         <Route path="/signin" element={<SignIn />} />
         <Route path="/LegalNotices" element={<LegalNotices />} />
+        <Route path="/AccountDeactivated" element={<AccountDeactivated />} />
         <Route element={<LayoutWrapper currentPageName={mainPageKey}><Outlet /></LayoutWrapper>}>
           {Object.entries(Pages).map(([path, Page]) => (
             <Route key={path} path={`/${path}`} element={<Page />} />

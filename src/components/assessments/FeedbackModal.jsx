@@ -67,7 +67,10 @@ export default function FeedbackModal({ onClose }) {
         `;
 
         await SendEmail({
-          to: "admin@exphysassess.com",
+          // In-app feedback lands at the AssessSuite admin inbox (Brenton's
+          // 12 July 2026 confirmation) — the previous recipient was a stale
+          // legacy domain (admin@exphysassess.com).
+          to: "admin@assesssuite.com",
           subject: adminSubject,
           body: adminBody,
         });

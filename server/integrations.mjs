@@ -46,9 +46,14 @@ import { fileURLToPath } from 'node:url';
 
 import { instantiateSchema, extractJsonKeysFromPrompt } from './mocks/schema-instantiator.mjs';
 import { invokeLLM as invokeRealLLM, llmEnabled } from './llm.mjs';
+import { sendEmail } from './email.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const uploadsDir = path.join(__dirname, 'uploads');
+// UPLOADS_DIR override: in production the uploads store must live on the
+// persistent volume (mounted at server/data), so all three readers of this
+// path — here (write), server/index.mjs (serve), transcribeSession.mjs
+// (read) — resolve the SAME env-driven location. Default unchanged for dev.
+const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
 fs.mkdirSync(uploadsDir, { recursive: true });
 
 /**
@@ -168,9 +173,12 @@ function handleExtractDataFromUploadedFile(body) {
 // SendEmail / SendSMS
 // ---------------------------------------------------------------------------
 
-function handleSendEmail(body, outboxEmail) {
-  const { to, subject, body: emailBody, from_name } = body || {};
-  outboxEmail.record({ to, subject, body: emailBody, from_name });
+async function handleSendEmail(body) {
+  const { to, subject, body: emailBody } = body || {};
+  // sendEmail records to the outbox itself (audit log) and dispatches via
+  // Resend when RESEND_API_KEY is set — the same supply-a-key-and-it-works
+  // pattern as the Stripe and OpenAI adapters. Return shape unchanged.
+  await sendEmail({ to, subject, text: emailBody });
   return { status: 'sent', to, subject };
 }
 
@@ -252,7 +260,7 @@ export async function handleCoreIntegration(req, res, { endpointName, outboxEmai
     case 'ExtractDataFromUploadedFile':
       return sendJson(res, 200, handleExtractDataFromUploadedFile(body));
     case 'SendEmail':
-      return sendJson(res, 200, handleSendEmail(body, outboxEmail));
+      return sendJson(res, 200, await handleSendEmail(body));
     case 'SendSMS':
       return sendJson(res, 200, handleSendSMS(body, outboxSms));
     case 'UploadFile':
