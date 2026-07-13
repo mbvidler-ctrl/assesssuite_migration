@@ -1,0 +1,58 @@
+# Fly.io configuration — AssessSuite PRODUCTION (launch, 13 July 2026).
+#
+# Differences from the demo (fly.toml / unimatter-demo), all deliberate:
+#   - [processes] overrides the image CMD so the synthetic seeder NEVER runs:
+#     the production database starts clean (catalogue seeded once, out of
+#     band, via `fly ssh console -C "node server/seed-catalogue.mjs"`).
+#   - A persistent volume holds server/data (SQLite WAL db) and, via
+#     UPLOADS_DIR, the uploads store — state survives deploys and restarts.
+#   - ALLOW_OPEN_REGISTRATION=1: self-signup is open (the image carries the
+#     hardened OTP flow — random expiring codes, lockout, real email; the
+#     fixed 000000 code is accepted only under SELFTEST).
+#   - Registration/transcription/legal posture comes from env + secrets:
+#     TRANSCRIPTION_ENABLED unset (off for users at launch);
+#     LEGAL_STATUS unset (RC banners) until Maxwell's go-live flip.
+#
+# TOPOLOGY CONSTRAINT (do not "fix"): one machine, one volume. SQLite on a
+# single volume cannot scale out (a second machine would get an EMPTY volume
+# and split the data) and cannot blue-green deploy (the volume is attached to
+# the running machine) — deploy with `fly deploy --strategy immediate -c
+# fly.production.toml` and keep exactly one machine.
+#
+# Secrets (set via `fly secrets set`, never in this file):
+#   ADMIN_PASSWORD (strong — the repo default is public), RESEND_API_KEY,
+#   APP_URL, and at go-live STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET /
+#   STRIPE_PRICE_ID_MONTHLY / STRIPE_PRICE_ID_ANNUAL, LEGAL_STATUS,
+#   LEGAL_EFFECTIVE_DATE.
+
+app = "assesssuite-production"
+primary_region = "syd"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[processes]
+  app = "node server/index.mjs"
+
+[env]
+  PORT = "8787"
+  ALLOW_OPEN_REGISTRATION = "1"
+  ADMIN_EMAIL = "admin@assesssuite.com"
+  UPLOADS_DIR = "/app/server/data/uploads"
+
+[mounts]
+  source = "assesssuite_data"
+  destination = "/app/server/data"
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

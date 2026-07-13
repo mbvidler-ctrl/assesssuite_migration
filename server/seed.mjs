@@ -360,6 +360,81 @@ function buildCredentialsMarkdown({ adminEmail, adminPassword, seedPassword, use
  * seed log (array of message strings) for callers (e.g. scripts/smoke.mjs)
  * that want to assert on or display it, alongside the key created records.
  */
+/**
+ * Catalogue seeding core — shared verbatim between the full synthetic demo
+ * seed (runSeed) and the production catalogue-only seed (runCatalogueSeed),
+ * so the two paths can never drift. Seeds Assessment / Exercise /
+ * TreatmentProtocol ONLY (only if each table is empty); creates no
+ * organisations, users, clients or acceptances; writes no files.
+ */
+function seedCataloguesCore({ entityNames, repoFor, note, seedCatalogue }) {
+  // Merge the built-in synthetic definitions (which the demo client clusters
+  // and the DASS-21 per-question exemplar depend on) with the imported live
+  // catalogue. Synthetic names win on collision so those wired shapes are
+  // preserved; every other imported assessment is added.
+  const syntheticNames = new Set(CATALOGUE_ASSESSMENTS.map((a) => a.name));
+  const importedAssessments = loadImportedCatalogue('assessment-part')
+    .filter((a) => a && a.name && !syntheticNames.has(a.name));
+  const mergedAssessments = [...CATALOGUE_ASSESSMENTS, ...importedAssessments];
+  note(`Assessment catalogue: ${CATALOGUE_ASSESSMENTS.length} synthetic + ${importedAssessments.length} imported = ${mergedAssessments.length}`);
+  const assessmentCatalogue = seedCatalogue('Assessment', mergedAssessments);
+  seedCatalogue('Exercise', CATALOGUE_EXERCISES);
+
+  // Treatment protocols: the client-authorised live export. The
+  // TreatmentProtocols page does a cache lookup by condition_name and only
+  // calls the model on a miss — seeding these makes matched conditions render
+  // instantly and avoids per-condition model spend. Deduplicated on
+  // condition_name (the app's lookup key; first occurrence wins).
+  if (entityNames.has('TreatmentProtocol')) {
+    const seenProtocol = new Set();
+    const importedProtocols = loadImportedCatalogue('treatmentprotocol-part').filter((p) => {
+      if (!p || !p.condition_name || seenProtocol.has(p.condition_name)) return false;
+      seenProtocol.add(p.condition_name);
+      return true;
+    });
+    note(`TreatmentProtocol catalogue: ${importedProtocols.length} imported (deduped on condition_name)`);
+    seedCatalogue('TreatmentProtocol', importedProtocols);
+  }
+  return assessmentCatalogue;
+}
+
+/**
+ * Production seed: catalogues only. No synthetic organisations, users,
+ * clients, acceptances, or credential files — the launch database starts
+ * clean (Brenton's confirmed launch-data position, 12 July 2026), with the
+ * admin bootstrapped separately by server/index.mjs from ADMIN_EMAIL /
+ * ADMIN_PASSWORD. Idempotent: only-if-empty per catalogue table.
+ */
+export function runCatalogueSeed({ db, entityNames }) {
+  function note(message) {
+    // eslint-disable-next-line no-console
+    console.log(`[seed:catalogue] ${message}`);
+  }
+  const repoCache = new Map();
+  function repoFor(entityName) {
+    if (!entityNames.has(entityName)) {
+      throw new Error(`seed-catalogue: entity ${entityName} is not in the captured schema set`);
+    }
+    if (!repoCache.has(entityName)) {
+      repoCache.set(entityName, createEntityRepository(db, entityName));
+    }
+    return repoCache.get(entityName);
+  }
+  function seedCatalogue(entityName, items) {
+    const repo = repoFor(entityName);
+    const existingCount = repo.listAll().length;
+    if (existingCount > 0) {
+      note(`${entityName} catalogue already has ${existingCount} row(s) — leaving as-is`);
+      return repo.listAll();
+    }
+    const created = items.map((item) => repo.create(item, null));
+    note(`${entityName} catalogue seeded with ${created.length} row(s)`);
+    return created;
+  }
+  seedCataloguesCore({ entityNames, repoFor, note, seedCatalogue });
+  note('Catalogue-only seed complete (no synthetic tenants, users, or clients).');
+}
+
 export function runSeed({ db, entityNames }) {
   const log = [];
   function note(message) {
@@ -861,36 +936,9 @@ export function runSeed({ db, entityNames }) {
   seedLegalAcceptance(orgBeta, betaOwner);
   seedLegalAcceptance(orgBeta, betaClinician);
 
-  // --- Catalogues (only if empty) ---
-  // Merge the built-in synthetic definitions (which the client clusters and the
-  // DASS-21 per-question exemplar depend on) with the imported live catalogue.
-  // Synthetic names win on collision so those wired shapes are preserved; every
-  // other imported assessment is added, giving the full launch-state library.
-  const syntheticNames = new Set(CATALOGUE_ASSESSMENTS.map((a) => a.name));
-  const importedAssessments = loadImportedCatalogue('assessment-part')
-    .filter((a) => a && a.name && !syntheticNames.has(a.name));
-  const mergedAssessments = [...CATALOGUE_ASSESSMENTS, ...importedAssessments];
-  note(`Assessment catalogue: ${CATALOGUE_ASSESSMENTS.length} synthetic + ${importedAssessments.length} imported = ${mergedAssessments.length}`);
-  const assessmentCatalogue = seedCatalogue('Assessment', mergedAssessments);
-  seedCatalogue('Exercise', CATALOGUE_EXERCISES);
-
-  // Treatment protocols: load the client-authorised live export (same catalogue
-  // export that produced the assessment library). The TreatmentProtocols page
-  // does a cache lookup by condition_name and only calls the model on a miss —
-  // so seeding these curated, reference-grounded protocols makes matched
-  // conditions render instantly AND avoids a model call (and its credit spend)
-  // for each one. Deduplicated on condition_name (the app's lookup key; first
-  // occurrence wins) so the export's intentional variants collapse cleanly.
-  if (entityNames.has('TreatmentProtocol')) {
-    const seenProtocol = new Set();
-    const importedProtocols = loadImportedCatalogue('treatmentprotocol-part').filter((p) => {
-      if (!p || !p.condition_name || seenProtocol.has(p.condition_name)) return false;
-      seenProtocol.add(p.condition_name);
-      return true;
-    });
-    note(`TreatmentProtocol catalogue: ${importedProtocols.length} imported (deduped on condition_name)`);
-    seedCatalogue('TreatmentProtocol', importedProtocols);
-  }
+  // --- Catalogues (only if empty) --- shared core with the production
+  // catalogue-only seed (runCatalogueSeed) so the two paths cannot drift.
+  const assessmentCatalogue = seedCataloguesCore({ entityNames, repoFor, note, seedCatalogue });
 
   // --- Org Alpha clients (4, incl. one deliberate near-duplicate pair for G7) ---
   const graceEllington = seedClientCluster({
