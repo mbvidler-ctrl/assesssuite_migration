@@ -13,7 +13,7 @@ import * as stripeGateway from '../stripeGateway.mjs';
 
 export default async function createPortalSession(ctx) {
   const { body, respond } = ctx;
-  const { stripeCustomerId, flow } = body || {};
+  const { stripeCustomerId, flow, subscriptionId } = body || {};
 
   if (!stripeCustomerId) {
     return respond(400, { error: 'No Stripe customer ID found.' });
@@ -30,6 +30,7 @@ export default async function createPortalSession(ctx) {
         stripeCustomerId,
         returnUrl: `${appUrl}/Settings`,
         flow,
+        subscriptionId,
       });
       return respond(200, { url: session.url });
     } catch (err) {

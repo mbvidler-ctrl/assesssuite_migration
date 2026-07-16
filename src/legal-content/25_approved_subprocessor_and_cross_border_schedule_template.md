@@ -38,5 +38,3 @@ For each approved provider, the effective schedule must explain:
 A provider is added only after privacy, security, clinical/regulatory and legal review, executed terms, production configuration test and updated notices/consent. Give reasonable prior Customer notice of a material new provider, country or purpose. If a reasonable objection cannot be resolved, apply the affected-service termination and pro-rata refund right in the Terms.
 
 Historical effective versions remain publicly accessible. The Order Form and release manifest bind the exact version used by each Customer.
-</content>
-</invoke>

@@ -147,12 +147,24 @@ export async function createCheckoutSession({ priceId, userId, userEmail, succes
  * values), preserving the plain-portal behaviour.
  * Returns the full session object; callers read `session.url`.
  */
-export async function createPortalSession({ stripeCustomerId, returnUrl, flow }) {
-  return stripeRequest('POST', '/v1/billing_portal/sessions', [
+export async function createPortalSession({ stripeCustomerId, returnUrl, flow, subscriptionId }) {
+  const params = [
     ['customer', stripeCustomerId],
     ['return_url', returnUrl],
-    ['flow_data[type]', flow],
-  ]);
+  ];
+  // Stripe requires the subscription id inside flow_data[subscription_update]
+  // whenever the flow type is 'subscription_update'; sending the type alone is
+  // a 400. Only request that flow when the id is available — otherwise fall
+  // back to the plain portal rather than error a subscription-less caller.
+  if (flow === 'subscription_update') {
+    if (subscriptionId) {
+      params.push(['flow_data[type]', 'subscription_update']);
+      params.push(['flow_data[subscription_update][subscription]', subscriptionId]);
+    }
+  } else if (flow) {
+    params.push(['flow_data[type]', flow]);
+  }
+  return stripeRequest('POST', '/v1/billing_portal/sessions', params);
 }
 
 /**
