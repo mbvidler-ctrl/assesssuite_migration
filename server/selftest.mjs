@@ -663,6 +663,37 @@ async function runChecks(baseUrl, appId) {
       );
     }
 
+    // Email normalisation: registration and login are case-insensitive, so a
+    // case-variant of an existing verified account cannot create a duplicate
+    // (the defect that produced two pending records for one real prospect on
+    // 14 July 2026), and login works regardless of the casing the user types.
+    {
+      const normLocal = `norm-${Date.now()}`;
+      const normPassword = 'password123456';
+      await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: `${normLocal}@Example.com`, password: normPassword },
+      });
+      await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
+        method: 'POST', body: { email: `${normLocal}@Example.com`, otp_code: '000000' },
+      });
+      const { status: variantStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: `${normLocal}@example.com`, password: normPassword },
+      });
+      record(
+        'register treats a case-variant of a verified email as the same account (409, no duplicate)',
+        variantStatus === 409,
+        `status=${variantStatus}`,
+      );
+      const { status: upperLoginStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/login`, {
+        method: 'POST', body: { email: `${normLocal.toUpperCase()}@EXAMPLE.COM`, password: normPassword },
+      });
+      record(
+        'login succeeds with a different-case variant of the registered email',
+        upperLoginStatus === 200,
+        `status=${upperLoginStatus}`,
+      );
+    }
+
     const { status: clinicalReadStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
       token: pendingToken,
     });
