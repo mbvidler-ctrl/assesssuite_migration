@@ -4,16 +4,18 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Mail, Lock, Loader2 } from "lucide-react";
+import { Mail, Lock, Loader2, User as UserIcon } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { createPageUrl } from "@/utils";
 
 export default function Register() {
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
+  const [isDuplicate, setIsDuplicate] = useState(false);
   const [loading, setLoading] = useState(false);
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
@@ -22,6 +24,7 @@ export default function Register() {
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
+    setIsDuplicate(false);
 
     if (password !== confirmPassword) {
       setError("Passwords do not match");
@@ -30,9 +33,14 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await base44.auth.register({ email, password });
+      await base44.auth.register({ email, password, full_name: fullName.trim() });
       setOtpSent(true);
     } catch (err) {
+      // A verified account already owns this email (409): offer a route onward
+      // (sign in / reset) rather than dead-ending on a bare error message.
+      if (err?.status === 409 || /already exists/i.test(err?.message || "")) {
+        setIsDuplicate(true);
+      }
       setError(err.message || "Registration failed");
     } finally {
       setLoading(false);
@@ -46,6 +54,12 @@ export default function Register() {
     try {
       const response = await base44.auth.verifyOtp({ email, otpCode });
       await base44.auth.setToken(response.access_token);
+      // Persist the registrant's name on the verified record (belt-and-braces:
+      // the register payload also carries it, but this guarantees it is set
+      // even if the SDK register call did not forward the custom field).
+      if (fullName.trim()) {
+        await base44.auth.updateMe({ full_name: fullName.trim() }).catch(() => {});
+      }
       // Not "/" — see the identical note in Login.jsx. A brand-new user must
       // reach the ProfileSetup/legal-acceptance gate chain, not the
       // marketing page App.jsx renders unconditionally at the root path.
@@ -154,10 +168,33 @@ export default function Register() {
       {error && (
         <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
           {error}
+          {isDuplicate && (
+            <div className="mt-2 flex gap-4">
+              <Link to="/login" className="font-medium underline">Sign in</Link>
+              <Link to="/forgot-password" className="font-medium underline">Forgot password</Link>
+            </div>
+          )}
         </div>
       )}
 
       <form onSubmit={handleRegister} className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="fullName">Full name</Label>
+          <div className="relative">
+            <UserIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" aria-hidden="true" />
+            <Input
+              id="fullName"
+              type="text"
+              autoComplete="name"
+              autoFocus
+              placeholder="Jane Doe"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="pl-10 h-12"
+              required
+            />
+          </div>
+        </div>
         <div className="space-y-2">
           <Label htmlFor="email">Email</Label>
           <div className="relative">
@@ -166,7 +203,6 @@ export default function Register() {
               id="email"
               type="email"
               autoComplete="email"
-              autoFocus
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}

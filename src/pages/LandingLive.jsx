@@ -427,7 +427,8 @@ export default function LandingLive() {
             <a href="#assessments">Assessments</a>
             <a href="#reporting">Reports</a>
             <a href="#pricing">Pricing</a>
-            <a onClick={() => navigate('/register')} className="nav-cta" style={{display:'inline-block',border: 'none', cursor: 'pointer', textDecoration:'none', color:'#fff'}}>Sign In / Sign Up →</a>
+            <a onClick={() => navigate('/login')} style={{cursor:'pointer', textDecoration:'none'}}>Sign In</a>
+            <a onClick={() => navigate('/register')} className="nav-cta" style={{display:'inline-block',border: 'none', cursor: 'pointer', textDecoration:'none', color:'#fff'}}>Get Started →</a>
           </div>
         </nav>
 
@@ -435,7 +436,8 @@ export default function LandingLive() {
           <h1>Exercise Physiology at its Clinical Best.</h1>
           <p>AssessSuite Clinical gives clinicians the tools to assess with greater accuracy, document more efficiently, and deliver more consistent client care. Designed specifically for Exercise Physiologists, the platform brings together assessments, clinical notes, outcome tracking, and professional reporting into one modern workflow built for growing practices and evolving healthcare systems.</p>
           <div className="hero-ctas">
-            <button onClick={() => navigate('/register')} className="btn-primary" style={{display:'inline-block',cursor:'pointer',border:'none'}}>Sign In / Sign Up →</button>
+            <button onClick={() => navigate('/register')} className="btn-primary" style={{display:'inline-block',cursor:'pointer',border:'none'}}>Get Started →</button>
+            <p style={{marginTop:'14px',fontSize:'0.95rem',color:'#475569'}}>Already using AssessSuite? <a onClick={() => navigate('/login')} style={{cursor:'pointer',textDecoration:'underline',fontWeight:600,color:'#2563eb'}}>Sign in</a></p>
           </div>
         </section>
 

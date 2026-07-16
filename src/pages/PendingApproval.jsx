@@ -20,18 +20,19 @@ export default function PendingApproval() {
   const isBlocked = isSuspended || isRejected;
 
   const statusTitle = isSuspended
-    ? 'Account Suspended'
+    ? 'Reactivate Your Subscription'
     : isRejected
       ? 'Account Not Approved'
       : 'Awaiting Approval';
 
   const statusMessage = isSuspended ? (
     <>
-      Your account has been suspended. Please contact us at{' '}
+      Your subscription has lapsed or been cancelled, so access is paused.
+      Completing payment reactivates your account immediately. Need help?
+      Contact{' '}
       <a href="mailto:admin@assesssuite.com" className="text-blue-600 underline">admin@assesssuite.com</a>
       {' '}or call{' '}
-      <a href="tel:1800317553" className="text-blue-600 underline">1800 317 553</a>
-      {' '}to resolve this.
+      <a href="tel:1800317553" className="text-blue-600 underline">1800 317 553</a>.
     </>
   ) : isRejected ? (
     <>
@@ -77,7 +78,10 @@ export default function PendingApproval() {
             {statusMessage}
           </p>
           <div className="pt-4 border-t">
-            {!isSuspended && !isRejected && (
+            {/* Suspended users (lapsed/cancelled subscription) get the payment
+                path — the webhook auto-reactivates on checkout. Only a
+                rejected account is denied it (webhook NEVER_ACTIVATE). */}
+            {!isRejected && (
               <Button
                 onClick={handleCompletePayment}
                 disabled={isRedirecting}
