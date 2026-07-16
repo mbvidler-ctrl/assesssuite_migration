@@ -21,9 +21,13 @@
 #
 # Secrets (set via `fly secrets set`, never in this file):
 #   ADMIN_PASSWORD (strong — the repo default is public), RESEND_API_KEY,
-#   APP_URL, and at go-live STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET /
+#   APP_URL, OPENAI_API_KEY (real AI; unset = mock content served in prod), and
+#   at go-live STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET /
 #   STRIPE_PRICE_ID_MONTHLY / STRIPE_PRICE_ID_ANNUAL, LEGAL_STATUS,
 #   LEGAL_EFFECTIVE_DATE.
+# The full required set is asserted by scripts/check-production-secrets.mjs
+# (`npm run check:prod-secrets`) — run before every deploy; `npm run deploy:prod`
+# runs it as a hard gate. Fly secrets are PER-APP and never cross between apps.
 
 app = "assesssuite-production"
 primary_region = "syd"
@@ -39,6 +43,7 @@ primary_region = "syd"
   ALLOW_OPEN_REGISTRATION = "1"
   ADMIN_EMAIL = "admin@assesssuite.com"
   UPLOADS_DIR = "/app/server/data/uploads"
+  LLM_REQUIRED = "1"
 
 [mounts]
   source = "assesssuite_data"

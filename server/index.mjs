@@ -19,6 +19,7 @@ import {
   stripAuthFields,
   sanitizeUpdateMePayload,
   generateOtp,
+  normaliseEmail,
 } from './auth.mjs';
 import { handleCoreIntegration } from './integrations.mjs';
 import { initEmail, sendEmail, otpEmail, resetEmail, welcomeEmail, adminNotifyEmail, inviteEmail } from './email.mjs';
@@ -775,7 +776,8 @@ async function handleMe(req, res) {
 // ---------------------------------------------------------------------------
 
 function findUserByEmail(email) {
-  return userRepo.listAll().find((u) => u.email === email) || null;
+  const target = normaliseEmail(email);
+  return userRepo.listAll().find((u) => normaliseEmail(u.email) === target) || null;
 }
 
 async function handleAuthRoute(req, res, url, appId, action) {
@@ -803,7 +805,8 @@ async function handleAuthRoute(req, res, url, appId, action) {
       return sendError(res, 403, 'self-registration is disabled for this deployment');
     }
     const payload = await readJsonBody(req);
-    const { email, password } = payload;
+    const { password } = payload;
+    const email = normaliseEmail(payload.email);
     if (!email || !password) {
       return sendError(res, 400, 'email and password are required');
     }
@@ -814,13 +817,13 @@ async function handleAuthRoute(req, res, url, appId, action) {
     // attempt on the same record, so the frontend's existing otpSent flow
     // resumes it rather than dead-ending in a 409 the user cannot act on.
     if (existing && existing.email_verified) {
-      return sendError(res, 409, 'a user with this email already exists');
+      return sendError(res, 409, 'an account with this email already exists — please sign in instead, or use "Forgot password" to recover access');
     }
     if (existing && existing.otp_last_sent_at && Date.now() - Date.parse(existing.otp_last_sent_at) < RESEND_MIN_INTERVAL_MS) {
       return sendJson(res, 200, { message: 'registered', user_id: existing.id, otp_required: true });
     }
     const { password_hash, salt } = hashPassword(password);
-    const { password: _pw, ...customFields } = payload;
+    const { password: _pw, email: _em, ...customFields } = payload;
     const otpCode = generateOtp();
     const otpFields = {
       otp_code: otpCode,
@@ -987,7 +990,8 @@ async function handleInviteUser(req, res) {
   const sessionUser = resolveSessionUser(req);
   if (!sessionUser) return sendError(res, 401, 'authentication required');
   if (sessionUser.role !== 'admin') return sendError(res, 403, 'admin access required');
-  const { user_email, role } = await readJsonBody(req);
+  const { user_email: rawEmail, role } = await readJsonBody(req);
+  const user_email = normaliseEmail(rawEmail);
   if (!user_email || !['user', 'admin'].includes(role)) {
     return sendError(res, 400, 'user_email and a valid role are required');
   }

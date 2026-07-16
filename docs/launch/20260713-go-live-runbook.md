@@ -75,7 +75,7 @@ Rehearsal (test mode, against the production app, before cutover):
 
 ## Standing operational notes
 
-- Deploys: always `--strategy immediate`; expect a brief (~10-20 s) outage; data persists on the volume.
+- Deploys: always `--strategy immediate`; expect a brief (~10-20 s) outage; data persists on the volume. **Preflight the secret set first:** `npm run check:prod-secrets` (or deploy via `npm run deploy:prod`, which runs the check as a hard gate and aborts if any required secret is missing — ADMIN_PASSWORD, APP_URL, RESEND_API_KEY, the four Stripe values, OPENAI_API_KEY, LEGAL_STATUS/DATE). This gate exists because OPENAI_API_KEY was live on `unimatter-demo` but never propagated to `assesssuite-production` (Fly secrets are per-app), so every AI surface served mock content in production until it was set on 16 July 2026.
 - `unimatter-demo` (the reseeding demo) is unchanged and remains the safe demonstration surface.
 - Transcription re-enable (post-launch, after the pricing decision): `fly secrets set -a assesssuite-production TRANSCRIPTION_ENABLED=1` — UI reappears and the function accepts calls; no deploy needed.
 - The Brenton "fix the Base44 app as a backup?" question is out of scope of this mission (live Base44 is an approval trigger) — Maxwell to answer.

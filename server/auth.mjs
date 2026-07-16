@@ -70,6 +70,16 @@ export function generateOtp() {
 }
 
 /**
+ * Canonical form of an email address for storage and lookup: trimmed and
+ * lower-cased. Prevents case-variant duplicate accounts (a mobile keyboard
+ * auto-capitalising the first letter created a second pending registration for
+ * the same real person on 14 July 2026) and makes login case-insensitive.
+ */
+export function normaliseEmail(email) {
+  return typeof email === 'string' ? email.trim().toLowerCase() : email;
+}
+
+/**
  * Fields that updateMe must never be permitted to change, per the
  * authorisation model in the contract.
  */

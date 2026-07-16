@@ -56,6 +56,12 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
 fs.mkdirSync(uploadsDir, { recursive: true });
 
+// Production posture: when LLM_REQUIRED=1, InvokeLLM never silently falls back
+// to the deterministic mock — a real-model failure returns 502 and a missing
+// key returns 503, so mock clinical content is never served or persisted in
+// production. Unset in dev/demo and always under SELFTEST (mock-fallback kept).
+const LLM_REQUIRED = process.env.LLM_REQUIRED === '1';
+
 /**
  * Converts a raw multipart or JSON body buffer into a plain object, mapping
  * any File-typed FormData entries to Buffers under the same key alongside a
@@ -127,8 +133,18 @@ async function handleInvokeLLM(body) {
     try {
       return await invokeRealLLM({ prompt, schema: schemaObj });
     } catch (err) {
+      if (LLM_REQUIRED) {
+        const e = new Error(`AI generation failed: ${err.message}`);
+        e.httpStatus = 502;
+        throw e;
+      }
       console.log('[llm] real model failed, falling back to mock:', err.message);
     }
+  } else if (LLM_REQUIRED) {
+    // Production: never silently serve mock clinical content when no key is set.
+    const e = new Error('AI generation is not configured on this server.');
+    e.httpStatus = 503;
+    throw e;
   }
 
   if (schemaObj) {
@@ -247,15 +263,21 @@ export async function handleCoreIntegration(req, res, { endpointName, outboxEmai
 
   switch (endpointName) {
     case 'InvokeLLM': {
-      const result = await handleInvokeLLM(body);
-      // InvokeLLM's real response is either a bare string or a bare object,
-      // never wrapped — but HTTP responses need a body. The SDK's axios
-      // response-data unwrapping happens beneath JSON parsing, so a JSON
-      // string payload (e.g. `"some text"`) decodes back to a JS string,
-      // and a JSON object payload decodes back to a JS object — either way
-      // JSON.stringify(result) here reproduces exactly what the real
-      // platform would send.
-      return sendJson(res, 200, result);
+      try {
+        const result = await handleInvokeLLM(body);
+        // InvokeLLM's real response is either a bare string or a bare object,
+        // never wrapped — but HTTP responses need a body. The SDK's axios
+        // response-data unwrapping happens beneath JSON parsing, so a JSON
+        // string payload (e.g. `"some text"`) decodes back to a JS string,
+        // and a JSON object payload decodes back to a JS object — either way
+        // JSON.stringify(result) here reproduces exactly what the real
+        // platform would send.
+        return sendJson(res, 200, result);
+      } catch (err) {
+        // Production loud-fail (LLM_REQUIRED): surface a real error instead of
+        // mock clinical content. Client call sites already catch and toast.
+        return sendJson(res, err.httpStatus || 500, { error: err.message });
+      }
     }
     case 'ExtractDataFromUploadedFile':
       return sendJson(res, 200, handleExtractDataFromUploadedFile(body));

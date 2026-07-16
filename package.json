@@ -15,7 +15,9 @@
     "server": "node server/index.mjs",
     "selftest": "node server/selftest.mjs",
     "seed": "node server/seed.mjs",
-    "validate:entry-guards": "node scripts/validate-entry-ts-guards.mjs"
+    "validate:entry-guards": "node scripts/validate-entry-ts-guards.mjs",
+    "check:prod-secrets": "node scripts/check-production-secrets.mjs",
+    "deploy:prod": "node scripts/check-production-secrets.mjs && fly deploy -c fly.production.toml --strategy immediate"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.35",
