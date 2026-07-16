@@ -20,9 +20,7 @@ export default function AccountDeactivated() {
         </CardHeader>
         <CardContent className="space-y-4 text-sm text-slate-600">
           <p>
-            Your account has been deactivated at your request. Your practice's clinical
-            records are retained securely — nothing has been deleted — in line with
-            professional record-keeping obligations and the AssessSuite Privacy Policy.
+            Your account has been closed. You no longer have access to the AssessSuite platform, or to the treatment records, patient details, policies, and consents associated with that account. Any records that Assess Suite Pty Ltd is required to retain under law and professional obligation are held securely and are not accessible through your account.
           </p>
           <p>
             To reactivate your account, contact{" "}

@@ -57,7 +57,10 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route path="/" element={<LandingLive />} />
-      <Route path="/Landing" element={<Landing />} />
+      {/* Landing.jsx carries a pre-suite (24 May 2026) embedded Terms modal that
+          contradicts the approved legal suite — retired from the live surface by
+          redirect to root, not deleted. The file stays on disk. */}
+      <Route path="/Landing" element={<Navigate to="/" replace />} />
       <Route path="/login" element={<Login />} />
       {/* Dev-only: hardcodes seeded demo credentials. Excluded from production
           builds; the underlying control is that those accounts do not exist in

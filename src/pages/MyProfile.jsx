@@ -35,15 +35,14 @@ import { Toaster, toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ClinicPolicies from "../components/settings/ClinicPolicies";
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export default function MyProfile() {
   const [user, setUser] = useState(null);
@@ -63,25 +62,23 @@ export default function MyProfile() {
   const [newSpecialization, setNewSpecialization] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [isDeactivating, setIsDeactivating] = useState(false);
-  const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
+  const [showManageDialog, setShowManageDialog] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
 
-  const handleDeactivateAccount = () => setShowDeactivateDialog(true);
-
-  const confirmDeactivate = async () => {
-    setShowDeactivateDialog(false);
-    setIsDeactivating(true);
+  const handleCancelAndClose = async () => {
+    setIsCancelling(true);
     try {
-      const result = await base44.functions.invoke("deactivateAccount", {});
+      const result = await base44.functions.invoke("cancelSubscriptionAndDeactivate", {});
       const payload = result?.data ?? result;
       if (payload?.status !== "deactivated") {
-        throw new Error(payload?.error || "Deactivation failed");
+        throw new Error(payload?.error || "Cancellation failed");
       }
       base44.auth.logout(window.location.origin + "/");
     } catch (error) {
-      console.error("Deactivation failed", error);
-      toast.error("Failed to deactivate your account. Please try again or contact support.");
-      setIsDeactivating(false);
+      console.error("Cancellation failed", error);
+      toast.error("Failed to cancel your subscription and close your account. Please try again or contact support.");
+      setIsCancelling(false);
     }
   };
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
@@ -225,21 +222,27 @@ export default function MyProfile() {
     }));
   };
 
-  const handleManageSubscription = async () => {
+  const handleManageSubscription = async (flow) => {
     try {
-      const response = await fetch('/functions/createPortalSession', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stripeCustomerId: user?.stripe_customer_id })
-      });
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
+      const me = await base44.auth.me();
+      let customerId = me?.stripe_customer_id;
+      if (!customerId) {
+        try { await base44.functions.invoke('syncStripeSubscription', {}); } catch { /* fall through */ }
+        customerId = (await base44.auth.me())?.stripe_customer_id;
+      }
+      if (!customerId) {
+        toast.error('No billing account is linked yet. Complete a subscription first, or contact admin@assesssuite.com.');
+        return;
+      }
+      const res = await base44.functions.invoke('createPortalSession', { stripeCustomerId: customerId, flow });
+      const url = res?.data?.url;
+      if (url) {
+        window.location.href = url;
       } else {
-        alert(data.error || 'Unable to open subscription portal. Please contact support.');
+        toast.error(res?.data?.error || 'Unable to open the subscription portal. Please contact support.');
       }
     } catch (err) {
-      alert('Something went wrong. Please try again.');
+      toast.error('Something went wrong. Please try again.');
     }
   };
 
@@ -703,9 +706,85 @@ export default function MyProfile() {
                   <h3 className="font-semibold text-slate-900">Subscription</h3>
                   <p className="text-sm text-slate-600">Manage your billing and subscription plan</p>
                 </div>
-                <button onClick={handleManageSubscription} style={{padding:'10px 20px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',fontWeight:600,color:'#374151',cursor:'pointer'}}>
-                  Manage Subscription
-                </button>
+                <Dialog
+                  open={showManageDialog}
+                  onOpenChange={(open) => {
+                    setShowManageDialog(open);
+                    if (!open) setShowCancelConfirm(false);
+                  }}
+                >
+                  <DialogTrigger asChild>
+                    <button style={{padding:'10px 20px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',fontWeight:600,color:'#374151',cursor:'pointer'}}>
+                      Manage Subscription
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    {!showCancelConfirm ? (
+                      <>
+                        <DialogHeader>
+                          <DialogTitle>Manage Subscription</DialogTitle>
+                          <DialogDescription>
+                            Choose an action for your billing and subscription plan.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-3 py-2">
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start"
+                            onClick={() => handleManageSubscription('subscription_update')}
+                          >
+                            Switch to annual billing
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start"
+                            onClick={() => handleManageSubscription('payment_method_update')}
+                          >
+                            Update payment information
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                            onClick={() => setShowCancelConfirm(true)}
+                          >
+                            Cancel subscription and close account
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <DialogHeader>
+                          <DialogTitle>Cancel subscription and close account</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-3 py-2 text-sm text-slate-600">
+                          <p className="font-semibold text-slate-900">
+                            Notice: closing your account will result in the loss of access to the AssessSuite platform and all data associated with that account, including but not limited to treatment records, patient details, policies, and consents.
+                          </p>
+                          <p>
+                            Your subscription will be cancelled and billing will stop. No refund is provided for the unused portion of the current billing period.
+                          </p>
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowCancelConfirm(false)}
+                            disabled={isCancelling}
+                          >
+                            Go back
+                          </Button>
+                          <Button
+                            className="bg-red-600 hover:bg-red-700"
+                            onClick={handleCancelAndClose}
+                            disabled={isCancelling}
+                          >
+                            {isCancelling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            Cancel subscription and close account
+                          </Button>
+                        </DialogFooter>
+                      </>
+                    )}
+                  </DialogContent>
+                </Dialog>
               </div>
             </CardContent>
           </Card>
@@ -729,57 +808,6 @@ export default function MyProfile() {
               </div>
             </CardContent>
           </Card>
-
-          {/* Deactivate account — self-service closure; records are retained
-              (never deleted) per the Records Retention policy. */}
-          <Card className="bg-white/80 backdrop-blur-sm border-slate-200/60 shadow-lg">
-            <CardContent className="py-6">
-              <div className="flex items-center justify-between gap-4">
-                <div>
-                  <h3 className="font-semibold text-slate-900">Deactivate Account</h3>
-                  <p className="text-sm text-slate-600">
-                    Closes your access to AssessSuite. Your practice's clinical records are
-                    retained securely — nothing is deleted — in line with professional
-                    record-keeping obligations. Reactivation requires contacting support.
-                  </p>
-                </div>
-                <Button
-                  onClick={handleDeactivateAccount}
-                  disabled={isDeactivating}
-                  variant="outline"
-                  className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 shrink-0"
-                >
-                  {isDeactivating ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
-                  Deactivate
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          <AlertDialog open={showDeactivateDialog} onOpenChange={setShowDeactivateDialog}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Deactivate your account?</AlertDialogTitle>
-                <AlertDialogDescription className="space-y-2">
-                  <span className="block">
-                    You will be signed out and your access closed. Your subscription is not
-                    cancelled automatically — cancel it via Manage Subscription first if that
-                    is your intention.
-                  </span>
-                  <span className="block">
-                    Your practice's records are retained securely and are not deleted.
-                    Reactivation requires contacting admin@assesssuite.com.
-                  </span>
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmDeactivate} className="bg-red-600 hover:bg-red-700">
-                  Deactivate account
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
         </div>
       </div>
     </>

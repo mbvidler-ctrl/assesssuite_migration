@@ -62,28 +62,26 @@ export default function Layout({ children, currentPageName }) {
           base44.auth.updateMe({ last_active: new Date().toISOString() }).catch(() => {});
         }
 
-        // Use freshUser consistently for every routing decision (the earlier
-        // `user` read can be stale relative to the forced refresh above).
-        if (!freshUser.clinician_name) {
-          navigate("/ProfileSetup");
-          return;
-        }
-
+        // Admin bypasses the onboarding/payment gate chain entirely. Checked
+        // FIRST: an admin has no clinician_name and must not be routed into
+        // ProfileSetup (the previous ordering did exactly that).
         if (freshUser.role === "admin") {
           setIsLoading(false);
           return;
         }
 
-        // Launch account-status routing (13 July 2026):
-        // - pending/invited -> PaymentRequired: payment activates the account
-        //   (checkout auto-approve in stripeWebhook), so the next step for an
-        //   unactivated account is checkout, not an approval queue.
-        // - suspended/rejected -> PendingApproval, which carries the
-        //   per-status messaging (payment-failure recovery / rejection).
-        // - deactivated -> the dedicated AccountDeactivated notice (self-
-        //   service closure; reactivation is an administrator action).
-        // The server independently refuses clinical access for any
-        // non-active status — this routing is UX, not the enforcement point.
+        // Payment-before-profile (Design A, 16 July 2026): resolve account
+        // status and subscription BEFORE requiring the full professional
+        // profile, so a newly-registered user is sent to checkout first rather
+        // than made to complete a long profile-and-consent form before they can
+        // pay (the friction that lost a real prospect on 14 July).
+        // - deactivated -> the dedicated AccountDeactivated notice.
+        // - suspended/rejected -> PendingApproval (per-status messaging;
+        //   suspended users can complete payment to reactivate).
+        // - any other non-active (pending/invited) -> PaymentRequired: payment
+        //   activates the account (checkout auto-approve in stripeWebhook).
+        // The server independently refuses clinical access for any non-active
+        // status — this routing is UX, not the enforcement point.
         const status = freshUser.account_status;
         if (status === "deactivated") {
           navigate("/AccountDeactivated");
@@ -97,11 +95,17 @@ export default function Layout({ children, currentPageName }) {
           navigate("/PaymentRequired");
           return;
         }
-
         if (!freshUser.subscription_status || freshUser.subscription_status !== "active") {
-           navigate("/PaymentRequired");
-           return;
-         }
+          navigate("/PaymentRequired");
+          return;
+        }
+
+        // Active + subscribed: NOW require the professional profile (first-run
+        // setup), then the mandatory legal notices below, before the app proper.
+        if (!freshUser.clinician_name) {
+          navigate("/ProfileSetup");
+          return;
+        }
 
         // Every mandatory practitioner notice must be recorded as its own
         // LegalAcceptanceEvent at the CURRENT suite version — reads the same

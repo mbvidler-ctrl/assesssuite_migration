@@ -141,13 +141,26 @@ export async function createCheckoutSession({ priceId, userId, userEmail, succes
 
 /**
  * POST /v1/billing_portal/sessions — customer billing portal.
+ * When `flow` is provided ('subscription_update' | 'payment_method_update'),
+ * flow_data[type] is added so the portal opens directly on that flow; the
+ * pair is omitted entirely when `flow` is absent (stripeRequest drops empty
+ * values), preserving the plain-portal behaviour.
  * Returns the full session object; callers read `session.url`.
  */
-export async function createPortalSession({ stripeCustomerId, returnUrl }) {
+export async function createPortalSession({ stripeCustomerId, returnUrl, flow }) {
   return stripeRequest('POST', '/v1/billing_portal/sessions', [
     ['customer', stripeCustomerId],
     ['return_url', returnUrl],
+    ['flow_data[type]', flow],
   ]);
+}
+
+/**
+ * DELETE /v1/subscriptions/{id} — cancels a subscription immediately.
+ * Returns the cancelled subscription object (status 'canceled').
+ */
+export async function cancelSubscription(subscriptionId) {
+  return stripeRequest('DELETE', `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`);
 }
 
 /**

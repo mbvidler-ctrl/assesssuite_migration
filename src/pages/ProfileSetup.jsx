@@ -199,8 +199,7 @@ export default function ProfileSetup() {
     if (formData.clinic_email && !/\S+@\S+\.\S+/.test(formData.clinic_email)) {
       newErrors.clinic_email = "Please enter a valid clinic email";
     }
-    if (!formData.professional_bio.trim()) newErrors.professional_bio = "Professional bio is required";
-    if (formData.specializations.length === 0) newErrors.specializations = "At least one specialization is required";
+    // Biography and specialisations are optional (WP-6 friction reduction).
 
     if (!notices.collectionNotice) newErrors.collectionNotice = "Required to continue";
     if (!notices.clinicalUse) newErrors.clinicalUse = "Required to continue";
@@ -287,15 +286,11 @@ export default function ProfileSetup() {
         return;
       }
 
-      // Redirect to Stripe payment via checkout session
-      const res = await createCheckoutSession({ plan: "monthly", userId: currentUser.id, userEmail: currentUser.email, userName: currentUser.full_name });
-      console.log("Checkout session response:", res);
-      const url = res?.data?.url || res?.url;
-      if (url) {
-        window.location.href = url;
-      } else {
-        throw new Error(res?.data?.error || res?.error || "Failed to create checkout session");
-      }
+      // Payment-before-profile (Design A): checkout already happened before this
+      // first-run profile step, so this page no longer starts a checkout session
+      // — it saves the profile and records consents, then enters the app.
+      toast.success("Profile saved.");
+      navigate(createPageUrl("Dashboard"));
 
     } catch (error) {
       console.error("Error saving profile:", error);
@@ -543,7 +538,7 @@ export default function ProfileSetup() {
 
                 <div>
                   <Label htmlFor="professional_bio" className="text-sm font-medium text-slate-700">
-                    Professional Biography *
+                    Professional Biography
                   </Label>
                   <Textarea
                     id="professional_bio"
@@ -560,7 +555,7 @@ export default function ProfileSetup() {
 
                 <div>
                   <Label className="text-sm font-medium text-slate-700">
-                    Specializations *
+                    Specializations
                   </Label>
                   <div className="mt-2 space-y-2">
                     <div className="flex flex-wrap gap-2">

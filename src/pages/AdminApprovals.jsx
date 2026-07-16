@@ -206,6 +206,7 @@ export default function AdminApprovals() {
   const [editingAssessmentId, setEditingAssessmentId] = useState(null);
   const [editingData, setEditingData] = useState({});
   const [runningDiagnostics, setRunningDiagnostics] = useState(false);
+  const [activatingUser, setActivatingUser] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -613,25 +614,39 @@ export default function AdminApprovals() {
 
           <TabsContent value="users" className="space-y-6 mt-6">
 
-        {/* Pending Approvals */}
+        {/* Awaiting Payment (manual activation is a fallback for exceptions only) */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Clock className="w-5 h-5 text-yellow-600" />
-              Pending Approvals ({pendingUsers.length})
+              Awaiting Payment ({pendingUsers.length})
             </CardTitle>
           </CardHeader>
           <CardContent>
+            <div className="flex items-start gap-3 mb-4 p-3 rounded-lg bg-blue-50 border border-blue-200 text-sm text-blue-900">
+              <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5 text-blue-600" />
+              <p>
+                Accounts activate automatically on successful subscription payment. Manual activation here is a fallback for exceptions only (e.g. an out-of-band payment or a webhook failure).
+              </p>
+            </div>
             {pendingUsers.length === 0 ? (
-              <p className="text-slate-500 text-center py-8">No pending approvals</p>
+              <p className="text-slate-500 text-center py-8">No accounts awaiting payment</p>
             ) : (
               <div className="space-y-4">
-                {pendingUsers.map((user) => (
-                  <div key={user.id} className="flex items-center justify-between p-4 border rounded-lg bg-yellow-50">
+                {pendingUsers.map((user) => {
+                  const paymentFailed = user.subscription_status === 'payment_failed';
+                  return (
+                  <div
+                    key={user.id}
+                    className={`flex items-center justify-between p-4 border rounded-lg ${paymentFailed ? 'bg-red-50 border-red-200' : 'bg-yellow-50'}`}
+                  >
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
                         <UserIcon className="w-4 h-4 text-slate-600" />
-                        <p className="font-semibold">{user.full_name || 'No name'}</p>
+                        <p className="font-semibold">{user.clinician_name || user.full_name || user.email}</p>
+                        {paymentFailed && (
+                          <Badge variant="destructive" className="text-xs">Payment failed</Badge>
+                        )}
                       </div>
                       <div className="flex items-center gap-2 text-sm text-slate-600">
                         <Mail className="w-3 h-3" />
@@ -646,11 +661,11 @@ export default function AdminApprovals() {
                     </div>
                     <div className="flex gap-2">
                       <Button
-                        onClick={() => handleApprove(user.id, user.email)}
+                        onClick={() => setActivatingUser(user)}
                         className="bg-green-600 hover:bg-green-700"
                       >
                         <CheckCircle className="w-4 h-4 mr-2" />
-                        Approve
+                        Activate without payment
                       </Button>
                       <Button
                         onClick={() => handleReject(user.id, user.email)}
@@ -661,7 +676,8 @@ export default function AdminApprovals() {
                       </Button>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
@@ -680,7 +696,7 @@ export default function AdminApprovals() {
               {activeUsers.map((user) => (
                 <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg">
                   <div className="flex-1">
-                    <p className="font-medium">{user.full_name || user.email}</p>
+                    <p className="font-medium">{user.clinician_name || user.full_name || user.email}</p>
                     <p className="text-sm text-slate-600">{user.email}</p>
                     {user.profession && <Badge variant="outline" className="mt-1 text-xs">{user.profession}</Badge>}
                     {user.approved_date && (
@@ -778,7 +794,7 @@ export default function AdminApprovals() {
                 {suspendedUsers.map((user) => (
                   <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg bg-orange-50">
                     <div>
-                      <p className="font-medium">{user.full_name || user.email}</p>
+                      <p className="font-medium">{user.clinician_name || user.full_name || user.email}</p>
                       <p className="text-sm text-slate-600">{user.email}</p>
                     </div>
                     <Button
@@ -810,7 +826,7 @@ export default function AdminApprovals() {
                 {rejectedUsers.map((user) => (
                   <div key={user.id} className="flex items-center justify-between p-3 border rounded-lg bg-red-50">
                     <div>
-                      <p className="font-medium">{user.full_name || user.email}</p>
+                      <p className="font-medium">{user.clinician_name || user.full_name || user.email}</p>
                       <p className="text-sm text-slate-600">{user.email}</p>
                     </div>
                     <Badge variant="destructive">Rejected</Badge>
@@ -1481,7 +1497,7 @@ export default function AdminApprovals() {
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {orgAssignResults.all_users_with_orgs.map((user, i) => (
                         <div key={i} className="p-3 bg-slate-50 rounded-lg border">
-                          <p className="font-medium text-slate-900">{user.full_name || user.email}</p>
+                          <p className="font-medium text-slate-900">{user.clinician_name || user.full_name || user.email}</p>
                           <p className="text-sm text-slate-600">{user.email}</p>
                           <p className="text-xs text-slate-500 font-mono">Org ID: {user.org_id}</p>
                         </div>
@@ -1594,7 +1610,7 @@ export default function AdminApprovals() {
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-sm font-medium text-slate-600">Full Name</label>
-                  <p className="text-slate-900">{viewingUser.full_name || 'Not provided'}</p>
+                  <p className="text-slate-900">{viewingUser.clinician_name || viewingUser.full_name || 'Not provided'}</p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-slate-600">Email</label>
@@ -1703,7 +1719,7 @@ export default function AdminApprovals() {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2">
                   <Users className="w-5 h-5" />
-                  Clients - {viewingUserClients.full_name || viewingUserClients.email}
+                  Clients - {viewingUserClients.clinician_name || viewingUserClients.full_name || viewingUserClients.email}
                 </CardTitle>
                 <Button onClick={() => setViewingUserClients(null)} variant="ghost" size="sm">✕</Button>
               </div>
@@ -1789,6 +1805,32 @@ export default function AdminApprovals() {
               className="bg-red-600 hover:bg-red-700"
             >
               Delete Assessment
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Activate Without Payment Confirmation */}
+      <AlertDialog open={!!activatingUser} onOpenChange={(open) => !open && setActivatingUser(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Activate without payment?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This activates the account WITHOUT a completed payment. Use only for a genuine exception. Continue?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (activatingUser) {
+                  handleApprove(activatingUser.id, activatingUser.email);
+                }
+                setActivatingUser(null);
+              }}
+              className="bg-green-600 hover:bg-green-700"
+            >
+              Activate without payment
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
