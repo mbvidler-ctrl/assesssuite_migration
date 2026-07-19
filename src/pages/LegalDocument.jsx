@@ -3,15 +3,19 @@ import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import LegalMarkdown from "@/components/legal/LegalMarkdown";
 import ReleaseStatusBanner from "@/components/legal/ReleaseStatusBanner";
-import { getLegalDocumentBySlug, SUITE_VERSION } from "@/lib/legal/documentRegistry";
+import {
+  getLegalDocumentBySlug,
+  SUITE_PUBLICATION_AUTHORITY,
+  SUITE_VERSION,
+} from "@/lib/legal/documentRegistry";
 import { loadLegalContent } from "@/lib/legal/loadContent";
 import { useAuth } from "@/lib/AuthContext";
 
-// When Maxwell flips the deployment to effective (LEGAL_STATUS=effective via
-// public settings), the RC banner is replaced with the effective-status line
-// and the markdown's own DRAFT header lines are overridden at render time.
-// INVARIANT: SUITE_VERSION stays RC-2026.07.11 — it is the immutable content
-// identifier recorded in acceptance events; the flip is display-only.
+// When the verified deployment is flipped to effective
+// (LEGAL_STATUS=effective via public settings), the RC banner is replaced with
+// the effective-status line and source metadata is reconciled at render time.
+// RC-2026.07.11 remains historical; RC-2026.07.19 is the current identifier
+// recorded in new and re-acceptance events.
 function applyEffectiveHeaders(content, effectiveDate) {
   // Trailing two spaces preserve the markdown hard line break — the source
   // header lines use it so each metadata line renders on its own line; dropping
@@ -19,7 +23,9 @@ function applyEffectiveHeaders(content, effectiveDate) {
   return content
     .replace(/^\*\*Release status:\*\*.*$/m, "**Release status:** Effective  ")
     .replace(/^\*\*Effective date:\*\*.*$/m, `**Effective date:** ${effectiveDate}  `)
-    .replace(/^\*\*Approved by:\*\*.*$/m, "**Approved by:** Assess Suite Pty Ltd  ");
+    .replace(/^\*\*Approved by:\*\*.*$/m, `**Publication authority:** ${SUITE_PUBLICATION_AUTHORITY}  `)
+    .replace(/^\*\*Publication authority:\*\*.*$/m, `**Publication authority:** ${SUITE_PUBLICATION_AUTHORITY}  `)
+    .replace(/^\*\*Version:\*\*.*$/m, `**Version:** ${SUITE_VERSION}  `);
 }
 
 // Public, unauthenticated route: /legal/:slug. Single source of truth for
@@ -58,7 +64,7 @@ export default function LegalDocument() {
           <div className="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 mb-6">
             <ShieldCheck className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-slate-700">
-              <p className="font-semibold">Version 1.0 — Effective {effectiveDate}</p>
+              <p className="font-semibold">Current legal suite — Effective {effectiveDate}</p>
               <p className="text-slate-500 mt-0.5">Document identifier {SUITE_VERSION}</p>
             </div>
           </div>

@@ -1,23 +1,23 @@
 # AssessSuite Privacy Policy
 
-**Release status:** DRAFT — NOT APPROVED FOR PUBLICATION, ACCEPTANCE OR RELIANCE  
-**Effective date:** None  
-**Approved by:** None  
-**Proposed operator:** Assess Suite Pty Ltd (ACN 694 044 481; ABN 53 694 044 481)  
-**Version:** RC-2026.07.11  
+**Release status:** APPROVED FOR PUBLICATION WITH THE 19 JULY 2026 RELEASE — ENABLED FUNCTIONS REMAIN SUBJECT TO THE GATES IN THIS POLICY  
+**Effective date:** Effective on verified deployment; deployment date recorded in the release manifest  
+**Publication authority:** Mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE, activated by Maxwell Vidler on 19 July 2026  
+**Operator:** Assess Suite Pty Ltd (ACN 694 044 481; ABN 53 694 044 481)  
+**Version:** RC-2026.07.19  
 **Privacy contact:** admin@assesssuite.com | 1800 317 553
 
-> **Release note:** This policy cannot become effective until the production architecture, subprocessors, likely overseas countries, retention controls, direct patient access, minors pathway and privacy contact are approved and reflected in the public schedules.
+> **Material-change note:** This version first discloses the referral/document-extraction flow in which a practitioner may submit a raw referral containing identifiable adult or child health information to the OpenAI API. Publication does not by itself enable that function. The technical, contractual, child-data and release gates stated below must all be satisfied.
 
 ## 1. Purpose and scope
 
 Assess Suite Pty Ltd (**AssessSuite**, **we**, **us**) provides AssessSuite Clinical, a software service for exercise physiology practices. This policy explains how we collect, hold, use and disclose personal information in connection with our website, practitioner accounts, support, subscriptions and the patient information that practices place in the Service.
 
-This policy is drafted to the standard of the Privacy Act 1988 (Cth), the Australian Privacy Principles (**APPs**) and applicable health-record laws. AEP practices that provide health services and hold health information are generally covered irrespective of small-business status. AssessSuite is not covered merely because a customer places health information in the Service. Before publication, AssessSuite must document whether it is an APP entity by operation of law—considering turnover, related entities, every relevant s 6D exception and any independent s 6FB health-service activity—or by a registered s 6EA opt-in, and state that position accurately. AssessSuite contractually adopts APP-equivalent controls for the approved Service regardless.
+This policy is drafted to the standard of the Privacy Act 1988 (Cth), the Australian Privacy Principles (**APPs**) and applicable health-record laws. AEP practices that provide health services and hold health information are generally covered irrespective of small-business status. Whether AssessSuite is itself an APP entity by operation of law or registered opt-in is fact-dependent; this policy does not represent that a statutory-status determination has been made merely because a customer places health information in the Service. AssessSuite voluntarily adopts and contractually applies the APP-equivalent controls in this policy to the approved Service regardless of that status.
 
 This policy does not replace a practice’s APP 5 collection notice, treatment consent process or legal obligations. If AssessSuite is an APP entity and receives or momentarily holds sensitive information, it must also meet its own collection, notice and consent obligations; a practice notice or checkbox does not automatically discharge them.
 
-Where a practice uses the Service for a patient, that practice ordinarily controls the clinical relationship and why the record is created. AssessSuite processes information to provide and secure the Service and independently determines account, billing, security and platform-administration purposes. The final collection notice must identify both legal entities and their purposes wherever they collect or hold the same information. We do not disclaim a direct duty by calling a practice the controller or record owner.
+Where a practice uses the Service for a patient, that practice ordinarily controls the clinical relationship and why the record is created. AssessSuite processes information to provide and secure the Service and independently determines account, billing, security and platform-administration purposes. Applicable collection notices identify both legal entities and their purposes wherever they collect or hold the same information. We do not disclaim a direct duty by calling a practice the controller or record owner.
 
 ## 2. Whose information we handle
 
@@ -43,7 +43,7 @@ Depending on the enabled functions, we may collect:
 ### Patient and health information
 
 - identity, contact, date of birth, sex or gender information, emergency and representative details;
-- referral, referrer, provider, funding, insurer, Medicare, DVA, NDIS and other identifier information where authorised;
+- referral documents and their contents, including patient and child identity, referrer, provider, funding, insurer, Medicare, DVA, NDIS and other identifier information where authorised;
 - health history, diagnoses or conditions, medication, disability, symptoms, psychosocial information, risks, goals and consent records;
 - assessment inputs, measurements, scores, observations, exercise interventions, treatment plans and outcomes;
 - case notes, SOAP notes, reports, attachments, correspondence and signatures;
@@ -64,7 +64,7 @@ We do not use Medicare, DVA, NDIS or healthcare identifiers as a general interna
 We collect information:
 
 - directly from practitioners, practices, patients or their authorised representatives;
-- from a practice’s referral, onboarding, upload, assessment, recording, report or integration workflow;
+- from a practice’s referral, onboarding, upload, assessment, recording, report or integration workflow, including a referral supplied by a referrer or authorised representative;
 - from referrers, funders, providers or other sources where the practice and AssessSuite are authorised to receive it;
 - automatically through security, audit and essential service logs;
 - from public registers or professional bodies to verify a credential;
@@ -79,7 +79,8 @@ We use personal information only where authorised and reasonably necessary to:
 - create and administer accounts, subscriptions and support;
 - receive, store, organise, display, export and protect practice records;
 - provide approved assessment, documentation, reporting and workflow functions;
-- operate an approved transcription or AI function under a signed function-level authority record, with the required notice and specific consent where required;
+- extract proposed client-profile fields from an approved referral document by sending the document to the OpenAI API under the controls in section 6;
+- operate another approved transcription or AI function under a signed function-level authority record, with the required notice and specific consent where required;
 - verify user eligibility and professional credentials;
 - prevent, detect, investigate and respond to security, privacy, misuse and clinical-safety events;
 - maintain audit history, data quality, correction and version integrity;
@@ -94,6 +95,14 @@ We do **not** sell personal or health information. We do not use identifiable Pa
 ## 6. AI and automated processing
 
 Approved features may use software or AI to transcribe content, structure notes, draft reports, calculate or display assessment results, or assist a practitioner’s clinical reasoning. The current feature, provider, input, output, human-review and data-location position is explained in the AI and Automated Processing Transparency Notice.
+
+For **referral/document extraction**, an authenticated practitioner may upload a PDF, image or CSV referral. The release configuration sends the raw document or bounded locally parsed CSV text directly in one `POST /v1/responses` request to **OpenAI OpCo, LLC**. A referral may identify an adult or child and may contain names, contact details, date of birth, health history, diagnosis, medication, disability, funding and provider identifiers, referrer details and other sensitive information. This path does not represent that the document is de-identified.
+
+The request sets `store: false` and does not use OpenAI Files, conversations, Assistants, vector stores, background mode, web search or external tools. `store: false` means AssessSuite does not ask OpenAI to retain Responses application state; it does **not** mean zero provider retention. Under OpenAI’s published default controls, abuse-monitoring logs may include inputs, outputs and derived metadata for up to 30 days, subject to longer legal or safety retention. File and image inputs are scanned for child sexual abuse material; a potential match may be retained for manual review even where enhanced retention controls apply. OpenAI states that API data is not used to train or improve its models unless the customer expressly opts in. AssessSuite does not opt this function into training or any data-sharing programme.
+
+No extracted value is treated as verified merely because the API returned it. Extraction may omit, misread, misclassify or fabricate information. The output is shown only as proposed, editable values. A practitioner must compare it with every submitted source and affirmatively create or update the record; extraction alone must not write a client or other clinical entity.
+
+OpenAI’s current Under 18 API Guidance says personal data of a child under 13, or the applicable age of digital consent, must not be processed without Zero Data Retention. AssessSuite therefore keeps OpenAI referral extraction disabled for that category unless the relevant OpenAI organisation/project is verified as having the required retention control and the practice has documented capacity, parent/guardian authority, notice and any required consent. For other authorised referrals, Maxwell Vidler attested for this release that the AssessSuite OpenAI account has an account-specific arrangement authorising intentional sensitive-data transfer. Its confidential terms were not requested, copied or published; the release record preserves only the attestation and its date.
 
 AI output may contain personal information and may be inaccurate. It must remain attributed to its source and model version, be reviewed by an appropriately qualified practitioner, and be corrected by an auditable amendment. We do not permit an AI output to make a final treatment or eligibility decision without the required human decision-maker.
 
@@ -114,9 +123,11 @@ We do not disclose patient information to advertisers or place third-party adver
 
 ## 8. Service providers and overseas handling
 
-The public Approved Subprocessor and Cross-Border Data Schedule identifies each approved provider, function, data category, legal entity, likely country, retention setting and material control. The production Service will not be approved until that schedule is complete.
+The public Approved Subprocessor and Cross-Border Data Schedule identifies each approved provider, function, data category, legal entity, likely country, retention setting and material control. For referral extraction, the contracting and processing entity for an Australian customer under OpenAI’s published business terms is OpenAI OpCo, LLC in the United States. OpenAI and its published API subprocessors may process Customer Data in the United States and other listed infrastructure, moderation and support locations. AssessSuite has not represented that this flow stays in Australia or that an Australian OpenAI data-residency project is configured.
 
 Some approved providers may process information outside Australia. Before enabling a flow, we assess necessity, contract terms, security, retention, model-training use, access, deletion, incident cooperation and applicable law. Where APP 8 applies, we take reasonable steps concerning overseas handling and do not assume that a broad consent sentence removes our accountability.
+
+OpenAI personnel or specialist moderation providers do not ordinarily review content to generate the extraction. Limited human access may nevertheless occur where content is flagged for abuse or safety review, where a support case is opened and content is deliberately supplied, or where access is required by law. AssessSuite support staff must not send a raw referral to a provider support case without separate authority.
 
 ## 9. Security
 
@@ -136,11 +147,13 @@ We retain information only while required for the documented purpose, applicable
 
 Clinical records and other health information are not automatically destroyed merely because a subscription ends. The applicable test depends on jurisdiction, legal role, actual content and control—not on whether the practice labels an item a clinical record. Raw audio, prompts and responses may themselves be regulated health information. The treating practice selects applicable jurisdictions and programs and must receive a usable export and exit period. Jurisdiction-specific rules may require at least seven years after the last service and longer periods for a child’s information. Victoria can require the later of the age and last-service tests.
 
+An unbound referral upload used only for extraction is a temporary working copy. It expires no later than 24 hours after upload. Cancellation, rejection or failed extraction queues it for the next cleanup run; deletion is not represented as instantaneous. A file leaves the temporary lifecycle only when an authorised practitioner affirmatively binds it to a validated tenant-scoped clinical entity. A bound referral then follows the clinical-record period that applies to its content, patient age, jurisdiction and legal holds. AssessSuite retains metadata-only upload and extraction audit events for two years unless a longer incident, complaint or legal hold applies. These periods do not shorten OpenAI’s separate provider-side retention described above.
+
 The **Customer-Facing Retention and Exit Schedule**, being Part A, sections 1–7, of the AssessSuite Records Retention, Export, Deletion and Exit Policy, states the contractual category periods, backup expiry, deletion evidence and exceptions. When information is no longer required or authorised, we securely destroy or effectively de-identify it. Removing a record from view is not treated as deletion.
 
 ## 12. Children and people requiring decision support
 
-AssessSuite must not be used for a child or a person who cannot provide the relevant consent unless the approved product mode records:
+AssessSuite may hold referrals and clinical information about adults or children. It must not be used for a child or a person who cannot provide the relevant consent unless the approved product mode records:
 
 - the person’s capacity and involvement;
 - the identity and authority of a parent, guardian or substitute decision-maker;
@@ -149,7 +162,7 @@ AssessSuite must not be used for a child or a person who cannot provide the rele
 - any withdrawal, objection or change in authority;
 - the correct retention calculation.
 
-The production minors pathway remains a release condition. A date-of-birth field alone is not a consent control.
+Referral extraction may be used for an authorised adult or child referral when the capacity, authority, notice, consent and retention controls above are documented. A date-of-birth field alone is not a consent control. The OpenAI provider call remains disabled for personal data of a child under 13 or the applicable age of digital consent unless Zero Data Retention is verified for the relevant project; that provider restriction applies independently of Australian capacity and representative-authority rules.
 
 ## 13. Direct marketing and communications
 
@@ -185,6 +198,8 @@ We maintain a Data Breach and Notifiable Data Breach Response Plan. If a breach 
 ## 17. Changes to this policy
 
 We may update this policy when law, product functions, data uses or providers change. We publish the current and archived versions. We give prior notice of a material adverse change and seek new consent where the law or a new purpose requires it. Continued use does not authorise a new sensitive-information purpose that requires consent.
+
+The RC-2026.07.19 referral-extraction disclosure is a material change. Current practitioner users must acknowledge the current practitioner-notice suite through the product’s document-bound re-acceptance process before clinical access continues. Each acceptance records the displayed document identifier, title, suite version and content fingerprint. Direct customer notification outside the product is a separate communication action and is not represented by this policy as having occurred.
 
 ## 18. Contact and document details
 
