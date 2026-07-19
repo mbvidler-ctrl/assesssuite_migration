@@ -251,6 +251,7 @@ jobs:
         shell: bash
         env:
           PRODUCTION_BASE_SHA: d593a7f2e83657125d5be4acb49642a38215d5bd
+          EXPECTED_RELEASE_SCANNER_SHA256: 7fbecf3663b724dc5c8431d8d2d6c4f7e21f596a07901a626b524e22dfe67b21
         run: |
           set -euo pipefail
           base_dir="$RUNNER_TEMP/typecheck-base"
@@ -373,6 +374,11 @@ jobs:
             exit 1
           fi
           git diff --binary "$PRODUCTION_BASE_SHA"...HEAD >"$RUNNER_TEMP/release.diff"
+          actual_scanner_sha256="$(sha256sum scripts/scan-release-diff.mjs | awk '{print $1}')"
+          if [[ "$actual_scanner_sha256" != "$EXPECTED_RELEASE_SCANNER_SHA256" ]]; then
+            echo 'Release scanner does not match the trusted workflow digest.' >&2
+            exit 1
+          fi
           node scripts/scan-release-diff.mjs "$RUNNER_TEMP/release.diff"
 
       - name: Build exact candidate image locally without credentials

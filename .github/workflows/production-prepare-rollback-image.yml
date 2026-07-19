@@ -183,38 +183,22 @@ jobs:
           ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
           BUILD_TIMESTAMP: ${{ steps.metadata.outputs.build_timestamp }}
           PRODUCTION_BASE_SHA: d593a7f2e83657125d5be4acb49642a38215d5bd
+          EXPECTED_RELEASE_SCANNER_SHA256: 7fbecf3663b724dc5c8431d8d2d6c4f7e21f596a07901a626b524e22dfe67b21
         run: |
           set -euo pipefail
-          git diff --binary "$PRODUCTION_BASE_SHA"...HEAD >"$RUNNER_TEMP/rollback.diff"
-          if grep -EIn '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|sk_(live|test)_[A-Za-z0-9]{16,}|whsec_[A-Za-z0-9]{16,}|[A-Za-z0-9_]*API[_-]?KEY[[:space:]]*=[[:space:]]*[^$<{[:space:]]+|FLY_API_TOKEN[[:space:]]*=[[:space:]]*[^$<{[:space:]]+)' "$RUNNER_TEMP/rollback.diff"; then
-            echo 'Potential secret material detected in the compatibility diff.' >&2
+          changed_files="$(git diff --name-only "$PRODUCTION_BASE_SHA"...HEAD)"
+          if grep -Eiq '(^|/)\.env($|\.(local|production|staging|development|test)$)|(^|/)(credentials?|secrets?)\.(json|txt|pem|key)$' <<<"$changed_files"; then
+            printf '%s\n' "$changed_files"
+            echo 'Compatibility diff contains a prohibited secret-bearing filename.' >&2
             exit 1
           fi
-          DIFF_PATH="$RUNNER_TEMP/rollback.diff" node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const entropy = (value) => {
-            const counts = new Map();
-            for (const char of value) counts.set(char, (counts.get(char) || 0) + 1);
-            return [...counts.values()].reduce((sum, count) => {
-              const probability = count / value.length;
-              return sum - probability * Math.log2(probability);
-            }, 0);
-          };
-          const findings = [];
-          for (const line of fs.readFileSync(process.env.DIFF_PATH, 'utf8').split(/\r?\n/)) {
-            if (!line.startsWith('+') || line.startsWith('+++')) continue;
-            for (const token of line.match(/[A-Za-z0-9+/_=-]{32,}/g) || []) {
-              if (/synthetic|example|placeholder|sha(256|512)|integrity|ASSESSSUITE/i.test(token)) continue;
-              if (/^[a-f0-9]{40,64}$/i.test(token)) continue;
-              const classes = [/[a-z]/, /[A-Z]/, /\d/, /[+/_=-]/].filter((pattern) => pattern.test(token)).length;
-              if (classes >= 3 && entropy(token) >= 4.4) findings.push({ token: token.slice(0, 12) + '...', line: line.slice(0, 180) });
-            }
-          }
-          if (findings.length) {
-            console.error(JSON.stringify(findings, null, 2));
-            throw new Error('Unreviewed high-entropy token detected in compatibility diff');
-          }
-          NODE
+          git diff --binary "$PRODUCTION_BASE_SHA"...HEAD >"$RUNNER_TEMP/rollback.diff"
+          actual_scanner_sha256="$(sha256sum scripts/scan-release-diff.mjs | awk '{print $1}')"
+          if [[ "$actual_scanner_sha256" != "$EXPECTED_RELEASE_SCANNER_SHA256" ]]; then
+            echo 'Release scanner does not match the trusted workflow digest.' >&2
+            exit 1
+          fi
+          node scripts/scan-release-diff.mjs "$RUNNER_TEMP/rollback.diff"
           docker build \
             --build-arg "RELEASE_SHA=$ROLLBACK_SOURCE_SHA" \
             --build-arg "SOURCE_BRANCH=$ROLLBACK_SOURCE_BRANCH" \

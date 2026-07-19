@@ -20,10 +20,9 @@
    - the Data Processing and Security Schedule;
    - the Subscription, Cancellation and Refund Policy;
    - the Acceptable Use Policy;
-   - Part A (sections 1–7), titled the **Customer-Facing Retention and Exit Schedule**, of the AssessSuite Records Retention, Export, Deletion and Exit Policy;
    - the Approved Subprocessor and Cross-Border Data Schedule identified in the applicable Order Form or release manifest; and
    - any other customer-facing product schedule expressly identified by title and version in the Order Form.
-4. If documents conflict, mandatory law prevails. Subject to that law, the Order Form prevails for its commercial particulars and enabled functions; the AssessSuite Data Processing and Security Schedule prevails for processing of Customer Data; these Terms prevail next; then the AssessSuite Subscription, Cancellation and Refund Policy, AssessSuite Acceptable Use Policy, Customer-Facing Retention and Exit Schedule and other incorporated schedules in that order. Part B of the AssessSuite Records Retention, Export, Deletion and Exit Policy is an internal verification control and is not incorporated into the Customer agreement.
+4. If documents conflict, mandatory law prevails. Subject to that law, the Order Form prevails for its commercial particulars and enabled functions; the AssessSuite Data Processing and Security Schedule prevails for processing of Customer Data; these Terms prevail next; then the AssessSuite Subscription, Cancellation and Refund Policy, AssessSuite Acceptable Use Policy and other incorporated schedules in that order. The AssessSuite Records Retention, Export, Deletion and Exit Policy is an internal verification control and is not incorporated into the Customer agreement.
 5. The AssessSuite Privacy Policy, AssessSuite Practitioner Account Collection Notice, Patient Collection Notice and Consent Pack — Practice Template, AssessSuite AI and Automated Processing Transparency Notice, and AssessSuite Clinical Use and Professional Responsibility Notice explain information handling, intended use and risks. They do not silently amend this agreement, provide consent to treatment or waive a right.
 
 ## 2. Definitions
@@ -34,7 +33,6 @@ In this agreement:
 - **Authorised User** means a person whom Customer assigns a unique account and role and who meets the credential and scope requirements for their enabled functions.
 - **Clinical Output** means a score, interpretation, note, plan, protocol, warning, recommendation or report that may be used for patient care or a professional or funding process.
 - **Customer Data** means information supplied, created or controlled by Customer or its patients through the Service, excluding AssessSuite’s independently created account, billing, security and platform-administration data.
-- **Customer-Facing Retention and Exit Schedule** means Part A (sections 1–7) of the AssessSuite Records Retention, Export, Deletion and Exit Policy, in the version and hash identified in the applicable Order Form or release manifest.
 - **Liability Period** means each consecutive 12-month period beginning on the subscription start date recorded in the applicable Order Form or checkout transaction, with the final period ending when the agreement ends if it is shorter than 12 months.
 - **Order Form** means either a Standard Online Order or a separately negotiated Customer Order Form and Approved Production Mode Schedule accepted by the parties for the subscription.
 - **Patient Data** means Customer Data about a patient, client, representative, referrer or treating provider, including health information and clinical records.
@@ -149,9 +147,9 @@ Customer must comply with the Acceptable Use Policy. Customer must not use the S
 
 1. Customer retains control of and access to its clinical records subject to law, patient rights and this agreement.
 2. During the subscription, Customer may export records in the approved human-readable and structured formats.
-3. On termination, AssessSuite will provide the exit window and transition assistance stated in the Order Form and the Customer-Facing Retention and Exit Schedule. It must not destroy information subject to a statutory retention rule, legal hold, open incident, request or complaint.
-4. Retention and deletion follow the Customer-Facing Retention and Exit Schedule. The legal status of audio, prompts, responses and other health information is determined by law and actual handling, not Customer labelling.
-5. Customer selects applicable jurisdictions and programs. AssessSuite must provide controls capable of supporting the longest applicable period, correction-by-amendment, complete export, linked deletion, backup expiry and any disposal/transfer register.
+3. On termination, AssessSuite will provide the exit window and transition assistance, if any, stated in the Order Form and supported by the functions actually available in the Approved Production Mode. It must not destroy information subject to a statutory retention rule, legal hold, open incident, request or complaint.
+4. An unbound referral upload expires no later than 24 hours after upload. Cancellation, rejection or failure queues deletion for the next cleanup run, targeted within one hour and subject to that 24-hour outer bound. A referral explicitly bound to a validated clinical entity follows the applicable clinical-record retention period. When the owning clinical reference is removed, ordinary access is revoked and the object is isolated behind retained disposition metadata pending a lawful retention, transfer or deletion decision. Metadata-only upload and extraction audit events are retained for two years unless an incident, complaint or legal hold requires longer retention.
+5. Customer remains responsible for identifying applicable jurisdictions, programs and lawful retention or disposition instructions. RC-2026.07.19 does not represent that AssessSuite automatically calculates jurisdiction-specific retention periods, supplies complete self-service deletion or export for every record class, or has independently tested restoration of every backup. Retention, export, deletion and exit requests outside the available product controls are handled operationally under the Data Processing and Security Schedule and applicable law. The legal status of audio, prompts, responses and other health information is determined by law and actual handling, not Customer labelling.
 
 ## 16. Intellectual property and content
 

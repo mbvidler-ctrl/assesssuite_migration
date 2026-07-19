@@ -25,7 +25,7 @@ For a standard self-service subscription, the **Standard Online Order** defined 
 | Data subjects | Adult and child patients/clients, representatives, practitioners, practice staff, referrers, providers, funder contacts and emergency contacts |
 | Information | Identity, contact, date of birth, health, disability, raw referral documents, referrer and provider details, medication, assessment, note, report, recording/transcript, funding and health identifiers, consent, account, audit and security information |
 | Purposes | Practice record and workflow, secure referral upload and extraction of proposed profile fields, approved assessment/reporting, secure hosting, other approved AI/transcription, support, export, incident response and legal compliance |
-| Duration | Subscription plus the lawful export, retention, legal-hold, incident and backup periods in the Customer-Facing Retention and Exit Schedule, being Part A, sections 1–7, of the AssessSuite Records Retention, Export, Deletion and Exit Policy |
+| Duration | Subscription plus the lawful export, retention, legal-hold, incident and backup periods stated in section 9, the applicable Order Form and the release manifest |
 | Jurisdictions | Primary application hosting in Australia as recorded in the release manifest; referral extraction discloses the submitted document to OpenAI OpCo, LLC in the United States and may involve other published OpenAI API infrastructure, moderation or support locations. No Australia-only inference or storage representation is made. |
 | High-risk processing | Clinical AI, audio/transcription, minors, disability data, funding identifiers, multi-tenant access and overseas subprocessors |
 
@@ -55,7 +55,7 @@ AssessSuite must:
 - keep a current processing, asset, access, subprocessor and incident record;
 - preserve data quality, provenance, version and correction evidence appropriate to clinical records;
 - assist with access, correction, complaints, privacy impact assessments, incidents and regulator enquiries;
-- return and delete information in accordance with the Customer-Facing Retention and Exit Schedule, being Part A, sections 1–7, of the AssessSuite Records Retention, Export, Deletion and Exit Policy, and legal holds;
+- return, retain, isolate and delete information in accordance with section 9, lawful Customer instructions, applicable law and legal holds;
 - not sell patient information or use identifiable Patient Data for general-purpose model training;
 - not use Patient Data for product improvement merely because it is labelled de-identified; any such purpose requires written Customer authority, an approved lawful basis and legal/ethical assessment, effective de-identification and re-identification-risk assessment, confidentiality and IP permission, required notice and separate specific opt-in consent, and approved governance;
 - not materially change a processing purpose through a privacy-policy update alone.
@@ -103,8 +103,8 @@ AssessSuite must provide current, proportionate evidence of relevant security, p
 1. Customer may export information during the subscription and exit window in the approved formats.
 2. Termination does not authorise immediate clinical-record destruction.
 3. AssessSuite must follow applicable statutory health-information rules, Customer’s lawful instructions, legal holds, patient rights, incident preservation and the approved backup cycle. Customer labelling does not determine whether raw audio, prompts, responses or another item is regulated health information.
-4. Deletion must cover primary records, derivatives, search indexes, file objects, caches and expiry from backups, with evidence. Where a record cannot yet be deleted, it must be isolated from ordinary use and the reason and expiry recorded.
-5. An unbound referral upload expires no later than 24 hours after upload. Cancellation, rejection or failure queues deletion for the next cleanup run, targeted within one hour and subject to the 24-hour outer bound. A referral explicitly bound to a validated clinical entity follows the applicable clinical-record schedule instead. Metadata-only upload and extraction audit events are retained for two years unless an incident, complaint or legal hold requires longer retention.
+4. Where deletion is authorised and implemented, it must address primary records, derivatives, search indexes, file objects, caches and expiry from backups, with evidence proportionate to the available controls. Where law, a legal hold, an open incident or current product capability prevents immediate deletion, the information must be isolated from ordinary use and the reason and planned disposition recorded. RC-2026.07.19 does not represent automated jurisdiction-specific expiry calculation, complete self-service deletion or independently tested restoration of every backup.
+5. An unbound referral upload expires no later than 24 hours after upload. Cancellation, rejection or failure queues deletion for the next cleanup run, targeted within one hour and subject to the 24-hour outer bound. A referral explicitly bound to a validated clinical entity follows the applicable clinical-record period instead. When its owning clinical reference is removed, ordinary access is revoked and the object is isolated behind retained disposition metadata pending a lawful retention, transfer or deletion decision. Metadata-only upload and extraction audit events are retained for two years unless an incident, complaint or legal hold requires longer retention.
 6. AssessSuite deletion cannot force early deletion from OpenAI’s abuse-monitoring or legal/safety retention described above. The public instruments must not describe `store: false` as zero retention.
 
 ## Annex A — minimum security controls

@@ -45,10 +45,15 @@ export function scanReleaseDiff(diff) {
       if (pattern.test(line)) findings.push({ file, kind: 'provider-secret-format' });
     }
 
-    const assignment = /\b([A-Za-z0-9_]*(?:API[_-]?KEY|SECRET|TOKEN|PASSWORD)[A-Za-z0-9_]*)\s*[:=]\s*(['"])([^'"\r\n]+)\2/gi;
+    const assignment = /\b([A-Za-z0-9_]*(?:API[_-]?KEY|SECRET|TOKEN|PASSWORD)[A-Za-z0-9_]*)\s*[:=]\s*(?:(['"])([^'"\r\n]+)\2|([A-Za-z0-9+_./=-]{16,}))/gi;
     for (const match of line.matchAll(assignment)) {
-      const value = match[3];
+      const value = match[3] || match[4];
       if (isReviewedTestCanary(value, file)) continue;
+      if (!match[2]) {
+        if (/^(?:process\.)?env\.|^(?:config|secrets?)\./i.test(value)) continue;
+        const classes = [/[a-z]/, /[A-Z]/, /\d/, /[+_./=-]/].filter((pattern) => pattern.test(value)).length;
+        if (classes < 3 || entropy(value) < 3.5) continue;
+      }
       findings.push({ file, kind: 'literal-sensitive-assignment', name: match[1] });
     }
 

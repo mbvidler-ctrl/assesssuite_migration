@@ -59,6 +59,12 @@ test('T04 public-surface workflow checks explicitly propagate failures and requi
     assert.match(source, /read_public_surface\(\)[\s\S]*?node --input-type=module <<'NODE' \|\| return 1/);
     assert.match(source, /anonymous-file[\s\S]*?\[\[ "\$status" == '401' \]\] \|\| return 1/);
   }
+  for (const file of ['production-deploy.yml', 'production-prepare-rollback-image.yml']) {
+    const source = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', file), 'utf8');
+    assert.match(source, /EXPECTED_RELEASE_SCANNER_SHA256:\s*[0-9a-f]{64}/);
+    assert.match(source, /actual_scanner_sha256=.*sha256sum scripts\/scan-release-diff\.mjs/);
+    assert.match(source, /node scripts\/scan-release-diff\.mjs/);
+  }
 });
 
 test('T05 release scanner accepts the exact reviewed diff and rejects constructed secret material', () => {
@@ -72,14 +78,17 @@ test('T05 release scanner accepts the exact reviewed diff and rejects constructe
 
   const providerKey = ['sk_', 'live_', 'AbCdEf0123456789AbCdEf'].join('');
   const githubToken = ['gh', 'p_', 'AbCdEf0123456789AbCdEf012345'].join('');
+  const unquotedCredential = ['AbCdEf01', '23456789', 'GhIjKlMn', 'OpQrStUv'].join('');
   const fakeDiff = [
     'diff --git a/src/probe.js b/src/probe.js',
     '+++ b/src/probe.js',
     `+const credential = "${providerKey}";`,
     `+const sourceControlCredential = "${githubToken}";`,
+    `+INTERNAL_API_KEY=${unquotedCredential}`,
   ].join('\n');
   assert.ok(scanReleaseDiff(fakeDiff).some((finding) => finding.kind === 'provider-secret-format'));
   assert.equal(scanReleaseDiff(fakeDiff).filter((finding) => finding.kind === 'provider-secret-format').length, 2);
+  assert.ok(scanReleaseDiff(fakeDiff).some((finding) => finding.kind === 'literal-sensitive-assignment'));
 });
 
 test('T06 UI extraction callers preserve authority, file bounds, DOB gate, and explicit organisation persistence', () => {

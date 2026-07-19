@@ -932,6 +932,29 @@ test('E41 clinical access is scoped to the accepted membership in a multi-organi
     });
     assert.equal(membership.status, 200, membership.text);
   }
+
+  // Establish A acceptance only long enough for the inverse user to own an A
+  // audio object. Removing those receipts below isolates the function-level
+  // legal-acceptance check from the independent uploader-ownership check.
+  await acceptCurrentNotices(inverse, tenantA.id);
+  const inverseAudio = await expectUploaded(await upload(inverse, tenantA.id, {
+    bytes: wavFixture(), filename: 'inverse-owned-unaccepted.wav', mediaType: 'audio/wav', purpose: 'audio-transcription',
+  }));
+  const acceptanceDb = openAssuranceDb();
+  try {
+    const rows = acceptanceDb.prepare('SELECT id, data FROM entity_LegalAcceptanceEvent').all();
+    const remove = acceptanceDb.prepare('DELETE FROM entity_LegalAcceptanceEvent WHERE id = ?');
+    let removed = 0;
+    for (const row of rows) {
+      const receipt = JSON.parse(row.data);
+      if (receipt.user_email === inverse.email && receipt.org_id === tenantA.id) {
+        removed += Number(remove.run(row.id).changes);
+      }
+    }
+    assert.equal(removed, 8);
+  } finally {
+    acceptanceDb.close();
+  }
   await acceptCurrentNotices(inverse, tenantB.id);
 
   const acceptedB = await requestJson(server, appRoute(`/entities/Client?q=${encodeURIComponent(JSON.stringify({ org_id: tenantB.id }))}`), {
@@ -961,12 +984,9 @@ test('E41 clinical access is scoped to the accepted membership in a multi-organi
   assert.equal(blockedExtraction.status, 403, blockedExtraction.text);
   assert.equal(fakeProvider.calls.length, 0);
 
-  const audio = await expectUploaded(await upload(userA, tenantA.id, {
-    bytes: wavFixture(), filename: 'inverse-unaccepted.wav', mediaType: 'audio/wav', purpose: 'audio-transcription',
-  }));
   const blockedFunction = await requestJson(server, appRoute('/functions/transcribeSession'), {
     method: 'POST', token: inverse.token,
-    body: { action: 'transcribe', audio_url: audio.file_url, org_id: tenantA.id },
+    body: { action: 'transcribe', audio_url: inverseAudio.file_url, org_id: tenantA.id },
   });
   assert.equal(blockedFunction.status, 404, blockedFunction.text);
 });

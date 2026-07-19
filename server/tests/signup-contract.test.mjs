@@ -315,6 +315,14 @@ test('S13 owner bundle records eight typed, document-bound receipts', async () =
       new Set(receipts.body.map((event) => event.document_id)),
       new Set([...PRACTITIONER_NOTICE_IDS, ...CONTRACT_BUNDLE_IDS]),
     );
+    for (const receipt of receipts.body) {
+      const document = LEGAL_DOCUMENTS[receipt.document_id];
+      const raw = fs.readFileSync(path.join(legalContentDir, document.file), 'utf8');
+      assert.equal(receipt.document_title, document.title);
+      assert.equal(receipt.document_fingerprint, fingerprint(raw));
+      assert.equal(receipt.event_type, document.eventType);
+      assert.equal(receipt.suite_version, SUITE_VERSION);
+    }
   } finally {
     await server.stop();
   }
