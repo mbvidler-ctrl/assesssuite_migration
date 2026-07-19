@@ -344,6 +344,13 @@ async function resolveRegisteredUpload(reference, context, selectedOrgId) {
 
 async function handleExtractDataFromUploadedFile(body, context) {
   const orgId = requireSelectedOrg(body, context);
+  if (typeof context.isClinicalUseEligible !== 'function' || !context.isClinicalUseEligible()) {
+    throw new ExtractionError(
+      403,
+      'clinical_release_unavailable',
+      'Document extraction is not approved for this account profile.',
+    );
+  }
   if (context.sessionUser.account_status !== 'active') {
     throw new ExtractionError(403, 'account_inactive', 'Account approval is required before document extraction.');
   }
@@ -447,13 +454,28 @@ async function handleExtractDataFromUploadedFile(body, context) {
             failure: true,
           });
         }
+        const provenance = error?.extractionProvenance;
         context.uploadRegistry.audit({
           uploadId: upload.id,
           orgId,
           actorUserId: context.sessionUser.id,
           eventType: 'document_extraction',
           outcome: 'failed',
-          metadata: { code: error?.code || 'extraction_failed', file_count: uploads.length },
+          metadata: {
+            code: error?.code || 'extraction_failed',
+            file_count: uploads.length,
+            schema_hash: provenance?.schemaHash || null,
+            provider_status_class: provenance?.providerStatusClass || null,
+            provider_model: provenance?.model || null,
+            prompt_version: provenance?.promptVersion || null,
+            request_store_disabled: provenance?.requestPolicy?.store === true,
+            request_background_disabled: provenance?.requestPolicy?.background === true,
+            request_prompt_cache_in_memory: provenance?.requestPolicy?.prompt_cache_retention === true,
+            request_tools_disabled: provenance?.requestPolicy?.tools === true,
+            request_inline_only: provenance?.requestPolicy?.inline === true,
+            request_conversation_state_disabled:
+              provenance?.requestPolicy?.has_conversation_state === false,
+          },
         });
       } catch {
         // Audit/lifecycle cleanup is best-effort here; the original controlled
@@ -535,7 +557,9 @@ async function handleUploadFile(body, files, context) {
   }
   if (
     purpose !== 'profile-image' &&
-    (context.sessionUser.account_status !== 'active' ||
+    (typeof context.isClinicalUseEligible !== 'function' ||
+      !context.isClinicalUseEligible() ||
+      context.sessionUser.account_status !== 'active' ||
       !context.hasCurrentLegalAcceptance(context.sessionUser.email, orgId))
   ) {
     throw new UploadError(403, 'clinical_upload_forbidden', 'Current approved access and legal acceptance are required.');

@@ -27,10 +27,17 @@ import { createPageUrl } from "@/utils";
 import { createCheckoutSession } from "@/functions/createCheckoutSession";
 import ConsentSection from "@/components/legal/ConsentSection";
 import { recordLegalAcceptanceBundle } from "@/lib/legal/recordAcceptance";
+import { resolveLegalConsentAudience } from "@/lib/legal/consentAudience";
+
+const SELF_SERVICE_PROFESSIONS = new Set([
+  "Exercise Physiologist",
+  "Gym Management",
+  "Clinic Management",
+]);
 
 export default function ProfileSetup() {
   const navigate = useNavigate();
-  const [isNewOrg, setIsNewOrg] = useState(null); // null = not yet determined
+  const [consentAudience, setConsentAudience] = useState(null);
   const [consent, setConsent] = useState({
     accepted: false,
     marketing: false,
@@ -63,10 +70,12 @@ export default function ProfileSetup() {
         const currentUser = await base44.auth.me();
         try {
           const existingMembers = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email });
-          setIsNewOrg(!existingMembers || existingMembers.length === 0);
+          setConsentAudience(resolveLegalConsentAudience(existingMembers));
         } catch (e) {
           console.error("Failed to determine organisation membership", e);
-          setIsNewOrg(true); // safest default: show the fuller (agreement) step rather than silently skip it
+          // Fail closed to the fuller owner bundle until membership can be
+          // resolved authoritatively again during submission.
+          setConsentAudience(resolveLegalConsentAudience([]));
         }
         setFormData(prev => {
           const updatedData = {
@@ -86,11 +95,16 @@ export default function ProfileSetup() {
           }
 
           // Specific handling for profession
-          if (currentUser.profession) {
+          if (SELF_SERVICE_PROFESSIONS.has(currentUser.profession)) {
             updatedData.profession = currentUser.profession;
+          } else {
+            updatedData.profession = "";
           }
 
-          if (currentUser.country) updatedData.country = currentUser.country;
+          // RC-2026.07.19 self-service is Australia-only. No jurisdiction
+          // selector is presented; separately approved customers use a
+          // negotiated order rather than this public profile path.
+          updatedData.country = "australia";
 
           // Ensure specializations is an array
           if (currentUser.specializations) {
@@ -159,21 +173,10 @@ export default function ProfileSetup() {
     const isManagementRole = formData.profession === "Gym Management" || formData.profession === "Clinic Management";
 
     if (!isManagementRole) {
-    if (!formData.qualifications.trim()) newErrors.qualifications = "Professional qualifications are required";
-    const country = formData.country || "australia";
-    if (country === "australia") {
-      // provider_number and registration_number are optional for Australia
-    } else if (country === "usa") {
-        if (!formData.npi_number.trim()) newErrors.npi_number = "NPI number is required";
-        if (!formData.registration_number.trim()) newErrors.registration_number = "Certification number is required";
-      } else if (country === "canada") {
-        if (!formData.registration_number.trim()) newErrors.registration_number = "CSEP certification number is required";
-      } else if (country === "nz") {
-        if (!formData.registration_number.trim()) newErrors.registration_number = "CEPNZ membership number is required";
-        if (!formData.npi_number.trim()) newErrors.npi_number = "HPI number is required";
-      } else if (country === "uk") {
-        if (!formData.registration_number.trim()) newErrors.registration_number = "RCCP/AHCS registration number is required";
+      if (formData.profession !== "Exercise Physiologist") {
+        newErrors.profession = "Self-service clinical accounts are limited to Australian Accredited Exercise Physiologists";
       }
+      if (!formData.qualifications.trim()) newErrors.qualifications = "Professional qualifications are required";
     }
 
     if (!formData.clinic_name.trim()) newErrors.clinic_name = "Clinic name is required";
@@ -207,14 +210,19 @@ export default function ProfileSetup() {
       // Create organization (only if user doesn't already have one)
       let org;
       const existingMembers = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email });
-      const foundingNewOrg = !existingMembers || existingMembers.length === 0;
+      const liveAudience = resolveLegalConsentAudience(existingMembers);
 
       // The instruments shown to the user must match the capacity recorded at
-      // submission. Membership can change while this page is open, so fail
-      // closed before any organisation/profile write, update the rendered
-      // audience, and require a fresh confirmation against the correct set.
-      if (typeof isNewOrg !== "boolean" || foundingNewOrg !== isNewOrg) {
-        setIsNewOrg(foundingNewOrg);
+      // submission. This compares the actual selected membership and role, not
+      // merely whether any membership exists. An owner created on a previous
+      // failed attempt therefore continues to see the eight-document bundle.
+      if (
+        !consentAudience ||
+        liveAudience.orgId !== consentAudience.orgId ||
+        liveAudience.ownerBundle !== consentAudience.ownerBundle ||
+        liveAudience.willCreateOrganization !== consentAudience.willCreateOrganization
+      ) {
+        setConsentAudience(liveAudience);
         setConsent(prev => ({ ...prev, accepted: false }));
         setErrors(prev => ({
           ...prev,
@@ -225,8 +233,8 @@ export default function ProfileSetup() {
         return;
       }
 
-      if (!foundingNewOrg) {
-        org = { id: existingMembers[0].org_id };
+      if (!liveAudience.willCreateOrganization) {
+        org = { id: liveAudience.orgId };
       } else {
         org = await base44.entities.Organization.create({
           name: formData.clinic_name,
@@ -236,6 +244,11 @@ export default function ProfileSetup() {
           user_email: currentUser.email,
           role: "owner",
           is_primary: true
+        });
+        setConsentAudience({
+          orgId: org.id,
+          ownerBundle: true,
+          willCreateOrganization: false,
         });
         // Set new user role to "user" not admin
         await base44.auth.updateMe({ role: "user" });
@@ -339,11 +352,7 @@ export default function ProfileSetup() {
                         <SelectValue placeholder="Select your profession" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Personal Trainer">Personal Trainer</SelectItem>
-                        <SelectItem value="Exercise Scientist">Exercise Scientist</SelectItem>
-                        <SelectItem value="Exercise Physiologist">Exercise Physiologist</SelectItem>
-                        <SelectItem value="Physiotherapist">Physiotherapist</SelectItem>
-                        <SelectItem value="Strength + Conditioning Coach">Strength + Conditioning Coach</SelectItem>
+                        <SelectItem value="Exercise Physiologist">Accredited Exercise Physiologist (AEP)</SelectItem>
                         <SelectItem value="Gym Management">Gym Management</SelectItem>
                         <SelectItem value="Clinic Management">Clinic Management</SelectItem>
                       </SelectContent>
@@ -368,20 +377,6 @@ export default function ProfileSetup() {
                   {/* Removed email error display as it's disabled and pre-filled */}
                 </div>
 
-                <div>
-                  <Label htmlFor="country" className="text-sm font-medium text-slate-700">Country of Practice *</Label>
-                  <Select value={formData.country} onValueChange={(v) => handleInputChange("country", v)}>
-                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select country" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="australia">🇦🇺 Australia</SelectItem>
-                      <SelectItem value="usa">🇺🇸 United States</SelectItem>
-                      <SelectItem value="canada">🇨🇦 Canada</SelectItem>
-                      <SelectItem value="nz">🇳🇿 New Zealand</SelectItem>
-                      <SelectItem value="uk">🇬🇧 United Kingdom</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
                 {/* Only show professional fields for non-management roles */}
                 {formData.profession && formData.profession !== "Gym Management" && formData.profession !== "Clinic Management" && (
                   <>
@@ -401,107 +396,22 @@ export default function ProfileSetup() {
                       )}
                     </div>
 
-                    {/* Australia */}
-                    {(!formData.country || formData.country === "australia") && (
-                      <>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="provider_number" className="text-sm font-medium text-slate-700">Medicare Provider Number</Label>
-                            <Input id="provider_number" value={formData.provider_number} onChange={(e) => handleInputChange("provider_number", e.target.value)} placeholder="e.g. 2345678A" className={`mt-1 ${errors.provider_number ? "border-red-500" : ""}`} />
-                            {errors.provider_number && <p className="text-red-500 text-sm mt-1">{errors.provider_number}</p>}
-                          </div>
-                          <div>
-                            <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">ESSA Registration Number</Label>
-                            <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="e.g. EPH0001234" className={`mt-1 ${errors.registration_number ? "border-red-500" : ""}`} />
-                            {errors.registration_number && <p className="text-red-500 text-sm mt-1">{errors.registration_number}</p>}
-                          </div>
-                        </div>
-                        <div>
-                          <Label htmlFor="abn" className="text-sm font-medium text-slate-700">ABN</Label>
-                          <Input id="abn" value={formData.abn} onChange={(e) => handleInputChange("abn", e.target.value)} placeholder="e.g. 12 345 678 901" className="mt-1" />
-                        </div>
-                      </>
-                    )}
-                    {/* USA */}
-                    {formData.country === "usa" && (
-                      <>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="npi_number" className="text-sm font-medium text-slate-700">NPI Number (Individual) *</Label>
-                            <Input id="npi_number" value={formData.npi_number} onChange={(e) => handleInputChange("npi_number", e.target.value)} placeholder="10-digit NPI" className={`mt-1 ${errors.npi_number ? "border-red-500" : ""}`} />
-                            {errors.npi_number && <p className="text-red-500 text-sm mt-1">{errors.npi_number}</p>}
-                          </div>
-                          <div>
-                            <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">ACSM Certification Number *</Label>
-                            <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="ACSM-EP or ACSM-CEP number" className={`mt-1 ${errors.registration_number ? "border-red-500" : ""}`} />
-                            {errors.registration_number && <p className="text-red-500 text-sm mt-1">{errors.registration_number}</p>}
-                          </div>
-                        </div>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="provider_number" className="text-sm font-medium text-slate-700">State License Number</Label>
-                            <Input id="provider_number" value={formData.provider_number} onChange={(e) => handleInputChange("provider_number", e.target.value)} placeholder="State-issued license (if applicable)" className="mt-1" />
-                          </div>
-                          <div>
-                            <Label htmlFor="abn" className="text-sm font-medium text-slate-700">Tax ID / EIN</Label>
-                            <Input id="abn" value={formData.abn} onChange={(e) => handleInputChange("abn", e.target.value)} placeholder="Federal Tax ID / EIN" className="mt-1" />
-                          </div>
-                        </div>
-                      </>
-                    )}
-                    {/* Canada */}
-                    {formData.country === "canada" && (
-                      <>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">CSEP-CEP Certification Number *</Label>
-                            <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="CSEP certification number" className={`mt-1 ${errors.registration_number ? "border-red-500" : ""}`} />
-                            {errors.registration_number && <p className="text-red-500 text-sm mt-1">{errors.registration_number}</p>}
-                          </div>
-                          <div>
-                            <Label htmlFor="abn" className="text-sm font-medium text-slate-700">GST/HST Number</Label>
-                            <Input id="abn" value={formData.abn} onChange={(e) => handleInputChange("abn", e.target.value)} placeholder="Business GST/HST number" className="mt-1" />
-                          </div>
-                        </div>
-                      </>
-                    )}
-                    {/* New Zealand */}
-                    {formData.country === "nz" && (
-                      <>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="npi_number" className="text-sm font-medium text-slate-700">HPI Number (Health Provider Index) *</Label>
-                            <Input id="npi_number" value={formData.npi_number} onChange={(e) => handleInputChange("npi_number", e.target.value)} placeholder="HPI number" className={`mt-1 ${errors.npi_number ? "border-red-500" : ""}`} />
-                            {errors.npi_number && <p className="text-red-500 text-sm mt-1">{errors.npi_number}</p>}
-                          </div>
-                          <div>
-                            <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">CEPNZ Membership Number *</Label>
-                            <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="CEPNZ membership number" className={`mt-1 ${errors.registration_number ? "border-red-500" : ""}`} />
-                            {errors.registration_number && <p className="text-red-500 text-sm mt-1">{errors.registration_number}</p>}
-                          </div>
-                        </div>
-                        <div>
-                          <Label htmlFor="provider_number" className="text-sm font-medium text-slate-700">ACC Provider Registration Number</Label>
-                          <Input id="provider_number" value={formData.provider_number} onChange={(e) => handleInputChange("provider_number", e.target.value)} placeholder="ACC treatment provider number" className="mt-1" />
-                        </div>
-                      </>
-                    )}
-                    {/* UK */}
-                    {formData.country === "uk" && (
-                      <>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div>
-                            <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">RCCP / AHCS Registration Number *</Label>
-                            <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="RCCP or AHCS number" className={`mt-1 ${errors.registration_number ? "border-red-500" : ""}`} />
-                            {errors.registration_number && <p className="text-red-500 text-sm mt-1">{errors.registration_number}</p>}
-                          </div>
-                          <div>
-                            <Label htmlFor="provider_number" className="text-sm font-medium text-slate-700">NHS PIN (if applicable)</Label>
-                            <Input id="provider_number" value={formData.provider_number} onChange={(e) => handleInputChange("provider_number", e.target.value)} placeholder="NHS PIN" className="mt-1" />
-                          </div>
-                        </div>
-                      </>
-                    )}
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="provider_number" className="text-sm font-medium text-slate-700">Medicare Provider Number</Label>
+                        <Input id="provider_number" value={formData.provider_number} onChange={(e) => handleInputChange("provider_number", e.target.value)} placeholder="e.g. 2345678A" className={`mt-1 ${errors.provider_number ? "border-red-500" : ""}`} />
+                        {errors.provider_number && <p className="text-red-500 text-sm mt-1">{errors.provider_number}</p>}
+                      </div>
+                      <div>
+                        <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">ESSA Accreditation Number</Label>
+                        <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="e.g. EPH0001234" className={`mt-1 ${errors.registration_number ? "border-red-500" : ""}`} />
+                        {errors.registration_number && <p className="text-red-500 text-sm mt-1">{errors.registration_number}</p>}
+                      </div>
+                    </div>
+                    <div>
+                      <Label htmlFor="abn" className="text-sm font-medium text-slate-700">ABN</Label>
+                      <Input id="abn" value={formData.abn} onChange={(e) => handleInputChange("abn", e.target.value)} placeholder="e.g. 12 345 678 901" className="mt-1" />
+                    </div>
                   </>
                 )}
 
@@ -643,7 +553,7 @@ export default function ProfileSetup() {
               values={consent}
               onChange={handleConsentChange}
               error={errors.consentAccepted}
-              isFoundingOwner={isNewOrg}
+              isFoundingOwner={consentAudience?.ownerBundle !== false}
             />
 
             {/* Submit Button */}

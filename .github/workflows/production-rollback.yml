@@ -227,6 +227,45 @@ jobs:
               "$body" >/dev/null
           }
 
+          read_public_surface() {
+            local url=$1
+            local label=$2
+            local html="$RUNNER_TEMP/${label}-index.html"
+            local bundle="$RUNNER_TEMP/${label}-bundle.js"
+            curl --fail --silent --show-error --max-time 15 -H 'Cache-Control: no-cache' "$url/" -o "$html"
+            local asset_path
+            asset_path="$(HTML_PATH="$html" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const html = fs.readFileSync(process.env.HTML_PATH, 'utf8');
+          const match = html.match(/<script[^>]+type=["']module["'][^>]+src=["']([^"']+)["']/i)
+            || html.match(/<script[^>]+src=["']([^"']+)["'][^>]+type=["']module["']/i);
+          if (!match || !match[1].startsWith('/assets/')) throw new Error('Production HTML did not reference a local module asset');
+          process.stdout.write(match[1]);
+          NODE
+            )"
+            curl --fail --silent --show-error --max-time 20 -H 'Cache-Control: no-cache' "$url$asset_path" -o "$bundle"
+            BUNDLE_PATH="$bundle" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const bundle = fs.readFileSync(process.env.BUNDLE_PATH, 'utf8');
+          if (bundle.length < 10_000) throw new Error('Production JavaScript bundle is incomplete');
+          for (const required of ['I have read and agree to the', 'Optional: send me product updates and marketing by email', 'Accredited Exercise Physiologist (AEP)']) {
+            if (!bundle.includes(required)) throw new Error(`Production bundle is missing required signup wording: ${required}`);
+          }
+          for (const forbidden of ['Country of Practice', "I confirm this practice's use of AssessSuite is limited to adult patients", 'adult patients (18 and over)']) {
+            if (bundle.toLowerCase().includes(forbidden.toLowerCase())) throw new Error(`Production bundle retains forbidden signup wording: ${forbidden}`);
+          }
+          NODE
+            local status
+            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-register-invalid.json" -w '%{http_code}' -H 'Content-Type: application/json' -X POST --data '{}' "$url/api/apps/prod/auth/register")"
+            [[ "$status" == '400' ]]
+            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-upload.json" -w '%{http_code}' -X POST "$url/api/apps/prod/integration-endpoints/Core/UploadFile")"
+            [[ "$status" == '401' ]]
+            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-extraction.json" -w '%{http_code}' -H 'Content-Type: application/json' -X POST --data '{}' "$url/api/apps/prod/integration-endpoints/Core/ExtractDataFromUploadedFile")"
+            [[ "$status" == '401' ]]
+            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-file.json" -w '%{http_code}' "$url/uploads/00000000-0000-4000-8000-000000000000")"
+            [[ "$status" == '401' || "$status" == '404' ]]
+          }
+
           assert_topology() {
             local label=$1
             fly machines list --app "$app" --json >"$RUNNER_TEMP/${label}-machines.json"
@@ -285,7 +324,8 @@ jobs:
           const forbidden = [
             'DOCUMENT_EXTRACTION_ENABLED', 'DOCUMENT_EXTRACTION_UNDER_13_ENABLED',
             'OPENAI_HEALTH_DATA_TERMS_CONFIRMED', 'GENERAL_CLINICAL_LLM_ENABLED',
-            'TRANSCRIPTION_ENABLED',
+            'TRANSCRIPTION_ENABLED', 'LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS',
+            'OPENAI_DOCUMENT_EXTRACTION_MODEL',
           ].filter((name) => present.has(name));
           if (forbidden.length) throw new Error(`Reviewed non-secret setting(s) overridden by opaque Fly secrets: ${forbidden.join(', ')}`);
           if (present.has('LEGAL_STATUS') || present.has('LEGAL_EFFECTIVE_DATE')) {
@@ -293,6 +333,19 @@ jobs:
           }
           console.log(`Names-only rollback preflight passed (${required.length} required names).`);
           NODE
+
+          fly auth docker
+          docker pull "$ROLLBACK_IMAGE"
+          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$ROLLBACK_SOURCE_SHA" ]]
+          docker image inspect "$ROLLBACK_IMAGE" --format '{{ range .Config.Env }}{{ println . }}{{ end }}' >"$RUNNER_TEMP/rollback-image-env.txt"
+          grep -Fx "RELEASE_SHA=$ROLLBACK_SOURCE_SHA" "$RUNNER_TEMP/rollback-image-env.txt"
+          grep -Fx "SOURCE_BRANCH=$ROLLBACK_SOURCE_BRANCH" "$RUNNER_TEMP/rollback-image-env.txt"
+          assert_topology prior
+          fly releases --app "$app" --image --json >"$prior_json"
+          prior_current="$(current_release "$prior_json")"
+          IFS=$'\t' read -r prior_release prior_image <<<"$prior_current"
+          [[ "$prior_release" == "$EXPECTED_CURRENT_RELEASE" ]]
+          [[ "$prior_image" == "$EXPECTED_CURRENT_IMAGE" ]]
 
           legacy_legal_secrets=()
           for name in LEGAL_STATUS LEGAL_EFFECTIVE_DATE; do
@@ -303,18 +356,6 @@ jobs:
           if [[ "${#legacy_legal_secrets[@]}" -gt 0 ]]; then
             fly secrets unset "${legacy_legal_secrets[@]}" --stage --app "$app"
           fi
-
-          fly auth docker
-          docker pull "$ROLLBACK_IMAGE"
-          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$ROLLBACK_SOURCE_SHA" ]]
-          docker image inspect "$ROLLBACK_IMAGE" --format '{{ range .Config.Env }}{{ println . }}{{ end }}' >"$RUNNER_TEMP/rollback-image-env.txt"
-          grep -Fx "RELEASE_SHA=$ROLLBACK_SOURCE_SHA" "$RUNNER_TEMP/rollback-image-env.txt"
-          grep -Fx "SOURCE_BRANCH=$ROLLBACK_SOURCE_BRANCH" "$RUNNER_TEMP/rollback-image-env.txt"
-          assert_topology prior
-          fly releases --app "$app" --image --json >"$prior_json"
-          IFS=$'\t' read -r prior_release prior_image < <(current_release "$prior_json")
-          [[ "$prior_release" == "$EXPECTED_CURRENT_RELEASE" ]]
-          [[ "$prior_image" == "$EXPECTED_CURRENT_IMAGE" ]]
 
           rollback_status=0
           fly deploy "$rollback_dir" \
@@ -343,8 +384,13 @@ jobs:
             exit 1
           fi
           if ! read_public_settings 'https://assesssuite.com' "$RUNNER_TEMP/rollback-apex-public-settings.json" \
-            || ! read_public_settings 'https://assesssuite-production.fly.dev' "$RUNNER_TEMP/rollback-fly-public-settings.json"; then
+              || ! read_public_settings 'https://assesssuite-production.fly.dev' "$RUNNER_TEMP/rollback-fly-public-settings.json"; then
             write_summary 'ROLLBACK LEGAL SETTINGS VERIFICATION FAILED'
+            exit 1
+          fi
+          if ! read_public_surface 'https://assesssuite.com' 'rollback-apex' \
+              || ! read_public_surface 'https://assesssuite-production.fly.dev' 'rollback-fly'; then
+            write_summary 'ROLLBACK PUBLIC SURFACE VERIFICATION FAILED'
             exit 1
           fi
 

@@ -6,6 +6,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { startFakeOpenAI } from './support/fake-openai.mjs';
+import { resolveDocumentExtractionModel } from '../documentExtraction.mjs';
 import {
   MERGED_PROFILE,
   PROFILE_A,
@@ -946,4 +947,109 @@ test('E43 an authorised bound referral can be re-extracted without changing its 
   });
   assertSuccess(result, PROFILE_A);
   assert.equal(getUploadRow(uploadRef.upload_id).lifecycle_state, 'bound');
+});
+
+test('E44 non-Australian or non-release professions fail closed across profile, clinical, upload, and extraction paths', async () => {
+  const uploadRef = await uploadReferral(userB, tenantB.id, pdfFixture(), 'release-boundary.pdf', 'application/pdf');
+
+  const invalidProfile = await requestJson(server, appRoute('/entities/User/me'), {
+    method: 'PUT',
+    token: userB.token,
+    body: { country: 'usa', profession: 'Physiotherapist' },
+  });
+  assert.equal(invalidProfile.status, 403, invalidProfile.text);
+
+  const adminSetOutsideRelease = await requestJson(server, appRoute(`/entities/User/${userB.id}`), {
+    method: 'PUT',
+    token: adminToken,
+    body: { country: 'usa', profession: 'Physiotherapist' },
+  });
+  assert.equal(adminSetOutsideRelease.status, 200, adminSetOutsideRelease.text);
+
+  try {
+    const clinicalList = await requestJson(server, appRoute('/entities/Client'), { token: userB.token });
+    assert.equal(clinicalList.status, 403, clinicalList.text);
+    assert.equal(clinicalList.body?.message, 'clinical access is not approved for this account profile');
+
+    const blockedUpload = await upload(userB, tenantB.id, {
+      bytes: pdfFixture(),
+      filename: 'blocked-release-boundary.pdf',
+      mediaType: 'application/pdf',
+    });
+    assert.equal(blockedUpload.status, 403, blockedUpload.text);
+
+    fakeProvider.reset();
+    const blockedExtraction = await extract(userB, {
+      upload_id: uploadRef.upload_id,
+      org_id: tenantB.id,
+      json_schema: REFERRAL_SCHEMA,
+    });
+    assert.equal(blockedExtraction.status, 403, blockedExtraction.text);
+    assert.equal(fakeProvider.calls.length, 0, 'release boundary must be checked before provider I/O');
+  } finally {
+    const restored = await requestJson(server, appRoute(`/entities/User/${userB.id}`), {
+      method: 'PUT',
+      token: adminToken,
+      body: { country: 'australia', profession: 'Exercise Physiologist' },
+    });
+    assert.equal(restored.status, 200, restored.text);
+  }
+});
+
+test('E45 failed provider calls retain bounded policy provenance and production model overrides are prohibited', async () => {
+  fakeProvider.reset();
+  fakeProvider.setMode('provider-500');
+  const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'failed-provenance.pdf', 'application/pdf');
+  const result = await extract(userA, {
+    upload_id: uploadRef.upload_id,
+    org_id: tenantA.id,
+    json_schema: REFERRAL_SCHEMA,
+  });
+  assert.equal(result.status, 502, result.text);
+
+  const db = openAssuranceDb();
+  try {
+    const row = db.prepare(`
+      SELECT metadata_json FROM upload_audit
+      WHERE upload_id = ? AND event_type = 'document_extraction' AND outcome = 'failed'
+      ORDER BY created_at DESC LIMIT 1
+    `).get(uploadRef.upload_id);
+    const metadata = JSON.parse(row.metadata_json);
+    assert.match(metadata.schema_hash, /^[0-9a-f]{64}$/);
+    assert.equal(metadata.provider_status_class, '5xx');
+    assert.equal(metadata.provider_model, 'synthetic-assurance-model');
+    assert.equal(typeof metadata.prompt_version, 'string');
+    assert.equal(metadata.request_store_disabled, true);
+    assert.equal(metadata.request_background_disabled, true);
+    assert.equal(metadata.request_prompt_cache_in_memory, true);
+    assert.equal(metadata.request_tools_disabled, true);
+    assert.equal(metadata.request_inline_only, true);
+    assert.equal(metadata.request_conversation_state_disabled, true);
+    assert.doesNotMatch(row.metadata_json, /Alex River|ALEX RIVER|file_data|input_file/i);
+  } finally {
+    db.close();
+    fakeProvider.reset();
+  }
+
+  const priorModel = process.env.OPENAI_DOCUMENT_EXTRACTION_MODEL;
+  const priorSelftest = process.env.SELFTEST;
+  const priorNodeEnv = process.env.NODE_ENV;
+  try {
+    process.env.OPENAI_DOCUMENT_EXTRACTION_MODEL = 'opaque-production-override';
+    delete process.env.SELFTEST;
+    process.env.NODE_ENV = 'production';
+    assert.throws(
+      () => resolveDocumentExtractionModel(),
+      (error) => error?.code === 'extraction_model_override_forbidden' && error?.httpStatus === 503,
+    );
+    process.env.SELFTEST = '1';
+    assert.equal(resolveDocumentExtractionModel(), 'opaque-production-override');
+  } finally {
+    if (priorModel === undefined) delete process.env.OPENAI_DOCUMENT_EXTRACTION_MODEL;
+    else process.env.OPENAI_DOCUMENT_EXTRACTION_MODEL = priorModel;
+    if (priorSelftest === undefined) delete process.env.SELFTEST;
+    else process.env.SELFTEST = priorSelftest;
+    if (priorNodeEnv === undefined) delete process.env.NODE_ENV;
+    else process.env.NODE_ENV = priorNodeEnv;
+  }
 });

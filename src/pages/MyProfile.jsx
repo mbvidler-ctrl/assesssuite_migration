@@ -358,9 +358,9 @@ export default function MyProfile() {
                         <SelectValue placeholder="Select your profession" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Exercise Physiologist">Exercise Physiologist</SelectItem>
-                        <SelectItem value="Exercise Scientist">Exercise Scientist</SelectItem>
-                        <SelectItem value="Dual Exercise Scientist & Exercise Physiologist">Dual Exercise Scientist & Exercise Physiologist</SelectItem>
+                        <SelectItem value="Exercise Physiologist">Accredited Exercise Physiologist (AEP)</SelectItem>
+                        <SelectItem value="Gym Management">Gym Management</SelectItem>
+                        <SelectItem value="Clinic Management">Clinic Management</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -410,85 +410,18 @@ export default function MyProfile() {
                       />
                     </div>
 
+                    <p className="text-xs text-slate-500">
+                      The current self-service clinical release is configured for Australian practices.
+                      Geographic requirements are governed by the linked policies rather than a profile declaration.
+                    </p>
                     <div>
-                      <Label htmlFor="country" className="text-sm font-medium text-slate-700">Country of Practice</Label>
-                      <Select value={formData.country} onValueChange={(v) => handleInputChange("country", v)}>
-                        <SelectTrigger className="mt-1"><SelectValue placeholder="Select country" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="australia">🇦🇺 Australia</SelectItem>
-                          <SelectItem value="usa">🇺🇸 United States</SelectItem>
-                          <SelectItem value="canada">🇨🇦 Canada</SelectItem>
-                          <SelectItem value="nz">🇳🇿 New Zealand</SelectItem>
-                          <SelectItem value="uk">🇬🇧 United Kingdom</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">Professional Registration or Accreditation Number</Label>
+                      <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="e.g. ESSA accreditation number" className="mt-1" />
                     </div>
-
-                    {/* Australia */}
-                    {(!formData.country || formData.country === "australia") && (
-                      <>
-                        <div>
-                          <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">AHPRA Registration Number</Label>
-                          <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="e.g. EPH0001234" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label htmlFor="abn" className="text-sm font-medium text-slate-700">ABN</Label>
-                          <Input id="abn" value={formData.abn} onChange={(e) => handleInputChange("abn", e.target.value)} placeholder="e.g. 12 345 678 901" className="mt-1" />
-                        </div>
-                      </>
-                    )}
-                    {formData.country === "usa" && (
-                      <>
-                        <div>
-                          <Label htmlFor="npi_number" className="text-sm font-medium text-slate-700">NPI Number (Individual)</Label>
-                          <Input id="npi_number" value={formData.npi_number} onChange={(e) => handleInputChange("npi_number", e.target.value)} placeholder="10-digit NPI" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">ACSM Certification Number</Label>
-                          <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="ACSM-EP or ACSM-CEP number" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label htmlFor="abn" className="text-sm font-medium text-slate-700">Tax ID / EIN</Label>
-                          <Input id="abn" value={formData.abn} onChange={(e) => handleInputChange("abn", e.target.value)} placeholder="Federal Tax ID / EIN" className="mt-1" />
-                        </div>
-                      </>
-                    )}
-                    {formData.country === "canada" && (
-                      <>
-                        <div>
-                          <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">CSEP-CEP Certification Number</Label>
-                          <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="CSEP certification number" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label htmlFor="abn" className="text-sm font-medium text-slate-700">GST/HST Number</Label>
-                          <Input id="abn" value={formData.abn} onChange={(e) => handleInputChange("abn", e.target.value)} placeholder="Business GST/HST number" className="mt-1" />
-                        </div>
-                      </>
-                    )}
-                    {formData.country === "nz" && (
-                      <>
-                        <div>
-                          <Label htmlFor="npi_number" className="text-sm font-medium text-slate-700">HPI Number (Health Provider Index)</Label>
-                          <Input id="npi_number" value={formData.npi_number} onChange={(e) => handleInputChange("npi_number", e.target.value)} placeholder="HPI number" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">CEPNZ Membership Number</Label>
-                          <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="CEPNZ membership number" className="mt-1" />
-                        </div>
-                      </>
-                    )}
-                    {formData.country === "uk" && (
-                      <>
-                        <div>
-                          <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">RCCP / AHCS Registration Number</Label>
-                          <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="RCCP or AHCS number" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label htmlFor="provider_number" className="text-sm font-medium text-slate-700">NHS PIN (if applicable)</Label>
-                          <Input id="provider_number" value={formData.provider_number || ""} onChange={(e) => handleInputChange("provider_number", e.target.value)} placeholder="NHS PIN" className="mt-1" />
-                        </div>
-                      </>
-                    )}
+                    <div>
+                      <Label htmlFor="abn" className="text-sm font-medium text-slate-700">ABN</Label>
+                      <Input id="abn" value={formData.abn} onChange={(e) => handleInputChange("abn", e.target.value)} placeholder="e.g. 12 345 678 901" className="mt-1" />
+                    </div>
                   </>
                 )}
 

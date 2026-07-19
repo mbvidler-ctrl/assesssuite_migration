@@ -9,6 +9,25 @@ import { createHash } from 'node:crypto';
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const DEFAULT_MODEL = 'gpt-4.1-mini';
 const EXTRACTION_PROMPT_VERSION = 'referral-extraction-v2026-07-19.2';
+
+export function resolveDocumentExtractionModel() {
+  const override = process.env.OPENAI_DOCUMENT_EXTRACTION_MODEL;
+  if (override && process.env.SELFTEST !== '1' && process.env.NODE_ENV !== 'test') {
+    throw new ExtractionError(
+      503,
+      'extraction_model_override_forbidden',
+      'Document extraction is not safely configured.',
+    );
+  }
+  return override || DEFAULT_MODEL;
+}
+
+function attachFailureProvenance(error, provenance) {
+  if (error && typeof error === 'object' && !error.extractionProvenance) {
+    error.extractionProvenance = Object.freeze({ ...provenance });
+  }
+  return error;
+}
 const REQUIRED_PROMPT_CACHE_RETENTION = 'in-memory';
 const PRODUCTION_TIMEOUT_MS = 45_000;
 const MAX_SCHEMA_BYTES = 32 * 1024;
@@ -596,7 +615,7 @@ export async function extractDocumentData({ files, schema, subjectAgeBands }) {
     throw new ExtractionError(413, 'extraction_payload_too_large', 'The selected files are too large to extract together.');
   }
   const prepared = prepareExtractionSchema(schema);
-  const selectedModel = process.env.OPENAI_DOCUMENT_EXTRACTION_MODEL || DEFAULT_MODEL;
+  const selectedModel = resolveDocumentExtractionModel();
   const payload = buildResponsesRequest({
     files,
     sourceSchema: prepared.sourceSchema,
@@ -604,6 +623,12 @@ export async function extractDocumentData({ files, schema, subjectAgeBands }) {
     model: selectedModel,
   });
   const policy = assertProviderRequestPolicy(payload);
+  const baseFailureProvenance = {
+    schemaHash: prepared.schemaHash,
+    model: selectedModel,
+    promptVersion: EXTRACTION_PROMPT_VERSION,
+    requestPolicy: policy,
+  };
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
   let response;
@@ -619,9 +644,15 @@ export async function extractDocumentData({ files, schema, subjectAgeBands }) {
     });
   } catch (error) {
     if (error?.name === 'AbortError') {
-      throw new ExtractionError(504, 'provider_timeout', 'Document extraction timed out. Please try again.');
+      throw attachFailureProvenance(
+        new ExtractionError(504, 'provider_timeout', 'Document extraction timed out. Please try again.'),
+        { ...baseFailureProvenance, providerStatusClass: 'network' },
+      );
     }
-    throw new ExtractionError(502, 'provider_unavailable', 'Document extraction is temporarily unavailable.');
+    throw attachFailureProvenance(
+      new ExtractionError(502, 'provider_unavailable', 'Document extraction is temporarily unavailable.'),
+      { ...baseFailureProvenance, providerStatusClass: 'network' },
+    );
   }
   try {
     if (!response.ok) {
@@ -660,6 +691,11 @@ export async function extractDocumentData({ files, schema, subjectAgeBands }) {
           ? createHash('sha256').update(data.id).digest('hex')
           : null,
     };
+  } catch (error) {
+    throw attachFailureProvenance(error, {
+      ...baseFailureProvenance,
+      providerStatusClass: `${Math.floor(response.status / 100)}xx`,
+    });
   } finally {
     clearTimeout(timeout);
   }

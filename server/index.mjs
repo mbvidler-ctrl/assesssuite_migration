@@ -34,6 +34,10 @@ import {
 } from './uploadRegistry.mjs';
 import { verifyFileAccessToken } from './fileAccess.mjs';
 import {
+  isInitialClinicalReleaseEligible,
+  validateInitialReleaseProfileUpdate,
+} from './clinicalRelease.mjs';
+import {
   CONTRACT_BUNDLE_IDS,
   EVENT_TYPES,
   LEGAL_DOCUMENTS,
@@ -613,6 +617,10 @@ function entityAccessDenied(req, res, entityName, sessionUser, isAdmin) {
     return true;
   }
   const isMutation = req.method !== 'GET';
+  if (!isAdmin && CLINICAL_ENTITIES.has(entityName) && !isInitialClinicalReleaseEligible(sessionUser)) {
+    sendError(res, 403, 'clinical access is not approved for this account profile');
+    return true;
+  }
   if (!isAdmin && sessionUser.account_status !== 'active') {
     if (CLINICAL_ENTITIES.has(entityName)) {
       sendError(res, 403, 'account pending approval');
@@ -1106,6 +1114,8 @@ async function handleMe(req, res) {
   if (req.method === 'PUT') {
     const payload = await readJsonBody(req);
     const sanitized = sanitizeUpdateMePayload(payload);
+    const releaseProfile = validateInitialReleaseProfileUpdate(sanitized);
+    if (!releaseProfile.ok) return sendError(res, 403, releaseProfile.message);
     const orgId = primaryOrgIdForUser(sessionUser.email);
     const pendingBindings = orgId
       ? prepareUploadBindings('User', sanitized, orgId, sessionUser.id, sessionUser)
@@ -1560,7 +1570,9 @@ function canUserAccessUpload(upload, sessionUser) {
   if (upload.state !== 'bound' && !upload.isLegacy && upload.uploaderUserId !== sessionUser.id) return false;
   if (
     CLINICAL_UPLOAD_PURPOSES.has(upload.purpose) &&
-    (sessionUser.account_status !== 'active' || !hasCurrentLegalAcceptance(sessionUser.email, upload.orgId))
+    (!isInitialClinicalReleaseEligible(sessionUser) ||
+      sessionUser.account_status !== 'active' ||
+      !hasCurrentLegalAcceptance(sessionUser.email, upload.orgId))
   ) return false;
   return true;
 }
@@ -1943,6 +1955,7 @@ async function requestListener(req, res) {
         uploadsDir,
         hasExtractionAcceptance,
         hasCurrentLegalAcceptance,
+        isClinicalUseEligible: () => isInitialClinicalReleaseEligible(integrationUser),
         recordLegalAcceptanceBundle,
         canAccessUpload: (upload) => canUserAccessUpload(upload, integrationUser),
         resolveLegacyUpload: ({ storedName, selectedOrgId }) =>

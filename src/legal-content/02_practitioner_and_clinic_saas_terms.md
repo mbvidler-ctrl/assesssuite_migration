@@ -12,16 +12,16 @@
 
 ## 1. Agreement
 
-1. These Terms govern a subscription to AssessSuite Clinical between Assess Suite Pty Ltd (**AssessSuite**, **we**, **us**) and the person or organisation identified in an Order Form (**Customer**, **you**).
+1. These Terms govern a subscription to AssessSuite Clinical between Assess Suite Pty Ltd (**AssessSuite**, **we**, **us**) and the person or organisation identified in the applicable Order Form (**Customer**, **you**). For a standard self-service subscription, the Customer is the practice, organisation or individual identified by the owner account and practice profile in the Standard Online Order.
 2. The person accepting these Terms for an organisation confirms that they have authority to bind it.
 3. The agreement consists of:
-   - the Customer Order Form and Approved Production Mode Schedule;
+   - the applicable Order Form, being either the Standard Online Order or a separately negotiated Customer Order Form and Approved Production Mode Schedule;
    - these Terms;
    - the Data Processing and Security Schedule;
    - the Subscription, Cancellation and Refund Policy;
    - the Acceptable Use Policy;
    - Part A (sections 1–7), titled the **Customer-Facing Retention and Exit Schedule**, of the AssessSuite Records Retention, Export, Deletion and Exit Policy;
-   - the Approved Subprocessor and Cross-Border Data Schedule identified in the Order Form; and
+   - the Approved Subprocessor and Cross-Border Data Schedule identified in the applicable Order Form or release manifest; and
    - any other customer-facing product schedule expressly identified by title and version in the Order Form.
 4. If documents conflict, mandatory law prevails. Subject to that law, the Order Form prevails for its commercial particulars and enabled functions; the AssessSuite Data Processing and Security Schedule prevails for processing of Customer Data; these Terms prevail next; then the AssessSuite Subscription, Cancellation and Refund Policy, AssessSuite Acceptable Use Policy, Customer-Facing Retention and Exit Schedule and other incorporated schedules in that order. Part B of the AssessSuite Records Retention, Export, Deletion and Exit Policy is an internal verification control and is not incorporated into the Customer agreement.
 5. The AssessSuite Privacy Policy, AssessSuite Practitioner Account Collection Notice, Patient Collection Notice and Consent Pack — Practice Template, AssessSuite AI and Automated Processing Transparency Notice, and AssessSuite Clinical Use and Professional Responsibility Notice explain information handling, intended use and risks. They do not silently amend this agreement, provide consent to treatment or waive a right.
@@ -30,17 +30,18 @@
 
 In this agreement:
 
-- **Approved Production Mode** means the environment, users, information, jurisdictions and functions expressly approved in the Order Form for real use. Technical availability, demo access or a feature flag alone is not approval.
+- **Approved Production Mode** means the environment, users, information, jurisdictions and functions expressly approved in the applicable Order Form for real use. For a Standard Online Order, it is the production environment and the enabled and blocked functions, data flows, providers, retention settings, legal-document versions and controls bound to that order by the current immutable release manifest and production configuration. Technical availability, demo access or a feature flag alone is not approval.
 - **Authorised User** means a person whom Customer assigns a unique account and role and who meets the credential and scope requirements for their enabled functions.
 - **Clinical Output** means a score, interpretation, note, plan, protocol, warning, recommendation or report that may be used for patient care or a professional or funding process.
 - **Customer Data** means information supplied, created or controlled by Customer or its patients through the Service, excluding AssessSuite’s independently created account, billing, security and platform-administration data.
-- **Customer-Facing Retention and Exit Schedule** means Part A (sections 1–7) of the AssessSuite Records Retention, Export, Deletion and Exit Policy, in the version and hash identified in the Order Form.
-- **Liability Period** means each consecutive 12-month period beginning on the subscription start date in the Order Form, with the final period ending when the agreement ends if it is shorter than 12 months.
-- **Order Form** means the Customer Order Form and Approved Production Mode Schedule accepted by the parties for the subscription.
+- **Customer-Facing Retention and Exit Schedule** means Part A (sections 1–7) of the AssessSuite Records Retention, Export, Deletion and Exit Policy, in the version and hash identified in the applicable Order Form or release manifest.
+- **Liability Period** means each consecutive 12-month period beginning on the subscription start date recorded in the applicable Order Form or checkout transaction, with the final period ending when the agreement ends if it is shorter than 12 months.
+- **Order Form** means either a Standard Online Order or a separately negotiated Customer Order Form and Approved Production Mode Schedule accepted by the parties for the subscription.
 - **Patient Data** means Customer Data about a patient, client, representative, referrer or treating provider, including health information and clinical records.
 - **Principal Party**, for an audio recording or transcription, means every person whose private conversation or identifiable voice may be captured, including the patient, practitioner, representative, interpreter, support person and remote participant.
 - **Related Events** means events arising from the same or substantially the same originating cause, defect, instruction, incident or continuous course of conduct.
-- **Service** means AssessSuite Clinical and only the functions and environment specified in the Order Form.
+- **Service** means AssessSuite Clinical and only the functions and environment specified in the applicable Order Form.
+- **Standard Online Order** means the electronic Order Form formed from: the owner account and practice profile; the plan, price, billing period, currency, tax treatment, renewal and cancellation particulars displayed at checkout; the successful checkout transaction; the owner’s mandatory document-bound acceptance receipts; and the then-current immutable production release manifest, feature configuration, provider schedule and incorporated policy versions and hashes. No separate signed document is required for that standard self-service order.
 - **Subprocessor** means a provider engaged by AssessSuite to process personal information in supplying or supporting the Service; the label does not remove statutory duties imposed directly on AssessSuite.
 
 ## 3. Eligibility and authorised users
@@ -56,9 +57,9 @@ In this agreement:
 
 ## 4. Service and Approved Production Mode
 
-1. The Service may support referral intake, assessment records, clinical notes, reports and practice workflows listed in the Order Form.
-2. The Order Form must state the Approved Production Mode, tenant, named or permitted users, data types, jurisdictions, environment, retention profile and enabled and blocked functions. A demo, test, beta or synthetic environment is not approved for real Patient Data.
-3. Clinical recommendation, prediction, treatment-protocol, medication-consideration, AI report, transcription and similar functions may be used only where the Order Form identifies the exact approved function and the build-bound release manifest proves the applicable regulatory, privacy, security and clinical controls.
+1. Under the Standard Online Order for RC-2026.07.19, the Service may support secure referral intake and extraction of proposed client-profile fields, assessment and clinical records, notes, reports and practice workflows that the current production release manifest and configuration expressly enable. Extracted values remain unverified proposals until a practitioner reviews and confirms them.
+2. For a Standard Online Order, the owner account, practice profile and checkout record identify the Customer, tenant, permitted user class and commercial particulars; RC-2026.07.19 fixes the initial jurisdiction and user boundary to Australian AEP practices and authorised practice staff; and the immutable release manifest, production configuration, provider schedule and incorporated legal hashes state the environment, data flows, retention profile and enabled and blocked functions. A separately negotiated Order Form must state those particulars for a non-standard subscription. A demo, test, beta or synthetic environment is not approved for real Patient Data.
+3. RC-2026.07.19 does not approve general clinical text generation, clinical recommendation or prediction, treatment-protocol or medication-consideration generation, AI report drafting, audio recording or transcription, direct-patient accounts, under-13 provider egress, the Finances module or any unlisted AI function. Those functions remain disabled or excluded unless a separately approved Order Form identifies the exact function and an immutable release manifest proves the applicable regulatory, privacy, security and clinical controls.
 4. The Finances or patient-service payment module is excluded from the initial Service unless the Order Form expressly activates it after a complete privacy, access, retention, export and commercial review.
 5. AssessSuite may isolate or disable a function where safety, legal status, evidence, licence, vendor control or security is unresolved. This is not a right to remove material paid functionality without the notice and remedy in clause 19.
 6. The Service is not an emergency service and must not be used to triage or respond to an immediate threat to life or safety. Users must follow emergency and professional escalation pathways.

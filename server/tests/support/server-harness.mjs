@@ -155,7 +155,13 @@ export async function registerUser(server, email) {
 
 export async function activateUser(server, adminToken, userId) {
   const result = await requestJson(server, `/api/apps/${server.appId}/entities/User/${userId}`, {
-    method: 'PUT', token: adminToken, body: { account_status: 'active' },
+    method: 'PUT',
+    token: adminToken,
+    body: {
+      account_status: 'active',
+      country: 'australia',
+      profession: 'Exercise Physiologist',
+    },
   });
   if (result.status !== 200) throw new Error(`activation failed: ${result.status} ${result.text}`);
 }

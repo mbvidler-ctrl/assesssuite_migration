@@ -183,6 +183,8 @@ jobs:
           [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^[[:space:]]*LEGAL_STATUS[[:space:]]*=[[:space:]]*"effective"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^[[:space:]]*LEGAL_EFFECTIVE_DATE[[:space:]]*=[[:space:]]*"19 July 2026"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS[[:space:]]*=' fly.production.toml || true)" -eq 0 ]]
+          [[ "$(grep -Ec '^[[:space:]]*OPENAI_DOCUMENT_EXTRACTION_MODEL[[:space:]]*=' fly.production.toml || true)" -eq 0 ]]
 
           if grep -Eq '^[[:space:]]*DOCUMENT_EXTRACTION_UNDER_13_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.production.toml; then
             reviewed_under_age_mode=enabled
@@ -596,8 +598,12 @@ jobs:
 
           assert_topology() {
             local label=$1
-            fly machines list --app "$app" --json >"$RUNNER_TEMP/${label}-machines.json"
-            fly volumes list --app "$app" --json >"$RUNNER_TEMP/${label}-volumes.json"
+            if ! fly machines list --app "$app" --json >"$RUNNER_TEMP/${label}-machines.json"; then
+              return 1
+            fi
+            if ! fly volumes list --app "$app" --json >"$RUNNER_TEMP/${label}-volumes.json"; then
+              return 1
+            fi
             LABEL="$label" node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const root = process.env.RUNNER_TEMP;
@@ -647,6 +653,65 @@ jobs:
             jq -e \
               '.public_settings.legal.status == "effective" and .public_settings.legal.effective_date == "19 July 2026"' \
               "$body" >/dev/null
+          }
+
+          read_public_surface() {
+            local url=$1
+            local label=$2
+            local html="$RUNNER_TEMP/${label}-index.html"
+            local bundle="$RUNNER_TEMP/${label}-bundle.js"
+            curl --fail --silent --show-error --max-time 15 \
+              -H 'Cache-Control: no-cache' "$url/" -o "$html"
+            local asset_path
+            asset_path="$(HTML_PATH="$html" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const html = fs.readFileSync(process.env.HTML_PATH, 'utf8');
+          const match = html.match(/<script[^>]+type=["']module["'][^>]+src=["']([^"']+)["']/i)
+            || html.match(/<script[^>]+src=["']([^"']+)["'][^>]+type=["']module["']/i);
+          if (!match || !match[1].startsWith('/assets/')) throw new Error('Production HTML did not reference a local module asset');
+          process.stdout.write(match[1]);
+          NODE
+            )"
+            curl --fail --silent --show-error --max-time 20 \
+              -H 'Cache-Control: no-cache' "$url$asset_path" -o "$bundle"
+            HTML_PATH="$html" BUNDLE_PATH="$bundle" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const html = fs.readFileSync(process.env.HTML_PATH, 'utf8');
+          const bundle = fs.readFileSync(process.env.BUNDLE_PATH, 'utf8');
+          if (!/<!doctype html>/i.test(html) || bundle.length < 10_000) throw new Error('Production static assets are incomplete');
+          for (const required of [
+            'I have read and agree to the',
+            'Optional: send me product updates and marketing by email',
+            'Accredited Exercise Physiologist (AEP)',
+          ]) {
+            if (!bundle.includes(required)) throw new Error(`Production bundle is missing required signup wording: ${required}`);
+          }
+          for (const forbidden of [
+            'Country of Practice',
+            "I confirm this practice's use of AssessSuite is limited to adult patients",
+            'adult patients (18 and over)',
+          ]) {
+            if (bundle.toLowerCase().includes(forbidden.toLowerCase())) {
+              throw new Error(`Production bundle retains forbidden signup wording: ${forbidden}`);
+            }
+          }
+          NODE
+
+            local status
+            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-register-invalid.json" -w '%{http_code}' \
+              -H 'Content-Type: application/json' -X POST \
+              --data '{}' "$url/api/apps/prod/auth/register")"
+            [[ "$status" == '400' ]]
+            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-upload.json" -w '%{http_code}' \
+              -X POST "$url/api/apps/prod/integration-endpoints/Core/UploadFile")"
+            [[ "$status" == '401' ]]
+            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-extraction.json" -w '%{http_code}' \
+              -H 'Content-Type: application/json' -X POST --data '{}' \
+              "$url/api/apps/prod/integration-endpoints/Core/ExtractDataFromUploadedFile")"
+            [[ "$status" == '401' ]]
+            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-file.json" -w '%{http_code}' \
+              "$url/uploads/00000000-0000-4000-8000-000000000000")"
+            [[ "$status" == '401' || "$status" == '404' ]]
           }
 
           run_provider_probe() {
@@ -727,9 +792,20 @@ jobs:
               append_summary "FAILED; automatic rollback command also failed ($reason)"
               return 1
             fi
-            assert_topology rollback
-            fly releases --app "$app" --image --json >"$rollback_json"
-            IFS=$'\t' read -r rollback_release rollback_image_actual < <(current_release "$rollback_json")
+            if ! assert_topology rollback; then
+              append_summary "FAILED; rollback topology verification failed ($reason)"
+              return 1
+            fi
+            if ! fly releases --app "$app" --image --json >"$rollback_json"; then
+              append_summary "FAILED; rollback release query failed ($reason)"
+              return 1
+            fi
+            local rollback_current
+            if ! rollback_current="$(current_release "$rollback_json")"; then
+              append_summary "FAILED; rollback release response was invalid ($reason)"
+              return 1
+            fi
+            IFS=$'\t' read -r rollback_release rollback_image_actual <<<"$rollback_current"
             if [[ "$rollback_image_actual" != "$ROLLBACK_IMAGE" ]]; then
               append_summary "FAILED; rollback image mismatch ($reason)"
               return 1
@@ -737,6 +813,16 @@ jobs:
             if ! read_version 'https://assesssuite.com' "$ROLLBACK_RELEASE_SHA" "$RUNNER_TEMP/rollback-apex-version.json" \
               || ! read_version 'https://assesssuite-production.fly.dev' "$ROLLBACK_RELEASE_SHA" "$RUNNER_TEMP/rollback-fly-version.json"; then
               append_summary "FAILED; rollback /api/version verification failed ($reason)"
+              return 1
+            fi
+            if ! read_public_settings 'https://assesssuite.com' "$RUNNER_TEMP/rollback-apex-public-settings.json" \
+              || ! read_public_settings 'https://assesssuite-production.fly.dev' "$RUNNER_TEMP/rollback-fly-public-settings.json"; then
+              append_summary "FAILED; rollback legal settings verification failed ($reason)"
+              return 1
+            fi
+            if ! read_public_surface 'https://assesssuite.com' 'rollback-apex' \
+              || ! read_public_surface 'https://assesssuite-production.fly.dev' 'rollback-fly'; then
+              append_summary "FAILED; rollback public surface verification failed ($reason)"
               return 1
             fi
             append_summary "FAILED; automatically rolled back and verified ($reason)"
@@ -751,7 +837,8 @@ jobs:
           grep -Fx "SOURCE_BRANCH=$ROLLBACK_SOURCE_BRANCH" "$RUNNER_TEMP/rollback-image-env.txt"
           assert_topology prior
           fly releases --app "$app" --image --json >"$prior_json"
-          IFS=$'\t' read -r prior_release prior_image < <(current_release "$prior_json")
+          prior_current="$(current_release "$prior_json")"
+          IFS=$'\t' read -r prior_release prior_image <<<"$prior_current"
           [[ "$prior_release" == "$EXPECTED_CURRENT_RELEASE" ]]
           [[ "$prior_image" == "$EXPECTED_CURRENT_IMAGE" ]]
 
@@ -781,6 +868,12 @@ jobs:
           }
           if (present.has('TRANSCRIPTION_ENABLED')) {
             throw new Error('TRANSCRIPTION_ENABLED must be reviewed non-secret config; opaque Fly-secret override is refused');
+          }
+          if (present.has('LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS')) {
+            throw new Error('LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS must be reviewed non-secret rollback config; opaque Fly-secret override is refused');
+          }
+          if (present.has('OPENAI_DOCUMENT_EXTRACTION_MODEL')) {
+            throw new Error('OPENAI_DOCUMENT_EXTRACTION_MODEL is fixed in the reviewed adapter; opaque Fly-secret override is refused');
           }
           if (present.has('LEGAL_STATUS') || present.has('LEGAL_EFFECTIVE_DATE')) {
             console.log('Legacy opaque legal settings are present and will be staged for removal before the reviewed deploy.');
@@ -816,27 +909,39 @@ jobs:
             --yes || deploy_status=$?
 
           if [[ "$deploy_status" -ne 0 ]]; then
-            rollback_now "fly-deploy-exit-$deploy_status" || true
+            if ! rollback_now "fly-deploy-exit-$deploy_status"; then
+              echo 'Automatic rollback did not verify successfully.' >&2
+            fi
             exit 1
           fi
-          assert_topology candidate
 
           verification_failure=''
-          if ! fly releases --app "$app" --image --json >"$new_json"; then
+          if ! assert_topology candidate; then
+            verification_failure='candidate-topology-mismatch'
+          elif ! fly releases --app "$app" --image --json >"$new_json"; then
             verification_failure='release-query-failed'
           else
-            IFS=$'\t' read -r candidate_release candidate_image < <(current_release "$new_json")
-            if [[ "$candidate_image" != "$candidate_image_ref" ]]; then
+            candidate_current=''
+            if ! candidate_current="$(current_release "$new_json")"; then
+              verification_failure='release-response-invalid'
+            else
+              IFS=$'\t' read -r candidate_release candidate_image <<<"$candidate_current"
+            fi
+            if [[ -z "$verification_failure" && "$candidate_image" != "$candidate_image_ref" ]]; then
               verification_failure='deployed-image-mismatch'
-            elif ! read_version 'https://assesssuite.com' "$APPLICATION_SHA" "$RUNNER_TEMP/apex-version.json"; then
+            elif [[ -z "$verification_failure" ]] && ! read_version 'https://assesssuite.com' "$APPLICATION_SHA" "$RUNNER_TEMP/apex-version.json"; then
               verification_failure='apex-version-mismatch'
-            elif ! read_version 'https://assesssuite-production.fly.dev' "$APPLICATION_SHA" "$RUNNER_TEMP/fly-version.json"; then
+            elif [[ -z "$verification_failure" ]] && ! read_version 'https://assesssuite-production.fly.dev' "$APPLICATION_SHA" "$RUNNER_TEMP/fly-version.json"; then
               verification_failure='fly-domain-version-mismatch'
-            elif ! read_public_settings 'https://assesssuite.com' "$RUNNER_TEMP/apex-public-settings.json"; then
+            elif [[ -z "$verification_failure" ]] && ! read_public_settings 'https://assesssuite.com' "$RUNNER_TEMP/apex-public-settings.json"; then
               verification_failure='apex-legal-settings-mismatch'
-            elif ! read_public_settings 'https://assesssuite-production.fly.dev' "$RUNNER_TEMP/fly-public-settings.json"; then
+            elif [[ -z "$verification_failure" ]] && ! read_public_settings 'https://assesssuite-production.fly.dev' "$RUNNER_TEMP/fly-public-settings.json"; then
               verification_failure='fly-legal-settings-mismatch'
-            elif [[ "$EXTRACTION_RUNTIME_MODE" == "enabled" ]]; then
+            elif [[ -z "$verification_failure" ]] && ! read_public_surface 'https://assesssuite.com' 'apex'; then
+              verification_failure='apex-public-surface-mismatch'
+            elif [[ -z "$verification_failure" ]] && ! read_public_surface 'https://assesssuite-production.fly.dev' 'fly'; then
+              verification_failure='fly-public-surface-mismatch'
+            elif [[ -z "$verification_failure" && "$EXTRACTION_RUNTIME_MODE" == "enabled" ]]; then
               if run_provider_probe; then
                 provider_probe_result='PASS (value-blind synthetic PDF + PNG; no DB/filesystem writes)'
               else
@@ -847,7 +952,9 @@ jobs:
           fi
 
           if [[ -n "$verification_failure" ]]; then
-            rollback_now "$verification_failure" || true
+            if ! rollback_now "$verification_failure"; then
+              echo 'Automatic rollback did not verify successfully.' >&2
+            fi
             exit 1
           fi
 

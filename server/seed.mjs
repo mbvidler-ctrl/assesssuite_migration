@@ -495,7 +495,7 @@ export function runSeed({ db, entityNames }) {
 
   function seedUser({
     email, full_name, clinician_name, qualifications, registration_number,
-    clinic_name, clinic_address, clinic_phone, clinic_email, profession, provider_number,
+    clinic_name, clinic_address, clinic_phone, clinic_email, profession, country, provider_number,
   }) {
     const { password_hash, salt } = hashPassword(SEED_PASSWORD);
     const { record, created } = findOrCreate(
@@ -518,6 +518,7 @@ export function runSeed({ db, entityNames }) {
         clinic_phone,
         clinic_email,
         profession,
+        country,
         provider_number,
         last_active: new Date().toISOString(),
       },
@@ -865,6 +866,7 @@ export function runSeed({ db, entityNames }) {
       full_name: 'Local Administrator',
       clinician_name: 'Local Administrator',
       profession: 'Exercise Physiologist',
+      country: 'australia',
       role: 'admin',
       account_status: 'active',
       subscription_status: 'active',
@@ -906,6 +908,7 @@ export function runSeed({ db, entityNames }) {
     clinic_phone: '07 3111 1111',
     clinic_email: 'reception@org-alpha.seed.test',
     profession: 'Exercise Physiologist',
+    country: 'australia',
     provider_number: 'PRV-ALPHA-001',
   });
   const alphaClinician = seedUser({
@@ -919,6 +922,7 @@ export function runSeed({ db, entityNames }) {
     clinic_phone: '07 3111 1111',
     clinic_email: 'reception@org-alpha.seed.test',
     profession: 'Exercise Physiologist',
+    country: 'australia',
     provider_number: 'PRV-ALPHA-002',
   });
   const betaOwner = seedUser({
@@ -932,6 +936,7 @@ export function runSeed({ db, entityNames }) {
     clinic_phone: '07 3222 2222',
     clinic_email: 'reception@org-beta.seed.test',
     profession: 'Exercise Physiologist',
+    country: 'australia',
     provider_number: 'PRV-BETA-001',
   });
   const betaClinician = seedUser({
@@ -945,6 +950,7 @@ export function runSeed({ db, entityNames }) {
     clinic_phone: '07 3222 2222',
     clinic_email: 'reception@org-beta.seed.test',
     profession: 'Exercise Physiologist',
+    country: 'australia',
     provider_number: 'PRV-BETA-002',
   });
 

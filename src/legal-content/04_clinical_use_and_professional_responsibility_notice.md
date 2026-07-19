@@ -14,7 +14,7 @@ An account or credential check does not establish competence for every patient, 
 
 ## 2. Approved functions only
 
-Clinical functions may be used only in the Approved Production Mode identified in the Customer Order Form and Approved Production Mode Schedule and the Regulatory Status and Funder Rules Schedule. Demo, synthetic-data, beta, disabled or unclassified functions must not be used for real patient care.
+Clinical functions may be used only in the Approved Production Mode identified in the applicable Order Form (including the Standard Online Order defined in the Practitioner and Clinic SaaS Terms), immutable release manifest and Regulatory Status and Funder Rules Schedule. Demo, synthetic-data, beta, disabled or unclassified functions must not be used for real patient care.
 
 The following functions require specific regulatory and clinical release approval before production use:
 

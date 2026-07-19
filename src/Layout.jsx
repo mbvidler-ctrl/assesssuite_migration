@@ -8,6 +8,7 @@ import {
   Utensils, ShieldCheck
 } from "lucide-react";
 import { SUITE_VERSION } from "@/lib/legal/documentRegistry";
+import { resolveLegalConsentAudience } from "@/lib/legal/consentAudience";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -119,10 +120,20 @@ export default function Layout({ children, currentPageName }) {
         // this check exists to give the user a proper page instead of raw
         // 403s the first time they touch a clinical entity.
         let events = [];
+        let legalAudience = null;
         try {
+          const memberships = await base44.entities.OrganizationMember.filter({
+            user_email: freshUser.email,
+          });
+          legalAudience = resolveLegalConsentAudience(memberships);
+          if (!legalAudience.orgId) {
+            navigate("/ProfileSetup");
+            return;
+          }
           events = await base44.entities.LegalAcceptanceEvent.filter({
             user_email: freshUser.email,
-            suite_version: SUITE_VERSION
+            suite_version: SUITE_VERSION,
+            org_id: legalAudience.orgId,
           });
           if (!events) events = [];
         } catch (e) {
@@ -133,7 +144,7 @@ export default function Layout({ children, currentPageName }) {
           (t) => events.some((e) => e.event_type === t)
         );
         if (!hasAllRequiredNotices) {
-          navigate("/LegalNotices");
+          navigate(`/LegalNotices?org_id=${encodeURIComponent(legalAudience.orgId)}`);
           return;
         }
 

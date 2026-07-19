@@ -10,6 +10,8 @@
 
 This Schedule governs personal information and health information processed through the Service.
 
+For a standard self-service subscription, the **Standard Online Order** defined in the Practitioner and Clinic SaaS Terms is the applicable Order Form. It incorporates the owner account and practice profile, checkout particulars and transaction, mandatory owner acceptance receipts, and the current immutable production release manifest, feature configuration, provider schedule and legal-document versions and hashes. The Standard Online Order therefore defines the Approved Production Mode without a separate signed customer-specific schedule. A separately negotiated Order Form remains required for a non-standard customer, profession, jurisdiction, environment or function.
+
 1. Customer determines why patient information is collected and used in its clinical relationship and gives documented instructions for the Service.
 2. AssessSuite processes that information to provide, secure, support, maintain, export and lawfully administer the Service.
 3. AssessSuite independently determines purposes for practitioner accounts, billing, authentication, abuse prevention, legal compliance and platform administration.

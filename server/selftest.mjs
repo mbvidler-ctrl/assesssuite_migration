@@ -487,7 +487,11 @@ async function runChecks(baseUrl, appId) {
         await api(baseUrl, appId, `/api/apps/${appId}/entities/User/${fixtureUser.id}`, {
           method: 'PUT',
           token: adminToken,
-          body: { account_status: 'active' },
+          body: {
+            account_status: 'active',
+            country: 'australia',
+            profession: 'Exercise Physiologist',
+          },
         });
       }
     }
@@ -768,7 +772,11 @@ async function runChecks(baseUrl, appId) {
     await api(baseUrl, appId, `/api/apps/${appId}/entities/User/${pendingUserRecord.id}`, {
       method: 'PUT',
       token: adminToken,
-      body: { account_status: 'active' },
+      body: {
+        account_status: 'active',
+        country: 'australia',
+        profession: 'Exercise Physiologist',
+      },
     });
     const { status: postApprovalStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
       token: pendingToken,
