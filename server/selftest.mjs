@@ -5,9 +5,18 @@
 
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
+
+import {
+  LEGAL_DOCUMENTS,
+  PRACTITIONER_NOTICE_IDS,
+  SUITE_VERSION,
+  fingerprint,
+} from '../src/lib/legal/documentRegistry.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverEntry = path.join(__dirname, 'index.mjs');
@@ -52,6 +61,9 @@ async function main() {
   const port = await getFreePort();
   const baseUrl = `http://localhost:${port}`;
   const appId = 'selftest-app';
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'assesssuite-selftest-'));
+  const uploadsDir = path.join(tempRoot, 'uploads');
+  fs.mkdirSync(uploadsDir, { recursive: true });
 
   const child = spawn(process.execPath, [serverEntry], {
     env: {
@@ -60,6 +72,8 @@ async function main() {
       PORT: String(port),
       ADMIN_EMAIL: 'admin@local.test',
       ADMIN_PASSWORD: 'change-me-local',
+      ASSESSSUITE_DB_PATH: path.join(tempRoot, 'selftest.db'),
+      UPLOADS_DIR: uploadsDir,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -76,6 +90,8 @@ async function main() {
   if (!up) {
     console.error('Server failed to start within timeout. Output so far:\n', serverOutput);
     child.kill();
+    await once(child, 'exit').catch(() => {});
+    fs.rmSync(tempRoot, { recursive: true, force: true });
     process.exit(1);
   }
 
@@ -87,6 +103,7 @@ async function main() {
   } finally {
     child.kill();
     await once(child, 'exit').catch(() => {});
+    fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 
   console.log('');
@@ -125,18 +142,27 @@ async function api(baseUrl, appId, methodPath, { method = 'GET', token, body } =
 // hasCurrentLegalAcceptance), mirroring the real ProfileSetup flow. The caller
 // must already hold membership in orgId (LegalAcceptanceEvent is org-scoped),
 // so call this AFTER the fixture's OrganizationMember row exists.
-const LEGAL_SUITE_VERSION = 'RC-2026.07.11';
+const LEGAL_SUITE_VERSION = SUITE_VERSION;
 async function seedRequiredLegalAcceptance(baseUrl, appId, token, email, orgId) {
-  const eventTypes = [
-    'collection_notice_acknowledgement',
-    'professional_use_acknowledgement',
-    'ai_transparency_consent',
-  ];
-  for (const event_type of eventTypes) {
+  for (const documentId of PRACTITIONER_NOTICE_IDS) {
+    const document = LEGAL_DOCUMENTS[documentId];
+    const documentContent = fs.readFileSync(
+      path.join(__dirname, '..', 'src', 'legal-content', document.file),
+      'utf8',
+    );
     await api(baseUrl, appId, `/api/apps/${appId}/entities/LegalAcceptanceEvent`, {
       method: 'POST',
       token,
-      body: { event_type, user_email: email, org_id: orgId, suite_version: LEGAL_SUITE_VERSION, actor_capacity: 'selftest fixture' },
+      body: {
+        event_type: document.eventType,
+        user_email: email,
+        org_id: orgId,
+        suite_version: LEGAL_SUITE_VERSION,
+        document_id: documentId,
+        document_title: document.title,
+        document_fingerprint: fingerprint(documentContent),
+        actor_capacity: 'selftest fixture',
+      },
     });
   }
 }
@@ -1347,20 +1373,26 @@ async function runChecks(baseUrl, appId) {
     record('GenerateImage returns {url}', status === 200 && typeof body?.url === 'string', `status=${status} body=${JSON.stringify(body)}`);
   }
 
-  // --- UploadFile round trip through the served /uploads/ URL ---
+  // --- UploadFile round trip through authenticated secure-file delivery ---
   let uploadedFileUrl = null;
   {
     const boundary = `----selftestBoundary${Date.now()}`;
-    const fileContent = 'selftest upload content';
+    const fileContent = '%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF';
     const multipartBody =
       `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="file"; filename="selftest.txt"\r\n` +
-      `Content-Type: text/plain\r\n\r\n` +
+      `Content-Disposition: form-data; name="org_id"\r\n\r\n${orgAId}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="purpose"\r\n\r\nreferral-extraction\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="subject_age_band"\r\n\r\n13_or_over\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="selftest.pdf"\r\n` +
+      `Content-Type: application/pdf\r\n\r\n` +
       `${fileContent}\r\n` +
       `--${boundary}--\r\n`;
     const res = await fetch(`${baseUrl}/api/apps/${appId}/integration-endpoints/Core/UploadFile`, {
       method: 'POST',
-      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'X-App-Id': appId, Authorization: `Bearer ${adminToken}` },
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'X-App-Id': appId, Authorization: `Bearer ${userAToken}` },
       body: multipartBody,
     });
     const body = await res.json().catch(() => null);
@@ -1372,17 +1404,19 @@ async function runChecks(baseUrl, appId) {
     );
 
     if (uploadedFileUrl) {
-      const servedRes = await fetch(`${baseUrl}${uploadedFileUrl}`);
+      const servedRes = await fetch(`${baseUrl}${uploadedFileUrl}`, {
+        headers: { Authorization: `Bearer ${userAToken}` },
+      });
       const servedText = await servedRes.text().catch(() => '');
       record(
-        'uploaded file is retrievable via the served /uploads/ URL',
+        'uploaded file is retrievable only through authenticated secure-file delivery',
         servedRes.status === 200 && servedText === fileContent,
         `status=${servedRes.status} text=${JSON.stringify(servedText)}`,
       );
     }
   }
 
-  // --- ExtractDataFromUploadedFile happy path ---
+  // --- ExtractDataFromUploadedFile remains fail-closed while disabled ---
   {
     const schema = {
       type: 'object',
@@ -1395,14 +1429,15 @@ async function runChecks(baseUrl, appId) {
       baseUrl,
       appId,
       `/api/apps/${appId}/integration-endpoints/Core/ExtractDataFromUploadedFile`,
-      { method: 'POST', token: adminToken, body: { file_url: uploadedFileUrl, json_schema: schema } },
+      {
+        method: 'POST',
+        token: userAToken,
+        body: { file_url: uploadedFileUrl, org_id: orgAId, json_schema: schema },
+      },
     );
     record(
-      'ExtractDataFromUploadedFile returns {status, output} honouring json_schema',
-      status === 200 &&
-        body?.status === 'success' &&
-        typeof body?.output?.full_name === 'string' &&
-        Array.isArray(body?.output?.comorbidities),
+      'ExtractDataFromUploadedFile fails closed when document extraction is disabled',
+      status === 503 && body?.status === 'error' && typeof body?.details === 'string',
       `status=${status} body=${JSON.stringify(body)}`,
     );
   }

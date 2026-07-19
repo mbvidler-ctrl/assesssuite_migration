@@ -1,0 +1,153 @@
+import assert from 'node:assert/strict';
+import { after, before, test } from 'node:test';
+
+import {
+  LEGAL_DOCUMENTS,
+  PRACTITIONER_NOTICE_IDS,
+  SUITE_VERSION,
+} from '../../src/lib/legal/documentRegistry.js';
+import { startFakeOpenAI } from './support/fake-openai.mjs';
+import { REFERRAL_SCHEMA, pdfFixture } from './support/synthetic-fixtures.mjs';
+import {
+  activateUser,
+  createOrganizationForUser,
+  loginAdmin,
+  registerUser,
+  requestJson,
+  startTestServer,
+} from './support/server-harness.mjs';
+
+const EXPECTED_SUPERSEDED_VERSION = 'RC-2026.07.11';
+const EXPECTED_CURRENT_VERSION = 'RC-2026.07.19';
+const SUPERSEDED_VERSION = process.env.SUPERSEDED_LEGAL_VERSION || EXPECTED_SUPERSEDED_VERSION;
+const CURRENT_VERSION = process.env.NEW_LEGAL_VERSION || EXPECTED_CURRENT_VERSION;
+const UNKNOWN_VERSION = 'RC-1900.01.01';
+
+let fakeProvider;
+let server;
+let adminToken;
+let fixtures;
+
+function route(suffix) {
+  return `/api/apps/${server.appId}${suffix}`;
+}
+
+async function createAcceptedUser(version, suffix) {
+  const user = await registerUser(server, `synthetic-rollback-${suffix}@example.test`);
+  await activateUser(server, adminToken, user.id);
+  const org = await createOrganizationForUser(server, adminToken, user);
+  for (const documentId of PRACTITIONER_NOTICE_IDS) {
+    const doc = LEGAL_DOCUMENTS[documentId];
+    const acceptance = await requestJson(server, route('/entities/LegalAcceptanceEvent'), {
+      method: 'POST',
+      token: user.token,
+      body: {
+        event_type: doc.eventType,
+        user_email: user.email,
+        org_id: org.id,
+        suite_version: version,
+        document_id: documentId,
+        document_title: doc.title,
+        actor_capacity: 'synthetic rollback fixture',
+      },
+    });
+    assert.equal(acceptance.status, 200, acceptance.text);
+  }
+  return { user, org };
+}
+
+async function clinicalAccess(fixture) {
+  return requestJson(server, route('/entities/Client'), { token: fixture.user.token });
+}
+
+async function uploadReferral(fixture) {
+  const form = new FormData();
+  form.set('org_id', fixture.org.id);
+  form.set('purpose', 'referral-extraction');
+  form.set('subject_age_band', '13_or_over');
+  form.set('file', new File([pdfFixture()], 'synthetic-rollback.pdf', { type: 'application/pdf' }));
+  const response = await fetch(`${server.baseUrl}${route('/integration-endpoints/Core/UploadFile')}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${fixture.user.token}`, 'X-App-Id': server.appId },
+    body: form,
+  });
+  const body = await response.json().catch(() => null);
+  assert.equal(response.status, 200);
+  assert.equal(typeof body?.upload_id, 'string');
+  return body;
+}
+
+before(async () => {
+  assert.equal(SUPERSEDED_VERSION, EXPECTED_SUPERSEDED_VERSION, 'workflow superseded-version input drifted');
+  assert.equal(CURRENT_VERSION, EXPECTED_CURRENT_VERSION, 'workflow new-version input drifted');
+  assert.equal(SUITE_VERSION, CURRENT_VERSION, 'rollback gate must track the exact current legal-suite version');
+  fakeProvider = await startFakeOpenAI();
+  server = await startTestServer({
+    DOCUMENT_EXTRACTION_ENABLED: '0',
+    LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS: `${SUPERSEDED_VERSION},${CURRENT_VERSION}`,
+    DOCUMENT_EXTRACTION_TEST_BASE_URL: fakeProvider.baseUrl,
+    OPENAI_API_KEY: 'synthetic-rollback-provider-canary',
+    OPENAI_DOCUMENT_MODEL: 'synthetic-assurance-model',
+  });
+  adminToken = await loginAdmin(server);
+  fixtures = {
+    current: await createAcceptedUser(CURRENT_VERSION, 'current'),
+    superseded: await createAcceptedUser(SUPERSEDED_VERSION, 'superseded'),
+    unknown: await createAcceptedUser(UNKNOWN_VERSION, 'unknown'),
+  };
+});
+
+after(async () => {
+  if (server) await server.stop();
+  if (fakeProvider) await fakeProvider.stop();
+});
+
+test('R01 compatibility rollback accepts the new/current legal-suite version', async () => {
+  const result = await clinicalAccess(fixtures.current);
+  assert.equal(result.status, 200, result.text);
+  assert.ok(Array.isArray(result.body));
+});
+
+test('R02 compatibility rollback accepts the superseded legal-suite version', async () => {
+  const result = await clinicalAccess(fixtures.superseded);
+  assert.equal(result.status, 200, result.text);
+  assert.ok(Array.isArray(result.body));
+});
+
+test('R03 compatibility rollback rejects every version outside the exact allowlist', async () => {
+  const result = await clinicalAccess(fixtures.unknown);
+  assert.equal(result.status, 403, result.text);
+  assert.equal(result.body?.message, 'current legal acceptance required');
+});
+
+test('R04 compatibility rollback keeps provider extraction disabled and makes zero provider calls', async () => {
+  fakeProvider.reset();
+  const upload = await uploadReferral(fixtures.current);
+  const extraction = await requestJson(
+    server,
+    route('/integration-endpoints/Core/ExtractDataFromUploadedFile'),
+    {
+      method: 'POST',
+      token: fixtures.current.user.token,
+      body: { upload_id: upload.upload_id, org_id: fixtures.current.org.id, json_schema: REFERRAL_SCHEMA },
+    },
+  );
+  assert.notEqual(extraction.body?.status, 'success', extraction.text);
+  assert.ok(extraction.status === 403 || extraction.status === 503, extraction.text);
+  assert.equal(fakeProvider.calls.length, 0);
+});
+
+test('R05 extraction-enabled runtime cannot use the compatibility allowlist', async () => {
+  await server.stop();
+  server = null;
+  await assert.rejects(
+    startTestServer({
+      DOCUMENT_EXTRACTION_ENABLED: '1',
+      LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS: `${SUPERSEDED_VERSION},${CURRENT_VERSION}`,
+      DOCUMENT_EXTRACTION_TEST_BASE_URL: fakeProvider.baseUrl,
+      OPENAI_API_KEY: 'synthetic-rollback-provider-canary',
+      OPENAI_DOCUMENT_MODEL: 'synthetic-assurance-model',
+    }),
+    /LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS cannot be used while document extraction is enabled/,
+  );
+});

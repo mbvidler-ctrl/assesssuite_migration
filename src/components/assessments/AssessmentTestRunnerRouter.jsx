@@ -30,7 +30,9 @@ function ClientSelectorStep({ assessment, onSelect, onClose }) {
           const list = await base44.entities.Client.filter({ org_id: orgs[0].org_id });
           setClients(list || []);
         }
-      } catch (e) {}
+      } catch (e) {
+        // Malformed optional test-runner data is ignored by the fallback router.
+      }
       setLoading(false);
     };
     load();

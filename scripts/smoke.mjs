@@ -32,7 +32,7 @@
 //
 // Never binds 8787 (lead's shim) or 5173 (Vite). Synthetic data only.
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { once } from 'node:events';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -145,19 +145,34 @@ async function main() {
   }
   const baseUrl = `http://localhost:${port}`;
   const appId = 'smoke-test-app';
+  const productionGateMode = process.env.SMOKE_PRODUCTION_MODE === '1';
 
   // Always start from a clean throwaway db file — this script owns it
   // exclusively and never touches server/data/app.db.
   removeThrowawayDbFiles();
 
-  console.log(`[smoke] starting shim on ${baseUrl} (SELFTEST=1, throwaway db)`);
+  console.log(
+    `[smoke] starting shim on ${baseUrl} (${productionGateMode ? 'production gates' : 'SELFTEST=1'}, throwaway db)`,
+  );
   const child = spawn(process.execPath, [serverEntry], {
     env: {
       ...process.env,
-      SELFTEST: '1',
+      SELFTEST: productionGateMode ? '0' : '1',
+      NODE_ENV: productionGateMode ? 'test' : process.env.NODE_ENV,
+      ASSESSSUITE_DB_PATH: productionGateMode ? dbFile : process.env.ASSESSSUITE_DB_PATH,
+      ASSESSSUITE_DB_PATH_ACK: productionGateMode
+        ? 'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_NON_PRODUCTION_GATE_DATABASE'
+        : process.env.ASSESSSUITE_DB_PATH_ACK,
       PORT: String(port),
       ADMIN_EMAIL: 'admin@local.test',
       ADMIN_PASSWORD: 'change-me-local',
+      OPENAI_API_KEY: productionGateMode ? '' : process.env.OPENAI_API_KEY,
+      STRIPE_SECRET_KEY: productionGateMode ? '' : process.env.STRIPE_SECRET_KEY,
+      SMTP_HOST: productionGateMode ? '' : process.env.SMTP_HOST,
+      SMTP_USER: productionGateMode ? '' : process.env.SMTP_USER,
+      SMTP_PASS: productionGateMode ? '' : process.env.SMTP_PASS,
+      LLM_REQUIRED: productionGateMode ? '0' : process.env.LLM_REQUIRED,
+      TRANSCRIPTION_ENABLED: productionGateMode ? '0' : process.env.TRANSCRIPTION_ENABLED,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -393,6 +408,24 @@ async function main() {
         'integration InvokeLLM with response_json_schema returns a schema-shaped object',
         status === 200 && typeof body === 'object' && body !== null && typeof body.summary === 'string',
         `status=${status} body=${JSON.stringify(body)}`,
+      );
+    }
+
+    // Optional full launch-gate harness against this same isolated, seeded
+    // server. This avoids touching the developer database or starting a
+    // second server, while preserving the standalone gate-tests entry point.
+    if (process.env.SMOKE_RUN_GATE_TESTS === '1') {
+      const gateResult = spawnSync(process.execPath, [path.join(repoRoot, 'scripts', 'gate-tests.mjs')], {
+        cwd: repoRoot,
+        env: { ...process.env, SMOKE_URL: baseUrl },
+        encoding: 'utf8',
+      });
+      if (gateResult.stdout) process.stdout.write(gateResult.stdout);
+      if (gateResult.stderr) process.stderr.write(gateResult.stderr);
+      record(
+        'launch-gate negative-test harness passes against the isolated seed',
+        gateResult.status === 0,
+        `exit=${gateResult.status ?? 'signal'}`,
       );
     }
   } catch (err) {
