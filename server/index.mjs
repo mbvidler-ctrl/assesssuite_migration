@@ -40,6 +40,7 @@ import {
   PRACTITIONER_NOTICE_IDS,
   SUITE_VERSION,
   fingerprint as legalContentFingerprint,
+  isLegalDocumentPublicationApproved,
 } from '../src/lib/legal/documentRegistry.js';
 import { effectiveLegalContent } from '../src/lib/legal/effectiveContent.js';
 
@@ -353,6 +354,9 @@ const SERVER_DERIVED_LEGAL_EVENT_TYPES = new Set([
 function legalPresentationContent(documentId) {
   const document = LEGAL_DOCUMENTS[documentId];
   if (!document) throw new Error(`Unknown mandatory legal document: ${documentId}`);
+  if (!isLegalDocumentPublicationApproved(document)) {
+    throw new Error(`Mandatory legal document is not approved for publication: ${documentId}`);
+  }
   const raw = fs.readFileSync(path.join(repoRoot, 'src', 'legal-content', document.file), 'utf8');
   return effectiveLegalContent(raw, {
     status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',
@@ -404,14 +408,17 @@ const LEGAL_GATE_VERSIONS = new Set([
  * LegalAcceptanceEvent entity is not yet registered at all — a migration
  * safety valve, not a normal runtime path.
  */
-function hasCurrentLegalAcceptance(userEmail) {
+function hasCurrentLegalAcceptance(userEmail, orgId = null) {
   const repo = repoFor('LegalAcceptanceEvent');
   if (!repo || !orgMemberRepo) return false;
   const events = repo.listAll().filter((event) => event.user_email === userEmail);
-  const memberships = orgMemberRepo.listAll().filter((membership) => membership.user_email === userEmail);
+  const memberships = orgMemberRepo.listAll().filter(
+    (membership) => membership.user_email === userEmail && (!orgId || membership.org_id === orgId),
+  );
   if (memberships.length === 0) return false;
 
-  const currentBundleAccepted = memberships.some((membership) => {
+  const currentMembershipsAccepted = orgId ? memberships.every.bind(memberships) : memberships.some.bind(memberships);
+  const currentBundleAccepted = currentMembershipsAccepted((membership) => {
     const requiredIds = membership.role === 'owner'
       ? [...PRACTITIONER_NOTICE_IDS, ...CONTRACT_BUNDLE_IDS]
       : PRACTITIONER_NOTICE_IDS;
@@ -432,15 +439,20 @@ function hasCurrentLegalAcceptance(userEmail) {
 
   // Compatibility images never enable document extraction. Their exact
   // two-version allowlist preserves the prior notice-only rollback contract.
-  return [...LEGAL_GATE_VERSIONS]
-    .filter((version) => version !== LEGAL_SUITE_VERSION)
-    .some((version) => {
-      const versionEvents = events.filter((event) => event.suite_version === version);
-      return PRACTITIONER_NOTICE_IDS.every((documentId) => {
-        const eventType = LEGAL_DOCUMENTS[documentId].eventType;
-        return versionEvents.some((event) => event.event_type === eventType);
-      });
-    });
+  const compatibleMembershipsAccepted = orgId ? memberships.every.bind(memberships) : memberships.some.bind(memberships);
+  return compatibleMembershipsAccepted((membership) =>
+    [...LEGAL_GATE_VERSIONS]
+      .filter((version) => version !== LEGAL_SUITE_VERSION)
+      .some((version) => {
+        const versionEvents = events.filter(
+          (event) => event.suite_version === version && event.org_id === membership.org_id,
+        );
+        return PRACTITIONER_NOTICE_IDS.every((documentId) => {
+          const eventType = LEGAL_DOCUMENTS[documentId].eventType;
+          return versionEvents.some((event) => event.event_type === eventType);
+        });
+      }),
+  );
 }
 
 /** Current, document-bound AI acceptance for the selected organisation. */
@@ -617,7 +629,15 @@ function entityAccessDenied(req, res, entityName, sessionUser, isAdmin) {
   // once. Also re-gates an already-approved user whose acceptance predates a
   // suite version bump (the reacceptance-trigger requirement in policy-suite
   // doc 27 clause 6) — a stale acceptance is treated the same as none.
-  if (!isAdmin && CLINICAL_ENTITIES.has(entityName) && !hasCurrentLegalAcceptance(sessionUser.email)) {
+  return false;
+}
+
+function clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, orgId) {
+  if (
+    !isAdmin &&
+    CLINICAL_ENTITIES.has(entityName) &&
+    (!orgId || !hasCurrentLegalAcceptance(sessionUser?.email, orgId))
+  ) {
     sendError(res, 403, 'current legal acceptance required');
     return true;
   }
@@ -737,6 +757,7 @@ async function handleEntitiesRoute(req, res, url, match) {
     if (!isAdmin && !isUserCollection && !isWithinOrgScope(record, sessionUser, entityName)) {
       return sendError(res, 404, 'record not found');
     }
+    if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, record.org_id)) return;
     const stripped = isUserCollection ? stripAuthFields(record) : record;
     return sendJson(res, 200, stripped);
   }
@@ -750,9 +771,10 @@ async function handleEntitiesRoute(req, res, url, match) {
       const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: true });
       if (!auth.ok) return sendError(res, auth.status, auth.message);
     }
+    if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, data?.org_id)) return;
     const bindingOrgId = entityName === 'Organization' ? null : data?.org_id;
     const pendingBindings = bindingOrgId
-      ? prepareUploadBindings(entityName, data, bindingOrgId)
+      ? prepareUploadBindings(entityName, data, bindingOrgId, null, sessionUser)
       : [];
     const record = repo.create(data, createdBy);
     if (pendingBindings.length > 0) {
@@ -774,6 +796,7 @@ async function handleEntitiesRoute(req, res, url, match) {
     if (!isAdmin && !isUserCollection && !isWithinOrgScope(existing, sessionUser, entityName)) {
       return sendError(res, 404, 'record not found');
     }
+    if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, existing?.org_id)) return;
     const data = await readJsonBody(req);
     if (!isAdmin) {
       const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: false });
@@ -781,7 +804,7 @@ async function handleEntitiesRoute(req, res, url, match) {
     }
     const bindingOrgId = data?.org_id || existing?.org_id || (entityName === 'Organization' ? existing.id : null);
     const pendingBindings = bindingOrgId
-      ? prepareUploadBindings(entityName, data, bindingOrgId, existing.id)
+      ? prepareUploadBindings(entityName, data, bindingOrgId, existing.id, sessionUser)
       : [];
     const record = repo.update(rest, data);
     if (pendingBindings.length > 0) {
@@ -821,6 +844,7 @@ async function handleEntitiesRoute(req, res, url, match) {
     if (!isAdmin && !isUserCollection && !isWithinOrgScope(existing, sessionUser, entityName)) {
       return sendError(res, 404, 'record not found');
     }
+    if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, existing?.org_id)) return;
     repo.remove(rest);
     return sendJson(res, 200, { id: rest, deleted: true });
   }
@@ -839,6 +863,11 @@ async function handleEntitiesRoute(req, res, url, match) {
     const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
     const all = repo.listAll();
     const matched = all.filter((record) => matchesQuery(record, scopedQuery));
+    if (!isAdmin && CLINICAL_ENTITIES.has(entityName) && matched.some(
+      (record) => !hasCurrentLegalAcceptance(sessionUser?.email, record.org_id),
+    )) {
+      return sendError(res, 403, 'current legal acceptance required');
+    }
     for (const record of matched) repo.remove(record.id);
     return sendJson(res, 200, { deleted: matched.length });
   }
@@ -899,6 +928,13 @@ function handleList(req, res, repo, entityName, sessionUser, isAdmin, url) {
   query = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
 
   let records = repo.listAll().filter((record) => matchesQuery(record, query));
+  if (!isAdmin && CLINICAL_ENTITIES.has(entityName)) {
+    const acceptedOrgIds = orgIdsForUser(sessionUser?.email).filter(
+      (orgId) => hasCurrentLegalAcceptance(sessionUser?.email, orgId),
+    );
+    if (acceptedOrgIds.length === 0) return sendError(res, 403, 'current legal acceptance required');
+    records = records.filter((record) => acceptedOrgIds.includes(record.org_id));
+  }
   // Archived clients (retention model: user-facing "delete" archives, never
   // destroys) are excluded from EVERY list/filter unless the caller asks for
   // them explicitly with an `archived` key in the query — one enforcement
@@ -945,6 +981,7 @@ async function handleBulk(req, res, entityName) {
       for (const item of items) {
         const auth = writeAuthDenied(entityName, item, sessionUser, { isCreate: true });
         if (!auth.ok) return sendError(res, auth.status, auth.message);
+        if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, item?.org_id)) return;
       }
     }
     const planned = items.map((item) => ({
@@ -952,7 +989,7 @@ async function handleBulk(req, res, entityName) {
       orgId: entityName === 'Organization' ? null : item?.org_id,
       uploads: entityName === 'Organization' || !item?.org_id
         ? []
-        : prepareUploadBindings(entityName, item, item.org_id),
+        : prepareUploadBindings(entityName, item, item.org_id, null, sessionUser),
     }));
     const created = planned.map(({ item }) => repo.create(item, createdBy));
     created.forEach((record, index) => {
@@ -985,6 +1022,7 @@ async function handleBulk(req, res, entityName) {
         if (!isWithinOrgScope(existing, sessionUser, entityName)) {
           return sendError(res, 404, 'record not found');
         }
+        if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, existing?.org_id)) return;
         const auth = writeAuthDenied(entityName, item, sessionUser, { isCreate: false });
         if (!auth.ok) return sendError(res, auth.status, auth.message);
       }
@@ -995,7 +1033,7 @@ async function handleBulk(req, res, entityName) {
       return {
         item,
         orgId,
-        uploads: orgId ? prepareUploadBindings(entityName, item, orgId, item.id) : [],
+        uploads: orgId ? prepareUploadBindings(entityName, item, orgId, item.id, sessionUser) : [],
       };
     });
     const updated = planned.map(({ item }) => repo.update(item.id, item)).filter(Boolean);
@@ -1043,6 +1081,11 @@ async function handleUpdateMany(req, res, entityName) {
   }
   const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
   const matched = repo.listAll().filter((record) => matchesQuery(record, scopedQuery));
+  if (!isAdmin && CLINICAL_ENTITIES.has(entityName) && matched.some(
+    (record) => !hasCurrentLegalAcceptance(sessionUser?.email, record.org_id),
+  )) {
+    return sendError(res, 403, 'current legal acceptance required');
+  }
   const updated = matched.map((record) => repo.update(record.id, data));
   const result = entityName === 'User' ? updated.map(stripAuthFields) : updated;
   return sendJson(res, 200, { updated: result.length, records: result });
@@ -1065,7 +1108,7 @@ async function handleMe(req, res) {
     const sanitized = sanitizeUpdateMePayload(payload);
     const orgId = primaryOrgIdForUser(sessionUser.email);
     const pendingBindings = orgId
-      ? prepareUploadBindings('User', sanitized, orgId, sessionUser.id)
+      ? prepareUploadBindings('User', sanitized, orgId, sessionUser.id, sessionUser)
       : [];
     const updated = userRepo.update(sessionUser.id, sanitized);
     if (pendingBindings.length > 0) {
@@ -1508,10 +1551,16 @@ function resolveLegacyUploadForUser({ storedName, selectedOrgId = null, sessionU
 
 function canUserAccessUpload(upload, sessionUser) {
   if (!upload || !sessionUser || !orgIdsForUser(sessionUser.email).includes(upload.orgId)) return false;
+  if (
+    upload.state !== 'bound' &&
+    !upload.isLegacy &&
+    upload.expiresAt &&
+    new Date(upload.expiresAt).getTime() <= Date.now()
+  ) return false;
   if (upload.state !== 'bound' && !upload.isLegacy && upload.uploaderUserId !== sessionUser.id) return false;
   if (
     CLINICAL_UPLOAD_PURPOSES.has(upload.purpose) &&
-    (sessionUser.account_status !== 'active' || !hasCurrentLegalAcceptance(sessionUser.email))
+    (sessionUser.account_status !== 'active' || !hasCurrentLegalAcceptance(sessionUser.email, upload.orgId))
   ) return false;
   return true;
 }
@@ -1575,7 +1624,7 @@ function readUploadBuffer(filePath, expectedBytes) {
   return fs.readFileSync(filePath);
 }
 
-function prepareUploadBindings(entityName, data, orgId, entityId = null) {
+function prepareUploadBindings(entityName, data, orgId, entityId = null, sessionUser = null) {
   if (!BINDABLE_UPLOAD_ENTITIES.has(entityName)) return [];
   const visitReferences = (value, depth = 0) => {
     if (depth > 12 || value === null || value === undefined) return;
@@ -1607,6 +1656,21 @@ function prepareUploadBindings(entityName, data, orgId, entityId = null) {
   return ids.map((id) => {
     const upload = uploadRegistry.getById(id);
     if (!upload || upload.orgId !== orgId || ['expired', 'deleted'].includes(upload.state)) {
+      throw new UploadError(404, 'upload_not_found', 'File not found.');
+    }
+    if (
+      upload.state !== 'bound' &&
+      !upload.isLegacy &&
+      (!sessionUser || upload.uploaderUserId !== sessionUser.id)
+    ) {
+      throw new UploadError(404, 'upload_not_found', 'File not found.');
+    }
+    if (
+      upload.state !== 'bound' &&
+      !upload.isLegacy &&
+      upload.expiresAt &&
+      new Date(upload.expiresAt).getTime() <= Date.now()
+    ) {
       throw new UploadError(404, 'upload_not_found', 'File not found.');
     }
     if (

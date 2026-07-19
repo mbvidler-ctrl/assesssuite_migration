@@ -60,7 +60,6 @@ jobs:
     name: Roll back without using the failing image
     runs-on: ubuntu-24.04
     timeout-minutes: 20
-    environment: assesssuite-production
     steps:
       - name: Validate trusted dispatch context and inputs
         shell: bash
@@ -98,6 +97,7 @@ jobs:
           [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\.fly\.io/assesssuite-production(:[A-Za-z0-9._-]{1,128}|@sha256:[0-9a-f]{64})$ ]]
           [[ "$ROLLBACK_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
           [[ "$ROLLBACK_IMAGE" != "$EXPECTED_CURRENT_IMAGE" ]]
+          [[ "$ROLLBACK_RELEASE_SHA" == "$ROLLBACK_SOURCE_SHA" ]]
           [[ -n "$CAPABILITY_INTENT_ID" && "$CAPABILITY_INTENT_ID" != *$'\n'* ]]
           [[ -n "$AUTHORITY_REFERENCE" && "$AUTHORITY_REFERENCE" != *$'\n'* ]]
           [[ -n "$INCIDENT_REFERENCE" && "$INCIDENT_REFERENCE" != *$'\n'* ]]
@@ -140,11 +140,26 @@ jobs:
           fi
           [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_STATUS[[:space:]]*=[[:space:]]*"effective"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_EFFECTIVE_DATE[[:space:]]*=[[:space:]]*"19 July 2026"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS[[:space:]]*=[[:space:]]*"RC-2026.07.11,RC-2026.07.19"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
 
-      - name: Set up pinned flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
-        with:
-          version: 0.4.71
+      - name: Install checksum-verified flyctl 0.4.71
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          bin_dir="$RUNNER_TEMP/flyctl-bin"
+          curl --fail --location --silent --show-error \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz' \
+            --output "$archive"
+          echo 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2  '"$archive" | sha256sum --check --strict
+          mkdir -p "$bin_dir"
+          tar -xzf "$archive" -C "$bin_dir" flyctl
+          chmod 0755 "$bin_dir/flyctl"
+          ln -s "$bin_dir/flyctl" "$bin_dir/fly"
+          echo "$bin_dir" >>"$GITHUB_PATH"
+          "$bin_dir/flyctl" version | grep -F '0.4.71'
 
       - name: Final secret-bearing Fly rollback command and public verification
         shell: bash
@@ -155,6 +170,8 @@ jobs:
           EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}
           ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
           ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
+          ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
           CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
           AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
           INCIDENT_REFERENCE: ${{ inputs.incident_reference }}
@@ -198,6 +215,43 @@ jobs:
             return 1
           }
 
+          read_public_settings() {
+            local url=$1
+            local body=$2
+            curl --fail --silent --show-error --max-time 10 \
+              -H 'Cache-Control: no-cache' \
+              "${url}/api/apps/public/prod/public-settings/by-id/rollback-verification" \
+              -o "$body"
+            jq -e \
+              '.public_settings.legal.status == "effective" and .public_settings.legal.effective_date == "19 July 2026"' \
+              "$body" >/dev/null
+          }
+
+          assert_topology() {
+            local label=$1
+            fly machines list --app "$app" --json >"$RUNNER_TEMP/${label}-machines.json"
+            fly volumes list --app "$app" --json >"$RUNNER_TEMP/${label}-volumes.json"
+            LABEL="$label" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const root = process.env.RUNNER_TEMP;
+          const label = process.env.LABEL;
+          const machinePayload = JSON.parse(fs.readFileSync(`${root}/${label}-machines.json`, 'utf8'));
+          const volumePayload = JSON.parse(fs.readFileSync(`${root}/${label}-volumes.json`, 'utf8'));
+          const machines = Array.isArray(machinePayload) ? machinePayload : (machinePayload.machines || []);
+          const volumes = Array.isArray(volumePayload) ? volumePayload : (volumePayload.volumes || []);
+          if (machines.length !== 1 || volumes.length !== 1) throw new Error('Rollback topology must remain one machine and one volume');
+          const machine = machines[0];
+          const guest = machine.config?.guest || machine.Config?.guest || {};
+          if ((machine.region ?? machine.Region) !== 'syd' || Number(guest.cpus) !== 1 || Number(guest.memory_mb ?? guest.memoryMb) !== 512 || (guest.cpu_kind ?? guest.cpuKind) !== 'shared') {
+            throw new Error('Rollback machine topology differs from one shared CPU and 512 MB in syd');
+          }
+          const volume = volumes[0];
+          if ((volume.name ?? volume.Name) !== 'assesssuite_data' || (volume.region ?? volume.Region) !== 'syd' || Number(volume.size_gb ?? volume.sizeGb ?? volume.SizeGB) !== 1) {
+            throw new Error('Rollback volume topology differs from one 1 GB assesssuite_data volume in syd');
+          }
+          NODE
+          }
+
           write_summary() {
             {
               echo "## AssessSuite production rollback"
@@ -216,6 +270,47 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
           }
 
+          fly secrets list --app "$app" --json >"$RUNNER_TEMP/secret-names.json"
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const rows = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/secret-names.json', 'utf8'));
+          const present = new Set(rows.map((row) => row.Name ?? row.name));
+          const required = [
+            'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',
+            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',
+            'OPENAI_API_KEY',
+          ];
+          const missing = required.filter((name) => !present.has(name));
+          if (missing.length) throw new Error(`Required production secret name(s) absent: ${missing.join(', ')}`);
+          const forbidden = [
+            'DOCUMENT_EXTRACTION_ENABLED', 'DOCUMENT_EXTRACTION_UNDER_13_ENABLED',
+            'OPENAI_HEALTH_DATA_TERMS_CONFIRMED', 'GENERAL_CLINICAL_LLM_ENABLED',
+            'TRANSCRIPTION_ENABLED',
+          ].filter((name) => present.has(name));
+          if (forbidden.length) throw new Error(`Reviewed non-secret setting(s) overridden by opaque Fly secrets: ${forbidden.join(', ')}`);
+          if (present.has('LEGAL_STATUS') || present.has('LEGAL_EFFECTIVE_DATE')) {
+            console.log('Legacy opaque legal settings are present and will be staged for removal before rollback.');
+          }
+          console.log(`Names-only rollback preflight passed (${required.length} required names).`);
+          NODE
+
+          legacy_legal_secrets=()
+          for name in LEGAL_STATUS LEGAL_EFFECTIVE_DATE; do
+            if jq -e --arg name "$name" '.[] | select((.Name // .name) == $name)' "$RUNNER_TEMP/secret-names.json" >/dev/null; then
+              legacy_legal_secrets+=("$name")
+            fi
+          done
+          if [[ "${#legacy_legal_secrets[@]}" -gt 0 ]]; then
+            fly secrets unset "${legacy_legal_secrets[@]}" --stage --app "$app"
+          fi
+
+          fly auth docker
+          docker pull "$ROLLBACK_IMAGE"
+          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$ROLLBACK_SOURCE_SHA" ]]
+          docker image inspect "$ROLLBACK_IMAGE" --format '{{ range .Config.Env }}{{ println . }}{{ end }}' >"$RUNNER_TEMP/rollback-image-env.txt"
+          grep -Fx "RELEASE_SHA=$ROLLBACK_SOURCE_SHA" "$RUNNER_TEMP/rollback-image-env.txt"
+          grep -Fx "SOURCE_BRANCH=$ROLLBACK_SOURCE_BRANCH" "$RUNNER_TEMP/rollback-image-env.txt"
+          assert_topology prior
           fly releases --app "$app" --image --json >"$prior_json"
           IFS=$'\t' read -r prior_release prior_image < <(current_release "$prior_json")
           [[ "$prior_release" == "$EXPECTED_CURRENT_RELEASE" ]]
@@ -225,6 +320,8 @@ jobs:
           fly deploy "$rollback_dir" \
             --config "$rollback_config" \
             --strategy immediate \
+            --ha=false \
+            --update-only \
             --app "$app" \
             --image "$ROLLBACK_IMAGE" \
             --yes || rollback_status=$?
@@ -232,6 +329,7 @@ jobs:
             write_summary "ROLLBACK COMMAND FAILED (exit $rollback_status)"
             exit 1
           fi
+          assert_topology rollback
 
           fly releases --app "$app" --image --json >"$new_json"
           IFS=$'\t' read -r rollback_release rollback_image_actual < <(current_release "$new_json")
@@ -242,6 +340,11 @@ jobs:
           if ! read_version 'https://assesssuite.com' "$RUNNER_TEMP/rollback-apex-version.json" \
             || ! read_version 'https://assesssuite-production.fly.dev' "$RUNNER_TEMP/rollback-fly-version.json"; then
             write_summary 'ROLLBACK /api/version VERIFICATION FAILED'
+            exit 1
+          fi
+          if ! read_public_settings 'https://assesssuite.com' "$RUNNER_TEMP/rollback-apex-public-settings.json" \
+            || ! read_public_settings 'https://assesssuite-production.fly.dev' "$RUNNER_TEMP/rollback-fly-public-settings.json"; then
+            write_summary 'ROLLBACK LEGAL SETTINGS VERIFICATION FAILED'
             exit 1
           fi
 

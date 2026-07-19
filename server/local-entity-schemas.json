@@ -41,7 +41,7 @@
           "suite_version": { "type": "string", "description": "Policy suite version shown, e.g. RC-2026.07.11 — must match src/lib/legal/documentRegistry.js SUITE_VERSION" },
           "document_id": { "type": "string", "description": "Registry id of the document this event relates to (documentRegistry.js), null for events with no single bound document" },
           "document_title": { "type": "string", "description": "Snapshot of the document title as displayed, independent of later registry renames" },
-          "document_fingerprint": { "type": "string", "description": "Non-cryptographic content fingerprint of the exact text shown (documentRegistry.js fingerprint())" },
+          "document_fingerprint": { "type": "string", "description": "SHA-256 content fingerprint of the exact text shown (documentRegistry.js fingerprint())" },
           "session_context": { "type": "string", "description": "For recording_consent: the appointment/SOAP-note id the consent covers. Null for signup-time events." },
           "user_agent": { "type": "string", "description": "Browser user agent at the time of the affirmative action" },
           "ip_address": { "type": "string", "description": "Best-effort; 'not-collected-local-shim' where the local dev backend cannot observe a real client IP" }

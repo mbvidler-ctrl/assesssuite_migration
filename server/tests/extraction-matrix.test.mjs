@@ -784,7 +784,7 @@ test('E35 missing practitioner processing authority fails before provider I/O', 
   assert.equal(fakeProvider.calls.length, 0);
 });
 
-test('E36 practitioner cancellation shortens every authorised unbound upload lifecycle', async () => {
+test('E36 practitioner cancellation immediately deletes bytes and redacts unbound filenames', async () => {
   const first = await uploadReferral(userA, tenantA.id, pdfFixture(), 'cancel-one.pdf', 'application/pdf');
   const second = await uploadReferral(userA, tenantA.id, pdfFixture(), 'cancel-two.pdf', 'application/pdf');
   const result = await requestJson(server, appRoute(CANCEL_ROUTE), {
@@ -793,12 +793,13 @@ test('E36 practitioner cancellation shortens every authorised unbound upload lif
     body: { org_id: tenantA.id, upload_ids: [first.upload_id, second.upload_id] },
   });
   assert.equal(result.status, 200, result.text);
-  assert.deepEqual(result.body, { status: 'success', scheduled: 2 });
-  const deadline = Date.now() + 60 * 60 * 1000 + 5_000;
+  assert.deepEqual(result.body, { status: 'success', deleted: 2 });
   for (const id of [first.upload_id, second.upload_id]) {
     const row = getUploadRow(id);
-    assert.equal(row.lifecycle_state, 'temporary');
-    assert.ok(Date.parse(row.expires_at) <= deadline);
+    assert.equal(row.lifecycle_state, 'deleted');
+    assert.equal(row.original_name, '[deleted]');
+    assert.ok(Date.parse(row.deleted_at) <= Date.now());
+    assert.equal(fs.existsSync(path.join(server.uploadsDir, row.stored_name)), false);
   }
 });
 
@@ -816,4 +817,133 @@ test('E37 general clinical InvokeLLM remains disabled outside the referral adapt
   } finally {
     await isolated.stop();
   }
+});
+
+test('E38 authority and provider provenance are persisted as bounded content-free audit metadata', async () => {
+  fakeProvider.reset();
+  const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'audit-provenance.pdf', 'application/pdf');
+  const result = await extract(userA, {
+    upload_id: uploadRef.upload_id,
+    org_id: tenantA.id,
+    json_schema: REFERRAL_SCHEMA,
+  });
+  assertSuccess(result, PROFILE_A);
+  const db = openAssuranceDb();
+  try {
+    const rows = db.prepare(`
+      SELECT event_type, metadata_json FROM upload_audit
+      WHERE upload_id = ? AND event_type IN ('processing_authority_attested', 'document_extraction')
+      ORDER BY created_at ASC
+    `).all(uploadRef.upload_id);
+    const authority = JSON.parse(rows.find((row) => row.event_type === 'processing_authority_attested').metadata_json);
+    const extraction = JSON.parse(rows.find((row) => row.event_type === 'document_extraction').metadata_json);
+    assert.equal(typeof authority.attestation_version, 'string');
+    assert.equal(authority.upload_purpose, 'referral-extraction');
+    assert.equal(extraction.provider_model, 'synthetic-assurance-model');
+    assert.equal(typeof extraction.prompt_version, 'string');
+    assert.match(extraction.provider_response_id_hash, /^[0-9a-f]{64}$/);
+    assert.equal(extraction.request_store_disabled, true);
+    assert.equal(extraction.request_background_disabled, true);
+    assert.equal(extraction.request_prompt_cache_in_memory, true);
+    assert.equal(extraction.request_tools_disabled, true);
+    assert.equal(extraction.request_inline_only, true);
+    assert.equal(extraction.request_conversation_state_disabled, true);
+    assert.doesNotMatch(JSON.stringify(rows), /Alex River|ALEX RIVER|file_data|input_file/i);
+  } finally {
+    db.close();
+  }
+});
+
+test('E39 same-org colleagues cannot bind or cancel another uploader\'s unbound file', async () => {
+  const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'private-unbound.pdf', 'application/pdf');
+  const client = await requestJson(server, appRoute('/entities/Client'), {
+    method: 'POST', token: colleagueA.token,
+    body: { org_id: tenantA.id, full_name: 'Synthetic Ownership Boundary' },
+  });
+  assert.equal(client.status, 200, client.text);
+  const bind = await requestJson(server, appRoute('/entities/ClientDocument'), {
+    method: 'POST', token: colleagueA.token,
+    body: { org_id: tenantA.id, client_id: client.body.id, name: 'Must not bind', file_url: uploadRef.file_url },
+  });
+  assert.equal(bind.status, 404, bind.text);
+  const cancel = await requestJson(server, appRoute(CANCEL_ROUTE), {
+    method: 'POST', token: colleagueA.token,
+    body: { org_id: tenantA.id, upload_ids: [uploadRef.upload_id] },
+  });
+  assert.equal(cancel.status, 404, cancel.text);
+  assert.equal(getUploadRow(uploadRef.upload_id).lifecycle_state, 'temporary');
+});
+
+test('E40 an expired unbound upload is inaccessible before periodic cleanup runs', async () => {
+  const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'expired-before-cleanup.pdf', 'application/pdf');
+  setUploadState(uploadRef.upload_id, 'temporary', { expiresAt: new Date(Date.now() - 1_000).toISOString() });
+  const response = await fetch(`${server.baseUrl}/api/files/${uploadRef.upload_id}`, {
+    headers: { Authorization: `Bearer ${userA.token}` },
+  });
+  assert.equal(response.status, 404);
+  assert.equal(fs.existsSync(path.join(server.uploadsDir, getUploadRow(uploadRef.upload_id).stored_name)), true);
+});
+
+test('E41 clinical lists are legal-acceptance scoped per membership', async () => {
+  const tenantBClient = await requestJson(server, appRoute('/entities/Client'), {
+    method: 'POST', token: userB.token,
+    body: { org_id: tenantB.id, full_name: 'Tenant B Acceptance Boundary' },
+  });
+  assert.equal(tenantBClient.status, 200, tenantBClient.text);
+  const result = await requestJson(server, appRoute(`/entities/Client?q=${encodeURIComponent(JSON.stringify({ org_id: tenantB.id }))}`), {
+    token: userA.token,
+  });
+  assert.equal(result.status, 200, result.text);
+  assert.ok(result.body.length > 0);
+  assert.ok(result.body.every((record) => record.org_id === tenantA.id));
+  assert.equal(result.body.some((record) => record.id === tenantBClient.body.id), false);
+});
+
+test('E42 deleted upload registry metadata is purged after two years unless legal hold is active', async () => {
+  const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'purge-after-retention.pdf', 'application/pdf');
+  const cancelled = await requestJson(server, appRoute(CANCEL_ROUTE), {
+    method: 'POST', token: userA.token,
+    body: { org_id: tenantA.id, upload_ids: [uploadRef.upload_id] },
+  });
+  assert.equal(cancelled.status, 200, cancelled.text);
+  const db = openAssuranceDb();
+  const oldDate = new Date(Date.now() - (2 * 365 + 2) * 24 * 60 * 60 * 1000).toISOString();
+  db.prepare('UPDATE upload_registry SET deleted_at = ? WHERE id = ?').run(oldDate, uploadRef.upload_id);
+  const registryModule = await import('../../server/uploadRegistry.mjs');
+  const previousHold = process.env.UPLOAD_AUDIT_LEGAL_HOLD;
+  try {
+    process.env.UPLOAD_AUDIT_LEGAL_HOLD = '1';
+    registryModule.cleanupExpiredUploadAudit({ db, now: new Date(), dryRun: false });
+    assert.ok(db.prepare('SELECT id FROM upload_registry WHERE id = ?').get(uploadRef.upload_id));
+    delete process.env.UPLOAD_AUDIT_LEGAL_HOLD;
+    registryModule.cleanupExpiredUploadAudit({ db, now: new Date(), dryRun: false });
+    assert.equal(db.prepare('SELECT id FROM upload_registry WHERE id = ?').get(uploadRef.upload_id), undefined);
+  } finally {
+    if (previousHold === undefined) delete process.env.UPLOAD_AUDIT_LEGAL_HOLD;
+    else process.env.UPLOAD_AUDIT_LEGAL_HOLD = previousHold;
+    db.close();
+  }
+});
+
+test('E43 an authorised bound referral can be re-extracted without changing its retained lifecycle', async () => {
+  fakeProvider.reset();
+  const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'bound-reextract.pdf', 'application/pdf');
+  const client = await requestJson(server, appRoute('/entities/Client'), {
+    method: 'POST', token: userA.token,
+    body: { org_id: tenantA.id, full_name: 'Bound Re-extraction Client' },
+  });
+  assert.equal(client.status, 200, client.text);
+  const document = await requestJson(server, appRoute('/entities/ClientDocument'), {
+    method: 'POST', token: userA.token,
+    body: { org_id: tenantA.id, client_id: client.body.id, name: 'Bound referral', file_url: uploadRef.file_url },
+  });
+  assert.equal(document.status, 200, document.text);
+  assert.equal(getUploadRow(uploadRef.upload_id).lifecycle_state, 'bound');
+  const result = await extract(userA, {
+    upload_id: uploadRef.upload_id,
+    org_id: tenantA.id,
+    json_schema: REFERRAL_SCHEMA,
+  });
+  assertSuccess(result, PROFILE_A);
+  assert.equal(getUploadRow(uploadRef.upload_id).lifecycle_state, 'bound');
 });

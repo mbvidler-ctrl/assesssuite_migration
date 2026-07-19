@@ -362,6 +362,18 @@ function safeAuditMetadata(metadata) {
     'estimated_cost_microusd',
     'actual_cost_microusd',
     'dry_run',
+    'attestation_version',
+    'upload_purpose',
+    'provider_model',
+    'prompt_version',
+    'provider_response_id_hash',
+    'request_store_disabled',
+    'request_background_disabled',
+    'request_prompt_cache_in_memory',
+    'request_tools_disabled',
+    'request_inline_only',
+    'request_conversation_state_disabled',
+    'cleanup_within_seconds',
   ]);
   return Object.fromEntries(
     Object.entries(metadata)
@@ -625,6 +637,38 @@ export function createUploadRegistry(db, { uploadsDir }) {
     return getById(id);
   }
 
+  function cancelTemporary(id, { actorUserId, now = new Date() } = {}) {
+    const current = getById(id);
+    if (!current || current.isLegacy || current.state === 'bound') {
+      throw new UploadError(409, 'upload_not_temporary', 'A retained file cannot be cancelled.');
+    }
+    if (!actorUserId || current.uploaderUserId !== actorUserId) {
+      throw new UploadError(404, 'upload_not_found', 'File not found.');
+    }
+    if (current.state === 'deleted') return current;
+    const nowIso = new Date(now).toISOString();
+    const filePath = canonicalUploadPath(uploadsDir, current.storedName);
+    if (fs.existsSync(filePath)) {
+      const stat = fs.lstatSync(filePath);
+      if (stat.isFile() && !stat.isSymbolicLink()) fs.rmSync(filePath);
+    }
+    db.prepare(`
+      UPDATE upload_registry
+      SET lifecycle_state = 'deleted', deleted_at = ?, expires_at = ?, original_name = '[deleted]'
+      WHERE id = ? AND is_legacy = 0 AND bound_at IS NULL
+    `).run(nowIso, nowIso, id);
+    audit({
+      uploadId: id,
+      orgId: current.orgId,
+      actorUserId,
+      eventType: 'temporary_upload_cancelled',
+      outcome: 'removed',
+      metadata: { state_from: current.state, state_to: 'deleted', cleanup_within_seconds: 0 },
+      now,
+    });
+    return getById(id);
+  }
+
   function bind(id, { orgId, actorUserId, entityType, entityId, now = new Date() }) {
     const current = getById(id);
     if (!current || current.orgId !== orgId || ['deleted', 'expired'].includes(current.state)) {
@@ -633,6 +677,9 @@ export function createUploadRegistry(db, { uploadsDir }) {
     if (current.state === 'bound') {
       if (current.boundEntityType === entityType && current.boundEntityId === entityId) return current;
       throw new UploadError(409, 'upload_already_bound', 'The file is already retained with another record.');
+    }
+    if (!current.isLegacy && current.uploaderUserId !== actorUserId) {
+      throw new UploadError(404, 'upload_not_found', 'File not found.');
     }
     const timestamp = new Date(now).toISOString();
     db.prepare(`
@@ -715,6 +762,7 @@ export function createUploadRegistry(db, { uploadsDir }) {
     transition,
     bind,
     audit,
+    cancelTemporary,
     reserveExtractionUsage,
     completeExtractionUsage,
   };
@@ -775,7 +823,7 @@ export function cleanupExpiredUploads({ db, uploadsDir, now = new Date(), dryRun
       }
       db.prepare(`
         UPDATE upload_registry
-        SET lifecycle_state = 'deleted', deleted_at = ?
+        SET lifecycle_state = 'deleted', deleted_at = ?, original_name = '[deleted]'
         WHERE id = ? AND is_legacy = 0 AND bound_at IS NULL
           AND lifecycle_state IN ('temporary', 'processing', 'review-pending', 'expired')
       `).run(nowIso, row.id);
@@ -812,9 +860,19 @@ export function cleanupExpiredUploadAudit({ db, now = new Date(), dryRun = false
   const usageCount = Number(
     db.prepare('SELECT COUNT(*) AS n FROM extraction_usage WHERE created_at <= ?').get(usageCutoff)?.n || 0,
   );
+  const registryCount = Number(
+    db.prepare(`
+      SELECT COUNT(*) AS n FROM upload_registry
+      WHERE lifecycle_state = 'deleted' AND deleted_at IS NOT NULL AND deleted_at <= ?
+    `).get(usageCutoff)?.n || 0,
+  );
   if (!dryRun) {
     db.prepare('DELETE FROM upload_audit WHERE legal_hold = 0 AND expires_at <= ?').run(nowIso);
     db.prepare('DELETE FROM extraction_usage WHERE created_at <= ?').run(usageCutoff);
+    db.prepare(`
+      DELETE FROM upload_registry
+      WHERE lifecycle_state = 'deleted' AND deleted_at IS NOT NULL AND deleted_at <= ?
+    `).run(usageCutoff);
   }
-  return { removed: count + usageCount, dryRun: Boolean(dryRun), legalHold: false };
+  return { removed: count + usageCount + registryCount, dryRun: Boolean(dryRun), legalHold: false };
 }

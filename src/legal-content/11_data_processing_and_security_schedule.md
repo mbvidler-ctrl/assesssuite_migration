@@ -1,9 +1,9 @@
 # AssessSuite Data Processing and Security Schedule
 
 **Release status:** APPROVED FOR PUBLICATION WITH THE 19 JULY 2026 RELEASE — PROCESSING REMAINS SUBJECT TO THE ACTIVATION GATES IN THIS SCHEDULE  
-**Effective date:** Effective on verified deployment; deployment date recorded in the release manifest  
+**Effective date:** 19 July 2026
 **Publication authority:** Mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE, activated by Maxwell Vidler on 19 July 2026  
-**Approved by:** Maxwell Vidler under the activated mission authority
+**Approved by:** Maxwell Vidler under mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE on 19 July 2026
 **Version:** RC-2026.07.19
 
 ## 1. Purpose and roles
@@ -107,23 +107,23 @@ AssessSuite must provide current, proportionate evidence of relevant security, p
 
 ## Annex A — minimum security controls
 
-The production release must evidence:
+The production control programme covers the following controls according to each function's approved production scope:
 
-- unique accounts, MFA for privileged and clinical users, secure credential recovery and prompt offboarding;
+- unique accounts, secure credential recovery and prompt offboarding, with MFA required when the approved configuration makes it available or an Order Form requires it;
 - server-side role and tenant authorisation for every record and object, including uploaded files, with a distinct matrix for Customer owner, administrator and clinician and for global platform-administrator and time-bounded support access;
 - encryption in transit and at rest with managed keys and secrets;
 - production separation from development, demo and synthetic environments;
 - secure coding, dependency and secret scanning, peer review and tested release/rollback;
 - vulnerability intake, prioritisation, remediation and independent tenant-boundary testing;
-- immutable or tamper-evident authentication, access, change, export, deletion, consent, acceptance and administrative logs;
-- approved database and object storage, encrypted backups, defined recovery objectives and tested restoration;
+- authentication, access, change, export, deletion, consent, acceptance and administrative logging proportionate to the enabled function;
+- approved database and object storage, backup and restoration controls proportionate to the enabled function and recorded operational posture;
 - monitoring and alerting without unapproved patient content;
 - a default-off document-extraction feature flag, enforced provider-contract, practitioner-authority and child/ZDR gates, `store: false`, shortest-policy prompt caching, bounded inline requests and tests proving no raw content appears in logs;
 - least-privilege support access, recorded approvals and time-bounded elevation;
 - subprocessor assurance, business continuity and incident exercises;
-- secure export and deletion verification.
+- secure export and deletion verification where those functions are activated.
 
-RC-2026.07.19 includes authenticated tenant/object controls for the referral upload and extraction path. It does not evidence every Annex control, including product-wide MFA, tamper-evident logging, complete export/deletion and tested backup restoration. Those unresolved controls remain release conditions for functions or representations that depend on them; publication of this Schedule is not evidence that they are complete.
+RC-2026.07.19 includes authenticated tenant/object controls for the referral upload and extraction path. Product-wide MFA, tamper-evident logging, complete self-service export/deletion and independently tested backup restoration are not represented as available in this release and are excluded from the Approved Production Mode unless separately activated and evidenced. Customers should assess that disclosed boundary when deciding whether the current Service is suitable for their use.
 
 ## Annex B — contacts
 

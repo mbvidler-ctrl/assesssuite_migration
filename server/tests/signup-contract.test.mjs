@@ -11,6 +11,7 @@ import {
   PRACTITIONER_NOTICE_IDS,
   SUITE_VERSION,
   fingerprint,
+  isLegalDocumentPublicationApproved,
 } from '../../src/lib/legal/documentRegistry.js';
 import { effectiveLegalContent } from '../../src/lib/legal/effectiveContent.js';
 import {
@@ -82,6 +83,12 @@ test('S04 every hyperlink resolves to its intended current instrument', () => {
   for (const id of expectedIds) {
     const doc = LEGAL_DOCUMENTS[id];
     assert.ok(doc?.publicRoute, `${id} must be a public instrument`);
+    assert.equal(isLegalDocumentPublicationApproved(doc), true, `${id} must be enacted before clickwrap`);
+    const content = fs.readFileSync(path.join(legalContentDir, doc.file), 'utf8');
+    assert.doesNotMatch(
+      content,
+      /\*\*Release status:\*\*[^\r\n]*(?:\bDRAFT\b|NOT APPROVED)|\bProposed provider\b|\bProposed issuer\b|\bCurrent proposed plans\b/i,
+    );
     assert.match(consentSource, new RegExp(`getLegalDocument\\(["']${id}["']\\)`));
     assert.equal(`/legal/${doc.slug}`.startsWith('/legal/'), true);
   }
@@ -128,12 +135,12 @@ test('S08 each document event records the displayed version, title, and exact co
     const content = fs.readFileSync(path.join(legalContentDir, doc.file), 'utf8');
     const displayed = effectiveLegalContent(content, {
       status: 'effective',
-      effectiveDate: '20 July 2026',
+      effectiveDate: '19 July 2026',
     });
     assert.equal(typeof doc.title, 'string');
     assert.ok(doc.title.length > 0);
-    assert.match(fingerprint(displayed), /^fnv-[0-9a-f]+-\d+$/);
-    assert.notEqual(displayed, content);
+    assert.match(fingerprint(displayed), /^sha256-[0-9a-f]{64}$/);
+    assert.equal(displayed, content);
     assert.match(SUITE_VERSION, /\S/);
   }
 });
@@ -194,7 +201,7 @@ test('S11 server rejects forged notice rows and accepts only its complete derive
     });
     assert.equal(receipts.status, 200, receipts.text);
     assert.equal(receipts.body.length, 3);
-    assert.ok(receipts.body.every((event) => /^fnv-[0-9a-f]+-\d+$/.test(event.document_fingerprint)));
+    assert.ok(receipts.body.every((event) => /^sha256-[0-9a-f]{64}$/.test(event.document_fingerprint)));
 
     const after = await requestJson(server, `/api/apps/${server.appId}/entities/Client`, { token: user.token });
     assert.equal(after.status, 200, after.text);

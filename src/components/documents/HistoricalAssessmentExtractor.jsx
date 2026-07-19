@@ -79,6 +79,7 @@ export default function HistoricalAssessmentExtractor({
   fileUrls, 
   clientId, 
   orgId,
+  processingAuthorityConfirmed = false,
   onExtracted,
   allAssessments = [],
   isNewClient = false
@@ -114,6 +115,10 @@ export default function HistoricalAssessmentExtractor({
       toast.error('Practice context is required before document extraction.');
       return;
     }
+    if (!processingAuthorityConfirmed) {
+      toast.error('Confirm your authority to process this referral before extraction.');
+      return;
+    }
     
     setIsExtracting(true);
     try {
@@ -121,6 +126,7 @@ export default function HistoricalAssessmentExtractor({
         org_id: orgId,
         file_urls: fileUrls,
         json_schema: ASSESSMENT_EXTRACTION_SCHEMA,
+        processing_authority_confirmed: true,
       });
       if (result?.status !== 'success' || !result.output?.assessments) {
         toast.error(typeof result?.details === 'string'

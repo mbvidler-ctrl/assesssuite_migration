@@ -5,6 +5,7 @@ import LegalMarkdown from "@/components/legal/LegalMarkdown";
 import ReleaseStatusBanner from "@/components/legal/ReleaseStatusBanner";
 import {
   getLegalDocumentBySlug,
+  isLegalDocumentPublicationApproved,
   SUITE_VERSION,
 } from "@/lib/legal/documentRegistry";
 import { loadLegalContent } from "@/lib/legal/loadContent";
@@ -19,7 +20,7 @@ export default function LegalDocument() {
   const doc = getLegalDocumentBySlug(slug);
   const { appPublicSettings } = useAuth();
   const legal = appPublicSettings?.public_settings?.legal;
-  const isEffective = legal?.status === "effective";
+  const suiteIsEffective = legal?.status === "effective";
   const effectiveDate = legal?.effective_date || null;
 
   if (!doc) {
@@ -32,6 +33,8 @@ export default function LegalDocument() {
       </div>
     );
   }
+
+  const isEffective = suiteIsEffective && isLegalDocumentPublicationApproved(doc);
 
   const rawContent = loadLegalContent(doc.file);
   const content = effectiveLegalContent(rawContent, {

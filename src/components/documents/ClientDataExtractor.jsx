@@ -90,6 +90,7 @@ export default function ClientDataExtractor({
   const [extractedData, setExtractedData] = useState(null);
   const [hasExtracted, setHasExtracted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [processingAuthorityConfirmed, setProcessingAuthorityConfirmed] = useState(false);
   const [selectedItems, setSelectedItems] = useState({
     personal: {},
     conditions: [],
@@ -104,6 +105,10 @@ export default function ClientDataExtractor({
       toast.error('Client practice is required before document extraction.');
       return;
     }
+    if (!processingAuthorityConfirmed) {
+      toast.error('Confirm your authority to process these client documents before extraction.');
+      return;
+    }
     
     setIsExtracting(true);
     try {
@@ -111,6 +116,7 @@ export default function ClientDataExtractor({
         org_id: client.org_id,
         file_urls: fileUrls,
         json_schema: EXTRACTION_SCHEMA,
+        processing_authority_confirmed: true,
       });
       if (result?.status !== 'success' || !result.output) {
         toast.error(typeof result?.details === 'string'
@@ -282,9 +288,21 @@ export default function ClientDataExtractor({
             <p className="text-sm text-slate-600 mb-3">
               Scan documents for client information, assessments, conditions, and more.
             </p>
+            <div className="flex items-start gap-2 text-left mb-3">
+              <input
+                id="client-document-processing-authority"
+                type="checkbox"
+                checked={processingAuthorityConfirmed}
+                onChange={(event) => setProcessingAuthorityConfirmed(event.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300"
+              />
+              <label htmlFor="client-document-processing-authority" className="text-xs font-normal leading-snug">
+                I confirm this practice has documented authority to send these client documents for the disclosed AI processing.
+              </label>
+            </div>
             <Button 
               onClick={handleExtract} 
-              disabled={isExtracting}
+              disabled={isExtracting || !processingAuthorityConfirmed}
               variant="outline"
               className="border-blue-300 hover:bg-blue-100"
             >

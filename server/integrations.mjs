@@ -364,7 +364,7 @@ async function handleExtractDataFromUploadedFile(body, context) {
     if (!['referral-extraction', 'clinical-attachment', 'report-attachment'].includes(upload.purpose)) {
       throw new UploadError(404, 'upload_not_found', 'File not found.');
     }
-    if (upload.state === 'bound' || (!upload.isLegacy && upload.uploaderUserId !== context.sessionUser.id)) {
+    if (!upload.isLegacy && upload.state !== 'bound' && upload.uploaderUserId !== context.sessionUser.id) {
       throw new UploadError(404, 'upload_not_found', 'File not found.');
     }
     uploads.push(upload);
@@ -395,7 +395,9 @@ async function handleExtractDataFromUploadedFile(body, context) {
       uploadCount: uploads.length,
     });
     const files = uploads.map((upload) => {
-      context.uploadRegistry.transition(upload.id, 'processing', { actorUserId: context.sessionUser.id });
+      if (upload.state !== 'bound') {
+        context.uploadRegistry.transition(upload.id, 'processing', { actorUserId: context.sessionUser.id });
+      }
       const filePath = canonicalUploadPath(context.uploadsDir, upload.storedName, { mustExist: true });
       return { upload, buffer: context.readUploadBuffer(filePath, upload.byteSize) };
     });
@@ -406,7 +408,9 @@ async function handleExtractDataFromUploadedFile(body, context) {
     });
     actualCostMicrousd = extracted.actualCostMicrousd;
     for (const upload of uploads) {
-      context.uploadRegistry.transition(upload.id, 'review-pending', { actorUserId: context.sessionUser.id });
+      if (upload.state !== 'bound') {
+        context.uploadRegistry.transition(upload.id, 'review-pending', { actorUserId: context.sessionUser.id });
+      }
       context.uploadRegistry.audit({
         uploadId: upload.id,
         orgId,
@@ -421,7 +425,12 @@ async function handleExtractDataFromUploadedFile(body, context) {
           provider_status_class: extracted.providerStatusClass,
           provider_model: extracted.model,
           prompt_version: extracted.promptVersion,
-          request_policy: extracted.requestPolicy,
+          request_store_disabled: extracted.requestPolicy?.store === true,
+          request_background_disabled: extracted.requestPolicy?.background === true,
+          request_prompt_cache_in_memory: extracted.requestPolicy?.prompt_cache_retention === true,
+          request_tools_disabled: extracted.requestPolicy?.tools === true,
+          request_inline_only: extracted.requestPolicy?.inline === true,
+          request_conversation_state_disabled: extracted.requestPolicy?.has_conversation_state === false,
           provider_response_id_hash: extracted.providerResponseIdHash,
         },
       });
@@ -527,7 +536,7 @@ async function handleUploadFile(body, files, context) {
   if (
     purpose !== 'profile-image' &&
     (context.sessionUser.account_status !== 'active' ||
-      !context.hasCurrentLegalAcceptance(context.sessionUser.email))
+      !context.hasCurrentLegalAcceptance(context.sessionUser.email, orgId))
   ) {
     throw new UploadError(403, 'clinical_upload_forbidden', 'Current approved access and legal acceptance are required.');
   }
@@ -574,24 +583,16 @@ async function handleCancelTemporaryUploads(body, context) {
     if (upload.isLegacy || upload.state === 'bound') {
       throw new UploadError(409, 'upload_not_temporary', 'A retained file cannot be cancelled.');
     }
+    if (upload.uploaderUserId !== context.sessionUser.id) {
+      throw new UploadError(404, 'upload_not_found', 'File not found.');
+    }
     uploads.push(upload);
   }
 
   for (const upload of uploads) {
-    context.uploadRegistry.transition(upload.id, 'temporary', {
-      actorUserId: context.sessionUser.id,
-      failure: true,
-    });
-    context.uploadRegistry.audit({
-      uploadId: upload.id,
-      orgId,
-      actorUserId: context.sessionUser.id,
-      eventType: 'temporary_upload_cancelled',
-      outcome: 'success',
-      metadata: { cleanup_within_seconds: Math.ceil(UPLOAD_POLICY.failureCleanupMs / 1000) },
-    });
+    context.uploadRegistry.cancelTemporary(upload.id, { actorUserId: context.sessionUser.id });
   }
-  return { status: 'success', scheduled: uploads.length };
+  return { status: 'success', deleted: uploads.length };
 }
 
 async function handleRecordLegalAcceptanceBundle(body, context) {

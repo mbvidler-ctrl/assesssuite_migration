@@ -49,6 +49,7 @@ import {
   PRACTITIONER_NOTICE_IDS,
   SUITE_VERSION,
   fingerprint as legalContentFingerprint,
+  isLegalDocumentPublicationApproved,
 } from '../src/lib/legal/documentRegistry.js';
 import { effectiveLegalContent } from '../src/lib/legal/effectiveContent.js';
 
@@ -548,6 +549,9 @@ export function runSeed({ db, entityNames }) {
       : [...PRACTITIONER_NOTICE_IDS];
     for (const documentId of documentIds) {
       const document = LEGAL_DOCUMENTS[documentId];
+      if (!isLegalDocumentPublicationApproved(document)) {
+        throw new Error(`Mandatory legal document is not approved for publication: ${documentId}`);
+      }
       const raw = fs.readFileSync(path.join(repoRoot, 'src', 'legal-content', document.file), 'utf8');
       const displayed = effectiveLegalContent(raw, {
         status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',

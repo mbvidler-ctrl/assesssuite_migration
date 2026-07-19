@@ -1,10 +1,11 @@
 # AssessSuite Practitioner Account Collection Notice
 
-**Release status:** DRAFT — NOT APPROVED FOR PUBLICATION, ACCEPTANCE OR RELIANCE  
-**Effective date:** None  
-**Approved by:** None  
+**Release status:** APPROVED FOR PUBLICATION AND ACKNOWLEDGEMENT WITH THE 19 JULY 2026 RELEASE
+**Effective date:** 19 July 2026
+**Publication authority:** Mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE, activated by Maxwell Vidler on 19 July 2026
+**Approved by:** Maxwell Vidler under mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE on 19 July 2026
 **Version:** RC-2026.07.19
-**Proposed issuer:** Assess Suite Pty Ltd (ACN 694 044 481; ABN 53 694 044 481)
+**Issuer:** Assess Suite Pty Ltd (ACN 694 044 481; ABN 53 694 044 481)
 
 ## Why you are receiving this notice
 

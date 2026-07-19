@@ -91,7 +91,7 @@ jobs:
   gates:
     name: Verify provenance and run release gates
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 60
     outputs:
       application_sha: ${{ steps.metadata.outputs.application_sha }}
       build_timestamp: ${{ steps.metadata.outputs.build_timestamp }}
@@ -134,6 +134,7 @@ jobs:
           [[ "$EXPECTED_CURRENT_RELEASE" =~ ^[A-Za-z0-9._:-]{1,120}$ ]]
           [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\.fly\.io/assesssuite-production(:[A-Za-z0-9._-]{1,128}|@sha256:[0-9a-f]{64})$ ]]
           [[ "$ROLLBACK_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
+          [[ "$ROLLBACK_RELEASE_SHA" == "$ROLLBACK_SOURCE_SHA" ]]
           [[ -n "$CAPABILITY_INTENT_ID" && "$CAPABILITY_INTENT_ID" != *$'\n'* ]]
           [[ -n "$AUTHORITY_REFERENCE" && "$AUTHORITY_REFERENCE" != *$'\n'* ]]
 
@@ -180,6 +181,8 @@ jobs:
           fi
           [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_STATUS[[:space:]]*=[[:space:]]*"effective"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_EFFECTIVE_DATE[[:space:]]*=[[:space:]]*"19 July 2026"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
 
           if grep -Eq '^[[:space:]]*DOCUMENT_EXTRACTION_UNDER_13_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.production.toml; then
             reviewed_under_age_mode=enabled
@@ -242,8 +245,22 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Typecheck
-        run: npm run typecheck
+      - name: Typecheck against exact production-base differential
+        shell: bash
+        env:
+          PRODUCTION_BASE_SHA: d593a7f2e83657125d5be4acb49642a38215d5bd
+        run: |
+          set -euo pipefail
+          base_dir="$RUNNER_TEMP/typecheck-base"
+          reference_dir="$RUNNER_TEMP/typecheck-reviewed-reference"
+          git worktree add --detach "$base_dir" "$PRODUCTION_BASE_SHA"
+          git worktree add --detach "$reference_dir" eae2f229886b8aa2071864767ba61c0d6e4a548d
+          npm --prefix "$base_dir" ci
+          npm --prefix "$reference_dir" ci
+          node scripts/compare-typecheck-baseline.mjs \
+            --base-dir "$base_dir" \
+            --reference-dir "$reference_dir" \
+            --candidate-dir "$GITHUB_WORKSPACE"
 
       - name: Lint with exact legacy-baseline containment
         shell: bash
@@ -424,7 +441,6 @@ jobs:
     needs: gates
     runs-on: ubuntu-24.04
     timeout-minutes: 30
-    environment: assesssuite-production
     steps:
       - name: Check out exact gated candidate
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -503,16 +519,31 @@ jobs:
           fi
           [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_STATUS[[:space:]]*=[[:space:]]*"effective"[[:space:]]*$' candidate/fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_EFFECTIVE_DATE[[:space:]]*=[[:space:]]*"19 July 2026"[[:space:]]*$' candidate/fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS[[:space:]]*=[[:space:]]*"RC-2026.07.11,RC-2026.07.19"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
 
       - name: Set up Node.js 24
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 24
 
-      - name: Set up pinned flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
-        with:
-          version: 0.4.71
+      - name: Install checksum-verified flyctl 0.4.71
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          bin_dir="$RUNNER_TEMP/flyctl-bin"
+          curl --fail --location --silent --show-error \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz' \
+            --output "$archive"
+          echo 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2  '"$archive" | sha256sum --check --strict
+          mkdir -p "$bin_dir"
+          tar -xzf "$archive" -C "$bin_dir" flyctl
+          chmod 0755 "$bin_dir/flyctl"
+          ln -s "$bin_dir/flyctl" "$bin_dir/fly"
+          echo "$bin_dir" >>"$GITHUB_PATH"
+          "$bin_dir/flyctl" version | grep -F '0.4.71'
 
       - name: Final secret-bearing Fly release command and public verification
         shell: bash
@@ -525,6 +556,8 @@ jobs:
           EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}
           ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
           ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
+          ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
           EXTRACTION_RUNTIME_MODE: ${{ inputs.extraction_runtime_mode }}
           PROVIDER_TERMS_EVIDENCE_ID: ${{ inputs.provider_terms_evidence_id }}
           UNDER_AGE_ZDR_RUNTIME_MODE: ${{ inputs.under_age_zdr_runtime_mode }}
@@ -561,6 +594,33 @@ jobs:
           NODE
           }
 
+          assert_topology() {
+            local label=$1
+            fly machines list --app "$app" --json >"$RUNNER_TEMP/${label}-machines.json"
+            fly volumes list --app "$app" --json >"$RUNNER_TEMP/${label}-volumes.json"
+            LABEL="$label" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const root = process.env.RUNNER_TEMP;
+          const label = process.env.LABEL;
+          const machinePayload = JSON.parse(fs.readFileSync(`${root}/${label}-machines.json`, 'utf8'));
+          const volumePayload = JSON.parse(fs.readFileSync(`${root}/${label}-volumes.json`, 'utf8'));
+          const machines = Array.isArray(machinePayload) ? machinePayload : (machinePayload.machines || []);
+          const volumes = Array.isArray(volumePayload) ? volumePayload : (volumePayload.volumes || []);
+          if (machines.length !== 1) throw new Error(`Expected exactly one Fly machine; found ${machines.length}`);
+          if (volumes.length !== 1) throw new Error(`Expected exactly one Fly volume; found ${volumes.length}`);
+          const machine = machines[0];
+          const guest = machine.config?.guest || machine.Config?.guest || {};
+          if ((machine.region ?? machine.Region) !== 'syd') throw new Error('Machine is not in syd');
+          if (Number(guest.cpus) !== 1 || Number(guest.memory_mb ?? guest.memoryMb) !== 512 || (guest.cpu_kind ?? guest.cpuKind) !== 'shared') {
+            throw new Error('Machine resources differ from one shared CPU and 512 MB');
+          }
+          const volume = volumes[0];
+          if ((volume.name ?? volume.Name) !== 'assesssuite_data' || (volume.region ?? volume.Region) !== 'syd' || Number(volume.size_gb ?? volume.sizeGb ?? volume.SizeGB) !== 1) {
+            throw new Error('Volume topology differs from one 1 GB assesssuite_data volume in syd');
+          }
+          NODE
+          }
+
           read_version() {
             local url=$1
             local expected_sha=$2
@@ -575,6 +635,18 @@ jobs:
               sleep 3
             done
             return 1
+          }
+
+          read_public_settings() {
+            local url=$1
+            local body=$2
+            curl --fail --silent --show-error --max-time 10 \
+              -H 'Cache-Control: no-cache' \
+              "${url}/api/apps/public/prod/public-settings/by-id/release-verification" \
+              -o "$body"
+            jq -e \
+              '.public_settings.legal.status == "effective" and .public_settings.legal.effective_date == "19 July 2026"' \
+              "$body" >/dev/null
           }
 
           run_provider_probe() {
@@ -647,12 +719,15 @@ jobs:
             if ! fly deploy "$rollback_dir" \
               --config "$rollback_config" \
               --strategy immediate \
+              --ha=false \
+              --update-only \
               --app "$app" \
               --image "$ROLLBACK_IMAGE" \
               --yes; then
               append_summary "FAILED; automatic rollback command also failed ($reason)"
               return 1
             fi
+            assert_topology rollback
             fly releases --app "$app" --image --json >"$rollback_json"
             IFS=$'\t' read -r rollback_release rollback_image_actual < <(current_release "$rollback_json")
             if [[ "$rollback_image_actual" != "$ROLLBACK_IMAGE" ]]; then
@@ -668,6 +743,13 @@ jobs:
             return 0
           }
 
+          fly auth docker
+          docker pull "$ROLLBACK_IMAGE"
+          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$ROLLBACK_SOURCE_SHA" ]]
+          docker image inspect "$ROLLBACK_IMAGE" --format '{{ range .Config.Env }}{{ println . }}{{ end }}' >"$RUNNER_TEMP/rollback-image-env.txt"
+          grep -Fx "RELEASE_SHA=$ROLLBACK_SOURCE_SHA" "$RUNNER_TEMP/rollback-image-env.txt"
+          grep -Fx "SOURCE_BRANCH=$ROLLBACK_SOURCE_BRANCH" "$RUNNER_TEMP/rollback-image-env.txt"
+          assert_topology prior
           fly releases --app "$app" --image --json >"$prior_json"
           IFS=$'\t' read -r prior_release prior_image < <(current_release "$prior_json")
           [[ "$prior_release" == "$EXPECTED_CURRENT_RELEASE" ]]
@@ -681,7 +763,7 @@ jobs:
           const required = [
             'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',
             'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',
-            'OPENAI_API_KEY', 'LEGAL_STATUS', 'LEGAL_EFFECTIVE_DATE',
+            'OPENAI_API_KEY',
           ];
           const missing = required.filter((name) => !present.has(name));
           if (missing.length) throw new Error(`Required production secret name(s) absent: ${missing.join(', ')}`);
@@ -700,10 +782,22 @@ jobs:
           if (present.has('TRANSCRIPTION_ENABLED')) {
             throw new Error('TRANSCRIPTION_ENABLED must be reviewed non-secret config; opaque Fly-secret override is refused');
           }
+          if (present.has('LEGAL_STATUS') || present.has('LEGAL_EFFECTIVE_DATE')) {
+            console.log('Legacy opaque legal settings are present and will be staged for removal before the reviewed deploy.');
+          }
           console.log(`Names-only production preflight passed (${required.length} required names; extraction mode ${process.env.EXTRACTION_RUNTIME_MODE}; under-age/ZDR mode ${process.env.UNDER_AGE_ZDR_RUNTIME_MODE}).`);
           NODE
 
-          fly auth docker
+          legacy_legal_secrets=()
+          for name in LEGAL_STATUS LEGAL_EFFECTIVE_DATE; do
+            if jq -e --arg name "$name" '.[] | select((.Name // .name) == $name)' "$RUNNER_TEMP/secret-names.json" >/dev/null; then
+              legacy_legal_secrets+=("$name")
+            fi
+          done
+          if [[ "${#legacy_legal_secrets[@]}" -gt 0 ]]; then
+            fly secrets unset "${legacy_legal_secrets[@]}" --stage --app "$app"
+          fi
+
           docker tag "assesssuite-release-gate:$APPLICATION_SHA" "$new_image_tag"
           docker push "$new_image_tag"
           candidate_digest="$(docker buildx imagetools inspect "$new_image_tag" --format '{{json .Manifest}}' | jq -er '.digest')"
@@ -715,6 +809,8 @@ jobs:
           fly deploy "$candidate_dir" \
             --config "$candidate_config" \
             --strategy immediate \
+            --ha=false \
+            --update-only \
             --app "$app" \
             --image "$candidate_image_ref" \
             --yes || deploy_status=$?
@@ -723,6 +819,7 @@ jobs:
             rollback_now "fly-deploy-exit-$deploy_status" || true
             exit 1
           fi
+          assert_topology candidate
 
           verification_failure=''
           if ! fly releases --app "$app" --image --json >"$new_json"; then
@@ -735,6 +832,10 @@ jobs:
               verification_failure='apex-version-mismatch'
             elif ! read_version 'https://assesssuite-production.fly.dev' "$APPLICATION_SHA" "$RUNNER_TEMP/fly-version.json"; then
               verification_failure='fly-domain-version-mismatch'
+            elif ! read_public_settings 'https://assesssuite.com' "$RUNNER_TEMP/apex-public-settings.json"; then
+              verification_failure='apex-legal-settings-mismatch'
+            elif ! read_public_settings 'https://assesssuite-production.fly.dev' "$RUNNER_TEMP/fly-public-settings.json"; then
+              verification_failure='fly-legal-settings-mismatch'
             elif [[ "$EXTRACTION_RUNTIME_MODE" == "enabled" ]]; then
               if run_provider_probe; then
                 provider_probe_result='PASS (value-blind synthetic PDF + PNG; no DB/filesystem writes)'

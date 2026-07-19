@@ -43,8 +43,7 @@ jobs:
   build_rollback_image:
     name: Gate and push compatibility image without deployment
     runs-on: ubuntu-24.04
-    timeout-minutes: 35
-    environment: assesssuite-production
+    timeout-minutes: 50
     steps:
       - name: Validate trusted dispatch context and inputs
         shell: bash
@@ -75,6 +74,8 @@ jobs:
           [[ "$SUPERSEDED_LEGAL_VERSION" =~ ^[A-Za-z0-9._-]{1,80}$ ]]
           [[ "$NEW_LEGAL_VERSION" =~ ^[A-Za-z0-9._-]{1,80}$ ]]
           [[ "$SUPERSEDED_LEGAL_VERSION" != "$NEW_LEGAL_VERSION" ]]
+          [[ "$SUPERSEDED_LEGAL_VERSION" == "RC-2026.07.11" ]]
+          [[ "$NEW_LEGAL_VERSION" == "RC-2026.07.19" ]]
           [[ -n "$CAPABILITY_INTENT_ID" && "$CAPABILITY_INTENT_ID" != *$'\n'* ]]
           [[ -n "$AUTHORITY_REFERENCE" && "$AUTHORITY_REFERENCE" != *$'\n'* ]]
 
@@ -116,6 +117,9 @@ jobs:
           fi
           [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_STATUS[[:space:]]*=[[:space:]]*"effective"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_EFFECTIVE_DATE[[:space:]]*=[[:space:]]*"19 July 2026"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS[[:space:]]*=[[:space:]]*"RC-2026.07.11,RC-2026.07.19"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
           build_timestamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           echo "build_timestamp=$build_timestamp" >> "$GITHUB_OUTPUT"
 
@@ -139,7 +143,7 @@ jobs:
           }
           NODE
 
-      - name: Build, typecheck, selftest, and legal compatibility gate
+      - name: Build, typecheck differential, selftest, and legal compatibility gate
         shell: bash
         env:
           SUPERSEDED_LEGAL_VERSION: ${{ inputs.superseded_legal_version }}
@@ -147,7 +151,16 @@ jobs:
         run: |
           set -euo pipefail
           npm run build
-          npm run typecheck
+          base_dir="$RUNNER_TEMP/typecheck-base"
+          reference_dir="$RUNNER_TEMP/typecheck-reviewed-reference"
+          git worktree add --detach "$base_dir" d593a7f2e83657125d5be4acb49642a38215d5bd
+          git worktree add --detach "$reference_dir" eae2f229886b8aa2071864767ba61c0d6e4a548d
+          npm --prefix "$base_dir" ci
+          npm --prefix "$reference_dir" ci
+          node scripts/compare-typecheck-baseline.mjs \
+            --base-dir "$base_dir" \
+            --reference-dir "$reference_dir" \
+            --candidate-dir "$GITHUB_WORKSPACE"
           npm run selftest
           npm run test:rollback-compatibility
 
@@ -213,10 +226,22 @@ jobs:
             .
           [[ "$(docker image inspect "assesssuite-rollback-gate:$ROLLBACK_SOURCE_SHA" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$ROLLBACK_SOURCE_SHA" ]]
 
-      - name: Set up pinned flyctl
-        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
-        with:
-          version: 0.4.71
+      - name: Install checksum-verified flyctl 0.4.71
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          bin_dir="$RUNNER_TEMP/flyctl-bin"
+          curl --fail --location --silent --show-error \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz' \
+            --output "$archive"
+          echo 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2  '"$archive" | sha256sum --check --strict
+          mkdir -p "$bin_dir"
+          tar -xzf "$archive" -C "$bin_dir" flyctl
+          chmod 0755 "$bin_dir/flyctl"
+          ln -s "$bin_dir/flyctl" "$bin_dir/fly"
+          echo "$bin_dir" >>"$GITHUB_PATH"
+          "$bin_dir/flyctl" version | grep -F '0.4.71'
 
       - name: Push the exact locally gated compatibility image
         shell: bash

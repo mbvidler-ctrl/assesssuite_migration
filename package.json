@@ -22,7 +22,7 @@
     "seed": "node server/seed.mjs",
     "validate:entry-guards": "node scripts/validate-entry-ts-guards.mjs",
     "check:prod-secrets": "node scripts/check-production-secrets.mjs",
-    "deploy:prod": "node scripts/check-production-secrets.mjs && fly deploy -c fly.production.toml --strategy immediate"
+    "deploy:prod": "node scripts/check-production-secrets.mjs && fly deploy -c fly.production.toml --strategy immediate --ha=false --update-only"
   },
   "dependencies": {
     "@base44/sdk": "^0.8.35",

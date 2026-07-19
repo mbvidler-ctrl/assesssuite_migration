@@ -206,6 +206,19 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
     }
   };
 
+  const handleOrganizationChange = (nextOrgId) => {
+    const previousOrgId = selectedOrgId;
+    const uploadIds = uploadedFiles.map((file) => file.uploadId).filter(Boolean);
+    if (previousOrgId && uploadIds.length > 0) {
+      void cancelTenantUploads({ org_id: previousOrgId, upload_ids: uploadIds }).catch(() => {
+        toast.warning('Temporary files from the previous practice remain scheduled for automatic expiry.');
+      });
+    }
+    resetForm();
+    setShowReviewModal(false);
+    setSelectedOrgId(nextOrgId);
+  };
+
   const handleReviewOpenChange = (open) => {
     if (open) setShowReviewModal(true);
     else void handleCancelReview();
@@ -589,7 +602,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
               <Label htmlFor="referral-organization">Owning practice</Label>
               <Select
                 value={selectedOrgId}
-                onValueChange={setSelectedOrgId}
+                onValueChange={handleOrganizationChange}
                 disabled={isLoadingOrganizations || organizationOptions.length === 0 || isUploading || isExtracting}
               >
                 <SelectTrigger id="referral-organization">
@@ -1073,6 +1086,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
                 fileUrls={uploadedFiles.map(f => f.url)}
                 clientId={selectedExistingClient?.id || null}
                 orgId={selectedOrgId}
+                processingAuthorityConfirmed={processingAuthorityConfirmed}
                 allAssessments={allAssessments}
                 onExtracted={(assessments) => {
                   // For new clients, store assessments to save after client creation

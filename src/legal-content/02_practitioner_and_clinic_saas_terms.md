@@ -1,13 +1,14 @@
 # AssessSuite Practitioner and Clinic SaaS Terms
 
-**Release status:** DRAFT — NOT APPROVED FOR PUBLICATION, ACCEPTANCE OR RELIANCE  
-**Effective date:** None  
-**Approved by:** None  
-**Proposed provider:** Assess Suite Pty Ltd (ACN 694 044 481; ABN 53 694 044 481)  
+**Release status:** APPROVED FOR PUBLICATION AND ACCEPTANCE WITH THE 19 JULY 2026 RELEASE
+**Effective date:** 19 July 2026
+**Publication authority:** Mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE, activated by Maxwell Vidler on 19 July 2026
+**Approved by:** Maxwell Vidler under mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE on 19 July 2026
+**Provider:** Assess Suite Pty Ltd (ACN 694 044 481; ABN 53 694 044 481)
 **Version:** RC-2026.07.19
 **Contact:** admin@assesssuite.com | 1800 317 553
 
-> **Release note:** These Terms may be deployed only after the operator and IP position, Order Form, Approved Production Mode, TGA position, price/tax treatment, approved subprocessors, security controls, clickwrap and record-exit process are approved and bound to the same release manifest.
+> **Publication record:** These Terms are enacted for the verified RC-2026.07.19 deployment. Function-specific activation, safety and data-processing gates continue to control which capabilities may be used.
 
 ## 1. Agreement
 
@@ -97,7 +98,7 @@ In this agreement:
 ## 8. Information roles and lawful use
 
 1. As between the parties, Customer determines why Patient Data is collected and used in the treating relationship. AssessSuite processes it to provide the Service and may have direct statutory duties depending on its own activities and legal status.
-2. AEP practice customers that provide health services and hold health information are generally covered by the Privacy Act regardless of small-business status. AssessSuite’s own APP-entity status must be documented before production by reference to turnover, related entities, applicable Privacy Act s 6D exceptions, any independent s 6FB health-service activity and any registered s 6EA opt-in.
+2. AEP practice customers that provide health services and hold health information are generally covered by the Privacy Act regardless of small-business status. AssessSuite does not represent that its own APP-entity status has been finally determined; regardless of statutory classification, it voluntarily and contractually applies the APP-equivalent controls stated in the Privacy Policy and Data Processing and Security Schedule.
 3. Regardless of that classification, AssessSuite contractually undertakes the APP-equivalent controls in the Data Processing and Security Schedule. Neither party may contract out of duties imposed directly on it by privacy, health-record, consumer, therapeutic-goods or other law.
 4. Customer warrants that it is authorised to provide Customer Data for the documented purposes. AssessSuite warrants that it will process Customer Data only on documented instructions, to provide and secure the Service, to comply with law, or as separately and expressly agreed through a lawful process.
 5. Patient Data is not used for product improvement merely because it has been labelled de-identified. Any patient-derived improvement use requires written Customer authority, an effective de-identification assessment, confidentiality and IP permission, and the approved governance stated in clause 6.5. Technical service telemetry used for reliability must exclude Patient Data.
@@ -105,7 +106,7 @@ In this agreement:
 
 ## 9. Accounts and security
 
-1. Customer must use unique accounts, required multi-factor authentication, least privilege, prompt offboarding and secure devices.
+1. Customer must use unique accounts, least privilege, prompt offboarding and secure devices, and must use multi-factor authentication where the approved production configuration or Order Form makes it available or requires it.
 2. Customer must promptly notify AssessSuite of suspected credential compromise, unauthorised access, misdirected records, tenant leakage, malware or another incident.
 3. AssessSuite must maintain the controls in the Data Processing and Security Schedule and may not shift responsibility for a platform vulnerability to Customer.
 4. Customer must not bypass access controls, access another tenant, introduce malware or disclose credentials. Security research, interoperability, honest review and reverse engineering remain permitted to the extent protected by non-excludable law or the Vulnerability Disclosure Policy. Unauthorised harmful load, data access and exploitation remain prohibited.
@@ -231,4 +232,4 @@ ABN 53 694 044 481
 Email: admin@assesssuite.com  
 Telephone: 1800 317 553
 
-The registered office, formal notice address, operator/IP authority and monitored contacts must be verified in the Order Form and release manifest before these Terms become effective.
+The email address above is the monitored contractual-notice channel. An Order Form may state an additional formal notice address or contact for a particular Customer.

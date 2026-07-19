@@ -1,9 +1,9 @@
 # AssessSuite Privacy Policy
 
 **Release status:** APPROVED FOR PUBLICATION WITH THE 19 JULY 2026 RELEASE — ENABLED FUNCTIONS REMAIN SUBJECT TO THE GATES IN THIS POLICY  
-**Effective date:** Effective on verified deployment; deployment date recorded in the release manifest  
+**Effective date:** 19 July 2026
 **Publication authority:** Mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE, activated by Maxwell Vidler on 19 July 2026  
-**Approved by:** Maxwell Vidler under the activated mission authority
+**Approved by:** Maxwell Vidler under mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE on 19 July 2026
 **Operator:** Assess Suite Pty Ltd (ACN 694 044 481; ABN 53 694 044 481)  
 **Version:** RC-2026.07.19  
 **Privacy contact:** admin@assesssuite.com | 1800 317 553

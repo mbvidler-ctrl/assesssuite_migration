@@ -23,7 +23,7 @@ Do not run local Fly commands with a credential. Do not retrieve, print, copy or
 | Read-only GitHub token | Top-level `permissions: contents: read`. |
 | Exact application source | SHA must be lowercase 40-hex, checkout must equal it, and the named remote branch tip must equal it. |
 | Secret isolation | All gates run in a job with no Fly secret. The final secret-bearing step contains only reviewed inline release logic and Fly/public-version commands; no repository script is executed there. |
-| Supply-chain pinning | Checkout, Node setup, artifact transfer and Fly setup actions use reviewed full commit SHAs; flyctl is fixed at `0.4.71`; both Docker stages pin the reviewed Node 24 slim manifest digest. |
+| Supply-chain pinning | Checkout, Node setup and artifact-transfer actions use reviewed full commit SHAs; the official flyctl `0.4.71` archive is fixed by URL and verified against its reviewed SHA-256 digest before extraction; both Docker stages pin the reviewed Node 24 slim manifest digest. |
 | Production serialization | All three workflows share concurrency group `assesssuite-production` with `cancel-in-progress: false`. |
 | Image identity | Release SHA, source branch and UTC build time are baked into both Docker stages and the OCI revision/source/created labels. The tested candidate image is transferred between jobs, pushed once and deployed by its immutable registry digest. |
 | Current-state guard | Dispatch records expected current release and image; the secret-bearing step compares them to Fly immediately before mutation. |
@@ -76,7 +76,7 @@ Do not merge the workflow-only bootstrap until the release reviewer confirms:
 3. `/api/version` returns only non-sensitive JSON with exact keys `release_sha` and `build_timestamp`;
 4. `Dockerfile` consumes `RELEASE_SHA`, `SOURCE_BRANCH` and `BUILD_TIMESTAMP` in both stages;
 5. the candidate contains no release command or data migration that is irreversible by image rollback; and
-6. the legal-version-compatible rollback source starts from the confirmed production baseline, changes only the compatibility gate and required build metadata, and has an independently reviewed branch tip.
+6. the legal-version-compatible rollback source descends from the final hardened candidate, differs only by fail-closing document extraction and adding the exact `RC-2026.07.11,RC-2026.07.19` compatibility gate, and has an independently reviewed remote branch tip.
 
 ## 5. Workflow-only default-branch bootstrap
 
@@ -111,11 +111,11 @@ Before merge:
 7. record the workflow-bootstrap pull request, reviewer and merge SHA in the external-action register; and
 8. merge only under clause 8.2 of the activated mission order. Do not merge application code to `main`.
 
-## 6. GitHub environment bootstrap
+## 6. Credential and trusted-definition gate
 
-Create or verify an environment named exactly `assesssuite-production` before dispatch. Where the repository plan supports it, restrict deployment branches to `main`, require Maxwell as reviewer and prevent self-review. Do not copy the repository secret into documentation or a local environment. The workflow references the existing repository secret by label only.
+The repository does not currently have a pre-protected production environment, so these workflows deliberately do not name or auto-create one. Trust is instead bounded by `workflow_dispatch` on the default branch, exact workflow-path/ref checks, exact source SHAs, read-only job permissions, non-cancelling serialization and the activated capability intent. Do not copy the existing repository `FLY_API_TOKEN` secret into documentation or a local environment.
 
-If the environment or repository secret is missing, invalid or insufficiently scoped, stop the deployment frontier. Do not broaden or replace the token under this runbook.
+If the repository secret is missing, invalid or insufficiently scoped, stop the deployment frontier. Do not broaden or replace the token under this runbook. Creating an environment later is a separately reviewable governance change and must not silently weaken this release corridor.
 
 ## 7. Prepare the compatibility rollback image
 
@@ -198,7 +198,7 @@ The workflow:
 3. runs install, build, typecheck, lint containment, established suites, `test:assurance`, diff secret scan and one local labelled Docker build without the Fly token;
 4. transfers that exact gated image to the sealed deploy job through a one-day, checksum-verified GitHub artifact and independently checks out the exact rollback config source;
 5. performs a names-only production secret preflight in the final sealed step;
-6. pushes the restored gated image, resolves its registry digest and runs `fly deploy -c fly.production.toml --strategy immediate --app assesssuite-production --image registry.fly.io/assesssuite-production@sha256:<digest>`;
+6. stages removal of legacy opaque legal-setting secrets by name only, pushes the restored gated image, resolves its registry digest and runs `fly deploy -c fly.production.toml --strategy immediate --ha=false --update-only --app assesssuite-production --image registry.fly.io/assesssuite-production@sha256:<digest>`;
 7. records and compares prior and candidate release/image identifiers using immutable candidate/rollback digests;
 8. verifies both production domains return the exact SHA from `/api/version`;
 9. when adult extraction is enabled, runs the separately authorised real-provider probe inside the deployed machine using one synthetic PDF and one synthetic PNG, accepts only the exact value-blind PASS metadata contract and treats any probe failure as a verification failure; and
@@ -227,7 +227,7 @@ gh workflow run production-rollback.yml --ref main `
   -f confirmation='ROLLBACK assesssuite-production COMPATIBILITY IMAGE'
 ```
 
-The workflow refuses to use a rollback config that enables document extraction. It deploys the supplied immutable image with the independently reviewed config and verifies the rollback SHA on both production domains. Image rollback does not reverse database or file changes; this mission prohibits destructive or irreversible migrations.
+The workflow refuses to use a rollback config that enables document extraction, runs the same names-only feature-setting and required-secret preflight, and stages removal of legacy opaque legal-setting secrets before mutation. It deploys the supplied immutable image with `--ha=false --update-only` and the independently reviewed config, preserves the verified one-machine/one-volume topology, and verifies the rollback SHA on both production domains. Image rollback does not reverse database or file changes; this mission prohibits destructive or irreversible migrations.
 
 ## 11. Evidence and stop conditions
 
