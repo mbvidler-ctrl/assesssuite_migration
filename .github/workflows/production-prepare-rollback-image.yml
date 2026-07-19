@@ -1,0 +1,267 @@
+name: Production rollback image - build only
+
+on:
+  workflow_dispatch:
+    inputs:
+      rollback_source_sha:
+        description: Exact reviewed compatibility source SHA
+        required: true
+        type: string
+      rollback_source_branch:
+        description: Repository branch whose remote tip is the compatibility source SHA
+        required: true
+        type: string
+      superseded_legal_version:
+        description: Superseded legal-suite version accepted by the compatibility gate
+        required: true
+        type: string
+      new_legal_version:
+        description: New legal-suite version accepted by the compatibility gate
+        required: true
+        type: string
+      capability_intent_id:
+        description: Workspace OS build/push intent ID with authorised and execution_ready decision
+        required: true
+        type: string
+      authority_reference:
+        description: Mission/order and approved rollback-image intent reference
+        required: true
+        type: string
+      confirmation:
+        description: Type BUILD assesssuite-production COMPATIBILITY IMAGE ONLY
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assesssuite-production
+  cancel-in-progress: false
+
+jobs:
+  build_rollback_image:
+    name: Gate and push compatibility image without deployment
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    steps:
+      - name: Validate trusted dispatch context and inputs
+        shell: bash
+        env:
+          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
+          ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
+          SUPERSEDED_LEGAL_VERSION: ${{ inputs.superseded_legal_version }}
+          NEW_LEGAL_VERSION: ${{ inputs.new_legal_version }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_REF: ${{ github.ref }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == "mbvidler-ctrl/assesssuite_migration" ]]
+          [[ "$ACTOR" == "mbvidler-ctrl" ]]
+          [[ "$IS_FORK" == "false" ]]
+          [[ "$EVENT_REF" == "refs/heads/main" ]]
+          [[ "$WORKFLOW_REF" == "mbvidler-ctrl/assesssuite_migration/.github/workflows/production-prepare-rollback-image.yml@refs/heads/main" ]]
+          [[ "$CONFIRMATION" == "BUILD assesssuite-production COMPATIBILITY IMAGE ONLY" ]]
+          [[ "$ROLLBACK_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$ROLLBACK_SOURCE_BRANCH" =~ ^[A-Za-z0-9._/-]{1,180}$ ]]
+          [[ "$ROLLBACK_SOURCE_BRANCH" != *".."* && "$ROLLBACK_SOURCE_BRANCH" != /* && "$ROLLBACK_SOURCE_BRANCH" != */ ]]
+          [[ "$SUPERSEDED_LEGAL_VERSION" =~ ^[A-Za-z0-9._-]{1,80}$ ]]
+          [[ "$NEW_LEGAL_VERSION" =~ ^[A-Za-z0-9._-]{1,80}$ ]]
+          [[ "$SUPERSEDED_LEGAL_VERSION" != "$NEW_LEGAL_VERSION" ]]
+          [[ "$SUPERSEDED_LEGAL_VERSION" == "RC-2026.07.11" ]]
+          [[ "$NEW_LEGAL_VERSION" == "RC-2026.07.19" ]]
+          [[ -n "$CAPABILITY_INTENT_ID" && "$CAPABILITY_INTENT_ID" != *$'\n'* ]]
+          [[ -n "$AUTHORITY_REFERENCE" && "$AUTHORITY_REFERENCE" != *$'\n'* ]]
+
+      - name: Check out exact compatibility source SHA
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.rollback_source_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact rollback source and disabled extraction
+        id: metadata
+        shell: bash
+        env:
+          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
+          ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
+        run: |
+          set -euo pipefail
+          config=fly.production.toml
+          [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$ROLLBACK_SOURCE_SHA" ]]
+          remote_sha="$(git ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')"
+          [[ "$remote_sha" == "$ROLLBACK_SOURCE_SHA" ]]
+          [[ "$(grep -Ec '^app = "assesssuite-production"$' "$config")" -eq 1 ]]
+          [[ "$(grep -Ec '^primary_region = "syd"$' "$config")" -eq 1 ]]
+          [[ "$(grep -Ec '^  source = "assesssuite_data"$' "$config")" -eq 1 ]]
+          [[ "$(grep -Ec '^  destination = "/app/server/data"$' "$config")" -eq 1 ]]
+          [[ "$(grep -Ec '^\[\[vm\]\]$' "$config")" -eq 1 ]]
+          [[ "$(grep -Ec '^  memory = "512mb"$' "$config")" -eq 1 ]]
+          [[ "$(grep -Ec '^  cpus = 1$' "$config")" -eq 1 ]]
+          [[ "$(grep -Ec '^  min_machines_running = 1$' "$config")" -eq 1 ]]
+          if grep -EIn 'FLY_API_TOKEN|\$\{?FLY_|release_command|^[[:space:]]*\[build\.(args|secrets)\]|build[_-]secret|file[_-]secret' \
+            fly.production.toml Dockerfile; then
+            echo 'Compatibility build configuration contains a forbidden credential/build/release hook.' >&2
+            exit 1
+          fi
+          if grep -Eq '^[[:space:]]*DOCUMENT_EXTRACTION(_UNDER_13)?_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.production.toml; then
+            echo 'Compatibility image must keep adult and under-age document extraction disabled.' >&2
+            exit 1
+          fi
+          [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_STATUS[[:space:]]*=[[:space:]]*"effective"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_EFFECTIVE_DATE[[:space:]]*=[[:space:]]*"19 July 2026"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS[[:space:]]*=[[:space:]]*"RC-2026.07.11,RC-2026.07.19"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          build_timestamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo "build_timestamp=$build_timestamp" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Require compatibility-test entrypoint
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --input-type=module <<'NODE'
+          import pkg from './package.json' with { type: 'json' };
+          if (!pkg.scripts?.['test:rollback-compatibility']) {
+            throw new Error('Required package script test:rollback-compatibility is absent');
+          }
+          NODE
+
+      - name: Build, typecheck differential, selftest, and legal compatibility gate
+        shell: bash
+        env:
+          SUPERSEDED_LEGAL_VERSION: ${{ inputs.superseded_legal_version }}
+          NEW_LEGAL_VERSION: ${{ inputs.new_legal_version }}
+        run: |
+          set -euo pipefail
+          npm run build
+          base_dir="$RUNNER_TEMP/typecheck-base"
+          reference_dir="$RUNNER_TEMP/typecheck-reviewed-reference"
+          git worktree add --detach "$base_dir" d593a7f2e83657125d5be4acb49642a38215d5bd
+          git worktree add --detach "$reference_dir" eae2f229886b8aa2071864767ba61c0d6e4a548d
+          npm --prefix "$base_dir" ci
+          npm --prefix "$reference_dir" ci
+          node scripts/compare-typecheck-baseline.mjs \
+            --base-dir "$base_dir" \
+            --reference-dir "$reference_dir" \
+            --candidate-dir "$GITHUB_WORKSPACE"
+          npm run selftest
+          npm run test:rollback-compatibility
+
+      - name: Lint only compatibility-source changes
+        shell: bash
+        env:
+          PRODUCTION_BASE_SHA: d593a7f2e83657125d5be4acb49642a38215d5bd
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$PRODUCTION_BASE_SHA" HEAD
+          mapfile -t lint_files < <(git diff --name-only --diff-filter=ACMR "$PRODUCTION_BASE_SHA"...HEAD -- '*.js' '*.jsx' '*.mjs' '*.ts' '*.tsx')
+          if [[ "${#lint_files[@]}" -gt 0 ]]; then
+            npx --no-install eslint "${lint_files[@]}"
+          fi
+
+      - name: Secret scan and local image gate
+        shell: bash
+        env:
+          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
+          ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
+          BUILD_TIMESTAMP: ${{ steps.metadata.outputs.build_timestamp }}
+          PRODUCTION_BASE_SHA: d593a7f2e83657125d5be4acb49642a38215d5bd
+          EXPECTED_RELEASE_SCANNER_SHA256: 7fbecf3663b724dc5c8431d8d2d6c4f7e21f596a07901a626b524e22dfe67b21
+        run: |
+          set -euo pipefail
+          changed_files="$(git diff --name-only "$PRODUCTION_BASE_SHA"...HEAD)"
+          if grep -Eiq '(^|/)\.env($|\.(local|production|staging|development|test)$)|(^|/)(credentials?|secrets?)\.(json|txt|pem|key)$' <<<"$changed_files"; then
+            printf '%s\n' "$changed_files"
+            echo 'Compatibility diff contains a prohibited secret-bearing filename.' >&2
+            exit 1
+          fi
+          git diff --binary "$PRODUCTION_BASE_SHA"...HEAD >"$RUNNER_TEMP/rollback.diff"
+          actual_scanner_sha256="$(sha256sum scripts/scan-release-diff.mjs | awk '{print $1}')"
+          if [[ "$actual_scanner_sha256" != "$EXPECTED_RELEASE_SCANNER_SHA256" ]]; then
+            echo 'Release scanner does not match the trusted workflow digest.' >&2
+            exit 1
+          fi
+          node scripts/scan-release-diff.mjs "$RUNNER_TEMP/rollback.diff"
+          docker build \
+            --build-arg "RELEASE_SHA=$ROLLBACK_SOURCE_SHA" \
+            --build-arg "SOURCE_BRANCH=$ROLLBACK_SOURCE_BRANCH" \
+            --build-arg "BUILD_TIMESTAMP=$BUILD_TIMESTAMP" \
+            --label "org.opencontainers.image.revision=$ROLLBACK_SOURCE_SHA" \
+            --label "org.opencontainers.image.created=$BUILD_TIMESTAMP" \
+            --label "org.opencontainers.image.source=https://github.com/mbvidler-ctrl/assesssuite_migration/tree/$ROLLBACK_SOURCE_SHA" \
+            --tag "assesssuite-rollback-gate:$ROLLBACK_SOURCE_SHA" \
+            .
+          [[ "$(docker image inspect "assesssuite-rollback-gate:$ROLLBACK_SOURCE_SHA" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$ROLLBACK_SOURCE_SHA" ]]
+
+      - name: Install checksum-verified flyctl 0.4.71
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          bin_dir="$RUNNER_TEMP/flyctl-bin"
+          curl --fail --location --silent --show-error \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz' \
+            --output "$archive"
+          echo 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2  '"$archive" | sha256sum --check --strict
+          mkdir -p "$bin_dir"
+          tar -xzf "$archive" -C "$bin_dir" flyctl
+          chmod 0755 "$bin_dir/flyctl"
+          ln -s "$bin_dir/flyctl" "$bin_dir/fly"
+          echo "$bin_dir" >>"$GITHUB_PATH"
+          "$bin_dir/flyctl" version | grep -F '0.4.71'
+
+      - name: Push the exact locally gated compatibility image
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
+          ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
+          BUILD_TIMESTAMP: ${{ steps.metadata.outputs.build_timestamp }}
+          SUPERSEDED_LEGAL_VERSION: ${{ inputs.superseded_legal_version }}
+          NEW_LEGAL_VERSION: ${{ inputs.new_legal_version }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+        run: |
+          set -euo pipefail
+          set +x
+          image_tag="registry.fly.io/assesssuite-production:rollback-compat-$ROLLBACK_SOURCE_SHA"
+          fly auth docker
+          docker tag "assesssuite-rollback-gate:$ROLLBACK_SOURCE_SHA" "$image_tag"
+          docker push "$image_tag"
+          image_digest="$(docker buildx imagetools inspect "$image_tag" --format '{{json .Manifest}}' | jq -er '.digest')"
+          [[ "$image_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          image_ref="registry.fly.io/assesssuite-production@$image_digest"
+          docker buildx imagetools inspect "$image_ref" >/dev/null
+          {
+            echo '## AssessSuite compatibility rollback image'
+            echo
+            echo "- Workflow run: $GITHUB_RUN_ID"
+            echo "- Capability intent: $CAPABILITY_INTENT_ID"
+            echo "- Authority: $AUTHORITY_REFERENCE"
+            echo "- Rollback source SHA: $ROLLBACK_SOURCE_SHA"
+            echo "- Rollback source branch: $ROLLBACK_SOURCE_BRANCH"
+            echo "- Build timestamp: $BUILD_TIMESTAMP"
+            echo "- Superseded legal version accepted: $SUPERSEDED_LEGAL_VERSION"
+            echo "- New legal version accepted: $NEW_LEGAL_VERSION"
+            echo '- Document extraction: disabled (adult and under-age)'
+            echo "- Pushed image tag: $image_tag"
+            echo "- Immutable rollback image: $image_ref"
+            echo '- Production deployment performed: no'
+          } >> "$GITHUB_STEP_SUMMARY"
