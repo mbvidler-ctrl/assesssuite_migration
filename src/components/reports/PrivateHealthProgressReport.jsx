@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { ClientCondition, ClientAssessment, Assessment, User, ClientReport, Appointment } from "@/entities/all";
 import { InvokeLLM } from "@/integrations/Core";
 import { ChevronLeft, ChevronRight, Loader2, Printer, Sparkles, Save, Edit } from "lucide-react";
+import { SecureFileImage } from "@/components/files/SecureFile";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
 import { todayLocal } from "@/lib/localDate";
@@ -113,7 +114,7 @@ const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref
       {/* Clinic Header */}
       <div className="clinic-header">
         {clinician?.clinic_logo_url && (
-          <img src={clinician.clinic_logo_url} alt="Clinic Logo" />
+          <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" />
         )}
         <div className="clinic-details">
           <strong>{clinician?.clinic_name || ""}</strong><br />
@@ -903,7 +904,7 @@ ${reportData.ongoing_plan}`;
                 <p><strong>Phone:</strong> {selectedLocation.phone}</p>
                 <p><strong>Email:</strong> {selectedLocation.email}</p>
                 {selectedLocation.logo_url && (
-                  <img src={selectedLocation.logo_url} alt="Clinic Logo" className="max-w-[100px] max-h-[50px] mt-2" />
+                  <SecureFileImage src={selectedLocation.logo_url} orgId={client.org_id} alt="Clinic Logo" className="max-w-[100px] max-h-[50px] mt-2" />
                 )}
               </div>
             )}

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import { extractTenantDocumentData } from '@/lib/fileIntegrations';
 import { todayLocal } from "@/lib/localDate";
 
 const ASSESSMENT_EXTRACTION_SCHEMA = {
@@ -77,6 +78,7 @@ const isBloodPressureTest = (testName) => {
 export default function HistoricalAssessmentExtractor({ 
   fileUrls, 
   clientId, 
+  orgId,
   onExtracted,
   allAssessments = [],
   isNewClient = false
@@ -108,33 +110,39 @@ export default function HistoricalAssessmentExtractor({
 
   const handleExtract = async () => {
     if (!fileUrls || fileUrls.length === 0) return;
+    if (!orgId) {
+      toast.error('Practice context is required before document extraction.');
+      return;
+    }
     
     setIsExtracting(true);
     try {
+      const result = await extractTenantDocumentData({
+        org_id: orgId,
+        file_urls: fileUrls,
+        json_schema: ASSESSMENT_EXTRACTION_SCHEMA,
+      });
+      if (result?.status !== 'success' || !result.output?.assessments) {
+        toast.error(typeof result?.details === 'string'
+          ? result.details
+          : 'The documents could not be extracted. No assessment data was changed.');
+        return;
+      }
+
       const allExtracted = [];
-      
-      for (const fileUrl of fileUrls) {
-        const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-          file_url: fileUrl,
-          json_schema: ASSESSMENT_EXTRACTION_SCHEMA
+      for (const assessment of result.output.assessments) {
+        const matchedAssessment = findMatchingAssessment(assessment.test_name);
+        const isBP = isBloodPressureTest(assessment.test_name);
+
+        allExtracted.push({
+          ...assessment,
+          matched_assessment: matchedAssessment,
+          include: !!matchedAssessment,
+          is_blood_pressure: isBP,
+          // Clear secondary value if not BP
+          result_value_secondary: isBP ? assessment.result_value_secondary : null,
+          id: Math.random().toString(36).substr(2, 9)
         });
-        
-        if (result.status === 'success' && result.output?.assessments) {
-          for (const assessment of result.output.assessments) {
-            const matchedAssessment = findMatchingAssessment(assessment.test_name);
-            const isBP = isBloodPressureTest(assessment.test_name);
-            
-            allExtracted.push({
-              ...assessment,
-              matched_assessment: matchedAssessment,
-              include: !!matchedAssessment,
-              is_blood_pressure: isBP,
-              // Clear secondary value if not BP
-              result_value_secondary: isBP ? assessment.result_value_secondary : null,
-              id: Math.random().toString(36).substr(2, 9)
-            });
-          }
-        }
       }
       
       setExtractedAssessments(allExtracted);
@@ -147,7 +155,7 @@ export default function HistoricalAssessmentExtractor({
       }
       
     } catch (error) {
-      console.error('Error extracting assessments:', error);
+      console.warn('Historical assessment extraction failed', error?.response?.status ? { status: error.response.status } : undefined);
       toast.error('Failed to extract assessments');
     } finally {
       setIsExtracting(false);

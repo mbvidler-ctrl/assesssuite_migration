@@ -10,6 +10,7 @@ import RichTextEditor from "@/components/ui/RichTextEditor";
 import { ClientCondition, ClientAssessment, Assessment, User, ClientReport } from "@/entities/all";
 import { InvokeLLM } from "@/integrations/Core";
 import { FileDown, Printer, AlertCircle, Loader2, Save, Edit, Plus, Trash2 } from "lucide-react";
+import { SecureFileImage } from "@/components/files/SecureFile";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
 
@@ -57,7 +58,7 @@ const PrintableReport = React.forwardRef(({ reportContent, client, clinician, ti
                 `}</style>
                 <div className="header">
                     {clinician?.clinic_logo_url ? (
-                        <img src={clinician.clinic_logo_url} alt="Clinic Logo" />
+                        <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" />
                     ) : (
                         <h3 style={{fontSize: '10pt', margin: 0}}>{clinician?.clinic_name || ""}</h3>
                     )}
@@ -173,7 +174,7 @@ const PrintableReport = React.forwardRef(({ reportContent, client, clinician, ti
 
         <div className="header">
           {clinician?.clinic_logo_url ? (
-            <img src={clinician.clinic_logo_url} alt="Clinic Logo" />
+            <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" />
           ) : (
             <h2>{clinician?.clinic_name || ""}</h2>
           )}

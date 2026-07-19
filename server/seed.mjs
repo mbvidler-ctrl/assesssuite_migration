@@ -537,7 +537,7 @@ export function runSeed({ db, entityNames }) {
   // (server/index.mjs hasCurrentLegalAcceptance) despite being an
   // established account. Version/event-type list mirrors
   // src/lib/legal/documentRegistry.js — keep both in sync.
-  const LEGAL_SUITE_VERSION = 'RC-2026.07.11';
+  const LEGAL_SUITE_VERSION = 'RC-2026.07.19';
   const REQUIRED_NOTICE_EVENT_TYPES = [
     'collection_notice_acknowledgement',
     'professional_use_acknowledgement',

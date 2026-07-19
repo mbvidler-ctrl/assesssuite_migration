@@ -10,6 +10,7 @@ import { ClientReport } from "@/entities/ClientReport";
 import { Plus, Trash2, Printer, Save, X, Loader2 } from "lucide-react"; // Updated icons, removed unnecessary
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
+import { useSecureFileUrl } from "@/components/files/SecureFile";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { todayLocal } from "@/lib/localDate";
 
@@ -236,7 +237,8 @@ const PrintableReport = ({ client, reportData, conditions, assessmentResults, lo
   const clinicAddress = location?.address || clinician?.clinic_address || '';
   const clinicPhone = location?.phone || clinician?.phone || '';
   const clinicEmail = location?.email || clinician?.email || '';
-  const clinicLogoUrl = location?.logo_url || clinician?.clinic_logo_url;
+  const rawClinicLogoUrl = location?.logo_url || clinician?.clinic_logo_url;
+  const clinicLogoUrl = useSecureFileUrl(rawClinicLogoUrl, client.org_id);
 
   // Generate the report content dynamically
   const reportContent = generateFullReportHtmlContent(

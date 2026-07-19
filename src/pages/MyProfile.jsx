@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { User } from "@/entities/User";
 import { base44 } from "@/api/base44Client";
-import { UploadFile } from "@/integrations/Core";
+import { uploadTenantFile } from "@/lib/fileIntegrations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,7 @@ import {
 import { Toaster, toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ClinicPolicies from "../components/settings/ClinicPolicies";
+import { SecureFileImage } from "@/components/files/SecureFile";
 import {
   Dialog,
   DialogTrigger,
@@ -47,6 +48,7 @@ import {
 export default function MyProfile() {
   const [user, setUser] = useState(null);
   const [userOrgId, setUserOrgId] = useState(null);
+  const [organizationOptions, setOrganizationOptions] = useState([]);
   const [formData, setFormData] = useState({
     clinician_name: "",
     profession: "",
@@ -94,11 +96,26 @@ export default function MyProfile() {
       const userData = await User.me();
       setUser(userData);
       
-      // Get user's organization ID
+      // Upload ownership must be explicit for multi-practice users.
       const orgMemberships = await base44.entities.OrganizationMember.filter({ user_email: userData.email });
-      if (orgMemberships.length > 0) {
-        setUserOrgId(orgMemberships[0].org_id);
-      }
+      const options = await Promise.all((orgMemberships || []).map(async (membership) => {
+        try {
+          const organization = await base44.entities.Organization.get(membership.org_id);
+          return {
+            id: membership.org_id,
+            name: organization?.name || membership.org_id,
+            isPrimary: membership.is_primary === true,
+          };
+        } catch {
+          return {
+            id: membership.org_id,
+            name: membership.org_id,
+            isPrimary: membership.is_primary === true,
+          };
+        }
+      }));
+      setOrganizationOptions(options);
+      setUserOrgId(options.length === 1 ? options[0].id : null);
       
       // Migrate old data structure to new if needed
       let locations = userData.locations || [];
@@ -194,12 +211,22 @@ export default function MyProfile() {
     setIsUploadingLogo(true);
     setUploadingLocationId(locationId);
     try {
-      const { file_url } = await UploadFile({ file });
+      if (!userOrgId) {
+        throw new Error('Select the owning practice before uploading a logo.');
+      }
+      const { file_url } = await uploadTenantFile({
+        file,
+        org_id: userOrgId,
+        purpose: 'profile-image',
+        subject_age_band: 'unknown',
+      });
       handleLocationChange(locationId, 'clinic_logo_url', file_url);
       toast.success("Logo uploaded successfully!");
     } catch (error) {
-      console.error("Error uploading logo:", error);
-      toast.error("Failed to upload logo.");
+      console.warn("Logo upload failed", error?.response?.status ? { status: error.response.status } : undefined);
+      toast.error(error?.message === 'Select the owning practice before uploading a logo.'
+        ? error.message
+        : "Failed to upload logo.");
     }
     setIsUploadingLogo(false);
     setUploadingLocationId(null);
@@ -351,13 +378,20 @@ export default function MyProfile() {
                     <p className="text-xs text-slate-500 mt-1">This cannot be changed</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-slate-700">Organization ID</Label>
-                    <Input
-                      value={userOrgId || "Loading..."}
-                      disabled
-                      className="mt-1 bg-slate-50 font-mono text-xs"
-                    />
-                    <p className="text-xs text-slate-500 mt-1">For technical support reference</p>
+                    <Label className="text-sm font-medium text-slate-700">Practice for file uploads</Label>
+                    <Select value={userOrgId || ''} onValueChange={setUserOrgId}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select a practice" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {organizationOptions.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.name}{option.isPrimary ? ' (primary)' : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500 mt-1">Required to assign logos and other uploaded files to the correct practice.</p>
                   </div>
                 </div>
 
@@ -628,8 +662,9 @@ export default function MyProfile() {
                         <div className="mt-2 space-y-4">
                           {location.clinic_logo_url && (
                             <div className="flex items-center gap-4">
-                              <img
+                              <SecureFileImage
                                 src={location.clinic_logo_url}
+                                orgId={userOrgId}
                                 alt="Clinic logo"
                                 className="w-16 h-16 object-contain border rounded"
                               />
@@ -647,7 +682,7 @@ export default function MyProfile() {
                           <div>
                             <input
                               type="file"
-                              accept="image/*"
+                              accept=".png,.jpg,.jpeg,.gif,.webp"
                               onChange={(e) => handleLogoUpload(e, location.id)}
                               className="hidden"
                               id={`logo-upload-${location.id}`}

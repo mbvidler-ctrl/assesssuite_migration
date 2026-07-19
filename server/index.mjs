@@ -23,6 +23,16 @@ import {
 } from './auth.mjs';
 import { handleCoreIntegration } from './integrations.mjs';
 import { initEmail, sendEmail, otpEmail, resetEmail, welcomeEmail, adminNotifyEmail, inviteEmail } from './email.mjs';
+import {
+  UPLOAD_POLICY,
+  UploadError,
+  canonicalUploadPath,
+  cleanupExpiredUploadAudit,
+  cleanupExpiredUploads,
+  createUploadRegistry,
+  extractUploadIdsFromValue,
+} from './uploadRegistry.mjs';
+import { verifyFileAccessToken } from './fileAccess.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
@@ -76,7 +86,27 @@ const { db, entityNames } = openDatabase();
 const sessions = createSessionRepository(db);
 const outboxEmail = createOutboxRepository(db, 'email');
 const outboxSms = createOutboxRepository(db, 'sms');
+const uploadRegistry = createUploadRegistry(db, { uploadsDir });
 initEmail(outboxEmail);
+
+function runUploadLifecycleMaintenance() {
+  try {
+    cleanupExpiredUploads({ db, uploadsDir });
+    cleanupExpiredUploadAudit({ db });
+  } catch (error) {
+    console.error('[shim] upload lifecycle maintenance failed:', error?.code || 'maintenance_failed');
+  }
+}
+runUploadLifecycleMaintenance();
+const uploadCleanupIntervalMinutes = Math.min(
+  60,
+  Math.max(1, Number(process.env.UPLOAD_CLEANUP_INTERVAL_MINUTES) || 15),
+);
+const uploadCleanupTimer = setInterval(
+  runUploadLifecycleMaintenance,
+  uploadCleanupIntervalMinutes * 60 * 1000,
+);
+uploadCleanupTimer.unref();
 
 const userRepo = createEntityRepository(db, 'User');
 const orgMemberRepo = entityNames.has('OrganizationMember')
@@ -142,6 +172,12 @@ async function loadFunctionsRouter() {
     // (b) open a redundant DatabaseSync connection even outside selftest.
     if (typeof mod.init === 'function') {
       mod.init(db, entityNames);
+    }
+    const transcriptionModule = await import(
+      pathToFileURL(path.join(__dirname, 'functions', 'transcribeSession.mjs')).href
+    );
+    if (typeof transcriptionModule.configureUploadResolver === 'function') {
+      transcriptionModule.configureUploadResolver(resolveAudioUploadForFunction);
     }
     functionsRouter = mod.default || mod.handleFunction || null;
   } catch (err) {
@@ -242,8 +278,7 @@ function isPublicRoute(pathname) {
     /^\/api\/apps\/[^/]+\/auth\//.test(pathname) ||
     /^\/api\/apps\/public\//.test(pathname) ||
     /^\/api\/apps\/[^/]+\/analytics\//.test(pathname) ||
-    /^\/api\/app-logs\//.test(pathname) ||
-    /^\/uploads\//.test(pathname)
+    /^\/api\/app-logs\//.test(pathname)
   );
 }
 
@@ -297,12 +332,53 @@ const PRE_APPROVAL_WRITE_ENTITIES = new Set([
 // mandatory practitioner notice is added or retired. This is the server-side
 // half of the L-15/L-08 fix — the old model relied solely on the client
 // (Layout.jsx) gate, which any direct API caller could bypass entirely.
-const LEGAL_SUITE_VERSION = 'RC-2026.07.11';
+const LEGAL_SUITE_VERSION = 'RC-2026.07.19';
 const REQUIRED_NOTICE_EVENT_TYPES = [
   'collection_notice_acknowledgement',
   'professional_use_acknowledgement',
   'ai_transparency_consent',
 ];
+
+function legalContentFingerprint(text) {
+  let hash = 0;
+  for (let index = 0; index < text.length; index += 1) {
+    hash = (Math.imul(31, hash) + text.charCodeAt(index)) | 0;
+  }
+  return `fnv-${(hash >>> 0).toString(16)}-${text.length}`;
+}
+
+const AI_NOTICE_FINGERPRINT = legalContentFingerprint(
+  fs.readFileSync(
+    path.join(repoRoot, 'src', 'legal-content', '05_ai_and_automated_processing_transparency_notice.md'),
+    'utf8',
+  ),
+);
+
+function parseCompatibilityVersions() {
+  const raw = process.env.LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS;
+  if (!raw) return [];
+  if (process.env.DOCUMENT_EXTRACTION_ENABLED === '1') {
+    throw new Error(
+      'LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS cannot be used while document extraction is enabled',
+    );
+  }
+  const values = [...new Set(raw.split(',').map((value) => value.trim()).filter(Boolean))];
+  if (
+    values.length !== 2 ||
+    values[0] !== 'RC-2026.07.11' ||
+    values[1] !== LEGAL_SUITE_VERSION
+  ) {
+    throw new Error(
+      `LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS must be exactly RC-2026.07.11,${LEGAL_SUITE_VERSION}`,
+    );
+  }
+  return values;
+}
+
+const LEGAL_GATE_VERSIONS = new Set([
+  LEGAL_SUITE_VERSION,
+  ...parseCompatibilityVersions(),
+]);
 
 /**
  * True if sessionUser has recorded every mandatory practitioner-notice event
@@ -312,11 +388,29 @@ const REQUIRED_NOTICE_EVENT_TYPES = [
  */
 function hasCurrentLegalAcceptance(userEmail) {
   const repo = repoFor('LegalAcceptanceEvent');
-  if (!repo) return true;
-  const events = repo
-    .listAll()
-    .filter((e) => e.user_email === userEmail && e.suite_version === LEGAL_SUITE_VERSION);
-  return REQUIRED_NOTICE_EVENT_TYPES.every((t) => events.some((e) => e.event_type === t));
+  if (!repo) return false;
+  const events = repo.listAll().filter((event) => event.user_email === userEmail);
+  return [...LEGAL_GATE_VERSIONS].some((version) => {
+    const versionEvents = events.filter((event) => event.suite_version === version);
+    return REQUIRED_NOTICE_EVENT_TYPES.every((type) =>
+      versionEvents.some((event) => event.event_type === type),
+    );
+  });
+}
+
+/** Current, document-bound AI acceptance for the selected organisation. */
+function hasExtractionAcceptance(userEmail, orgId) {
+  const repo = repoFor('LegalAcceptanceEvent');
+  if (!repo || !userEmail || !orgId) return false;
+  return repo.listAll().some(
+    (event) =>
+      event.user_email === userEmail &&
+      event.org_id === orgId &&
+      event.suite_version === LEGAL_SUITE_VERSION &&
+      event.event_type === 'ai_transparency_consent' &&
+      event.document_id === 'ai-notice' &&
+      event.document_fingerprint === AI_NOTICE_FINGERPRINT,
+  );
 }
 
 // Tenant-scoped entities, derived statically from the schema (carry org_id).
@@ -352,6 +446,9 @@ function writeAuthDenied(entityName, data, sessionUser, { isCreate }) {
     return { ok: true };
   }
   if (entityName === 'LegalAcceptanceEvent') {
+    if (!isCreate) {
+      return { ok: false, status: 405, message: 'legal acceptance events are append-only' };
+    }
     // Same self-only integrity rule as LegalAcceptance, plus the generic
     // org-scope enforcement below (LegalAcceptanceEvent carries org_id, so it
     // is auto-scoped by ORG_SCOPED_ENTITIES/enforceWriteOrgScope — this branch
@@ -494,6 +591,14 @@ async function handleEntitiesRoute(req, res, url, match) {
 
   if (entityAccessDenied(req, res, entityName, sessionUser, isAdmin)) return;
 
+  if (
+    entityName === 'LegalAcceptanceEvent' &&
+    req.method !== 'GET' &&
+    !(req.method === 'POST' && !rest)
+  ) {
+    return sendError(res, 405, 'legal acceptance events are append-only');
+  }
+
   if (req.method === 'GET' && !rest) {
     if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
     if (!sessionUser && isUserCollection) return sendError(res, 401, 'authentication required');
@@ -520,7 +625,19 @@ async function handleEntitiesRoute(req, res, url, match) {
       const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: true });
       if (!auth.ok) return sendError(res, auth.status, auth.message);
     }
+    const bindingOrgId = entityName === 'Organization' ? null : data?.org_id;
+    const pendingBindings = bindingOrgId
+      ? prepareUploadBindings(entityName, data, bindingOrgId)
+      : [];
     const record = repo.create(data, createdBy);
+    if (pendingBindings.length > 0) {
+      commitUploadBindings(pendingBindings, {
+        entityName,
+        entityId: record.id,
+        orgId: bindingOrgId,
+        actorUserId: sessionUser.id,
+      });
+    }
     const stripped = isUserCollection ? stripAuthFields(record) : record;
     return sendJson(res, 200, stripped);
   }
@@ -537,7 +654,19 @@ async function handleEntitiesRoute(req, res, url, match) {
       const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: false });
       if (!auth.ok) return sendError(res, auth.status, auth.message);
     }
+    const bindingOrgId = data?.org_id || existing?.org_id || (entityName === 'Organization' ? existing.id : null);
+    const pendingBindings = bindingOrgId
+      ? prepareUploadBindings(entityName, data, bindingOrgId, existing.id)
+      : [];
     const record = repo.update(rest, data);
+    if (pendingBindings.length > 0) {
+      commitUploadBindings(pendingBindings, {
+        entityName,
+        entityId: record.id,
+        orgId: bindingOrgId,
+        actorUserId: sessionUser.id,
+      });
+    }
     // Welcome email on activation (admin approval path; the payment
     // auto-approve path sends its own from stripeWebhook). Fire-and-forget —
     // an email failure must not fail the update.
@@ -676,6 +805,9 @@ async function handleBulk(req, res, entityName) {
   const isAdmin = sessionUser?.role === 'admin';
   if (entityName === 'User' && !isAdmin) return sendError(res, 403, 'admin access required');
   if (entityAccessDenied(req, res, entityName, sessionUser, isAdmin)) return;
+  if (entityName === 'LegalAcceptanceEvent' && req.method !== 'POST') {
+    return sendError(res, 405, 'legal acceptance events are append-only');
+  }
 
   const body = await readJsonBody(req);
 
@@ -690,7 +822,25 @@ async function handleBulk(req, res, entityName) {
         if (!auth.ok) return sendError(res, auth.status, auth.message);
       }
     }
-    const created = items.map((item) => repo.create(item, createdBy));
+    const planned = items.map((item) => ({
+      item,
+      orgId: entityName === 'Organization' ? null : item?.org_id,
+      uploads: entityName === 'Organization' || !item?.org_id
+        ? []
+        : prepareUploadBindings(entityName, item, item.org_id),
+    }));
+    const created = planned.map(({ item }) => repo.create(item, createdBy));
+    created.forEach((record, index) => {
+      const plan = planned[index];
+      if (plan.uploads.length > 0) {
+        commitUploadBindings(plan.uploads, {
+          entityName,
+          entityId: record.id,
+          orgId: plan.orgId,
+          actorUserId: sessionUser.id,
+        });
+      }
+    });
     const result = entityName === 'User' ? created.map(stripAuthFields) : created;
     return sendJson(res, 200, result);
   }
@@ -714,9 +864,27 @@ async function handleBulk(req, res, entityName) {
         if (!auth.ok) return sendError(res, auth.status, auth.message);
       }
     }
-    const updated = items
-      .map((item) => (item.id ? repo.update(item.id, item) : null))
-      .filter(Boolean);
+    const planned = items.filter((item) => item.id).map((item) => {
+      const existing = repo.getById(item.id);
+      const orgId = item?.org_id || existing?.org_id || (entityName === 'Organization' ? existing?.id : null);
+      return {
+        item,
+        orgId,
+        uploads: orgId ? prepareUploadBindings(entityName, item, orgId, item.id) : [],
+      };
+    });
+    const updated = planned.map(({ item }) => repo.update(item.id, item)).filter(Boolean);
+    updated.forEach((record, index) => {
+      const plan = planned[index];
+      if (plan.uploads.length > 0) {
+        commitUploadBindings(plan.uploads, {
+          entityName,
+          entityId: record.id,
+          orgId: plan.orgId,
+          actorUserId: sessionUser.id,
+        });
+      }
+    });
     const result = entityName === 'User' ? updated.map(stripAuthFields) : updated;
     return sendJson(res, 200, result);
   }
@@ -726,6 +894,9 @@ async function handleBulk(req, res, entityName) {
 
 async function handleUpdateMany(req, res, entityName) {
   if (req.method !== 'PATCH') return sendError(res, 405, 'method not allowed');
+  if (entityName === 'LegalAcceptanceEvent') {
+    return sendError(res, 405, 'legal acceptance events are append-only');
+  }
   const repo = repoFor(entityName);
   if (!repo) return sendError(res, 404, `entity ${entityName} not found`);
   const sessionUser = resolveSessionUser(req);
@@ -735,6 +906,9 @@ async function handleUpdateMany(req, res, entityName) {
 
   const body = await readJsonBody(req);
   const { query, data } = body || {};
+  if (extractUploadIdsFromValue(data).length > 0) {
+    return sendError(res, 400, 'file references must be bound to one explicit record');
+  }
   if (!isAdmin) {
     // Refuse User/catalogue writes; the query is org-scoped, but the data
     // payload could still relocate the matched (own-org) records into another
@@ -764,7 +938,19 @@ async function handleMe(req, res) {
   if (req.method === 'PUT') {
     const payload = await readJsonBody(req);
     const sanitized = sanitizeUpdateMePayload(payload);
+    const orgId = primaryOrgIdForUser(sessionUser.email);
+    const pendingBindings = orgId
+      ? prepareUploadBindings('User', sanitized, orgId, sessionUser.id)
+      : [];
     const updated = userRepo.update(sessionUser.id, sanitized);
+    if (pendingBindings.length > 0) {
+      commitUploadBindings(pendingBindings, {
+        entityName: 'User',
+        entityId: sessionUser.id,
+        orgId,
+        actorUserId: sessionUser.id,
+      });
+    }
     return sendJson(res, 200, stripAuthFields(updated));
   }
 
@@ -1029,7 +1215,7 @@ function handlePublicSettings(req, res, appId) {
   // - legal: the policy-suite display status. RC until Maxwell's go-live
   //   flip (LEGAL_STATUS=effective + LEGAL_EFFECTIVE_DATE). INVARIANT: the
   //   flip changes DISPLAY ONLY — SUITE_VERSION / LEGAL_SUITE_VERSION stay
-  //   RC-2026.07.11 (the immutable content identifier recorded in
+  //   RC-2026.07.19 (the immutable content identifier recorded in
   //   LegalAcceptanceEvent rows); bumping them would stale every acceptance
   //   and lock out all active users.
   return sendJson(res, 200, {
@@ -1045,7 +1231,7 @@ function handlePublicSettings(req, res, appId) {
 }
 
 // ---------------------------------------------------------------------------
-// Static serving: /uploads/* and dist/ SPA fallback
+// Tenant-bound upload access and static SPA serving
 // ---------------------------------------------------------------------------
 
 const MIME_TYPES = {
@@ -1079,16 +1265,301 @@ function serveFile(res, filePath) {
   });
 }
 
-function serveUpload(req, res, pathname) {
-  const relative = decodeURIComponent(pathname.replace(/^\/uploads\//, ''));
-  const resolved = path.join(uploadsDir, relative);
-  if (!resolved.startsWith(uploadsDir)) {
-    return sendError(res, 400, 'invalid path');
+const UPLOAD_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LEGACY_STORED_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/;
+const BINDABLE_UPLOAD_ENTITIES = new Set([...CLINICAL_ENTITIES, 'Organization', 'User']);
+
+function decodeUploadRouteSegment(raw) {
+  if (
+    !raw ||
+    raw.includes('/') ||
+    raw.includes('\\') ||
+    /%(?:2f|5c|25)/i.test(raw)
+  ) return null;
+  try {
+    const decoded = decodeURIComponent(raw);
+    if (!LEGACY_STORED_NAME_RE.test(decoded) || decoded === '.' || decoded === '..') return null;
+    return decoded;
+  } catch {
+    return null;
   }
-  if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+}
+
+function valueContainsLegacyReference(value, expected, depth = 0) {
+  if (depth > 10 || value === null || value === undefined) return false;
+  if (typeof value === 'string') {
+    const position = value.indexOf(expected);
+    if (position < 0) return false;
+    const next = value[position + expected.length];
+    return next === undefined || next === '?' || next === '#' || next === '"' || next === "'";
+  }
+  if (Array.isArray(value)) return value.slice(0, 500).some((item) => valueContainsLegacyReference(item, expected, depth + 1));
+  if (typeof value === 'object') {
+    return Object.values(value).slice(0, 500).some((item) => valueContainsLegacyReference(item, expected, depth + 1));
+  }
+  return false;
+}
+
+function legacyPurpose(entityName, record) {
+  if (entityName === 'User' || entityName === 'Organization') return 'profile-image';
+  if (entityName === 'SOAPNote' && valueContainsLegacyReference(record?.audio_url, '/uploads/')) {
+    return 'audio-transcription';
+  }
+  return 'clinical-attachment';
+}
+
+/**
+ * Lazily isolates an old bare filename behind the new registry. Ownership is
+ * proven only by an exact durable entity reference visible to the requester;
+ * filenames are never treated as tenant identifiers.
+ */
+function resolveLegacyUploadForUser({ storedName, selectedOrgId = null, sessionUser }) {
+  if (!sessionUser || !LEGACY_STORED_NAME_RE.test(storedName) || UPLOAD_ID_RE.test(storedName)) return null;
+  const existing = uploadRegistry.getByStoredName(storedName);
+  const memberOrgIds = orgIdsForUser(sessionUser.email);
+  if (existing) {
+    return memberOrgIds.includes(existing.orgId) && (!selectedOrgId || existing.orgId === selectedOrgId)
+      ? existing
+      : null;
+  }
+  const orgIds = selectedOrgId
+    ? memberOrgIds.includes(selectedOrgId) ? [selectedOrgId] : []
+    : memberOrgIds;
+  if (orgIds.length === 0) return null;
+  const expected = `/uploads/${storedName}`;
+  let examined = 0;
+  const maxRecords = 20_000;
+  for (const entityName of entityNames) {
+    if (examined >= maxRecords) break;
+    if (!ORG_SCOPED_ENTITIES.has(entityName) && entityName !== 'Organization') continue;
+    const repo = repoFor(entityName);
+    if (!repo) continue;
+    for (const record of repo.listAll()) {
+      if (++examined > maxRecords) break;
+      const orgId = entityName === 'Organization' ? record.id : record.org_id;
+      if (!orgIds.includes(orgId) || !valueContainsLegacyReference(record, expected)) continue;
+      try {
+        return uploadRegistry.registerLegacy({
+          storedName,
+          originalName: storedName,
+          orgId,
+          uploaderUserId: sessionUser.id,
+          purpose: legacyPurpose(entityName, record),
+          boundEntityType: entityName,
+          boundEntityId: record.id,
+        });
+      } catch {
+        return null;
+      }
+    }
+  }
+  const ownRecord = userRepo.getById(sessionUser.id);
+  if (ownRecord && valueContainsLegacyReference(ownRecord, expected)) {
+    const orgId = selectedOrgId || primaryOrgIdForUser(sessionUser.email);
+    if (orgId && orgIds.includes(orgId)) {
+      try {
+        return uploadRegistry.registerLegacy({
+          storedName,
+          originalName: storedName,
+          orgId,
+          uploaderUserId: sessionUser.id,
+          purpose: 'profile-image',
+          boundEntityType: 'User',
+          boundEntityId: sessionUser.id,
+        });
+      } catch {
+        return null;
+      }
+    }
+  }
+  return null;
+}
+
+function uploadForMember(reference, sessionUser) {
+  const upload = UPLOAD_ID_RE.test(reference)
+    ? uploadRegistry.getById(reference.toLowerCase())
+    : resolveLegacyUploadForUser({ storedName: reference, sessionUser });
+  if (!upload || ['expired', 'deleted'].includes(upload.state)) return null;
+  return orgIdsForUser(sessionUser.email).includes(upload.orgId) ? upload : null;
+}
+
+function resolveAudioUploadForFunction({ audioUrl, user, orgId }) {
+  if (
+    typeof audioUrl !== 'string' ||
+    !audioUrl.startsWith('/uploads/') ||
+    !user?.id ||
+    typeof orgId !== 'string'
+  ) return null;
+  const currentUser = userRepo.getById(user.id);
+  if (!currentUser || currentUser.email !== user.email || !orgIdsForUser(currentUser.email).includes(orgId)) {
+    return null;
+  }
+  let pathname;
+  try {
+    pathname = new URL(audioUrl, 'http://local.invalid').pathname;
+  } catch {
+    return null;
+  }
+  const match = /^\/uploads\/([^/]*)$/.exec(pathname);
+  const reference = match ? decodeUploadRouteSegment(match[1]) : null;
+  if (!reference) return null;
+  const upload = UPLOAD_ID_RE.test(reference)
+    ? uploadRegistry.getById(reference.toLowerCase())
+    : resolveLegacyUploadForUser({ storedName: reference, selectedOrgId: orgId, sessionUser: currentUser });
+  if (
+    !upload ||
+    upload.orgId !== orgId ||
+    upload.purpose !== 'audio-transcription' ||
+    !String(upload.detectedMime || '').startsWith('audio/') ||
+    ['expired', 'deleted'].includes(upload.state)
+  ) return null;
+  try {
+    const filePath = canonicalUploadPath(uploadsDir, upload.storedName, { mustExist: true });
+    const stat = fs.lstatSync(filePath);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size !== Number(upload.byteSize)) return null;
+    return filePath;
+  } catch {
+    return null;
+  }
+}
+
+function readUploadBuffer(filePath, expectedBytes) {
+  const stat = fs.lstatSync(filePath);
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.size !== Number(expectedBytes)) {
+    throw new UploadError(409, 'upload_integrity_failed', 'The uploaded file failed integrity validation.');
+  }
+  if (stat.size > UPLOAD_POLICY.maxRequestBytes) {
+    throw new UploadError(413, 'upload_too_large', 'The uploaded file is too large.');
+  }
+  return fs.readFileSync(filePath);
+}
+
+function prepareUploadBindings(entityName, data, orgId, entityId = null) {
+  if (!BINDABLE_UPLOAD_ENTITIES.has(entityName)) return [];
+  const ids = extractUploadIdsFromValue(data);
+  if (ids.length > 20) throw new UploadError(400, 'too_many_upload_references', 'Too many file references were supplied.');
+  return ids.map((id) => {
+    const upload = uploadRegistry.getById(id);
+    if (!upload || upload.orgId !== orgId || ['expired', 'deleted'].includes(upload.state)) {
+      throw new UploadError(404, 'upload_not_found', 'File not found.');
+    }
+    if (
+      upload.state === 'bound' &&
+      (upload.boundEntityType !== entityName || (entityId && upload.boundEntityId !== entityId))
+    ) {
+      throw new UploadError(409, 'upload_already_bound', 'The file is already retained with another record.');
+    }
+    return upload;
+  });
+}
+
+function commitUploadBindings(uploads, { entityName, entityId, orgId, actorUserId }) {
+  for (const upload of uploads) {
+    uploadRegistry.bind(upload.id, {
+      orgId,
+      actorUserId,
+      entityType: entityName,
+      entityId,
+    });
+  }
+}
+
+function uploadResponseHeaders(upload) {
+  const mime = upload.detectedMime || 'application/octet-stream';
+  const disposition = /^(?:image|audio|video)\//.test(mime) || mime === 'application/pdf' ? 'inline' : 'attachment';
+  const safeName = String(upload.originalName || 'download').replace(/[\r\n"\\]/g, '_').slice(0, 180);
+  return {
+    'Content-Type': mime,
+    'Content-Disposition': `${disposition}; filename="${safeName}"`,
+    'Cache-Control': 'private, no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Security-Policy': "default-src 'none'; sandbox",
+    'Referrer-Policy': 'no-referrer',
+    'Cross-Origin-Resource-Policy': 'same-origin',
+    'Accept-Ranges': 'bytes',
+  };
+}
+
+function serveRegisteredUpload(req, res, url, { upload, signed = false }) {
+  let filePath;
+  let stat;
+  try {
+    filePath = canonicalUploadPath(uploadsDir, upload.storedName, { mustExist: true });
+    stat = fs.lstatSync(filePath);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size !== Number(upload.byteSize)) {
+      return sendError(res, 404, 'not found');
+    }
+  } catch {
     return sendError(res, 404, 'not found');
   }
-  return serveFile(res, resolved);
+  const headers = uploadResponseHeaders(upload);
+  const range = req.headers.range;
+  if (range) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    if (!match) {
+      res.writeHead(416, { ...headers, 'Content-Range': `bytes */${stat.size}` });
+      return res.end();
+    }
+    let start = match[1] ? Number(match[1]) : null;
+    let end = match[2] ? Number(match[2]) : null;
+    if (start === null) {
+      const suffix = end;
+      if (!Number.isInteger(suffix) || suffix <= 0) {
+        res.writeHead(416, { ...headers, 'Content-Range': `bytes */${stat.size}` });
+        return res.end();
+      }
+      start = Math.max(0, stat.size - suffix);
+      end = stat.size - 1;
+    } else {
+      if (end === null) end = stat.size - 1;
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start > end || start >= stat.size) {
+        res.writeHead(416, { ...headers, 'Content-Range': `bytes */${stat.size}` });
+        return res.end();
+      }
+      end = Math.min(end, stat.size - 1);
+    }
+    res.writeHead(206, {
+      ...headers,
+      'Content-Range': `bytes ${start}-${end}/${stat.size}`,
+      'Content-Length': end - start + 1,
+    });
+    return fs.createReadStream(filePath, { start, end }).pipe(res);
+  }
+  res.writeHead(200, { ...headers, 'Content-Length': stat.size });
+  const stream = fs.createReadStream(filePath);
+  stream.on('error', () => res.destroy());
+  stream.pipe(res);
+  uploadRegistry.audit({
+    uploadId: upload.id,
+    orgId: upload.orgId,
+    actorUserId: signed ? 'signed-file-access' : 'authenticated-file-access',
+    eventType: 'upload_accessed',
+    outcome: 'success',
+    metadata: { signed_url: signed },
+  });
+}
+
+function handleUploadAccess(req, res, url, rawReference, { signedRoute }) {
+  const reference = decodeUploadRouteSegment(rawReference);
+  if (!reference || (signedRoute && !UPLOAD_ID_RE.test(reference))) return sendError(res, 404, 'not found');
+  let upload;
+  let signed = false;
+  if (signedRoute && url.searchParams.has('access_token')) {
+    const grant = verifyFileAccessToken(url.searchParams.get('access_token'), { uploadId: reference.toLowerCase() });
+    const grantUser = grant ? userRepo.getById(grant.userId) : null;
+    if (!grant || !grantUser || grant.orgId !== uploadRegistry.getById(reference.toLowerCase())?.orgId) {
+      return sendError(res, 404, 'not found');
+    }
+    if (!orgIdsForUser(grantUser.email).includes(grant.orgId)) return sendError(res, 404, 'not found');
+    upload = uploadRegistry.getById(reference.toLowerCase());
+    signed = true;
+  } else {
+    const sessionUser = resolveSessionUser(req);
+    if (!sessionUser) return sendError(res, 401, 'authentication required');
+    upload = uploadForMember(reference, sessionUser);
+  }
+  if (!upload || ['expired', 'deleted'].includes(upload.state)) return sendError(res, 404, 'not found');
+  return serveRegisteredUpload(req, res, url, { upload, signed });
 }
 
 function serveDistOrFallback(req, res, pathname) {
@@ -1134,9 +1605,29 @@ async function requestListener(req, res) {
       return handlePublicSettings(req, res, publicSettingsMatch[1]);
     }
 
-    // Uploads static serving.
-    if (pathname.startsWith('/uploads/') && req.method === 'GET') {
-      return serveUpload(req, res, pathname);
+    if (pathname === '/api/version' && req.method === 'GET') {
+      const clean = (value, fallback) =>
+        typeof value === 'string' && /^[A-Za-z0-9._:+-]{1,120}$/.test(value) ? value : fallback;
+      return sendJson(res, 200, {
+        release_sha: clean(process.env.RELEASE_SHA, 'unknown'),
+        build_timestamp: clean(process.env.BUILD_TIMESTAMP || process.env.RELEASE_BUILD_TIMESTAMP, 'unknown'),
+      });
+    }
+
+    // Durable upload URLs are never anonymous. Native browser media may use a
+    // short-lived opaque access token issued by CreateFileAccessUrl.
+    const uploadAccessMatch = /^\/uploads\/([^/]*)$/.exec(pathname);
+    if (uploadAccessMatch) {
+      if (req.method !== 'GET') return sendError(res, 405, 'method not allowed');
+      return handleUploadAccess(req, res, url, uploadAccessMatch[1], { signedRoute: false });
+    }
+    const signedFileMatch = /^\/api\/files\/([^/]*)$/.exec(pathname);
+    if (signedFileMatch) {
+      if (req.method !== 'GET') return sendError(res, 405, 'method not allowed');
+      return handleUploadAccess(req, res, url, signedFileMatch[1], { signedRoute: true });
+    }
+    if (pathname.startsWith('/uploads/') || pathname.startsWith('/api/files/')) {
+      return sendError(res, 404, 'not found');
     }
 
     // Auth routes.
@@ -1187,7 +1678,19 @@ async function requestListener(req, res) {
       // unaffected.
       const integrationUser = resolveSessionUser(req);
       if (!integrationUser) return sendError(res, 401, 'authentication required');
-      return handleCoreIntegration(req, res, { endpointName, outboxEmail, outboxSms });
+      return handleCoreIntegration(req, res, {
+        endpointName,
+        outboxEmail,
+        outboxSms,
+        sessionUser: integrationUser,
+        orgIds: orgIdsForUser(integrationUser.email),
+        uploadRegistry,
+        uploadsDir,
+        hasExtractionAcceptance,
+        resolveLegacyUpload: ({ storedName, selectedOrgId }) =>
+          resolveLegacyUploadForUser({ storedName, selectedOrgId, sessionUser: integrationUser }),
+        readUploadBuffer,
+      });
     }
     if (/^\/api\/apps\/[^/]+\/integration-endpoints\//.test(pathname)) {
       return sendError(res, 404, 'integration endpoint not implemented in this shim build');
@@ -1213,7 +1716,11 @@ async function requestListener(req, res) {
 
     return sendError(res, 404, 'not found');
   } catch (err) {
-    console.error('[shim] unhandled error:', err);
+    if (err instanceof UploadError) {
+      if (!res.headersSent) return sendError(res, err.httpStatus || 400, err.publicMessage || 'request rejected');
+      return res.end();
+    }
+    console.error('[shim] unhandled error:', err?.code || err?.name || 'internal_error');
     if (!res.headersSent) {
       sendError(res, 500, 'internal server error');
     } else {

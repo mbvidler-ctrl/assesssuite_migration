@@ -10,6 +10,7 @@ import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
 import { ClientReport } from "@/entities/ClientReport";
 import { todayLocal } from "@/lib/localDate";
+import { SecureFileImage } from "@/components/files/SecureFile";
 
 const PrintableReport = React.forwardRef(({ letterData, client, clinician }, ref) => {
   if (!letterData || !client || !clinician) {
@@ -89,7 +90,7 @@ const PrintableReport = React.forwardRef(({ letterData, client, clinician }, ref
 
       <div className="clinic-header">
         {clinician?.clinic_logo_url ? (
-          <img src={clinician.clinic_logo_url} alt="Clinic Logo" />
+          <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" />
         ) : (
           <h2 style={{ margin: 0, color: '#000' }}>{clinician?.clinic_name || ""}</h2>
         )}

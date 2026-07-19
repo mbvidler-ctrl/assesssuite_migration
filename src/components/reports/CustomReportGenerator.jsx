@@ -10,6 +10,7 @@ import { Wand2, Printer, Loader2, Sparkles, X } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
 import { ClientReport } from "@/entities/ClientReport"; // Added import
+import { SecureFileImage } from "@/components/files/SecureFile";
 
 export default function CustomReportGenerator({ client, onClose }) {
   const [isLoading, setIsLoading] = useState(true);
@@ -372,7 +373,7 @@ Return the improved version with proper formatting:`;
               <div className="mb-6">
                 <div className="flex justify-between items-start mb-4 pb-4 border-b">
                   {clinician?.clinic_logo_url && (
-                    <img src={clinician.clinic_logo_url} alt="Clinic Logo" className="max-w-[150px] max-h-[80px]" />
+                    <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" className="max-w-[150px] max-h-[80px]" />
                   )}
                   <div className="text-right text-sm">
                     <strong>{clinician?.clinic_name}</strong><br />

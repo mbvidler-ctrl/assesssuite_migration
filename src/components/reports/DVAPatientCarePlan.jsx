@@ -10,6 +10,7 @@ import { ClientCondition, ClientAssessment, Assessment, User, Client } from "@/e
 import { ClientReport } from "@/entities/ClientReport";
 import { InvokeLLM } from "@/integrations/Core";
 import { Wand2, Printer, Loader2, Sparkles, ChevronLeft, ChevronRight, Save, Edit } from "lucide-react";
+import { SecureFileImage } from "@/components/files/SecureFile";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
 import { Badge } from "@/components/ui/badge"; // Added Badge import
@@ -102,7 +103,7 @@ const PrintableReport = React.forwardRef(({ reportContent, client, clinician }, 
 
       <div className="header">
         {clinician?.clinic_logo_url ? (
-          <img src={clinician.clinic_logo_url} alt="Clinic Logo" style={{ maxWidth: '120px', maxHeight: '60px' }} />
+          <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" style={{ maxWidth: '120px', maxHeight: '60px' }} />
         ) : (
           <h2 style={{ margin: 0, fontSize: '11pt', color: '#000' }}>{clinician?.clinic_name || ""}</h2>
         )}

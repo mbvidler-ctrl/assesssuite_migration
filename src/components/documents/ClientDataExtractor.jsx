@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { extractTenantDocumentData } from '@/lib/fileIntegrations';
 import { todayLocal } from "@/lib/localDate";
 
 const EXTRACTION_SCHEMA = {
@@ -99,42 +100,25 @@ export default function ClientDataExtractor({
 
   const handleExtract = async () => {
     if (!fileUrls || fileUrls.length === 0) return;
+    if (!client?.org_id) {
+      toast.error('Client practice is required before document extraction.');
+      return;
+    }
     
     setIsExtracting(true);
     try {
-      const allData = {
-        personal_info: {},
-        conditions: [],
-        assessments: [],
-        referral_info: {},
-        funding_info: {}
-      };
-      
-      for (const fileUrl of fileUrls) {
-        const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-          file_url: fileUrl,
-          json_schema: EXTRACTION_SCHEMA
-        });
-        
-        if (result.status === 'success' && result.output) {
-          // Merge extracted data
-          if (result.output.personal_info) {
-            allData.personal_info = { ...allData.personal_info, ...result.output.personal_info };
-          }
-          if (result.output.conditions) {
-            allData.conditions.push(...result.output.conditions);
-          }
-          if (result.output.assessments) {
-            allData.assessments.push(...result.output.assessments);
-          }
-          if (result.output.referral_info) {
-            allData.referral_info = { ...allData.referral_info, ...result.output.referral_info };
-          }
-          if (result.output.funding_info) {
-            allData.funding_info = { ...allData.funding_info, ...result.output.funding_info };
-          }
-        }
+      const result = await extractTenantDocumentData({
+        org_id: client.org_id,
+        file_urls: fileUrls,
+        json_schema: EXTRACTION_SCHEMA,
+      });
+      if (result?.status !== 'success' || !result.output) {
+        toast.error(typeof result?.details === 'string'
+          ? result.details
+          : 'The documents could not be extracted. No client data was changed.');
+        return;
       }
+      const allData = result.output;
       
       // Initialize selected items (all selected by default)
       setSelectedItems({
@@ -162,7 +146,7 @@ export default function ClientDataExtractor({
       }
       
     } catch (error) {
-      console.error('Error extracting data:', error);
+      console.warn('Client document extraction failed', error?.response?.status ? { status: error.response.status } : undefined);
       toast.error('Failed to extract data from documents');
     } finally {
       setIsExtracting(false);
@@ -275,7 +259,7 @@ export default function ClientDataExtractor({
       if (onExtracted) onExtracted();
       
     } catch (error) {
-      console.error('Error saving extracted data:', error);
+      console.warn('Saving reviewed extracted data failed', error?.response?.status ? { status: error.response.status } : undefined);
       toast.error('Failed to save extracted data');
     } finally {
       setIsSaving(false);

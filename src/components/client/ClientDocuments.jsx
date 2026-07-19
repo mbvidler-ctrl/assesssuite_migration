@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { uploadTenantFile } from '@/lib/fileIntegrations';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -29,6 +30,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import ClientDataExtractor from '../documents/ClientDataExtractor';
+import { SecureFileLink } from '@/components/files/SecureFile';
 
 const documentTypeLabels = {
   referral: 'Referral',
@@ -56,6 +58,7 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadType, setUploadType] = useState('other');
+  const [uploadSubjectAgeBand, setUploadSubjectAgeBand] = useState('');
   const [showExtractor, setShowExtractor] = useState(false);
 
   useEffect(() => {
@@ -79,6 +82,10 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
       toast.error('Please select a file');
       return;
     }
+    if (!uploadSubjectAgeBand) {
+      toast.error('Please select the patient age category.');
+      return;
+    }
 
     setIsUploading(true);
     try {
@@ -93,7 +100,12 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
         throw new Error('Client is missing organization ID. Please contact support.');
       }
       
-      const { file_url } = await base44.integrations.Core.UploadFile({ file: uploadFile });
+      const { file_url } = await uploadTenantFile({
+        file: uploadFile,
+        org_id: clientRecord.org_id,
+        purpose: 'clinical-attachment',
+        subject_age_band: uploadSubjectAgeBand,
+      });
       
       await base44.entities.ClientDocument.create({
         org_id: clientRecord.org_id,
@@ -107,6 +119,7 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
       setShowUploadForm(false);
       setUploadFile(null);
       setUploadType('other');
+      setUploadSubjectAgeBand('');
       loadDocuments();
     } catch (error) {
       console.error('Error uploading document:', error);
@@ -222,14 +235,28 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
                   type="file"
                   onChange={(e) => setUploadFile(e.target.files[0])}
                   className="mt-1"
-                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                  accept=".pdf,.png,.jpg,.jpeg,.docx"
                 />
+              </div>
+              <div>
+                <Label>Patient age category</Label>
+                <Select value={uploadSubjectAgeBand} onValueChange={setUploadSubjectAgeBand}>
+                  <SelectTrigger className="mt-1">
+                    <SelectValue placeholder="Select an age category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="13_or_over">13 or older</SelectItem>
+                    <SelectItem value="under_13">Under 13</SelectItem>
+                    <SelectItem value="unknown">Not known</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500 mt-1">Used only to enforce provider eligibility if document scanning is requested.</p>
               </div>
               <div className="flex gap-2">
                 <Button 
                   size="sm" 
                   onClick={handleUpload}
-                  disabled={isUploading || !uploadFile}
+                  disabled={isUploading || !uploadFile || !uploadSubjectAgeBand}
                 >
                   {isUploading ? (
                     <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Uploading...</>
@@ -243,6 +270,7 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
                   onClick={() => {
                     setShowUploadForm(false);
                     setUploadFile(null);
+                    setUploadSubjectAgeBand('');
                   }}
                 >
                   Cancel
@@ -280,12 +308,20 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
                   </div>
                   <div className="flex items-center gap-1 ml-2">
                     <Button 
+                      asChild
                       variant="ghost" 
                       size="icon"
                       className="h-8 w-8"
-                      onClick={() => window.open(doc.file_url, '_blank')}
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <SecureFileLink
+                        href={doc.file_url}
+                        orgId={client?.org_id || doc.org_id}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Open ${doc.file_name || 'document'}`}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </SecureFileLink>
                     </Button>
                     <Button 
                       variant="ghost" 

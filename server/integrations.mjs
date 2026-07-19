@@ -1,4 +1,4 @@
-// Local mock implementations of the Base44 Core integrations
+// Local implementations of the Base44 Core integrations
 // (`/api/apps/{appId}/integration-endpoints/Core/{Name}`), per the
 // "Integrations" section of docs/shim/20260702-sdk-wire-protocol.md.
 //
@@ -37,24 +37,26 @@
 //   - ExtractDataFromUploadedFile: uniformly `{ status: 'success'|'error',
 //     output, details? }` across every call site found (ReferralUploader
 //     x2, ClientDataExtractor, HistoricalAssessmentExtractor); `output` is
-//     instantiated from the caller's `json_schema`.
+//     produced by the gated inline Responses API adapter from the caller's
+//     validated `json_schema`.
 
-import fs from 'node:fs';
-import path from 'node:path';
-import { randomUUID } from 'node:crypto';
-import { fileURLToPath } from 'node:url';
+import { extractDocumentData, ExtractionError } from './documentExtraction.mjs';
+import {
+  APPROVED_UPLOAD_PURPOSES,
+  UPLOAD_POLICY,
+  UploadError,
+  canonicalUploadPath,
+} from './uploadRegistry.mjs';
+import { issueFileAccessUrl } from './fileAccess.mjs';
 
 import { instantiateSchema, extractJsonKeysFromPrompt } from './mocks/schema-instantiator.mjs';
 import { invokeLLM as invokeRealLLM, llmEnabled } from './llm.mjs';
 import { sendEmail } from './email.mjs';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // UPLOADS_DIR override: in production the uploads store must live on the
 // persistent volume (mounted at server/data), so all three readers of this
 // path — here (write), server/index.mjs (serve), transcribeSession.mjs
 // (read) — resolve the SAME env-driven location. Default unchanged for dev.
-const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
-fs.mkdirSync(uploadsDir, { recursive: true });
 
 // Production posture: when LLM_REQUIRED=1, InvokeLLM never silently falls back
 // to the deterministic mock — a real-model failure returns 502 and a missing
@@ -71,11 +73,36 @@ const LLM_REQUIRED = process.env.LLM_REQUIRED === '1';
  * File values are appended as files; other object values are
  * JSON.stringify-ed before being appended).
  */
-async function parseIntegrationBody(req) {
-  const contentType = req.headers['content-type'] || '';
+async function readBoundedRequest(req, maxBytes) {
+  const contentLength = req.headers['content-length'];
+  if (contentLength !== undefined) {
+    const parsed = Number(contentLength);
+    if (!Number.isSafeInteger(parsed) || parsed < 0) {
+      throw new UploadError(400, 'invalid_content_length', 'The request length is invalid.');
+    }
+    if (parsed > maxBytes) {
+      req.resume();
+      throw new UploadError(413, 'request_too_large', 'The upload request is too large.');
+    }
+  }
   const chunks = [];
-  for await (const chunk of req) chunks.push(chunk);
-  const raw = Buffer.concat(chunks);
+  let total = 0;
+  for await (const chunk of req) {
+    const buffer = Buffer.from(chunk);
+    total += buffer.length;
+    if (total > maxBytes) {
+      req.resume();
+      throw new UploadError(413, 'request_too_large', 'The upload request is too large.');
+    }
+    chunks.push(buffer);
+  }
+  return Buffer.concat(chunks);
+}
+
+async function parseIntegrationBody(req, endpointName) {
+  const contentType = req.headers['content-type'] || '';
+  const maxBytes = endpointName === 'UploadFile' ? UPLOAD_POLICY.maxRequestBytes : 2 * 1024 * 1024;
+  const raw = await readBoundedRequest(req, maxBytes);
 
   if (contentType.includes('multipart/form-data')) {
     const response = new Response(raw, { headers: { 'content-type': contentType } });
@@ -111,6 +138,8 @@ function sendJson(res, status, payload) {
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Content-Length': Buffer.byteLength(json),
+    'Cache-Control': 'no-store',
+    'X-Content-Type-Options': 'nosniff',
   });
   res.end(json);
 }
@@ -176,13 +205,226 @@ async function handleInvokeLLM(body) {
 // ExtractDataFromUploadedFile
 // ---------------------------------------------------------------------------
 
-function handleExtractDataFromUploadedFile(body) {
-  const { json_schema: schema } = body || {};
-  if (!schema || typeof schema !== 'object') {
-    return { status: 'error', details: 'json_schema is required' };
+let activeExtractions = 0;
+const activeByUser = new Map();
+const activeByOrg = new Map();
+
+function boundedConcurrency(name, fallback, max) {
+  const parsed = Number(process.env[name]);
+  if (!Number.isInteger(parsed) || parsed < 1) return fallback;
+  return Math.min(parsed, max);
+}
+
+function acquireExtractionSlot(userId, orgId) {
+  const globalMax = boundedConcurrency('DOCUMENT_EXTRACTION_MAX_CONCURRENCY', 2, 4);
+  const userMax = boundedConcurrency('DOCUMENT_EXTRACTION_USER_CONCURRENCY', 1, 2);
+  const orgMax = boundedConcurrency('DOCUMENT_EXTRACTION_ORG_CONCURRENCY', 2, 4);
+  if (
+    activeExtractions >= globalMax ||
+    (activeByUser.get(userId) || 0) >= userMax ||
+    (activeByOrg.get(orgId) || 0) >= orgMax
+  ) {
+    throw new ExtractionError(429, 'extraction_busy', 'Document extraction is busy. Please try again shortly.');
   }
-  const output = instantiateSchema({ ...schema, type: schema.type || 'object' }, 'output');
-  return { status: 'success', output };
+  activeExtractions += 1;
+  activeByUser.set(userId, (activeByUser.get(userId) || 0) + 1);
+  activeByOrg.set(orgId, (activeByOrg.get(orgId) || 0) + 1);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    activeExtractions = Math.max(0, activeExtractions - 1);
+    const userCount = Math.max(0, (activeByUser.get(userId) || 1) - 1);
+    const orgCount = Math.max(0, (activeByOrg.get(orgId) || 1) - 1);
+    if (userCount === 0) activeByUser.delete(userId);
+    else activeByUser.set(userId, userCount);
+    if (orgCount === 0) activeByOrg.delete(orgId);
+    else activeByOrg.set(orgId, orgCount);
+  };
+}
+
+function requireSelectedOrg(body, context) {
+  const orgId = typeof body?.org_id === 'string' ? body.org_id.trim() : '';
+  if (!orgId) throw new UploadError(400, 'org_required', 'Select the organisation for this request.');
+  if (!context.orgIds.includes(orgId)) {
+    throw new UploadError(403, 'org_forbidden', 'The selected organisation is unavailable.');
+  }
+  return orgId;
+}
+
+function decodeReferenceSegment(raw) {
+  if (
+    typeof raw !== 'string' ||
+    raw.length === 0 ||
+    raw.includes('/') ||
+    raw.includes('\\') ||
+    /%(?:2f|5c|25)/i.test(raw)
+  ) {
+    throw new UploadError(400, 'invalid_file_reference', 'The file reference is invalid.');
+  }
+  let decoded;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    throw new UploadError(400, 'invalid_file_reference', 'The file reference is invalid.');
+  }
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,180}$/.test(decoded) || decoded.includes('..')) {
+    throw new UploadError(400, 'invalid_file_reference', 'The file reference is invalid.');
+  }
+  return decoded;
+}
+
+function uploadIdFromReference(reference) {
+  if (typeof reference !== 'string' || !reference.startsWith('/') || reference.startsWith('//')) {
+    throw new UploadError(400, 'external_file_reference', 'Only an AssessSuite file reference can be extracted.');
+  }
+  const match = /^\/(?:uploads|api\/files)\/([^/?#]+)$/.exec(reference);
+  if (!match) throw new UploadError(400, 'invalid_file_reference', 'The file reference is invalid.');
+  return decodeReferenceSegment(match[1]);
+}
+
+function normalizeExtractionReferences(body) {
+  const groups = [];
+  if (body?.upload_id !== undefined) groups.push([body.upload_id]);
+  if (body?.file_url !== undefined) groups.push([body.file_url]);
+  if (body?.upload_ids !== undefined) groups.push(body.upload_ids);
+  if (body?.file_urls !== undefined) groups.push(body.file_urls);
+  if (groups.length !== 1 || !Array.isArray(groups[0])) {
+    throw new UploadError(400, 'invalid_file_reference', 'Provide one file reference or one ordered file-reference list.');
+  }
+  const references = groups[0];
+  if (
+    references.length === 0 ||
+    references.length > UPLOAD_POLICY.maxFilesPerExtraction ||
+    references.some((value) => typeof value !== 'string' || value.length === 0 || value.length > 300)
+  ) {
+    throw new UploadError(400, 'invalid_file_reference', 'The file-reference list is invalid or too large.');
+  }
+  if (new Set(references).size !== references.length) {
+    throw new UploadError(400, 'duplicate_file_reference', 'Select each file only once.');
+  }
+  return references;
+}
+
+async function resolveRegisteredUpload(reference, context, selectedOrgId) {
+  const key = reference.startsWith('/') ? uploadIdFromReference(reference) : decodeReferenceSegment(reference);
+  let upload = context.uploadRegistry.getById(key);
+  if (!upload && reference.startsWith('/uploads/')) {
+    upload = context.uploadRegistry.getByStoredName(key);
+    if (!upload && typeof context.resolveLegacyUpload === 'function') {
+      upload = await context.resolveLegacyUpload({ storedName: key, selectedOrgId: selectedOrgId });
+    }
+  }
+  if (
+    !upload ||
+    upload.orgId !== selectedOrgId ||
+    !context.orgIds.includes(upload.orgId) ||
+    ['deleted', 'expired'].includes(upload.state)
+  ) {
+    throw new UploadError(404, 'upload_not_found', 'File not found.');
+  }
+  if (!upload.isLegacy && upload.expiresAt && upload.state !== 'bound' && Date.parse(upload.expiresAt) <= Date.now()) {
+    try {
+      context.uploadRegistry.transition(upload.id, 'expired', { actorUserId: context.sessionUser.id });
+    } catch {
+      // The caller still receives the same unknown-resource result.
+    }
+    throw new UploadError(404, 'upload_not_found', 'File not found.');
+  }
+  return upload;
+}
+
+async function handleExtractDataFromUploadedFile(body, context) {
+  const orgId = requireSelectedOrg(body, context);
+  if (context.sessionUser.account_status !== 'active') {
+    throw new ExtractionError(403, 'account_inactive', 'Account approval is required before document extraction.');
+  }
+  if (!context.hasExtractionAcceptance(context.sessionUser.email, orgId)) {
+    throw new ExtractionError(403, 'acceptance_required', 'Current AI document-extraction acceptance is required.');
+  }
+  const references = normalizeExtractionReferences(body);
+  const uploads = [];
+  for (const reference of references) {
+    const upload = await resolveRegisteredUpload(reference, context, orgId);
+    if (!['referral-extraction', 'clinical-attachment', 'report-attachment'].includes(upload.purpose)) {
+      throw new UploadError(404, 'upload_not_found', 'File not found.');
+    }
+    uploads.push(upload);
+  }
+
+  const releaseSlot = acquireExtractionSlot(context.sessionUser.id, orgId);
+  let reservation = null;
+  let succeeded = false;
+  let actualCostMicrousd = null;
+  try {
+    reservation = context.uploadRegistry.reserveExtractionUsage({
+      userId: context.sessionUser.id,
+      orgId,
+      uploadCount: uploads.length,
+    });
+    const files = uploads.map((upload) => {
+      context.uploadRegistry.transition(upload.id, 'processing', { actorUserId: context.sessionUser.id });
+      const filePath = canonicalUploadPath(context.uploadsDir, upload.storedName, { mustExist: true });
+      return { upload, buffer: context.readUploadBuffer(filePath, upload.byteSize) };
+    });
+    const extracted = await extractDocumentData({
+      files,
+      schema: body?.json_schema,
+      subjectAgeBands: uploads.map((upload) => upload.subjectAgeBand),
+    });
+    actualCostMicrousd = extracted.actualCostMicrousd;
+    for (const upload of uploads) {
+      context.uploadRegistry.transition(upload.id, 'review-pending', { actorUserId: context.sessionUser.id });
+      context.uploadRegistry.audit({
+        uploadId: upload.id,
+        orgId,
+        actorUserId: context.sessionUser.id,
+        eventType: 'document_extraction',
+        outcome: 'success',
+        metadata: {
+          file_count: uploads.length,
+          schema_hash: extracted.schemaHash,
+          estimated_cost_microusd: reservation.estimatedCostMicrousd,
+          actual_cost_microusd: actualCostMicrousd ?? reservation.estimatedCostMicrousd,
+          provider_status_class: extracted.providerStatusClass,
+        },
+      });
+    }
+    succeeded = true;
+    return { status: 'success', output: extracted.output };
+  } catch (error) {
+    for (const upload of uploads) {
+      try {
+        const current = context.uploadRegistry.getById(upload.id);
+        if (current && !['bound', 'deleted', 'expired'].includes(current.state)) {
+          context.uploadRegistry.transition(upload.id, 'temporary', {
+            actorUserId: context.sessionUser.id,
+            failure: true,
+          });
+        }
+        context.uploadRegistry.audit({
+          uploadId: upload.id,
+          orgId,
+          actorUserId: context.sessionUser.id,
+          eventType: 'document_extraction',
+          outcome: 'failed',
+          metadata: { code: error?.code || 'extraction_failed', file_count: uploads.length },
+        });
+      } catch {
+        // Audit/lifecycle cleanup is best-effort here; the original controlled
+        // failure remains the response and the 24-hour outer expiry remains.
+      }
+    }
+    throw error;
+  } finally {
+    if (reservation) {
+      context.uploadRegistry.completeExtractionUsage(reservation.id, {
+        succeeded,
+        actualCostMicrousd,
+      });
+    }
+    releaseSlot();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -208,17 +450,55 @@ function handleSendSMS(body, outboxSms) {
 // UploadFile
 // ---------------------------------------------------------------------------
 
-async function handleUploadFile(files) {
+async function handleUploadFile(body, files, context) {
+  const orgId = requireSelectedOrg(body, context);
   const file = files?.file;
   if (!file) {
-    return { error: 'file is required' };
+    throw new UploadError(400, 'file_required', 'Select a file to upload.');
+  }
+  const purpose = typeof body?.purpose === 'string' ? body.purpose.trim() : '';
+  if (!APPROVED_UPLOAD_PURPOSES.has(purpose)) {
+    throw new UploadError(400, 'invalid_purpose', 'Select a supported upload purpose.');
+  }
+  const subjectAgeBand = typeof body?.subject_age_band === 'string' ? body.subject_age_band.trim() : '';
+  if (!['13_or_over', 'under_13', 'unknown'].includes(subjectAgeBand)) {
+    throw new UploadError(400, 'invalid_age_band', 'Select the subject age category.');
+  }
+  const purposeMaxBytes = purpose === 'referral-extraction' ? UPLOAD_POLICY.maxReferralBytes : UPLOAD_POLICY.maxFileBytes;
+  if (file.size <= 0 || file.size > purposeMaxBytes) {
+    throw new UploadError(file.size > purposeMaxBytes ? 413 : 400, 'invalid_file_size', 'The selected file size is invalid.');
   }
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
-  const ext = path.extname(file.name || '') || '';
-  const storedName = `${randomUUID()}${ext}`;
-  fs.writeFileSync(path.join(uploadsDir, storedName), buffer);
-  return { file_url: `/uploads/${storedName}` };
+  const upload = context.uploadRegistry.register({
+    buffer,
+    originalName: file.name,
+    declaredMime: file.type,
+    orgId,
+    uploaderUserId: context.sessionUser.id,
+    purpose,
+    subjectAgeBand,
+  });
+  return { file_url: `/uploads/${upload.id}`, upload_id: upload.id };
+}
+
+async function handleCreateFileAccessUrl(body, context) {
+  const orgId = requireSelectedOrg(body, context);
+  const reference = typeof body?.file_url === 'string' ? body.file_url : body?.upload_id;
+  if (typeof reference !== 'string') {
+    throw new UploadError(400, 'invalid_file_reference', 'The file reference is invalid.');
+  }
+  const upload = await resolveRegisteredUpload(reference, context, orgId);
+  const issued = issueFileAccessUrl({ uploadId: upload.id, orgId, userId: context.sessionUser.id });
+  context.uploadRegistry.audit({
+    uploadId: upload.id,
+    orgId,
+    actorUserId: context.sessionUser.id,
+    eventType: 'file_access_url_issued',
+    outcome: 'success',
+    metadata: { purpose: upload.purpose },
+  });
+  return { file_url: issued.fileUrl, expires_at: issued.expiresAt };
 }
 
 // ---------------------------------------------------------------------------
@@ -246,6 +526,7 @@ const HANDLERS = new Set([
   'UploadFile',
   'GenerateImage',
   'ExtractDataFromUploadedFile',
+  'CreateFileAccessUrl',
 ]);
 
 /**
@@ -254,16 +535,17 @@ const HANDLERS = new Set([
  * (createOutboxRepository(db, 'email'|'sms')), passed in so this module has
  * no independent database handle.
  */
-export async function handleCoreIntegration(req, res, { endpointName, outboxEmail, outboxSms }) {
+export async function handleCoreIntegration(req, res, context) {
+  const { endpointName, outboxEmail, outboxSms } = context;
   if (!HANDLERS.has(endpointName)) {
     return sendJson(res, 404, { message: `integration endpoint ${endpointName} not found` });
   }
 
-  const { body, files } = await parseIntegrationBody(req);
+  try {
+    const { body, files } = await parseIntegrationBody(req, endpointName);
 
-  switch (endpointName) {
-    case 'InvokeLLM': {
-      try {
+    switch (endpointName) {
+      case 'InvokeLLM': {
         const result = await handleInvokeLLM(body);
         // InvokeLLM's real response is either a bare string or a bare object,
         // never wrapped — but HTTP responses need a body. The SDK's axios
@@ -273,23 +555,34 @@ export async function handleCoreIntegration(req, res, { endpointName, outboxEmai
         // JSON.stringify(result) here reproduces exactly what the real
         // platform would send.
         return sendJson(res, 200, result);
-      } catch (err) {
-        // Production loud-fail (LLM_REQUIRED): surface a real error instead of
-        // mock clinical content. Client call sites already catch and toast.
-        return sendJson(res, err.httpStatus || 500, { error: err.message });
       }
+      case 'ExtractDataFromUploadedFile':
+        return sendJson(res, 200, await handleExtractDataFromUploadedFile(body, context));
+      case 'SendEmail':
+        return sendJson(res, 200, await handleSendEmail(body));
+      case 'SendSMS':
+        return sendJson(res, 200, handleSendSMS(body, outboxSms));
+      case 'UploadFile':
+        return sendJson(res, 200, await handleUploadFile(body, files, context));
+      case 'CreateFileAccessUrl':
+        return sendJson(res, 200, await handleCreateFileAccessUrl(body, context));
+      case 'GenerateImage':
+        return sendJson(res, 200, handleGenerateImage(body));
+      default:
+        return sendJson(res, 404, { message: `integration endpoint ${endpointName} not found` });
     }
-    case 'ExtractDataFromUploadedFile':
-      return sendJson(res, 200, handleExtractDataFromUploadedFile(body));
-    case 'SendEmail':
-      return sendJson(res, 200, await handleSendEmail(body));
-    case 'SendSMS':
-      return sendJson(res, 200, handleSendSMS(body, outboxSms));
-    case 'UploadFile':
-      return sendJson(res, 200, await handleUploadFile(files));
-    case 'GenerateImage':
-      return sendJson(res, 200, handleGenerateImage(body));
-    default:
-      return sendJson(res, 404, { message: `integration endpoint ${endpointName} not found` });
+  } catch (error) {
+    const known = error instanceof UploadError || error instanceof ExtractionError || Number.isInteger(error?.httpStatus);
+    const status = known ? error.httpStatus || 500 : 500;
+    const details = known ? error.publicMessage || error.message : 'The request could not be completed.';
+    if (!known) {
+      // Metadata only: never print request bodies, file names, provider
+      // payloads, tenant identifiers or user data.
+      console.error('[integration] request failed', { endpoint: endpointName, code: 'internal_error' });
+    }
+    if (endpointName === 'ExtractDataFromUploadedFile') {
+      return sendJson(res, status, { status: 'error', details });
+    }
+    return sendJson(res, status, { error: details });
   }
 }

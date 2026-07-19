@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { uploadTenantFile } from "@/lib/fileIntegrations";
 import { X, Save, ChevronLeft, ChevronRight, Lock, Edit, History, Printer, Calendar, Clock, MapPin, Trash2, AlertTriangle, RefreshCw, Mic, Square, Loader2, Activity, ClipboardList, Sparkles, Paperclip, Upload, FileText, Copy, Check } from "lucide-react";
 import {
   Accordion,
@@ -43,6 +44,7 @@ import {
 } from "@/components/ui/select";
 import AppointmentReminderModal from './AppointmentReminderModal';
 import VitalsQuickEntry from './VitalsQuickEntry';
+import { SecureFileAudio, SecureFileLink } from '@/components/files/SecureFile';
 import PendingAssessmentsModal from './PendingAssessmentsModal';
 import AssessmentTestRunnerRouter from '../assessments/AssessmentTestRunnerRouter';
 import ComplianceSection from './ComplianceSection';
@@ -522,7 +524,12 @@ export default function SOAPNoteModal({
     setIsSavingAudio(true);
     try {
       const audioFile = new File([audioBlob], `session-${Date.now()}.webm`, { type: 'audio/webm' });
-      const { file_url } = await base44.integrations.Core.UploadFile({ file: audioFile });
+      const { file_url } = await uploadTenantFile({
+        file: audioFile,
+        org_id: client.org_id,
+        purpose: 'audio-transcription',
+        subject_age_band: 'unknown',
+      });
 
       const newAudioEntry = {
         url: file_url,
@@ -644,7 +651,12 @@ export default function SOAPNoteModal({
     setIsUploadingAttachment(true);
     try {
       // Upload file to storage
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await uploadTenantFile({
+        file,
+        org_id: client.org_id,
+        purpose: 'clinical-attachment',
+        subject_age_band: 'unknown',
+      });
 
       // Create document record in ClientDocument entity
       const documentData = {
@@ -1287,10 +1299,7 @@ export default function SOAPNoteModal({
                           </Button>
                         )}
                       </div>
-                      <audio controls className="w-full h-8">
-                        <source src={audio.url} type="audio/webm" />
-                        Your browser does not support the audio element.
-                      </audio>
+                      <SecureFileAudio src={audio.url} orgId={client.org_id} controls className="w-full h-8" />
                     </div>
                   ))
                 ) : soapNote?.session_audio_url && (
@@ -1314,10 +1323,7 @@ export default function SOAPNoteModal({
                         </Button>
                       )}
                     </div>
-                    <audio controls className="w-full h-8">
-                      <source src={soapNote.session_audio_url} type="audio/webm" />
-                      Your browser does not support the audio element.
-                    </audio>
+                    <SecureFileAudio src={soapNote.session_audio_url} orgId={client.org_id} controls className="w-full h-8" />
                   </div>
                 )}
               </div>
@@ -1525,7 +1531,7 @@ export default function SOAPNoteModal({
                             type="file"
                             onChange={handleAttachmentUpload}
                             className="hidden"
-                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            accept=".pdf,.docx,.jpg,.jpeg,.png"
                           />
                           <Button
                             variant="outline"
@@ -1612,8 +1618,9 @@ export default function SOAPNoteModal({
                     <p className="text-sm font-medium text-slate-700">Attachments:</p>
                     {soapNote.plan_attachments.map((attachment, index) => (
                       <div key={index} className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <a
+                        <SecureFileLink
                           href={attachment.file_url}
+                          orgId={client.org_id}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 text-blue-600 hover:text-blue-800 flex-1"
@@ -1623,7 +1630,7 @@ export default function SOAPNoteModal({
                           <span className="text-xs text-slate-500">
                             ({moment(attachment.uploaded_at).format('MMM D, YYYY')})
                           </span>
-                        </a>
+                        </SecureFileLink>
                         {!isLocked && (
                           <Button
                             variant="ghost"

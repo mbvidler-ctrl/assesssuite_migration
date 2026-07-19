@@ -66,10 +66,22 @@ export function loadOrgScopedEntities() {
  * freshly-recreated database file so self-test runs never pollute dev data.
  */
 export function openDatabase() {
-  fs.mkdirSync(dataDir, { recursive: true });
-
   const isSelftest = process.env.SELFTEST === '1';
-  const dbFile = path.join(dataDir, isSelftest ? 'selftest.db' : 'app.db');
+  const override = process.env.ASSESSSUITE_DB_PATH;
+  const isolatedGateHarness =
+    process.env.NODE_ENV === 'test' &&
+    process.env.ASSESSSUITE_DB_PATH_ACK ===
+      'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_NON_PRODUCTION_GATE_DATABASE';
+  if (override && !isSelftest && !isolatedGateHarness) {
+    throw new Error(
+      'ASSESSSUITE_DB_PATH is permitted only under SELFTEST=1 or the explicit isolated gate harness',
+    );
+  }
+  const dbFile = override ? path.resolve(override) : path.join(dataDir, isSelftest ? 'selftest.db' : 'app.db');
+  if (override && path.extname(dbFile).toLowerCase() !== '.db') {
+    throw new Error('ASSESSSUITE_DB_PATH must identify an exact .db file');
+  }
+  fs.mkdirSync(path.dirname(dbFile), { recursive: true });
 
   if (isSelftest) {
     // Remove the main db file plus any WAL/SHM siblings from a prior run so
@@ -119,6 +131,80 @@ export function openDatabase() {
       payload TEXT NOT NULL,
       created_date TEXT NOT NULL
     );
+  `);
+
+  // Uploads are intentionally not modelled as a generic Base44 entity. They
+  // carry security and lifecycle invariants that must be enforced in SQL and
+  // must never be writable through the generic entity API.
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS upload_registry (
+      id TEXT PRIMARY KEY,
+      stored_name TEXT NOT NULL UNIQUE,
+      original_name TEXT NOT NULL,
+      org_id TEXT NOT NULL,
+      uploader_user_id TEXT NOT NULL,
+      purpose TEXT NOT NULL,
+      detected_mime TEXT NOT NULL,
+      byte_size INTEGER NOT NULL CHECK (byte_size >= 0),
+      sha256 TEXT NOT NULL,
+      lifecycle_state TEXT NOT NULL CHECK (
+        lifecycle_state IN ('temporary', 'processing', 'review-pending', 'bound', 'expired', 'deleted')
+      ),
+      subject_age_band TEXT NOT NULL DEFAULT 'unknown' CHECK (
+        subject_age_band IN ('unknown', 'under_13', '13_or_over')
+      ),
+      created_at TEXT NOT NULL,
+      expires_at TEXT,
+      bound_at TEXT,
+      deleted_at TEXT,
+      bound_entity_type TEXT,
+      bound_entity_id TEXT,
+      is_legacy INTEGER NOT NULL DEFAULT 0 CHECK (is_legacy IN (0, 1))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_upload_registry_org_state
+      ON upload_registry (org_id, lifecycle_state);
+    CREATE INDEX IF NOT EXISTS idx_upload_registry_uploader_created
+      ON upload_registry (uploader_user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_upload_registry_expiry
+      ON upload_registry (expires_at, lifecycle_state);
+
+    CREATE TABLE IF NOT EXISTS upload_audit (
+      id TEXT PRIMARY KEY,
+      upload_id TEXT,
+      org_id TEXT NOT NULL,
+      actor_user_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      outcome TEXT NOT NULL,
+      metadata_json TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      expires_at TEXT NOT NULL,
+      legal_hold INTEGER NOT NULL DEFAULT 0 CHECK (legal_hold IN (0, 1))
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_upload_audit_org_created
+      ON upload_audit (org_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_upload_audit_expiry
+      ON upload_audit (expires_at, legal_hold);
+
+    CREATE TABLE IF NOT EXISTS extraction_usage (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      org_id TEXT NOT NULL,
+      upload_count INTEGER NOT NULL CHECK (upload_count > 0),
+      estimated_cost_microusd INTEGER NOT NULL CHECK (estimated_cost_microusd >= 0),
+      actual_cost_microusd INTEGER,
+      status TEXT NOT NULL CHECK (status IN ('reserved', 'succeeded', 'failed')),
+      created_at TEXT NOT NULL,
+      completed_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_extraction_usage_user_created
+      ON extraction_usage (user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_extraction_usage_org_created
+      ON extraction_usage (org_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_extraction_usage_created
+      ON extraction_usage (created_at);
   `);
 
   return { db, entityNames: new Set(entityNames) };
