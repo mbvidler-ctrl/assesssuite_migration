@@ -15,9 +15,10 @@ import { getLegalDocument } from "@/lib/legal/documentRegistry";
 // uses PractitionerNoticesSection unchanged.
 //
 // The single checkbox is a UI consolidation only. On submit, ProfileSetup
-// still records one LegalAcceptanceEvent per instrument exactly as before
-// (three notice events for every user; the contract-acceptance event for a
-// founding owner), so the evidentiary record is unchanged.
+// records one document-bound LegalAcceptanceEvent per named instrument:
+// three notice events for every user and five additional commercial-
+// instrument events for a founding owner. Optional marketing remains its own
+// event only when affirmatively selected.
 //
 // The receipt-vs-consent distinction of the Collection Notice is preserved in
 // the wording (policy-suite doc 27 clause 5): it is acknowledged as received,

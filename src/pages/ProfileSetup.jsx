@@ -27,7 +27,7 @@ import { createPageUrl } from "@/utils";
 import { createCheckoutSession } from "@/functions/createCheckoutSession";
 import ConsentSection from "@/components/legal/ConsentSection";
 import { recordLegalEvents } from "@/lib/legal/recordAcceptance";
-import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
+import { CONTRACT_BUNDLE_IDS, EVENT_TYPES } from "@/lib/legal/documentRegistry";
 
 export default function ProfileSetup() {
   const navigate = useNavigate();
@@ -209,6 +209,23 @@ export default function ProfileSetup() {
       let org;
       const existingMembers = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email });
       const foundingNewOrg = !existingMembers || existingMembers.length === 0;
+
+      // The instruments shown to the user must match the capacity recorded at
+      // submission. Membership can change while this page is open, so fail
+      // closed before any organisation/profile write, update the rendered
+      // audience, and require a fresh confirmation against the correct set.
+      if (typeof isNewOrg !== "boolean" || foundingNewOrg !== isNewOrg) {
+        setIsNewOrg(foundingNewOrg);
+        setConsent(prev => ({ ...prev, accepted: false }));
+        setErrors(prev => ({
+          ...prev,
+          consentAccepted: "Your practice membership changed. Review the instruments shown and confirm again.",
+        }));
+        toast.error("Your practice membership changed while this page was open. Please review the updated consent instruments.");
+        setIsSaving(false);
+        return;
+      }
+
       if (!foundingNewOrg) {
         org = { id: existingMembers[0].org_id };
       } else {
@@ -230,27 +247,25 @@ export default function ProfileSetup() {
       // self-service account_status changes, so none is sent here.
       await base44.auth.updateMe({ ...formData });
 
-      // Record the mandatory practitioner notices — every user, every time
-      // they pass through this page (the events are additive; re-recording
-      // the same current-version event is harmless and matches the
-      // append-only model in policy-suite doc 27 clause 5).
+      // Record one document-bound event for every instrument covered by the
+      // single confirmation. The events remain additive and append-only.
       const actorCapacity = foundingNewOrg ? "practice owner" : "invited clinician";
       const events = [
         { eventType: EVENT_TYPES.COLLECTION_NOTICE_ACKNOWLEDGEMENT, documentId: "collection-notice" },
         { eventType: EVENT_TYPES.PROFESSIONAL_USE_ACKNOWLEDGEMENT, documentId: "clinical-use-notice" },
         { eventType: EVENT_TYPES.AI_TRANSPARENCY_CONSENT, documentId: "ai-notice" },
       ].map((e) => ({ ...e, userEmail: currentUser.email, orgId: org.id, actorCapacity }));
-      if (consent.marketing) {
-        events.push({ eventType: EVENT_TYPES.MARKETING_CONSENT, userEmail: currentUser.email, orgId: org.id, actorCapacity });
-      }
       if (foundingNewOrg) {
-        events.push({
+        events.push(...CONTRACT_BUNDLE_IDS.map((documentId) => ({
           eventType: EVENT_TYPES.CONTRACT_ACCEPTANCE,
-          documentId: "terms",
+          documentId,
           userEmail: currentUser.email,
           orgId: org.id,
           actorCapacity,
-        });
+        })));
+      }
+      if (consent.marketing) {
+        events.push({ eventType: EVENT_TYPES.MARKETING_CONSENT, userEmail: currentUser.email, orgId: org.id, actorCapacity });
       }
       try {
         await recordLegalEvents(events);
