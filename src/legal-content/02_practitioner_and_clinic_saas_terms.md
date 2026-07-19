@@ -22,7 +22,7 @@
    - the Acceptable Use Policy;
    - the Approved Subprocessor and Cross-Border Data Schedule identified in the applicable Order Form or release manifest; and
    - any other customer-facing product schedule expressly identified by title and version in the Order Form.
-4. If documents conflict, mandatory law prevails. Subject to that law, the Order Form prevails for its commercial particulars and enabled functions; the AssessSuite Data Processing and Security Schedule prevails for processing of Customer Data; these Terms prevail next; then the AssessSuite Subscription, Cancellation and Refund Policy, AssessSuite Acceptable Use Policy and other incorporated schedules in that order. The AssessSuite Records Retention, Export, Deletion and Exit Policy is an internal verification control and is not incorporated into the Customer agreement.
+4. If documents conflict, mandatory law prevails. Subject to that law, the Order Form prevails for its commercial particulars and enabled functions; the AssessSuite Data Processing and Security Schedule prevails for processing of Customer Data; these Terms prevail next; then the AssessSuite Subscription, Cancellation and Refund Policy, AssessSuite Acceptable Use Policy and other incorporated schedules in that order.
 5. The AssessSuite Privacy Policy, AssessSuite Practitioner Account Collection Notice, Patient Collection Notice and Consent Pack — Practice Template, AssessSuite AI and Automated Processing Transparency Notice, and AssessSuite Clinical Use and Professional Responsibility Notice explain information handling, intended use and risks. They do not silently amend this agreement, provide consent to treatment or waive a right.
 
 ## 2. Definitions

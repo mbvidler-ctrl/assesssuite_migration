@@ -740,11 +740,27 @@ export function createUploadRegistry(db, { uploadsDir }) {
     let isolated = 0;
     for (const row of rows) {
       if (retained.has(String(row.id).toLowerCase())) continue;
+      const recordedAt = new Date(now).toISOString();
+      const reviewDueAt = new Date(new Date(now).getTime() + 30 * DAY_MS).toISOString();
       db.prepare(`
         UPDATE upload_registry
         SET lifecycle_state = 'expired', expires_at = NULL
         WHERE id = ? AND lifecycle_state = 'bound'
       `).run(row.id);
+      db.prepare(`
+        INSERT INTO upload_disposition (
+          upload_id, org_id, status, reason_code, planned_action,
+          review_due_at, recorded_at, updated_at
+        ) VALUES (?, ?, 'review-required', 'source_record_reference_removed',
+                  'determine-lawful-retention-transfer-or-deletion', ?, ?, ?)
+        ON CONFLICT(upload_id) DO UPDATE SET
+          org_id = excluded.org_id,
+          status = excluded.status,
+          reason_code = excluded.reason_code,
+          planned_action = excluded.planned_action,
+          review_due_at = excluded.review_due_at,
+          updated_at = excluded.updated_at
+      `).run(row.id, row.org_id, reviewDueAt, recordedAt, recordedAt);
       audit({
         uploadId: row.id,
         orgId: row.org_id,

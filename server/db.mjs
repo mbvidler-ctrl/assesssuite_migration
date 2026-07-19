@@ -169,6 +169,22 @@ export function openDatabase() {
     CREATE INDEX IF NOT EXISTS idx_upload_registry_expiry
       ON upload_registry (expires_at, lifecycle_state);
 
+    CREATE TABLE IF NOT EXISTS upload_disposition (
+      upload_id TEXT PRIMARY KEY,
+      org_id TEXT NOT NULL,
+      status TEXT NOT NULL CHECK (
+        status IN ('review-required', 'retained', 'transferred', 'deleted')
+      ),
+      reason_code TEXT NOT NULL,
+      planned_action TEXT NOT NULL,
+      review_due_at TEXT NOT NULL,
+      recorded_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_upload_disposition_due
+      ON upload_disposition (status, review_due_at);
+
     CREATE TABLE IF NOT EXISTS upload_audit (
       id TEXT PRIMARY KEY,
       upload_id TEXT,

@@ -1321,6 +1321,21 @@ test('E48 removing a bound reference or deleting its entity isolates retained by
         code: 'source_record_reference_removed',
       });
     }
+    const dispositions = db.prepare(`
+      SELECT * FROM upload_disposition
+      WHERE upload_id IN (?, ?)
+      ORDER BY upload_id ASC
+    `).all(first.upload_id, second.upload_id);
+    assert.equal(dispositions.length, 2);
+    for (const disposition of dispositions) {
+      assert.equal(disposition.org_id, tenantA.id);
+      assert.equal(disposition.status, 'review-required');
+      assert.equal(disposition.reason_code, 'source_record_reference_removed');
+      assert.equal(disposition.planned_action, 'determine-lawful-retention-transfer-or-deletion');
+      assert.equal(disposition.updated_at, disposition.recorded_at);
+      const reviewInterval = Date.parse(disposition.review_due_at) - Date.parse(disposition.recorded_at);
+      assert.equal(reviewInterval, 30 * 24 * 60 * 60 * 1000);
+    }
   } finally {
     db.close();
   }

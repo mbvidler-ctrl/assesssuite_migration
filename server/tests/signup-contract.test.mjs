@@ -327,3 +327,11 @@ test('S13 owner bundle records eight typed, document-bound receipts', async () =
     await server.stop();
   }
 });
+
+test('S15 enacted public instruments do not incorporate the draft retention policy', () => {
+  const prohibited = /Customer-Facing Retention and Exit Schedule|\bPart A\b|Records Retention, Export, Deletion and Exit Policy/i;
+  for (const file of fs.readdirSync(legalContentDir).filter((name) => name.endsWith('.md'))) {
+    const raw = fs.readFileSync(path.join(legalContentDir, file), 'utf8');
+    assert.doesNotMatch(raw, prohibited, file);
+  }
+});

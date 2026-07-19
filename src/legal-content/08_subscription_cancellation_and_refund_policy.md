@@ -58,7 +58,7 @@ AssessSuite must give at least 30 days’ prior notice of a price increase, or l
 
 ## 7. Suspension, failed payments and data access
 
-Before suspending for an ordinary failed payment, AssessSuite should give notice and a reasonable opportunity to correct it. Suspension must be proportionate and must not destroy clinical records or prevent an urgent lawful export, patient access request or incident response. Termination and deletion follow the **Customer-Facing Retention and Exit Schedule**, being Part A, sections 1–7, of the AssessSuite Records Retention, Export, Deletion and Exit Policy.
+Before suspending for an ordinary failed payment, AssessSuite should give notice and a reasonable opportunity to correct it. Suspension must be proportionate and must not destroy clinical records or prevent an urgent lawful export, patient access request or incident response. Termination, retention, export and deletion are governed by clause 15 of the Practitioner and Clinic SaaS Terms, section 9 of the Data Processing and Security Schedule, the applicable Order Form and law, subject to the controls actually available in the approved release.
 
 ## 8. Contact
 
