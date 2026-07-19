@@ -599,8 +599,8 @@ jobs:
             throw new Error('Machine resources differ from one shared CPU and 512 MB');
           }
           const volume = volumes[0];
-          if ((volume.name ?? volume.Name) !== 'assesssuite_data' || (volume.region ?? volume.Region) !== 'syd' || Number(volume.size_gb ?? volume.sizeGb ?? volume.SizeGB) !== 1) {
-            throw new Error('Volume topology differs from one 1 GB assesssuite_data volume in syd');
+          if ((volume.name ?? volume.Name) !== 'assesssuite_data' || (volume.region ?? volume.Region) !== 'syd' || Number(volume.size_gb ?? volume.sizeGb ?? volume.SizeGB) !== 3) {
+            throw new Error('Volume topology differs from one 3 GB assesssuite_data volume in syd');
           }
           NODE
           }
