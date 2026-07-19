@@ -249,6 +249,27 @@ jobs:
           [[ "$image_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           image_ref="registry.fly.io/assesssuite-production@$image_digest"
           docker buildx imagetools inspect "$image_ref" >/dev/null
+          current_json="$RUNNER_TEMP/current-releases.json"
+          fly releases --app assesssuite-production --image --json >"$current_json"
+          current_state="$(node --input-type=module - "$current_json" <<'NODE'
+          import fs from 'node:fs';
+          const parsed = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const rows = Array.isArray(parsed) ? parsed : (parsed.releases || parsed.Releases || parsed.data || []);
+          if (!Array.isArray(rows) || rows.length === 0) throw new Error('Fly returned no release rows');
+          const status = (row) => String(row.Status ?? row.status ?? '').toLowerCase();
+          const row = rows.find((item) => ['complete', 'completed', 'success', 'succeeded'].includes(status(item))) || rows[0];
+          const rawId = row.Version ?? row.version ?? row.ID ?? row.id ?? row.ReleaseId ?? row.releaseId ?? row.release_id;
+          const image = row.ImageRef ?? row.imageRef ?? row.image_ref ?? row.Image ?? row.image ?? row.DockerImage ?? row.docker_image;
+          if (rawId === undefined || !image) throw new Error(`Unrecognised Fly release shape: ${Object.keys(row).join(',')}`);
+          const id = /^\d+$/.test(String(rawId)) ? `v${rawId}` : String(rawId);
+          process.stdout.write(`${id}\t${image}`);
+          NODE
+          )"
+          IFS=$'\t' read -r current_release current_image <<<"$current_state"
+          [[ "$current_release" =~ ^[A-Za-z0-9._:-]{1,120}$ ]]
+          [[ "$current_image" =~ ^registry\.fly\.io/assesssuite-production(:[A-Za-z0-9._-]{1,128}|@sha256:[0-9a-f]{64})$ ]]
+          echo "CURRENT_FLY_RELEASE=$current_release"
+          echo "CURRENT_FLY_IMAGE=$current_image"
           {
             echo '## AssessSuite compatibility rollback image'
             echo
@@ -263,5 +284,7 @@ jobs:
             echo '- Document extraction: disabled (adult and under-age)'
             echo "- Pushed image tag: $image_tag"
             echo "- Immutable rollback image: $image_ref"
+            echo "- Current Fly release before deployment: $current_release"
+            echo "- Current Fly image before deployment: $current_image"
             echo '- Production deployment performed: no'
           } >> "$GITHUB_STEP_SUMMARY"
