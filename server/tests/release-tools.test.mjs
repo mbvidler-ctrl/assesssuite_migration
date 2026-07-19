@@ -61,9 +61,16 @@ test('T04 public-surface workflow checks explicitly propagate failures and requi
   }
   for (const file of ['production-deploy.yml', 'production-prepare-rollback-image.yml']) {
     const source = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', file), 'utf8');
-    assert.match(source, /EXPECTED_RELEASE_SCANNER_SHA256:\s*[0-9a-f]{64}/);
-    assert.match(source, /actual_scanner_sha256=.*sha256sum scripts\/scan-release-diff\.mjs/);
-    assert.match(source, /node scripts\/scan-release-diff\.mjs/);
+    const marker = file === 'production-deploy.yml'
+      ? '      - name: Secret and high-entropy diff scan'
+      : '      - name: Secret scan and local image gate';
+    const start = source.indexOf(marker);
+    const end = source.indexOf('\n      - name:', start + marker.length);
+    assert.notEqual(start, -1, `${file} scanner step is missing`);
+    const scannerStep = source.slice(start, end === -1 ? undefined : end);
+    assert.match(scannerStep, /env:[\s\S]*?EXPECTED_RELEASE_SCANNER_SHA256:\s*[0-9a-f]{64}[\s\S]*?run:/);
+    assert.match(scannerStep, /actual_scanner_sha256=.*sha256sum scripts\/scan-release-diff\.mjs/);
+    assert.match(scannerStep, /node scripts\/scan-release-diff\.mjs/);
   }
 });
 
