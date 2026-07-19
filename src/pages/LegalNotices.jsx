@@ -1,12 +1,12 @@
-import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Loader2, Stethoscope } from "lucide-react";
 import { Toaster, toast } from "sonner";
-import PractitionerNoticesSection from "@/components/legal/PractitionerNoticesSection";
-import { recordLegalEvents } from "@/lib/legal/recordAcceptance";
-import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
+import ConsentSection from "@/components/legal/ConsentSection";
+import { recordLegalAcceptanceBundle } from "@/lib/legal/recordAcceptance";
+import { resolveLegalConsentAudience } from "@/lib/legal/consentAudience";
 
 // Standalone re-acceptance screen. Reached only when Layout.jsx's gate finds
 // a user missing one or more of the current-version mandatory practitioner
@@ -18,43 +18,72 @@ import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
 // off the app on decline.
 export default function LegalNotices() {
   const navigate = useNavigate();
-  const [notices, setNotices] = useState({
-    collectionNotice: false,
-    clinicalUse: false,
-    aiTransparency: false,
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedOrgId = searchParams.get("org_id");
+  const [consent, setConsent] = useState({
+    accepted: false,
     marketing: false,
   });
+  const [membership, setMembership] = useState(null);
+  const [memberships, setMemberships] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const user = await base44.auth.me();
+        const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email });
+        const audience = resolveLegalConsentAudience(memberships);
+        const selected =
+          memberships.find((item) => item.org_id === requestedOrgId) ||
+          memberships.find((item) => item.org_id === audience.orgId);
+        if (!selected) throw new Error("No organisation membership is available");
+        if (active) {
+          setMemberships(memberships);
+          setMembership(selected);
+        }
+      } catch (error) {
+        console.error("Failed to load legal acceptance context", error);
+        if (active) toast.error("Unable to load your practice context. Please try again.");
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [requestedOrgId]);
+
+  const handleMembershipChange = (orgId) => {
+    const selected = memberships.find((item) => item.org_id === orgId);
+    if (!selected) return;
+    setMembership(selected);
+    setConsent((prev) => ({ ...prev, accepted: false }));
+    setErrors({});
+    setSearchParams({ org_id: selected.org_id }, { replace: true });
+  };
+
   const handleChange = (field, value) => {
-    setNotices((prev) => ({ ...prev, [field]: value }));
+    setConsent((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
   const handleContinue = async () => {
     const newErrors = {};
-    if (!notices.collectionNotice) newErrors.collectionNotice = "Required to continue";
-    if (!notices.clinicalUse) newErrors.clinicalUse = "Required to continue";
-    if (!notices.aiTransparency) newErrors.aiTransparency = "Required to continue";
+    if (!consent.accepted) newErrors.accepted = "Required to continue";
+    if (!membership?.org_id) newErrors.context = "Practice context is unavailable";
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
     setIsSaving(true);
     try {
-      const user = await base44.auth.me();
-      const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email });
-      const orgId = memberships?.[0]?.org_id;
-
-      const events = [
-        { eventType: EVENT_TYPES.COLLECTION_NOTICE_ACKNOWLEDGEMENT, documentId: "collection-notice" },
-        { eventType: EVENT_TYPES.PROFESSIONAL_USE_ACKNOWLEDGEMENT, documentId: "clinical-use-notice" },
-        { eventType: EVENT_TYPES.AI_TRANSPARENCY_CONSENT, documentId: "ai-notice" },
-      ].map((e) => ({ ...e, userEmail: user.email, orgId, actorCapacity: "reacceptance" }));
-      if (notices.marketing) {
-        events.push({ eventType: EVENT_TYPES.MARKETING_CONSENT, userEmail: user.email, orgId, actorCapacity: "reacceptance" });
-      }
-      await recordLegalEvents(events);
+      await recordLegalAcceptanceBundle({
+        orgId: membership.org_id,
+        marketingOptIn: consent.marketing,
+      });
       toast.success("Notices recorded");
       navigate("/Dashboard");
     } catch (error) {
@@ -82,9 +111,49 @@ export default function LegalNotices() {
             </div>
           </div>
 
-          <PractitionerNoticesSection values={notices} onChange={handleChange} errors={errors} />
+          {isLoading ? (
+            <div className="flex items-center justify-center py-10 text-slate-500">
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Loading applicable instruments...
+            </div>
+          ) : (
+            <>
+              {memberships.length > 1 ? (
+                <div className="rounded-lg border border-slate-200 bg-white p-4">
+                  <label htmlFor="legal-practice-context" className="block text-sm font-medium text-slate-700 mb-2">
+                    Practice context
+                  </label>
+                  <select
+                    id="legal-practice-context"
+                    value={membership?.org_id || ""}
+                    onChange={(event) => handleMembershipChange(event.target.value)}
+                    className="w-full rounded-md border border-slate-300 bg-white px-3 py-2 text-sm"
+                  >
+                    {memberships.map((item) => (
+                      <option key={item.id || item.org_id} value={item.org_id}>
+                        {item.role === "owner" ? "Owner" : "Member"} · {item.org_id}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="mt-2 text-xs text-slate-500">
+                    Acceptance is recorded separately for each practice membership.
+                  </p>
+                </div>
+              ) : null}
+              <ConsentSection
+                values={consent}
+                onChange={handleChange}
+                error={errors.accepted || errors.context}
+                isFoundingOwner={membership?.role === "owner"}
+              />
+            </>
+          )}
 
-          <Button onClick={handleContinue} disabled={isSaving} className="w-full h-12 font-medium">
+          <Button
+            onClick={handleContinue}
+            disabled={isLoading || isSaving || !membership}
+            className="w-full h-12 font-medium"
+          >
             {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
             {isSaving ? "Recording..." : "Continue"}
           </Button>

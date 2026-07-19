@@ -111,7 +111,7 @@ export default function ImportToSOAPModal({ isOpen, onClose, protocolData, condi
         await base44.entities.SOAPNote.create({
           org_id: client.org_id,
           client_id: client.id,
-          note_date: today.toISOString(),
+          note_date: todayDateStr,
           plan: planText,
           status: 'draft',
           subjective: '',

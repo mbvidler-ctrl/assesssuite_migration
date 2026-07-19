@@ -85,7 +85,9 @@ export default function Consent({ data, onNext, onBack, canGoBack, isSubmitting,
         const mems = await base44.entities.OrganizationMember.filter({ user_email: user.email });
         const primary = (mems || []).find(m => m.is_primary) || (mems || [])[0];
         orgId = primary?.org_id;
-      } catch {}
+      } catch {
+        // A missing primary-practice lookup is handled by the guarded fallback below.
+      }
 
       if (orgId) {
         const all = await base44.entities.ClinicPolicy.list().catch(() => []);

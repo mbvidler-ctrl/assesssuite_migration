@@ -1,9 +1,10 @@
 # AssessSuite Acceptable Use Policy
 
-**Release status:** DRAFT — NOT APPROVED FOR PUBLICATION, ACCEPTANCE OR RELIANCE  
-**Effective date:** None  
-**Approved by:** None  
-**Version:** RC-2026.07.11
+**Release status:** APPROVED FOR PUBLICATION AND ACCEPTANCE WITH THE 19 JULY 2026 RELEASE
+**Effective date:** 19 July 2026
+**Publication authority:** Mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE, activated by Maxwell Vidler on 19 July 2026
+**Approved by:** Maxwell Vidler under mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE on 19 July 2026
+**Version:** RC-2026.07.19
 
 ## 1. Purpose
 
@@ -15,7 +16,7 @@ You may use the Service only:
 
 - for the Customer’s lawful professional and practice purposes;
 - within the user’s assigned organisation, role, competence and credential;
-- in the Approved Production Mode and Australian jurisdiction recorded for the subscription;
+- in the Approved Production Mode and in compliance with the Australian jurisdictional requirements applicable to the Customer and patient;
 - with the notices, consents, referrals, licences and permissions required for the information and content;
 - in accordance with the SaaS Terms, professional standards and applicable program rules.
 

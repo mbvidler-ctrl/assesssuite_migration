@@ -10,6 +10,7 @@ import { ClientReport } from "@/entities/ClientReport";
 import { Printer, Loader2, ChevronLeft, ChevronRight, X, Save, Edit } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
+import { SecureFileImage } from "@/components/files/SecureFile";
 import { Badge } from "@/components/ui/badge"; // Added Badge import for UI
 
 const PrintableReport = React.forwardRef(({ letterData, client, clinician }, ref) => {
@@ -87,7 +88,7 @@ const PrintableReport = React.forwardRef(({ letterData, client, clinician }, ref
 
       <div className="clinic-header">
         {clinician?.clinic_logo_url ? (
-          <img src={clinician.clinic_logo_url} alt="Clinic Logo" />
+          <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" />
         ) : (
           <h2 style={{ margin: 0, color: '#000' }}>{clinician?.clinic_name || ""}</h2>
         )}

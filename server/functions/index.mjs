@@ -27,6 +27,7 @@ import {
   createUpdateMe,
 } from './_shared.mjs';
 import { stripAuthFields } from './_auth-bridge.mjs';
+import { isInitialClinicalReleaseEligible } from '../clinicalRelease.mjs';
 
 import assignOrganizations from './assignOrganizations.mjs';
 import auditAssessmentIssues from './auditAssessmentIssues.mjs';
@@ -163,6 +164,9 @@ export default async function handleFunction(req, res, { functionName }) {
     }
     if (user.role !== 'admin' && user.account_status !== 'active') {
       return respond(res, 403, { error: 'account pending approval' });
+    }
+    if (user.role !== 'admin' && !isInitialClinicalReleaseEligible(user)) {
+      return respond(res, 403, { error: 'clinical access is not approved for this account profile' });
     }
   } else if (REQUIRES_SESSION.has(functionName)) {
     if (!user) {

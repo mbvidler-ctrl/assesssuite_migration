@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Printer, X, Download } from "lucide-react";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
+import { useSecureFileUrl } from "@/components/files/SecureFile";
 
 
 const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
@@ -10,6 +11,7 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
   const printRef = ref || localRef;
   const [medicalConditions, setMedicalConditions] = useState([]);
   const [clinicLogo, setClinicLogo] = useState("");
+  const secureClinicLogo = useSecureFileUrl(clinicLogo, client?.org_id);
 
   useEffect(() => {
     const loadData = async () => {
@@ -232,9 +234,9 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
         <div className="flex-1 overflow-y-auto p-8 print-content">
           {/* Header */}
           <div className="text-center border-b border-slate-900 pb-2 mb-3">
-            {clinicLogo && (
+            {secureClinicLogo && (
               <img 
-                src={clinicLogo} 
+                src={secureClinicLogo}
                 alt="Clinic Logo" 
                 className="mx-auto mb-1 max-h-10 print-logo"
               />

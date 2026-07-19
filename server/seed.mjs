@@ -43,6 +43,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openDatabase, createEntityRepository } from './db.mjs';
 import { hashPassword } from './auth.mjs';
 import { buildDass21Payload } from '../src/lib/clinical/dass21.js';
+import {
+  CONTRACT_BUNDLE_IDS,
+  LEGAL_DOCUMENTS,
+  PRACTITIONER_NOTICE_IDS,
+  SUITE_VERSION,
+  fingerprint as legalContentFingerprint,
+  isLegalDocumentPublicationApproved,
+} from '../src/lib/legal/documentRegistry.js';
+import { effectiveLegalContent } from '../src/lib/legal/effectiveContent.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
@@ -486,7 +495,7 @@ export function runSeed({ db, entityNames }) {
 
   function seedUser({
     email, full_name, clinician_name, qualifications, registration_number,
-    clinic_name, clinic_address, clinic_phone, clinic_email, profession, provider_number,
+    clinic_name, clinic_address, clinic_phone, clinic_email, profession, country, provider_number,
   }) {
     const { password_hash, salt } = hashPassword(SEED_PASSWORD);
     const { record, created } = findOrCreate(
@@ -509,6 +518,7 @@ export function runSeed({ db, entityNames }) {
         clinic_phone,
         clinic_email,
         profession,
+        country,
         provider_number,
         last_active: new Date().toISOString(),
       },
@@ -531,35 +541,48 @@ export function runSeed({ db, entityNames }) {
     return record;
   }
 
-  // Seeded demo users represent already-onboarded clinicians, so they need
-  // the mandatory practitioner-notice events ProfileSetup would have written
-  // — otherwise every seeded user would trip the new legal-acceptance gate
-  // (server/index.mjs hasCurrentLegalAcceptance) despite being an
-  // established account. Version/event-type list mirrors
-  // src/lib/legal/documentRegistry.js — keep both in sync.
-  const LEGAL_SUITE_VERSION = 'RC-2026.07.11';
-  const REQUIRED_NOTICE_EVENT_TYPES = [
-    'collection_notice_acknowledgement',
-    'professional_use_acknowledgement',
-    'ai_transparency_consent',
-  ];
-  function seedLegalAcceptance(org, user) {
-    for (const event_type of REQUIRED_NOTICE_EVENT_TYPES) {
+  // Demo acceptance fixtures are derived from the same registry and exact
+  // runtime presentation transform as production. Owners receive the full
+  // eight-document bundle; clinicians receive the three practitioner notices.
+  function seedLegalAcceptance(org, user, role) {
+    const documentIds = role === 'owner'
+      ? [...PRACTITIONER_NOTICE_IDS, ...CONTRACT_BUNDLE_IDS]
+      : [...PRACTITIONER_NOTICE_IDS];
+    for (const documentId of documentIds) {
+      const document = LEGAL_DOCUMENTS[documentId];
+      if (!isLegalDocumentPublicationApproved(document)) {
+        throw new Error(`Mandatory legal document is not approved for publication: ${documentId}`);
+      }
+      const raw = fs.readFileSync(path.join(repoRoot, 'src', 'legal-content', document.file), 'utf8');
+      const displayed = effectiveLegalContent(raw, {
+        status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',
+        effectiveDate: process.env.LEGAL_EFFECTIVE_DATE || null,
+      });
+      const documentFingerprint = legalContentFingerprint(displayed);
       findOrCreate(
         'LegalAcceptanceEvent',
         (e) => e.org_id === org.id && e.user_email === user.email
-          && e.event_type === event_type && e.suite_version === LEGAL_SUITE_VERSION,
+          && e.event_type === document.eventType
+          && e.suite_version === SUITE_VERSION
+          && e.document_id === documentId
+          && e.document_fingerprint === documentFingerprint,
         {
-          event_type,
+          event_type: document.eventType,
           user_email: user.email,
           org_id: org.id,
-          suite_version: LEGAL_SUITE_VERSION,
-          actor_capacity: 'seed fixture',
+          suite_version: SUITE_VERSION,
+          actor_capacity: role === 'owner' ? 'practice owner' : 'invited clinician',
+          document_id: documentId,
+          document_title: document.title,
+          document_fingerprint: documentFingerprint,
+          session_context: null,
+          user_agent: 'server-derived-seed-fixture',
+          ip_address: 'not-collected-local-shim',
         },
         user.email,
       );
     }
-    note(`LegalAcceptanceEvent (mandatory notices) seeded for ${user.email}`);
+    note(`LegalAcceptanceEvent (${documentIds.length}-document bundle) seeded for ${user.email}`);
   }
 
   // -------------------------------------------------------------------------
@@ -843,6 +866,7 @@ export function runSeed({ db, entityNames }) {
       full_name: 'Local Administrator',
       clinician_name: 'Local Administrator',
       profession: 'Exercise Physiologist',
+      country: 'australia',
       role: 'admin',
       account_status: 'active',
       subscription_status: 'active',
@@ -884,6 +908,7 @@ export function runSeed({ db, entityNames }) {
     clinic_phone: '07 3111 1111',
     clinic_email: 'reception@org-alpha.seed.test',
     profession: 'Exercise Physiologist',
+    country: 'australia',
     provider_number: 'PRV-ALPHA-001',
   });
   const alphaClinician = seedUser({
@@ -897,6 +922,7 @@ export function runSeed({ db, entityNames }) {
     clinic_phone: '07 3111 1111',
     clinic_email: 'reception@org-alpha.seed.test',
     profession: 'Exercise Physiologist',
+    country: 'australia',
     provider_number: 'PRV-ALPHA-002',
   });
   const betaOwner = seedUser({
@@ -910,6 +936,7 @@ export function runSeed({ db, entityNames }) {
     clinic_phone: '07 3222 2222',
     clinic_email: 'reception@org-beta.seed.test',
     profession: 'Exercise Physiologist',
+    country: 'australia',
     provider_number: 'PRV-BETA-001',
   });
   const betaClinician = seedUser({
@@ -923,6 +950,7 @@ export function runSeed({ db, entityNames }) {
     clinic_phone: '07 3222 2222',
     clinic_email: 'reception@org-beta.seed.test',
     profession: 'Exercise Physiologist',
+    country: 'australia',
     provider_number: 'PRV-BETA-002',
   });
 
@@ -933,10 +961,10 @@ export function runSeed({ db, entityNames }) {
   seedOrgMember(orgBeta, betaClinician, 'clinician');
 
   // --- Legal acceptance (mandatory practitioner notices) ---
-  seedLegalAcceptance(orgAlpha, alphaOwner);
-  seedLegalAcceptance(orgAlpha, alphaClinician);
-  seedLegalAcceptance(orgBeta, betaOwner);
-  seedLegalAcceptance(orgBeta, betaClinician);
+  seedLegalAcceptance(orgAlpha, alphaOwner, 'owner');
+  seedLegalAcceptance(orgAlpha, alphaClinician, 'clinician');
+  seedLegalAcceptance(orgBeta, betaOwner, 'owner');
+  seedLegalAcceptance(orgBeta, betaClinician, 'clinician');
 
   // --- Catalogues (only if empty) --- shared core with the production
   // catalogue-only seed (runCatalogueSeed) so the two paths cannot drift.

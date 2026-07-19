@@ -47,6 +47,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Must match uploadsDir in server/integrations.mjs (where handleUploadFile
 // writes) and server/index.mjs (which serves GET /uploads/*).
 const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads');
+let authorisedUploadResolver = null;
+
+/**
+ * Configured by server/index.mjs with the process's tenant-aware upload
+ * registry. Kept as dependency injection so this function never opens a
+ * second database or infers tenancy from a filename.
+ */
+export function configureUploadResolver(resolver) {
+  authorisedUploadResolver = typeof resolver === 'function' ? resolver : null;
+}
 
 const TRANSCRIBE_URL = 'https://api.openai.com/v1/audio/transcriptions';
 // whisper-1 is the single well-known dedicated audio model (~USD 0.006 per
@@ -85,30 +95,14 @@ function realPathEnabled() {
  * and a final containment check that the resolved path is exactly
  * uploadsDir + separator + name.
  */
-function resolveUploadPath(audioUrl) {
-  if (typeof audioUrl !== 'string' || !audioUrl) return null;
-  let pathname;
-  try {
-    pathname = decodeURIComponent(new URL(audioUrl, 'http://localhost').pathname);
-  } catch {
-    return null;
-  }
-  if (!pathname.startsWith('/uploads/')) return null;
-  const name = pathname.slice('/uploads/'.length);
-  if (
-    !name ||
-    name.includes('/') ||
-    name.includes('\\') ||
-    name.includes('..') ||
-    name.includes('\0')
-  ) {
-    return null;
-  }
-  const resolved = path.resolve(uploadsDir, name);
-  if (resolved !== path.join(uploadsDir, name)) return null;
-  const rel = path.relative(uploadsDir, resolved);
-  if (rel !== name) return null;
-  return resolved;
+function resolveUploadPath(audioUrl, { user, orgId }) {
+  if (!authorisedUploadResolver || !user || typeof orgId !== 'string' || !orgId) return null;
+  const resolved = authorisedUploadResolver({ audioUrl, user, orgId });
+  if (typeof resolved !== 'string') return null;
+  const root = path.resolve(uploadsDir);
+  const candidate = path.resolve(resolved);
+  if (path.dirname(candidate) !== root) return null;
+  return candidate;
 }
 
 async function transcribeWithOpenAI(filePath) {
@@ -216,24 +210,25 @@ export default async function transcribeSession(ctx) {
   }
 
   if (action === 'transcribe') {
-    const { audio_url } = body || {};
+    const { audio_url, org_id: orgId } = body || {};
+    const filePath = resolveUploadPath(audio_url, { user: ctx.user, orgId });
+    if (!filePath) {
+      return respond(404, { error: 'audio file not found' });
+    }
 
     if (realPathEnabled()) {
       try {
-        const filePath = resolveUploadPath(audio_url);
-        if (!filePath) {
-          throw new Error(`audio_url does not resolve to a stored upload: ${String(audio_url).slice(0, 120)}`);
-        }
-        if (!fs.existsSync(filePath) || !fs.statSync(filePath).isFile()) {
-          throw new Error(`uploaded audio file not found: ${path.basename(filePath)}`);
+        const stat = fs.lstatSync(filePath);
+        if (!stat.isFile() || stat.isSymbolicLink()) {
+          return respond(404, { error: 'audio file not found' });
         }
         const text = await transcribeWithOpenAI(filePath);
         // Defence in depth: demo audio is synthetic, but the transcript is
         // user-visible and is sent back out to the model by dissect_to_soap.
         const { text: safeText } = deidentify(text);
         return respond(200, { transcript: safeText });
-      } catch (err) {
-        console.log('[transcribeSession] real transcription failed, falling back to mock:', err.message);
+      } catch {
+        return respond(502, { error: 'Audio transcription is temporarily unavailable.' });
       }
     }
 

@@ -3,24 +3,14 @@ import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, ShieldCheck } from "lucide-react";
 import LegalMarkdown from "@/components/legal/LegalMarkdown";
 import ReleaseStatusBanner from "@/components/legal/ReleaseStatusBanner";
-import { getLegalDocumentBySlug, SUITE_VERSION } from "@/lib/legal/documentRegistry";
+import {
+  getLegalDocumentBySlug,
+  isLegalDocumentPublicationApproved,
+  SUITE_VERSION,
+} from "@/lib/legal/documentRegistry";
 import { loadLegalContent } from "@/lib/legal/loadContent";
+import { effectiveLegalContent } from "@/lib/legal/effectiveContent";
 import { useAuth } from "@/lib/AuthContext";
-
-// When Maxwell flips the deployment to effective (LEGAL_STATUS=effective via
-// public settings), the RC banner is replaced with the effective-status line
-// and the markdown's own DRAFT header lines are overridden at render time.
-// INVARIANT: SUITE_VERSION stays RC-2026.07.11 — it is the immutable content
-// identifier recorded in acceptance events; the flip is display-only.
-function applyEffectiveHeaders(content, effectiveDate) {
-  // Trailing two spaces preserve the markdown hard line break — the source
-  // header lines use it so each metadata line renders on its own line; dropping
-  // it would collapse them into one paragraph.
-  return content
-    .replace(/^\*\*Release status:\*\*.*$/m, "**Release status:** Effective  ")
-    .replace(/^\*\*Effective date:\*\*.*$/m, `**Effective date:** ${effectiveDate}  `)
-    .replace(/^\*\*Approved by:\*\*.*$/m, "**Approved by:** Assess Suite Pty Ltd  ");
-}
 
 // Public, unauthenticated route: /legal/:slug. Single source of truth for
 // every instrument in Group A (published, no login required) and the full
@@ -30,7 +20,7 @@ export default function LegalDocument() {
   const doc = getLegalDocumentBySlug(slug);
   const { appPublicSettings } = useAuth();
   const legal = appPublicSettings?.public_settings?.legal;
-  const isEffective = legal?.status === "effective";
+  const suiteIsEffective = legal?.status === "effective";
   const effectiveDate = legal?.effective_date || null;
 
   if (!doc) {
@@ -44,8 +34,13 @@ export default function LegalDocument() {
     );
   }
 
+  const isEffective = suiteIsEffective && isLegalDocumentPublicationApproved(doc);
+
   const rawContent = loadLegalContent(doc.file);
-  const content = isEffective && effectiveDate ? applyEffectiveHeaders(rawContent, effectiveDate) : rawContent;
+  const content = effectiveLegalContent(rawContent, {
+    status: isEffective ? "effective" : "rc",
+    effectiveDate,
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 py-10 px-4">
@@ -58,7 +53,7 @@ export default function LegalDocument() {
           <div className="flex items-start gap-3 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3 mb-6">
             <ShieldCheck className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
             <div className="text-sm text-slate-700">
-              <p className="font-semibold">Version 1.0 — Effective {effectiveDate}</p>
+              <p className="font-semibold">Current legal suite — Effective {effectiveDate}</p>
               <p className="text-slate-500 mt-0.5">Document identifier {SUITE_VERSION}</p>
             </div>
           </div>

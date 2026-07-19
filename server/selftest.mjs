@@ -5,9 +5,12 @@
 
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
+
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverEntry = path.join(__dirname, 'index.mjs');
@@ -52,14 +55,21 @@ async function main() {
   const port = await getFreePort();
   const baseUrl = `http://localhost:${port}`;
   const appId = 'selftest-app';
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'assesssuite-selftest-'));
+  const uploadsDir = path.join(tempRoot, 'uploads');
+  fs.mkdirSync(uploadsDir, { recursive: true });
 
   const child = spawn(process.execPath, [serverEntry], {
     env: {
       ...process.env,
       SELFTEST: '1',
+      NODE_ENV: 'test',
+      ASSESSSUITE_DB_PATH_ACK: 'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_NON_PRODUCTION_GATE_DATABASE',
       PORT: String(port),
       ADMIN_EMAIL: 'admin@local.test',
       ADMIN_PASSWORD: 'change-me-local',
+      ASSESSSUITE_DB_PATH: path.join(tempRoot, 'selftest.db'),
+      UPLOADS_DIR: uploadsDir,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -76,6 +86,8 @@ async function main() {
   if (!up) {
     console.error('Server failed to start within timeout. Output so far:\n', serverOutput);
     child.kill();
+    await once(child, 'exit').catch(() => {});
+    fs.rmSync(tempRoot, { recursive: true, force: true });
     process.exit(1);
   }
 
@@ -87,6 +99,7 @@ async function main() {
   } finally {
     child.kill();
     await once(child, 'exit').catch(() => {});
+    fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 
   console.log('');
@@ -125,19 +138,15 @@ async function api(baseUrl, appId, methodPath, { method = 'GET', token, body } =
 // hasCurrentLegalAcceptance), mirroring the real ProfileSetup flow. The caller
 // must already hold membership in orgId (LegalAcceptanceEvent is org-scoped),
 // so call this AFTER the fixture's OrganizationMember row exists.
-const LEGAL_SUITE_VERSION = 'RC-2026.07.11';
 async function seedRequiredLegalAcceptance(baseUrl, appId, token, email, orgId) {
-  const eventTypes = [
-    'collection_notice_acknowledgement',
-    'professional_use_acknowledgement',
-    'ai_transparency_consent',
-  ];
-  for (const event_type of eventTypes) {
-    await api(baseUrl, appId, `/api/apps/${appId}/entities/LegalAcceptanceEvent`, {
-      method: 'POST',
-      token,
-      body: { event_type, user_email: email, org_id: orgId, suite_version: LEGAL_SUITE_VERSION, actor_capacity: 'selftest fixture' },
-    });
+  const result = await api(
+    baseUrl,
+    appId,
+    `/api/apps/${appId}/integration-endpoints/Core/RecordLegalAcceptanceBundle`,
+    { method: 'POST', token, body: { org_id: orgId, marketing_opt_in: false } },
+  );
+  if (result.status !== 200) {
+    throw new Error(`Failed to seed server-derived legal bundle for ${email}: ${JSON.stringify(result.body)}`);
   }
 }
 
@@ -478,7 +487,11 @@ async function runChecks(baseUrl, appId) {
         await api(baseUrl, appId, `/api/apps/${appId}/entities/User/${fixtureUser.id}`, {
           method: 'PUT',
           token: adminToken,
-          body: { account_status: 'active' },
+          body: {
+            account_status: 'active',
+            country: 'australia',
+            profession: 'Exercise Physiologist',
+          },
         });
       }
     }
@@ -759,7 +772,11 @@ async function runChecks(baseUrl, appId) {
     await api(baseUrl, appId, `/api/apps/${appId}/entities/User/${pendingUserRecord.id}`, {
       method: 'PUT',
       token: adminToken,
-      body: { account_status: 'active' },
+      body: {
+        account_status: 'active',
+        country: 'australia',
+        profession: 'Exercise Physiologist',
+      },
     });
     const { status: postApprovalStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
       token: pendingToken,
@@ -866,7 +883,12 @@ async function runChecks(baseUrl, appId) {
       method: 'POST', token: userAToken, body: { name: `Founded by A ${Date.now()}` },
     });
     const { status: foundStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/OrganizationMember`, {
-      method: 'POST', token: userAToken, body: { user_email: emailA, org_id: newOrg.id, is_primary: false },
+      method: 'POST', token: userAToken, body: {
+        user_email: emailA,
+        org_id: newOrg.id,
+        role: 'owner',
+        is_primary: true,
+      },
     });
     record('founding a membership in a new empty org is allowed', foundStatus === 200, `status=${foundStatus}`);
     // bulkUpdate must not relocate an own record into a foreign org.
@@ -1347,20 +1369,26 @@ async function runChecks(baseUrl, appId) {
     record('GenerateImage returns {url}', status === 200 && typeof body?.url === 'string', `status=${status} body=${JSON.stringify(body)}`);
   }
 
-  // --- UploadFile round trip through the served /uploads/ URL ---
+  // --- UploadFile round trip through authenticated secure-file delivery ---
   let uploadedFileUrl = null;
   {
     const boundary = `----selftestBoundary${Date.now()}`;
-    const fileContent = 'selftest upload content';
+    const fileContent = '%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF';
     const multipartBody =
       `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="file"; filename="selftest.txt"\r\n` +
-      `Content-Type: text/plain\r\n\r\n` +
+      `Content-Disposition: form-data; name="org_id"\r\n\r\n${orgAId}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="purpose"\r\n\r\nreferral-extraction\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="subject_date_of_birth"\r\n\r\n2000-01-01\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="selftest.pdf"\r\n` +
+      `Content-Type: application/pdf\r\n\r\n` +
       `${fileContent}\r\n` +
       `--${boundary}--\r\n`;
     const res = await fetch(`${baseUrl}/api/apps/${appId}/integration-endpoints/Core/UploadFile`, {
       method: 'POST',
-      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'X-App-Id': appId, Authorization: `Bearer ${adminToken}` },
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'X-App-Id': appId, Authorization: `Bearer ${userAToken}` },
       body: multipartBody,
     });
     const body = await res.json().catch(() => null);
@@ -1372,17 +1400,19 @@ async function runChecks(baseUrl, appId) {
     );
 
     if (uploadedFileUrl) {
-      const servedRes = await fetch(`${baseUrl}${uploadedFileUrl}`);
+      const servedRes = await fetch(`${baseUrl}${uploadedFileUrl}`, {
+        headers: { Authorization: `Bearer ${userAToken}` },
+      });
       const servedText = await servedRes.text().catch(() => '');
       record(
-        'uploaded file is retrievable via the served /uploads/ URL',
+        'uploaded file is retrievable only through authenticated secure-file delivery',
         servedRes.status === 200 && servedText === fileContent,
         `status=${servedRes.status} text=${JSON.stringify(servedText)}`,
       );
     }
   }
 
-  // --- ExtractDataFromUploadedFile happy path ---
+  // --- ExtractDataFromUploadedFile remains fail-closed while disabled ---
   {
     const schema = {
       type: 'object',
@@ -1395,14 +1425,20 @@ async function runChecks(baseUrl, appId) {
       baseUrl,
       appId,
       `/api/apps/${appId}/integration-endpoints/Core/ExtractDataFromUploadedFile`,
-      { method: 'POST', token: adminToken, body: { file_url: uploadedFileUrl, json_schema: schema } },
+      {
+        method: 'POST',
+        token: userAToken,
+        body: {
+          file_url: uploadedFileUrl,
+          org_id: orgAId,
+          json_schema: schema,
+          processing_authority_confirmed: true,
+        },
+      },
     );
     record(
-      'ExtractDataFromUploadedFile returns {status, output} honouring json_schema',
-      status === 200 &&
-        body?.status === 'success' &&
-        typeof body?.output?.full_name === 'string' &&
-        Array.isArray(body?.output?.comorbidities),
+      'ExtractDataFromUploadedFile fails closed when document extraction is disabled',
+      status === 503 && body?.status === 'error' && typeof body?.details === 'string',
       `status=${status} body=${JSON.stringify(body)}`,
     );
   }

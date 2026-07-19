@@ -9,9 +9,9 @@
 #   - ALLOW_OPEN_REGISTRATION=1: self-signup is open (the image carries the
 #     hardened OTP flow — random expiring codes, lockout, real email; the
 #     fixed 000000 code is accepted only under SELFTEST).
-#   - Registration/transcription/legal posture comes from env + secrets:
-#     TRANSCRIPTION_ENABLED unset (off for users at launch);
-#     LEGAL_STATUS unset (RC banners) until Maxwell's go-live flip.
+#   - Registration/transcription/legal posture comes from reviewed env:
+#     TRANSCRIPTION_ENABLED=0 (off for this bounded release);
+#     LEGAL_STATUS and LEGAL_EFFECTIVE_DATE are immutable release metadata.
 #
 # TOPOLOGY CONSTRAINT (do not "fix"): one machine, one volume. SQLite on a
 # single volume cannot scale out (a second machine would get an EMPTY volume
@@ -23,8 +23,7 @@
 #   ADMIN_PASSWORD (strong — the repo default is public), RESEND_API_KEY,
 #   APP_URL, OPENAI_API_KEY (real AI; unset = mock content served in prod), and
 #   at go-live STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET /
-#   STRIPE_PRICE_ID_MONTHLY / STRIPE_PRICE_ID_ANNUAL, LEGAL_STATUS,
-#   LEGAL_EFFECTIVE_DATE.
+#   STRIPE_PRICE_ID_MONTHLY / STRIPE_PRICE_ID_ANNUAL.
 # The full required set is asserted by scripts/check-production-secrets.mjs
 # (`npm run check:prod-secrets`) — run before every deploy; `npm run deploy:prod`
 # runs it as a hard gate. Fly secrets are PER-APP and never cross between apps.
@@ -44,6 +43,16 @@ primary_region = "syd"
   ADMIN_EMAIL = "admin@assesssuite.com"
   UPLOADS_DIR = "/app/server/data/uploads"
   LLM_REQUIRED = "1"
+  # This release authorises only the bounded referral/document-extraction
+  # path. Legacy general clinical generation remains server-disabled until a
+  # separate function-level decision and release gate are completed.
+  GENERAL_CLINICAL_LLM_ENABLED = "0"
+  TRANSCRIPTION_ENABLED = "0"
+  DOCUMENT_EXTRACTION_ENABLED = "1"
+  OPENAI_HEALTH_DATA_TERMS_CONFIRMED = "1"
+  DOCUMENT_EXTRACTION_UNDER_13_ENABLED = "0"
+  LEGAL_STATUS = "effective"
+  LEGAL_EFFECTIVE_DATE = "19 July 2026"
 
 [mounts]
   source = "assesssuite_data"

@@ -1,9 +1,10 @@
 # AssessSuite Clinical Use and Professional Responsibility Notice
 
-**Release status:** DRAFT — NOT APPROVED FOR PUBLICATION, ACCEPTANCE OR RELIANCE  
-**Effective date:** None  
-**Approved by:** None  
-**Version:** RC-2026.07.11
+**Release status:** APPROVED FOR PUBLICATION AND ACCEPTANCE WITH THE 19 JULY 2026 RELEASE
+**Effective date:** 19 July 2026
+**Publication authority:** Mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE, activated by Maxwell Vidler on 19 July 2026
+**Approved by:** Maxwell Vidler under mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE on 19 July 2026
+**Version:** RC-2026.07.19
 
 ## 1. Who may use clinical functions
 
@@ -13,7 +14,7 @@ An account or credential check does not establish competence for every patient, 
 
 ## 2. Approved functions only
 
-Clinical functions may be used only in the Approved Production Mode identified in the Customer Order Form and Approved Production Mode Schedule and the Regulatory Status and Funder Rules Schedule. Demo, synthetic-data, beta, disabled or unclassified functions must not be used for real patient care.
+Clinical functions may be used only in the Approved Production Mode identified in the applicable Order Form (including the Standard Online Order defined in the Practitioner and Clinic SaaS Terms), immutable release manifest and Regulatory Status and Funder Rules Schedule. Demo, synthetic-data, beta, disabled or unclassified functions must not be used for real patient care.
 
 The following functions require specific regulatory and clinical release approval before production use:
 

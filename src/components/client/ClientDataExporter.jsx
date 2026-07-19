@@ -7,7 +7,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Download, Loader2, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import jsPDF from "jspdf";
 
 export default function ClientDataExporter({ client, isOpen, onClose }) {
   const [isExporting, setIsExporting] = useState(false);

@@ -1,11 +1,18 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  cancelTenantUploads,
+  DOCUMENT_EXTRACTION_MAX_FILES,
+  extractTenantDocumentData,
+  uploadTenantFile,
+} from '@/lib/fileIntegrations';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -107,6 +114,59 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [pendingHistoricalAssessments, setPendingHistoricalAssessments] = useState([]);
+  const [organizationOptions, setOrganizationOptions] = useState([]);
+  const [selectedOrgId, setSelectedOrgId] = useState('');
+  const [subjectDateOfBirth, setSubjectDateOfBirth] = useState('');
+  const [processingAuthorityConfirmed, setProcessingAuthorityConfirmed] = useState(false);
+  const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadOrganizations = async () => {
+      setIsLoadingOrganizations(true);
+      try {
+        const currentUser = await base44.auth.me();
+        const memberships = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email });
+        const options = await Promise.all((memberships || []).map(async (membership) => {
+          try {
+            const organization = await base44.entities.Organization.get(membership.org_id);
+            return {
+              id: membership.org_id,
+              name: organization?.name || membership.org_id,
+              isPrimary: membership.is_primary === true,
+            };
+          } catch {
+            return {
+              id: membership.org_id,
+              name: membership.org_id,
+              isPrimary: membership.is_primary === true,
+            };
+          }
+        }));
+
+        if (cancelled) return;
+        setOrganizationOptions(options);
+        setSelectedOrgId((current) => {
+          if (options.some((option) => option.id === current)) return current;
+          return options.length === 1 ? options[0].id : '';
+        });
+      } catch {
+        if (!cancelled) {
+          setOrganizationOptions([]);
+          setSelectedOrgId('');
+          toast.error('Unable to verify your practice membership.');
+        }
+      } finally {
+        if (!cancelled) setIsLoadingOrganizations(false);
+      }
+    };
+
+    loadOrganizations();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleFileChange = (e) => {
     const selectedFiles = Array.from(e.target.files);
@@ -120,17 +180,59 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
       return true;
     });
 
+    if (files.length + validFiles.length > DOCUMENT_EXTRACTION_MAX_FILES) {
+      toast.error(`Select no more than ${DOCUMENT_EXTRACTION_MAX_FILES} documents for one extraction.`);
+      e.target.value = '';
+      return;
+    }
+
     if (validFiles.length > 0) {
       setFiles(prev => [...prev, ...validFiles]);
       setExtractedData(null);
       setEditedData({});
       setMatchingClients([]);
       setSelectedExistingClient(null);
+      setProcessingAuthorityConfirmed(false);
     }
   };
 
   const removeFile = (index) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
+    setProcessingAuthorityConfirmed(false);
+  };
+
+  const scheduleCancellation = async (filesToCancel = uploadedFiles) => {
+    const uploadIds = filesToCancel.map((file) => file.uploadId).filter(Boolean);
+    if (!selectedOrgId || uploadIds.length === 0) return;
+    await cancelTenantUploads({ org_id: selectedOrgId, upload_ids: uploadIds });
+  };
+
+  const handleCancelReview = async () => {
+    setShowReviewModal(false);
+    try {
+      await scheduleCancellation();
+      resetForm();
+    } catch {
+      toast.warning('The review was closed. Temporary files remain scheduled for automatic expiry.');
+    }
+  };
+
+  const handleOrganizationChange = (nextOrgId) => {
+    const previousOrgId = selectedOrgId;
+    const uploadIds = uploadedFiles.map((file) => file.uploadId).filter(Boolean);
+    if (previousOrgId && uploadIds.length > 0) {
+      void cancelTenantUploads({ org_id: previousOrgId, upload_ids: uploadIds }).catch(() => {
+        toast.warning('Temporary files from the previous practice remain scheduled for automatic expiry.');
+      });
+    }
+    resetForm();
+    setShowReviewModal(false);
+    setSelectedOrgId(nextOrgId);
+  };
+
+  const handleReviewOpenChange = (open) => {
+    if (open) setShowReviewModal(true);
+    else void handleCancelReview();
   };
 
   const handleUploadAndExtract = async () => {
@@ -138,14 +240,35 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
       toast.error('Please select at least one file');
       return;
     }
+    if (files.length > DOCUMENT_EXTRACTION_MAX_FILES) {
+      toast.error(`Select no more than ${DOCUMENT_EXTRACTION_MAX_FILES} documents for one extraction.`);
+      return;
+    }
+    if (!selectedOrgId) {
+      toast.error('Please select the practice that owns this referral.');
+      return;
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(subjectDateOfBirth)) {
+      toast.error('Enter the patient date of birth so the server can enforce the provider age gate.');
+      return;
+    }
+    if (!processingAuthorityConfirmed) {
+      toast.error('Confirm the practice has documented authority for this referral processing.');
+      return;
+    }
 
     setIsUploading(true);
+    const uploadedFilesData = [];
     try {
       // Upload all files
-      const uploadedFilesData = [];
       for (const file of files) {
-        const { file_url } = await base44.integrations.Core.UploadFile({ file });
-        uploadedFilesData.push({ url: file_url, name: file.name });
+        const { file_url, upload_id } = await uploadTenantFile({
+          file,
+          org_id: selectedOrgId,
+          purpose: 'referral-extraction',
+          subject_date_of_birth: subjectDateOfBirth,
+        });
+        uploadedFilesData.push({ url: file_url, uploadId: upload_id, name: file.name });
       }
       
       // Store file URLs and names for later saving
@@ -154,45 +277,26 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
       setIsUploading(false);
       setIsExtracting(true);
 
-      // Extract data from all files - pass all URLs for context
+      // The server authorises the complete ordered set before the first
+      // provider call and performs the deterministic primary/fill-empty merge.
       const fileUrls = uploadedFilesData.map(f => f.url);
-      const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-        file_url: fileUrls[0], // Primary file for extraction
-        json_schema: REFERRAL_EXTRACTION_SCHEMA
+      const result = await extractTenantDocumentData({
+        org_id: selectedOrgId,
+        file_urls: fileUrls,
+        json_schema: REFERRAL_EXTRACTION_SCHEMA,
+        processing_authority_confirmed: true,
       });
 
-      // If multiple files, also try to extract from others and merge
-      let mergedData = result.status === 'success' ? result.output : {};
-      
-      if (fileUrls.length > 1) {
-        for (let i = 1; i < fileUrls.length; i++) {
-          try {
-            const additionalResult = await base44.integrations.Core.ExtractDataFromUploadedFile({
-              file_url: fileUrls[i],
-              json_schema: REFERRAL_EXTRACTION_SCHEMA
-            });
-            if (additionalResult.status === 'success' && additionalResult.output) {
-              // Merge: only fill in empty fields from additional docs
-              Object.keys(additionalResult.output).forEach(key => {
-                if (!mergedData[key] || mergedData[key] === '' || mergedData[key] === null) {
-                  mergedData[key] = additionalResult.output[key];
-                } else if (key === 'comorbidities' && Array.isArray(additionalResult.output[key])) {
-                  // Merge arrays
-                  mergedData[key] = [...new Set([...(mergedData[key] || []), ...additionalResult.output[key]])];
-                }
-              });
-            }
-          } catch (err) {
-            console.log('Could not extract from additional file:', err);
-          }
-        }
-      }
-
-      if (result.status === 'error' && Object.keys(mergedData).length === 0) {
-        toast.error(`Failed to extract data: ${result.details}`);
-        setIsExtracting(false);
+      if (result?.status !== 'success' || !result.output || typeof result.output !== 'object') {
+        const details = typeof result?.details === 'string'
+          ? result.details
+          : 'The referral could not be extracted. No client data was changed.';
+        await scheduleCancellation(uploadedFilesData).catch(() => {});
+        toast.error(details);
         return;
       }
+
+      const mergedData = result.output;
 
       setExtractedData(mergedData);
       setEditedData(mergedData);
@@ -212,6 +316,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
       // Check for matching clients - stricter matching criteria
       if (mergedData.full_name && mergedData.date_of_birth) {
         const matches = existingClients.filter(client => {
+          if (client.org_id !== selectedOrgId) return false;
           // Both name AND DOB must match for a valid match
           const normalizedExtractedName = mergedData.full_name?.toLowerCase().trim();
           const normalizedClientName = client.full_name?.toLowerCase().trim();
@@ -241,8 +346,13 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
       toast.success(`Data extracted from ${files.length} file(s)! Please review.`);
 
     } catch (error) {
-      console.error('Error processing documents:', error);
-      toast.error('Failed to process documents');
+      await scheduleCancellation(uploadedFilesData).catch(() => {});
+      const status = error?.response?.status;
+      console.warn('Referral processing failed', status ? { status } : undefined);
+      const details = error?.response?.data?.details;
+      toast.error(typeof details === 'string'
+        ? details
+        : 'The referral could not be processed. No client data was changed.');
     } finally {
       setIsUploading(false);
       setIsExtracting(false);
@@ -304,33 +414,14 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
         }
       });
 
-      // Ensure user has an organization
-      const currentUser = await base44.auth.me();
-      let memberships = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email });
-      
-      let orgId;
-      if (memberships.length === 0) {
-        // Auto-create organization for user
-        const newOrg = await base44.entities.Organization.create({
-          name: `${currentUser.full_name || currentUser.email}'s Clinic`
-        });
-        
-        await base44.entities.OrganizationMember.create({
-          org_id: newOrg.id,
-          user_email: currentUser.email,
-          role: 'owner',
-          is_primary: true
-        });
-        
-        orgId = newOrg.id;
-      } else {
-        const primaryMembership = memberships.find(m => m.is_primary) || memberships[0];
-        orgId = primaryMembership.org_id;
+      if (!selectedOrgId || !organizationOptions.some((option) => option.id === selectedOrgId)) {
+        throw new Error('Practice membership is no longer available.');
       }
+      const currentUser = await base44.auth.me();
 
       const newClient = await base44.entities.Client.create({
         ...clientData,
-        org_id: orgId,
+        org_id: selectedOrgId,
         assigned_clinician_email: currentUser.email
       });
       
@@ -415,6 +506,10 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
       return;
     }
     if (isSubmitting) return;
+    if (selectedExistingClient.org_id !== selectedOrgId) {
+      toast.error('The selected client does not belong to the referral practice.');
+      return;
+    }
     setIsSubmitting(true);
 
     try {
@@ -480,6 +575,8 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
     setExtractedConditions([]);
     setUploadedFiles([]);
     setPendingHistoricalAssessments([]);
+    setSubjectDateOfBirth('');
+    setProcessingAuthorityConfirmed(false);
   };
 
   const fundingLabels = {
@@ -515,6 +612,61 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="referral-organization">Owning practice</Label>
+              <Select
+                value={selectedOrgId}
+                onValueChange={handleOrganizationChange}
+                disabled={isLoadingOrganizations || organizationOptions.length === 0 || isUploading || isExtracting}
+              >
+                <SelectTrigger id="referral-organization">
+                  <SelectValue placeholder={isLoadingOrganizations ? 'Loading practices...' : 'Select a practice'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {organizationOptions.map((option) => (
+                    <SelectItem key={option.id} value={option.id}>
+                      {option.name}{option.isPrimary ? ' (primary)' : ''}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!isLoadingOrganizations && organizationOptions.length === 0 && (
+                <p className="text-xs text-red-600">A current practice membership is required before upload.</p>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="referral-date-of-birth">Patient date of birth</Label>
+              <Input
+                id="referral-date-of-birth"
+                type="date"
+                value={subjectDateOfBirth}
+                max={todayLocal()}
+                onChange={(event) => {
+                  setSubjectDateOfBirth(event.target.value);
+                  setProcessingAuthorityConfirmed(false);
+                }}
+                disabled={isUploading || isExtracting}
+              />
+              <p className="text-xs text-slate-500">
+                The server calculates the age category. Paediatric care remains supported; provider processing under 13 stays disabled unless its separate retention gate is verified.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+            <Checkbox
+              id="referral-processing-authority"
+              checked={processingAuthorityConfirmed}
+              onCheckedChange={(checked) => setProcessingAuthorityConfirmed(checked === true)}
+              disabled={isUploading || isExtracting}
+            />
+            <Label htmlFor="referral-processing-authority" className="text-sm font-normal leading-5">
+              I confirm the practice has documented the patient or representative notice and consent, or another valid authority, for AssessSuite and OpenAI to process this referral for extraction.
+            </Label>
+          </div>
+
           <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
             <input
               type="file"
@@ -529,7 +681,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
               <p className="text-sm text-slate-600 mb-1">
                 Click to upload or drag and drop
               </p>
-              <p className="text-xs text-slate-500">PDF, PNG, JPG or CSV (multiple files supported)</p>
+              <p className="text-xs text-slate-500">PDF, PNG, JPG or CSV (up to {DOCUMENT_EXTRACTION_MAX_FILES} files)</p>
             </label>
             </div>
 
@@ -553,7 +705,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
               ))}
               <Button
                 onClick={handleUploadAndExtract}
-                disabled={isUploading || isExtracting}
+                disabled={isUploading || isExtracting || !selectedOrgId || !subjectDateOfBirth || !processingAuthorityConfirmed}
                 className="w-full bg-blue-600 hover:bg-blue-700"
               >
                 {isUploading ? (
@@ -570,7 +722,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
       </Card>
 
       {/* Review Modal */}
-      <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
+      <Dialog open={showReviewModal} onOpenChange={handleReviewOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -948,6 +1100,8 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
               <HistoricalAssessmentExtractor
                 fileUrls={uploadedFiles.map(f => f.url)}
                 clientId={selectedExistingClient?.id || null}
+                orgId={selectedOrgId}
+                processingAuthorityConfirmed={processingAuthorityConfirmed}
                 allAssessments={allAssessments}
                 onExtracted={(assessments) => {
                   // For new clients, store assessments to save after client creation
@@ -961,7 +1115,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowReviewModal(false)}>
+            <Button variant="outline" onClick={handleCancelReview}>
               Cancel
             </Button>
             {selectedExistingClient ? (

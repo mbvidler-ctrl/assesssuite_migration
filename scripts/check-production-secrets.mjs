@@ -16,6 +16,10 @@
 import { execFileSync } from 'node:child_process';
 
 const app = process.argv[2] || process.env.FLY_APP || 'assesssuite-production';
+if (app !== 'assesssuite-production') {
+  console.error('[preflight] FAIL — this command is sealed to assesssuite-production.');
+  process.exit(2);
+}
 
 const REQUIRED = [
   'ADMIN_PASSWORD',
@@ -26,8 +30,18 @@ const REQUIRED = [
   'STRIPE_PRICE_ID_MONTHLY',
   'STRIPE_PRICE_ID_ANNUAL',
   'OPENAI_API_KEY',
+];
+
+const FORBIDDEN_OPAQUE_OVERRIDES = [
+  'DOCUMENT_EXTRACTION_ENABLED',
+  'DOCUMENT_EXTRACTION_UNDER_13_ENABLED',
+  'OPENAI_HEALTH_DATA_TERMS_CONFIRMED',
+  'GENERAL_CLINICAL_LLM_ENABLED',
+  'TRANSCRIPTION_ENABLED',
   'LEGAL_STATUS',
   'LEGAL_EFFECTIVE_DATE',
+  'LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS',
+  'OPENAI_DOCUMENT_EXTRACTION_MODEL',
 ];
 
 let raw;
@@ -49,11 +63,17 @@ try {
 }
 
 const missing = REQUIRED.filter((name) => !present.has(name));
+const forbidden = FORBIDDEN_OPAQUE_OVERRIDES.filter((name) => present.has(name));
 if (missing.length) {
   console.error(`\n[preflight] FAIL — ${missing.length} required secret(s) missing on "${app}":`);
   for (const name of missing) console.error(`  - ${name}`);
   console.error(`\nSet each with:  fly secrets set <NAME>=<value> -a ${app}`);
   console.error('Deploy is BLOCKED until these are set.\n');
+  process.exit(1);
+}
+if (forbidden.length) {
+  console.error(`\n[preflight] FAIL — ${forbidden.length} reviewed non-secret setting(s) are overridden by opaque Fly secrets:`);
+  for (const name of forbidden) console.error(`  - ${name}`);
   process.exit(1);
 }
 

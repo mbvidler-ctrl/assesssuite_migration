@@ -1,5 +1,6 @@
 import React from 'react';
 import moment from 'moment';
+import { SecureFileImage } from '@/components/files/SecureFile';
 
 const PrintableSOAPNote = React.forwardRef(({ soapNote, client, appointment, clinician }, ref) => {
     if (!soapNote || !client || !appointment || !clinician) {
@@ -81,7 +82,7 @@ const PrintableSOAPNote = React.forwardRef(({ soapNote, client, appointment, cli
 
             <div className="print-header">
                 {clinician.clinic_logo_url ? (
-                    <img src={clinician.clinic_logo_url} alt="Clinic Logo" style={{maxWidth: '150px', maxHeight: '75px'}} />
+                    <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" style={{maxWidth: '150px', maxHeight: '75px'}} />
                 ) : (
                     <h2>{clinician.clinic_name}</h2>
                 )}

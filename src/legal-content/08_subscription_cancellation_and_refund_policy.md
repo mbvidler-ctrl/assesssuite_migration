@@ -1,17 +1,18 @@
 # AssessSuite Subscription, Cancellation and Refund Policy
 
-**Release status:** DRAFT — NOT APPROVED FOR PUBLICATION, ACCEPTANCE OR RELIANCE  
-**Effective date:** None  
-**Approved by:** None  
-**Version:** RC-2026.07.11
+**Release status:** APPROVED FOR PUBLICATION AND ACCEPTANCE WITH THE 19 JULY 2026 RELEASE
+**Effective date:** 19 July 2026
+**Publication authority:** Mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE, activated by Maxwell Vidler on 19 July 2026
+**Approved by:** Maxwell Vidler under mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE on 19 July 2026
+**Version:** RC-2026.07.19
 
-## 1. Current proposed plans
+## 1. Current plans
 
-| Plan | Current public price | Billing period | User allocation | Release condition |
-|---|---:|---|---|---|
-| Practitioner Monthly | AUD 55 | Monthly in advance | One named clinician | Confirm merchant, tax and Stripe configuration |
-| Practitioner Annual | AUD 540 | Annual in advance | One named clinician | Confirm renewal reminder and merchant configuration |
-| Team or corporate | Written quote | Order Form | As stated | Confirm role and pooled-user rules |
+| Plan | Current public price | Billing period | User allocation |
+|---|---:|---|---|
+| Practitioner Monthly | AUD 55 | Monthly in advance | One named clinician |
+| Practitioner Annual | AUD 540 | Annual in advance | One named clinician |
+| Team or corporate | Written quote | Order Form | As stated in the Order Form |
 
 Assess Suite Pty Ltd is not shown as GST-registered in the official ABN record checked on 11 July 2026. The Service must not say the current prices “include GST” unless registration and invoicing support that statement. If GST becomes lawfully payable, the checkout and Order Form must say whether it is included or added before acceptance.
 
@@ -57,7 +58,7 @@ AssessSuite must give at least 30 days’ prior notice of a price increase, or l
 
 ## 7. Suspension, failed payments and data access
 
-Before suspending for an ordinary failed payment, AssessSuite should give notice and a reasonable opportunity to correct it. Suspension must be proportionate and must not destroy clinical records or prevent an urgent lawful export, patient access request or incident response. Termination and deletion follow the **Customer-Facing Retention and Exit Schedule**, being Part A, sections 1–7, of the AssessSuite Records Retention, Export, Deletion and Exit Policy.
+Before suspending for an ordinary failed payment, AssessSuite should give notice and a reasonable opportunity to correct it. Suspension must be proportionate and must not destroy clinical records or prevent an urgent lawful export, patient access request or incident response. Termination, retention, export and deletion are governed by clause 15 of the Practitioner and Clinic SaaS Terms, section 9 of the Data Processing and Security Schedule, the applicable Order Form and law, subject to the controls actually available in the approved release.
 
 ## 8. Contact
 

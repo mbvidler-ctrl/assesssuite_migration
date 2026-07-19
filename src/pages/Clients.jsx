@@ -42,7 +42,9 @@ function addRecentClientId(id) {
     const ids = getRecentClientIds().filter(x => x !== id);
     ids.unshift(id);
     localStorage.setItem(RECENT_KEY, JSON.stringify(ids.slice(0, MAX_RECENT)));
-  } catch {}
+  } catch {
+    // Invalid optional recent-activity data is treated as unavailable.
+  }
 }
 
 function getAge(dob) {

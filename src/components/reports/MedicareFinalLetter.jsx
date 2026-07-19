@@ -10,6 +10,7 @@ import { InvokeLLM } from "@/integrations/Core";
 import { Printer, Loader2, ChevronLeft, ChevronRight, X, Wand2, Save, Plus, Edit } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
+import { SecureFileImage } from "@/components/files/SecureFile";
 import { todayLocal } from "@/lib/localDate";
 
 const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref) => {
@@ -73,7 +74,7 @@ const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref
 
       <div className="clinic-header">
         {clinician?.clinic_logo_url ? (
-          <img src={clinician.clinic_logo_url} alt="Clinic Logo" />
+          <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" />
         ) : (
           <h2 style={{ margin: 0, color: '#000' }}>{clinician?.clinic_name || ""}</h2>
         )}
