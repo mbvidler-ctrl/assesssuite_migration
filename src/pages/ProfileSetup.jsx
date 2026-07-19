@@ -25,24 +25,16 @@ import { Toaster, toast } from 'sonner';
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { createCheckoutSession } from "@/functions/createCheckoutSession";
-import PractitionerNoticesSection from "@/components/legal/PractitionerNoticesSection";
-import PracticeAgreementSection from "@/components/legal/PracticeAgreementSection";
+import ConsentSection from "@/components/legal/ConsentSection";
 import { recordLegalEvents } from "@/lib/legal/recordAcceptance";
 import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
 
 export default function ProfileSetup() {
   const navigate = useNavigate();
   const [isNewOrg, setIsNewOrg] = useState(null); // null = not yet determined
-  const [notices, setNotices] = useState({
-    collectionNotice: false,
-    clinicalUse: false,
-    aiTransparency: false,
+  const [consent, setConsent] = useState({
+    accepted: false,
     marketing: false,
-  });
-  const [agreement, setAgreement] = useState({
-    jurisdictions: [],
-    adultOnlyConfirmed: false,
-    contractAccepted: false,
   });
   const [formData, setFormData] = useState({
     country: "australia",
@@ -127,17 +119,10 @@ export default function ProfileSetup() {
     }
   };
 
-  const handleNoticeChange = (field, value) => {
-    setNotices(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }));
-    }
-  };
-
-  const handleAgreementChange = (field, value) => {
-    setAgreement(prev => ({ ...prev, [field]: value }));
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: "" }));
+  const handleConsentChange = (field, value) => {
+    setConsent(prev => ({ ...prev, [field]: value }));
+    if (field === "accepted" && errors.consentAccepted) {
+      setErrors(prev => ({ ...prev, consentAccepted: "" }));
     }
   };
 
@@ -201,15 +186,7 @@ export default function ProfileSetup() {
     }
     // Biography and specialisations are optional (WP-6 friction reduction).
 
-    if (!notices.collectionNotice) newErrors.collectionNotice = "Required to continue";
-    if (!notices.clinicalUse) newErrors.clinicalUse = "Required to continue";
-    if (!notices.aiTransparency) newErrors.aiTransparency = "Required to continue";
-
-    if (isNewOrg) {
-      if (agreement.jurisdictions.length === 0) newErrors.jurisdictions = "Select at least one state or territory";
-      if (!agreement.adultOnlyConfirmed) newErrors.adultOnlyConfirmed = "Required to continue";
-      if (!agreement.contractAccepted) newErrors.contractAccepted = "Required to continue";
-    }
+    if (!consent.accepted) newErrors.consentAccepted = "Required to continue";
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -237,8 +214,6 @@ export default function ProfileSetup() {
       } else {
         org = await base44.entities.Organization.create({
           name: formData.clinic_name,
-          served_jurisdictions: agreement.jurisdictions,
-          adult_only_confirmed: agreement.adultOnlyConfirmed,
         });
         await base44.entities.OrganizationMember.create({
           org_id: org.id,
@@ -265,7 +240,7 @@ export default function ProfileSetup() {
         { eventType: EVENT_TYPES.PROFESSIONAL_USE_ACKNOWLEDGEMENT, documentId: "clinical-use-notice" },
         { eventType: EVENT_TYPES.AI_TRANSPARENCY_CONSENT, documentId: "ai-notice" },
       ].map((e) => ({ ...e, userEmail: currentUser.email, orgId: org.id, actorCapacity }));
-      if (notices.marketing) {
+      if (consent.marketing) {
         events.push({ eventType: EVENT_TYPES.MARKETING_CONSENT, userEmail: currentUser.email, orgId: org.id, actorCapacity });
       }
       if (foundingNewOrg) {
@@ -670,11 +645,12 @@ export default function ProfileSetup() {
               </CardContent>
             </Card>
 
-            {isNewOrg && (
-              <PracticeAgreementSection values={agreement} onChange={handleAgreementChange} errors={errors} />
-            )}
-
-            <PractitionerNoticesSection values={notices} onChange={handleNoticeChange} errors={errors} />
+            <ConsentSection
+              values={consent}
+              onChange={handleConsentChange}
+              error={errors.consentAccepted}
+              isFoundingOwner={isNewOrg}
+            />
 
             {/* Submit Button */}
             <div className="flex justify-center">
