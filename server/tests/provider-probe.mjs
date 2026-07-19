@@ -62,6 +62,7 @@ function providerPolicyMetadata() {
   return {
     store_false: metadata.store,
     background_false: metadata.background,
+    shortest_prompt_cache_retention: metadata.prompt_cache_retention,
     tools_absent: metadata.tools,
     inline_only: metadata.inline,
     conversation_state_absent: !metadata.has_conversation_state,
@@ -90,6 +91,7 @@ async function probeFixture({ fixture, bytes, detectedMime, storedName }) {
     });
     const policy = result?.requestPolicy;
     const policyPass = policy?.store === true && policy?.background === true &&
+      policy?.prompt_cache_retention === true &&
       policy?.tools === true && policy?.inline === true && policy?.has_conversation_state === false;
     const grounded = groundedAndConformant(result?.output);
     return {
@@ -100,6 +102,7 @@ async function probeFixture({ fixture, bytes, detectedMime, storedName }) {
       store_false: policy?.store === true,
       no_tools: policy?.tools === true,
       background_false: policy?.background === true,
+      shortest_prompt_cache_retention: policy?.prompt_cache_retention === true,
       inline_only: policy?.inline === true,
     };
   } catch (error) {

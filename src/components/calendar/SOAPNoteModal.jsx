@@ -528,7 +528,7 @@ export default function SOAPNoteModal({
         file: audioFile,
         org_id: client.org_id,
         purpose: 'audio-transcription',
-        subject_age_band: 'unknown',
+        subject_date_of_birth: client.date_of_birth || undefined,
       });
 
       const newAudioEntry = {
@@ -655,7 +655,7 @@ export default function SOAPNoteModal({
         file,
         org_id: client.org_id,
         purpose: 'clinical-attachment',
-        subject_age_band: 'unknown',
+        subject_date_of_birth: client.date_of_birth || undefined,
       });
 
       // Create document record in ClientDocument entity

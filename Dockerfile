@@ -1,7 +1,7 @@
 # AssessSuite private demo — single container: Vite build + shim serving
 # dist/ and the API from one origin. Synthetic data reseeds on every boot,
 # so no persistent volume is required.
-FROM node:24-slim AS build
+FROM node:24-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d AS build
 ARG RELEASE_SHA
 ARG SOURCE_BRANCH
 ARG BUILD_TIMESTAMP
@@ -14,7 +14,7 @@ RUN npm ci
 COPY . .
 RUN npm run build
 
-FROM node:24-slim
+FROM node:24-slim@sha256:6f7b03f7c2c8e2e784dcf9295400527b9b1270fd37b7e9a7285cf83b6951452d
 ARG RELEASE_SHA
 ARG SOURCE_BRANCH
 ARG BUILD_TIMESTAMP

@@ -132,8 +132,8 @@ jobs:
           [[ "$SOURCE_BRANCH" != *".."* && "$SOURCE_BRANCH" != /* && "$SOURCE_BRANCH" != */ ]]
           [[ "$ROLLBACK_SOURCE_BRANCH" != *".."* && "$ROLLBACK_SOURCE_BRANCH" != /* && "$ROLLBACK_SOURCE_BRANCH" != */ ]]
           [[ "$EXPECTED_CURRENT_RELEASE" =~ ^[A-Za-z0-9._:-]{1,120}$ ]]
-          [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\.fly\.io/assesssuite-production:[A-Za-z0-9._-]{1,128}$ ]]
-          [[ "$ROLLBACK_IMAGE" =~ ^registry\.fly\.io/assesssuite-production:[A-Za-z0-9._-]{1,128}$ ]]
+          [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\.fly\.io/assesssuite-production(:[A-Za-z0-9._-]{1,128}|@sha256:[0-9a-f]{64})$ ]]
+          [[ "$ROLLBACK_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
           [[ -n "$CAPABILITY_INTENT_ID" && "$CAPABILITY_INTENT_ID" != *$'\n'* ]]
           [[ -n "$AUTHORITY_REFERENCE" && "$AUTHORITY_REFERENCE" != *$'\n'* ]]
 
@@ -173,10 +173,13 @@ jobs:
           if [[ "$reviewed_mode" == "enabled" ]]; then
             [[ "$PROVIDER_TERMS_ATTESTATION" == "TERMS-VERIFIED-HEALTH-DATA-20260719" ]]
             [[ "$PROVIDER_TERMS_EVIDENCE_ID" == "EVD-20260719-ASSESSSUITE-OPENAI-HEALTH-TERMS-ATTESTATION" ]]
+            [[ "$(grep -Ec '^[[:space:]]*OPENAI_HEALTH_DATA_TERMS_CONFIRMED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
           else
             [[ "$PROVIDER_TERMS_ATTESTATION" == "EXTRACTION-DISABLED" ]]
             [[ "$PROVIDER_TERMS_EVIDENCE_ID" == "NOT-APPLICABLE-EXTRACTION-DISABLED" ]]
           fi
+          [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
 
           if grep -Eq '^[[:space:]]*DOCUMENT_EXTRACTION_UNDER_13_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.production.toml; then
             reviewed_under_age_mode=enabled
@@ -403,6 +406,18 @@ jobs:
           grep -Fx "RELEASE_SHA=$APPLICATION_SHA" "$RUNNER_TEMP/image-env.txt"
           grep -Fx "SOURCE_BRANCH=$SOURCE_BRANCH" "$RUNNER_TEMP/image-env.txt"
           grep -Fx "BUILD_TIMESTAMP=$BUILD_TIMESTAMP" "$RUNNER_TEMP/image-env.txt"
+          docker save "assesssuite-release-gate:$APPLICATION_SHA" | gzip -1 >"$RUNNER_TEMP/candidate-image.tar.gz"
+          (cd "$RUNNER_TEMP" && sha256sum candidate-image.tar.gz >candidate-image.tar.gz.sha256)
+
+      - name: Preserve the exact gated candidate image
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: candidate-image-${{ steps.metadata.outputs.application_sha }}
+          path: |
+            ${{ runner.temp }}/candidate-image.tar.gz
+            ${{ runner.temp }}/candidate-image.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 1
 
   deploy:
     name: Deploy exact SHA and verify production
@@ -426,6 +441,30 @@ jobs:
           path: rollback-source
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Restore the exact gated candidate image
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: candidate-image-${{ needs.gates.outputs.application_sha }}
+          path: ${{ runner.temp }}/candidate-image
+
+      - name: Verify and load the gated candidate image without credentials
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
+          SOURCE_BRANCH: ${{ needs.gates.outputs.source_branch }}
+          BUILD_TIMESTAMP: ${{ needs.gates.outputs.build_timestamp }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/candidate-image"
+          sha256sum --check candidate-image.tar.gz.sha256
+          gzip -dc candidate-image.tar.gz | docker load
+          image="assesssuite-release-gate:$APPLICATION_SHA"
+          [[ "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$APPLICATION_SHA" ]]
+          docker image inspect "$image" --format '{{ range .Config.Env }}{{ println . }}{{ end }}' >"$RUNNER_TEMP/restored-image-env.txt"
+          grep -Fx "RELEASE_SHA=$APPLICATION_SHA" "$RUNNER_TEMP/restored-image-env.txt"
+          grep -Fx "SOURCE_BRANCH=$SOURCE_BRANCH" "$RUNNER_TEMP/restored-image-env.txt"
+          grep -Fx "BUILD_TIMESTAMP=$BUILD_TIMESTAMP" "$RUNNER_TEMP/restored-image-env.txt"
 
       - name: Reverify release and rollback provenance without credentials
         shell: bash
@@ -458,6 +497,12 @@ jobs:
             echo 'Release or rollback source contains a forbidden credential/build/release hook.' >&2
             exit 1
           fi
+          if grep -Eq '^[[:space:]]*DOCUMENT_EXTRACTION(_UNDER_13)?_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' rollback-source/fly.production.toml; then
+            echo 'Rollback image must keep document extraction disabled.' >&2
+            exit 1
+          fi
+          [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
 
       - name: Set up Node.js 24
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -494,7 +539,7 @@ jobs:
           candidate_config="$candidate_dir/fly.production.toml"
           rollback_dir="$GITHUB_WORKSPACE/rollback-source"
           rollback_config="$rollback_dir/fly.production.toml"
-          new_image="registry.fly.io/$app:release-$APPLICATION_SHA"
+          new_image_tag="registry.fly.io/$app:release-$APPLICATION_SHA"
           prior_json="$RUNNER_TEMP/prior-releases.json"
           new_json="$RUNNER_TEMP/new-releases.json"
           rollback_json="$RUNNER_TEMP/rollback-releases.json"
@@ -551,13 +596,15 @@ jobs:
           const pdf = rows.find((row) => row.fixture === 'synthetic-pdf');
           const image = rows.find((row) => row.fixture === 'synthetic-image');
           const summary = rows.find((row) => row.probe === 'provider-probe-summary');
-          if (policy?.result !== 'PASS' || pdf?.result !== 'PASS' || image?.result !== 'PASS' ||
+          if (policy?.result !== 'PASS' || policy?.shortest_prompt_cache_retention !== true ||
+              pdf?.result !== 'PASS' || image?.result !== 'PASS' ||
               summary?.result !== 'PASS' || summary?.passed !== 2 || summary?.total !== 2 ||
               summary?.database_writes !== 0 || summary?.filesystem_writes !== 0) {
             throw new Error('Value-blind provider probe did not produce the exact PASS metadata contract');
           }
           const allowedKeys = new Set([
             'probe', 'fixture', 'result', 'store_false', 'background_false', 'tools_absent',
+            'shortest_prompt_cache_retention',
             'inline_only', 'conversation_state_absent', 'adapter_completed',
             'grounded_schema_conformant', 'no_tools', 'passed', 'total', 'database_writes',
             'filesystem_writes', 'error_class',
@@ -587,7 +634,7 @@ jobs:
               echo "- Prior release: ${prior_release:-not-established}"
               echo "- Prior image: ${prior_image:-not-established}"
               echo "- Candidate release: ${candidate_release:-not-established}"
-              echo "- Candidate image: ${candidate_image:-$new_image}"
+              echo "- Candidate image: ${candidate_image:-${candidate_image_ref:-not-established}}"
               echo "- Rollback image: $ROLLBACK_IMAGE"
               echo "- Rollback release: ${rollback_release:-not-used}"
               echo "- Result: $1"
@@ -644,22 +691,32 @@ jobs:
           if (present.has('DOCUMENT_EXTRACTION_UNDER_13_ENABLED')) {
             throw new Error('DOCUMENT_EXTRACTION_UNDER_13_ENABLED must be reviewed non-secret config; opaque Fly-secret override is refused');
           }
+          if (present.has('OPENAI_HEALTH_DATA_TERMS_CONFIRMED')) {
+            throw new Error('OPENAI_HEALTH_DATA_TERMS_CONFIRMED must be reviewed non-secret config; opaque Fly-secret override is refused');
+          }
+          if (present.has('GENERAL_CLINICAL_LLM_ENABLED')) {
+            throw new Error('GENERAL_CLINICAL_LLM_ENABLED must be reviewed non-secret config; opaque Fly-secret override is refused');
+          }
+          if (present.has('TRANSCRIPTION_ENABLED')) {
+            throw new Error('TRANSCRIPTION_ENABLED must be reviewed non-secret config; opaque Fly-secret override is refused');
+          }
           console.log(`Names-only production preflight passed (${required.length} required names; extraction mode ${process.env.EXTRACTION_RUNTIME_MODE}; under-age/ZDR mode ${process.env.UNDER_AGE_ZDR_RUNTIME_MODE}).`);
           NODE
+
+          fly auth docker
+          docker tag "assesssuite-release-gate:$APPLICATION_SHA" "$new_image_tag"
+          docker push "$new_image_tag"
+          candidate_digest="$(docker buildx imagetools inspect "$new_image_tag" --format '{{json .Manifest}}' | jq -er '.digest')"
+          [[ "$candidate_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          candidate_image_ref="registry.fly.io/$app@$candidate_digest"
+          docker buildx imagetools inspect "$candidate_image_ref" >/dev/null
 
           deploy_status=0
           fly deploy "$candidate_dir" \
             --config "$candidate_config" \
             --strategy immediate \
             --app "$app" \
-            --remote-only \
-            --image-label "release-$APPLICATION_SHA" \
-            --build-arg "RELEASE_SHA=$APPLICATION_SHA" \
-            --build-arg "SOURCE_BRANCH=$SOURCE_BRANCH" \
-            --build-arg "BUILD_TIMESTAMP=$BUILD_TIMESTAMP" \
-            --label "org.opencontainers.image.revision=$APPLICATION_SHA" \
-            --label "org.opencontainers.image.created=$BUILD_TIMESTAMP" \
-            --label "org.opencontainers.image.source=https://github.com/mbvidler-ctrl/assesssuite_migration/tree/$APPLICATION_SHA" \
+            --image "$candidate_image_ref" \
             --yes || deploy_status=$?
 
           if [[ "$deploy_status" -ne 0 ]]; then
@@ -672,7 +729,7 @@ jobs:
             verification_failure='release-query-failed'
           else
             IFS=$'\t' read -r candidate_release candidate_image < <(current_release "$new_json")
-            if [[ "$candidate_image" != "$new_image" ]]; then
+            if [[ "$candidate_image" != "$candidate_image_ref" ]]; then
               verification_failure='deployed-image-mismatch'
             elif ! read_version 'https://assesssuite.com' "$APPLICATION_SHA" "$RUNNER_TEMP/apex-version.json"; then
               verification_failure='apex-version-mismatch'

@@ -663,7 +663,12 @@ export function createUploadRegistry(db, { uploadsDir }) {
       db.prepare(`
         SELECT COUNT(*) AS requests,
                COALESCE(SUM(upload_count), 0) AS documents,
-               COALESCE(SUM(estimated_cost_microusd), 0) AS estimated
+               COALESCE(SUM(
+                 CASE
+                   WHEN status = 'succeeded' AND actual_cost_microusd IS NOT NULL THEN actual_cost_microusd
+                   ELSE estimated_cost_microusd
+                 END
+               ), 0) AS cost
         FROM extraction_usage
         WHERE ${where} AND created_at >= ?
       `).get(...params, since);
@@ -678,9 +683,9 @@ export function createUploadRegistry(db, { uploadsDir }) {
       Number(orgMinute.requests) >= UPLOAD_POLICY.extractionOrgPerMinute ||
       Number(userDaily.documents) + uploadCount > UPLOAD_POLICY.extractionUserDailyDocuments ||
       Number(orgDaily.documents) + uploadCount > UPLOAD_POLICY.extractionOrgDailyDocuments ||
-      Number(userDaily.estimated) + estimated > UPLOAD_POLICY.extractionUserDailyCostMicrousd ||
-      Number(orgDaily.estimated) + estimated > UPLOAD_POLICY.extractionOrgDailyCostMicrousd ||
-      Number(monthly.estimated) + estimated > UPLOAD_POLICY.extractionMonthlyCircuitMicrousd;
+      Number(userDaily.cost) + estimated > UPLOAD_POLICY.extractionUserDailyCostMicrousd ||
+      Number(orgDaily.cost) + estimated > UPLOAD_POLICY.extractionOrgDailyCostMicrousd ||
+      Number(monthly.cost) + estimated > UPLOAD_POLICY.extractionMonthlyCircuitMicrousd;
     if (limited) {
       throw new UploadError(429, 'extraction_limit_reached', 'Document extraction limit reached. Please try again later.');
     }

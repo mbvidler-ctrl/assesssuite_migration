@@ -72,9 +72,9 @@ export function openDatabase() {
     process.env.NODE_ENV === 'test' &&
     process.env.ASSESSSUITE_DB_PATH_ACK ===
       'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_NON_PRODUCTION_GATE_DATABASE';
-  if (override && !isSelftest && !isolatedGateHarness) {
+  if (override && !isolatedGateHarness) {
     throw new Error(
-      'ASSESSSUITE_DB_PATH is permitted only under SELFTEST=1 or the explicit isolated gate harness',
+      'ASSESSSUITE_DB_PATH is permitted only under the explicit isolated gate harness',
     );
   }
   const dbFile = override ? path.resolve(override) : path.join(dataDir, isSelftest ? 'selftest.db' : 'app.db');

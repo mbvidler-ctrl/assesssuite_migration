@@ -5,12 +5,6 @@ import { after, before, test } from 'node:test';
 import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import {
-  LEGAL_DOCUMENTS,
-  PRACTITIONER_NOTICE_IDS,
-  SUITE_VERSION,
-  fingerprint,
-} from '../../src/lib/legal/documentRegistry.js';
 import { startFakeOpenAI } from './support/fake-openai.mjs';
 import {
   MERGED_PROFILE,
@@ -34,6 +28,7 @@ const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testsDir, '..', '..');
 const EXTRACTION_ROUTE = '/integration-endpoints/Core/ExtractDataFromUploadedFile';
 const UPLOAD_ROUTE = '/integration-endpoints/Core/UploadFile';
+const CANCEL_ROUTE = '/integration-endpoints/Core/CancelTemporaryUploads';
 const PROVIDER_KEY_CANARY = 'synthetic-provider-key-canary';
 const PROVIDER_BODY_CANARY = 'FAKE_PROVIDER_PRIVATE_BODY_CANARY';
 
@@ -51,27 +46,12 @@ function appRoute(suffix) {
 }
 
 async function acceptCurrentNotices(user, orgId) {
-  for (const documentId of PRACTITIONER_NOTICE_IDS) {
-    const doc = LEGAL_DOCUMENTS[documentId];
-    const documentFingerprint = fingerprint(
-      fs.readFileSync(path.join(repoRoot, 'src', 'legal-content', doc.file), 'utf8'),
-    );
-    const result = await requestJson(server, appRoute('/entities/LegalAcceptanceEvent'), {
-      method: 'POST',
-      token: user.token,
-      body: {
-        event_type: doc.eventType,
-        user_email: user.email,
-        org_id: orgId,
-        suite_version: SUITE_VERSION,
-        document_id: documentId,
-        document_title: doc.title,
-        document_fingerprint: documentFingerprint,
-        actor_capacity: 'synthetic assurance fixture',
-      },
-    });
-    assert.equal(result.status, 200, result.text);
-  }
+  const result = await requestJson(
+    server,
+    appRoute('/integration-endpoints/Core/RecordLegalAcceptanceBundle'),
+    { method: 'POST', token: user.token, body: { org_id: orgId, marketing_opt_in: false } },
+  );
+  assert.equal(result.status, 200, result.text);
 }
 
 async function createUserInOrg(email, org, role = 'clinician') {
@@ -93,12 +73,12 @@ async function upload(user, orgId, {
   mediaType,
   purpose = 'referral-extraction',
   includeOrg = true,
-  subjectAgeBand = '13_or_over',
+  subjectDateOfBirth = '2000-01-01',
 } = {}) {
   const form = new FormData();
   if (includeOrg && orgId !== undefined) form.set('org_id', orgId);
   form.set('purpose', purpose);
-  form.set('subject_age_band', subjectAgeBand);
+  if (typeof subjectDateOfBirth === 'string') form.set('subject_date_of_birth', subjectDateOfBirth);
   form.set('file', new File([bytes], filename, { type: mediaType }));
   const response = await fetch(`${server.baseUrl}${appRoute(UPLOAD_ROUTE)}`, {
     method: 'POST',
@@ -113,7 +93,7 @@ async function upload(user, orgId, {
 
 async function extract(user, body, token = user?.token) {
   return requestJson(server, appRoute(EXTRACTION_ROUTE), {
-    method: 'POST', token, body,
+    method: 'POST', token, body: { processing_authority_confirmed: true, ...body },
   });
 }
 
@@ -264,7 +244,7 @@ before(async () => {
     UPLOAD_USER_PER_MINUTE: '60',
     UPLOAD_ORG_PER_MINUTE: '240',
     OPENAI_API_KEY: PROVIDER_KEY_CANARY,
-    OPENAI_DOCUMENT_MODEL: 'synthetic-assurance-model',
+    OPENAI_DOCUMENT_EXTRACTION_MODEL: 'synthetic-assurance-model',
   });
   adminToken = await loginAdmin(server);
 
@@ -294,6 +274,7 @@ test('E01 known PDF fixture extracts the expected referral values', async () => 
   assert.equal(fakeProvider.calls.at(-1)?.store, false);
   assert.equal(fakeProvider.calls.at(-1)?.hasTools, false);
   assert.equal(fakeProvider.calls.at(-1)?.background, false);
+  assert.equal(fakeProvider.calls.at(-1)?.promptCacheRetention, 'in-memory');
   assert.equal(fakeProvider.calls.at(-1)?.route, '/v1/responses');
 });
 
@@ -745,5 +726,94 @@ test('E32 authorised file workflows remain usable and cleanup removes only expir
     assert.ok(second == null || second.deleted === 0 || second.removed === 0 || second.processed === 0);
   } finally {
     cleanupDb.close();
+  }
+});
+
+test('E33 browser-supplied age labels are rejected and exact date of birth is required', async () => {
+  fakeProvider.reset();
+  const forged = new FormData();
+  forged.set('org_id', tenantA.id);
+  forged.set('purpose', 'referral-extraction');
+  forged.set('subject_age_band', '13_or_over');
+  forged.set('file', new File([pdfFixture()], 'forged-age.pdf', { type: 'application/pdf' }));
+  const forgedResponse = await fetch(`${server.baseUrl}${appRoute(UPLOAD_ROUTE)}`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${userA.token}`, 'X-App-Id': server.appId },
+    body: forged,
+  });
+  assert.equal(forgedResponse.status, 400);
+
+  const missing = await upload(userA, tenantA.id, {
+    bytes: pdfFixture(),
+    filename: 'missing-dob.pdf',
+    mediaType: 'application/pdf',
+    subjectDateOfBirth: null,
+  });
+  assert.equal(missing.status, 400, missing.text);
+  assert.equal(fakeProvider.calls.length, 0);
+});
+
+test('E34 under-13 date of birth fails closed before provider I/O', async () => {
+  fakeProvider.reset();
+  const underAge = await expectUploaded(await upload(userA, tenantA.id, {
+    bytes: pdfFixture(),
+    filename: 'under-age.pdf',
+    mediaType: 'application/pdf',
+    subjectDateOfBirth: new Date().getUTCFullYear() + '-01-01',
+  }));
+  const result = await extract(userA, {
+    upload_id: underAge.upload_id,
+    org_id: tenantA.id,
+    json_schema: REFERRAL_SCHEMA,
+  });
+  assert.equal(result.status, 409, result.text);
+  assert.equal(result.body?.status, 'error');
+  assert.equal(fakeProvider.calls.length, 0);
+});
+
+test('E35 missing practitioner processing authority fails before provider I/O', async () => {
+  fakeProvider.reset();
+  const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'authority-required.pdf', 'application/pdf');
+  const result = await requestJson(server, appRoute(EXTRACTION_ROUTE), {
+    method: 'POST',
+    token: userA.token,
+    body: { upload_id: uploadRef.upload_id, org_id: tenantA.id, json_schema: REFERRAL_SCHEMA },
+  });
+  assert.equal(result.status, 403, result.text);
+  assert.equal(result.body?.status, 'error');
+  assert.equal(fakeProvider.calls.length, 0);
+});
+
+test('E36 practitioner cancellation shortens every authorised unbound upload lifecycle', async () => {
+  const first = await uploadReferral(userA, tenantA.id, pdfFixture(), 'cancel-one.pdf', 'application/pdf');
+  const second = await uploadReferral(userA, tenantA.id, pdfFixture(), 'cancel-two.pdf', 'application/pdf');
+  const result = await requestJson(server, appRoute(CANCEL_ROUTE), {
+    method: 'POST',
+    token: userA.token,
+    body: { org_id: tenantA.id, upload_ids: [first.upload_id, second.upload_id] },
+  });
+  assert.equal(result.status, 200, result.text);
+  assert.deepEqual(result.body, { status: 'success', scheduled: 2 });
+  const deadline = Date.now() + 60 * 60 * 1000 + 5_000;
+  for (const id of [first.upload_id, second.upload_id]) {
+    const row = getUploadRow(id);
+    assert.equal(row.lifecycle_state, 'temporary');
+    assert.ok(Date.parse(row.expires_at) <= deadline);
+  }
+});
+
+test('E37 general clinical InvokeLLM remains disabled outside the referral adapter', async () => {
+  const isolated = await startTestServer({ GENERAL_CLINICAL_LLM_ENABLED: '0' });
+  try {
+    const isolatedAdmin = await loginAdmin(isolated);
+    const result = await requestJson(
+      isolated,
+      `/api/apps/${isolated.appId}/integration-endpoints/Core/InvokeLLM`,
+      { method: 'POST', token: isolatedAdmin, body: { prompt: 'synthetic disabled check' } },
+    );
+    assert.equal(result.status, 503, result.text);
+    assert.equal(result.body?.error, 'General AI generation is disabled on this server.');
+  } finally {
+    await isolated.stop();
   }
 });

@@ -114,6 +114,8 @@ jobs:
             echo 'Compatibility image must keep adult and under-age document extraction disabled.' >&2
             exit 1
           fi
+          [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
           build_timestamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           echo "build_timestamp=$build_timestamp" >> "$GITHUB_OUTPUT"
 
@@ -216,7 +218,7 @@ jobs:
         with:
           version: 0.4.71
 
-      - name: Final secret-bearing Fly build and push command only
+      - name: Push the exact locally gated compatibility image
         shell: bash
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
@@ -230,21 +232,14 @@ jobs:
         run: |
           set -euo pipefail
           set +x
-          image="registry.fly.io/assesssuite-production:rollback-compat-$ROLLBACK_SOURCE_SHA"
-          fly deploy "$GITHUB_WORKSPACE" \
-            --config "$GITHUB_WORKSPACE/fly.production.toml" \
-            --app assesssuite-production \
-            --remote-only \
-            --build-only \
-            --push \
-            --image-label "rollback-compat-$ROLLBACK_SOURCE_SHA" \
-            --build-arg "RELEASE_SHA=$ROLLBACK_SOURCE_SHA" \
-            --build-arg "SOURCE_BRANCH=$ROLLBACK_SOURCE_BRANCH" \
-            --build-arg "BUILD_TIMESTAMP=$BUILD_TIMESTAMP" \
-            --label "org.opencontainers.image.revision=$ROLLBACK_SOURCE_SHA" \
-            --label "org.opencontainers.image.created=$BUILD_TIMESTAMP" \
-            --label "org.opencontainers.image.source=https://github.com/mbvidler-ctrl/assesssuite_migration/tree/$ROLLBACK_SOURCE_SHA" \
-            --yes
+          image_tag="registry.fly.io/assesssuite-production:rollback-compat-$ROLLBACK_SOURCE_SHA"
+          fly auth docker
+          docker tag "assesssuite-rollback-gate:$ROLLBACK_SOURCE_SHA" "$image_tag"
+          docker push "$image_tag"
+          image_digest="$(docker buildx imagetools inspect "$image_tag" --format '{{json .Manifest}}' | jq -er '.digest')"
+          [[ "$image_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          image_ref="registry.fly.io/assesssuite-production@$image_digest"
+          docker buildx imagetools inspect "$image_ref" >/dev/null
           {
             echo '## AssessSuite compatibility rollback image'
             echo
@@ -257,6 +252,7 @@ jobs:
             echo "- Superseded legal version accepted: $SUPERSEDED_LEGAL_VERSION"
             echo "- New legal version accepted: $NEW_LEGAL_VERSION"
             echo '- Document extraction: disabled (adult and under-age)'
-            echo "- Pushed image: $image"
+            echo "- Pushed image tag: $image_tag"
+            echo "- Immutable rollback image: $image_ref"
             echo '- Production deployment performed: no'
           } >> "$GITHUB_STEP_SUMMARY"

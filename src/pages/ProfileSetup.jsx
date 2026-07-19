@@ -26,8 +26,7 @@ import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { createCheckoutSession } from "@/functions/createCheckoutSession";
 import ConsentSection from "@/components/legal/ConsentSection";
-import { recordLegalEvents } from "@/lib/legal/recordAcceptance";
-import { CONTRACT_BUNDLE_IDS, EVENT_TYPES } from "@/lib/legal/documentRegistry";
+import { recordLegalAcceptanceBundle } from "@/lib/legal/recordAcceptance";
 
 export default function ProfileSetup() {
   const navigate = useNavigate();
@@ -247,28 +246,8 @@ export default function ProfileSetup() {
       // self-service account_status changes, so none is sent here.
       await base44.auth.updateMe({ ...formData });
 
-      // Record one document-bound event for every instrument covered by the
-      // single confirmation. The events remain additive and append-only.
-      const actorCapacity = foundingNewOrg ? "practice owner" : "invited clinician";
-      const events = [
-        { eventType: EVENT_TYPES.COLLECTION_NOTICE_ACKNOWLEDGEMENT, documentId: "collection-notice" },
-        { eventType: EVENT_TYPES.PROFESSIONAL_USE_ACKNOWLEDGEMENT, documentId: "clinical-use-notice" },
-        { eventType: EVENT_TYPES.AI_TRANSPARENCY_CONSENT, documentId: "ai-notice" },
-      ].map((e) => ({ ...e, userEmail: currentUser.email, orgId: org.id, actorCapacity }));
-      if (foundingNewOrg) {
-        events.push(...CONTRACT_BUNDLE_IDS.map((documentId) => ({
-          eventType: EVENT_TYPES.CONTRACT_ACCEPTANCE,
-          documentId,
-          userEmail: currentUser.email,
-          orgId: org.id,
-          actorCapacity,
-        })));
-      }
-      if (consent.marketing) {
-        events.push({ eventType: EVENT_TYPES.MARKETING_CONSENT, userEmail: currentUser.email, orgId: org.id, actorCapacity });
-      }
       try {
-        await recordLegalEvents(events);
+        await recordLegalAcceptanceBundle({ orgId: org.id, marketingOptIn: consent.marketing });
       } catch (legalError) {
         console.error("Failed to record legal acceptance events", legalError);
         toast.error("Failed to record your notice acknowledgements. Please try again.");

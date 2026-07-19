@@ -3,6 +3,7 @@
 **Release status:** APPROVED FOR PUBLICATION WITH THE 19 JULY 2026 RELEASE — PROCESSING REMAINS SUBJECT TO THE ACTIVATION GATES IN THIS SCHEDULE  
 **Effective date:** Effective on verified deployment; deployment date recorded in the release manifest  
 **Publication authority:** Mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE, activated by Maxwell Vidler on 19 July 2026  
+**Approved by:** Maxwell Vidler under the activated mission authority
 **Version:** RC-2026.07.19
 
 ## 1. Purpose and roles
@@ -60,9 +61,10 @@ AssessSuite must:
 For referral/document extraction, AssessSuite must additionally:
 
 - accept only an authenticated, purpose-labelled upload owned by the validated Customer organisation;
-- send a PDF/image inline, or bounded locally parsed CSV text, only through `/v1/responses` with `store: false` and without OpenAI Files, conversations, Assistants, vector stores, background mode, web search or external tools;
+- send a PDF/image inline, or bounded locally parsed CSV text, only through `/v1/responses` with `store: false`, the shortest documented in-memory prompt-cache policy supported by the selected pre-GPT-5.6 model, and without OpenAI Files, conversations, Assistants, vector stores, background mode, web search or external tools;
 - exclude raw referral content, extracted health information and provider bodies from application logs, traces, analytics, support tickets and error messages;
 - return proposed values only to a mandatory practitioner review step and make no clinical-entity write until the practitioner affirmatively confirms the reviewed data;
+- require the authenticated practitioner to attest that the Customer has documented the applicable patient/representative notice and consent or another valid function-specific authority, and retain content-free evidence tied to the actor, Customer and upload;
 - rely on the release-specific attestation by Maxwell Vidler that the AssessSuite account has an account-specific arrangement authorising intentional sensitive-data transfer; do not request, copy, log or publish the confidential arrangement, and fail closed if the attestation is withdrawn or cannot be tied to the production account;
 - disable the provider call for a child under 13 or the applicable age of digital consent unless Zero Data Retention is verified for the relevant OpenAI organisation/project; and
 - prohibit training opt-in, feedback sharing, sale, marketing, research, product improvement and every other secondary use of the referral or extracted health information.
@@ -76,7 +78,7 @@ For referral/document extraction, AssessSuite must additionally:
 5. An overseas disclosure must have an APP 8 assessment, likely-country transparency where practicable, security and incident cooperation, retention and deletion controls, and an approved legal basis. A generic consent clause is not the default control.
 
 6. The OpenAI contracting and processing entity for an Australian customer under the published Services Agreement is OpenAI OpCo, LLC, United States. OpenAI’s published API subprocessor list identifies infrastructure, content-delivery, moderation and support processing in the United States and other countries. The public schedule distinguishes possible published locations from a claim that each request reaches every location. The account-specific sensitive-data arrangement was attested for this release, but its confidential terms are not reproduced in this Schedule.
-7. `store: false` prevents stored Responses application state requested by AssessSuite; it does not remove default abuse-monitoring logs. OpenAI states those logs may contain customer content for up to 30 days, subject to longer legal or safety retention. File/image inputs are scanned for child sexual abuse material and a potential match may be retained for manual review even under enhanced controls.
+7. `store: false` prevents AssessSuite from requesting retention of the Response object; it does not remove prompt-cache application state or default abuse-monitoring logs. OpenAI states that non-Zero-Data-Retention Responses requests may cache encrypted derived key/value tensors in GPU-local storage. AssessSuite requests the shortest documented in-memory policy supported by the selected pre-GPT-5.6 model, generally 5–10 minutes of inactivity and no more than one hour; a model/project that does not honour it fails closed. Abuse-monitoring logs may contain customer content for up to 30 days, subject to longer legal or safety retention. File/image inputs are scanned for child sexual abuse material and a potential match may be retained for manual review even under enhanced controls.
 8. OpenAI states that API content is not used to train or improve its models unless the customer expressly opts in. AssessSuite does not opt in. Human access is not part of ordinary extraction, but may occur for flagged abuse/safety review, a customer-initiated support case or legal compulsion.
 
 ## 6. Security incidents
@@ -116,12 +118,12 @@ The production release must evidence:
 - immutable or tamper-evident authentication, access, change, export, deletion, consent, acceptance and administrative logs;
 - approved database and object storage, encrypted backups, defined recovery objectives and tested restoration;
 - monitoring and alerting without unapproved patient content;
-- a default-off document-extraction feature flag, enforced provider-contract and child/ZDR gates, `store: false`, bounded inline requests and tests proving no raw content appears in logs;
+- a default-off document-extraction feature flag, enforced provider-contract, practitioner-authority and child/ZDR gates, `store: false`, shortest-policy prompt caching, bounded inline requests and tests proving no raw content appears in logs;
 - least-privilege support access, recorded approvals and time-bounded elevation;
 - subprocessor assurance, business continuity and incident exercises;
 - secure export and deletion verification.
 
-The current public upload route, role enforcement, incomplete export/deletion, demo database/storage and production backup state do not satisfy this Annex and must be remediated before effective use.
+RC-2026.07.19 includes authenticated tenant/object controls for the referral upload and extraction path. It does not evidence every Annex control, including product-wide MFA, tamper-evident logging, complete export/deletion and tested backup restoration. Those unresolved controls remain release conditions for functions or representations that depend on them; publication of this Schedule is not evidence that they are complete.
 
 ## Annex B — contacts
 

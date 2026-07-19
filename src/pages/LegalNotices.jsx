@@ -1,12 +1,11 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Loader2, Stethoscope } from "lucide-react";
 import { Toaster, toast } from "sonner";
-import PractitionerNoticesSection from "@/components/legal/PractitionerNoticesSection";
-import { recordLegalEvents } from "@/lib/legal/recordAcceptance";
-import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
+import ConsentSection from "@/components/legal/ConsentSection";
+import { recordLegalAcceptanceBundle } from "@/lib/legal/recordAcceptance";
 
 // Standalone re-acceptance screen. Reached only when Layout.jsx's gate finds
 // a user missing one or more of the current-version mandatory practitioner
@@ -18,43 +17,53 @@ import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
 // off the app on decline.
 export default function LegalNotices() {
   const navigate = useNavigate();
-  const [notices, setNotices] = useState({
-    collectionNotice: false,
-    clinicalUse: false,
-    aiTransparency: false,
+  const [consent, setConsent] = useState({
+    accepted: false,
     marketing: false,
   });
+  const [membership, setMembership] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [errors, setErrors] = useState({});
   const [isSaving, setIsSaving] = useState(false);
 
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      try {
+        const user = await base44.auth.me();
+        const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email });
+        if (!memberships?.[0]) throw new Error("No organisation membership is available");
+        if (active) setMembership(memberships[0]);
+      } catch (error) {
+        console.error("Failed to load legal acceptance context", error);
+        if (active) toast.error("Unable to load your practice context. Please try again.");
+      } finally {
+        if (active) setIsLoading(false);
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const handleChange = (field, value) => {
-    setNotices((prev) => ({ ...prev, [field]: value }));
+    setConsent((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: "" }));
   };
 
   const handleContinue = async () => {
     const newErrors = {};
-    if (!notices.collectionNotice) newErrors.collectionNotice = "Required to continue";
-    if (!notices.clinicalUse) newErrors.clinicalUse = "Required to continue";
-    if (!notices.aiTransparency) newErrors.aiTransparency = "Required to continue";
+    if (!consent.accepted) newErrors.accepted = "Required to continue";
+    if (!membership?.org_id) newErrors.context = "Practice context is unavailable";
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
 
     setIsSaving(true);
     try {
-      const user = await base44.auth.me();
-      const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email });
-      const orgId = memberships?.[0]?.org_id;
-
-      const events = [
-        { eventType: EVENT_TYPES.COLLECTION_NOTICE_ACKNOWLEDGEMENT, documentId: "collection-notice" },
-        { eventType: EVENT_TYPES.PROFESSIONAL_USE_ACKNOWLEDGEMENT, documentId: "clinical-use-notice" },
-        { eventType: EVENT_TYPES.AI_TRANSPARENCY_CONSENT, documentId: "ai-notice" },
-      ].map((e) => ({ ...e, userEmail: user.email, orgId, actorCapacity: "reacceptance" }));
-      if (notices.marketing) {
-        events.push({ eventType: EVENT_TYPES.MARKETING_CONSENT, userEmail: user.email, orgId, actorCapacity: "reacceptance" });
-      }
-      await recordLegalEvents(events);
+      await recordLegalAcceptanceBundle({
+        orgId: membership.org_id,
+        marketingOptIn: consent.marketing,
+      });
       toast.success("Notices recorded");
       navigate("/Dashboard");
     } catch (error) {
@@ -82,9 +91,25 @@ export default function LegalNotices() {
             </div>
           </div>
 
-          <PractitionerNoticesSection values={notices} onChange={handleChange} errors={errors} />
+          {isLoading ? (
+            <div className="flex items-center justify-center py-10 text-slate-500">
+              <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+              Loading applicable instruments...
+            </div>
+          ) : (
+            <ConsentSection
+              values={consent}
+              onChange={handleChange}
+              error={errors.accepted || errors.context}
+              isFoundingOwner={membership?.role === "owner"}
+            />
+          )}
 
-          <Button onClick={handleContinue} disabled={isSaving} className="w-full h-12 font-medium">
+          <Button
+            onClick={handleContinue}
+            disabled={isLoading || isSaving || !membership}
+            className="w-full h-12 font-medium"
+          >
             {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
             {isSaving ? "Recording..." : "Continue"}
           </Button>

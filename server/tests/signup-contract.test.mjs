@@ -12,6 +12,7 @@ import {
   SUITE_VERSION,
   fingerprint,
 } from '../../src/lib/legal/documentRegistry.js';
+import { effectiveLegalContent } from '../../src/lib/legal/effectiveContent.js';
 import {
   activateUser,
   createOrganizationForUser,
@@ -25,11 +26,15 @@ const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testsDir, '..', '..');
 const consentPath = path.join(repoRoot, 'src', 'components', 'legal', 'ConsentSection.jsx');
 const profilePath = path.join(repoRoot, 'src', 'pages', 'ProfileSetup.jsx');
+const legalNoticesPath = path.join(repoRoot, 'src', 'pages', 'LegalNotices.jsx');
 const acceptancePath = path.join(repoRoot, 'src', 'lib', 'legal', 'recordAcceptance.js');
 const legalContentDir = path.join(repoRoot, 'src', 'legal-content');
+const serverIndexSource = fs.readFileSync(path.join(repoRoot, 'server', 'index.mjs'), 'utf8');
+const integrationsSource = fs.readFileSync(path.join(repoRoot, 'server', 'integrations.mjs'), 'utf8');
 
 const consentSource = fs.readFileSync(consentPath, 'utf8');
 const profileSource = fs.readFileSync(profilePath, 'utf8');
+const legalNoticesSource = fs.readFileSync(legalNoticesPath, 'utf8');
 const acceptanceSource = fs.readFileSync(acceptancePath, 'utf8');
 
 function occurrences(source, expression) {
@@ -51,6 +56,8 @@ test('S01 exactly one mandatory and one optional checkbox render for both audien
   assert.equal(occurrences(consentSource, /id="consent-accepted"/g), 1);
   assert.equal(occurrences(consentSource, /id="consent-marketing"/g), 1);
   assert.ok(!/isFoundingOwner\s*&&\s*\(\s*<Checkbox\b/s.test(consentSource));
+  assert.match(legalNoticesSource, /<ConsentSection/);
+  assert.doesNotMatch(legalNoticesSource, /PractitionerNoticesSection/);
 });
 
 test('S02 marketing is default-off and non-blocking', () => {
@@ -87,44 +94,55 @@ test('S05 unchecked mandatory consent returns before any backend mutation', () =
     'if (!validateForm())',
     'base44.entities.Organization.create',
     'base44.auth.updateMe',
-    'recordLegalEvents(events)',
+    'recordLegalAcceptanceBundle({ orgId: org.id, marketingOptIn: consent.marketing })',
   );
   assert.match(profileSource, /if\s*\(\s*!validateForm\(\)\s*\)\s*\{[\s\S]*?return;[\s\S]*?\}/);
 });
 
 test('S06 invited clinician produces exactly three document-bound events', () => {
   assert.equal(PRACTITIONER_NOTICE_IDS.length, 3);
-  assert.match(profileSource, /documentId:\s*["']collection-notice["']/);
-  assert.match(profileSource, /documentId:\s*["']clinical-use-notice["']/);
-  assert.match(profileSource, /documentId:\s*["']ai-notice["']/);
-  assert.match(profileSource, /const actorCapacity = foundingNewOrg \? ["']practice owner["'] : ["']invited clinician["']/);
+  assert.match(serverIndexSource, /const documentIds = ownerBundle[\s\S]*?: \[\.\.\.PRACTITIONER_NOTICE_IDS\]/);
+  assert.match(serverIndexSource, /const actorCapacity = ownerBundle \? 'practice owner' : 'invited clinician'/);
 });
 
 test('S07 founding owner produces exactly eight document-bound events', () => {
   assert.equal(PRACTITIONER_NOTICE_IDS.length + CONTRACT_BUNDLE_IDS.length, 8);
   assert.equal(CONTRACT_BUNDLE_IDS.length, 5);
-  assert.match(profileSource, /if\s*\(foundingNewOrg\)\s*\{[\s\S]*?CONTRACT_BUNDLE_IDS\.map/);
-  assert.match(profileSource, /eventType:\s*EVENT_TYPES\.CONTRACT_ACCEPTANCE/);
+  assert.match(serverIndexSource, /\[\.\.\.PRACTITIONER_NOTICE_IDS, \.\.\.CONTRACT_BUNDLE_IDS\]/);
+  assert.match(serverIndexSource, /event_type:\s*receipt\.eventType/);
+  assert.match(serverIndexSource, /BEGIN IMMEDIATE[\s\S]*?COMMIT[\s\S]*?ROLLBACK/);
+  assert.ok(PRACTITIONER_NOTICE_IDS.every((id) => typeof LEGAL_DOCUMENTS[id].eventType === 'string'));
+  assert.ok(CONTRACT_BUNDLE_IDS.every(
+    (id) => LEGAL_DOCUMENTS[id].eventType === EVENT_TYPES.CONTRACT_ACCEPTANCE,
+  ));
 });
 
 test('S08 each document event records the displayed version, title, and exact content fingerprint', () => {
-  assert.match(acceptanceSource, /documentTitle\s*=\s*doc\.title/);
-  assert.match(acceptanceSource, /documentFingerprint\s*=\s*fingerprint\(loadLegalContent\(doc\.file\)\)/);
-  assert.match(acceptanceSource, /suite_version:\s*SUITE_VERSION/);
+  assert.match(serverIndexSource, /effectiveLegalContent\(raw,/);
+  assert.match(serverIndexSource, /document_title:\s*document\.title/);
+  assert.match(serverIndexSource, /document_fingerprint:\s*receipt\.fingerprint/);
+  assert.match(serverIndexSource, /suite_version:\s*LEGAL_SUITE_VERSION/);
+  assert.match(acceptanceSource, /RecordLegalAcceptanceBundle/);
   for (const id of [...PRACTITIONER_NOTICE_IDS, ...CONTRACT_BUNDLE_IDS]) {
     const doc = LEGAL_DOCUMENTS[id];
     const content = fs.readFileSync(path.join(legalContentDir, doc.file), 'utf8');
+    const displayed = effectiveLegalContent(content, {
+      status: 'effective',
+      effectiveDate: '20 July 2026',
+    });
     assert.equal(typeof doc.title, 'string');
     assert.ok(doc.title.length > 0);
-    assert.match(fingerprint(content), /^fnv-[0-9a-f]+-\d+$/);
+    assert.match(fingerprint(displayed), /^fnv-[0-9a-f]+-\d+$/);
+    assert.notEqual(displayed, content);
     assert.match(SUITE_VERSION, /\S/);
   }
 });
 
 test('S09 marketing records zero events when declined and one when selected', () => {
-  assert.equal(occurrences(profileSource, /EVENT_TYPES\.MARKETING_CONSENT/g), 1);
-  assert.match(profileSource, /if\s*\(consent\.marketing\)\s*\{[\s\S]*?events\.push\(\{\s*eventType:\s*EVENT_TYPES\.MARKETING_CONSENT/);
-  assert.doesNotMatch(profileSource, /MARKETING_CONSENT[\s\S]{0,160}documentId/);
+  assert.match(profileSource, /marketingOptIn:\s*consent\.marketing/);
+  assert.match(integrationsSource, /marketingOptIn:\s*body\?\.marketing_opt_in === true/);
+  assert.match(serverIndexSource, /if \(marketingOptIn\) \{[\s\S]*?EVENT_TYPES\.MARKETING_CONSENT/);
+  assert.match(serverIndexSource, /event_type:\s*EVENT_TYPES\.MARKETING_CONSENT[\s\S]*?document_id:\s*null/);
 });
 
 test('S10 founding-owner state cannot diverge between render and submission', () => {
@@ -138,7 +156,7 @@ test('S10 founding-owner state cannot diverge between render and submission', ()
   assert.match(profileSource, /<ConsentSection[\s\S]*?isFoundingOwner=\{isNewOrg\}/);
 });
 
-test('S11 server clinical-access gate remains satisfied by the three current notice events', async () => {
+test('S11 server rejects forged notice rows and accepts only its complete derived bundle', async () => {
   const server = await startTestServer();
   try {
     const adminToken = await loginAdmin(server);
@@ -150,23 +168,33 @@ test('S11 server clinical-access gate remains satisfied by the three current not
     assert.equal(before.status, 403);
     assert.equal(before.body?.message, 'current legal acceptance required');
 
-    for (const documentId of PRACTITIONER_NOTICE_IDS) {
-      const doc = LEGAL_DOCUMENTS[documentId];
-      const created = await requestJson(server, `/api/apps/${server.appId}/entities/LegalAcceptanceEvent`, {
-        method: 'POST',
-        token: user.token,
-        body: {
-          event_type: doc.eventType,
-          user_email: user.email,
-          org_id: organization.id,
-          suite_version: SUITE_VERSION,
-          document_id: documentId,
-          document_title: doc.title,
-          actor_capacity: 'invited clinician',
-        },
-      });
-      assert.equal(created.status, 200, created.text);
-    }
+    const forged = await requestJson(server, `/api/apps/${server.appId}/entities/LegalAcceptanceEvent`, {
+      method: 'POST',
+      token: user.token,
+      body: {
+        event_type: EVENT_TYPES.AI_TRANSPARENCY_CONSENT,
+        user_email: user.email,
+        org_id: organization.id,
+        suite_version: SUITE_VERSION,
+      },
+    });
+    assert.equal(forged.status, 403, forged.text);
+
+    const bundle = await requestJson(
+      server,
+      `/api/apps/${server.appId}/integration-endpoints/Core/RecordLegalAcceptanceBundle`,
+      { method: 'POST', token: user.token, body: { org_id: organization.id, marketing_opt_in: false } },
+    );
+    assert.equal(bundle.status, 200, bundle.text);
+    assert.equal(bundle.body?.recorded, 3);
+    assert.equal(bundle.body?.owner_bundle, false);
+
+    const receipts = await requestJson(server, `/api/apps/${server.appId}/entities/LegalAcceptanceEvent`, {
+      token: user.token,
+    });
+    assert.equal(receipts.status, 200, receipts.text);
+    assert.equal(receipts.body.length, 3);
+    assert.ok(receipts.body.every((event) => /^fnv-[0-9a-f]+-\d+$/.test(event.document_fingerprint)));
 
     const after = await requestJson(server, `/api/apps/${server.appId}/entities/Client`, { token: user.token });
     assert.equal(after.status, 200, after.text);
@@ -183,4 +211,36 @@ test('S12 checkbox labelling, focus, and described text remain accessible', () =
   assert.match(consentSource, /id="consent-marketing"/);
   assert.match(consentSource, /<Label[\s\S]*?htmlFor="consent-marketing"/);
   assert.doesNotMatch(consentSource, /tabIndex=\{?-1\}?/);
+});
+
+test('S13 owner bundle records eight typed, document-bound receipts', async () => {
+  const server = await startTestServer();
+  try {
+    const adminToken = await loginAdmin(server);
+    const user = await registerUser(server, 'synthetic-owner-signup-gate@example.test');
+    await activateUser(server, adminToken, user.id);
+    const organization = await createOrganizationForUser(server, adminToken, user, 'owner');
+
+    const bundle = await requestJson(
+      server,
+      `/api/apps/${server.appId}/integration-endpoints/Core/RecordLegalAcceptanceBundle`,
+      { method: 'POST', token: user.token, body: { org_id: organization.id, marketing_opt_in: false } },
+    );
+    assert.equal(bundle.status, 200, bundle.text);
+    assert.equal(bundle.body?.recorded, 8);
+    assert.equal(bundle.body?.owner_bundle, true);
+
+    const receipts = await requestJson(server, `/api/apps/${server.appId}/entities/LegalAcceptanceEvent`, {
+      token: user.token,
+    });
+    assert.equal(receipts.status, 200, receipts.text);
+    assert.equal(receipts.body.length, 8);
+    assert.ok(receipts.body.every((event) => typeof event.event_type === 'string' && event.event_type.length > 0));
+    assert.deepEqual(
+      new Set(receipts.body.map((event) => event.document_id)),
+      new Set([...PRACTITIONER_NOTICE_IDS, ...CONTRACT_BUNDLE_IDS]),
+    );
+  } finally {
+    await server.stop();
+  }
 });

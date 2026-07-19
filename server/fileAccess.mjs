@@ -5,6 +5,8 @@
 import { createHash, randomBytes } from 'node:crypto';
 
 const grants = new Map();
+const MAX_ACTIVE_GRANTS = 10_000;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function ttlSeconds() {
   const parsed = Number(process.env.FILE_ACCESS_URL_TTL_SECONDS);
@@ -18,13 +20,19 @@ function tokenHash(token) {
 
 function removeExpired(nowMs) {
   for (const [hash, grant] of grants) {
-    if (grant.expiresAtMs < nowMs) grants.delete(hash);
+    if (grant.expiresAtMs <= nowMs) grants.delete(hash);
   }
 }
 
 export function issueFileAccessUrl({ uploadId, orgId, userId, now = new Date() }) {
+  if (!UUID_RE.test(String(uploadId || '')) || !orgId || !userId) {
+    throw new TypeError('A canonical upload, organisation and user are required for file access.');
+  }
   const nowMs = new Date(now).getTime();
   removeExpired(nowMs);
+  while (grants.size >= MAX_ACTIVE_GRANTS) {
+    grants.delete(grants.keys().next().value);
+  }
   const token = randomBytes(32).toString('base64url');
   const expiresAtMs = nowMs + ttlSeconds() * 1000;
   grants.set(tokenHash(token), { uploadId, orgId, userId, expiresAtMs });
@@ -38,7 +46,7 @@ export function verifyFileAccessToken(token, { uploadId, now = new Date() }) {
   const nowMs = new Date(now).getTime();
   removeExpired(nowMs);
   const grant = grants.get(tokenHash(token));
-  if (!grant || grant.uploadId !== uploadId || grant.expiresAtMs < nowMs) return null;
+  if (!grant || grant.uploadId !== uploadId || grant.expiresAtMs <= nowMs) return null;
   return {
     uploadId: grant.uploadId,
     orgId: grant.orgId,

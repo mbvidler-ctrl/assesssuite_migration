@@ -49,7 +49,8 @@ Do not include secret values, production records, referral contents, provider pa
 | Adult extraction disabled in compatibility config | `NOT VERIFIED` |
 | Under-age extraction disabled in compatibility config | `NOT VERIFIED` |
 | Build-only workflow run ID/URL | |
-| Full compatibility image | |
+| Compatibility image tag | |
+| Immutable compatibility image digest | |
 | Build timestamp | |
 | Production deployment during image build | must be `no` |
 | Independent compatibility review | |
@@ -124,7 +125,7 @@ No skipped, unavailable, network-skipped or baseline-failing gate may be recorde
 | Candidate SHA | |
 | Candidate build timestamp | |
 | Candidate Fly release | |
-| Candidate full image | |
+| Candidate immutable image digest | |
 | `assesssuite.com/api/version` exact SHA | `NOT VERIFIED` |
 | `assesssuite-production.fly.dev/api/version` exact SHA | `NOT VERIFIED` |
 | Workflow conclusion | |
@@ -160,7 +161,7 @@ If rollback occurred:
 | Automatic or manual | |
 | Rollback workflow run ID/URL | |
 | Compatibility source SHA | |
-| Requested rollback image | |
+| Requested rollback image digest | |
 | Observed rollback release | |
 | Observed rollback image | |
 | Apex `/api/version` rollback SHA | `NOT VERIFIED` |

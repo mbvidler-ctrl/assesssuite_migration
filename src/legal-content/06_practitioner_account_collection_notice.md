@@ -3,7 +3,7 @@
 **Release status:** DRAFT — NOT APPROVED FOR PUBLICATION, ACCEPTANCE OR RELIANCE  
 **Effective date:** None  
 **Approved by:** None  
-**Version:** RC-2026.07.11  
+**Version:** RC-2026.07.19
 **Proposed issuer:** Assess Suite Pty Ltd (ACN 694 044 481; ABN 53 694 044 481)
 
 ## Why you are receiving this notice

@@ -95,8 +95,8 @@ jobs:
           [[ "$ROLLBACK_SOURCE_BRANCH" =~ ^[A-Za-z0-9._/-]{1,180}$ ]]
           [[ "$ROLLBACK_SOURCE_BRANCH" != *".."* && "$ROLLBACK_SOURCE_BRANCH" != /* && "$ROLLBACK_SOURCE_BRANCH" != */ ]]
           [[ "$EXPECTED_CURRENT_RELEASE" =~ ^[A-Za-z0-9._:-]{1,120}$ ]]
-          [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\.fly\.io/assesssuite-production:[A-Za-z0-9._-]{1,128}$ ]]
-          [[ "$ROLLBACK_IMAGE" =~ ^registry\.fly\.io/assesssuite-production:[A-Za-z0-9._-]{1,128}$ ]]
+          [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\.fly\.io/assesssuite-production(:[A-Za-z0-9._-]{1,128}|@sha256:[0-9a-f]{64})$ ]]
+          [[ "$ROLLBACK_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
           [[ "$ROLLBACK_IMAGE" != "$EXPECTED_CURRENT_IMAGE" ]]
           [[ -n "$CAPABILITY_INTENT_ID" && "$CAPABILITY_INTENT_ID" != *$'\n'* ]]
           [[ -n "$AUTHORITY_REFERENCE" && "$AUTHORITY_REFERENCE" != *$'\n'* ]]
@@ -138,6 +138,8 @@ jobs:
             echo 'Rollback configuration must keep document extraction disabled.' >&2
             exit 1
           fi
+          [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
 
       - name: Set up pinned flyctl
         uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6

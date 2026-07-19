@@ -63,6 +63,7 @@ import { sendEmail } from './email.mjs';
 // key returns 503, so mock clinical content is never served or persisted in
 // production. Unset in dev/demo and always under SELFTEST (mock-fallback kept).
 const LLM_REQUIRED = process.env.LLM_REQUIRED === '1';
+const PROCESSING_AUTHORITY_ATTESTATION_VERSION = 'referral-processing-authority-v2026-07-19.1';
 
 /**
  * Converts a raw multipart or JSON body buffer into a plain object, mapping
@@ -149,6 +150,13 @@ function sendJson(res, status, payload) {
 // ---------------------------------------------------------------------------
 
 async function handleInvokeLLM(body) {
+  const selftestMockAllowed =
+    process.env.SELFTEST === '1' && process.env.GENERAL_CLINICAL_LLM_ENABLED === undefined;
+  if (process.env.GENERAL_CLINICAL_LLM_ENABLED !== '1' && !selftestMockAllowed) {
+    const error = new Error('General AI generation is disabled on this server.');
+    error.httpStatus = 503;
+    throw error;
+  }
   const { prompt, response_json_schema: schema } = body || {};
   const schemaObj = schema && typeof schema === 'object' ? { ...schema, type: schema.type || 'object' } : null;
   const jsonKeys = schemaObj ? null : extractJsonKeysFromPrompt(prompt);
@@ -161,13 +169,13 @@ async function handleInvokeLLM(body) {
   if (llmEnabled()) {
     try {
       return await invokeRealLLM({ prompt, schema: schemaObj });
-    } catch (err) {
+    } catch {
       if (LLM_REQUIRED) {
-        const e = new Error(`AI generation failed: ${err.message}`);
+        const e = new Error('AI generation failed.');
         e.httpStatus = 502;
         throw e;
       }
-      console.log('[llm] real model failed, falling back to mock:', err.message);
+      console.log('[llm] real model failed; using the explicit non-production mock fallback');
     }
   } else if (LLM_REQUIRED) {
     // Production: never silently serve mock clinical content when no key is set.
@@ -342,6 +350,13 @@ async function handleExtractDataFromUploadedFile(body, context) {
   if (!context.hasExtractionAcceptance(context.sessionUser.email, orgId)) {
     throw new ExtractionError(403, 'acceptance_required', 'Current AI document-extraction acceptance is required.');
   }
+  if (body?.processing_authority_confirmed !== true) {
+    throw new ExtractionError(
+      403,
+      'processing_authority_required',
+      'Confirm the documented authority for this referral before extraction.',
+    );
+  }
   const references = normalizeExtractionReferences(body);
   const uploads = [];
   for (const reference of references) {
@@ -349,7 +364,24 @@ async function handleExtractDataFromUploadedFile(body, context) {
     if (!['referral-extraction', 'clinical-attachment', 'report-attachment'].includes(upload.purpose)) {
       throw new UploadError(404, 'upload_not_found', 'File not found.');
     }
+    if (upload.state === 'bound' || (!upload.isLegacy && upload.uploaderUserId !== context.sessionUser.id)) {
+      throw new UploadError(404, 'upload_not_found', 'File not found.');
+    }
     uploads.push(upload);
+  }
+
+  for (const upload of uploads) {
+    context.uploadRegistry.audit({
+      uploadId: upload.id,
+      orgId,
+      actorUserId: context.sessionUser.id,
+      eventType: 'processing_authority_attested',
+      outcome: 'success',
+      metadata: {
+        attestation_version: PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+        upload_purpose: upload.purpose,
+      },
+    });
   }
 
   const releaseSlot = acquireExtractionSlot(context.sessionUser.id, orgId);
@@ -387,6 +419,10 @@ async function handleExtractDataFromUploadedFile(body, context) {
           estimated_cost_microusd: reservation.estimatedCostMicrousd,
           actual_cost_microusd: actualCostMicrousd ?? reservation.estimatedCostMicrousd,
           provider_status_class: extracted.providerStatusClass,
+          provider_model: extracted.model,
+          prompt_version: extracted.promptVersion,
+          request_policy: extracted.requestPolicy,
+          provider_response_id_hash: extracted.providerResponseIdHash,
         },
       });
     }
@@ -450,6 +486,34 @@ function handleSendSMS(body, outboxSms) {
 // UploadFile
 // ---------------------------------------------------------------------------
 
+function subjectAgeBandFromDateOfBirth(value, { required = false, now = new Date() } = {}) {
+  if (value === undefined || value === null || value === '') {
+    if (required) {
+      throw new UploadError(400, 'subject_date_of_birth_required', 'Enter the subject date of birth.');
+    }
+    return 'unknown';
+  }
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw new UploadError(400, 'invalid_subject_date_of_birth', 'Enter a valid subject date of birth.');
+  }
+  const [year, month, day] = value.split('-').map(Number);
+  const birthDate = new Date(Date.UTC(year, month - 1, day));
+  if (
+    birthDate.getUTCFullYear() !== year ||
+    birthDate.getUTCMonth() !== month - 1 ||
+    birthDate.getUTCDate() !== day ||
+    birthDate.getTime() > now.getTime()
+  ) {
+    throw new UploadError(400, 'invalid_subject_date_of_birth', 'Enter a valid subject date of birth.');
+  }
+  let age = now.getUTCFullYear() - year;
+  const beforeBirthday =
+    now.getUTCMonth() < month - 1 ||
+    (now.getUTCMonth() === month - 1 && now.getUTCDate() < day);
+  if (beforeBirthday) age -= 1;
+  return age < 13 ? 'under_13' : '13_or_over';
+}
+
 async function handleUploadFile(body, files, context) {
   const orgId = requireSelectedOrg(body, context);
   const file = files?.file;
@@ -460,10 +524,19 @@ async function handleUploadFile(body, files, context) {
   if (!APPROVED_UPLOAD_PURPOSES.has(purpose)) {
     throw new UploadError(400, 'invalid_purpose', 'Select a supported upload purpose.');
   }
-  const subjectAgeBand = typeof body?.subject_age_band === 'string' ? body.subject_age_band.trim() : '';
-  if (!['13_or_over', 'under_13', 'unknown'].includes(subjectAgeBand)) {
-    throw new UploadError(400, 'invalid_age_band', 'Select the subject age category.');
+  if (
+    purpose !== 'profile-image' &&
+    (context.sessionUser.account_status !== 'active' ||
+      !context.hasCurrentLegalAcceptance(context.sessionUser.email))
+  ) {
+    throw new UploadError(403, 'clinical_upload_forbidden', 'Current approved access and legal acceptance are required.');
   }
+  if (body?.subject_age_band !== undefined) {
+    throw new UploadError(400, 'client_age_band_rejected', 'Submit the subject date of birth, not an age category.');
+  }
+  const subjectAgeBand = subjectAgeBandFromDateOfBirth(body?.subject_date_of_birth, {
+    required: purpose === 'referral-extraction',
+  });
   const purposeMaxBytes = purpose === 'referral-extraction' ? UPLOAD_POLICY.maxReferralBytes : UPLOAD_POLICY.maxFileBytes;
   if (file.size <= 0 || file.size > purposeMaxBytes) {
     throw new UploadError(file.size > purposeMaxBytes ? 413 : 400, 'invalid_file_size', 'The selected file size is invalid.');
@@ -482,6 +555,63 @@ async function handleUploadFile(body, files, context) {
   return { file_url: `/uploads/${upload.id}`, upload_id: upload.id };
 }
 
+async function handleCancelTemporaryUploads(body, context) {
+  const orgId = requireSelectedOrg(body, context);
+  const references = body?.upload_ids;
+  if (
+    !Array.isArray(references) ||
+    references.length === 0 ||
+    references.length > UPLOAD_POLICY.maxFilesPerExtraction ||
+    references.some((value) => typeof value !== 'string' || value.length === 0 || value.length > 300) ||
+    new Set(references).size !== references.length
+  ) {
+    throw new UploadError(400, 'invalid_file_reference', 'Provide a valid upload list to cancel.');
+  }
+
+  const uploads = [];
+  for (const reference of references) {
+    const upload = await resolveRegisteredUpload(reference, context, orgId);
+    if (upload.isLegacy || upload.state === 'bound') {
+      throw new UploadError(409, 'upload_not_temporary', 'A retained file cannot be cancelled.');
+    }
+    uploads.push(upload);
+  }
+
+  for (const upload of uploads) {
+    context.uploadRegistry.transition(upload.id, 'temporary', {
+      actorUserId: context.sessionUser.id,
+      failure: true,
+    });
+    context.uploadRegistry.audit({
+      uploadId: upload.id,
+      orgId,
+      actorUserId: context.sessionUser.id,
+      eventType: 'temporary_upload_cancelled',
+      outcome: 'success',
+      metadata: { cleanup_within_seconds: Math.ceil(UPLOAD_POLICY.failureCleanupMs / 1000) },
+    });
+  }
+  return { status: 'success', scheduled: uploads.length };
+}
+
+async function handleRecordLegalAcceptanceBundle(body, context) {
+  const orgId = requireSelectedOrg(body, context);
+  if (
+    body?.marketing_opt_in !== undefined &&
+    typeof body.marketing_opt_in !== 'boolean'
+  ) {
+    throw new UploadError(400, 'invalid_marketing_choice', 'The optional marketing choice is invalid.');
+  }
+  if (typeof context.recordLegalAcceptanceBundle !== 'function') {
+    throw new UploadError(503, 'legal_acceptance_unavailable', 'Legal acceptance is currently unavailable.');
+  }
+  return context.recordLegalAcceptanceBundle({
+    sessionUser: context.sessionUser,
+    orgId,
+    marketingOptIn: body?.marketing_opt_in === true,
+  });
+}
+
 async function handleCreateFileAccessUrl(body, context) {
   const orgId = requireSelectedOrg(body, context);
   const reference = typeof body?.file_url === 'string' ? body.file_url : body?.upload_id;
@@ -489,6 +619,9 @@ async function handleCreateFileAccessUrl(body, context) {
     throw new UploadError(400, 'invalid_file_reference', 'The file reference is invalid.');
   }
   const upload = await resolveRegisteredUpload(reference, context, orgId);
+  if (typeof context.canAccessUpload !== 'function' || !context.canAccessUpload(upload)) {
+    throw new UploadError(404, 'upload_not_found', 'File not found.');
+  }
   const issued = issueFileAccessUrl({ uploadId: upload.id, orgId, userId: context.sessionUser.id });
   context.uploadRegistry.audit({
     uploadId: upload.id,
@@ -527,6 +660,8 @@ const HANDLERS = new Set([
   'GenerateImage',
   'ExtractDataFromUploadedFile',
   'CreateFileAccessUrl',
+  'CancelTemporaryUploads',
+  'RecordLegalAcceptanceBundle',
 ]);
 
 /**
@@ -566,6 +701,10 @@ export async function handleCoreIntegration(req, res, context) {
         return sendJson(res, 200, await handleUploadFile(body, files, context));
       case 'CreateFileAccessUrl':
         return sendJson(res, 200, await handleCreateFileAccessUrl(body, context));
+      case 'CancelTemporaryUploads':
+        return sendJson(res, 200, await handleCancelTemporaryUploads(body, context));
+      case 'RecordLegalAcceptanceBundle':
+        return sendJson(res, 200, await handleRecordLegalAcceptanceBundle(body, context));
       case 'GenerateImage':
         return sendJson(res, 200, handleGenerateImage(body));
       default:

@@ -36,11 +36,20 @@ async function createAcceptedUser(version, suffix) {
   const user = await registerUser(server, `synthetic-rollback-${suffix}@example.test`);
   await activateUser(server, adminToken, user.id);
   const org = await createOrganizationForUser(server, adminToken, user);
+  if (version === CURRENT_VERSION) {
+    const bundle = await requestJson(
+      server,
+      route('/integration-endpoints/Core/RecordLegalAcceptanceBundle'),
+      { method: 'POST', token: user.token, body: { org_id: org.id, marketing_opt_in: false } },
+    );
+    assert.equal(bundle.status, 200, bundle.text);
+    return { user, org };
+  }
   for (const documentId of PRACTITIONER_NOTICE_IDS) {
     const doc = LEGAL_DOCUMENTS[documentId];
     const acceptance = await requestJson(server, route('/entities/LegalAcceptanceEvent'), {
       method: 'POST',
-      token: user.token,
+      token: adminToken,
       body: {
         event_type: doc.eventType,
         user_email: user.email,
@@ -64,7 +73,7 @@ async function uploadReferral(fixture) {
   const form = new FormData();
   form.set('org_id', fixture.org.id);
   form.set('purpose', 'referral-extraction');
-  form.set('subject_age_band', '13_or_over');
+  form.set('subject_date_of_birth', '2000-01-01');
   form.set('file', new File([pdfFixture()], 'synthetic-rollback.pdf', { type: 'application/pdf' }));
   const response = await fetch(`${server.baseUrl}${route('/integration-endpoints/Core/UploadFile')}`, {
     method: 'POST',
@@ -87,7 +96,7 @@ before(async () => {
     LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS: `${SUPERSEDED_VERSION},${CURRENT_VERSION}`,
     DOCUMENT_EXTRACTION_TEST_BASE_URL: fakeProvider.baseUrl,
     OPENAI_API_KEY: 'synthetic-rollback-provider-canary',
-    OPENAI_DOCUMENT_MODEL: 'synthetic-assurance-model',
+    OPENAI_DOCUMENT_EXTRACTION_MODEL: 'synthetic-assurance-model',
   });
   adminToken = await loginAdmin(server);
   fixtures = {
@@ -129,7 +138,12 @@ test('R04 compatibility rollback keeps provider extraction disabled and makes ze
     {
       method: 'POST',
       token: fixtures.current.user.token,
-      body: { upload_id: upload.upload_id, org_id: fixtures.current.org.id, json_schema: REFERRAL_SCHEMA },
+      body: {
+        upload_id: upload.upload_id,
+        org_id: fixtures.current.org.id,
+        json_schema: REFERRAL_SCHEMA,
+        processing_authority_confirmed: true,
+      },
     },
   );
   assert.notEqual(extraction.body?.status, 'success', extraction.text);
@@ -146,7 +160,7 @@ test('R05 extraction-enabled runtime cannot use the compatibility allowlist', as
       LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS: `${SUPERSEDED_VERSION},${CURRENT_VERSION}`,
       DOCUMENT_EXTRACTION_TEST_BASE_URL: fakeProvider.baseUrl,
       OPENAI_API_KEY: 'synthetic-rollback-provider-canary',
-      OPENAI_DOCUMENT_MODEL: 'synthetic-assurance-model',
+      OPENAI_DOCUMENT_EXTRACTION_MODEL: 'synthetic-assurance-model',
     }),
     /LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS cannot be used while document extraction is enabled/,
   );

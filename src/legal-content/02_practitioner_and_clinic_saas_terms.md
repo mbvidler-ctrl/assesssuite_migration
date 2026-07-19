@@ -4,7 +4,7 @@
 **Effective date:** None  
 **Approved by:** None  
 **Proposed provider:** Assess Suite Pty Ltd (ACN 694 044 481; ABN 53 694 044 481)  
-**Version:** RC-2026.07.11  
+**Version:** RC-2026.07.19
 **Contact:** admin@assesssuite.com | 1800 317 553
 
 > **Release note:** These Terms may be deployed only after the operator and IP position, Order Form, Approved Production Mode, TGA position, price/tax treatment, approved subprocessors, security controls, clickwrap and record-exit process are approved and bound to the same release manifest.

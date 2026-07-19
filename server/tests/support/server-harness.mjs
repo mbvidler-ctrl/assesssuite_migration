@@ -55,6 +55,8 @@ export async function startTestServer(extraEnv = {}) {
     env: {
       ...process.env,
       SELFTEST: '1',
+      NODE_ENV: 'test',
+      ASSESSSUITE_DB_PATH_ACK: 'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_NON_PRODUCTION_GATE_DATABASE',
       PORT: String(port),
       ADMIN_EMAIL: 'admin@local.test',
       ADMIN_PASSWORD: 'change-me-local',
@@ -158,7 +160,7 @@ export async function activateUser(server, adminToken, userId) {
   if (result.status !== 200) throw new Error(`activation failed: ${result.status} ${result.text}`);
 }
 
-export async function createOrganizationForUser(server, adminToken, user) {
+export async function createOrganizationForUser(server, adminToken, user, role = 'clinician') {
   const organization = await requestJson(server, `/api/apps/${server.appId}/entities/Organization`, {
     method: 'POST', token: adminToken, body: { name: `Synthetic ${user.id}` },
   });
@@ -168,7 +170,7 @@ export async function createOrganizationForUser(server, adminToken, user) {
   const membership = await requestJson(server, `/api/apps/${server.appId}/entities/OrganizationMember`, {
     method: 'POST',
     token: adminToken,
-    body: { org_id: organization.body.id, user_email: user.email, role: 'clinician', is_primary: true },
+    body: { org_id: organization.body.id, user_email: user.email, role, is_primary: true },
   });
   if (membership.status !== 200) {
     throw new Error(`membership create failed: ${membership.status} ${membership.text}`);

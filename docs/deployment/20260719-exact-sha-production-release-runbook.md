@@ -23,9 +23,9 @@ Do not run local Fly commands with a credential. Do not retrieve, print, copy or
 | Read-only GitHub token | Top-level `permissions: contents: read`. |
 | Exact application source | SHA must be lowercase 40-hex, checkout must equal it, and the named remote branch tip must equal it. |
 | Secret isolation | All gates run in a job with no Fly secret. The final secret-bearing step contains only reviewed inline release logic and Fly/public-version commands; no repository script is executed there. |
-| Supply-chain pinning | `actions/checkout`, `actions/setup-node`, and Fly's setup action use reviewed full commit SHAs; flyctl is fixed at `0.4.71`. |
+| Supply-chain pinning | Checkout, Node setup, artifact transfer and Fly setup actions use reviewed full commit SHAs; flyctl is fixed at `0.4.71`; both Docker stages pin the reviewed Node 24 slim manifest digest. |
 | Production serialization | All three workflows share concurrency group `assesssuite-production` with `cancel-in-progress: false`. |
-| Image identity | Release SHA, source branch and UTC build time are baked into both Docker stages and the OCI revision/source/created labels. |
+| Image identity | Release SHA, source branch and UTC build time are baked into both Docker stages and the OCI revision/source/created labels. The tested candidate image is transferred between jobs, pushed once and deployed by its immutable registry digest. |
 | Current-state guard | Dispatch records expected current release and image; the secret-bearing step compares them to Fly immediately before mutation. |
 | Runtime identity | Both public production domains must return the candidate SHA byte-for-byte from `/api/version`. |
 | Automatic recovery | Ambiguous deploy result, release mismatch or version mismatch deploys the pre-verified compatibility image and verifies its SHA. |
@@ -139,11 +139,14 @@ gh workflow run production-prepare-rollback-image.yml --ref main `
 
 The successful run summary records the immutable image as:
 
+The workflow records both a human-readable tag and the immutable reference that must be supplied to the deploy/rollback workflows:
+
 ```text
 registry.fly.io/assesssuite-production:rollback-compat-<40_HEX_COMPATIBILITY_SHA>
+registry.fly.io/assesssuite-production@sha256:<64_HEX_DIGEST>
 ```
 
-The workflow uses `fly deploy --build-only --push`; it does not deploy or alter the running Machine. Record the workflow run ID/URL and full image reference. Fly does not promise indefinite retention for unused registry images, so build this immediately before the release window and retain the exact evidence.
+It builds and gates the image once, authenticates Docker to the Fly registry, pushes that exact local image and resolves its immutable digest. It does not deploy or alter the running Machine. Record the workflow run ID/URL, tag and digest reference. Fly does not promise indefinite retention for unused registry images, so build this immediately before the release window and retain the exact evidence.
 
 ## 8. Exact-SHA production preflight
 
@@ -153,7 +156,7 @@ Record all fields in the evidence template before dispatch:
 - remote mission-branch tip SHA;
 - pull-request head SHA;
 - current Fly release identifier and full image reference from the Fly dashboard or last verified live release evidence;
-- compatibility source SHA/branch, full rollback image and `/api/version` rollback SHA;
+- compatibility source SHA/branch, immutable rollback image digest and `/api/version` rollback SHA;
 - every gate result and independent review decision;
 - provider-processing mode and evidence IDs only;
 - authorised, `execution_ready` capability intent; and
@@ -192,11 +195,11 @@ The workflow:
 
 1. validates dispatch provenance and inputs;
 2. checks out the exact remote branch tip;
-3. runs install, build, typecheck, lint containment, established suites, `test:assurance`, diff secret scan and a local labelled Docker build without the Fly token;
-4. independently checks out the exact rollback config source;
+3. runs install, build, typecheck, lint containment, established suites, `test:assurance`, diff secret scan and one local labelled Docker build without the Fly token;
+4. transfers that exact gated image to the sealed deploy job through a one-day, checksum-verified GitHub artifact and independently checks out the exact rollback config source;
 5. performs a names-only production secret preflight in the final sealed step;
-6. runs `fly deploy -c fly.production.toml --strategy immediate --app assesssuite-production` with immutable metadata arguments and a SHA-derived image tag;
-7. records prior and candidate release/image identifiers;
+6. pushes the restored gated image, resolves its registry digest and runs `fly deploy -c fly.production.toml --strategy immediate --app assesssuite-production --image registry.fly.io/assesssuite-production@sha256:<digest>`;
+7. records and compares prior and candidate release/image identifiers using immutable candidate/rollback digests;
 8. verifies both production domains return the exact SHA from `/api/version`;
 9. when adult extraction is enabled, runs the separately authorised real-provider probe inside the deployed machine using one synthetic PDF and one synthetic PNG, accepts only the exact value-blind PASS metadata contract and treats any probe failure as a verification failure; and
 10. automatically deploys and verifies the compatibility image if the deploy result is ambiguous, either public version check fails or the enabled-mode provider probe fails.
@@ -253,4 +256,4 @@ Stop and seek direction if:
 - [Fly rollback guide](https://fly.io/docs/blueprints/rollback-guide/) — rollback by deploying an explicit earlier image and the limits of image rollback.
 - [Fly working with Docker](https://fly.io/docs/blueprints/working-with-docker/) — split build/push from later image deployment.
 - [Fly private registry guide](https://fly.io/docs/blueprints/using-the-fly-docker-registry/) — immutable image references and retention caveat.
-- [actions/checkout v7.0.0 commit](https://github.com/actions/checkout/commit/9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0), [actions/setup-node v7.0.0 commit](https://github.com/actions/setup-node/commit/820762786026740c76f36085b0efc47a31fe5020), and [Fly setup action 1.6 commit](https://github.com/superfly/flyctl-actions/commit/ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1) — reviewed action pins current on 19 July 2026.
+- [actions/checkout v7.0.0 commit](https://github.com/actions/checkout/commit/9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0), [actions/setup-node v7.0.0 commit](https://github.com/actions/setup-node/commit/820762786026740c76f36085b0efc47a31fe5020), [actions/upload-artifact v4.6.2 commit](https://github.com/actions/upload-artifact/commit/ea165f8d65b6e75b540449e92b4886f43607fa02), [actions/download-artifact v4.3.0 commit](https://github.com/actions/download-artifact/commit/d3f86a106a0bac45b974a628896c90dbdf5c8093), and [Fly setup action 1.6 commit](https://github.com/superfly/flyctl-actions/commit/ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1) — reviewed action pins current on 19 July 2026.

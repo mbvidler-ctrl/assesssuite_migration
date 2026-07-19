@@ -3,6 +3,7 @@
 **Release status:** APPROVED FOR PUBLICATION WITH THE 19 JULY 2026 RELEASE — FUNCTION ACTIVATION REMAINS SUBJECT TO THE GATES BELOW  
 **Effective date:** Effective on verified deployment; deployment date recorded in the release manifest  
 **Publication authority:** Mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE, activated by Maxwell Vidler on 19 July 2026  
+**Approved by:** Maxwell Vidler under the activated mission authority
 **Version:** RC-2026.07.19
 
 ## 1. Why this notice exists
@@ -36,7 +37,7 @@ Raw referral files, free text and audio must be treated as identifiable health i
 
 The referral/document-extraction provider is **OpenAI OpCo, LLC**, using the OpenAI API Responses service. AssessSuite sends the raw PDF/image inline as base64 input, or sends bounded locally parsed text for CSV, in a single request with `store: false`. It does not create an OpenAI File, conversation, Assistant, thread or vector store and does not use background mode, web search or an external tool for this function.
 
-`store: false` prevents AssessSuite from asking OpenAI to retain Responses application state. It is not a zero-retention promise. OpenAI’s published default API controls state that abuse-monitoring logs may contain input, output and derived metadata for up to 30 days, with possible longer retention where required by law or reasonably necessary to protect the service or a third party. File and image inputs are scanned for child sexual abuse material; a potential match may be retained for manual review even if Zero Data Retention or Modified Abuse Monitoring applies.
+`store: false` prevents AssessSuite from asking OpenAI to retain the Response object. It is not a zero-retention promise. OpenAI’s published controls state that non-Zero-Data-Retention Responses requests may cache encrypted derived key/value tensors in GPU-local application state. AssessSuite requests the shortest documented in-memory policy supported by the selected pre-GPT-5.6 model; cached prefixes generally remain active for 5–10 minutes of inactivity and may remain for up to one hour. A model or project that does not honour that request is treated as a provider failure. Default abuse-monitoring logs may contain input, output and derived metadata for up to 30 days, with possible longer retention where required by law or reasonably necessary to protect the service or a third party. File and image inputs are scanned for child sexual abuse material; a potential match may be retained for manual review even if Zero Data Retention or Modified Abuse Monitoring applies.
 
 OpenAI states that API content is not used to train or improve its models unless the customer expressly opts in. AssessSuite does not opt referral extraction into training, evaluation, feedback or data-sharing programmes and prohibits sale, research, marketing, product improvement and other secondary use of the referral or extracted health information.
 
@@ -73,13 +74,13 @@ Where recording, transcription or AI processing is optional, the patient must be
 
 Where a practice or AssessSuite proposes to rely on another legal basis for a necessary function, a signed function-level authority record must identify each collector/holder, the sensitive information, necessity, APP 3/5 position, use/disclosure, provider, countries and retention. Until that record is approved, the function remains disabled or uses valid specific consent and a genuine alternative. A broad platform or treatment consent is not permission for future model training, sale, research, marketing or unrelated analytics.
 
-Referral extraction may concern an adult or a child. The practice must give the applicable collection notice and document the patient’s capacity or representative authority and any required consent. The provider’s separate under-13/age-of-digital-consent Zero Data Retention condition applies even if a parent or guardian has authorised the Australian clinical collection.
+Referral extraction may concern an adult or a child. The practice must give the applicable collection notice and document the patient’s capacity or representative authority and any required consent. Before the provider call, AssessSuite requires the authenticated practitioner to attest that the practice holds that notice/consent or another valid function-specific authority, calculates the provider age category from the entered date of birth, and records content-free evidence of the attestation. The provider’s separate under-13/age-of-digital-consent Zero Data Retention condition applies even if a parent or guardian has authorised the Australian clinical collection.
 
 ## 8. Review, correction and contestability
 
 A patient may ask the treating practice to explain, review or correct a clinical output. They may also contact AssessSuite about the system, provenance or personal information we control. The practice and AssessSuite must cooperate so a person is not sent in circles.
 
-The product must retain enough information to identify the input record, function, source, model/prompt or rule version, time, practitioner edits and final approval. Signed records are corrected by an auditable amendment.
+For referral extraction, the product retains content-free provenance identifying the upload integrity hash, practice and initiating practitioner, function, selected model, prompt/schema versions, provider status class and time. The source is bound to a clinical entity only after the practitioner affirmatively creates or updates that record. Practitioner edits and final clinical approval remain evidenced by the resulting clinical record and its available amendment history; AssessSuite does not represent that this release stores a field-by-field AI-edit replay. Signed records are corrected by an auditable amendment.
 
 ## 9. Automated decisions from 10 December 2026
 

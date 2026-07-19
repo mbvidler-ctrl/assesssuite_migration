@@ -33,6 +33,15 @@ import {
   extractUploadIdsFromValue,
 } from './uploadRegistry.mjs';
 import { verifyFileAccessToken } from './fileAccess.mjs';
+import {
+  CONTRACT_BUNDLE_IDS,
+  EVENT_TYPES,
+  LEGAL_DOCUMENTS,
+  PRACTITIONER_NOTICE_IDS,
+  SUITE_VERSION,
+  fingerprint as legalContentFingerprint,
+} from '../src/lib/legal/documentRegistry.js';
+import { effectiveLegalContent } from '../src/lib/legal/effectiveContent.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
@@ -332,27 +341,36 @@ const PRE_APPROVAL_WRITE_ENTITIES = new Set([
 // mandatory practitioner notice is added or retired. This is the server-side
 // half of the L-15/L-08 fix — the old model relied solely on the client
 // (Layout.jsx) gate, which any direct API caller could bypass entirely.
-const LEGAL_SUITE_VERSION = 'RC-2026.07.19';
-const REQUIRED_NOTICE_EVENT_TYPES = [
-  'collection_notice_acknowledgement',
-  'professional_use_acknowledgement',
-  'ai_transparency_consent',
-];
+const LEGAL_SUITE_VERSION = SUITE_VERSION;
+const SERVER_DERIVED_LEGAL_EVENT_TYPES = new Set([
+  EVENT_TYPES.CONTRACT_ACCEPTANCE,
+  EVENT_TYPES.COLLECTION_NOTICE_ACKNOWLEDGEMENT,
+  EVENT_TYPES.PROFESSIONAL_USE_ACKNOWLEDGEMENT,
+  EVENT_TYPES.AI_TRANSPARENCY_CONSENT,
+  EVENT_TYPES.MARKETING_CONSENT,
+]);
 
-function legalContentFingerprint(text) {
-  let hash = 0;
-  for (let index = 0; index < text.length; index += 1) {
-    hash = (Math.imul(31, hash) + text.charCodeAt(index)) | 0;
-  }
-  return `fnv-${(hash >>> 0).toString(16)}-${text.length}`;
+function legalPresentationContent(documentId) {
+  const document = LEGAL_DOCUMENTS[documentId];
+  if (!document) throw new Error(`Unknown mandatory legal document: ${documentId}`);
+  const raw = fs.readFileSync(path.join(repoRoot, 'src', 'legal-content', document.file), 'utf8');
+  return effectiveLegalContent(raw, {
+    status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',
+    effectiveDate: process.env.LEGAL_EFFECTIVE_DATE || null,
+  });
 }
 
-const AI_NOTICE_FINGERPRINT = legalContentFingerprint(
-  fs.readFileSync(
-    path.join(repoRoot, 'src', 'legal-content', '05_ai_and_automated_processing_transparency_notice.md'),
-    'utf8',
-  ),
+const CURRENT_LEGAL_DOCUMENT_RECEIPTS = new Map(
+  [...PRACTITIONER_NOTICE_IDS, ...CONTRACT_BUNDLE_IDS].map((documentId) => {
+    const document = LEGAL_DOCUMENTS[documentId];
+    return [documentId, {
+      eventType: document.eventType,
+      title: document.title,
+      fingerprint: legalContentFingerprint(legalPresentationContent(documentId)),
+    }];
+  }),
 );
+const AI_NOTICE_FINGERPRINT = CURRENT_LEGAL_DOCUMENT_RECEIPTS.get('ai-notice').fingerprint;
 
 function parseCompatibilityVersions() {
   const raw = process.env.LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS;
@@ -388,14 +406,41 @@ const LEGAL_GATE_VERSIONS = new Set([
  */
 function hasCurrentLegalAcceptance(userEmail) {
   const repo = repoFor('LegalAcceptanceEvent');
-  if (!repo) return false;
+  if (!repo || !orgMemberRepo) return false;
   const events = repo.listAll().filter((event) => event.user_email === userEmail);
-  return [...LEGAL_GATE_VERSIONS].some((version) => {
-    const versionEvents = events.filter((event) => event.suite_version === version);
-    return REQUIRED_NOTICE_EVENT_TYPES.every((type) =>
-      versionEvents.some((event) => event.event_type === type),
-    );
+  const memberships = orgMemberRepo.listAll().filter((membership) => membership.user_email === userEmail);
+  if (memberships.length === 0) return false;
+
+  const currentBundleAccepted = memberships.some((membership) => {
+    const requiredIds = membership.role === 'owner'
+      ? [...PRACTITIONER_NOTICE_IDS, ...CONTRACT_BUNDLE_IDS]
+      : PRACTITIONER_NOTICE_IDS;
+    return requiredIds.every((documentId) => {
+      const expected = CURRENT_LEGAL_DOCUMENT_RECEIPTS.get(documentId);
+      return events.some(
+        (event) =>
+          event.org_id === membership.org_id &&
+          event.suite_version === LEGAL_SUITE_VERSION &&
+          event.event_type === expected.eventType &&
+          event.document_id === documentId &&
+          event.document_title === expected.title &&
+          event.document_fingerprint === expected.fingerprint,
+      );
+    });
   });
+  if (currentBundleAccepted) return true;
+
+  // Compatibility images never enable document extraction. Their exact
+  // two-version allowlist preserves the prior notice-only rollback contract.
+  return [...LEGAL_GATE_VERSIONS]
+    .filter((version) => version !== LEGAL_SUITE_VERSION)
+    .some((version) => {
+      const versionEvents = events.filter((event) => event.suite_version === version);
+      return PRACTITIONER_NOTICE_IDS.every((documentId) => {
+        const eventType = LEGAL_DOCUMENTS[documentId].eventType;
+        return versionEvents.some((event) => event.event_type === eventType);
+      });
+    });
 }
 
 /** Current, document-bound AI acceptance for the selected organisation. */
@@ -409,8 +454,73 @@ function hasExtractionAcceptance(userEmail, orgId) {
       event.suite_version === LEGAL_SUITE_VERSION &&
       event.event_type === 'ai_transparency_consent' &&
       event.document_id === 'ai-notice' &&
+      event.document_title === LEGAL_DOCUMENTS['ai-notice'].title &&
       event.document_fingerprint === AI_NOTICE_FINGERPRINT,
   );
+}
+
+function recordLegalAcceptanceBundle({ sessionUser, orgId, marketingOptIn }) {
+  const acceptanceRepo = repoFor('LegalAcceptanceEvent');
+  if (!acceptanceRepo || !orgMemberRepo) {
+    throw new UploadError(503, 'legal_acceptance_unavailable', 'Legal acceptance is currently unavailable.');
+  }
+  const membership = orgMemberRepo
+    .listAll()
+    .find((item) => item.user_email === sessionUser.email && item.org_id === orgId);
+  if (!membership) {
+    throw new UploadError(403, 'org_forbidden', 'The selected organisation is unavailable.');
+  }
+  const ownerBundle = membership.role === 'owner';
+  const documentIds = ownerBundle
+    ? [...PRACTITIONER_NOTICE_IDS, ...CONTRACT_BUNDLE_IDS]
+    : [...PRACTITIONER_NOTICE_IDS];
+  const actorCapacity = ownerBundle ? 'practice owner' : 'invited clinician';
+  const records = documentIds.map((documentId) => {
+    const document = LEGAL_DOCUMENTS[documentId];
+    const receipt = CURRENT_LEGAL_DOCUMENT_RECEIPTS.get(documentId);
+    return {
+      event_type: receipt.eventType,
+      user_email: sessionUser.email,
+      org_id: orgId,
+      actor_capacity: actorCapacity,
+      suite_version: LEGAL_SUITE_VERSION,
+      document_id: documentId,
+      document_title: document.title,
+      document_fingerprint: receipt.fingerprint,
+      session_context: null,
+      user_agent: 'server-derived-bundle',
+      ip_address: 'not-collected-local-shim',
+    };
+  });
+  if (marketingOptIn) {
+    records.push({
+      event_type: EVENT_TYPES.MARKETING_CONSENT,
+      user_email: sessionUser.email,
+      org_id: orgId,
+      actor_capacity: actorCapacity,
+      suite_version: LEGAL_SUITE_VERSION,
+      document_id: null,
+      document_title: null,
+      document_fingerprint: null,
+      session_context: null,
+      user_agent: 'server-derived-bundle',
+      ip_address: 'not-collected-local-shim',
+    });
+  }
+
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const created = records.map((record) => acceptanceRepo.create(record, sessionUser.email));
+    db.exec('COMMIT');
+    return { status: 'success', recorded: created.length, owner_bundle: ownerBundle };
+  } catch (error) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // Preserve the original transaction failure.
+    }
+    throw error;
+  }
 }
 
 // Tenant-scoped entities, derived statically from the schema (carry org_id).
@@ -456,6 +566,21 @@ function writeAuthDenied(entityName, data, sessionUser, { isCreate }) {
     if (isCreate && data && data.user_email && data.user_email !== sessionUser.email) {
       return { ok: false, status: 403, message: 'you may only record your own acceptance or consent' };
     }
+    if (SERVER_DERIVED_LEGAL_EVENT_TYPES.has(data?.event_type)) {
+      return {
+        ok: false,
+        status: 403,
+        message: 'mandatory and marketing legal events must use the server-derived bundle endpoint',
+      };
+    }
+    if (data?.event_type !== EVENT_TYPES.RECORDING_CONSENT) {
+      return { ok: false, status: 400, message: 'unsupported legal event type' };
+    }
+    data.user_email = sessionUser.email;
+    data.suite_version = LEGAL_SUITE_VERSION;
+    data.document_id = null;
+    data.document_title = null;
+    data.document_fingerprint = null;
     return enforceWriteOrgScope(entityName, data, sessionUser, { isCreate });
   }
   return enforceWriteOrgScope(entityName, data, sessionUser, { isCreate });
@@ -1268,6 +1393,12 @@ function serveFile(res, filePath) {
 const UPLOAD_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const LEGACY_STORED_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/;
 const BINDABLE_UPLOAD_ENTITIES = new Set([...CLINICAL_ENTITIES, 'Organization', 'User']);
+const CLINICAL_UPLOAD_PURPOSES = new Set([
+  'referral-extraction',
+  'clinical-attachment',
+  'report-attachment',
+  'audio-transcription',
+]);
 
 function decodeUploadRouteSegment(raw) {
   if (
@@ -1375,12 +1506,22 @@ function resolveLegacyUploadForUser({ storedName, selectedOrgId = null, sessionU
   return null;
 }
 
+function canUserAccessUpload(upload, sessionUser) {
+  if (!upload || !sessionUser || !orgIdsForUser(sessionUser.email).includes(upload.orgId)) return false;
+  if (upload.state !== 'bound' && !upload.isLegacy && upload.uploaderUserId !== sessionUser.id) return false;
+  if (
+    CLINICAL_UPLOAD_PURPOSES.has(upload.purpose) &&
+    (sessionUser.account_status !== 'active' || !hasCurrentLegalAcceptance(sessionUser.email))
+  ) return false;
+  return true;
+}
+
 function uploadForMember(reference, sessionUser) {
   const upload = UPLOAD_ID_RE.test(reference)
     ? uploadRegistry.getById(reference.toLowerCase())
     : resolveLegacyUploadForUser({ storedName: reference, sessionUser });
   if (!upload || ['expired', 'deleted'].includes(upload.state)) return null;
-  return orgIdsForUser(sessionUser.email).includes(upload.orgId) ? upload : null;
+  return canUserAccessUpload(upload, sessionUser) ? upload : null;
 }
 
 function resolveAudioUploadForFunction({ audioUrl, user, orgId }) {
@@ -1436,6 +1577,31 @@ function readUploadBuffer(filePath, expectedBytes) {
 
 function prepareUploadBindings(entityName, data, orgId, entityId = null) {
   if (!BINDABLE_UPLOAD_ENTITIES.has(entityName)) return [];
+  const visitReferences = (value, depth = 0) => {
+    if (depth > 12 || value === null || value === undefined) return;
+    if (typeof value === 'string') {
+      if (/\/api\/files\/[0-9a-f-]+/i.test(value)) {
+        throw new UploadError(400, 'signed_url_not_durable', 'Temporary access URLs cannot be retained.');
+      }
+      const embedded = value.match(/\/uploads\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i);
+      if (embedded && value !== embedded[0]) {
+        throw new UploadError(400, 'noncanonical_upload_reference', 'Retain only the canonical upload reference.');
+      }
+      const match = /^\/uploads\/([0-9a-f-]+)(.*)$/i.exec(value);
+      if (match && (match[2] !== '' || !UPLOAD_ID_RE.test(match[1]))) {
+        throw new UploadError(400, 'noncanonical_upload_reference', 'Retain only the canonical upload reference.');
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value.slice(0, 1000)) visitReferences(item, depth + 1);
+      return;
+    }
+    if (typeof value === 'object') {
+      for (const item of Object.values(value).slice(0, 1000)) visitReferences(item, depth + 1);
+    }
+  };
+  visitReferences(data);
   const ids = extractUploadIdsFromValue(data);
   if (ids.length > 20) throw new UploadError(400, 'too_many_upload_references', 'Too many file references were supplied.');
   return ids.map((id) => {
@@ -1448,6 +1614,15 @@ function prepareUploadBindings(entityName, data, orgId, entityId = null) {
       (upload.boundEntityType !== entityName || (entityId && upload.boundEntityId !== entityId))
     ) {
       throw new UploadError(409, 'upload_already_bound', 'The file is already retained with another record.');
+    }
+    const purposeAllowed =
+      ((entityName === 'User' || entityName === 'Organization') && upload.purpose === 'profile-image') ||
+      (entityName === 'SOAPNote' && ['audio-transcription', 'clinical-attachment'].includes(upload.purpose)) ||
+      (CLINICAL_ENTITIES.has(entityName) &&
+        entityName !== 'SOAPNote' &&
+        ['referral-extraction', 'clinical-attachment', 'report-attachment'].includes(upload.purpose));
+    if (!purposeAllowed) {
+      throw new UploadError(409, 'upload_purpose_mismatch', 'The file cannot be retained with that record.');
     }
     return upload;
   });
@@ -1480,7 +1655,7 @@ function uploadResponseHeaders(upload) {
   };
 }
 
-function serveRegisteredUpload(req, res, url, { upload, signed = false }) {
+function serveRegisteredUpload(req, res, url, { upload, signed = false, actorUserId }) {
   let filePath;
   let stat;
   try {
@@ -1523,7 +1698,18 @@ function serveRegisteredUpload(req, res, url, { upload, signed = false }) {
       'Content-Range': `bytes ${start}-${end}/${stat.size}`,
       'Content-Length': end - start + 1,
     });
-    return fs.createReadStream(filePath, { start, end }).pipe(res);
+    uploadRegistry.audit({
+      uploadId: upload.id,
+      orgId: upload.orgId,
+      actorUserId,
+      eventType: 'upload_accessed',
+      outcome: 'success',
+      metadata: { signed_url: signed, range_request: true, range_start: start, range_end: end },
+    });
+    const stream = fs.createReadStream(filePath, { start, end });
+    stream.on('error', () => res.destroy());
+    stream.pipe(res);
+    return;
   }
   res.writeHead(200, { ...headers, 'Content-Length': stat.size });
   const stream = fs.createReadStream(filePath);
@@ -1532,7 +1718,7 @@ function serveRegisteredUpload(req, res, url, { upload, signed = false }) {
   uploadRegistry.audit({
     uploadId: upload.id,
     orgId: upload.orgId,
-    actorUserId: signed ? 'signed-file-access' : 'authenticated-file-access',
+    actorUserId,
     eventType: 'upload_accessed',
     outcome: 'success',
     metadata: { signed_url: signed },
@@ -1544,22 +1730,27 @@ function handleUploadAccess(req, res, url, rawReference, { signedRoute }) {
   if (!reference || (signedRoute && !UPLOAD_ID_RE.test(reference))) return sendError(res, 404, 'not found');
   let upload;
   let signed = false;
+  let actorUserId = null;
   if (signedRoute && url.searchParams.has('access_token')) {
     const grant = verifyFileAccessToken(url.searchParams.get('access_token'), { uploadId: reference.toLowerCase() });
     const grantUser = grant ? userRepo.getById(grant.userId) : null;
     if (!grant || !grantUser || grant.orgId !== uploadRegistry.getById(reference.toLowerCase())?.orgId) {
       return sendError(res, 404, 'not found');
     }
-    if (!orgIdsForUser(grantUser.email).includes(grant.orgId)) return sendError(res, 404, 'not found');
     upload = uploadRegistry.getById(reference.toLowerCase());
+    if (!canUserAccessUpload(upload, grantUser) || upload.orgId !== grant.orgId) {
+      return sendError(res, 404, 'not found');
+    }
     signed = true;
+    actorUserId = grantUser.id;
   } else {
     const sessionUser = resolveSessionUser(req);
     if (!sessionUser) return sendError(res, 401, 'authentication required');
     upload = uploadForMember(reference, sessionUser);
+    actorUserId = sessionUser.id;
   }
   if (!upload || ['expired', 'deleted'].includes(upload.state)) return sendError(res, 404, 'not found');
-  return serveRegisteredUpload(req, res, url, { upload, signed });
+  return serveRegisteredUpload(req, res, url, { upload, signed, actorUserId });
 }
 
 function serveDistOrFallback(req, res, pathname) {
@@ -1687,6 +1878,9 @@ async function requestListener(req, res) {
         uploadRegistry,
         uploadsDir,
         hasExtractionAcceptance,
+        hasCurrentLegalAcceptance,
+        recordLegalAcceptanceBundle,
+        canAccessUpload: (upload) => canUserAccessUpload(upload, integrationUser),
         resolveLegacyUpload: ({ storedName, selectedOrgId }) =>
           resolveLegacyUploadForUser({ storedName, selectedOrgId, sessionUser: integrationUser }),
         readUploadBuffer,

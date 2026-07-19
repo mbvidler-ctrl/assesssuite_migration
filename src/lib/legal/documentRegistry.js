@@ -88,6 +88,7 @@ export const LEGAL_DOCUMENTS = {
     file: '07_acceptable_use_policy.md',
     releaseStatus: 'DRAFT — NOT APPROVED FOR PUBLICATION, ACCEPTANCE OR RELIANCE',
     publicRoute: true,
+    eventType: EVENT_TYPES.CONTRACT_ACCEPTANCE,
   },
   subscription: {
     title: 'AssessSuite Subscription, Cancellation and Refund Policy',
@@ -95,6 +96,7 @@ export const LEGAL_DOCUMENTS = {
     file: '08_subscription_cancellation_and_refund_policy.md',
     releaseStatus: 'DRAFT — NOT APPROVED FOR PUBLICATION, ACCEPTANCE OR RELIANCE',
     publicRoute: true,
+    eventType: EVENT_TYPES.CONTRACT_ACCEPTANCE,
   },
   'website-terms': {
     title: 'AssessSuite Website Terms of Use',
@@ -116,6 +118,7 @@ export const LEGAL_DOCUMENTS = {
     file: '11_data_processing_and_security_schedule.md',
     releaseStatus: 'APPROVED FOR PUBLICATION WITH RC-2026.07.19 — PROCESSING ACTIVATION GATES APPLY',
     publicRoute: true,
+    eventType: EVENT_TYPES.CONTRACT_ACCEPTANCE,
   },
   subprocessors: {
     title: 'AssessSuite Approved Subprocessor and Cross-Border Data Schedule',
@@ -123,6 +126,7 @@ export const LEGAL_DOCUMENTS = {
     file: '25_approved_subprocessor_and_cross_border_schedule_template.md',
     releaseStatus: 'PUBLIC SCHEDULE — CURRENT PROVIDERS AND ACTIVATION CONDITIONS LISTED',
     publicRoute: true,
+    eventType: EVENT_TYPES.CONTRACT_ACCEPTANCE,
   },
   'vulnerability-disclosure': {
     title: 'AssessSuite Vulnerability Disclosure Policy',

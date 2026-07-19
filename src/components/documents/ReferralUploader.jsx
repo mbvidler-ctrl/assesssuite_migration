@@ -4,9 +4,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { extractTenantDocumentData, uploadTenantFile } from '@/lib/fileIntegrations';
+import { cancelTenantUploads, extractTenantDocumentData, uploadTenantFile } from '@/lib/fileIntegrations';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -110,7 +111,8 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
   const [pendingHistoricalAssessments, setPendingHistoricalAssessments] = useState([]);
   const [organizationOptions, setOrganizationOptions] = useState([]);
   const [selectedOrgId, setSelectedOrgId] = useState('');
-  const [subjectAgeBand, setSubjectAgeBand] = useState('');
+  const [subjectDateOfBirth, setSubjectDateOfBirth] = useState('');
+  const [processingAuthorityConfirmed, setProcessingAuthorityConfirmed] = useState(false);
   const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(true);
 
   useEffect(() => {
@@ -179,11 +181,34 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
       setEditedData({});
       setMatchingClients([]);
       setSelectedExistingClient(null);
+      setProcessingAuthorityConfirmed(false);
     }
   };
 
   const removeFile = (index) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
+    setProcessingAuthorityConfirmed(false);
+  };
+
+  const scheduleCancellation = async (filesToCancel = uploadedFiles) => {
+    const uploadIds = filesToCancel.map((file) => file.uploadId).filter(Boolean);
+    if (!selectedOrgId || uploadIds.length === 0) return;
+    await cancelTenantUploads({ org_id: selectedOrgId, upload_ids: uploadIds });
+  };
+
+  const handleCancelReview = async () => {
+    setShowReviewModal(false);
+    try {
+      await scheduleCancellation();
+      resetForm();
+    } catch {
+      toast.warning('The review was closed. Temporary files remain scheduled for automatic expiry.');
+    }
+  };
+
+  const handleReviewOpenChange = (open) => {
+    if (open) setShowReviewModal(true);
+    else void handleCancelReview();
   };
 
   const handleUploadAndExtract = async () => {
@@ -195,21 +220,25 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
       toast.error('Please select the practice that owns this referral.');
       return;
     }
-    if (!subjectAgeBand) {
-      toast.error('Please select the patient age category for this referral.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(subjectDateOfBirth)) {
+      toast.error('Enter the patient date of birth so the server can enforce the provider age gate.');
+      return;
+    }
+    if (!processingAuthorityConfirmed) {
+      toast.error('Confirm the practice has documented authority for this referral processing.');
       return;
     }
 
     setIsUploading(true);
+    const uploadedFilesData = [];
     try {
       // Upload all files
-      const uploadedFilesData = [];
       for (const file of files) {
         const { file_url, upload_id } = await uploadTenantFile({
           file,
           org_id: selectedOrgId,
           purpose: 'referral-extraction',
-          subject_age_band: subjectAgeBand,
+          subject_date_of_birth: subjectDateOfBirth,
         });
         uploadedFilesData.push({ url: file_url, uploadId: upload_id, name: file.name });
       }
@@ -227,12 +256,14 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
         org_id: selectedOrgId,
         file_urls: fileUrls,
         json_schema: REFERRAL_EXTRACTION_SCHEMA,
+        processing_authority_confirmed: true,
       });
 
       if (result?.status !== 'success' || !result.output || typeof result.output !== 'object') {
         const details = typeof result?.details === 'string'
           ? result.details
           : 'The referral could not be extracted. No client data was changed.';
+        await scheduleCancellation(uploadedFilesData).catch(() => {});
         toast.error(details);
         return;
       }
@@ -287,6 +318,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
       toast.success(`Data extracted from ${files.length} file(s)! Please review.`);
 
     } catch (error) {
+      await scheduleCancellation(uploadedFilesData).catch(() => {});
       const status = error?.response?.status;
       console.warn('Referral processing failed', status ? { status } : undefined);
       const details = error?.response?.data?.details;
@@ -515,7 +547,8 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
     setExtractedConditions([]);
     setUploadedFiles([]);
     setPendingHistoricalAssessments([]);
-    setSubjectAgeBand('');
+    setSubjectDateOfBirth('');
+    setProcessingAuthorityConfirmed(false);
   };
 
   const fundingLabels = {
@@ -576,25 +609,34 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="referral-age-band">Patient age category</Label>
-              <Select
-                value={subjectAgeBand}
-                onValueChange={setSubjectAgeBand}
+              <Label htmlFor="referral-date-of-birth">Patient date of birth</Label>
+              <Input
+                id="referral-date-of-birth"
+                type="date"
+                value={subjectDateOfBirth}
+                max={todayLocal()}
+                onChange={(event) => {
+                  setSubjectDateOfBirth(event.target.value);
+                  setProcessingAuthorityConfirmed(false);
+                }}
                 disabled={isUploading || isExtracting}
-              >
-                <SelectTrigger id="referral-age-band">
-                  <SelectValue placeholder="Select an age category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="13_or_over">13 or older</SelectItem>
-                  <SelectItem value="under_13">Under 13</SelectItem>
-                  <SelectItem value="unknown">Not known</SelectItem>
-                </SelectContent>
-              </Select>
+              />
               <p className="text-xs text-slate-500">
-                This controls provider eligibility only; paediatric care remains supported.
+                The server calculates the age category. Paediatric care remains supported; provider processing under 13 stays disabled unless its separate retention gate is verified.
               </p>
             </div>
+          </div>
+
+          <div className="flex items-start gap-3 rounded-md border border-slate-200 bg-slate-50 p-3">
+            <Checkbox
+              id="referral-processing-authority"
+              checked={processingAuthorityConfirmed}
+              onCheckedChange={(checked) => setProcessingAuthorityConfirmed(checked === true)}
+              disabled={isUploading || isExtracting}
+            />
+            <Label htmlFor="referral-processing-authority" className="text-sm font-normal leading-5">
+              I confirm the practice has documented the patient or representative notice and consent, or another valid authority, for AssessSuite and OpenAI to process this referral for extraction.
+            </Label>
           </div>
 
           <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
@@ -635,7 +677,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
               ))}
               <Button
                 onClick={handleUploadAndExtract}
-                disabled={isUploading || isExtracting || !selectedOrgId || !subjectAgeBand}
+                disabled={isUploading || isExtracting || !selectedOrgId || !subjectDateOfBirth || !processingAuthorityConfirmed}
                 className="w-full bg-blue-600 hover:bg-blue-700"
               >
                 {isUploading ? (
@@ -652,7 +694,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
       </Card>
 
       {/* Review Modal */}
-      <Dialog open={showReviewModal} onOpenChange={setShowReviewModal}>
+      <Dialog open={showReviewModal} onOpenChange={handleReviewOpenChange}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -1044,7 +1086,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={() => setShowReviewModal(false)}>
+            <Button variant="outline" onClick={handleCancelReview}>
               Cancel
             </Button>
             {selectedExistingClient ? (

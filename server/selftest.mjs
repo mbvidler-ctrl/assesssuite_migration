@@ -11,12 +11,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
 
-import {
-  LEGAL_DOCUMENTS,
-  PRACTITIONER_NOTICE_IDS,
-  SUITE_VERSION,
-  fingerprint,
-} from '../src/lib/legal/documentRegistry.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverEntry = path.join(__dirname, 'index.mjs');
@@ -69,6 +63,8 @@ async function main() {
     env: {
       ...process.env,
       SELFTEST: '1',
+      NODE_ENV: 'test',
+      ASSESSSUITE_DB_PATH_ACK: 'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_NON_PRODUCTION_GATE_DATABASE',
       PORT: String(port),
       ADMIN_EMAIL: 'admin@local.test',
       ADMIN_PASSWORD: 'change-me-local',
@@ -142,28 +138,15 @@ async function api(baseUrl, appId, methodPath, { method = 'GET', token, body } =
 // hasCurrentLegalAcceptance), mirroring the real ProfileSetup flow. The caller
 // must already hold membership in orgId (LegalAcceptanceEvent is org-scoped),
 // so call this AFTER the fixture's OrganizationMember row exists.
-const LEGAL_SUITE_VERSION = SUITE_VERSION;
 async function seedRequiredLegalAcceptance(baseUrl, appId, token, email, orgId) {
-  for (const documentId of PRACTITIONER_NOTICE_IDS) {
-    const document = LEGAL_DOCUMENTS[documentId];
-    const documentContent = fs.readFileSync(
-      path.join(__dirname, '..', 'src', 'legal-content', document.file),
-      'utf8',
-    );
-    await api(baseUrl, appId, `/api/apps/${appId}/entities/LegalAcceptanceEvent`, {
-      method: 'POST',
-      token,
-      body: {
-        event_type: document.eventType,
-        user_email: email,
-        org_id: orgId,
-        suite_version: LEGAL_SUITE_VERSION,
-        document_id: documentId,
-        document_title: document.title,
-        document_fingerprint: fingerprint(documentContent),
-        actor_capacity: 'selftest fixture',
-      },
-    });
+  const result = await api(
+    baseUrl,
+    appId,
+    `/api/apps/${appId}/integration-endpoints/Core/RecordLegalAcceptanceBundle`,
+    { method: 'POST', token, body: { org_id: orgId, marketing_opt_in: false } },
+  );
+  if (result.status !== 200) {
+    throw new Error(`Failed to seed server-derived legal bundle for ${email}: ${JSON.stringify(result.body)}`);
   }
 }
 
@@ -1384,7 +1367,7 @@ async function runChecks(baseUrl, appId) {
       `--${boundary}\r\n` +
       `Content-Disposition: form-data; name="purpose"\r\n\r\nreferral-extraction\r\n` +
       `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="subject_age_band"\r\n\r\n13_or_over\r\n` +
+      `Content-Disposition: form-data; name="subject_date_of_birth"\r\n\r\n2000-01-01\r\n` +
       `--${boundary}\r\n` +
       `Content-Disposition: form-data; name="file"; filename="selftest.pdf"\r\n` +
       `Content-Type: application/pdf\r\n\r\n` +
@@ -1432,7 +1415,12 @@ async function runChecks(baseUrl, appId) {
       {
         method: 'POST',
         token: userAToken,
-        body: { file_url: uploadedFileUrl, org_id: orgAId, json_schema: schema },
+        body: {
+          file_url: uploadedFileUrl,
+          org_id: orgAId,
+          json_schema: schema,
+          processing_authority_confirmed: true,
+        },
       },
     );
     record(

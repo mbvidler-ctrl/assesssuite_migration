@@ -8,6 +8,8 @@ import { createHash } from 'node:crypto';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const DEFAULT_MODEL = 'gpt-4.1-mini';
+const EXTRACTION_PROMPT_VERSION = 'referral-extraction-v2026-07-19.2';
+const REQUIRED_PROMPT_CACHE_RETENTION = 'in-memory';
 const PRODUCTION_TIMEOUT_MS = 45_000;
 const MAX_SCHEMA_BYTES = 32 * 1024;
 const MAX_SCHEMA_DEPTH = 8;
@@ -411,6 +413,7 @@ export function buildResponsesRequest({ files, sourceSchema, providerSchema, mod
     model,
     store: false,
     background: false,
+    prompt_cache_retention: REQUIRED_PROMPT_CACHE_RETENTION,
     max_output_tokens: 4_000,
     input: [
       {
@@ -458,12 +461,20 @@ export function assertProviderRequestPolicy(payload) {
   const metadata = {
     store: payload?.store === false,
     background: payload?.background === false,
+    prompt_cache_retention: payload?.prompt_cache_retention === REQUIRED_PROMPT_CACHE_RETENTION,
     tools: !Object.prototype.hasOwnProperty.call(payload || {}, 'tools'),
     inline: inlineOnly,
     has_conversation_state:
       Boolean(payload?.previous_response_id) || Boolean(payload?.conversation) || Boolean(payload?.prompt),
   };
-  if (!metadata.store || !metadata.background || !metadata.tools || !metadata.inline || metadata.has_conversation_state) {
+  if (
+    !metadata.store ||
+    !metadata.background ||
+    !metadata.prompt_cache_retention ||
+    !metadata.tools ||
+    !metadata.inline ||
+    metadata.has_conversation_state
+  ) {
     throw new ExtractionError(500, 'provider_policy_violation', 'Document extraction is not safely configured.');
   }
   return metadata;
@@ -585,11 +596,12 @@ export async function extractDocumentData({ files, schema, subjectAgeBands }) {
     throw new ExtractionError(413, 'extraction_payload_too_large', 'The selected files are too large to extract together.');
   }
   const prepared = prepareExtractionSchema(schema);
+  const selectedModel = process.env.OPENAI_DOCUMENT_EXTRACTION_MODEL || DEFAULT_MODEL;
   const payload = buildResponsesRequest({
     files,
     sourceSchema: prepared.sourceSchema,
     providerSchema: prepared.providerSchema,
-    model: process.env.OPENAI_DOCUMENT_EXTRACTION_MODEL || DEFAULT_MODEL,
+    model: selectedModel,
   });
   const policy = assertProviderRequestPolicy(payload);
   const controller = new AbortController();
@@ -641,6 +653,12 @@ export async function extractDocumentData({ files, schema, subjectAgeBands }) {
       requestPolicy: policy,
       providerStatusClass: `${Math.floor(response.status / 100)}xx`,
       providerProbe: config.providerProbe,
+      model: selectedModel,
+      promptVersion: EXTRACTION_PROMPT_VERSION,
+      providerResponseIdHash:
+        typeof data?.id === 'string' && data.id
+          ? createHash('sha256').update(data.id).digest('hex')
+          : null,
     };
   } finally {
     clearTimeout(timeout);
@@ -648,3 +666,4 @@ export async function extractDocumentData({ files, schema, subjectAgeBands }) {
 }
 
 export const DOCUMENT_EXTRACTION_PROVIDER_PROBE_ACK = PROVIDER_PROBE_ACK;
+export const DOCUMENT_EXTRACTION_PROMPT_VERSION = EXTRACTION_PROMPT_VERSION;

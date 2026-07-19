@@ -5,28 +5,11 @@ import LegalMarkdown from "@/components/legal/LegalMarkdown";
 import ReleaseStatusBanner from "@/components/legal/ReleaseStatusBanner";
 import {
   getLegalDocumentBySlug,
-  SUITE_PUBLICATION_AUTHORITY,
   SUITE_VERSION,
 } from "@/lib/legal/documentRegistry";
 import { loadLegalContent } from "@/lib/legal/loadContent";
+import { effectiveLegalContent } from "@/lib/legal/effectiveContent";
 import { useAuth } from "@/lib/AuthContext";
-
-// When the verified deployment is flipped to effective
-// (LEGAL_STATUS=effective via public settings), the RC banner is replaced with
-// the effective-status line and source metadata is reconciled at render time.
-// RC-2026.07.11 remains historical; RC-2026.07.19 is the current identifier
-// recorded in new and re-acceptance events.
-function applyEffectiveHeaders(content, effectiveDate) {
-  // Trailing two spaces preserve the markdown hard line break — the source
-  // header lines use it so each metadata line renders on its own line; dropping
-  // it would collapse them into one paragraph.
-  return content
-    .replace(/^\*\*Release status:\*\*.*$/m, "**Release status:** Effective  ")
-    .replace(/^\*\*Effective date:\*\*.*$/m, `**Effective date:** ${effectiveDate}  `)
-    .replace(/^\*\*Approved by:\*\*.*$/m, `**Publication authority:** ${SUITE_PUBLICATION_AUTHORITY}  `)
-    .replace(/^\*\*Publication authority:\*\*.*$/m, `**Publication authority:** ${SUITE_PUBLICATION_AUTHORITY}  `)
-    .replace(/^\*\*Version:\*\*.*$/m, `**Version:** ${SUITE_VERSION}  `);
-}
 
 // Public, unauthenticated route: /legal/:slug. Single source of truth for
 // every instrument in Group A (published, no login required) and the full
@@ -51,7 +34,10 @@ export default function LegalDocument() {
   }
 
   const rawContent = loadLegalContent(doc.file);
-  const content = isEffective && effectiveDate ? applyEffectiveHeaders(rawContent, effectiveDate) : rawContent;
+  const content = effectiveLegalContent(rawContent, {
+    status: isEffective ? "effective" : "rc",
+    effectiveDate,
+  });
 
   return (
     <div className="min-h-screen bg-slate-50 py-10 px-4">

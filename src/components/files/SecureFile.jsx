@@ -1,18 +1,39 @@
 import React, { useEffect, useState } from 'react';
 import { createTenantFileAccessUrl } from '@/lib/fileIntegrations';
 
-function requiresSecureAccess(fileUrl) {
-  return typeof fileUrl === 'string' && (
-    fileUrl.startsWith('/uploads/') || fileUrl.startsWith('/api/files/')
-  );
+function managedFileReference(fileUrl) {
+  if (typeof fileUrl !== 'string' || fileUrl.length === 0) return '';
+  if (/^\/(?:uploads|api\/files)\/[0-9a-f-]+$/i.test(fileUrl)) return fileUrl;
+
+  // Preserve same-origin absolute legacy references without allowing a
+  // stored clinical URL to become an arbitrary outbound-navigation target.
+  if (typeof window !== 'undefined') {
+    try {
+      const parsed = new URL(fileUrl, window.location.origin);
+      if (
+        parsed.origin === window.location.origin &&
+        !parsed.username &&
+        !parsed.password &&
+        !parsed.search &&
+        !parsed.hash &&
+        /^\/(?:uploads|api\/files)\/[0-9a-f-]+$/i.test(parsed.pathname)
+      ) {
+        return parsed.pathname;
+      }
+    } catch {
+      return '';
+    }
+  }
+  return '';
 }
 
 export async function createSecureFileAccessUrl(fileUrl, orgId) {
-  if (!requiresSecureAccess(fileUrl)) return fileUrl || '';
+  const reference = managedFileReference(fileUrl);
+  if (!reference) return '';
   if (!orgId) throw new Error('Practice context is required for this file.');
 
   const result = await createTenantFileAccessUrl({
-    file_url: fileUrl,
+    file_url: reference,
     org_id: orgId,
   });
   if (!result?.file_url || typeof result.file_url !== 'string') {
@@ -22,14 +43,15 @@ export async function createSecureFileAccessUrl(fileUrl, orgId) {
 }
 
 export function useSecureFileUrl(fileUrl, orgId) {
-  const [resolvedUrl, setResolvedUrl] = useState(() => requiresSecureAccess(fileUrl) ? '' : (fileUrl || ''));
+  const [resolvedUrl, setResolvedUrl] = useState('');
 
   useEffect(() => {
     let cancelled = false;
     let refreshTimer;
 
-    if (!requiresSecureAccess(fileUrl)) {
-      setResolvedUrl(fileUrl || '');
+    const reference = managedFileReference(fileUrl);
+    if (!reference) {
+      setResolvedUrl('');
       return () => {};
     }
     if (!orgId) {
@@ -40,7 +62,7 @@ export function useSecureFileUrl(fileUrl, orgId) {
     const resolve = async () => {
       try {
         const result = await createTenantFileAccessUrl({
-          file_url: fileUrl,
+          file_url: reference,
           org_id: orgId,
         });
         if (cancelled || typeof result?.file_url !== 'string') return;

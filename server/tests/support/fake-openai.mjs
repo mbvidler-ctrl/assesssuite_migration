@@ -56,6 +56,7 @@ export async function startFakeOpenAI() {
       hasTools: Object.hasOwn(payload, 'tools'),
       hasBackground: Object.hasOwn(payload, 'background'),
       background: payload.background,
+      promptCacheRetention: payload.prompt_cache_retention,
       input: decodedProviderInput(payload),
     });
 

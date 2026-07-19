@@ -218,7 +218,6 @@ export default function MyProfile() {
         file,
         org_id: userOrgId,
         purpose: 'profile-image',
-        subject_age_band: 'unknown',
       });
       handleLocationChange(locationId, 'clinic_logo_url', file_url);
       toast.success("Logo uploaded successfully!");

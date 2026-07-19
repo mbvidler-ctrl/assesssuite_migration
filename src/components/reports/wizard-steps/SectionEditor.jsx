@@ -331,7 +331,6 @@ export default function SectionEditor({ sections, content, onChange, client, cli
         file,
         org_id: client.org_id,
         purpose: 'report-attachment',
-        subject_age_band: 'unknown',
       }));
       const results = await Promise.all(uploadPromises);
       const existingAttachments = content[`${activeSection}_attachments`] || [];

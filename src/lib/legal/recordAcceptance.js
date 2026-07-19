@@ -56,3 +56,19 @@ export async function recordLegalEvents(events) {
   }
   return results;
 }
+
+/**
+ * Atomically records the complete server-derived legal bundle for the current
+ * practitioner and organisation. The browser does not choose document ids,
+ * titles, versions or fingerprints.
+ *
+ * @param {{orgId: string, marketingOptIn?: boolean}} params
+ */
+export async function recordLegalAcceptanceBundle({ orgId, marketingOptIn = false }) {
+  return /** @type {Promise<{status: 'success', recorded: number, owner_bundle: boolean}>} */ (
+    (/** @type {any} */ (base44.integrations.Core)).RecordLegalAcceptanceBundle({
+      org_id: orgId,
+      marketing_opt_in: marketingOptIn === true,
+    })
+  );
+}
