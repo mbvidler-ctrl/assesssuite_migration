@@ -34,9 +34,11 @@ function errorMultiset(text) {
   text = text.replace(/\u001b\[[0-9;]*m/g, '');
   const errors = new Map();
   for (const line of text.split(/\r?\n/)) {
-    const match = /^(.*?)(?:\(\d+,\d+\))?: error (TS\d+): (.*)$/.exec(line.trim());
+    const match = /^(?:(.*?)(?:\(\d+,\d+\))?: )?error (TS\d+): (.*)$/.exec(line.trim());
     if (!match) continue;
-    const source = match[1].replaceAll('\\', '/').replace(/^.*?\/(src|server|scripts)\//, '$1/');
+    const source = match[1]
+      ? match[1].replaceAll('\\', '/').replace(/^.*?\/(src|server|scripts)\//, '$1/')
+      : '<global>';
     const fingerprint = `${source}|${match[2]}|${match[3]}`;
     errors.set(fingerprint, (errors.get(fingerprint) || 0) + 1);
   }
@@ -54,6 +56,9 @@ const baseResult = args.base
 const candidateResult = args.candidate
   ? { text: fs.readFileSync(path.resolve(args.candidate), 'utf8'), status: null }
   : runTypecheck(args['candidate-dir']);
+if (args.candidate && candidateResult.text.trim().length === 0) {
+  throw new Error('Candidate typecheck evidence file is empty.');
+}
 const baseline = errorMultiset(baseResult.text);
 const candidate = errorMultiset(candidateResult.text);
 const referenceResult = args['reference-dir'] ? runTypecheck(args['reference-dir']) : baseResult;

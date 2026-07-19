@@ -9,6 +9,7 @@ import { createHash, randomUUID } from 'node:crypto';
 
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
+const PHYSICAL_CLEANUP_GRACE_MS = 60 * 1000;
 
 function boundedNumber(name, fallback, { min, max, integer = true } = {}) {
   const raw = process.env[name];
@@ -43,8 +44,13 @@ export const UPLOAD_POLICY = Object.freeze({
     max: 20 * 1024 * 1024,
   }),
   maxFilesPerExtraction: boundedNumber('DOCUMENT_EXTRACTION_MAX_FILES', 4, { min: 1, max: 8 }),
-  referralTtlMs: referralTtlHours * HOUR_MS,
-  failureCleanupMs: Math.min(failureCleanupMinutes * 60 * 1000, referralTtlHours * HOUR_MS),
+  // Access expires one maintenance interval before the physical-retention
+  // ceiling, so the minute scheduler can remove bytes by (not after) 24h/1h.
+  referralTtlMs: Math.max(0, referralTtlHours * HOUR_MS - PHYSICAL_CLEANUP_GRACE_MS),
+  failureCleanupMs: Math.max(
+    0,
+    Math.min(failureCleanupMinutes * 60 * 1000, referralTtlHours * HOUR_MS) - PHYSICAL_CLEANUP_GRACE_MS,
+  ),
   auditRetentionMs:
     boundedNumber('UPLOAD_AUDIT_RETENTION_DAYS', 730, { min: 30, max: 3650 }) * DAY_MS,
   uploadUserPerMinute: boundedNumber('UPLOAD_USER_PER_MINUTE', 10, { min: 1, max: 60 }),
@@ -367,6 +373,8 @@ function safeAuditMetadata(metadata) {
     'provider_model',
     'prompt_version',
     'provider_response_id_hash',
+    'provider_request_constructed',
+    'provider_contact_attempted',
     'request_store_disabled',
     'request_background_disabled',
     'request_prompt_cache_in_memory',
@@ -374,6 +382,10 @@ function safeAuditMetadata(metadata) {
     'request_inline_only',
     'request_conversation_state_disabled',
     'cleanup_within_seconds',
+    'signed_url',
+    'range_request',
+    'range_start',
+    'range_end',
   ]);
   return Object.fromEntries(
     Object.entries(metadata)
@@ -434,7 +446,12 @@ export function createUploadRegistry(db, { uploadsDir }) {
         .get(orgId, dayAgo)?.n || 0,
     );
     const globalLive = Number(
-      db.prepare("SELECT COALESCE(SUM(byte_size), 0) AS n FROM upload_registry WHERE lifecycle_state NOT IN ('deleted', 'expired')")
+      db.prepare(`
+        SELECT COALESCE(SUM(byte_size), 0) AS n
+        FROM upload_registry
+        WHERE lifecycle_state != 'deleted'
+          AND (lifecycle_state != 'expired' OR bound_entity_id IS NOT NULL)
+      `)
         .get()?.n || 0,
     );
     if (
@@ -700,6 +717,48 @@ export function createUploadRegistry(db, { uploadsDir }) {
     return getById(id);
   }
 
+  /**
+   * Revoke ordinary delivery when a durable record no longer refers to a
+   * bound upload (or is deleted), while preserving the object behind its
+   * registry tombstone for the applicable clinical-record period or hold.
+   * `expired` is reused as the existing fail-closed isolated state; bound
+   * references deliberately keep these bytes outside temporary cleanup.
+   */
+  function retireBoundForEntity({
+    entityType,
+    entityId,
+    actorUserId,
+    retainedUploadIds = [],
+    now = new Date(),
+  }) {
+    const retained = new Set(retainedUploadIds.map((id) => String(id).toLowerCase()));
+    const rows = db.prepare(`
+      SELECT * FROM upload_registry
+      WHERE bound_entity_type = ? AND bound_entity_id = ? AND lifecycle_state = 'bound'
+      ORDER BY created_at ASC
+    `).all(entityType, entityId);
+    let isolated = 0;
+    for (const row of rows) {
+      if (retained.has(String(row.id).toLowerCase())) continue;
+      db.prepare(`
+        UPDATE upload_registry
+        SET lifecycle_state = 'expired', expires_at = NULL
+        WHERE id = ? AND lifecycle_state = 'bound'
+      `).run(row.id);
+      audit({
+        uploadId: row.id,
+        orgId: row.org_id,
+        actorUserId: actorUserId || 'system:entity-lifecycle',
+        eventType: 'bound_upload_isolated',
+        outcome: 'retained',
+        metadata: { state_from: 'bound', state_to: 'expired', code: 'source_record_reference_removed' },
+        now,
+      });
+      isolated += 1;
+    }
+    return { isolated };
+  }
+
   function reserveExtractionUsage({ userId, orgId, uploadCount, now = new Date() }) {
     const nowDate = new Date(now);
     const minuteAgo = new Date(nowDate.getTime() - 60 * 1000).toISOString();
@@ -761,6 +820,7 @@ export function createUploadRegistry(db, { uploadsDir }) {
     registerLegacy,
     transition,
     bind,
+    retireBoundForEntity,
     audit,
     cancelTemporary,
     reserveExtractionUsage,

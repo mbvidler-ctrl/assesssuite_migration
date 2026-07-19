@@ -432,6 +432,8 @@ async function handleExtractDataFromUploadedFile(body, context) {
           provider_status_class: extracted.providerStatusClass,
           provider_model: extracted.model,
           prompt_version: extracted.promptVersion,
+          provider_request_constructed: true,
+          provider_contact_attempted: true,
           request_store_disabled: extracted.requestPolicy?.store === true,
           request_background_disabled: extracted.requestPolicy?.background === true,
           request_prompt_cache_in_memory: extracted.requestPolicy?.prompt_cache_retention === true,
@@ -455,6 +457,26 @@ async function handleExtractDataFromUploadedFile(body, context) {
           });
         }
         const provenance = error?.extractionProvenance;
+        const providerAttempt = provenance
+          ? {
+              schema_hash: provenance.schemaHash,
+              provider_status_class: provenance.providerStatusClass,
+              provider_model: provenance.model,
+              prompt_version: provenance.promptVersion,
+              provider_request_constructed: true,
+              provider_contact_attempted: true,
+              request_store_disabled: provenance.requestPolicy?.store === true,
+              request_background_disabled: provenance.requestPolicy?.background === true,
+              request_prompt_cache_in_memory: provenance.requestPolicy?.prompt_cache_retention === true,
+              request_tools_disabled: provenance.requestPolicy?.tools === true,
+              request_inline_only: provenance.requestPolicy?.inline === true,
+              request_conversation_state_disabled:
+                provenance.requestPolicy?.has_conversation_state === false,
+            }
+          : {
+              provider_request_constructed: false,
+              provider_contact_attempted: false,
+            };
         context.uploadRegistry.audit({
           uploadId: upload.id,
           orgId,
@@ -464,17 +486,7 @@ async function handleExtractDataFromUploadedFile(body, context) {
           metadata: {
             code: error?.code || 'extraction_failed',
             file_count: uploads.length,
-            schema_hash: provenance?.schemaHash || null,
-            provider_status_class: provenance?.providerStatusClass || null,
-            provider_model: provenance?.model || null,
-            prompt_version: provenance?.promptVersion || null,
-            request_store_disabled: provenance?.requestPolicy?.store === true,
-            request_background_disabled: provenance?.requestPolicy?.background === true,
-            request_prompt_cache_in_memory: provenance?.requestPolicy?.prompt_cache_retention === true,
-            request_tools_disabled: provenance?.requestPolicy?.tools === true,
-            request_inline_only: provenance?.requestPolicy?.inline === true,
-            request_conversation_state_disabled:
-              provenance?.requestPolicy?.has_conversation_state === false,
+            ...providerAttempt,
           },
         });
       } catch {

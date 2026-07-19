@@ -1,5 +1,9 @@
 import { base44 } from '@/api/base44Client';
 
+// Matches the reviewed production default. The server remains authoritative;
+// this client bound prevents uploading an unusable fifth document first.
+export const DOCUMENT_EXTRACTION_MAX_FILES = 4;
+
 /**
  * Typed boundary for the tenant-aware upload contract added by the migration
  * shim. The installed Base44 SDK's generated types describe only its legacy
@@ -20,6 +24,12 @@ export async function uploadTenantFile(params) {
  * @returns {Promise<{status: 'success', output: Record<string, any>}|{status: 'error', details: string}>}
  */
 export async function extractTenantDocumentData(params) {
+  if (!Array.isArray(params?.file_urls) || params.file_urls.length === 0) {
+    throw new Error('At least one document is required for extraction.');
+  }
+  if (params.file_urls.length > DOCUMENT_EXTRACTION_MAX_FILES) {
+    throw new Error(`Select no more than ${DOCUMENT_EXTRACTION_MAX_FILES} documents for one extraction.`);
+  }
   return /** @type {Promise<{status: 'success', output: Record<string, any>}|{status: 'error', details: string}>} */ (
     base44.integrations.Core.ExtractDataFromUploadedFile(/** @type {any} */ (params))
   );

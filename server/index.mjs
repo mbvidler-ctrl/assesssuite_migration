@@ -112,10 +112,9 @@ function runUploadLifecycleMaintenance() {
   }
 }
 runUploadLifecycleMaintenance();
-const uploadCleanupIntervalMinutes = Math.min(
-  60,
-  Math.max(1, Number(process.env.UPLOAD_CLEANUP_INTERVAL_MINUTES) || 15),
-);
+// One-minute maintenance is part of the reviewed physical-retention ceiling:
+// upload expiry is shortened by the same interval in uploadRegistry.mjs.
+const uploadCleanupIntervalMinutes = 1;
 const uploadCleanupTimer = setInterval(
   runUploadLifecycleMaintenance,
   uploadCleanupIntervalMinutes * 60 * 1000,
@@ -677,21 +676,27 @@ function enforceWriteOrgScope(entityName, data, sessionUser, { isCreate }) {
     // already a member of — otherwise a member could move their own
     // membership into another tenant and gain its scope (the update path
     // previously fell through unchecked).
+    if (isCreate && (!data?.user_email || data.user_email !== sessionUser.email || !data?.org_id)) {
+      return { ok: false, status: 403, message: 'you may only add your own account to an explicit organisation' };
+    }
     if (data && data.user_email && data.user_email !== sessionUser.email) {
       return { ok: false, status: 403, message: 'you may only add your own account to an organisation' };
     }
     const targetOrg = data?.org_id;
     if (targetOrg !== undefined && targetOrg !== null) {
       const callerOrgs = orgIdsForUser(sessionUser.email);
-      if (!callerOrgs.includes(targetOrg)) {
-        if (!isCreate) {
-          return { ok: false, status: 403, message: 'you cannot move a membership to another organisation' };
-        }
+      if (!isCreate && !callerOrgs.includes(targetOrg)) {
+        return { ok: false, status: 403, message: 'you cannot move a membership to another organisation' };
+      }
+      if (isCreate) {
         const existingMembers = orgMemberRepo
           ? orgMemberRepo.listAll().filter((m) => m.org_id === targetOrg)
           : [];
         if (existingMembers.length > 0) {
-          return { ok: false, status: 403, message: 'you cannot join an existing organisation' };
+          return { ok: false, status: 403, message: 'you cannot join or duplicate membership in an existing organisation' };
+        }
+        if (data?.role !== 'owner' || data?.is_primary !== true) {
+          return { ok: false, status: 403, message: 'a self-founded organisation must create one primary owner membership' };
         }
       }
     }
@@ -713,6 +718,50 @@ function enforceWriteOrgScope(entityName, data, sessionUser, { isCreate }) {
   const primary = primaryOrgIdForUser(sessionUser.email);
   if (!primary) return { ok: false, status: 403, message: 'no organisation membership' };
   data.org_id = primary;
+  return { ok: true };
+}
+
+function validateMembershipUpdate(existing, data, sessionUser) {
+  if (!existing || existing.user_email !== sessionUser?.email) {
+    return { ok: false, status: 404, message: 'record not found' };
+  }
+  for (const field of ['user_email', 'org_id', 'role', 'is_primary']) {
+    if (Object.prototype.hasOwnProperty.call(data || {}, field) && data[field] !== existing[field]) {
+      return { ok: false, status: 403, message: 'membership identity and role are server-controlled' };
+    }
+  }
+  return { ok: true };
+}
+
+/**
+ * Enforce same-tenant referential integrity for clinical child records. The
+ * generic org_id scope alone is insufficient: a valid secondary-org client
+ * identifier must never be stored in a primary-org assessment or note.
+ */
+function validateEntityReferenceScope(entityName, data, existing = null) {
+  const orgId = data?.org_id ?? existing?.org_id ?? null;
+  const clientId = Object.prototype.hasOwnProperty.call(data || {}, 'client_id')
+    ? data.client_id
+    : existing?.client_id;
+  const appointmentId = Object.prototype.hasOwnProperty.call(data || {}, 'appointment_id')
+    ? data.appointment_id
+    : existing?.appointment_id;
+
+  if (entityName !== 'Client' && clientId !== undefined && clientId !== null && clientId !== '') {
+    const client = repoFor('Client')?.getById(clientId);
+    if (!client || !orgId || client.org_id !== orgId) {
+      return { ok: false, status: 404, message: 'referenced client not found in this organisation' };
+    }
+  }
+  if (entityName !== 'Appointment' && appointmentId !== undefined && appointmentId !== null && appointmentId !== '') {
+    const appointment = repoFor('Appointment')?.getById(appointmentId);
+    if (!appointment || !orgId || appointment.org_id !== orgId) {
+      return { ok: false, status: 404, message: 'referenced appointment not found in this organisation' };
+    }
+    if (clientId && appointment.client_id && appointment.client_id !== clientId) {
+      return { ok: false, status: 409, message: 'appointment and client references do not match' };
+    }
+  }
   return { ok: true };
 }
 
@@ -779,6 +828,8 @@ async function handleEntitiesRoute(req, res, url, match) {
       const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: true });
       if (!auth.ok) return sendError(res, auth.status, auth.message);
     }
+    const referenceScope = validateEntityReferenceScope(entityName, data);
+    if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
     if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, data?.org_id)) return;
     const bindingOrgId = entityName === 'Organization' ? null : data?.org_id;
     const pendingBindings = bindingOrgId
@@ -793,6 +844,7 @@ async function handleEntitiesRoute(req, res, url, match) {
         actorUserId: sessionUser.id,
       });
     }
+    reconcileBoundUploads(entityName, record, sessionUser.id);
     const stripped = isUserCollection ? stripAuthFields(record) : record;
     return sendJson(res, 200, stripped);
   }
@@ -807,9 +859,15 @@ async function handleEntitiesRoute(req, res, url, match) {
     if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, existing?.org_id)) return;
     const data = await readJsonBody(req);
     if (!isAdmin) {
+      if (entityName === 'OrganizationMember') {
+        const membership = validateMembershipUpdate(existing, data, sessionUser);
+        if (!membership.ok) return sendError(res, membership.status, membership.message);
+      }
       const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: false });
       if (!auth.ok) return sendError(res, auth.status, auth.message);
     }
+    const referenceScope = validateEntityReferenceScope(entityName, data, existing);
+    if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
     const bindingOrgId = data?.org_id || existing?.org_id || (entityName === 'Organization' ? existing.id : null);
     const pendingBindings = bindingOrgId
       ? prepareUploadBindings(entityName, data, bindingOrgId, existing.id, sessionUser)
@@ -823,6 +881,7 @@ async function handleEntitiesRoute(req, res, url, match) {
         actorUserId: sessionUser.id,
       });
     }
+    reconcileBoundUploads(entityName, record, sessionUser.id);
     // Welcome email on activation (admin approval path; the payment
     // auto-approve path sends its own from stripeWebhook). Fire-and-forget —
     // an email failure must not fail the update.
@@ -837,6 +896,9 @@ async function handleEntitiesRoute(req, res, url, match) {
     const existing = repo.getById(rest);
     if (!existing) return sendError(res, 404, 'record not found');
     if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
+    if (entityName === 'OrganizationMember' && !isAdmin) {
+      return sendError(res, 403, 'membership removal is server-controlled');
+    }
     if (!isAdmin && GLOBAL_READONLY_ENTITIES.has(entityName)) {
       return sendError(res, 403, 'admin access required to modify a shared catalogue');
     }
@@ -853,13 +915,14 @@ async function handleEntitiesRoute(req, res, url, match) {
       return sendError(res, 404, 'record not found');
     }
     if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, existing?.org_id)) return;
+    retireAllBoundUploads(entityName, existing, sessionUser.id);
     repo.remove(rest);
     return sendJson(res, 200, { id: rest, deleted: true });
   }
 
   if (req.method === 'DELETE' && !rest) {
     // DELETE-with-body deleteMany.
-    if (!isAdmin && (isUserCollection || GLOBAL_READONLY_ENTITIES.has(entityName))) {
+    if (!isAdmin && (isUserCollection || entityName === 'OrganizationMember' || GLOBAL_READONLY_ENTITIES.has(entityName))) {
       // Never let a non-admin bulk-delete Users or a shared catalogue.
       return sendError(res, 403, 'admin access required');
     }
@@ -876,7 +939,10 @@ async function handleEntitiesRoute(req, res, url, match) {
     )) {
       return sendError(res, 403, 'current legal acceptance required');
     }
-    for (const record of matched) repo.remove(record.id);
+    for (const record of matched) {
+      retireAllBoundUploads(entityName, record, sessionUser.id);
+      repo.remove(record.id);
+    }
     return sendJson(res, 200, { deleted: matched.length });
   }
 
@@ -909,17 +975,25 @@ function isWithinOrgScope(record, sessionUser, entityName) {
 function scopeQueryToOrg(query, entityName, sessionUser, isAdmin) {
   if (isAdmin) return query || {};
   const orgIds = orgIdsForUser(sessionUser?.email);
+  const intersectRequestedIds = (requested) => {
+    if (requested === undefined || requested === null) return orgIds;
+    if (typeof requested === 'string') return orgIds.includes(requested) ? [requested] : [];
+    if (Array.isArray(requested?.$in)) {
+      return requested.$in.filter((id) => typeof id === 'string' && orgIds.includes(id));
+    }
+    return [];
+  };
   // Organization carries no org_id; its own id IS the org id, so scope the
   // list to the caller's memberships by id (else all org names/subscription
   // states enumerate cross-tenant).
   if (entityName === 'Organization') {
-    return { ...(query || {}), id: { $in: orgIds } };
+    return { ...(query || {}), id: { $in: intersectRequestedIds(query?.id) } };
   }
   if (entityName === 'LegalAcceptance') {
     return { ...(query || {}), user_email: sessionUser?.email };
   }
   if (!ORG_SCOPED_ENTITIES.has(entityName)) return query || {};
-  return { ...(query || {}), org_id: { $in: orgIds } };
+  return { ...(query || {}), org_id: { $in: intersectRequestedIds(query?.org_id) } };
 }
 
 function handleList(req, res, repo, entityName, sessionUser, isAdmin, url) {
@@ -973,6 +1047,9 @@ async function handleBulk(req, res, entityName) {
   const sessionUser = resolveSessionUser(req);
   const isAdmin = sessionUser?.role === 'admin';
   if (entityName === 'User' && !isAdmin) return sendError(res, 403, 'admin access required');
+  if (entityName === 'OrganizationMember' && !isAdmin) {
+    return sendError(res, 403, 'membership changes are server-controlled');
+  }
   if (entityAccessDenied(req, res, entityName, sessionUser, isAdmin)) return;
   if (entityName === 'LegalAcceptanceEvent' && req.method !== 'POST') {
     return sendError(res, 405, 'legal acceptance events are append-only');
@@ -984,12 +1061,22 @@ async function handleBulk(req, res, entityName) {
     // bulkCreate: JSON array of records.
     const items = Array.isArray(body) ? body : body.items || [];
     const createdBy = sessionUser?.email || null;
+    if (!isAdmin && entityName === 'OrganizationMember' && items.length !== 1) {
+      return sendError(res, 403, 'membership creation must be one server-verifiable record');
+    }
     if (!isAdmin) {
       // Same central write-authorisation as single create, per item.
       for (const item of items) {
         const auth = writeAuthDenied(entityName, item, sessionUser, { isCreate: true });
         if (!auth.ok) return sendError(res, auth.status, auth.message);
+        const referenceScope = validateEntityReferenceScope(entityName, item);
+        if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
         if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, item?.org_id)) return;
+      }
+    } else {
+      for (const item of items) {
+        const referenceScope = validateEntityReferenceScope(entityName, item);
+        if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
       }
     }
     const planned = items.map((item) => ({
@@ -1031,6 +1118,10 @@ async function handleBulk(req, res, entityName) {
           return sendError(res, 404, 'record not found');
         }
         if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, existing?.org_id)) return;
+        if (entityName === 'OrganizationMember') {
+          const membership = validateMembershipUpdate(existing, item, sessionUser);
+          if (!membership.ok) return sendError(res, membership.status, membership.message);
+        }
         const auth = writeAuthDenied(entityName, item, sessionUser, { isCreate: false });
         if (!auth.ok) return sendError(res, auth.status, auth.message);
       }
@@ -1038,15 +1129,18 @@ async function handleBulk(req, res, entityName) {
     const planned = items.filter((item) => item.id).map((item) => {
       const existing = repo.getById(item.id);
       const orgId = item?.org_id || existing?.org_id || (entityName === 'Organization' ? existing?.id : null);
+      const referenceScope = validateEntityReferenceScope(entityName, { ...item, org_id: orgId }, existing);
+      if (!referenceScope.ok) throw new UploadError(referenceScope.status, 'reference_scope_mismatch', referenceScope.message);
       return {
         item,
         orgId,
         uploads: orgId ? prepareUploadBindings(entityName, item, orgId, item.id, sessionUser) : [],
       };
     });
-    const updated = planned.map(({ item }) => repo.update(item.id, item)).filter(Boolean);
-    updated.forEach((record, index) => {
-      const plan = planned[index];
+    const completed = planned
+      .map((plan) => ({ plan, record: repo.update(plan.item.id, plan.item) }))
+      .filter(({ record }) => Boolean(record));
+    completed.forEach(({ record, plan }) => {
       if (plan.uploads.length > 0) {
         commitUploadBindings(plan.uploads, {
           entityName,
@@ -1055,7 +1149,9 @@ async function handleBulk(req, res, entityName) {
           actorUserId: sessionUser.id,
         });
       }
+      reconcileBoundUploads(entityName, record, sessionUser.id);
     });
+    const updated = completed.map(({ record }) => record);
     const result = entityName === 'User' ? updated.map(stripAuthFields) : updated;
     return sendJson(res, 200, result);
   }
@@ -1073,6 +1169,9 @@ async function handleUpdateMany(req, res, entityName) {
   const sessionUser = resolveSessionUser(req);
   const isAdmin = sessionUser?.role === 'admin';
   if (entityName === 'User' && !isAdmin) return sendError(res, 403, 'admin access required');
+  if (entityName === 'OrganizationMember' && !isAdmin) {
+    return sendError(res, 403, 'membership changes are server-controlled');
+  }
   if (entityAccessDenied(req, res, entityName, sessionUser, isAdmin)) return;
 
   const body = await readJsonBody(req);
@@ -1089,12 +1188,17 @@ async function handleUpdateMany(req, res, entityName) {
   }
   const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
   const matched = repo.listAll().filter((record) => matchesQuery(record, scopedQuery));
+  for (const record of matched) {
+    const referenceScope = validateEntityReferenceScope(entityName, data, record);
+    if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
+  }
   if (!isAdmin && CLINICAL_ENTITIES.has(entityName) && matched.some(
     (record) => !hasCurrentLegalAcceptance(sessionUser?.email, record.org_id),
   )) {
     return sendError(res, 403, 'current legal acceptance required');
   }
   const updated = matched.map((record) => repo.update(record.id, data));
+  for (const record of updated) reconcileBoundUploads(entityName, record, sessionUser.id);
   const result = entityName === 'User' ? updated.map(stripAuthFields) : updated;
   return sendJson(res, 200, { updated: result.length, records: result });
 }
@@ -1129,6 +1233,7 @@ async function handleMe(req, res) {
         actorUserId: sessionUser.id,
       });
     }
+    reconcileBoundUploads('User', updated, sessionUser.id);
     return sendJson(res, 200, stripAuthFields(updated));
   }
 
@@ -1469,29 +1574,6 @@ function decodeUploadRouteSegment(raw) {
   }
 }
 
-function valueContainsLegacyReference(value, expected, depth = 0) {
-  if (depth > 10 || value === null || value === undefined) return false;
-  if (typeof value === 'string') {
-    const position = value.indexOf(expected);
-    if (position < 0) return false;
-    const next = value[position + expected.length];
-    return next === undefined || next === '?' || next === '#' || next === '"' || next === "'";
-  }
-  if (Array.isArray(value)) return value.slice(0, 500).some((item) => valueContainsLegacyReference(item, expected, depth + 1));
-  if (typeof value === 'object') {
-    return Object.values(value).slice(0, 500).some((item) => valueContainsLegacyReference(item, expected, depth + 1));
-  }
-  return false;
-}
-
-function legacyPurpose(entityName, record) {
-  if (entityName === 'User' || entityName === 'Organization') return 'profile-image';
-  if (entityName === 'SOAPNote' && valueContainsLegacyReference(record?.audio_url, '/uploads/')) {
-    return 'audio-transcription';
-  }
-  return 'clinical-attachment';
-}
-
 /**
  * Lazily isolates an old bare filename behind the new registry. Ownership is
  * proven only by an exact durable entity reference visible to the requester;
@@ -1501,66 +1583,17 @@ function resolveLegacyUploadForUser({ storedName, selectedOrgId = null, sessionU
   if (!sessionUser || !LEGACY_STORED_NAME_RE.test(storedName) || UPLOAD_ID_RE.test(storedName)) return null;
   const existing = uploadRegistry.getByStoredName(storedName);
   const memberOrgIds = orgIdsForUser(sessionUser.email);
-  if (existing) {
-    return memberOrgIds.includes(existing.orgId) && (!selectedOrgId || existing.orgId === selectedOrgId)
-      ? existing
-      : null;
-  }
-  const orgIds = selectedOrgId
-    ? memberOrgIds.includes(selectedOrgId) ? [selectedOrgId] : []
-    : memberOrgIds;
-  if (orgIds.length === 0) return null;
-  const expected = `/uploads/${storedName}`;
-  let examined = 0;
-  const maxRecords = 20_000;
-  for (const entityName of entityNames) {
-    if (examined >= maxRecords) break;
-    if (!ORG_SCOPED_ENTITIES.has(entityName) && entityName !== 'Organization') continue;
-    const repo = repoFor(entityName);
-    if (!repo) continue;
-    for (const record of repo.listAll()) {
-      if (++examined > maxRecords) break;
-      const orgId = entityName === 'Organization' ? record.id : record.org_id;
-      if (!orgIds.includes(orgId) || !valueContainsLegacyReference(record, expected)) continue;
-      try {
-        return uploadRegistry.registerLegacy({
-          storedName,
-          originalName: storedName,
-          orgId,
-          uploaderUserId: sessionUser.id,
-          purpose: legacyPurpose(entityName, record),
-          boundEntityType: entityName,
-          boundEntityId: record.id,
-        });
-      } catch {
-        return null;
-      }
-    }
-  }
-  const ownRecord = userRepo.getById(sessionUser.id);
-  if (ownRecord && valueContainsLegacyReference(ownRecord, expected)) {
-    const orgId = selectedOrgId || primaryOrgIdForUser(sessionUser.email);
-    if (orgId && orgIds.includes(orgId)) {
-      try {
-        return uploadRegistry.registerLegacy({
-          storedName,
-          originalName: storedName,
-          orgId,
-          uploaderUserId: sessionUser.id,
-          purpose: 'profile-image',
-          boundEntityType: 'User',
-          boundEntityId: sessionUser.id,
-        });
-      } catch {
-        return null;
-      }
-    }
-  }
-  return null;
+  // Old bare filenames are never claimed lazily from client-writable entity
+  // fields. Only a separately authorised migration may create a registry row;
+  // until then an unregistered legacy file remains fail-closed.
+  return existing && memberOrgIds.includes(existing.orgId) && (!selectedOrgId || existing.orgId === selectedOrgId)
+    ? existing
+    : null;
 }
 
 function canUserAccessUpload(upload, sessionUser) {
   if (!upload || !sessionUser || !orgIdsForUser(sessionUser.email).includes(upload.orgId)) return false;
+  if (['expired', 'deleted'].includes(upload.state)) return false;
   if (
     upload.state !== 'bound' &&
     !upload.isLegacy &&
@@ -1611,6 +1644,7 @@ function resolveAudioUploadForFunction({ audioUrl, user, orgId }) {
   if (
     !upload ||
     upload.orgId !== orgId ||
+    !canUserAccessUpload(upload, currentUser) ||
     upload.purpose !== 'audio-transcription' ||
     !String(upload.detectedMime || '').startsWith('audio/') ||
     ['expired', 'deleted'].includes(upload.state)
@@ -1713,6 +1747,26 @@ function commitUploadBindings(uploads, { entityName, entityId, orgId, actorUserI
       entityId,
     });
   }
+}
+
+function reconcileBoundUploads(entityName, record, actorUserId) {
+  if (!record || !BINDABLE_UPLOAD_ENTITIES.has(entityName)) return;
+  uploadRegistry.retireBoundForEntity({
+    entityType: entityName,
+    entityId: record.id,
+    actorUserId,
+    retainedUploadIds: extractUploadIdsFromValue(record),
+  });
+}
+
+function retireAllBoundUploads(entityName, record, actorUserId) {
+  if (!record || !BINDABLE_UPLOAD_ENTITIES.has(entityName)) return;
+  uploadRegistry.retireBoundForEntity({
+    entityType: entityName,
+    entityId: record.id,
+    actorUserId,
+    retainedUploadIds: [],
+  });
 }
 
 function uploadResponseHeaders(upload) {

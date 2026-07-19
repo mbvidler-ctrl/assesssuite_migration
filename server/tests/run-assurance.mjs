@@ -7,6 +7,7 @@ const suites = [
   'signup-contract.test.mjs',
   'extraction-matrix.test.mjs',
   'rollback-compatibility.test.mjs',
+  'release-tools.test.mjs',
 ];
 
 for (const suite of suites) {

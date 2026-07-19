@@ -838,9 +838,30 @@ test('E38 authority and provider provenance are persisted as bounded content-fre
     `).all(uploadRef.upload_id);
     const authority = JSON.parse(rows.find((row) => row.event_type === 'processing_authority_attested').metadata_json);
     const extraction = JSON.parse(rows.find((row) => row.event_type === 'document_extraction').metadata_json);
+    assert.deepEqual(Object.keys(authority).sort(), ['attestation_version', 'upload_purpose']);
+    assert.deepEqual(Object.keys(extraction).sort(), [
+      'actual_cost_microusd',
+      'estimated_cost_microusd',
+      'file_count',
+      'prompt_version',
+      'provider_contact_attempted',
+      'provider_model',
+      'provider_request_constructed',
+      'provider_response_id_hash',
+      'provider_status_class',
+      'request_background_disabled',
+      'request_conversation_state_disabled',
+      'request_inline_only',
+      'request_prompt_cache_in_memory',
+      'request_store_disabled',
+      'request_tools_disabled',
+      'schema_hash',
+    ]);
     assert.equal(typeof authority.attestation_version, 'string');
     assert.equal(authority.upload_purpose, 'referral-extraction');
     assert.equal(extraction.provider_model, 'synthetic-assurance-model');
+    assert.equal(extraction.provider_request_constructed, true);
+    assert.equal(extraction.provider_contact_attempted, true);
     assert.equal(typeof extraction.prompt_version, 'string');
     assert.match(extraction.provider_response_id_hash, /^[0-9a-f]{64}$/);
     assert.equal(extraction.request_store_disabled, true);
@@ -849,6 +870,8 @@ test('E38 authority and provider provenance are persisted as bounded content-fre
     assert.equal(extraction.request_tools_disabled, true);
     assert.equal(extraction.request_inline_only, true);
     assert.equal(extraction.request_conversation_state_disabled, true);
+    assert.ok(JSON.stringify(extraction).length < 2_048);
+    assert.equal(Object.hasOwn(extraction, 'provider_response_id'), false);
     assert.doesNotMatch(JSON.stringify(rows), /Alex River|ALEX RIVER|file_data|input_file/i);
   } finally {
     db.close();
@@ -885,7 +908,7 @@ test('E40 an expired unbound upload is inaccessible before periodic cleanup runs
   assert.equal(fs.existsSync(path.join(server.uploadsDir, getUploadRow(uploadRef.upload_id).stored_name)), true);
 });
 
-test('E41 clinical lists are legal-acceptance scoped per membership', async () => {
+test('E41 clinical access is scoped to the accepted membership in a multi-organisation account', async () => {
   const tenantBClient = await requestJson(server, appRoute('/entities/Client'), {
     method: 'POST', token: userB.token,
     body: { org_id: tenantB.id, full_name: 'Tenant B Acceptance Boundary' },
@@ -895,9 +918,57 @@ test('E41 clinical lists are legal-acceptance scoped per membership', async () =
     token: userA.token,
   });
   assert.equal(result.status, 200, result.text);
-  assert.ok(result.body.length > 0);
-  assert.ok(result.body.every((record) => record.org_id === tenantA.id));
-  assert.equal(result.body.some((record) => record.id === tenantBClient.body.id), false);
+  assert.deepEqual(result.body, []);
+
+  const inverse = await registerUser(server, 'inverse-membership@assurance.test');
+  await activateUser(server, adminToken, inverse.id);
+  for (const [orgId, role, isPrimary] of [
+    [tenantA.id, 'owner', true],
+    [tenantB.id, 'clinician', false],
+  ]) {
+    const membership = await requestJson(server, appRoute('/entities/OrganizationMember'), {
+      method: 'POST', token: adminToken,
+      body: { org_id: orgId, user_email: inverse.email, role, is_primary: isPrimary },
+    });
+    assert.equal(membership.status, 200, membership.text);
+  }
+  await acceptCurrentNotices(inverse, tenantB.id);
+
+  const acceptedB = await requestJson(server, appRoute(`/entities/Client?q=${encodeURIComponent(JSON.stringify({ org_id: tenantB.id }))}`), {
+    token: inverse.token,
+  });
+  assert.equal(acceptedB.status, 200, acceptedB.text);
+  assert.ok(acceptedB.body.some((record) => record.id === tenantBClient.body.id));
+  assert.ok(acceptedB.body.every((record) => record.org_id === tenantB.id));
+  const unacceptedA = await requestJson(server, appRoute(`/entities/Client?q=${encodeURIComponent(JSON.stringify({ org_id: tenantA.id }))}`), {
+    token: inverse.token,
+  });
+  assert.equal(unacceptedA.status, 200, unacceptedA.text);
+  assert.deepEqual(unacceptedA.body, []);
+
+  const blockedUpload = await upload(inverse, tenantA.id, {
+    bytes: pdfFixture(), filename: 'inverse-unaccepted.pdf', mediaType: 'application/pdf',
+  });
+  assert.equal(blockedUpload.status, 403, blockedUpload.text);
+
+  const ownerUpload = await uploadReferral(userA, tenantA.id, pdfFixture(), 'inverse-extraction-source.pdf', 'application/pdf');
+  fakeProvider.reset();
+  const blockedExtraction = await extract(inverse, {
+    org_id: tenantA.id,
+    upload_id: ownerUpload.upload_id,
+    json_schema: REFERRAL_SCHEMA,
+  });
+  assert.equal(blockedExtraction.status, 403, blockedExtraction.text);
+  assert.equal(fakeProvider.calls.length, 0);
+
+  const audio = await expectUploaded(await upload(userA, tenantA.id, {
+    bytes: wavFixture(), filename: 'inverse-unaccepted.wav', mediaType: 'audio/wav', purpose: 'audio-transcription',
+  }));
+  const blockedFunction = await requestJson(server, appRoute('/functions/transcribeSession'), {
+    method: 'POST', token: inverse.token,
+    body: { action: 'transcribe', audio_url: audio.file_url, org_id: tenantA.id },
+  });
+  assert.equal(blockedFunction.status, 404, blockedFunction.text);
 });
 
 test('E42 deleted upload registry metadata is purged after two years unless legal hold is active', async () => {
@@ -971,6 +1042,12 @@ test('E44 non-Australian or non-release professions fail closed across profile, 
     assert.equal(clinicalList.status, 403, clinicalList.text);
     assert.equal(clinicalList.body?.message, 'clinical access is not approved for this account profile');
 
+    const clinicalFunction = await requestJson(server, appRoute('/functions/medicalLookup'), {
+      method: 'POST', token: userB.token, body: { conditions: ['synthetic'] },
+    });
+    assert.equal(clinicalFunction.status, 403, clinicalFunction.text);
+    assert.equal(clinicalFunction.body?.error, 'clinical access is not approved for this account profile');
+
     const blockedUpload = await upload(userB, tenantB.id, {
       bytes: pdfFixture(),
       filename: 'blocked-release-boundary.pdf',
@@ -1015,9 +1092,27 @@ test('E45 failed provider calls retain bounded policy provenance and production 
       ORDER BY created_at DESC LIMIT 1
     `).get(uploadRef.upload_id);
     const metadata = JSON.parse(row.metadata_json);
+    assert.deepEqual(Object.keys(metadata).sort(), [
+      'code',
+      'file_count',
+      'prompt_version',
+      'provider_contact_attempted',
+      'provider_model',
+      'provider_request_constructed',
+      'provider_status_class',
+      'request_background_disabled',
+      'request_conversation_state_disabled',
+      'request_inline_only',
+      'request_prompt_cache_in_memory',
+      'request_store_disabled',
+      'request_tools_disabled',
+      'schema_hash',
+    ]);
     assert.match(metadata.schema_hash, /^[0-9a-f]{64}$/);
     assert.equal(metadata.provider_status_class, '5xx');
     assert.equal(metadata.provider_model, 'synthetic-assurance-model');
+    assert.equal(metadata.provider_request_constructed, true);
+    assert.equal(metadata.provider_contact_attempted, true);
     assert.equal(typeof metadata.prompt_version, 'string');
     assert.equal(metadata.request_store_disabled, true);
     assert.equal(metadata.request_background_disabled, true);
@@ -1025,10 +1120,40 @@ test('E45 failed provider calls retain bounded policy provenance and production 
     assert.equal(metadata.request_tools_disabled, true);
     assert.equal(metadata.request_inline_only, true);
     assert.equal(metadata.request_conversation_state_disabled, true);
+    assert.ok(row.metadata_json.length < 2_048);
+    assert.equal(Object.hasOwn(metadata, 'provider_response_id'), false);
     assert.doesNotMatch(row.metadata_json, /Alex River|ALEX RIVER|file_data|input_file/i);
   } finally {
     db.close();
     fakeProvider.reset();
+  }
+
+  const preProvider = await uploadReferral(userA, tenantA.id, pdfFixture(), 'pre-provider-failure.pdf', 'application/pdf');
+  const invalidSchema = await extract(userA, {
+    upload_id: preProvider.upload_id,
+    org_id: tenantA.id,
+    json_schema: {},
+  });
+  assert.equal(invalidSchema.status, 400, invalidSchema.text);
+  assert.equal(fakeProvider.calls.length, 0);
+  const preProviderDb = openAssuranceDb();
+  try {
+    const row = preProviderDb.prepare(`
+      SELECT metadata_json FROM upload_audit
+      WHERE upload_id = ? AND event_type = 'document_extraction' AND outcome = 'failed'
+      ORDER BY created_at DESC LIMIT 1
+    `).get(preProvider.upload_id);
+    const metadata = JSON.parse(row.metadata_json);
+    assert.deepEqual(Object.keys(metadata).sort(), [
+      'code',
+      'file_count',
+      'provider_contact_attempted',
+      'provider_request_constructed',
+    ]);
+    assert.equal(metadata.provider_request_constructed, false);
+    assert.equal(metadata.provider_contact_attempted, false);
+  } finally {
+    preProviderDb.close();
   }
 
   const priorModel = process.env.OPENAI_DOCUMENT_EXTRACTION_MODEL;
@@ -1052,4 +1177,251 @@ test('E45 failed provider calls retain bounded policy provenance and production 
     if (priorNodeEnv === undefined) delete process.env.NODE_ENV;
     else process.env.NODE_ENV = priorNodeEnv;
   }
+});
+
+test('E46 membership identity, role, primary status, peer rows, and deletion are server-controlled', async () => {
+  const memberships = await requestJson(server, appRoute(`/entities/OrganizationMember?q=${encodeURIComponent(JSON.stringify({ org_id: tenantA.id }))}`), {
+    token: userA.token,
+  });
+  assert.equal(memberships.status, 200, memberships.text);
+  const own = memberships.body.find((row) => row.user_email === userA.email);
+  const peer = memberships.body.find((row) => row.user_email === colleagueA.email);
+  assert.ok(own?.id && peer?.id);
+
+  for (const [id, body, expected] of [
+    [own.id, { role: 'owner' }, 403],
+    [own.id, { is_primary: false }, 403],
+    [peer.id, { role: 'owner' }, 404],
+  ]) {
+    const result = await requestJson(server, appRoute(`/entities/OrganizationMember/${id}`), {
+      method: 'PUT', token: userA.token, body,
+    });
+    assert.equal(result.status, expected, result.text);
+  }
+  const singleDelete = await requestJson(server, appRoute(`/entities/OrganizationMember/${peer.id}`), {
+    method: 'DELETE', token: userA.token,
+  });
+  assert.equal(singleDelete.status, 403, singleDelete.text);
+  const bulkDelete = await requestJson(server, appRoute('/entities/OrganizationMember'), {
+    method: 'DELETE', token: userA.token, body: { org_id: tenantA.id },
+  });
+  assert.equal(bulkDelete.status, 403, bulkDelete.text);
+  const updateMany = await requestJson(server, appRoute('/entities/OrganizationMember/update-many'), {
+    method: 'PATCH', token: userA.token,
+    body: { query: { org_id: tenantA.id }, data: { role: 'owner' } },
+  });
+  assert.equal(updateMany.status, 403, updateMany.text);
+
+  const after = await requestJson(server, appRoute(`/entities/OrganizationMember?q=${encodeURIComponent(JSON.stringify({ org_id: tenantA.id }))}`), {
+    token: userA.token,
+  });
+  assert.equal(after.body.find((row) => row.id === own.id).role, own.role);
+  assert.equal(after.body.find((row) => row.id === own.id).is_primary, own.is_primary);
+  assert.ok(after.body.some((row) => row.id === peer.id));
+});
+
+test('E47 clinical child references must belong to the same explicit organisation', async () => {
+  const foreignClient = await requestJson(server, appRoute('/entities/Client'), {
+    method: 'POST', token: userB.token,
+    body: { org_id: tenantB.id, full_name: 'Foreign Reference Boundary' },
+  });
+  assert.equal(foreignClient.status, 200, foreignClient.text);
+  const result = await requestJson(server, appRoute('/entities/ClientAssessment'), {
+    method: 'POST', token: userA.token,
+    body: {
+      org_id: tenantA.id,
+      client_id: foreignClient.body.id,
+      assessment_id: 'synthetic-assessment-id',
+      result_value: 42,
+      notes: 'must never cross tenant',
+    },
+  });
+  assert.equal(result.status, 404, result.text);
+  const listed = await requestJson(server, appRoute('/entities/ClientAssessment'), { token: userA.token });
+  assert.equal(listed.body.some((row) => row.client_id === foreignClient.body.id), false);
+});
+
+test('E48 removing a bound reference or deleting its entity isolates retained bytes from ordinary access', async () => {
+  const client = await requestJson(server, appRoute('/entities/Client'), {
+    method: 'POST', token: userA.token,
+    body: { org_id: tenantA.id, full_name: 'Bound Lifecycle Boundary' },
+  });
+  assert.equal(client.status, 200, client.text);
+
+  const first = await uploadReferral(userA, tenantA.id, pdfFixture(), 'replace-bound.pdf', 'application/pdf');
+  const firstDocument = await requestJson(server, appRoute('/entities/ClientDocument'), {
+    method: 'POST', token: userA.token,
+    body: { org_id: tenantA.id, client_id: client.body.id, name: 'Replace me', file_url: first.file_url },
+  });
+  assert.equal(firstDocument.status, 200, firstDocument.text);
+  const firstPath = path.join(server.uploadsDir, getUploadRow(first.upload_id).stored_name);
+  assert.equal(fs.existsSync(firstPath), true);
+  const removedReference = await requestJson(server, appRoute(`/entities/ClientDocument/${firstDocument.body.id}`), {
+    method: 'PUT', token: userA.token, body: { file_url: null },
+  });
+  assert.equal(removedReference.status, 200, removedReference.text);
+  assert.equal(getUploadRow(first.upload_id).lifecycle_state, 'expired');
+  assert.equal(getUploadRow(first.upload_id).original_name, 'replace-bound.pdf');
+  assert.equal(fs.existsSync(firstPath), true);
+  const firstAccess = await fetch(`${server.baseUrl}/api/files/${first.upload_id}`, {
+    headers: { Authorization: `Bearer ${userA.token}` },
+  });
+  assert.equal(firstAccess.status, 404);
+
+  const second = await uploadReferral(userA, tenantA.id, pdfFixture(), 'delete-bound.pdf', 'application/pdf');
+  const secondDocument = await requestJson(server, appRoute('/entities/ClientDocument'), {
+    method: 'POST', token: userA.token,
+    body: { org_id: tenantA.id, client_id: client.body.id, name: 'Delete me', file_url: second.file_url },
+  });
+  assert.equal(secondDocument.status, 200, secondDocument.text);
+  const secondPath = path.join(server.uploadsDir, getUploadRow(second.upload_id).stored_name);
+  const deleted = await requestJson(server, appRoute(`/entities/ClientDocument/${secondDocument.body.id}`), {
+    method: 'DELETE', token: userA.token,
+  });
+  assert.equal(deleted.status, 200, deleted.text);
+  assert.equal(getUploadRow(second.upload_id).lifecycle_state, 'expired');
+  assert.equal(fs.existsSync(secondPath), true);
+  const secondAccess = await fetch(`${server.baseUrl}/api/files/${second.upload_id}`, {
+    headers: { Authorization: `Bearer ${userA.token}` },
+  });
+  assert.equal(secondAccess.status, 404);
+  const db = openAssuranceDb();
+  try {
+    const events = db.prepare(`
+      SELECT event_type, outcome, metadata_json FROM upload_audit
+      WHERE upload_id IN (?, ?) AND event_type = 'bound_upload_isolated'
+      ORDER BY created_at ASC
+    `).all(first.upload_id, second.upload_id);
+    assert.equal(events.length, 2);
+    for (const event of events) {
+      assert.equal(event.outcome, 'retained');
+      assert.deepEqual(JSON.parse(event.metadata_json), {
+        state_from: 'bound',
+        state_to: 'expired',
+        code: 'source_record_reference_removed',
+      });
+    }
+  } finally {
+    db.close();
+  }
+});
+
+test('E49 unbound files and signed grants remain uploader-private and expire immediately', async () => {
+  fakeProvider.reset();
+  const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'signed-private.pdf', 'application/pdf');
+  const before = getUploadRow(uploadRef.upload_id);
+  const direct = await fetch(`${server.baseUrl}/api/files/${uploadRef.upload_id}`, {
+    headers: { Authorization: `Bearer ${colleagueA.token}` },
+  });
+  assert.equal(direct.status, 404);
+  const colleagueGrant = await requestJson(server, appRoute('/integration-endpoints/Core/CreateFileAccessUrl'), {
+    method: 'POST', token: colleagueA.token,
+    body: { org_id: tenantA.id, upload_id: uploadRef.upload_id },
+  });
+  assert.equal(colleagueGrant.status, 404, colleagueGrant.text);
+  const colleagueExtraction = await extract(colleagueA, {
+    org_id: tenantA.id, upload_id: uploadRef.upload_id, json_schema: REFERRAL_SCHEMA,
+  });
+  assert.equal(colleagueExtraction.status, 404, colleagueExtraction.text);
+  assert.equal(fakeProvider.calls.length, 0);
+
+  const grant = await requestJson(server, appRoute('/integration-endpoints/Core/CreateFileAccessUrl'), {
+    method: 'POST', token: userA.token,
+    body: { org_id: tenantA.id, upload_id: uploadRef.upload_id },
+  });
+  assert.equal(grant.status, 200, grant.text);
+  const ranged = await fetch(`${server.baseUrl}${grant.body.file_url}`, { headers: { Range: 'bytes=0-4' } });
+  assert.equal(ranged.status, 206);
+  assert.deepEqual(Buffer.from(await ranged.arrayBuffer()), pdfFixture().subarray(0, 5));
+
+  setUploadState(uploadRef.upload_id, 'temporary', { expiresAt: new Date(Date.now() - 1_000).toISOString() });
+  const expiredGrant = await fetch(`${server.baseUrl}${grant.body.file_url}`);
+  assert.equal(expiredGrant.status, 404);
+  const after = getUploadRow(uploadRef.upload_id);
+  assert.equal(after.original_name, before.original_name);
+  assert.equal(after.deleted_at, before.deleted_at);
+  const db = openAssuranceDb();
+  try {
+    const access = db.prepare(`
+      SELECT metadata_json FROM upload_audit
+      WHERE upload_id = ? AND event_type = 'upload_accessed'
+      ORDER BY created_at DESC LIMIT 1
+    `).get(uploadRef.upload_id);
+    const metadata = JSON.parse(access.metadata_json);
+    assert.deepEqual(metadata, { signed_url: true, range_request: true, range_start: 0, range_end: 4 });
+  } finally {
+    db.close();
+  }
+});
+
+test('E50 audio transcription resolver enforces uploader ownership and expiry before any provider path', async () => {
+  const audio = await expectUploaded(await upload(userA, tenantA.id, {
+    bytes: wavFixture(), filename: 'private-audio.wav', mediaType: 'audio/wav', purpose: 'audio-transcription',
+  }));
+  const colleague = await requestJson(server, appRoute('/functions/transcribeSession'), {
+    method: 'POST', token: colleagueA.token,
+    body: { action: 'transcribe', audio_url: audio.file_url, org_id: tenantA.id },
+  });
+  assert.equal(colleague.status, 404, colleague.text);
+  setUploadState(audio.upload_id, 'temporary', { expiresAt: new Date(Date.now() - 1_000).toISOString() });
+  const expired = await requestJson(server, appRoute('/functions/transcribeSession'), {
+    method: 'POST', token: userA.token,
+    body: { action: 'transcribe', audio_url: audio.file_url, org_id: tenantA.id },
+  });
+  assert.equal(expired.status, 404, expired.text);
+});
+
+test('E51 unregistered legacy filenames cannot be claimed through client-writable references', async () => {
+  const storedName = 'legacy-claim-boundary.pdf';
+  const legacyPath = path.join(server.uploadsDir, storedName);
+  fs.writeFileSync(legacyPath, pdfFixture());
+  try {
+    const client = await requestJson(server, appRoute('/entities/Client'), {
+      method: 'POST', token: userA.token,
+      body: { org_id: tenantA.id, full_name: 'Legacy Claim Boundary' },
+    });
+    const document = await requestJson(server, appRoute('/entities/ClientDocument'), {
+      method: 'POST', token: userA.token,
+      body: { org_id: tenantA.id, client_id: client.body.id, name: 'Untrusted legacy reference', file_url: `/uploads/${storedName}` },
+    });
+    assert.equal(document.status, 200, document.text);
+    const access = await fetch(`${server.baseUrl}/uploads/${storedName}`, {
+      headers: { Authorization: `Bearer ${userA.token}` },
+    });
+    assert.equal(access.status, 404);
+    const db = openAssuranceDb();
+    try {
+      assert.equal(db.prepare('SELECT id FROM upload_registry WHERE stored_name = ?').get(storedName), undefined);
+    } finally {
+      db.close();
+    }
+  } finally {
+    if (fs.existsSync(legacyPath)) fs.rmSync(legacyPath);
+  }
+});
+
+test('E52 bulk update keeps each upload binding aligned with its actual updated record', async () => {
+  const client = await requestJson(server, appRoute('/entities/Client'), {
+    method: 'POST', token: userA.token,
+    body: { org_id: tenantA.id, full_name: 'Bulk Alignment Boundary' },
+  });
+  const document = await requestJson(server, appRoute('/entities/ClientDocument'), {
+    method: 'POST', token: userA.token,
+    body: { org_id: tenantA.id, client_id: client.body.id, name: 'Bulk target' },
+  });
+  const skippedUpload = await uploadReferral(userA, tenantA.id, pdfFixture(), 'bulk-skipped.pdf', 'application/pdf');
+  const appliedUpload = await uploadReferral(userA, tenantA.id, pdfFixture(), 'bulk-applied.pdf', 'application/pdf');
+  const result = await requestJson(server, appRoute('/entities/ClientDocument/bulk'), {
+    method: 'PUT', token: userA.token,
+    body: [
+      { id: '00000000-0000-4000-8000-000000000000', org_id: tenantA.id, file_url: skippedUpload.file_url },
+      { id: document.body.id, org_id: tenantA.id, file_url: appliedUpload.file_url },
+    ],
+  });
+  assert.equal(result.status, 200, result.text);
+  assert.equal(result.body.length, 1);
+  assert.equal(getUploadRow(skippedUpload.upload_id).lifecycle_state, 'temporary');
+  const applied = getUploadRow(appliedUpload.upload_id);
+  assert.equal(applied.lifecycle_state, 'bound');
+  assert.equal(applied.bound_entity_id, document.body.id);
 });

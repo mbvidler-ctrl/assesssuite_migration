@@ -232,7 +232,7 @@ jobs:
             local label=$2
             local html="$RUNNER_TEMP/${label}-index.html"
             local bundle="$RUNNER_TEMP/${label}-bundle.js"
-            curl --fail --silent --show-error --max-time 15 -H 'Cache-Control: no-cache' "$url/" -o "$html"
+            curl --fail --silent --show-error --max-time 15 -H 'Cache-Control: no-cache' "$url/" -o "$html" || return 1
             local asset_path
             asset_path="$(HTML_PATH="$html" node --input-type=module <<'NODE'
           import fs from 'node:fs';
@@ -242,9 +242,9 @@ jobs:
           if (!match || !match[1].startsWith('/assets/')) throw new Error('Production HTML did not reference a local module asset');
           process.stdout.write(match[1]);
           NODE
-            )"
-            curl --fail --silent --show-error --max-time 20 -H 'Cache-Control: no-cache' "$url$asset_path" -o "$bundle"
-            BUNDLE_PATH="$bundle" node --input-type=module <<'NODE'
+            )" || return 1
+            curl --fail --silent --show-error --max-time 20 -H 'Cache-Control: no-cache' "$url$asset_path" -o "$bundle" || return 1
+            BUNDLE_PATH="$bundle" node --input-type=module <<'NODE' || return 1
           import fs from 'node:fs';
           const bundle = fs.readFileSync(process.env.BUNDLE_PATH, 'utf8');
           if (bundle.length < 10_000) throw new Error('Production JavaScript bundle is incomplete');
@@ -256,14 +256,14 @@ jobs:
           }
           NODE
             local status
-            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-register-invalid.json" -w '%{http_code}' -H 'Content-Type: application/json' -X POST --data '{}' "$url/api/apps/prod/auth/register")"
-            [[ "$status" == '400' ]]
-            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-upload.json" -w '%{http_code}' -X POST "$url/api/apps/prod/integration-endpoints/Core/UploadFile")"
-            [[ "$status" == '401' ]]
-            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-extraction.json" -w '%{http_code}' -H 'Content-Type: application/json' -X POST --data '{}' "$url/api/apps/prod/integration-endpoints/Core/ExtractDataFromUploadedFile")"
-            [[ "$status" == '401' ]]
-            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-file.json" -w '%{http_code}' "$url/uploads/00000000-0000-4000-8000-000000000000")"
-            [[ "$status" == '401' || "$status" == '404' ]]
+            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-register-invalid.json" -w '%{http_code}' -H 'Content-Type: application/json' -X POST --data '{}' "$url/api/apps/prod/auth/register")" || return 1
+            [[ "$status" == '400' ]] || return 1
+            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-upload.json" -w '%{http_code}' -X POST "$url/api/apps/prod/integration-endpoints/Core/UploadFile")" || return 1
+            [[ "$status" == '401' ]] || return 1
+            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-extraction.json" -w '%{http_code}' -H 'Content-Type: application/json' -X POST --data '{}' "$url/api/apps/prod/integration-endpoints/Core/ExtractDataFromUploadedFile")" || return 1
+            [[ "$status" == '401' ]] || return 1
+            status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-file.json" -w '%{http_code}' "$url/uploads/00000000-0000-4000-8000-000000000000")" || return 1
+            [[ "$status" == '401' ]] || return 1
           }
 
           assert_topology() {

@@ -883,7 +883,12 @@ async function runChecks(baseUrl, appId) {
       method: 'POST', token: userAToken, body: { name: `Founded by A ${Date.now()}` },
     });
     const { status: foundStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/OrganizationMember`, {
-      method: 'POST', token: userAToken, body: { user_email: emailA, org_id: newOrg.id, is_primary: false },
+      method: 'POST', token: userAToken, body: {
+        user_email: emailA,
+        org_id: newOrg.id,
+        role: 'owner',
+        is_primary: true,
+      },
     });
     record('founding a membership in a new empty org is allowed', foundStatus === 200, `status=${foundStatus}`);
     // bulkUpdate must not relocate an own record into a foreign org.

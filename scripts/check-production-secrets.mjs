@@ -16,6 +16,10 @@
 import { execFileSync } from 'node:child_process';
 
 const app = process.argv[2] || process.env.FLY_APP || 'assesssuite-production';
+if (app !== 'assesssuite-production') {
+  console.error('[preflight] FAIL — this command is sealed to assesssuite-production.');
+  process.exit(2);
+}
 
 const REQUIRED = [
   'ADMIN_PASSWORD',
@@ -36,6 +40,8 @@ const FORBIDDEN_OPAQUE_OVERRIDES = [
   'TRANSCRIPTION_ENABLED',
   'LEGAL_STATUS',
   'LEGAL_EFFECTIVE_DATE',
+  'LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS',
+  'OPENAI_DOCUMENT_EXTRACTION_MODEL',
 ];
 
 let raw;

@@ -631,71 +631,74 @@ export async function extractDocumentData({ files, schema, subjectAgeBands }) {
   };
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
-  let response;
   try {
-    response = await fetch(config.url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${config.apiKey}`,
-      },
-      body: JSON.stringify(payload),
-      signal: controller.signal,
-    });
-  } catch (error) {
-    if (error?.name === 'AbortError') {
+    let response;
+    try {
+      response = await fetch(config.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${config.apiKey}`,
+        },
+        body: JSON.stringify(payload),
+        signal: controller.signal,
+      });
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        throw attachFailureProvenance(
+          new ExtractionError(504, 'provider_timeout', 'Document extraction timed out. Please try again.'),
+          { ...baseFailureProvenance, providerStatusClass: 'network' },
+        );
+      }
       throw attachFailureProvenance(
-        new ExtractionError(504, 'provider_timeout', 'Document extraction timed out. Please try again.'),
+        new ExtractionError(502, 'provider_unavailable', 'Document extraction is temporarily unavailable.'),
         { ...baseFailureProvenance, providerStatusClass: 'network' },
       );
     }
-    throw attachFailureProvenance(
-      new ExtractionError(502, 'provider_unavailable', 'Document extraction is temporarily unavailable.'),
-      { ...baseFailureProvenance, providerStatusClass: 'network' },
-    );
-  }
-  try {
-    if (!response.ok) {
-      // Drain and discard a bounded amount so connection reuse remains safe;
-      // provider bodies can contain sensitive snippets and are never logged or
-      // relayed to the caller.
-      try {
-        await readBoundedJson(response, controller);
-      } catch {
-        controller.abort();
-      }
-      throw new ExtractionError(502, 'provider_error', 'Document extraction is temporarily unavailable.');
-    }
-    const data = await readBoundedJson(response, controller);
-    if (data?.status === 'incomplete' || data?.incomplete_details) {
-      throw new ExtractionError(502, 'provider_incomplete', 'The document could not be extracted reliably.');
-    }
-    let parsed;
+
     try {
-      parsed = JSON.parse(responseOutputText(data));
+      if (!response.ok) {
+        // Drain and discard a bounded amount so connection reuse remains safe;
+        // provider bodies can contain sensitive snippets and are never logged or
+        // relayed to the caller.
+        try {
+          await readBoundedJson(response, controller);
+        } catch {
+          controller.abort();
+        }
+        throw new ExtractionError(502, 'provider_error', 'Document extraction is temporarily unavailable.');
+      }
+      const data = await readBoundedJson(response, controller);
+      if (data?.status === 'incomplete' || data?.incomplete_details) {
+        throw new ExtractionError(502, 'provider_incomplete', 'The document could not be extracted reliably.');
+      }
+      let parsed;
+      try {
+        parsed = JSON.parse(responseOutputText(data));
+      } catch (error) {
+        if (error instanceof ExtractionError) throw error;
+        throw new ExtractionError(502, 'provider_malformed_output', 'The document could not be extracted reliably.');
+      }
+      return {
+        output: validateExtractionOutput(parsed, prepared.sourceSchema),
+        schemaHash: prepared.schemaHash,
+        actualCostMicrousd: estimatedActualCostMicrousd(data),
+        requestPolicy: policy,
+        providerStatusClass: `${Math.floor(response.status / 100)}xx`,
+        providerProbe: config.providerProbe,
+        model: selectedModel,
+        promptVersion: EXTRACTION_PROMPT_VERSION,
+        providerResponseIdHash:
+          typeof data?.id === 'string' && data.id
+            ? createHash('sha256').update(data.id).digest('hex')
+            : null,
+      };
     } catch (error) {
-      if (error instanceof ExtractionError) throw error;
-      throw new ExtractionError(502, 'provider_malformed_output', 'The document could not be extracted reliably.');
+      throw attachFailureProvenance(error, {
+        ...baseFailureProvenance,
+        providerStatusClass: `${Math.floor(response.status / 100)}xx`,
+      });
     }
-    return {
-      output: validateExtractionOutput(parsed, prepared.sourceSchema),
-      schemaHash: prepared.schemaHash,
-      actualCostMicrousd: estimatedActualCostMicrousd(data),
-      requestPolicy: policy,
-      providerStatusClass: `${Math.floor(response.status / 100)}xx`,
-      providerProbe: config.providerProbe,
-      model: selectedModel,
-      promptVersion: EXTRACTION_PROMPT_VERSION,
-      providerResponseIdHash:
-        typeof data?.id === 'string' && data.id
-          ? createHash('sha256').update(data.id).digest('hex')
-          : null,
-    };
-  } catch (error) {
-    throw attachFailureProvenance(error, {
-      ...baseFailureProvenance,
-      providerStatusClass: `${Math.floor(response.status / 100)}xx`,
-    });
   } finally {
     clearTimeout(timeout);
   }

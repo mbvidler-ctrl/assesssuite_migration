@@ -373,35 +373,7 @@ jobs:
             exit 1
           fi
           git diff --binary "$PRODUCTION_BASE_SHA"...HEAD >"$RUNNER_TEMP/release.diff"
-          if grep -EIn '(BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY|sk_(live|test)_[A-Za-z0-9]{16,}|whsec_[A-Za-z0-9]{16,}|[A-Za-z0-9_]*API[_-]?KEY[[:space:]]*=[[:space:]]*[^$<{[:space:]]+|FLY_API_TOKEN[[:space:]]*=[[:space:]]*[^$<{[:space:]]+)' "$RUNNER_TEMP/release.diff"; then
-            echo 'Potential secret material detected in the release diff.' >&2
-            exit 1
-          fi
-          DIFF_PATH="$RUNNER_TEMP/release.diff" node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const entropy = (value) => {
-            const counts = new Map();
-            for (const char of value) counts.set(char, (counts.get(char) || 0) + 1);
-            return [...counts.values()].reduce((sum, count) => {
-              const probability = count / value.length;
-              return sum - probability * Math.log2(probability);
-            }, 0);
-          };
-          const findings = [];
-          for (const line of fs.readFileSync(process.env.DIFF_PATH, 'utf8').split(/\r?\n/)) {
-            if (!line.startsWith('+') || line.startsWith('+++')) continue;
-            for (const token of line.match(/[A-Za-z0-9+/_=-]{32,}/g) || []) {
-              if (/synthetic|example|placeholder|sha(256|512)|integrity|ASSESSSUITE/i.test(token)) continue;
-              if (/^[a-f0-9]{40,64}$/i.test(token)) continue;
-              const classes = [/[a-z]/, /[A-Z]/, /\d/, /[+/_=-]/].filter((pattern) => pattern.test(token)).length;
-              if (classes >= 3 && entropy(token) >= 4.4) findings.push({ token: token.slice(0, 12) + '...', line: line.slice(0, 180) });
-            }
-          }
-          if (findings.length) {
-            console.error(JSON.stringify(findings, null, 2));
-            throw new Error('Unreviewed high-entropy token detected in added diff lines');
-          }
-          NODE
+          node scripts/scan-release-diff.mjs "$RUNNER_TEMP/release.diff"
 
       - name: Build exact candidate image locally without credentials
         shell: bash
@@ -661,7 +633,7 @@ jobs:
             local html="$RUNNER_TEMP/${label}-index.html"
             local bundle="$RUNNER_TEMP/${label}-bundle.js"
             curl --fail --silent --show-error --max-time 15 \
-              -H 'Cache-Control: no-cache' "$url/" -o "$html"
+              -H 'Cache-Control: no-cache' "$url/" -o "$html" || return 1
             local asset_path
             asset_path="$(HTML_PATH="$html" node --input-type=module <<'NODE'
           import fs from 'node:fs';
@@ -671,10 +643,10 @@ jobs:
           if (!match || !match[1].startsWith('/assets/')) throw new Error('Production HTML did not reference a local module asset');
           process.stdout.write(match[1]);
           NODE
-            )"
+            )" || return 1
             curl --fail --silent --show-error --max-time 20 \
-              -H 'Cache-Control: no-cache' "$url$asset_path" -o "$bundle"
-            HTML_PATH="$html" BUNDLE_PATH="$bundle" node --input-type=module <<'NODE'
+              -H 'Cache-Control: no-cache' "$url$asset_path" -o "$bundle" || return 1
+            HTML_PATH="$html" BUNDLE_PATH="$bundle" node --input-type=module <<'NODE' || return 1
           import fs from 'node:fs';
           const html = fs.readFileSync(process.env.HTML_PATH, 'utf8');
           const bundle = fs.readFileSync(process.env.BUNDLE_PATH, 'utf8');
@@ -700,18 +672,18 @@ jobs:
             local status
             status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-register-invalid.json" -w '%{http_code}' \
               -H 'Content-Type: application/json' -X POST \
-              --data '{}' "$url/api/apps/prod/auth/register")"
-            [[ "$status" == '400' ]]
+              --data '{}' "$url/api/apps/prod/auth/register")" || return 1
+            [[ "$status" == '400' ]] || return 1
             status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-upload.json" -w '%{http_code}' \
-              -X POST "$url/api/apps/prod/integration-endpoints/Core/UploadFile")"
-            [[ "$status" == '401' ]]
+              -X POST "$url/api/apps/prod/integration-endpoints/Core/UploadFile")" || return 1
+            [[ "$status" == '401' ]] || return 1
             status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-extraction.json" -w '%{http_code}' \
               -H 'Content-Type: application/json' -X POST --data '{}' \
-              "$url/api/apps/prod/integration-endpoints/Core/ExtractDataFromUploadedFile")"
-            [[ "$status" == '401' ]]
+              "$url/api/apps/prod/integration-endpoints/Core/ExtractDataFromUploadedFile")" || return 1
+            [[ "$status" == '401' ]] || return 1
             status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/${label}-anonymous-file.json" -w '%{http_code}' \
-              "$url/uploads/00000000-0000-4000-8000-000000000000")"
-            [[ "$status" == '401' || "$status" == '404' ]]
+              "$url/uploads/00000000-0000-4000-8000-000000000000")" || return 1
+            [[ "$status" == '401' ]] || return 1
           }
 
           run_provider_probe() {

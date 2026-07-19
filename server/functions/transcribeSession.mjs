@@ -211,13 +211,13 @@ export default async function transcribeSession(ctx) {
 
   if (action === 'transcribe') {
     const { audio_url, org_id: orgId } = body || {};
+    const filePath = resolveUploadPath(audio_url, { user: ctx.user, orgId });
+    if (!filePath) {
+      return respond(404, { error: 'audio file not found' });
+    }
 
     if (realPathEnabled()) {
       try {
-        const filePath = resolveUploadPath(audio_url, { user: ctx.user, orgId });
-        if (!filePath) {
-          return respond(404, { error: 'audio file not found' });
-        }
         const stat = fs.lstatSync(filePath);
         if (!stat.isFile() || stat.isSymbolicLink()) {
           return respond(404, { error: 'audio file not found' });

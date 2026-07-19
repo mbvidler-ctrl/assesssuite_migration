@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
-import { extractTenantDocumentData } from '@/lib/fileIntegrations';
+import { DOCUMENT_EXTRACTION_MAX_FILES, extractTenantDocumentData } from '@/lib/fileIntegrations';
 import { todayLocal } from "@/lib/localDate";
 
 const ASSESSMENT_EXTRACTION_SCHEMA = {
@@ -111,6 +111,10 @@ export default function HistoricalAssessmentExtractor({
 
   const handleExtract = async () => {
     if (!fileUrls || fileUrls.length === 0) return;
+    if (fileUrls.length > DOCUMENT_EXTRACTION_MAX_FILES) {
+      toast.error(`Select no more than ${DOCUMENT_EXTRACTION_MAX_FILES} documents for one extraction.`);
+      return;
+    }
     if (!orgId) {
       toast.error('Practice context is required before document extraction.');
       return;
@@ -202,6 +206,7 @@ export default function HistoricalAssessmentExtractor({
         const notes = `Historical result from external report. ${assessment.performed_by ? `Performed by: ${assessment.performed_by}. ` : ''}${assessment.notes || ''}${assessment.is_blood_pressure && assessment.result_value_secondary !== undefined && assessment.result_value_secondary !== null ? ` Diastolic: ${assessment.result_value_secondary}` : ''}`;
         
         await base44.entities.ClientAssessment.create({
+          org_id: orgId,
           client_id: clientId,
           assessment_id: assessment.matched_assessment.id,
           appointment_id: null,

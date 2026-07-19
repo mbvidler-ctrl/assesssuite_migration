@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { extractTenantDocumentData } from '@/lib/fileIntegrations';
+import { DOCUMENT_EXTRACTION_MAX_FILES, extractTenantDocumentData } from '@/lib/fileIntegrations';
 import { todayLocal } from "@/lib/localDate";
 
 const EXTRACTION_SCHEMA = {
@@ -101,6 +101,10 @@ export default function ClientDataExtractor({
 
   const handleExtract = async () => {
     if (!fileUrls || fileUrls.length === 0) return;
+    if (fileUrls.length > DOCUMENT_EXTRACTION_MAX_FILES) {
+      toast.error(`Select no more than ${DOCUMENT_EXTRACTION_MAX_FILES} documents for one extraction.`);
+      return;
+    }
     if (!client?.org_id) {
       toast.error('Client practice is required before document extraction.');
       return;

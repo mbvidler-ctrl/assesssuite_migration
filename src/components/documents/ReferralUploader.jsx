@@ -7,7 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { cancelTenantUploads, extractTenantDocumentData, uploadTenantFile } from '@/lib/fileIntegrations';
+import {
+  cancelTenantUploads,
+  DOCUMENT_EXTRACTION_MAX_FILES,
+  extractTenantDocumentData,
+  uploadTenantFile,
+} from '@/lib/fileIntegrations';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -175,6 +180,12 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
       return true;
     });
 
+    if (files.length + validFiles.length > DOCUMENT_EXTRACTION_MAX_FILES) {
+      toast.error(`Select no more than ${DOCUMENT_EXTRACTION_MAX_FILES} documents for one extraction.`);
+      e.target.value = '';
+      return;
+    }
+
     if (validFiles.length > 0) {
       setFiles(prev => [...prev, ...validFiles]);
       setExtractedData(null);
@@ -227,6 +238,10 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
   const handleUploadAndExtract = async () => {
     if (files.length === 0) {
       toast.error('Please select at least one file');
+      return;
+    }
+    if (files.length > DOCUMENT_EXTRACTION_MAX_FILES) {
+      toast.error(`Select no more than ${DOCUMENT_EXTRACTION_MAX_FILES} documents for one extraction.`);
       return;
     }
     if (!selectedOrgId) {
@@ -666,7 +681,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
               <p className="text-sm text-slate-600 mb-1">
                 Click to upload or drag and drop
               </p>
-              <p className="text-xs text-slate-500">PDF, PNG, JPG or CSV (multiple files supported)</p>
+              <p className="text-xs text-slate-500">PDF, PNG, JPG or CSV (up to {DOCUMENT_EXTRACTION_MAX_FILES} files)</p>
             </label>
             </div>
 

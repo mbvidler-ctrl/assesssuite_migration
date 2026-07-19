@@ -262,6 +262,14 @@ test('S11 server rejects forged notice rows and accepts only its complete derive
     assert.equal(receipts.status, 200, receipts.text);
     assert.equal(receipts.body.length, 3);
     assert.ok(receipts.body.every((event) => /^sha256-[0-9a-f]{64}$/.test(event.document_fingerprint)));
+    for (const receipt of receipts.body) {
+      const document = LEGAL_DOCUMENTS[receipt.document_id];
+      const raw = fs.readFileSync(path.join(legalContentDir, document.file), 'utf8');
+      assert.equal(receipt.document_title, document.title);
+      assert.equal(receipt.document_fingerprint, fingerprint(raw));
+      assert.equal(receipt.event_type, document.eventType);
+      assert.equal(receipt.suite_version, SUITE_VERSION);
+    }
 
     const after = await requestJson(server, `/api/apps/${server.appId}/entities/Client`, { token: user.token });
     assert.equal(after.status, 200, after.text);
