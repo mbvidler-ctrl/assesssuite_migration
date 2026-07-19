@@ -28,7 +28,7 @@ function attachFailureProvenance(error, provenance) {
   }
   return error;
 }
-const REQUIRED_PROMPT_CACHE_RETENTION = 'in-memory';
+const REQUIRED_PROMPT_CACHE_RETENTION = 'in_memory';
 const PRODUCTION_TIMEOUT_MS = 45_000;
 const MAX_SCHEMA_BYTES = 32 * 1024;
 const MAX_SCHEMA_DEPTH = 8;

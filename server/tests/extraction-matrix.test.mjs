@@ -275,7 +275,7 @@ test('E01 known PDF fixture extracts the expected referral values', async () => 
   assert.equal(fakeProvider.calls.at(-1)?.store, false);
   assert.equal(fakeProvider.calls.at(-1)?.hasTools, false);
   assert.equal(fakeProvider.calls.at(-1)?.background, false);
-  assert.equal(fakeProvider.calls.at(-1)?.promptCacheRetention, 'in-memory');
+  assert.equal(fakeProvider.calls.at(-1)?.promptCacheRetention, 'in_memory');
   assert.equal(fakeProvider.calls.at(-1)?.route, '/v1/responses');
 });
 
