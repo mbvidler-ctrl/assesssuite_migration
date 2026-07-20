@@ -52,6 +52,10 @@ import { issueFileAccessUrl } from './fileAccess.mjs';
 import { instantiateSchema, extractJsonKeysFromPrompt } from './mocks/schema-instantiator.mjs';
 import { invokeLLM as invokeRealLLM, llmEnabled } from './llm.mjs';
 import { sendEmail } from './email.mjs';
+import {
+  REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
+  REFERRAL_SUBJECT_AGE_CONFIRMATION,
+} from '../src/lib/referralWorkflow.js';
 
 // UPLOADS_DIR override: in production the uploads store must live on the
 // persistent volume (mounted at server/data), so all three readers of this
@@ -529,32 +533,72 @@ function handleSendSMS(body, outboxSms) {
 // UploadFile
 // ---------------------------------------------------------------------------
 
-function subjectAgeBandFromDateOfBirth(value, { required = false, now = new Date() } = {}) {
-  if (value === undefined || value === null || value === '') {
-    if (required) {
-      throw new UploadError(400, 'subject_date_of_birth_required', 'Enter the subject date of birth.');
+function subjectAgeAttestationFromUploadRequest(body, purpose) {
+  const confirmation = body?.subject_age_confirmation;
+  const attestationVersion = body?.subject_age_attestation_version;
+  const attestationSource = body?.subject_age_attestation_source;
+  const dateOfBirth = body?.subject_date_of_birth;
+
+  if (purpose !== 'referral-extraction') {
+    if (
+      confirmation !== undefined ||
+      attestationVersion !== undefined ||
+      attestationSource !== undefined ||
+      dateOfBirth !== undefined
+    ) {
+      throw new UploadError(400, 'subject_age_not_applicable', 'Subject age is not accepted for this upload purpose.');
     }
-    return 'unknown';
+    return { band: 'unknown', version: null };
   }
-  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    throw new UploadError(400, 'invalid_subject_date_of_birth', 'Enter a valid subject date of birth.');
+
+  // The trust boundary is the authenticated practitioner's explicit action,
+  // not a DOB field or a client-computed age band. Reject every superseded
+  // representation before bytes are registered or any provider can run.
+  if (dateOfBirth !== undefined) {
+    throw new UploadError(
+      400,
+      'subject_date_of_birth_rejected',
+      'Use the supported patient age attestation.',
+    );
   }
-  const [year, month, day] = value.split('-').map(Number);
-  const birthDate = new Date(Date.UTC(year, month - 1, day));
-  if (
-    birthDate.getUTCFullYear() !== year ||
-    birthDate.getUTCMonth() !== month - 1 ||
-    birthDate.getUTCDate() !== day ||
-    birthDate.getTime() > now.getTime()
-  ) {
-    throw new UploadError(400, 'invalid_subject_date_of_birth', 'Enter a valid subject date of birth.');
+  if (attestationSource !== undefined) {
+    throw new UploadError(
+      400,
+      'client_age_attestation_source_rejected',
+      'The patient age attestation source is server controlled.',
+    );
   }
-  let age = now.getUTCFullYear() - year;
-  const beforeBirthday =
-    now.getUTCMonth() < month - 1 ||
-    (now.getUTCMonth() === month - 1 && now.getUTCDate() < day);
-  if (beforeBirthday) age -= 1;
-  return age < 13 ? 'under_13' : '13_or_over';
+  if (confirmation === undefined) {
+    throw new UploadError(400, 'subject_age_confirmation_required', 'Confirm the patient is 13 or older.');
+  }
+  if (attestationVersion === undefined) {
+    throw new UploadError(
+      400,
+      'subject_age_attestation_version_required',
+      'Refresh AssessSuite before confirming the patient age.',
+    );
+  }
+  if (attestationVersion !== REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION) {
+    throw new UploadError(
+      400,
+      'invalid_subject_age_attestation_version',
+      'Refresh AssessSuite before confirming the patient age.',
+    );
+  }
+  if (confirmation === 'under_13') {
+    throw new UploadError(
+      409,
+      'under_13_review_required',
+      'This referral requires a privacy review before automated extraction can be used.',
+    );
+  }
+  if (confirmation !== REFERRAL_SUBJECT_AGE_CONFIRMATION) {
+    throw new UploadError(400, 'invalid_subject_age_confirmation', 'Confirm the patient is 13 or older.');
+  }
+  return {
+    band: REFERRAL_SUBJECT_AGE_CONFIRMATION,
+    version: REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
+  };
 }
 
 async function handleUploadFile(body, files, context) {
@@ -577,11 +621,9 @@ async function handleUploadFile(body, files, context) {
     throw new UploadError(403, 'clinical_upload_forbidden', 'Current approved access and legal acceptance are required.');
   }
   if (body?.subject_age_band !== undefined) {
-    throw new UploadError(400, 'client_age_band_rejected', 'Submit the subject date of birth, not an age category.');
+    throw new UploadError(400, 'client_age_band_rejected', 'Use the supported subject age confirmation.');
   }
-  const subjectAgeBand = subjectAgeBandFromDateOfBirth(body?.subject_date_of_birth, {
-    required: purpose === 'referral-extraction',
-  });
+  const subjectAgeAttestation = subjectAgeAttestationFromUploadRequest(body, purpose);
   const purposeMaxBytes = purpose === 'referral-extraction' ? UPLOAD_POLICY.maxReferralBytes : UPLOAD_POLICY.maxFileBytes;
   if (file.size <= 0 || file.size > purposeMaxBytes) {
     throw new UploadError(file.size > purposeMaxBytes ? 413 : 400, 'invalid_file_size', 'The selected file size is invalid.');
@@ -595,7 +637,8 @@ async function handleUploadFile(body, files, context) {
     orgId,
     uploaderUserId: context.sessionUser.id,
     purpose,
-    subjectAgeBand,
+    subjectAgeBand: subjectAgeAttestation.band,
+    subjectAgeAttestationVersion: subjectAgeAttestation.version,
   });
   return { file_url: `/uploads/${upload.id}`, upload_id: upload.id };
 }
@@ -750,6 +793,9 @@ export async function handleCoreIntegration(req, res, context) {
   } catch (error) {
     const known = error instanceof UploadError || error instanceof ExtractionError || Number.isInteger(error?.httpStatus);
     const status = known ? error.httpStatus || 500 : 500;
+    const code = known && typeof error?.code === 'string' && /^[a-z0-9_]{1,80}$/.test(error.code)
+      ? error.code
+      : 'internal_error';
     const details = known ? error.publicMessage || error.message : 'The request could not be completed.';
     if (!known) {
       // Metadata only: never print request bodies, file names, provider
@@ -757,8 +803,8 @@ export async function handleCoreIntegration(req, res, context) {
       console.error('[integration] request failed', { endpoint: endpointName, code: 'internal_error' });
     }
     if (endpointName === 'ExtractDataFromUploadedFile') {
-      return sendJson(res, status, { status: 'error', details });
+      return sendJson(res, status, { status: 'error', code, details });
     }
-    return sendJson(res, status, { error: details });
+    return sendJson(res, status, { code, error: details });
   }
 }

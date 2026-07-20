@@ -6,6 +6,10 @@ import {
   PRACTITIONER_NOTICE_IDS,
   SUITE_VERSION,
 } from '../../src/lib/legal/documentRegistry.js';
+import {
+  REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
+  REFERRAL_SUBJECT_AGE_CONFIRMATION,
+} from '../../src/lib/referralWorkflow.js';
 import { startFakeOpenAI } from './support/fake-openai.mjs';
 import { REFERRAL_SCHEMA, pdfFixture } from './support/synthetic-fixtures.mjs';
 import {
@@ -73,7 +77,8 @@ async function uploadReferral(fixture) {
   const form = new FormData();
   form.set('org_id', fixture.org.id);
   form.set('purpose', 'referral-extraction');
-  form.set('subject_date_of_birth', '2000-01-01');
+  form.set('subject_age_confirmation', REFERRAL_SUBJECT_AGE_CONFIRMATION);
+  form.set('subject_age_attestation_version', REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION);
   form.set('file', new File([pdfFixture()], 'synthetic-rollback.pdf', { type: 'application/pdf' }));
   const response = await fetch(`${server.baseUrl}${route('/integration-endpoints/Core/UploadFile')}`, {
     method: 'POST',

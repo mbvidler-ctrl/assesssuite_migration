@@ -1,7 +1,7 @@
 // End-to-end smoke test for the local Base44 shim.
 //
 // Run: node scripts/smoke.mjs
-// Targets a base URL from env SMOKE_URL, defaulting to http://localhost:8799
+// Targets a base URL from env SMOKE_URL, defaulting to http://127.0.0.1:8799
 // (an ephemeral/other port — never the lead's live shim on 8787, and never
 // Vite's 5173).
 //
@@ -72,7 +72,7 @@ function parsePortFromUrl(url) {
 async function getFreePort() {
   return new Promise((resolve, reject) => {
     const srv = net.createServer();
-    srv.listen(0, () => {
+    srv.listen(0, '127.0.0.1', () => {
       const { port } = srv.address();
       srv.close(() => resolve(port));
     });
@@ -134,7 +134,7 @@ async function api(baseUrl, appId, methodPath, { method = 'GET', token, body } =
 // ---------------------------------------------------------------------------
 
 async function main() {
-  const smokeUrl = process.env.SMOKE_URL || 'http://localhost:8799';
+  const smokeUrl = process.env.SMOKE_URL || 'http://127.0.0.1:8799';
   let port = parsePortFromUrl(smokeUrl);
   if (!port || FORBIDDEN_PORTS.has(port)) {
     console.error(
@@ -143,7 +143,7 @@ async function main() {
     );
     port = await getFreePort();
   }
-  const baseUrl = `http://localhost:${port}`;
+  const baseUrl = `http://127.0.0.1:${port}`;
   const appId = 'smoke-test-app';
   const productionGateMode = process.env.SMOKE_PRODUCTION_MODE === '1';
 
@@ -164,6 +164,7 @@ async function main() {
         ? 'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_NON_PRODUCTION_GATE_DATABASE'
         : process.env.ASSESSSUITE_DB_PATH_ACK,
       PORT: String(port),
+      ASSESSSUITE_BIND_HOST: '127.0.0.1',
       ADMIN_EMAIL: 'admin@local.test',
       ADMIN_PASSWORD: 'change-me-local',
       OPENAI_API_KEY: productionGateMode ? '' : process.env.OPENAI_API_KEY,
@@ -216,7 +217,11 @@ async function main() {
 
   try {
     const up = await waitForServer(baseUrl);
-    if (!up) {
+    const expectedListener = `[shim] listening on http://127.0.0.1:${port}`;
+    for (let attempt = 0; attempt < 100 && !serverOutput.split(/\r?\n/).includes(expectedListener); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    if (!up || !serverOutput.split(/\r?\n/).includes(expectedListener)) {
       console.error('[smoke] server failed to start within timeout. Output so far:\n', serverOutput);
       process.exitCode = 1;
       await cleanup();

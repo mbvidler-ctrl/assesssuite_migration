@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DOCUMENT_EXTRACTION_MAX_FILES, extractTenantDocumentData } from '@/lib/fileIntegrations';
 import { todayLocal } from "@/lib/localDate";
+import { normalizeSdkError, sdkErrorLogMetadata } from '@/lib/sdkError';
 
 const EXTRACTION_SCHEMA = {
   type: "object",
@@ -123,7 +124,7 @@ export default function ClientDataExtractor({
         processing_authority_confirmed: true,
       });
       if (result?.status !== 'success' || !result.output) {
-        toast.error(typeof result?.details === 'string'
+        toast.error(result?.status === 'error' && typeof result.details === 'string'
           ? result.details
           : 'The documents could not be extracted. No client data was changed.');
         return;
@@ -156,8 +157,12 @@ export default function ClientDataExtractor({
       }
       
     } catch (error) {
-      console.warn('Client document extraction failed', error?.response?.status ? { status: error.response.status } : undefined);
-      toast.error('Failed to extract data from documents');
+      const failure = normalizeSdkError(error, {
+        stage: 'extraction',
+        fallbackDetails: 'Failed to extract data from documents',
+      });
+      console.warn('Client document extraction failed', sdkErrorLogMetadata(error, { stage: 'extraction' }));
+      toast.error(failure.details);
     } finally {
       setIsExtracting(false);
     }
@@ -269,7 +274,7 @@ export default function ClientDataExtractor({
       if (onExtracted) onExtracted();
       
     } catch (error) {
-      console.warn('Saving reviewed extracted data failed', error?.response?.status ? { status: error.response.status } : undefined);
+      console.warn('Saving reviewed extracted data failed', sdkErrorLogMetadata(error, { stage: 'save_reviewed_data' }));
       toast.error('Failed to save extracted data');
     } finally {
       setIsSaving(false);

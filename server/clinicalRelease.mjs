@@ -1,22 +1,13 @@
-export const INITIAL_RELEASE_COUNTRY = 'australia';
+import {
+  INITIAL_RELEASE_COUNTRY,
+  INITIAL_RELEASE_PROFESSIONS,
+} from '../src/lib/clinicalRelease.js';
 
-export const INITIAL_RELEASE_PROFESSIONS = new Set([
-  'Exercise Physiologist',
-  'Gym Management',
-  'Clinic Management',
-]);
-
-/**
- * RC-2026.07.19 self-service clinical access is intentionally bounded to
- * Australian AEP practices and their authorised management staff. Accounts
- * outside this profile require a separately approved negotiated order.
- */
-export function isInitialClinicalReleaseEligible(user) {
-  return (
-    user?.country === INITIAL_RELEASE_COUNTRY &&
-    INITIAL_RELEASE_PROFESSIONS.has(user?.profession)
-  );
-}
+export {
+  INITIAL_RELEASE_COUNTRY,
+  INITIAL_RELEASE_PROFESSIONS,
+  isInitialClinicalReleaseEligible,
+} from '../src/lib/clinicalRelease.js';
 
 /** Reject only an explicitly supplied value here; the clinical gates below
  * still fail closed when a legacy or incomplete profile omits either field. */

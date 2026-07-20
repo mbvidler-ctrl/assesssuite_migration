@@ -53,6 +53,7 @@ import { recordLegalEvent } from "@/lib/legal/recordAcceptance";
 import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
 import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 import { useAuth } from "@/lib/AuthContext";
+import { buildSoapHistoryPrintHtml } from "@/lib/safeHtml";
 
 export default function SOAPNoteModal({
   appointment,
@@ -528,7 +529,6 @@ export default function SOAPNoteModal({
         file: audioFile,
         org_id: client.org_id,
         purpose: 'audio-transcription',
-        subject_date_of_birth: client.date_of_birth || undefined,
       });
 
       const newAudioEntry = {
@@ -655,7 +655,6 @@ export default function SOAPNoteModal({
         file,
         org_id: client.org_id,
         purpose: 'clinical-attachment',
-        subject_date_of_birth: client.date_of_birth || undefined,
       });
 
       // Create document record in ClientDocument entity
@@ -1676,27 +1675,21 @@ export default function SOAPNoteModal({
                                           onClick={() => {
                                             const printWindow = window.open('', '_blank', 'width=800,height=600');
                                             if (printWindow) {
-                                              const historyHtml = soapNote.history.slice().reverse().map(entry => `
-                                                <div style="margin-bottom: 16px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px;">
-                                                  <p style="font-weight: 600; margin: 0 0 4px 0;">
-                                                    <span style="text-transform: capitalize;">${entry.action}</span> by ${entry.user_email}
-                                                  </p>
-                                                  <p style="color: #64748b; font-size: 12px; margin: 0;">
-                                                    ${moment(entry.timestamp).format('LLL')}
-                                                  </p>
-                                                </div>
-                                              `).join('');
+                                              // The referral pathway can populate client names from untrusted
+                                              // document content. Keep every persisted value in a text context,
+                                              // sever opener access, and apply a print-document CSP before writing.
+                                              printWindow.opener = null;
+                                              const printHtml = buildSoapHistoryPrintHtml({
+                                                clientName: client.full_name,
+                                                noteDate: moment(soapNote.note_date).format('LL'),
+                                                history: soapNote.history.slice().reverse().map((entry) => ({
+                                                  action: entry.action,
+                                                  userEmail: entry.user_email,
+                                                  timestamp: moment(entry.timestamp).format('LLL'),
+                                                })),
+                                              });
 
-                                              printWindow.document.write(`
-                                                <html>
-                                                  <head><title>SOAP Note History - ${client.full_name}</title></head>
-                                                  <body style="font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
-                                                    <h1 style="font-size: 24px; margin-bottom: 8px;">SOAP Note History</h1>
-                                                    <p style="color: #64748b; margin-bottom: 24px;">Client: ${client.full_name} | Note Date: ${moment(soapNote.note_date).format('LL')}</p>
-                                                    ${historyHtml}
-                                                  </body>
-                                                </html>
-                                              `);
+                                              printWindow.document.write(printHtml);
                                               printWindow.document.close();
                                               printWindow.focus();
                                               setTimeout(() => {

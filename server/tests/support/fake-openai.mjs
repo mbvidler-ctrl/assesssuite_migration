@@ -86,6 +86,13 @@ export async function startFakeOpenAI() {
       })));
       return;
     }
+    if (mode === 'missing-value-sentinels') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(responseEnvelope({
+        full_name: 'Alex River', date_of_birth: 'N/A', diagnoses: ['not provided'], referrer: 'Not specified', phone: null,
+      })));
+      return;
+    }
     if (mode === 'missing-fields') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(responseEnvelope({

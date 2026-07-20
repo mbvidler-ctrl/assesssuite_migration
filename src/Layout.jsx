@@ -9,6 +9,10 @@ import {
 } from "lucide-react";
 import { SUITE_VERSION } from "@/lib/legal/documentRegistry";
 import { resolveLegalConsentAudience } from "@/lib/legal/consentAudience";
+import { hasCurrentLegalAcceptance } from "@/lib/legal/acceptanceGate";
+import { loadLegalContent } from "@/lib/legal/loadContent";
+import { useAuth } from "@/lib/AuthContext";
+import { isInitialClinicalReleaseEligible } from "@/lib/clinicalRelease";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -29,12 +33,6 @@ const navigationItems = [
 
 const BYPASS_PATHS = ["/ProfileSetup", "/PendingApproval", "/Signup", "/Home", "/PaymentRequired", "/LegalNotices", "/AccountDeactivated"];
 
-const REQUIRED_NOTICE_EVENT_TYPES = [
-  "collection_notice_acknowledgement",
-  "professional_use_acknowledgement",
-  "ai_transparency_consent",
-];
-
 function isBypassPath(pathname) {
   return BYPASS_PATHS.some(p => pathname.toLowerCase() === p.toLowerCase());
 }
@@ -43,6 +41,7 @@ export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { appPublicSettings } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
 
@@ -107,18 +106,18 @@ export default function Layout({ children, currentPageName }) {
           navigate("/ProfileSetup");
           return;
         }
+        if (!isInitialClinicalReleaseEligible(freshUser)) {
+          navigate("/ProfileSetup?reason=clinical-profile");
+          return;
+        }
 
-        // Every mandatory practitioner notice must be recorded as its own
-        // LegalAcceptanceEvent at the CURRENT suite version — reads the same
-        // registry the ProfileSetup/LegalNotices forms write against, so
-        // there is one source of truth for the required version (see the
-        // now-retired LegalAcceptanceModal's hardcoded-version bug this
-        // replaces). A legacy account, or one whose acceptance predates a
-        // suite version bump, is routed to LegalNotices rather than blocked
-        // in place — this mirrors the server-side gate in server/index.mjs
-        // (entityAccessDenied), which is the authoritative enforcement point;
-        // this check exists to give the user a proper page instead of raw
-        // 403s the first time they touch a clinical entity.
+        // Mirror the authoritative server gate exactly: every practitioner
+        // needs the three current document-bound notice receipts, while an
+        // owner also needs the five current contract-bundle receipts. IDs,
+        // event types, titles, suite version and fingerprints must all match
+        // the content presented for the live legal settings. Stale, partial
+        // or forged-looking rows route to LegalNotices so the server-derived
+        // atomic bundle can be recorded again before any clinical request.
         let events = [];
         let legalAudience = null;
         try {
@@ -136,13 +135,22 @@ export default function Layout({ children, currentPageName }) {
             org_id: legalAudience.orgId,
           });
           if (!events) events = [];
-        } catch (e) {
-          events = [];
+        } catch {
+          if (legalAudience?.orgId) {
+            navigate(`/LegalNotices?org_id=${encodeURIComponent(legalAudience.orgId)}`);
+          } else {
+            navigate("/ProfileSetup");
+          }
+          return;
         }
 
-        const hasAllRequiredNotices = REQUIRED_NOTICE_EVENT_TYPES.every(
-          (t) => events.some((e) => e.event_type === t)
-        );
+        const hasAllRequiredNotices = hasCurrentLegalAcceptance({
+          events,
+          orgId: legalAudience.orgId,
+          ownerBundle: legalAudience.ownerBundle,
+          legalSettings: appPublicSettings?.public_settings?.legal,
+          readContent: loadLegalContent,
+        });
         if (!hasAllRequiredNotices) {
           navigate(`/LegalNotices?org_id=${encodeURIComponent(legalAudience.orgId)}`);
           return;
@@ -156,7 +164,7 @@ export default function Layout({ children, currentPageName }) {
       }
     };
     checkProfile();
-  }, [location.pathname, navigate]);
+  }, [location.pathname, navigate, appPublicSettings]);
 
   const isClientView = searchParams.get("client") === "true";
 

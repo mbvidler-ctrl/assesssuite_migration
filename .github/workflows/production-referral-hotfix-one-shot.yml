@@ -1,84 +1,10 @@
-name: Production deploy - exact SHA
+name: Production referral hotfix - one-shot exact SHA
+run-name: ASX-INC-20260720-REFERRAL-02 @ ${{ github.sha }}
 
 on:
-  workflow_dispatch:
-    inputs:
-      application_sha:
-        description: Exact 40-character application commit SHA; must equal the remote source-branch tip
-        required: true
-        type: string
-      source_branch:
-        description: Repository branch whose remote tip is the application SHA
-        required: true
-        type: string
-      expected_current_release:
-        description: Current Fly release identifier recorded immediately before dispatch
-        required: true
-        type: string
-      expected_current_image:
-        description: Current full registry.fly.io/assesssuite-production image reference
-        required: true
-        type: string
-      rollback_source_sha:
-        description: Exact reviewed source SHA supplying fly.production.toml for rollback
-        required: true
-        type: string
-      rollback_source_branch:
-        description: Repository branch whose remote tip is the rollback source SHA
-        required: true
-        type: string
-      rollback_image:
-        description: Prebuilt legal-version-compatible rollback image reference
-        required: true
-        type: string
-      rollback_release_sha:
-        description: Release SHA expected from /api/version after rollback
-        required: true
-        type: string
-      extraction_runtime_mode:
-        description: Reviewed document-extraction runtime mode in the candidate config
-        required: true
-        default: disabled
-        type: choice
-        options:
-          - disabled
-          - enabled
-      provider_terms_attestation:
-        description: Use EXTRACTION-DISABLED, or the exact terms attestation from the release runbook
-        required: true
-        type: string
-      provider_terms_evidence_id:
-        description: Durable reviewed evidence ID, or NOT-APPLICABLE-EXTRACTION-DISABLED
-        required: true
-        type: string
-      under_age_zdr_runtime_mode:
-        description: Under-13/applicable-age extraction mode; disabled unless ZDR is independently confirmed
-        required: true
-        default: disabled
-        type: choice
-        options:
-          - disabled
-          - enabled
-      under_age_zdr_attestation:
-        description: Use UNDER-AGE-ZDR-DISABLED, or the exact ZDR attestation from the release runbook
-        required: true
-        type: string
-      under_age_zdr_evidence_id:
-        description: Independent ZDR evidence ID, or NOT-APPLICABLE-UNDER-AGE-ZDR-DISABLED
-        required: true
-        type: string
-      capability_intent_id:
-        description: Workspace OS capability-broker intent ID with authorised and execution_ready decision
-        required: true
-        type: string
-      authority_reference:
-        description: Mission/order and approved deployment-intent reference
-        required: true
-        type: string
-      confirmation:
-        description: Type DEPLOY assesssuite-production EXACT SHA
-        required: true
-        type: string
+  push:
+    branches:
+      - hotfix/ASX-INC-20260720-referral-e2e-deploy
 
 permissions:
   contents: read
@@ -97,21 +23,26 @@ jobs:
       build_timestamp: ${{ steps.metadata.outputs.build_timestamp }}
       source_branch: ${{ steps.metadata.outputs.source_branch }}
     steps:
-      - name: Validate trusted dispatch context and inputs
+      - name: Validate one-shot push context and fixed release controls
         shell: bash
         env:
-          APPLICATION_SHA: ${{ inputs.application_sha }}
-          SOURCE_BRANCH: ${{ inputs.source_branch }}
-          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
-          ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
-          EXPECTED_CURRENT_RELEASE: ${{ inputs.expected_current_release }}
-          EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}
-          ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
-          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
-          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
-          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
-          CONFIRMATION: ${{ inputs.confirmation }}
+          APPLICATION_SHA: ${{ github.sha }}
+          SOURCE_BRANCH: hotfix/ASX-INC-20260720-referral-e2e-deploy
+          ROLLBACK_SOURCE_SHA: faac568139da1eda08013048543d36cf6882f18f
+          ROLLBACK_SOURCE_BRANCH: mission/20260719-referral-signup-rollback-final
+          EXPECTED_CURRENT_RELEASE: v13
+          EXPECTED_CURRENT_IMAGE: registry.fly.io/assesssuite-production@sha256:e016c1ffbcf0da6e46a2815161d2b0a2fef34141e0f80068d2235f4032cd8e75
+          ROLLBACK_IMAGE: registry.fly.io/assesssuite-production@sha256:ace33d0640bc3c89e33426abaf5bca9bdff3426143f4c91be1715852f7b1fab9
+          ROLLBACK_RELEASE_SHA: faac568139da1eda08013048543d36cf6882f18f
+          CAPABILITY_INTENT_ID: INTENT-20260720-ASX-INC-20260720-REFERRAL-02-PRODUCTION-HOTFIX
+          AUTHORITY_REFERENCE: ASX-INC-20260720-REFERRAL-02:USER-AUTHORISED-20260720
+          CONFIRMATION: DEPLOY assesssuite-production EXACT SHA
           EVENT_REF: ${{ github.ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          EVENT_AFTER: ${{ github.event.after }}
+          EVENT_FORCED: ${{ github.event.forced }}
+          EVENT_DELETED: ${{ github.event.deleted }}
           WORKFLOW_REF: ${{ github.workflow_ref }}
           REPOSITORY: ${{ github.repository }}
           ACTOR: ${{ github.actor }}
@@ -121,8 +52,14 @@ jobs:
           [[ "$REPOSITORY" == "mbvidler-ctrl/assesssuite_migration" ]]
           [[ "$ACTOR" == "mbvidler-ctrl" ]]
           [[ "$IS_FORK" == "false" ]]
-          [[ "$EVENT_REF" == "refs/heads/main" ]]
-          [[ "$WORKFLOW_REF" == "mbvidler-ctrl/assesssuite_migration/.github/workflows/production-deploy.yml@refs/heads/main" ]]
+          [[ "$EVENT_NAME" == "push" ]]
+          [[ "$EVENT_REF" == "refs/heads/hotfix/ASX-INC-20260720-referral-e2e-deploy" ]]
+          [[ "$WORKFLOW_REF" == "mbvidler-ctrl/assesssuite_migration/.github/workflows/production-referral-hotfix-one-shot.yml@refs/heads/hotfix/ASX-INC-20260720-referral-e2e-deploy" ]]
+          [[ "$EVENT_BEFORE" == "183c8e47a0025ad311f5f6c1ea063c2feb430817" ]]
+          [[ "$EVENT_AFTER" == "$APPLICATION_SHA" ]]
+          [[ "$EVENT_FORCED" == "false" ]]
+          [[ "$EVENT_DELETED" == "false" ]]
+          [[ "$APPLICATION_SHA" != "$EVENT_BEFORE" ]]
           [[ "$CONFIRMATION" == "DEPLOY assesssuite-production EXACT SHA" ]]
           [[ "$APPLICATION_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$ROLLBACK_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
@@ -141,7 +78,7 @@ jobs:
       - name: Check out exact application SHA
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ inputs.application_sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
 
@@ -149,14 +86,14 @@ jobs:
         id: metadata
         shell: bash
         env:
-          APPLICATION_SHA: ${{ inputs.application_sha }}
-          SOURCE_BRANCH: ${{ inputs.source_branch }}
-          EXTRACTION_RUNTIME_MODE: ${{ inputs.extraction_runtime_mode }}
-          PROVIDER_TERMS_ATTESTATION: ${{ inputs.provider_terms_attestation }}
-          PROVIDER_TERMS_EVIDENCE_ID: ${{ inputs.provider_terms_evidence_id }}
-          UNDER_AGE_ZDR_RUNTIME_MODE: ${{ inputs.under_age_zdr_runtime_mode }}
-          UNDER_AGE_ZDR_ATTESTATION: ${{ inputs.under_age_zdr_attestation }}
-          UNDER_AGE_ZDR_EVIDENCE_ID: ${{ inputs.under_age_zdr_evidence_id }}
+          APPLICATION_SHA: ${{ github.sha }}
+          SOURCE_BRANCH: hotfix/ASX-INC-20260720-referral-e2e-deploy
+          EXTRACTION_RUNTIME_MODE: enabled
+          PROVIDER_TERMS_ATTESTATION: TERMS-VERIFIED-HEALTH-DATA-20260719
+          PROVIDER_TERMS_EVIDENCE_ID: EVD-20260719-ASSESSSUITE-OPENAI-HEALTH-TERMS-ATTESTATION
+          UNDER_AGE_ZDR_RUNTIME_MODE: disabled
+          UNDER_AGE_ZDR_ATTESTATION: UNDER-AGE-ZDR-DISABLED
+          UNDER_AGE_ZDR_EVIDENCE_ID: NOT-APPLICABLE-UNDER-AGE-ZDR-DISABLED
         run: |
           set -euo pipefail
           actual_sha="$(git rev-parse --verify 'HEAD^{commit}')"
@@ -237,10 +174,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo '71abc38922a53fb212a5017237607d7417f189932ee1b7a7e8ee8129bfb26fb1  scripts/referral-production-canary.mjs' | sha256sum --check --strict
+          echo '44ac16cb2f551cfc959ea83df1c32a32104645441427b5221744064faaf1c7d1  scripts/referral-production-canary-contract.mjs' | sha256sum --check --strict
+          echo '55b257d0e732f83f4146b1c0dc836d4bfce730cdf81f935d696bc12adea57ab1  scripts/validate-referral-production-canary-output.mjs' | sha256sum --check --strict
           node --input-type=module <<'NODE'
           import pkg from './package.json' with { type: 'json' };
           if (!pkg.scripts?.['test:assurance']) {
             throw new Error('Required package script test:assurance is absent');
+          }
+          if (!pkg.scripts?.['test:referral-production-canary'] || !pkg.scripts?.['canary:referral:production']) {
+            throw new Error('Required referral production canary entrypoints are absent');
           }
           NODE
 
@@ -433,7 +376,7 @@ jobs:
       - name: Check out reviewed rollback configuration source
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ inputs.rollback_source_sha }}
+          ref: faac568139da1eda08013048543d36cf6882f18f
           path: rollback-source
           fetch-depth: 1
           persist-credentials: false
@@ -467,8 +410,8 @@ jobs:
         env:
           APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
           SOURCE_BRANCH: ${{ needs.gates.outputs.source_branch }}
-          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
-          ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
+          ROLLBACK_SOURCE_SHA: faac568139da1eda08013048543d36cf6882f18f
+          ROLLBACK_SOURCE_BRANCH: mission/20260719-referral-signup-rollback-final
         run: |
           set -euo pipefail
           validate_topology() {
@@ -532,18 +475,18 @@ jobs:
           APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
           SOURCE_BRANCH: ${{ needs.gates.outputs.source_branch }}
           BUILD_TIMESTAMP: ${{ needs.gates.outputs.build_timestamp }}
-          EXPECTED_CURRENT_RELEASE: ${{ inputs.expected_current_release }}
-          EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}
-          ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
-          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
-          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
-          ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
-          EXTRACTION_RUNTIME_MODE: ${{ inputs.extraction_runtime_mode }}
-          PROVIDER_TERMS_EVIDENCE_ID: ${{ inputs.provider_terms_evidence_id }}
-          UNDER_AGE_ZDR_RUNTIME_MODE: ${{ inputs.under_age_zdr_runtime_mode }}
-          UNDER_AGE_ZDR_EVIDENCE_ID: ${{ inputs.under_age_zdr_evidence_id }}
-          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
-          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          EXPECTED_CURRENT_RELEASE: v13
+          EXPECTED_CURRENT_IMAGE: registry.fly.io/assesssuite-production@sha256:e016c1ffbcf0da6e46a2815161d2b0a2fef34141e0f80068d2235f4032cd8e75
+          ROLLBACK_IMAGE: registry.fly.io/assesssuite-production@sha256:ace33d0640bc3c89e33426abaf5bca9bdff3426143f4c91be1715852f7b1fab9
+          ROLLBACK_RELEASE_SHA: faac568139da1eda08013048543d36cf6882f18f
+          ROLLBACK_SOURCE_SHA: faac568139da1eda08013048543d36cf6882f18f
+          ROLLBACK_SOURCE_BRANCH: mission/20260719-referral-signup-rollback-final
+          EXTRACTION_RUNTIME_MODE: enabled
+          PROVIDER_TERMS_EVIDENCE_ID: EVD-20260719-ASSESSSUITE-OPENAI-HEALTH-TERMS-ATTESTATION
+          UNDER_AGE_ZDR_RUNTIME_MODE: disabled
+          UNDER_AGE_ZDR_EVIDENCE_ID: NOT-APPLICABLE-UNDER-AGE-ZDR-DISABLED
+          CAPABILITY_INTENT_ID: INTENT-20260720-ASX-INC-20260720-REFERRAL-02-PRODUCTION-HOTFIX
+          AUTHORITY_REFERENCE: ASX-INC-20260720-REFERRAL-02:USER-AUTHORISED-20260720
         run: |
           set -euo pipefail
           set +x
@@ -557,6 +500,8 @@ jobs:
           new_json="$RUNNER_TEMP/new-releases.json"
           rollback_json="$RUNNER_TEMP/rollback-releases.json"
           provider_probe_result='SKIPPED-BY-DESIGN (extraction disabled; mission cannot close)'
+          referral_canary_result='SKIPPED-BY-DESIGN (extraction disabled; mission cannot close)'
+          referral_canary_fixture_sha256=''
 
           current_release() {
             node --input-type=module - "$1" <<'NODE'
@@ -636,6 +581,7 @@ jobs:
           read_public_surface() {
             local url=$1
             local label=$2
+            local surface_mode=${3:-candidate}
             local html="$RUNNER_TEMP/${label}-index.html"
             local bundle="$RUNNER_TEMP/${label}-bundle.js"
             curl --fail --silent --show-error --max-time 15 \
@@ -652,7 +598,7 @@ jobs:
             )" || return 1
             curl --fail --silent --show-error --max-time 20 \
               -H 'Cache-Control: no-cache' "$url$asset_path" -o "$bundle" || return 1
-            HTML_PATH="$html" BUNDLE_PATH="$bundle" node --input-type=module <<'NODE' || return 1
+            HTML_PATH="$html" BUNDLE_PATH="$bundle" SURFACE_MODE="$surface_mode" node --input-type=module <<'NODE' || return 1
           import fs from 'node:fs';
           const html = fs.readFileSync(process.env.HTML_PATH, 'utf8');
           const bundle = fs.readFileSync(process.env.BUNDLE_PATH, 'utf8');
@@ -671,6 +617,26 @@ jobs:
           ]) {
             if (bundle.toLowerCase().includes(forbidden.toLowerCase())) {
               throw new Error(`Production bundle retains forbidden signup wording: ${forbidden}`);
+            }
+          }
+          if (process.env.SURFACE_MODE === 'candidate') {
+            for (const required of [
+              'Confirm Patient 13+ & Extract Data from',
+              'By selecting Confirm Patient 13+ & Extract, you attest that the patient is 13 or older',
+              'Your current practice could not be resolved',
+            ]) {
+              if (!bundle.includes(required)) throw new Error(`Production bundle is missing required referral-hotfix wording: ${required}`);
+            }
+            if (bundle.includes('Owning practice')) {
+              throw new Error('Production bundle retains the superseded referral-preflight label: Owning practice');
+            }
+            for (const forbidden of [
+              'The server calculates the age category',
+              'I confirm the practice has documented the patient',
+            ]) {
+              if (bundle.toLowerCase().includes(forbidden.toLowerCase())) {
+                throw new Error(`Production bundle retains superseded referral-preflight wording: ${forbidden}`);
+              }
             }
           }
           NODE
@@ -731,6 +697,52 @@ jobs:
           NODE
           }
 
+          run_referral_canary() {
+            local canary_log="$RUNNER_TEMP/referral-production-canary.jsonl"
+            local canary_stderr="$RUNNER_TEMP/referral-production-canary.stderr"
+            local canary_status=0
+
+            set +e
+            fly ssh console \
+              --app "$app" \
+              --quiet \
+              --pty=false \
+              --command "env RUN_REFERRAL_PRODUCTION_CANARY=I_ACKNOWLEDGE_ISOLATED_SYNTHETIC_REFERRAL_PRODUCTION_CANARY ALLOW_PAID_PROVIDER_PROBE=1 node --no-warnings scripts/referral-production-canary.mjs" \
+              >"$canary_log" 2>"$canary_stderr"
+            canary_status=$?
+            set -e
+
+            if ! node "$candidate_dir/scripts/validate-referral-production-canary-output.mjs" \
+              "$canary_log" >/dev/null 2>&1; then
+              rm -f "$canary_log" "$canary_stderr"
+              return 1
+            fi
+            if [[ "$canary_status" -ne 0 ]]; then
+              rm -f "$canary_log" "$canary_stderr"
+              return 1
+            fi
+            if ! jq -e --arg sha "$APPLICATION_SHA" '
+              .result == "PASS" and
+              .release_sha == $sha and
+              .fixture.provenance == "repository-generated-synthetic-pdf" and
+              .fixture.requested_filename_contract == true and
+              .isolation.production_database_writes == 0 and
+              .isolation.production_upload_writes == 0 and
+              .isolation.external_email_sends == 0 and
+              .isolation.temporary_storage_removed == true and
+              ([.checks[]] | all(. == true))
+            ' "$canary_log" >/dev/null; then
+              rm -f "$canary_log" "$canary_stderr"
+              return 1
+            fi
+            if ! referral_canary_fixture_sha256="$(jq -er '.fixture.byte_sha256' "$canary_log")"; then
+              rm -f "$canary_log" "$canary_stderr"
+              return 1
+            fi
+            rm -f "$canary_log" "$canary_stderr"
+            referral_canary_result='PASS (isolated installed-SDK upload, extraction, review and persistence journey; zero production DB/upload writes)'
+          }
+
           append_summary() {
             {
               echo "## AssessSuite production release"
@@ -746,6 +758,8 @@ jobs:
               echo "- Under-age/ZDR runtime mode: $UNDER_AGE_ZDR_RUNTIME_MODE"
               echo "- Under-age/ZDR evidence: $UNDER_AGE_ZDR_EVIDENCE_ID"
               echo "- Real-provider synthetic PDF + PNG probe: $provider_probe_result"
+              echo "- Referral production canary: $referral_canary_result"
+              echo "- Canary fixture: AssessSuite_Demo_GP_Referral(1).pdf (repository-generated synthetic PDF; SHA-256 ${referral_canary_fixture_sha256:-not-established})"
               echo "- Prior release: ${prior_release:-not-established}"
               echo "- Prior image: ${prior_image:-not-established}"
               echo "- Candidate release: ${candidate_release:-not-established}"
@@ -798,8 +812,8 @@ jobs:
               append_summary "FAILED; rollback legal settings verification failed ($reason)"
               return 1
             fi
-            if ! read_public_surface 'https://assesssuite.com' 'rollback-apex' \
-              || ! read_public_surface 'https://assesssuite-production.fly.dev' 'rollback-fly'; then
+            if ! read_public_surface 'https://assesssuite.com' 'rollback-apex' 'rollback' \
+              || ! read_public_surface 'https://assesssuite-production.fly.dev' 'rollback-fly' 'rollback'; then
               append_summary "FAILED; rollback public surface verification failed ($reason)"
               return 1
             fi
@@ -852,6 +866,9 @@ jobs:
           }
           if (present.has('OPENAI_DOCUMENT_EXTRACTION_MODEL')) {
             throw new Error('OPENAI_DOCUMENT_EXTRACTION_MODEL is fixed in the reviewed adapter; opaque Fly-secret override is refused');
+          }
+          if (present.has('DOCUMENT_EXTRACTION_TEST_BASE_URL')) {
+            throw new Error('DOCUMENT_EXTRACTION_TEST_BASE_URL is forbidden in production; opaque Fly-secret override is refused');
           }
           if (present.has('LEGAL_STATUS') || present.has('LEGAL_EFFECTIVE_DATE')) {
             console.log('Legacy opaque legal settings are present and will be staged for removal before the reviewed deploy.');
@@ -937,6 +954,10 @@ jobs:
             elif [[ -z "$verification_failure" && "$EXTRACTION_RUNTIME_MODE" == "enabled" ]]; then
               if run_provider_probe; then
                 provider_probe_result='PASS (value-blind synthetic PDF + PNG; no DB/filesystem writes)'
+                if ! run_referral_canary; then
+                  referral_canary_result='FAIL'
+                  verification_failure='isolated-referral-production-canary-failed'
+                fi
               else
                 provider_probe_result='FAIL'
                 verification_failure='real-provider-probe-failed'

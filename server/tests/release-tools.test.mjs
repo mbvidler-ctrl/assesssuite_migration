@@ -6,6 +6,13 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { scanReleaseDiff } from '../../scripts/scan-release-diff.mjs';
+import {
+  REFERRAL_PROCESSING_ATTESTATION,
+  REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
+  REFERRAL_SUBJECT_AGE_CONFIRMATION,
+  resolveReferralOrganization,
+} from '../../src/lib/referralWorkflow.js';
+import { buildSoapHistoryPrintHtml, escapeHtmlText } from '../../src/lib/safeHtml.js';
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testsDir, '..', '..');
@@ -98,16 +105,145 @@ test('T05 release scanner accepts the exact reviewed diff and rejects constructe
   assert.ok(scanReleaseDiff(fakeDiff).some((finding) => finding.kind === 'literal-sensitive-assignment'));
 });
 
-test('T06 UI extraction callers preserve authority, file bounds, DOB gate, and explicit organisation persistence', () => {
+test('T06 UI extraction callers preserve authority, file bounds, 13+ gate, and explicit organisation persistence', () => {
   const helper = fs.readFileSync(path.join(repoRoot, 'src', 'lib', 'fileIntegrations.js'), 'utf8');
   const referral = fs.readFileSync(path.join(repoRoot, 'src', 'components', 'documents', 'ReferralUploader.jsx'), 'utf8');
   const client = fs.readFileSync(path.join(repoRoot, 'src', 'components', 'documents', 'ClientDataExtractor.jsx'), 'utf8');
   const historical = fs.readFileSync(path.join(repoRoot, 'src', 'components', 'documents', 'HistoricalAssessmentExtractor.jsx'), 'utf8');
+  const nonReferralUploaders = [
+    ['assessments', 'CBMRunner.jsx'],
+    ['calendar', 'SOAPNoteModal.jsx'],
+    ['client', 'AdverseEventForm.jsx'],
+    ['client', 'ClientDocuments.jsx'],
+  ].map((segments) => fs.readFileSync(path.join(repoRoot, 'src', 'components', ...segments), 'utf8'));
+  const integrations = fs.readFileSync(path.join(repoRoot, 'server', 'integrations.mjs'), 'utf8');
+  const uploadRegistry = fs.readFileSync(path.join(repoRoot, 'server', 'uploadRegistry.mjs'), 'utf8');
   for (const source of [referral, client, historical]) {
     assert.match(source, /processing_authority_confirmed:\s*true/);
     assert.match(source, /DOCUMENT_EXTRACTION_MAX_FILES/);
   }
   assert.match(helper, /params\.file_urls\.length > DOCUMENT_EXTRACTION_MAX_FILES/);
-  assert.match(referral, /subject_date_of_birth:\s*subjectDateOfBirth/);
+  assert.match(referral, /subject_age_confirmation:\s*REFERRAL_SUBJECT_AGE_CONFIRMATION/);
+  assert.match(referral, /subject_age_attestation_version:\s*REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION/);
+  assert.doesNotMatch(referral, /subject_date_of_birth/);
+  for (const source of nonReferralUploaders) {
+    assert.doesNotMatch(source, /subject_date_of_birth/);
+  }
+  assert.match(integrations, /attestationVersion !== REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION/);
+  assert.match(integrations, /subject_date_of_birth_rejected/);
+  assert.match(uploadRegistry, /subject_age_attestation_source:\s*REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE/);
+  assert.match(uploadRegistry, /subject_age_attestation_version:\s*subjectAgeAttestationVersion/);
+  assert.match(uploadRegistry, /subject_age_band:\s*subjectAgeBand/);
+  assert.match(
+    referral,
+    /organizationOptions\.length > 1 && \([\s\S]*?<Label htmlFor="referral-organization">Choose practice for this referral<\/Label>[\s\S]*?onValueChange=\{handleOrganizationChange\}/,
+  );
+  assert.doesNotMatch(referral, /Owning practice/);
+  assert.match(referral, /Organization\.get\(membership\.org_id\)/);
+  assert.match(referral, /name:\s*organization\?\.name \|\| membership\.org_id/);
+  assert.doesNotMatch(referral, /id="referral-(?:date-of-birth|processing-authority)"/);
+  assert.match(referral, /Confirm Patient 13\+ &amp; Extract Data/);
   assert.match(historical, /ClientAssessment\.create\(\{[\s\S]*?org_id:\s*orgId,[\s\S]*?client_id:\s*clientId/);
+});
+
+test('T07 referral workflow auto-resolves one practice but requires an explicit valid multi-practice choice', () => {
+  const options = [
+    { id: 'org-secondary', isPrimary: false },
+    { id: 'org-primary', isPrimary: true },
+  ];
+  assert.equal(resolveReferralOrganization(options), '');
+  assert.equal(resolveReferralOrganization(options, 'org-secondary'), 'org-secondary');
+  assert.equal(resolveReferralOrganization(options, 'org-unknown'), '');
+  assert.equal(resolveReferralOrganization([{ id: 'org-only', isPrimary: false }]), 'org-only');
+  assert.equal(resolveReferralOrganization([
+    { id: 'org-only', isPrimary: false },
+    { id: 'org-only', isPrimary: true },
+  ]), 'org-only');
+  assert.equal(resolveReferralOrganization([{ id: '' }, null, {}]), '');
+  assert.equal(resolveReferralOrganization([]), '');
+  assert.equal(REFERRAL_SUBJECT_AGE_CONFIRMATION, '13_or_over');
+  assert.equal(
+    REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
+    'referral-subject-age-attestation-v2026-07-20.1',
+  );
+  assert.match(REFERRAL_PROCESSING_ATTESTATION, /13 or older/);
+  assert.match(REFERRAL_PROCESSING_ATTESTATION, /documented.*notice and consent.*valid authority/i);
+});
+
+function assertImmutablePushDigestBinding(source) {
+  const releaseStep = source.slice(source.indexOf('      - name: Final secret-bearing Fly release command'));
+  assert.notEqual(releaseStep.length, 0);
+  assert.match(releaseStep, /push_output="\$\(docker push "\$new_image_tag" 2>&1\)"/);
+  assert.match(
+    releaseStep,
+    /candidate_digest="\$\(printf '%s\\n' "\$push_output"[\s\S]*?digest: \(sha256:\[0-9a-f\]\{64\}\)/,
+  );
+  assert.match(
+    releaseStep,
+    /docker image inspect "\$new_image_tag"[\s\S]*?\.RepoDigests[\s\S]*?"\$\{#local_repo_digests\[@\]\}" -eq 1[\s\S]*?"\$\{local_repo_digests\[0\]\}" == "\$candidate_image_ref"/,
+  );
+  assert.doesNotMatch(releaseStep, /imagetools inspect "\$new_image_tag"/);
+  assert.match(
+    releaseStep,
+    /docker buildx imagetools inspect "\$candidate_image_ref"[\s\S]*?fly deploy[\s\S]*?--image "\$candidate_image_ref"/,
+  );
+  assert.equal((releaseStep.match(/docker push "\$new_image_tag"/g) || []).length, 1);
+}
+
+test('T08 one-shot release deploys the immutable digest returned by its single gated-image push', () => {
+  const source = fs.readFileSync(
+    path.join(repoRoot, '.github', 'workflows', 'production-referral-hotfix-one-shot.yml'),
+    'utf8',
+  );
+  assertImmutablePushDigestBinding(source);
+});
+
+test('T09 SOAP history print output encodes persisted values and isolates the popup', () => {
+  const hostile = `<script>alert('xss')<\/script>&\"`;
+  const encoded = escapeHtmlText(hostile);
+  assert.equal(encoded, '&lt;script&gt;alert(&#39;xss&#39;)&lt;/script&gt;&amp;&quot;');
+  assert.doesNotMatch(encoded, /[<>]/);
+
+  const printHtml = buildSoapHistoryPrintHtml({
+    clientName: '<img src=x onerror=clientPayload()>',
+    noteDate: '<svg onload=datePayload()>',
+    history: [{
+      action: '<script>actionPayload()</script>',
+      userEmail: 'attacker@example.test"><iframe srcdoc=payload>',
+      timestamp: '<details open ontoggle=timestampPayload()>',
+    }],
+  });
+  for (const executable of ['<img', '<svg', '<script', '<iframe', '<details']) {
+    assert.doesNotMatch(printHtml, new RegExp(executable, 'i'));
+  }
+  for (const encodedMarker of ['&lt;img', '&lt;svg', '&lt;script', '&lt;iframe', '&lt;details']) {
+    assert.match(printHtml, new RegExp(encodedMarker, 'i'));
+  }
+  assert.match(printHtml, /default-src 'none'; style-src 'unsafe-inline'/);
+
+  const source = fs.readFileSync(
+    path.join(repoRoot, 'src', 'components', 'calendar', 'SOAPNoteModal.jsx'),
+    'utf8',
+  );
+  const noteHistoryStart = source.indexOf('Note History');
+  const historyPrint = source.slice(
+    source.indexOf("const printWindow = window.open('', '_blank', 'width=800,height=600');", noteHistoryStart),
+    source.indexOf('Print History', noteHistoryStart),
+  );
+  assert.match(historyPrint, /printWindow\.opener = null/);
+  assert.match(historyPrint, /buildSoapHistoryPrintHtml\(\{/);
+  assert.match(historyPrint, /clientName:\s*client\.full_name/);
+  assert.match(historyPrint, /noteDate:\s*moment\(soapNote\.note_date\)\.format\('LL'\)/);
+  assert.match(historyPrint, /action:\s*entry\.action/);
+  assert.match(historyPrint, /userEmail:\s*entry\.user_email/);
+  assert.match(historyPrint, /timestamp:\s*moment\(entry\.timestamp\)\.format\('LLL'\)/);
+  assert.match(historyPrint, /document\.write\(printHtml\)/);
+});
+
+test('T10 generic production release also binds deployment to its single pushed digest', () => {
+  const source = fs.readFileSync(
+    path.join(repoRoot, '.github', 'workflows', 'production-deploy.yml'),
+    'utf8',
+  );
+  assertImmutablePushDigestBinding(source);
 });

@@ -62,6 +62,7 @@ export async function startTestServer(extraEnv = {}) {
       ADMIN_PASSWORD: 'change-me-local',
       UPLOADS_DIR: uploadsDir,
       ...extraEnv,
+      ASSESSSUITE_BIND_HOST: '127.0.0.1',
       ASSESSSUITE_DB_PATH: dbPath,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
@@ -80,6 +81,13 @@ export async function startTestServer(extraEnv = {}) {
       throw new Error(`assurance server exited before readiness (code ${code})\nServer output:\n${output}`);
     });
     await Promise.race([waitForServer(baseUrl), earlyExit]);
+    const expectedListener = `[shim] listening on http://127.0.0.1:${port}`;
+    for (let attempt = 0; attempt < 100 && !output.split(/\r?\n/).includes(expectedListener); attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    if (!output.split(/\r?\n/).includes(expectedListener)) {
+      throw new Error('assurance server did not prove an actual loopback-only listener');
+    }
   } catch (error) {
     await terminateChild(child);
     fs.rmSync(tempRoot, { recursive: true, force: true });
@@ -94,6 +102,8 @@ export async function startTestServer(extraEnv = {}) {
     tempRoot,
     uploadsDir,
     dbPath,
+    listenerAddress: '127.0.0.1',
+    listenerPort: port,
     async stop() {
       await terminateChild(child);
       fs.rmSync(tempRoot, { recursive: true, force: true });

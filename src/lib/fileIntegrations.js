@@ -10,7 +10,7 @@ export const DOCUMENT_EXTRACTION_MAX_FILES = 4;
  * one-field upload shape, so the cast belongs here rather than at every
  * clinical call site.
  *
- * @param {{file: File, org_id: string, purpose: string, subject_date_of_birth?: string}} params
+ * @param {{file: File, org_id: string, purpose: string, subject_age_confirmation?: '13_or_over', subject_age_attestation_version?: 'referral-subject-age-attestation-v2026-07-20.1'}} params
  * @returns {Promise<{file_url: string, upload_id: string}>}
  */
 export async function uploadTenantFile(params) {
@@ -21,7 +21,7 @@ export async function uploadTenantFile(params) {
 
 /**
  * @param {{org_id: string, file_urls: string[], json_schema: object, processing_authority_confirmed: true}} params
- * @returns {Promise<{status: 'success', output: Record<string, any>}|{status: 'error', details: string}>}
+ * @returns {Promise<{status: 'success', output: Record<string, any>}|{status: 'error', code: string, details: string}>}
  */
 export async function extractTenantDocumentData(params) {
   if (!Array.isArray(params?.file_urls) || params.file_urls.length === 0) {
@@ -30,7 +30,7 @@ export async function extractTenantDocumentData(params) {
   if (params.file_urls.length > DOCUMENT_EXTRACTION_MAX_FILES) {
     throw new Error(`Select no more than ${DOCUMENT_EXTRACTION_MAX_FILES} documents for one extraction.`);
   }
-  return /** @type {Promise<{status: 'success', output: Record<string, any>}|{status: 'error', details: string}>} */ (
+  return /** @type {Promise<{status: 'success', output: Record<string, any>}|{status: 'error', code: string, details: string}>} */ (
     base44.integrations.Core.ExtractDataFromUploadedFile(/** @type {any} */ (params))
   );
 }

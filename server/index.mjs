@@ -72,6 +72,10 @@ const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
 })();
 
 const PORT = Number(process.env.PORT) || 8787;
+// Fly requires the production process to accept traffic from its proxy, so the
+// default remains all IPv4 interfaces. Isolated harnesses override this with
+// 127.0.0.1 and verify the actual bound address before returning control.
+const BIND_HOST = process.env.ASSESSSUITE_BIND_HOST || '0.0.0.0';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@local.test';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'change-me-local';
 // Access hardening for the private demo. Self-registration and the OTP
@@ -2056,9 +2060,12 @@ async function requestListener(req, res) {
 
 const server = http.createServer(requestListener);
 
-server.listen(PORT, () => {
+server.listen(PORT, BIND_HOST, () => {
+  const address = server.address();
+  const actualHost = address && typeof address === 'object' ? address.address : BIND_HOST;
+  const actualPort = address && typeof address === 'object' ? address.port : PORT;
   // eslint-disable-next-line no-console
-  console.log(`[shim] listening on http://localhost:${PORT}`);
+  console.log(`[shim] listening on http://${actualHost}:${actualPort}`);
 });
 
 export { server, db };
