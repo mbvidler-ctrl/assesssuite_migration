@@ -14,6 +14,11 @@ import {
   isLegalDocumentPublicationApproved,
 } from '../../src/lib/legal/documentRegistry.js';
 import { effectiveLegalContent } from '../../src/lib/legal/effectiveContent.js';
+import {
+  currentLegalReceiptRequirements,
+  hasCurrentLegalAcceptance as hasCurrentBrowserLegalAcceptance,
+} from '../../src/lib/legal/acceptanceGate.js';
+import { isInitialClinicalReleaseEligible } from '../../src/lib/clinicalRelease.js';
 import { resolveLegalConsentAudience } from '../../src/lib/legal/consentAudience.js';
 import {
   activateUser,
@@ -334,4 +339,83 @@ test('S15 enacted public instruments do not incorporate the draft retention poli
     const raw = fs.readFileSync(path.join(legalContentDir, file), 'utf8');
     assert.doesNotMatch(raw, prohibited, file);
   }
+});
+
+test('S16 browser gate matches the server document-bound, role-dependent receipt contract', () => {
+  const orgId = 'org-synthetic-parity';
+  const legalSettings = { status: 'effective', effective_date: '19 July 2026' };
+  const readContent = (filename) => fs.readFileSync(path.join(legalContentDir, filename), 'utf8');
+  const asEvents = (requirements) => requirements.map((required) => ({
+    org_id: orgId,
+    suite_version: required.suiteVersion,
+    event_type: required.eventType,
+    document_id: required.documentId,
+    document_title: required.documentTitle,
+    document_fingerprint: required.documentFingerprint,
+  }));
+
+  const memberRequirements = currentLegalReceiptRequirements({
+    ownerBundle: false,
+    legalSettings,
+    readContent,
+  });
+  const ownerRequirements = currentLegalReceiptRequirements({
+    ownerBundle: true,
+    legalSettings,
+    readContent,
+  });
+  assert.equal(memberRequirements.length, 3);
+  assert.equal(ownerRequirements.length, 8);
+
+  const memberEvents = asEvents(memberRequirements);
+  const ownerEvents = asEvents(ownerRequirements);
+  const accepted = (events, ownerBundle = false) => hasCurrentBrowserLegalAcceptance({
+    events,
+    orgId,
+    ownerBundle,
+    legalSettings,
+    readContent,
+  });
+  assert.equal(accepted(memberEvents), true);
+  assert.equal(accepted(ownerEvents, true), true);
+  assert.equal(accepted(memberEvents, true), false, 'an owner cannot pass with notice-only receipts');
+  assert.equal(accepted(memberEvents.slice(1)), false, 'a partial practitioner bundle must be stale');
+
+  const mutations = {
+    org_id: 'org-other',
+    suite_version: 'RC-stale',
+    event_type: 'wrong_event',
+    document_id: 'wrong-document',
+    document_title: 'Wrong title',
+    document_fingerprint: `sha256-${'0'.repeat(64)}`,
+  };
+  for (const [field, value] of Object.entries(mutations)) {
+    const altered = memberEvents.map((event) => ({ ...event }));
+    altered[0][field] = value;
+    assert.equal(accepted(altered), false, `${field} mismatch must route to re-acceptance`);
+  }
+
+  assert.match(layoutSource, /hasCurrentLegalAcceptance\(\{/);
+  assert.match(layoutSource, /ownerBundle:\s*legalAudience\.ownerBundle/);
+  assert.match(layoutSource, /legalSettings:\s*appPublicSettings\?\.public_settings\?\.legal/);
+  assert.match(layoutSource, /readContent:\s*loadLegalContent/);
+  assert.doesNotMatch(layoutSource, /REQUIRED_NOTICE_EVENT_TYPES/);
+});
+
+test('S17 browser and server share the exact clinical-release profile predicate', () => {
+  assert.equal(isInitialClinicalReleaseEligible({
+    country: 'australia',
+    profession: 'Exercise Physiologist',
+  }), true);
+  assert.equal(isInitialClinicalReleaseEligible({
+    country: 'Australia',
+    profession: 'Exercise Physiologist',
+  }), false);
+  assert.equal(isInitialClinicalReleaseEligible({
+    country: 'australia',
+    profession: 'Physiotherapist',
+  }), false);
+  assert.equal(isInitialClinicalReleaseEligible({ profession: 'Exercise Physiologist' }), false);
+  assert.match(layoutSource, /isInitialClinicalReleaseEligible\(freshUser\)/);
+  assert.match(layoutSource, /ProfileSetup\?reason=clinical-profile/);
 });

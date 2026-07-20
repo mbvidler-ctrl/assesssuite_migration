@@ -18,6 +18,7 @@ import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { DOCUMENT_EXTRACTION_MAX_FILES, extractTenantDocumentData } from '@/lib/fileIntegrations';
 import { todayLocal } from "@/lib/localDate";
+import { normalizeSdkError, sdkErrorLogMetadata } from '@/lib/sdkError';
 
 const ASSESSMENT_EXTRACTION_SCHEMA = {
   type: "object",
@@ -133,7 +134,7 @@ export default function HistoricalAssessmentExtractor({
         processing_authority_confirmed: true,
       });
       if (result?.status !== 'success' || !result.output?.assessments) {
-        toast.error(typeof result?.details === 'string'
+        toast.error(result?.status === 'error' && typeof result.details === 'string'
           ? result.details
           : 'The documents could not be extracted. No assessment data was changed.');
         return;
@@ -165,8 +166,12 @@ export default function HistoricalAssessmentExtractor({
       }
       
     } catch (error) {
-      console.warn('Historical assessment extraction failed', error?.response?.status ? { status: error.response.status } : undefined);
-      toast.error('Failed to extract assessments');
+      const failure = normalizeSdkError(error, {
+        stage: 'extraction',
+        fallbackDetails: 'Failed to extract assessments',
+      });
+      console.warn('Historical assessment extraction failed', sdkErrorLogMetadata(error, { stage: 'extraction' }));
+      toast.error(failure.details);
     } finally {
       setIsExtracting(false);
     }

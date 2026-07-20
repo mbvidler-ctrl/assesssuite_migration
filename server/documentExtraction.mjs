@@ -216,7 +216,20 @@ export function prepareExtractionSchema(schema) {
 }
 
 function validateFormat(value, format) {
-  if (format === 'date') return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
+  if (format === 'date') {
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (!match) return false;
+    const [, yearText, monthText, dayText] = match;
+    const year = Number(yearText);
+    const month = Number(monthText);
+    const day = Number(dayText);
+    const parsed = new Date(Date.UTC(year, month - 1, day));
+    return (
+      parsed.getUTCFullYear() === year &&
+      parsed.getUTCMonth() === month - 1 &&
+      parsed.getUTCDate() === day
+    );
+  }
   if (format === 'date-time') return !Number.isNaN(Date.parse(value));
   if (format === 'email') return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
   return true;
@@ -289,12 +302,29 @@ function removeOptionalNulls(value, schema) {
   return value;
 }
 
-function containsPlaceholder(value) {
+const MISSING_VALUE_SENTINEL = /^(?:n\/?a|not applicable|not available|not provided|not specified)$/i;
+
+function normalizeMissingValueSentinels(value) {
   if (typeof value === 'string') {
-    return /\b(mock(?:ed)?|placeholder|dummy|lorem ipsum|example value|sample value|not provided|not specified|n\/?a)\b/i.test(value);
+    return MISSING_VALUE_SENTINEL.test(value.trim()) ? null : value;
   }
-  if (Array.isArray(value)) return value.some(containsPlaceholder);
-  if (isPlainObject(value)) return Object.values(value).some(containsPlaceholder);
+  if (Array.isArray(value)) {
+    return value.map(normalizeMissingValueSentinels).filter((item) => item !== null);
+  }
+  if (isPlainObject(value)) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, child]) => [key, normalizeMissingValueSentinels(child)]),
+    );
+  }
+  return value;
+}
+
+function containsFabricatedMarker(value) {
+  if (typeof value === 'string') {
+    return /\b(mock(?:ed)?|placeholder|dummy|lorem ipsum|example value|sample value)\b/i.test(value);
+  }
+  if (Array.isArray(value)) return value.some(containsFabricatedMarker);
+  if (isPlainObject(value)) return Object.values(value).some(containsFabricatedMarker);
   return false;
 }
 
@@ -310,10 +340,10 @@ export function validateExtractionOutput(value, sourceSchema) {
   if (!isPlainObject(value)) {
     throw new ExtractionError(502, 'schema_invalid_provider_output', 'The document could not be extracted reliably.');
   }
-  const normalized = removeOptionalNulls(value, sourceSchema);
+  const normalized = removeOptionalNulls(normalizeMissingValueSentinels(value), sourceSchema);
   const errors = [];
   validateValue(normalized, sourceSchema, '$', errors);
-  if (errors.length > 0 || containsPlaceholder(normalized) || !hasMeaningfulValue(normalized)) {
+  if (errors.length > 0 || containsFabricatedMarker(normalized) || !hasMeaningfulValue(normalized)) {
     throw new ExtractionError(502, 'schema_invalid_provider_output', 'The document could not be extracted reliably.');
   }
   return normalized;

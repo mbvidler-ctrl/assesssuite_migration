@@ -67,7 +67,6 @@ export default function CBMRunner({ client, onSave, onClose }) {
         file,
         org_id: client.org_id,
         purpose: 'clinical-attachment',
-        subject_date_of_birth: client.date_of_birth || undefined,
       });
       setUploadedFile({ name: file.name, url: file_url });
       toast.success("Score sheet uploaded successfully");

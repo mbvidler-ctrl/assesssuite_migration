@@ -28,12 +28,7 @@ import { createCheckoutSession } from "@/functions/createCheckoutSession";
 import ConsentSection from "@/components/legal/ConsentSection";
 import { recordLegalAcceptanceBundle } from "@/lib/legal/recordAcceptance";
 import { resolveLegalConsentAudience } from "@/lib/legal/consentAudience";
-
-const SELF_SERVICE_PROFESSIONS = new Set([
-  "Exercise Physiologist",
-  "Gym Management",
-  "Clinic Management",
-]);
+import { INITIAL_RELEASE_PROFESSIONS } from "@/lib/clinicalRelease";
 
 export default function ProfileSetup() {
   const navigate = useNavigate();
@@ -95,7 +90,7 @@ export default function ProfileSetup() {
           }
 
           // Specific handling for profession
-          if (SELF_SERVICE_PROFESSIONS.has(currentUser.profession)) {
+          if (INITIAL_RELEASE_PROFESSIONS.has(currentUser.profession)) {
             updatedData.profession = currentUser.profession;
           } else {
             updatedData.profession = "";

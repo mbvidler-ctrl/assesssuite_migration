@@ -7,6 +7,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 
+import {
+  REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE,
+  REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
+  REFERRAL_SUBJECT_AGE_CONFIRMATION,
+} from '../src/lib/referralWorkflow.js';
+
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const PHYSICAL_CLEANUP_GRACE_MS = 60 * 1000;
@@ -370,6 +376,9 @@ function safeAuditMetadata(metadata) {
     'dry_run',
     'attestation_version',
     'upload_purpose',
+    'subject_age_attestation_source',
+    'subject_age_attestation_version',
+    'subject_age_band',
     'provider_model',
     'prompt_version',
     'provider_response_id_hash',
@@ -473,10 +482,29 @@ export function createUploadRegistry(db, { uploadsDir }) {
     uploaderUserId,
     purpose,
     subjectAgeBand = 'unknown',
+    subjectAgeAttestationVersion = null,
     now = new Date(),
   }) {
     if (!['unknown', 'under_13', '13_or_over'].includes(subjectAgeBand)) {
       throw new UploadError(400, 'invalid_age_band', 'The subject age category is invalid.');
+    }
+    if (purpose === 'referral-extraction') {
+      if (
+        subjectAgeBand !== REFERRAL_SUBJECT_AGE_CONFIRMATION ||
+        subjectAgeAttestationVersion !== REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION
+      ) {
+        throw new UploadError(
+          400,
+          'invalid_subject_age_attestation_provenance',
+          'The patient age attestation is invalid.',
+        );
+      }
+    } else if (subjectAgeAttestationVersion !== null) {
+      throw new UploadError(
+        400,
+        'subject_age_attestation_not_applicable',
+        'Patient age attestation is not accepted for this upload purpose.',
+      );
     }
     const inspected = inspectUpload({ buffer, originalName, declaredMime, purpose });
     assertUploadQuota({ uploaderUserId, orgId, byteSize: inspected.byteSize, now });
@@ -531,6 +559,13 @@ export function createUploadRegistry(db, { uploadsDir }) {
         byte_size: inspected.byteSize,
         detected_mime: inspected.detectedMime,
         purpose,
+        ...(purpose === 'referral-extraction'
+          ? {
+              subject_age_attestation_source: REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE,
+              subject_age_attestation_version: subjectAgeAttestationVersion,
+              subject_age_band: subjectAgeBand,
+            }
+          : {}),
       },
       now,
     });

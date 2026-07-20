@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { User } from "@/entities/User";
 import { base44 } from "@/api/base44Client";
 import { uploadTenantFile } from "@/lib/fileIntegrations";
+import { normalizeSdkError, sdkErrorLogMetadata } from "@/lib/sdkError";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -222,10 +223,14 @@ export default function MyProfile() {
       handleLocationChange(locationId, 'clinic_logo_url', file_url);
       toast.success("Logo uploaded successfully!");
     } catch (error) {
-      console.warn("Logo upload failed", error?.response?.status ? { status: error.response.status } : undefined);
+      const failure = normalizeSdkError(error, {
+        stage: 'upload',
+        fallbackDetails: 'Failed to upload logo.',
+      });
+      console.warn("Logo upload failed", sdkErrorLogMetadata(error, { stage: 'upload' }));
       toast.error(error?.message === 'Select the owning practice before uploading a logo.'
         ? error.message
-        : "Failed to upload logo.");
+        : failure.details);
     }
     setIsUploadingLogo(false);
     setUploadingLocationId(null);

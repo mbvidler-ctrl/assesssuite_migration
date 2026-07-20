@@ -166,7 +166,6 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
         file,
         org_id: client.org_id,
         purpose: 'clinical-attachment',
-        subject_date_of_birth: client.date_of_birth || undefined,
       });
       setAttachments(prev => [...prev, {
         attachment_type: file.type,

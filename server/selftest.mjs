@@ -11,6 +11,11 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
 
+import {
+  REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
+  REFERRAL_SUBJECT_AGE_CONFIRMATION,
+} from '../src/lib/referralWorkflow.js';
+
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverEntry = path.join(__dirname, 'index.mjs');
@@ -29,7 +34,7 @@ function record(name, pass, detail) {
 async function getFreePort() {
   return new Promise((resolve, reject) => {
     const srv = net.createServer();
-    srv.listen(0, () => {
+    srv.listen(0, '127.0.0.1', () => {
       const { port } = srv.address();
       srv.close(() => resolve(port));
     });
@@ -53,7 +58,7 @@ async function waitForServer(baseUrl, timeoutMs = 15000) {
 
 async function main() {
   const port = await getFreePort();
-  const baseUrl = `http://localhost:${port}`;
+  const baseUrl = `http://127.0.0.1:${port}`;
   const appId = 'selftest-app';
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'assesssuite-selftest-'));
   const uploadsDir = path.join(tempRoot, 'uploads');
@@ -70,6 +75,7 @@ async function main() {
       ADMIN_PASSWORD: 'change-me-local',
       ASSESSSUITE_DB_PATH: path.join(tempRoot, 'selftest.db'),
       UPLOADS_DIR: uploadsDir,
+      ASSESSSUITE_BIND_HOST: '127.0.0.1',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -83,7 +89,11 @@ async function main() {
   });
 
   const up = await waitForServer(baseUrl);
-  if (!up) {
+  const expectedListener = `[shim] listening on http://127.0.0.1:${port}`;
+  for (let attempt = 0; attempt < 100 && !serverOutput.split(/\r?\n/).includes(expectedListener); attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  if (!up || !serverOutput.split(/\r?\n/).includes(expectedListener)) {
     console.error('Server failed to start within timeout. Output so far:\n', serverOutput);
     child.kill();
     await once(child, 'exit').catch(() => {});
@@ -1380,7 +1390,9 @@ async function runChecks(baseUrl, appId) {
       `--${boundary}\r\n` +
       `Content-Disposition: form-data; name="purpose"\r\n\r\nreferral-extraction\r\n` +
       `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="subject_date_of_birth"\r\n\r\n2000-01-01\r\n` +
+      `Content-Disposition: form-data; name="subject_age_confirmation"\r\n\r\n${REFERRAL_SUBJECT_AGE_CONFIRMATION}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="subject_age_attestation_version"\r\n\r\n${REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION}\r\n` +
       `--${boundary}\r\n` +
       `Content-Disposition: form-data; name="file"; filename="selftest.pdf"\r\n` +
       `Content-Type: application/pdf\r\n\r\n` +

@@ -6,7 +6,12 @@ import { DatabaseSync } from 'node:sqlite';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { startFakeOpenAI } from './support/fake-openai.mjs';
-import { resolveDocumentExtractionModel } from '../documentExtraction.mjs';
+import { resolveDocumentExtractionModel, validateExtractionOutput } from '../documentExtraction.mjs';
+import {
+  REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE,
+  REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
+  REFERRAL_SUBJECT_AGE_CONFIRMATION,
+} from '../../src/lib/referralWorkflow.js';
 import {
   MERGED_PROFILE,
   PROFILE_A,
@@ -74,12 +79,37 @@ async function upload(user, orgId, {
   mediaType,
   purpose = 'referral-extraction',
   includeOrg = true,
-  subjectDateOfBirth = '2000-01-01',
+  subjectDateOfBirth,
+  subjectAgeConfirmation,
+  subjectAgeAttestationVersion,
+  subjectAgeAttestationSource,
 } = {}) {
   const form = new FormData();
   if (includeOrg && orgId !== undefined) form.set('org_id', orgId);
   form.set('purpose', purpose);
+  if (
+    purpose === 'referral-extraction' &&
+    subjectDateOfBirth === undefined &&
+    subjectAgeConfirmation === undefined &&
+    subjectAgeAttestationVersion === undefined
+  ) {
+    subjectAgeConfirmation = REFERRAL_SUBJECT_AGE_CONFIRMATION;
+    subjectAgeAttestationVersion = REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION;
+  } else if (
+    purpose === 'referral-extraction' &&
+    typeof subjectAgeConfirmation === 'string' &&
+    subjectAgeAttestationVersion === undefined
+  ) {
+    subjectAgeAttestationVersion = REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION;
+  }
   if (typeof subjectDateOfBirth === 'string') form.set('subject_date_of_birth', subjectDateOfBirth);
+  if (typeof subjectAgeConfirmation === 'string') form.set('subject_age_confirmation', subjectAgeConfirmation);
+  if (typeof subjectAgeAttestationVersion === 'string') {
+    form.set('subject_age_attestation_version', subjectAgeAttestationVersion);
+  }
+  if (typeof subjectAgeAttestationSource === 'string') {
+    form.set('subject_age_attestation_source', subjectAgeAttestationSource);
+  }
   form.set('file', new File([bytes], filename, { type: mediaType }));
   const response = await fetch(`${server.baseUrl}${appRoute(UPLOAD_ROUTE)}`, {
     method: 'POST',
@@ -172,7 +202,8 @@ async function assertRealTranscriptionUsesRegisteredStoredName(audio, expectedBy
 function assertControlledFailure(result) {
   assert.notEqual(result.body?.status, 'success', result.text);
   if (result.body?.status === 'error') {
-    assert.deepEqual(Object.keys(result.body).sort(), ['details', 'status']);
+    assert.deepEqual(Object.keys(result.body).sort(), ['code', 'details', 'status']);
+    assert.match(result.body.code, /^[a-z0-9_]{1,80}$/);
     assert.equal(typeof result.body.details, 'string');
     assert.ok(result.body.details.length > 0);
   } else {
@@ -205,6 +236,15 @@ function getUploadRow(uploadId) {
   const db = openAssuranceDb();
   try {
     return db.prepare('SELECT * FROM upload_registry WHERE id = ?').get(uploadId);
+  } finally {
+    db.close();
+  }
+}
+
+function uploadRegistryCount() {
+  const db = openAssuranceDb();
+  try {
+    return Number(db.prepare('SELECT COUNT(*) AS count FROM upload_registry').get().count);
   } finally {
     db.close();
   }
@@ -319,6 +359,17 @@ test('E05 dates, enums, arrays, required fields, and scalar types satisfy the su
   assert.match(result.body.output.date_of_birth, /^\d{4}-\d{2}-\d{2}$/);
   assert.ok(Array.isArray(result.body.output.diagnoses));
   assert.equal(typeof result.body.output.full_name, 'string');
+});
+
+test('E05a date format rejects impossible calendar dates instead of normalising them', () => {
+  const schema = {
+    type: 'object',
+    additionalProperties: false,
+    properties: { date: { type: 'string', format: 'date' } },
+    required: ['date'],
+  };
+  assert.throws(() => validateExtractionOutput({ date: '2026-02-31' }, schema), /reliably/);
+  assert.deepEqual(validateExtractionOutput({ date: '2024-02-29' }, schema), { date: '2024-02-29' });
 });
 
 test('E06 multi-file merge applies primary-wins and fill-empty with stable array de-duplication', async () => {
@@ -481,6 +532,23 @@ test('E18 empty, placeholder, malformed, refusal, and schema-invalid provider ou
   }
 });
 
+test('E18a exact missing-value sentinels normalize to empty values without weakening mock-marker rejection', async () => {
+  fakeProvider.reset();
+  fakeProvider.setMode('missing-value-sentinels');
+  const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'missing-value-sentinels.pdf', 'application/pdf');
+  const result = await extract(userA, { upload_id: uploadRef.upload_id, org_id: tenantA.id, json_schema: REFERRAL_SCHEMA });
+  assert.equal(result.status, 200, result.text);
+  assert.deepEqual(result.body.output, {
+    full_name: 'Alex River', date_of_birth: null, diagnoses: [], referrer: null, phone: null,
+  });
+
+  fakeProvider.reset();
+  fakeProvider.setMode('placeholder');
+  const placeholderRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'mock-marker-still-rejected.pdf', 'application/pdf');
+  const placeholder = await extract(userA, { upload_id: placeholderRef.upload_id, org_id: tenantA.id, json_schema: REFERRAL_SCHEMA });
+  assertControlledFailure(placeholder);
+});
+
 test('E19 anonymous upload returns 401 and creates no stored file', async () => {
   const beforeFiles = fs.readdirSync(server.uploadsDir).length;
   const form = new FormData();
@@ -622,13 +690,14 @@ test('E28 success retains the exact {status, output} contract', async () => {
   assertSuccess(result, PROFILE_A);
 });
 
-test('E29 controlled failure retains the sanitised {status:error, details} contract', async () => {
+test('E29 controlled failure retains the sanitised {status:error, code, details} contract', async () => {
   fakeProvider.reset();
   fakeProvider.setMode('malformed');
   const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'failure-contract.pdf', 'application/pdf');
   const result = await extract(userA, { upload_id: uploadRef.upload_id, org_id: tenantA.id, json_schema: REFERRAL_SCHEMA });
   assert.equal(result.body?.status, 'error', result.text);
-  assert.deepEqual(Object.keys(result.body).sort(), ['details', 'status']);
+  assert.deepEqual(Object.keys(result.body).sort(), ['code', 'details', 'status']);
+  assert.equal(result.body.code, 'provider_malformed_output');
   assert.doesNotMatch(result.body.details, /provider|openai|json|path|malformed|not-json/i);
 });
 
@@ -730,8 +799,9 @@ test('E32 authorised file workflows remain usable and cleanup removes only expir
   }
 });
 
-test('E33 browser-supplied age labels are rejected and exact date of birth is required', async () => {
+test('E33 referral age input requires the exact versioned practitioner attestation and audits no DOB', async () => {
   fakeProvider.reset();
+  const rowsBeforeInvalidRequests = uploadRegistryCount();
   const forged = new FormData();
   forged.set('org_id', tenantA.id);
   forged.set('purpose', 'referral-extraction');
@@ -746,29 +816,107 @@ test('E33 browser-supplied age labels are rejected and exact date of birth is re
 
   const missing = await upload(userA, tenantA.id, {
     bytes: pdfFixture(),
-    filename: 'missing-dob.pdf',
+    filename: 'missing-attestation.pdf',
     mediaType: 'application/pdf',
     subjectDateOfBirth: null,
   });
   assert.equal(missing.status, 400, missing.text);
+  assert.equal(missing.body?.code, 'subject_age_confirmation_required');
+
+  const missingVersion = await upload(userA, tenantA.id, {
+    bytes: pdfFixture(),
+    filename: 'missing-attestation-version.pdf',
+    mediaType: 'application/pdf',
+    subjectAgeConfirmation: REFERRAL_SUBJECT_AGE_CONFIRMATION,
+    subjectAgeAttestationVersion: null,
+  });
+  assert.equal(missingVersion.status, 400, missingVersion.text);
+  assert.equal(missingVersion.body?.code, 'subject_age_attestation_version_required');
+
+  const staleVersion = await upload(userA, tenantA.id, {
+    bytes: pdfFixture(),
+    filename: 'stale-attestation-version.pdf',
+    mediaType: 'application/pdf',
+    subjectAgeConfirmation: REFERRAL_SUBJECT_AGE_CONFIRMATION,
+    subjectAgeAttestationVersion: 'referral-subject-age-attestation-v2026-07-19.0',
+  });
+  assert.equal(staleVersion.status, 400, staleVersion.text);
+  assert.equal(staleVersion.body?.code, 'invalid_subject_age_attestation_version');
+
+  const forgedSource = await upload(userA, tenantA.id, {
+    bytes: pdfFixture(),
+    filename: 'forged-attestation-source.pdf',
+    mediaType: 'application/pdf',
+    subjectAgeConfirmation: REFERRAL_SUBJECT_AGE_CONFIRMATION,
+    subjectAgeAttestationSource: 'client_claimed_source',
+  });
+  assert.equal(forgedSource.status, 400, forgedSource.text);
+  assert.equal(forgedSource.body?.code, 'client_age_attestation_source_rejected');
+
+  const invalidConfirmation = await upload(userA, tenantA.id, {
+    bytes: pdfFixture(),
+    filename: 'invalid-age-confirmation.pdf',
+    mediaType: 'application/pdf',
+    subjectAgeConfirmation: 'adult',
+  });
+  assert.equal(invalidConfirmation.status, 400, invalidConfirmation.text);
+
+  const underAgeConfirmation = await upload(userA, tenantA.id, {
+    bytes: pdfFixture(),
+    filename: 'under-age-confirmation.pdf',
+    mediaType: 'application/pdf',
+    subjectAgeConfirmation: 'under_13',
+  });
+  assert.equal(underAgeConfirmation.status, 409, underAgeConfirmation.text);
+
+  const confirmed = await expectUploaded(await upload(userA, tenantA.id, {
+    bytes: pdfFixture(),
+    filename: 'confirmed-age.pdf',
+    mediaType: 'application/pdf',
+    subjectAgeConfirmation: '13_or_over',
+  }));
+  const confirmedRow = getUploadRow(confirmed.upload_id);
+  assert.equal(confirmedRow.subject_age_band, REFERRAL_SUBJECT_AGE_CONFIRMATION);
+  assert.equal(Object.hasOwn(confirmedRow, 'subject_date_of_birth'), false);
+
+  const auditDb = openAssuranceDb();
+  try {
+    const row = auditDb.prepare(`
+      SELECT metadata_json FROM upload_audit
+      WHERE upload_id = ? AND event_type = 'upload_registered' AND outcome = 'success'
+    `).get(confirmed.upload_id);
+    const metadata = JSON.parse(row.metadata_json);
+    assert.deepEqual(Object.keys(metadata).sort(), [
+      'byte_size',
+      'detected_mime',
+      'purpose',
+      'subject_age_attestation_source',
+      'subject_age_attestation_version',
+      'subject_age_band',
+    ]);
+    assert.equal(metadata.subject_age_attestation_source, REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE);
+    assert.equal(metadata.subject_age_attestation_version, REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION);
+    assert.equal(metadata.subject_age_band, REFERRAL_SUBJECT_AGE_CONFIRMATION);
+    assert.doesNotMatch(row.metadata_json, /date.of.birth|subject_dob|\bdob\b|1990|2000/i);
+  } finally {
+    auditDb.close();
+  }
+  assert.equal(uploadRegistryCount(), rowsBeforeInvalidRequests + 1);
   assert.equal(fakeProvider.calls.length, 0);
 });
 
-test('E34 under-13 date of birth fails closed before provider I/O', async () => {
+test('E34 superseded date-of-birth age input fails before upload persistence or provider I/O', async () => {
   fakeProvider.reset();
-  const underAge = await expectUploaded(await upload(userA, tenantA.id, {
+  const rowsBefore = uploadRegistryCount();
+  const supersededDob = await upload(userA, tenantA.id, {
     bytes: pdfFixture(),
-    filename: 'under-age.pdf',
+    filename: 'superseded-dob-input.pdf',
     mediaType: 'application/pdf',
     subjectDateOfBirth: new Date().getUTCFullYear() + '-01-01',
-  }));
-  const result = await extract(userA, {
-    upload_id: underAge.upload_id,
-    org_id: tenantA.id,
-    json_schema: REFERRAL_SCHEMA,
   });
-  assert.equal(result.status, 409, result.text);
-  assert.equal(result.body?.status, 'error');
+  assert.equal(supersededDob.status, 400, supersededDob.text);
+  assert.equal(supersededDob.body?.code, 'subject_date_of_birth_rejected');
+  assert.equal(uploadRegistryCount(), rowsBefore);
   assert.equal(fakeProvider.calls.length, 0);
 });
 

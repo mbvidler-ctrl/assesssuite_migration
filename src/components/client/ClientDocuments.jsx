@@ -98,7 +98,6 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
         file: uploadFile,
         org_id: clientRecord.org_id,
         purpose: 'clinical-attachment',
-        subject_date_of_birth: clientRecord.date_of_birth || undefined,
       });
       
       await base44.entities.ClientDocument.create({
