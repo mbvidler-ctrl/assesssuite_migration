@@ -137,6 +137,9 @@ jobs:
           fi
 
           rm -f "$raw_output" "$command_stderr"
+          echo 'CONTENT_FREE_DIAGNOSTIC_RESULT_BEGIN'
+          cat "$safe_output"
+          echo 'CONTENT_FREE_DIAGNOSTIC_RESULT_END'
           {
             echo '## AssessSuite content-free referral diagnostic'
             echo
