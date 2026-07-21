@@ -10,8 +10,10 @@ import RichTextEditor from "@/components/ui/RichTextEditor";
 import { ClientCondition, ClientAssessment, Assessment, User, ClientReport } from "@/entities/all";
 import { InvokeLLM } from "@/integrations/Core";
 import { FileDown, Printer, AlertCircle, Loader2, Save, Edit, Plus, Trash2 } from "lucide-react";
+import { SecureFileImage } from "@/components/files/SecureFile";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
+import { renderSafeHtmlDocument, replaceWithSafeHtml, sanitizeHtml } from "@/lib/safeHtml";
 
 // Import specialized components
 import DVAPatientCarePlan from "./DVAPatientCarePlan";
@@ -57,7 +59,7 @@ const PrintableReport = React.forwardRef(({ reportContent, client, clinician, ti
                 `}</style>
                 <div className="header">
                     {clinician?.clinic_logo_url ? (
-                        <img src={clinician.clinic_logo_url} alt="Clinic Logo" />
+                        <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" />
                     ) : (
                         <h3 style={{fontSize: '10pt', margin: 0}}>{clinician?.clinic_name || ""}</h3>
                     )}
@@ -173,7 +175,7 @@ const PrintableReport = React.forwardRef(({ reportContent, client, clinician, ti
 
         <div className="header">
           {clinician?.clinic_logo_url ? (
-            <img src={clinician.clinic_logo_url} alt="Clinic Logo" />
+            <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" />
           ) : (
             <h2>{clinician?.clinic_name || ""}</h2>
           )}
@@ -189,7 +191,7 @@ const PrintableReport = React.forwardRef(({ reportContent, client, clinician, ti
         <div className="report-title">
           {title} for {client.full_name}
         </div>
-        <div className="report-content" dangerouslySetInnerHTML={{ __html: reportContent }} />
+        <div className="report-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(reportContent) }} />
       </div>
     );
 });
@@ -472,15 +474,15 @@ Based on the data, populate the JSON schema below.
     if (!printWindow) {
         toast.warning("Popup blocked. Using current window print...");
         const originalContent = document.body.innerHTML;
-        document.body.innerHTML = printRef.current.outerHTML;
+        replaceWithSafeHtml(document.body, printRef.current.outerHTML);
         window.print();
-        document.body.innerHTML = originalContent;
+        replaceWithSafeHtml(document.body, originalContent);
         window.location.reload();
         return;
     }
 
     try {
-        printWindow.document.write(`
+        renderSafeHtmlDocument(printWindow, `
             <!DOCTYPE html>
             <html>
             <head>
@@ -492,8 +494,6 @@ Based on the data, populate the JSON schema below.
             </body>
             </html>
         `);
-        
-        printWindow.document.close();
         
         setTimeout(() => {
             printWindow.focus();
@@ -1246,15 +1246,15 @@ Begin with the first section - no introduction text.
         if (!printWindow) {
             toast.warning("Popup blocked. Using current window print...");
             const originalContent = document.body.innerHTML;
-            document.body.innerHTML = printRef.current.outerHTML;
+            replaceWithSafeHtml(document.body, printRef.current.outerHTML);
             window.print();
-            document.body.innerHTML = originalContent;
+            replaceWithSafeHtml(document.body, originalContent);
             window.location.reload();
             return;
         }
 
         try {
-            printWindow.document.write(`
+            renderSafeHtmlDocument(printWindow, `
                 <!DOCTYPE html>
                 <html>
                 <head>
@@ -1266,8 +1266,6 @@ Begin with the first section - no introduction text.
                 </body>
                 </html>
             `);
-            
-            printWindow.document.close();
             
             setTimeout(() => {
                 printWindow.focus();
@@ -1459,7 +1457,7 @@ Begin with the first section - no introduction text.
                     </div>
                     ) : (
                     <div className="bg-slate-50 rounded-md border p-6 max-h-[60vh] overflow-y-auto prose prose-blue max-w-none">
-                        <div dangerouslySetInnerHTML={{ __html: editableContent }} />
+                        <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(editableContent) }} />
                     </div>
                     )}
 

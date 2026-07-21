@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
 import { Utensils, Save, Printer, Calculator, AlertTriangle, ExternalLink, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
+import { renderSafeHtmlDocument } from '@/lib/safeHtml';
 
 export default function NutritionTab({ client, onUpdate }) {
   const [nutritionPlan, setNutritionPlan] = useState(null);
@@ -335,8 +336,7 @@ export default function NutritionTab({ client, onUpdate }) {
     `;
 
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(printContent);
-    printWindow.document.close();
+    renderSafeHtmlDocument(printWindow, printContent);
     printWindow.print();
   };
 

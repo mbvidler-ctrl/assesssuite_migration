@@ -114,6 +114,26 @@ export function recordMockSubscription({ customerId, subscriptionId, status = 'a
 }
 
 /**
+ * Mocks DELETE https://api.stripe.com/v1/subscriptions/{id} — cancels a
+ * subscription immediately by marking it 'canceled'. Searches every mock
+ * customer for the subscription id. Returns the (now canceled) subscription
+ * object; where the id is not present in the store it returns a minimal
+ * canceled stub, so the caller succeeds without any network call (mirroring
+ * the real gateway's immediate-cancel result closely enough for the
+ * cancelSubscriptionAndDeactivate flow, which only needs the call not to throw).
+ */
+export function cancelMockSubscription(subscriptionId) {
+  for (const customer of customersById.values()) {
+    const subscription = customer.subscriptions.find((s) => s.id === subscriptionId);
+    if (subscription) {
+      subscription.status = 'canceled';
+      return subscription;
+    }
+  }
+  return { id: subscriptionId, object: 'subscription', status: 'canceled' };
+}
+
+/**
  * Mocks GET https://api.stripe.com/v1/customers?email=...&limit=1 followed
  * by GET https://api.stripe.com/v1/subscriptions?customer=...&limit=1, as
  * used by syncStripeSubscription/entry.ts. Returns null where no mock

@@ -454,7 +454,9 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
             const clients = await base44.entities.Client.filter({ org_id: orgs[0].org_id });
             setAllClients(clients);
           }
-        } catch (e) {}
+        } catch (e) {
+          // Optional JSON-encoded runner state may be absent or malformed.
+        }
       };
       loadClients();
     }

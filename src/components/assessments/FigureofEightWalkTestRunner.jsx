@@ -267,7 +267,7 @@ export default function FigureofEightWalkTestRunner({ client, onSave, onClose })
                     {time.toFixed(1)}<span className="text-2xl text-slate-500 ml-1">s</span>
                   </p>
                   {isRunning && (
-                    <p className="text-sm text-green-700 font-medium animate-pulse">â— Recording…</p>
+                    <p className="text-sm text-green-700 font-medium animate-pulse">● Recording…</p>
                   )}
                   <Button
                     onClick={handleStartStop}

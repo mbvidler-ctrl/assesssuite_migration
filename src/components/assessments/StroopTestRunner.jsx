@@ -593,7 +593,7 @@ export default function StroopTestRunner({ client, onSave, onClose }) {
                       <text x="160" y="148" textAnchor="middle" fontSize="7" fill="#7c3aed" fontWeight="600">Participant</text>
                       {/* Timer */}
                       <circle cx="100" cy="118" r="12" fill="white" stroke="#f97316" strokeWidth="2"/>
-                      <text x="100" y="115" textAnchor="middle" fontSize="7" fill="#ea580c" fontWeight="700">â±</text>
+                      <text x="100" y="115" textAnchor="middle" fontSize="7" fill="#ea580c" fontWeight="700">⏱</text>
                       <text x="100" y="124" textAnchor="middle" fontSize="6" fill="#9a3412">45s</text>
                     </svg>
                     <p className="text-xs text-slate-500 text-center px-2 pb-2">Verbal Response Testing — clinician records timed oral responses</p>
@@ -739,7 +739,7 @@ export default function StroopTestRunner({ client, onSave, onClose }) {
               <RatingRow label="Baseline Concentration (0–10)" value={setup.baselineConcentration} onChange={v => setSetup(p => ({ ...p, baselineConcentration: v }))} />
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(0)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(0)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(2)} className="flex-1 bg-purple-600 hover:bg-purple-700">Trial 1 →</Button>
               </div>
             </div>
@@ -762,7 +762,7 @@ export default function StroopTestRunner({ client, onSave, onClose }) {
                 </div>
               )}
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(3)} disabled={!t1} className="flex-1 bg-purple-600 hover:bg-purple-700">Trial 2 →</Button>
               </div>
             </div>
@@ -785,7 +785,7 @@ export default function StroopTestRunner({ client, onSave, onClose }) {
                 </div>
               )}
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(2)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(2)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(4)} disabled={!t2} className="flex-1 bg-purple-600 hover:bg-purple-700">Trial 3 →</Button>
               </div>
             </div>
@@ -811,7 +811,7 @@ export default function StroopTestRunner({ client, onSave, onClose }) {
                 </div>
               )}
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(3)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(3)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(5)} disabled={!t3} className="flex-1 bg-purple-600 hover:bg-purple-700">Observations →</Button>
               </div>
             </div>
@@ -843,7 +843,7 @@ export default function StroopTestRunner({ client, onSave, onClose }) {
                 <Textarea value={observations.behaviorNotes} onChange={e => setObservations(p => ({ ...p, behaviorNotes: e.target.value }))} placeholder="Describe any notable behaviours, strategies, or observations..." rows={3} className="mt-1" />
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(4)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(4)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(6)} className="flex-1 bg-purple-600 hover:bg-purple-700">View Results →</Button>
               </div>
             </div>
@@ -985,7 +985,7 @@ export default function StroopTestRunner({ client, onSave, onClose }) {
               )}
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(5)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(5)} className="flex-1">← Back</Button>
                 <Button onClick={handleSave} disabled={!canSave} className="flex-1 bg-purple-600 hover:bg-purple-700">
                   <Save className="w-4 h-4 mr-2" />Save Assessment
                 </Button>

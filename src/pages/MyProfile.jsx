@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { User } from "@/entities/User";
 import { base44 } from "@/api/base44Client";
-import { UploadFile } from "@/integrations/Core";
+import { uploadTenantFile } from "@/lib/fileIntegrations";
+import { normalizeSdkError, sdkErrorLogMetadata } from "@/lib/sdkError";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,10 +35,21 @@ import {
 import { Toaster, toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ClinicPolicies from "../components/settings/ClinicPolicies";
+import { SecureFileImage } from "@/components/files/SecureFile";
+import {
+  Dialog,
+  DialogTrigger,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 export default function MyProfile() {
   const [user, setUser] = useState(null);
   const [userOrgId, setUserOrgId] = useState(null);
+  const [organizationOptions, setOrganizationOptions] = useState([]);
   const [formData, setFormData] = useState({
     clinician_name: "",
     profession: "",
@@ -53,6 +65,25 @@ export default function MyProfile() {
   const [newSpecialization, setNewSpecialization] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [showManageDialog, setShowManageDialog] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [isCancelling, setIsCancelling] = useState(false);
+
+  const handleCancelAndClose = async () => {
+    setIsCancelling(true);
+    try {
+      const result = await base44.functions.invoke("cancelSubscriptionAndDeactivate", {});
+      const payload = result?.data ?? result;
+      if (payload?.status !== "deactivated") {
+        throw new Error(payload?.error || "Cancellation failed");
+      }
+      base44.auth.logout(window.location.origin + "/");
+    } catch (error) {
+      console.error("Cancellation failed", error);
+      toast.error("Failed to cancel your subscription and close your account. Please try again or contact support.");
+      setIsCancelling(false);
+    }
+  };
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [uploadingLocationId, setUploadingLocationId] = useState(null);
 
@@ -66,11 +97,26 @@ export default function MyProfile() {
       const userData = await User.me();
       setUser(userData);
       
-      // Get user's organization ID
+      // Upload ownership must be explicit for multi-practice users.
       const orgMemberships = await base44.entities.OrganizationMember.filter({ user_email: userData.email });
-      if (orgMemberships.length > 0) {
-        setUserOrgId(orgMemberships[0].org_id);
-      }
+      const options = await Promise.all((orgMemberships || []).map(async (membership) => {
+        try {
+          const organization = await base44.entities.Organization.get(membership.org_id);
+          return {
+            id: membership.org_id,
+            name: organization?.name || membership.org_id,
+            isPrimary: membership.is_primary === true,
+          };
+        } catch {
+          return {
+            id: membership.org_id,
+            name: membership.org_id,
+            isPrimary: membership.is_primary === true,
+          };
+        }
+      }));
+      setOrganizationOptions(options);
+      setUserOrgId(options.length === 1 ? options[0].id : null);
       
       // Migrate old data structure to new if needed
       let locations = userData.locations || [];
@@ -166,12 +212,25 @@ export default function MyProfile() {
     setIsUploadingLogo(true);
     setUploadingLocationId(locationId);
     try {
-      const { file_url } = await UploadFile({ file });
+      if (!userOrgId) {
+        throw new Error('Select the owning practice before uploading a logo.');
+      }
+      const { file_url } = await uploadTenantFile({
+        file,
+        org_id: userOrgId,
+        purpose: 'profile-image',
+      });
       handleLocationChange(locationId, 'clinic_logo_url', file_url);
       toast.success("Logo uploaded successfully!");
     } catch (error) {
-      console.error("Error uploading logo:", error);
-      toast.error("Failed to upload logo.");
+      const failure = normalizeSdkError(error, {
+        stage: 'upload',
+        fallbackDetails: 'Failed to upload logo.',
+      });
+      console.warn("Logo upload failed", sdkErrorLogMetadata(error, { stage: 'upload' }));
+      toast.error(error?.message === 'Select the owning practice before uploading a logo.'
+        ? error.message
+        : failure.details);
     }
     setIsUploadingLogo(false);
     setUploadingLocationId(null);
@@ -194,21 +253,27 @@ export default function MyProfile() {
     }));
   };
 
-  const handleManageSubscription = async () => {
+  const handleManageSubscription = async (flow) => {
     try {
-      const response = await fetch('/functions/createPortalSession', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stripeCustomerId: user?.stripe_customer_id })
-      });
-      const data = await response.json();
-      if (data.url) {
-        window.location.href = data.url;
+      const me = await base44.auth.me();
+      let customerId = me?.stripe_customer_id;
+      if (!customerId) {
+        try { await base44.functions.invoke('syncStripeSubscription', {}); } catch { /* fall through */ }
+        customerId = (await base44.auth.me())?.stripe_customer_id;
+      }
+      if (!customerId) {
+        toast.error('No billing account is linked yet. Complete a subscription first, or contact admin@assesssuite.com.');
+        return;
+      }
+      const res = await base44.functions.invoke('createPortalSession', { stripeCustomerId: customerId, flow, subscriptionId: me?.stripe_subscription_id });
+      const url = res?.data?.url;
+      if (url) {
+        window.location.href = url;
       } else {
-        alert(data.error || 'Unable to open subscription portal. Please contact support.');
+        toast.error(res?.data?.error || 'Unable to open the subscription portal. Please contact support.');
       }
     } catch (err) {
-      alert('Something went wrong. Please try again.');
+      toast.error('Something went wrong. Please try again.');
     }
   };
 
@@ -298,9 +363,9 @@ export default function MyProfile() {
                         <SelectValue placeholder="Select your profession" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Exercise Physiologist">Exercise Physiologist</SelectItem>
-                        <SelectItem value="Exercise Scientist">Exercise Scientist</SelectItem>
-                        <SelectItem value="Dual Exercise Scientist & Exercise Physiologist">Dual Exercise Scientist & Exercise Physiologist</SelectItem>
+                        <SelectItem value="Exercise Physiologist">Accredited Exercise Physiologist (AEP)</SelectItem>
+                        <SelectItem value="Gym Management">Gym Management</SelectItem>
+                        <SelectItem value="Clinic Management">Clinic Management</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -317,13 +382,20 @@ export default function MyProfile() {
                     <p className="text-xs text-slate-500 mt-1">This cannot be changed</p>
                   </div>
                   <div>
-                    <Label className="text-sm font-medium text-slate-700">Organization ID</Label>
-                    <Input
-                      value={userOrgId || "Loading..."}
-                      disabled
-                      className="mt-1 bg-slate-50 font-mono text-xs"
-                    />
-                    <p className="text-xs text-slate-500 mt-1">For technical support reference</p>
+                    <Label className="text-sm font-medium text-slate-700">Practice for file uploads</Label>
+                    <Select value={userOrgId || ''} onValueChange={setUserOrgId}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Select a practice" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {organizationOptions.map((option) => (
+                          <SelectItem key={option.id} value={option.id}>
+                            {option.name}{option.isPrimary ? ' (primary)' : ''}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-slate-500 mt-1">Required to assign logos and other uploaded files to the correct practice.</p>
                   </div>
                 </div>
 
@@ -343,85 +415,18 @@ export default function MyProfile() {
                       />
                     </div>
 
+                    <p className="text-xs text-slate-500">
+                      The current self-service clinical release is configured for Australian practices.
+                      Geographic requirements are governed by the linked policies rather than a profile declaration.
+                    </p>
                     <div>
-                      <Label htmlFor="country" className="text-sm font-medium text-slate-700">Country of Practice</Label>
-                      <Select value={formData.country} onValueChange={(v) => handleInputChange("country", v)}>
-                        <SelectTrigger className="mt-1"><SelectValue placeholder="Select country" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="australia">🇦🇺 Australia</SelectItem>
-                          <SelectItem value="usa">🇺🇸 United States</SelectItem>
-                          <SelectItem value="canada">🇨🇦 Canada</SelectItem>
-                          <SelectItem value="nz">🇳🇿 New Zealand</SelectItem>
-                          <SelectItem value="uk">🇬🇧 United Kingdom</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">Professional Registration or Accreditation Number</Label>
+                      <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="e.g. ESSA accreditation number" className="mt-1" />
                     </div>
-
-                    {/* Australia */}
-                    {(!formData.country || formData.country === "australia") && (
-                      <>
-                        <div>
-                          <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">AHPRA Registration Number</Label>
-                          <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="e.g. EPH0001234" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label htmlFor="abn" className="text-sm font-medium text-slate-700">ABN</Label>
-                          <Input id="abn" value={formData.abn} onChange={(e) => handleInputChange("abn", e.target.value)} placeholder="e.g. 12 345 678 901" className="mt-1" />
-                        </div>
-                      </>
-                    )}
-                    {formData.country === "usa" && (
-                      <>
-                        <div>
-                          <Label htmlFor="npi_number" className="text-sm font-medium text-slate-700">NPI Number (Individual)</Label>
-                          <Input id="npi_number" value={formData.npi_number} onChange={(e) => handleInputChange("npi_number", e.target.value)} placeholder="10-digit NPI" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">ACSM Certification Number</Label>
-                          <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="ACSM-EP or ACSM-CEP number" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label htmlFor="abn" className="text-sm font-medium text-slate-700">Tax ID / EIN</Label>
-                          <Input id="abn" value={formData.abn} onChange={(e) => handleInputChange("abn", e.target.value)} placeholder="Federal Tax ID / EIN" className="mt-1" />
-                        </div>
-                      </>
-                    )}
-                    {formData.country === "canada" && (
-                      <>
-                        <div>
-                          <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">CSEP-CEP Certification Number</Label>
-                          <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="CSEP certification number" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label htmlFor="abn" className="text-sm font-medium text-slate-700">GST/HST Number</Label>
-                          <Input id="abn" value={formData.abn} onChange={(e) => handleInputChange("abn", e.target.value)} placeholder="Business GST/HST number" className="mt-1" />
-                        </div>
-                      </>
-                    )}
-                    {formData.country === "nz" && (
-                      <>
-                        <div>
-                          <Label htmlFor="npi_number" className="text-sm font-medium text-slate-700">HPI Number (Health Provider Index)</Label>
-                          <Input id="npi_number" value={formData.npi_number} onChange={(e) => handleInputChange("npi_number", e.target.value)} placeholder="HPI number" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">CEPNZ Membership Number</Label>
-                          <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="CEPNZ membership number" className="mt-1" />
-                        </div>
-                      </>
-                    )}
-                    {formData.country === "uk" && (
-                      <>
-                        <div>
-                          <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">RCCP / AHCS Registration Number</Label>
-                          <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="RCCP or AHCS number" className="mt-1" />
-                        </div>
-                        <div>
-                          <Label htmlFor="provider_number" className="text-sm font-medium text-slate-700">NHS PIN (if applicable)</Label>
-                          <Input id="provider_number" value={formData.provider_number || ""} onChange={(e) => handleInputChange("provider_number", e.target.value)} placeholder="NHS PIN" className="mt-1" />
-                        </div>
-                      </>
-                    )}
+                    <div>
+                      <Label htmlFor="abn" className="text-sm font-medium text-slate-700">ABN</Label>
+                      <Input id="abn" value={formData.abn} onChange={(e) => handleInputChange("abn", e.target.value)} placeholder="e.g. 12 345 678 901" className="mt-1" />
+                    </div>
                   </>
                 )}
 
@@ -594,8 +599,9 @@ export default function MyProfile() {
                         <div className="mt-2 space-y-4">
                           {location.clinic_logo_url && (
                             <div className="flex items-center gap-4">
-                              <img
+                              <SecureFileImage
                                 src={location.clinic_logo_url}
+                                orgId={userOrgId}
                                 alt="Clinic logo"
                                 className="w-16 h-16 object-contain border rounded"
                               />
@@ -613,7 +619,7 @@ export default function MyProfile() {
                           <div>
                             <input
                               type="file"
-                              accept="image/*"
+                              accept=".png,.jpg,.jpeg,.gif,.webp"
                               onChange={(e) => handleLogoUpload(e, location.id)}
                               className="hidden"
                               id={`logo-upload-${location.id}`}
@@ -672,9 +678,85 @@ export default function MyProfile() {
                   <h3 className="font-semibold text-slate-900">Subscription</h3>
                   <p className="text-sm text-slate-600">Manage your billing and subscription plan</p>
                 </div>
-                <button onClick={handleManageSubscription} style={{padding:'10px 20px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',fontWeight:600,color:'#374151',cursor:'pointer'}}>
-                  Manage Subscription
-                </button>
+                <Dialog
+                  open={showManageDialog}
+                  onOpenChange={(open) => {
+                    setShowManageDialog(open);
+                    if (!open) setShowCancelConfirm(false);
+                  }}
+                >
+                  <DialogTrigger asChild>
+                    <button style={{padding:'10px 20px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:'8px',fontSize:'14px',fontWeight:600,color:'#374151',cursor:'pointer'}}>
+                      Manage Subscription
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    {!showCancelConfirm ? (
+                      <>
+                        <DialogHeader>
+                          <DialogTitle>Manage Subscription</DialogTitle>
+                          <DialogDescription>
+                            Choose an action for your billing and subscription plan.
+                          </DialogDescription>
+                        </DialogHeader>
+                        <div className="space-y-3 py-2">
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start"
+                            onClick={() => handleManageSubscription('subscription_update')}
+                          >
+                            Switch to annual billing
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start"
+                            onClick={() => handleManageSubscription('payment_method_update')}
+                          >
+                            Update payment information
+                          </Button>
+                          <Button
+                            variant="outline"
+                            className="w-full justify-start border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                            onClick={() => setShowCancelConfirm(true)}
+                          >
+                            Cancel subscription and close account
+                          </Button>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <DialogHeader>
+                          <DialogTitle>Cancel subscription and close account</DialogTitle>
+                        </DialogHeader>
+                        <div className="space-y-3 py-2 text-sm text-slate-600">
+                          <p className="font-semibold text-slate-900">
+                            Notice: closing your account will result in the loss of access to the AssessSuite platform and all data associated with that account, including but not limited to treatment records, patient details, policies, and consents.
+                          </p>
+                          <p>
+                            Your subscription will be cancelled and billing will stop. No refund is provided for the unused portion of the current billing period.
+                          </p>
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            variant="outline"
+                            onClick={() => setShowCancelConfirm(false)}
+                            disabled={isCancelling}
+                          >
+                            Go back
+                          </Button>
+                          <Button
+                            className="bg-red-600 hover:bg-red-700"
+                            onClick={handleCancelAndClose}
+                            disabled={isCancelling}
+                          >
+                            {isCancelling ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
+                            Cancel subscription and close account
+                          </Button>
+                        </DialogFooter>
+                      </>
+                    )}
+                  </DialogContent>
+                </Dialog>
               </div>
             </CardContent>
           </Card>

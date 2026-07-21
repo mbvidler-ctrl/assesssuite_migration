@@ -19,6 +19,7 @@
 
 import { recordMockSubscription } from '../mocks/stripe.mjs';
 import { stripeEnabled, verifyStripeSignatureHeader } from '../stripeGateway.mjs';
+import { sendEmail, welcomeEmail } from '../email.mjs';
 
 export default async function stripeWebhook(ctx) {
   const { body: event, rawBody, request, entities, respond, user } = ctx;
@@ -52,26 +53,45 @@ export default async function stripeWebhook(ctx) {
     return respond(400, { message: 'Invalid JSON' });
   }
 
+  // Terminal statuses a billing event must never override: an admin rejection
+  // cannot be bought around, and a self-closed (deactivated) account is not
+  // reopened or relabelled by a stray Stripe event.
+  const NEVER_ACTIVATE = new Set(['rejected', 'deactivated']);
+
   try {
     if (event.type === 'checkout.session.completed') {
       const s = event.data?.object || {};
-      // Payment success flips ENTITLEMENT only. Approval (account_status) is
-      // an admin decision and is no longer set 'active' here — the captured
-      // source's payment-driven activation is superseded by the hard approval
-      // gate. Sole exception: a payment-failure suspension is lifted by a
-      // successful payment (restore suspended -> active); pending/rejected
-      // are never changed by billing events.
+      // Launch model (Max's direction, 13 July 2026): successful payment
+      // AUTO-APPROVES. A pending account activates on checkout completion and
+      // a payment-failure suspension is lifted — the admin-approval queue is
+      // no longer a gate in the ordinary signup path. Two exclusions:
+      // 'rejected' is never activated by payment (an admin rejection cannot
+      // be bought around), and 'deactivated' (self-service account closure)
+      // is not reopened by a stray billing event.
       const entitlement = {
         subscription_status: 'active',
         stripe_customer_id: s.customer,
         stripe_subscription_id: s.subscription,
         subscription_start_date: new Date().toISOString(),
       };
+      // A rejected/deactivated account is never activated by payment AND gets
+      // no entitlement/billing linkage written — a refused or closed account
+      // should not carry a live subscription record. For everyone else,
+      // payment activates (auto-approve) and writes the entitlement.
       const dataFor = (existingUser) => (
-        existingUser?.account_status === 'suspended'
-          ? { ...entitlement, account_status: 'active' }
-          : entitlement
+        NEVER_ACTIVATE.has(existingUser?.account_status)
+          ? null
+          : { ...entitlement, account_status: 'active' }
       );
+      // Welcome fires strictly on FIRST activation: not for an already-active
+      // user, not for a protected status, and not for a returning customer
+      // whose lapsed ('suspended') subscription is merely being restored.
+      const NO_WELCOME = new Set(['active', 'suspended', 'rejected', 'deactivated']);
+      const maybeWelcome = (existingUser) => {
+        if (!existingUser?.email) return;
+        if (NO_WELCOME.has(existingUser.account_status)) return;
+        sendEmail({ to: existingUser.email, ...welcomeEmail(existingUser.clinician_name || existingUser.full_name) }).catch(() => {});
+      };
       let updated = false;
 
       if (!stripeEnabled() && s.customer && s.subscription) {
@@ -91,8 +111,12 @@ export default async function stripeWebhook(ctx) {
             // Missing user falls through to the email lookup below.
           }
           if (existing) {
-            await entities.User.update(s.client_reference_id, dataFor(existing));
-            updated = true;
+            const data = dataFor(existing);
+            if (data) {
+              await entities.User.update(s.client_reference_id, data);
+              maybeWelcome(existing);
+            }
+            updated = true; // a matched protected account is still "handled"
           }
         } catch {
           // Fall through to email lookup, matching entry.ts's try/catch.
@@ -104,27 +128,45 @@ export default async function stripeWebhook(ctx) {
         const users = await entities.User.filter({});
         const matchedUser = users?.find((u) => u.email?.toLowerCase() === email);
         if (matchedUser) {
-          await entities.User.update(matchedUser.id, dataFor(matchedUser));
+          const data = dataFor(matchedUser);
+          if (data) {
+            await entities.User.update(matchedUser.id, data);
+            maybeWelcome(matchedUser);
+          }
           updated = true;
         }
       }
     }
 
+    // Suspension events must not overwrite a protected terminal status: a
+    // 'rejected' or self-'deactivated' account stays as it is (a billing event
+    // arriving after closure/rejection must not silently relabel it
+    // 'suspended', which would let a later payment reactivate it). Only the
+    // subscription_status (entitlement axis) is updated for those.
+    const suspendData = (existingUser) => (
+      NEVER_ACTIVATE.has(existingUser?.account_status)
+        ? {}
+        : { account_status: 'suspended' }
+    );
+
     if (event.type === 'customer.subscription.deleted' || event.type === 'customer.subscription.paused') {
       const s = event.data?.object || {};
-      const data = { account_status: 'suspended', subscription_status: 'cancelled' };
+      let target = null;
       if (s.metadata?.userId) {
-        await entities.User.update(s.metadata.userId, data);
+        target = await entities.User.get(s.metadata.userId).catch(() => null);
       } else if (s.metadata?.userEmail) {
         const users = await entities.User.filter({ email: s.metadata.userEmail });
-        if (users?.length > 0) await entities.User.update(users[0].id, data);
+        target = users?.[0] || null;
+      }
+      if (target) {
+        await entities.User.update(target.id, { ...suspendData(target), subscription_status: 'cancelled' });
       }
     }
 
     if (event.type === 'invoice.payment_failed') {
       const users = await entities.User.filter({ stripe_customer_id: event.data?.object?.customer });
       if (users?.length > 0) {
-        await entities.User.update(users[0].id, { account_status: 'suspended', subscription_status: 'payment_failed' });
+        await entities.User.update(users[0].id, { ...suspendData(users[0]), subscription_status: 'payment_failed' });
       }
     }
   } catch (err) {

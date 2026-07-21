@@ -564,7 +564,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                       <line x1="74" y1="120" x2="78" y2="130" stroke="#7c3aed" strokeWidth="3.5" strokeLinecap="round"/>
                       {/* NO CROSSOVER label */}
                       <rect x="100" y="55" width="90" height="36" rx="5" fill="#fef2f2" stroke="#fca5a5" strokeWidth="1.5"/>
-                      <text x="145" y="68" textAnchor="middle" fontSize="8" fill="#dc2626" fontWeight="700">âŒ NO CROSSOVER</text>
+                      <text x="145" y="68" textAnchor="middle" fontSize="8" fill="#dc2626" fontWeight="700">❌ NO CROSSOVER</text>
                       <text x="145" y="80" textAnchor="middle" fontSize="7" fill="#ef4444">Feet must NOT cross</text>
                       <text x="145" y="89" textAnchor="middle" fontSize="7" fill="#ef4444">during shuffle</text>
                       <text x="100" y="15" textAnchor="middle" fontSize="9" fill="#1e40af" fontWeight="700">LATERAL SHUFFLE</text>
@@ -642,7 +642,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                       <line x1="102" y1="103" x2="114" y2="116" stroke="#7c3aed" strokeWidth="4" strokeLinecap="round"/>
                       <line x1="114" y1="116" x2="120" y2="128" stroke="#7c3aed" strokeWidth="3.5" strokeLinecap="round"/>
                       {/* Direction of movement arrow */}
-                      <text x="78" y="48" textAnchor="middle" fontSize="7" fill="#be185d" fontWeight="700">â† MOVING</text>
+                      <text x="78" y="48" textAnchor="middle" fontSize="7" fill="#be185d" fontWeight="700">← MOVING</text>
                       <text x="125" y="55" textAnchor="middle" fontSize="7" fill="#7c3aed">FACING →</text>
                       {/* Eyes / gaze direction */}
                       <ellipse cx="104" cy="70" rx="2" ry="1.5" fill="#1e293b"/>
@@ -696,7 +696,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-800 flex items-center gap-2"><CheckCircle2 className="w-4 h-4" />All safety criteria confirmed. Safe to proceed.</div>
               ) : null}
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(0)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(0)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(2)} className="flex-1 bg-amber-500 hover:bg-amber-600">{allSafeClear ? "Proceed to Setup →" : "Override & Continue →"}</Button>
               </div>
             </div>
@@ -766,7 +766,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(3)} className="flex-1 bg-amber-500 hover:bg-amber-600">Start Trials →</Button>
               </div>
             </div>
@@ -857,7 +857,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
               )}
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(2)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(2)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(4)} disabled={!canSave} className="flex-1 bg-amber-500 hover:bg-amber-600">Movement Quality →</Button>
               </div>
             </div>
@@ -885,7 +885,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
                 <p className="font-semibold">{qualityLabel}</p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(3)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(3)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(5)} className="flex-1 bg-amber-500 hover:bg-amber-600">View Results →</Button>
               </div>
             </div>
@@ -1014,7 +1014,7 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
               )}
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(4)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(4)} className="flex-1">← Back</Button>
                 <Button onClick={handleSave} disabled={!canSave} className="flex-1 bg-amber-500 hover:bg-amber-600">
                   <Save className="w-4 h-4 mr-2" />Save Assessment
                 </Button>

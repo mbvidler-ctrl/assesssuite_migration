@@ -17,6 +17,10 @@ dist
 dist-ssr
 *.local
 
+# Local browser-test artefacts
+output/playwright/
+.playwright-cli/
+
 # Local shim server runtime data (SQLite db, uploaded files)
 server/data/
 server/uploads/

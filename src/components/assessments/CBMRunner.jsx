@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Save, Info, Upload, FileText, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
+import { uploadTenantFile } from "@/lib/fileIntegrations";
 
 const CBM_ITEMS = [
   { id: 1, name: "Unilateral Stance", max: 5 },
@@ -26,7 +27,7 @@ const CBM_ITEMS = [
   { id: 13, name: "Walking and Looking", max: 6 }
 ];
 
-export default function CBMRunner({ onSave, onClose }) {
+export default function CBMRunner({ client, onSave, onClose }) {
   const [scores, setScores] = useState({});
   const [assistiveDevice, setAssistiveDevice] = useState("none");
   const [assistanceNeeded, setAssistanceNeeded] = useState("no");
@@ -56,9 +57,17 @@ export default function CBMRunner({ onSave, onClose }) {
   const handleFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    if (!client?.org_id) {
+      toast.error("Client practice is required before uploading a score sheet");
+      return;
+    }
     setUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await uploadTenantFile({
+        file,
+        org_id: client.org_id,
+        purpose: 'clinical-attachment',
+      });
       setUploadedFile({ name: file.name, url: file_url });
       toast.success("Score sheet uploaded successfully");
     } catch (error) {
@@ -265,7 +274,7 @@ export default function CBMRunner({ onSave, onClose }) {
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                    accept=".pdf,.png,.jpg,.jpeg,.docx"
                     onChange={handleFileUpload}
                     className="hidden"
                   />

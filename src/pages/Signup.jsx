@@ -165,7 +165,7 @@ export default function Signup() {
 
           <p className="text-center">
             <a href="/" className="text-slate-400 text-sm hover:text-slate-600">
-              â† Back to Home
+              ← Back to Home
             </a>
           </p>
 

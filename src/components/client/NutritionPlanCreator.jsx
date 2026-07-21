@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Calculator, BookOpen, AlertTriangle, Sparkles, Loader2, FileText } from "lucide-react";
 import { toast } from "sonner";
 import FoodDiaryTemplate from "../nutrition/FoodDiaryTemplate";
+import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 
 export default function NutritionPlanCreator({ isOpen, onClose, client, onSuccess }) {
   const [step, setStep] = useState(1);
@@ -457,7 +458,7 @@ CRITICAL: This is EDUCATION not prescription. Frame as "example of how to meet d
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(1)}>
-                â† Back
+                ← Back
               </Button>
               <Button onClick={() => setStep(3)} className="flex-1">
                 Continue to Advice →
@@ -485,6 +486,7 @@ CRITICAL: This is EDUCATION not prescription. Frame as "example of how to meet d
                 </>
               )}
             </Button>
+            <AIDisclosureNote />
 
             <div>
               <Label>General Healthy Eating Advice</Label>
@@ -531,7 +533,7 @@ CRITICAL: This is EDUCATION not prescription. Frame as "example of how to meet d
 
             <div className="flex gap-2">
               <Button variant="outline" onClick={() => setStep(2)}>
-                â† Back
+                ← Back
               </Button>
               <Button onClick={handleSave} disabled={isSaving} className="flex-1">
                 {isSaving ? "Saving..." : "Create Nutrition Plan"}

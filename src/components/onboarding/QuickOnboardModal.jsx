@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Loader2, UserPlus, Trash2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { findPotentialDuplicates } from "@/lib/clientDuplicates";
+import { ensureFounderOrganization } from "@/lib/profileFounderOrganization";
 
 export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) {
   const [formData, setFormData] = useState({
@@ -42,14 +43,15 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
     }
   }, [isOpen]);
 
+  // Standard wording removed at Max's direction 13 July 2026 — clinician supplies own policy text; pro-forma policies may ship later.
   const DEFAULT_POLICY = {
     show_primary_consent: true, show_privacy_consent: true, show_assessment_consent: true,
     show_pricing_consent: true, show_cancellation_policy: true,
-    consent_primary_text: "I consent to receive clinical assessment and treatment services. I understand that this may involve physical examination, movement assessment, and therapeutic interventions.",
-    consent_privacy_text: "I consent to the collection, storage, and use of my personal health information for the purpose of providing clinical services and maintaining medical records in accordance with privacy regulations.",
-    consent_assessment_text: "I consent to participate in various physical and psychological assessment tests as recommended by my clinician. I understand the purpose, risks, and benefits of these assessments.",
-    consent_pricing_text: "I confirm that the pricing schedule for services has been explained to me and I agree to the stated fees and payment terms.",
-    cancellation_policy_text: "I understand that appointments cancelled with less than 24 hours notice may incur a cancellation fee. I agree to provide adequate notice when cancelling or rescheduling appointments."
+    consent_primary_text: "",
+    consent_privacy_text: "",
+    consent_assessment_text: "",
+    consent_pricing_text: "",
+    cancellation_policy_text: ""
   };
 
   const CONSENT_ITEMS = [
@@ -193,18 +195,8 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
         if (!memberships) memberships = [];
         
         if (memberships.length === 0) {
-          // Auto-create organization for user
-          const newOrg = await base44.entities.Organization.create({
-            name: `${currentUser.full_name || currentUser.email}'s Clinic`
-          });
-          
-          await base44.entities.OrganizationMember.create({
-            org_id: newOrg.id,
-            user_email: currentUser.email,
-            role: 'owner',
-            is_primary: true
-          });
-          
+          const defaultName = `${currentUser.full_name || currentUser.email}'s Clinic`.slice(0, 160);
+          const newOrg = await ensureFounderOrganization({ clinicName: defaultName });
           orgId = newOrg.id;
         } else {
           // Get primary org or first org
@@ -488,9 +480,11 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
                     <label htmlFor={`consent_${item.key}`} className="text-sm font-semibold text-slate-900 cursor-pointer">
                       {item.label}
                     </label>
-                    <p className="text-xs text-slate-600 mt-1">
-                      {(activePolicy || DEFAULT_POLICY)[item.textKey]}
-                    </p>
+                    {(activePolicy || DEFAULT_POLICY)[item.textKey]?.trim() ? (
+                      <p className="text-xs text-slate-600 mt-1">
+                        {(activePolicy || DEFAULT_POLICY)[item.textKey]}
+                      </p>
+                    ) : null}
                   </div>
                 </div>
               ))}

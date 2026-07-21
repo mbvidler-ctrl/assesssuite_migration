@@ -43,6 +43,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openDatabase, createEntityRepository } from './db.mjs';
 import { hashPassword } from './auth.mjs';
 import { buildDass21Payload } from '../src/lib/clinical/dass21.js';
+import {
+  CONTRACT_BUNDLE_IDS,
+  LEGAL_DOCUMENTS,
+  PRACTITIONER_NOTICE_IDS,
+  SUITE_VERSION,
+  fingerprint as legalContentFingerprint,
+  isLegalDocumentPublicationApproved,
+} from '../src/lib/legal/documentRegistry.js';
+import { effectiveLegalContent } from '../src/lib/legal/effectiveContent.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
@@ -360,7 +369,91 @@ function buildCredentialsMarkdown({ adminEmail, adminPassword, seedPassword, use
  * seed log (array of message strings) for callers (e.g. scripts/smoke.mjs)
  * that want to assert on or display it, alongside the key created records.
  */
+/**
+ * Catalogue seeding core — shared verbatim between the full synthetic demo
+ * seed (runSeed) and the production catalogue-only seed (runCatalogueSeed),
+ * so the two paths can never drift. Seeds Assessment / Exercise /
+ * TreatmentProtocol ONLY (only if each table is empty); creates no
+ * organisations, users, clients or acceptances; writes no files.
+ */
+function seedCataloguesCore({ entityNames, repoFor, note, seedCatalogue }) {
+  // Merge the built-in synthetic definitions (which the demo client clusters
+  // and the DASS-21 per-question exemplar depend on) with the imported live
+  // catalogue. Synthetic names win on collision so those wired shapes are
+  // preserved; every other imported assessment is added.
+  const syntheticNames = new Set(CATALOGUE_ASSESSMENTS.map((a) => a.name));
+  const importedAssessments = loadImportedCatalogue('assessment-part')
+    .filter((a) => a && a.name && !syntheticNames.has(a.name));
+  const mergedAssessments = [...CATALOGUE_ASSESSMENTS, ...importedAssessments];
+  note(`Assessment catalogue: ${CATALOGUE_ASSESSMENTS.length} synthetic + ${importedAssessments.length} imported = ${mergedAssessments.length}`);
+  const assessmentCatalogue = seedCatalogue('Assessment', mergedAssessments);
+  seedCatalogue('Exercise', CATALOGUE_EXERCISES);
+
+  // Treatment protocols: the client-authorised live export. The
+  // TreatmentProtocols page is catalogue-only and never falls through to
+  // dynamic clinical generation. Seeding makes reviewed catalogue entries
+  // available on every production startup. Deduplicated on condition_name
+  // (the app's lookup key; first occurrence wins).
+  if (entityNames.has('TreatmentProtocol')) {
+    const seenProtocol = new Set();
+    const importedProtocols = loadImportedCatalogue('treatmentprotocol-part').filter((p) => {
+      if (!p || !p.condition_name || seenProtocol.has(p.condition_name)) return false;
+      seenProtocol.add(p.condition_name);
+      return true;
+    });
+    note(`TreatmentProtocol catalogue: ${importedProtocols.length} imported (deduped on condition_name)`);
+    seedCatalogue('TreatmentProtocol', importedProtocols);
+  }
+  return assessmentCatalogue;
+}
+
+/**
+ * Production seed: catalogues only. No synthetic organisations, users,
+ * clients, acceptances, or credential files — the launch database starts
+ * clean (Brenton's confirmed launch-data position, 12 July 2026), with the
+ * admin bootstrapped separately by server/index.mjs from ADMIN_EMAIL /
+ * ADMIN_PASSWORD. Idempotent: only-if-empty per catalogue table.
+ */
+export function runCatalogueSeed({ db, entityNames }) {
+  function note(message) {
+    // eslint-disable-next-line no-console
+    console.log(`[seed:catalogue] ${message}`);
+  }
+  const repoCache = new Map();
+  function repoFor(entityName) {
+    if (!entityNames.has(entityName)) {
+      throw new Error(`seed-catalogue: entity ${entityName} is not in the captured schema set`);
+    }
+    if (!repoCache.has(entityName)) {
+      repoCache.set(entityName, createEntityRepository(db, entityName));
+    }
+    return repoCache.get(entityName);
+  }
+  function seedCatalogue(entityName, items) {
+    const repo = repoFor(entityName);
+    const existingCount = repo.listAll().length;
+    if (existingCount > 0) {
+      note(`${entityName} catalogue already has ${existingCount} row(s) — leaving as-is`);
+      return repo.listAll();
+    }
+    const created = items.map((item) => repo.create(item, null));
+    note(`${entityName} catalogue seeded with ${created.length} row(s)`);
+    return created;
+  }
+  seedCataloguesCore({ entityNames, repoFor, note, seedCatalogue });
+  note('Catalogue-only seed complete (no synthetic tenants, users, or clients).');
+}
+
+export function assertSyntheticSeedEnvironment(environment = process.env) {
+  if (environment.NODE_ENV === 'production') {
+    throw new Error(
+      'The full synthetic seed is disabled in production; use the bounded production catalogue bootstrap.',
+    );
+  }
+}
+
 export function runSeed({ db, entityNames }) {
+  assertSyntheticSeedEnvironment();
   const log = [];
   function note(message) {
     log.push(message);
@@ -411,7 +504,7 @@ export function runSeed({ db, entityNames }) {
 
   function seedUser({
     email, full_name, clinician_name, qualifications, registration_number,
-    clinic_name, clinic_address, clinic_phone, clinic_email, profession, provider_number,
+    clinic_name, clinic_address, clinic_phone, clinic_email, profession, country, provider_number,
   }) {
     const { password_hash, salt } = hashPassword(SEED_PASSWORD);
     const { record, created } = findOrCreate(
@@ -423,6 +516,7 @@ export function runSeed({ db, entityNames }) {
         role: 'user',
         account_status: 'active',
         subscription_status: 'active',
+        email_verified: true,
         password_hash,
         salt,
         clinician_name,
@@ -433,6 +527,7 @@ export function runSeed({ db, entityNames }) {
         clinic_phone,
         clinic_email,
         profession,
+        country,
         provider_number,
         last_active: new Date().toISOString(),
       },
@@ -453,6 +548,50 @@ export function runSeed({ db, entityNames }) {
       `OrganizationMember ${user.email} -> ${org.name} (${role}) ${created ? 'created' : 'already present'}`,
     );
     return record;
+  }
+
+  // Demo acceptance fixtures are derived from the same registry and exact
+  // runtime presentation transform as production. Owners receive the full
+  // eight-document bundle; clinicians receive the three practitioner notices.
+  function seedLegalAcceptance(org, user, role) {
+    const documentIds = role === 'owner'
+      ? [...PRACTITIONER_NOTICE_IDS, ...CONTRACT_BUNDLE_IDS]
+      : [...PRACTITIONER_NOTICE_IDS];
+    for (const documentId of documentIds) {
+      const document = LEGAL_DOCUMENTS[documentId];
+      if (!isLegalDocumentPublicationApproved(document)) {
+        throw new Error(`Mandatory legal document is not approved for publication: ${documentId}`);
+      }
+      const raw = fs.readFileSync(path.join(repoRoot, 'src', 'legal-content', document.file), 'utf8');
+      const displayed = effectiveLegalContent(raw, {
+        status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',
+        effectiveDate: process.env.LEGAL_EFFECTIVE_DATE || null,
+      });
+      const documentFingerprint = legalContentFingerprint(displayed);
+      findOrCreate(
+        'LegalAcceptanceEvent',
+        (e) => e.org_id === org.id && e.user_email === user.email
+          && e.event_type === document.eventType
+          && e.suite_version === SUITE_VERSION
+          && e.document_id === documentId
+          && e.document_fingerprint === documentFingerprint,
+        {
+          event_type: document.eventType,
+          user_email: user.email,
+          org_id: org.id,
+          suite_version: SUITE_VERSION,
+          actor_capacity: role === 'owner' ? 'practice owner' : 'invited clinician',
+          document_id: documentId,
+          document_title: document.title,
+          document_fingerprint: documentFingerprint,
+          session_context: null,
+          user_agent: 'server-derived-seed-fixture',
+          ip_address: 'not-collected-local-shim',
+        },
+        user.email,
+      );
+    }
+    note(`LegalAcceptanceEvent (${documentIds.length}-document bundle) seeded for ${user.email}`);
   }
 
   // -------------------------------------------------------------------------
@@ -736,9 +875,11 @@ export function runSeed({ db, entityNames }) {
       full_name: 'Local Administrator',
       clinician_name: 'Local Administrator',
       profession: 'Exercise Physiologist',
+      country: 'australia',
       role: 'admin',
       account_status: 'active',
       subscription_status: 'active',
+      email_verified: true,
     };
     const existingAdmin = findOne('User', (u) => u.role === 'admin');
     if (!existingAdmin) {
@@ -776,6 +917,7 @@ export function runSeed({ db, entityNames }) {
     clinic_phone: '07 3111 1111',
     clinic_email: 'reception@org-alpha.seed.test',
     profession: 'Exercise Physiologist',
+    country: 'australia',
     provider_number: 'PRV-ALPHA-001',
   });
   const alphaClinician = seedUser({
@@ -789,6 +931,7 @@ export function runSeed({ db, entityNames }) {
     clinic_phone: '07 3111 1111',
     clinic_email: 'reception@org-alpha.seed.test',
     profession: 'Exercise Physiologist',
+    country: 'australia',
     provider_number: 'PRV-ALPHA-002',
   });
   const betaOwner = seedUser({
@@ -802,6 +945,7 @@ export function runSeed({ db, entityNames }) {
     clinic_phone: '07 3222 2222',
     clinic_email: 'reception@org-beta.seed.test',
     profession: 'Exercise Physiologist',
+    country: 'australia',
     provider_number: 'PRV-BETA-001',
   });
   const betaClinician = seedUser({
@@ -815,6 +959,7 @@ export function runSeed({ db, entityNames }) {
     clinic_phone: '07 3222 2222',
     clinic_email: 'reception@org-beta.seed.test',
     profession: 'Exercise Physiologist',
+    country: 'australia',
     provider_number: 'PRV-BETA-002',
   });
 
@@ -824,36 +969,15 @@ export function runSeed({ db, entityNames }) {
   seedOrgMember(orgBeta, betaOwner, 'owner');
   seedOrgMember(orgBeta, betaClinician, 'clinician');
 
-  // --- Catalogues (only if empty) ---
-  // Merge the built-in synthetic definitions (which the client clusters and the
-  // DASS-21 per-question exemplar depend on) with the imported live catalogue.
-  // Synthetic names win on collision so those wired shapes are preserved; every
-  // other imported assessment is added, giving the full launch-state library.
-  const syntheticNames = new Set(CATALOGUE_ASSESSMENTS.map((a) => a.name));
-  const importedAssessments = loadImportedCatalogue('assessment-part')
-    .filter((a) => a && a.name && !syntheticNames.has(a.name));
-  const mergedAssessments = [...CATALOGUE_ASSESSMENTS, ...importedAssessments];
-  note(`Assessment catalogue: ${CATALOGUE_ASSESSMENTS.length} synthetic + ${importedAssessments.length} imported = ${mergedAssessments.length}`);
-  const assessmentCatalogue = seedCatalogue('Assessment', mergedAssessments);
-  seedCatalogue('Exercise', CATALOGUE_EXERCISES);
+  // --- Legal acceptance (mandatory practitioner notices) ---
+  seedLegalAcceptance(orgAlpha, alphaOwner, 'owner');
+  seedLegalAcceptance(orgAlpha, alphaClinician, 'clinician');
+  seedLegalAcceptance(orgBeta, betaOwner, 'owner');
+  seedLegalAcceptance(orgBeta, betaClinician, 'clinician');
 
-  // Treatment protocols: load the client-authorised live export (same catalogue
-  // export that produced the assessment library). The TreatmentProtocols page
-  // does a cache lookup by condition_name and only calls the model on a miss —
-  // so seeding these curated, reference-grounded protocols makes matched
-  // conditions render instantly AND avoids a model call (and its credit spend)
-  // for each one. Deduplicated on condition_name (the app's lookup key; first
-  // occurrence wins) so the export's intentional variants collapse cleanly.
-  if (entityNames.has('TreatmentProtocol')) {
-    const seenProtocol = new Set();
-    const importedProtocols = loadImportedCatalogue('treatmentprotocol-part').filter((p) => {
-      if (!p || !p.condition_name || seenProtocol.has(p.condition_name)) return false;
-      seenProtocol.add(p.condition_name);
-      return true;
-    });
-    note(`TreatmentProtocol catalogue: ${importedProtocols.length} imported (deduped on condition_name)`);
-    seedCatalogue('TreatmentProtocol', importedProtocols);
-  }
+  // --- Catalogues (only if empty) --- shared core with the production
+  // catalogue-only seed (runCatalogueSeed) so the two paths cannot drift.
+  const assessmentCatalogue = seedCataloguesCore({ entityNames, repoFor, note, seedCatalogue });
 
   // --- Org Alpha clients (4, incl. one deliberate near-duplicate pair for G7) ---
   const graceEllington = seedClientCluster({
@@ -1006,6 +1130,10 @@ function isMainModule() {
 }
 
 if (isMainModule()) {
+  // Refuse before openDatabase() can create, migrate or otherwise touch the
+  // production store. The production image has a separate catalogue-only
+  // entry point and must never pass through this demo-data command.
+  assertSyntheticSeedEnvironment();
   const { db, entityNames } = openDatabase();
   runSeed({ db, entityNames });
 }

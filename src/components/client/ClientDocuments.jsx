@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { uploadTenantFile } from '@/lib/fileIntegrations';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,7 +29,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import ClientDataExtractor from '../documents/ClientDataExtractor';
+import { SecureFileLink } from '@/components/files/SecureFile';
 
 const documentTypeLabels = {
   referral: 'Referral',
@@ -48,7 +49,7 @@ const documentTypeColors = {
   other: 'bg-slate-100 text-slate-800'
 };
 
-export default function ClientDocuments({ clientId, client, allAssessments = [], onDataExtracted }) {
+export default function ClientDocuments({ clientId, client }) {
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -56,7 +57,6 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadType, setUploadType] = useState('other');
-  const [showExtractor, setShowExtractor] = useState(false);
 
   useEffect(() => {
     loadDocuments();
@@ -79,7 +79,6 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
       toast.error('Please select a file');
       return;
     }
-
     setIsUploading(true);
     try {
       // Get fresh client data to ensure we have org_id
@@ -93,7 +92,11 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
         throw new Error('Client is missing organization ID. Please contact support.');
       }
       
-      const { file_url } = await base44.integrations.Core.UploadFile({ file: uploadFile });
+      const { file_url } = await uploadTenantFile({
+        file: uploadFile,
+        org_id: clientRecord.org_id,
+        purpose: 'clinical-attachment',
+      });
       
       await base44.entities.ClientDocument.create({
         org_id: clientRecord.org_id,
@@ -137,8 +140,6 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
     return <File className="w-4 h-4" />;
   };
 
-  const documentUrls = documents.map(doc => doc.file_url);
-
   return (
     <>
       <AlertDialog open={!!deleteDoc} onOpenChange={(open) => !open && setDeleteDoc(null)}>
@@ -166,17 +167,6 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
               Documents
             </CardTitle>
             <div className="flex items-center gap-2">
-              {documents.length > 0 && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowExtractor(!showExtractor)}
-                  className="border-blue-300 hover:bg-blue-50"
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Scan for Data
-                </Button>
-              )}
               <Button 
                 variant="outline" 
                 size="sm"
@@ -189,18 +179,6 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {showExtractor && documents.length > 0 && (
-            <ClientDataExtractor
-              fileUrls={documentUrls}
-              client={client}
-              allAssessments={allAssessments}
-              onExtracted={() => {
-                setShowExtractor(false);
-                if (onDataExtracted) onDataExtracted();
-              }}
-            />
-          )}
-
           {showUploadForm && (
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
               <div>
@@ -222,7 +200,7 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
                   type="file"
                   onChange={(e) => setUploadFile(e.target.files[0])}
                   className="mt-1"
-                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                  accept=".pdf,.png,.jpg,.jpeg,.docx"
                 />
               </div>
               <div className="flex gap-2">
@@ -280,12 +258,20 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
                   </div>
                   <div className="flex items-center gap-1 ml-2">
                     <Button 
+                      asChild
                       variant="ghost" 
                       size="icon"
                       className="h-8 w-8"
-                      onClick={() => window.open(doc.file_url, '_blank')}
                     >
-                      <ExternalLink className="w-4 h-4" />
+                      <SecureFileLink
+                        href={doc.file_url}
+                        orgId={client?.org_id || doc.org_id}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`Open ${doc.file_name || 'document'}`}
+                      >
+                        <ExternalLink className="w-4 h-4" />
+                      </SecureFileLink>
                     </Button>
                     <Button 
                       variant="ghost" 

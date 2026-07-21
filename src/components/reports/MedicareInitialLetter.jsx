@@ -10,8 +10,10 @@ import { ClientCondition, ClientAssessment, Assessment, User, ClientReport } fro
 import { InvokeLLM } from "@/integrations/Core";
 import { Printer, Loader2, ChevronLeft, ChevronRight, X, Save, Edit } from "lucide-react";
 import { Toaster, toast } from "sonner";
+import { SecureFileImage } from "@/components/files/SecureFile";
 import { format } from 'date-fns';
 import { todayLocal } from "@/lib/localDate";
+import { renderSafeHtmlDocument, replaceWithSafeHtml, sanitizeHtml, sanitizeHtmlWithBreaks } from "@/lib/safeHtml";
 
 const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref) => {
   const formatDate = (date) => {
@@ -75,7 +77,7 @@ const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref
 
       <div className="clinic-header">
         {clinician?.clinic_logo_url ? (
-          <img src={clinician.clinic_logo_url} alt="Clinic Logo" />
+          <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" />
         ) : (
           <h2 style={{ margin: 0, color: '#000' }}>{clinician?.clinic_name || ""}</h2>
         )}
@@ -122,14 +124,14 @@ const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref
 
         <div className="section-title">Presenting Conditions</div>
         {reportData.conditions_html ? (
-          <div dangerouslySetInnerHTML={{ __html: reportData.conditions_html }} />
+          <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(reportData.conditions_html) }} />
         ) : (
           <p>No conditions documented.</p>
         )}
 
         <div className="section-title">Assessment Findings</div>
         {reportData.assessments_html ? (
-          <div dangerouslySetInnerHTML={{ __html: reportData.assessments_html }} />
+          <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(reportData.assessments_html) }} />
         ) : (
           <p>No assessments documented.</p>
         )}
@@ -137,14 +139,14 @@ const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref
         {reportData.goals && (
           <>
             <div className="section-title">Treatment Goals</div>
-            <div dangerouslySetInnerHTML={{ __html: reportData.goals.replace(/\n/g, '<br />') }} />
+            <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.goals) }} />
           </>
         )}
 
         {reportData.management_plan && (
           <>
             <div className="section-title">Proposed Management Plan</div>
-            <div dangerouslySetInnerHTML={{ __html: reportData.management_plan.replace(/\n/g, '<br />') }} />
+            <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.management_plan) }} />
           </>
         )}
 
@@ -375,15 +377,15 @@ export default function MedicareInitialLetter({ client, onClose, editingReport }
     if (!printWindow) {
       toast.warning("Popup blocked. Using current window print...");
       const originalContent = document.body.innerHTML;
-      document.body.innerHTML = printRef.current.innerHTML;
+      replaceWithSafeHtml(document.body, printRef.current.innerHTML);
       window.print();
-      document.body.innerHTML = originalContent;
+      replaceWithSafeHtml(document.body, originalContent);
       window.location.reload();
       return;
     }
 
     try {
-      printWindow.document.write(`
+      renderSafeHtmlDocument(printWindow, `
         <!DOCTYPE html>
         <html>
         <head>
@@ -395,8 +397,6 @@ export default function MedicareInitialLetter({ client, onClose, editingReport }
         </body>
         </html>
       `);
-      
-      printWindow.document.close();
       
       setTimeout(() => {
         printWindow.focus();
@@ -732,7 +732,7 @@ export default function MedicareInitialLetter({ client, onClose, editingReport }
                 <div>
                   <h4 className="font-semibold text-slate-800 mb-2">Presenting Conditions</h4>
                   {reportData.conditions_html ? (
-                    <div dangerouslySetInnerHTML={{ __html: reportData.conditions_html }} />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(reportData.conditions_html) }} />
                   ) : (
                     <p className="text-slate-500">No conditions documented</p>
                   )}
@@ -741,7 +741,7 @@ export default function MedicareInitialLetter({ client, onClose, editingReport }
                 <div>
                   <h4 className="font-semibold text-slate-800 mb-2">Assessment Results</h4>
                   {reportData.assessments_html ? (
-                    <div dangerouslySetInnerHTML={{ __html: reportData.assessments_html }} />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(reportData.assessments_html) }} />
                   ) : (
                     <p className="text-slate-500">No assessments documented</p>
                   )}
@@ -750,7 +750,7 @@ export default function MedicareInitialLetter({ client, onClose, editingReport }
                 <div>
                   <h4 className="font-semibold text-slate-800 mb-2">Goals</h4>
                   {reportData.goals ? (
-                    <div dangerouslySetInnerHTML={{ __html: reportData.goals.replace(/\n/g, '<br />') }} />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.goals) }} />
                   ) : (
                     <p className="text-slate-500">No goals specified</p>
                   )}
@@ -759,7 +759,7 @@ export default function MedicareInitialLetter({ client, onClose, editingReport }
                 <div>
                   <h4 className="font-semibold text-slate-800 mb-2">Management Plan</h4>
                   {reportData.management_plan ? (
-                    <div dangerouslySetInnerHTML={{ __html: reportData.management_plan.replace(/\n/g, '<br />') }} />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.management_plan) }} />
                   ) : (
                     <p className="text-slate-500">No plan specified</p>
                   )}

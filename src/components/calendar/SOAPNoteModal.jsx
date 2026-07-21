@@ -10,6 +10,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { uploadTenantFile } from "@/lib/fileIntegrations";
+import { buildSoapHistoryPrintHtml, renderSafeHtmlDocument } from "@/lib/safeHtml";
 import { X, Save, ChevronLeft, ChevronRight, Lock, Edit, History, Printer, Calendar, Clock, MapPin, Trash2, AlertTriangle, RefreshCw, Mic, Square, Loader2, Activity, ClipboardList, Sparkles, Paperclip, Upload, FileText, Copy, Check } from "lucide-react";
 import {
   Accordion,
@@ -43,10 +45,15 @@ import {
 } from "@/components/ui/select";
 import AppointmentReminderModal from './AppointmentReminderModal';
 import VitalsQuickEntry from './VitalsQuickEntry';
+import { SecureFileAudio, SecureFileLink } from '@/components/files/SecureFile';
 import PendingAssessmentsModal from './PendingAssessmentsModal';
 import AssessmentTestRunnerRouter from '../assessments/AssessmentTestRunnerRouter';
 import ComplianceSection from './ComplianceSection';
 import { todayLocal } from "@/lib/localDate";
+import { recordLegalEvent } from "@/lib/legal/recordAcceptance";
+import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
+import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
+import { useAuth } from "@/lib/AuthContext";
 
 export default function SOAPNoteModal({
   appointment,
@@ -57,6 +64,11 @@ export default function SOAPNoteModal({
   hasNext = false,
   sessionInfo = null
 }) {
+  // Transcription launch switch (public settings, server-enforced too):
+  // recording stays available; Transcribe/Dissect surfaces hide when off.
+  const { appPublicSettings } = useAuth();
+  const transcriptionEnabled = appPublicSettings?.public_settings?.transcription_enabled === true;
+
   const [soapNote, setSoapNote] = useState(null);
   const [originalSoapNote, setOriginalSoapNote] = useState(null);
   const [assessments, setAssessments] = useState([]);
@@ -96,6 +108,7 @@ export default function SOAPNoteModal({
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [isSavingAudio, setIsSavingAudio] = useState(false);
+  const [showRecordingConsent, setShowRecordingConsent] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
@@ -438,9 +451,34 @@ export default function SOAPNoteModal({
     toast.success("Session details updated");
   };
 
+  // Recording consent is captured per session, immediately before capture
+  // starts — not at signup — per policy-suite doc 27 clause 2 ("Recording/
+  // transcription consent ... per participant and session/function", a
+  // requirement that a signup-time tick cannot satisfy). This records the
+  // clinician's own consent-and-authority event for this specific session;
+  // the client's own consent remains the treating practice's separate duty
+  // under the Patient Collection Notice and Consent Pack (policy-suite doc 12).
+  const handleConfirmRecording = async () => {
+    setShowRecordingConsent(false);
+    try {
+      await recordLegalEvent({
+        eventType: EVENT_TYPES.RECORDING_CONSENT,
+        userEmail: currentUser?.email,
+        orgId: client?.org_id,
+        actorCapacity: "clinician",
+        sessionContext: soapNote?.id || appointment?.id || `virtual-${client?.id}-${Date.now()}`,
+      });
+    } catch (error) {
+      console.error("Failed to record recording consent", error);
+      toast.error("Failed to record consent. Recording not started.");
+      return;
+    }
+    startRecording();
+  };
+
   const startRecording = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
+      const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
@@ -487,7 +525,11 @@ export default function SOAPNoteModal({
     setIsSavingAudio(true);
     try {
       const audioFile = new File([audioBlob], `session-${Date.now()}.webm`, { type: 'audio/webm' });
-      const { file_url } = await base44.integrations.Core.UploadFile({ file: audioFile });
+      const { file_url } = await uploadTenantFile({
+        file: audioFile,
+        org_id: client.org_id,
+        purpose: 'audio-transcription',
+      });
 
       const newAudioEntry = {
         url: file_url,
@@ -609,7 +651,11 @@ export default function SOAPNoteModal({
     setIsUploadingAttachment(true);
     try {
       // Upload file to storage
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await uploadTenantFile({
+        file,
+        org_id: client.org_id,
+        purpose: 'clinical-attachment',
+      });
 
       // Create document record in ClientDocument entity
       const documentData = {
@@ -816,12 +862,8 @@ export default function SOAPNoteModal({
 
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     if (printWindow) {
-        printWindow.document.write('<html><head><title>SOAP Note</title>');
-        printWindow.document.write('<style>@media print { body { -webkit-print-color-adjust: exact; } }</style>');
-        printWindow.document.write('</head><body>');
         // Pass location_name and location_id from sessionDetails to the PrintableSOAPNote component
-        printWindow.document.write(printRef.current.innerHTML);
-        printWindow.document.close();
+        renderSafeHtmlDocument(printWindow, `<html><head><title>SOAP Note</title><style>@media print { body { -webkit-print-color-adjust: exact; } }</style></head><body>${printRef.current.innerHTML}</body></html>`);
         printWindow.focus();
         setTimeout(() => {
           printWindow.print();
@@ -1198,7 +1240,7 @@ export default function SOAPNoteModal({
                 {!isRecording ? (
                   !isLocked && (
                     <Button
-                      onClick={startRecording}
+                      onClick={() => setShowRecordingConsent(true)}
                       disabled={isSavingAudio || isTranscribing}
                       className="bg-purple-600 hover:bg-purple-700"
                       size="sm"
@@ -1235,7 +1277,7 @@ export default function SOAPNoteModal({
                             </span>
                           )}
                         </p>
-                        {!isLocked && (
+                        {transcriptionEnabled && !isLocked && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -1252,17 +1294,14 @@ export default function SOAPNoteModal({
                           </Button>
                         )}
                       </div>
-                      <audio controls className="w-full h-8">
-                        <source src={audio.url} type="audio/webm" />
-                        Your browser does not support the audio element.
-                      </audio>
+                      <SecureFileAudio src={audio.url} orgId={client.org_id} controls className="w-full h-8" />
                     </div>
                   ))
                 ) : soapNote?.session_audio_url && (
                   <div className="bg-white rounded-lg p-2 border border-purple-100">
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-xs font-medium text-slate-700">Session Recording</p>
-                      {!isLocked && (
+                      {transcriptionEnabled && !isLocked && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1279,17 +1318,14 @@ export default function SOAPNoteModal({
                         </Button>
                       )}
                     </div>
-                    <audio controls className="w-full h-8">
-                      <source src={soapNote.session_audio_url} type="audio/webm" />
-                      Your browser does not support the audio element.
-                    </audio>
+                    <SecureFileAudio src={soapNote.session_audio_url} orgId={client.org_id} controls className="w-full h-8" />
                   </div>
                 )}
               </div>
             )}
 
             {/* Transcript panel: populated by transcribeAudio, consumed by dissectToSOAP */}
-            {showTranscriptPanel && (
+            {transcriptionEnabled && showTranscriptPanel && (
               <div className="mt-3 bg-white rounded-lg p-3 border border-purple-100">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-medium text-slate-700">Session Transcript</p>
@@ -1332,6 +1368,7 @@ export default function SOAPNoteModal({
                     </Button>
                   </div>
                 )}
+                <AIDisclosureNote className="mt-2" />
               </div>
             )}
 
@@ -1475,6 +1512,7 @@ export default function SOAPNoteModal({
                 placeholder="Your professional interpretation of the subjective and objective data—what it means, the likely condition, contributing factors, and progress."
                 className={`mt-2 ${isLocked ? 'bg-slate-50' : ''} placeholder:text-slate-400`}
                 />
+                <AIDisclosureNote className="mt-1" />
                 </div>
 
                 <div>
@@ -1488,7 +1526,7 @@ export default function SOAPNoteModal({
                             type="file"
                             onChange={handleAttachmentUpload}
                             className="hidden"
-                            accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
+                            accept=".pdf,.docx,.jpg,.jpeg,.png"
                           />
                           <Button
                             variant="outline"
@@ -1567,15 +1605,17 @@ export default function SOAPNoteModal({
                 placeholder="What will happen next: treatment plan, exercises, education, referrals, goals for the next session, and any follow-up actions."
                 className={`mt-2 ${isLocked ? 'bg-slate-50' : ''} placeholder:text-slate-400`}
                 />
-                
+                <AIDisclosureNote className="mt-1" />
+
                 {/* Plan Attachments */}
                 {soapNote?.plan_attachments && soapNote.plan_attachments.length > 0 && (
                   <div className="mt-3 space-y-2">
                     <p className="text-sm font-medium text-slate-700">Attachments:</p>
                     {soapNote.plan_attachments.map((attachment, index) => (
                       <div key={index} className="flex items-center justify-between bg-blue-50 border border-blue-200 rounded-lg p-3">
-                        <a
+                        <SecureFileLink
                           href={attachment.file_url}
+                          orgId={client.org_id}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-2 text-blue-600 hover:text-blue-800 flex-1"
@@ -1585,7 +1625,7 @@ export default function SOAPNoteModal({
                           <span className="text-xs text-slate-500">
                             ({moment(attachment.uploaded_at).format('MMM D, YYYY')})
                           </span>
-                        </a>
+                        </SecureFileLink>
                         {!isLocked && (
                           <Button
                             variant="ghost"
@@ -1631,28 +1671,21 @@ export default function SOAPNoteModal({
                                           onClick={() => {
                                             const printWindow = window.open('', '_blank', 'width=800,height=600');
                                             if (printWindow) {
-                                              const historyHtml = soapNote.history.slice().reverse().map(entry => `
-                                                <div style="margin-bottom: 16px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px;">
-                                                  <p style="font-weight: 600; margin: 0 0 4px 0;">
-                                                    <span style="text-transform: capitalize;">${entry.action}</span> by ${entry.user_email}
-                                                  </p>
-                                                  <p style="color: #64748b; font-size: 12px; margin: 0;">
-                                                    ${moment(entry.timestamp).format('LLL')}
-                                                  </p>
-                                                </div>
-                                              `).join('');
+                                              // The referral pathway can populate client names from untrusted
+                                              // document content. Keep every persisted value in a text context,
+                                              // sever opener access, and apply a print-document CSP before writing.
+                                              printWindow.opener = null;
+                                              const printHtml = buildSoapHistoryPrintHtml({
+                                                clientName: client.full_name,
+                                                noteDate: moment(soapNote.note_date).format('LL'),
+                                                history: soapNote.history.slice().reverse().map((entry) => ({
+                                                  action: entry.action,
+                                                  userEmail: entry.user_email,
+                                                  timestamp: moment(entry.timestamp).format('LLL'),
+                                                })),
+                                              });
 
-                                              printWindow.document.write(`
-                                                <html>
-                                                  <head><title>SOAP Note History - ${client.full_name}</title></head>
-                                                  <body style="font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
-                                                    <h1 style="font-size: 24px; margin-bottom: 8px;">SOAP Note History</h1>
-                                                    <p style="color: #64748b; margin-bottom: 24px;">Client: ${client.full_name} | Note Date: ${moment(soapNote.note_date).format('LL')}</p>
-                                                    ${historyHtml}
-                                                  </body>
-                                                </html>
-                                              `);
-                                              printWindow.document.close();
+                                              renderSafeHtmlDocument(printWindow, printHtml);
                                               printWindow.focus();
                                               setTimeout(() => {
                                                 printWindow.print();
@@ -1886,6 +1919,31 @@ export default function SOAPNoteModal({
               className="bg-red-600 hover:bg-red-700"
             >
               Delete SOAP Note
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Recording consent — captured per session, immediately before capture
+          starts (see handleConfirmRecording). Distinct from, and in addition
+          to, the client's own consent obtained by the treating practice. */}
+      <AlertDialog open={showRecordingConsent} onOpenChange={setShowRecordingConsent}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Session recording consent</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>Before recording this session, confirm:</p>
+              <ul className="list-disc pl-5 space-y-1 text-sm">
+                <li>You have obtained the client's (and any other participant's) consent to record this session, in accordance with your state or territory's recording laws.</li>
+                <li>The recording will be uploaded and, if you request transcription, sent to AssessSuite's transcription provider.</li>
+                <li>Your own consent to this recording and its processing is being logged for this specific session.</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmRecording} className="bg-purple-600 hover:bg-purple-700">
+              Confirm and start recording
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1,0 +1,55 @@
+# Fly.io configuration — AssessSuite PRODUCTION compatibility rollback.
+#
+# This file is reviewed and committed beside fly.production.toml in the same
+# immutable default-branch revision. It intentionally runs the exact same code
+# and data migrations while disabling referral/document extraction. The trusted
+# release workflow builds and proves both configurations from that one revision
+# before it changes the live machine.
+
+app = "assesssuite-production"
+primary_region = "syd"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[processes]
+  app = "node server/productionBootstrap.mjs && exec node server/index.mjs"
+
+[env]
+  PORT = "8787"
+  ALLOW_OPEN_REGISTRATION = "1"
+  ADMIN_EMAIL = "admin@assesssuite.com"
+  OUTBOUND_EMAIL_ENABLED = "1"
+  OUTBOUND_SMS_ENABLED = "0"
+  PAYMENTS_ENABLED = "1"
+  UPLOADS_DIR = "/app/server/data/uploads"
+  LLM_REQUIRED = "1"
+  GENERAL_CLINICAL_LLM_ENABLED = "0"
+  TRANSCRIPTION_ENABLED = "0"
+  DOCUMENT_EXTRACTION_ENABLED = "0"
+  DOCUMENT_EXTRACTION_UNDER_13_ENABLED = "0"
+  OPENAI_HEALTH_DATA_TERMS_CONFIRMED = "1"
+  UPLOAD_AUDIT_RETENTION_DAYS = "730"
+  UPLOAD_CLEANUP_INTERVAL_MINUTES = "1"
+  LEGAL_STATUS = "effective"
+  LEGAL_EFFECTIVE_DATE = "19 July 2026"
+  LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS = "RC-2026.07.11,RC-2026.07.19"
+
+[mounts]
+  source = "assesssuite_data"
+  destination = "/app/server/data"
+  snapshot_retention = 5
+  scheduled_snapshots = true
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

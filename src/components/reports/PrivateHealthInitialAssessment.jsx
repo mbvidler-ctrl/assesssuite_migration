@@ -10,8 +10,10 @@ import { ClientCondition, ClientAssessment, Assessment, User, ClientReport } fro
 import { InvokeLLM } from "@/integrations/Core";
 import { ChevronLeft, ChevronRight, Loader2, Printer, Sparkles, Save, Edit, X } from "lucide-react";
 import { Toaster, toast } from "sonner";
+import { SecureFileImage } from "@/components/files/SecureFile";
 import { format } from 'date-fns';
 import { todayLocal } from "@/lib/localDate";
+import { renderSafeHtmlDocument, replaceWithSafeHtml, sanitizeHtmlWithBreaks } from "@/lib/safeHtml";
 
 const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref) => {
   const formatDate = (date) => {
@@ -106,7 +108,7 @@ const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref
       {/* Clinic Header */}
       <div className="clinic-header">
         {clinician?.clinic_logo_url && (
-          <img src={clinician.clinic_logo_url} alt="Clinic Logo" />
+          <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" />
         )}
         <div className="clinic-details">
           <strong>{clinician?.clinic_name || ""}</strong><br />
@@ -298,7 +300,7 @@ const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref
         {reportData.clinical_interpretation && (
           <>
             <div className="section-heading">Clinical Interpretation</div>
-            <div dangerouslySetInnerHTML={{ __html: reportData.clinical_interpretation.replace(/\n/g, '<br />') }} />
+            <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.clinical_interpretation) }} />
           </>
         )}
 
@@ -306,7 +308,7 @@ const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref
         {(reportData.management_plan || reportData.treatment_plan) && (
           <>
             <div className="section-heading">Proposed Management Plan</div>
-            <div dangerouslySetInnerHTML={{ __html: (reportData.management_plan || reportData.treatment_plan).replace(/\n/g, '<br />') }} />
+            <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.management_plan || reportData.treatment_plan) }} />
           </>
         )}
 
@@ -332,7 +334,7 @@ const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref
         {reportData.recommendations && (
           <>
             <div className="section-heading">Recommendations</div>
-            <div dangerouslySetInnerHTML={{ __html: reportData.recommendations.replace(/\n/g, '<br />') }} />
+            <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.recommendations) }} />
           </>
         )}
 
@@ -929,15 +931,15 @@ ${currentPlan}`;
     if (!printWindow) {
       // Fallback for browsers blocking pop-ups
       const originalContent = document.body.innerHTML;
-      document.body.innerHTML = printRef.current.outerHTML;
+      replaceWithSafeHtml(document.body, printRef.current.outerHTML);
       window.print();
-      document.body.innerHTML = originalContent;
+      replaceWithSafeHtml(document.body, originalContent);
       window.location.reload(); 
       return;
     }
 
     try {
-      printWindow.document.write(`
+      renderSafeHtmlDocument(printWindow, `
         <!DOCTYPE html>
         <html>
         <head>
@@ -949,8 +951,6 @@ ${currentPlan}`;
         </body>
         </html>
       `);
-      
-      printWindow.document.close();
       
       setTimeout(() => {
         printWindow.focus();

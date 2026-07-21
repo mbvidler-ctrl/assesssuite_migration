@@ -5,7 +5,8 @@
 // webhook signature verification.
 //
 // Mode selection is a single switch — stripeEnabled(), below. When it
-// returns false (the default: no STRIPE_SECRET_KEY, or SELFTEST=1), no code
+// returns false (the default: PAYMENTS_ENABLED is not exactly 1, no
+// STRIPE_SECRET_KEY, SELFTEST=1, or parity assurance mode), no code
 // in this module is reachable from the four functions and the existing
 // deterministic mock (server/mocks/stripe.mjs) serves everything, so the
 // demo's behaviour is unchanged. When a key is supplied, each function
@@ -30,15 +31,21 @@ const REQUEST_TIMEOUT_MS = 20_000;
 const WEBHOOK_TOLERANCE_SECONDS = 300; // 5 minutes, per Stripe's own default
 
 /**
- * True only when a real Stripe key is configured AND this is not a
- * self-test run. SELFTEST=1 always forces the mock path regardless of any
- * key present in the environment, so `npm run selftest` can never touch the
- * network. This is the single mode switch — the four functions branch on
- * this helper and nothing else.
+ * True only when PAYMENTS_ENABLED is exactly 1, a real Stripe key is
+ * configured, and this is neither a self-test nor parity-assurance run.
+ * SELFTEST=1 and PARITY_ASSURANCE_MODE=1 always force the mock path regardless
+ * of any inherited key, so those postures cannot touch the Stripe network.
+ * Ordinary payment functions branch on this helper; the network sink repeats
+ * the gate independently so a direct gateway import cannot bypass it.
  */
-export function stripeEnabled() {
-  if (process.env.SELFTEST === '1') return false;
-  const key = process.env.STRIPE_SECRET_KEY;
+function paymentsGateEnabled(environment = process.env) {
+  if (environment.SELFTEST === '1' || environment.PARITY_ASSURANCE_MODE === '1') return false;
+  return environment.PAYMENTS_ENABLED === '1';
+}
+
+export function stripeEnabled(environment = process.env) {
+  if (!paymentsGateEnabled(environment)) return false;
+  const key = environment.STRIPE_SECRET_KEY;
   return typeof key === 'string' && key.trim() !== '';
 }
 
@@ -66,6 +73,15 @@ export class StripeApiError extends Error {
  * their URLSearchParams. GET requests carry params in the query string.
  */
 async function stripeRequest(method, apiPath, params = []) {
+  // Enforce the capability at the network sink as well as at every ordinary
+  // caller's mode branch. An imported gateway method must never turn a secret
+  // alone into authority for a real payment request.
+  if (!paymentsGateEnabled()) {
+    throw new StripeApiError('Real payment flows are disabled by PAYMENTS_ENABLED', {
+      status: 0,
+      code: 'payments_disabled',
+    });
+  }
   const key = (process.env.STRIPE_SECRET_KEY || '').trim();
   if (!key) {
     throw new StripeApiError('STRIPE_SECRET_KEY is not set', { status: 0 });
@@ -141,13 +157,38 @@ export async function createCheckoutSession({ priceId, userId, userEmail, succes
 
 /**
  * POST /v1/billing_portal/sessions — customer billing portal.
+ * When `flow` is provided ('subscription_update' | 'payment_method_update'),
+ * flow_data[type] is added so the portal opens directly on that flow; the
+ * pair is omitted entirely when `flow` is absent (stripeRequest drops empty
+ * values), preserving the plain-portal behaviour.
  * Returns the full session object; callers read `session.url`.
  */
-export async function createPortalSession({ stripeCustomerId, returnUrl }) {
-  return stripeRequest('POST', '/v1/billing_portal/sessions', [
+export async function createPortalSession({ stripeCustomerId, returnUrl, flow, subscriptionId }) {
+  const params = [
     ['customer', stripeCustomerId],
     ['return_url', returnUrl],
-  ]);
+  ];
+  // Stripe requires the subscription id inside flow_data[subscription_update]
+  // whenever the flow type is 'subscription_update'; sending the type alone is
+  // a 400. Only request that flow when the id is available — otherwise fall
+  // back to the plain portal rather than error a subscription-less caller.
+  if (flow === 'subscription_update') {
+    if (subscriptionId) {
+      params.push(['flow_data[type]', 'subscription_update']);
+      params.push(['flow_data[subscription_update][subscription]', subscriptionId]);
+    }
+  } else if (flow) {
+    params.push(['flow_data[type]', flow]);
+  }
+  return stripeRequest('POST', '/v1/billing_portal/sessions', params);
+}
+
+/**
+ * DELETE /v1/subscriptions/{id} — cancels a subscription immediately.
+ * Returns the cancelled subscription object (status 'canceled').
+ */
+export async function cancelSubscription(subscriptionId) {
+  return stripeRequest('DELETE', `/v1/subscriptions/${encodeURIComponent(subscriptionId)}`);
 }
 
 /**

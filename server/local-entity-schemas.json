@@ -16,6 +16,37 @@
           "payment_method": { "type": "string", "description": "e.g. card, cash, direct-deposit, funding-scheme" }
         }
       }
+    },
+    {
+      "entity_name": "LegalAcceptanceEvent",
+      "source": "local-addition 2026-07-13 (launch/legal-and-consent-integration)",
+      "reason": "Replaces the old LegalAcceptance stub (one monolithic, versioned-by-a-hardcoded-string record) with the distinct-event model required by the AssessSuite Legal Acceptance and Versioning Specification (policy-suite-20260711/27) — every acceptance, acknowledgement or consent is its own immutable, individually typed record. See src/lib/legal/documentRegistry.js for the event-type/document mapping this schema mirrors.",
+      "entity_schema": {
+        "properties": {
+          "event_type": {
+            "type": "string",
+            "enum": [
+              "contract_acceptance",
+              "collection_notice_acknowledgement",
+              "professional_use_acknowledgement",
+              "ai_transparency_consent",
+              "marketing_consent",
+              "recording_consent"
+            ],
+            "description": "Which distinct legal event this record evidences — never bundle more than one type per row"
+          },
+          "user_email": { "type": "string", "description": "Actor who performed the affirmative action" },
+          "org_id": { "type": "string", "description": "Organisation the actor belonged to at the time (owning org for scoping)" },
+          "actor_capacity": { "type": "string", "description": "e.g. practice owner / invited clinician / patient representative" },
+          "suite_version": { "type": "string", "description": "Policy suite version shown, e.g. RC-2026.07.11 — must match src/lib/legal/documentRegistry.js SUITE_VERSION" },
+          "document_id": { "type": "string", "description": "Registry id of the document this event relates to (documentRegistry.js), null for events with no single bound document" },
+          "document_title": { "type": "string", "description": "Snapshot of the document title as displayed, independent of later registry renames" },
+          "document_fingerprint": { "type": "string", "description": "SHA-256 content fingerprint of the exact text shown (documentRegistry.js fingerprint())" },
+          "session_context": { "type": "string", "description": "For recording_consent: the appointment/SOAP-note id the consent covers. Null for signup-time events." },
+          "user_agent": { "type": "string", "description": "Browser user agent at the time of the affirmative action" },
+          "ip_address": { "type": "string", "description": "Best-effort; 'not-collected-local-shim' where the local dev backend cannot observe a real client IP" }
+        }
+      }
     }
   ]
 }

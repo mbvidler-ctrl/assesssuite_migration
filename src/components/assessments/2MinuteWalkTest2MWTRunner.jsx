@@ -139,7 +139,7 @@ export default function TwoMinuteWalkTest2MWTRunner({ client, onSave, onClose })
             </div>
             <div className="flex justify-center gap-2">
               <Badge variant={isTestRunning ? "default" : "secondary"} className={isTestRunning ? "bg-green-600" : ""}>
-                {isTestRunning ? "🟢 Running" : "â¸ Stopped"}
+                {isTestRunning ? "🟢 Running" : "⏸ Stopped"}
               </Badge>
             </div>
           </div>

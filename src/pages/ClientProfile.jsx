@@ -176,12 +176,17 @@ export default function ClientProfile() {
 
   const handleDeleteClient = async () => {
     try {
-      await base44.entities.Client.delete(client.id);
-      toast.success(`Client "${client.full_name}" has been deleted.`);
+      // Retention model: archive, never destroy — see Clients.jsx
+      // handleDeleteClient for the rationale (orphaning + retention).
+      await base44.entities.Client.update(client.id, {
+        archived: true,
+        archived_date: new Date().toISOString(),
+      });
+      toast.success(`Client "${client.full_name}" has been archived.`);
       navigate(createPageUrl("Clients"));
     } catch (error) {
-      console.error("Error deleting client:", error);
-      toast.error("Failed to delete client.");
+      console.error("Error archiving client:", error);
+      toast.error("Failed to archive client.");
     } finally {
       setShowDeleteDialog(false);
     }
@@ -261,11 +266,13 @@ export default function ClientProfile() {
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Client</DialogTitle>
+            <DialogTitle>Archive Client</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete{" "}
-              <span className="font-bold">{client.full_name}</span>? This
-              action cannot be undone and will remove all associated data.
+              Are you sure you want to archive{" "}
+              <span className="font-bold">{client.full_name}</span>? The client will no
+              longer appear in your lists, but their records are retained securely in
+              line with clinical record-keeping obligations and can be restored by an
+              administrator.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -273,7 +280,7 @@ export default function ClientProfile() {
               <Button variant="outline">Cancel</Button>
             </DialogClose>
             <Button variant="destructive" onClick={handleDeleteClient}>
-              Delete Client
+              Archive Client
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -609,8 +616,6 @@ export default function ClientProfile() {
               <ClientDocuments 
                 clientId={clientId} 
                 client={client}
-                allAssessments={allAssessments}
-                onDataExtracted={loadClientData}
               />
               <NutritionSummaryCard 
                 clientId={clientId}

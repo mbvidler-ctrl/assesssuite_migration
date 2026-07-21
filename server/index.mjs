@@ -18,13 +18,47 @@ import {
   parseBearerToken,
   stripAuthFields,
   sanitizeUpdateMePayload,
+  generateOtp,
+  normaliseEmail,
 } from './auth.mjs';
-import { handleCoreIntegration } from './integrations.mjs';
+import { createFounderOrganizationEnsurer, handleCoreIntegration } from './integrations.mjs';
+import { initEmail, sendEmail, otpEmail, resetEmail, welcomeEmail, adminNotifyEmail, inviteEmail } from './email.mjs';
+import {
+  UPLOAD_POLICY,
+  UploadError,
+  canonicalUploadPath,
+  cleanupExpiredUploadAudit,
+  cleanupExpiredUploads,
+  createUploadRegistry,
+  extractUploadIdsFromValue,
+} from './uploadRegistry.mjs';
+import { verifyFileAccessToken } from './fileAccess.mjs';
+import {
+  createReferralCommitService,
+  ReferralCommitError,
+} from './referralCommit.mjs';
+import {
+  isInitialClinicalReleaseEligible,
+  validateInitialReleaseProfileUpdate,
+} from './clinicalRelease.mjs';
+import {
+  CONTRACT_BUNDLE_IDS,
+  EVENT_TYPES,
+  LEGAL_DOCUMENTS,
+  PRACTITIONER_NOTICE_IDS,
+  SUITE_VERSION,
+  fingerprint as legalContentFingerprint,
+  isLegalDocumentPublicationApproved,
+} from '../src/lib/legal/documentRegistry.js';
+import { effectiveLegalContent } from '../src/lib/legal/effectiveContent.js';
+import { resolveLegalConsentAudiences } from '../src/lib/legal/consentAudience.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
 const distDir = path.join(repoRoot, 'dist');
-const uploadsDir = path.join(__dirname, 'uploads');
+// Must resolve identically to server/integrations.mjs (write) and
+// server/functions/transcribeSession.mjs (read) — one env var, three readers.
+const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
 
 // Load .env.local for local runs (set-if-absent, so real environment variables
 // — e.g. Fly secrets in production — always take precedence and are never
@@ -43,6 +77,10 @@ const uploadsDir = path.join(__dirname, 'uploads');
 })();
 
 const PORT = Number(process.env.PORT) || 8787;
+// Fly requires the production process to accept traffic from its proxy, so the
+// default remains all IPv4 interfaces. Isolated harnesses override this with
+// 127.0.0.1 and verify the actual bound address before returning control.
+const BIND_HOST = process.env.ASSESSSUITE_BIND_HOST || '0.0.0.0';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@local.test';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'change-me-local';
 // Access hardening for the private demo. Self-registration and the OTP
@@ -53,6 +91,14 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'change-me-local';
 // the registration/OTP flows, so they remain enabled there.
 const ALLOW_OPEN_REGISTRATION =
   process.env.ALLOW_OPEN_REGISTRATION === '1' || process.env.SELFTEST === '1';
+// OTP / reset hardening (launch): random per-user codes with expiry, attempt
+// lockout, and per-account send throttles. The fixed 000000 code is accepted
+// only under SELFTEST=1 (see verify-otp).
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_LOCKOUT_MS = 15 * 60 * 1000;
+const RESEND_MIN_INTERVAL_MS = 30 * 1000;
+const RESET_TTL_MS = 60 * 60 * 1000;
 // Default app id used for the dev-only /functions/<name> relative path when it
 // is served in single-process production (mirrors the vite proxy rewrite).
 const DEFAULT_APP_ID = process.env.DEFAULT_APP_ID || 'local-assesssuite';
@@ -63,6 +109,27 @@ const { db, entityNames } = openDatabase();
 const sessions = createSessionRepository(db);
 const outboxEmail = createOutboxRepository(db, 'email');
 const outboxSms = createOutboxRepository(db, 'sms');
+const uploadRegistry = createUploadRegistry(db, { uploadsDir });
+initEmail(outboxEmail);
+
+function runUploadLifecycleMaintenance() {
+  try {
+    uploadRegistry.reconcileInterruptedRegistrations();
+    cleanupExpiredUploads({ db, uploadsDir });
+    cleanupExpiredUploadAudit({ db });
+  } catch (error) {
+    console.error('[shim] upload lifecycle maintenance failed:', error?.code || 'maintenance_failed');
+  }
+}
+runUploadLifecycleMaintenance();
+// One-minute maintenance is part of the reviewed physical-retention ceiling:
+// upload expiry is shortened by the same interval in uploadRegistry.mjs.
+const uploadCleanupIntervalMinutes = 1;
+const uploadCleanupTimer = setInterval(
+  runUploadLifecycleMaintenance,
+  uploadCleanupIntervalMinutes * 60 * 1000,
+);
+uploadCleanupTimer.unref();
 
 const userRepo = createEntityRepository(db, 'User');
 const orgMemberRepo = entityNames.has('OrganizationMember')
@@ -82,6 +149,12 @@ function repoFor(entityName) {
   return repoCache.get(entityName);
 }
 
+const ensureFounderOrganization = createFounderOrganizationEnsurer({
+  db,
+  organizationRepo: repoFor('Organization'),
+  organizationMemberRepo: orgMemberRepo,
+});
+
 // ---------------------------------------------------------------------------
 // Bootstrap: ensure a single admin user exists on startup.
 // ---------------------------------------------------------------------------
@@ -95,6 +168,7 @@ function bootstrapAdmin() {
       full_name: 'Local Administrator',
       role: 'admin',
       account_status: 'active',
+      email_verified: true,
       password_hash,
       salt,
     },
@@ -127,6 +201,12 @@ async function loadFunctionsRouter() {
     // (b) open a redundant DatabaseSync connection even outside selftest.
     if (typeof mod.init === 'function') {
       mod.init(db, entityNames);
+    }
+    const transcriptionModule = await import(
+      pathToFileURL(path.join(__dirname, 'functions', 'transcribeSession.mjs')).href
+    );
+    if (typeof transcriptionModule.configureUploadResolver === 'function') {
+      transcriptionModule.configureUploadResolver(resolveAudioUploadForFunction);
     }
     functionsRouter = mod.default || mod.handleFunction || null;
   } catch (err) {
@@ -227,8 +307,7 @@ function isPublicRoute(pathname) {
     /^\/api\/apps\/[^/]+\/auth\//.test(pathname) ||
     /^\/api\/apps\/public\//.test(pathname) ||
     /^\/api\/apps\/[^/]+\/analytics\//.test(pathname) ||
-    /^\/api\/app-logs\//.test(pathname) ||
-    /^\/uploads\//.test(pathname)
+    /^\/api\/app-logs\//.test(pathname)
   );
 }
 
@@ -266,14 +345,340 @@ const CLINICAL_ENTITIES = new Set([
   'SavedReport',
 ]);
 
-// Entities a not-yet-approved user may still WRITE: profile/organisation
-// setup and legal acceptance necessarily happen before approval.
+// Entities a not-yet-approved user may still WRITE. Founding an organisation
+// is deliberately absent: it must use EnsureFounderOrganization so the
+// entitlement check, organisation row and owner membership share one server-
+// derived transaction.
 const PRE_APPROVAL_WRITE_ENTITIES = new Set([
-  'Organization',
-  'OrganizationMember',
   'LegalAcceptance',
+  'LegalAcceptanceEvent',
   'ClinicPolicy',
 ]);
+
+// Mirrors src/lib/legal/documentRegistry.js SUITE_VERSION and
+// PRACTITIONER_NOTICE_IDS' eventType values. Keep both in sync: bump this
+// when the suite version changes, and add/remove an event type here if a
+// mandatory practitioner notice is added or retired. This is the server-side
+// half of the L-15/L-08 fix — the old model relied solely on the client
+// (Layout.jsx) gate, which any direct API caller could bypass entirely.
+const LEGAL_SUITE_VERSION = SUITE_VERSION;
+const SERVER_DERIVED_LEGAL_EVENT_TYPES = new Set([
+  EVENT_TYPES.CONTRACT_ACCEPTANCE,
+  EVENT_TYPES.COLLECTION_NOTICE_ACKNOWLEDGEMENT,
+  EVENT_TYPES.PROFESSIONAL_USE_ACKNOWLEDGEMENT,
+  EVENT_TYPES.AI_TRANSPARENCY_CONSENT,
+  EVENT_TYPES.MARKETING_CONSENT,
+]);
+
+function legalPresentationContent(documentId) {
+  const document = LEGAL_DOCUMENTS[documentId];
+  if (!document) throw new Error(`Unknown mandatory legal document: ${documentId}`);
+  if (!isLegalDocumentPublicationApproved(document)) {
+    throw new Error(`Mandatory legal document is not approved for publication: ${documentId}`);
+  }
+  const raw = fs.readFileSync(path.join(repoRoot, 'src', 'legal-content', document.file), 'utf8');
+  return effectiveLegalContent(raw, {
+    status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',
+    effectiveDate: process.env.LEGAL_EFFECTIVE_DATE || null,
+  });
+}
+
+const CURRENT_LEGAL_DOCUMENT_RECEIPTS = new Map(
+  [...PRACTITIONER_NOTICE_IDS, ...CONTRACT_BUNDLE_IDS].map((documentId) => {
+    const document = LEGAL_DOCUMENTS[documentId];
+    return [documentId, {
+      eventType: document.eventType,
+      title: document.title,
+      fingerprint: legalContentFingerprint(legalPresentationContent(documentId)),
+    }];
+  }),
+);
+
+function parseCompatibilityVersions() {
+  const raw = process.env.LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS;
+  if (!raw) return [];
+  if (process.env.DOCUMENT_EXTRACTION_ENABLED === '1') {
+    throw new Error(
+      'LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS cannot be used while document extraction is enabled',
+    );
+  }
+  const values = [...new Set(raw.split(',').map((value) => value.trim()).filter(Boolean))];
+  if (
+    values.length !== 2 ||
+    values[0] !== 'RC-2026.07.11' ||
+    values[1] !== LEGAL_SUITE_VERSION
+  ) {
+    throw new Error(
+      `LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS must be exactly RC-2026.07.11,${LEGAL_SUITE_VERSION}`,
+    );
+  }
+  return values;
+}
+
+const LEGAL_GATE_VERSIONS = new Set([
+  LEGAL_SUITE_VERSION,
+  ...parseCompatibilityVersions(),
+]);
+
+/**
+ * True only if sessionUser has the complete role-dependent legal bundle for
+ * the relevant current membership. Missing repositories, membership or an
+ * exact document-bound receipt fail closed. Compatibility is an explicit
+ * extraction-disabled rollback option and is never accepted for provider I/O.
+ */
+function hasCurrentLegalAcceptance(userEmail, orgId = null, { allowCompatibility = true } = {}) {
+  const repo = repoFor('LegalAcceptanceEvent');
+  if (!repo || !orgMemberRepo) return false;
+  const events = repo.listAll().filter((event) => event.user_email === userEmail);
+  const memberships = resolveLegalConsentAudiences(
+    orgMemberRepo.listAll().filter((membership) => membership.user_email === userEmail),
+  ).filter(
+    (membership) => !orgId || membership.orgId === orgId,
+  );
+  if (memberships.length === 0) return false;
+
+  const currentMembershipsAccepted = orgId ? memberships.every.bind(memberships) : memberships.some.bind(memberships);
+  const currentBundleAccepted = currentMembershipsAccepted((membership) => {
+    const requiredIds = membership.ownerBundle
+      ? [...PRACTITIONER_NOTICE_IDS, ...CONTRACT_BUNDLE_IDS]
+      : PRACTITIONER_NOTICE_IDS;
+    return requiredIds.every((documentId) => {
+      const expected = CURRENT_LEGAL_DOCUMENT_RECEIPTS.get(documentId);
+      return events.some(
+        (event) =>
+          event.org_id === membership.orgId &&
+          event.suite_version === LEGAL_SUITE_VERSION &&
+          event.event_type === expected.eventType &&
+          event.document_id === documentId &&
+          event.document_title === expected.title &&
+          event.document_fingerprint === expected.fingerprint,
+      );
+    });
+  });
+  if (currentBundleAccepted) return true;
+  if (!allowCompatibility) return false;
+
+  // Compatibility images never enable document extraction. Their exact
+  // two-version allowlist preserves the prior notice-only rollback contract.
+  const compatibleMembershipsAccepted = orgId ? memberships.every.bind(memberships) : memberships.some.bind(memberships);
+  return compatibleMembershipsAccepted((membership) =>
+    [...LEGAL_GATE_VERSIONS]
+      .filter((version) => version !== LEGAL_SUITE_VERSION)
+      .some((version) => {
+        const versionEvents = events.filter(
+          (event) => event.suite_version === version && event.org_id === membership.orgId,
+        );
+        return PRACTITIONER_NOTICE_IDS.every((documentId) => {
+          const eventType = LEGAL_DOCUMENTS[documentId].eventType;
+          return versionEvents.some((event) => event.event_type === eventType);
+        });
+      }),
+  );
+}
+
+/**
+ * Exact current, document-bound, role-dependent legal bundle for the selected
+ * organisation. This gate is evaluated before resolving or reading any upload,
+ * so it also covers bound-file and re-extraction paths. Compatibility receipts
+ * must never authorise provider egress.
+ */
+function hasExtractionAcceptance(userEmail, orgId) {
+  return Boolean(
+    userEmail &&
+    orgId &&
+    hasCurrentLegalAcceptance(userEmail, orgId, { allowCompatibility: false }),
+  );
+}
+
+const REFERRAL_COMMIT_MAX_REQUEST_BYTES = 128 * 1024;
+
+async function readReferralCommitJsonBody(req) {
+  const contentLength = req.headers['content-length'];
+  if (contentLength !== undefined) {
+    const parsed = Number(contentLength);
+    if (!Number.isSafeInteger(parsed) || parsed < 0) {
+      throw new ReferralCommitError(
+        400,
+        'invalid_content_length',
+        'The reviewed referral request length is invalid.',
+      );
+    }
+    if (parsed > REFERRAL_COMMIT_MAX_REQUEST_BYTES) {
+      req.resume();
+      throw new ReferralCommitError(
+        413,
+        'request_too_large',
+        'The reviewed referral request is too large.',
+      );
+    }
+  }
+
+  const chunks = [];
+  let total = 0;
+  for await (const chunk of req) {
+    const buffer = Buffer.from(chunk);
+    total += buffer.length;
+    if (total > REFERRAL_COMMIT_MAX_REQUEST_BYTES) {
+      req.resume();
+      throw new ReferralCommitError(
+        413,
+        'request_too_large',
+        'The reviewed referral request is too large.',
+      );
+    }
+    chunks.push(buffer);
+  }
+  if (chunks.length === 0) return {};
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString('utf8'));
+  } catch {
+    return {};
+  }
+}
+
+const referralCommitService = createReferralCommitService({
+  db,
+  uploadRegistry,
+  uploadsDir,
+  getOrgIdsForUser: orgIdsForUser,
+  hasCurrentLegalAcceptance,
+  isClinicalUseEligible: isInitialClinicalReleaseEligible,
+});
+
+async function handleReviewedReferralCommit(req, res) {
+  const sessionUser = resolveSessionUser(req);
+  if (!sessionUser) {
+    return sendJson(res, 401, {
+      status: 'error',
+      code: 'authentication_required',
+      details: 'Authentication is required.',
+    });
+  }
+  try {
+    const body = await readReferralCommitJsonBody(req);
+    const result = referralCommitService.commit({ sessionUser, body });
+    return sendJson(res, 200, result);
+  } catch (error) {
+    if (error instanceof ReferralCommitError) {
+      return sendJson(res, error.httpStatus, {
+        status: 'error',
+        code: error.code,
+        details: error.publicMessage,
+      });
+    }
+    // Metadata only. Request bodies, client fields, file names and thrown
+    // messages are deliberately excluded from diagnostics.
+    console.error('[referral-commit] request failed', {
+      code: typeof error?.code === 'string' && /^[A-Z0-9_]{1,80}$/i.test(error.code)
+        ? error.code
+        : 'internal_error',
+    });
+    return sendJson(res, 500, {
+      status: 'error',
+      code: 'internal_error',
+      details: 'The reviewed referral could not be saved. No client data was changed.',
+    });
+  }
+}
+
+const LEGAL_BUNDLE_IDEMPOTENCY_FIELDS = Object.freeze([
+  'event_type',
+  'user_email',
+  'org_id',
+  'actor_capacity',
+  'suite_version',
+  'document_id',
+  'document_title',
+  'document_fingerprint',
+  'session_context',
+  'user_agent',
+  'ip_address',
+]);
+
+function legalBundleReceiptKey(record) {
+  return JSON.stringify(
+    LEGAL_BUNDLE_IDEMPOTENCY_FIELDS.map((field) => record?.[field] ?? null),
+  );
+}
+
+function recordLegalAcceptanceBundle({ sessionUser, orgId, marketingOptIn }) {
+  const acceptanceRepo = repoFor('LegalAcceptanceEvent');
+  if (!acceptanceRepo || !orgMemberRepo) {
+    throw new UploadError(503, 'legal_acceptance_unavailable', 'Legal acceptance is currently unavailable.');
+  }
+
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const membership = resolveLegalConsentAudiences(
+      orgMemberRepo.listAll().filter((item) => item.user_email === sessionUser.email),
+    ).find((item) => item.orgId === orgId);
+    if (!membership) {
+      throw new UploadError(403, 'org_forbidden', 'The selected organisation is unavailable.');
+    }
+
+    const ownerBundle = membership.ownerBundle;
+    const documentIds = ownerBundle
+      ? [...PRACTITIONER_NOTICE_IDS, ...CONTRACT_BUNDLE_IDS]
+      : [...PRACTITIONER_NOTICE_IDS];
+    const actorCapacity = ownerBundle ? 'practice owner' : 'invited clinician';
+    const records = documentIds.map((documentId) => {
+      const document = LEGAL_DOCUMENTS[documentId];
+      const receipt = CURRENT_LEGAL_DOCUMENT_RECEIPTS.get(documentId);
+      return {
+        event_type: receipt.eventType,
+        user_email: sessionUser.email,
+        org_id: orgId,
+        actor_capacity: actorCapacity,
+        suite_version: LEGAL_SUITE_VERSION,
+        document_id: documentId,
+        document_title: document.title,
+        document_fingerprint: receipt.fingerprint,
+        session_context: null,
+        user_agent: 'server-derived-bundle',
+        ip_address: 'not-collected-local-shim',
+      };
+    });
+    if (marketingOptIn) {
+      records.push({
+        event_type: EVENT_TYPES.MARKETING_CONSENT,
+        user_email: sessionUser.email,
+        org_id: orgId,
+        actor_capacity: actorCapacity,
+        suite_version: LEGAL_SUITE_VERSION,
+        document_id: null,
+        document_title: null,
+        document_fingerprint: null,
+        session_context: null,
+        user_agent: 'server-derived-bundle',
+        ip_address: 'not-collected-local-shim',
+      });
+    }
+
+    const existingReceiptKeys = new Set(
+      acceptanceRepo.listAll().map(legalBundleReceiptKey),
+    );
+    const missingRecords = [];
+    for (const record of records) {
+      const receiptKey = legalBundleReceiptKey(record);
+      if (existingReceiptKeys.has(receiptKey)) continue;
+      existingReceiptKeys.add(receiptKey);
+      missingRecords.push(record);
+    }
+    missingRecords.forEach((record) => acceptanceRepo.create(record, sessionUser.email));
+    db.exec('COMMIT');
+    // Initial recording, partial-bundle healing and an identical response-lost
+    // replay deliberately share the same body. `recorded` is the logical bundle
+    // size, not the number of new rows written by this transport attempt.
+    return { status: 'success', recorded: records.length, owner_bundle: ownerBundle };
+  } catch (error) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // Preserve the original transaction failure.
+    }
+    throw error;
+  }
+}
 
 // Tenant-scoped entities, derived statically from the schema (carry org_id).
 const ORG_SCOPED_ENTITIES = loadOrgScopedEntities();
@@ -290,8 +695,8 @@ const GLOBAL_READONLY_ENTITIES = new Set(['Assessment', 'Exercise', 'TreatmentPr
  *    only) — the create path was previously un-gated, an admin-mint vector;
  *  - shared catalogues: admin-only writes;
  *  - LegalAcceptance: a user may only write their own acceptance;
- *  - Organization: create (founding) allowed; update/delete gated by
- *    isWithinOrgScope at the call site;
+ *  - Organization/OrganizationMember: non-admin create is retired in favour
+ *    of the atomic, entitlement-gated EnsureFounderOrganization operation;
  *  - org-scoped entities: enforceWriteOrgScope (forces org_id to a member org).
  */
 function writeAuthDenied(entityName, data, sessionUser, { isCreate }) {
@@ -301,11 +706,46 @@ function writeAuthDenied(entityName, data, sessionUser, { isCreate }) {
   if (GLOBAL_READONLY_ENTITIES.has(entityName)) {
     return { ok: false, status: 403, message: 'admin access required to modify a shared catalogue' };
   }
+  if (isCreate && (entityName === 'Organization' || entityName === 'OrganizationMember')) {
+    return {
+      ok: false,
+      status: 403,
+      message: 'organisation founding must use the server-owned founder operation',
+    };
+  }
   if (entityName === 'LegalAcceptance') {
     if (isCreate && data && data.user_email && data.user_email !== sessionUser.email) {
       return { ok: false, status: 403, message: 'you may only record your own acceptance' };
     }
     return { ok: true };
+  }
+  if (entityName === 'LegalAcceptanceEvent') {
+    if (!isCreate) {
+      return { ok: false, status: 405, message: 'legal acceptance events are append-only' };
+    }
+    // Same self-only integrity rule as LegalAcceptance, plus the generic
+    // org-scope enforcement below (LegalAcceptanceEvent carries org_id, so it
+    // is auto-scoped by ORG_SCOPED_ENTITIES/enforceWriteOrgScope — this branch
+    // only adds the user_email self-check on top).
+    if (isCreate && data && data.user_email && data.user_email !== sessionUser.email) {
+      return { ok: false, status: 403, message: 'you may only record your own acceptance or consent' };
+    }
+    if (SERVER_DERIVED_LEGAL_EVENT_TYPES.has(data?.event_type)) {
+      return {
+        ok: false,
+        status: 403,
+        message: 'mandatory and marketing legal events must use the server-derived bundle endpoint',
+      };
+    }
+    if (data?.event_type !== EVENT_TYPES.RECORDING_CONSENT) {
+      return { ok: false, status: 400, message: 'unsupported legal event type' };
+    }
+    data.user_email = sessionUser.email;
+    data.suite_version = LEGAL_SUITE_VERSION;
+    data.document_id = null;
+    data.document_title = null;
+    data.document_fingerprint = null;
+    return enforceWriteOrgScope(entityName, data, sessionUser, { isCreate });
   }
   return enforceWriteOrgScope(entityName, data, sessionUser, { isCreate });
 }
@@ -325,6 +765,10 @@ function entityAccessDenied(req, res, entityName, sessionUser, isAdmin) {
     return true;
   }
   const isMutation = req.method !== 'GET';
+  if (!isAdmin && CLINICAL_ENTITIES.has(entityName) && !isInitialClinicalReleaseEligible(sessionUser)) {
+    sendError(res, 403, 'clinical access is not approved for this account profile');
+    return true;
+  }
   if (!isAdmin && sessionUser.account_status !== 'active') {
     if (CLINICAL_ENTITIES.has(entityName)) {
       sendError(res, 403, 'account pending approval');
@@ -334,6 +778,24 @@ function entityAccessDenied(req, res, entityName, sessionUser, isAdmin) {
       sendError(res, 403, 'account pending approval');
       return true;
     }
+  }
+  // Server-side half of the L-15/L-08 fix: clinical access requires the
+  // mandatory practitioner notices to be recorded at the current suite
+  // version, not merely the client-side Layout.jsx gate having been shown
+  // once. Also re-gates an already-approved user whose acceptance predates a
+  // suite version bump (the reacceptance-trigger requirement in policy-suite
+  // doc 27 clause 6) — a stale acceptance is treated the same as none.
+  return false;
+}
+
+function clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, orgId) {
+  if (
+    !isAdmin &&
+    CLINICAL_ENTITIES.has(entityName) &&
+    (!orgId || !hasCurrentLegalAcceptance(sessionUser?.email, orgId))
+  ) {
+    sendError(res, 403, 'current legal acceptance required');
+    return true;
   }
   return false;
 }
@@ -363,21 +825,27 @@ function enforceWriteOrgScope(entityName, data, sessionUser, { isCreate }) {
     // already a member of — otherwise a member could move their own
     // membership into another tenant and gain its scope (the update path
     // previously fell through unchecked).
+    if (isCreate && (!data?.user_email || data.user_email !== sessionUser.email || !data?.org_id)) {
+      return { ok: false, status: 403, message: 'you may only add your own account to an explicit organisation' };
+    }
     if (data && data.user_email && data.user_email !== sessionUser.email) {
       return { ok: false, status: 403, message: 'you may only add your own account to an organisation' };
     }
     const targetOrg = data?.org_id;
     if (targetOrg !== undefined && targetOrg !== null) {
       const callerOrgs = orgIdsForUser(sessionUser.email);
-      if (!callerOrgs.includes(targetOrg)) {
-        if (!isCreate) {
-          return { ok: false, status: 403, message: 'you cannot move a membership to another organisation' };
-        }
+      if (!isCreate && !callerOrgs.includes(targetOrg)) {
+        return { ok: false, status: 403, message: 'you cannot move a membership to another organisation' };
+      }
+      if (isCreate) {
         const existingMembers = orgMemberRepo
           ? orgMemberRepo.listAll().filter((m) => m.org_id === targetOrg)
           : [];
         if (existingMembers.length > 0) {
-          return { ok: false, status: 403, message: 'you cannot join an existing organisation' };
+          return { ok: false, status: 403, message: 'you cannot join or duplicate membership in an existing organisation' };
+        }
+        if (data?.role !== 'owner' || data?.is_primary !== true) {
+          return { ok: false, status: 403, message: 'a self-founded organisation must create one primary owner membership' };
         }
       }
     }
@@ -399,6 +867,50 @@ function enforceWriteOrgScope(entityName, data, sessionUser, { isCreate }) {
   const primary = primaryOrgIdForUser(sessionUser.email);
   if (!primary) return { ok: false, status: 403, message: 'no organisation membership' };
   data.org_id = primary;
+  return { ok: true };
+}
+
+function validateMembershipUpdate(existing, data, sessionUser) {
+  if (!existing || existing.user_email !== sessionUser?.email) {
+    return { ok: false, status: 404, message: 'record not found' };
+  }
+  for (const field of ['user_email', 'org_id', 'role', 'is_primary']) {
+    if (Object.prototype.hasOwnProperty.call(data || {}, field) && data[field] !== existing[field]) {
+      return { ok: false, status: 403, message: 'membership identity and role are server-controlled' };
+    }
+  }
+  return { ok: true };
+}
+
+/**
+ * Enforce same-tenant referential integrity for clinical child records. The
+ * generic org_id scope alone is insufficient: a valid secondary-org client
+ * identifier must never be stored in a primary-org assessment or note.
+ */
+function validateEntityReferenceScope(entityName, data, existing = null) {
+  const orgId = data?.org_id ?? existing?.org_id ?? null;
+  const clientId = Object.prototype.hasOwnProperty.call(data || {}, 'client_id')
+    ? data.client_id
+    : existing?.client_id;
+  const appointmentId = Object.prototype.hasOwnProperty.call(data || {}, 'appointment_id')
+    ? data.appointment_id
+    : existing?.appointment_id;
+
+  if (entityName !== 'Client' && clientId !== undefined && clientId !== null && clientId !== '') {
+    const client = repoFor('Client')?.getById(clientId);
+    if (!client || !orgId || client.org_id !== orgId) {
+      return { ok: false, status: 404, message: 'referenced client not found in this organisation' };
+    }
+  }
+  if (entityName !== 'Appointment' && appointmentId !== undefined && appointmentId !== null && appointmentId !== '') {
+    const appointment = repoFor('Appointment')?.getById(appointmentId);
+    if (!appointment || !orgId || appointment.org_id !== orgId) {
+      return { ok: false, status: 404, message: 'referenced appointment not found in this organisation' };
+    }
+    if (clientId && appointment.client_id && appointment.client_id !== clientId) {
+      return { ok: false, status: 409, message: 'appointment and client references do not match' };
+    }
+  }
   return { ok: true };
 }
 
@@ -430,6 +942,14 @@ async function handleEntitiesRoute(req, res, url, match) {
 
   if (entityAccessDenied(req, res, entityName, sessionUser, isAdmin)) return;
 
+  if (
+    entityName === 'LegalAcceptanceEvent' &&
+    req.method !== 'GET' &&
+    !(req.method === 'POST' && !rest)
+  ) {
+    return sendError(res, 405, 'legal acceptance events are append-only');
+  }
+
   if (req.method === 'GET' && !rest) {
     if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
     if (!sessionUser && isUserCollection) return sendError(res, 401, 'authentication required');
@@ -443,6 +963,7 @@ async function handleEntitiesRoute(req, res, url, match) {
     if (!isAdmin && !isUserCollection && !isWithinOrgScope(record, sessionUser, entityName)) {
       return sendError(res, 404, 'record not found');
     }
+    if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, record.org_id)) return;
     const stripped = isUserCollection ? stripAuthFields(record) : record;
     return sendJson(res, 200, stripped);
   }
@@ -456,7 +977,23 @@ async function handleEntitiesRoute(req, res, url, match) {
       const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: true });
       if (!auth.ok) return sendError(res, auth.status, auth.message);
     }
+    const referenceScope = validateEntityReferenceScope(entityName, data);
+    if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
+    if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, data?.org_id)) return;
+    const bindingOrgId = entityName === 'Organization' ? null : data?.org_id;
+    const pendingBindings = bindingOrgId
+      ? prepareUploadBindings(entityName, data, bindingOrgId, null, sessionUser)
+      : [];
     const record = repo.create(data, createdBy);
+    if (pendingBindings.length > 0) {
+      commitUploadBindings(pendingBindings, {
+        entityName,
+        entityId: record.id,
+        orgId: bindingOrgId,
+        actorUserId: sessionUser.id,
+      });
+    }
+    reconcileBoundUploads(entityName, record, sessionUser.id);
     const stripped = isUserCollection ? stripAuthFields(record) : record;
     return sendJson(res, 200, stripped);
   }
@@ -468,12 +1005,38 @@ async function handleEntitiesRoute(req, res, url, match) {
     if (!isAdmin && !isUserCollection && !isWithinOrgScope(existing, sessionUser, entityName)) {
       return sendError(res, 404, 'record not found');
     }
+    if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, existing?.org_id)) return;
     const data = await readJsonBody(req);
     if (!isAdmin) {
+      if (entityName === 'OrganizationMember') {
+        const membership = validateMembershipUpdate(existing, data, sessionUser);
+        if (!membership.ok) return sendError(res, membership.status, membership.message);
+      }
       const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: false });
       if (!auth.ok) return sendError(res, auth.status, auth.message);
     }
+    const referenceScope = validateEntityReferenceScope(entityName, data, existing);
+    if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
+    const bindingOrgId = data?.org_id || existing?.org_id || (entityName === 'Organization' ? existing.id : null);
+    const pendingBindings = bindingOrgId
+      ? prepareUploadBindings(entityName, data, bindingOrgId, existing.id, sessionUser)
+      : [];
     const record = repo.update(rest, data);
+    if (pendingBindings.length > 0) {
+      commitUploadBindings(pendingBindings, {
+        entityName,
+        entityId: record.id,
+        orgId: bindingOrgId,
+        actorUserId: sessionUser.id,
+      });
+    }
+    reconcileBoundUploads(entityName, record, sessionUser.id);
+    // Welcome email on activation (admin approval path; the payment
+    // auto-approve path sends its own from stripeWebhook). Fire-and-forget —
+    // an email failure must not fail the update.
+    if (isUserCollection && existing.account_status !== 'active' && record.account_status === 'active') {
+      sendEmail({ to: record.email, ...welcomeEmail(record.clinician_name || record.full_name) }).catch(() => {});
+    }
     const stripped = isUserCollection ? stripAuthFields(record) : record;
     return sendJson(res, 200, stripped);
   }
@@ -482,27 +1045,53 @@ async function handleEntitiesRoute(req, res, url, match) {
     const existing = repo.getById(rest);
     if (!existing) return sendError(res, 404, 'record not found');
     if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
+    if (entityName === 'OrganizationMember' && !isAdmin) {
+      return sendError(res, 403, 'membership removal is server-controlled');
+    }
     if (!isAdmin && GLOBAL_READONLY_ENTITIES.has(entityName)) {
       return sendError(res, 403, 'admin access required to modify a shared catalogue');
+    }
+    // Retention: a Client is the root of a clinical record and its hard delete
+    // orphans every child (assessments, notes, documents…). Non-admins must
+    // use archive (archived:true) — the raw DELETE would otherwise bypass the
+    // archive convention and destroy records that must be retained.
+    // Item-level deletes (SOAPNote, ClientAssessment, ClientDocument …) remain
+    // ordinary clinician workflow; only the Client root is protected here.
+    if (!isAdmin && entityName === 'Client') {
+      return sendError(res, 403, 'clients are archived, not deleted');
     }
     if (!isAdmin && !isUserCollection && !isWithinOrgScope(existing, sessionUser, entityName)) {
       return sendError(res, 404, 'record not found');
     }
+    if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, existing?.org_id)) return;
+    retireAllBoundUploads(entityName, existing, sessionUser.id);
     repo.remove(rest);
     return sendJson(res, 200, { id: rest, deleted: true });
   }
 
   if (req.method === 'DELETE' && !rest) {
     // DELETE-with-body deleteMany.
-    if (!isAdmin && (isUserCollection || GLOBAL_READONLY_ENTITIES.has(entityName))) {
+    if (!isAdmin && (isUserCollection || entityName === 'OrganizationMember' || GLOBAL_READONLY_ENTITIES.has(entityName))) {
       // Never let a non-admin bulk-delete Users or a shared catalogue.
       return sendError(res, 403, 'admin access required');
+    }
+    if (!isAdmin && entityName === 'Client') {
+      // Same retention rule as the single-record path: clients are archived.
+      return sendError(res, 403, 'clients are archived, not deleted');
     }
     const query = await readJsonBody(req);
     const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
     const all = repo.listAll();
     const matched = all.filter((record) => matchesQuery(record, scopedQuery));
-    for (const record of matched) repo.remove(record.id);
+    if (!isAdmin && CLINICAL_ENTITIES.has(entityName) && matched.some(
+      (record) => !hasCurrentLegalAcceptance(sessionUser?.email, record.org_id),
+    )) {
+      return sendError(res, 403, 'current legal acceptance required');
+    }
+    for (const record of matched) {
+      retireAllBoundUploads(entityName, record, sessionUser.id);
+      repo.remove(record.id);
+    }
     return sendJson(res, 200, { deleted: matched.length });
   }
 
@@ -535,17 +1124,25 @@ function isWithinOrgScope(record, sessionUser, entityName) {
 function scopeQueryToOrg(query, entityName, sessionUser, isAdmin) {
   if (isAdmin) return query || {};
   const orgIds = orgIdsForUser(sessionUser?.email);
+  const intersectRequestedIds = (requested) => {
+    if (requested === undefined || requested === null) return orgIds;
+    if (typeof requested === 'string') return orgIds.includes(requested) ? [requested] : [];
+    if (Array.isArray(requested?.$in)) {
+      return requested.$in.filter((id) => typeof id === 'string' && orgIds.includes(id));
+    }
+    return [];
+  };
   // Organization carries no org_id; its own id IS the org id, so scope the
   // list to the caller's memberships by id (else all org names/subscription
   // states enumerate cross-tenant).
   if (entityName === 'Organization') {
-    return { ...(query || {}), id: { $in: orgIds } };
+    return { ...(query || {}), id: { $in: intersectRequestedIds(query?.id) } };
   }
   if (entityName === 'LegalAcceptance') {
     return { ...(query || {}), user_email: sessionUser?.email };
   }
   if (!ORG_SCOPED_ENTITIES.has(entityName)) return query || {};
-  return { ...(query || {}), org_id: { $in: orgIds } };
+  return { ...(query || {}), org_id: { $in: intersectRequestedIds(query?.org_id) } };
 }
 
 function handleList(req, res, repo, entityName, sessionUser, isAdmin, url) {
@@ -562,6 +1159,22 @@ function handleList(req, res, repo, entityName, sessionUser, isAdmin, url) {
   query = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
 
   let records = repo.listAll().filter((record) => matchesQuery(record, query));
+  if (!isAdmin && CLINICAL_ENTITIES.has(entityName)) {
+    const acceptedOrgIds = orgIdsForUser(sessionUser?.email).filter(
+      (orgId) => hasCurrentLegalAcceptance(sessionUser?.email, orgId),
+    );
+    if (acceptedOrgIds.length === 0) return sendError(res, 403, 'current legal acceptance required');
+    records = records.filter((record) => acceptedOrgIds.includes(record.org_id));
+  }
+  // Archived clients (retention model: user-facing "delete" archives, never
+  // destroys) are excluded from EVERY list/filter unless the caller asks for
+  // them explicitly with an `archived` key in the query — one enforcement
+  // point covering all ~20 client-picker surfaces, so components cannot
+  // disagree about what archived means. Get-by-id still returns an archived
+  // record (restore/inspection path).
+  if (entityName === 'Client' && !Object.prototype.hasOwnProperty.call(query || {}, 'archived')) {
+    records = records.filter((record) => record.archived !== true);
+  }
   records = applySortSkipLimit(records, {
     sort: params.get('sort'),
     limit: params.get('limit'),
@@ -583,7 +1196,13 @@ async function handleBulk(req, res, entityName) {
   const sessionUser = resolveSessionUser(req);
   const isAdmin = sessionUser?.role === 'admin';
   if (entityName === 'User' && !isAdmin) return sendError(res, 403, 'admin access required');
+  if (entityName === 'OrganizationMember' && !isAdmin) {
+    return sendError(res, 403, 'membership changes are server-controlled');
+  }
   if (entityAccessDenied(req, res, entityName, sessionUser, isAdmin)) return;
+  if (entityName === 'LegalAcceptanceEvent' && req.method !== 'POST') {
+    return sendError(res, 405, 'legal acceptance events are append-only');
+  }
 
   const body = await readJsonBody(req);
 
@@ -591,14 +1210,43 @@ async function handleBulk(req, res, entityName) {
     // bulkCreate: JSON array of records.
     const items = Array.isArray(body) ? body : body.items || [];
     const createdBy = sessionUser?.email || null;
+    if (!isAdmin && entityName === 'OrganizationMember' && items.length !== 1) {
+      return sendError(res, 403, 'membership creation must be one server-verifiable record');
+    }
     if (!isAdmin) {
       // Same central write-authorisation as single create, per item.
       for (const item of items) {
         const auth = writeAuthDenied(entityName, item, sessionUser, { isCreate: true });
         if (!auth.ok) return sendError(res, auth.status, auth.message);
+        const referenceScope = validateEntityReferenceScope(entityName, item);
+        if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
+        if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, item?.org_id)) return;
+      }
+    } else {
+      for (const item of items) {
+        const referenceScope = validateEntityReferenceScope(entityName, item);
+        if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
       }
     }
-    const created = items.map((item) => repo.create(item, createdBy));
+    const planned = items.map((item) => ({
+      item,
+      orgId: entityName === 'Organization' ? null : item?.org_id,
+      uploads: entityName === 'Organization' || !item?.org_id
+        ? []
+        : prepareUploadBindings(entityName, item, item.org_id, null, sessionUser),
+    }));
+    const created = planned.map(({ item }) => repo.create(item, createdBy));
+    created.forEach((record, index) => {
+      const plan = planned[index];
+      if (plan.uploads.length > 0) {
+        commitUploadBindings(plan.uploads, {
+          entityName,
+          entityId: record.id,
+          orgId: plan.orgId,
+          actorUserId: sessionUser.id,
+        });
+      }
+    });
     const result = entityName === 'User' ? created.map(stripAuthFields) : created;
     return sendJson(res, 200, result);
   }
@@ -618,13 +1266,41 @@ async function handleBulk(req, res, entityName) {
         if (!isWithinOrgScope(existing, sessionUser, entityName)) {
           return sendError(res, 404, 'record not found');
         }
+        if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, existing?.org_id)) return;
+        if (entityName === 'OrganizationMember') {
+          const membership = validateMembershipUpdate(existing, item, sessionUser);
+          if (!membership.ok) return sendError(res, membership.status, membership.message);
+        }
         const auth = writeAuthDenied(entityName, item, sessionUser, { isCreate: false });
         if (!auth.ok) return sendError(res, auth.status, auth.message);
       }
     }
-    const updated = items
-      .map((item) => (item.id ? repo.update(item.id, item) : null))
-      .filter(Boolean);
+    const planned = items.filter((item) => item.id).map((item) => {
+      const existing = repo.getById(item.id);
+      const orgId = item?.org_id || existing?.org_id || (entityName === 'Organization' ? existing?.id : null);
+      const referenceScope = validateEntityReferenceScope(entityName, { ...item, org_id: orgId }, existing);
+      if (!referenceScope.ok) throw new UploadError(referenceScope.status, 'reference_scope_mismatch', referenceScope.message);
+      return {
+        item,
+        orgId,
+        uploads: orgId ? prepareUploadBindings(entityName, item, orgId, item.id, sessionUser) : [],
+      };
+    });
+    const completed = planned
+      .map((plan) => ({ plan, record: repo.update(plan.item.id, plan.item) }))
+      .filter(({ record }) => Boolean(record));
+    completed.forEach(({ record, plan }) => {
+      if (plan.uploads.length > 0) {
+        commitUploadBindings(plan.uploads, {
+          entityName,
+          entityId: record.id,
+          orgId: plan.orgId,
+          actorUserId: sessionUser.id,
+        });
+      }
+      reconcileBoundUploads(entityName, record, sessionUser.id);
+    });
+    const updated = completed.map(({ record }) => record);
     const result = entityName === 'User' ? updated.map(stripAuthFields) : updated;
     return sendJson(res, 200, result);
   }
@@ -634,15 +1310,24 @@ async function handleBulk(req, res, entityName) {
 
 async function handleUpdateMany(req, res, entityName) {
   if (req.method !== 'PATCH') return sendError(res, 405, 'method not allowed');
+  if (entityName === 'LegalAcceptanceEvent') {
+    return sendError(res, 405, 'legal acceptance events are append-only');
+  }
   const repo = repoFor(entityName);
   if (!repo) return sendError(res, 404, `entity ${entityName} not found`);
   const sessionUser = resolveSessionUser(req);
   const isAdmin = sessionUser?.role === 'admin';
   if (entityName === 'User' && !isAdmin) return sendError(res, 403, 'admin access required');
+  if (entityName === 'OrganizationMember' && !isAdmin) {
+    return sendError(res, 403, 'membership changes are server-controlled');
+  }
   if (entityAccessDenied(req, res, entityName, sessionUser, isAdmin)) return;
 
   const body = await readJsonBody(req);
   const { query, data } = body || {};
+  if (extractUploadIdsFromValue(data).length > 0) {
+    return sendError(res, 400, 'file references must be bound to one explicit record');
+  }
   if (!isAdmin) {
     // Refuse User/catalogue writes; the query is org-scoped, but the data
     // payload could still relocate the matched (own-org) records into another
@@ -652,7 +1337,17 @@ async function handleUpdateMany(req, res, entityName) {
   }
   const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
   const matched = repo.listAll().filter((record) => matchesQuery(record, scopedQuery));
+  for (const record of matched) {
+    const referenceScope = validateEntityReferenceScope(entityName, data, record);
+    if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
+  }
+  if (!isAdmin && CLINICAL_ENTITIES.has(entityName) && matched.some(
+    (record) => !hasCurrentLegalAcceptance(sessionUser?.email, record.org_id),
+  )) {
+    return sendError(res, 403, 'current legal acceptance required');
+  }
   const updated = matched.map((record) => repo.update(record.id, data));
+  for (const record of updated) reconcileBoundUploads(entityName, record, sessionUser.id);
   const result = entityName === 'User' ? updated.map(stripAuthFields) : updated;
   return sendJson(res, 200, { updated: result.length, records: result });
 }
@@ -672,7 +1367,22 @@ async function handleMe(req, res) {
   if (req.method === 'PUT') {
     const payload = await readJsonBody(req);
     const sanitized = sanitizeUpdateMePayload(payload);
+    const releaseProfile = validateInitialReleaseProfileUpdate(sanitized);
+    if (!releaseProfile.ok) return sendError(res, 403, releaseProfile.message);
+    const orgId = primaryOrgIdForUser(sessionUser.email);
+    const pendingBindings = orgId
+      ? prepareUploadBindings('User', sanitized, orgId, sessionUser.id, sessionUser)
+      : [];
     const updated = userRepo.update(sessionUser.id, sanitized);
+    if (pendingBindings.length > 0) {
+      commitUploadBindings(pendingBindings, {
+        entityName: 'User',
+        entityId: sessionUser.id,
+        orgId,
+        actorUserId: sessionUser.id,
+      });
+    }
+    reconcileBoundUploads('User', updated, sessionUser.id);
     return sendJson(res, 200, stripAuthFields(updated));
   }
 
@@ -684,7 +1394,8 @@ async function handleMe(req, res) {
 // ---------------------------------------------------------------------------
 
 function findUserByEmail(email) {
-  return userRepo.listAll().find((u) => u.email === email) || null;
+  const target = normaliseEmail(email);
+  return userRepo.listAll().find((u) => normaliseEmail(u.email) === target) || null;
 }
 
 async function handleAuthRoute(req, res, url, appId, action) {
@@ -693,6 +1404,15 @@ async function handleAuthRoute(req, res, url, appId, action) {
     const user = findUserByEmail(email);
     if (!user || !verifyPassword(password, user.password_hash, user.salt)) {
       return sendError(res, 401, 'invalid email or password');
+    }
+    // A registered-but-unverified account has a valid password hash from the
+    // moment of registration, so without this check login mints a full
+    // session for an account that never completed OTP verification — the
+    // verification step becomes cosmetic. email_verified is set true only by
+    // verify-otp, a successful reset-password, or trusted server-side
+    // provisioning (bootstrap admin) — never by registration itself.
+    if (!user.email_verified) {
+      return sendError(res, 403, 'please verify your email before signing in — request a new code from the registration page');
     }
     const token = sessions.create(user.id);
     return sendJson(res, 200, { access_token: token, user: stripAuthFields(user) });
@@ -703,50 +1423,95 @@ async function handleAuthRoute(req, res, url, appId, action) {
       return sendError(res, 403, 'self-registration is disabled for this deployment');
     }
     const payload = await readJsonBody(req);
-    const { email, password } = payload;
+    const { password } = payload;
+    const email = normaliseEmail(payload.email);
     if (!email || !password) {
       return sendError(res, 400, 'email and password are required');
     }
-    if (findUserByEmail(email)) {
-      return sendError(res, 409, 'a user with this email already exists');
+    const existing = findUserByEmail(email);
+    // A verified account owns this email outright — standard account-taken
+    // 409. An existing but never-verified account (e.g. the user never
+    // received the original code) is instead treated as a fresh verification
+    // attempt on the same record, so the frontend's existing otpSent flow
+    // resumes it rather than dead-ending in a 409 the user cannot act on.
+    if (existing && existing.email_verified) {
+      return sendError(res, 409, 'an account with this email already exists — please sign in instead, or use "Forgot password" to recover access');
+    }
+    if (existing && existing.otp_last_sent_at && Date.now() - Date.parse(existing.otp_last_sent_at) < RESEND_MIN_INTERVAL_MS) {
+      return sendJson(res, 200, { message: 'registered', user_id: existing.id, otp_required: true });
     }
     const { password_hash, salt } = hashPassword(password);
-    const { password: _pw, ...customFields } = payload;
-    const user = userRepo.create(
-      {
-        ...customFields,
-        email,
-        role: 'user',
-        account_status: 'pending',
-        password_hash,
-        salt,
-        otp_code: '000000',
-      },
-      email,
-    );
+    const { password: _pw, email: _em, ...customFields } = payload;
+    const otpCode = generateOtp();
+    const otpFields = {
+      otp_code: otpCode,
+      otp_expires: new Date(Date.now() + OTP_TTL_MS).toISOString(),
+      otp_attempts: 0,
+      otp_locked_until: null,
+      otp_last_sent_at: new Date().toISOString(),
+    };
+    const user = existing
+      ? userRepo.update(existing.id, { ...customFields, password_hash, salt, ...otpFields })
+      : userRepo.create(
+          { ...customFields, email, role: 'user', account_status: 'pending', password_hash, salt, ...otpFields },
+          email,
+        );
+    // The initial verification code is sent HERE — previously only resend-otp
+    // ever wrote an email, so a real user could never complete signup once the
+    // fixed-code bypass was removed. Admin is notified only of genuinely new
+    // registrations, not repeat attempts on an existing unverified account.
+    await sendEmail({ to: email, ...otpEmail(otpCode) });
+    if (!existing) {
+      const notify = adminNotifyEmail(email);
+      await sendEmail(notify);
+    }
     return sendJson(res, 200, { message: 'registered', user_id: user.id, otp_required: true });
   }
 
   if (action === 'verify-otp' && req.method === 'POST') {
     if (!ALLOW_OPEN_REGISTRATION) {
-      // The blanket 000000 code would otherwise return a session for any known
-      // email without a password; disabled with registration for the demo.
       return sendError(res, 403, 'account verification is disabled for this deployment');
     }
     const { email, otp_code } = await readJsonBody(req);
     const user = findUserByEmail(email);
-    if (!user) return sendError(res, 404, 'user not found');
-    if (String(otp_code) !== '000000' && String(otp_code) !== String(user.otp_code)) {
-      return sendError(res, 401, 'invalid verification code');
+    // Unknown email returns the SAME generic 401 as a known-email-wrong-code,
+    // so this endpoint is not an account-existence oracle (consistent with the
+    // resend/reset hardening). Registration's 409 remains the standard
+    // account-taken UX and is a deliberate, separate tradeoff.
+    if (!user) return sendError(res, 401, 'invalid or expired verification code');
+    // Lockout window after repeated failures.
+    if (user.otp_locked_until && Date.parse(user.otp_locked_until) > Date.now()) {
+      return sendError(res, 429, 'too many attempts — try again later');
     }
-    // Email verification must not activate the account: activation is an
-    // admin approval decision (AdminApprovals). Never demote an already-active
-    // user who happens to pass through the OTP path.
+    // The fixed test code is honoured ONLY under SELFTEST (the isolated test
+    // server). In every real deployment the stored, expiring, per-user code is
+    // the sole accepted value — the previous unconditional 000000 acceptance
+    // was a session-mint primitive for any known email.
+    const selftestBypass = process.env.SELFTEST === '1' && String(otp_code) === '000000';
+    const storedValid =
+      user.otp_code &&
+      String(otp_code) === String(user.otp_code) &&
+      user.otp_expires &&
+      Date.parse(user.otp_expires) > Date.now();
+    if (!selftestBypass && !storedValid) {
+      const attempts = (Number(user.otp_attempts) || 0) + 1;
+      const lockFields =
+        attempts >= OTP_MAX_ATTEMPTS
+          ? { otp_locked_until: new Date(Date.now() + OTP_LOCKOUT_MS).toISOString(), otp_attempts: 0 }
+          : { otp_attempts: attempts };
+      userRepo.update(user.id, lockFields);
+      return sendError(res, 401, 'invalid or expired verification code');
+    }
+    // Email verification must not activate the account. Activation is granted
+    // by successful subscription payment (stripeWebhook) or by an admin.
     const nextStatus = user.account_status === 'active' ? 'active' : 'pending';
     const updated = userRepo.update(user.id, {
       account_status: nextStatus,
       email_verified: true,
       otp_code: null,
+      otp_expires: null,
+      otp_attempts: 0,
+      otp_locked_until: null,
     });
     const token = sessions.create(user.id);
     return sendJson(res, 200, { access_token: token, user: stripAuthFields(updated) });
@@ -759,7 +1524,18 @@ async function handleAuthRoute(req, res, url, appId, action) {
     const { email } = await readJsonBody(req);
     const user = findUserByEmail(email);
     if (user) {
-      outboxEmail.record({ to: email, subject: 'Your verification code', body: 'Code: 000000' });
+      // Per-account send throttle: one code per RESEND_MIN_INTERVAL_MS.
+      if (user.otp_last_sent_at && Date.now() - Date.parse(user.otp_last_sent_at) < RESEND_MIN_INTERVAL_MS) {
+        return sendJson(res, 200, { status: 'sent' }); // do not reveal throttling to enumeration
+      }
+      const otpCode = generateOtp();
+      userRepo.update(user.id, {
+        otp_code: otpCode,
+        otp_expires: new Date(Date.now() + OTP_TTL_MS).toISOString(),
+        otp_attempts: 0,
+        otp_last_sent_at: new Date().toISOString(),
+      });
+      await sendEmail({ to: email, ...otpEmail(otpCode) });
     }
     return sendJson(res, 200, { status: 'sent' });
   }
@@ -768,24 +1544,48 @@ async function handleAuthRoute(req, res, url, appId, action) {
     const { email } = await readJsonBody(req);
     const user = findUserByEmail(email);
     if (user) {
+      if (user.reset_last_request_at && Date.now() - Date.parse(user.reset_last_request_at) < RESEND_MIN_INTERVAL_MS) {
+        return sendJson(res, 200, { status: 'sent' });
+      }
       const resetToken = randomUUID();
-      userRepo.update(user.id, { reset_token: resetToken });
-      outboxEmail.record({ to: email, subject: 'Password reset', body: `Reset token: ${resetToken}` });
+      userRepo.update(user.id, {
+        reset_token: resetToken,
+        reset_token_expires: new Date(Date.now() + RESET_TTL_MS).toISOString(),
+        reset_last_request_at: new Date().toISOString(),
+      });
+      // Single-origin production serves the SPA from APP_URL; local default
+      // matches the shim origin (dist/ is served when built).
+      const origin = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
+      await sendEmail({ to: email, ...resetEmail(`${origin}/reset-password?token=${resetToken}`) });
     }
     return sendJson(res, 200, { status: 'sent' });
   }
 
   if (action === 'reset-password' && req.method === 'POST') {
     const { reset_token, new_password } = await readJsonBody(req);
+    if (!reset_token) return sendError(res, 400, 'invalid or expired reset token');
+    if (typeof new_password !== 'string' || new_password.length < 8) {
+      return sendError(res, 400, 'a new password of at least 8 characters is required');
+    }
     const user = userRepo.listAll().find((u) => u.reset_token === reset_token);
-    if (!user) return sendError(res, 400, 'invalid or expired reset token');
+    if (!user || !user.reset_token_expires || Date.parse(user.reset_token_expires) < Date.now()) {
+      return sendError(res, 400, 'invalid or expired reset token');
+    }
     const { password_hash, salt } = hashPassword(new_password);
-    userRepo.update(user.id, { password_hash, salt, reset_token: null });
+    // Completing a reset via a token that was emailed to the address is
+    // proof of ownership equivalent to OTP verification — required so an
+    // admin-invited user (created with no password, account_status:'invited')
+    // can reach an email_verified state and actually log in afterward, given
+    // login now refuses unverified accounts.
+    userRepo.update(user.id, { password_hash, salt, email_verified: true, reset_token: null, reset_token_expires: null });
     return sendJson(res, 200, { status: 'reset' });
   }
 
   if (action === 'change-password' && req.method === 'POST') {
     const { user_id, current_password, new_password } = await readJsonBody(req);
+    if (typeof new_password !== 'string' || new_password.length < 8) {
+      return sendError(res, 400, 'a new password of at least 8 characters is required');
+    }
     const user = userRepo.getById(user_id);
     if (!user || !verifyPassword(current_password, user.password_hash, user.salt)) {
       return sendError(res, 401, 'current password is incorrect');
@@ -808,7 +1608,8 @@ async function handleInviteUser(req, res) {
   const sessionUser = resolveSessionUser(req);
   if (!sessionUser) return sendError(res, 401, 'authentication required');
   if (sessionUser.role !== 'admin') return sendError(res, 403, 'admin access required');
-  const { user_email, role } = await readJsonBody(req);
+  const { user_email: rawEmail, role } = await readJsonBody(req);
+  const user_email = normaliseEmail(rawEmail);
   if (!user_email || !['user', 'admin'].includes(role)) {
     return sendError(res, 400, 'user_email and a valid role are required');
   }
@@ -821,7 +1622,7 @@ async function handleInviteUser(req, res) {
   } else {
     user = userRepo.update(user.id, { role });
   }
-  outboxEmail.record({ to: user_email, subject: 'You have been invited', body: `Role: ${role}` });
+  await sendEmail({ to: user_email, ...inviteEmail(role) });
   return sendJson(res, 200, { status: 'invited', user: stripAuthFields(user) });
 }
 
@@ -838,11 +1639,31 @@ function handleLogout(req, res, url) {
 // ---------------------------------------------------------------------------
 
 function handlePublicSettings(req, res, appId) {
-  return sendJson(res, 200, { id: appId, public_settings: {} });
+  // The single runtime config channel the frontend already reads
+  // (src/lib/AuthContext.jsx -> appPublicSettings via useAuth()).
+  // - transcription_enabled: launch posture is OFF for users (Max's
+  //   direction, 13 July 2026); flip with TRANSCRIPTION_ENABLED=1. Recording
+  //   remains available; only Transcribe/Dissect are gated.
+  // - legal: the policy-suite display status. RC until Maxwell's go-live
+  //   flip (LEGAL_STATUS=effective + LEGAL_EFFECTIVE_DATE). INVARIANT: the
+  //   flip changes DISPLAY ONLY — SUITE_VERSION / LEGAL_SUITE_VERSION stay
+  //   RC-2026.07.19 (the immutable content identifier recorded in
+  //   LegalAcceptanceEvent rows); bumping them would stale every acceptance
+  //   and lock out all active users.
+  return sendJson(res, 200, {
+    id: appId,
+    public_settings: {
+      transcription_enabled: process.env.TRANSCRIPTION_ENABLED === '1',
+      legal: {
+        status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',
+        effective_date: process.env.LEGAL_EFFECTIVE_DATE || null,
+      },
+    },
+  });
 }
 
 // ---------------------------------------------------------------------------
-// Static serving: /uploads/* and dist/ SPA fallback
+// Tenant-bound upload access and static SPA serving
 // ---------------------------------------------------------------------------
 
 const MIME_TYPES = {
@@ -876,16 +1697,349 @@ function serveFile(res, filePath) {
   });
 }
 
-function serveUpload(req, res, pathname) {
-  const relative = decodeURIComponent(pathname.replace(/^\/uploads\//, ''));
-  const resolved = path.join(uploadsDir, relative);
-  if (!resolved.startsWith(uploadsDir)) {
-    return sendError(res, 400, 'invalid path');
+const UPLOAD_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const LEGACY_STORED_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,199}$/;
+const BINDABLE_UPLOAD_ENTITIES = new Set([...CLINICAL_ENTITIES, 'Organization', 'User']);
+const CLINICAL_UPLOAD_PURPOSES = new Set([
+  'referral-extraction',
+  'clinical-attachment',
+  'report-attachment',
+  'audio-transcription',
+]);
+
+function decodeUploadRouteSegment(raw) {
+  if (
+    !raw ||
+    raw.includes('/') ||
+    raw.includes('\\') ||
+    /%(?:2f|5c|25)/i.test(raw)
+  ) return null;
+  try {
+    const decoded = decodeURIComponent(raw);
+    if (!LEGACY_STORED_NAME_RE.test(decoded) || decoded === '.' || decoded === '..') return null;
+    return decoded;
+  } catch {
+    return null;
   }
-  if (!fs.existsSync(resolved) || !fs.statSync(resolved).isFile()) {
+}
+
+/**
+ * Lazily isolates an old bare filename behind the new registry. Ownership is
+ * proven only by an exact durable entity reference visible to the requester;
+ * filenames are never treated as tenant identifiers.
+ */
+function resolveLegacyUploadForUser({ storedName, selectedOrgId = null, sessionUser }) {
+  if (!sessionUser || !LEGACY_STORED_NAME_RE.test(storedName) || UPLOAD_ID_RE.test(storedName)) return null;
+  const existing = uploadRegistry.getByStoredName(storedName);
+  const memberOrgIds = orgIdsForUser(sessionUser.email);
+  // Old bare filenames are never claimed lazily from client-writable entity
+  // fields. Only a separately authorised migration may create a registry row;
+  // until then an unregistered legacy file remains fail-closed.
+  return existing && memberOrgIds.includes(existing.orgId) && (!selectedOrgId || existing.orgId === selectedOrgId)
+    ? existing
+    : null;
+}
+
+function canUserAccessUpload(upload, sessionUser) {
+  if (!upload || !sessionUser || !orgIdsForUser(sessionUser.email).includes(upload.orgId)) return false;
+  if (['registering', 'expired', 'deleted'].includes(upload.state)) return false;
+  if (
+    upload.state !== 'bound' &&
+    !upload.isLegacy &&
+    upload.expiresAt &&
+    new Date(upload.expiresAt).getTime() <= Date.now()
+  ) return false;
+  if (upload.state !== 'bound' && !upload.isLegacy && upload.uploaderUserId !== sessionUser.id) return false;
+  if (
+    CLINICAL_UPLOAD_PURPOSES.has(upload.purpose) &&
+    (!isInitialClinicalReleaseEligible(sessionUser) ||
+      sessionUser.account_status !== 'active' ||
+      !hasCurrentLegalAcceptance(sessionUser.email, upload.orgId))
+  ) return false;
+  return true;
+}
+
+function uploadForMember(reference, sessionUser) {
+  const upload = UPLOAD_ID_RE.test(reference)
+    ? uploadRegistry.getById(reference.toLowerCase())
+    : resolveLegacyUploadForUser({ storedName: reference, sessionUser });
+  if (!upload || ['registering', 'expired', 'deleted'].includes(upload.state)) return null;
+  return canUserAccessUpload(upload, sessionUser) ? upload : null;
+}
+
+function resolveAudioUploadForFunction({ audioUrl, user, orgId }) {
+  if (
+    typeof audioUrl !== 'string' ||
+    !audioUrl.startsWith('/uploads/') ||
+    !user?.id ||
+    typeof orgId !== 'string'
+  ) return null;
+  const currentUser = userRepo.getById(user.id);
+  if (!currentUser || currentUser.email !== user.email || !orgIdsForUser(currentUser.email).includes(orgId)) {
+    return null;
+  }
+  let pathname;
+  try {
+    pathname = new URL(audioUrl, 'http://local.invalid').pathname;
+  } catch {
+    return null;
+  }
+  const match = /^\/uploads\/([^/]*)$/.exec(pathname);
+  const reference = match ? decodeUploadRouteSegment(match[1]) : null;
+  if (!reference) return null;
+  const upload = UPLOAD_ID_RE.test(reference)
+    ? uploadRegistry.getById(reference.toLowerCase())
+    : resolveLegacyUploadForUser({ storedName: reference, selectedOrgId: orgId, sessionUser: currentUser });
+  if (
+    !upload ||
+    upload.orgId !== orgId ||
+    !canUserAccessUpload(upload, currentUser) ||
+    upload.purpose !== 'audio-transcription' ||
+    !String(upload.detectedMime || '').startsWith('audio/') ||
+    ['registering', 'expired', 'deleted'].includes(upload.state)
+  ) return null;
+  try {
+    const filePath = canonicalUploadPath(uploadsDir, upload.storedName, { mustExist: true });
+    const stat = fs.lstatSync(filePath);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size !== Number(upload.byteSize)) return null;
+    return filePath;
+  } catch {
+    return null;
+  }
+}
+
+function readUploadBuffer(filePath, expectedBytes) {
+  const stat = fs.lstatSync(filePath);
+  if (!stat.isFile() || stat.isSymbolicLink() || stat.size !== Number(expectedBytes)) {
+    throw new UploadError(409, 'upload_integrity_failed', 'The uploaded file failed integrity validation.');
+  }
+  if (stat.size > UPLOAD_POLICY.maxRequestBytes) {
+    throw new UploadError(413, 'upload_too_large', 'The uploaded file is too large.');
+  }
+  return fs.readFileSync(filePath);
+}
+
+function prepareUploadBindings(entityName, data, orgId, entityId = null, sessionUser = null) {
+  if (!BINDABLE_UPLOAD_ENTITIES.has(entityName)) return [];
+  const visitReferences = (value, depth = 0) => {
+    if (depth > 12) {
+      throw new UploadError(400, 'upload_reference_structure_too_complex', 'The file-reference structure is too complex.');
+    }
+    if (value === null || value === undefined) return;
+    if (typeof value === 'string') {
+      if (/\/api\/files\/[0-9a-f-]+/i.test(value)) {
+        throw new UploadError(400, 'signed_url_not_durable', 'Temporary access URLs cannot be retained.');
+      }
+      const embedded = value.match(/\/uploads\/[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/i);
+      if (embedded && value !== embedded[0]) {
+        throw new UploadError(400, 'noncanonical_upload_reference', 'Retain only the canonical upload reference.');
+      }
+      const match = /^\/uploads\/([0-9a-f-]+)(.*)$/i.exec(value);
+      if (match && (match[2] !== '' || !UPLOAD_ID_RE.test(match[1]))) {
+        throw new UploadError(400, 'noncanonical_upload_reference', 'Retain only the canonical upload reference.');
+      }
+      return;
+    }
+    if (Array.isArray(value)) {
+      if (value.length > 1000) {
+        throw new UploadError(400, 'upload_reference_structure_too_complex', 'The file-reference structure is too complex.');
+      }
+      for (const item of value) visitReferences(item, depth + 1);
+      return;
+    }
+    if (typeof value === 'object') {
+      const children = Object.values(value);
+      if (children.length > 1000) {
+        throw new UploadError(400, 'upload_reference_structure_too_complex', 'The file-reference structure is too complex.');
+      }
+      for (const item of children) visitReferences(item, depth + 1);
+    }
+  };
+  visitReferences(data);
+  const ids = extractUploadIdsFromValue(data);
+  if (ids.length > 20) throw new UploadError(400, 'too_many_upload_references', 'Too many file references were supplied.');
+  return ids.map((id) => {
+    const upload = uploadRegistry.getById(id);
+    if (!upload || upload.orgId !== orgId || ['registering', 'expired', 'deleted'].includes(upload.state)) {
+      throw new UploadError(404, 'upload_not_found', 'File not found.');
+    }
+    if (
+      upload.state !== 'bound' &&
+      !upload.isLegacy &&
+      (!sessionUser || upload.uploaderUserId !== sessionUser.id)
+    ) {
+      throw new UploadError(404, 'upload_not_found', 'File not found.');
+    }
+    if (
+      upload.state !== 'bound' &&
+      !upload.isLegacy &&
+      upload.expiresAt &&
+      new Date(upload.expiresAt).getTime() <= Date.now()
+    ) {
+      throw new UploadError(404, 'upload_not_found', 'File not found.');
+    }
+    if (
+      upload.state === 'bound' &&
+      (upload.boundEntityType !== entityName || (entityId && upload.boundEntityId !== entityId))
+    ) {
+      throw new UploadError(409, 'upload_already_bound', 'The file is already retained with another record.');
+    }
+    const purposeAllowed =
+      ((entityName === 'User' || entityName === 'Organization') && upload.purpose === 'profile-image') ||
+      (entityName === 'SOAPNote' && ['audio-transcription', 'clinical-attachment'].includes(upload.purpose)) ||
+      (CLINICAL_ENTITIES.has(entityName) &&
+        entityName !== 'SOAPNote' &&
+        ['referral-extraction', 'clinical-attachment', 'report-attachment'].includes(upload.purpose));
+    if (!purposeAllowed) {
+      throw new UploadError(409, 'upload_purpose_mismatch', 'The file cannot be retained with that record.');
+    }
+    return upload;
+  });
+}
+
+function commitUploadBindings(uploads, { entityName, entityId, orgId, actorUserId }) {
+  for (const upload of uploads) {
+    uploadRegistry.bind(upload.id, {
+      orgId,
+      actorUserId,
+      entityType: entityName,
+      entityId,
+    });
+  }
+}
+
+function reconcileBoundUploads(entityName, record, actorUserId) {
+  if (!record || !BINDABLE_UPLOAD_ENTITIES.has(entityName)) return;
+  uploadRegistry.retireBoundForEntity({
+    entityType: entityName,
+    entityId: record.id,
+    actorUserId,
+    retainedUploadIds: extractUploadIdsFromValue(record),
+  });
+}
+
+function retireAllBoundUploads(entityName, record, actorUserId) {
+  if (!record || !BINDABLE_UPLOAD_ENTITIES.has(entityName)) return;
+  uploadRegistry.retireBoundForEntity({
+    entityType: entityName,
+    entityId: record.id,
+    actorUserId,
+    retainedUploadIds: [],
+  });
+}
+
+function uploadResponseHeaders(upload) {
+  const mime = upload.detectedMime || 'application/octet-stream';
+  const disposition = /^(?:image|audio|video)\//.test(mime) || mime === 'application/pdf' ? 'inline' : 'attachment';
+  const safeName = String(upload.originalName || 'download').replace(/[\r\n"\\]/g, '_').slice(0, 180);
+  return {
+    'Content-Type': mime,
+    'Content-Disposition': `${disposition}; filename="${safeName}"`,
+    'Cache-Control': 'private, no-store',
+    'X-Content-Type-Options': 'nosniff',
+    'Content-Security-Policy': "default-src 'none'; sandbox",
+    'Referrer-Policy': 'no-referrer',
+    'Cross-Origin-Resource-Policy': 'same-origin',
+    'Accept-Ranges': 'bytes',
+  };
+}
+
+function serveRegisteredUpload(req, res, url, { upload, signed = false, actorUserId }) {
+  let filePath;
+  let stat;
+  try {
+    filePath = canonicalUploadPath(uploadsDir, upload.storedName, { mustExist: true });
+    stat = fs.lstatSync(filePath);
+    if (!stat.isFile() || stat.isSymbolicLink() || stat.size !== Number(upload.byteSize)) {
+      return sendError(res, 404, 'not found');
+    }
+  } catch {
     return sendError(res, 404, 'not found');
   }
-  return serveFile(res, resolved);
+  const headers = uploadResponseHeaders(upload);
+  const range = req.headers.range;
+  if (range) {
+    const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+    if (!match) {
+      res.writeHead(416, { ...headers, 'Content-Range': `bytes */${stat.size}` });
+      return res.end();
+    }
+    let start = match[1] ? Number(match[1]) : null;
+    let end = match[2] ? Number(match[2]) : null;
+    if (start === null) {
+      const suffix = end;
+      if (!Number.isInteger(suffix) || suffix <= 0) {
+        res.writeHead(416, { ...headers, 'Content-Range': `bytes */${stat.size}` });
+        return res.end();
+      }
+      start = Math.max(0, stat.size - suffix);
+      end = stat.size - 1;
+    } else {
+      if (end === null) end = stat.size - 1;
+      if (!Number.isInteger(start) || !Number.isInteger(end) || start < 0 || start > end || start >= stat.size) {
+        res.writeHead(416, { ...headers, 'Content-Range': `bytes */${stat.size}` });
+        return res.end();
+      }
+      end = Math.min(end, stat.size - 1);
+    }
+    res.writeHead(206, {
+      ...headers,
+      'Content-Range': `bytes ${start}-${end}/${stat.size}`,
+      'Content-Length': end - start + 1,
+    });
+    uploadRegistry.audit({
+      uploadId: upload.id,
+      orgId: upload.orgId,
+      actorUserId,
+      eventType: 'upload_accessed',
+      outcome: 'success',
+      metadata: { signed_url: signed, range_request: true, range_start: start, range_end: end },
+    });
+    const stream = fs.createReadStream(filePath, { start, end });
+    stream.on('error', () => res.destroy());
+    stream.pipe(res);
+    return;
+  }
+  res.writeHead(200, { ...headers, 'Content-Length': stat.size });
+  const stream = fs.createReadStream(filePath);
+  stream.on('error', () => res.destroy());
+  stream.pipe(res);
+  uploadRegistry.audit({
+    uploadId: upload.id,
+    orgId: upload.orgId,
+    actorUserId,
+    eventType: 'upload_accessed',
+    outcome: 'success',
+    metadata: { signed_url: signed },
+  });
+}
+
+function handleUploadAccess(req, res, url, rawReference, { signedRoute }) {
+  const reference = decodeUploadRouteSegment(rawReference);
+  if (!reference || (signedRoute && !UPLOAD_ID_RE.test(reference))) return sendError(res, 404, 'not found');
+  let upload;
+  let signed = false;
+  let actorUserId = null;
+  if (signedRoute && url.searchParams.has('access_token')) {
+    const grant = verifyFileAccessToken(url.searchParams.get('access_token'), { uploadId: reference.toLowerCase() });
+    const grantUser = grant ? userRepo.getById(grant.userId) : null;
+    if (!grant || !grantUser || grant.orgId !== uploadRegistry.getById(reference.toLowerCase())?.orgId) {
+      return sendError(res, 404, 'not found');
+    }
+    upload = uploadRegistry.getById(reference.toLowerCase());
+    if (!canUserAccessUpload(upload, grantUser) || upload.orgId !== grant.orgId) {
+      return sendError(res, 404, 'not found');
+    }
+    signed = true;
+    actorUserId = grantUser.id;
+  } else {
+    const sessionUser = resolveSessionUser(req);
+    if (!sessionUser) return sendError(res, 401, 'authentication required');
+    upload = uploadForMember(reference, sessionUser);
+    actorUserId = sessionUser.id;
+  }
+  if (!upload || ['registering', 'expired', 'deleted'].includes(upload.state)) return sendError(res, 404, 'not found');
+  return serveRegisteredUpload(req, res, url, { upload, signed, actorUserId });
 }
 
 function serveDistOrFallback(req, res, pathname) {
@@ -931,15 +2085,40 @@ async function requestListener(req, res) {
       return handlePublicSettings(req, res, publicSettingsMatch[1]);
     }
 
-    // Uploads static serving.
-    if (pathname.startsWith('/uploads/') && req.method === 'GET') {
-      return serveUpload(req, res, pathname);
+    if (pathname === '/api/version' && req.method === 'GET') {
+      const clean = (value, fallback) =>
+        typeof value === 'string' && /^[A-Za-z0-9._:+-]{1,120}$/.test(value) ? value : fallback;
+      return sendJson(res, 200, {
+        release_sha: clean(process.env.RELEASE_SHA, 'unknown'),
+        build_timestamp: clean(process.env.BUILD_TIMESTAMP || process.env.RELEASE_BUILD_TIMESTAMP, 'unknown'),
+      });
+    }
+
+    // Durable upload URLs are never anonymous. Native browser media may use a
+    // short-lived opaque access token issued by CreateFileAccessUrl.
+    const uploadAccessMatch = /^\/uploads\/([^/]*)$/.exec(pathname);
+    if (uploadAccessMatch) {
+      if (req.method !== 'GET') return sendError(res, 405, 'method not allowed');
+      return handleUploadAccess(req, res, url, uploadAccessMatch[1], { signedRoute: false });
+    }
+    const signedFileMatch = /^\/api\/files\/([^/]*)$/.exec(pathname);
+    if (signedFileMatch) {
+      if (req.method !== 'GET') return sendError(res, 405, 'method not allowed');
+      return handleUploadAccess(req, res, url, signedFileMatch[1], { signedRoute: true });
+    }
+    if (pathname.startsWith('/uploads/') || pathname.startsWith('/api/files/')) {
+      return sendError(res, 404, 'not found');
     }
 
     // Auth routes.
     const authMatch = /^\/api\/apps\/([^/]+)\/auth\/([^/]+)$/.exec(pathname);
     if (authMatch) {
-      return handleAuthRoute(req, res, url, authMatch[1], authMatch[2]);
+      // MUST await (like the entities route below): handleAuthRoute is async,
+      // and an unawaited rejection escapes this listener's try/catch — no HTTP
+      // response is written (client hangs) and Node crashes on the unhandled
+      // rejection. A reset/change-password with a missing new_password is one
+      // reachable trigger; see the presence guards in those handlers.
+      return await handleAuthRoute(req, res, url, authMatch[1], authMatch[2]);
     }
     const logoutMatch = /^\/api\/apps\/auth\/logout$/.exec(pathname);
     if (logoutMatch && req.method === 'GET') {
@@ -960,6 +2139,9 @@ async function requestListener(req, res) {
     const functionMatch = /^\/api\/apps\/([^/]+)\/functions\/([^/]+)$/.exec(pathname);
     if (functionMatch && req.method === 'POST') {
       const [, appId, functionName] = functionMatch;
+      if (functionName === 'commitReviewedReferral') {
+        return await handleReviewedReferralCommit(req, res);
+      }
       if (!functionsRouter) {
         return sendError(res, 404, 'function not found');
       }
@@ -979,7 +2161,24 @@ async function requestListener(req, res) {
       // unaffected.
       const integrationUser = resolveSessionUser(req);
       if (!integrationUser) return sendError(res, 401, 'authentication required');
-      return handleCoreIntegration(req, res, { endpointName, outboxEmail, outboxSms });
+      return handleCoreIntegration(req, res, {
+        endpointName,
+        outboxEmail,
+        outboxSms,
+        sessionUser: integrationUser,
+        orgIds: orgIdsForUser(integrationUser.email),
+        uploadRegistry,
+        uploadsDir,
+        hasExtractionAcceptance,
+        hasCurrentLegalAcceptance,
+        ensureFounderOrganization,
+        isClinicalUseEligible: () => isInitialClinicalReleaseEligible(integrationUser),
+        recordLegalAcceptanceBundle,
+        canAccessUpload: (upload) => canUserAccessUpload(upload, integrationUser),
+        resolveLegacyUpload: ({ storedName, selectedOrgId }) =>
+          resolveLegacyUploadForUser({ storedName, selectedOrgId, sessionUser: integrationUser }),
+        readUploadBuffer,
+      });
     }
     if (/^\/api\/apps\/[^/]+\/integration-endpoints\//.test(pathname)) {
       return sendError(res, 404, 'integration endpoint not implemented in this shim build');
@@ -992,6 +2191,9 @@ async function requestListener(req, res) {
     const relFunctionMatch = /^\/functions\/([^/]+)$/.exec(pathname);
     if (relFunctionMatch && req.method === 'POST') {
       const [, functionName] = relFunctionMatch;
+      if (functionName === 'commitReviewedReferral') {
+        return await handleReviewedReferralCommit(req, res);
+      }
       if (!functionsRouter) {
         return sendError(res, 404, 'function not found');
       }
@@ -1005,7 +2207,11 @@ async function requestListener(req, res) {
 
     return sendError(res, 404, 'not found');
   } catch (err) {
-    console.error('[shim] unhandled error:', err);
+    if (err instanceof UploadError) {
+      if (!res.headersSent) return sendError(res, err.httpStatus || 400, err.publicMessage || 'request rejected');
+      return res.end();
+    }
+    console.error('[shim] unhandled error:', err?.code || err?.name || 'internal_error');
     if (!res.headersSent) {
       sendError(res, 500, 'internal server error');
     } else {
@@ -1016,9 +2222,12 @@ async function requestListener(req, res) {
 
 const server = http.createServer(requestListener);
 
-server.listen(PORT, () => {
+server.listen(PORT, BIND_HOST, () => {
+  const address = server.address();
+  const actualHost = address && typeof address === 'object' ? address.address : BIND_HOST;
+  const actualPort = address && typeof address === 'object' ? address.port : PORT;
   // eslint-disable-next-line no-console
-  console.log(`[shim] listening on http://localhost:${PORT}`);
+  console.log(`[shim] listening on http://${actualHost}:${actualPort}`);
 });
 
 export { server, db };

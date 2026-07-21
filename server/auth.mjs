@@ -1,6 +1,6 @@
 // Password hashing, session tokens, and auth endpoint handlers for the shim.
 
-import { scryptSync, randomBytes, timingSafeEqual, randomUUID } from 'node:crypto';
+import { scryptSync, randomBytes, timingSafeEqual, randomInt } from 'node:crypto';
 
 const SCRYPT_KEYLEN = 64;
 
@@ -49,19 +49,34 @@ export function stripAuthFields(userRecord) {
     salt,
     otp_code,
     otp_expires,
+    otp_attempts,
+    otp_locked_until,
+    otp_last_sent_at,
     reset_token,
     reset_token_expires,
+    reset_last_request_at,
     ...safe
   } = userRecord;
   return safe;
 }
 
 /**
- * Generates a mock 6-digit OTP alongside the fixed acceptance code the
- * contract mandates ("000000" always verifies).
+ * Generates a uniform, crypto-strong 6-digit OTP. The fixed code "000000"
+ * is honoured ONLY under SELFTEST=1 (see verify-otp in server/index.mjs) —
+ * in production every code is random, per-user, and expiring.
  */
 export function generateOtp() {
-  return String(randomUUID().replace(/\D/g, '').padEnd(6, '0')).slice(0, 6);
+  return String(randomInt(0, 1000000)).padStart(6, '0');
+}
+
+/**
+ * Canonical form of an email address for storage and lookup: trimmed and
+ * lower-cased. Prevents case-variant duplicate accounts (a mobile keyboard
+ * auto-capitalising the first letter created a second pending registration for
+ * the same real person on 14 July 2026) and makes login case-insensitive.
+ */
+export function normaliseEmail(email) {
+  return typeof email === 'string' ? email.trim().toLowerCase() : email;
 }
 
 /**
@@ -77,6 +92,14 @@ export const UPDATE_ME_GUARDED_FIELDS = new Set([
   // activation via updateMe (ProfileSetup previously set 'active') is refused.
   'account_status',
   'email_verified',
+  // Payment and entitlement state is established only by the Stripe webhook,
+  // the bounded subscription synchroniser, or an administrator. Allowing a
+  // caller to self-assert any of these fields turns the ProfileSetup payment
+  // gate into a client-side convention.
+  'subscription_status',
+  'stripe_customer_id',
+  'stripe_subscription_id',
+  'subscription_start_date',
 ]);
 
 /**

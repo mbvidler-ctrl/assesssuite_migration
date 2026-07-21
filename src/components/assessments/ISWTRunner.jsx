@@ -159,9 +159,9 @@ export default function ISWTRunner({ onSave, onClose, initialData }) {
                  <thead className="bg-slate-200"><tr><th className="p-2 text-left">Population</th><th className="p-2 text-left">Typical Range</th><th className="p-2 text-left">MCID</th></tr></thead>
                  <tbody>
                    <tr className="border-t"><td className="p-2">Healthy adults (30–60 yrs)</td><td className="p-2">400–600 m</td><td className="p-2">—</td></tr>
-                   <tr className="border-t bg-white"><td className="p-2">Mild COPD (FEVâ‚ &gt;60%)</td><td className="p-2">300–450 m</td><td className="p-2">48 m</td></tr>
-                   <tr className="border-t"><td className="p-2">Moderate COPD (FEVâ‚ 40–60%)</td><td className="p-2">150–300 m</td><td className="p-2">48 m</td></tr>
-                   <tr className="border-t bg-white"><td className="p-2">Severe COPD (FEVâ‚ &lt;40%)</td><td className="p-2">&lt;150 m</td><td className="p-2">48 m</td></tr>
+                   <tr className="border-t bg-white"><td className="p-2">Mild COPD (FEV₁ &gt;60%)</td><td className="p-2">300–450 m</td><td className="p-2">48 m</td></tr>
+                   <tr className="border-t"><td className="p-2">Moderate COPD (FEV₁ 40–60%)</td><td className="p-2">150–300 m</td><td className="p-2">48 m</td></tr>
+                   <tr className="border-t bg-white"><td className="p-2">Severe COPD (FEV₁ &lt;40%)</td><td className="p-2">&lt;150 m</td><td className="p-2">48 m</td></tr>
                  </tbody>
                </table>
              </div>

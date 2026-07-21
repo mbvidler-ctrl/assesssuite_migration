@@ -174,7 +174,7 @@ export default function TwelveMinuteWalkRunTestCooperRunner({ client, onSave, on
             </div>
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 flex-shrink-0" />
-              <p className="text-amber-800"><strong>Contraindications:</strong> Do not administer to clients with uncontrolled cardiovascular disease, acute illness, injury preventing walking/running, or those identified as high-risk on APSS without medical clearance.</p>
+              <p className="text-amber-800"><strong>Contraindications:</strong> Do not administer to clients with uncontrolled cardiovascular disease, acute illness, injury preventing walking/running, or those identified as high-risk on the Safety Screen without medical clearance.</p>
             </div>
             <div className="bg-slate-50 border rounded-lg p-3">
               <p className="font-semibold mb-2">VO2max Formula</p>

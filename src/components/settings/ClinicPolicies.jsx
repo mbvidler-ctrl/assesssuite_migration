@@ -16,12 +16,13 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { todayLocal } from "@/lib/localDate";
 
+// Standard wording removed at Max's direction 13 July 2026 — clinician supplies own policy text; pro-forma policies may ship later.
 const DEFAULT_TEXTS = {
-  consent_primary_text: "I consent to receive clinical assessment and treatment services. I understand that this may involve physical examination, movement assessment, and therapeutic interventions.",
-  consent_privacy_text: "I consent to the collection, storage, and use of my personal health information for the purpose of providing clinical services and maintaining medical records in accordance with privacy regulations.",
-  consent_assessment_text: "I consent to participate in various physical and psychological assessment tests as recommended by my clinician. I understand the purpose, risks, and benefits of these assessments.",
-  consent_pricing_text: "I confirm that the pricing schedule for services has been explained to me and I agree to the stated fees and payment terms.",
-  cancellation_policy_text: "I understand that appointments cancelled with less than 24 hours notice may incur a cancellation fee. I agree to provide adequate notice when cancelling or rescheduling appointments."
+  consent_primary_text: "",
+  consent_privacy_text: "",
+  consent_assessment_text: "",
+  consent_pricing_text: "",
+  cancellation_policy_text: ""
 };
 
 const CONSENT_ITEMS = [
@@ -259,7 +260,8 @@ export default function ClinicPolicies() {
           </div>
 
           <div>
-            <p className="text-sm font-semibold text-slate-700 mb-3">Consent Items — toggle which appear on the pre-exercise screening consent form</p>
+            <p className="text-sm font-semibold text-slate-700 mb-1">Consent Items — toggle which appear on the pre-exercise screening consent form</p>
+            <p className="text-xs text-slate-500 mb-3">Wording you enter here is shown to clients during onboarding consent.</p>
             <div className="space-y-3">
               {CONSENT_ITEMS.map(item => (
                 <div key={item.key} className={`border rounded-lg overflow-hidden ${editingPolicy[item.key] ? 'border-blue-200 bg-blue-50/30' : 'border-slate-200 bg-slate-50'}`}>
@@ -292,13 +294,14 @@ export default function ClinicPolicies() {
                           className="text-xs text-slate-400 hover:text-slate-600 flex items-center gap-1"
                           onClick={() => handleChange(item.textKey, DEFAULT_TEXTS[item.textKey])}
                         >
-                          <RotateCcw className="w-3 h-3" /> Reset to default
+                          <RotateCcw className="w-3 h-3" /> Clear text
                         </button>
                       </div>
                       <Textarea
                         value={editingPolicy[item.textKey] || ""}
                         onChange={e => handleChange(item.textKey, e.target.value)}
                         rows={3}
+                        placeholder="This is where you may include details of your own practice policy. Pro-forma wording may be provided in a future update."
                         className="text-sm bg-white"
                       />
                     </div>

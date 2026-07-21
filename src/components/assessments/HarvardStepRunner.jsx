@@ -144,7 +144,7 @@ export default function HarvardStepRunner({ onSave, onClose, initialData }) {
                 <div>
                   <p className="font-semibold text-slate-800 mb-1">Scoring — Physical Fitness Index (PFI)</p>
                   <div className="bg-slate-50 border border-slate-200 rounded p-3 font-mono text-xs mb-2">
-                    PFI = (Duration in seconds × 100) ÷ (2 × [HRâ‚ + HR₂ + HR₃])
+                    PFI = (Duration in seconds × 100) ÷ (2 × [HR₁ + HR₂ + HR₃])
                   </div>
                   <div className="overflow-x-auto">
                     <table className="text-xs w-full border border-slate-200 rounded">
