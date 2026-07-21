@@ -33,7 +33,12 @@ for (const name of [
 
 const child = spawn(
   process.execPath,
-  ['--test', '--test-concurrency=1', 'server/tests/forward-rollback-compatibility.test.mjs'],
+  [
+    '--test',
+    '--test-concurrency=1',
+    '--test-reporter=tap',
+    'server/tests/forward-rollback-compatibility.test.mjs',
+  ],
   {
     cwd: repoRoot,
     env: {
