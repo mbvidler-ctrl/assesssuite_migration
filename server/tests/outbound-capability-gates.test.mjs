@@ -210,7 +210,8 @@ test('production configs pin explicit email, SMS and payment postures', () => {
     assert.equal((source.match(/^\s*PAYMENTS_ENABLED\s*=\s*"1"\s*$/gm) || []).length, 1, fileName);
   }
 
-  const integrations = fs.readFileSync(path.join(repoRoot, 'server', 'integrations.mjs'), 'utf8');
+  const integrations = fs.readFileSync(path.join(repoRoot, 'server', 'integrations.mjs'), 'utf8')
+    .replaceAll('\r\n', '\n');
   const smsHandler = /function handleSendSMS[\s\S]*?\n}\n/.exec(integrations)?.[0] || '';
   assert.match(smsHandler, /outboxSms\.record/);
   assert.doesNotMatch(smsHandler, /\bfetch\b|https?:\/\/|twilio/i);
