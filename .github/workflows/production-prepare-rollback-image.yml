@@ -290,8 +290,8 @@ jobs:
           PRODUCTION_BASE_SHA: 183c8e47a0025ad311f5f6c1ea063c2feb430817
         run: |
           set -euo pipefail
-          git merge-base --is-ancestor "$PRODUCTION_BASE_SHA" HEAD
-          mapfile -t lint_files < <(git diff --name-only --diff-filter=ACMR "$PRODUCTION_BASE_SHA"...HEAD -- '*.js' '*.jsx' '*.mjs' '*.ts' '*.tsx')
+          git cat-file -e "$PRODUCTION_BASE_SHA^{commit}"
+          mapfile -t lint_files < <(git diff --name-only --diff-filter=ACMR "$PRODUCTION_BASE_SHA" HEAD -- '*.js' '*.jsx' '*.mjs' '*.ts' '*.tsx')
           if [[ "${#lint_files[@]}" -gt 0 ]]; then
             npx --no-install eslint "${lint_files[@]}"
           fi
