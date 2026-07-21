@@ -1,0 +1,178 @@
+name: Emergency production deploy - exact main
+
+on:
+  workflow_dispatch:
+    inputs:
+      application_sha:
+        description: Exact current main SHA to build and deploy
+        required: true
+        type: string
+      confirmation:
+        description: Type DEPLOY assesssuite-production EMERGENCY EXACT MAIN
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assesssuite-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build exact main and update the existing production machine
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Validate immutable dispatch
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          EVENT_REF: ${{ github.ref }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == "mbvidler-ctrl/assesssuite_migration" ]]
+          [[ "$ACTOR" == "mbvidler-ctrl" && "$TRIGGERING_ACTOR" == "mbvidler-ctrl" ]]
+          [[ "$IS_FORK" == "false" && "$EVENT_REF" == "refs/heads/main" ]]
+          [[ "$APPLICATION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$APPLICATION_SHA" == "$EVENT_SHA" && "$APPLICATION_SHA" == "$WORKFLOW_SHA" ]]
+          [[ "$CONFIRMATION" == "DEPLOY assesssuite-production EMERGENCY EXACT MAIN" ]]
+
+      - name: Check out exact main revision
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Verify source and build immutable candidate
+        id: build
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_CONFIG_SHA256: 93a1bd117d69c3768a283f53322af234a3c9a20951b1d676056dec2c2129f3b7
+          DOCKERFILE_SHA256: eb9cee4fcd56adf63b90d29a95cec13ed747cd00741f3f48ee1a059d94ce1f7f
+          PACKAGE_LOCK_SHA256: 083de8e13ee88be5180ea2a0ea0054992d85695552ef659996686e302d7c0f0b
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$APPLICATION_SHA" ]]
+          [[ "$(git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$APPLICATION_SHA" ]]
+          [[ "$(sha256sum fly.production.toml | awk '{print $1}')" == "$CANDIDATE_CONFIG_SHA256" ]]
+          [[ "$(sha256sum Dockerfile | awk '{print $1}')" == "$DOCKERFILE_SHA256" ]]
+          [[ "$(sha256sum package-lock.json | awk '{print $1}')" == "$PACKAGE_LOCK_SHA256" ]]
+          [[ -z "$(git status --porcelain --untracked-files=no)" ]]
+          build_timestamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          image="assesssuite-emergency:$APPLICATION_SHA"
+          docker build \
+            --build-arg "RELEASE_SHA=$APPLICATION_SHA" \
+            --build-arg 'SOURCE_BRANCH=main' \
+            --build-arg "BUILD_TIMESTAMP=$build_timestamp" \
+            --label "org.opencontainers.image.revision=$APPLICATION_SHA" \
+            --label 'org.opencontainers.image.source=https://github.com/mbvidler-ctrl/assesssuite_migration' \
+            --label "io.assesssuite.trusted-workflow=$APPLICATION_SHA" \
+            --tag "$image" .
+          [[ "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$APPLICATION_SHA" ]]
+          [[ "$(docker image inspect "$image" --format '{{json .Config.Cmd}}')" == '["sh","-c","node server/productionBootstrap.mjs && exec node server/index.mjs"]' ]]
+          echo "build_timestamp=$build_timestamp" >> "$GITHUB_OUTPUT"
+
+      - name: Install checksum-verified flyctl 0.4.71
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          bin_dir="$RUNNER_TEMP/flyctl-bin"
+          curl --fail --location --silent --show-error \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz' \
+            --output "$archive"
+          echo 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2  '"$archive" | sha256sum --check --strict
+          mkdir -p "$bin_dir"
+          tar -xzf "$archive" -C "$bin_dir" flyctl
+          chmod 0755 "$bin_dir/flyctl"
+          ln -s "$bin_dir/flyctl" "$bin_dir/fly"
+          echo "$bin_dir" >> "$GITHUB_PATH"
+
+      - name: Publish immutable image and update exact production machine
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          BUILD_TIMESTAMP: ${{ steps.build.outputs.build_timestamp }}
+          EXPECTED_CURRENT_RELEASE: v13
+          EXPECTED_CURRENT_IMAGE: registry.fly.io/assesssuite-production@sha256:e016c1ffbcf0da6e46a2815161d2b0a2fef34141e0f80068d2235f4032cd8e75
+          PRODUCTION_MACHINE_ID: 82d1160a774968
+          PRODUCTION_VOLUME_ID: vol_vxm5g29kzzwx09n4
+        run: |
+          set -euo pipefail
+          set +x
+          app=assesssuite-production
+          local_image="assesssuite-emergency:$APPLICATION_SHA"
+          image_tag="registry.fly.io/$app:emergency-$APPLICATION_SHA"
+
+          [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$APPLICATION_SHA" ]]
+          [[ "$(git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$APPLICATION_SHA" ]]
+          fly auth docker
+
+          machines_json="$RUNNER_TEMP/pre-machines.json"
+          volumes_json="$RUNNER_TEMP/pre-volumes.json"
+          releases_json="$RUNNER_TEMP/pre-releases.json"
+          fly machines list --app "$app" --json > "$machines_json"
+          fly volumes list --app "$app" --json > "$volumes_json"
+          fly releases --app "$app" --image --json > "$releases_json"
+          jq -e --arg mid "$PRODUCTION_MACHINE_ID" \
+            'length == 1 and .[0].id == $mid and .[0].region == "syd" and .[0].state == "started"' "$machines_json" >/dev/null
+          jq -e --arg vid "$PRODUCTION_VOLUME_ID" --arg mid "$PRODUCTION_MACHINE_ID" \
+            'length == 1 and .[0].id == $vid and .[0].attached_machine_id == $mid and .[0].encrypted == true and .[0].size_gb == 3 and .[0].snapshot_retention == 5 and .[0].auto_backup_enabled == true' "$volumes_json" >/dev/null
+          jq -e --arg image "$EXPECTED_CURRENT_IMAGE" \
+            'map(select((.Status // .status // "") | ascii_downcase == "complete"))[0] as $r | ($r.Version == 13 and $r.ImageRef == $image)' "$releases_json" >/dev/null
+
+          docker tag "$local_image" "$image_tag"
+          push_output="$(docker push "$image_tag" 2>&1)"
+          image_digest="$(printf '%s\n' "$push_output" | sed -nE 's/^.*digest: (sha256:[0-9a-f]{64}) size: [0-9]+.*$/\1/p' | tail -n 1)"
+          unset push_output
+          [[ "$image_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          image_ref="registry.fly.io/$app@$image_digest"
+          docker buildx imagetools inspect "$image_ref" >/dev/null
+
+          fly machine update "$PRODUCTION_MACHINE_ID" \
+            --app "$app" \
+            --config fly.production.toml \
+            --image "$image_ref" \
+            --yes \
+            --wait-timeout 300
+
+          post_machines="$RUNNER_TEMP/post-machines.json"
+          fly machines list --app "$app" --json > "$post_machines"
+          jq -e --arg mid "$PRODUCTION_MACHINE_ID" --arg image "$image_ref" \
+            'length == 1 and .[0].id == $mid and .[0].state == "started" and (.[] | (.image_ref // .config.image // "") == $image)' "$post_machines" >/dev/null
+
+          version_json="$RUNNER_TEMP/version.json"
+          verified=false
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent --show-error --max-time 10 \
+              'https://assesssuite-production.fly.dev/api/version' > "$version_json" \
+              && jq -e --arg sha "$APPLICATION_SHA" '.release_sha == $sha' "$version_json" >/dev/null; then
+              verified=true
+              break
+            fi
+            sleep 2
+          done
+          [[ "$verified" == true ]]
+
+          {
+            echo '## AssessSuite emergency exact-main deployment'
+            echo
+            echo "- Application SHA: $APPLICATION_SHA"
+            echo "- Immutable image: $image_ref"
+            echo "- Production machine: $PRODUCTION_MACHINE_ID"
+            echo "- Production volume: $PRODUCTION_VOLUME_ID"
+            echo "- Build timestamp: $BUILD_TIMESTAMP"
+            echo '- Fly public version verification: PASS'
+          } >> "$GITHUB_STEP_SUMMARY"
