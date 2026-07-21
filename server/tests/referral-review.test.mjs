@@ -126,6 +126,42 @@ test('atomic helper reconciles an uncertain response once with the exact same ke
   assert.equal(calls[1].body, payload);
 });
 
+test('a second uncertain response cannot override the truthful unconfirmed-result contract', async () => {
+  const payload = {
+    idempotency_key: '00000000-0000-4000-8000-000000000098',
+    operation: 'create',
+  };
+  const calls = [];
+  const misleadingUpstream = Object.assign(new Error('synthetic second response loss'), {
+    status: 500,
+    data: {
+      code: 'referral_commit_failed',
+      details: 'The referral could not be saved. No client data was changed.',
+    },
+  });
+  const sdk = {
+    functions: {
+      async invoke(name, body) {
+        calls.push({ name, body });
+        if (calls.length === 1) throw new Error('synthetic first response loss');
+        throw misleadingUpstream;
+      },
+    },
+  };
+
+  await assert.rejects(
+    () => commitReviewedReferral(sdk, payload),
+    (error) => (
+      error?.data?.code === 'unconfirmed_referral_commit_result'
+      && error?.data?.details === 'The save result could not be confirmed. Retry this same review; AssessSuite will safely return the original result if it was already saved.'
+      && !JSON.stringify(error).includes('No client data was changed')
+    ),
+  );
+  assert.equal(calls.length, 2);
+  assert.equal(calls[0].body, payload);
+  assert.equal(calls[1].body, payload);
+});
+
 test('atomic helper does not retry a deterministic client refusal', async () => {
   let calls = 0;
   const refusal = Object.assign(new Error('synthetic refusal'), { status: 409 });

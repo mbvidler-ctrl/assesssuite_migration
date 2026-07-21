@@ -346,3 +346,25 @@ test('an uncertain atomic commit reconciles with the same key and a new extracti
   expect(snapshot.calls.functions[2].payload.idempotency_key).not.toBe(firstKey);
   expect(snapshot.calls.writes).toEqual([]);
 });
+
+test('two uncertain commit responses preserve the review and report only the truthful unconfirmed result', async ({ page }) => {
+  await openScenario(page, 'commit-double-uncertain');
+  await extractAndOpenReview(page);
+
+  const review = page.getByRole('dialog', { name: 'Review Extracted Data' });
+  await review.getByRole('button', { name: 'Create New Client' }).click();
+
+  await expect(review).toBeVisible();
+  await expect(page.getByText(
+    'The save result could not be confirmed. Retry this same review; AssessSuite will safely return the original result if it was already saved.',
+    { exact: true },
+  ).first()).toBeVisible();
+  await expect(page.getByText(/No client data was changed/)).toHaveCount(0);
+
+  const snapshot = await state(page);
+  expect(snapshot.calls.functions).toHaveLength(2);
+  expect(snapshot.calls.functions[1].payload.idempotency_key)
+    .toBe(snapshot.calls.functions[0].payload.idempotency_key);
+  expect(snapshot.calls.writes).toEqual([]);
+  expect(snapshot.calls.callbacks).toEqual([]);
+});

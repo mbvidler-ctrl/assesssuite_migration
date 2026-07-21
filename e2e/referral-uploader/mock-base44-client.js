@@ -66,10 +66,26 @@ export const base44 = {
         name,
         payload: JSON.parse(JSON.stringify(payload)),
       });
-      if (harnessState.scenario === 'commit-retry' && harnessState.calls.functions.length === 1) {
+      if (
+        ['commit-retry', 'commit-double-uncertain'].includes(harnessState.scenario)
+        && harnessState.calls.functions.length === 1
+      ) {
         // The server committed and created its receipt, but the response was
         // lost. The helper must reconcile automatically with the same key.
         const error = new Error('Synthetic transport failure');
+        throw error;
+      }
+      if (
+        harnessState.scenario === 'commit-double-uncertain'
+        && harnessState.calls.functions.length === 2
+      ) {
+        const error = Object.assign(new Error('Synthetic reconciliation failure'), {
+          status: 500,
+          data: {
+            code: 'referral_commit_failed',
+            details: 'The referral could not be saved. No client data was changed.',
+          },
+        });
         throw error;
       }
       const clientId = payload.operation === 'update'
