@@ -59,6 +59,7 @@ export default function ClinicPolicies() {
   const [expandedItems, setExpandedItems] = useState({});
   const [orgId, setOrgId] = useState("");
   const [showNewForm, setShowNewForm] = useState(false);
+  const [canManage, setCanManage] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -72,6 +73,7 @@ export default function ClinicPolicies() {
       const primary = (mems || []).find(m => m.is_primary) || (mems || [])[0];
       const uid = primary?.org_id || user.id;
       setOrgId(uid);
+      setCanManage(user.role === 'admin' || primary?.role === 'owner');
       try {
         const results = await base44.entities.ClinicPolicy.list();
         const filtered = (results || []).filter(p => p.org_id === uid);
@@ -89,6 +91,7 @@ export default function ClinicPolicies() {
   };
 
   const handleNew = () => {
+    if (!canManage) return;
     setEditingId(null);
     setEditingPolicy(emptyPolicy(orgId));
     setExpandedItems({});
@@ -159,8 +162,17 @@ export default function ClinicPolicies() {
   };
 
   const handleSave = async () => {
+    if (!canManage) { toast.error("Practice owner access is required"); return; }
     if (!editingPolicy.policy_name?.trim()) { toast.error("Please enter a policy name"); return; }
     if (!editingPolicy.version_label?.trim()) { toast.error("Please enter a version label"); return; }
+    if (editingPolicy.is_active) {
+      const enabled = CONSENT_ITEMS.filter(item => editingPolicy[item.key] !== false);
+      if (enabled.length === 0) { toast.error("Enable at least one consent item"); return; }
+      if (enabled.some(item => !editingPolicy[item.textKey]?.trim())) {
+        toast.error("Every enabled consent item requires operative policy text");
+        return;
+      }
+    }
     setIsSaving(true);
     try {
       const payload = { ...editingPolicy, org_id: orgId };
@@ -350,19 +362,25 @@ export default function ClinicPolicies() {
               Create versioned policies. The active policy is shown to clients during onboarding. Each client record stores which policy version they signed.
             </p>
           </div>
-          <Button onClick={handleNew} className="bg-blue-600 hover:bg-blue-700">
+          {canManage && <Button onClick={handleNew} className="bg-blue-600 hover:bg-blue-700">
             <Plus className="w-4 h-4 mr-2" /> New Policy Version
-          </Button>
+          </Button>}
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {!canManage && (
+          <div className="flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span>Clinic consent policies are read-only for members. A practice owner must create, activate or amend them.</span>
+          </div>
+        )}
         {policies.length === 0 && (
           <div className="text-center py-10 text-slate-400">
             <FileText className="w-10 h-10 mx-auto mb-3 opacity-30" />
             <p className="text-sm">No policies yet. Create your first consent policy to get started.</p>
-            <Button onClick={handleNew} variant="outline" className="mt-4">
+            {canManage && <Button onClick={handleNew} variant="outline" className="mt-4">
               <Plus className="w-4 h-4 mr-2" /> Create First Policy
-            </Button>
+            </Button>}
           </div>
         )}
 
@@ -378,6 +396,7 @@ export default function ClinicPolicies() {
               onDelete={handleDelete}
               onSetActive={handleSetActive}
               isActive
+              canManage={canManage}
             />
           </div>
         )}
@@ -398,6 +417,7 @@ export default function ClinicPolicies() {
                   onDelete={handleDelete}
                   onSetActive={handleSetActive}
                   isActive={false}
+                  canManage={canManage}
                 />
               ))}
             </div>
@@ -408,7 +428,7 @@ export default function ClinicPolicies() {
   );
 }
 
-function PolicyCard({ policy, onEdit, onDuplicate, onDelete, onSetActive, isActive }) {
+function PolicyCard({ policy, onEdit, onDuplicate, onDelete, onSetActive, isActive, canManage }) {
   const enabledItems = CONSENT_ITEMS.filter(i => policy[i.key]);
 
   return (
@@ -439,7 +459,7 @@ function PolicyCard({ policy, onEdit, onDuplicate, onDelete, onSetActive, isActi
             )}
           </div>
         </div>
-        <div className="flex items-center gap-1 shrink-0">
+        {canManage && <div className="flex items-center gap-1 shrink-0">
           {!isActive && (
             <Button size="sm" variant="outline" onClick={() => onSetActive(policy)} className="text-xs text-green-700 border-green-300 hover:bg-green-50">
               <Star className="w-3 h-3 mr-1" /> Set Active
@@ -456,7 +476,7 @@ function PolicyCard({ policy, onEdit, onDuplicate, onDelete, onSetActive, isActi
               <Trash2 className="w-3 h-3" />
             </Button>
           )}
-        </div>
+        </div>}
       </div>
     </div>
   );

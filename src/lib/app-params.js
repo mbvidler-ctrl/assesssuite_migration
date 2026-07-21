@@ -36,27 +36,19 @@ const getAppParamValue = (paramName, { defaultValue = undefined, removeFromUrl =
 
 const isLocalhostOrigin = (url) => /^https?:\/\/(localhost|127\.0\.0\.1)(:|$|\/)/.test(url || "");
 
-// The shim serves the frontend and the API from a single origin in production,
-// so window.location.origin is the correct backend URL for tunnel and hosted
-// deployments. Prefer an explicit ?server_url= or a non-localhost build-time
-// VITE_BASE44_BACKEND_URL; otherwise, or when a localhost value was baked into a
-// build that is now served from a remote host, fall back to the current origin.
-// This removes the rebuild-per-URL dependency without breaking local dev.
+// The shim serves the frontend and API from one origin in production. Never
+// accept a browser URL/localStorage override for the API origin: the SDK adds
+// the session bearer token to API requests, so a caller-controlled server_url
+// would be a persistent token-exfiltration primitive. The only cross-port
+// exception is an explicitly built localhost backend while the page itself is
+// also on localhost, preserving the Vite development workflow.
 const resolveServerUrl = () => {
-	const explicit = getAppParamValue("server_url", { defaultValue: import.meta.env.VITE_BASE44_BACKEND_URL });
-	if (isNode) return explicit;
+	const configured = import.meta.env.VITE_BASE44_BACKEND_URL;
+	if (isNode) return configured;
 	const origin = window.location.origin;
-	if (!explicit) return origin;
-	// A localhost backend that was baked or stored from a different local workflow
-	// must not override the origin actually serving the app. Two cases:
-	//  - remote origin (deployed / tunnel) with a localhost value baked in; and
-	//  - the single-origin shim served from one localhost port (e.g. :8787) while a
-	//    stale value points at another localhost port (e.g. the :5173 vite-dev proxy).
-	// In both, prefer the current origin. When origin and explicit are the same
-	// localhost port (the vite-dev-proxy workflow), explicit is kept.
-	const norm = (u) => (u || "").replace(/\/$/, "");
-	if (isLocalhostOrigin(explicit) && norm(explicit) !== norm(origin)) return origin;
-	return explicit;
+	window.localStorage.removeItem('base44_server_url');
+	if (isLocalhostOrigin(origin) && isLocalhostOrigin(configured)) return configured;
+	return origin;
 }
 
 const getAppParams = () => {

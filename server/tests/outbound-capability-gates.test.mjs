@@ -94,6 +94,8 @@ test('email remains outbox-only with an inherited secret and gate off', { concur
     }));
     assert.deepEqual(result, { recorded: true, sent: false });
     assert.equal(records.length, 1);
+    assert.equal(records[0].body, null);
+    assert.equal(JSON.stringify(records[0]).includes('Synthetic only'), false);
     assert.equal(fetchCalls, 0);
   } finally {
     globalThis.fetch = originalFetch;
@@ -142,6 +144,7 @@ test('payment gate is enforced at both the caller branch and direct network sink
       STRIPE_SECRET_KEY: 'sk_test_synthetic_inherited_secret',
     }, async () => {
       const response = await createCheckoutSessionFunction({
+        user: { id: 'synthetic-user', email: 'synthetic-user@example.invalid' },
         body: {
           plan: 'monthly',
           userId: 'synthetic-user',
@@ -215,4 +218,14 @@ test('production configs pin explicit email, SMS and payment postures', () => {
   const smsHandler = /function handleSendSMS[\s\S]*?\n}\n/.exec(integrations)?.[0] || '';
   assert.match(smsHandler, /outboxSms\.record/);
   assert.doesNotMatch(smsHandler, /\bfetch\b|https?:\/\/|twilio/i);
+});
+
+test('transactional auth callers consume delivery outcomes and revoke undelivered capabilities', () => {
+  const source = fs.readFileSync(path.join(repoRoot, 'server', 'index.mjs'), 'utf8').replaceAll('\r\n', '\n');
+  assert.match(source, /transactionalEmailDeliveryRequired\(\)[\s\S]*?delivery\.sent/);
+  assert.match(source, /verification email delivery could not be confirmed; please retry/);
+  assert.match(source, /otp_code:\s*null,[\s\S]*?otp_last_sent_at:\s*null/);
+  assert.match(source, /reset_token:\s*null,[\s\S]*?reset_last_request_at:\s*null/);
+  const forgotPassword = fs.readFileSync(path.join(repoRoot, 'src', 'pages', 'ForgotPassword.jsx'), 'utf8');
+  assert.match(forgotPassword, /If an account exists with that email, you'll receive a password reset link shortly\./);
 });

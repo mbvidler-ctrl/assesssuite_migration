@@ -597,7 +597,11 @@ export default function SOAPNoteModal({
     setLastTranscribedUrl(audioUrl);
     setShowTranscriptPanel(true);
     try {
-      const result = await base44.functions.invoke('transcribeSession', { action: 'transcribe', audio_url: audioUrl });
+      const result = await base44.functions.invoke('transcribeSession', {
+        action: 'transcribe',
+        audio_url: audioUrl,
+        org_id: client.org_id,
+      });
       // functions.invoke returns the raw response envelope; the body is under
       // .data (matching the response.data || response convention used elsewhere).
       const payload = result?.data ?? result;

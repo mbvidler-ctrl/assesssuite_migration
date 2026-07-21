@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
+import { isIP } from 'node:net';
 
 import { openDatabase, createEntityRepository, createSessionRepository, createOutboxRepository, loadOrgScopedEntities } from './db.mjs';
 import { matchesQuery, applySortSkipLimit, applyProjection } from './query.mjs';
@@ -33,6 +34,7 @@ import {
   extractUploadIdsFromValue,
 } from './uploadRegistry.mjs';
 import { verifyFileAccessToken } from './fileAccess.mjs';
+import { createFixedWindowRateLimiter } from './rateLimit.mjs';
 import {
   createReferralCommitService,
   ReferralCommitError,
@@ -99,6 +101,9 @@ const OTP_MAX_ATTEMPTS = 5;
 const OTP_LOCKOUT_MS = 15 * 60 * 1000;
 const RESEND_MIN_INTERVAL_MS = 30 * 1000;
 const RESET_TTL_MS = 60 * 60 * 1000;
+const registrationIpLimiter = createFixedWindowRateLimiter({ limit: 20, windowMs: 60 * 1000 });
+const registrationEmailLimiter = createFixedWindowRateLimiter({ limit: 5, windowMs: 15 * 60 * 1000 });
+const registrationGlobalLimiter = createFixedWindowRateLimiter({ limit: 60, windowMs: 60 * 1000, maxKeys: 1 });
 // Default app id used for the dev-only /functions/<name> relative path when it
 // is served in single-process production (mirrors the vite proxy rewrite).
 const DEFAULT_APP_ID = process.env.DEFAULT_APP_ID || 'local-assesssuite';
@@ -245,17 +250,36 @@ function sendError(res, status, message, extra = {}) {
   sendJson(res, status, { message, ...extra });
 }
 
-async function readBody(req) {
+async function readBody(req, maxBytes = 8 * 1024 * 1024) {
+  const contentLength = req.headers['content-length'];
+  if (contentLength !== undefined) {
+    const parsed = Number(contentLength);
+    if (!Number.isSafeInteger(parsed) || parsed < 0) {
+      req.resume();
+      throw new UploadError(400, 'invalid_content_length', 'The request length is invalid.');
+    }
+    if (parsed > maxBytes) {
+      req.resume();
+      throw new UploadError(413, 'request_too_large', 'The request is too large.');
+    }
+  }
   const chunks = [];
+  let total = 0;
   for await (const chunk of req) {
-    chunks.push(chunk);
+    const buffer = Buffer.from(chunk);
+    total += buffer.length;
+    if (total > maxBytes) {
+      req.resume();
+      throw new UploadError(413, 'request_too_large', 'The request is too large.');
+    }
+    chunks.push(buffer);
   }
   if (chunks.length === 0) return { raw: Buffer.alloc(0), contentType: req.headers['content-type'] || '' };
   return { raw: Buffer.concat(chunks), contentType: req.headers['content-type'] || '' };
 }
 
-async function readJsonBody(req) {
-  const { raw, contentType } = await readBody(req);
+async function readJsonBody(req, maxBytes) {
+  const { raw, contentType } = await readBody(req, maxBytes);
   if (raw.length === 0) return {};
   if (contentType.includes('multipart/form-data')) {
     // Multipart handled separately by callers that need file access; JSON
@@ -989,6 +1013,12 @@ async function handleEntitiesRoute(req, res, url, match) {
       // org-bearing writes to a membership the caller holds.
       const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: true });
       if (!auth.ok) return sendError(res, auth.status, auth.message);
+      const owner = clinicPolicyOwnerDenied(entityName, sessionUser, data?.org_id);
+      if (owner) return sendError(res, owner.status, owner.message);
+    }
+    if (entityName === 'ClinicPolicy') {
+      const validPolicy = validateClinicPolicyMutation(data);
+      if (!validPolicy.ok) return sendError(res, validPolicy.status, validPolicy.message);
     }
     const referenceScope = validateEntityReferenceScope(entityName, data);
     if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
@@ -1027,6 +1057,12 @@ async function handleEntitiesRoute(req, res, url, match) {
       }
       const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: false });
       if (!auth.ok) return sendError(res, auth.status, auth.message);
+      const owner = clinicPolicyOwnerDenied(entityName, sessionUser, existing?.org_id);
+      if (owner) return sendError(res, owner.status, owner.message);
+    }
+    if (entityName === 'ClinicPolicy') {
+      const validPolicy = validateClinicPolicyMutation(data, existing);
+      if (!validPolicy.ok) return sendError(res, validPolicy.status, validPolicy.message);
     }
     const referenceScope = validateEntityReferenceScope(entityName, data, existing);
     if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
@@ -1076,6 +1112,10 @@ async function handleEntitiesRoute(req, res, url, match) {
     if (!isAdmin && !isUserCollection && !isWithinOrgScope(existing, sessionUser, entityName)) {
       return sendError(res, 404, 'record not found');
     }
+    if (!isAdmin) {
+      const owner = clinicPolicyOwnerDenied(entityName, sessionUser, existing?.org_id);
+      if (owner) return sendError(res, owner.status, owner.message);
+    }
     if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, existing?.org_id)) return;
     retireAllBoundUploads(entityName, existing, sessionUser.id);
     repo.remove(rest);
@@ -1102,6 +1142,11 @@ async function handleEntitiesRoute(req, res, url, match) {
     const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
     const all = repo.listAll();
     const matched = all.filter((record) => matchesQuery(record, scopedQuery));
+    if (!isAdmin && entityName === 'ClinicPolicy' && matched.some(
+      (record) => !isOrganizationOwner(sessionUser?.email, record.org_id),
+    )) {
+      return sendError(res, 403, 'practice owner access required to modify clinic policies');
+    }
     if (!isAdmin && CLINICAL_ENTITIES.has(entityName) && matched.some(
       (record) => !hasCurrentLegalAcceptance(sessionUser?.email, record.org_id),
     )) {
@@ -1237,6 +1282,8 @@ async function handleBulk(req, res, entityName) {
       for (const item of items) {
         const auth = writeAuthDenied(entityName, item, sessionUser, { isCreate: true });
         if (!auth.ok) return sendError(res, auth.status, auth.message);
+        const owner = clinicPolicyOwnerDenied(entityName, sessionUser, item?.org_id);
+        if (owner) return sendError(res, owner.status, owner.message);
         const referenceScope = validateEntityReferenceScope(entityName, item);
         if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
         if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, item?.org_id)) return;
@@ -1245,6 +1292,12 @@ async function handleBulk(req, res, entityName) {
       for (const item of items) {
         const referenceScope = validateEntityReferenceScope(entityName, item);
         if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
+      }
+    }
+    if (entityName === 'ClinicPolicy') {
+      for (const item of items) {
+        const validPolicy = validateClinicPolicyMutation(item);
+        if (!validPolicy.ok) return sendError(res, validPolicy.status, validPolicy.message);
       }
     }
     const planned = items.map((item) => ({
@@ -1292,6 +1345,19 @@ async function handleBulk(req, res, entityName) {
         }
         const auth = writeAuthDenied(entityName, item, sessionUser, { isCreate: false });
         if (!auth.ok) return sendError(res, auth.status, auth.message);
+        const owner = clinicPolicyOwnerDenied(entityName, sessionUser, existing?.org_id);
+        if (owner) return sendError(res, owner.status, owner.message);
+        if (entityName === 'ClinicPolicy') {
+          const validPolicy = validateClinicPolicyMutation(item, existing);
+          if (!validPolicy.ok) return sendError(res, validPolicy.status, validPolicy.message);
+        }
+      }
+    } else if (entityName === 'ClinicPolicy') {
+      for (const item of items) {
+        if (!item.id) continue;
+        const existing = repo.getById(item.id);
+        const validPolicy = validateClinicPolicyMutation(item, existing);
+        if (!validPolicy.ok) return sendError(res, validPolicy.status, validPolicy.message);
       }
     }
     const planned = items.filter((item) => item.id).map((item) => {
@@ -1356,9 +1422,18 @@ async function handleUpdateMany(req, res, entityName) {
   }
   const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
   const matched = repo.listAll().filter((record) => matchesQuery(record, scopedQuery));
+  if (!isAdmin && entityName === 'ClinicPolicy' && matched.some(
+    (record) => !isOrganizationOwner(sessionUser?.email, record.org_id),
+  )) {
+    return sendError(res, 403, 'practice owner access required to modify clinic policies');
+  }
   for (const record of matched) {
     const referenceScope = validateEntityReferenceScope(entityName, data, record);
     if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
+    if (entityName === 'ClinicPolicy') {
+      const validPolicy = validateClinicPolicyMutation(data, record);
+      if (!validPolicy.ok) return sendError(res, validPolicy.status, validPolicy.message);
+    }
   }
   if (!isAdmin && CLINICAL_ENTITIES.has(entityName) && matched.some(
     (record) => !hasCurrentLegalAcceptance(sessionUser?.email, record.org_id),
@@ -1417,6 +1492,155 @@ function findUserByEmail(email) {
   return userRepo.listAll().find((u) => normaliseEmail(u.email) === target) || null;
 }
 
+function isOrganizationOwner(userEmail, orgId) {
+  if (!orgMemberRepo || !userEmail || !orgId) return false;
+  return orgMemberRepo.listAll().some(
+    (membership) => membership.user_email === userEmail && membership.org_id === orgId && membership.role === 'owner',
+  );
+}
+
+const CLINIC_POLICY_CONSENT_FIELDS = Object.freeze([
+  ['show_primary_consent', 'consent_primary_text'],
+  ['show_privacy_consent', 'consent_privacy_text'],
+  ['show_assessment_consent', 'consent_assessment_text'],
+  ['show_pricing_consent', 'consent_pricing_text'],
+  ['show_cancellation_policy', 'cancellation_policy_text'],
+]);
+
+function validateClinicPolicyMutation(data, existing = null) {
+  const policy = { ...(existing || {}), ...(data || {}) };
+  if (policy.is_active !== true) return { ok: true };
+  const enabled = CLINIC_POLICY_CONSENT_FIELDS.filter(([toggle]) => policy[toggle] !== false);
+  if (enabled.length === 0) {
+    return { ok: false, status: 400, message: 'an active clinic policy must contain at least one consent item' };
+  }
+  for (const [, textField] of enabled) {
+    const text = policy[textField];
+    if (typeof text !== 'string' || text.trim().length === 0) {
+      return { ok: false, status: 400, message: 'every enabled consent item requires operative policy text' };
+    }
+    if (text.length > 20_000) {
+      return { ok: false, status: 400, message: 'clinic policy text exceeds the 20000 character limit' };
+    }
+  }
+  return { ok: true };
+}
+
+function clinicPolicyOwnerDenied(entityName, sessionUser, orgId) {
+  if (entityName !== 'ClinicPolicy') return null;
+  if (!isOrganizationOwner(sessionUser?.email, orgId)) {
+    return { ok: false, status: 403, message: 'practice owner access required to modify clinic policies' };
+  }
+  return null;
+}
+
+const REGISTRATION_ALLOWED_FIELDS = new Set(['email', 'password', 'full_name']);
+const REGISTRATION_EMAIL_MAX_LENGTH = 254;
+const REGISTRATION_PASSWORD_MIN_LENGTH = 8;
+const REGISTRATION_PASSWORD_MAX_LENGTH = 256;
+const REGISTRATION_FULL_NAME_MAX_CODE_POINTS = 160;
+const REGISTRATION_EMAIL_PATTERN = /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/u;
+const REGISTRATION_CONTROL_CHARACTERS = /[\u0000-\u001f\u007f-\u009f]/u;
+const REGISTRATION_TERMINAL_ACCOUNT_STATUSES = new Set(['rejected', 'deactivated']);
+const REGISTRATION_SAFE_TRUST_DEFAULTS = Object.freeze({
+  role: 'user',
+  account_status: 'pending',
+  email_verified: false,
+  subscription_status: 'inactive',
+  stripe_customer_id: null,
+  stripe_subscription_id: null,
+  subscription_start_date: null,
+  reset_token: null,
+  reset_token_expires: null,
+  reset_last_request_at: null,
+});
+
+function validateRegistrationPayload(payload) {
+  if (!payload || typeof payload !== 'object' || Object.getPrototypeOf(payload) !== Object.prototype) {
+    return { ok: false, message: 'registration request must be a JSON object' };
+  }
+
+  const fields = Reflect.ownKeys(payload);
+  if (fields.some((field) => typeof field !== 'string' || !REGISTRATION_ALLOWED_FIELDS.has(field))) {
+    return { ok: false, message: 'registration accepts only email, password and optional full_name' };
+  }
+
+  const hasEmail = Object.prototype.hasOwnProperty.call(payload, 'email');
+  const hasCredentialField = Object.prototype.hasOwnProperty.call(payload, 'password');
+  if (!hasEmail || typeof payload.email !== 'string') {
+    return { ok: false, message: 'enter a valid email address' };
+  }
+  const email = normaliseEmail(payload.email);
+  if (
+    !email ||
+    email.length > REGISTRATION_EMAIL_MAX_LENGTH ||
+    REGISTRATION_CONTROL_CHARACTERS.test(email) ||
+    !REGISTRATION_EMAIL_PATTERN.test(email)
+  ) {
+    return { ok: false, message: 'enter a valid email address' };
+  }
+
+  if (
+    !hasCredentialField ||
+    typeof payload.password !== 'string' ||
+    payload.password.length < REGISTRATION_PASSWORD_MIN_LENGTH ||
+    payload.password.length > REGISTRATION_PASSWORD_MAX_LENGTH ||
+    payload.password.trim().length === 0
+  ) {
+    return { ok: false, message: 'password must be between 8 and 256 characters' };
+  }
+
+  const hasFullName = Object.prototype.hasOwnProperty.call(payload, 'full_name');
+  let fullName;
+  if (hasFullName) {
+    if (typeof payload.full_name !== 'string') {
+      return { ok: false, message: 'enter a valid full name' };
+    }
+    fullName = payload.full_name.trim();
+    if (
+      !fullName ||
+      Array.from(fullName).length > REGISTRATION_FULL_NAME_MAX_CODE_POINTS ||
+      REGISTRATION_CONTROL_CHARACTERS.test(fullName)
+    ) {
+      return { ok: false, message: 'enter a valid full name' };
+    }
+  }
+
+  return {
+    ok: true,
+    email,
+    password: payload.password,
+    hasFullName,
+    fullName,
+  };
+}
+
+function registrationClientKey(req) {
+  const flyClientIp = req.headers?.['fly-client-ip'];
+  if (typeof flyClientIp === 'string' && isIP(flyClientIp) !== 0) return flyClientIp;
+  return String(req.socket?.remoteAddress || 'unknown').slice(0, 64);
+}
+
+function registrationRateLimit(req, email) {
+  // The isolated selftest and parity harnesses intentionally create many
+  // synthetic accounts from one loopback address. Production still uses the
+  // same tested limiter implementation, while those offline gates remain
+  // deterministic and cannot exercise outbound providers.
+  if (process.env.SELFTEST === '1' || process.env.PARITY_ASSURANCE_MODE === '1') return { allowed: true };
+  const verdicts = [
+    registrationGlobalLimiter.consume('registration-global'),
+    registrationIpLimiter.consume(registrationClientKey(req)),
+    registrationEmailLimiter.consume(email),
+  ];
+  return verdicts.find((verdict) => !verdict.allowed) || { allowed: true };
+}
+
+function transactionalEmailDeliveryRequired() {
+  return process.env.OUTBOUND_EMAIL_ENABLED === '1' &&
+    process.env.SELFTEST !== '1' &&
+    process.env.PARITY_ASSURANCE_MODE !== '1';
+}
+
 async function handleAuthRoute(req, res, url, appId, action) {
   if (action === 'login' && req.method === 'POST') {
     const { email, password } = await readJsonBody(req);
@@ -1441,13 +1665,23 @@ async function handleAuthRoute(req, res, url, appId, action) {
     if (!ALLOW_OPEN_REGISTRATION) {
       return sendError(res, 403, 'self-registration is disabled for this deployment');
     }
-    const payload = await readJsonBody(req);
-    const { password } = payload;
-    const email = normaliseEmail(payload.email);
-    if (!email || !password) {
-      return sendError(res, 400, 'email and password are required');
+    const registration = validateRegistrationPayload(await readJsonBody(req, 16 * 1024));
+    if (!registration.ok) return sendError(res, 400, registration.message);
+    const { email, password, hasFullName, fullName } = registration;
+    const rateLimit = registrationRateLimit(req, email);
+    if (!rateLimit.allowed) {
+      res.setHeader('Retry-After', String(rateLimit.retryAfterSeconds || 60));
+      return sendError(res, 429, 'too many registration attempts; please retry later');
     }
     const existing = findUserByEmail(email);
+    // Re-registration is a recovery path only for an ordinary unverified
+    // signup. It must never reverse an explicit rejection or a user-requested
+    // deactivation: both are terminal decisions that require an authorised
+    // administrative recovery path, even when the caller knows the old
+    // password and the account never completed email verification.
+    if (existing && REGISTRATION_TERMINAL_ACCOUNT_STATUSES.has(existing.account_status)) {
+      return sendError(res, 409, 'this account cannot be re-registered; contact support if you need assistance');
+    }
     // A verified account owns this email outright — standard account-taken
     // 409. An existing but never-verified account (e.g. the user never
     // received the original code) is instead treated as a fresh verification
@@ -1456,33 +1690,72 @@ async function handleAuthRoute(req, res, url, appId, action) {
     if (existing && existing.email_verified) {
       return sendError(res, 409, 'an account with this email already exists — please sign in instead, or use "Forgot password" to recover access');
     }
-    if (existing && existing.otp_last_sent_at && Date.now() - Date.parse(existing.otp_last_sent_at) < RESEND_MIN_INTERVAL_MS) {
-      return sendJson(res, 200, { message: 'registered', user_id: existing.id, otp_required: true });
+    // An unverified address is not unowned. Re-registration may resend its
+    // verification challenge only when the caller proves knowledge of the
+    // already-stored password; otherwise an attacker could replace the hash,
+    // wait for the mailbox owner to enter the still-valid OTP, then log in
+    // with the attacker-selected password.
+    if (
+      existing &&
+      (!existing.password_hash || !existing.salt || !verifyPassword(password, existing.password_hash, existing.salt))
+    ) {
+      return sendError(res, 409, 'an account with this email already exists — use the original password or "Forgot password" to recover access');
     }
-    const { password_hash, salt } = hashPassword(password);
-    const { password: _pw, email: _em, ...customFields } = payload;
-    const otpCode = generateOtp();
-    const otpFields = {
-      otp_code: otpCode,
-      otp_expires: new Date(Date.now() + OTP_TTL_MS).toISOString(),
-      otp_attempts: 0,
-      otp_locked_until: null,
-      otp_last_sent_at: new Date().toISOString(),
+    const passwordMaterial = existing
+      ? { password_hash: existing.password_hash, salt: existing.salt }
+      : hashPassword(password);
+    const now = Date.now();
+    const previousOtpSentAt = existing?.otp_last_sent_at ? Date.parse(existing.otp_last_sent_at) : Number.NaN;
+    const elapsedSincePreviousOtp = now - previousOtpSentAt;
+    const otpSendThrottled =
+      existing &&
+      Number.isFinite(previousOtpSentAt) &&
+      elapsedSincePreviousOtp >= 0 &&
+      elapsedSincePreviousOtp < RESEND_MIN_INTERVAL_MS;
+    const otpCode = otpSendThrottled ? null : generateOtp();
+    const otpFields = otpSendThrottled
+      ? {}
+      : {
+          otp_code: otpCode,
+          otp_expires: new Date(now + OTP_TTL_MS).toISOString(),
+          otp_attempts: 0,
+          otp_locked_until: null,
+          otp_last_sent_at: new Date(now).toISOString(),
+        };
+    const safeRegistrationFields = {
+      ...(hasFullName ? { full_name: fullName } : {}),
+      ...passwordMaterial,
+      ...REGISTRATION_SAFE_TRUST_DEFAULTS,
+      ...otpFields,
     };
     const user = existing
-      ? userRepo.update(existing.id, { ...customFields, password_hash, salt, ...otpFields })
+      ? userRepo.update(existing.id, safeRegistrationFields)
       : userRepo.create(
-          { ...customFields, email, role: 'user', account_status: 'pending', password_hash, salt, ...otpFields },
+          { email, ...safeRegistrationFields },
           email,
         );
     // The initial verification code is sent HERE — previously only resend-otp
     // ever wrote an email, so a real user could never complete signup once the
     // fixed-code bypass was removed. Admin is notified only of genuinely new
     // registrations, not repeat attempts on an existing unverified account.
-    await sendEmail({ to: email, ...otpEmail(otpCode) });
-    if (!existing) {
-      const notify = adminNotifyEmail(email);
-      await sendEmail(notify);
+    if (!otpSendThrottled) {
+      const delivery = await sendEmail({ to: email, ...otpEmail(otpCode) });
+      if (transactionalEmailDeliveryRequired() && !delivery.sent) {
+        // Do not retain an undelivered code or impose the resend throttle for
+        // a message the provider did not accept. The same registration may be
+        // retried immediately once delivery recovers.
+        userRepo.update(user.id, {
+          otp_code: null,
+          otp_expires: null,
+          otp_attempts: 0,
+          otp_last_sent_at: null,
+        });
+        return sendError(res, 503, 'verification email delivery could not be confirmed; please retry');
+      }
+      if (!existing) {
+        const notify = adminNotifyEmail(email);
+        await sendEmail(notify);
+      }
     }
     return sendJson(res, 200, { message: 'registered', user_id: user.id, otp_required: true });
   }
@@ -1545,7 +1818,7 @@ async function handleAuthRoute(req, res, url, appId, action) {
     if (user) {
       // Per-account send throttle: one code per RESEND_MIN_INTERVAL_MS.
       if (user.otp_last_sent_at && Date.now() - Date.parse(user.otp_last_sent_at) < RESEND_MIN_INTERVAL_MS) {
-        return sendJson(res, 200, { status: 'sent' }); // do not reveal throttling to enumeration
+        return sendJson(res, 200, { status: 'accepted' }); // do not reveal throttling to enumeration
       }
       const otpCode = generateOtp();
       userRepo.update(user.id, {
@@ -1554,9 +1827,18 @@ async function handleAuthRoute(req, res, url, appId, action) {
         otp_attempts: 0,
         otp_last_sent_at: new Date().toISOString(),
       });
-      await sendEmail({ to: email, ...otpEmail(otpCode) });
+      const delivery = await sendEmail({ to: email, ...otpEmail(otpCode) });
+      if (transactionalEmailDeliveryRequired() && !delivery.sent) {
+        userRepo.update(user.id, {
+          otp_code: null,
+          otp_expires: null,
+          otp_attempts: 0,
+          otp_last_sent_at: null,
+        });
+        return sendError(res, 503, 'verification email delivery could not be confirmed; please retry');
+      }
     }
-    return sendJson(res, 200, { status: 'sent' });
+    return sendJson(res, 200, { status: 'accepted' });
   }
 
   if (action === 'reset-password-request' && req.method === 'POST') {
@@ -1564,7 +1846,7 @@ async function handleAuthRoute(req, res, url, appId, action) {
     const user = findUserByEmail(email);
     if (user) {
       if (user.reset_last_request_at && Date.now() - Date.parse(user.reset_last_request_at) < RESEND_MIN_INTERVAL_MS) {
-        return sendJson(res, 200, { status: 'sent' });
+        return sendJson(res, 200, { status: 'accepted' });
       }
       const resetToken = randomUUID();
       userRepo.update(user.id, {
@@ -1575,9 +1857,19 @@ async function handleAuthRoute(req, res, url, appId, action) {
       // Single-origin production serves the SPA from APP_URL; local default
       // matches the shim origin (dist/ is served when built).
       const origin = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
-      await sendEmail({ to: email, ...resetEmail(`${origin}/reset-password?token=${resetToken}`) });
+      const delivery = await sendEmail({ to: email, ...resetEmail(`${origin}/reset-password?token=${resetToken}`) });
+      if (transactionalEmailDeliveryRequired() && !delivery.sent) {
+        // Preserve the enumeration-resistant public response, but revoke the
+        // unusable bearer token and allow an immediate retry. The UI's copy is
+        // deliberately conditional: "If an account exists ...".
+        userRepo.update(user.id, {
+          reset_token: null,
+          reset_token_expires: null,
+          reset_last_request_at: null,
+        });
+      }
     }
-    return sendJson(res, 200, { status: 'sent' });
+    return sendJson(res, 200, { status: 'accepted' });
   }
 
   if (action === 'reset-password' && req.method === 'POST') {
@@ -2186,6 +2478,7 @@ async function requestListener(req, res) {
         outboxSms,
         sessionUser: integrationUser,
         orgIds: orgIdsForUser(integrationUser.email),
+        getAssessmentRequest: (id) => repoFor('AssessmentRequest')?.getById(id) || null,
         uploadRegistry,
         uploadsDir,
         hasExtractionAcceptance,

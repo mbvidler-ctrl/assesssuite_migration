@@ -9,18 +9,10 @@ export default function PaymentRequired() {
   const handleSubscribe = async (plan) => {
     setIsLoading(true);
     try {
-      const user = await base44.auth.me();
-      // Send `plan` ("monthly" | "annual") rather than a hard-coded priceId.
-      // The captured price ids belong to the client's original Stripe
-      // account and do not exist in the live account; a body-supplied
-      // priceId wins in the backend and would 500 with "No such price".
-      // The backend resolves the price from STRIPE_PRICE_ID_* by plan.
+      // The backend resolves the authenticated identity, deployment-owned
+      // price and same-origin return targets. The client selects only a plan.
       const response = await base44.functions.invoke("createCheckoutSession", {
         plan,
-        userEmail: user.email,
-        userId: user.id,
-        successUrl: window.location.origin + "/Dashboard",
-        cancelUrl: window.location.origin + "/PaymentRequired",
       });
       const data = response.data;
       const url = data?.url;

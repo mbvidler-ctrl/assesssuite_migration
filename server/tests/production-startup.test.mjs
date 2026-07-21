@@ -256,6 +256,20 @@ test('catalogue bootstrap is idempotent and never creates tenant, account, recei
     );
     assert.deepEqual(secondCounts, firstCounts);
 
+    // Heal a legacy interrupted seed: any-row must not be mistaken for a
+    // complete catalogue.
+    const missingAssessment = db.prepare('SELECT id FROM entity_Assessment ORDER BY created_date LIMIT 1').get();
+    db.prepare('DELETE FROM entity_Assessment WHERE id = ?').run(missingAssessment.id);
+    assert.equal(
+      Number(db.prepare('SELECT COUNT(*) AS count FROM entity_Assessment').get().count),
+      firstCounts.Assessment - 1,
+    );
+    runCatalogueSeed(opened);
+    assert.equal(
+      Number(db.prepare('SELECT COUNT(*) AS count FROM entity_Assessment').get().count),
+      firstCounts.Assessment,
+    );
+
     for (const entityName of [
       'Organization',
       'OrganizationMember',

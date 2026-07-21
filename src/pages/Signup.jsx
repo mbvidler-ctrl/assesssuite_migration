@@ -131,9 +131,9 @@ export default function Signup() {
             {mode === "signup" && (
               <p className="text-xs text-slate-400 text-center">
                 By signing up you agree to our{" "}
-                <a href="#" className="text-blue-500 hover:underline">Terms of Service</a>{" "}
+                <a href="/legal/terms" className="text-blue-500 hover:underline">Terms of Service</a>{" "}
                 and{" "}
-                <a href="#" className="text-blue-500 hover:underline">Privacy Policy</a>.
+                <a href="/legal/privacy" className="text-blue-500 hover:underline">Privacy Policy</a>.
               </p>
             )}
           </form>

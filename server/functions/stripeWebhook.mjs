@@ -17,9 +17,23 @@
 // both modes and identical in shape to the captured source — the mock's
 // shapes are the contract.
 
-import { recordMockSubscription } from '../mocks/stripe.mjs';
-import { stripeEnabled, verifyStripeSignatureHeader } from '../stripeGateway.mjs';
+import {
+  cancelMockSubscription,
+  MOCK_CHECKOUT_PRICE_ID,
+  recordMockSubscription,
+} from '../mocks/stripe.mjs';
+import {
+  cancelSubscription,
+  retrieveSubscription,
+  stripeEnabled,
+  verifyStripeSignatureHeader,
+} from '../stripeGateway.mjs';
 import { sendEmail, welcomeEmail } from '../email.mjs';
+
+function cancellationConfirmed(result, expectedSubscriptionId) {
+  const status = typeof result?.status === 'string' ? result.status.toLowerCase() : '';
+  return result?.id === expectedSubscriptionId && (status === 'canceled' || status === 'cancelled');
+}
 
 export default async function stripeWebhook(ctx) {
   const { body: event, rawBody, request, entities, respond, user } = ctx;
@@ -61,6 +75,112 @@ export default async function stripeWebhook(ctx) {
   try {
     if (event.type === 'checkout.session.completed') {
       const s = event.data?.object || {};
+      // A signed Stripe event proves origin, not that the event represents a
+      // paid AssessSuite subscription for the claimed user.  Only the exact
+      // Checkout Session shape created by createCheckoutSession is allowed to
+      // grant entitlement.  In particular, do not activate from an unpaid,
+      // one-off, or foreign-account Checkout Session which merely carries a
+      // user id in client_reference_id.
+      const checkoutUserId = typeof s.client_reference_id === 'string' ? s.client_reference_id.trim() : '';
+      const metadataUserId = typeof s.metadata?.userId === 'string' ? s.metadata.userId.trim() : '';
+      const customerId = typeof s.customer === 'string' ? s.customer.trim() : '';
+      const subscriptionId = typeof s.subscription === 'string' ? s.subscription.trim() : '';
+      const checkoutEmail = String(s.customer_email || s.customer_details?.email || '').trim().toLowerCase();
+      const checkoutPriceId = typeof s.metadata?.priceId === 'string' ? s.metadata.priceId.trim() : '';
+      const approvedPriceIds = stripeEnabled()
+        ? new Set([
+            process.env.STRIPE_PRICE_ID_MONTHLY,
+            process.env.STRIPE_PRICE_ID_ANNUAL,
+          ].filter((value) => typeof value === 'string' && value.trim() !== '').map((value) => value.trim()))
+        : new Set([MOCK_CHECKOUT_PRICE_ID]);
+      if (
+        s.mode !== 'subscription' ||
+        s.payment_status !== 'paid' ||
+        !checkoutUserId ||
+        metadataUserId !== checkoutUserId ||
+        !customerId ||
+        !subscriptionId ||
+        !checkoutEmail ||
+        !approvedPriceIds.has(checkoutPriceId)
+      ) {
+        return respond(400, { message: 'Checkout session is not eligible for subscription activation' });
+      }
+
+      const checkoutUser = await entities.User.get(checkoutUserId).catch(() => null);
+      if (!checkoutUser || String(checkoutUser.email || '').trim().toLowerCase() !== checkoutEmail) {
+        return respond(400, { message: 'Checkout session identity does not match an AssessSuite account' });
+      }
+
+      let providerSubscription = null;
+      if (stripeEnabled()) {
+        // Corroborate the session metadata against Stripe's resulting
+        // subscription. This prevents an approved price id placed only in
+        // metadata from activating a subscription whose actual recurring
+        // line item uses another price.
+        providerSubscription = await retrieveSubscription(subscriptionId);
+        const subscriptionCustomerId = typeof providerSubscription?.customer === 'string'
+          ? providerSubscription.customer
+          : providerSubscription?.customer?.id;
+        const subscriptionPriceIds = (providerSubscription?.items?.data || [])
+          .map((item) => item?.price?.id)
+          .filter((value) => typeof value === 'string');
+        if (
+          providerSubscription?.id !== subscriptionId ||
+          subscriptionCustomerId !== customerId ||
+          providerSubscription?.metadata?.userId !== checkoutUserId ||
+          providerSubscription?.metadata?.priceId !== checkoutPriceId ||
+          !subscriptionPriceIds.some((priceId) => approvedPriceIds.has(priceId))
+        ) {
+          return respond(400, { message: 'Stripe subscription is not eligible for AssessSuite activation' });
+        }
+      }
+
+      // A valid paid Checkout Session can arrive after an administrator has
+      // rejected the account or after the user has closed it. Silently
+      // ignoring that event would leave Stripe charging a subscription that
+      // AssessSuite neither exposes nor retains enough linkage to reconcile.
+      // Cancel it now, persist the outcome, and make any failure retryable.
+      if (NEVER_ACTIVATE.has(checkoutUser.account_status)) {
+        try {
+          let cancellation;
+          if (stripeEnabled()) {
+            const providerStatus = typeof providerSubscription?.status === 'string'
+              ? providerSubscription.status.toLowerCase()
+              : '';
+            cancellation = providerStatus === 'canceled' || providerStatus === 'cancelled'
+              ? providerSubscription
+              : await cancelSubscription(subscriptionId);
+          } else {
+            recordMockSubscription({
+              customerId,
+              subscriptionId,
+              status: 'active',
+              email: checkoutEmail,
+            });
+            cancellation = cancelMockSubscription(subscriptionId);
+          }
+          if (!cancellationConfirmed(cancellation, subscriptionId)) {
+            throw new Error('subscription cancellation was not confirmed');
+          }
+        } catch {
+          await entities.User.update(checkoutUserId, {
+            subscription_status: 'cancellation_pending',
+            stripe_customer_id: customerId,
+            stripe_subscription_id: subscriptionId,
+          });
+          return respond(500, { message: 'Paid subscription cancellation is pending' });
+        }
+        await entities.User.update(checkoutUserId, {
+          subscription_status: 'cancelled',
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscriptionId,
+        });
+        return respond(200, { received: true });
+      }
+
+      if (providerSubscription?.status !== undefined && providerSubscription.status !== 'active') {
+        return respond(400, { message: 'Stripe subscription is not eligible for AssessSuite activation' });
+      }
       // Launch model (Max's direction, 13 July 2026): successful payment
       // AUTO-APPROVES. A pending account activates on checkout completion and
       // a payment-failure suspension is lifted — the admin-approval queue is
@@ -70,14 +190,14 @@ export default async function stripeWebhook(ctx) {
       // is not reopened by a stray billing event.
       const entitlement = {
         subscription_status: 'active',
-        stripe_customer_id: s.customer,
-        stripe_subscription_id: s.subscription,
+        stripe_customer_id: customerId,
+        stripe_subscription_id: subscriptionId,
         subscription_start_date: new Date().toISOString(),
       };
-      // A rejected/deactivated account is never activated by payment AND gets
-      // no entitlement/billing linkage written — a refused or closed account
-      // should not carry a live subscription record. For everyone else,
-      // payment activates (auto-approve) and writes the entitlement.
+      // Terminal accounts were handled above: their late subscription was
+      // cancelled and its reconciliation linkage retained without activation.
+      // For every remaining account, payment activates (auto-approve) and
+      // writes the live entitlement.
       const dataFor = (existingUser) => (
         NEVER_ACTIVATE.has(existingUser?.account_status)
           ? null
@@ -92,49 +212,17 @@ export default async function stripeWebhook(ctx) {
         if (NO_WELCOME.has(existingUser.account_status)) return;
         sendEmail({ to: existingUser.email, ...welcomeEmail(existingUser.clinician_name || existingUser.full_name) }).catch(() => {});
       };
-      let updated = false;
-
-      if (!stripeEnabled() && s.customer && s.subscription) {
+      if (!stripeEnabled()) {
         // Mock mode only: record into the in-memory mock store so a later
         // syncStripeSubscription call can reconcile without a real API. In
         // real mode syncStripeSubscription reads api.stripe.com directly.
-        const email = s.customer_email || s.customer_details?.email || null;
-        recordMockSubscription({ customerId: s.customer, subscriptionId: s.subscription, status: 'active', email });
+        recordMockSubscription({ customerId, subscriptionId, status: 'active', email: checkoutEmail });
       }
 
-      if (s.client_reference_id) {
-        try {
-          let existing = null;
-          try {
-            existing = await entities.User.get(s.client_reference_id);
-          } catch {
-            // Missing user falls through to the email lookup below.
-          }
-          if (existing) {
-            const data = dataFor(existing);
-            if (data) {
-              await entities.User.update(s.client_reference_id, data);
-              maybeWelcome(existing);
-            }
-            updated = true; // a matched protected account is still "handled"
-          }
-        } catch {
-          // Fall through to email lookup, matching entry.ts's try/catch.
-        }
-      }
-
-      if (!updated && (s.customer_email || s.customer_details?.email)) {
-        const email = (s.customer_email || s.customer_details.email).toLowerCase();
-        const users = await entities.User.filter({});
-        const matchedUser = users?.find((u) => u.email?.toLowerCase() === email);
-        if (matchedUser) {
-          const data = dataFor(matchedUser);
-          if (data) {
-            await entities.User.update(matchedUser.id, data);
-            maybeWelcome(matchedUser);
-          }
-          updated = true;
-        }
+      const data = dataFor(checkoutUser);
+      if (data) {
+        await entities.User.update(checkoutUserId, data);
+        maybeWelcome(checkoutUser);
       }
     }
 

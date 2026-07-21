@@ -137,19 +137,8 @@ export default function FigureofEightWalkTestRunner({ client, onSave, onClose })
               {/* Instructional diagram */}
               <Card className="border-slate-200 overflow-hidden">
                 <CardContent className="p-0">
-                  <img
-                    src="https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/Figure_of_eight.svg/400px-Figure_of_eight.svg.png"
-                    alt="Figure of Eight Walk Test diagram"
-                    className="w-full object-contain bg-white p-4"
-                    style={{ maxHeight: 200 }}
-                    onError={e => {
-                      // fallback: draw the pattern as SVG
-                      e.target.style.display = "none";
-                      e.target.nextSibling.style.display = "block";
-                    }}
-                  />
-                  {/* SVG fallback diagram */}
-                  <div style={{ display: "none" }} className="flex items-center justify-center py-6 bg-slate-50">
+                  {/* Local inline diagram avoids disclosing clinical-page visits to a third-party image host. */}
+                  <div className="flex items-center justify-center py-6 bg-slate-50">
                     <svg width="320" height="160" viewBox="0 0 320 160">
                       {/* Left loop */}
                       <ellipse cx="100" cy="80" rx="70" ry="55" fill="none" stroke="#3b82f6" strokeWidth="3" strokeDasharray="8 4"/>

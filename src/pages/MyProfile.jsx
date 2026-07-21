@@ -265,7 +265,9 @@ export default function MyProfile() {
         toast.error('No billing account is linked yet. Complete a subscription first, or contact admin@assesssuite.com.');
         return;
       }
-      const res = await base44.functions.invoke('createPortalSession', { stripeCustomerId: customerId, flow, subscriptionId: me?.stripe_subscription_id });
+      // The server resolves billing identifiers from the authenticated user;
+      // only the requested portal flow is caller-selectable.
+      const res = await base44.functions.invoke('createPortalSession', { flow });
       const url = res?.data?.url;
       if (url) {
         window.location.href = url;

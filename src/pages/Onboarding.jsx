@@ -54,7 +54,7 @@ export default function Onboarding() {
   const startStep = searchParams.get("step");
 
   const [currentStep, setCurrentStep] = useState(startStep ? parseInt(startStep, 10) : 1);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(/** @type {Record<string, any>} */ ({
     apss_completed: false,
     consent_confirmed: false,
     privacy_consent: false,
@@ -62,7 +62,7 @@ export default function Onboarding() {
     pricing_explained: false,
     client_completed_sections: [],
     medical_conditions: []
-  });
+  }));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitLockRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -537,7 +537,7 @@ Send this email to: ${email}`;
     return step.component;
   };
 
-  const CurrentStepComponent = getCurrentStepComponent();
+  const CurrentStepComponent = /** @type {React.ComponentType<any> | null} */ (getCurrentStepComponent());
   const progressPercentage = (currentStep / steps.length) * 100;
 
   if (isLoading) {
@@ -695,6 +695,7 @@ Send this email to: ${email}`;
               <CardContent>
                 <CurrentStepComponent
                   data={formData}
+                  orgId={formData.org_id || null}
                   onNext={currentStep === steps.length ? handleSubmit : handleNext}
                   onBack={handleBack}
                   onSaveAndSend={handleSaveAndSendToClient}

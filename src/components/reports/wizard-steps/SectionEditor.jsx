@@ -327,12 +327,16 @@ export default function SectionEditor({ sections, content, onChange, client, cli
       if (!client?.org_id) {
         throw new Error('Client practice is required before uploading report attachments.');
       }
-      const uploadPromises = files.map(file => uploadTenantFile({
-        file,
-        org_id: client.org_id,
-        purpose: 'report-attachment',
-      }));
-      const results = await Promise.all(uploadPromises);
+      // Upload sequentially. The server deliberately admits only one
+      // memory-heavy multipart upload per authenticated user at a time.
+      const results = [];
+      for (const file of files) {
+        results.push(await uploadTenantFile({
+          file,
+          org_id: client.org_id,
+          purpose: 'report-attachment',
+        }));
+      }
       const existingAttachments = content[`${activeSection}_attachments`] || [];
       const newAttachments = results.map((result, index) => ({ url: result.file_url, name: files[index].name }));
       const documentPromises = newAttachments.map(attachment =>

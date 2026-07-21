@@ -97,9 +97,9 @@ test('self-service profile updates cannot forge payment or Stripe entitlement st
     });
     assert.equal(forged.status, 200, forged.text);
     assert.notEqual(forged.body?.subscription_status, 'active');
-    assert.equal(forged.body?.stripe_customer_id, undefined);
-    assert.equal(forged.body?.stripe_subscription_id, undefined);
-    assert.equal(forged.body?.subscription_start_date, undefined);
+    assert.equal(forged.body?.stripe_customer_id, null);
+    assert.equal(forged.body?.stripe_subscription_id, null);
+    assert.equal(forged.body?.subscription_start_date, null);
 
     const founder = await requestJson(server, route(server), {
       method: 'POST', token: user.token, body: { clinic_name: 'Must Remain Unpaid' },
@@ -121,6 +121,87 @@ test('provider-backed subscription reconciliation persists the exact trusted ent
     const customerId = `mock_cus_reconcile_${Date.now()}`;
     const subscriptionId = `mock_sub_reconcile_${Date.now()}`;
 
+    const unpaidWebhook = await requestJson(
+      server,
+      `/api/apps/${server.appId}/functions/stripeWebhook`,
+      {
+        method: 'POST',
+        token: adminToken,
+        body: {
+          type: 'checkout.session.completed',
+          data: {
+            object: {
+              mode: 'subscription',
+              payment_status: 'unpaid',
+              customer: `${customerId}_unpaid`,
+              subscription: `${subscriptionId}_unpaid`,
+              client_reference_id: user.id,
+              customer_email: user.email,
+              metadata: { userId: user.id, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M' },
+            },
+          },
+        },
+      },
+    );
+    assert.equal(unpaidWebhook.status, 400, unpaidWebhook.text);
+    const unchanged = entityRows(server.dbPath, 'User').find((candidate) => candidate.id === user.id);
+    assert.notEqual(unchanged?.subscription_status, 'active');
+    assert.equal(unchanged?.stripe_customer_id, null);
+
+    const mismatchedIdentityWebhook = await requestJson(
+      server,
+      `/api/apps/${server.appId}/functions/stripeWebhook`,
+      {
+        method: 'POST',
+        token: adminToken,
+        body: {
+          type: 'checkout.session.completed',
+          data: {
+            object: {
+              mode: 'subscription',
+              payment_status: 'paid',
+              customer: `${customerId}_mismatch`,
+              subscription: `${subscriptionId}_mismatch`,
+              client_reference_id: user.id,
+              customer_email: user.email,
+              metadata: { userId: 'different-user-id', priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M' },
+            },
+          },
+        },
+      },
+    );
+    assert.equal(mismatchedIdentityWebhook.status, 400, mismatchedIdentityWebhook.text);
+    const stillUnchanged = entityRows(server.dbPath, 'User').find((candidate) => candidate.id === user.id);
+    assert.notEqual(stillUnchanged?.subscription_status, 'active');
+    assert.equal(stillUnchanged?.stripe_customer_id, null);
+
+    const unapprovedPriceWebhook = await requestJson(
+      server,
+      `/api/apps/${server.appId}/functions/stripeWebhook`,
+      {
+        method: 'POST',
+        token: adminToken,
+        body: {
+          type: 'checkout.session.completed',
+          data: {
+            object: {
+              mode: 'subscription',
+              payment_status: 'paid',
+              customer: `${customerId}_wrong_price`,
+              subscription: `${subscriptionId}_wrong_price`,
+              client_reference_id: user.id,
+              customer_email: user.email,
+              metadata: { userId: user.id, priceId: 'price_not_approved' },
+            },
+          },
+        },
+      },
+    );
+    assert.equal(unapprovedPriceWebhook.status, 400, unapprovedPriceWebhook.text);
+    const priceStillUnchanged = entityRows(server.dbPath, 'User').find((candidate) => candidate.id === user.id);
+    assert.notEqual(priceStillUnchanged?.subscription_status, 'active');
+    assert.equal(priceStillUnchanged?.stripe_customer_id, null);
+
     const webhook = await requestJson(
       server,
       `/api/apps/${server.appId}/functions/stripeWebhook`,
@@ -131,10 +212,13 @@ test('provider-backed subscription reconciliation persists the exact trusted ent
           type: 'checkout.session.completed',
           data: {
             object: {
+              mode: 'subscription',
+              payment_status: 'paid',
               customer: customerId,
               subscription: subscriptionId,
               client_reference_id: user.id,
               customer_email: user.email,
+              metadata: { userId: user.id, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M' },
             },
           },
         },

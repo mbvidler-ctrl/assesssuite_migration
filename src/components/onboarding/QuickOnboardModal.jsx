@@ -7,84 +7,145 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { Loader2, UserPlus, Trash2 } from "lucide-react";
+import { AlertCircle, Loader2, UserPlus, Trash2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { findPotentialDuplicates } from "@/lib/clientDuplicates";
 import { ensureFounderOrganization } from "@/lib/profileFounderOrganization";
 
-export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) {
-  const [formData, setFormData] = useState({
-    full_name: "",
-    email: "",
-    date_of_birth: "",
-    gender: "",
-    gender_other: "",
-    apss_q1_heart_stroke: null,
-    apss_q2_chest_pain: null,
-    apss_q3_faint_dizzy: null,
-    apss_q4_asthma: null,
-    apss_q5_diabetes_control: null,
-    apss_q6_other_conditions: null,
+// Shared JavaScript UI primitives expose incomplete inferred props under
+// checkJs. Keep this release's security-state typing independent of those
+// pre-existing declaration gaps.
+const QuickInput = /** @type {React.ComponentType<any>} */ (Input);
+const QuickButton = /** @type {React.ComponentType<any>} */ (Button);
+
+const EMPTY_FORM_DATA = Object.freeze({
+  full_name: "",
+  email: "",
+  date_of_birth: "",
+  gender: "",
+  gender_other: "",
+  apss_q1_heart_stroke: null,
+  apss_q2_chest_pain: null,
+  apss_q3_faint_dizzy: null,
+  apss_q4_asthma: null,
+  apss_q5_diabetes_control: null,
+  apss_q6_other_conditions: null,
+});
+
+const EMPTY_CONSENTS = Object.freeze({
+  primary: false,
+  privacy: false,
+  assessment: false,
+  pricing: false,
+  cancellation: false,
+});
+
+const CONSENT_ITEMS = [
+  { showKey: "show_primary_consent", textKey: "consent_primary_text", key: "primary", label: "Primary Consent for Assessment and Treatment" },
+  { showKey: "show_privacy_consent", textKey: "consent_privacy_text", key: "privacy", label: "Privacy and Data Storage Consent" },
+  { showKey: "show_assessment_consent", textKey: "consent_assessment_text", key: "assessment", label: "Assessment and Testing Consent" },
+  { showKey: "show_pricing_consent", textKey: "consent_pricing_text", key: "pricing", label: "Pricing Schedule Agreement" },
+  { showKey: "show_cancellation_policy", textKey: "cancellation_policy_text", key: "cancellation", label: "Cancellation Policy" },
+];
+
+function activePolicyItems(policy) {
+  return policy ? CONSENT_ITEMS.filter((item) => policy[item.showKey] !== false) : [];
+}
+
+function policyContractKey(policy) {
+  if (!policy) return '';
+  return JSON.stringify({
+    id: policy.id || null,
+    policy_name: policy.policy_name || null,
+    version_label: policy.version_label || null,
+    effective_date: policy.effective_date || null,
+    items: activePolicyItems(policy).map((item) => ({
+      label: item.label,
+      text: policy[item.textKey],
+    })),
   });
-  const [consents, setConsents] = useState({});
-  const [activePolicy, setActivePolicy] = useState(null);
-  const [errors, setErrors] = useState({});
+}
+
+export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) {
+  const [formData, setFormData] = useState(/** @type {Record<string, any>} */ ({ ...EMPTY_FORM_DATA }));
+  const [consents, setConsents] = useState(/** @type {Record<string, boolean>} */ ({ ...EMPTY_CONSENTS }));
+  const [activePolicy, setActivePolicy] = useState(/** @type {Record<string, any> | null} */ (null));
+  const [policyOrgId, setPolicyOrgId] = useState(/** @type {string | null} */ (null));
+  const [isPolicyLoading, setIsPolicyLoading] = useState(false);
+  const [errors, setErrors] = useState(/** @type {Record<string, any>} */ ({}));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDrawing, setIsDrawing] = useState(false);
   const canvasRef = useRef(null);
+  const signatureHasInkRef = useRef(false);
   const [hasSignature, setHasSignature] = useState(false);
 
+  const resetQuickOnboardState = () => {
+    setFormData({ ...EMPTY_FORM_DATA });
+    setConsents({ ...EMPTY_CONSENTS });
+    setActivePolicy(null);
+    setPolicyOrgId(null);
+    setErrors({});
+    setIsDrawing(false);
+    setHasSignature(false);
+    signatureHasInkRef.current = false;
+  };
+
   useEffect(() => {
-    if (isOpen && canvasRef.current) {
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
+    if (!isOpen) resetQuickOnboardState();
   }, [isOpen]);
 
   // Standard wording removed at Max's direction 13 July 2026 — clinician supplies own policy text; pro-forma policies may ship later.
-  const DEFAULT_POLICY = {
-    show_primary_consent: true, show_privacy_consent: true, show_assessment_consent: true,
-    show_pricing_consent: true, show_cancellation_policy: true,
-    consent_primary_text: "",
-    consent_privacy_text: "",
-    consent_assessment_text: "",
-    consent_pricing_text: "",
-    cancellation_policy_text: ""
-  };
-
-  const CONSENT_ITEMS = [
-    { showKey: "show_primary_consent", textKey: "consent_primary_text", key: "primary", label: "Primary Consent for Assessment and Treatment" },
-    { showKey: "show_privacy_consent", textKey: "consent_privacy_text", key: "privacy", label: "Privacy and Data Storage Consent" },
-    { showKey: "show_assessment_consent", textKey: "consent_assessment_text", key: "assessment", label: "Assessment and Testing Consent" },
-    { showKey: "show_pricing_consent", textKey: "consent_pricing_text", key: "pricing", label: "Pricing Schedule Agreement" },
-    { showKey: "show_cancellation_policy", textKey: "cancellation_policy_text", key: "cancellation", label: "Cancellation Policy" },
-  ];
-
   useEffect(() => {
     const loadPolicy = async () => {
+      setIsPolicyLoading(true);
+      setActivePolicy(null);
+      setPolicyOrgId(null);
       try {
         const user = await base44.auth.me();
         const mems = await base44.entities.OrganizationMember.filter({ user_email: user.email }).catch(() => []);
         const primary = (mems || []).find(m => m.is_primary) || (mems || [])[0];
         const orgId = primary?.org_id;
         if (orgId) {
-          const all = await base44.entities.ClinicPolicy.list().catch(() => []);
-          const active = (all || []).filter(p => p.org_id === orgId && p.is_active === true);
+          const active = await base44.entities.ClinicPolicy.filter({
+            org_id: orgId,
+            is_active: true,
+          }).catch(() => []);
           if (active.length > 0) {
-            const policy = active.sort((a, b) => new Date(b.created_date) - new Date(a.created_date))[0];
+            const policy = active.sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime())[0];
+            setPolicyOrgId(orgId);
             setActivePolicy(policy);
             return;
           }
         }
-        setActivePolicy(DEFAULT_POLICY);
+        setActivePolicy(null);
       } catch {
-        setActivePolicy(DEFAULT_POLICY);
+        setActivePolicy(null);
+      } finally {
+        setIsPolicyLoading(false);
       }
     };
-    if (isOpen) loadPolicy();
+    if (isOpen) void loadPolicy();
   }, [isOpen]);
+
+  const visibleConsentItems = activePolicyItems(activePolicy);
+  const policyReady = Boolean(
+    activePolicy &&
+    activePolicy.is_active === true &&
+    visibleConsentItems.length > 0 &&
+    visibleConsentItems.every(
+      (item) => typeof activePolicy[item.textKey] === 'string' && activePolicy[item.textKey].trim(),
+    ),
+  );
+
+  useEffect(() => {
+    if (!isOpen || !policyReady || !canvasRef.current) return;
+    const canvas = canvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    signatureHasInkRef.current = false;
+    setHasSignature(false);
+  }, [isOpen, policyReady, activePolicy]);
 
   const handleChange = (field, value) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
@@ -131,6 +192,7 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
     ctx.stroke();
+    signatureHasInkRef.current = true;
     setHasSignature(true);
   };
 
@@ -143,6 +205,7 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
     const ctx = canvas.getContext('2d');
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    signatureHasInkRef.current = false;
     setHasSignature(false);
     if (errors.signature) {
       setErrors((prev) => ({ ...prev, signature: "" }));
@@ -160,12 +223,12 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
     if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
       newErrors.email = "Please enter a valid email address";
     }
-    const policy = activePolicy || DEFAULT_POLICY;
-    const visibleKeys = CONSENT_ITEMS.filter(i => policy[i.showKey] !== false).map(i => i.key);
+    if (!policyReady) newErrors.policy = "Patient consent is not configured for this practice";
+    const visibleKeys = visibleConsentItems.map(i => i.key);
     if (visibleKeys.some(k => !consents[k])) {
       newErrors.consents = "All consent checkboxes must be checked";
     }
-    if (!hasSignature) {
+    if (!hasSignature || !signatureHasInkRef.current) {
       newErrors.signature = "Client signature is required to proceed";
     }
     setErrors(newErrors);
@@ -181,34 +244,69 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
 
     setIsSubmitting(true);
     try {
-      // Get signature as base64
-      const canvas = canvasRef.current;
-      const signatureData = canvas.toDataURL('image/png');
-
       // Get current user first
       const currentUser = await base44.auth.me();
 
-      // Ensure user has an organization
-      let orgId;
+      // Re-resolve the exact destination practice and its policy immediately
+      // before capture. A membership or policy change invalidates the visible
+      // consent and signature instead of silently rebinding them.
+      let orgId = null;
       try {
         let memberships = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email }).catch(() => []);
         if (!memberships) memberships = [];
-        
-        if (memberships.length === 0) {
+        if (memberships.length === 0 && !policyOrgId) {
+          // Retain the founder recovery path for an account that reaches this
+          // workflow before organisation creation. The policy gate above will
+          // still prevent any client/consent write until that new practice has
+          // an active, operative policy.
           const defaultName = `${currentUser.full_name || currentUser.email}'s Clinic`.slice(0, 160);
           const newOrg = await ensureFounderOrganization({ clinicName: defaultName });
           orgId = newOrg.id;
         } else {
-          // Get primary org or first org
           const primaryMembership = memberships.find(m => m.is_primary) || memberships[0];
-          orgId = primaryMembership.org_id;
+          orgId = primaryMembership?.org_id || null;
         }
       } catch (orgError) {
         console.error("Error checking organization:", orgError);
         toast.error("Failed to verify organization. Please try again.");
-        setIsSubmitting(false);
         return;
       }
+
+      if (!orgId || orgId !== policyOrgId) {
+        setConsents({ ...EMPTY_CONSENTS });
+        clearSignature();
+        setErrors((current) => ({
+          ...current,
+          policy: 'The destination practice changed. Reopen quick onboarding and obtain consent again.',
+        }));
+        toast.error('The destination practice changed. No client was created.');
+        return;
+      }
+
+      const active = await base44.entities.ClinicPolicy.filter({
+        org_id: orgId,
+        is_active: true,
+      });
+      const currentPolicy = [...(active || [])]
+        .sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime())[0] || null;
+      if (!currentPolicy || policyContractKey(currentPolicy) !== policyContractKey(activePolicy)) {
+        setActivePolicy(currentPolicy);
+        setConsents({ ...EMPTY_CONSENTS });
+        clearSignature();
+        setErrors((current) => ({
+          ...current,
+          policy: 'The active patient-consent policy changed. Review it and obtain a new signature.',
+        }));
+        toast.error('The patient-consent policy changed. No client was created.');
+        return;
+      }
+
+      if (!signatureHasInkRef.current || !canvasRef.current) {
+        setErrors((current) => ({ ...current, signature: 'Client signature is required to proceed' }));
+        return;
+      }
+      const signatureData = canvasRef.current.toDataURL('image/png');
+      const signedAt = new Date().toISOString();
 
       const clientData = {
         org_id: orgId,
@@ -218,12 +316,25 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
         gender_other: formData.gender === "other" ? formData.gender_other : null,
         email: formData.email.trim() || null,
         assigned_clinician_email: currentUser.email,
-        consent_confirmed: true,
-        privacy_consent: true,
-        assessment_consent: true,
-        pricing_explained: true,
-        consent_date: new Date().toISOString(),
+        consent_confirmed: visibleConsentItems.some(item => item.key === 'primary') && consents.primary === true,
+        privacy_consent: visibleConsentItems.some(item => item.key === 'privacy') && consents.privacy === true,
+        assessment_consent: visibleConsentItems.some(item => item.key === 'assessment') && consents.assessment === true,
+        pricing_explained: visibleConsentItems.some(item => item.key === 'pricing') && consents.pricing === true,
+        cancellation_policy_agreed: visibleConsentItems.some(item => item.key === 'cancellation') && consents.cancellation === true,
+        consent_date: signedAt,
         digital_signature: signatureData,
+        signed_policy_id: currentPolicy.id,
+        signed_policy_name: currentPolicy.policy_name,
+        signed_policy_version: currentPolicy.version_label,
+        signed_policy_date: signedAt,
+        signed_policy_snapshot: {
+          policy_id: currentPolicy.id,
+          policy_name: currentPolicy.policy_name,
+          version_label: currentPolicy.version_label,
+          effective_date: currentPolicy.effective_date,
+          items_shown: visibleConsentItems.map(item => item.label),
+          texts: Object.fromEntries(visibleConsentItems.map(item => [item.key, currentPolicy[item.textKey]])),
+        },
         apss_q1_heart_stroke: formData.apss_q1_heart_stroke,
         apss_q2_chest_pain: formData.apss_q2_chest_pain,
         apss_q3_faint_dizzy: formData.apss_q3_faint_dizzy,
@@ -272,6 +383,7 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
       
       toast.success("Client quickly onboarded! Redirecting to profile...");
       onClientCreated(newClient.id);
+      resetQuickOnboardState();
       onClose();
     } catch (error) {
       console.error("Failed to quick onboard client:", error);
@@ -282,8 +394,13 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
     }
   };
 
+  const handleClose = () => {
+    resetQuickOnboardState();
+    onClose();
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto p-6">
         <DialogHeader className="pb-4">
           <DialogTitle className="flex items-center gap-2">
@@ -296,7 +413,7 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
         <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <Label htmlFor="full_name">Full Name *</Label>
-            <Input
+            <QuickInput
               id="full_name"
               value={formData.full_name}
               onChange={(e) => handleChange("full_name", e.target.value)}
@@ -308,7 +425,7 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
 
           <div>
             <Label htmlFor="email">Email (Optional)</Label>
-            <Input
+            <QuickInput
               id="email"
               type="email"
               value={formData.email}
@@ -322,7 +439,7 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
 
           <div>
             <Label htmlFor="date_of_birth">Date of Birth *</Label>
-            <Input
+            <QuickInput
               id="date_of_birth"
               type="date"
               value={formData.date_of_birth}
@@ -351,7 +468,7 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
           {formData.gender === "other" && (
             <div>
               <Label htmlFor="gender_other">Please specify *</Label>
-              <Input
+              <QuickInput
                 id="gender_other"
                 value={formData.gender_other}
                 onChange={(e) => handleChange("gender_other", e.target.value)}
@@ -469,7 +586,14 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
             <h3 className="font-semibold text-slate-900 text-base">Consent & Confirmation</h3>
             
             <div className="space-y-4">
-              {CONSENT_ITEMS.filter(item => (activePolicy || DEFAULT_POLICY)[item.showKey] !== false).map(item => (
+              {isPolicyLoading ? (
+                <div className="flex items-center gap-2 text-sm text-slate-500"><Loader2 className="w-4 h-4 animate-spin" /> Loading consent policy...</div>
+              ) : !policyReady ? (
+                <div className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-800">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                  <p className="text-sm">A practice owner must activate a policy with operative wording before quick onboarding can be completed.</p>
+                </div>
+              ) : visibleConsentItems.map(item => (
                 <div key={item.key} className="flex items-start space-x-3">
                   <Checkbox
                     id={`consent_${item.key}`}
@@ -480,9 +604,9 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
                     <label htmlFor={`consent_${item.key}`} className="text-sm font-semibold text-slate-900 cursor-pointer">
                       {item.label}
                     </label>
-                    {(activePolicy || DEFAULT_POLICY)[item.textKey]?.trim() ? (
+                    {activePolicy[item.textKey]?.trim() ? (
                       <p className="text-xs text-slate-600 mt-1">
-                        {(activePolicy || DEFAULT_POLICY)[item.textKey]}
+                        {activePolicy[item.textKey]}
                       </p>
                     ) : null}
                   </div>
@@ -516,7 +640,7 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
                 onTouchMove={draw}
                 onTouchEnd={stopDrawing}
               />
-              <Button
+              <QuickButton
                 type="button"
                 variant="ghost"
                 size="sm"
@@ -525,24 +649,24 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
               >
                 <Trash2 className="w-3 h-3 mr-1" />
                 Clear
-              </Button>
+              </QuickButton>
             </div>
             
             {errors.signature && <p className="text-red-500 text-sm mt-2">{errors.signature}</p>}
           </div>
 
           <DialogFooter className="mt-6 gap-2 pt-4">
-            <Button type="button" variant="outline" onClick={onClose}>
+            <QuickButton type="button" variant="outline" onClick={handleClose}>
               Cancel
-            </Button>
-            <Button type="submit" disabled={isSubmitting}>
+            </QuickButton>
+            <QuickButton type="submit" disabled={isSubmitting || isPolicyLoading || !policyReady}>
               {isSubmitting ? (
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
               ) : (
                 <UserPlus className="w-4 h-4 mr-2" />
               )}
               Quick Onboard & Start Testing
-            </Button>
+            </QuickButton>
           </DialogFooter>
         </form>
       </DialogContent>

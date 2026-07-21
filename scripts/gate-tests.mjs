@@ -120,14 +120,14 @@ async function main() {
   const betaBeforeRole = betaMe.data?.role;
   const checkout = await api(`/api/apps/${APP}/functions/createCheckoutSession`, {
     method: 'POST', token: betaTok,
-    body: { priceId: 'price_mock', userEmail: betaMe.data.email, userId: betaMe.data.id },
+    body: { plan: 'monthly' },
   });
   const checkoutOk = checkout.status === 200 && typeof (checkout.data?.url || checkout.data?.data?.url) === 'string';
   record('G8.17a', checkoutOk, `createCheckoutSession returns a url=${checkoutOk}`);
 
   const webhook = await api(`/api/apps/${APP}/functions/stripeWebhook`, {
     method: 'POST', token: adminTok,
-    body: { type: 'checkout.session.completed', data: { object: { customer: 'mock_cus_beta', customer_email: betaMe.data.email, subscription: 'mock_sub_beta', metadata: { userId: betaMe.data.id, userEmail: betaMe.data.email } } } },
+    body: { type: 'checkout.session.completed', data: { object: { mode: 'subscription', payment_status: 'paid', customer: 'mock_cus_beta', customer_email: betaMe.data.email, subscription: 'mock_sub_beta', client_reference_id: betaMe.data.id, metadata: { userId: betaMe.data.id, userEmail: betaMe.data.email, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M' } } } },
   });
   const betaAfter = await api(`/api/apps/${APP}/entities/User/me`, { token: betaTok });
   const roleUnchanged = betaAfter.data?.role === betaBeforeRole;

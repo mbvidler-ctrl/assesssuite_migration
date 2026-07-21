@@ -8,125 +8,253 @@ import { ArrowLeft, CheckCircle, Loader2, PenTool, RotateCcw, FileText, AlertCir
 import { base44 } from "@/api/base44Client";
 
 // Standard wording removed at Max's direction 13 July 2026 — clinician supplies own policy text; pro-forma policies may ship later.
-const DEFAULT_POLICY = {
-  show_primary_consent: true,
-  show_privacy_consent: true,
-  show_assessment_consent: true,
-  show_pricing_consent: true,
-  show_cancellation_policy: true,
-  consent_primary_text: "",
-  consent_privacy_text: "",
-  consent_assessment_text: "",
-  consent_pricing_text: "",
-  cancellation_policy_text: "",
-  policy_name: "Default Policy",
-  version_label: "v1.0"
-};
-
 const CONSENT_ITEMS = [
-  { showKey: "show_primary_consent", textKey: "consent_primary_text", formKey: "consent_confirmed", label: "Primary Consent for Assessment and Treatment" },
-  { showKey: "show_privacy_consent", textKey: "consent_privacy_text", formKey: "privacy_consent", label: "Privacy and Data Storage Consent" },
-  { showKey: "show_assessment_consent", textKey: "consent_assessment_text", formKey: "assessment_consent", label: "Assessment and Testing Consent" },
-  { showKey: "show_pricing_consent", textKey: "consent_pricing_text", formKey: "pricing_explained", label: "Pricing Schedule Agreement" },
-  { showKey: "show_cancellation_policy", textKey: "cancellation_policy_text", formKey: "cancellation_policy_agreed", label: "Cancellation Policy" },
+  { showKey: "show_primary_consent", textKey: "consent_primary_text", formKey: "consent_confirmed", quickKey: "primary", label: "Primary Consent for Assessment and Treatment" },
+  { showKey: "show_privacy_consent", textKey: "consent_privacy_text", formKey: "privacy_consent", quickKey: "privacy", label: "Privacy and Data Storage Consent" },
+  { showKey: "show_assessment_consent", textKey: "consent_assessment_text", formKey: "assessment_consent", quickKey: "assessment", label: "Assessment and Testing Consent" },
+  { showKey: "show_pricing_consent", textKey: "consent_pricing_text", formKey: "pricing_explained", quickKey: "pricing", label: "Pricing Schedule Agreement" },
+  { showKey: "show_cancellation_policy", textKey: "cancellation_policy_text", formKey: "cancellation_policy_agreed", quickKey: "cancellation", label: "Cancellation Policy" },
 ];
 
-export default function Consent({ data, onNext, onBack, canGoBack, isSubmitting, onSaveAndFinishLater }) {
-  const [formData, setFormData] = useState({
-    consent_confirmed: data.consent_confirmed || false,
-    privacy_consent: data.privacy_consent || false,
-    assessment_consent: data.assessment_consent || false,
-    pricing_explained: data.pricing_explained || false,
-    cancellation_policy_agreed: data.cancellation_policy_agreed || false,
-    digital_signature: data.digital_signature || ""
-  });
+function activeItems(policy) {
+  return policy ? CONSENT_ITEMS.filter((item) => policy[item.showKey] !== false) : [];
+}
 
-  const [activePolicy, setActivePolicy] = useState(null);
+function policySnapshot(policy, items) {
+  if (!policy) return null;
+  return {
+    policy_id: policy.id || null,
+    policy_name: policy.policy_name,
+    version_label: policy.version_label,
+    effective_date: policy.effective_date,
+    items_shown: items.map((item) => item.label),
+    texts: Object.fromEntries(items.map((item) => [item.formKey, policy[item.textKey]])),
+  };
+}
+
+function policyContractKey(policy) {
+  if (!policy) return '';
+  const items = activeItems(policy);
+  return JSON.stringify({
+    id: policy.id || null,
+    policy_name: policy.policy_name || null,
+    version_label: policy.version_label || null,
+    effective_date: policy.effective_date || null,
+    items: items.map((item) => ({
+      label: item.label,
+      text: policy[item.textKey],
+    })),
+  });
+}
+
+function signedEvidenceMatchesPolicy(data, policy) {
+  if (!policy || !data?.digital_signature || data.signed_policy_id !== policy.id) return false;
+  if ((data.signed_policy_version || null) !== (policy.version_label || null)) return false;
+  const snapshot = data.signed_policy_snapshot;
+  if (!snapshot || typeof snapshot !== 'object' || Array.isArray(snapshot)) return false;
+  const items = activeItems(policy);
+  if (snapshot.policy_id !== policy.id) return false;
+  if ((snapshot.policy_name || null) !== (policy.policy_name || null)) return false;
+  if ((snapshot.version_label || null) !== (policy.version_label || null)) return false;
+  if ((snapshot.effective_date || null) !== (policy.effective_date || null)) return false;
+  if (JSON.stringify(snapshot.items_shown || []) !== JSON.stringify(items.map((item) => item.label))) return false;
+  if (!snapshot.texts || typeof snapshot.texts !== 'object' || Array.isArray(snapshot.texts)) return false;
+  return items.every((item) => (
+    snapshot.texts[item.formKey] === policy[item.textKey]
+    || snapshot.texts[item.quickKey] === policy[item.textKey]
+  ));
+}
+
+function emptyPolicyEvidence() {
+  return {
+    signed_policy_id: null,
+    signed_policy_name: null,
+    signed_policy_version: null,
+    signed_policy_date: null,
+    signed_policy_snapshot: null,
+  };
+}
+
+export default function Consent({ data, orgId, onNext, onBack, canGoBack, isSubmitting, onSaveAndFinishLater }) {
+  const [formData, setFormData] = useState(/** @type {Record<string, any>} */ ({
+    consent_confirmed: false,
+    privacy_consent: false,
+    assessment_consent: false,
+    pricing_explained: false,
+    cancellation_policy_agreed: false,
+    digital_signature: "",
+    ...emptyPolicyEvidence(),
+  }));
+
+  const [activePolicy, setActivePolicy] = useState(/** @type {Record<string, any> | null} */ (null));
+  const [resolvedPolicyOrgId, setResolvedPolicyOrgId] = useState(/** @type {string | null} */ (null));
   const [loadingPolicy, setLoadingPolicy] = useState(true);
-  const [errors, setErrors] = useState({});
+  const [isPolicyVerifying, setIsPolicyVerifying] = useState(false);
+  const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}));
   const [isDrawing, setIsDrawing] = useState(false);
   const canvasRef = useRef(null);
-  const [hasSignature, setHasSignature] = useState(!!data.digital_signature);
-  const [signatureLocked, setSignatureLocked] = useState(!!data.digital_signature);
+  const signatureHasInkRef = useRef(false);
+  const [hasSignature, setHasSignature] = useState(false);
+  const [signatureLocked, setSignatureLocked] = useState(false);
 
-  // Re-sync when parent data prop updates (e.g. after Onboarding.jsx loads client from DB)
+  const loadActivePolicy = async () => {
+    setLoadingPolicy(true);
+    setActivePolicy(null);
+    setResolvedPolicyOrgId(null);
+    try {
+      const user = await base44.auth.me();
+      const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email });
+      const requestedOrgId = typeof orgId === 'string' && orgId ? orgId : null;
+      const selectedMembership = requestedOrgId
+        ? (memberships || []).find((membership) => membership.org_id === requestedOrgId)
+        : ((memberships || []).find((membership) => membership.is_primary) || (memberships || [])[0]);
+      const policyOrgId = selectedMembership?.org_id || null;
+
+      if (policyOrgId) {
+        const active = await base44.entities.ClinicPolicy.filter({
+          org_id: policyOrgId,
+          is_active: true,
+        }).catch(() => []);
+        if (active.length > 0) {
+          const sorted = active.sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime());
+          setResolvedPolicyOrgId(policyOrgId);
+          setActivePolicy(sorted[0]);
+          return;
+        }
+      }
+      setActivePolicy(null);
+    } catch (error) {
+      console.error("Error loading policy:", error);
+      setActivePolicy(null);
+    } finally {
+      setLoadingPolicy(false);
+    }
+  };
+
+  useEffect(() => { void loadActivePolicy(); }, [orgId]);
+
+  const visibleItems = activeItems(activePolicy);
+  const policyReady = Boolean(
+    activePolicy &&
+    activePolicy.is_active === true &&
+    visibleItems.length > 0 &&
+    visibleItems.every((item) => typeof activePolicy[item.textKey] === 'string' && activePolicy[item.textKey].trim()),
+  );
+
+  // A stored signature applies only to the exact policy content it originally
+  // accompanied. A newly active, edited or differently scoped policy forces
+  // fresh checkboxes and a fresh signature; the old signature is never rebound.
   useEffect(() => {
-    setFormData(prev => ({
-      ...prev,
-      consent_confirmed: data.consent_confirmed || false,
-      privacy_consent: data.privacy_consent || false,
-      assessment_consent: data.assessment_consent || false,
-      pricing_explained: data.pricing_explained || false,
-      cancellation_policy_agreed: data.cancellation_policy_agreed || false,
-      digital_signature: data.digital_signature || prev.digital_signature || "",
-    }));
-    if (data.digital_signature) {
-      setHasSignature(true);
-      setSignatureLocked(true);
+    if (!activePolicy) return;
+    const evidenceMatches = signedEvidenceMatchesPolicy(data, activePolicy);
+    setFormData({
+      consent_confirmed: evidenceMatches && data.consent_confirmed === true,
+      privacy_consent: evidenceMatches && data.privacy_consent === true,
+      assessment_consent: evidenceMatches && data.assessment_consent === true,
+      pricing_explained: evidenceMatches && data.pricing_explained === true,
+      cancellation_policy_agreed: evidenceMatches && data.cancellation_policy_agreed === true,
+      digital_signature: evidenceMatches ? data.digital_signature : "",
+      ...(evidenceMatches ? {
+        signed_policy_id: data.signed_policy_id,
+        signed_policy_name: data.signed_policy_name,
+        signed_policy_version: data.signed_policy_version,
+        signed_policy_date: data.signed_policy_date,
+        signed_policy_snapshot: data.signed_policy_snapshot,
+      } : emptyPolicyEvidence()),
+    });
+    setHasSignature(evidenceMatches);
+    setSignatureLocked(evidenceMatches);
+    signatureHasInkRef.current = evidenceMatches;
+    if (!evidenceMatches && data.digital_signature) {
+      setErrors((current) => ({
+        ...current,
+        policy: 'The active patient-consent policy changed. Review it and obtain a new signature.',
+      }));
     }
   }, [
+    activePolicy,
     data.consent_confirmed,
     data.privacy_consent,
     data.assessment_consent,
     data.pricing_explained,
     data.cancellation_policy_agreed,
-    data.digital_signature
+    data.digital_signature,
+    data.signed_policy_id,
+    data.signed_policy_name,
+    data.signed_policy_version,
+    data.signed_policy_date,
+    data.signed_policy_snapshot,
   ]);
 
-  useEffect(() => { loadActivePolicy(); }, []);
-
-  const loadActivePolicy = async () => {
-    setLoadingPolicy(true);
-    try {
-      const user = await base44.auth.me();
-      // Resolve org_id via OrganizationMember (works for all roles)
-      let orgId = null;
-      try {
-        const mems = await base44.entities.OrganizationMember.filter({ user_email: user.email });
-        const primary = (mems || []).find(m => m.is_primary) || (mems || [])[0];
-        orgId = primary?.org_id;
-      } catch {
-        // A missing primary-practice lookup is handled by the guarded fallback below.
-      }
-
-      if (orgId) {
-        const all = await base44.entities.ClinicPolicy.list().catch(() => []);
-        const active = (all || []).filter(p => p.org_id === orgId && p.is_active === true);
-        if (active.length > 0) {
-          const sorted = active.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
-          setActivePolicy(sorted[0]);
-          setLoadingPolicy(false);
-          return;
-        }
-      }
-      setActivePolicy(DEFAULT_POLICY);
-    } catch (error) {
-      console.error("Error loading policy:", error);
-      setActivePolicy(DEFAULT_POLICY);
-    }
-    setLoadingPolicy(false);
+  const invalidateConsentForPolicyChange = (message) => {
+    setFormData({
+      consent_confirmed: false,
+      privacy_consent: false,
+      assessment_consent: false,
+      pricing_explained: false,
+      cancellation_policy_agreed: false,
+      digital_signature: "",
+      ...emptyPolicyEvidence(),
+    });
+    setHasSignature(false);
+    setSignatureLocked(false);
+    signatureHasInkRef.current = false;
+    setErrors((current) => ({ ...current, policy: message }));
   };
 
-  const visibleItems = activePolicy ? CONSENT_ITEMS.filter(item => activePolicy[item.showKey] !== false) : CONSENT_ITEMS;
+  const currentPolicyEvidence = (signedAt = new Date().toISOString()) => ({
+    signed_policy_id: activePolicy?.id || null,
+    signed_policy_name: activePolicy?.policy_name || null,
+    signed_policy_version: activePolicy?.version_label || null,
+    signed_policy_date: signedAt,
+    signed_policy_snapshot: policySnapshot(activePolicy, visibleItems),
+  });
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    const policySnapshot = activePolicy ? {
-      policy_id: activePolicy.id || null,
-      policy_name: activePolicy.policy_name,
-      version_label: activePolicy.version_label,
-      effective_date: activePolicy.effective_date,
-      items_shown: visibleItems.map(i => i.label),
-      texts: Object.fromEntries(visibleItems.map(i => [i.formKey, activePolicy[i.textKey]]))
-    } : null;
-    onNext({
-      ...formData,
-      signed_policy_id: activePolicy?.id || null,
-      signed_policy_name: activePolicy?.policy_name || null,
-      signed_policy_version: activePolicy?.version_label || null,
-      signed_policy_date: new Date().toISOString(),
-      signed_policy_snapshot: policySnapshot
-    });
+    if (!policyReady) {
+      setErrors(prev => ({ ...prev, policy: 'Patient consent is not configured for this practice.' }));
+      return;
+    }
+    if (!visibleItems.every((item) => formData[item.formKey]) || !hasSignature || !signatureHasInkRef.current) {
+      setErrors((current) => ({ ...current, digital_signature: 'Review every consent item and provide a signature.' }));
+      return;
+    }
+
+    setIsPolicyVerifying(true);
+    try {
+      const user = await base44.auth.me();
+      const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email });
+      const requestedOrgId = typeof orgId === 'string' && orgId ? orgId : resolvedPolicyOrgId;
+      const selectedMembership = (memberships || []).find((membership) => membership.org_id === requestedOrgId);
+      if (!selectedMembership || selectedMembership.org_id !== resolvedPolicyOrgId) {
+        invalidateConsentForPolicyChange('The client practice changed. Reload the correct policy and obtain consent again.');
+        return;
+      }
+      const active = await base44.entities.ClinicPolicy.filter({
+        org_id: resolvedPolicyOrgId,
+        is_active: true,
+      });
+      const currentPolicy = [...(active || [])]
+        .sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime())[0] || null;
+      if (!currentPolicy || policyContractKey(currentPolicy) !== policyContractKey(activePolicy)) {
+        setActivePolicy(currentPolicy);
+        invalidateConsentForPolicyChange('The active patient-consent policy changed. Review it and obtain a new signature.');
+        return;
+      }
+      onNext({
+        ...formData,
+        ...currentPolicyEvidence(formData.signed_policy_date || new Date().toISOString()),
+      });
+    } catch (error) {
+      console.error('Unable to re-verify patient consent policy', error);
+      setErrors((current) => ({
+        ...current,
+        policy: 'The current patient-consent policy could not be verified. No consent was recorded.',
+      }));
+    } finally {
+      setIsPolicyVerifying(false);
+    }
   };
 
   const handleChange = (field, value) => {
@@ -136,6 +264,7 @@ export default function Consent({ data, onNext, onBack, canGoBack, isSubmitting,
 
   const startDrawing = (e) => {
     if (signatureLocked) return;
+    signatureHasInkRef.current = false;
     setIsDrawing(true);
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
@@ -154,14 +283,25 @@ export default function Consent({ data, onNext, onBack, canGoBack, isSubmitting,
     ctx.strokeStyle = '#1e293b';
     ctx.lineTo((e.clientX || e.touches?.[0]?.clientX) - rect.left, (e.clientY || e.touches?.[0]?.clientY) - rect.top);
     ctx.stroke();
+    signatureHasInkRef.current = true;
   };
 
   const stopDrawing = async () => {
     if (isDrawing) {
       setIsDrawing(false);
+      if (!signatureHasInkRef.current) {
+        setErrors((current) => ({ ...current, digital_signature: 'Please draw a signature before continuing.' }));
+        return;
+      }
       const canvas = canvasRef.current;
       const signatureData = canvas.toDataURL();
-      const updatedData = { ...formData, digital_signature: signatureData, consent_date: new Date().toISOString() };
+      const signedAt = new Date().toISOString();
+      const updatedData = {
+        ...formData,
+        digital_signature: signatureData,
+        consent_date: signedAt,
+        ...currentPolicyEvidence(signedAt),
+      };
       setFormData(updatedData);
       setHasSignature(true);
       if (errors.digital_signature) setErrors(prev => ({ ...prev, digital_signature: "" }));
@@ -179,7 +319,8 @@ export default function Consent({ data, onNext, onBack, canGoBack, isSubmitting,
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = 'white';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-    setFormData(prev => ({ ...prev, digital_signature: "" }));
+    signatureHasInkRef.current = false;
+    setFormData(prev => ({ ...prev, digital_signature: "", ...emptyPolicyEvidence() }));
     setHasSignature(false);
   };
 
@@ -192,33 +333,37 @@ export default function Consent({ data, onNext, onBack, canGoBack, isSubmitting,
       ctx.fillStyle = 'white';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
     }
-    setFormData(prev => ({ ...prev, digital_signature: "" }));
+    signatureHasInkRef.current = false;
+    setFormData(prev => ({ ...prev, digital_signature: "", ...emptyPolicyEvidence() }));
     setHasSignature(false);
   };
 
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      if (data.digital_signature) {
-        setFormData(prev => ({ ...prev, digital_signature: data.digital_signature }));
-        setHasSignature(true);
-        const img = new Image();
-        img.onload = () => ctx.drawImage(img, 0, 0);
-        img.src = data.digital_signature;
-      }
-    }
-  }, [data.digital_signature]);
-
-  const allConsentsGiven = visibleItems.every(i => formData[i.formKey]) && hasSignature;
+  const allConsentsGiven = policyReady
+    && visibleItems.every(i => formData[i.formKey])
+    && hasSignature
+    && signatureHasInkRef.current;
 
   if (loadingPolicy) {
     return (
       <div className="flex justify-center items-center py-12">
         <Loader2 className="w-6 h-6 animate-spin text-blue-500" />
         <span className="ml-2 text-slate-500 text-sm">Loading consent form...</span>
+      </div>
+    );
+  }
+
+
+  if (!policyReady) {
+    return (
+      <div className="rounded-lg border border-amber-300 bg-amber-50 p-6 space-y-3">
+          <div className="flex items-start gap-2 text-amber-800">
+            <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+            <div>
+              <p className="font-semibold">Patient consent is not configured</p>
+              <p className="text-sm mt-1">A practice owner must activate a policy with operative wording before a client can sign or complete onboarding.</p>
+            </div>
+          </div>
+          {canGoBack && <button type="button" onClick={onBack} className="inline-flex items-center rounded-md border border-amber-300 bg-white px-3 py-2 text-sm text-amber-900"><ArrowLeft className="w-4 h-4 mr-2" /> Back</button>}
       </div>
     );
   }
@@ -233,6 +378,13 @@ export default function Consent({ data, onNext, onBack, canGoBack, isSubmitting,
             {activePolicy.version_label && <Badge className="ml-2 bg-blue-100 text-blue-700 text-xs">{activePolicy.version_label}</Badge>}
             {activePolicy.effective_date && <span className="ml-1 text-blue-500"> · Effective {activePolicy.effective_date}</span>}
           </span>
+        </div>
+      )}
+
+      {errors.policy && (
+        <div role="alert" className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-800">
+          <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+          <p className="text-sm">{errors.policy}</p>
         </div>
       )}
 
@@ -308,6 +460,7 @@ export default function Consent({ data, onNext, onBack, canGoBack, isSubmitting,
                     const canvas = canvasRef.current;
                     const rect = canvas.getBoundingClientRect();
                     const ctx = canvas.getContext('2d');
+                    signatureHasInkRef.current = false;
                     setIsDrawing(true);
                     ctx.beginPath();
                     ctx.moveTo(touch.clientX - rect.left, touch.clientY - rect.top);
@@ -324,14 +477,25 @@ export default function Consent({ data, onNext, onBack, canGoBack, isSubmitting,
                     ctx.strokeStyle = '#1e293b';
                     ctx.lineTo(touch.clientX - rect.left, touch.clientY - rect.top);
                     ctx.stroke();
+                    signatureHasInkRef.current = true;
                   }}
                   onTouchEnd={async (e) => {
                     e.preventDefault();
                     if (isDrawing) {
                       setIsDrawing(false);
+                      if (!signatureHasInkRef.current) {
+                        setErrors((current) => ({ ...current, digital_signature: 'Please draw a signature before continuing.' }));
+                        return;
+                      }
                       const canvas = canvasRef.current;
                       const signatureData = canvas.toDataURL();
-                      const updatedData = { ...formData, digital_signature: signatureData, consent_date: new Date().toISOString() };
+                      const signedAt = new Date().toISOString();
+                      const updatedData = {
+                        ...formData,
+                        digital_signature: signatureData,
+                        consent_date: signedAt,
+                        ...currentPolicyEvidence(signedAt),
+                      };
                       setFormData(updatedData);
                       setHasSignature(true);
                       if (errors.digital_signature) setErrors(prev => ({ ...prev, digital_signature: "" }));
@@ -373,12 +537,12 @@ export default function Consent({ data, onNext, onBack, canGoBack, isSubmitting,
         )}
         <div className={`flex gap-3 ${!canGoBack ? 'ml-auto' : 'ml-auto'}`}>
           {onSaveAndFinishLater && (
-            <Button type="button" variant="outline" onClick={() => onSaveAndFinishLater(formData)} className="text-slate-600" disabled={isSubmitting}>
+            <Button type="button" variant="outline" onClick={() => onSaveAndFinishLater(formData)} className="text-slate-600" disabled={isSubmitting || isPolicyVerifying}>
               Save & Finish Later
             </Button>
           )}
-          <Button type="submit" disabled={isSubmitting || !allConsentsGiven} className="bg-green-600 hover:bg-green-700">
-            {isSubmitting ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</> : <><CheckCircle className="w-4 h-4 mr-2" />Complete Onboarding</>}
+          <Button type="submit" disabled={isSubmitting || isPolicyVerifying || !allConsentsGiven} className="bg-green-600 hover:bg-green-700">
+            {isSubmitting || isPolicyVerifying ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Verifying...</> : <><CheckCircle className="w-4 h-4 mr-2" />Complete Onboarding</>}
           </Button>
         </div>
       </div>

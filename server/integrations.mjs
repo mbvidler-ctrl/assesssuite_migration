@@ -25,10 +25,10 @@
 //     a parseable `{ "key": "description", ... }` block, the mock returns a
 //     JSON-encoded string using those keys (so JSON.parse succeeds) rather
 //     than prose.
-//   - SendEmail / SendSMS: fire-and-forget at every call site found
-//     (src/components/assessments/FeedbackModal.jsx for SendEmail; no
-//     SendSMS consumer exists in src/ at all) — recorded to the outbox
-//     tables and a simple {status:'sent'} success shape returned.
+//   - SendEmail / SendSMS: SendEmail is not a generic relay. Its only caller,
+//     FeedbackModal.jsx, supplies an AssessmentRequest id; the server verifies
+//     ownership and tenant scope, derives both fixed-recipient messages, and
+//     rate-limits notifications. No SendSMS consumer exists in src/.
 //   - UploadFile: uniformly `{ file_url }` across every call site found
 //     (SOAPNoteModal, ReferralUploader, ClientDocuments, AdverseEventForm,
 //     CBMRunner, MyProfile, SectionEditor).
@@ -60,7 +60,8 @@ import { issueFileAccessUrl } from './fileAccess.mjs';
 
 import { instantiateSchema, extractJsonKeysFromPrompt } from './mocks/schema-instantiator.mjs';
 import { invokeLLM as invokeRealLLM, llmEnabled } from './llm.mjs';
-import { sendEmail } from './email.mjs';
+import { adminNotificationRecipient, sendEmail } from './email.mjs';
+import { createFixedWindowRateLimiter } from './rateLimit.mjs';
 import {
   REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
   REFERRAL_SUBJECT_AGE_CONFIRMATION,
@@ -87,6 +88,11 @@ const REFERRAL_ERROR_POLICIES = Object.freeze({
   UploadFile: Object.freeze({
     invalid_content_length: diagnosticPolicy(400, 'upload_request', 'The request length is invalid.'),
     request_too_large: diagnosticPolicy(413, 'upload_request', 'The upload request is too large.'),
+    upload_capacity_exceeded: diagnosticPolicy(
+      429,
+      'upload_request',
+      'Too many uploads are in progress. Try again shortly.',
+    ),
     org_required: diagnosticPolicy(400, 'upload_authorization', 'Select the organisation for this request.'),
     org_forbidden: diagnosticPolicy(403, 'upload_authorization', 'The selected organisation is unavailable.'),
     clinical_upload_forbidden: diagnosticPolicy(
@@ -563,6 +569,47 @@ async function readBoundedRequest(req, maxBytes) {
     chunks.push(buffer);
   }
   return Buffer.concat(chunks);
+}
+
+// Multipart parsing materialises the complete request body before creating
+// File objects. Bound concurrent UploadFile requests before any body bytes are
+// retained so a burst cannot multiply that memory cost without limit. The
+// supported upload workflows are sequential, so one request per user and two
+// process-wide preserve normal use while sharply bounding memory pressure.
+const MAX_CONCURRENT_UPLOAD_REQUESTS = 2;
+const MAX_CONCURRENT_UPLOAD_REQUESTS_PER_USER = 1;
+let activeUploadRequests = 0;
+const activeUploadRequestsByUser = new Map();
+
+function acquireUploadAdmission(req, userId) {
+  const userKey = typeof userId === 'string' && userId.length > 0 ? userId : '__missing_session_user__';
+  const activeForUser = activeUploadRequestsByUser.get(userKey) || 0;
+  if (
+    activeUploadRequests >= MAX_CONCURRENT_UPLOAD_REQUESTS ||
+    activeForUser >= MAX_CONCURRENT_UPLOAD_REQUESTS_PER_USER
+  ) {
+    // Continue consuming the socket without retaining chunks. Destroying it
+    // here could prevent the caller from receiving the controlled 429 JSON.
+    req.on('error', () => {});
+    req.resume();
+    throw new UploadError(
+      429,
+      'upload_capacity_exceeded',
+      'Too many uploads are in progress. Try again shortly.',
+    );
+  }
+
+  activeUploadRequests += 1;
+  activeUploadRequestsByUser.set(userKey, activeForUser + 1);
+  let released = false;
+  return () => {
+    if (released) return;
+    released = true;
+    activeUploadRequests = Math.max(0, activeUploadRequests - 1);
+    const remainingForUser = Math.max(0, (activeUploadRequestsByUser.get(userKey) || 1) - 1);
+    if (remainingForUser === 0) activeUploadRequestsByUser.delete(userKey);
+    else activeUploadRequestsByUser.set(userKey, remainingForUser);
+  };
 }
 
 async function parseIntegrationBody(req, endpointName) {
@@ -1088,13 +1135,194 @@ async function handleExtractDataFromUploadedFile(body, context) {
 // SendEmail / SendSMS
 // ---------------------------------------------------------------------------
 
-async function handleSendEmail(body) {
-  const { to, subject, body: emailBody } = body || {};
-  // sendEmail records to the outbox itself (audit log) and dispatches via
-  // Resend when RESEND_API_KEY is set — the same supply-a-key-and-it-works
-  // pattern as the Stripe and OpenAI adapters. Return shape unchanged.
-  await sendEmail({ to, subject, text: emailBody });
-  return { status: 'sent', to, subject };
+const FEEDBACK_NOTIFICATION_RATE_LIMITER = createFixedWindowRateLimiter({
+  limit: 5,
+  windowMs: 60 * 60 * 1000,
+});
+const ASSESSMENT_REQUEST_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const FEEDBACK_EMAIL_RE = /^[^\s@]{1,64}@[^\s@]{1,189}$/;
+const FEEDBACK_REQUEST_TYPES = Object.freeze({
+  new_assessment: 'New assessment request',
+  error_report: 'Assessment error report',
+});
+
+function feedbackRequestError(status, code, message) {
+  return new UploadError(status, code, message);
+}
+
+function validateFeedbackNotificationRequest(body) {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) {
+    throw feedbackRequestError(
+      400,
+      'invalid_feedback_notification_request',
+      'Provide an assessment request to notify.',
+    );
+  }
+  const keys = Reflect.ownKeys(body);
+  if (keys.length !== 1 || keys[0] !== 'assessment_request_id') {
+    throw feedbackRequestError(
+      400,
+      'invalid_feedback_notification_request',
+      'Feedback notifications accept only an assessment request identifier.',
+    );
+  }
+  if (typeof body.assessment_request_id !== 'string' || !ASSESSMENT_REQUEST_ID_RE.test(body.assessment_request_id)) {
+    throw feedbackRequestError(
+      400,
+      'invalid_assessment_request_id',
+      'Provide a valid assessment request identifier.',
+    );
+  }
+  return body.assessment_request_id;
+}
+
+function boundedFeedbackText(value, maxLength, { optional = false } = {}) {
+  if (value === undefined || value === null || value === '') {
+    return optional ? '' : null;
+  }
+  if (typeof value !== 'string' || value.length > maxLength || value.includes('\u0000')) return null;
+  const trimmed = value.trim();
+  if (!trimmed) return optional ? '' : null;
+  return trimmed;
+}
+
+function validateAssessmentRequestRecord(record) {
+  const requestTypeLabel = FEEDBACK_REQUEST_TYPES[record?.request_type];
+  const details = boundedFeedbackText(record?.details, 5_000);
+  const assessmentName = boundedFeedbackText(record?.assessment_name, 200, { optional: true });
+  const createdAtMs = Date.parse(record?.created_date);
+  if (
+    !requestTypeLabel ||
+    details === null ||
+    assessmentName === null ||
+    record?.status !== 'pending' ||
+    !Number.isFinite(createdAtMs)
+  ) {
+    throw feedbackRequestError(
+      400,
+      'invalid_assessment_request_record',
+      'The assessment request cannot be notified in its current state.',
+    );
+  }
+  return {
+    assessmentName,
+    createdAt: new Date(createdAtMs).toISOString(),
+    details,
+    requestTypeLabel,
+  };
+}
+
+function notificationWasRecorded(outboxEmail, to, subject) {
+  return outboxEmail.listAll().some((item) => item.to === to && item.subject === subject);
+}
+
+async function handleSendEmail(body, context) {
+  if (!context?.sessionUser || typeof context.sessionUser.email !== 'string') {
+    throw feedbackRequestError(401, 'authentication_required', 'Sign in to submit feedback.');
+  }
+  if (
+    context.sessionUser.email_verified !== true ||
+    context.sessionUser.account_status !== 'active' ||
+    context.sessionUser.subscription_status !== 'active'
+  ) {
+    throw feedbackRequestError(
+      403,
+      'feedback_notification_not_permitted',
+      'An active verified subscription is required to submit feedback notifications.',
+    );
+  }
+
+  const assessmentRequestId = validateFeedbackNotificationRequest(body);
+  if (typeof context.getAssessmentRequest !== 'function' || typeof context.outboxEmail?.listAll !== 'function') {
+    throw feedbackRequestError(503, 'feedback_notification_unavailable', 'Feedback notification is unavailable.');
+  }
+  const assessmentRequest = context.getAssessmentRequest(assessmentRequestId);
+  if (
+    !assessmentRequest ||
+    assessmentRequest.user_email !== context.sessionUser.email ||
+    !Array.isArray(context.orgIds) ||
+    !context.orgIds.includes(assessmentRequest.org_id)
+  ) {
+    throw feedbackRequestError(404, 'assessment_request_not_found', 'Assessment request not found.');
+  }
+  const request = validateAssessmentRequestRecord(assessmentRequest);
+
+  const adminRecipient = adminNotificationRecipient();
+  if (
+    typeof adminRecipient !== 'string' ||
+    adminRecipient.length > 254 ||
+    adminRecipient !== adminRecipient.trim() ||
+    !FEEDBACK_EMAIL_RE.test(adminRecipient)
+  ) {
+    throw feedbackRequestError(
+      503,
+      'feedback_notification_unavailable',
+      'Feedback notification is unavailable.',
+    );
+  }
+
+  const adminSubject = `AssessSuite feedback [${assessmentRequestId}]`;
+  const confirmationSubject = `AssessSuite request confirmation [${assessmentRequestId}]`;
+  const adminRecorded = notificationWasRecorded(context.outboxEmail, adminRecipient, adminSubject);
+  const confirmationRecorded = notificationWasRecorded(
+    context.outboxEmail,
+    context.sessionUser.email,
+    confirmationSubject,
+  );
+  if (adminRecorded && confirmationRecorded) {
+    return {
+      status: 'already_recorded',
+      assessment_request_id: assessmentRequestId,
+      recorded: true,
+      sent: false,
+    };
+  }
+
+  const quota = FEEDBACK_NOTIFICATION_RATE_LIMITER.consume(context.sessionUser.id || context.sessionUser.email);
+  if (!quota.allowed) {
+    throw feedbackRequestError(
+      429,
+      'feedback_notification_rate_limited',
+      'Too many feedback notifications have been requested. Try again later.',
+    );
+  }
+
+  const submitterName = boundedFeedbackText(context.sessionUser.full_name, 200, { optional: true }) ||
+    context.sessionUser.email;
+  const assessmentLine = request.assessmentName ? `\nAssessment: ${request.assessmentName}` : '';
+  const requestSummary = [
+    `Request ID: ${assessmentRequestId}`,
+    `Request type: ${request.requestTypeLabel}${assessmentLine}`,
+    `Submitted by: ${submitterName} (${context.sessionUser.email})`,
+    `Submitted at: ${request.createdAt}`,
+    '',
+    'Details:',
+    request.details,
+  ].join('\n');
+  const deliveries = [];
+  if (!adminRecorded) {
+    deliveries.push(await sendEmail({
+      to: adminRecipient,
+      subject: adminSubject,
+      text: `${requestSummary}\n\nReview this request in the Admin Dashboard assessment requests view.`,
+    }));
+  }
+  if (!confirmationRecorded) {
+    deliveries.push(await sendEmail({
+      to: context.sessionUser.email,
+      subject: confirmationSubject,
+      text: `Thank you for your feedback. Your request has been logged for review.\n\n${requestSummary}`,
+    }));
+  }
+
+  const recorded = deliveries.every((delivery) => delivery?.recorded === true);
+  const sent = deliveries.every((delivery) => delivery?.sent === true);
+  return {
+    status: sent ? 'sent' : recorded ? 'recorded' : 'failed',
+    assessment_request_id: assessmentRequestId,
+    recorded,
+    sent,
+  };
 }
 
 function handleSendSMS(body, outboxSms) {
@@ -1599,7 +1827,11 @@ export async function handleCoreIntegration(req, res, context) {
     ? { ...context, diagnosticReference: referralReference }
     : context;
 
+  let releaseUploadAdmission = null;
   try {
+    if (endpointName === 'UploadFile') {
+      releaseUploadAdmission = acquireUploadAdmission(req, context.sessionUser?.id);
+    }
     const { body, files } = await parseIntegrationBody(req, endpointName);
 
     switch (endpointName) {
@@ -1617,7 +1849,7 @@ export async function handleCoreIntegration(req, res, context) {
       case 'ExtractDataFromUploadedFile':
         return sendJson(res, 200, await handleExtractDataFromUploadedFile(body, requestContext));
       case 'SendEmail':
-        return sendJson(res, 200, await handleSendEmail(body));
+        return sendJson(res, 200, await handleSendEmail(body, context));
       case 'SendSMS':
         return sendJson(res, 200, handleSendSMS(body, outboxSms));
       case 'UploadFile':
@@ -1683,5 +1915,7 @@ export async function handleCoreIntegration(req, res, context) {
       return sendJson(res, status, { status: 'error', code, details });
     }
     return sendJson(res, status, { code, error: details });
+  } finally {
+    releaseUploadAdmission?.();
   }
 }

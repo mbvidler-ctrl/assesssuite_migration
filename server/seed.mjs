@@ -431,17 +431,27 @@ export function runCatalogueSeed({ db, entityNames }) {
   }
   function seedCatalogue(entityName, items) {
     const repo = repoFor(entityName);
-    const existingCount = repo.listAll().length;
-    if (existingCount > 0) {
-      note(`${entityName} catalogue already has ${existingCount} row(s) — leaving as-is`);
-      return repo.listAll();
-    }
-    const created = items.map((item) => repo.create(item, null));
-    note(`${entityName} catalogue seeded with ${created.length} row(s)`);
-    return created;
+    const keyField = entityName === 'TreatmentProtocol' ? 'condition_name' : 'name';
+    const existing = repo.listAll();
+    const existingKeys = new Set(existing.map((item) => item?.[keyField]).filter(Boolean));
+    const missing = items.filter((item) => item?.[keyField] && !existingKeys.has(item[keyField]));
+    const created = missing.map((item) => repo.create(item, null));
+    note(`${entityName} catalogue retained ${existing.length} row(s) and inserted ${created.length} missing row(s)`);
+    return [...existing, ...created];
   }
-  seedCataloguesCore({ entityNames, repoFor, note, seedCatalogue });
-  note('Catalogue-only seed complete (no synthetic tenants, users, or clients).');
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    seedCataloguesCore({ entityNames, repoFor, note, seedCatalogue });
+    db.exec('COMMIT');
+    note('Catalogue-only seed complete (no synthetic tenants, users, or clients).');
+  } catch (error) {
+    try {
+      db.exec('ROLLBACK');
+    } catch {
+      // Preserve the original seeding failure.
+    }
+    throw error;
+  }
 }
 
 export function assertSyntheticSeedEnvironment(environment = process.env) {

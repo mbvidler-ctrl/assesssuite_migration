@@ -10,6 +10,8 @@
 
 import { randomUUID } from 'node:crypto';
 
+export const MOCK_CHECKOUT_PRICE_ID = 'price_1TbH07LVAtM9m2RxqiPCaZ8M';
+
 /** customer_id -> { id, email, subscriptions: [{id, status, current_period_start}] } */
 const customersByEmail = new Map();
 const customersById = new Map();
@@ -51,7 +53,7 @@ export function createMockCheckoutSession({ priceId, userId, userEmail, successU
     customer_email: userEmail || null,
     client_reference_id: userId || null,
     subscription: subscriptionId,
-    metadata: { userId: userId || '', userEmail: userEmail || '' },
+    metadata: { userId: userId || '', userEmail: userEmail || '', priceId: priceId || '' },
     success_url: successUrl || null,
     cancel_url: cancelUrl || null,
     price: priceId || null,

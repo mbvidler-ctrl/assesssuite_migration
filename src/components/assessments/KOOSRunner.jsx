@@ -347,15 +347,15 @@ export default function KOOSRunner({ onSave, onClose }) {
                       <div>
                         <p className="font-bold text-amber-900">Official Resources</p>
                         <div className="ml-3 mt-2">
-                          <Button
-                            onClick={() => window.open('https://www.koos.nu', '_blank')}
-                            variant="outline"
-                            size="sm"
-                            className="text-xs h-8 w-full justify-start"
+                          <a
+                            href="https://www.koos.nu"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center rounded-md border border-slate-200 px-3 text-xs h-8 w-full justify-start hover:bg-slate-50"
                           >
                             <ExternalLink className="w-3 h-3 mr-2" />
                             Official KOOS Website — Scoring, Normatives, Translations
-                          </Button>
+                          </a>
                         </div>
                       </div>
                     </div>

@@ -150,8 +150,10 @@ export async function createCheckoutSession({ priceId, userId, userEmail, succes
     ['client_reference_id', userId],
     ['metadata[userId]', userId],
     ['metadata[userEmail]', userEmail],
+    ['metadata[priceId]', priceId],
     ['subscription_data[metadata][userId]', userId],
     ['subscription_data[metadata][userEmail]', userEmail],
+    ['subscription_data[metadata][priceId]', priceId],
   ]);
 }
 

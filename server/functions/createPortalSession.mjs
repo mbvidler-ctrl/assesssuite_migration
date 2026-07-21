@@ -12,8 +12,16 @@ import { createMockPortalSession } from '../mocks/stripe.mjs';
 import * as stripeGateway from '../stripeGateway.mjs';
 
 export default async function createPortalSession(ctx) {
-  const { body, respond } = ctx;
-  const { stripeCustomerId, flow, subscriptionId } = body || {};
+  const { body, user, respond } = ctx;
+  // Billing identifiers are an authorization boundary. They must come from
+  // the authenticated server-side user record, never from caller-controlled
+  // JSON (otherwise one account can open another customer's portal).
+  const stripeCustomerId = user?.stripe_customer_id;
+  const subscriptionId = user?.stripe_subscription_id;
+  const requestedFlow = body?.flow;
+  const flow = requestedFlow === 'subscription_update' || requestedFlow === 'payment_method_update'
+    ? requestedFlow
+    : undefined;
 
   if (!stripeCustomerId) {
     return respond(400, { error: 'No Stripe customer ID found.' });
