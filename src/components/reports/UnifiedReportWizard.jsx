@@ -14,6 +14,7 @@ import SectionEditor from "./wizard-steps/SectionEditor";
 import ReviewExport from "./wizard-steps/ReviewExport";
 import OutcomeTable from "./wizard-steps/OutcomeTable";
 import { outcomeComparisonHtml } from "@/lib/clinical/outcomeComparison";
+import { renderSafeHtmlDocument } from "@/lib/safeHtml";
 
 // --- Meta-template definitions (controls length & AI tone) ---
 export const META_TEMPLATES = {
@@ -1803,8 +1804,7 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
 
   const handlePrint = () => {
     const win = window.open("", "_blank");
-    win.document.write(reportHtml);
-    win.document.close();
+    renderSafeHtmlDocument(win, reportHtml);
     win.print();
   };
 

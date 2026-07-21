@@ -15,13 +15,16 @@ import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
 import ProtectedRoute from '@/components/ProtectedRoute';
-import Paywall from '@/pages/Paywall';
+// Paywall.jsx (simulated checkout for the demo) is retired for launch — the
+// route redirects to the real PaymentRequired flow; the file stays on disk.
 import CreateAccount from '@/pages/CreateAccount';
 import AccountSetup from '@/pages/AccountSetup';
 import SignIn from '@/pages/SignIn';
-import Signup from '@/pages/Signup';
 import PaymentRequired from './pages/PaymentRequired';
 import TestingBypass from '@/pages/TestingBypass';
+import LegalDocument from '@/pages/LegalDocument';
+import LegalNotices from '@/pages/LegalNotices';
+import AccountDeactivated from '@/pages/AccountDeactivated';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -54,18 +57,27 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route path="/" element={<LandingLive />} />
-      <Route path="/Landing" element={<Landing />} />
+      {/* Landing.jsx carries a pre-suite (24 May 2026) embedded Terms modal that
+          contradicts the approved legal suite — retired from the live surface by
+          redirect to root, not deleted. The file stays on disk. */}
+      <Route path="/Landing" element={<Navigate to="/" replace />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/testing-bypass" element={<TestingBypass />} />
+      {/* Dev-only: hardcodes seeded demo credentials. Excluded from production
+          builds; the underlying control is that those accounts do not exist in
+          the production database (catalogue-only seed + strong admin secret). */}
+      {import.meta.env.DEV && <Route path="/testing-bypass" element={<TestingBypass />} />}
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/Paywall" element={<Paywall />} />
+      <Route path="/Paywall" element={<Navigate to="/PaymentRequired" replace />} />
       <Route path="/PaymentRequired" element={<PaymentRequired />} />
+      <Route path="/legal/:slug" element={<LegalDocument />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/CreateAccount" element={<CreateAccount />} />
         <Route path="/AccountSetup" element={<AccountSetup />} />
         <Route path="/signin" element={<SignIn />} />
+        <Route path="/LegalNotices" element={<LegalNotices />} />
+        <Route path="/AccountDeactivated" element={<AccountDeactivated />} />
         <Route element={<LayoutWrapper currentPageName={mainPageKey}><Outlet /></LayoutWrapper>}>
           {Object.entries(Pages).map(([path, Page]) => (
             <Route key={path} path={`/${path}`} element={<Page />} />
@@ -88,7 +100,10 @@ function App() {
         <Router>
           <NavigationTracker />
           <Routes>
-            <Route path="/signup" element={<Signup />} />
+            {/* Signup.jsx is an incomplete duplicate of the OTP-based Register.jsx
+                flow (no OTP, dead legal-link stubs) — retired as a live entry
+                point, not deleted. See docs/qa/ session note. */}
+            <Route path="/signup" element={<Navigate to="/register" replace />} />
             <Route path="*" element={<AuthenticatedApp />} />
           </Routes>
         </Router>

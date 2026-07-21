@@ -12,6 +12,7 @@ import { InvokeLLM } from "@/integrations/Core";
 import { Plus, Trash2, FileDown, Printer, AlertCircle, Loader2, ArrowLeft, ArrowRight } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
+import { renderSafeHtmlDocument, replaceWithSafeHtml } from "@/lib/safeHtml";
 
 const PrintableForm32 = React.forwardRef(({ formData, client, clinician }, ref) => {
   const formatDate = (dateString) => {
@@ -603,15 +604,15 @@ The treatment plan should be detailed, evidence-based, and appropriate for WorkC
     if (!printWindow) {
       toast.warning("Popup blocked. Using current window print...");
       const originalContent = document.body.innerHTML;
-      document.body.innerHTML = printRef.current.outerHTML;
+      replaceWithSafeHtml(document.body, printRef.current.outerHTML);
       window.print();
-      document.body.innerHTML = originalContent;
+      replaceWithSafeHtml(document.body, originalContent);
       window.location.reload();
       return;
     }
 
     try {
-      printWindow.document.write(`
+      renderSafeHtmlDocument(printWindow, `
         <!DOCTYPE html>
         <html>
         <head>
@@ -724,8 +725,6 @@ The treatment plan should be detailed, evidence-based, and appropriate for WorkC
         </body>
         </html>
       `);
-      
-      printWindow.document.close();
       
       setTimeout(() => {
         printWindow.focus();

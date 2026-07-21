@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { format } from "date-fns";
+import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 
 export default function ClientConditions() {
   const [searchParams] = useSearchParams();
@@ -217,6 +218,7 @@ export default function ClientConditions() {
                       </Badge>
                     ))}
                   </div>
+                  <AIDisclosureNote className="mt-3" />
                 </div>
               ) : (
                 <div className="flex items-center gap-3">

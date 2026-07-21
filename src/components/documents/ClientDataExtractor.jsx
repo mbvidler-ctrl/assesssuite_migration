@@ -16,7 +16,9 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DOCUMENT_EXTRACTION_MAX_FILES, extractTenantDocumentData } from '@/lib/fileIntegrations';
 import { todayLocal } from "@/lib/localDate";
+import { normalizeSdkError, sdkErrorLogMetadata } from '@/lib/sdkError';
 
 const EXTRACTION_SCHEMA = {
   type: "object",
@@ -89,6 +91,7 @@ export default function ClientDataExtractor({
   const [extractedData, setExtractedData] = useState(null);
   const [hasExtracted, setHasExtracted] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [processingAuthorityConfirmed, setProcessingAuthorityConfirmed] = useState(false);
   const [selectedItems, setSelectedItems] = useState({
     personal: {},
     conditions: [],
@@ -99,42 +102,34 @@ export default function ClientDataExtractor({
 
   const handleExtract = async () => {
     if (!fileUrls || fileUrls.length === 0) return;
+    if (fileUrls.length > DOCUMENT_EXTRACTION_MAX_FILES) {
+      toast.error(`Select no more than ${DOCUMENT_EXTRACTION_MAX_FILES} documents for one extraction.`);
+      return;
+    }
+    if (!client?.org_id) {
+      toast.error('Client practice is required before document extraction.');
+      return;
+    }
+    if (!processingAuthorityConfirmed) {
+      toast.error('Confirm your authority to process these client documents before extraction.');
+      return;
+    }
     
     setIsExtracting(true);
     try {
-      const allData = {
-        personal_info: {},
-        conditions: [],
-        assessments: [],
-        referral_info: {},
-        funding_info: {}
-      };
-      
-      for (const fileUrl of fileUrls) {
-        const result = await base44.integrations.Core.ExtractDataFromUploadedFile({
-          file_url: fileUrl,
-          json_schema: EXTRACTION_SCHEMA
-        });
-        
-        if (result.status === 'success' && result.output) {
-          // Merge extracted data
-          if (result.output.personal_info) {
-            allData.personal_info = { ...allData.personal_info, ...result.output.personal_info };
-          }
-          if (result.output.conditions) {
-            allData.conditions.push(...result.output.conditions);
-          }
-          if (result.output.assessments) {
-            allData.assessments.push(...result.output.assessments);
-          }
-          if (result.output.referral_info) {
-            allData.referral_info = { ...allData.referral_info, ...result.output.referral_info };
-          }
-          if (result.output.funding_info) {
-            allData.funding_info = { ...allData.funding_info, ...result.output.funding_info };
-          }
-        }
+      const result = await extractTenantDocumentData({
+        org_id: client.org_id,
+        file_urls: fileUrls,
+        json_schema: EXTRACTION_SCHEMA,
+        processing_authority_confirmed: true,
+      });
+      if (result?.status !== 'success' || !result.output) {
+        toast.error(result?.status === 'error' && typeof result.details === 'string'
+          ? result.details
+          : 'The documents could not be extracted. No client data was changed.');
+        return;
       }
+      const allData = result.output;
       
       // Initialize selected items (all selected by default)
       setSelectedItems({
@@ -162,8 +157,12 @@ export default function ClientDataExtractor({
       }
       
     } catch (error) {
-      console.error('Error extracting data:', error);
-      toast.error('Failed to extract data from documents');
+      const failure = normalizeSdkError(error, {
+        stage: 'extraction',
+        fallbackDetails: 'Failed to extract data from documents',
+      });
+      console.warn('Client document extraction failed', sdkErrorLogMetadata(error, { stage: 'extraction' }));
+      toast.error(failure.details);
     } finally {
       setIsExtracting(false);
     }
@@ -275,7 +274,7 @@ export default function ClientDataExtractor({
       if (onExtracted) onExtracted();
       
     } catch (error) {
-      console.error('Error saving extracted data:', error);
+      console.warn('Saving reviewed extracted data failed', sdkErrorLogMetadata(error, { stage: 'save_reviewed_data' }));
       toast.error('Failed to save extracted data');
     } finally {
       setIsSaving(false);
@@ -298,9 +297,21 @@ export default function ClientDataExtractor({
             <p className="text-sm text-slate-600 mb-3">
               Scan documents for client information, assessments, conditions, and more.
             </p>
+            <div className="flex items-start gap-2 text-left mb-3">
+              <input
+                id="client-document-processing-authority"
+                type="checkbox"
+                checked={processingAuthorityConfirmed}
+                onChange={(event) => setProcessingAuthorityConfirmed(event.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300"
+              />
+              <label htmlFor="client-document-processing-authority" className="text-xs font-normal leading-snug">
+                I confirm this practice has documented authority to send these client documents for the disclosed AI processing.
+              </label>
+            </div>
             <Button 
               onClick={handleExtract} 
-              disabled={isExtracting}
+              disabled={isExtracting || !processingAuthorityConfirmed}
               variant="outline"
               className="border-blue-300 hover:bg-blue-100"
             >

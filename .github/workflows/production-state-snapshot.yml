@@ -1,0 +1,352 @@
+name: Production state snapshot - read only
+
+on:
+  workflow_dispatch:
+    inputs:
+      trusted_workflow_sha:
+        description: Exact current main SHA supplying this trusted read-only workflow
+        required: true
+        type: string
+      capability_intent_id:
+        description: Workspace OS read-only production-state capability intent with authorised and execution_ready decision
+        required: true
+        type: string
+      authority_reference:
+        description: Mission/order and approved read-only observation-intent reference
+        required: true
+        type: string
+      confirmation:
+        description: Type SNAPSHOT assesssuite-production READ ONLY
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assesssuite-production
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    name: Capture stable content-free production state
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: production
+    steps:
+      - name: Validate trusted read-only dispatch and inputs
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == "mbvidler-ctrl/assesssuite_migration" ]]
+          [[ "$ACTOR" == "mbvidler-ctrl" ]]
+          [[ "$TRIGGERING_ACTOR" == "mbvidler-ctrl" ]]
+          [[ "$IS_FORK" == "false" ]]
+          [[ "$EVENT_REF" == "refs/heads/main" ]]
+          [[ "$WORKFLOW_REF" == "mbvidler-ctrl/assesssuite_migration/.github/workflows/production-state-snapshot.yml@refs/heads/main" ]]
+          [[ "$TRUSTED_WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$CAPABILITY_INTENT_ID" =~ ^[A-Za-z0-9._:-]{1,160}$ ]]
+          [[ "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
+          [[ "$CONFIRMATION" == "SNAPSHOT assesssuite-production READ ONLY" ]]
+
+      - name: Check out exact trusted workflow SHA
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.trusted_workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact trusted main and snapshot workflow contract
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          EXPECTED_SNAPSHOT_VALIDATOR_SHA256: b6b81d33751c282ff8c3a7a8af94d90a528fceb7fe7e75ee2e7893cb0f26e83c
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$(git ls-remote --exit-code https://github.com/mbvidler-ctrl/assesssuite_migration.git refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ -z "$(git status --porcelain --untracked-files=no)" ]]
+          [[ -f .github/workflows/production-state-snapshot.yml && ! -L .github/workflows/production-state-snapshot.yml ]]
+          [[ -f scripts/validate-production-state-snapshot-workflow.mjs && ! -L scripts/validate-production-state-snapshot-workflow.mjs ]]
+          echo "$EXPECTED_SNAPSHOT_VALIDATOR_SHA256  scripts/validate-production-state-snapshot-workflow.mjs" | sha256sum --check --strict
+          node scripts/validate-production-state-snapshot-workflow.mjs .github/workflows/production-state-snapshot.yml
+          node scripts/validate-production-state-snapshot-workflow.mjs .github/workflows/production-state-snapshot.yml --selftest
+
+      - name: Install checksum-verified flyctl 0.4.71
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          bin_dir="$RUNNER_TEMP/flyctl-bin"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+            --output "$archive" \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'
+          printf '%s  %s\n' 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2' "$archive" | sha256sum --check --strict
+          mkdir -p "$bin_dir"
+          tar -xzf "$archive" -C "$bin_dir" flyctl
+          install -m 0755 "$bin_dir/flyctl" "$bin_dir/fly"
+          echo "$bin_dir" >> "$GITHUB_PATH"
+          "$bin_dir/flyctl" version | grep -F '0.4.71'
+
+      - name: Final secret-bearing read-only Fly production state capture
+        id: capture
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          SNAPSHOT_RUN_ID: ${{ github.run_id }}
+          SNAPSHOT_RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -n "$FLY_API_TOKEN" ]]
+          app=assesssuite-production
+          state_dir="$RUNNER_TEMP/production-state-raw"
+          receipt_dir="$RUNNER_TEMP/production-state-receipt"
+          rm -rf "$state_dir" "$receipt_dir"
+          install -d -m 0700 "$state_dir" "$receipt_dir"
+          cleanup() {
+            rm -rf "$state_dir"
+          }
+          trap cleanup EXIT
+
+          [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$(git ls-remote --exit-code https://github.com/mbvidler-ctrl/assesssuite_migration.git refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
+
+          read_fly_json() {
+            local label=$1
+            shift
+            local output="$state_dir/$label.json"
+            local error_file="$state_dir/$label.error"
+            if ! timeout --signal=TERM --kill-after=10s 60s fly "$@" --app "$app" --json >"$output" 2>"$error_file"; then
+              rm -f "$error_file"
+              echo "Read-only Fly production-state query failed." >&2
+              return 1
+            fi
+            rm -f "$error_file"
+            [[ -s "$output" && "$(wc -c <"$output")" -le 1048576 ]]
+          }
+
+          read_public_version() {
+            local url=$1
+            local output=$2
+            local error_file="$output.error"
+            if ! env -u FLY_API_TOKEN curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+              --max-time 15 --max-filesize 65536 -H 'Cache-Control: no-cache' \
+              "$url/api/version" --output "$output" 2>"$error_file"; then
+              rm -f "$error_file"
+              echo "Public release-version observation failed." >&2
+              return 1
+            fi
+            rm -f "$error_file"
+            [[ -s "$output" && "$(wc -c <"$output")" -le 65536 ]]
+          }
+
+          read_fly_json initial-releases releases --image
+          read_fly_json initial-image image show
+          read_fly_json initial-machines machines list
+          read_fly_json initial-volumes volumes list
+          read_public_version 'https://assesssuite.com' "$state_dir/apex-version.json"
+          read_public_version 'https://assesssuite-production.fly.dev' "$state_dir/fly-version.json"
+          read_fly_json final-releases releases --image
+          read_fly_json final-image image show
+          read_fly_json final-machines machines list
+          read_fly_json final-volumes volumes list
+
+          STATE_DIR="$state_dir" RECEIPT_PATH="$receipt_dir/production-state-snapshot.json" \
+            env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+
+          const root = process.env.STATE_DIR;
+          const parse = (name) => JSON.parse(fs.readFileSync(`${root}/${name}.json`, 'utf8'));
+          const asRows = (value, keys) => {
+            if (Array.isArray(value)) return value;
+            for (const key of keys) if (Array.isArray(value?.[key])) return value[key];
+            throw new Error('Unrecognised bounded Fly response shape');
+          };
+          const requireString = (value, pattern, label) => {
+            if (typeof value !== 'string' || !pattern.test(value)) throw new Error(`${label} is invalid`);
+            return value;
+          };
+          const readRelease = (name) => {
+            const rows = asRows(parse(name), ['releases', 'Releases', 'data']);
+            if (rows.length === 0 || rows.length > 200) throw new Error('Fly release inventory is empty or unbounded');
+            const status = (row) => String(row.Status ?? row.status ?? '').toLowerCase();
+            const row = rows.find((item) => ['complete', 'completed', 'success', 'succeeded'].includes(status(item))) || rows[0];
+            const rawId = row.Version ?? row.version ?? row.ID ?? row.id ?? row.ReleaseId ?? row.releaseId ?? row.release_id;
+            const release = /^\d+$/.test(String(rawId)) ? `v${rawId}` : String(rawId ?? '');
+            const image = row.ImageRef ?? row.imageRef ?? row.image_ref ?? row.Image ?? row.image ?? row.DockerImage ?? row.docker_image;
+            return {
+              release: requireString(release, /^v?[A-Za-z0-9._-]{1,63}$/, 'Current release identifier'),
+              image_ref: requireString(String(image ?? ''), /^registry\.fly\.io\/assesssuite-production(?::[A-Za-z0-9._-]{1,128}|@sha256:[0-9a-f]{64})$/, 'Current release image reference'),
+            };
+          };
+          const readImage = (name) => {
+            const value = parse(name);
+            const row = Array.isArray(value) ? value[0] : (value.image ?? value.Image ?? value);
+            if (!row || typeof row !== 'object' || Array.isArray(row)) throw new Error('Fly current-image response is invalid');
+            const registry = requireString(String(row.registry ?? row.Registry ?? ''), /^registry\.fly\.io$/, 'Current image registry');
+            const repository = requireString(String(row.repository ?? row.Repository ?? ''), /^assesssuite-production$/, 'Current image repository');
+            const digest = requireString(String(row.digest ?? row.Digest ?? ''), /^sha256:[0-9a-f]{64}$/, 'Current image digest');
+            const rawTag = row.tag ?? row.Tag;
+            const tag = rawTag === undefined || rawTag === null || rawTag === ''
+              ? null
+              : requireString(String(rawTag), /^[A-Za-z0-9._-]{1,128}$/, 'Current image tag');
+            return {
+              immutable_image: `${registry}/${repository}@${digest}`,
+              tag_ref: tag ? `${registry}/${repository}:${tag}` : null,
+            };
+          };
+          const readTopology = (machinesName, volumesName) => {
+            const machines = asRows(parse(machinesName), ['machines', 'Machines', 'data']);
+            const volumes = asRows(parse(volumesName), ['volumes', 'Volumes', 'data']);
+            if (machines.length !== 1 || volumes.length !== 1) throw new Error('Expected exact one-machine/one-volume production topology');
+            const machine = machines[0];
+            const volume = volumes[0];
+            const machineId = requireString(machine.id, /^[0-9a-f]{14,32}$/, 'Production Machine ID');
+            const volumeId = requireString(volume.id, /^vol_[A-Za-z0-9]+$/, 'Production volume ID');
+            const guest = machine.config?.guest ?? machine.Config?.guest ?? {};
+            const mounts = machine.config?.mounts ?? machine.Config?.mounts;
+            if ((machine.region ?? machine.Region) !== 'syd' || machine.state !== 'started' ||
+                Number(guest.cpus) !== 1 || Number(guest.memory_mb ?? guest.memoryMb) !== 512 ||
+                (guest.cpu_kind ?? guest.cpuKind) !== 'shared') {
+              throw new Error('Production Machine region, state, or resources drifted');
+            }
+            if (volume.name !== 'assesssuite_data' || volume.region !== 'syd' || volume.state !== 'created' ||
+                volume.size_gb !== 3 || volume.encrypted !== true || volume.attached_machine_id !== machineId ||
+                volume.snapshot_retention !== 5 || volume.auto_backup_enabled !== true) {
+              throw new Error('Production volume identity, attachment, encryption, or snapshot policy drifted');
+            }
+            if (!Array.isArray(mounts) || mounts.length !== 1 || mounts[0]?.volume !== volumeId ||
+                mounts[0]?.name !== volume.name || mounts[0]?.path !== '/app/server/data' ||
+                mounts[0]?.encrypted !== true || mounts[0]?.size_gb !== 3) {
+              throw new Error('Production data-volume mount drifted');
+            }
+            return {
+              machine_id: machineId,
+              machine_region: 'syd',
+              machine_state: 'started',
+              machine_cpus: 1,
+              machine_memory_mb: 512,
+              machine_cpu_kind: 'shared',
+              volume_id: volumeId,
+              volume_name: 'assesssuite_data',
+              volume_region: 'syd',
+              volume_state: 'created',
+              volume_size_gb: 3,
+              volume_encrypted: true,
+              volume_attached_machine_id: machineId,
+              volume_mount_path: '/app/server/data',
+              scheduled_snapshots: true,
+              snapshot_retention_days: 5,
+            };
+          };
+          const initialRelease = readRelease('initial-releases');
+          const finalRelease = readRelease('final-releases');
+          const initialImage = readImage('initial-image');
+          const finalImage = readImage('final-image');
+          const initialTopology = readTopology('initial-machines', 'initial-volumes');
+          const finalTopology = readTopology('final-machines', 'final-volumes');
+          if (JSON.stringify(initialRelease) !== JSON.stringify(finalRelease) ||
+              JSON.stringify(initialImage) !== JSON.stringify(finalImage) ||
+              JSON.stringify(initialTopology) !== JSON.stringify(finalTopology)) {
+            throw new Error('Production state drifted during the read-only observation');
+          }
+          if (![initialImage.immutable_image, initialImage.tag_ref].filter(Boolean).includes(initialRelease.image_ref)) {
+            throw new Error('Current release and immutable image observations do not bind');
+          }
+          const apex = parse('apex-version');
+          const fly = parse('fly-version');
+          const apexSha = requireString(apex.release_sha, /^[0-9a-f]{40}$/, 'Apex public release SHA');
+          const flySha = requireString(fly.release_sha, /^[0-9a-f]{40}$/, 'Fly public release SHA');
+          if (apexSha !== flySha) throw new Error('Public endpoints report different release SHAs');
+          for (const row of [apex, fly]) {
+            if (typeof row.build_timestamp !== 'string' || row.build_timestamp.length < 10 || row.build_timestamp.length > 64) {
+              throw new Error('Public release timestamp is invalid');
+            }
+          }
+          const receipt = {
+            schema_version: 'assesssuite-production-state-snapshot-v1',
+            result: 'PASS',
+            application: 'assesssuite-production',
+            captured_at: new Date().toISOString(),
+            trusted_workflow_sha: requireString(process.env.TRUSTED_WORKFLOW_SHA, /^[0-9a-f]{40}$/, 'Trusted workflow SHA'),
+            workflow_run_id: requireString(process.env.SNAPSHOT_RUN_ID, /^[1-9][0-9]{0,19}$/, 'Workflow run ID'),
+            workflow_run_attempt: Number(process.env.SNAPSHOT_RUN_ATTEMPT),
+            capability_intent_id: requireString(process.env.CAPABILITY_INTENT_ID, /^[A-Za-z0-9._:-]{1,160}$/, 'Capability intent ID'),
+            authority_reference: requireString(process.env.AUTHORITY_REFERENCE, /^[A-Za-z0-9._:/-]{1,240}$/, 'Authority reference'),
+            current_release: initialRelease.release,
+            immutable_image: initialImage.immutable_image,
+            public_release_sha: apexSha,
+            topology: {
+              machine_count: 1,
+              volume_count: 1,
+              ...initialTopology,
+            },
+          };
+          if (!Number.isSafeInteger(receipt.workflow_run_attempt) || receipt.workflow_run_attempt < 1) {
+            throw new Error('Workflow run attempt is invalid');
+          }
+          const encoded = `${JSON.stringify(receipt)}\n`;
+          if (Buffer.byteLength(encoded) > 8192) throw new Error('Production-state receipt exceeds its bound');
+          fs.writeFileSync(process.env.RECEIPT_PATH, encoded, { mode: 0o600, flag: 'wx' });
+          NODE
+
+          rm -rf "$state_dir"
+          trap - EXIT
+          receipt="$receipt_dir/production-state-snapshot.json"
+          [[ -f "$receipt" && ! -L "$receipt" && "$(wc -c <"$receipt")" -le 8192 ]]
+          receipt_sha256="$(sha256sum "$receipt" | awk '{print $1}')"
+          [[ "$receipt_sha256" =~ ^[0-9a-f]{64}$ ]]
+          echo "receipt_sha256=$receipt_sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload bounded content-free production state receipt
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: assesssuite-production-state-snapshot-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/production-state-receipt/production-state-snapshot.json
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+          overwrite: false
+
+      - name: Emit content-free snapshot summary
+        shell: bash
+        env:
+          RECEIPT_SHA256: ${{ steps.capture.outputs.receipt_sha256 }}
+          ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+        run: |
+          set -euo pipefail
+          [[ "$RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$ARTIFACT_ID" =~ ^[1-9][0-9]{0,19}$ ]]
+          [[ "$ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          {
+            echo '## AssessSuite read-only production-state snapshot'
+            echo
+            echo "- Capability intent: $CAPABILITY_INTENT_ID"
+            echo "- Receipt SHA-256: $RECEIPT_SHA256"
+            echo "- Artifact ID: $ARTIFACT_ID"
+            echo "- Artifact digest: $ARTIFACT_DIGEST"
+            echo '- Result: stable bounded snapshot captured without production-record access or mutation'
+          } >> "$GITHUB_STEP_SUMMARY"

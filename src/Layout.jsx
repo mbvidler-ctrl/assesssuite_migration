@@ -7,7 +7,12 @@ import {
   User as UserIcon, ExternalLink, Loader2, Calendar as CalendarIcon,
   Utensils, ShieldCheck
 } from "lucide-react";
-import LegalAcceptanceModal from "@/components/legal/LegalAcceptanceModal";
+import { SUITE_VERSION } from "@/lib/legal/documentRegistry";
+import { resolveLegalConsentAudience } from "@/lib/legal/consentAudience";
+import { selectedOrganizationLegalAcceptanceStatus } from "@/lib/legal/acceptanceGate";
+import { loadLegalContent } from "@/lib/legal/loadContent";
+import { useAuth } from "@/lib/AuthContext";
+import { isInitialClinicalReleaseEligible } from "@/lib/clinicalRelease";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
@@ -26,7 +31,7 @@ const navigationItems = [
   { title: "Settings", url: createPageUrl("MyProfile"), icon: UserIcon },
 ];
 
-const BYPASS_PATHS = ["/ProfileSetup", "/PendingApproval", "/Signup", "/Home", "/PaymentRequired"];
+const BYPASS_PATHS = ["/ProfileSetup", "/PendingApproval", "/Signup", "/Home", "/PaymentRequired", "/LegalNotices", "/AccountDeactivated"];
 
 function isBypassPath(pathname) {
   return BYPASS_PATHS.some(p => pathname.toLowerCase() === p.toLowerCase());
@@ -36,9 +41,9 @@ export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { appPublicSettings } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
-  const [showLegalModal, setShowLegalModal] = useState(false);
 
   useEffect(() => {
     const checkProfile = async () => {
@@ -57,53 +62,96 @@ export default function Layout({ children, currentPageName }) {
           base44.auth.updateMe({ last_active: new Date().toISOString() }).catch(() => {});
         }
 
-        if (!user.clinician_name) {
-          navigate("/ProfileSetup");
-          return;
-        }
-
-        if (user.account_status === "suspended") {
-          navigate("/PendingApproval");
-          return;
-        }
-
+        // Admin bypasses the onboarding/payment gate chain entirely. Checked
+        // FIRST: an admin has no clinician_name and must not be routed into
+        // ProfileSetup (the previous ordering did exactly that).
         if (freshUser.role === "admin") {
           setIsLoading(false);
           return;
         }
 
-        // Hard approval gate: any non-admin account that is not approved
-        // (pending, rejected, invited, or missing status) is held at the
-        // approval page. Approval is granted by an administrator via
-        // AdminApprovals; the server refuses self-service status changes.
-        if (freshUser.account_status !== "active") {
+        // Payment-before-profile (Design A, 16 July 2026): resolve account
+        // status and subscription BEFORE requiring the full professional
+        // profile, so a newly-registered user is sent to checkout first rather
+        // than made to complete a long profile-and-consent form before they can
+        // pay (the friction that lost a real prospect on 14 July).
+        // - deactivated -> the dedicated AccountDeactivated notice.
+        // - suspended/rejected -> PendingApproval (per-status messaging;
+        //   suspended users can complete payment to reactivate).
+        // - any other non-active (pending/invited) -> PaymentRequired: payment
+        //   activates the account (checkout auto-approve in stripeWebhook).
+        // The server independently refuses clinical access for any non-active
+        // status — this routing is UX, not the enforcement point.
+        const status = freshUser.account_status;
+        if (status === "deactivated") {
+          navigate("/AccountDeactivated");
+          return;
+        }
+        if (status === "suspended" || status === "rejected") {
           navigate("/PendingApproval");
           return;
         }
-
+        if (status !== "active") {
+          navigate("/PaymentRequired");
+          return;
+        }
         if (!freshUser.subscription_status || freshUser.subscription_status !== "active") {
-           navigate("/PaymentRequired");
-           return;
-         }
-
-        let acceptances = [];
-        try {
-          // Must match LegalAcceptanceModal's document_set_version exactly —
-          // a mismatch re-shows the modal on every navigation (the 7 July
-          // legal-modal loop). 2.1.0 = AssessSuite rebrand of the wording.
-          acceptances = await base44.entities.LegalAcceptance.filter({
-            user_email: user.email,
-            document_set_version: "2.1.0"
-          });
-          if (!acceptances) acceptances = [];
-        } catch (e) {
-          acceptances = [];
+          navigate("/PaymentRequired");
+          return;
         }
 
-        const hasAccepted = acceptances.length > 0 && acceptances[0].accepted;
-        if (!hasAccepted) {
-          setShowLegalModal(true);
-          setIsLoading(false);
+        // Active + subscribed: NOW require the professional profile (first-run
+        // setup), then the mandatory legal notices below, before the app proper.
+        if (!freshUser.clinician_name) {
+          navigate("/ProfileSetup");
+          return;
+        }
+        if (!isInitialClinicalReleaseEligible(freshUser)) {
+          navigate("/ProfileSetup?reason=clinical-profile");
+          return;
+        }
+
+        // Mirror the authoritative server gate for the user's default practice.
+        // Exact IDs, event types, titles, suite version and current content
+        // fingerprints must match. Other memberships are checked independently
+        // at the point the user selects them (and again by the server), so a
+        // stale secondary membership does not block unrelated app entry.
+        let events = [];
+        let memberships = [];
+        let legalAudience = null;
+        try {
+          memberships = await base44.entities.OrganizationMember.filter({
+            user_email: freshUser.email,
+          });
+          legalAudience = resolveLegalConsentAudience(memberships);
+          if (!legalAudience.orgId) {
+            navigate("/ProfileSetup");
+            return;
+          }
+          events = await base44.entities.LegalAcceptanceEvent.filter({
+            user_email: freshUser.email,
+            suite_version: SUITE_VERSION,
+            org_id: legalAudience.orgId,
+          });
+          if (!events) events = [];
+        } catch {
+          if (legalAudience?.orgId) {
+            navigate(`/LegalNotices?org_id=${encodeURIComponent(legalAudience.orgId)}`);
+          } else {
+            navigate("/ProfileSetup");
+          }
+          return;
+        }
+
+        const legalStatus = selectedOrganizationLegalAcceptanceStatus({
+          events,
+          memberships,
+          orgId: legalAudience.orgId,
+          legalSettings: appPublicSettings?.public_settings?.legal,
+          readContent: loadLegalContent,
+        });
+        if (!legalStatus.accepted) {
+          navigate(`/LegalNotices?org_id=${encodeURIComponent(legalAudience.orgId)}`);
           return;
         }
 
@@ -115,31 +163,12 @@ export default function Layout({ children, currentPageName }) {
       }
     };
     checkProfile();
-  }, [location.pathname, navigate]);
+  }, [location.pathname, navigate, appPublicSettings]);
 
   const isClientView = searchParams.get("client") === "true";
 
   if (isBypassPath(location.pathname)) return <>{children}</>;
   if (isClientView) return <>{children}</>;
-
-  const handleLegalAccept = () => {
-    setShowLegalModal(false);
-    if (!currentUser?.clinician_name) navigate("/ProfileSetup");
-  };
-
-  if (showLegalModal && currentUser) {
-    return (
-      <>
-        <div className="min-h-screen w-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-blue-50/30">
-          <div className="text-center">
-            <Loader2 className="w-8 h-8 animate-spin text-blue-600 mx-auto mb-4" />
-            <p className="text-slate-600">Loading legal documents...</p>
-          </div>
-        </div>
-        <LegalAcceptanceModal isOpen={showLegalModal} onAccept={handleLegalAccept} user={currentUser} />
-      </>
-    );
-  }
 
   if (isLoading) {
     return (

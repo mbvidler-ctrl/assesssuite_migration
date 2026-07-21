@@ -29,6 +29,11 @@ import QuickOnboardModal from "../components/onboarding/QuickOnboardModal";
 import ReferralUploader from "../components/documents/ReferralUploader";
 import { findPotentialDuplicates } from "@/lib/clientDuplicates";
 import { todayLocal } from "@/lib/localDate";
+import { ensureFounderOrganization } from "@/lib/profileFounderOrganization";
+
+// Local typing bridge for the newly added toggle only; shared UI primitives
+// are JavaScript and expose incomplete inferred props under checkJs.
+const ReferralToggleButton = /** @type {React.ComponentType<any>} */ (Button);
 
 const steps = [
   { id: 1, title: "Personal Information", component: PersonalInfo, clientCanComplete: true },
@@ -49,7 +54,7 @@ export default function Onboarding() {
   const startStep = searchParams.get("step");
 
   const [currentStep, setCurrentStep] = useState(startStep ? parseInt(startStep, 10) : 1);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState(/** @type {Record<string, any>} */ ({
     apss_completed: false,
     consent_confirmed: false,
     privacy_consent: false,
@@ -57,7 +62,7 @@ export default function Onboarding() {
     pricing_explained: false,
     client_completed_sections: [],
     medical_conditions: []
-  });
+  }));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const submitLockRef = useRef(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -69,18 +74,6 @@ export default function Onboarding() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [showQuickOnboardModal, setShowQuickOnboardModal] = useState(false);
   const [showReferralUploader, setShowReferralUploader] = useState(false);
-  const [allAssessments, setAllAssessments] = useState([]);
-  const [existingClients, setExistingClients] = useState([]);
-
-  useEffect(() => {
-    Promise.all([
-      base44.entities.Assessment.list(),
-      base44.entities.Client.list()
-    ]).then(([assessments, clients]) => {
-      setAllAssessments(assessments);
-      setExistingClients(clients);
-    }).catch(err => console.error("Error loading reference data:", err));
-  }, []);
 
   useEffect(() => {
     if (clientId) {
@@ -275,15 +268,7 @@ Send this email to: ${email}`;
         client = { id: effectiveClientId, ...client };
       } else {
         const currentUser = await base44.auth.me();
-        let memberships = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email });
-        let orgId;
-        if (memberships.length === 0) {
-          const newOrg = await base44.entities.Organization.create({ name: `${currentUser.full_name || currentUser.email}'s Clinic` });
-          await base44.entities.OrganizationMember.create({ org_id: newOrg.id, user_email: currentUser.email, role: 'owner', is_primary: true });
-          orgId = newOrg.id;
-        } else {
-          orgId = (memberships.find(m => m.is_primary) || memberships[0]).org_id;
-        }
+        const { orgId } = await getOrCreateOrg(currentUser);
 
         const createPromise = base44.entities.Client.create({ ...updatedData, org_id: orgId, assigned_clinician_email: currentUser.email });
         clientCreationRef.current = createPromise;
@@ -357,8 +342,8 @@ Send this email to: ${email}`;
   const getOrCreateOrg = async (currentUser) => {
     let memberships = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email });
     if (memberships.length === 0) {
-      const newOrg = await base44.entities.Organization.create({ name: `${currentUser.full_name || currentUser.email}'s Clinic` });
-      await base44.entities.OrganizationMember.create({ org_id: newOrg.id, user_email: currentUser.email, role: 'owner', is_primary: true });
+      const defaultName = `${currentUser.full_name || currentUser.email}'s Clinic`.slice(0, 160);
+      const newOrg = await ensureFounderOrganization({ clinicName: defaultName });
       return { orgId: newOrg.id, memberships: [{ org_id: newOrg.id }] };
     }
     return { orgId: (memberships.find(m => m.is_primary) || memberships[0]).org_id, memberships };
@@ -552,7 +537,7 @@ Send this email to: ${email}`;
     return step.component;
   };
 
-  const CurrentStepComponent = getCurrentStepComponent();
+  const CurrentStepComponent = /** @type {React.ComponentType<any> | null} */ (getCurrentStepComponent());
   const progressPercentage = (currentStep / steps.length) * 100;
 
   if (isLoading) {
@@ -623,9 +608,13 @@ Send this email to: ${email}`;
             </div>
             {!isClientView && !clientId && (
               <div className="flex items-center gap-2">
-                <Button onClick={() => setShowReferralUploader(true)} variant="outline" className="bg-white">
-                  <Upload className="w-4 h-4 mr-2" /> Upload Referral
-                </Button>
+                <ReferralToggleButton
+                  onClick={() => setShowReferralUploader((current) => !current)}
+                  variant="outline"
+                  className={showReferralUploader ? "bg-blue-50 border-blue-300" : "bg-white"}
+                >
+                  <Upload className="w-4 h-4 mr-2" /> {showReferralUploader ? 'Hide Referral' : 'Upload Referral'}
+                </ReferralToggleButton>
                 <Button onClick={() => setShowQuickOnboardModal(true)} className="bg-purple-600 hover:bg-purple-700">
                   <UserPlus className="w-4 h-4 mr-2" /> Quick Onboard
                 </Button>
@@ -637,6 +626,21 @@ Send this email to: ${email}`;
               </Button>
             )}
           </div>
+
+          {showReferralUploader && (
+            <div className="mb-8">
+              <ReferralUploader
+                onClientCreated={(newClient) => {
+                  setShowReferralUploader(false);
+                  navigate(createPageUrl(`ClientProfile?id=${newClient.id}`));
+                }}
+                onClientUpdated={(updatedClient) => {
+                  setShowReferralUploader(false);
+                  navigate(createPageUrl(`ClientProfile?id=${updatedClient.id}`));
+                }}
+              />
+            </div>
+          )}
 
           <Card className="mb-8 bg-white/60 backdrop-blur-sm border-slate-200/60">
             <CardHeader className="pb-4">
@@ -691,6 +695,7 @@ Send this email to: ${email}`;
               <CardContent>
                 <CurrentStepComponent
                   data={formData}
+                  orgId={formData.org_id || null}
                   onNext={currentStep === steps.length ? handleSubmit : handleNext}
                   onBack={handleBack}
                   onSaveAndSend={handleSaveAndSendToClient}
@@ -712,20 +717,6 @@ Send this email to: ${email}`;
         onClientCreated={(newClientId) => navigate(createPageUrl(`ClientProfile?id=${newClientId}`))}
       />
 
-      <Dialog open={showReferralUploader} onOpenChange={setShowReferralUploader}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Upload Referral Document</DialogTitle>
-            <DialogDescription>Upload a referral document to automatically extract client information</DialogDescription>
-          </DialogHeader>
-          <ReferralUploader
-            existingClients={existingClients}
-            allAssessments={allAssessments}
-            onClientCreated={(newClient) => { setShowReferralUploader(false); navigate(createPageUrl(`ClientProfile?id=${newClient.id}`)); }}
-            onClientUpdated={(updatedClient) => { setShowReferralUploader(false); navigate(createPageUrl(`ClientProfile?id=${updatedClient.id}`)); }}
-          />
-        </DialogContent>
-      </Dialog>
     </>
   );
 }

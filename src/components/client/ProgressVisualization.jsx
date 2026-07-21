@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { renderSafeHtmlDocument } from '@/lib/safeHtml';
 import {
   LineChart,
   Line,
@@ -656,8 +657,7 @@ export default function ProgressVisualization({ client, conditions }) {
 </html>
 `;
 
-    printWindow.document.write(html);
-    printWindow.document.close();
+    renderSafeHtmlDocument(printWindow, html);
     printWindow.print();
   };
 

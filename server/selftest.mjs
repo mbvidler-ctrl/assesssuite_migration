@@ -5,12 +5,23 @@
 
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
+import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import net from 'node:net';
 
+import {
+  REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
+  REFERRAL_SUBJECT_AGE_CONFIRMATION,
+} from '../src/lib/referralWorkflow.js';
+import { REFERRAL_EXTRACTION_SCHEMA } from '../src/lib/referralExtractionSchema.js';
+import { REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION } from './uploadRegistry.mjs';
+
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverEntry = path.join(__dirname, 'index.mjs');
+const SYNTHETIC_FUTURE_TIMESTAMP = '2099-01-01T00:00:00.000Z';
 
 const results = [];
 let failures = 0;
@@ -26,7 +37,7 @@ function record(name, pass, detail) {
 async function getFreePort() {
   return new Promise((resolve, reject) => {
     const srv = net.createServer();
-    srv.listen(0, () => {
+    srv.listen(0, '127.0.0.1', () => {
       const { port } = srv.address();
       srv.close(() => resolve(port));
     });
@@ -50,16 +61,24 @@ async function waitForServer(baseUrl, timeoutMs = 15000) {
 
 async function main() {
   const port = await getFreePort();
-  const baseUrl = `http://localhost:${port}`;
+  const baseUrl = `http://127.0.0.1:${port}`;
   const appId = 'selftest-app';
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'assesssuite-selftest-'));
+  const uploadsDir = path.join(tempRoot, 'uploads');
+  fs.mkdirSync(uploadsDir, { recursive: true });
 
   const child = spawn(process.execPath, [serverEntry], {
     env: {
       ...process.env,
       SELFTEST: '1',
+      NODE_ENV: 'test',
+      ASSESSSUITE_DB_PATH_ACK: 'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_NON_PRODUCTION_GATE_DATABASE',
       PORT: String(port),
       ADMIN_EMAIL: 'admin@local.test',
       ADMIN_PASSWORD: 'change-me-local',
+      ASSESSSUITE_DB_PATH: path.join(tempRoot, 'selftest.db'),
+      UPLOADS_DIR: uploadsDir,
+      ASSESSSUITE_BIND_HOST: '127.0.0.1',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -73,9 +92,15 @@ async function main() {
   });
 
   const up = await waitForServer(baseUrl);
-  if (!up) {
+  const expectedListener = `[shim] listening on http://127.0.0.1:${port}`;
+  for (let attempt = 0; attempt < 100 && !serverOutput.split(/\r?\n/).includes(expectedListener); attempt += 1) {
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  if (!up || !serverOutput.split(/\r?\n/).includes(expectedListener)) {
     console.error('Server failed to start within timeout. Output so far:\n', serverOutput);
     child.kill();
+    await once(child, 'exit').catch(() => {});
+    fs.rmSync(tempRoot, { recursive: true, force: true });
     process.exit(1);
   }
 
@@ -87,6 +112,7 @@ async function main() {
   } finally {
     child.kill();
     await once(child, 'exit').catch(() => {});
+    fs.rmSync(tempRoot, { recursive: true, force: true });
   }
 
   console.log('');
@@ -118,6 +144,23 @@ async function api(baseUrl, appId, methodPath, { method = 'GET', token, body } =
     json = null;
   }
   return { status: res.status, body: json, res };
+}
+
+// Seeds the three mandatory practitioner-notice LegalAcceptanceEvent rows for
+// a fixture user — clinical-entity access now requires these (server/index.mjs
+// hasCurrentLegalAcceptance), mirroring the real ProfileSetup flow. The caller
+// must already hold membership in orgId (LegalAcceptanceEvent is org-scoped),
+// so call this AFTER the fixture's OrganizationMember row exists.
+async function seedRequiredLegalAcceptance(baseUrl, appId, token, email, orgId) {
+  const result = await api(
+    baseUrl,
+    appId,
+    `/api/apps/${appId}/integration-endpoints/Core/RecordLegalAcceptanceBundle`,
+    { method: 'POST', token, body: { org_id: orgId, marketing_opt_in: false } },
+  );
+  if (result.status !== 200) {
+    throw new Error(`Failed to seed server-derived legal bundle for ${email}: ${JSON.stringify(result.body)}`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -428,11 +471,11 @@ async function runChecks(baseUrl, appId) {
     emailB = `org-b-user-${Date.now()}@example.com`;
     await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
       method: 'POST',
-      body: { email: emailA, password: 'password123456' },
+      body: { email: emailA, password: 'synthetic-password-123456' },
     });
     await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
       method: 'POST',
-      body: { email: emailB, password: 'password123456' },
+      body: { email: emailB, password: 'synthetic-password-123456' },
     });
     const { body: verifyA } = await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
       method: 'POST',
@@ -457,7 +500,12 @@ async function runChecks(baseUrl, appId) {
         await api(baseUrl, appId, `/api/apps/${appId}/entities/User/${fixtureUser.id}`, {
           method: 'PUT',
           token: adminToken,
-          body: { account_status: 'active' },
+          body: {
+            account_status: 'active',
+            subscription_status: 'active',
+            country: 'australia',
+            profession: 'Exercise Physiologist',
+          },
         });
       }
     }
@@ -472,6 +520,14 @@ async function runChecks(baseUrl, appId) {
       token: adminToken,
       body: { org_id: orgBId, user_email: emailB, role: 'member', is_primary: true },
     });
+
+    // Clinical entity access now also requires the mandatory practitioner
+    // notices (server/index.mjs hasCurrentLegalAcceptance) — seed both
+    // fixture users the way ProfileSetup does, or every Client check below
+    // would fail on "current legal acceptance required" rather than testing
+    // org-scoping as intended.
+    await seedRequiredLegalAcceptance(baseUrl, appId, userAToken, emailA, orgAId);
+    await seedRequiredLegalAcceptance(baseUrl, appId, userBToken, emailB, orgBId);
 
     const { status: createStatus, body: client } = await api(
       baseUrl,
@@ -541,7 +597,7 @@ async function runChecks(baseUrl, appId) {
     const pendingEmail = `pending-user-${Date.now()}@example.com`;
     await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
       method: 'POST',
-      body: { email: pendingEmail, password: 'password123456' },
+      body: { email: pendingEmail, password: 'synthetic-password-123456' },
     });
     const { body: verifyPending } = await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
       method: 'POST',
@@ -553,6 +609,270 @@ async function runChecks(baseUrl, appId) {
       Boolean(pendingToken),
       `token=${Boolean(pendingToken)}`,
     );
+
+    // OTP hardening: a wrong code is refused (the fixed 000000 works here
+    // only because this suite runs under SELFTEST=1), and repeated failures
+    // lock the account out (429), including for a subsequently-correct code.
+    {
+      const lockEmail = `otp-lock-${Date.now()}@example.com`;
+      await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: lockEmail, password: 'synthetic-password-123456' },
+      });
+      const { status: wrongStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
+        method: 'POST', body: { email: lockEmail, otp_code: 'not-a-code' },
+      });
+      record('verify-otp refuses a wrong code (401)', wrongStatus === 401, `status=${wrongStatus}`);
+      for (let i = 0; i < 4; i += 1) {
+        await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
+          method: 'POST', body: { email: lockEmail, otp_code: 'not-a-code' },
+        });
+      }
+      const { status: lockedStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
+        method: 'POST', body: { email: lockEmail, otp_code: '000000' },
+      });
+      record('verify-otp locks out after repeated failures (429, even for a then-correct code)', lockedStatus === 429, `status=${lockedStatus}`);
+      // Registration writes the initial OTP email (the F1 fix): the register
+      // handler itself must have recorded a verification-code email; the
+      // resend path throttles a second code inside the send interval.
+      const { status: resendStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/resend-otp`, {
+        method: 'POST', body: { email: lockEmail },
+      });
+      record('resend-otp responds 200 within the throttle window (no enumeration signal)', resendStatus === 200, `status=${resendStatus}`);
+    }
+
+    // Login must not be a verification bypass: a registered-but-unverified
+    // account has a valid password hash from the moment of registration, so
+    // login must refuse it (403) until verify-otp runs — otherwise the OTP
+    // step is cosmetic. Re-registering the same unverified email must resume
+    // the verification flow (fresh code, 200 otp_required) rather than a
+    // blind 409 that strands the user with no way to complete signup.
+    {
+      const craftedEmail = `registration-mass-assignment-${Date.now()}@example.com`;
+      const craftedPassword = 'synthetic-password-123456';
+      const { status: craftedStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST',
+        body: {
+          email: craftedEmail,
+          password: craftedPassword,
+          email_verified: true,
+          reset_token: 'synthetic-caller-selected-reset-token',
+          reset_token_expires: SYNTHETIC_FUTURE_TIMESTAMP,
+        },
+      });
+      record(
+        'register rejects unknown trust fields instead of accepting a one-step verification bypass',
+        craftedStatus === 400,
+        `status=${craftedStatus}`,
+      );
+      const { status: craftedLoginStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/login`, {
+        method: 'POST', body: { email: craftedEmail, password: craftedPassword },
+      });
+      record(
+        'rejected registration trust fields do not leave a login-capable account',
+        craftedLoginStatus === 401,
+        `status=${craftedLoginStatus}`,
+      );
+
+      const boundedPayloads = [
+        [],
+        { email: 'not-an-email', password: craftedPassword },
+        {
+          email: `registration-long-password-${Date.now()}@example.com`,
+          password: 'synthetic-p'.repeat(30),
+        },
+        {
+          email: `registration-long-name-${Date.now()}@example.com`,
+          password: craftedPassword,
+          full_name: 'N'.repeat(161),
+        },
+      ];
+      const boundedStatuses = [];
+      for (const body of boundedPayloads) {
+        const { status } = await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+          method: 'POST',
+          body,
+        });
+        boundedStatuses.push(status);
+      }
+      record(
+        'register rejects non-object, malformed and over-length identity fields',
+        boundedStatuses.every((status) => status === 400),
+        `statuses=${boundedStatuses.join(',')}`,
+      );
+    }
+    {
+      const healingEmail = `registration-healing-${Date.now()}@example.com`;
+      const firstPassword = 'synthetic-password-123456';
+      const replacementPassword = 'synthetic-replacement-password-123456';
+      await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: healingEmail, password: firstPassword, full_name: 'Initial Name' },
+      });
+      const { body: usersBeforeHealing } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User`, {
+        token: adminToken,
+      });
+      const healingUser = (usersBeforeHealing || []).find((user) => user.email === healingEmail);
+      if (healingUser) {
+        await api(baseUrl, appId, `/api/apps/${appId}/entities/User/${healingUser.id}`, {
+          method: 'PUT',
+          token: adminToken,
+          body: {
+            role: 'admin',
+            account_status: 'active',
+            email_verified: false,
+            subscription_status: 'active',
+            stripe_customer_id: 'cus_caller_controlled',
+            stripe_subscription_id: 'sub_caller_controlled',
+            subscription_start_date: SYNTHETIC_FUTURE_TIMESTAMP,
+            reset_token: 'synthetic-caller-selected-reset-token',
+            reset_token_expires: SYNTHETIC_FUTURE_TIMESTAMP,
+            otp_last_sent_at: '2000-01-01T00:00:00.000Z',
+          },
+        });
+      }
+      const { status: overwriteStatus } = await api(
+        baseUrl,
+        appId,
+        `/api/apps/${appId}/auth/register`,
+        {
+          method: 'POST',
+          body: { email: healingEmail, password: replacementPassword, full_name: 'Replacement Name' },
+        },
+      );
+      const { status: healingStatus, body: healingBody } = await api(
+        baseUrl,
+        appId,
+        `/api/apps/${appId}/auth/register`,
+        {
+          method: 'POST',
+          body: { email: healingEmail, password: firstPassword, full_name: 'Replacement Name' },
+        },
+      );
+      const { body: usersAfterHealing } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User`, {
+        token: adminToken,
+      });
+      const healedUser = (usersAfterHealing || []).find((user) => user.email === healingEmail);
+      const { status: staleResetStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/reset-password`, {
+        method: 'POST',
+        body: {
+          reset_token: 'synthetic-caller-selected-reset-token',
+          new_password: 'synthetic-another-replacement-password-123456',
+        },
+      });
+      record(
+        're-registering an unverified email cannot replace its password without the existing password',
+        overwriteStatus === 409,
+        `status=${overwriteStatus}`,
+      );
+      record(
+        're-registering an unverified account resumes OTP using only allowlisted profile/password fields',
+        healingStatus === 200 && healingBody?.otp_required === true && healedUser?.full_name === 'Replacement Name',
+        `status=${healingStatus} otp_required=${healingBody?.otp_required} full_name=${healedUser?.full_name}`,
+      );
+      record(
+        're-registration forcibly removes admin, approval and subscription entitlement state',
+        healedUser?.role === 'user' &&
+          healedUser?.account_status === 'pending' &&
+          healedUser?.email_verified === false &&
+          healedUser?.subscription_status === 'inactive' &&
+          healedUser?.stripe_customer_id === null &&
+          healedUser?.stripe_subscription_id === null &&
+          healedUser?.subscription_start_date === null,
+        `role=${healedUser?.role} account_status=${healedUser?.account_status} email_verified=${healedUser?.email_verified} subscription_status=${healedUser?.subscription_status}`,
+      );
+      record(
+        're-registration invalidates any pre-existing password-reset capability',
+        staleResetStatus === 400,
+        `status=${staleResetStatus}`,
+      );
+      const { status: healingVerifyStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
+        method: 'POST', body: { email: healingEmail, otp_code: '000000' },
+      });
+      const { status: attackerPasswordLoginStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/login`, {
+        method: 'POST', body: { email: healingEmail, password: replacementPassword },
+      });
+      const { status: originalPasswordLoginStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/login`, {
+        method: 'POST', body: { email: healingEmail, password: firstPassword },
+      });
+      record(
+        'mailbox verification preserves the original password after a hostile re-registration attempt',
+        healingVerifyStatus === 200 && attackerPasswordLoginStatus === 401 && originalPasswordLoginStatus === 200,
+        `verify=${healingVerifyStatus} attacker_login=${attackerPasswordLoginStatus} original_login=${originalPasswordLoginStatus}`,
+      );
+    }
+    {
+      const bypassEmail = `otp-bypass-${Date.now()}@example.com`;
+      const bypassPassword = 'synthetic-password-123456';
+      await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: bypassEmail, password: bypassPassword },
+      });
+      const { status: preVerifyLoginStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/login`, {
+        method: 'POST', body: { email: bypassEmail, password: bypassPassword },
+      });
+      record(
+        'login refuses an unverified-but-correct-password account (403, not a session)',
+        preVerifyLoginStatus === 403,
+        `status=${preVerifyLoginStatus}`,
+      );
+
+      const { status: reRegisterStatus, body: reRegisterBody } = await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: bypassEmail, password: bypassPassword },
+      });
+      record(
+        're-registering an existing unverified email resumes verification (200, otp_required) instead of 409',
+        reRegisterStatus === 200 && reRegisterBody?.otp_required === true,
+        `status=${reRegisterStatus} otp_required=${reRegisterBody?.otp_required}`,
+      );
+
+      const { status: postVerifyStatus, body: postVerifyBody } = await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
+        method: 'POST', body: { email: bypassEmail, otp_code: '000000' },
+      });
+      record('verify-otp succeeds after re-registration resumed the flow', postVerifyStatus === 200 && Boolean(postVerifyBody?.access_token), `status=${postVerifyStatus}`);
+
+      const { status: postVerifyLoginStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/login`, {
+        method: 'POST', body: { email: bypassEmail, password: bypassPassword },
+      });
+      record('login succeeds once the account is genuinely verified', postVerifyLoginStatus === 200, `status=${postVerifyLoginStatus}`);
+
+      const { status: verifiedReRegisterStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: bypassEmail, password: bypassPassword },
+      });
+      record(
+        're-registering an already-verified email is still refused (409, standard account-taken UX)',
+        verifiedReRegisterStatus === 409,
+        `status=${verifiedReRegisterStatus}`,
+      );
+    }
+
+    // Email normalisation: registration and login are case-insensitive, so a
+    // case-variant of an existing verified account cannot create a duplicate
+    // (the defect that produced two pending records for one real prospect on
+    // 14 July 2026), and login works regardless of the casing the user types.
+    {
+      const normLocal = `norm-${Date.now()}`;
+      const normPassword = 'synthetic-password-123456';
+      await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: `${normLocal}@Example.com`, password: normPassword },
+      });
+      await api(baseUrl, appId, `/api/apps/${appId}/auth/verify-otp`, {
+        method: 'POST', body: { email: `${normLocal}@Example.com`, otp_code: '000000' },
+      });
+      const { status: variantStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: `${normLocal}@example.com`, password: normPassword },
+      });
+      record(
+        'register treats a case-variant of a verified email as the same account (409, no duplicate)',
+        variantStatus === 409,
+        `status=${variantStatus}`,
+      );
+      const { status: upperLoginStatus } = await api(baseUrl, appId, `/api/apps/${appId}/auth/login`, {
+        method: 'POST', body: { email: `${normLocal.toUpperCase()}@EXAMPLE.COM`, password: normPassword },
+      });
+      record(
+        'login succeeds with a different-case variant of the registered email',
+        upperLoginStatus === 200,
+        `status=${upperLoginStatus}`,
+      );
+    }
 
     const { status: clinicalReadStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
       token: pendingToken,
@@ -566,12 +886,16 @@ async function runChecks(baseUrl, appId) {
     });
     record('pending user writing a clinical entity is refused (403)', clinicalWriteStatus === 403, `status=${clinicalWriteStatus}`);
 
-    const { status: setupWriteStatus, body: pendingOrg } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Organization`, {
+    const { status: setupWriteStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Organization`, {
       method: 'POST',
       token: pendingToken,
       body: { name: 'Pending User Clinic' },
     });
-    record('pending user may still create setup entities (Organization)', setupWriteStatus === 200 && Boolean(pendingOrg?.id), `status=${setupWriteStatus}`);
+    record(
+      'pending user cannot bypass the server-owned founder operation with a generic organisation create',
+      setupWriteStatus === 403,
+      `status=${setupWriteStatus}`,
+    );
 
     const { status: catalogueStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Assessment`, {
       token: pendingToken,
@@ -609,8 +933,35 @@ async function runChecks(baseUrl, appId) {
     await api(baseUrl, appId, `/api/apps/${appId}/entities/User/${pendingUserRecord.id}`, {
       method: 'PUT',
       token: adminToken,
-      body: { account_status: 'active' },
+      body: {
+        account_status: 'active',
+        subscription_status: 'active',
+        country: 'australia',
+        profession: 'Exercise Physiologist',
+      },
     });
+    const { status: founderStatus, body: founder } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/integration-endpoints/Core/EnsureFounderOrganization`,
+      {
+        method: 'POST',
+        token: pendingToken,
+        body: { clinic_name: 'Pending User Clinic' },
+      },
+    );
+    record(
+      'approved paid founder receives one server-owned organisation and owner membership',
+      founderStatus === 200 && Boolean(founder?.id),
+      `status=${founderStatus}`,
+    );
+    await seedRequiredLegalAcceptance(
+      baseUrl,
+      appId,
+      pendingToken,
+      pendingEmail,
+      founder.id,
+    );
     const { status: postApprovalStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
       token: pendingToken,
     });
@@ -623,7 +974,7 @@ async function runChecks(baseUrl, appId) {
     const suspendedEmail = `suspended-user-${Date.now()}@example.com`;
     await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
       method: 'POST',
-      body: { email: suspendedEmail, password: 'password123456' },
+      body: { email: suspendedEmail, password: 'synthetic-password-123456' },
     });
     const { body: allUsersNow } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User`, {
       token: adminToken,
@@ -644,10 +995,13 @@ async function runChecks(baseUrl, appId) {
         type: 'checkout.session.completed',
         data: {
           object: {
+            mode: 'subscription',
+            payment_status: 'paid',
             client_reference_id: suspendedUser.id,
             customer: 'mock_cus_restore',
             subscription: 'mock_sub_restore',
             customer_email: suspendedEmail,
+            metadata: { userId: suspendedUser.id, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M' },
           },
         },
       },
@@ -711,14 +1065,25 @@ async function runChecks(baseUrl, appId) {
       body: { user_email: emailA, org_id: orgBId },
     });
     record('self-enrolment into an existing foreign org is refused (403)', joinStatus === 403, `status=${joinStatus}`);
-    // Founding membership into a brand-new empty org is allowed (ProfileSetup).
-    const { body: newOrg } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Organization`, {
+    // Generic organisation and membership writes are not a founder path. The
+    // UI must use the atomic, entitlement-gated EnsureFounderOrganization
+    // integration instead.
+    const { status: newOrgStatus, body: newOrg } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Organization`, {
       method: 'POST', token: userAToken, body: { name: `Founded by A ${Date.now()}` },
     });
     const { status: foundStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/OrganizationMember`, {
-      method: 'POST', token: userAToken, body: { user_email: emailA, org_id: newOrg.id, is_primary: false },
+      method: 'POST', token: userAToken, body: {
+        user_email: emailA,
+        org_id: newOrg.id,
+        role: 'owner',
+        is_primary: true,
+      },
     });
-    record('founding a membership in a new empty org is allowed', foundStatus === 200, `status=${foundStatus}`);
+    record(
+      'generic organisation and membership writes cannot bypass the server-owned founder operation',
+      newOrgStatus === 403 && foundStatus === 403,
+      `organization_status=${newOrgStatus} membership_status=${foundStatus}`,
+    );
     // bulkUpdate must not relocate an own record into a foreign org.
     const { body: ownClient } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
       method: 'POST', token: userAToken, body: { full_name: 'Bulk Relocate Probe' },
@@ -772,13 +1137,49 @@ async function runChecks(baseUrl, appId) {
       method: 'PATCH', token: userAToken, body: { query: { user_email: emailA }, data: { org_id: orgBId } },
     });
     record('OrganizationMember relocation via update-many is refused (403)', memPatchStatus === 403, `status=${memPatchStatus}`);
-    // Create on an org-scoped entity with org_id omitted must land scoped to
-    // the caller org, never null/global (ClinicPolicy is empty in the seed).
-    const { body: policy } = await api(baseUrl, appId, `/api/apps/${appId}/entities/ClinicPolicy`, {
-      method: 'POST', token: userAToken, body: { policy_name: 'scope-check' },
+    // Clinic policies control patient-facing consent text and are owner-only.
+    const { status: memberPolicyStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/ClinicPolicy`, {
+      method: 'POST', token: userAToken, body: { policy_name: 'member-policy-probe', is_active: false },
     });
-    record('org-scoped create with org_id omitted is backfilled to the caller org (never null)',
+    record('ordinary members cannot create or replace clinic consent policies (403)',
+      memberPolicyStatus === 403, `status=${memberPolicyStatus}`);
+    await api(baseUrl, appId, `/api/apps/${appId}/entities/OrganizationMember/${aMembershipId}`, {
+      method: 'PUT', token: adminToken, body: { role: 'owner' },
+    });
+    const { status: blankPolicyStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/ClinicPolicy`, {
+      method: 'POST', token: userAToken, body: {
+        policy_name: 'blank-active-probe',
+        is_active: true,
+        show_primary_consent: true,
+        consent_primary_text: '',
+        show_privacy_consent: false,
+        show_assessment_consent: false,
+        show_pricing_consent: false,
+        show_cancellation_policy: false,
+      },
+    });
+    record('an active clinic policy cannot enable consent items with blank operative text (400)',
+      blankPolicyStatus === 400, `status=${blankPolicyStatus}`);
+    // Create on an org-scoped entity with org_id omitted lands in the owner\'s
+    // primary org and remains invisible cross-tenant.
+    const { body: policy } = await api(baseUrl, appId, `/api/apps/${appId}/entities/ClinicPolicy`, {
+      method: 'POST', token: userAToken, body: {
+        policy_name: 'scope-check',
+        version_label: 'v1.0',
+        is_active: true,
+        show_primary_consent: true,
+        consent_primary_text: 'Synthetic operative consent wording.',
+        show_privacy_consent: false,
+        show_assessment_consent: false,
+        show_pricing_consent: false,
+        show_cancellation_policy: false,
+      },
+    });
+    record('owner clinic-policy create without org_id is scoped to the caller org (never null)',
       policy?.org_id === orgAId, `org_id=${policy?.org_id}`);
+    await api(baseUrl, appId, `/api/apps/${appId}/entities/OrganizationMember/${aMembershipId}`, {
+      method: 'PUT', token: adminToken, body: { role: 'member' },
+    });
     // That record must not be readable by another tenant.
     const { status: policyCrossStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/ClinicPolicy/${policy.id}`, {
       token: userBToken,
@@ -826,14 +1227,12 @@ async function runChecks(baseUrl, appId) {
     'stripeWebhook',
     'syncStripeSubscription',
     'verifyTestAssessmentData',
-    'transcribeSession',
   ];
 
   // --- every ported function name responds (not the router's 404) ---
   for (const functionName of PORTED_FUNCTION_NAMES) {
     let requestBody = {};
     if (functionName === 'stripeWebhook') requestBody = { type: 'unrecognised.event.type', data: { object: {} } };
-    if (functionName === 'transcribeSession') requestBody = { action: 'transcribe', audio_url: '/uploads/probe.webm' };
     if (functionName === 'createPortalSession') requestBody = { stripeCustomerId: null };
 
     const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/functions/${functionName}`, {
@@ -845,6 +1244,31 @@ async function runChecks(baseUrl, appId) {
       `function ${functionName} responds (not router 404)`,
       !(status === 404 && body?.message === 'function not found'),
       `status=${status} body=${JSON.stringify(body)}`,
+    );
+  }
+
+  // --- transcribeSession requires a real tenant-authorised upload reference;
+  // a route-level 404 is not evidence that the function contract works. ---
+  {
+    const form = new FormData();
+    form.append('org_id', orgAId);
+    form.append('purpose', 'audio-transcription');
+    form.append('file', new Blob([Buffer.from([0x1a, 0x45, 0xdf, 0xa3])], { type: 'audio/webm' }), 'selftest.webm');
+    const uploadResponse = await fetch(`${baseUrl}/api/apps/${appId}/integration-endpoints/Core/UploadFile`, {
+      method: 'POST',
+      headers: { 'X-App-Id': appId, Authorization: `Bearer ${userAToken}` },
+      body: form,
+    });
+    const uploadedAudio = await uploadResponse.json().catch(() => null);
+    const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/functions/transcribeSession`, {
+      method: 'POST',
+      token: userAToken,
+      body: { action: 'transcribe', audio_url: uploadedAudio?.file_url, org_id: orgAId },
+    });
+    record(
+      'transcribeSession accepts the tenant-authorised audio contract and returns a transcript',
+      uploadResponse.status === 200 && status === 200 && typeof body?.transcript === 'string' && body.transcript.length > 0,
+      `upload_status=${uploadResponse.status} status=${status} body=${JSON.stringify(body)}`,
     );
   }
 
@@ -1002,7 +1426,11 @@ async function runChecks(baseUrl, appId) {
       baseUrl,
       appId,
       `/api/apps/${appId}/functions/createCheckoutSession`,
-      { method: 'POST', token: adminToken, body: { userEmail: stripeEmail, userId: stripeUserId } },
+      {
+        method: 'POST',
+        token: adminToken,
+        body: { userEmail: stripeEmail, userId: stripeUserId, plan: 'monthly' },
+      },
     );
     record(
       'createCheckoutSession returns a url',
@@ -1026,10 +1454,13 @@ async function runChecks(baseUrl, appId) {
           type: 'checkout.session.completed',
           data: {
             object: {
+              mode: 'subscription',
+              payment_status: 'paid',
               customer: mockCustomerId,
               subscription: mockSubscriptionId,
               client_reference_id: stripeUserId,
               customer_email: stripeEmail,
+              metadata: { userId: stripeUserId, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M' },
             },
           },
         },
@@ -1051,11 +1482,12 @@ async function runChecks(baseUrl, appId) {
       token: stripeUserToken,
     });
     record(
-      'stripeWebhook wrote entitlement fields without activating approval',
+      'stripeWebhook checkout auto-approves a pending account (launch model)',
       meStatus === 200 &&
-        // Payment success flips entitlement only; approval (account_status)
-        // remains 'pending' until an admin approves — the hard approval gate.
-        meBody?.account_status === 'pending' &&
+        // Launch model (13 July 2026): successful payment activates a
+        // pending account (auto-approve). 'rejected' is asserted separately
+        // below as never payment-activatable.
+        meBody?.account_status === 'active' &&
         meBody?.email_verified === true &&
         meBody?.subscription_status === 'active' &&
         meBody?.stripe_customer_id === mockCustomerId &&
@@ -1064,12 +1496,76 @@ async function runChecks(baseUrl, appId) {
       `status=${meStatus} body=${JSON.stringify(meBody)}`,
     );
 
-    // 3. syncStripeSubscription reflects the mock store.
+    // A rejected account must never be activated by a billing event — an
+    // admin rejection cannot be bought around.
+    {
+      const rejectedEmail = `rejected-pay-${Date.now()}@example.com`;
+      const rejectedCustomerId = `mock_cus_rej_${Date.now()}`;
+      const rejectedSubscriptionId = `mock_sub_rej_${Date.now()}`;
+      await api(baseUrl, appId, `/api/apps/${appId}/auth/register`, {
+        method: 'POST', body: { email: rejectedEmail, password: 'synthetic-password-123456' },
+      });
+      const { body: allForReject } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User`, { token: adminToken });
+      const rejUser = (allForReject || []).find((u) => u.email === rejectedEmail);
+      await api(baseUrl, appId, `/api/apps/${appId}/entities/User/${rejUser.id}`, {
+        method: 'PUT', token: adminToken, body: { account_status: 'rejected' },
+      });
+      await api(baseUrl, appId, `/api/apps/${appId}/functions/stripeWebhook`, {
+        method: 'POST',
+        token: adminToken,
+        body: {
+          type: 'checkout.session.completed',
+          data: { object: { mode: 'subscription', payment_status: 'paid', customer: rejectedCustomerId, subscription: rejectedSubscriptionId, client_reference_id: rejUser.id, customer_email: rejectedEmail, metadata: { userId: rejUser.id, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M' } } },
+        },
+      });
+      const { body: allAfter } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User`, { token: adminToken });
+      const rejAfter = (allAfter || []).find((u) => u.email === rejectedEmail);
+      record(
+        'stripeWebhook keeps a rejected account terminal, cancels late payment, and retains reconciliation linkage',
+        // A refused account remains inaccessible, while the cancelled provider
+        // identifiers stay durable so billing can be reconciled and audited.
+        rejAfter?.account_status === 'rejected' &&
+          rejAfter?.subscription_status === 'cancelled' &&
+          rejAfter?.stripe_customer_id === rejectedCustomerId &&
+          rejAfter?.stripe_subscription_id === rejectedSubscriptionId,
+        `account_status=${rejAfter?.account_status} subscription_status=${rejAfter?.subscription_status} customer=${rejAfter?.stripe_customer_id} subscription=${rejAfter?.stripe_subscription_id}`,
+      );
+    }
+
+    // 3. Make the local entitlement deliberately stale, then prove
+    // syncStripeSubscription both reports and PERSISTS the provider state.
+    // The public updateMe surface must strip these fields, so reconciliation
+    // uses its own narrow server-owned writer.
+    const { status: staleStatus } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/entities/User/${stripeUserId}`,
+      {
+        method: 'PUT',
+        token: adminToken,
+        body: {
+          subscription_status: 'inactive',
+          stripe_customer_id: null,
+          stripe_subscription_id: null,
+          subscription_start_date: null,
+        },
+      },
+    );
+    record('subscription sync fixture is made stale', staleStatus === 200, `status=${staleStatus}`);
+
     const { status: syncStatus, body: syncBody } = await api(
       baseUrl,
       appId,
       `/api/apps/${appId}/functions/syncStripeSubscription`,
-      { method: 'POST', token: stripeUserToken, body: {} },
+      {
+        method: 'POST',
+        token: stripeUserToken,
+        body: {
+          stripe_customer_id: 'cus_caller_controlled',
+          stripe_subscription_id: 'sub_caller_controlled',
+          subscription_status: 'active',
+        },
+      },
     );
     record(
       'syncStripeSubscription reconciles from the mock Stripe store',
@@ -1078,6 +1574,26 @@ async function runChecks(baseUrl, appId) {
         syncBody?.data?.stripe_customer_id === mockCustomerId &&
         syncBody?.data?.stripe_subscription_id === mockSubscriptionId,
       `status=${syncStatus} body=${JSON.stringify(syncBody)}`,
+    );
+    const { status: syncedMeStatus, body: syncedMeBody } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/entities/User/me`,
+      { token: stripeUserToken },
+    );
+    record(
+      'syncStripeSubscription persists the exact provider entitlement',
+      syncedMeStatus === 200 &&
+        syncedMeBody?.subscription_status === syncBody?.data?.subscription_status &&
+        syncedMeBody?.stripe_customer_id === syncBody?.data?.stripe_customer_id &&
+        syncedMeBody?.stripe_subscription_id === syncBody?.data?.stripe_subscription_id &&
+        syncedMeBody?.subscription_start_date === syncBody?.data?.subscription_start_date &&
+        syncedMeBody?.id === meBody?.id &&
+        syncedMeBody?.email === meBody?.email &&
+        syncedMeBody?.role === meBody?.role &&
+        syncedMeBody?.account_status === meBody?.account_status &&
+        syncedMeBody?.email_verified === meBody?.email_verified,
+      `status=${syncedMeStatus} body=${JSON.stringify(syncedMeBody)}`,
     );
   }
 
@@ -1136,14 +1652,55 @@ async function runChecks(baseUrl, appId) {
     );
   }
 
-  // --- SendEmail / SendSMS happy path ---
+  // --- Feedback notification / SendSMS happy path ---
   {
-    const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/integration-endpoints/Core/SendEmail`, {
+    const endpoint = `/api/apps/${appId}/integration-endpoints/Core/SendEmail`;
+    const { status: legacyStatus, body: legacyBody } = await api(baseUrl, appId, endpoint, {
       method: 'POST',
-      token: adminToken,
-      body: { to: 'selftest@example.com', subject: 'Selftest', body: 'Body text' },
+      token: userAToken,
+      body: { to: 'admin@local.test', subject: 'Selftest', body: 'Body text' },
     });
-    record('SendEmail returns a success shape', status === 200 && Boolean(body), `status=${status} body=${JSON.stringify(body)}`);
+    record(
+      'SendEmail rejects the legacy caller-controlled relay contract',
+      legacyStatus === 400 && legacyBody?.code === 'invalid_feedback_notification_request',
+      `status=${legacyStatus} body=${JSON.stringify(legacyBody)}`,
+    );
+
+    const { status: createStatus, body: assessmentRequest } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/entities/AssessmentRequest`,
+      {
+        method: 'POST',
+        token: userAToken,
+        body: {
+          org_id: orgAId,
+          request_type: 'error_report',
+          assessment_name: 'Synthetic selftest assessment',
+          details: 'Synthetic selftest feedback only.',
+          user_email: emailA,
+          user_name: 'Synthetic Org A User',
+          status: 'pending',
+        },
+      },
+    );
+    const { status, body } = assessmentRequest?.id
+      ? await api(baseUrl, appId, endpoint, {
+          method: 'POST',
+          token: userAToken,
+          body: { assessment_request_id: assessmentRequest.id },
+        })
+      : { status: 0, body: null };
+    record(
+      'SendEmail resolves an owned AssessmentRequest and records fixed-recipient notifications',
+      createStatus === 200 &&
+        status === 200 &&
+        body?.assessment_request_id === assessmentRequest?.id &&
+        body?.status === 'recorded' &&
+        body?.recorded === true &&
+        body?.sent === false,
+      `status=${status} body=${JSON.stringify(body)}`,
+    );
   }
   {
     const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/integration-endpoints/Core/SendSMS`, {
@@ -1165,20 +1722,32 @@ async function runChecks(baseUrl, appId) {
     record('GenerateImage returns {url}', status === 200 && typeof body?.url === 'string', `status=${status} body=${JSON.stringify(body)}`);
   }
 
-  // --- UploadFile round trip through the served /uploads/ URL ---
+  // --- UploadFile round trip through authenticated secure-file delivery ---
   let uploadedFileUrl = null;
   {
     const boundary = `----selftestBoundary${Date.now()}`;
-    const fileContent = 'selftest upload content';
+    const fileContent = '%PDF-1.4\n1 0 obj<</Type/Catalog>>endobj\n%%EOF';
     const multipartBody =
       `--${boundary}\r\n` +
-      `Content-Disposition: form-data; name="file"; filename="selftest.txt"\r\n` +
-      `Content-Type: text/plain\r\n\r\n` +
+      `Content-Disposition: form-data; name="org_id"\r\n\r\n${orgAId}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="purpose"\r\n\r\nreferral-extraction\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="subject_age_confirmation"\r\n\r\n${REFERRAL_SUBJECT_AGE_CONFIRMATION}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="subject_age_attestation_version"\r\n\r\n${REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="processing_authority_confirmed"\r\n\r\ntrue\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="processing_authority_attestation_version"\r\n\r\n${REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION}\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="file"; filename="selftest.pdf"\r\n` +
+      `Content-Type: application/pdf\r\n\r\n` +
       `${fileContent}\r\n` +
       `--${boundary}--\r\n`;
     const res = await fetch(`${baseUrl}/api/apps/${appId}/integration-endpoints/Core/UploadFile`, {
       method: 'POST',
-      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'X-App-Id': appId, Authorization: `Bearer ${adminToken}` },
+      headers: { 'Content-Type': `multipart/form-data; boundary=${boundary}`, 'X-App-Id': appId, Authorization: `Bearer ${userAToken}` },
       body: multipartBody,
     });
     const body = await res.json().catch(() => null);
@@ -1190,37 +1759,40 @@ async function runChecks(baseUrl, appId) {
     );
 
     if (uploadedFileUrl) {
-      const servedRes = await fetch(`${baseUrl}${uploadedFileUrl}`);
+      const servedRes = await fetch(`${baseUrl}${uploadedFileUrl}`, {
+        headers: { Authorization: `Bearer ${userAToken}` },
+      });
       const servedText = await servedRes.text().catch(() => '');
       record(
-        'uploaded file is retrievable via the served /uploads/ URL',
+        'uploaded file is retrievable only through authenticated secure-file delivery',
         servedRes.status === 200 && servedText === fileContent,
         `status=${servedRes.status} text=${JSON.stringify(servedText)}`,
       );
     }
   }
 
-  // --- ExtractDataFromUploadedFile happy path ---
+  // --- ExtractDataFromUploadedFile remains fail-closed while disabled ---
   {
-    const schema = {
-      type: 'object',
-      properties: {
-        full_name: { type: 'string' },
-        comorbidities: { type: 'array', items: { type: 'string' } },
-      },
-    };
     const { status, body } = await api(
       baseUrl,
       appId,
       `/api/apps/${appId}/integration-endpoints/Core/ExtractDataFromUploadedFile`,
-      { method: 'POST', token: adminToken, body: { file_url: uploadedFileUrl, json_schema: schema } },
+      {
+        method: 'POST',
+        token: userAToken,
+        body: {
+          file_url: uploadedFileUrl,
+          org_id: orgAId,
+          json_schema: REFERRAL_EXTRACTION_SCHEMA,
+          processing_authority_confirmed: true,
+          processing_authority_attestation_version:
+            REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+        },
+      },
     );
     record(
-      'ExtractDataFromUploadedFile returns {status, output} honouring json_schema',
-      status === 200 &&
-        body?.status === 'success' &&
-        typeof body?.output?.full_name === 'string' &&
-        Array.isArray(body?.output?.comorbidities),
+      'ExtractDataFromUploadedFile fails closed when document extraction is disabled',
+      status === 503 && body?.status === 'error' && typeof body?.details === 'string',
       `status=${status} body=${JSON.stringify(body)}`,
     );
   }

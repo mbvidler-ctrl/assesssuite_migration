@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { renderSafeHtmlDocument, sanitizeHtml } from "@/lib/safeHtml";
 import {
   FileText,
   Plus,
@@ -149,8 +150,7 @@ export default function SavedReports({ client }) {
       return;
     }
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(html);
-    printWindow.document.close();
+    renderSafeHtmlDocument(printWindow, html);
     setTimeout(() => printWindow.print(), 250);
   };
 
@@ -310,7 +310,7 @@ export default function SavedReports({ client }) {
             </div>
             <div className="p-6">
                       {(viewingReport.report_html || viewingReport.html_content) ? (
-                <div dangerouslySetInnerHTML={{ __html: viewingReport.report_html || viewingReport.html_content }} />
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(viewingReport.report_html || viewingReport.html_content) }} />
               ) : (
                 <pre className="whitespace-pre-wrap text-sm">No content available.</pre>
               )}

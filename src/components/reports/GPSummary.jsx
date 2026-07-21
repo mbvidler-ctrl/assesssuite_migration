@@ -10,6 +10,8 @@ import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
 import { ClientReport } from "@/entities/ClientReport";
 import { todayLocal } from "@/lib/localDate";
+import { SecureFileImage } from "@/components/files/SecureFile";
+import { renderSafeHtmlDocument, replaceWithSafeHtml } from "@/lib/safeHtml";
 
 const PrintableReport = React.forwardRef(({ letterData, client, clinician }, ref) => {
   if (!letterData || !client || !clinician) {
@@ -89,7 +91,7 @@ const PrintableReport = React.forwardRef(({ letterData, client, clinician }, ref
 
       <div className="clinic-header">
         {clinician?.clinic_logo_url ? (
-          <img src={clinician.clinic_logo_url} alt="Clinic Logo" />
+          <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" />
         ) : (
           <h2 style={{ margin: 0, color: '#000' }}>{clinician?.clinic_name || ""}</h2>
         )}
@@ -440,15 +442,15 @@ Return only the improved plain text version with clear structure, no additional 
     if (!printWindow) {
       toast.warning("Popup blocked. Using current window print...");
       const originalContent = document.body.innerHTML;
-      document.body.innerHTML = printRef.current.outerHTML;
+      replaceWithSafeHtml(document.body, printRef.current.outerHTML);
       window.print();
-      document.body.innerHTML = originalContent;
+      replaceWithSafeHtml(document.body, originalContent);
       window.location.reload();
       return;
     }
 
     try {
-      printWindow.document.write(`
+      renderSafeHtmlDocument(printWindow, `
         <!DOCTYPE html>
         <html>
         <head>
@@ -460,8 +462,6 @@ Return only the improved plain text version with clear structure, no additional 
         </body>
         </html>
       `);
-      
-      printWindow.document.close();
       
       setTimeout(() => {
         printWindow.focus();

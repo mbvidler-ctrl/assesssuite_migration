@@ -10,6 +10,8 @@
 
 import { randomUUID } from 'node:crypto';
 
+export const MOCK_CHECKOUT_PRICE_ID = 'price_1TbH07LVAtM9m2RxqiPCaZ8M';
+
 /** customer_id -> { id, email, subscriptions: [{id, status, current_period_start}] } */
 const customersByEmail = new Map();
 const customersById = new Map();
@@ -51,7 +53,7 @@ export function createMockCheckoutSession({ priceId, userId, userEmail, successU
     customer_email: userEmail || null,
     client_reference_id: userId || null,
     subscription: subscriptionId,
-    metadata: { userId: userId || '', userEmail: userEmail || '' },
+    metadata: { userId: userId || '', userEmail: userEmail || '', priceId: priceId || '' },
     success_url: successUrl || null,
     cancel_url: cancelUrl || null,
     price: priceId || null,
@@ -111,6 +113,26 @@ export function recordMockSubscription({ customerId, subscriptionId, status = 'a
     subscription.status = status;
   }
   return subscription;
+}
+
+/**
+ * Mocks DELETE https://api.stripe.com/v1/subscriptions/{id} — cancels a
+ * subscription immediately by marking it 'canceled'. Searches every mock
+ * customer for the subscription id. Returns the (now canceled) subscription
+ * object; where the id is not present in the store it returns a minimal
+ * canceled stub, so the caller succeeds without any network call (mirroring
+ * the real gateway's immediate-cancel result closely enough for the
+ * cancelSubscriptionAndDeactivate flow, which only needs the call not to throw).
+ */
+export function cancelMockSubscription(subscriptionId) {
+  for (const customer of customersById.values()) {
+    const subscription = customer.subscriptions.find((s) => s.id === subscriptionId);
+    if (subscription) {
+      subscription.status = 'canceled';
+      return subscription;
+    }
+  }
+  return { id: subscriptionId, object: 'subscription', status: 'canceled' };
 }
 
 /**

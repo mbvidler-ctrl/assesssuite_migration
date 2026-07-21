@@ -142,8 +142,9 @@ export function respond(res, status, body) {
 
 /**
  * Builds ctx.updateMe(data) — the equivalent of `base44.auth.updateMe(data)`
- * used by syncStripeSubscription/entry.ts. Applies the same guarded-field
- * sanitisation as the entities router's /me PUT handler.
+ * Applies the same guarded-field sanitisation as the entities router's /me
+ * PUT handler; trusted provider reconciliation uses the separate capability
+ * below.
  */
 export function createUpdateMe(db, sessionUser) {
   const userRepo = createEntityRepository(db, 'User');
@@ -151,5 +152,68 @@ export function createUpdateMe(db, sessionUser) {
     if (!sessionUser) throw new Error('authentication required');
     const sanitized = sanitizeUpdateMePayload(data);
     return userRepo.update(sessionUser.id, sanitized);
+  };
+}
+
+const SUBSCRIPTION_ENTITLEMENT_FIELDS = Object.freeze([
+  'stripe_customer_id',
+  'stripe_subscription_id',
+  'subscription_start_date',
+  'subscription_status',
+]);
+
+/**
+ * Builds a server-only writer for the exact entitlement record reconciled
+ * from Stripe. This deliberately does not reuse ctx.updateMe: that surface is
+ * caller-facing and correctly strips billing fields. The separate capability
+ * keeps the provider-derived write narrow, bound to the authenticated user,
+ * and fail-closed if a handler ever tries to add another field.
+ */
+export function createSubscriptionEntitlementUpdater(db, sessionUser) {
+  const userRepo = createEntityRepository(db, 'User');
+  return async function updateSubscriptionEntitlement(data) {
+    if (!sessionUser?.id) throw new Error('authentication required');
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error('invalid subscription entitlement update');
+    }
+
+    const ownKeys = Reflect.ownKeys(data);
+    if (ownKeys.some((field) => typeof field !== 'string')) {
+      throw new Error('invalid subscription entitlement field set');
+    }
+    const fields = ownKeys.sort();
+    if (
+      fields.length !== SUBSCRIPTION_ENTITLEMENT_FIELDS.length ||
+      fields.some((field, index) => field !== SUBSCRIPTION_ENTITLEMENT_FIELDS[index])
+    ) {
+      throw new Error('invalid subscription entitlement field set');
+    }
+
+    for (const field of SUBSCRIPTION_ENTITLEMENT_FIELDS) {
+      const value = data[field];
+      const maxLength = field === 'subscription_status' ? 64 : 512;
+      if (
+        typeof value !== 'string' ||
+        value.trim() === '' ||
+        value !== value.trim() ||
+        value.length > maxLength
+      ) {
+        throw new Error(`invalid subscription entitlement field: ${field}`);
+      }
+    }
+    const startDate = new Date(data.subscription_start_date);
+    if (
+      !Number.isFinite(startDate.getTime()) ||
+      startDate.toISOString() !== data.subscription_start_date
+    ) {
+      throw new Error('invalid subscription entitlement start date');
+    }
+
+    const updated = userRepo.update(sessionUser.id, { ...data });
+    if (!updated) throw new Error('authenticated user no longer exists');
+    if (SUBSCRIPTION_ENTITLEMENT_FIELDS.some((field) => updated[field] !== data[field])) {
+      throw new Error('subscription entitlement persistence could not be verified');
+    }
+    return updated;
   };
 }

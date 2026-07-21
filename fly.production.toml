@@ -1,0 +1,85 @@
+# Fly.io configuration — AssessSuite PRODUCTION (launch, 13 July 2026).
+#
+# Differences from the demo (fly.toml / unimatter-demo), all deliberate:
+#   - [processes] repeats the bounded production bootstrap before the server:
+#     only approved reference catalogues are seeded idempotently; the full
+#     synthetic seeder refuses to run under NODE_ENV=production.
+#   - A persistent volume holds server/data (SQLite WAL db) and, via
+#     UPLOADS_DIR, the uploads store — state survives deploys and restarts.
+#   - ALLOW_OPEN_REGISTRATION=1: self-signup is open (the image carries the
+#     hardened OTP flow — random expiring codes, lockout, real email; the
+#     fixed 000000 code is accepted only under SELFTEST).
+#   - Registration/transcription/legal posture comes from reviewed env:
+#     TRANSCRIPTION_ENABLED=0 (off for this bounded release);
+#     LEGAL_STATUS and LEGAL_EFFECTIVE_DATE are immutable release metadata.
+#
+# TOPOLOGY CONSTRAINT (do not "fix"): one machine, one volume. SQLite on a
+# single volume cannot scale out (a second machine would get an EMPTY volume
+# and split the data) and cannot blue-green deploy (the volume is attached to
+# the running machine). The immutable default-branch production workflow is
+# the sole deployment corridor and keeps exactly one machine; direct/local
+# Fly deployment is intentionally prohibited.
+#
+# Required opaque secret names (values never enter this file or release logs):
+#   ADMIN_PASSWORD (strong — the repo default is public), RESEND_API_KEY,
+#   APP_URL and OPENAI_API_KEY (required for the enabled, fail-closed referral
+#   extraction path; the provider credential is never stored in this file), and
+#   at go-live STRIPE_SECRET_KEY / STRIPE_WEBHOOK_SECRET /
+#   STRIPE_PRICE_ID_MONTHLY / STRIPE_PRICE_ID_ANNUAL.
+# The trusted workflow performs a names-only, exact-app preflight before every
+# release. `npm run deploy:prod` fails closed; never replace it with a local Fly
+# command. Fly secrets are per-app and never cross between apps.
+
+app = "assesssuite-production"
+primary_region = "syd"
+
+[build]
+  dockerfile = "Dockerfile"
+
+[processes]
+  app = "node server/productionBootstrap.mjs && exec node server/index.mjs"
+
+[env]
+  PORT = "8787"
+  ALLOW_OPEN_REGISTRATION = "1"
+  ADMIN_EMAIL = "admin@assesssuite.com"
+  OUTBOUND_EMAIL_ENABLED = "1"
+  OUTBOUND_SMS_ENABLED = "0"
+  PAYMENTS_ENABLED = "1"
+  UPLOADS_DIR = "/app/server/data/uploads"
+  LLM_REQUIRED = "1"
+  # This release authorises only the bounded referral/document-extraction
+  # path. Legacy general clinical generation remains server-disabled until a
+  # separate function-level decision and release gate are completed.
+  GENERAL_CLINICAL_LLM_ENABLED = "0"
+  TRANSCRIPTION_ENABLED = "0"
+  DOCUMENT_EXTRACTION_ENABLED = "1"
+  OPENAI_HEALTH_DATA_TERMS_CONFIRMED = "1"
+  DOCUMENT_EXTRACTION_UNDER_13_ENABLED = "0"
+  # Production upload audit receipts contain metadata only. The server also
+  # fails closed if an opaque runtime override attempts to change this period.
+  UPLOAD_AUDIT_RETENTION_DAYS = "730"
+  UPLOAD_CLEANUP_INTERVAL_MINUTES = "1"
+  LEGAL_STATUS = "effective"
+  LEGAL_EFFECTIVE_DATE = "19 July 2026"
+
+[mounts]
+  source = "assesssuite_data"
+  destination = "/app/server/data"
+  # These settings govern newly created volumes. The trusted deployment
+  # workflow separately verifies and pins the existing production volume.
+  snapshot_retention = 5
+  scheduled_snapshots = true
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

@@ -4,10 +4,13 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Wand2, Sparkles, Loader2, Upload, X, FileText, ChevronDown, ChevronUp, History } from "lucide-react";
-import { InvokeLLM, UploadFile } from "@/api/integrations";
+import { InvokeLLM } from "@/api/integrations";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { META_TEMPLATES, REPORT_META_TEMPLATE_MAP } from "@/components/reports/UnifiedReportWizard";
+import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
+import { SecureFileLink } from "@/components/files/SecureFile";
+import { uploadTenantFile } from "@/lib/fileIntegrations";
 
 const SECTION_GUIDANCE = {
   "Referral Details": {
@@ -321,13 +324,24 @@ export default function SectionEditor({ sections, content, onChange, client, cli
     if (files.length === 0) return;
     setIsUploading(true);
     try {
-      const uploadPromises = files.map(file => UploadFile({ file }));
-      const results = await Promise.all(uploadPromises);
+      if (!client?.org_id) {
+        throw new Error('Client practice is required before uploading report attachments.');
+      }
+      // Upload sequentially. The server deliberately admits only one
+      // memory-heavy multipart upload per authenticated user at a time.
+      const results = [];
+      for (const file of files) {
+        results.push(await uploadTenantFile({
+          file,
+          org_id: client.org_id,
+          purpose: 'report-attachment',
+        }));
+      }
       const existingAttachments = content[`${activeSection}_attachments`] || [];
       const newAttachments = results.map((result, index) => ({ url: result.file_url, name: files[index].name }));
       const documentPromises = newAttachments.map(attachment =>
         base44.entities.ClientDocument.create({
-          client_id: client.id, document_type: "report",
+          org_id: client.org_id, client_id: client.id, document_type: "report",
           file_url: attachment.url, file_name: attachment.name,
           notes: `Attached to report section: ${activeSection}`
         })
@@ -808,7 +822,7 @@ Write ONLY the "${section}" section. Return ONLY plain text — no HTML, no mark
             </div>
           ) : isAttachmentSection ? (
             <div className="space-y-3">
-              <input ref={fileInputRef} type="file" multiple className="hidden" onChange={handleFileUpload} />
+              <input ref={fileInputRef} type="file" accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.docx" multiple className="hidden" onChange={handleFileUpload} />
               <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={isUploading} className="text-xs">
                 {isUploading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
                 Upload Files
@@ -818,7 +832,7 @@ Write ONLY the "${section}" section. Return ONLY plain text — no HTML, no mark
                   <div key={idx} className="flex items-center justify-between bg-slate-50 rounded px-3 py-2 border">
                     <div className="flex items-center gap-2">
                       <FileText className="w-4 h-4 text-slate-400" />
-                      <a href={att.url} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">{att.name}</a>
+                      <SecureFileLink href={att.url} orgId={client.org_id} target="_blank" rel="noreferrer" className="text-xs text-blue-600 hover:underline">{att.name}</SecureFileLink>
                     </div>
                     <button onClick={() => removeAttachment(idx)} className="text-slate-400 hover:text-red-500">
                       <X className="w-4 h-4" />
@@ -841,6 +855,8 @@ Write ONLY the "${section}" section. Return ONLY plain text — no HTML, no mark
               ? `${content[activeSection].trim().split(/\s+/).length} words`
               : 'Empty — type freely or use AI Generate'}
           </p>
+
+          {!isSignatureSection && !isAttachmentSection && <AIDisclosureNote />}
         </div>
       </div>
     </div>

@@ -14,6 +14,8 @@ import { toast } from "sonner";
 import { createRoot } from "react-dom/client";
 import AdverseEventPrintView from "./AdverseEventPrintView";
 import { todayLocal } from "@/lib/localDate";
+import { uploadTenantFile } from "@/lib/fileIntegrations";
+import { renderSafeHtmlDocument } from "@/lib/safeHtml";
 
 export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted, readOnly = false, existingEvent = null, onEdit }) {
   const [currentUser, setCurrentUser] = useState(null);
@@ -161,7 +163,11 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
     
     setIsUploading(true);
     try {
-      const { file_url } = await base44.integrations.Core.UploadFile({ file });
+      const { file_url } = await uploadTenantFile({
+        file,
+        org_id: client.org_id,
+        purpose: 'clinical-attachment',
+      });
       setAttachments(prev => [...prev, {
         attachment_type: file.type,
         attachment_name: file.name,
@@ -910,7 +916,7 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
                   id="attachment-upload"
                   className="hidden"
                   onChange={handleFileUpload}
-                  accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
+                  accept=".pdf,.png,.jpg,.jpeg,.docx"
                 />
                 <label htmlFor="attachment-upload">
                   <Button type="button" variant="outline" asChild disabled={isUploading}>
@@ -1024,12 +1030,11 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
                 <Button type="button" variant="outline" onClick={() => {
                   const printWindow = window.open("", "_blank");
                   if (!printWindow) { toast.error("Please allow popups to print"); return; }
-                  printWindow.document.write(`<!DOCTYPE html><html><head><title>Adverse Event Report</title><style>
+                  renderSafeHtmlDocument(printWindow, `<!DOCTYPE html><html><head><title>Adverse Event Report</title><style>
                     body { font-family: Arial, Helvetica, sans-serif; margin: 20mm 18mm; color: #111; }
                     @page { size: A4 portrait; margin: 20mm 18mm; }
                     @media print { body { margin: 0; } }
                   </style></head><body><div id="print-root"></div></body></html>`);
-                  printWindow.document.close();
                   const root = createRoot(printWindow.document.getElementById("print-root"));
                   root.render(<AdverseEventPrintView event={existingEvent} client={client} />);
                   setTimeout(() => { printWindow.print(); }, 300);

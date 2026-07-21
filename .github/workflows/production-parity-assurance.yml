@@ -1,0 +1,1051 @@
+name: Production parity assurance - isolated synthetic wave
+
+run-name: Production parity ${{ inputs.action }} / ${{ inputs.wave_id }} / ${{ inputs.effect_intent_id }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      trusted_workflow_sha:
+        description: Exact current main SHA supplying this trusted workflow
+        required: true
+        type: string
+      application_sha:
+        description: Exact current main SHA supplying the already-deployed application image
+        required: true
+        type: string
+      action:
+        description: Exactly one authorised production-parity effect
+        required: true
+        type: choice
+        options:
+          - volume-create
+          - machine-create
+          - provider-wave
+          - namespace-cleanup
+          - machine-delete
+          - volume-delete
+      wave_id:
+        description: Fresh synthetic wave in the fixed mission namespace
+        required: true
+        type: choice
+        options:
+          - wave-1
+          - wave-2
+      expected_live_release:
+        description: Exact current Fly release identifier recorded before dispatch
+        required: true
+        type: string
+      live_image:
+        description: Exact immutable live image digest used by the hidden parity Machine
+        required: true
+        type: string
+      candidate_config_sha256:
+        description: Reviewed SHA-256 of fly.production.toml at application_sha
+        required: true
+        type: string
+      parity_runner_sha256:
+        description: Reviewed SHA-256 of the runner-side Playwright parity driver
+        required: true
+        type: string
+      parity_fixture_sha256:
+        description: Reviewed SHA-256 of the synthetic referral fixture module
+        required: true
+        type: string
+      parity_cleanup_sha256:
+        description: Reviewed SHA-256 of the exact-path machine observation and cleanup driver
+        required: true
+        type: string
+      parity_namespace:
+        description: Fixed synthetic namespace; must be asr-r2-20260721
+        required: true
+        type: string
+      expected_production_machine_id:
+        description: Exact production Machine ID that must never be selected by a parity action
+        required: true
+        type: string
+      expected_production_volume_id:
+        description: Exact production Volume ID that must never be attached, read or mutated
+        required: true
+        type: string
+      parity_machine_id:
+        description: Exact parity Machine ID or NOT-CREATED before it exists
+        required: true
+        type: string
+      parity_volume_id:
+        description: Exact parity Volume ID or NOT-CREATED before it exists
+        required: true
+        type: string
+      parity_private_ipv6:
+        description: Exact parity 6PN IPv6 or NOT-CREATED before the Machine exists
+        required: true
+        type: string
+      predecessor_action:
+        description: Exact prior receipt action or mission-genesis
+        required: true
+        type: choice
+        options:
+          - mission-genesis
+          - volume-create
+          - machine-create
+          - provider-wave
+          - namespace-cleanup
+          - machine-delete
+          - volume-delete
+      predecessor_run_id:
+        description: Exact prior GitHub run ID or MISSION-GENESIS
+        required: true
+        type: string
+      predecessor_receipt_sha256:
+        description: SHA-256 of the prior content-free receipt or MISSION-GENESIS
+        required: true
+        type: string
+      effect_intent_id:
+        description: Workspace OS intent ID authorising only this named effect
+        required: true
+        type: string
+      effect_evidence_id:
+        description: Evidence binding for this named effect and predecessor receipt
+        required: true
+        type: string
+      authority_reference:
+        description: Activated mission-order authority reference
+        required: true
+        type: string
+      confirmation:
+        description: Type EXECUTE assesssuite-production PARITY followed by the exact action
+        required: true
+        type: string
+      cleanup_chain_ack:
+        description: Type CLEANUP-CHAIN-REQUIRED-AFTER-EVERY-WAVE-RESULT
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: read
+
+concurrency:
+  group: assesssuite-production
+  cancel-in-progress: false
+
+jobs:
+  prepare:
+    name: Freeze one receipt-bound parity effect and browser image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    outputs:
+      parity_runner_artifact_id: ${{ steps.upload_runner.outputs.artifact-id }}
+      parity_runner_artifact_digest: ${{ steps.upload_runner.outputs.artifact-digest }}
+    steps:
+      - name: Validate trusted parity dispatch and fixed mission inputs
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          ACTION: ${{ inputs.action }}
+          WAVE_ID: ${{ inputs.wave_id }}
+          EXPECTED_LIVE_RELEASE: ${{ inputs.expected_live_release }}
+          LIVE_IMAGE: ${{ inputs.live_image }}
+          CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
+          PARITY_RUNNER_SHA256: ${{ inputs.parity_runner_sha256 }}
+          PARITY_FIXTURE_SHA256: ${{ inputs.parity_fixture_sha256 }}
+          PARITY_CLEANUP_SHA256: ${{ inputs.parity_cleanup_sha256 }}
+          PARITY_NAMESPACE: ${{ inputs.parity_namespace }}
+          EXPECTED_PRODUCTION_MACHINE_ID: ${{ inputs.expected_production_machine_id }}
+          EXPECTED_PRODUCTION_VOLUME_ID: ${{ inputs.expected_production_volume_id }}
+          PARITY_MACHINE_ID: ${{ inputs.parity_machine_id }}
+          PARITY_VOLUME_ID: ${{ inputs.parity_volume_id }}
+          PARITY_PRIVATE_IPV6: ${{ inputs.parity_private_ipv6 }}
+          PREDECESSOR_ACTION: ${{ inputs.predecessor_action }}
+          PREDECESSOR_RUN_ID: ${{ inputs.predecessor_run_id }}
+          PREDECESSOR_RECEIPT_SHA256: ${{ inputs.predecessor_receipt_sha256 }}
+          EFFECT_INTENT_ID: ${{ inputs.effect_intent_id }}
+          EFFECT_EVIDENCE_ID: ${{ inputs.effect_evidence_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          CLEANUP_CHAIN_ACK: ${{ inputs.cleanup_chain_ack }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == "mbvidler-ctrl/assesssuite_migration" ]]
+          [[ "$ACTOR" == "mbvidler-ctrl" ]]
+          [[ "$TRIGGERING_ACTOR" == "mbvidler-ctrl" ]]
+          [[ "$IS_FORK" == "false" ]]
+          [[ "$EVENT_REF" == "refs/heads/main" ]]
+          [[ "$WORKFLOW_REF" == "mbvidler-ctrl/assesssuite_migration/.github/workflows/production-parity-assurance.yml@refs/heads/main" ]]
+          [[ "$TRUSTED_WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$ACTION" =~ ^(volume-create|machine-create|provider-wave|namespace-cleanup|machine-delete|volume-delete)$ ]]
+          [[ "$WAVE_ID" =~ ^wave-[12]$ ]]
+          [[ "$EXPECTED_LIVE_RELEASE" =~ ^v[1-9][0-9]*$ ]]
+          [[ "$LIVE_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
+          [[ "$CANDIDATE_CONFIG_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$PARITY_RUNNER_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$PARITY_FIXTURE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$PARITY_CLEANUP_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$PARITY_NAMESPACE" == "asr-r2-20260721" ]]
+          [[ "$EXPECTED_PRODUCTION_MACHINE_ID" =~ ^[0-9a-f]{14,32}$ ]]
+          [[ "$EXPECTED_PRODUCTION_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]
+          [[ "$PARITY_MACHINE_ID" == "NOT-CREATED" || "$PARITY_MACHINE_ID" =~ ^[0-9a-f]{14,32}$ ]]
+          [[ "$PARITY_VOLUME_ID" == "NOT-CREATED" || "$PARITY_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]
+          [[ "$PARITY_PRIVATE_IPV6" == "NOT-CREATED" || "$PARITY_PRIVATE_IPV6" =~ ^fdaa:[0-9a-f:]+$ ]]
+          [[ "$PARITY_MACHINE_ID" != "$EXPECTED_PRODUCTION_MACHINE_ID" ]]
+          [[ "$PARITY_VOLUME_ID" != "$EXPECTED_PRODUCTION_VOLUME_ID" ]]
+          [[ "$PREDECESSOR_ACTION" =~ ^(mission-genesis|volume-create|machine-create|provider-wave|namespace-cleanup|machine-delete|volume-delete)$ ]]
+          [[ "$EFFECT_INTENT_ID" =~ ^[A-Za-z0-9._:-]{1,160}$ ]]
+          [[ "$EFFECT_EVIDENCE_ID" =~ ^[A-Za-z0-9._:-]{1,200}$ ]]
+          [[ "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
+          [[ "$CONFIRMATION" == "EXECUTE assesssuite-production PARITY $ACTION" ]]
+          [[ "$CLEANUP_CHAIN_ACK" == "CLEANUP-CHAIN-REQUIRED-AFTER-EVERY-WAVE-RESULT" ]]
+          if [[ "$PREDECESSOR_ACTION" == "mission-genesis" ]]; then
+            [[ "$ACTION" == "volume-create" && "$WAVE_ID" == "wave-1" ]]
+            [[ "$PREDECESSOR_RUN_ID" == "MISSION-GENESIS" ]]
+            [[ "$PREDECESSOR_RECEIPT_SHA256" == "MISSION-GENESIS" ]]
+          else
+            [[ "$PREDECESSOR_RUN_ID" =~ ^[1-9][0-9]{0,19}$ ]]
+            [[ "$PREDECESSOR_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          fi
+
+      - name: Check out exact application and workflow SHA
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          path: application
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact main provenance and frozen parity artefacts
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
+          PARITY_RUNNER_SHA256: ${{ inputs.parity_runner_sha256 }}
+          PARITY_FIXTURE_SHA256: ${{ inputs.parity_fixture_sha256 }}
+          PARITY_CLEANUP_SHA256: ${{ inputs.parity_cleanup_sha256 }}
+        run: |
+          set -euo pipefail
+          cd application
+          [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$APPLICATION_SHA" ]]
+          [[ "$(git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$APPLICATION_SHA" ]]
+          [[ "$APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ -z "$(git status --porcelain --untracked-files=no)" ]]
+          for file in \
+            fly.production.toml \
+            server/tests/production-parity-wave.mjs \
+            server/tests/support/syntheticReferralFixtures.mjs \
+            server/tests/production-parity-cleanup.mjs \
+            scripts/validate-production-deploy-workflow.mjs; do
+            [[ -f "$file" && ! -L "$file" ]]
+          done
+          [[ "$(sha256sum fly.production.toml | awk '{print $1}')" == "$CANDIDATE_CONFIG_SHA256" ]]
+          [[ "$(sha256sum server/tests/production-parity-wave.mjs | awk '{print $1}')" == "$PARITY_RUNNER_SHA256" ]]
+          [[ "$(sha256sum server/tests/support/syntheticReferralFixtures.mjs | awk '{print $1}')" == "$PARITY_FIXTURE_SHA256" ]]
+          [[ "$(sha256sum server/tests/production-parity-cleanup.mjs | awk '{print $1}')" == "$PARITY_CLEANUP_SHA256" ]]
+          [[ "$(grep -Fxc '  OUTBOUND_EMAIL_ENABLED = "1"' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Fxc '  OUTBOUND_SMS_ENABLED = "0"' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Fxc '  PAYMENTS_ENABLED = "1"' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Fxc '  DOCUMENT_EXTRACTION_ENABLED = "1"' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Fxc '  DOCUMENT_EXTRACTION_UNDER_13_ENABLED = "0"' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Fxc '  OPENAI_HEALTH_DATA_TERMS_CONFIRMED = "1"' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Fxc '  GENERAL_CLINICAL_LLM_ENABLED = "0"' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Fxc '  TRANSCRIPTION_ENABLED = "0"' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^  source = "assesssuite_data"$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^  snapshot_retention = 5$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^  scheduled_snapshots = true$' fly.production.toml)" -eq 1 ]]
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24.4.1
+          cache: npm
+          cache-dependency-path: application/package-lock.json
+
+      - name: Validate the exact trusted production workflow control
+        shell: bash
+        env:
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 63cb8f9a37bed7f8d99aa65a12e5d7efbeb36f838429b829a981dde2dab6c9f5
+        run: |
+          set -euo pipefail
+          cd application
+          printf '%s  %s\n' "$EXPECTED_TRUSTED_VALIDATOR_SHA256" scripts/validate-production-deploy-workflow.mjs | sha256sum --check --strict
+          for workflow in \
+            production-deploy.yml \
+            production-prepare-release.yml \
+            production-prepare-rollback-image.yml \
+            production-rollback.yml \
+            production-parity-assurance.yml; do
+            node scripts/validate-production-deploy-workflow.mjs ".github/workflows/$workflow"
+            node scripts/validate-production-deploy-workflow.mjs --selftest ".github/workflows/$workflow"
+          done
+
+      - name: Download exact predecessor receipt
+        if: ${{ inputs.predecessor_action != 'mission-genesis' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: assesssuite-production-parity-receipt
+          path: predecessor
+          repository: mbvidler-ctrl/assesssuite_migration
+          run-id: ${{ inputs.predecessor_run_id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate predecessor receipt and exact effect sequence
+        shell: bash
+        env:
+          ACTION: ${{ inputs.action }}
+          WAVE_ID: ${{ inputs.wave_id }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          LIVE_IMAGE: ${{ inputs.live_image }}
+          CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
+          PARITY_RUNNER_SHA256: ${{ inputs.parity_runner_sha256 }}
+          PARITY_FIXTURE_SHA256: ${{ inputs.parity_fixture_sha256 }}
+          PARITY_CLEANUP_SHA256: ${{ inputs.parity_cleanup_sha256 }}
+          PARITY_NAMESPACE: ${{ inputs.parity_namespace }}
+          EXPECTED_PRODUCTION_MACHINE_ID: ${{ inputs.expected_production_machine_id }}
+          EXPECTED_PRODUCTION_VOLUME_ID: ${{ inputs.expected_production_volume_id }}
+          PARITY_MACHINE_ID: ${{ inputs.parity_machine_id }}
+          PARITY_VOLUME_ID: ${{ inputs.parity_volume_id }}
+          PARITY_PRIVATE_IPV6: ${{ inputs.parity_private_ipv6 }}
+          PREDECESSOR_ACTION: ${{ inputs.predecessor_action }}
+          PREDECESSOR_RUN_ID: ${{ inputs.predecessor_run_id }}
+          PREDECESSOR_RECEIPT_SHA256: ${{ inputs.predecessor_receipt_sha256 }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+        run: |
+          set -euo pipefail
+          if [[ "$PREDECESSOR_ACTION" == "mission-genesis" ]]; then
+            [[ ! -e predecessor/parity-receipt.json ]]
+            exit 0
+          fi
+          [[ -f predecessor/parity-receipt.json && ! -L predecessor/parity-receipt.json ]]
+          [[ "$(sha256sum predecessor/parity-receipt.json | awk '{print $1}')" == "$PREDECESSOR_RECEIPT_SHA256" ]]
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync('predecessor/parity-receipt.json', 'utf8'));
+          const exactKeys = [
+            'schema_version', 'result', 'action', 'wave_id', 'namespace',
+            'application_sha', 'live_image', 'candidate_config_sha256',
+            'runner_sha256', 'fixture_sha256', 'cleanup_sha256',
+            'production_machine_id', 'production_volume_id', 'parity_machine_id',
+            'parity_volume_id', 'parity_private_ipv6', 'production_effects_started',
+            'effect_intent_id', 'effect_evidence_id', 'authority_reference',
+            'predecessor_action', 'predecessor_run_id', 'predecessor_receipt_sha256',
+            'browser_receipt_sha256', 'observation_receipt_sha256', 'screenshot_sha256',
+            'cleanup_receipt_sha256', 'cleanup_required', 'github_run_id',
+            'github_run_attempt', 'observed_at',
+          ].sort();
+          if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(exactKeys)) throw new Error('Predecessor receipt keys differ');
+          const env = process.env;
+          const equal = (key, value) => { if (row[key] !== value) throw new Error(`Predecessor ${key} differs`); };
+          equal('schema_version', 'assesssuite.production-parity-receipt.v1');
+          equal('action', env.PREDECESSOR_ACTION);
+          equal('github_run_id', env.PREDECESSOR_RUN_ID);
+          equal('namespace', env.PARITY_NAMESPACE);
+          equal('application_sha', env.APPLICATION_SHA);
+          equal('live_image', env.LIVE_IMAGE);
+          equal('candidate_config_sha256', env.CANDIDATE_CONFIG_SHA256);
+          equal('runner_sha256', env.PARITY_RUNNER_SHA256);
+          equal('fixture_sha256', env.PARITY_FIXTURE_SHA256);
+          equal('cleanup_sha256', env.PARITY_CLEANUP_SHA256);
+          equal('production_machine_id', env.EXPECTED_PRODUCTION_MACHINE_ID);
+          equal('production_volume_id', env.EXPECTED_PRODUCTION_VOLUME_ID);
+          equal('authority_reference', env.AUTHORITY_REFERENCE);
+          if (!['PASS', 'FAILED'].includes(row.result)) throw new Error('Predecessor result differs');
+          if (!Number.isInteger(row.production_effects_started) || row.production_effects_started < 0 || row.production_effects_started > 1 || (row.result === 'PASS' && row.production_effects_started !== 1)) throw new Error('Predecessor effect count differs');
+          if (row.cleanup_required !== !(row.action === 'volume-delete' && row.result === 'PASS')) throw new Error('Predecessor cleanup state differs');
+          const hash = (value) => typeof value === 'string' && /^[0-9a-f]{64}$/.test(value);
+          if (row.action === 'provider-wave') {
+            const expectedScreenshots = ['signup-consent', 'referral-uploader', 'mandatory-review'].map((suffix) => `asr-r2-20260721-${row.wave_id}-${suffix}.png`);
+            const screenshotProof = row.screenshot_sha256 !== 'NOT-APPLICABLE' && row.screenshot_sha256 && !Array.isArray(row.screenshot_sha256) && JSON.stringify(Object.keys(row.screenshot_sha256).sort()) === JSON.stringify(expectedScreenshots.sort()) && Object.values(row.screenshot_sha256).every(hash);
+            if (row.result === 'PASS' && (!hash(row.browser_receipt_sha256) || !hash(row.observation_receipt_sha256) || row.cleanup_receipt_sha256 !== 'NOT-APPLICABLE' || !screenshotProof)) throw new Error('Provider receipt hashes differ');
+            if (row.result === 'FAILED' && [row.browser_receipt_sha256, row.observation_receipt_sha256].some((value) => value !== 'NOT-APPLICABLE' && !hash(value))) throw new Error('Failed provider receipt hash differs');
+            if (row.result === 'FAILED' && row.cleanup_receipt_sha256 !== 'NOT-APPLICABLE') throw new Error('Failed provider cleanup hash differs');
+            if (row.result === 'FAILED' && !(row.screenshot_sha256 === 'NOT-APPLICABLE' || screenshotProof)) throw new Error('Failed provider screenshot hashes differ');
+          } else if (row.screenshot_sha256 !== 'NOT-APPLICABLE') throw new Error('Non-provider screenshot receipt differs');
+          if (row.action === 'namespace-cleanup' && row.result === 'PASS' && !hash(row.cleanup_receipt_sha256)) throw new Error('Cleanup receipt hash differs');
+          if (!/^\d{4}-\d{2}-\d{2}T/.test(row.observed_at)) throw new Error('Predecessor timestamp differs');
+          const normal = new Map([
+            ['machine-create', ['volume-create', 'PASS']],
+            ['provider-wave', ['machine-create', 'PASS']],
+            ['machine-delete', ['namespace-cleanup', 'PASS']],
+          ]);
+          if (env.ACTION === 'volume-create') {
+            const freshWaveTwo = env.WAVE_ID === 'wave-2' && row.action === 'volume-delete' && row.wave_id === 'wave-1' && row.result === 'PASS';
+            const sameWaveRestart = row.wave_id === env.WAVE_ID && ((row.action === 'volume-delete' && row.result === 'PASS') || (row.action === 'volume-create' && row.result === 'FAILED'));
+            if (!(freshWaveTwo || sameWaveRestart)) throw new Error('Fresh volume creation is not bound to verified absence');
+            if (row.action === 'volume-delete' && (row.parity_machine_id !== 'NOT-CREATED' || row.parity_private_ipv6 !== 'NOT-CREATED' || row.parity_volume_id !== 'NOT-CREATED')) throw new Error('Fresh volume creation lacks terminal absence proof');
+          } else if (env.ACTION === 'namespace-cleanup') {
+            if (!(['provider-wave', 'machine-create', 'namespace-cleanup'].includes(row.action) &&
+                (row.action !== 'namespace-cleanup' || row.result === 'FAILED'))) throw new Error('Cleanup predecessor differs');
+          } else if (env.ACTION === 'volume-delete') {
+            const machineDeleteAbsent = row.action === 'machine-delete' && ['PASS', 'FAILED'].includes(row.result) && row.parity_machine_id === 'NOT-CREATED' && row.parity_private_ipv6 === 'NOT-CREATED' && row.parity_volume_id === env.PARITY_VOLUME_ID;
+            if (!(machineDeleteAbsent ||
+                (['volume-create', 'machine-create', 'volume-delete'].includes(row.action) && row.result === 'FAILED'))) throw new Error('Volume deletion predecessor differs');
+          } else if (env.ACTION === 'machine-delete') {
+            const ordinaryDelete = row.action === 'namespace-cleanup' && row.result === 'PASS';
+            const retryDelete = row.action === 'machine-delete' && row.result === 'FAILED' && row.parity_machine_id === env.PARITY_MACHINE_ID && row.parity_private_ipv6 === env.PARITY_PRIVATE_IPV6;
+            if (!(ordinaryDelete || retryDelete) || row.wave_id !== env.WAVE_ID) throw new Error('Machine deletion predecessor differs');
+          } else if (normal.has(env.ACTION)) {
+            const [prior, result] = normal.get(env.ACTION);
+            if (!(row.action === prior && row.result === result && row.wave_id === env.WAVE_ID)) throw new Error('Normal predecessor differs');
+          }
+          const created = (value, pattern) => typeof value === 'string' && pattern.test(value);
+          if (env.ACTION !== 'volume-create') {
+            if (row.parity_volume_id !== env.PARITY_VOLUME_ID) throw new Error('Parity volume receipt binding differs');
+          }
+          if (['provider-wave', 'namespace-cleanup', 'machine-delete', 'volume-delete'].includes(env.ACTION)) {
+            if (row.parity_machine_id !== env.PARITY_MACHINE_ID || row.parity_private_ipv6 !== env.PARITY_PRIVATE_IPV6) throw new Error('Parity machine receipt binding differs');
+            const machinePresent = created(row.parity_machine_id, /^[0-9a-f]{14,32}$/) && created(row.parity_private_ipv6, /^fdaa:[0-9a-f:]+$/);
+            const machineAbsent = row.parity_machine_id === 'NOT-CREATED' && row.parity_private_ipv6 === 'NOT-CREATED';
+            if ((env.ACTION === 'volume-delete' && !machineAbsent) || (env.ACTION !== 'volume-delete' && !machinePresent)) throw new Error('Parity machine receipt shape differs');
+          }
+          NODE
+
+      - name: Build hardened parity browser image without Fly credentials
+        if: ${{ inputs.action == 'provider-wave' }}
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          PARITY_RUNNER_SHA256: ${{ inputs.parity_runner_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          docker build --tag "assesssuite-parity-runner:$APPLICATION_SHA" --file - application <<'DOCKERFILE'
+          FROM mcr.microsoft.com/playwright:v1.61.1-noble@sha256:5b8f294aff9041b7191c34a4bab3ac270157a28774d4b0660e9743297b697e48
+          WORKDIR /app
+          COPY package.json package-lock.json ./
+          RUN npm ci --ignore-scripts && npm cache clean --force
+          COPY . .
+          USER 1000:1000
+          ENTRYPOINT ["node", "server/tests/production-parity-wave.mjs"]
+          CMD ["run-wave"]
+          DOCKERFILE
+          image="assesssuite-parity-runner:$APPLICATION_SHA"
+          image_id="$(docker image inspect "$image" --format '{{.Id}}')"
+          [[ "$image_id" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$(docker image inspect "$image" --format '{{json .Config.Entrypoint}}')" == '["node","server/tests/production-parity-wave.mjs"]' ]]
+          [[ "$(docker image inspect "$image" --format '{{json .Config.Cmd}}')" == '["run-wave"]' ]]
+          mkdir -p "$RUNNER_TEMP/parity-runner"
+          docker save "$image" | gzip -1 -n >"$RUNNER_TEMP/parity-runner/parity-runner.tar.gz"
+          archive_sha256="$(sha256sum "$RUNNER_TEMP/parity-runner/parity-runner.tar.gz" | awk '{print $1}')"
+          printf '%s  %s\n' "$archive_sha256" parity-runner.tar.gz >"$RUNNER_TEMP/parity-runner/parity-runner.tar.gz.sha256"
+          RECEIPT="$RUNNER_TEMP/parity-runner/parity-runner-receipt.json" IMAGE_ID="$image_id" ARCHIVE_SHA256="$archive_sha256" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = {
+            schema_version: 'assesssuite.parity-runner-image-receipt.v1',
+            application_sha: process.env.APPLICATION_SHA,
+            runner_sha256: process.env.PARITY_RUNNER_SHA256,
+            image_id: process.env.IMAGE_ID,
+            archive_sha256: process.env.ARCHIVE_SHA256,
+          };
+          fs.writeFileSync(process.env.RECEIPT, `${JSON.stringify(row)}\n`, { mode: 0o600 });
+          NODE
+
+      - name: Upload hardened parity browser image
+        if: ${{ inputs.action == 'provider-wave' }}
+        id: upload_runner
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: assesssuite-production-parity-runner-${{ inputs.wave_id }}
+          path: ${{ runner.temp }}/parity-runner
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  effect:
+    name: Execute one isolated receipt-bound parity effect
+    needs: prepare
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - name: Download hardened parity browser image by immutable artifact ID
+        if: ${{ inputs.action == 'provider-wave' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.prepare.outputs.parity_runner_artifact_id }}
+          path: ${{ runner.temp }}/parity-runner
+
+      - name: Validate and load parity browser image as data only
+        if: ${{ inputs.action == 'provider-wave' }}
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          PARITY_RUNNER_SHA256: ${{ inputs.parity_runner_sha256 }}
+          PARITY_RUNNER_ARTIFACT_ID: ${{ needs.prepare.outputs.parity_runner_artifact_id }}
+          PARITY_RUNNER_ARTIFACT_DIGEST: ${{ needs.prepare.outputs.parity_runner_artifact_digest }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          cd "$RUNNER_TEMP/parity-runner"
+          [[ "$PARITY_RUNNER_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$PARITY_RUNNER_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          sha256sum --check --strict parity-runner.tar.gz.sha256
+          RECEIPT="$RUNNER_TEMP/parity-runner/parity-runner-receipt.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECEIPT, 'utf8'));
+          const keys = ['schema_version','application_sha','runner_sha256','image_id','archive_sha256'].sort();
+          if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys) || row.schema_version !== 'assesssuite.parity-runner-image-receipt.v1' || row.application_sha !== process.env.APPLICATION_SHA || row.runner_sha256 !== process.env.PARITY_RUNNER_SHA256 || !/^sha256:[0-9a-f]{64}$/.test(row.image_id) || !/^[0-9a-f]{64}$/.test(row.archive_sha256)) throw new Error('Parity runner image receipt differs');
+          NODE
+          gzip -dc parity-runner.tar.gz | docker load >/dev/null
+          expected_id="$(node --input-type=module -e "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],'utf8')).image_id)" parity-runner-receipt.json)"
+          [[ "$(docker image inspect "assesssuite-parity-runner:$APPLICATION_SHA" --format '{{.Id}}')" == "$expected_id" ]]
+          docker pull --platform linux/amd64 docker.io/library/node:24.4.1-bookworm-slim@sha256:36ae19f59c91f3303c7a648f07493fe14c4bd91320ac8d898416327bacf1bbfa >/dev/null
+
+      - name: Install checksum-verified flyctl 0.4.71
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+            --output "$archive" \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'
+          printf '%s  %s\n' 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2' "$archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$RUNNER_TEMP" flyctl
+          install -m 0755 "$RUNNER_TEMP/flyctl" "$RUNNER_TEMP/fly"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Execute exactly one secret-bearing parity effect
+        id: execute
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          ACTION: ${{ inputs.action }}
+          WAVE_ID: ${{ inputs.wave_id }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          EXPECTED_LIVE_RELEASE: ${{ inputs.expected_live_release }}
+          LIVE_IMAGE: ${{ inputs.live_image }}
+          CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
+          PARITY_RUNNER_SHA256: ${{ inputs.parity_runner_sha256 }}
+          PARITY_FIXTURE_SHA256: ${{ inputs.parity_fixture_sha256 }}
+          PARITY_CLEANUP_SHA256: ${{ inputs.parity_cleanup_sha256 }}
+          PARITY_NAMESPACE: ${{ inputs.parity_namespace }}
+          EXPECTED_PRODUCTION_MACHINE_ID: ${{ inputs.expected_production_machine_id }}
+          EXPECTED_PRODUCTION_VOLUME_ID: ${{ inputs.expected_production_volume_id }}
+          PARITY_MACHINE_ID: ${{ inputs.parity_machine_id }}
+          PARITY_VOLUME_ID: ${{ inputs.parity_volume_id }}
+          PARITY_PRIVATE_IPV6: ${{ inputs.parity_private_ipv6 }}
+          PREDECESSOR_ACTION: ${{ inputs.predecessor_action }}
+          PREDECESSOR_RUN_ID: ${{ inputs.predecessor_run_id }}
+          PREDECESSOR_RECEIPT_SHA256: ${{ inputs.predecessor_receipt_sha256 }}
+          EFFECT_INTENT_ID: ${{ inputs.effect_intent_id }}
+          EFFECT_EVIDENCE_ID: ${{ inputs.effect_evidence_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          GITHUB_RUN_ID_VALUE: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT_VALUE: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          set +x
+          app=assesssuite-production
+          parity_volume_name=asr_r2_parity_data
+          parity_machine_name=asr-r2-parity-20260721
+          receipt="$RUNNER_TEMP/parity-receipt.json"
+          current_machine_id="$PARITY_MACHINE_ID"
+          current_volume_id="$PARITY_VOLUME_ID"
+          current_private_ipv6="$PARITY_PRIVATE_IPV6"
+          production_effects_started=0
+          browser_receipt_sha256=NOT-APPLICABLE
+          observation_receipt_sha256=NOT-APPLICABLE
+          screenshot_sha256=NOT-APPLICABLE
+          cleanup_receipt_sha256=NOT-APPLICABLE
+          cleanup_required=true
+          proxy_pid=
+          relay_container=
+          browser_network=
+          control_network=
+
+          cleanup_browser_boundary() {
+            set +e
+            if [[ -n "$relay_container" ]]; then docker rm --force "$relay_container" >/dev/null 2>&1; fi
+            if [[ -n "$browser_network" ]]; then docker network rm "$browser_network" >/dev/null 2>&1; fi
+            if [[ -n "$control_network" ]]; then docker network rm "$control_network" >/dev/null 2>&1; fi
+            relay_container=
+            browser_network=
+            control_network=
+          }
+
+          write_receipt() {
+            local result=$1
+            RESULT="$result" CURRENT_MACHINE_ID="$current_machine_id" \
+              CURRENT_VOLUME_ID="$current_volume_id" CURRENT_PRIVATE_IPV6="$current_private_ipv6" \
+              PRODUCTION_EFFECTS_STARTED="$production_effects_started" \
+              BROWSER_RECEIPT_SHA256="$browser_receipt_sha256" \
+              OBSERVATION_RECEIPT_SHA256="$observation_receipt_sha256" \
+              SCREENSHOT_SHA256="$screenshot_sha256" \
+              CLEANUP_RECEIPT_SHA256="$cleanup_receipt_sha256" CLEANUP_REQUIRED="$cleanup_required" \
+              env -u FLY_API_TOKEN node --input-type=module >"$receipt.tmp" <<'NODE'
+          const row = {
+            schema_version: 'assesssuite.production-parity-receipt.v1',
+            result: process.env.RESULT,
+            action: process.env.ACTION,
+            wave_id: process.env.WAVE_ID,
+            namespace: process.env.PARITY_NAMESPACE,
+            application_sha: process.env.APPLICATION_SHA,
+            live_image: process.env.LIVE_IMAGE,
+            candidate_config_sha256: process.env.CANDIDATE_CONFIG_SHA256,
+            runner_sha256: process.env.PARITY_RUNNER_SHA256,
+            fixture_sha256: process.env.PARITY_FIXTURE_SHA256,
+            cleanup_sha256: process.env.PARITY_CLEANUP_SHA256,
+            production_machine_id: process.env.EXPECTED_PRODUCTION_MACHINE_ID,
+            production_volume_id: process.env.EXPECTED_PRODUCTION_VOLUME_ID,
+            parity_machine_id: process.env.CURRENT_MACHINE_ID,
+            parity_volume_id: process.env.CURRENT_VOLUME_ID,
+            parity_private_ipv6: process.env.CURRENT_PRIVATE_IPV6,
+            production_effects_started: Number(process.env.PRODUCTION_EFFECTS_STARTED),
+            effect_intent_id: process.env.EFFECT_INTENT_ID,
+            effect_evidence_id: process.env.EFFECT_EVIDENCE_ID,
+            authority_reference: process.env.AUTHORITY_REFERENCE,
+            predecessor_action: process.env.PREDECESSOR_ACTION,
+            predecessor_run_id: process.env.PREDECESSOR_RUN_ID,
+            predecessor_receipt_sha256: process.env.PREDECESSOR_RECEIPT_SHA256,
+            browser_receipt_sha256: process.env.BROWSER_RECEIPT_SHA256,
+            observation_receipt_sha256: process.env.OBSERVATION_RECEIPT_SHA256,
+            screenshot_sha256: process.env.SCREENSHOT_SHA256 === 'NOT-APPLICABLE' ? 'NOT-APPLICABLE' : JSON.parse(process.env.SCREENSHOT_SHA256),
+            cleanup_receipt_sha256: process.env.CLEANUP_RECEIPT_SHA256,
+            cleanup_required: process.env.CLEANUP_REQUIRED === 'true',
+            github_run_id: process.env.GITHUB_RUN_ID_VALUE,
+            github_run_attempt: process.env.GITHUB_RUN_ATTEMPT_VALUE,
+            observed_at: new Date().toISOString(),
+          };
+          process.stdout.write(`${JSON.stringify(row)}\n`);
+          NODE
+            mv "$receipt.tmp" "$receipt"
+          }
+
+          finish() {
+            local status=$?
+            set +e
+            if [[ -n "$proxy_pid" ]]; then kill "$proxy_pid" 2>/dev/null; wait "$proxy_pid" 2>/dev/null; fi
+            cleanup_browser_boundary
+            if [[ "$status" -ne 0 ]] && declare -F fetch_inventory >/dev/null; then
+              if fetch_inventory failure-final; then
+                local discovered_volume discovered_machine
+                discovered_volume="$(discover_volume failure-final 2>/dev/null)"
+                if [[ "$discovered_volume" =~ ^vol_[A-Za-z0-9]+$ ]]; then current_volume_id="$discovered_volume"; fi
+                discovered_machine="$(discover_machine failure-final 2>/dev/null)"
+                if [[ "$discovered_machine" == *$'\t'* ]]; then
+                  IFS=$'\t' read -r current_machine_id current_private_ipv6 <<<"$discovered_machine"
+                fi
+                if assert_inventory failure-final volume-only NOT-CREATED "$current_volume_id" NOT-CREATED >/dev/null 2>&1; then
+                  current_machine_id=NOT-CREATED
+                  current_private_ipv6=NOT-CREATED
+                elif assert_inventory failure-final clean NOT-CREATED NOT-CREATED NOT-CREATED >/dev/null 2>&1; then
+                  current_machine_id=NOT-CREATED
+                  current_private_ipv6=NOT-CREATED
+                  current_volume_id=NOT-CREATED
+                fi
+              fi
+            fi
+            if [[ "$status" -eq 0 ]]; then write_receipt PASS; else write_receipt FAILED; fi
+            rm -f "$RUNNER_TEMP"/*.stderr "$RUNNER_TEMP"/*.raw "$RUNNER_TEMP"/*.tmp
+            exit "$status"
+          }
+          trap finish EXIT
+          write_receipt FAILED
+
+          fetch_inventory() {
+            local label=$1
+            timeout --signal=TERM --kill-after=10s 60s fly machines list --app "$app" --json >"$RUNNER_TEMP/$label-machines.json" 2>"$RUNNER_TEMP/$label-machines.stderr"
+            timeout --signal=TERM --kill-after=10s 60s fly volumes list --app "$app" --json >"$RUNNER_TEMP/$label-volumes.json" 2>"$RUNNER_TEMP/$label-volumes.stderr"
+            timeout --signal=TERM --kill-after=10s 60s fly releases --app "$app" --image --json >"$RUNNER_TEMP/$label-releases.json" 2>"$RUNNER_TEMP/$label-releases.stderr"
+            rm -f "$RUNNER_TEMP/$label-machines.stderr" "$RUNNER_TEMP/$label-volumes.stderr" "$RUNNER_TEMP/$label-releases.stderr"
+          }
+
+          assert_inventory() {
+            local label=$1
+            local phase=$2
+            local asserted_machine_id=${3:-$current_machine_id}
+            local asserted_volume_id=${4:-$current_volume_id}
+            local asserted_private_ipv6=${5:-$current_private_ipv6}
+            LABEL="$label" PHASE="$phase" CURRENT_MACHINE_ID="$asserted_machine_id" \
+              CURRENT_VOLUME_ID="$asserted_volume_id" CURRENT_PRIVATE_IPV6="$asserted_private_ipv6" \
+              PARITY_MACHINE_NAME="$parity_machine_name" PARITY_VOLUME_NAME="$parity_volume_name" \
+              env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const root = process.env.RUNNER_TEMP;
+          const label = process.env.LABEL;
+          const machines = JSON.parse(fs.readFileSync(`${root}/${label}-machines.json`, 'utf8'));
+          const volumes = JSON.parse(fs.readFileSync(`${root}/${label}-volumes.json`, 'utf8'));
+          const releasesRaw = JSON.parse(fs.readFileSync(`${root}/${label}-releases.json`, 'utf8'));
+          const releases = Array.isArray(releasesRaw) ? releasesRaw : (releasesRaw.releases || releasesRaw.data || []);
+          if (!Array.isArray(machines) || !Array.isArray(volumes) || !Array.isArray(releases) || releases.length === 0) throw new Error('Fly JSON contract differs');
+          const releaseStatus = (r) => String(r.Status ?? r.status ?? '').toLowerCase();
+          const release = releases.find((r) => ['complete', 'completed', 'success', 'succeeded'].includes(releaseStatus(r))) || releases[0];
+          const rawRelease = release.Version ?? release.version ?? release.ID ?? release.id;
+          const releaseId = /^\d+$/.test(String(rawRelease)) ? `v${rawRelease}` : String(rawRelease);
+          const releaseImage = release.ImageRef ?? release.imageRef ?? release.image_ref ?? release.Image ?? release.image;
+          if (releaseId !== process.env.EXPECTED_LIVE_RELEASE || releaseImage !== process.env.LIVE_IMAGE) throw new Error('Live release or image changed');
+          const prod = machines.find((m) => m.id === process.env.EXPECTED_PRODUCTION_MACHINE_ID);
+          if (!prod || (prod.region ?? prod.Region) !== 'syd') throw new Error('Exact production Machine is absent');
+          const prodVolume = volumes.find((v) => v.id === process.env.EXPECTED_PRODUCTION_VOLUME_ID);
+          if (!prodVolume || prodVolume.state !== 'created' || prodVolume.name !== 'assesssuite_data' || prodVolume.region !== 'syd' || prodVolume.size_gb !== 3 || prodVolume.encrypted !== true || prodVolume.attached_machine_id !== prod.id) throw new Error('Production Volume identity/topology changed');
+          const prodMounts = prod.config?.mounts;
+          if (!Array.isArray(prodMounts) || prodMounts.length !== 1 || prodMounts[0]?.volume !== prodVolume.id || prodMounts[0]?.path !== '/app/server/data') throw new Error('Production mount changed');
+          if (machines.some((m) => m.id !== prod.id && (m.config?.mounts || []).some((mount) => mount.volume === prodVolume.id))) throw new Error('A parity Machine references the production Volume');
+          const parityMachines = machines.filter((m) => m.id !== prod.id);
+          const parityVolumes = volumes.filter((v) => v.id !== prodVolume.id);
+          const expected = {
+            clean: [0, 0],
+            'volume-only': [0, 1],
+            'machine-present': [1, 1],
+          }[process.env.PHASE];
+          if (!expected || parityMachines.length !== expected[0] || parityVolumes.length !== expected[1]) throw new Error(`Parity topology differs for ${process.env.PHASE}`);
+          if (parityVolumes.length === 1) {
+            const v = parityVolumes[0];
+            if (v.state !== 'created' || v.name !== process.env.PARITY_VOLUME_NAME || v.region !== 'syd' || v.size_gb !== 3 || v.encrypted !== true || v.snapshot_retention !== 5 || v.auto_backup_enabled !== true) throw new Error('Parity Volume is not the exact encrypted 3GB clone topology');
+            if (process.env.CURRENT_VOLUME_ID !== 'NOT-CREATED' && v.id !== process.env.CURRENT_VOLUME_ID) throw new Error('Parity Volume selector differs');
+            if (parityMachines.length === 0 && v.attached_machine_id !== null) throw new Error('Parity Volume is unexpectedly attached');
+          }
+          if (parityMachines.length === 1) {
+            const m = parityMachines[0];
+            const c = m.config || {};
+            const env = c.env || {};
+            const requiredEnv = {
+              NODE_ENV: 'production', PORT: '8787', ASSESSSUITE_BIND_HOST: 'fly-local-6pn',
+              PARITY_ASSURANCE_MODE: '1', ALLOW_OPEN_REGISTRATION: '0',
+              ADMIN_EMAIL: 'admin@asr-r2-20260721.seed.test', OUTBOUND_EMAIL_ENABLED: '0',
+              OUTBOUND_SMS_ENABLED: '0', PAYMENTS_ENABLED: '0', DOCUMENT_EXTRACTION_ENABLED: '1',
+              DOCUMENT_EXTRACTION_UNDER_13_ENABLED: '0', OPENAI_HEALTH_DATA_TERMS_CONFIRMED: '1',
+              GENERAL_CLINICAL_LLM_ENABLED: '0', TRANSCRIPTION_ENABLED: '0',
+              ASSESSSUITE_DB_PATH: '/app/server/data/assesssuite-parity.db',
+              UPLOADS_DIR: '/app/server/data/assesssuite-parity-uploads',
+              PARITY_NAMESPACE: 'asr-r2-20260721', PARITY_PROVIDER_CALL_LIMIT: '1',
+              LLM_REQUIRED: '1', UPLOAD_AUDIT_RETENTION_DAYS: '730',
+              UPLOAD_CLEANUP_INTERVAL_MINUTES: '1', LEGAL_STATUS: 'effective',
+              LEGAL_EFFECTIVE_DATE: '19 July 2026',
+            };
+            for (const [key, value] of Object.entries(requiredEnv)) if (env[key] !== value) throw new Error(`Parity env ${key} differs`);
+            if (Object.hasOwn(env, 'ASSESSSUITE_DB_PATH_ACK')) throw new Error('Test-only DB acknowledgement persisted on the Machine');
+            if (m.id === prod.id || m.id !== process.env.CURRENT_MACHINE_ID || m.name !== process.env.PARITY_MACHINE_NAME || m.private_ip !== process.env.CURRENT_PRIVATE_IPV6 || !/^fdaa:[0-9a-f:]+$/.test(m.private_ip)) throw new Error('Exact parity Machine selector differs');
+            if (c.image !== process.env.LIVE_IMAGE || (m.region ?? m.Region) !== 'syd') throw new Error('Parity image or region differs');
+            const services = c.services ?? [];
+            if (!Array.isArray(services) || services.length !== 0) throw new Error('Parity Machine exposes a Fly service');
+            if (c.dns?.skip_registration !== true) throw new Error('Parity Machine registered in internal DNS');
+            if (c.restart?.policy !== 'no') throw new Error('Parity restart policy differs');
+            if (c.auto_destroy === true) throw new Error('Parity Machine auto-destroy bypasses verified cleanup');
+            const guest = c.guest || {};
+            if (guest.cpu_kind !== 'shared' || Number(guest.cpus) !== 1 || Number(guest.memory_mb) !== 512) throw new Error('Parity VM resources differ');
+            const mounts = c.mounts;
+            if (!Array.isArray(mounts) || mounts.length !== 1 || mounts[0]?.volume !== parityVolumes[0]?.id || mounts[0]?.path !== '/app/server/data' || mounts[0]?.encrypted !== true || mounts[0]?.size_gb !== 3) throw new Error('Parity mount differs');
+            if (c.metadata?.asr_r2_namespace !== 'asr-r2-20260721' || c.metadata?.asr_r2_role !== 'synthetic-assurance') throw new Error('Parity mission metadata differs');
+            const cmd = c.init?.cmd ?? c.cmd;
+            const expectedCmd = ['timeout', '--signal=TERM', '--kill-after=30s', '2700s', 'sh', '-c', 'node server/productionBootstrap.mjs && exec node server/index.mjs'];
+            if (JSON.stringify(cmd) !== JSON.stringify(expectedCmd)) throw new Error('Hard 2700-second Machine TTL differs');
+          }
+          NODE
+          }
+
+          discover_volume() {
+            LABEL="$1" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const rows = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/${process.env.LABEL}-volumes.json`, 'utf8'));
+          const found = rows.filter((v) => v.id !== process.env.EXPECTED_PRODUCTION_VOLUME_ID && v.name === 'asr_r2_parity_data');
+          if (found.length !== 1 || !/^vol_[A-Za-z0-9]+$/.test(found[0].id)) throw new Error('Created parity Volume cannot be selected exactly');
+          process.stdout.write(found[0].id);
+          NODE
+          }
+
+          discover_machine() {
+            LABEL="$1" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const rows = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/${process.env.LABEL}-machines.json`, 'utf8'));
+          const found = rows.filter((m) => m.id !== process.env.EXPECTED_PRODUCTION_MACHINE_ID && m.name === 'asr-r2-parity-20260721');
+          if (found.length !== 1 || !/^[0-9a-f]{14,32}$/.test(found[0].id) || !/^fdaa:[0-9a-f:]+$/.test(found[0].private_ip)) throw new Error('Created parity Machine cannot be selected exactly');
+          process.stdout.write(`${found[0].id}\t${found[0].private_ip}`);
+          NODE
+          }
+
+          assert_secret_name_boundary() {
+            timeout --signal=TERM --kill-after=10s 60s fly secrets list --app "$app" --json >"$RUNNER_TEMP/secret-names.json" 2>"$RUNNER_TEMP/secret-names.stderr"
+            rm -f "$RUNNER_TEMP/secret-names.stderr"
+            env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const rows = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/secret-names.json`, 'utf8'));
+          if (!Array.isArray(rows)) throw new Error('Fly secret-name payload differs');
+          if (rows.some((r) => Object.keys(r).some((k) => /^(value|raw_value|secret_value)$/i.test(k)))) throw new Error('Secret values entered the release boundary');
+          const names = rows.map((r) => r.Name ?? r.name);
+          if (names.some((name) => typeof name !== 'string' || !/^[A-Z][A-Z0-9_]{1,127}$/.test(name)) || new Set(names).size !== names.length) throw new Error('Fly secret names are invalid or duplicated');
+          const expected = [
+            'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',
+            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',
+            'OPENAI_API_KEY',
+          ];
+          if (JSON.stringify([...names].sort()) !== JSON.stringify([...expected].sort())) throw new Error('Parity requires the exact eight-name production secret allowlist');
+          NODE
+            rm -f "$RUNNER_TEMP/secret-names.json"
+          }
+
+          parse_framed_receipt() {
+            local raw=$1
+            local output=$2
+            local receipt_action=$3
+            RAW="$raw" OUTPUT="$output" RECEIPT_ACTION="$receipt_action" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const text = fs.readFileSync(process.env.RAW, 'utf8');
+          if (Buffer.byteLength(text) > 262144) throw new Error('Parity output exceeds the content-free bound');
+          const begin = 'ASSESSSUITE_PARITY_RECEIPT_BEGIN';
+          const end = 'ASSESSSUITE_PARITY_RECEIPT_END';
+          if (text.split(begin).length !== 2 || text.split(end).length !== 2) throw new Error('Parity receipt framing differs');
+          const body = text.slice(text.indexOf(begin) + begin.length, text.indexOf(end)).trim();
+          if (!body || body.includes('\n')) throw new Error('Parity receipt must be exactly one JSON line');
+          const row = JSON.parse(body);
+          if (row.action !== process.env.RECEIPT_ACTION || row.result !== 'PASS' || row.namespace !== 'asr-r2-20260721') throw new Error('Parity receipt identity differs');
+          fs.writeFileSync(process.env.OUTPUT, `${JSON.stringify(row)}\n`, { mode: 0o600 });
+          NODE
+          }
+
+          validate_seed_receipt() {
+            local file=$1
+            local receipt_action=$2
+            FILE="$file" RECEIPT_ACTION="$receipt_action" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.FILE, 'utf8'));
+          const common = row.schema_version === 'assesssuite.production-parity.v1' && row.action === process.env.RECEIPT_ACTION && row.result === 'PASS' && row.namespace === 'asr-r2-20260721' && row.wave_id === process.env.WAVE_ID && row.config_sha256 === process.env.CANDIDATE_CONFIG_SHA256 && row.runner_sha256 === process.env.PARITY_RUNNER_SHA256 && row.fixture_sha256 === process.env.PARITY_FIXTURE_SHA256 && row.cleanup_sha256 === process.env.PARITY_CLEANUP_SHA256 && row.database_path === '/app/server/data/assesssuite-parity.db' && row.uploads_dir === '/app/server/data/assesssuite-parity-uploads';
+          if (!common) throw new Error('Seed receipt identity or exact paths differ');
+          if (row.action === 'seed') {
+            const keys = ['schema_version','action','result','namespace','wave_id','runner_sha256','fixture_sha256','cleanup_sha256','config_sha256','database_path','uploads_dir','synthetic_seed_present','synthetic_seed_rows','synthetic_user_count','synthetic_admin_count','clinical_rows','provider_requests','outbound_email_attempts','outbound_sms_attempts','payment_attempts'].sort();
+            if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys) || row.synthetic_seed_present !== true || row.synthetic_seed_rows !== (row.wave_id === 'wave-1' ? 4 : 6) || row.synthetic_user_count !== 1 || row.synthetic_admin_count !== 1 || row.clinical_rows !== 0 || row.provider_requests !== 0 || row.outbound_email_attempts !== 0 || row.outbound_sms_attempts !== 0 || row.payment_attempts !== 0) throw new Error('Seed receipt proof differs');
+          } else {
+            const keys = ['schema_version','action','result','namespace','wave_id','runner_sha256','fixture_sha256','cleanup_sha256','config_sha256','database_path','uploads_dir','server_ready','synthetic_seed_present','membership_count','legal_receipt_count','clinical_rows'].sort();
+            if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys) || row.server_ready !== true || row.synthetic_seed_present !== true || row.membership_count !== (row.wave_id === 'wave-1' ? 1 : 2) || row.legal_receipt_count !== 0 || row.clinical_rows !== 0) throw new Error('Verify-seed receipt proof differs');
+          }
+          NODE
+          }
+
+          wait_parity_server() {
+            local command="node -e \"fetch('http://['+process.env.FLY_PRIVATE_IP+']:8787/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""
+            for attempt in $(seq 1 30); do
+              if timeout --signal=TERM --kill-after=5s 20s fly machine exec "$current_machine_id" "$command" --app "$app" --timeout 15 >/dev/null 2>"$RUNNER_TEMP/readiness.stderr"; then
+                rm -f "$RUNNER_TEMP/readiness.stderr"
+                return 0
+              fi
+              rm -f "$RUNNER_TEMP/readiness.stderr"
+              sleep 2
+            done
+            return 1
+          }
+
+          exec_parity_driver() {
+            local mode=$1
+            local output=$2
+            local runtime_prefix='env -u ASSESSSUITE_DB_PATH_ACK NODE_ENV=production'
+            if [[ "$mode" == "seed" ]]; then
+              runtime_prefix='env NODE_ENV=test ASSESSSUITE_DB_PATH_ACK=I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_NON_PRODUCTION_GATE_DATABASE'
+            fi
+            local command="$runtime_prefix PARITY_NAMESPACE=$PARITY_NAMESPACE PARITY_WAVE_ID=$WAVE_ID PARITY_PROVIDER_CALL_LIMIT=1 PARITY_CONFIG_SHA256=$CANDIDATE_CONFIG_SHA256 PARITY_RUNNER_SHA256=$PARITY_RUNNER_SHA256 PARITY_FIXTURE_SHA256=$PARITY_FIXTURE_SHA256 PARITY_CLEANUP_SHA256=$PARITY_CLEANUP_SHA256 node /app/server/tests/production-parity-cleanup.mjs $mode"
+            timeout --signal=TERM --kill-after=10s 240s fly machine exec "$current_machine_id" "$command" --app "$app" --timeout 220 >"$output" 2>"$output.stderr"
+            rm -f "$output.stderr"
+          }
+
+          validate_browser_and_observation() {
+            BROWSER="$1" OBSERVATION="$2" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const browser = JSON.parse(fs.readFileSync(process.env.BROWSER, 'utf8'));
+          const observation = JSON.parse(fs.readFileSync(process.env.OBSERVATION, 'utf8'));
+          const exactKeys = (row, keys, label) => {
+            if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify([...keys].sort())) throw new Error(`${label} receipt keys differ`);
+          };
+          exactKeys(browser, ['schema_version','action','result','namespace','wave_id','runner_sha256','fixture_sha256','cleanup_sha256','config_sha256','base_url','synthetic_user_count','synthetic_document_count','provider_call_limit','profile_setup_post_payment_surface','mandatory_checkbox_count','marketing_checkbox_count','marketing_default_checked','required_notice_links_present','adult_only_control_present','paediatric_control_present','state_territory_jurisdiction_control_present','date_of_birth_control_present','signup_acceptance_submissions','signup_acceptance_retry_requests','single_practice_uploader_present','multi_practice_uploader_present','mandatory_review_presented','review_commit_required','referral_commit_performed','api_observed_client_records_created','screenshot_files','screenshot_sha256'], 'Browser');
+          exactKeys(observation, ['schema_version','action','result','namespace','wave_id','runner_sha256','fixture_sha256','cleanup_sha256','config_sha256','database_path','uploads_dir','provider_call_limit','provider_requests','outbound_email_attempts','outbound_sms_attempts','payment_attempts','clinical_rows_before','clinical_rows_after','clinical_writes','referral_commits','client_records_created','namespace_rows','namespace_files','production_volume_path_accesses','signup_profile_writes','signup_acceptance_rows','signup_acceptance_document_rows','signup_acceptance_role','duplicate_signup_acceptance_rows'], 'Observation');
+          const common = (r) => r.schema_version === 'assesssuite.production-parity.v1' && r.result === 'PASS' && r.namespace === 'asr-r2-20260721' && r.wave_id === process.env.WAVE_ID && r.config_sha256 === process.env.CANDIDATE_CONFIG_SHA256 && r.runner_sha256 === process.env.PARITY_RUNNER_SHA256 && r.fixture_sha256 === process.env.PARITY_FIXTURE_SHA256 && r.cleanup_sha256 === process.env.PARITY_CLEANUP_SHA256;
+          if (!common(browser) || browser.action !== 'browser-wave' || browser.base_url !== 'http://parity-proxy:48787' || browser.synthetic_user_count !== 1 || browser.synthetic_document_count !== 1 || browser.provider_call_limit !== 1 || browser.mandatory_review_presented !== true || browser.review_commit_required !== true || browser.referral_commit_performed !== false || browser.api_observed_client_records_created !== 0) throw new Error('Browser referral receipt differs');
+          if (browser.profile_setup_post_payment_surface !== true || browser.mandatory_checkbox_count !== 1 || browser.marketing_checkbox_count !== 1 || browser.marketing_default_checked !== false || browser.required_notice_links_present !== true || browser.adult_only_control_present !== false || browser.paediatric_control_present !== false || browser.state_territory_jurisdiction_control_present !== false || browser.date_of_birth_control_present !== false || browser.signup_acceptance_submissions !== 1 || browser.signup_acceptance_retry_requests !== 1) throw new Error('Browser signup receipt differs');
+          const expectedSinglePractice = browser.wave_id === 'wave-1';
+          if (browser.single_practice_uploader_present !== expectedSinglePractice || browser.multi_practice_uploader_present !== !expectedSinglePractice) throw new Error('Browser uploader wave mapping differs');
+          const expectedScreenshots = ['signup-consent', 'referral-uploader', 'mandatory-review'].map((suffix) => `asr-r2-20260721-${process.env.WAVE_ID}-${suffix}.png`);
+          if (!Array.isArray(browser.screenshot_files) || JSON.stringify(browser.screenshot_files) !== JSON.stringify(expectedScreenshots) || typeof browser.screenshot_sha256 !== 'object' || Array.isArray(browser.screenshot_sha256) || JSON.stringify(Object.keys(browser.screenshot_sha256).sort()) !== JSON.stringify([...expectedScreenshots].sort()) || expectedScreenshots.some((name) => !/^[0-9a-f]{64}$/.test(browser.screenshot_sha256[name] || ''))) throw new Error('Bounded screenshot manifest differs');
+          if (!common(observation) || observation.action !== 'observe-wave' || observation.provider_call_limit !== 1 || observation.provider_requests !== 1 || observation.outbound_email_attempts !== 0 || observation.outbound_sms_attempts !== 0 || observation.payment_attempts !== 0 || observation.clinical_writes !== 0 || observation.referral_commits !== 0 || observation.client_records_created !== 0 || observation.production_volume_path_accesses !== 0 || observation.signup_profile_writes !== 1 || observation.signup_acceptance_rows !== 1 || observation.duplicate_signup_acceptance_rows !== 0 || observation.signup_acceptance_role !== 'invited_clinician' || observation.signup_acceptance_document_rows !== 3) throw new Error('Machine-local observation receipt differs');
+          if (observation.database_path !== '/app/server/data/assesssuite-parity.db' || observation.uploads_dir !== '/app/server/data/assesssuite-parity-uploads' || observation.clinical_rows_before !== observation.clinical_rows_after) throw new Error('Machine-local exact-path proof differs');
+          NODE
+          }
+
+          validate_cleanup() {
+            CLEANUP="$1" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.CLEANUP, 'utf8'));
+          const keys = ['schema_version','action','result','namespace','wave_id','runner_sha256','fixture_sha256','cleanup_sha256','config_sha256','database_path','uploads_dir','rows_deleted','files_deleted','remaining_namespace_rows','remaining_namespace_files','nonnamespace_rows_touched','nonnamespace_files_touched','clinical_rows_deleted'].sort();
+          if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys)) throw new Error('Cleanup receipt keys differ');
+          if (row.schema_version !== 'assesssuite.production-parity.v1' || row.action !== 'cleanup-and-verify' || row.result !== 'PASS' || row.namespace !== 'asr-r2-20260721' || row.wave_id !== process.env.WAVE_ID || row.config_sha256 !== process.env.CANDIDATE_CONFIG_SHA256 || row.runner_sha256 !== process.env.PARITY_RUNNER_SHA256 || row.fixture_sha256 !== process.env.PARITY_FIXTURE_SHA256 || row.cleanup_sha256 !== process.env.PARITY_CLEANUP_SHA256) throw new Error('Cleanup receipt identity differs');
+          if (row.database_path !== '/app/server/data/assesssuite-parity.db' || row.uploads_dir !== '/app/server/data/assesssuite-parity-uploads' || !Number.isInteger(row.rows_deleted) || row.rows_deleted < 0 || !Number.isInteger(row.files_deleted) || row.files_deleted < 0 || row.remaining_namespace_rows !== 0 || row.remaining_namespace_files !== 0 || row.nonnamespace_rows_touched !== 0 || row.nonnamespace_files_touched !== 0 || row.clinical_rows_deleted !== 0) throw new Error('Cleanup zero-residue proof differs');
+          NODE
+          }
+
+          assert_secret_name_boundary
+          fetch_inventory pre
+          case "$ACTION" in
+            volume-create)
+              assert_inventory pre clean
+              [[ "$current_machine_id" == "NOT-CREATED" && "$current_volume_id" == "NOT-CREATED" && "$current_private_ipv6" == "NOT-CREATED" ]]
+              production_effects_started=1
+              timeout --signal=TERM --kill-after=10s 180s fly volumes create "$parity_volume_name" --app "$app" --count 1 --size 3 --region syd --snapshot-retention 5 --scheduled-snapshots=true --require-unique-zone=false --json --yes >"$RUNNER_TEMP/volume-create.raw" 2>"$RUNNER_TEMP/volume-create.stderr"
+              rm -f "$RUNNER_TEMP/volume-create.raw" "$RUNNER_TEMP/volume-create.stderr"
+              fetch_inventory post
+              current_volume_id="$(discover_volume post)"
+              assert_inventory post volume-only
+              ;;
+            machine-create)
+              assert_inventory pre volume-only
+              [[ "$current_machine_id" == "NOT-CREATED" && "$current_private_ipv6" == "NOT-CREATED" ]]
+              production_effects_started=1
+              (
+                cd "$RUNNER_TEMP"
+              timeout --signal=TERM --kill-after=10s 240s fly machine run "$LIVE_IMAGE" --app "$app" --name "$parity_machine_name" --region syd --volume "$current_volume_id:/app/server/data" --metadata "asr_r2_namespace=$PARITY_NAMESPACE" --metadata 'asr_r2_role=synthetic-assurance' --env 'NODE_ENV=production' --env 'PORT=8787' --env 'ASSESSSUITE_BIND_HOST=fly-local-6pn' --env 'PARITY_ASSURANCE_MODE=1' --env 'ALLOW_OPEN_REGISTRATION=0' --env 'ADMIN_EMAIL=admin@asr-r2-20260721.seed.test' --env 'OUTBOUND_EMAIL_ENABLED=0' --env 'OUTBOUND_SMS_ENABLED=0' --env 'PAYMENTS_ENABLED=0' --env 'DOCUMENT_EXTRACTION_ENABLED=1' --env 'DOCUMENT_EXTRACTION_UNDER_13_ENABLED=0' --env 'OPENAI_HEALTH_DATA_TERMS_CONFIRMED=1' --env 'GENERAL_CLINICAL_LLM_ENABLED=0' --env 'TRANSCRIPTION_ENABLED=0' --env 'ASSESSSUITE_DB_PATH=/app/server/data/assesssuite-parity.db' --env 'UPLOADS_DIR=/app/server/data/assesssuite-parity-uploads' --env "PARITY_NAMESPACE=$PARITY_NAMESPACE" --env 'PARITY_PROVIDER_CALL_LIMIT=1' --env 'LLM_REQUIRED=1' --env 'UPLOAD_AUDIT_RETENTION_DAYS=730' --env 'UPLOAD_CLEANUP_INTERVAL_MINUTES=1' --env 'LEGAL_STATUS=effective' --env 'LEGAL_EFFECTIVE_DATE=19 July 2026' --restart no --autostart=false --autostop=off --skip-dns-registration --vm-cpu-kind shared --vm-cpus 1 --vm-memory 512 --detach -- timeout --signal=TERM --kill-after=30s 2700s sh -c 'node server/productionBootstrap.mjs && exec node server/index.mjs' >"$RUNNER_TEMP/machine-create.raw" 2>"$RUNNER_TEMP/machine-create.stderr"
+              )
+              rm -f "$RUNNER_TEMP/machine-create.raw" "$RUNNER_TEMP/machine-create.stderr"
+              for attempt in $(seq 1 30); do
+                fetch_inventory post
+                if machine_identity="$(discover_machine post 2>/dev/null)"; then break; fi
+                sleep 5
+              done
+              [[ -n "${machine_identity:-}" ]]
+              IFS=$'\t' read -r current_machine_id current_private_ipv6 <<<"$machine_identity"
+              assert_inventory post machine-present
+              wait_parity_server
+              exec_parity_driver seed "$RUNNER_TEMP/seed.raw"
+              parse_framed_receipt "$RUNNER_TEMP/seed.raw" "$RUNNER_TEMP/seed.json" seed
+              validate_seed_receipt "$RUNNER_TEMP/seed.json" seed
+              exec_parity_driver verify-seed "$RUNNER_TEMP/verify-seed.raw"
+              parse_framed_receipt "$RUNNER_TEMP/verify-seed.raw" "$RUNNER_TEMP/verify-seed.json" verify-seed
+              validate_seed_receipt "$RUNNER_TEMP/verify-seed.json" verify-seed
+              ;;
+            provider-wave)
+              assert_inventory pre machine-present
+              production_effects_started=1
+              timeout --signal=TERM --kill-after=10s 900s fly proxy 48787:8787 "$current_private_ipv6" --app "$app" --bind-addr 127.0.0.1 --quiet >"$RUNNER_TEMP/proxy.raw" 2>"$RUNNER_TEMP/proxy.stderr" &
+              proxy_pid=$!
+              for attempt in $(seq 1 60); do
+                if curl --fail --silent --show-error --max-time 3 'http://127.0.0.1:48787/api/health' >/dev/null 2>&1; then break; fi
+                sleep 2
+              done
+              curl --fail --silent --show-error --max-time 5 'http://127.0.0.1:48787/api/health' >/dev/null
+              [[ ! -e "$RUNNER_TEMP/parity-screenshots" ]]
+              mkdir -m 0700 "$RUNNER_TEMP/parity-screenshots"
+              browser_network="asr-r2-browser-${GITHUB_RUN_ID_VALUE}-${GITHUB_RUN_ATTEMPT_VALUE}"
+              control_network="asr-r2-control-${GITHUB_RUN_ID_VALUE}-${GITHUB_RUN_ATTEMPT_VALUE}"
+              docker network create --driver bridge --internal "$browser_network" >/dev/null
+              docker network create --driver bridge "$control_network" >/dev/null
+              proxy_image='docker.io/library/node:24.4.1-bookworm-slim@sha256:36ae19f59c91f3303c7a648f07493fe14c4bd91320ac8d898416327bacf1bbfa'
+              relay_container="$(docker run --detach --name "asr-r2-relay-${GITHUB_RUN_ID_VALUE}-${GITHUB_RUN_ATTEMPT_VALUE}" \
+                --network "$control_network" --add-host host.docker.internal:host-gateway \
+                --read-only --cap-drop ALL --security-opt no-new-privileges:true --pids-limit 64 --memory 128m --cpus 0.25 \
+                --tmpfs /tmp:rw,nosuid,nodev,size=32m --entrypoint node "$proxy_image" --input-type=module -e \
+                "import net from 'node:net';net.createServer((client)=>{const upstream=net.createConnection({host:'host.docker.internal',port:48787});client.pipe(upstream);upstream.pipe(client);const close=()=>{client.destroy();upstream.destroy();};client.on('error',close);upstream.on('error',close);}).listen(48787,'0.0.0.0');")"
+              [[ "$relay_container" =~ ^[0-9a-f]{64}$ ]]
+              docker network connect --alias parity-proxy "$browser_network" "$relay_container"
+              for attempt in $(seq 1 30); do
+                if docker run --rm --network "$browser_network" --read-only --cap-drop ALL --security-opt no-new-privileges:true \
+                  --pids-limit 32 --memory 64m --cpus 0.25 --entrypoint node "$proxy_image" \
+                  -e "fetch('http://parity-proxy:48787/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"; then break; fi
+                sleep 2
+              done
+              parity_runner_image="assesssuite-parity-runner:$APPLICATION_SHA"
+              timeout --signal=TERM --kill-after=30s 900s docker run --rm \
+                --network "$browser_network" --read-only --cap-drop ALL --security-opt no-new-privileges:true \
+                --pids-limit 512 --memory 1g --cpus 1 --shm-size 256m \
+                --user "$(id -u):$(id -g)" --tmpfs /tmp:rw,nosuid,nodev,size=512m \
+                --mount type=bind,source="$RUNNER_TEMP/parity-screenshots",target=/artifacts \
+                --env HOME=/tmp --env NODE_ENV=production --env PARITY_ASSURANCE_MODE=1 \
+                --env PARITY_NAMESPACE="$PARITY_NAMESPACE" --env PARITY_WAVE_ID="$WAVE_ID" \
+                --env PARITY_BASE_URL=http://parity-proxy:48787 --env PARITY_PROVIDER_CALL_LIMIT=1 --env PARITY_ARTIFACT_DIR=/artifacts \
+                --env ASSESSSUITE_DB_PATH=/app/server/data/assesssuite-parity.db --env UPLOADS_DIR=/app/server/data/assesssuite-parity-uploads \
+                --env OUTBOUND_EMAIL_ENABLED=0 --env OUTBOUND_SMS_ENABLED=0 --env PAYMENTS_ENABLED=0 --env DOCUMENT_EXTRACTION_ENABLED=1 \
+                --env DOCUMENT_EXTRACTION_UNDER_13_ENABLED=0 --env OPENAI_HEALTH_DATA_TERMS_CONFIRMED=1 --env GENERAL_CLINICAL_LLM_ENABLED=0 \
+                --env TRANSCRIPTION_ENABLED=0 --env ALLOW_OPEN_REGISTRATION=0 --env ADMIN_EMAIL=admin@asr-r2-20260721.seed.test \
+                --env PARITY_CONFIG_SHA256="$CANDIDATE_CONFIG_SHA256" --env PARITY_RUNNER_SHA256="$PARITY_RUNNER_SHA256" \
+                --env PARITY_FIXTURE_SHA256="$PARITY_FIXTURE_SHA256" --env PARITY_CLEANUP_SHA256="$PARITY_CLEANUP_SHA256" \
+                --entrypoint node "$parity_runner_image" server/tests/production-parity-wave.mjs run-wave \
+                >"$RUNNER_TEMP/browser.raw" 2>"$RUNNER_TEMP/browser.stderr"
+              cleanup_browser_boundary
+              rm -f "$RUNNER_TEMP/browser.stderr"
+              parse_framed_receipt "$RUNNER_TEMP/browser.raw" "$RUNNER_TEMP/browser.json" browser-wave
+              exec_parity_driver observe-wave "$RUNNER_TEMP/observation.raw"
+              parse_framed_receipt "$RUNNER_TEMP/observation.raw" "$RUNNER_TEMP/observation.json" observe-wave
+              validate_browser_and_observation "$RUNNER_TEMP/browser.json" "$RUNNER_TEMP/observation.json"
+              browser_receipt_sha256="$(sha256sum "$RUNNER_TEMP/browser.json" | awk '{print $1}')"
+              observation_receipt_sha256="$(sha256sum "$RUNNER_TEMP/observation.json" | awk '{print $1}')"
+              screenshot_sha256="$(env -u FLY_API_TOKEN node --input-type=module -e "import fs from 'node:fs';const r=JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/browser.json','utf8'));process.stdout.write(JSON.stringify(r.screenshot_sha256));")"
+              mkdir -p "$RUNNER_TEMP/bounded-synthetic-screenshots"
+              env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs'; import path from 'node:path'; import { createHash } from 'node:crypto';
+          const row = JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/browser.json`, 'utf8'));
+          for (const name of row.screenshot_files) {
+            const source = path.join(process.env.RUNNER_TEMP, 'parity-screenshots', name);
+            const data = fs.readFileSync(source);
+            if (data.length < 1024 || data.length > 2_000_000 || createHash('sha256').update(data).digest('hex') !== row.screenshot_sha256[name]) throw new Error('Synthetic screenshot hash or size differs');
+            fs.copyFileSync(source, path.join(process.env.RUNNER_TEMP, 'bounded-synthetic-screenshots', name));
+          }
+          NODE
+              kill "$proxy_pid" 2>/dev/null || true
+              wait "$proxy_pid" 2>/dev/null || true
+              proxy_pid=
+              fetch_inventory post
+              assert_inventory post machine-present
+              ;;
+            namespace-cleanup)
+              assert_inventory pre machine-present
+              production_effects_started=1
+              exec_parity_driver cleanup-and-verify "$RUNNER_TEMP/cleanup.raw"
+              parse_framed_receipt "$RUNNER_TEMP/cleanup.raw" "$RUNNER_TEMP/cleanup.json" cleanup-and-verify
+              validate_cleanup "$RUNNER_TEMP/cleanup.json"
+              cleanup_receipt_sha256="$(sha256sum "$RUNNER_TEMP/cleanup.json" | awk '{print $1}')"
+              fetch_inventory post
+              assert_inventory post machine-present
+              ;;
+            machine-delete)
+              assert_inventory pre machine-present
+              production_effects_started=1
+              timeout --signal=TERM --kill-after=10s 180s fly machine destroy --force --app "$app" "$current_machine_id" >"$RUNNER_TEMP/machine-delete.raw" 2>"$RUNNER_TEMP/machine-delete.stderr"
+              rm -f "$RUNNER_TEMP/machine-delete.raw" "$RUNNER_TEMP/machine-delete.stderr"
+              for attempt in $(seq 1 30); do
+                fetch_inventory post
+                if assert_inventory post volume-only NOT-CREATED "$current_volume_id" NOT-CREATED 2>/dev/null; then break; fi
+                sleep 5
+              done
+              assert_inventory post volume-only NOT-CREATED "$current_volume_id" NOT-CREATED
+              current_machine_id=NOT-CREATED
+              current_private_ipv6=NOT-CREATED
+              ;;
+            volume-delete)
+              assert_inventory pre volume-only
+              production_effects_started=1
+              timeout --signal=TERM --kill-after=10s 180s fly volumes destroy "$current_volume_id" --app "$app" --yes >"$RUNNER_TEMP/volume-delete.raw" 2>"$RUNNER_TEMP/volume-delete.stderr"
+              rm -f "$RUNNER_TEMP/volume-delete.raw" "$RUNNER_TEMP/volume-delete.stderr"
+              for attempt in $(seq 1 30); do
+                fetch_inventory post
+                if assert_inventory post clean NOT-CREATED NOT-CREATED NOT-CREATED 2>/dev/null; then break; fi
+                sleep 5
+              done
+              assert_inventory post clean NOT-CREATED NOT-CREATED NOT-CREATED
+              current_volume_id=NOT-CREATED
+              [[ "$current_machine_id" == "NOT-CREATED" && "$current_private_ipv6" == "NOT-CREATED" && "$current_volume_id" == "NOT-CREATED" ]]
+              cleanup_required=false
+              ;;
+          esac
+
+      - name: Upload content-free parity receipt
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: assesssuite-production-parity-receipt
+          path: ${{ runner.temp }}/parity-receipt.json
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+          overwrite: false
+
+      - name: Upload bounded synthetic screenshots only
+        if: ${{ always() && inputs.action == 'provider-wave' && steps.execute.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: assesssuite-production-parity-screenshots-${{ inputs.wave_id }}
+          path: ${{ runner.temp }}/bounded-synthetic-screenshots/*.png
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+          overwrite: false

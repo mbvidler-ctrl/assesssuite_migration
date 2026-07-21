@@ -10,9 +10,11 @@ import { ClientCondition, ClientAssessment, Assessment, User, Client } from "@/e
 import { ClientReport } from "@/entities/ClientReport";
 import { InvokeLLM } from "@/integrations/Core";
 import { Wand2, Printer, Loader2, Sparkles, ChevronLeft, ChevronRight, Save, Edit } from "lucide-react";
+import { SecureFileImage } from "@/components/files/SecureFile";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
 import { Badge } from "@/components/ui/badge"; // Added Badge import
+import { renderSafeHtmlDocument, replaceWithSafeHtml, sanitizeHtml } from "@/lib/safeHtml";
 
 const PrintableReport = React.forwardRef(({ reportContent, client, clinician }, ref) => {
   // Ensure reportContent is a string before rendering. If it's a data object, extract html_content.
@@ -102,7 +104,7 @@ const PrintableReport = React.forwardRef(({ reportContent, client, clinician }, 
 
       <div className="header">
         {clinician?.clinic_logo_url ? (
-          <img src={clinician.clinic_logo_url} alt="Clinic Logo" style={{ maxWidth: '120px', maxHeight: '60px' }} />
+          <SecureFileImage src={clinician.clinic_logo_url} orgId={client.org_id} alt="Clinic Logo" style={{ maxWidth: '120px', maxHeight: '60px' }} />
         ) : (
           <h2 style={{ margin: 0, fontSize: '11pt', color: '#000' }}>{clinician?.clinic_name || ""}</h2>
         )}
@@ -116,7 +118,7 @@ const PrintableReport = React.forwardRef(({ reportContent, client, clinician }, 
       <div className="report-title">
         DVA Patient Care Plan for {client.full_name}
       </div>
-      <div className="report-content" dangerouslySetInnerHTML={{ __html: contentToRender }} />
+      <div className="report-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(contentToRender) }} />
     </div>
   );
 });
@@ -670,7 +672,7 @@ Return only the improved plain text version with clear structure, no additional 
 </tr>
 <tr>
 <td style="border: 1px solid #000; padding: 8px; background-color: #f8f9fa; font-weight: bold;">Has the client consented to this Patient Care Plan?</td>
-<td style="border: 1px solid #000; padding: 8px;">${clientConsented ? 'Yes ☑' : 'No â˜'}</td>
+<td style="border: 1px solid #000; padding: 8px;">${clientConsented ? 'Yes ☑' : 'No ☐'}</td>
 </tr>
 </tbody>
 </table>
@@ -683,7 +685,7 @@ Return only the improved plain text version with clear structure, no additional 
 <tbody>
 <tr>
 <td style="border: 1px solid #000; padding: 8px; width: 40%; background-color: #f8f9fa; font-weight: bold;">Goals have been set and agreed to with the client:</td>
-<td style="border: 1px solid #000; padding: 8px; width: 60%;">${goalsAgreed === 'yes' ? 'Yes ☑ No â˜' : 'Yes â˜ No ☑'}</td>
+<td style="border: 1px solid #000; padding: 8px; width: 60%;">${goalsAgreed === 'yes' ? 'Yes ☑ No ☐' : 'Yes ☐ No ☑'}</td>
 </tr>
 <tr>
 <td colspan="2" style="border: 1px solid #000; padding: 12px;">
@@ -818,14 +820,14 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
     if (!printWindow) {
       toast.warning("Popup blocked. Using current window print...");
       const originalContent = document.body.innerHTML;
-      document.body.innerHTML = printRef.current.outerHTML;
+      replaceWithSafeHtml(document.body, printRef.current.outerHTML);
       window.print();
-      document.body.innerHTML = originalContent;
+      replaceWithSafeHtml(document.body, originalContent);
       return;
     }
 
     try {
-      printWindow.document.write(`
+      renderSafeHtmlDocument(printWindow, `
         <!DOCTYPE html>
         <html>
         <head>
@@ -837,8 +839,6 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
         </body>
         </html>
       `);
-
-      printWindow.document.close();
 
       setTimeout(() => {
         printWindow.focus();
@@ -1332,7 +1332,7 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
 
                 <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 max-h-60 overflow-y-auto">
                   <h4 className="font-semibold text-slate-800 mb-2">Assessment Results (for reference)</h4>
-                  <div dangerouslySetInnerHTML={{ __html: buildAssessmentTableHTML() }} />
+                  <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(buildAssessmentTableHTML()) }} />
                 </div>
 
                 <div>

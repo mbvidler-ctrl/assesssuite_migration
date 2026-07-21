@@ -1,0 +1,1059 @@
+name: Production prepare release - exact SHA
+
+on:
+  workflow_dispatch:
+    inputs:
+      trusted_workflow_sha:
+        description: Exact current main SHA supplying this trusted workflow; must equal github.workflow_sha and the remote main tip
+        required: true
+        type: string
+      application_sha:
+        description: Exact 40-character application commit SHA; must equal this workflow SHA and the remote main tip
+        required: true
+        type: string
+      candidate_config_sha256:
+        description: Reviewed SHA-256 of the exact candidate fly.production.toml Git blob (LF bytes)
+        required: true
+        type: string
+      rollback_config_sha256:
+        description: Reviewed SHA-256 of the exact fly.rollback.production.toml Git blob from the same main commit (LF bytes)
+        required: true
+        type: string
+      rollback_image:
+        description: Prebuilt legal-version-compatible rollback image reference
+        required: true
+        type: string
+      extraction_runtime_mode:
+        description: Reviewed document-extraction runtime mode in the candidate config
+        required: true
+        default: disabled
+        type: choice
+        options:
+          - disabled
+          - enabled
+      provider_terms_attestation:
+        description: Use EXTRACTION-DISABLED, or the exact terms attestation from the release runbook
+        required: true
+        type: string
+      provider_terms_evidence_id:
+        description: Durable reviewed evidence ID, or NOT-APPLICABLE-EXTRACTION-DISABLED
+        required: true
+        type: string
+      under_age_zdr_runtime_mode:
+        description: Under-13/applicable-age extraction mode; disabled unless ZDR is independently confirmed
+        required: true
+        default: disabled
+        type: choice
+        options:
+          - disabled
+          - enabled
+      under_age_zdr_attestation:
+        description: Use UNDER-AGE-ZDR-DISABLED, or the exact ZDR attestation from the release runbook
+        required: true
+        type: string
+      under_age_zdr_evidence_id:
+        description: Independent ZDR evidence ID, or NOT-APPLICABLE-UNDER-AGE-ZDR-DISABLED
+        required: true
+        type: string
+      capability_intent_id:
+        description: Workspace OS capability-broker publication intent ID with authorised and execution_ready decision
+        required: true
+        type: string
+      authority_reference:
+        description: Mission/order and approved publication-intent reference
+        required: true
+        type: string
+      confirmation:
+        description: Type PREPARE assesssuite-production EXACT SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assesssuite-production
+  cancel-in-progress: false
+
+jobs:
+  gates:
+    name: Verify provenance and run release gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      application_sha: ${{ steps.metadata.outputs.application_sha }}
+      build_timestamp: ${{ steps.metadata.outputs.build_timestamp }}
+      source_branch: ${{ steps.metadata.outputs.source_branch }}
+      candidate_image_artifact_id: ${{ steps.upload_candidate.outputs.artifact-id }}
+      candidate_image_artifact_digest: ${{ steps.upload_candidate.outputs.artifact-digest }}
+      release_control_artifact_id: ${{ steps.upload_controls.outputs.artifact-id }}
+      release_control_artifact_digest: ${{ steps.upload_controls.outputs.artifact-digest }}
+    steps:
+      - name: Validate trusted dispatch context and inputs
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
+          ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
+          SOURCE_BRANCH: main
+          ROLLBACK_SOURCE_SHA: ${{ inputs.application_sha }}
+          ROLLBACK_SOURCE_BRANCH: main
+          ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == "mbvidler-ctrl/assesssuite_migration" ]]
+          [[ "$ACTOR" == "mbvidler-ctrl" ]]
+          [[ "$TRIGGERING_ACTOR" == "mbvidler-ctrl" ]]
+          [[ "$IS_FORK" == "false" ]]
+          [[ "$EVENT_REF" == "refs/heads/main" ]]
+          [[ "$WORKFLOW_REF" == "mbvidler-ctrl/assesssuite_migration/.github/workflows/production-prepare-release.yml@refs/heads/main" ]]
+          [[ "$TRUSTED_WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$CONFIRMATION" == "PREPARE assesssuite-production EXACT SHA" ]]
+          [[ "$APPLICATION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CANDIDATE_CONFIG_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$ROLLBACK_CONFIG_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$ROLLBACK_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$SOURCE_BRANCH" =~ ^[A-Za-z0-9._/-]{1,180}$ ]]
+          [[ "$ROLLBACK_SOURCE_BRANCH" =~ ^[A-Za-z0-9._/-]{1,180}$ ]]
+          [[ "$SOURCE_BRANCH" != *".."* && "$SOURCE_BRANCH" != /* && "$SOURCE_BRANCH" != */ ]]
+          [[ "$ROLLBACK_SOURCE_BRANCH" != *".."* && "$ROLLBACK_SOURCE_BRANCH" != /* && "$ROLLBACK_SOURCE_BRANCH" != */ ]]
+          [[ "$ROLLBACK_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
+          [[ "$SOURCE_BRANCH" == "main" ]]
+          [[ "$ROLLBACK_SOURCE_BRANCH" == "main" ]]
+          [[ "$APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$ROLLBACK_SOURCE_SHA" == "$APPLICATION_SHA" ]]
+          [[ "$CAPABILITY_INTENT_ID" =~ ^[A-Za-z0-9._:-]{1,160}$ ]]
+          [[ "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
+          git check-ref-format "refs/heads/$SOURCE_BRANCH"
+          git check-ref-format "refs/heads/$ROLLBACK_SOURCE_BRANCH"
+
+      - name: Check out exact application SHA
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact SHA and remote branch tip
+        id: metadata
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
+          SOURCE_BRANCH: main
+          EXTRACTION_RUNTIME_MODE: ${{ inputs.extraction_runtime_mode }}
+          PROVIDER_TERMS_ATTESTATION: ${{ inputs.provider_terms_attestation }}
+          PROVIDER_TERMS_EVIDENCE_ID: ${{ inputs.provider_terms_evidence_id }}
+          UNDER_AGE_ZDR_RUNTIME_MODE: ${{ inputs.under_age_zdr_runtime_mode }}
+          UNDER_AGE_ZDR_ATTESTATION: ${{ inputs.under_age_zdr_attestation }}
+          UNDER_AGE_ZDR_EVIDENCE_ID: ${{ inputs.under_age_zdr_evidence_id }}
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse --verify 'HEAD^{commit}')"
+          [[ "$actual_sha" == "$APPLICATION_SHA" ]]
+          remote_sha="$(git ls-remote --exit-code origin "refs/heads/$SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')"
+          [[ "$remote_sha" == "$APPLICATION_SHA" ]]
+          trusted_remote_sha="$(git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')"
+          [[ "$trusted_remote_sha" == "$TRUSTED_WORKFLOW_SHA" ]]
+          git fetch --no-tags --force origin "refs/heads/main:refs/remotes/origin/main"
+          git cat-file -e "$TRUSTED_WORKFLOW_SHA^{commit}"
+          [[ -z "$(git status --porcelain --untracked-files=no)" ]]
+          [[ ! -L fly.production.toml ]]
+          [[ "$(sha256sum fly.production.toml | awk '{print $1}')" == "$CANDIDATE_CONFIG_SHA256" ]]
+
+          if grep -Eq '^[[:space:]]*DOCUMENT_EXTRACTION_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.production.toml; then
+            reviewed_mode=enabled
+          else
+            reviewed_mode=disabled
+          fi
+          [[ "$reviewed_mode" == "$EXTRACTION_RUNTIME_MODE" ]]
+          if [[ "$reviewed_mode" == "enabled" ]]; then
+            [[ "$PROVIDER_TERMS_ATTESTATION" == "TERMS-VERIFIED-HEALTH-DATA-20260719" ]]
+            [[ "$PROVIDER_TERMS_EVIDENCE_ID" == "EVD-20260719-ASSESSSUITE-OPENAI-HEALTH-TERMS-ATTESTATION" ]]
+            [[ "$(grep -Ec '^[[:space:]]*OPENAI_HEALTH_DATA_TERMS_CONFIRMED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          else
+            [[ "$PROVIDER_TERMS_ATTESTATION" == "EXTRACTION-DISABLED" ]]
+            [[ "$PROVIDER_TERMS_EVIDENCE_ID" == "NOT-APPLICABLE-EXTRACTION-DISABLED" ]]
+          fi
+          [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_STATUS[[:space:]]*=[[:space:]]*"effective"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_EFFECTIVE_DATE[[:space:]]*=[[:space:]]*"19 July 2026"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS[[:space:]]*=' fly.production.toml || true)" -eq 0 ]]
+
+          [[ "$(grep -Ec '^[[:space:]]*OPENAI_DOCUMENT_EXTRACTION_MODEL[[:space:]]*=' fly.production.toml || true)" -eq 0 ]]
+
+          if grep -Eq '^[[:space:]]*DOCUMENT_EXTRACTION_UNDER_13_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.production.toml; then
+            reviewed_under_age_mode=enabled
+          else
+            reviewed_under_age_mode=disabled
+          fi
+          [[ "$reviewed_under_age_mode" == "$UNDER_AGE_ZDR_RUNTIME_MODE" ]]
+          if [[ "$reviewed_under_age_mode" == "enabled" ]]; then
+            [[ "$UNDER_AGE_ZDR_ATTESTATION" == "ZDR-VERIFIED-UNDER-AGE-20260719" ]]
+            [[ "$UNDER_AGE_ZDR_EVIDENCE_ID" =~ ^EVD-[A-Za-z0-9._-]{20,100}-ZDR$ ]]
+          else
+            [[ "$UNDER_AGE_ZDR_ATTESTATION" == "UNDER-AGE-ZDR-DISABLED" ]]
+            [[ "$UNDER_AGE_ZDR_EVIDENCE_ID" == "NOT-APPLICABLE-UNDER-AGE-ZDR-DISABLED" ]]
+          fi
+
+          build_timestamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          {
+            echo "application_sha=$APPLICATION_SHA"
+            echo "source_branch=$SOURCE_BRANCH"
+            echo "build_timestamp=$build_timestamp"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Validate Fly and Docker credential/topology boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -f fly.production.toml && ! -L fly.production.toml ]]
+          [[ -f Dockerfile && ! -L Dockerfile ]]
+          if grep -EIn '(^|[[:space:]/])(server/)?seed\.mjs([[:space:]&;]|$)|npm[[:space:]]+run[[:space:]]+seed|synthetic data reseeds on every boot' Dockerfile; then
+            echo 'Candidate Docker startup must not seed or reseed the persistent production database.' >&2
+            exit 1
+          fi
+          if grep -EIn 'FLY_API_TOKEN|\$\{?FLY_|\[\[[^]]*files[^]]*\]\]|\[[^]]*experimental[^]]*\]|local_path|secret_name|raw_value|release_command|^[[:space:]]*\[build\.(args|secrets)\]|build[_-]secret|file[_-]secret|type[[:space:]]*=[[:space:]]*secret|--secret' fly.production.toml Dockerfile; then
+            echo 'Candidate build/deploy configuration contains a forbidden credential, local-file injection, build secret, or release hook.' >&2
+            exit 1
+          fi
+          [[ "$(grep -Ec '^app = "assesssuite-production"$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^primary_region = "syd"$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Fxc '  app = "node server/productionBootstrap.mjs && exec node server/index.mjs"' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^  source = "assesssuite_data"$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^  destination = "/app/server/data"$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^  snapshot_retention = 5$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^  scheduled_snapshots = true$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Fxc '  UPLOAD_AUDIT_RETENTION_DAYS = "730"' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Fxc '  UPLOAD_CLEANUP_INTERVAL_MINUTES = "1"' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^\[\[vm\]\]$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^  memory = "512mb"$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^  cpus = 1$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^  min_machines_running = 1$' fly.production.toml)" -eq 1 ]]
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Fail-closed dependency vulnerability audit
+        run: npm audit --audit-level=moderate
+
+      - name: Validate the exact trusted workflow control
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 63cb8f9a37bed7f8d99aa65a12e5d7efbeb36f838429b829a981dde2dab6c9f5
+        run: |
+          set -euo pipefail
+          trusted_dir="$RUNNER_TEMP/trusted-production-control"
+          cleanup() {
+            git worktree remove --force "$trusted_dir" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          git worktree add --detach "$trusted_dir" "$TRUSTED_WORKFLOW_SHA"
+          echo "$EXPECTED_TRUSTED_VALIDATOR_SHA256  scripts/validate-production-deploy-workflow.mjs" \
+            | (cd "$trusted_dir" && sha256sum --check --strict)
+          for workflow in \
+            production-deploy.yml \
+            production-prepare-release.yml \
+            production-prepare-rollback-image.yml \
+            production-rollback.yml \
+            production-parity-assurance.yml; do
+            node "$trusted_dir/scripts/validate-production-deploy-workflow.mjs" \
+              "$trusted_dir/.github/workflows/$workflow"
+            node "$trusted_dir/scripts/validate-production-deploy-workflow.mjs" \
+              "$trusted_dir/.github/workflows/$workflow" --selftest
+          done
+
+      - name: Require the referral assurance entrypoints and reviewed canary code
+        shell: bash
+        run: |
+          set -euo pipefail
+          # REVIEWED-CANDIDATE-CANARY-SHA256-BEGIN
+          # Refresh this single block only after the final candidate diff is independently reviewed.
+          # These are SHA-256 digests of Git blob bytes (LF), not the Windows worktree representation.
+          # Refresh this block only after the final candidate index is independently reviewed.
+          echo '96c8ecb24cd67df81127923c33ecaea232fe3d8dbbec52006bc7fa7ecfa7a3ae  scripts/referral-production-canary.mjs' | sha256sum --check --strict
+          echo 'e244e9b332b31a14f4ca14d19fc0b7129e045674542cbb5540af3a613f68eb94  scripts/referral-production-canary-contract.mjs' | sha256sum --check --strict
+          echo '55b257d0e732f83f4146b1c0dc836d4bfce730cdf81f935d696bc12adea57ab1  scripts/validate-referral-production-canary-output.mjs' | sha256sum --check --strict
+          echo '1b34b794ab79f5ea022525f31bf70397c629ca0a16baf4320503c6cfdbd36c5c  scripts/scan-release-diff.mjs' | sha256sum --check --strict
+          # REVIEWED-CANDIDATE-CANARY-SHA256-END
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import pkg from './package.json' with { type: 'json' };
+          if (!pkg.scripts?.['test:assurance']) {
+            throw new Error('Required package script test:assurance is absent');
+          }
+          if (!pkg.scripts?.['test:referral-production-canary'] || !pkg.scripts?.['canary:referral:production']) {
+            throw new Error('Required referral production canary entrypoints are absent');
+          }
+          if (!pkg.scripts?.['test:referral-browser']) {
+            throw new Error('Required rendered referral browser gate is absent');
+          }
+          if (!pkg.scripts?.['test:safe-html-output']) {
+            throw new Error('Required rendered safe-HTML output gate is absent');
+          }
+          if (!pkg.scripts?.['test:forward-rollback-compatibility']) {
+            throw new Error('Required exact-image forward/rollback compatibility gate is absent');
+          }
+          if (!fs.existsSync('server/tests/forward-rollback-compatibility.test.mjs')) {
+            throw new Error('Forward/rollback shared-store proof is absent');
+          }
+          NODE
+
+      - name: Build
+        run: npm run build
+
+      - name: Typecheck against exact production-base differential
+        shell: bash
+        env:
+          PRODUCTION_BASE_SHA: 183c8e47a0025ad311f5f6c1ea063c2feb430817
+        run: |
+          set -euo pipefail
+          base_dir="$RUNNER_TEMP/typecheck-base"
+          reference_dir="$RUNNER_TEMP/typecheck-reviewed-reference"
+          git worktree add --detach "$base_dir" "$PRODUCTION_BASE_SHA"
+          git worktree add --detach "$reference_dir" eae2f229886b8aa2071864767ba61c0d6e4a548d
+          npm --prefix "$base_dir" ci
+          npm --prefix "$reference_dir" ci
+          node scripts/compare-typecheck-baseline.mjs \
+            --base-dir "$base_dir" \
+            --reference-dir "$reference_dir" \
+            --candidate-dir "$GITHUB_WORKSPACE"
+
+      - name: Lint with exact legacy-baseline containment
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          npm run lint -- --format json --output-file "$RUNNER_TEMP/eslint.json"
+          lint_status=$?
+          set -e
+          LINT_STATUS="$lint_status" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+
+          const allowed = new Map([
+            ['src/components/assessments/AssessmentTestRunnerRouter.jsx|no-empty|Empty block statement.', 1],
+            ['src/components/assessments/TestRunner.jsx|no-case-declarations|Unexpected lexical declaration in case block.', 2],
+            ['src/components/assessments/TestRunnerExtras.jsx|no-empty|Empty block statement.', 1],
+            ['src/components/onboarding/Consent.jsx|no-empty|Empty block statement.', 1],
+            ["src/components/protocols/ImportToSOAPModal.jsx|no-undef|'today' is not defined.", 1],
+            ['src/pages/Clients.jsx|no-empty|Empty block statement.', 1],
+          ]);
+          const report = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/eslint.json', 'utf8'));
+          const seen = new Map();
+          const unexpected = [];
+          for (const file of report) {
+            const relative = path.relative(process.cwd(), file.filePath).replaceAll('\\', '/');
+            for (const message of file.messages.filter((item) => item.severity === 2)) {
+              const key = `${relative}|${message.ruleId}|${message.message}`;
+              const count = (seen.get(key) || 0) + 1;
+              seen.set(key, count);
+              if (!allowed.has(key) || count > allowed.get(key)) unexpected.push({ relative, ...message });
+            }
+          }
+          if (unexpected.length) {
+            console.error(JSON.stringify(unexpected, null, 2));
+            throw new Error('Lint introduced an error outside the seven-item reviewed legacy baseline');
+          }
+          if (Number(process.env.LINT_STATUS) !== 0 && [...seen.values()].reduce((a, b) => a + b, 0) === 0) {
+            throw new Error(`ESLint exited ${process.env.LINT_STATUS} without a reviewable error report`);
+          }
+          console.log(`Lint gate passed with ${[...seen.values()].reduce((a, b) => a + b, 0)} contained legacy error(s).`);
+          NODE
+
+      - name: Existing deterministic server and entry-guard gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run selftest
+          npm run validate:entry-guards
+          node scripts/clinical-selftest.mjs
+          node scripts/pa-e2e-verify.mjs
+          node scripts/smoke.mjs
+
+      - name: Existing seeded launch-gate suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          node server/seed.mjs
+          ASSESSSUITE_BIND_HOST=127.0.0.1 PORT=8787 LLM_REQUIRED=0 node server/index.mjs >"$RUNNER_TEMP/gate-server.log" 2>&1 &
+          server_pid=$!
+          cleanup() {
+            kill "$server_pid" 2>/dev/null || true
+            wait "$server_pid" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error --max-time 2 \
+              http://127.0.0.1:8787/api/apps/public/prod/public-settings/by-id/probe >/dev/null; then
+              break
+            fi
+            if [[ "$attempt" -eq 60 ]]; then
+              sed -n '1,160p' "$RUNNER_TEMP/gate-server.log"
+              exit 1
+            fi
+            sleep 0.25
+          done
+          node scripts/gate-tests.mjs
+
+      - name: Existing public-evidence service gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/evidence-selftest.mjs | tee "$RUNNER_TEMP/evidence-selftest.log"
+          if grep -F '[SKIP]' "$RUNNER_TEMP/evidence-selftest.log"; then
+            echo 'Evidence selftest skipped a network assertion; release gate remains unpassed.' >&2
+            exit 1
+          fi
+          node scripts/medical-lookup-selftest.mjs | tee "$RUNNER_TEMP/medical-lookup-selftest.log"
+          if grep -F '[SKIP]' "$RUNNER_TEMP/medical-lookup-selftest.log"; then
+            echo 'Medical-lookup selftest skipped a network assertion; release gate remains unpassed.' >&2
+            exit 1
+          fi
+
+      - name: Mission assurance aggregate
+        run: npm run test:assurance
+
+      - name: Rendered referral browser journey gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --no-install playwright install --with-deps chromium
+          npm run test:referral-browser
+          npm run test:safe-html-output
+
+      - name: Secret and high-entropy diff scan
+        shell: bash
+
+        env:
+          PRODUCTION_BASE_SHA: 183c8e47a0025ad311f5f6c1ea063c2feb430817
+          EXPECTED_RELEASE_SCANNER_SHA256: 1b34b794ab79f5ea022525f31bf70397c629ca0a16baf4320503c6cfdbd36c5c
+        run: |
+          set -euo pipefail
+          git merge-base --is-ancestor "$PRODUCTION_BASE_SHA" HEAD
+          changed_files="$(git diff --name-only "$PRODUCTION_BASE_SHA"...HEAD)"
+          if grep -Eiq '(^|/)\.env($|\.(local|production|staging|development|test)$)|(^|/)(credentials?|secrets?)\.(json|txt|pem|key)$' <<<"$changed_files"; then
+            printf '%s\n' "$changed_files"
+            echo 'Release diff contains a prohibited secret-bearing filename.' >&2
+            exit 1
+          fi
+          git diff --binary "$PRODUCTION_BASE_SHA"...HEAD >"$RUNNER_TEMP/release.diff"
+          actual_scanner_sha256="$(sha256sum scripts/scan-release-diff.mjs | awk '{print $1}')"
+          if [[ "$actual_scanner_sha256" != "$EXPECTED_RELEASE_SCANNER_SHA256" ]]; then
+            echo 'Release scanner does not match the trusted workflow digest.' >&2
+            exit 1
+          fi
+          node scripts/scan-release-diff.mjs "$RUNNER_TEMP/release.diff"
+
+      - name: Build exact candidate image locally without credentials
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ steps.metadata.outputs.application_sha }}
+          SOURCE_BRANCH: ${{ steps.metadata.outputs.source_branch }}
+          BUILD_TIMESTAMP: ${{ steps.metadata.outputs.build_timestamp }}
+        run: |
+          set -euo pipefail
+          docker build \
+            --build-arg "RELEASE_SHA=$APPLICATION_SHA" \
+            --build-arg "SOURCE_BRANCH=$SOURCE_BRANCH" \
+            --build-arg "BUILD_TIMESTAMP=$BUILD_TIMESTAMP" \
+            --label "org.opencontainers.image.revision=$APPLICATION_SHA" \
+            --label "org.opencontainers.image.created=$BUILD_TIMESTAMP" \
+            --label "org.opencontainers.image.source=https://github.com/mbvidler-ctrl/assesssuite_migration/tree/$APPLICATION_SHA" \
+            --tag "assesssuite-release-gate:$APPLICATION_SHA" \
+            .
+          [[ "$(docker image inspect "assesssuite-release-gate:$APPLICATION_SHA" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$APPLICATION_SHA" ]]
+          [[ "$(docker image inspect "assesssuite-release-gate:$APPLICATION_SHA" --format '{{json .Config.Entrypoint}}')" == '["docker-entrypoint.sh"]' ]]
+          [[ "$(docker image inspect "assesssuite-release-gate:$APPLICATION_SHA" --format '{{json .Config.Cmd}}')" == '["sh","-c","node server/productionBootstrap.mjs && exec node server/index.mjs"]' ]]
+          docker image inspect "assesssuite-release-gate:$APPLICATION_SHA" --format '{{ range .Config.Env }}{{ println . }}{{ end }}' >"$RUNNER_TEMP/image-env.txt"
+          grep -Fx "RELEASE_SHA=$APPLICATION_SHA" "$RUNNER_TEMP/image-env.txt"
+          grep -Fx "SOURCE_BRANCH=$SOURCE_BRANCH" "$RUNNER_TEMP/image-env.txt"
+          grep -Fx "BUILD_TIMESTAMP=$BUILD_TIMESTAMP" "$RUNNER_TEMP/image-env.txt"
+          [[ "$(grep -Ec '^NODE_ENV=' "$RUNNER_TEMP/image-env.txt")" -eq 1 ]]
+          [[ "$(grep -Fxc 'NODE_ENV=production' "$RUNNER_TEMP/image-env.txt")" -eq 1 ]]
+          if grep -Eq '^(SELFTEST|ASSESSSUITE_DB_PATH|ASSESSSUITE_DB_PATH_ACK|DOCUMENT_EXTRACTION_TEST_BASE_URL|DOCUMENT_EXTRACTION_PROVIDER_PROBE|DOCUMENT_EXTRACTION_PROVIDER_PROBE_ACK|ALLOW_PAID_PROVIDER_PROBE|RUN_DOCUMENT_EXTRACTION_PROVIDER_PROBE|RUN_REFERRAL_PRODUCTION_CANARY)=' "$RUNNER_TEMP/image-env.txt"; then
+            echo 'Candidate image contains a forbidden test, database-override, or provider-probe environment variable.' >&2
+            exit 1
+          fi
+          image_canary_dir="$RUNNER_TEMP/built-image-canary"
+          mkdir -p "$image_canary_dir"
+          image_container="$(docker create "assesssuite-release-gate:$APPLICATION_SHA")"
+          cleanup_image_container() {
+            docker rm --force "$image_container" >/dev/null 2>&1 || true
+          }
+          trap cleanup_image_container EXIT
+          for relative_path in \
+            scripts/referral-production-canary.mjs \
+            scripts/referral-production-canary-contract.mjs \
+            scripts/validate-referral-production-canary-output.mjs; do
+            extracted_path="$image_canary_dir/${relative_path//\//_}"
+            docker cp "$image_container:/app/$relative_path" "$extracted_path"
+            cmp --silent "$relative_path" "$extracted_path"
+          done
+          cleanup_image_container
+          trap - EXIT
+          candidate_image_id="$(docker image inspect "assesssuite-release-gate:$APPLICATION_SHA" --format '{{.Id}}')"
+          [[ "$candidate_image_id" =~ ^sha256:[0-9a-f]{64}$ ]]
+          docker save "assesssuite-release-gate:$APPLICATION_SHA" | gzip -1 -n >"$RUNNER_TEMP/candidate-image.tar.gz"
+          candidate_archive_sha256="$(sha256sum "$RUNNER_TEMP/candidate-image.tar.gz" | awk '{print $1}')"
+          printf '%s  %s\n' "$candidate_archive_sha256" candidate-image.tar.gz >"$RUNNER_TEMP/candidate-image.tar.gz.sha256"
+          APPLICATION_SHA="$APPLICATION_SHA" SOURCE_BRANCH="$SOURCE_BRANCH" BUILD_TIMESTAMP="$BUILD_TIMESTAMP" \
+            CANDIDATE_IMAGE_ID="$candidate_image_id" CANDIDATE_ARCHIVE_SHA256="$candidate_archive_sha256" \
+            node --input-type=module >"$RUNNER_TEMP/candidate-build-receipt.json" <<'NODE'
+          const row = {
+            schema_version: 'assesssuite.candidate-build-receipt.v1',
+            application_sha: process.env.APPLICATION_SHA,
+            source_branch: process.env.SOURCE_BRANCH,
+            build_timestamp: process.env.BUILD_TIMESTAMP,
+            candidate_image_id: process.env.CANDIDATE_IMAGE_ID,
+            candidate_archive_sha256: process.env.CANDIDATE_ARCHIVE_SHA256,
+          };
+          process.stdout.write(`${JSON.stringify(row)}\n`);
+          NODE
+          mkdir -p "$RUNNER_TEMP/release-control"
+          install -m 0600 fly.production.toml "$RUNNER_TEMP/release-control/fly.production.toml"
+          install -m 0600 fly.rollback.production.toml "$RUNNER_TEMP/release-control/fly.rollback.production.toml"
+          install -m 0600 "$RUNNER_TEMP/candidate-build-receipt.json" "$RUNNER_TEMP/release-control/candidate-build-receipt.json"
+
+      - name: Preserve the exact gated candidate image
+        id: upload_candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: candidate-image-${{ steps.metadata.outputs.application_sha }}
+          path: |
+            ${{ runner.temp }}/candidate-image.tar.gz
+            ${{ runner.temp }}/candidate-image.tar.gz.sha256
+            ${{ runner.temp }}/candidate-build-receipt.json
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Preserve sealed release controls
+        id: upload_controls
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: release-control-${{ steps.metadata.outputs.application_sha }}
+          path: ${{ runner.temp }}/release-control
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  publish_image:
+    name: Publish exact candidate image without executing candidate code
+    needs: gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    outputs:
+      candidate_image_ref: ${{ steps.publish.outputs.candidate_image_ref }}
+      candidate_registry_digest: ${{ steps.publish.outputs.candidate_registry_digest }}
+      publication_artifact_id: ${{ steps.upload_publication.outputs.artifact-id }}
+      publication_artifact_digest: ${{ steps.upload_publication.outputs.artifact-digest }}
+    steps:
+      - name: Download exact gated candidate by immutable artifact ID
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.gates.outputs.candidate_image_artifact_id }}
+          path: ${{ runner.temp }}/candidate-image
+
+      - name: Validate and load candidate image as data only
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
+          SOURCE_BRANCH: ${{ needs.gates.outputs.source_branch }}
+          BUILD_TIMESTAMP: ${{ needs.gates.outputs.build_timestamp }}
+          CANDIDATE_IMAGE_ARTIFACT_ID: ${{ needs.gates.outputs.candidate_image_artifact_id }}
+          CANDIDATE_IMAGE_ARTIFACT_DIGEST: ${{ needs.gates.outputs.candidate_image_artifact_digest }}
+        run: |
+          set -euo pipefail
+          cd "$RUNNER_TEMP/candidate-image"
+          [[ "$CANDIDATE_IMAGE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$CANDIDATE_IMAGE_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ -f candidate-image.tar.gz && ! -L candidate-image.tar.gz ]]
+          [[ -f candidate-image.tar.gz.sha256 && ! -L candidate-image.tar.gz.sha256 ]]
+          [[ -f candidate-build-receipt.json && ! -L candidate-build-receipt.json ]]
+          sha256sum --check --strict candidate-image.tar.gz.sha256
+          RECEIPT="$RUNNER_TEMP/candidate-image/candidate-build-receipt.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECEIPT, 'utf8'));
+          const keys = ['schema_version','application_sha','source_branch','build_timestamp','candidate_image_id','candidate_archive_sha256'].sort();
+          if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys)) throw new Error('Candidate build receipt keys differ');
+          if (row.schema_version !== 'assesssuite.candidate-build-receipt.v1' || row.application_sha !== process.env.APPLICATION_SHA || row.source_branch !== process.env.SOURCE_BRANCH || row.build_timestamp !== process.env.BUILD_TIMESTAMP || !/^sha256:[0-9a-f]{64}$/.test(row.candidate_image_id) || !/^[0-9a-f]{64}$/.test(row.candidate_archive_sha256)) throw new Error('Candidate build receipt identity differs');
+          NODE
+          gzip -dc candidate-image.tar.gz | docker load >/dev/null
+          image="assesssuite-release-gate:$APPLICATION_SHA"
+          candidate_image_id="$(docker image inspect "$image" --format '{{.Id}}')"
+          [[ "$candidate_image_id" == "$(node --input-type=module -e "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],'utf8')).candidate_image_id)" candidate-build-receipt.json)" ]]
+          [[ "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$APPLICATION_SHA" ]]
+
+      - name: Install checksum-verified flyctl 0.4.71 for registry authentication only
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+            --output "$archive" \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'
+          printf '%s  %s\n' 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2' "$archive" | sha256sum --check --strict
+          tar -xzf "$archive" -C "$RUNNER_TEMP" flyctl
+          install -m 0755 "$RUNNER_TEMP/flyctl" "$RUNNER_TEMP/fly"
+
+      - name: Acquire isolated registry credential
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          DOCKER_CONFIG: ${{ runner.temp }}/publication-docker-config
+        run: |
+          set -euo pipefail
+          set +x
+          install -d -m 0700 "$DOCKER_CONFIG"
+          timeout --signal=TERM --kill-after=10s 60s "$RUNNER_TEMP/fly" auth docker
+
+      - name: Publish immutable image and seal compatibility bundle
+        id: publish
+        shell: bash
+        env:
+          DOCKER_CONFIG: ${{ runner.temp }}/publication-docker-config
+          APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
+          SOURCE_BRANCH: ${{ needs.gates.outputs.source_branch }}
+          BUILD_TIMESTAMP: ${{ needs.gates.outputs.build_timestamp }}
+          CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
+          ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
+          ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          CANDIDATE_IMAGE_ARTIFACT_ID: ${{ needs.gates.outputs.candidate_image_artifact_id }}
+          CANDIDATE_IMAGE_ARTIFACT_DIGEST: ${{ needs.gates.outputs.candidate_image_artifact_digest }}
+        run: |
+          set -euo pipefail
+          set +x
+          app=assesssuite-production
+          local_image="assesssuite-release-gate:$APPLICATION_SHA"
+          candidate_image_id="$(docker image inspect "$local_image" --format '{{.Id}}')"
+          new_image_tag="registry.fly.io/$app:release-$APPLICATION_SHA"
+          docker tag "$local_image" "$new_image_tag"
+          push_output=''
+          if ! push_output="$(timeout --signal=TERM --kill-after=30s 600s docker push "$new_image_tag" 2>&1)"; then
+            unset push_output
+            echo 'Candidate image push failed; registry output withheld.' >&2
+            exit 1
+          fi
+          candidate_registry_digest="$(printf '%s\n' "$push_output" | sed -nE 's/^.*digest: (sha256:[0-9a-f]{64}) size: [0-9]+.*$/\1/p' | tail -n 1)"
+          unset push_output
+          [[ "$candidate_registry_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          candidate_image_ref="registry.fly.io/$app@$candidate_registry_digest"
+          timeout --signal=TERM --kill-after=30s 300s docker pull "$ROLLBACK_IMAGE" >/dev/null
+          rollback_image_id="$(docker image inspect "$ROLLBACK_IMAGE" --format '{{.Id}}')"
+          [[ "$rollback_image_id" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$APPLICATION_SHA" ]]
+          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "io.assesssuite.trusted-workflow" }}')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "io.assesssuite.rollback-proof" }}')" == 'registering-state+39-field-per-file-merge+age-quarantine+referral-commit-receipt-replay' ]]
+          mkdir -p "$RUNNER_TEMP/publication"
+          docker save "$ROLLBACK_IMAGE" | gzip -1 -n >"$RUNNER_TEMP/publication/rollback-image.tar.gz"
+          rollback_archive_sha256="$(sha256sum "$RUNNER_TEMP/publication/rollback-image.tar.gz" | awk '{print $1}')"
+          candidate_archive_sha256="$(sha256sum "$RUNNER_TEMP/candidate-image/candidate-image.tar.gz" | awk '{print $1}')"
+          PUBLICATION_RECEIPT="$RUNNER_TEMP/publication/publication-receipt.json" \
+            CANDIDATE_IMAGE_ID="$candidate_image_id" CANDIDATE_ARCHIVE_SHA256="$candidate_archive_sha256" \
+            CANDIDATE_IMAGE_REF="$candidate_image_ref" CANDIDATE_REGISTRY_DIGEST="$candidate_registry_digest" \
+            ROLLBACK_IMAGE_ID="$rollback_image_id" ROLLBACK_ARCHIVE_SHA256="$rollback_archive_sha256" \
+            env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = {
+            schema_version: 'assesssuite.image-publication-receipt.v1',
+            application_sha: process.env.APPLICATION_SHA,
+            workflow_sha: process.env.TRUSTED_WORKFLOW_SHA,
+            source_branch: process.env.SOURCE_BRANCH,
+            build_timestamp: process.env.BUILD_TIMESTAMP,
+            candidate_config_sha256: process.env.CANDIDATE_CONFIG_SHA256,
+            rollback_config_sha256: process.env.ROLLBACK_CONFIG_SHA256,
+            candidate_image_artifact_id: process.env.CANDIDATE_IMAGE_ARTIFACT_ID,
+            candidate_image_artifact_digest: process.env.CANDIDATE_IMAGE_ARTIFACT_DIGEST,
+            candidate_archive_sha256: process.env.CANDIDATE_ARCHIVE_SHA256,
+            candidate_image_id: process.env.CANDIDATE_IMAGE_ID,
+            candidate_registry_digest: process.env.CANDIDATE_REGISTRY_DIGEST,
+            candidate_image_ref: process.env.CANDIDATE_IMAGE_REF,
+            rollback_image_ref: process.env.ROLLBACK_IMAGE,
+            rollback_image_id: process.env.ROLLBACK_IMAGE_ID,
+            rollback_archive_sha256: process.env.ROLLBACK_ARCHIVE_SHA256,
+            github_run_id: process.env.GITHUB_RUN_ID,
+            github_run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+            published_at: new Date().toISOString(),
+
+          };
+          fs.writeFileSync(process.env.PUBLICATION_RECEIPT, `${JSON.stringify(row)}\n`, { mode: 0o600 });
+          NODE
+          printf '%s  %s\n' "$rollback_archive_sha256" rollback-image.tar.gz >"$RUNNER_TEMP/publication/rollback-image.tar.gz.sha256"
+          timeout --signal=TERM --kill-after=10s 60s docker logout registry.fly.io >/dev/null
+          rm -rf "$DOCKER_CONFIG"
+          [[ ! -e "$DOCKER_CONFIG" ]]
+          printf 'candidate_image_ref=%s\n' "$candidate_image_ref" >>"$GITHUB_OUTPUT"
+          printf 'candidate_registry_digest=%s\n' "$candidate_registry_digest" >>"$GITHUB_OUTPUT"
+
+      - name: Upload sealed publication receipt and rollback image data
+        id: upload_publication
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: publication-${{ needs.gates.outputs.application_sha }}
+          path: ${{ runner.temp }}/publication
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  exact_image_compatibility:
+    name: Prove exact published image compatibility without secrets
+    needs: [gates, publish_image]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    outputs:
+      compatibility_artifact_id: ${{ steps.upload_compatibility.outputs.artifact-id }}
+      compatibility_artifact_digest: ${{ steps.upload_compatibility.outputs.artifact-digest }}
+      compatibility_receipt_sha256: ${{ steps.prove.outputs.compatibility_receipt_sha256 }}
+      publication_receipt_sha256: ${{ steps.prove.outputs.publication_receipt_sha256 }}
+      candidate_build_receipt_sha256: ${{ steps.bundle.outputs.candidate_build_receipt_sha256 }}
+      deploy_bundle_artifact_id: ${{ steps.upload_deploy_bundle.outputs.artifact-id }}
+      deploy_bundle_artifact_digest: ${{ steps.upload_deploy_bundle.outputs.artifact-digest }}
+      deploy_bundle_manifest_sha256: ${{ steps.bundle.outputs.deploy_bundle_manifest_sha256 }}
+    steps:
+      - name: Check out exact candidate into the no-secret proof runner
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ needs.gates.outputs.application_sha }}
+          path: candidate
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact candidate image by immutable artifact ID
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.gates.outputs.candidate_image_artifact_id }}
+          path: ${{ runner.temp }}/candidate-image
+
+      - name: Download exact publication bundle by immutable artifact ID
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.publish_image.outputs.publication_artifact_id }}
+          path: ${{ runner.temp }}/publication
+
+      - name: Set up Node.js 24 for isolated compatibility proof
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+
+      - name: Verify immutable handoff and run exact-image compatibility proof
+        id: prove
+        shell: bash
+        working-directory: candidate
+        env:
+          APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
+          SOURCE_BRANCH: ${{ needs.gates.outputs.source_branch }}
+          BUILD_TIMESTAMP: ${{ needs.gates.outputs.build_timestamp }}
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
+          ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
+          ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
+          CANDIDATE_IMAGE_REF: ${{ needs.publish_image.outputs.candidate_image_ref }}
+          CANDIDATE_IMAGE_ARTIFACT_ID: ${{ needs.gates.outputs.candidate_image_artifact_id }}
+          CANDIDATE_IMAGE_ARTIFACT_DIGEST: ${{ needs.gates.outputs.candidate_image_artifact_digest }}
+          PUBLICATION_ARTIFACT_ID: ${{ needs.publish_image.outputs.publication_artifact_id }}
+          PUBLICATION_ARTIFACT_DIGEST: ${{ needs.publish_image.outputs.publication_artifact_digest }}
+          RELEASE_CONTROL_ARTIFACT_ID: ${{ needs.gates.outputs.release_control_artifact_id }}
+          RELEASE_CONTROL_ARTIFACT_DIGEST: ${{ needs.gates.outputs.release_control_artifact_digest }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          if env | grep -Eq '^(FLY_API_TOKEN|DOCKER_AUTH_CONFIG)='; then exit 1; fi
+          publication="$RUNNER_TEMP/publication/publication-receipt.json"
+          [[ -f "$publication" && ! -L "$publication" && "$(wc -c <"$publication")" -le 8192 ]]
+          PUBLICATION="$publication" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.PUBLICATION, 'utf8'));
+          const keys = ['schema_version','application_sha','workflow_sha','source_branch','build_timestamp','candidate_config_sha256','rollback_config_sha256','candidate_image_artifact_id','candidate_image_artifact_digest','candidate_archive_sha256','candidate_image_id','candidate_registry_digest','candidate_image_ref','rollback_image_ref','rollback_image_id','rollback_archive_sha256','github_run_id','github_run_attempt','published_at'].sort();
+          if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys)) throw new Error('Publication receipt keys differ');
+          const e = process.env;
+          for (const [key, value] of [['application_sha',e.APPLICATION_SHA],['workflow_sha',e.TRUSTED_WORKFLOW_SHA],['source_branch',e.SOURCE_BRANCH],['build_timestamp',e.BUILD_TIMESTAMP],['candidate_config_sha256',e.CANDIDATE_CONFIG_SHA256],['rollback_config_sha256',e.ROLLBACK_CONFIG_SHA256],['candidate_image_artifact_id',e.CANDIDATE_IMAGE_ARTIFACT_ID],['candidate_image_artifact_digest',e.CANDIDATE_IMAGE_ARTIFACT_DIGEST],['candidate_image_ref',e.CANDIDATE_IMAGE_REF],['rollback_image_ref',e.ROLLBACK_IMAGE]]) if (row[key] !== value) throw new Error(`Publication ${key} differs`);
+          if (!/^sha256:[0-9a-f]{64}$/.test(row.candidate_image_id) || !/^sha256:[0-9a-f]{64}$/.test(row.rollback_image_id) || !/^sha256:[0-9a-f]{64}$/.test(row.candidate_registry_digest) || !/^[0-9a-f]{64}$/.test(row.candidate_archive_sha256) || !/^[0-9a-f]{64}$/.test(row.rollback_archive_sha256)) throw new Error('Publication digest shape differs');
+          NODE
+          sha256sum --check --strict "$RUNNER_TEMP/candidate-image/candidate-image.tar.gz.sha256"
+          sha256sum --check --strict "$RUNNER_TEMP/publication/rollback-image.tar.gz.sha256"
+          gzip -dc "$RUNNER_TEMP/candidate-image/candidate-image.tar.gz" | docker load >/dev/null
+          gzip -dc "$RUNNER_TEMP/publication/rollback-image.tar.gz" | docker load >/dev/null
+          candidate_image_id="$(node --input-type=module -e "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],'utf8')).candidate_image_id)" "$publication")"
+          rollback_image_id="$(node --input-type=module -e "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],'utf8')).rollback_image_id)" "$publication")"
+          [[ "$(docker image inspect "assesssuite-release-gate:$APPLICATION_SHA" --format '{{.Id}}')" == "$candidate_image_id" ]]
+          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{.Id}}')" == "$rollback_image_id" ]]
+          registry_container="$(docker run --detach --rm --name assesssuite-proof-registry -p 127.0.0.1:5000:5000 docker.io/library/registry:2.8.3@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373)"
+          cleanup_registry() { docker rm --force "$registry_container" >/dev/null 2>&1 || true; }
+          trap cleanup_registry EXIT
+          docker tag "$candidate_image_id" 127.0.0.1:5000/assesssuite-forward:proof
+          docker tag "$rollback_image_id" 127.0.0.1:5000/assesssuite-rollback:proof
+          forward_push="$(docker push 127.0.0.1:5000/assesssuite-forward:proof)"
+          rollback_push="$(docker push 127.0.0.1:5000/assesssuite-rollback:proof)"
+          forward_digest="$(printf '%s\n' "$forward_push" | sed -nE 's/^.*digest: (sha256:[0-9a-f]{64}) size: [0-9]+.*$/\1/p' | tail -n 1)"
+          rollback_digest="$(printf '%s\n' "$rollback_push" | sed -nE 's/^.*digest: (sha256:[0-9a-f]{64}) size: [0-9]+.*$/\1/p' | tail -n 1)"
+          [[ "$forward_digest" =~ ^sha256:[0-9a-f]{64}$ && "$rollback_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          npm ci
+          npm audit --audit-level=moderate
+          proof_log="$RUNNER_TEMP/exact-image-forward-rollback.tap"
+          proof_stderr="$RUNNER_TEMP/exact-image-forward-rollback.stderr"
+          env -u FLY_API_TOKEN -u DOCKER_AUTH_CONFIG \
+            FORWARD_IMAGE="127.0.0.1:5000/assesssuite-forward@$forward_digest" \
+            ROLLBACK_IMAGE="127.0.0.1:5000/assesssuite-rollback@$rollback_digest" \
+            timeout --signal=TERM --kill-after=30s 600s npm run test:forward-rollback-compatibility \
+            >"$proof_log" 2>"$proof_stderr"
+          [[ "$(wc -c <"$proof_log")" -le 524288 && "$(wc -c <"$proof_stderr")" -le 131072 ]]
+          for marker in ROLLBACK_PROOF_REGISTERING_STATE ROLLBACK_PROOF_39_FIELD_PER_FILE_MERGE ROLLBACK_PROOF_AGE_QUARANTINE ROLLBACK_PROOF_REFERRAL_COMMIT_RECEIPT_REPLAY; do
+            [[ "$(grep -Fxc "# $marker=PASS" "$proof_log")" -eq 1 ]]
+          done
+          rm -f "$proof_log" "$proof_stderr"
+          mkdir -p "$RUNNER_TEMP/compatibility"
+          publication_receipt_sha256="$(sha256sum "$publication" | awk '{print $1}')"
+          COMPATIBILITY_RECEIPT="$RUNNER_TEMP/compatibility/compatibility-receipt.json" \
+            PUBLICATION_RECEIPT_SHA256="$publication_receipt_sha256" CANDIDATE_IMAGE_ID="$candidate_image_id" \
+            ROLLBACK_IMAGE_ID="$rollback_image_id" FORWARD_PROOF_DIGEST="$forward_digest" ROLLBACK_PROOF_DIGEST="$rollback_digest" \
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = {
+            schema_version: 'assesssuite.exact-image-compatibility-receipt.v1', result: 'PASS',
+            workflow_sha: process.env.TRUSTED_WORKFLOW_SHA, application_sha: process.env.APPLICATION_SHA,
+            candidate_config_sha256: process.env.CANDIDATE_CONFIG_SHA256, rollback_config_sha256: process.env.ROLLBACK_CONFIG_SHA256,
+            candidate_image_ref: process.env.CANDIDATE_IMAGE_REF, rollback_image_ref: process.env.ROLLBACK_IMAGE,
+            candidate_image_id: process.env.CANDIDATE_IMAGE_ID, rollback_image_id: process.env.ROLLBACK_IMAGE_ID,
+            forward_proof_digest: process.env.FORWARD_PROOF_DIGEST, rollback_proof_digest: process.env.ROLLBACK_PROOF_DIGEST,
+            publication_artifact_id: process.env.PUBLICATION_ARTIFACT_ID, publication_artifact_digest: process.env.PUBLICATION_ARTIFACT_DIGEST,
+            release_control_artifact_id: process.env.RELEASE_CONTROL_ARTIFACT_ID, release_control_artifact_digest: process.env.RELEASE_CONTROL_ARTIFACT_DIGEST,
+            publication_receipt_sha256: process.env.PUBLICATION_RECEIPT_SHA256,
+            markers: ['ROLLBACK_PROOF_REGISTERING_STATE','ROLLBACK_PROOF_39_FIELD_PER_FILE_MERGE','ROLLBACK_PROOF_AGE_QUARANTINE','ROLLBACK_PROOF_REFERRAL_COMMIT_RECEIPT_REPLAY'],
+            github_run_id: process.env.GITHUB_RUN_ID, github_run_attempt: process.env.GITHUB_RUN_ATTEMPT,
+            verified_at: new Date().toISOString(),
+          };
+          fs.writeFileSync(process.env.COMPATIBILITY_RECEIPT, `${JSON.stringify(row)}\n`, { mode: 0o600 });
+          NODE
+          compatibility_receipt_sha256="$(sha256sum "$RUNNER_TEMP/compatibility/compatibility-receipt.json" | awk '{print $1}')"
+          [[ "$publication_receipt_sha256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$compatibility_receipt_sha256" =~ ^[0-9a-f]{64}$ ]]
+          {
+            printf 'publication_receipt_sha256=%s\n' "$publication_receipt_sha256"
+            printf 'compatibility_receipt_sha256=%s\n' "$compatibility_receipt_sha256"
+          } >>"$GITHUB_OUTPUT"
+
+      - name: Upload bounded compatibility proof receipt
+        id: upload_compatibility
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: compatibility-${{ needs.gates.outputs.application_sha }}
+          path: ${{ runner.temp }}/compatibility/compatibility-receipt.json
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+      - name: Seal bounded deploy bundle from exact regular files
+        id: bundle
+        shell: bash
+        env:
+          PUBLICATION_RUN_ID: ${{ github.run_id }}
+          PUBLICATION_RUN_ATTEMPT: ${{ github.run_attempt }}
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
+          BUILD_TIMESTAMP: ${{ needs.gates.outputs.build_timestamp }}
+          CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
+          ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
+          CANDIDATE_IMAGE_ARTIFACT_ID: ${{ needs.gates.outputs.candidate_image_artifact_id }}
+          CANDIDATE_IMAGE_ARTIFACT_DIGEST: ${{ needs.gates.outputs.candidate_image_artifact_digest }}
+          RELEASE_CONTROL_ARTIFACT_ID: ${{ needs.gates.outputs.release_control_artifact_id }}
+          RELEASE_CONTROL_ARTIFACT_DIGEST: ${{ needs.gates.outputs.release_control_artifact_digest }}
+          PUBLICATION_ARTIFACT_ID: ${{ needs.publish_image.outputs.publication_artifact_id }}
+          PUBLICATION_ARTIFACT_DIGEST: ${{ needs.publish_image.outputs.publication_artifact_digest }}
+          COMPATIBILITY_ARTIFACT_ID: ${{ steps.upload_compatibility.outputs.artifact-id }}
+          COMPATIBILITY_ARTIFACT_DIGEST: ${{ steps.upload_compatibility.outputs.artifact-digest }}
+          PUBLICATION_RECEIPT_SHA256: ${{ steps.prove.outputs.publication_receipt_sha256 }}
+          COMPATIBILITY_RECEIPT_SHA256: ${{ steps.prove.outputs.compatibility_receipt_sha256 }}
+          CANDIDATE_IMAGE_REF: ${{ needs.publish_image.outputs.candidate_image_ref }}
+          APPLICATION_IMAGE_DIGEST: ${{ needs.publish_image.outputs.candidate_registry_digest }}
+          ROLLBACK_IMAGE_REF: ${{ inputs.rollback_image }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          bundle="$RUNNER_TEMP/deploy-bundle"
+          install -d -m 0700 "$bundle"
+          copy_regular() {
+            local source="$1" destination="$2" limit="$3"
+            [[ -f "$source" && ! -L "$source" ]]
+            [[ "$(stat -c '%F' "$source")" == 'regular file' ]]
+            [[ "$(wc -c <"$source")" -gt 0 && "$(wc -c <"$source")" -le "$limit" ]]
+            install -m 0600 "$source" "$bundle/$destination"
+            [[ -f "$bundle/$destination" && ! -L "$bundle/$destination" ]]
+            [[ "$(stat -c '%F' "$bundle/$destination")" == 'regular file' ]]
+          }
+          copy_regular candidate/fly.production.toml fly.production.toml 65536
+          copy_regular candidate/fly.rollback.production.toml fly.rollback.production.toml 65536
+          copy_regular "$RUNNER_TEMP/candidate-image/candidate-build-receipt.json" candidate-build-receipt.json 8192
+          copy_regular "$RUNNER_TEMP/publication/publication-receipt.json" publication-receipt.json 8192
+          copy_regular "$RUNNER_TEMP/compatibility/compatibility-receipt.json" compatibility-receipt.json 8192
+          [[ "$(sha256sum "$bundle/fly.production.toml" | awk '{print $1}')" == "$CANDIDATE_CONFIG_SHA256" ]]
+          [[ "$(sha256sum "$bundle/fly.rollback.production.toml" | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
+          candidate_build_receipt_sha256="$(sha256sum "$bundle/candidate-build-receipt.json" | awk '{print $1}')"
+          [[ "$(sha256sum "$bundle/publication-receipt.json" | awk '{print $1}')" == "$PUBLICATION_RECEIPT_SHA256" ]]
+          [[ "$(sha256sum "$bundle/compatibility-receipt.json" | awk '{print $1}')" == "$COMPATIBILITY_RECEIPT_SHA256" ]]
+          CANDIDATE_BUILD_RECEIPT_SHA256="$candidate_build_receipt_sha256" \
+            BUNDLE="$bundle" MANIFEST="$bundle/deploy-bundle-manifest.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const read = (name) => JSON.parse(fs.readFileSync(path.join(process.env.BUNDLE, name), 'utf8'));
+          const build = read('candidate-build-receipt.json');
+          const publication = read('publication-receipt.json');
+          const compatibility = read('compatibility-receipt.json');
+          const e = process.env;
+          const markers = ['ROLLBACK_PROOF_REGISTERING_STATE','ROLLBACK_PROOF_39_FIELD_PER_FILE_MERGE','ROLLBACK_PROOF_AGE_QUARANTINE','ROLLBACK_PROOF_REFERRAL_COMMIT_RECEIPT_REPLAY'];
+          if (build.schema_version !== 'assesssuite.candidate-build-receipt.v1' || build.application_sha !== e.APPLICATION_SHA || build.build_timestamp !== e.BUILD_TIMESTAMP) throw new Error('Candidate build receipt binding differs');
+          if (publication.schema_version !== 'assesssuite.image-publication-receipt.v1' || publication.application_sha !== e.APPLICATION_SHA || publication.workflow_sha !== e.TRUSTED_WORKFLOW_SHA || publication.build_timestamp !== e.BUILD_TIMESTAMP) throw new Error('Publication receipt binding differs');
+          if (compatibility.schema_version !== 'assesssuite.exact-image-compatibility-receipt.v1' || compatibility.result !== 'PASS' || compatibility.application_sha !== e.APPLICATION_SHA || compatibility.workflow_sha !== e.TRUSTED_WORKFLOW_SHA || JSON.stringify(compatibility.markers) !== JSON.stringify(markers)) throw new Error('Compatibility receipt binding differs');
+          for (const [actual, expected, label] of [
+            [build.candidate_image_id, publication.candidate_image_id, 'candidate image id'],
+            [publication.candidate_image_ref, e.CANDIDATE_IMAGE_REF, 'candidate image ref'],
+            [publication.candidate_registry_digest, e.APPLICATION_IMAGE_DIGEST, 'application image digest'],
+            [publication.rollback_image_ref, e.ROLLBACK_IMAGE_REF, 'rollback image ref'],
+            [compatibility.candidate_image_ref, e.CANDIDATE_IMAGE_REF, 'compatibility candidate image ref'],
+            [compatibility.rollback_image_ref, e.ROLLBACK_IMAGE_REF, 'compatibility rollback image ref'],
+            [compatibility.candidate_image_id, publication.candidate_image_id, 'compatibility candidate image id'],
+            [compatibility.rollback_image_id, publication.rollback_image_id, 'compatibility rollback image id'],
+            [compatibility.publication_artifact_id, e.PUBLICATION_ARTIFACT_ID, 'publication artifact id'],
+            [compatibility.publication_artifact_digest, e.PUBLICATION_ARTIFACT_DIGEST, 'publication artifact digest'],
+            [compatibility.release_control_artifact_id, e.RELEASE_CONTROL_ARTIFACT_ID, 'release-control artifact id'],
+            [compatibility.release_control_artifact_digest, e.RELEASE_CONTROL_ARTIFACT_DIGEST, 'release-control artifact digest'],
+            [compatibility.publication_receipt_sha256, e.PUBLICATION_RECEIPT_SHA256, 'publication receipt hash'],
+          ]) if (actual !== expected) throw new Error(`${label} differs`);
+          const row = {
+            schema_version: 'assesssuite.deploy-bundle-manifest.v1',
+            result: 'PASS',
+            publication_run_id: e.PUBLICATION_RUN_ID,
+            publication_run_attempt: e.PUBLICATION_RUN_ATTEMPT,
+            workflow_sha: e.TRUSTED_WORKFLOW_SHA,
+            application_sha: e.APPLICATION_SHA,
+            build_timestamp: e.BUILD_TIMESTAMP,
+            candidate_config_sha256: e.CANDIDATE_CONFIG_SHA256,
+            rollback_config_sha256: e.ROLLBACK_CONFIG_SHA256,
+            candidate_image_artifact_id: e.CANDIDATE_IMAGE_ARTIFACT_ID,
+            candidate_image_artifact_digest: e.CANDIDATE_IMAGE_ARTIFACT_DIGEST,
+            release_control_artifact_id: e.RELEASE_CONTROL_ARTIFACT_ID,
+            release_control_artifact_digest: e.RELEASE_CONTROL_ARTIFACT_DIGEST,
+            publication_artifact_id: e.PUBLICATION_ARTIFACT_ID,
+            publication_artifact_digest: e.PUBLICATION_ARTIFACT_DIGEST,
+            compatibility_artifact_id: e.COMPATIBILITY_ARTIFACT_ID,
+            compatibility_artifact_digest: e.COMPATIBILITY_ARTIFACT_DIGEST,
+            candidate_build_receipt_sha256: e.CANDIDATE_BUILD_RECEIPT_SHA256,
+            publication_receipt_sha256: e.PUBLICATION_RECEIPT_SHA256,
+            compatibility_receipt_sha256: e.COMPATIBILITY_RECEIPT_SHA256,
+            candidate_image_id: publication.candidate_image_id,
+            candidate_image_ref: e.CANDIDATE_IMAGE_REF,
+            application_image_digest: e.APPLICATION_IMAGE_DIGEST,
+            rollback_image_ref: e.ROLLBACK_IMAGE_REF,
+            rollback_image_id: publication.rollback_image_id,
+            markers,
+          };
+          const keys = ['schema_version','result','publication_run_id','publication_run_attempt','workflow_sha','application_sha','build_timestamp','candidate_config_sha256','rollback_config_sha256','candidate_image_artifact_id','candidate_image_artifact_digest','release_control_artifact_id','release_control_artifact_digest','publication_artifact_id','publication_artifact_digest','compatibility_artifact_id','compatibility_artifact_digest','candidate_build_receipt_sha256','publication_receipt_sha256','compatibility_receipt_sha256','candidate_image_id','candidate_image_ref','application_image_digest','rollback_image_ref','rollback_image_id','markers'].sort();
+          if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys)) throw new Error('Deploy bundle manifest keys differ');
+          fs.writeFileSync(e.MANIFEST, `${JSON.stringify(row)}\n`, { mode: 0o600 });
+          NODE
+          [[ -f "$bundle/deploy-bundle-manifest.json" && ! -L "$bundle/deploy-bundle-manifest.json" ]]
+          [[ "$(stat -c '%F' "$bundle/deploy-bundle-manifest.json")" == 'regular file' ]]
+          [[ "$(wc -c <"$bundle/deploy-bundle-manifest.json")" -le 12288 ]]
+          expected_files=$'candidate-build-receipt.json\ncompatibility-receipt.json\ndeploy-bundle-manifest.json\nfly.production.toml\nfly.rollback.production.toml\npublication-receipt.json'
+          actual_files="$(find "$bundle" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)"
+          [[ "$actual_files" == "$expected_files" ]]
+          deploy_bundle_manifest_sha256="$(sha256sum "$bundle/deploy-bundle-manifest.json" | awk '{print $1}')"
+          [[ "$candidate_build_receipt_sha256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$deploy_bundle_manifest_sha256" =~ ^[0-9a-f]{64}$ ]]
+          {
+            printf 'candidate_build_receipt_sha256=%s\n' "$candidate_build_receipt_sha256"
+            printf 'deploy_bundle_manifest_sha256=%s\n' "$deploy_bundle_manifest_sha256"
+          } >>"$GITHUB_OUTPUT"
+
+      - name: Upload bounded deploy bundle
+        id: upload_deploy_bundle
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: deploy-bundle-${{ needs.gates.outputs.application_sha }}
+          path: ${{ runner.temp }}/deploy-bundle
+          if-no-files-found: error
+          retention-days: 3
+          compression-level: 0
+
+      - name: Emit immutable publication summary
+        shell: bash
+        env:
+          PUBLICATION_RUN_ID: ${{ github.run_id }}
+          CANDIDATE_IMAGE_REF: ${{ needs.publish_image.outputs.candidate_image_ref }}
+          APPLICATION_IMAGE_DIGEST: ${{ needs.publish_image.outputs.candidate_registry_digest }}
+          ROLLBACK_IMAGE_REF: ${{ inputs.rollback_image }}
+          RELEASE_CONTROL_ARTIFACT_ID: ${{ needs.gates.outputs.release_control_artifact_id }}
+          RELEASE_CONTROL_ARTIFACT_DIGEST: ${{ needs.gates.outputs.release_control_artifact_digest }}
+          PUBLICATION_ARTIFACT_ID: ${{ needs.publish_image.outputs.publication_artifact_id }}
+          PUBLICATION_ARTIFACT_DIGEST: ${{ needs.publish_image.outputs.publication_artifact_digest }}
+          COMPATIBILITY_ARTIFACT_ID: ${{ steps.upload_compatibility.outputs.artifact-id }}
+          COMPATIBILITY_ARTIFACT_DIGEST: ${{ steps.upload_compatibility.outputs.artifact-digest }}
+          DEPLOY_BUNDLE_ARTIFACT_ID: ${{ steps.upload_deploy_bundle.outputs.artifact-id }}
+          DEPLOY_BUNDLE_ARTIFACT_DIGEST: ${{ steps.upload_deploy_bundle.outputs.artifact-digest }}
+          DEPLOY_BUNDLE_MANIFEST_SHA256: ${{ steps.bundle.outputs.deploy_bundle_manifest_sha256 }}
+          CANDIDATE_BUILD_RECEIPT_SHA256: ${{ steps.bundle.outputs.candidate_build_receipt_sha256 }}
+          PUBLICATION_RECEIPT_SHA256: ${{ steps.prove.outputs.publication_receipt_sha256 }}
+          COMPATIBILITY_RECEIPT_SHA256: ${{ steps.prove.outputs.compatibility_receipt_sha256 }}
+          APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
+          BUILD_TIMESTAMP: ${{ needs.gates.outputs.build_timestamp }}
+        run: |
+          set -euo pipefail
+          [[ "$PUBLICATION_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$CANDIDATE_IMAGE_REF" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
+          [[ "$APPLICATION_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$ROLLBACK_IMAGE_REF" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
+          for id in "$RELEASE_CONTROL_ARTIFACT_ID" "$PUBLICATION_ARTIFACT_ID" "$COMPATIBILITY_ARTIFACT_ID" "$DEPLOY_BUNDLE_ARTIFACT_ID"; do [[ "$id" =~ ^[1-9][0-9]*$ ]]; done
+          for digest in "$RELEASE_CONTROL_ARTIFACT_DIGEST" "$PUBLICATION_ARTIFACT_DIGEST" "$COMPATIBILITY_ARTIFACT_DIGEST" "$DEPLOY_BUNDLE_ARTIFACT_DIGEST"; do [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]; done
+          [[ "$DEPLOY_BUNDLE_MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$CANDIDATE_BUILD_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$PUBLICATION_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$COMPATIBILITY_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$APPLICATION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$BUILD_TIMESTAMP" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]
+          {
+            echo '## Immutable production release preparation'
+            echo
+            echo '| Field | Value |'
+            echo '|---|---|'
+            printf '| publication_run_id | `%s` |\n' "$PUBLICATION_RUN_ID"
+            printf '| candidate_image_ref | `%s` |\n' "$CANDIDATE_IMAGE_REF"
+            printf '| application_image_digest | `%s` |\n' "$APPLICATION_IMAGE_DIGEST"
+            printf '| rollback_image_ref | `%s` |\n' "$ROLLBACK_IMAGE_REF"
+            printf '| release_control_artifact_id | `%s` |\n' "$RELEASE_CONTROL_ARTIFACT_ID"
+            printf '| release_control_artifact_digest | `%s` |\n' "$RELEASE_CONTROL_ARTIFACT_DIGEST"
+            printf '| publication_artifact_id | `%s` |\n' "$PUBLICATION_ARTIFACT_ID"
+            printf '| publication_artifact_digest | `%s` |\n' "$PUBLICATION_ARTIFACT_DIGEST"
+            printf '| compatibility_artifact_id | `%s` |\n' "$COMPATIBILITY_ARTIFACT_ID"
+            printf '| compatibility_artifact_digest | `%s` |\n' "$COMPATIBILITY_ARTIFACT_DIGEST"
+            printf '| deploy_bundle_artifact_id | `%s` |\n' "$DEPLOY_BUNDLE_ARTIFACT_ID"
+            printf '| deploy_bundle_artifact_digest | `%s` |\n' "$DEPLOY_BUNDLE_ARTIFACT_DIGEST"
+            printf '| deploy_bundle_manifest_sha256 | `%s` |\n' "$DEPLOY_BUNDLE_MANIFEST_SHA256"
+            printf '| candidate_build_receipt_sha256 | `%s` |\n' "$CANDIDATE_BUILD_RECEIPT_SHA256"
+            printf '| publication_receipt_sha256 | `%s` |\n' "$PUBLICATION_RECEIPT_SHA256"
+            printf '| compatibility_receipt_sha256 | `%s` |\n' "$COMPATIBILITY_RECEIPT_SHA256"
+            printf '| application_sha | `%s` |\n' "$APPLICATION_SHA"
+            printf '| build_timestamp | `%s` |\n' "$BUILD_TIMESTAMP"
+          } >>"$GITHUB_STEP_SUMMARY"

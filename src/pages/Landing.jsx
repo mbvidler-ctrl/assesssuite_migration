@@ -757,8 +757,8 @@ export default function Landing() {
               <p>Access to the Platform requires a paid subscription.</p>
               <p>Subscriptions are billed:</p>
               <ul style={{marginLeft:"20px"}}>
-                <li>Monthly: $55 AUD including GST; or</li>
-                <li>Annually: $540 AUD including GST.</li>
+                <li>Monthly: $55 AUD; or</li>
+                <li>Annually: $540 AUD.</li>
               </ul>
               <p>All fees are charged in Australian Dollars. Payments are processed through third-party payment providers including Stripe. You authorise recurring billing until cancellation. Failure to make payment may result in suspension or termination of access.</p><br/>
               

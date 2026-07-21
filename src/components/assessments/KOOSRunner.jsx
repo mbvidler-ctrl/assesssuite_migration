@@ -276,10 +276,10 @@ export default function KOOSRunner({ onSave, onClose }) {
                   <div>
                     <p className="font-semibold text-amber-900 mb-2">Clinical Interpretation Tips</p>
                     <div className="bg-white p-3 rounded border border-amber-100 space-y-2">
-                      <p className="text-amber-800 text-xs"><strong>â— Disproportionate subscale scores:</strong> If Pain is high but ADL is relatively preserved, consider psychological/fear-avoidance component. If ADL is low but Pain is mild, check for objective strength/ROM deficits.</p>
-                      <p className="text-amber-800 text-xs"><strong>â— Slow ADL recovery:</strong> Despite pain improvement, slow ADL recovery may indicate quadriceps weakness or proprioceptive deficits. Emphasize strength/balance training.</p>
-                      <p className="text-amber-800 text-xs"><strong>â— QoL improvement lag:</strong> QoL often lags behind symptom improvement. Address psychological factors (fear of re-injury, confidence-building) alongside physical rehab.</p>
-                      <p className="text-amber-800 text-xs"><strong>â— Sport score plateau:</strong> Common in older adults post-injury; may require modified sports or acceptance of functional limit rather than aggressive return.</p>
+                      <p className="text-amber-800 text-xs"><strong>❗ Disproportionate subscale scores:</strong> If Pain is high but ADL is relatively preserved, consider psychological/fear-avoidance component. If ADL is low but Pain is mild, check for objective strength/ROM deficits.</p>
+                      <p className="text-amber-800 text-xs"><strong>❗ Slow ADL recovery:</strong> Despite pain improvement, slow ADL recovery may indicate quadriceps weakness or proprioceptive deficits. Emphasize strength/balance training.</p>
+                      <p className="text-amber-800 text-xs"><strong>❗ QoL improvement lag:</strong> QoL often lags behind symptom improvement. Address psychological factors (fear of re-injury, confidence-building) alongside physical rehab.</p>
+                      <p className="text-amber-800 text-xs"><strong>❗ Sport score plateau:</strong> Common in older adults post-injury; may require modified sports or acceptance of functional limit rather than aggressive return.</p>
                     </div>
                   </div>
 
@@ -297,7 +297,7 @@ export default function KOOSRunner({ onSave, onClose }) {
                     <p className="font-semibold text-amber-900 mb-2">Strengths & Limitations</p>
                     <div className="bg-white p-3 rounded border border-amber-100 space-y-2 text-xs">
                       <p className="text-amber-800"><strong>✅ Strengths:</strong> Multi-dimensional (5 domains), validated, responsive to change, brief, free, available in 30+ languages, widely accepted in research/clinical guidelines.</p>
-                      <p className="text-amber-800"><strong>âŒ Limitations:</strong> Patient-reported (subjective); does NOT measure ROM, strength, or clinical signs; can be influenced by mood/expectation; requires adequate literacy; may not be sensitive to very early or very late stages of recovery.</p>
+                      <p className="text-amber-800"><strong>❌ Limitations:</strong> Patient-reported (subjective); does NOT measure ROM, strength, or clinical signs; can be influenced by mood/expectation; requires adequate literacy; may not be sensitive to very early or very late stages of recovery.</p>
                     </div>
                   </div>
 
@@ -347,15 +347,15 @@ export default function KOOSRunner({ onSave, onClose }) {
                       <div>
                         <p className="font-bold text-amber-900">Official Resources</p>
                         <div className="ml-3 mt-2">
-                          <Button
-                            onClick={() => window.open('https://www.koos.nu', '_blank')}
-                            variant="outline"
-                            size="sm"
-                            className="text-xs h-8 w-full justify-start"
+                          <a
+                            href="https://www.koos.nu"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="inline-flex items-center rounded-md border border-slate-200 px-3 text-xs h-8 w-full justify-start hover:bg-slate-50"
                           >
                             <ExternalLink className="w-3 h-3 mr-2" />
                             Official KOOS Website — Scoring, Normatives, Translations
-                          </Button>
+                          </a>
                         </div>
                       </div>
                     </div>

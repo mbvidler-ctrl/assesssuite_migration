@@ -1592,7 +1592,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           }
           break;
         case 'hoos':
-        case 'koos':
+        case 'koos': {
           const outcomeData = data.hoos_data || data.koos_data;
           if (outcomeData) {
             objectiveText += `  Average Score: ${outcomeData.average_score}/100\n`;
@@ -1604,6 +1604,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             if (outcomeData.qol_score !== undefined) objectiveText += `    - Quality of Life: ${outcomeData.qol_score}/100\n`;
           }
           break;
+        }
         case 'single_leg_hop':
           if (data.single_leg_hop_data) {
             objectiveText += `  Limb Symmetry Index: ${data.single_leg_hop_data.result_value}%\n`;
@@ -1699,13 +1700,14 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           if (data.four_stage_balance_data) { const fsb = data.four_stage_balance_data; objectiveText += `  Highest Stage Achieved: ${fsb.stage_achieved}/4\n  Fall Risk: ${fsb.fall_risk === 'increased' ? 'Increased ⚠' : 'Normal ✓'}\n  Stage 1 (Feet Together): ${fsb.feet_together || '-'} (${fsb.feet_together_time?.toFixed(1) || '-'}s)\n  Stage 2 (Semi-Tandem): ${fsb.semi_tandem || '-'} (${fsb.semi_tandem_time?.toFixed(1) || '-'}s)\n  Stage 3 (Tandem): ${fsb.tandem || '-'} (${fsb.tandem_time?.toFixed(1) || '-'}s)\n  Stage 4 (Single Leg): ${fsb.single_leg || '-'} (${fsb.single_leg_time?.toFixed(1) || '-'}s)\n`; if (fsb.clinician_notes) objectiveText += `  Overall Notes: ${fsb.clinician_notes}\n`; if (fsb.stage_notes) Object.entries(fsb.stage_notes).forEach(([s, n]) => { if (n) objectiveText += `  Notes for ${s.replace(/_/g, ' ')}: ${n}\n`; }); } break;
         case 'thessaly':
         case 'apleys':
-        case 'noble':
+        case 'noble': {
           const testData = data.thessaly_data || data.apleys_data || data.noble_data;
           if (testData) {
             if (testData.left_data) objectiveText += `  Left Knee: ${testData.left_data.interpretation}\n`;
             if (testData.right_data) objectiveText += `  Right Knee: ${testData.right_data.interpretation}\n`;
           }
           break;
+        }
         default:
           // COMPREHENSIVE FALLBACK: Include ALL data from test runners
           objectiveText += `  Result: ${assessmentData.result_value}`;
@@ -7549,6 +7551,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* CB&M Runner */}
       {showCBMRunner && (
         <CBMRunner
+          client={client}
           onSave={(data) => {
             setCBMData(data);
             setResult(prev => ({

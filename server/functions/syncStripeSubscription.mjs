@@ -15,7 +15,7 @@ import { findMockSubscriptionByEmail } from '../mocks/stripe.mjs';
 import * as stripeGateway from '../stripeGateway.mjs';
 
 export default async function syncStripeSubscription(ctx) {
-  const { user, respond, updateMe } = ctx;
+  const { user, respond, updateSubscriptionEntitlement } = ctx;
 
   if (!user) {
     return respond(401, { error: 'Unauthorized' });
@@ -66,7 +66,7 @@ export default async function syncStripeSubscription(ctx) {
     subscription_start_date: new Date(periodStartSeconds * 1000).toISOString(),
   };
 
-  await updateMe(updateData);
+  await updateSubscriptionEntitlement(updateData);
 
   return respond(200, {
     success: true,

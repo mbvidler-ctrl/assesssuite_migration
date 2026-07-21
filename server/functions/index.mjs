@@ -25,8 +25,10 @@ import {
   resolveUser,
   respond,
   createUpdateMe,
+  createSubscriptionEntitlementUpdater,
 } from './_shared.mjs';
 import { stripAuthFields } from './_auth-bridge.mjs';
+import { isInitialClinicalReleaseEligible } from '../clinicalRelease.mjs';
 
 import assignOrganizations from './assignOrganizations.mjs';
 import auditAssessmentIssues from './auditAssessmentIssues.mjs';
@@ -47,6 +49,8 @@ import verifyReferences from './verifyReferences.mjs';
 import searchEvidence from './searchEvidence.mjs';
 import medicalLookup from './medicalLookup.mjs';
 import transcribeSession from './transcribeSession.mjs';
+import deactivateAccount from './deactivateAccount.mjs';
+import cancelSubscriptionAndDeactivate from './cancelSubscriptionAndDeactivate.mjs';
 
 const REGISTRY = {
   assignOrganizations,
@@ -68,6 +72,8 @@ const REGISTRY = {
   searchEvidence,
   medicalLookup,
   transcribeSession,
+  deactivateAccount,
+  cancelSubscriptionAndDeactivate,
 };
 
 // Functions that read or produce clinical content: require a session AND an
@@ -90,6 +96,14 @@ const REQUIRES_ACTIVE_ACCOUNT = new Set([
 const REQUIRES_SESSION = new Set([
   'createCheckoutSession',
   'createPortalSession',
+  'syncStripeSubscription',
+  // Self-service deactivation needs a session but must work from any
+  // account status (an unapproved or suspended user may still close their
+  // account).
+  'deactivateAccount',
+  // Combined cancel-and-close: same rationale as deactivateAccount — a
+  // session is required, but it must work from any account status.
+  'cancelSubscriptionAndDeactivate',
 ]);
 
 let state = null;
@@ -153,6 +167,9 @@ export default async function handleFunction(req, res, { functionName }) {
     if (user.role !== 'admin' && user.account_status !== 'active') {
       return respond(res, 403, { error: 'account pending approval' });
     }
+    if (user.role !== 'admin' && !isInitialClinicalReleaseEligible(user)) {
+      return respond(res, 403, { error: 'clinical access is not approved for this account profile' });
+    }
   } else if (REQUIRES_SESSION.has(functionName)) {
     if (!user) {
       return respond(res, 401, { error: 'authentication required' });
@@ -167,6 +184,9 @@ export default async function handleFunction(req, res, { functionName }) {
     request: req,
     respond: (status, json) => respond(res, status, json),
     updateMe,
+    ...(functionName === 'syncStripeSubscription'
+      ? { updateSubscriptionEntitlement: createSubscriptionEntitlementUpdater(db, sessionUser) }
+      : {}),
     outboxEmail,
     outboxSms,
   };

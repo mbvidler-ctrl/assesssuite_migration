@@ -136,7 +136,7 @@ export default function ClosedKineticChainUpperExtremityStabilityTestCKCUESTRunn
                     <div className="flex items-center justify-center gap-2 mb-2">
                       <div className="w-6 h-6 bg-blue-600 rounded-full flex items-center justify-center text-white text-xs font-bold">L</div>
                       <div className="flex-1 border-t-2 border-dashed border-slate-400 relative">
-                        <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs text-slate-500 whitespace-nowrap">â† 90 cm →</span>
+                        <span className="absolute -top-5 left-1/2 -translate-x-1/2 text-xs text-slate-500 whitespace-nowrap">← 90 cm →</span>
                       </div>
                       <div className="w-6 h-6 bg-green-600 rounded-full flex items-center justify-center text-white text-xs font-bold">R</div>
                     </div>

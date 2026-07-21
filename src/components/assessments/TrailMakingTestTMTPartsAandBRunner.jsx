@@ -614,7 +614,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(0)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(0)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(2)} className="flex-1 bg-indigo-600 hover:bg-indigo-700">Practice Trial →</Button>
               </div>
             </div>
@@ -674,7 +674,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
               </div>
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(1)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(3)} disabled={!practiceConfirmed} className="flex-1 bg-indigo-600 hover:bg-indigo-700">Begin Part A →</Button>
               </div>
             </div>
@@ -705,7 +705,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
                 </div>
               )}
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(2)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(2)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(4)} disabled={!partAResult} className="flex-1 bg-orange-600 hover:bg-orange-700">Begin Part B →</Button>
               </div>
             </div>
@@ -736,7 +736,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
                 </div>
               )}
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(3)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(3)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(5)} disabled={!partBResult} className="flex-1 bg-indigo-600 hover:bg-indigo-700">Observations →</Button>
               </div>
             </div>
@@ -770,7 +770,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
                 <Textarea value={observations.notes} onChange={e => setObservations(p => ({ ...p, notes: e.target.value }))} placeholder="Strategy used, body language, verbalisations, distractibility..." rows={3} className="mt-1" />
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(4)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(4)} className="flex-1">← Back</Button>
                 <Button onClick={() => setStep(6)} className="flex-1 bg-indigo-600 hover:bg-indigo-700">View Results →</Button>
               </div>
             </div>
@@ -893,7 +893,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
               )}
 
               <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setStep(5)} className="flex-1">â† Back</Button>
+                <Button variant="outline" onClick={() => setStep(5)} className="flex-1">← Back</Button>
                 <Button onClick={handleSave} disabled={!canSave} className="flex-1 bg-indigo-600 hover:bg-indigo-700">
                   <Save className="w-4 h-4 mr-2" />Save Assessment
                 </Button>

@@ -42,7 +42,9 @@ function addRecentClientId(id) {
     const ids = getRecentClientIds().filter(x => x !== id);
     ids.unshift(id);
     localStorage.setItem(RECENT_KEY, JSON.stringify(ids.slice(0, MAX_RECENT)));
-  } catch {}
+  } catch {
+    // Invalid optional recent-activity data is treated as unavailable.
+  }
 }
 
 function getAge(dob) {
@@ -165,12 +167,20 @@ export default function Clients() {
   const handleDeleteClient = async () => {
     if (!clientToDelete) return;
     try {
-      await base44.entities.Client.delete(clientToDelete.id);
-      toast.success(`"${clientToDelete.full_name}" deleted.`);
+      // Retention model: "delete" ARCHIVES. The previous hard delete removed
+      // only the Client row, orphaning every linked record (assessments, SOAP
+      // notes, documents…) while the dialog promised a cascade — and clinical
+      // records must be retained, not destroyed. Archived clients disappear
+      // from every list (server-side filter) but the record set is intact.
+      await base44.entities.Client.update(clientToDelete.id, {
+        archived: true,
+        archived_date: new Date().toISOString(),
+      });
+      toast.success(`"${clientToDelete.full_name}" archived.`);
       setClientToDelete(null);
       loadClients();
     } catch (e) {
-      toast.error("Failed to delete client.");
+      toast.error("Failed to archive client.");
     }
   };
 
@@ -219,14 +229,16 @@ export default function Clients() {
       <AlertDialog open={!!clientToDelete} onOpenChange={(open) => !open && setClientToDelete(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete client?</AlertDialogTitle>
+            <AlertDialogTitle>Archive client?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete <span className="font-bold">{clientToDelete?.full_name}</span> and all associated data. This cannot be undone.
+              This will archive <span className="font-bold">{clientToDelete?.full_name}</span>. The client will no longer
+              appear in your lists, but their records are retained securely in line with clinical
+              record-keeping obligations and can be restored by an administrator.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteClient} className="bg-red-600 hover:bg-red-700">Delete</AlertDialogAction>
+            <AlertDialogAction onClick={handleDeleteClient} className="bg-red-600 hover:bg-red-700">Archive</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

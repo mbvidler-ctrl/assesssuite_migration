@@ -9,6 +9,11 @@ import { toast } from "sonner";
 import { createPageUrl } from "@/utils";
 import { format } from "date-fns";
 import { todayLocal } from "@/lib/localDate";
+import {
+  clientPickerDisplayName,
+  filterClientPickerRows,
+  loadAccessibleClientPickerRows,
+} from "@/lib/protocolClientPicker";
 
 export default function ImportToSOAPModal({ isOpen, onClose, protocolData, conditionName }) {
   const [clients, setClients] = useState([]);
@@ -24,22 +29,12 @@ export default function ImportToSOAPModal({ isOpen, onClose, protocolData, condi
   const loadClients = async () => {
     setIsLoading(true);
     try {
-      const userData = await base44.auth.me();
-      
-      // Get user's organization
-      const orgMemberships = await base44.entities.OrganizationMember.filter({ user_email: userData.email });
-      const userOrgId = orgMemberships.length > 0 ? orgMemberships[0].org_id : null;
-
-      if (!userOrgId) {
-        console.warn("User has no organization membership");
-        setClients([]);
-        setIsLoading(false);
-        return;
-      }
-
-      // Load clients from user's organization only
-      const allClients = await base44.entities.Client.filter({ org_id: userOrgId });
-      setClients(allClients.sort((a, b) => a.full_name.localeCompare(b.full_name)));
+      // The server scopes Client.list() to every current membership and legal
+      // acceptance held by this session. Narrowing here to memberships[0]
+      // hid valid clients for multi-practice users and made ordering depend on
+      // an arbitrary API row. The shared helper also tolerates retained legacy
+      // clients whose full_name is absent instead of crashing the whole modal.
+      setClients(await loadAccessibleClientPickerRows(base44.entities.Client));
     } catch (error) {
       console.error("Error loading clients:", error);
       toast.error("Failed to load clients");
@@ -105,13 +100,13 @@ export default function ImportToSOAPModal({ isOpen, onClose, protocolData, condi
         // Append to existing plan
         const updatedPlan = todayNote.plan ? `${todayNote.plan}\n\n${planText}` : planText;
         await base44.entities.SOAPNote.update(todayNote.id, { plan: updatedPlan });
-        toast.success(`Protocol added to ${client.full_name}'s notes for today`);
+        toast.success(`Protocol added to ${clientPickerDisplayName(client)}'s notes for today`);
       } else {
         // Create new SOAP note for today
         await base44.entities.SOAPNote.create({
           org_id: client.org_id,
           client_id: client.id,
-          note_date: today.toISOString(),
+          note_date: todayDateStr,
           plan: planText,
           status: 'draft',
           subjective: '',
@@ -119,7 +114,7 @@ export default function ImportToSOAPModal({ isOpen, onClose, protocolData, condi
           assessment: '',
           other: ''
         });
-        toast.success(`Protocol added to ${client.full_name}'s notes for today`);
+        toast.success(`Protocol added to ${clientPickerDisplayName(client)}'s notes for today`);
       }
 
       onClose();
@@ -129,10 +124,7 @@ export default function ImportToSOAPModal({ isOpen, onClose, protocolData, condi
     }
   };
 
-  const filteredClients = clients.filter(client =>
-    client.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (client.email && client.email.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredClients = filterClientPickerRows(clients, searchTerm);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -170,7 +162,7 @@ export default function ImportToSOAPModal({ isOpen, onClose, protocolData, condi
                   onClick={() => handleSelectClient(client)}
                   className="w-full p-3 bg-slate-50 hover:bg-blue-50 border border-slate-200 hover:border-blue-300 rounded-lg text-left transition-all"
                 >
-                  <p className="font-medium text-slate-900">{client.full_name}</p>
+                  <p className="font-medium text-slate-900">{clientPickerDisplayName(client)}</p>
                   <p className="text-sm text-slate-600">{client.email || 'No email'}</p>
                 </button>
               ))

@@ -255,7 +255,7 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
                 phase === "done" ? "bg-blue-200 text-blue-800" :
                 "bg-slate-200 text-slate-600"
               }`}>
-                {phase === "idle" ? "Ready" : phase === "run" ? "▶ RUNNING" : phase === "rest" ? "â¸ REST" : "✓ Completed"}
+                {phase === "idle" ? "Ready" : phase === "run" ? "▶ RUNNING" : phase === "rest" ? "⏸ REST" : "✓ Completed"}
               </div>
 
               {/* Timer */}

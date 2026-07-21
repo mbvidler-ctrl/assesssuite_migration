@@ -3,6 +3,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import RichTextEditor from "@/components/ui/RichTextEditor";
 import { FileText, Edit2, Check, X } from "lucide-react";
+import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
+import { sanitizeHtml, sanitizeHtmlDocument } from "@/lib/safeHtml";
 
 // --- Report-html edit partitioning -------------------------------------------
 //
@@ -71,7 +73,9 @@ function extractOutcomeTable(doc, region) {
     note.remove();
   }
   const slot = doc.createElement("p");
-  slot.innerHTML = `<em>${SLOT_TEXT}</em>`;
+  const emphasis = doc.createElement("em");
+  emphasis.textContent = SLOT_TEXT;
+  slot.appendChild(emphasis);
   table.replaceWith(slot);
   return parts.join("");
 }
@@ -86,7 +90,8 @@ export function splitReportHtml(html) {
   if (typeof window === "undefined" || typeof window.DOMParser === "undefined") return null;
   if (!html || !/<style[\s>]/i.test(html)) return null;
 
-  const doc = new window.DOMParser().parseFromString(html, "text/html");
+  const safeDocument = sanitizeHtmlDocument(html);
+  const doc = new window.DOMParser().parseFromString(safeDocument, "text/html");
   const body = doc.body;
   if (!body || !doc.head || doc.head.querySelectorAll("style").length === 0) return null;
 
@@ -164,7 +169,7 @@ export default function ReviewExport({ reportHtml, client, clinician, onEditHtml
 
   const handleSaveEdit = () => {
     const nextHtml = editParts ? recomposeReportHtml(editParts, editableBody) : editableBody;
-    onEditHtml(nextHtml);
+    onEditHtml(sanitizeHtmlDocument(nextHtml));
     setIsEditing(false);
     setEditParts(null);
     setEditableBody("");
@@ -199,6 +204,8 @@ export default function ReviewExport({ reportHtml, client, clinician, onEditHtml
         )}
       </div>
 
+      <AIDisclosureNote />
+
       {isEditing ? (
         <div className="space-y-2">
           <p className="text-xs text-slate-500">
@@ -213,7 +220,7 @@ export default function ReviewExport({ reportHtml, client, clinician, onEditHtml
         </div>
       ) : (
         <Card className="p-6 max-h-[60vh] overflow-y-auto">
-          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: reportHtml }} />
+          <div className="prose max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(reportHtml) }} />
         </Card>
       )}
 
