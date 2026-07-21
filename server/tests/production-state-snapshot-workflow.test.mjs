@@ -25,5 +25,5 @@ test('trusted production-state snapshot workflow satisfies its fail-closed contr
 test('production-state snapshot workflow rejects every adversarial mutation', () => {
   const result = run('--selftest');
   assert.equal(result.status, 0, result.stdout + result.stderr);
-  assert.match(result.stdout, /mutation selftest passed \(30\/30 rejected\)/);
+  assert.match(result.stdout, /mutation selftest passed \(32\/32 rejected\)/);
 });

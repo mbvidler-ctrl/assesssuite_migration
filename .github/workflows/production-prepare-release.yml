@@ -85,9 +85,9 @@ jobs:
       build_timestamp: ${{ steps.metadata.outputs.build_timestamp }}
       source_branch: ${{ steps.metadata.outputs.source_branch }}
       candidate_image_artifact_id: ${{ steps.upload_candidate.outputs.artifact-id }}
-      candidate_image_artifact_digest: ${{ steps.upload_candidate.outputs.artifact-digest }}
+      candidate_image_artifact_digest: sha256:${{ steps.upload_candidate.outputs.artifact-digest }}
       release_control_artifact_id: ${{ steps.upload_controls.outputs.artifact-id }}
-      release_control_artifact_digest: ${{ steps.upload_controls.outputs.artifact-digest }}
+      release_control_artifact_digest: sha256:${{ steps.upload_controls.outputs.artifact-digest }}
     steps:
       - name: Validate trusted dispatch context and inputs
         shell: bash
@@ -263,7 +263,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 63cb8f9a37bed7f8d99aa65a12e5d7efbeb36f838429b829a981dde2dab6c9f5
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: dd11d92d8156e8b4a9e37cb37567e4a1972ed5575df50e6ffef6c943a8d7d70d
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -569,7 +569,7 @@ jobs:
       candidate_image_ref: ${{ steps.publish.outputs.candidate_image_ref }}
       candidate_registry_digest: ${{ steps.publish.outputs.candidate_registry_digest }}
       publication_artifact_id: ${{ steps.upload_publication.outputs.artifact-id }}
-      publication_artifact_digest: ${{ steps.upload_publication.outputs.artifact-digest }}
+      publication_artifact_digest: sha256:${{ steps.upload_publication.outputs.artifact-digest }}
     steps:
       - name: Download exact gated candidate by immutable artifact ID
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
@@ -726,12 +726,12 @@ jobs:
     timeout-minutes: 30
     outputs:
       compatibility_artifact_id: ${{ steps.upload_compatibility.outputs.artifact-id }}
-      compatibility_artifact_digest: ${{ steps.upload_compatibility.outputs.artifact-digest }}
+      compatibility_artifact_digest: sha256:${{ steps.upload_compatibility.outputs.artifact-digest }}
       compatibility_receipt_sha256: ${{ steps.prove.outputs.compatibility_receipt_sha256 }}
       publication_receipt_sha256: ${{ steps.prove.outputs.publication_receipt_sha256 }}
       candidate_build_receipt_sha256: ${{ steps.bundle.outputs.candidate_build_receipt_sha256 }}
       deploy_bundle_artifact_id: ${{ steps.upload_deploy_bundle.outputs.artifact-id }}
-      deploy_bundle_artifact_digest: ${{ steps.upload_deploy_bundle.outputs.artifact-digest }}
+      deploy_bundle_artifact_digest: sha256:${{ steps.upload_deploy_bundle.outputs.artifact-digest }}
       deploy_bundle_manifest_sha256: ${{ steps.bundle.outputs.deploy_bundle_manifest_sha256 }}
     steps:
       - name: Check out exact candidate into the no-secret proof runner
@@ -884,7 +884,7 @@ jobs:
           PUBLICATION_ARTIFACT_ID: ${{ needs.publish_image.outputs.publication_artifact_id }}
           PUBLICATION_ARTIFACT_DIGEST: ${{ needs.publish_image.outputs.publication_artifact_digest }}
           COMPATIBILITY_ARTIFACT_ID: ${{ steps.upload_compatibility.outputs.artifact-id }}
-          COMPATIBILITY_ARTIFACT_DIGEST: ${{ steps.upload_compatibility.outputs.artifact-digest }}
+          COMPATIBILITY_ARTIFACT_DIGEST: sha256:${{ steps.upload_compatibility.outputs.artifact-digest }}
           PUBLICATION_RECEIPT_SHA256: ${{ steps.prove.outputs.publication_receipt_sha256 }}
           COMPATIBILITY_RECEIPT_SHA256: ${{ steps.prove.outputs.compatibility_receipt_sha256 }}
           CANDIDATE_IMAGE_REF: ${{ needs.publish_image.outputs.candidate_image_ref }}
@@ -1010,9 +1010,9 @@ jobs:
           PUBLICATION_ARTIFACT_ID: ${{ needs.publish_image.outputs.publication_artifact_id }}
           PUBLICATION_ARTIFACT_DIGEST: ${{ needs.publish_image.outputs.publication_artifact_digest }}
           COMPATIBILITY_ARTIFACT_ID: ${{ steps.upload_compatibility.outputs.artifact-id }}
-          COMPATIBILITY_ARTIFACT_DIGEST: ${{ steps.upload_compatibility.outputs.artifact-digest }}
+          COMPATIBILITY_ARTIFACT_DIGEST: sha256:${{ steps.upload_compatibility.outputs.artifact-digest }}
           DEPLOY_BUNDLE_ARTIFACT_ID: ${{ steps.upload_deploy_bundle.outputs.artifact-id }}
-          DEPLOY_BUNDLE_ARTIFACT_DIGEST: ${{ steps.upload_deploy_bundle.outputs.artifact-digest }}
+          DEPLOY_BUNDLE_ARTIFACT_DIGEST: sha256:${{ steps.upload_deploy_bundle.outputs.artifact-digest }}
           DEPLOY_BUNDLE_MANIFEST_SHA256: ${{ steps.bundle.outputs.deploy_bundle_manifest_sha256 }}
           CANDIDATE_BUILD_RECEIPT_SHA256: ${{ steps.bundle.outputs.candidate_build_receipt_sha256 }}
           PUBLICATION_RECEIPT_SHA256: ${{ steps.prove.outputs.publication_receipt_sha256 }}

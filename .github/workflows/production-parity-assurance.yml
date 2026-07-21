@@ -135,7 +135,7 @@ jobs:
     timeout-minutes: 25
     outputs:
       parity_runner_artifact_id: ${{ steps.upload_runner.outputs.artifact-id }}
-      parity_runner_artifact_digest: ${{ steps.upload_runner.outputs.artifact-digest }}
+      parity_runner_artifact_digest: sha256:${{ steps.upload_runner.outputs.artifact-digest }}
     steps:
       - name: Validate trusted parity dispatch and fixed mission inputs
         shell: bash
@@ -273,7 +273,7 @@ jobs:
       - name: Validate the exact trusted production workflow control
         shell: bash
         env:
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 63cb8f9a37bed7f8d99aa65a12e5d7efbeb36f838429b829a981dde2dab6c9f5
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: dd11d92d8156e8b4a9e37cb37567e4a1972ed5575df50e6ffef6c943a8d7d70d
         run: |
           set -euo pipefail
           cd application
@@ -733,7 +733,7 @@ jobs:
             if (guest.cpu_kind !== 'shared' || Number(guest.cpus) !== 1 || Number(guest.memory_mb) !== 512) throw new Error('Parity VM resources differ');
             const mounts = c.mounts;
             if (!Array.isArray(mounts) || mounts.length !== 1 || mounts[0]?.volume !== parityVolumes[0]?.id || mounts[0]?.path !== '/app/server/data' || mounts[0]?.encrypted !== true || mounts[0]?.size_gb !== 3) throw new Error('Parity mount differs');
-            if (c.metadata?.asr_r2_namespace !== 'asr-r2-20260721' || c.metadata?.asr_r2_role !== 'synthetic-assurance') throw new Error('Parity mission metadata differs');
+            if (c.metadata?.['assesssuite-campaign'] !== 'asr-r2-20260721' || c.metadata?.asr_r2_namespace !== 'asr-r2-20260721' || c.metadata?.asr_r2_role !== 'synthetic-assurance') throw new Error('Parity mission metadata differs');
             const cmd = c.init?.cmd ?? c.cmd;
             const expectedCmd = ['timeout', '--signal=TERM', '--kill-after=30s', '2700s', 'sh', '-c', 'node server/productionBootstrap.mjs && exec node server/index.mjs'];
             if (JSON.stringify(cmd) !== JSON.stringify(expectedCmd)) throw new Error('Hard 2700-second Machine TTL differs');
@@ -895,7 +895,7 @@ jobs:
               production_effects_started=1
               (
                 cd "$RUNNER_TEMP"
-              timeout --signal=TERM --kill-after=10s 240s fly machine run "$LIVE_IMAGE" --app "$app" --name "$parity_machine_name" --region syd --volume "$current_volume_id:/app/server/data" --metadata "asr_r2_namespace=$PARITY_NAMESPACE" --metadata 'asr_r2_role=synthetic-assurance' --env 'NODE_ENV=production' --env 'PORT=8787' --env 'ASSESSSUITE_BIND_HOST=fly-local-6pn' --env 'PARITY_ASSURANCE_MODE=1' --env 'ALLOW_OPEN_REGISTRATION=0' --env 'ADMIN_EMAIL=admin@asr-r2-20260721.seed.test' --env 'OUTBOUND_EMAIL_ENABLED=0' --env 'OUTBOUND_SMS_ENABLED=0' --env 'PAYMENTS_ENABLED=0' --env 'DOCUMENT_EXTRACTION_ENABLED=1' --env 'DOCUMENT_EXTRACTION_UNDER_13_ENABLED=0' --env 'OPENAI_HEALTH_DATA_TERMS_CONFIRMED=1' --env 'GENERAL_CLINICAL_LLM_ENABLED=0' --env 'TRANSCRIPTION_ENABLED=0' --env 'ASSESSSUITE_DB_PATH=/app/server/data/assesssuite-parity.db' --env 'UPLOADS_DIR=/app/server/data/assesssuite-parity-uploads' --env "PARITY_NAMESPACE=$PARITY_NAMESPACE" --env 'PARITY_PROVIDER_CALL_LIMIT=1' --env 'LLM_REQUIRED=1' --env 'UPLOAD_AUDIT_RETENTION_DAYS=730' --env 'UPLOAD_CLEANUP_INTERVAL_MINUTES=1' --env 'LEGAL_STATUS=effective' --env 'LEGAL_EFFECTIVE_DATE=19 July 2026' --restart no --autostart=false --autostop=off --skip-dns-registration --vm-cpu-kind shared --vm-cpus 1 --vm-memory 512 --detach -- timeout --signal=TERM --kill-after=30s 2700s sh -c 'node server/productionBootstrap.mjs && exec node server/index.mjs' >"$RUNNER_TEMP/machine-create.raw" 2>"$RUNNER_TEMP/machine-create.stderr"
+              timeout --signal=TERM --kill-after=10s 240s fly machine run "$LIVE_IMAGE" --app "$app" --name "$parity_machine_name" --region syd --volume "$current_volume_id:/app/server/data" --metadata "assesssuite-campaign=$PARITY_NAMESPACE" --metadata "asr_r2_namespace=$PARITY_NAMESPACE" --metadata 'asr_r2_role=synthetic-assurance' --env 'NODE_ENV=production' --env 'PORT=8787' --env 'ASSESSSUITE_BIND_HOST=fly-local-6pn' --env 'PARITY_ASSURANCE_MODE=1' --env 'ALLOW_OPEN_REGISTRATION=0' --env 'ADMIN_EMAIL=admin@asr-r2-20260721.seed.test' --env 'OUTBOUND_EMAIL_ENABLED=0' --env 'OUTBOUND_SMS_ENABLED=0' --env 'PAYMENTS_ENABLED=0' --env 'DOCUMENT_EXTRACTION_ENABLED=1' --env 'DOCUMENT_EXTRACTION_UNDER_13_ENABLED=0' --env 'OPENAI_HEALTH_DATA_TERMS_CONFIRMED=1' --env 'GENERAL_CLINICAL_LLM_ENABLED=0' --env 'TRANSCRIPTION_ENABLED=0' --env 'ASSESSSUITE_DB_PATH=/app/server/data/assesssuite-parity.db' --env 'UPLOADS_DIR=/app/server/data/assesssuite-parity-uploads' --env "PARITY_NAMESPACE=$PARITY_NAMESPACE" --env 'PARITY_PROVIDER_CALL_LIMIT=1' --env 'LLM_REQUIRED=1' --env 'UPLOAD_AUDIT_RETENTION_DAYS=730' --env 'UPLOAD_CLEANUP_INTERVAL_MINUTES=1' --env 'LEGAL_STATUS=effective' --env 'LEGAL_EFFECTIVE_DATE=19 July 2026' --restart no --autostart=false --autostop=off --skip-dns-registration --vm-cpu-kind shared --vm-cpus 1 --vm-memory 512 --detach -- timeout --signal=TERM --kill-after=30s 2700s sh -c 'node server/productionBootstrap.mjs && exec node server/index.mjs' >"$RUNNER_TEMP/machine-create.raw" 2>"$RUNNER_TEMP/machine-create.stderr"
               )
               rm -f "$RUNNER_TEMP/machine-create.raw" "$RUNNER_TEMP/machine-create.stderr"
               for attempt in $(seq 1 30); do
