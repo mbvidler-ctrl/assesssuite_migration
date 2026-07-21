@@ -15,6 +15,8 @@ import {
   REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
   REFERRAL_SUBJECT_AGE_CONFIRMATION,
 } from '../src/lib/referralWorkflow.js';
+import { REFERRAL_EXTRACTION_SCHEMA } from '../src/lib/referralExtractionSchema.js';
+import { REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION } from './uploadRegistry.mjs';
 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -729,22 +731,16 @@ async function runChecks(baseUrl, appId) {
     });
     record('pending user writing a clinical entity is refused (403)', clinicalWriteStatus === 403, `status=${clinicalWriteStatus}`);
 
-    const { status: setupWriteStatus, body: pendingOrg } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Organization`, {
+    const { status: setupWriteStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Organization`, {
       method: 'POST',
       token: pendingToken,
       body: { name: 'Pending User Clinic' },
     });
-    record('pending user may still create setup entities (Organization)', setupWriteStatus === 200 && Boolean(pendingOrg?.id), `status=${setupWriteStatus}`);
-
-    // Mirror ProfileSetup: an Organization is always created together with an
-    // OrganizationMember row, and the mandatory notices are recorded before
-    // the user is ever gated on clinical access.
-    await api(baseUrl, appId, `/api/apps/${appId}/entities/OrganizationMember`, {
-      method: 'POST',
-      token: pendingToken,
-      body: { org_id: pendingOrg.id, user_email: pendingEmail, role: 'owner', is_primary: true },
-    });
-    await seedRequiredLegalAcceptance(baseUrl, appId, pendingToken, pendingEmail, pendingOrg.id);
+    record(
+      'pending user cannot bypass the server-owned founder operation with a generic organisation create',
+      setupWriteStatus === 403,
+      `status=${setupWriteStatus}`,
+    );
 
     const { status: catalogueStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Assessment`, {
       token: pendingToken,
@@ -784,10 +780,33 @@ async function runChecks(baseUrl, appId) {
       token: adminToken,
       body: {
         account_status: 'active',
+        subscription_status: 'active',
         country: 'australia',
         profession: 'Exercise Physiologist',
       },
     });
+    const { status: founderStatus, body: founder } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/integration-endpoints/Core/EnsureFounderOrganization`,
+      {
+        method: 'POST',
+        token: pendingToken,
+        body: { clinic_name: 'Pending User Clinic' },
+      },
+    );
+    record(
+      'approved paid founder receives one server-owned organisation and owner membership',
+      founderStatus === 200 && Boolean(founder?.id),
+      `status=${founderStatus}`,
+    );
+    await seedRequiredLegalAcceptance(
+      baseUrl,
+      appId,
+      pendingToken,
+      pendingEmail,
+      founder.id,
+    );
     const { status: postApprovalStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
       token: pendingToken,
     });
@@ -888,8 +907,10 @@ async function runChecks(baseUrl, appId) {
       body: { user_email: emailA, org_id: orgBId },
     });
     record('self-enrolment into an existing foreign org is refused (403)', joinStatus === 403, `status=${joinStatus}`);
-    // Founding membership into a brand-new empty org is allowed (ProfileSetup).
-    const { body: newOrg } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Organization`, {
+    // Generic organisation and membership writes are not a founder path. The
+    // UI must use the atomic, entitlement-gated EnsureFounderOrganization
+    // integration instead.
+    const { status: newOrgStatus, body: newOrg } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Organization`, {
       method: 'POST', token: userAToken, body: { name: `Founded by A ${Date.now()}` },
     });
     const { status: foundStatus } = await api(baseUrl, appId, `/api/apps/${appId}/entities/OrganizationMember`, {
@@ -900,7 +921,11 @@ async function runChecks(baseUrl, appId) {
         is_primary: true,
       },
     });
-    record('founding a membership in a new empty org is allowed', foundStatus === 200, `status=${foundStatus}`);
+    record(
+      'generic organisation and membership writes cannot bypass the server-owned founder operation',
+      newOrgStatus === 403 && foundStatus === 403,
+      `organization_status=${newOrgStatus} membership_status=${foundStatus}`,
+    );
     // bulkUpdate must not relocate an own record into a foreign org.
     const { body: ownClient } = await api(baseUrl, appId, `/api/apps/${appId}/entities/Client`, {
       method: 'POST', token: userAToken, body: { full_name: 'Bulk Relocate Probe' },
@@ -1394,6 +1419,10 @@ async function runChecks(baseUrl, appId) {
       `--${boundary}\r\n` +
       `Content-Disposition: form-data; name="subject_age_attestation_version"\r\n\r\n${REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION}\r\n` +
       `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="processing_authority_confirmed"\r\n\r\ntrue\r\n` +
+      `--${boundary}\r\n` +
+      `Content-Disposition: form-data; name="processing_authority_attestation_version"\r\n\r\n${REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION}\r\n` +
+      `--${boundary}\r\n` +
       `Content-Disposition: form-data; name="file"; filename="selftest.pdf"\r\n` +
       `Content-Type: application/pdf\r\n\r\n` +
       `${fileContent}\r\n` +
@@ -1426,13 +1455,6 @@ async function runChecks(baseUrl, appId) {
 
   // --- ExtractDataFromUploadedFile remains fail-closed while disabled ---
   {
-    const schema = {
-      type: 'object',
-      properties: {
-        full_name: { type: 'string' },
-        comorbidities: { type: 'array', items: { type: 'string' } },
-      },
-    };
     const { status, body } = await api(
       baseUrl,
       appId,
@@ -1443,8 +1465,10 @@ async function runChecks(baseUrl, appId) {
         body: {
           file_url: uploadedFileUrl,
           org_id: orgAId,
-          json_schema: schema,
+          json_schema: REFERRAL_EXTRACTION_SCHEMA,
           processing_authority_confirmed: true,
+          processing_authority_attestation_version:
+            REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
         },
       },
     );

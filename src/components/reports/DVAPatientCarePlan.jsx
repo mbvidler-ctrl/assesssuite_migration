@@ -14,6 +14,7 @@ import { SecureFileImage } from "@/components/files/SecureFile";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
 import { Badge } from "@/components/ui/badge"; // Added Badge import
+import { renderSafeHtmlDocument, replaceWithSafeHtml, sanitizeHtml } from "@/lib/safeHtml";
 
 const PrintableReport = React.forwardRef(({ reportContent, client, clinician }, ref) => {
   // Ensure reportContent is a string before rendering. If it's a data object, extract html_content.
@@ -117,7 +118,7 @@ const PrintableReport = React.forwardRef(({ reportContent, client, clinician }, 
       <div className="report-title">
         DVA Patient Care Plan for {client.full_name}
       </div>
-      <div className="report-content" dangerouslySetInnerHTML={{ __html: contentToRender }} />
+      <div className="report-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(contentToRender) }} />
     </div>
   );
 });
@@ -819,14 +820,14 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
     if (!printWindow) {
       toast.warning("Popup blocked. Using current window print...");
       const originalContent = document.body.innerHTML;
-      document.body.innerHTML = printRef.current.outerHTML;
+      replaceWithSafeHtml(document.body, printRef.current.outerHTML);
       window.print();
-      document.body.innerHTML = originalContent;
+      replaceWithSafeHtml(document.body, originalContent);
       return;
     }
 
     try {
-      printWindow.document.write(`
+      renderSafeHtmlDocument(printWindow, `
         <!DOCTYPE html>
         <html>
         <head>
@@ -838,8 +839,6 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
         </body>
         </html>
       `);
-
-      printWindow.document.close();
 
       setTimeout(() => {
         printWindow.focus();
@@ -1333,7 +1332,7 @@ ${managementPlan.split('\n').map(para => `<p style="0.5em 0;">${para}</p>`).join
 
                 <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 max-h-60 overflow-y-auto">
                   <h4 className="font-semibold text-slate-800 mb-2">Assessment Results (for reference)</h4>
-                  <div dangerouslySetInnerHTML={{ __html: buildAssessmentTableHTML() }} />
+                  <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(buildAssessmentTableHTML()) }} />
                 </div>
 
                 <div>

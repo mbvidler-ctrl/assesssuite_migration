@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Loader2, UserPlus, Trash2 } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { findPotentialDuplicates } from "@/lib/clientDuplicates";
+import { ensureFounderOrganization } from "@/lib/profileFounderOrganization";
 
 export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) {
   const [formData, setFormData] = useState({
@@ -194,18 +195,8 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
         if (!memberships) memberships = [];
         
         if (memberships.length === 0) {
-          // Auto-create organization for user
-          const newOrg = await base44.entities.Organization.create({
-            name: `${currentUser.full_name || currentUser.email}'s Clinic`
-          });
-          
-          await base44.entities.OrganizationMember.create({
-            org_id: newOrg.id,
-            user_email: currentUser.email,
-            role: 'owner',
-            is_primary: true
-          });
-          
+          const defaultName = `${currentUser.full_name || currentUser.email}'s Clinic`.slice(0, 160);
+          const newOrg = await ensureFounderOrganization({ clinicName: defaultName });
           orgId = newOrg.id;
         } else {
           // Get primary org or first org

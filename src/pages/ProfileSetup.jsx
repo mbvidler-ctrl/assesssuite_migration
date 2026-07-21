@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { User } from "@/entities/User";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,11 +23,12 @@ import {
 import { Toaster, toast } from 'sonner';
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { createCheckoutSession } from "@/functions/createCheckoutSession";
 import ConsentSection from "@/components/legal/ConsentSection";
 import { recordLegalAcceptanceBundle } from "@/lib/legal/recordAcceptance";
 import { resolveLegalConsentAudience } from "@/lib/legal/consentAudience";
 import { INITIAL_RELEASE_PROFESSIONS } from "@/lib/clinicalRelease";
+import { profileSetupRedirectForUser } from "@/lib/profileSetupAccess";
+import { ensureFounderOrganization } from "@/lib/profileFounderOrganization";
 
 export default function ProfileSetup() {
   const navigate = useNavigate();
@@ -63,6 +63,11 @@ export default function ProfileSetup() {
     const fetchUser = async () => {
       try {
         const currentUser = await base44.auth.me();
+        const redirect = profileSetupRedirectForUser(currentUser);
+        if (redirect) {
+          navigate(redirect, { replace: true });
+          return;
+        }
         try {
           const existingMembers = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email });
           setConsentAudience(resolveLegalConsentAudience(existingMembers));
@@ -118,7 +123,7 @@ export default function ProfileSetup() {
       }
     };
     fetchUser();
-  }, []);
+  }, [navigate]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -202,7 +207,8 @@ export default function ProfileSetup() {
     try {
       const currentUser = await base44.auth.me();
       
-      // Create organization (only if user doesn't already have one)
+      // Reuse an existing membership or atomically ensure the founding
+      // practice through the authenticated server operation.
       let org;
       const existingMembers = await base44.entities.OrganizationMember.filter({ user_email: currentUser.email });
       const liveAudience = resolveLegalConsentAudience(existingMembers);
@@ -231,22 +237,14 @@ export default function ProfileSetup() {
       if (!liveAudience.willCreateOrganization) {
         org = { id: liveAudience.orgId };
       } else {
-        org = await base44.entities.Organization.create({
-          name: formData.clinic_name,
-        });
-        await base44.entities.OrganizationMember.create({
-          org_id: org.id,
-          user_email: currentUser.email,
-          role: "owner",
-          is_primary: true
+        org = await ensureFounderOrganization({
+          clinicName: formData.clinic_name,
         });
         setConsentAudience({
           orgId: org.id,
           ownerBundle: true,
           willCreateOrganization: false,
         });
-        // Set new user role to "user" not admin
-        await base44.auth.updateMe({ role: "user" });
       }
 
       // Create user profile with the form data. Account activation is an

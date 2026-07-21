@@ -7,6 +7,16 @@ import {
   isLegalDocumentPublicationApproved,
 } from './documentRegistry.js';
 import { effectiveLegalContent } from './effectiveContent.js';
+import { resolveLegalConsentAudience } from './consentAudience.js';
+
+function matchesCurrentReceipt(event, required, orgId) {
+  return event?.org_id === orgId
+    && event?.suite_version === required.suiteVersion
+    && event?.event_type === required.eventType
+    && event?.document_id === required.documentId
+    && event?.document_title === required.documentTitle
+    && event?.document_fingerprint === required.documentFingerprint;
+}
 
 /**
  * Build the exact document-bound receipts required by the server gate.
@@ -80,12 +90,61 @@ export function hasCurrentLegalAcceptance({
     return false;
   }
 
-  return requirements.every((required) => events.some((event) => (
-    event?.org_id === orgId
-    && event?.suite_version === required.suiteVersion
-    && event?.event_type === required.eventType
-    && event?.document_id === required.documentId
-    && event?.document_title === required.documentTitle
-    && event?.document_fingerprint === required.documentFingerprint
-  )));
+  return requirements.every((required) => (
+    events.some((event) => matchesCurrentReceipt(event, required, orgId))
+  ));
+}
+
+/**
+ * Exact acceptance status for the practice selected by a referral workflow.
+ * A receipt for another membership never satisfies this check. The status
+ * includes missing document IDs so the UI can route to a precise re-acceptance
+ * screen without weakening the server's independent extraction gate.
+ */
+export function selectedOrganizationLegalAcceptanceStatus({
+  events,
+  memberships,
+  orgId,
+  legalSettings,
+  readContent,
+}) {
+  const audience = resolveLegalConsentAudience(memberships, orgId);
+  if (!orgId || audience.willCreateOrganization || audience.orgId !== orgId) {
+    return {
+      accepted: false,
+      orgId: orgId || null,
+      ownerBundle: false,
+      missingDocumentIds: [],
+      reason: 'membership_missing',
+    };
+  }
+
+  let requirements;
+  try {
+    requirements = currentLegalReceiptRequirements({
+      ownerBundle: audience.ownerBundle,
+      legalSettings,
+      readContent,
+    });
+  } catch {
+    return {
+      accepted: false,
+      orgId,
+      ownerBundle: audience.ownerBundle,
+      missingDocumentIds: [],
+      reason: 'legal_content_unavailable',
+    };
+  }
+
+  const safeEvents = Array.isArray(events) ? events : [];
+  const missingDocumentIds = requirements
+    .filter((required) => !safeEvents.some((event) => matchesCurrentReceipt(event, required, orgId)))
+    .map((required) => required.documentId);
+  return {
+    accepted: missingDocumentIds.length === 0,
+    orgId,
+    ownerBundle: audience.ownerBundle,
+    missingDocumentIds,
+    reason: missingDocumentIds.length === 0 ? null : 'acceptance_required',
+  };
 }

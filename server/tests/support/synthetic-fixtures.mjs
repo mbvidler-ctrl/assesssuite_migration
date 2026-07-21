@@ -1,5 +1,9 @@
 import { deflateSync } from 'node:zlib';
 
+import {
+  REFERRAL_EXTRACTION_SCHEMA_PROPERTY_KEYS,
+} from '../../../src/lib/referralExtractionSchema.js';
+
 export const PROFILE_A = Object.freeze({
   full_name: 'Alex River',
   date_of_birth: '1990-01-02',
@@ -29,7 +33,12 @@ export const MERGED_PROFILE = Object.freeze({
   phone: '0400000000',
 });
 
-export const REFERRAL_SCHEMA = Object.freeze({
+/**
+ * Small schema reserved for exhaustive adapter/security matrix cases. It is
+ * intentionally not the production referral schema; end-to-end journeys and
+ * provider probes must import the canonical schema from src/lib instead.
+ */
+export const NARROW_REFERRAL_ASSURANCE_SCHEMA = Object.freeze({
   type: 'object',
   additionalProperties: false,
   properties: {
@@ -41,6 +50,28 @@ export const REFERRAL_SCHEMA = Object.freeze({
   },
   required: ['full_name', 'date_of_birth', 'diagnoses', 'referrer', 'phone'],
 });
+
+export const CANONICAL_REFERRAL_PROFILE_A = Object.freeze({
+  full_name: 'Alex River',
+  date_of_birth: '1990-01-02',
+  referral_source: 'gp',
+  referral_source_name: 'Dr Synthetic',
+  primary_condition: 'ankle sprain',
+  comorbidities: Object.freeze(['asthma']),
+  primary_gp_name: 'Dr Synthetic',
+});
+
+export const CANONICAL_REFERRAL_PROFILE_DOB_CHANGE = Object.freeze({
+  ...CANONICAL_REFERRAL_PROFILE_A,
+  date_of_birth: '1991-03-04',
+});
+
+/** Mimics strict-provider output: every schema key is present, absent facts are null. */
+export function canonicalProviderProfile(profile) {
+  return Object.fromEntries(
+    REFERRAL_EXTRACTION_SCHEMA_PROPERTY_KEYS.map((key) => [key, profile[key] ?? null]),
+  );
+}
 
 const CSV_FIXTURES = Object.freeze({
   'referral-primary.csv': 'fixture_id,full_name,date_of_birth,diagnoses,referrer,phone\nASSURANCE_PROFILE_A,Alex River,1990-01-02,"ankle sprain|asthma",Dr Synthetic,\n',
@@ -65,8 +96,11 @@ export function pdfFixture({ marker = 'ASSURANCE_PROFILE_A', dateOfBirth = '1990
     `FIXTURE ID: ${marker}`,
     'NAME: ALEX RIVER',
     `DATE OF BIRTH: ${dateOfBirth}`,
-    'DIAGNOSES: ANKLE SPRAIN; ASTHMA',
-    'REFERRER: DR SYNTHETIC',
+    'REFERRAL SOURCE: GP',
+    'REFERRER NAME: DR SYNTHETIC',
+    'PRIMARY CONDITION: ANKLE SPRAIN',
+    'COMORBIDITIES: ASTHMA',
+    'PRIMARY GP NAME: DR SYNTHETIC',
   ];
   const stream = [
     'BT',
@@ -171,8 +205,11 @@ export function pngFixture({ marker = 'ASSURANCE_PROFILE_A', dateOfBirth = '1990
     'SYNTHETIC REFERRAL',
     'NAME: ALEX RIVER',
     `DOB: ${dateOfBirth}`,
-    'DIAGNOSES: ANKLE SPRAIN ASTHMA',
-    'REFERRER: DR SYNTHETIC',
+    'REFERRAL SOURCE: GP',
+    'REFERRER NAME: DR SYNTHETIC',
+    'PRIMARY CONDITION: ANKLE SPRAIN',
+    'COMORBIDITIES: ASTHMA',
+    'PRIMARY GP NAME: DR SYNTHETIC',
   ];
   const scale = 4;
   const padding = 12;
@@ -225,4 +262,11 @@ export function detectFixtureProfile(rawText) {
   if (rawText.includes('ASSURANCE_PROFILE_DOB_CHANGE') || rawText.includes('1991-03-04')) return PROFILE_DOB_CHANGE;
   if (rawText.includes('ASSURANCE_PROFILE_FILL') || rawText.includes('0400000000')) return PROFILE_FILL;
   return PROFILE_A;
+}
+
+export function detectCanonicalFixtureProfile(rawText) {
+  if (rawText.includes('ASSURANCE_PROFILE_DOB_CHANGE') || rawText.includes('1991-03-04')) {
+    return CANONICAL_REFERRAL_PROFILE_DOB_CHANGE;
+  }
+  return CANONICAL_REFERRAL_PROFILE_A;
 }

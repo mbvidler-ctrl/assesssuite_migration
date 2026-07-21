@@ -1,19 +1,38 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Button as ButtonPrimitive } from '@/components/ui/button';
+import {
+  Card as CardPrimitive,
+  CardContent as CardContentPrimitive,
+  CardHeader as CardHeaderPrimitive,
+  CardTitle as CardTitlePrimitive,
+} from '@/components/ui/card';
+import { Input as InputPrimitive } from '@/components/ui/input';
+import { Label as LabelPrimitive } from '@/components/ui/label';
+import { Textarea as TextareaPrimitive } from '@/components/ui/textarea';
+import {
+  Select as SelectPrimitive,
+  SelectContent as SelectContentPrimitive,
+  SelectItem as SelectItemPrimitive,
+  SelectTrigger as SelectTriggerPrimitive,
+  SelectValue as SelectValuePrimitive,
+} from '@/components/ui/select';
 import {
   cancelTenantUploads,
   DOCUMENT_EXTRACTION_MAX_FILES,
   extractTenantDocumentData,
+  REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
   uploadTenantFile,
 } from '@/lib/fileIntegrations';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
-import { Badge } from '@/components/ui/badge';
+import {
+  Dialog as DialogPrimitive,
+  DialogContent as DialogContentPrimitive,
+  DialogHeader as DialogHeaderPrimitive,
+  DialogTitle as DialogTitlePrimitive,
+  DialogFooter as DialogFooterPrimitive,
+} from '@/components/ui/dialog';
+import { Badge as BadgePrimitive } from '@/components/ui/badge';
 import { 
   Upload, 
   FileText, 
@@ -31,98 +50,119 @@ import {
   Search
 } from 'lucide-react';
 import { toast } from 'sonner';
-import HistoricalAssessmentExtractor from './HistoricalAssessmentExtractor';
-import { todayLocal } from "@/lib/localDate";
 import {
   REFERRAL_PROCESSING_ATTESTATION,
   REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
   REFERRAL_SUBJECT_AGE_CONFIRMATION,
   resolveReferralOrganization,
 } from '@/lib/referralWorkflow';
+import { REFERRAL_EXTRACTION_SCHEMA } from '@/lib/referralExtractionSchema';
+import {
+  buildReferralClientData,
+  buildReferralConditionData,
+  findReferralClientMatches,
+  prepareReferralReviewData,
+} from '@/lib/referralReview';
+import {
+  buildReviewedReferralCommitPayload,
+  commitReviewedReferral,
+  createReferralCommitIdempotencyKey,
+} from '@/lib/referralCommit';
+import { useAuth } from '@/lib/AuthContext';
+import { selectedOrganizationLegalAcceptanceStatus } from '@/lib/legal/acceptanceGate';
+import { SUITE_VERSION } from '@/lib/legal/documentRegistry';
+import { loadLegalContent } from '@/lib/legal/loadContent';
 import { normalizeSdkError, sdkErrorLogMetadata } from '@/lib/sdkError';
 
-const REFERRAL_EXTRACTION_SCHEMA = {
-  type: "object",
-  properties: {
-    // Personal Details
-    full_name: { type: "string", description: "Patient's full name" },
-    date_of_birth: { type: "string", format: "date", description: "Date of birth in YYYY-MM-DD format" },
-    gender: { type: "string", enum: ["male", "female", "other"], description: "Patient's gender" },
-    phone: { type: "string", description: "Contact phone number" },
-    email: { type: "string", description: "Email address" },
-    address: { type: "string", description: "Home address" },
-    
-    // Referral Source Details
-    referral_source: { 
-      type: "string", 
-      enum: ["gp", "wc_case_manager", "aged_care_case_manager", "ndis_support_coordinator", "dva", "self_referral", "other"],
-      description: "Type of referral source"
-    },
-    referral_source_name: { type: "string", description: "Name of referring person/organization" },
-    referral_source_address: { type: "string", description: "Address of referrer" },
-    referral_source_email: { type: "string", description: "Email of referrer" },
-    referral_provider_number: { type: "string", description: "Provider number of referring professional" },
-    referral_reason: { type: "string", description: "Reason for referral" },
-    referral_date: { type: "string", format: "date", description: "Date of referral in YYYY-MM-DD format" },
-    
-    // Funding Details
-    funding_source: {
-      type: "string",
-      enum: ["dva", "private_health", "medicare", "self_funded", "workcover_qld", "ndis", "tac_maic", "aged_care", "my_aged_care", "other"],
-      description: "Primary funding source"
-    },
-    medicare_number: { type: "string", description: "Medicare card number" },
-    medicare_irn: { type: "string", description: "Medicare IRN" },
-    dva_card_number: { type: "string", description: "DVA card number" },
-    dva_card_type: { type: "string", enum: ["white", "gold", "gold_tpi"], description: "DVA card type" },
-    dva_file_number: { type: "string", description: "DVA file number" },
-    dva_accepted_conditions: { type: "string", description: "DVA accepted conditions" },
-    ndis_number: { type: "string", description: "NDIS participant number" },
-    ndis_goals: { type: "string", description: "NDIS goals from plan" },
-    private_health_fund_name: { type: "string", description: "Private health fund name" },
-    private_health_fund_number: { type: "string", description: "Private health fund member number" },
-    workcover_claim_number: { type: "string", description: "WorkCover claim number" },
-    workcover_date_of_injury: { type: "string", format: "date", description: "Date of workplace injury in YYYY-MM-DD format" },
-    workcover_injury_description: { type: "string", description: "Description of workplace injury" },
-    
-    // Medical Details
-    primary_condition: { type: "string", description: "Primary diagnosis or condition" },
-    comorbidities: { type: "array", items: { type: "string" }, description: "List of other medical conditions" },
-    medications: { type: "array", items: { type: "string" }, description: "Current medications" },
-    medical_history: { type: "string", description: "Relevant medical history" },
-    
-    // GP Details
-    primary_gp_name: { type: "string", description: "Primary GP name" },
-    primary_gp_clinic_name: { type: "string", description: "GP clinic name" },
-    primary_gp_address: { type: "string", description: "GP clinic address" },
-    primary_gp_phone: { type: "string", description: "GP clinic phone" },
-    primary_gp_email: { type: "string", description: "GP clinic email" },
-    primary_gp_provider_number: { type: "string", description: "GP provider number" },
-    
-    // Goals
-    client_goals: { type: "string", description: "Client's goals or referrer's goals for treatment" },
-    
-    // Referral Type for Reports
-    medicare_referral_type: { type: "string", enum: ["tca", "epc", "cdm"], description: "Medicare referral type" }
-  }
-};
+// The shared JavaScript UI primitives intentionally live outside checkJs and
+// therefore expose incomplete inferred prop types. Keep that typing boundary
+// local while retaining full checking for this workflow's data and callbacks.
+const Button = /** @type {React.ComponentType<any>} */ (ButtonPrimitive);
+const Card = /** @type {React.ComponentType<any>} */ (CardPrimitive);
+const CardContent = /** @type {React.ComponentType<any>} */ (CardContentPrimitive);
+const CardHeader = /** @type {React.ComponentType<any>} */ (CardHeaderPrimitive);
+const CardTitle = /** @type {React.ComponentType<any>} */ (CardTitlePrimitive);
+const Input = /** @type {React.ComponentType<any>} */ (InputPrimitive);
+const Label = /** @type {React.ComponentType<any>} */ (LabelPrimitive);
+const Textarea = /** @type {React.ComponentType<any>} */ (TextareaPrimitive);
+const Select = /** @type {React.ComponentType<any>} */ (SelectPrimitive);
+const SelectContent = /** @type {React.ComponentType<any>} */ (SelectContentPrimitive);
+const SelectItem = /** @type {React.ComponentType<any>} */ (SelectItemPrimitive);
+const SelectTrigger = /** @type {React.ComponentType<any>} */ (SelectTriggerPrimitive);
+const SelectValue = /** @type {React.ComponentType<any>} */ (SelectValuePrimitive);
+const Dialog = /** @type {React.ComponentType<any>} */ (DialogPrimitive);
+const DialogContent = /** @type {React.ComponentType<any>} */ (DialogContentPrimitive);
+const DialogHeader = /** @type {React.ComponentType<any>} */ (DialogHeaderPrimitive);
+const DialogTitle = /** @type {React.ComponentType<any>} */ (DialogTitlePrimitive);
+const DialogFooter = /** @type {React.ComponentType<any>} */ (DialogFooterPrimitive);
+const Badge = /** @type {React.ComponentType<any>} */ (BadgePrimitive);
 
-export default function ReferralUploader({ onClientCreated, onClientUpdated, existingClients = [], allAssessments = [] }) {
+/**
+ * @param {{
+ *   onClientCreated?: (client: Record<string, any>) => void,
+ *   onClientUpdated?: (client: Record<string, any>) => void,
+ *   existingClients?: Array<Record<string, any>>,
+ *   allAssessments?: Array<Record<string, any>>,
+ * }} props
+ */
+export default function ReferralUploader({
+  onClientCreated,
+  onClientUpdated,
+  existingClients = [],
+  allAssessments = [],
+}) {
+  // Accepted for compatibility with existing callers. Historical assessment
+  // scanning remains deliberately disabled in this release.
+  void allAssessments;
+  // Parent lists may be paginated. Duplicate review is derived only from the
+  // complete selected-practice query performed after extraction.
+  void existingClients;
+  const navigate = useNavigate();
+  const { appPublicSettings } = useAuth();
   const [files, setFiles] = useState([]);
   const [isUploading, setIsUploading] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
-  const [extractedData, setExtractedData] = useState(null);
+  const [processingError, setProcessingError] = useState(null);
   const [showReviewModal, setShowReviewModal] = useState(false);
-  const [editedData, setEditedData] = useState({});
+  const [editedData, setEditedData] = useState(/** @type {Record<string, any>} */ ({}));
+  const [tenantClients, setTenantClients] = useState([]);
   const [matchingClients, setMatchingClients] = useState([]);
   const [selectedExistingClient, setSelectedExistingClient] = useState(null);
-  const [extractedConditions, setExtractedConditions] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState([]);
-  const [pendingHistoricalAssessments, setPendingHistoricalAssessments] = useState([]);
   const [organizationOptions, setOrganizationOptions] = useState([]);
   const [selectedOrgId, setSelectedOrgId] = useState('');
   const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(true);
+  const uploadedFilesRef = useRef([]);
+  const selectedOrgIdRef = useRef('');
+  const referralCommitKeyRef = useRef(null);
+  const extractionStartLockRef = useRef(false);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    uploadedFilesRef.current = uploadedFiles;
+  }, [uploadedFiles]);
+
+  useEffect(() => {
+    selectedOrgIdRef.current = selectedOrgId;
+  }, [selectedOrgId]);
+
+  useEffect(() => {
+    const nextMatches = findReferralClientMatches(editedData, tenantClients, selectedOrgId);
+    setMatchingClients(nextMatches);
+    setSelectedExistingClient((current) => (
+      current && nextMatches.some((client) => client.id === current.id) ? current : null
+    ));
+  }, [editedData.full_name, editedData.date_of_birth, selectedOrgId, tenantClients]);
+
+  useEffect(() => () => {
+    isMountedRef.current = false;
+    const uploadIds = uploadedFilesRef.current.map((file) => file.uploadId).filter(Boolean);
+    const orgId = selectedOrgIdRef.current;
+    if (orgId && uploadIds.length > 0) {
+      void cancelTenantUploads({ org_id: orgId, upload_ids: uploadIds }).catch(() => {});
+    }
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -197,14 +237,17 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
 
     if (validFiles.length > 0) {
       setFiles(prev => [...prev, ...validFiles]);
-      setExtractedData(null);
+      referralCommitKeyRef.current = null;
+      setProcessingError(null);
       setEditedData({});
+      setTenantClients([]);
       setMatchingClients([]);
       setSelectedExistingClient(null);
     }
   };
 
   const removeFile = (index) => {
+    referralCommitKeyRef.current = null;
     setFiles(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -226,26 +269,76 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
 
   const handleReviewOpenChange = (open) => {
     if (open) setShowReviewModal(true);
+    else if (isSubmitting || isUploading || isExtracting) return;
     else void handleCancelReview();
   };
 
   const handleUploadAndExtract = async () => {
+    if (extractionStartLockRef.current) return;
+    extractionStartLockRef.current = true;
+    setIsUploading(true);
+    const releaseExtractionStart = () => {
+      extractionStartLockRef.current = false;
+      if (isMountedRef.current) {
+        setIsUploading(false);
+        setIsExtracting(false);
+      }
+    };
+    setProcessingError(null);
     if (files.length === 0) {
       toast.error('Please select at least one file');
+      releaseExtractionStart();
       return;
     }
     if (files.length > DOCUMENT_EXTRACTION_MAX_FILES) {
       toast.error(`Select no more than ${DOCUMENT_EXTRACTION_MAX_FILES} documents for one extraction.`);
+      releaseExtractionStart();
       return;
     }
     if (!selectedOrgId) {
       toast.error('Your current practice could not be resolved. Refresh the page or check your practice membership.');
+      releaseExtractionStart();
       return;
     }
+
+    // Re-check the exact selected practice immediately before any upload. The
+    // layout gate may have run against an earlier membership or receipt set.
+    try {
+      const currentUser = await base44.auth.me();
+      const [memberships, events] = await Promise.all([
+        base44.entities.OrganizationMember.filter({ user_email: currentUser.email }),
+        base44.entities.LegalAcceptanceEvent.filter({
+          user_email: currentUser.email,
+          suite_version: SUITE_VERSION,
+        }),
+      ]);
+      const legalStatus = selectedOrganizationLegalAcceptanceStatus({
+        events,
+        memberships,
+        orgId: selectedOrgId,
+        legalSettings: appPublicSettings?.public_settings?.legal,
+        readContent: loadLegalContent,
+      });
+      if (!legalStatus.accepted) {
+        const details = 'Review and accept the current notices for this practice before extracting a referral.';
+        setProcessingError({ details, diagnosticReference: null });
+        toast.error(details);
+        navigate(`/LegalNotices?org_id=${encodeURIComponent(selectedOrgId)}`);
+        releaseExtractionStart();
+        return;
+      }
+    } catch (error) {
+      console.warn('Referral legal preflight failed', sdkErrorLogMetadata(error, { stage: 'legal_preflight' }));
+      const details = 'The current practice notices could not be verified. No document was uploaded.';
+      setProcessingError({ details, diagnosticReference: null });
+      toast.error(details);
+      releaseExtractionStart();
+      return;
+    }
+
     // The action itself is the explicit, authenticated authority and age
     // attestation. The server rejects missing/other age confirmations before
     // provider I/O and retains only the age category, never an entered DOB.
-    setIsUploading(true);
     const uploadedFilesData = [];
     let processingStage = 'upload';
     try {
@@ -255,14 +348,27 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
           file,
           org_id: selectedOrgId,
           purpose: 'referral-extraction',
+          processing_authority_confirmed: true,
+          processing_authority_attestation_version:
+            REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
           subject_age_confirmation: REFERRAL_SUBJECT_AGE_CONFIRMATION,
           subject_age_attestation_version: REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
         });
+        if (!isMountedRef.current) {
+          await cancelTenantUploads({
+            org_id: selectedOrgId,
+            upload_ids: [upload_id],
+          }).catch(() => {});
+          return;
+        }
         uploadedFilesData.push({ url: file_url, uploadId: upload_id, name: file.name });
+        // Publish each durable upload immediately. If a later upload is still
+        // pending when this component unmounts, cleanup can already see and
+        // cancel every file that reached storage.
+        const uploadedSnapshot = [...uploadedFilesData];
+        uploadedFilesRef.current = uploadedSnapshot;
+        setUploadedFiles(uploadedSnapshot);
       }
-      
-      // Store file URLs and names for later saving
-      setUploadedFiles(uploadedFilesData);
       
       setIsUploading(false);
       setIsExtracting(true);
@@ -276,62 +382,47 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
         file_urls: fileUrls,
         json_schema: REFERRAL_EXTRACTION_SCHEMA,
         processing_authority_confirmed: true,
+        processing_authority_attestation_version:
+          REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
       });
 
       if (result?.status !== 'success' || !result.output || typeof result.output !== 'object') {
-        const details = result?.status === 'error' && typeof result.details === 'string'
-          ? result.details
-          : 'The referral could not be extracted. No client data was changed.';
+        const failure = normalizeSdkError({ data: result }, {
+          stage: 'extraction',
+          fallbackDetails: 'The referral could not be extracted. No client data was changed.',
+        });
         await scheduleCancellation(uploadedFilesData).catch(() => {});
-        toast.error(details);
+        setProcessingError({
+          details: failure.details,
+          diagnosticReference: failure.diagnosticReference,
+        });
+        toast.error(failure.details);
         return;
       }
 
       const mergedData = result.output;
+      setTenantClients([]);
+      setMatchingClients([]);
+      setSelectedExistingClient(null);
+      setEditedData(prepareReferralReviewData(mergedData));
+      // One key identifies this exact reviewed extraction. A failed commit can
+      // be retried safely with the same key; a later extraction receives a new
+      // key and therefore cannot replay this review accidentally.
+      referralCommitKeyRef.current = createReferralCommitIdempotencyKey();
 
-      setExtractedData(mergedData);
-      setEditedData(mergedData);
-
-      // Process conditions
-      const conditions = [];
-      if (mergedData.primary_condition) {
-        conditions.push({ name: mergedData.primary_condition, type: 'primary' });
+      // Query the complete selected-practice client set rather than relying on
+      // whichever subset the parent page happens to have loaded.
+      let completeTenantClients = [];
+      try {
+        const queriedClients = await base44.entities.Client.filter({ org_id: selectedOrgId });
+        completeTenantClients = Array.isArray(queriedClients)
+          ? queriedClients.filter((client) => client?.org_id === selectedOrgId)
+          : [];
+      } catch (error) {
+        console.warn('Referral duplicate check failed', sdkErrorLogMetadata(error, { stage: 'duplicate_check' }));
+        toast.warning('The complete client list could not be checked. Review carefully before creating a new client.');
       }
-      if (mergedData.comorbidities && Array.isArray(mergedData.comorbidities)) {
-        mergedData.comorbidities.forEach(c => {
-          conditions.push({ name: c, type: 'comorbidity' });
-        });
-      }
-      setExtractedConditions(conditions);
-
-      // Check for matching clients - stricter matching criteria
-      if (mergedData.full_name && mergedData.date_of_birth) {
-        const matches = existingClients.filter(client => {
-          if (client.org_id !== selectedOrgId) return false;
-          // Both name AND DOB must match for a valid match
-          const normalizedExtractedName = mergedData.full_name?.toLowerCase().trim();
-          const normalizedClientName = client.full_name?.toLowerCase().trim();
-          const normalizedExtractedDob = mergedData.date_of_birth;
-          const normalizedClientDob = client.date_of_birth;
-          
-          // Exact DOB match required
-          const dobMatch = normalizedExtractedDob === normalizedClientDob;
-          
-          // Name must be very similar (at least 80% of shorter name matches)
-          const nameMatch = normalizedExtractedName && normalizedClientName && (
-            normalizedExtractedName === normalizedClientName ||
-            normalizedClientName.includes(normalizedExtractedName) ||
-            normalizedExtractedName.includes(normalizedClientName)
-          );
-          
-          // BOTH must match
-          return nameMatch && dobMatch;
-        });
-        setMatchingClients(matches);
-      } else {
-        // If we don't have both name and DOB, don't suggest matches
-        setMatchingClients([]);
-      }
+      setTenantClients(completeTenantClients);
 
       setShowReviewModal(true);
       toast.success(`Data extracted from ${files.length} file(s)! Please review.`);
@@ -343,10 +434,13 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
         fallbackDetails: 'The referral could not be processed. No client data was changed.',
       });
       console.warn('Referral processing failed', sdkErrorLogMetadata(error, { stage: processingStage }));
+      setProcessingError({
+        details: failure.details,
+        diagnosticReference: failure.diagnosticReference,
+      });
       toast.error(failure.details);
     } finally {
-      setIsUploading(false);
-      setIsExtracting(false);
+      releaseExtractionStart();
     }
   };
 
@@ -354,123 +448,38 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
     setEditedData(prev => ({ ...prev, [field]: value }));
   };
 
+  const reviewedClientData = () => buildReferralClientData(editedData);
+
+  const reviewedCommitPayload = (operation, clientId = null) => {
+    const idempotencyKey = referralCommitKeyRef.current || createReferralCommitIdempotencyKey();
+    referralCommitKeyRef.current = idempotencyKey;
+    return buildReviewedReferralCommitPayload({
+      idempotencyKey,
+      orgId: selectedOrgId,
+      operation,
+      clientId,
+      client: reviewedClientData(),
+      conditions: buildReferralConditionData(editedData),
+      uploadIds: uploadedFiles.map((file) => file.uploadId).filter(Boolean),
+    });
+  };
+
   const handleCreateNewClient = async () => {
     if (isSubmitting) return;
     setIsSubmitting(true);
+    setProcessingError(null);
     try {
-      // Prepare client data
-      const clientData = {
-        full_name: editedData.full_name,
-        date_of_birth: editedData.date_of_birth,
-        gender: editedData.gender,
-        phone: editedData.phone,
-        email: editedData.email,
-        address: editedData.address,
-        referral_source: editedData.referral_source,
-        referral_source_name: editedData.referral_source_name,
-        referral_source_address: editedData.referral_source_address,
-        referral_source_email: editedData.referral_source_email,
-        referral_provider_number: editedData.referral_provider_number,
-        referral_reason: editedData.referral_reason,
-        referral_date: editedData.referral_date,
-        funding_source: editedData.funding_source,
-        medicare_number: editedData.medicare_number,
-        medicare_irn: editedData.medicare_irn,
-        medicare_referral_type: editedData.medicare_referral_type,
-        dva_card_number: editedData.dva_card_number,
-        dva_card_type: editedData.dva_card_type,
-        dva_file_number: editedData.dva_file_number,
-        dva_accepted_conditions: editedData.dva_accepted_conditions,
-        ndis_number: editedData.ndis_number,
-        ndis_goals: editedData.ndis_goals,
-        private_health_fund_name: editedData.private_health_fund_name,
-        private_health_fund_number: editedData.private_health_fund_number,
-        workcover_claim_number: editedData.workcover_claim_number,
-        workcover_date_of_injury: editedData.workcover_date_of_injury,
-        workcover_injury_description: editedData.workcover_injury_description,
-        primary_gp_name: editedData.primary_gp_name,
-        primary_gp_clinic_name: editedData.primary_gp_clinic_name,
-        primary_gp_address: editedData.primary_gp_address,
-        primary_gp_phone: editedData.primary_gp_phone,
-        primary_gp_email: editedData.primary_gp_email,
-        primary_gp_provider_number: editedData.primary_gp_provider_number,
-        client_goals: editedData.client_goals,
-        consent_confirmed: false
-      };
-
-      // Remove undefined/empty values
-      Object.keys(clientData).forEach(key => {
-        if (clientData[key] === undefined || clientData[key] === '') {
-          delete clientData[key];
-        }
-      });
-
       if (!selectedOrgId || !organizationOptions.some((option) => option.id === selectedOrgId)) {
         throw new Error('Practice membership is no longer available.');
       }
-      const currentUser = await base44.auth.me();
 
-      const newClient = await base44.entities.Client.create({
-        ...clientData,
+      const payload = reviewedCommitPayload('create');
+      const result = await commitReviewedReferral(base44, payload);
+      const clientWithOrg = /** @type {Record<string, any>} */ ({
+        ...payload.client,
+        id: result.client_id,
         org_id: selectedOrgId,
-        assigned_clinician_email: currentUser.email
       });
-      
-      const clientWithOrg = newClient;
-
-      // Create conditions
-      for (const condition of extractedConditions) {
-        await base44.entities.ClientCondition.create({
-          client_id: clientWithOrg.id,
-          org_id: clientWithOrg.org_id,
-          condition_name: condition.name,
-          condition_type: condition.type,
-          is_active: true
-        });
-      }
-
-      // Add medications as conditions if present
-      if (editedData.medications && Array.isArray(editedData.medications)) {
-        for (const med of editedData.medications) {
-          await base44.entities.ClientCondition.create({
-            client_id: clientWithOrg.id,
-            org_id: clientWithOrg.org_id,
-            condition_name: 'Medication',
-            condition_type: 'comorbidity',
-            medication: med,
-            is_active: true
-          });
-        }
-      }
-
-      // Save all uploaded documents to client's profile
-      for (const uploadedFile of uploadedFiles) {
-        await base44.entities.ClientDocument.create({
-          client_id: clientWithOrg.id,
-          org_id: clientWithOrg.org_id,
-          document_type: 'referral',
-          file_url: uploadedFile.url,
-          file_name: uploadedFile.name,
-          notes: 'Uploaded via referral uploader'
-        });
-      }
-
-      // Save any pending historical assessments
-      if (pendingHistoricalAssessments.length > 0) {
-        for (const assessment of pendingHistoricalAssessments) {
-          await base44.entities.ClientAssessment.create({
-            client_id: clientWithOrg.id,
-            org_id: clientWithOrg.org_id,
-            assessment_id: assessment.matched_assessment.id,
-            appointment_id: null,
-            status: 'completed',
-            result_value: assessment.result_value,
-            assessment_date: assessment.test_date || todayLocal(),
-            notes: `Historical result from external report. ${assessment.performed_by ? `Performed by: ${assessment.performed_by}. ` : ''}${assessment.notes || ''}`
-          });
-        }
-        toast.success(`Saved ${pendingHistoricalAssessments.length} historical assessment(s)`);
-      }
 
       setShowReviewModal(false);
       resetForm();
@@ -484,8 +493,16 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
       }, 100);
 
     } catch (error) {
-      console.error('Error creating client:', error);
-      toast.error('Failed to create client');
+      const failure = normalizeSdkError(error, {
+        stage: 'referral_commit',
+        fallbackDetails: 'The save result could not be confirmed. Retry this same review; AssessSuite will safely return the original result if it was already saved.',
+      });
+      console.warn('Referral commit failed', sdkErrorLogMetadata(error, { stage: 'referral_commit' }));
+      setProcessingError({
+        details: failure.details,
+        diagnosticReference: failure.diagnosticReference,
+      });
+      toast.error(failure.details);
     } finally {
       setIsSubmitting(false);
     }
@@ -502,70 +519,55 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
       return;
     }
     setIsSubmitting(true);
+    setProcessingError(null);
 
     try {
-      // Prepare update data (only non-empty fields)
-      const updateData = {};
-      Object.keys(editedData).forEach(key => {
-        if (editedData[key] && editedData[key] !== '' && 
-            !['primary_condition', 'comorbidities', 'medications', 'medical_history'].includes(key)) {
-          updateData[key] = editedData[key];
-        }
-      });
-
-      await base44.entities.Client.update(selectedExistingClient.id, updateData);
-
-      // Add new conditions
-      for (const condition of extractedConditions) {
-        await base44.entities.ClientCondition.create({
-          client_id: selectedExistingClient.id,
-          org_id: selectedExistingClient.org_id,
-          condition_name: condition.name,
-          condition_type: condition.type,
-          is_active: true
-        });
-      }
-
-      // Save all uploaded documents to client's profile
-      for (const uploadedFile of uploadedFiles) {
-        await base44.entities.ClientDocument.create({
-          client_id: selectedExistingClient.id,
-          org_id: selectedExistingClient.org_id,
-          document_type: 'referral',
-          file_url: uploadedFile.url,
-          file_name: uploadedFile.name,
-          notes: 'Uploaded via referral uploader'
-        });
-      }
+      const payload = reviewedCommitPayload('update', selectedExistingClient.id);
+      const result = await commitReviewedReferral(base44, payload);
+      const updatedClient = {
+        ...selectedExistingClient,
+        ...payload.client,
+        id: result.client_id,
+        org_id: selectedOrgId,
+      };
 
       setShowReviewModal(false);
       resetForm();
-      toast.success(`Client "${selectedExistingClient.full_name}" updated successfully!`);
+      toast.success(`Client "${updatedClient.full_name}" updated successfully!`);
 
       // Delay callback slightly to ensure state is cleared before navigation
       setTimeout(() => {
         if (onClientUpdated) {
-          onClientUpdated(selectedExistingClient);
+          onClientUpdated(updatedClient);
         }
       }, 100);
 
     } catch (error) {
-      console.error('Error updating client:', error);
-      toast.error('Failed to update client');
+      const failure = normalizeSdkError(error, {
+        stage: 'referral_commit',
+        fallbackDetails: 'The save result could not be confirmed. Retry this same review; AssessSuite will safely return the original result if it was already saved.',
+      });
+      console.warn('Referral commit failed', sdkErrorLogMetadata(error, { stage: 'referral_commit' }));
+      setProcessingError({
+        details: failure.details,
+        diagnosticReference: failure.diagnosticReference,
+      });
+      toast.error(failure.details);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const resetForm = () => {
+    referralCommitKeyRef.current = null;
     setFiles([]);
-    setExtractedData(null);
     setEditedData({});
+    setTenantClients([]);
     setMatchingClients([]);
     setSelectedExistingClient(null);
-    setExtractedConditions([]);
+    setProcessingError(null);
+    uploadedFilesRef.current = [];
     setUploadedFiles([]);
-    setPendingHistoricalAssessments([]);
   };
 
   const handleOrganizationChange = (nextOrgId) => {
@@ -612,6 +614,29 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
     other: "Other"
   };
 
+  const renderProcessingError = () => processingError && (
+    <div
+      role="alert"
+      aria-live="assertive"
+      className="rounded-md border border-red-200 bg-red-50 p-3 text-left text-sm text-red-900"
+    >
+      <div className="flex items-start gap-2">
+        <AlertCircle className="mt-0.5 h-4 w-4 flex-shrink-0 text-red-600" />
+        <div>
+          <p className="font-semibold">Referral processing was not completed</p>
+          <p className="mt-1">{processingError.details}</p>
+          <p className="mt-1 text-xs text-red-800">
+            Retry the action. If it fails again, contact support
+            {processingError.diagnosticReference ? ' and include the reference below' : ''}.
+          </p>
+          {processingError.diagnosticReference && (
+            <p className="mt-1 font-mono text-xs">Reference: {processingError.diagnosticReference}</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <>
       <Card className="bg-white/80 backdrop-blur-sm border-slate-200/60">
@@ -622,6 +647,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {renderProcessingError()}
           {organizationOptions.length > 1 && (
             <div className="space-y-2">
               <Label htmlFor="referral-organization">Choose practice for this referral</Label>
@@ -659,11 +685,12 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
               className="hidden"
               id="referral-upload"
               multiple
+              disabled={isUploading || isExtracting}
             />
             <label htmlFor="referral-upload" className="cursor-pointer">
               <FileText className="w-12 h-12 mx-auto text-slate-400 mb-3" />
               <p className="text-sm text-slate-600 mb-1">
-                Click to upload or drag and drop
+                Click to upload
               </p>
               <p className="text-xs text-slate-500">PDF, PNG, JPG or CSV (up to {DOCUMENT_EXTRACTION_MAX_FILES} files)</p>
             </label>
@@ -681,6 +708,8 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
                     variant="ghost"
                     size="sm"
                     onClick={() => removeFile(index)}
+                    aria-label={`Remove ${file.name}`}
+                    disabled={isUploading || isExtracting}
                     className="text-red-600 hover:text-red-700 hover:bg-red-50"
                   >
                     Remove
@@ -690,6 +719,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
               <Button
                 onClick={handleUploadAndExtract}
                 disabled={isUploading || isExtracting || !selectedOrgId}
+                aria-describedby="referral-extraction-attestation"
                 className="w-full bg-blue-600 hover:bg-blue-700"
               >
                 {isUploading ? (
@@ -697,10 +727,10 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
                 ) : isExtracting ? (
                   <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Extracting data...</>
                 ) : (
-                  <><Search className="w-4 h-4 mr-2" /> Confirm Patient 13+ &amp; Extract Data from {files.length} file(s)</>
+                  <><Search className="w-4 h-4 mr-2" /> Extract Data from {files.length} file(s)</>
                 )}
               </Button>
-              <p className="text-xs leading-5 text-slate-500">
+              <p id="referral-extraction-attestation" className="text-xs leading-5 text-slate-600">
                 {REFERRAL_PROCESSING_ATTESTATION}
               </p>
             </div>
@@ -719,6 +749,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
           </DialogHeader>
 
           <div className="space-y-6 py-4">
+            {renderProcessingError()}
             {/* Matching Clients Warning */}
             {matchingClients.length > 0 && (
               <Card className="border-yellow-200 bg-yellow-50">
@@ -732,9 +763,11 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
                       </p>
                       <div className="space-y-2">
                         {matchingClients.map(client => (
-                          <div 
+                          <button
+                            type="button"
                             key={client.id}
-                            className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                            aria-pressed={selectedExistingClient?.id === client.id}
+                            className={`w-full p-3 rounded-lg border cursor-pointer text-left transition-colors ${
                               selectedExistingClient?.id === client.id 
                                 ? 'bg-yellow-100 border-yellow-400' 
                                 : 'bg-white border-yellow-200 hover:bg-yellow-50'
@@ -752,7 +785,7 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
                                 <Badge className="bg-yellow-600">Selected</Badge>
                               )}
                             </div>
-                          </div>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -850,6 +883,22 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
                   />
                 </div>
                 <div>
+                  <Label>Referrer Email</Label>
+                  <Input
+                    type="email"
+                    value={editedData.referral_source_email || ''}
+                    onChange={(e) => handleFieldChange('referral_source_email', e.target.value)}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Referrer Address</Label>
+                  <Textarea
+                    value={editedData.referral_source_address || ''}
+                    onChange={(e) => handleFieldChange('referral_source_address', e.target.value)}
+                    rows={2}
+                  />
+                </div>
+                <div>
                   <Label>Referral Date</Label>
                   <Input
                     type="date"
@@ -896,173 +945,228 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
                   </Select>
                 </div>
 
-                {/* Medicare Fields */}
-                {editedData.funding_source === 'medicare' && (
-                  <>
-                    <div>
-                      <Label>Medicare Number</Label>
-                      <Input
-                        value={editedData.medicare_number || ''}
-                        onChange={(e) => handleFieldChange('medicare_number', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label>Medicare IRN</Label>
-                      <Input
-                        value={editedData.medicare_irn || ''}
-                        onChange={(e) => handleFieldChange('medicare_irn', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label>Medicare Referral Type</Label>
-                      <Select value={editedData.medicare_referral_type || ''} onValueChange={(v) => handleFieldChange('medicare_referral_type', v)}>
-                        <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="tca">Team Care Arrangement (TCA)</SelectItem>
-                          <SelectItem value="epc">Enhanced Primary Care (EPC)</SelectItem>
-                          <SelectItem value="cdm">Chronic Disease Management (CDM)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </>
-                )}
+                <div className="md:col-span-2 border-t pt-3 text-sm font-semibold text-slate-700">Medicare</div>
+                <div>
+                  <Label>Medicare Number</Label>
+                  <Input
+                    value={editedData.medicare_number || ''}
+                    onChange={(e) => handleFieldChange('medicare_number', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Medicare IRN</Label>
+                  <Input
+                    value={editedData.medicare_irn || ''}
+                    onChange={(e) => handleFieldChange('medicare_irn', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Medicare Referral Type</Label>
+                  <Select value={editedData.medicare_referral_type || ''} onValueChange={(v) => handleFieldChange('medicare_referral_type', v)}>
+                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="tca">Team Care Arrangement (TCA)</SelectItem>
+                      <SelectItem value="epc">Enhanced Primary Care (EPC)</SelectItem>
+                      <SelectItem value="cdm">Chronic Disease Management (CDM)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-                {/* DVA Fields */}
-                {editedData.funding_source === 'dva' && (
-                  <>
-                    <div>
-                      <Label>DVA Card Number</Label>
-                      <Input
-                        value={editedData.dva_card_number || ''}
-                        onChange={(e) => handleFieldChange('dva_card_number', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label>DVA Card Type</Label>
-                      <Select value={editedData.dva_card_type || ''} onValueChange={(v) => handleFieldChange('dva_card_type', v)}>
-                        <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="white">White</SelectItem>
-                          <SelectItem value="gold">Gold</SelectItem>
-                          <SelectItem value="gold_tpi">Gold TPI</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div>
-                      <Label>DVA File Number</Label>
-                      <Input
-                        value={editedData.dva_file_number || ''}
-                        onChange={(e) => handleFieldChange('dva_file_number', e.target.value)}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Label>DVA Accepted Conditions</Label>
-                      <Textarea
-                        value={editedData.dva_accepted_conditions || ''}
-                        onChange={(e) => handleFieldChange('dva_accepted_conditions', e.target.value)}
-                        rows={2}
-                      />
-                    </div>
-                  </>
-                )}
+                <div className="md:col-span-2 border-t pt-3 text-sm font-semibold text-slate-700">DVA</div>
+                <div>
+                  <Label>DVA Card Number</Label>
+                  <Input
+                    value={editedData.dva_card_number || ''}
+                    onChange={(e) => handleFieldChange('dva_card_number', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>DVA Card Type</Label>
+                  <Select value={editedData.dva_card_type || ''} onValueChange={(v) => handleFieldChange('dva_card_type', v)}>
+                    <SelectTrigger><SelectValue placeholder="Select type" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="white">White</SelectItem>
+                      <SelectItem value="gold">Gold</SelectItem>
+                      <SelectItem value="gold_tpi">Gold TPI</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label>DVA File Number</Label>
+                  <Input
+                    value={editedData.dva_file_number || ''}
+                    onChange={(e) => handleFieldChange('dva_file_number', e.target.value)}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>DVA Accepted Conditions</Label>
+                  <Textarea
+                    value={editedData.dva_accepted_conditions || ''}
+                    onChange={(e) => handleFieldChange('dva_accepted_conditions', e.target.value)}
+                    rows={2}
+                  />
+                </div>
 
-                {/* NDIS Fields */}
-                {editedData.funding_source === 'ndis' && (
-                  <>
-                    <div>
-                      <Label>NDIS Number</Label>
-                      <Input
-                        value={editedData.ndis_number || ''}
-                        onChange={(e) => handleFieldChange('ndis_number', e.target.value)}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Label>NDIS Goals</Label>
-                      <Textarea
-                        value={editedData.ndis_goals || ''}
-                        onChange={(e) => handleFieldChange('ndis_goals', e.target.value)}
-                        rows={2}
-                      />
-                    </div>
-                  </>
-                )}
+                <div className="md:col-span-2 border-t pt-3 text-sm font-semibold text-slate-700">NDIS</div>
+                <div>
+                  <Label>NDIS Number</Label>
+                  <Input
+                    value={editedData.ndis_number || ''}
+                    onChange={(e) => handleFieldChange('ndis_number', e.target.value)}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>NDIS Goals</Label>
+                  <Textarea
+                    value={editedData.ndis_goals || ''}
+                    onChange={(e) => handleFieldChange('ndis_goals', e.target.value)}
+                    rows={2}
+                  />
+                </div>
 
-                {/* WorkCover Fields */}
-                {editedData.funding_source === 'workcover_qld' && (
-                  <>
-                    <div>
-                      <Label>WorkCover Claim Number</Label>
-                      <Input
-                        value={editedData.workcover_claim_number || ''}
-                        onChange={(e) => handleFieldChange('workcover_claim_number', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label>Date of Injury</Label>
-                      <Input
-                        type="date"
-                        value={editedData.workcover_date_of_injury || ''}
-                        onChange={(e) => handleFieldChange('workcover_date_of_injury', e.target.value)}
-                      />
-                    </div>
-                    <div className="md:col-span-2">
-                      <Label>Injury Description</Label>
-                      <Textarea
-                        value={editedData.workcover_injury_description || ''}
-                        onChange={(e) => handleFieldChange('workcover_injury_description', e.target.value)}
-                        rows={2}
-                      />
-                    </div>
-                  </>
-                )}
+                <div className="md:col-span-2 border-t pt-3 text-sm font-semibold text-slate-700">Private Health</div>
+                <div>
+                  <Label>Health Fund Name</Label>
+                  <Input
+                    value={editedData.private_health_fund_name || ''}
+                    onChange={(e) => handleFieldChange('private_health_fund_name', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Member Number</Label>
+                  <Input
+                    value={editedData.private_health_fund_number || ''}
+                    onChange={(e) => handleFieldChange('private_health_fund_number', e.target.value)}
+                  />
+                </div>
 
-                {/* Private Health Fields */}
-                {editedData.funding_source === 'private_health' && (
-                  <>
-                    <div>
-                      <Label>Health Fund Name</Label>
-                      <Input
-                        value={editedData.private_health_fund_name || ''}
-                        onChange={(e) => handleFieldChange('private_health_fund_name', e.target.value)}
-                      />
-                    </div>
-                    <div>
-                      <Label>Member Number</Label>
-                      <Input
-                        value={editedData.private_health_fund_number || ''}
-                        onChange={(e) => handleFieldChange('private_health_fund_number', e.target.value)}
-                      />
-                    </div>
-                  </>
-                )}
+                <div className="md:col-span-2 border-t pt-3 text-sm font-semibold text-slate-700">WorkCover</div>
+                <div>
+                  <Label>WorkCover Claim Number</Label>
+                  <Input
+                    value={editedData.workcover_claim_number || ''}
+                    onChange={(e) => handleFieldChange('workcover_claim_number', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Date of Injury</Label>
+                  <Input
+                    type="date"
+                    value={editedData.workcover_date_of_injury || ''}
+                    onChange={(e) => handleFieldChange('workcover_date_of_injury', e.target.value)}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Injury Description</Label>
+                  <Textarea
+                    value={editedData.workcover_injury_description || ''}
+                    onChange={(e) => handleFieldChange('workcover_injury_description', e.target.value)}
+                    rows={2}
+                  />
+                </div>
               </CardContent>
             </Card>
 
-            {/* Medical Conditions */}
-            {extractedConditions.length > 0 && (
-              <Card>
-                <CardHeader className="pb-3">
-                  <CardTitle className="text-base flex items-center gap-2">
-                    <Stethoscope className="w-4 h-4 text-blue-600" />
-                    Medical Conditions
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex flex-wrap gap-2">
-                    {extractedConditions.map((condition, index) => (
-                      <Badge 
-                        key={index} 
-                        variant={condition.type === 'primary' ? 'default' : 'secondary'}
-                        className={condition.type === 'primary' ? 'bg-red-100 text-red-800' : ''}
-                      >
-                        {condition.name}
-                        {condition.type === 'primary' && ' (Primary)'}
-                      </Badge>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            {/* Medical Details */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Stethoscope className="w-4 h-4 text-blue-600" />
+                  Medical Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <Label>Primary Condition</Label>
+                  <Input
+                    value={editedData.primary_condition || ''}
+                    onChange={(e) => handleFieldChange('primary_condition', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Other Conditions</Label>
+                  <Textarea
+                    value={editedData.comorbidities || ''}
+                    onChange={(e) => handleFieldChange('comorbidities', e.target.value)}
+                    placeholder="One condition per line"
+                    rows={4}
+                  />
+                </div>
+                <div>
+                  <Label>Current Medications</Label>
+                  <Textarea
+                    value={editedData.medications || ''}
+                    onChange={(e) => handleFieldChange('medications', e.target.value)}
+                    placeholder="One medication per line"
+                    rows={4}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>Relevant Medical History</Label>
+                  <Textarea
+                    value={editedData.medical_history || ''}
+                    onChange={(e) => handleFieldChange('medical_history', e.target.value)}
+                    rows={4}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* GP Details */}
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Stethoscope className="w-4 h-4 text-blue-600" />
+                  Primary GP Details
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <Label>GP Name</Label>
+                  <Input
+                    value={editedData.primary_gp_name || ''}
+                    onChange={(e) => handleFieldChange('primary_gp_name', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>Clinic Name</Label>
+                  <Input
+                    value={editedData.primary_gp_clinic_name || ''}
+                    onChange={(e) => handleFieldChange('primary_gp_clinic_name', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>GP Phone</Label>
+                  <Input
+                    value={editedData.primary_gp_phone || ''}
+                    onChange={(e) => handleFieldChange('primary_gp_phone', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>GP Email</Label>
+                  <Input
+                    type="email"
+                    value={editedData.primary_gp_email || ''}
+                    onChange={(e) => handleFieldChange('primary_gp_email', e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label>GP Provider Number</Label>
+                  <Input
+                    value={editedData.primary_gp_provider_number || ''}
+                    onChange={(e) => handleFieldChange('primary_gp_provider_number', e.target.value)}
+                  />
+                </div>
+                <div className="md:col-span-2">
+                  <Label>GP Address</Label>
+                  <Textarea
+                    value={editedData.primary_gp_address || ''}
+                    onChange={(e) => handleFieldChange('primary_gp_address', e.target.value)}
+                    rows={2}
+                  />
+                </div>
+              </CardContent>
+            </Card>
 
             {/* Goals */}
             <Card>
@@ -1082,27 +1186,10 @@ export default function ReferralUploader({ onClientCreated, onClientUpdated, exi
               </CardContent>
             </Card>
 
-            {/* Historical Assessment Extraction */}
-            {uploadedFiles.length > 0 && (
-              <HistoricalAssessmentExtractor
-                fileUrls={uploadedFiles.map(f => f.url)}
-                clientId={selectedExistingClient?.id || null}
-                orgId={selectedOrgId}
-                processingAuthorityConfirmed
-                allAssessments={allAssessments}
-                onExtracted={(assessments) => {
-                  // For new clients, store assessments to save after client creation
-                  if (!selectedExistingClient) {
-                    setPendingHistoricalAssessments(assessments);
-                  }
-                }}
-                isNewClient={!selectedExistingClient}
-              />
-            )}
           </div>
 
           <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={handleCancelReview}>
+            <Button variant="outline" onClick={handleCancelReview} disabled={isSubmitting}>
               Cancel
             </Button>
             {selectedExistingClient ? (

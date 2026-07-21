@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import { SUITE_VERSION } from "@/lib/legal/documentRegistry";
 import { resolveLegalConsentAudience } from "@/lib/legal/consentAudience";
-import { hasCurrentLegalAcceptance } from "@/lib/legal/acceptanceGate";
+import { selectedOrganizationLegalAcceptanceStatus } from "@/lib/legal/acceptanceGate";
 import { loadLegalContent } from "@/lib/legal/loadContent";
 import { useAuth } from "@/lib/AuthContext";
 import { isInitialClinicalReleaseEligible } from "@/lib/clinicalRelease";
@@ -111,17 +111,16 @@ export default function Layout({ children, currentPageName }) {
           return;
         }
 
-        // Mirror the authoritative server gate exactly: every practitioner
-        // needs the three current document-bound notice receipts, while an
-        // owner also needs the five current contract-bundle receipts. IDs,
-        // event types, titles, suite version and fingerprints must all match
-        // the content presented for the live legal settings. Stale, partial
-        // or forged-looking rows route to LegalNotices so the server-derived
-        // atomic bundle can be recorded again before any clinical request.
+        // Mirror the authoritative server gate for the user's default practice.
+        // Exact IDs, event types, titles, suite version and current content
+        // fingerprints must match. Other memberships are checked independently
+        // at the point the user selects them (and again by the server), so a
+        // stale secondary membership does not block unrelated app entry.
         let events = [];
+        let memberships = [];
         let legalAudience = null;
         try {
-          const memberships = await base44.entities.OrganizationMember.filter({
+          memberships = await base44.entities.OrganizationMember.filter({
             user_email: freshUser.email,
           });
           legalAudience = resolveLegalConsentAudience(memberships);
@@ -144,14 +143,14 @@ export default function Layout({ children, currentPageName }) {
           return;
         }
 
-        const hasAllRequiredNotices = hasCurrentLegalAcceptance({
+        const legalStatus = selectedOrganizationLegalAcceptanceStatus({
           events,
+          memberships,
           orgId: legalAudience.orgId,
-          ownerBundle: legalAudience.ownerBundle,
           legalSettings: appPublicSettings?.public_settings?.legal,
           readContent: loadLegalContent,
         });
-        if (!hasAllRequiredNotices) {
+        if (!legalStatus.accepted) {
           navigate(`/LegalNotices?org_id=${encodeURIComponent(legalAudience.orgId)}`);
           return;
         }

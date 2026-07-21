@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { createHash, randomUUID } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { after, before, test } from 'node:test';
@@ -8,18 +9,34 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { startFakeOpenAI } from './support/fake-openai.mjs';
 import { resolveDocumentExtractionModel, validateExtractionOutput } from '../documentExtraction.mjs';
 import {
+  REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_SOURCE,
+  REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+} from '../uploadRegistry.mjs';
+import {
+  REFERRAL_EXTRACTION_SCHEMA,
+  REFERRAL_EXTRACTION_SCHEMA_PROPERTY_KEYS,
+  REFERRAL_EXTRACTION_SCHEMA_SHA256,
+} from '../../src/lib/referralExtractionSchema.js';
+import {
   REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE,
   REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
   REFERRAL_SUBJECT_AGE_CONFIRMATION,
 } from '../../src/lib/referralWorkflow.js';
 import {
-  MERGED_PROFILE,
-  PROFILE_A,
-  PROFILE_DOB_CHANGE,
-  REFERRAL_SCHEMA,
+  CANONICAL_REFERRAL_PROFILE_A as PROFILE_A,
+  CANONICAL_REFERRAL_PROFILE_DOB_CHANGE as PROFILE_DOB_CHANGE,
+  CANONICAL_REFERRAL_PROFILE_FULL_39,
+  CANONICAL_REFERRAL_PROFILE_MULTI_FORWARD,
+  CANONICAL_REFERRAL_PROFILE_MULTI_REVERSED,
+  CANONICAL_REFERRAL_PROFILE_UNDER_13,
+  canonicalMultiFileCsvFixture,
+  fullFieldReferralPdfFixture,
   csvFixture,
   pdfFixture,
   pngFixture,
+} from './support/syntheticReferralFixtures.mjs';
+import {
+  NARROW_REFERRAL_ASSURANCE_SCHEMA,
 } from './support/synthetic-fixtures.mjs';
 import {
   activateUser,
@@ -37,6 +54,7 @@ const UPLOAD_ROUTE = '/integration-endpoints/Core/UploadFile';
 const CANCEL_ROUTE = '/integration-endpoints/Core/CancelTemporaryUploads';
 const PROVIDER_KEY_CANARY = 'synthetic-provider-key-canary';
 const PROVIDER_BODY_CANARY = 'FAKE_PROVIDER_PRIVATE_BODY_CANARY';
+const REFERRAL_SCHEMA = REFERRAL_EXTRACTION_SCHEMA;
 
 let fakeProvider;
 let server;
@@ -83,6 +101,9 @@ async function upload(user, orgId, {
   subjectAgeConfirmation,
   subjectAgeAttestationVersion,
   subjectAgeAttestationSource,
+  processingAuthorityConfirmed,
+  processingAuthorityAttestationVersion,
+  processingAuthorityAttestationSource,
 } = {}) {
   const form = new FormData();
   if (includeOrg && orgId !== undefined) form.set('org_id', orgId);
@@ -110,6 +131,24 @@ async function upload(user, orgId, {
   if (typeof subjectAgeAttestationSource === 'string') {
     form.set('subject_age_attestation_source', subjectAgeAttestationSource);
   }
+  if (
+    purpose === 'referral-extraction' &&
+    processingAuthorityConfirmed === undefined &&
+    processingAuthorityAttestationVersion === undefined &&
+    processingAuthorityAttestationSource === undefined
+  ) {
+    processingAuthorityConfirmed = true;
+    processingAuthorityAttestationVersion = REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION;
+  }
+  if (processingAuthorityConfirmed !== undefined && processingAuthorityConfirmed !== null) {
+    form.set('processing_authority_confirmed', String(processingAuthorityConfirmed));
+  }
+  if (typeof processingAuthorityAttestationVersion === 'string') {
+    form.set('processing_authority_attestation_version', processingAuthorityAttestationVersion);
+  }
+  if (typeof processingAuthorityAttestationSource === 'string') {
+    form.set('processing_authority_attestation_source', processingAuthorityAttestationSource);
+  }
   form.set('file', new File([bytes], filename, { type: mediaType }));
   const response = await fetch(`${server.baseUrl}${appRoute(UPLOAD_ROUTE)}`, {
     method: 'POST',
@@ -124,7 +163,11 @@ async function upload(user, orgId, {
 
 async function extract(user, body, token = user?.token) {
   return requestJson(server, appRoute(EXTRACTION_ROUTE), {
-    method: 'POST', token, body: { processing_authority_confirmed: true, ...body },
+    method: 'POST', token, body: {
+      processing_authority_confirmed: true,
+      processing_authority_attestation_version: REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+      ...body,
+    },
   });
 }
 
@@ -202,8 +245,13 @@ async function assertRealTranscriptionUsesRegisteredStoredName(audio, expectedBy
 function assertControlledFailure(result) {
   assert.notEqual(result.body?.status, 'success', result.text);
   if (result.body?.status === 'error') {
-    assert.deepEqual(Object.keys(result.body).sort(), ['code', 'details', 'status']);
+    assert.deepEqual(
+      Object.keys(result.body).sort(),
+      ['code', 'details', 'diagnostic_reference', 'stage', 'status'],
+    );
     assert.match(result.body.code, /^[a-z0-9_]{1,80}$/);
+    assert.match(result.body.diagnostic_reference, /^[0-9a-f-]{36}$/i);
+    assert.match(result.body.stage, /^[a-z0-9_]{1,48}$/);
     assert.equal(typeof result.body.details, 'string');
     assert.ok(result.body.details.length > 0);
   } else {
@@ -214,6 +262,29 @@ function assertControlledFailure(result) {
 function openAssuranceDb() {
   assert.equal(typeof server?.dbPath, 'string');
   return new DatabaseSync(server.dbPath);
+}
+
+function makeLegalReceiptStale(user, orgId, documentId) {
+  const db = openAssuranceDb();
+  try {
+    const rows = db.prepare('SELECT id, data FROM entity_LegalAcceptanceEvent').all();
+    const update = db.prepare('UPDATE entity_LegalAcceptanceEvent SET data = ? WHERE id = ?');
+    let changed = 0;
+    for (const row of rows) {
+      const receipt = JSON.parse(row.data);
+      if (
+        receipt.user_email === user.email &&
+        receipt.org_id === orgId &&
+        receipt.document_id === documentId
+      ) {
+        receipt.document_fingerprint = `sha256-${'0'.repeat(64)}`;
+        changed += Number(update.run(JSON.stringify(receipt), row.id).changes);
+      }
+    }
+    assert.ok(changed >= 1, `expected a ${documentId} receipt to make stale`);
+  } finally {
+    db.close();
+  }
 }
 
 function setUploadState(uploadId, state, { expiresAt } = {}) {
@@ -245,6 +316,51 @@ function uploadRegistryCount() {
   const db = openAssuranceDb();
   try {
     return Number(db.prepare('SELECT COUNT(*) AS count FROM upload_registry').get().count);
+  } finally {
+    db.close();
+  }
+}
+
+function latestExtractionUsage(userId) {
+  const db = openAssuranceDb();
+  try {
+    return db.prepare(`
+      SELECT status, upload_count, actual_cost_microusd
+      FROM extraction_usage
+      WHERE user_id = ?
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1
+    `).get(userId);
+  } finally {
+    db.close();
+  }
+}
+
+function persistenceSnapshot() {
+  const db = openAssuranceDb();
+  try {
+    return {
+      uploadRows: Number(db.prepare('SELECT COUNT(*) AS count FROM upload_registry').get().count),
+      auditRows: Number(db.prepare('SELECT COUNT(*) AS count FROM upload_audit').get().count),
+      extractionUsageRows: Number(db.prepare('SELECT COUNT(*) AS count FROM extraction_usage').get().count),
+      storedFiles: fs.readdirSync(server.uploadsDir).sort(),
+    };
+  } finally {
+    db.close();
+  }
+}
+
+function uploadExtractionWriteSnapshot(uploadId) {
+  const db = openAssuranceDb();
+  try {
+    return {
+      upload: db.prepare('SELECT * FROM upload_registry WHERE id = ?').get(uploadId),
+      auditRows: Number(
+        db.prepare('SELECT COUNT(*) AS count FROM upload_audit WHERE upload_id = ?').get(uploadId).count,
+      ),
+      extractionUsageRows: Number(db.prepare('SELECT COUNT(*) AS count FROM extraction_usage').get().count),
+      storedFiles: fs.readdirSync(server.uploadsDir).sort(),
+    };
   } finally {
     db.close();
   }
@@ -317,6 +433,10 @@ test('E01 known PDF fixture extracts the expected referral values', async () => 
   assert.equal(fakeProvider.calls.at(-1)?.background, false);
   assert.equal(fakeProvider.calls.at(-1)?.promptCacheRetention, 'in_memory');
   assert.equal(fakeProvider.calls.at(-1)?.route, '/v1/responses');
+  assert.equal(fakeProvider.calls.at(-1)?.schemaPropertyCount, 39);
+  assert.deepEqual(fakeProvider.calls.at(-1)?.schemaPropertyNames, REFERRAL_EXTRACTION_SCHEMA_PROPERTY_KEYS);
+  assert.deepEqual(fakeProvider.calls.at(-1)?.schemaRequired, REFERRAL_EXTRACTION_SCHEMA_PROPERTY_KEYS);
+  assert.equal(fakeProvider.calls.at(-1)?.schemaAdditionalProperties, false);
 });
 
 test('E02 known PNG fixture extracts the expected referral values', async () => {
@@ -342,22 +462,25 @@ test('E04 missing source fields remain absent or null and are never fabricated',
   const result = await extract(userA, { upload_id: uploadRef.upload_id, org_id: tenantA.id, json_schema: REFERRAL_SCHEMA });
   assert.equal(result.status, 200, result.text);
   assert.equal(result.body?.status, 'success');
-  assert.equal(result.body.output.date_of_birth, null);
-  assert.equal(result.body.output.referrer, null);
-  assert.equal(result.body.output.phone, null);
-  assert.deepEqual(result.body.output.diagnoses, []);
+  assert.equal(Object.hasOwn(result.body.output, 'date_of_birth'), false);
+  assert.equal(Object.hasOwn(result.body.output, 'referral_source_name'), false);
+  assert.equal(Object.hasOwn(result.body.output, 'phone'), false);
+  assert.deepEqual(result.body.output.comorbidities, []);
   assert.doesNotMatch(JSON.stringify(result.body.output), /mock|placeholder|example patient/i);
 });
 
 test('E05 dates, enums, arrays, required fields, and scalar types satisfy the submitted schema', async () => {
   fakeProvider.reset();
-  const schema = structuredClone(REFERRAL_SCHEMA);
-  schema.properties.referrer.enum = ['Dr Synthetic', null];
   const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'schema-types.pdf', 'application/pdf');
-  const result = await extract(userA, { upload_id: uploadRef.upload_id, org_id: tenantA.id, json_schema: schema });
+  const result = await extract(userA, {
+    upload_id: uploadRef.upload_id,
+    org_id: tenantA.id,
+    json_schema: REFERRAL_SCHEMA,
+  });
   assertSuccess(result, PROFILE_A);
   assert.match(result.body.output.date_of_birth, /^\d{4}-\d{2}-\d{2}$/);
-  assert.ok(Array.isArray(result.body.output.diagnoses));
+  assert.equal(result.body.output.referral_source, 'gp');
+  assert.ok(Array.isArray(result.body.output.comorbidities));
   assert.equal(typeof result.body.output.full_name, 'string');
 });
 
@@ -372,15 +495,270 @@ test('E05a date format rejects impossible calendar dates instead of normalising 
   assert.deepEqual(validateExtractionOutput({ date: '2024-02-29' }, schema), { date: '2024-02-29' });
 });
 
-test('E06 multi-file merge applies primary-wins and fill-empty with stable array de-duplication', async () => {
+test('E05b generic clinical extraction remains release-disabled even when the provider feature flag is enabled', async () => {
+  const isolated = await startTestServer({
+    DOCUMENT_EXTRACTION_ENABLED: '1',
+    DOCUMENT_EXTRACTION_UNDER_13_ENABLED: '1',
+    DOCUMENT_EXTRACTION_TEST_BASE_URL: fakeProvider.baseUrl,
+    OPENAI_API_KEY: PROVIDER_KEY_CANARY,
+    OPENAI_DOCUMENT_EXTRACTION_MODEL: 'synthetic-assurance-model',
+  });
+  const isolatedRoute = (suffix) => `/api/apps/${isolated.appId}${suffix}`;
+  try {
+    const isolatedAdmin = await loginAdmin(isolated);
+    const isolatedUser = await registerUser(isolated, 'generic-extraction@synthetic.test');
+    await activateUser(isolated, isolatedAdmin, isolatedUser.id);
+    const isolatedOrg = await createOrganizationForUser(isolated, isolatedAdmin, isolatedUser);
+    const acceptance = await requestJson(
+      isolated,
+      isolatedRoute('/integration-endpoints/Core/RecordLegalAcceptanceBundle'),
+      {
+        method: 'POST',
+        token: isolatedUser.token,
+        body: { org_id: isolatedOrg.id, marketing_opt_in: false },
+      },
+    );
+    assert.equal(acceptance.status, 200, acceptance.text);
+
+    const form = new FormData();
+    form.set('org_id', isolatedOrg.id);
+    form.set('purpose', 'clinical-attachment');
+    form.set('file', new File([pdfFixture()], 'generic-clinical-extraction.pdf', { type: 'application/pdf' }));
+    const uploadResponse = await fetch(
+      `${isolated.baseUrl}${isolatedRoute(UPLOAD_ROUTE)}`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${isolatedUser.token}`, 'X-App-Id': isolated.appId },
+        body: form,
+      },
+    );
+    const uploadText = await uploadResponse.text();
+    const uploadBody = JSON.parse(uploadText);
+    assert.equal(uploadResponse.status, 200, uploadText);
+
+    const base = {
+      upload_id: uploadBody.upload_id,
+      org_id: isolatedOrg.id,
+      json_schema: NARROW_REFERRAL_ASSURANCE_SCHEMA,
+    };
+    fakeProvider.reset();
+    const missingAuthority = await requestJson(
+      isolated,
+      isolatedRoute(EXTRACTION_ROUTE),
+      { method: 'POST', token: isolatedUser.token, body: base },
+    );
+    assert.equal(missingAuthority.status, 403, missingAuthority.text);
+    assert.equal(missingAuthority.body?.code, 'processing_authority_required');
+    assert.equal(fakeProvider.calls.length, 0);
+
+    const result = await requestJson(
+      isolated,
+      isolatedRoute(EXTRACTION_ROUTE),
+      {
+        method: 'POST',
+        token: isolatedUser.token,
+        body: { ...base, processing_authority_confirmed: true },
+      },
+    );
+    assert.equal(result.status, 403, result.text);
+    assert.equal(result.body?.code, 'generic_extraction_disabled');
+    assert.equal(fakeProvider.calls.length, 0, 'generic clinical bytes must never reach the provider');
+  } finally {
+    fakeProvider.reset();
+    await isolated.stop();
+  }
+});
+
+test('E05c the adapter preserves every grounded field from the format-faithful 39-field referral', async () => {
   fakeProvider.reset();
-  const primary = await uploadReferral(userA, tenantA.id, csvFixture(), 'merge-primary.csv', 'text/csv');
-  const additional = await uploadReferral(userA, tenantA.id, csvFixture('referral-additional.csv'), 'merge-additional.csv', 'text/csv');
-  const result = await extract(userA, {
+  const uploadRef = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    fullFieldReferralPdfFixture(),
+    'synthetic-full-field-referral.pdf',
+    'application/pdf',
+  );
+  const result = await extract(colleagueA, {
+    upload_id: uploadRef.upload_id,
+    org_id: tenantA.id,
+    json_schema: REFERRAL_SCHEMA,
+  });
+  assertSuccess(result, CANONICAL_REFERRAL_PROFILE_FULL_39);
+  assert.deepEqual(Object.keys(result.body.output), REFERRAL_EXTRACTION_SCHEMA_PROPERTY_KEYS);
+  assert.equal(fakeProvider.calls.length, 1);
+  assert.match(fakeProvider.calls[0].input, /ASSURANCE_PROFILE_FULL_39/);
+});
+
+test('E06 multi-file merge is application-owned: primary wins, empty fields fill, and arrays de-duplicate stably', async () => {
+  fakeProvider.reset();
+  const primary = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    canonicalMultiFileCsvFixture('primary'),
+    'merge-primary.csv',
+    'text/csv',
+  );
+  const additional = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    canonicalMultiFileCsvFixture('additional'),
+    'merge-additional.csv',
+    'text/csv',
+  );
+  const result = await extract(colleagueA, {
     file_urls: [primary.file_url, additional.file_url], org_id: tenantA.id, json_schema: REFERRAL_SCHEMA,
   });
-  assertSuccess(result, MERGED_PROFILE);
-  assert.equal(fakeProvider.calls.length, 1);
+  assertSuccess(result, CANONICAL_REFERRAL_PROFILE_MULTI_FORWARD);
+  assert.equal(fakeProvider.calls.length, 2, 'each file must be extracted independently before local merge');
+  assert.equal(fakeProvider.calls[0].input.includes('ASSURANCE_CANONICAL_MULTI_ADDITIONAL'), false);
+  assert.equal(fakeProvider.calls[1].input.includes('ASSURANCE_CANONICAL_MULTI_PRIMARY'), false);
+  const usage = latestExtractionUsage(colleagueA.id);
+  assert.equal(usage?.status, 'succeeded');
+  assert.equal(usage?.upload_count, 2);
+  assert.equal(usage?.actual_cost_microusd, 176);
+});
+
+test('E06a reversing selected documents reverses scalar precedence and preserves ordered array union', async () => {
+  fakeProvider.reset();
+  const primary = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    canonicalMultiFileCsvFixture('primary'),
+    'reverse-primary.csv',
+    'text/csv',
+  );
+  const additional = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    canonicalMultiFileCsvFixture('additional'),
+    'reverse-additional.csv',
+    'text/csv',
+  );
+  const result = await extract(colleagueA, {
+    file_urls: [additional.file_url, primary.file_url], org_id: tenantA.id, json_schema: REFERRAL_SCHEMA,
+  });
+  assertSuccess(result, CANONICAL_REFERRAL_PROFILE_MULTI_REVERSED);
+  assert.equal(fakeProvider.calls.length, 2);
+});
+
+test('E06b a later per-file provider failure rejects the whole selected set without a partial result', async () => {
+  fakeProvider.reset();
+  fakeProvider.setModeSequence(['semantic', 'provider-500']);
+  const primary = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    canonicalMultiFileCsvFixture('primary'),
+    'partial-primary.csv',
+    'text/csv',
+  );
+  const additional = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    canonicalMultiFileCsvFixture('additional'),
+    'partial-additional.csv',
+    'text/csv',
+  );
+  const result = await extract(colleagueA, {
+    file_urls: [primary.file_url, additional.file_url], org_id: tenantA.id, json_schema: REFERRAL_SCHEMA,
+  });
+  assertControlledFailure(result);
+  assert.equal(result.body?.code, 'provider_error');
+  assert.equal(fakeProvider.calls.length, 2, 'the failure must occur after an independently successful primary extraction');
+  assert.equal(getUploadRow(primary.upload_id)?.lifecycle_state, 'temporary');
+  assert.equal(getUploadRow(additional.upload_id)?.lifecycle_state, 'temporary');
+  assert.equal(latestExtractionUsage(colleagueA.id)?.status, 'failed');
+});
+
+test('E06c every selected file is locally preflighted before the first provider request', async () => {
+  fakeProvider.reset();
+  const primary = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    canonicalMultiFileCsvFixture('primary'),
+    'preflight-primary.csv',
+    'text/csv',
+  );
+  const malformed = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    Buffer.from('fixture_id,full_name\n"unterminated,Alex River\n', 'utf8'),
+    'preflight-malformed.csv',
+    'text/csv',
+  );
+  const result = await extract(colleagueA, {
+    file_urls: [primary.file_url, malformed.file_url], org_id: tenantA.id, json_schema: REFERRAL_SCHEMA,
+  });
+  assertControlledFailure(result);
+  assert.equal(result.body?.code, 'invalid_csv');
+  assert.equal(fakeProvider.calls.length, 0, 'malformed later bytes must block all provider transmission');
+  assert.equal(getUploadRow(primary.upload_id)?.lifecycle_state, 'temporary');
+  assert.equal(getUploadRow(malformed.upload_id)?.lifecycle_state, 'temporary');
+  assert.equal(latestExtractionUsage(colleagueA.id)?.status, 'failed');
+});
+
+test('E06d an under-13 DOB in any independently extracted file blocks and quarantines the whole set', async () => {
+  fakeProvider.reset();
+  fakeProvider.setModeSequence(['semantic', 'under-13']);
+  const primary = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    canonicalMultiFileCsvFixture('primary'),
+    'age-primary.csv',
+    'text/csv',
+  );
+  const additional = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    canonicalMultiFileCsvFixture('additional'),
+    'age-additional.csv',
+    'text/csv',
+  );
+  const result = await extract(colleagueA, {
+    file_urls: [primary.file_url, additional.file_url], org_id: tenantA.id, json_schema: REFERRAL_SCHEMA,
+  });
+  assertControlledFailure(result);
+  assert.equal(result.status, 409);
+  assert.equal(result.body?.code, 'extracted_subject_under_13');
+  assert.equal(Object.hasOwn(result.body || {}, 'output'), false);
+  assert.equal(fakeProvider.calls.length, 2);
+  for (const uploadId of [primary.upload_id, additional.upload_id]) {
+    const row = getUploadRow(uploadId);
+    assert.equal(row?.lifecycle_state, 'expired');
+    assert.equal(row?.subject_age_band, 'under_13');
+  }
+  assert.equal(latestExtractionUsage(colleagueA.id)?.status, 'failed');
+});
+
+test('E06e aliases resolving to one upload are rejected before every extraction side effect', async () => {
+  fakeProvider.reset();
+  const uploadRef = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    canonicalMultiFileCsvFixture('primary'),
+    'duplicate-alias-primary.csv',
+    'text/csv',
+  );
+  const storedName = getUploadRow(uploadRef.upload_id)?.stored_name;
+  assert.equal(typeof storedName, 'string');
+  const before = uploadExtractionWriteSnapshot(uploadRef.upload_id);
+  const aliasSets = [
+    [uploadRef.file_url, uploadRef.upload_id],
+    [uploadRef.file_url, `/api/files/${uploadRef.upload_id}`],
+    [uploadRef.file_url, `/uploads/${storedName}`],
+  ];
+
+  for (const fileUrls of aliasSets) {
+    const result = await extract(colleagueA, {
+      file_urls: fileUrls,
+      org_id: tenantA.id,
+      json_schema: REFERRAL_SCHEMA,
+    });
+    assertControlledFailure(result);
+    assert.equal(result.status, 400, result.text);
+    assert.equal(result.body?.code, 'duplicate_file_reference');
+    assert.equal(fakeProvider.calls.length, 0);
+    assert.deepEqual(uploadExtractionWriteSnapshot(uploadRef.upload_id), before);
+  }
 });
 
 test('E07 same filename with changed bytes produces the corresponding changed output', async () => {
@@ -452,7 +830,10 @@ test('E12 unknown, deleted, and expired uploads fail closed', async () => {
   for (const upload_id of ids) {
     const result = await extract(userA, { upload_id, org_id: tenantA.id, json_schema: REFERRAL_SCHEMA });
     assert.equal(result.status, 404, result.text);
-    shapes.push(result.body);
+    assert.match(result.body.diagnostic_reference, /^[0-9a-f-]{36}$/i);
+    const indistinguishableShape = { ...result.body };
+    delete indistinguishableShape.diagnostic_reference;
+    shapes.push(indistinguishableShape);
   }
   assert.deepEqual(shapes[1], shapes[0]);
   assert.deepEqual(shapes[2], shapes[0]);
@@ -539,7 +920,7 @@ test('E18a exact missing-value sentinels normalize to empty values without weake
   const result = await extract(userA, { upload_id: uploadRef.upload_id, org_id: tenantA.id, json_schema: REFERRAL_SCHEMA });
   assert.equal(result.status, 200, result.text);
   assert.deepEqual(result.body.output, {
-    full_name: 'Alex River', date_of_birth: null, diagnoses: [], referrer: null, phone: null,
+    full_name: 'Alex River', comorbidities: [],
   });
 
   fakeProvider.reset();
@@ -588,7 +969,14 @@ test('E22 cross-tenant extraction returns the same 404 as an unknown upload', as
     upload_id: '00000000-0000-4000-8000-000000000000', org_id: tenantB.id, json_schema: REFERRAL_SCHEMA,
   });
   assert.equal(cross.status, 404, cross.text);
-  assert.deepEqual({ status: cross.status, body: cross.body }, { status: unknown.status, body: unknown.body });
+  assert.equal(unknown.status, 404, unknown.text);
+  assert.match(cross.body.diagnostic_reference, /^[0-9a-f-]{36}$/i);
+  assert.match(unknown.body.diagnostic_reference, /^[0-9a-f-]{36}$/i);
+  const crossBody = { ...cross.body };
+  const unknownBody = { ...unknown.body };
+  delete crossBody.diagnostic_reference;
+  delete unknownBody.diagnostic_reference;
+  assert.deepEqual({ status: cross.status, body: crossBody }, { status: unknown.status, body: unknownBody });
   assert.equal(fakeProvider.calls.length, 0);
 });
 
@@ -690,14 +1078,19 @@ test('E28 success retains the exact {status, output} contract', async () => {
   assertSuccess(result, PROFILE_A);
 });
 
-test('E29 controlled failure retains the sanitised {status:error, code, details} contract', async () => {
+test('E29 controlled failure retains the sanitised error contract with an opaque diagnostic reference', async () => {
   fakeProvider.reset();
   fakeProvider.setMode('malformed');
   const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'failure-contract.pdf', 'application/pdf');
   const result = await extract(userA, { upload_id: uploadRef.upload_id, org_id: tenantA.id, json_schema: REFERRAL_SCHEMA });
   assert.equal(result.body?.status, 'error', result.text);
-  assert.deepEqual(Object.keys(result.body).sort(), ['code', 'details', 'status']);
+  assert.deepEqual(
+    Object.keys(result.body).sort(),
+    ['code', 'details', 'diagnostic_reference', 'stage', 'status'],
+  );
   assert.equal(result.body.code, 'provider_malformed_output');
+  assert.equal(result.body.stage, 'provider_response');
+  assert.match(result.body.diagnostic_reference, /^[0-9a-f-]{36}$/i);
   assert.doesNotMatch(result.body.details, /provider|openai|json|path|malformed|not-json/i);
 });
 
@@ -716,7 +1109,11 @@ test('E30 extraction never writes a client or clinical entity before practitione
     const result = await requestJson(server, appRoute(`/entities/${entity}`), { token: userA.token });
     assert.equal(result.body.length, beforeCounts[entity], `${entity} changed before review`);
   }
-  assert.equal(getUploadRow(uploadRef.upload_id)?.lifecycle_state, 'review-pending');
+  const reviewPending = getUploadRow(uploadRef.upload_id);
+  assert.equal(reviewPending?.lifecycle_state, 'review-pending');
+  const restoredWindowMs = Date.parse(reviewPending.expires_at) - Date.parse(reviewPending.created_at);
+  assert.ok(restoredWindowMs >= (24 * 60 - 2) * 60 * 1000, restoredWindowMs);
+  assert.ok(restoredWindowMs <= 24 * 60 * 60 * 1000, restoredWindowMs);
 });
 
 test('E31 explicit create/update persists only reviewed data into the validated tenant', async () => {
@@ -728,7 +1125,7 @@ test('E31 explicit create/update persists only reviewed data into the validated 
   assert.equal(created.body.org_id, tenantA.id);
   assert.equal(created.body.full_name, 'Alex Reviewed');
   assert.equal(Object.hasOwn(created.body, 'date_of_birth'), false);
-  assert.equal(Object.hasOwn(created.body, 'referrer'), false);
+  assert.equal(Object.hasOwn(created.body, 'referral_source_name'), false);
 
   const updated = await requestJson(server, appRoute(`/entities/Client/${created.body.id}`), {
     method: 'PUT', token: userA.token,
@@ -750,7 +1147,10 @@ test('E32 authorised file workflows remain usable and cleanup removes only expir
   const attachment = await expectUploaded(await upload(userA, tenantA.id, {
     bytes: pdfFixture(), filename: 'synthetic-attachment.pdf', mediaType: 'application/pdf', purpose: 'clinical-attachment',
   }));
-  for (const item of [logo, audio, attachment]) {
+  const referencedAttachment = await expectUploaded(await upload(userA, tenantA.id, {
+    bytes: pdfFixture(), filename: 'synthetic-referenced-attachment.pdf', mediaType: 'application/pdf', purpose: 'clinical-attachment',
+  }));
+  for (const item of [logo, audio, attachment, referencedAttachment]) {
     const response = await fetch(`${server.baseUrl}/api/files/${item.upload_id}`, {
       headers: { Authorization: `Bearer ${userA.token}` },
     });
@@ -773,12 +1173,28 @@ test('E32 authorised file workflows remain usable and cleanup removes only expir
     body: { org_id: tenantA.id, client_id: boundClient.body.id, name: 'Retained', file_url: attachment.file_url },
   });
   assert.equal(boundDocument.status, 200, boundDocument.text);
+  const referencedDocument = await requestJson(server, appRoute('/entities/ClientDocument'), {
+    method: 'POST', token: userA.token,
+    body: {
+      org_id: tenantA.id,
+      client_id: boundClient.body.id,
+      name: 'Referenced despite registry drift',
+      file_url: referencedAttachment.file_url,
+    },
+  });
+  assert.equal(referencedDocument.status, 200, referencedDocument.text);
 
   const unbound = await uploadReferral(userA, tenantA.id, pdfFixture(), 'cleanup-unbound.pdf', 'application/pdf');
   const expiredAt = new Date(Date.now() - 60_000).toISOString();
   setUploadState(unbound.upload_id, 'temporary', { expiresAt: expiredAt });
   const dbForCorruptBoundExpiry = openAssuranceDb();
   dbForCorruptBoundExpiry.prepare('UPDATE upload_registry SET expires_at = ? WHERE id = ?').run(expiredAt, attachment.upload_id);
+  dbForCorruptBoundExpiry.prepare(`
+    UPDATE upload_registry
+    SET lifecycle_state = 'expired', expires_at = ?, bound_at = NULL,
+        bound_entity_type = NULL, bound_entity_id = NULL
+    WHERE id = ?
+  `).run(expiredAt, referencedAttachment.upload_id);
   dbForCorruptBoundExpiry.close();
 
   const registryModule = await import('../../server/uploadRegistry.mjs');
@@ -788,12 +1204,23 @@ test('E32 authorised file workflows remain usable and cleanup removes only expir
     await registryModule.cleanupExpiredUploads({ db: cleanupDb, uploadsDir: server.uploadsDir, now: new Date(), dryRun: false });
     const unboundAfter = cleanupDb.prepare('SELECT * FROM upload_registry WHERE id = ?').get(unbound.upload_id);
     const boundAfter = cleanupDb.prepare('SELECT * FROM upload_registry WHERE id = ?').get(attachment.upload_id);
+    const referencedAfter = cleanupDb.prepare('SELECT * FROM upload_registry WHERE id = ?').get(referencedAttachment.upload_id);
     assert.ok(['expired', 'deleted'].includes(unboundAfter.lifecycle_state));
     assert.equal(boundAfter.lifecycle_state, 'bound');
+    assert.equal(referencedAfter.lifecycle_state, 'expired');
     const boundPath = path.join(server.uploadsDir, boundAfter.stored_name);
+    const referencedPath = path.join(server.uploadsDir, referencedAfter.stored_name);
     assert.equal(fs.existsSync(boundPath), true);
+    assert.equal(fs.existsSync(referencedPath), true);
+    const disposition = cleanupDb.prepare('SELECT * FROM upload_disposition WHERE upload_id = ?')
+      .get(referencedAttachment.upload_id);
+    assert.equal(disposition?.status, 'review-required');
+    assert.equal(disposition?.reason_code, 'cleanup_reference_present');
+    assert.equal(referencedAfter.expires_at, null, 'isolated cleanup rows must leave the recurring candidate set');
     const second = await registryModule.cleanupExpiredUploads({ db: cleanupDb, uploadsDir: server.uploadsDir, now: new Date(), dryRun: false });
-    assert.ok(second == null || second.deleted === 0 || second.removed === 0 || second.processed === 0);
+    assert.equal(second.examined, 0, 'the isolated reference must not recur on every cleanup cycle');
+    assert.equal(fs.existsSync(boundPath), true);
+    assert.equal(fs.existsSync(referencedPath), true);
   } finally {
     cleanupDb.close();
   }
@@ -889,6 +1316,9 @@ test('E33 referral age input requires the exact versioned practitioner attestati
     assert.deepEqual(Object.keys(metadata).sort(), [
       'byte_size',
       'detected_mime',
+      'processing_authority_attestation_source',
+      'processing_authority_attestation_version',
+      'processing_authority_confirmed',
       'purpose',
       'subject_age_attestation_source',
       'subject_age_attestation_version',
@@ -897,12 +1327,159 @@ test('E33 referral age input requires the exact versioned practitioner attestati
     assert.equal(metadata.subject_age_attestation_source, REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE);
     assert.equal(metadata.subject_age_attestation_version, REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION);
     assert.equal(metadata.subject_age_band, REFERRAL_SUBJECT_AGE_CONFIRMATION);
+    assert.equal(
+      metadata.processing_authority_attestation_source,
+      REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_SOURCE,
+    );
+    assert.equal(
+      metadata.processing_authority_attestation_version,
+      REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+    );
+    assert.equal(metadata.processing_authority_confirmed, true);
     assert.doesNotMatch(row.metadata_json, /date.of.birth|subject_dob|\bdob\b|1990|2000/i);
   } finally {
     auditDb.close();
   }
   assert.equal(uploadRegistryCount(), rowsBeforeInvalidRequests + 1);
   assert.equal(fakeProvider.calls.length, 0);
+});
+
+test('E33a startup reconciliation removes a pre-registered upload interrupted before rename', async () => {
+  const id = randomUUID();
+  const storedName = `${id}.pdf`;
+  const tempPath = path.join(server.uploadsDir, `${storedName}.registering`);
+  const finalPath = path.join(server.uploadsDir, storedName);
+  const bytes = pdfFixture();
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const expiresAt = new Date(now.getTime() + 24 * 60 * 60 * 1000).toISOString();
+  const metadata = {
+    byte_size: bytes.length,
+    detected_mime: 'application/pdf',
+    purpose: 'referral-extraction',
+    subject_age_attestation_source: REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE,
+    subject_age_attestation_version: REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
+    subject_age_band: REFERRAL_SUBJECT_AGE_CONFIRMATION,
+    processing_authority_attestation_source: REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_SOURCE,
+    processing_authority_attestation_version: REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+    processing_authority_confirmed: true,
+  };
+  const db = openAssuranceDb();
+  try {
+    db.exec('BEGIN IMMEDIATE');
+    db.prepare(`
+      INSERT INTO upload_registry (
+        id, stored_name, original_name, org_id, uploader_user_id, purpose,
+        detected_mime, byte_size, sha256, lifecycle_state, subject_age_band,
+        created_at, expires_at, is_legacy
+      ) VALUES (?, ?, ?, ?, ?, 'referral-extraction', 'application/pdf', ?, ?,
+                'registering', ?, ?, ?, 0)
+    `).run(
+      id,
+      storedName,
+      'interrupted-registration.pdf',
+      tenantA.id,
+      userA.id,
+      bytes.length,
+      createHash('sha256').update(bytes).digest('hex'),
+      REFERRAL_SUBJECT_AGE_CONFIRMATION,
+      nowIso,
+      expiresAt,
+    );
+    db.prepare(`
+      INSERT INTO upload_audit (
+        id, upload_id, org_id, actor_user_id, event_type, outcome,
+        metadata_json, created_at, expires_at, legal_hold
+      ) VALUES (?, ?, ?, ?, 'upload_registration_reserved', 'success', ?, ?, ?, 0)
+    `).run(randomUUID(), id, tenantA.id, userA.id, JSON.stringify(metadata), nowIso, expiresAt);
+    db.exec('COMMIT');
+    fs.writeFileSync(tempPath, bytes, { flag: 'wx' });
+
+    const denied = await fetch(`${server.baseUrl}/uploads/${id}`, {
+      headers: { Authorization: `Bearer ${userA.token}` },
+    });
+    assert.equal(denied.status, 404, 'registering uploads must never be delivered');
+    fakeProvider.reset();
+    const deniedExtraction = await extract(userA, {
+      upload_id: id,
+      org_id: tenantA.id,
+      json_schema: REFERRAL_SCHEMA,
+    });
+    assert.equal(deniedExtraction.status, 404, deniedExtraction.text);
+    assert.equal(fakeProvider.calls.length, 0, 'registering uploads must never reach the provider');
+
+    const { createUploadRegistry } = await import('../uploadRegistry.mjs');
+    createUploadRegistry(db, { uploadsDir: server.uploadsDir });
+    const row = db.prepare('SELECT * FROM upload_registry WHERE id = ?').get(id);
+    assert.equal(row.lifecycle_state, 'deleted');
+    assert.equal(row.original_name, '[deleted]');
+    assert.equal(fs.existsSync(tempPath), false);
+    assert.equal(fs.existsSync(finalPath), false);
+    assert.ok(db.prepare(`
+      SELECT id FROM upload_audit
+      WHERE upload_id = ? AND event_type = 'upload_registration_reconciled' AND outcome = 'removed'
+    `).get(id));
+  } finally {
+    try { db.exec('ROLLBACK'); } catch { /* no active transaction */ }
+    db.close();
+    if (fs.existsSync(tempPath)) fs.rmSync(tempPath);
+    if (fs.existsSync(finalPath)) fs.rmSync(finalPath);
+  }
+});
+
+test('E33b missing, partial, or forged upload authority leaves no row, file, audit, or usage write', async () => {
+  const cases = [
+    {
+      label: 'missing',
+      processingAuthorityConfirmed: null,
+      processingAuthorityAttestationVersion: null,
+    },
+    {
+      label: 'partial-confirmation-only',
+      processingAuthorityConfirmed: true,
+      processingAuthorityAttestationVersion: null,
+    },
+    {
+      label: 'partial-version-only',
+      processingAuthorityConfirmed: null,
+      processingAuthorityAttestationVersion: REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+    },
+    {
+      label: 'forged-confirmation',
+      processingAuthorityConfirmed: false,
+      processingAuthorityAttestationVersion: REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+    },
+    {
+      label: 'forged-version',
+      processingAuthorityConfirmed: true,
+      processingAuthorityAttestationVersion: 'referral-processing-authority-v2026-07-20.0',
+    },
+    {
+      label: 'forged-source',
+      processingAuthorityConfirmed: true,
+      processingAuthorityAttestationVersion: REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+      processingAuthorityAttestationSource: 'client_claimed_source',
+    },
+  ];
+
+  for (const authorityCase of cases) {
+    const before = persistenceSnapshot();
+    const filename = `authority-${authorityCase.label}.pdf`;
+    const result = await upload(userA, tenantA.id, {
+      bytes: pdfFixture(),
+      filename,
+      mediaType: 'application/pdf',
+      ...authorityCase,
+    });
+    assert.ok(result.status === 400 || result.status === 403, `${authorityCase.label}: ${result.text}`);
+    assert.match(result.body?.code || '', /processing_authority/);
+    assert.equal(result.text.includes(filename), false);
+    assert.deepEqual(
+      persistenceSnapshot(),
+      before,
+      `${authorityCase.label} authority changed durable upload state`,
+    );
+  }
 });
 
 test('E34 superseded date-of-birth age input fails before upload persistence or provider I/O', async () => {
@@ -920,17 +1497,321 @@ test('E34 superseded date-of-birth age input fails before upload persistence or 
   assert.equal(fakeProvider.calls.length, 0);
 });
 
-test('E35 missing practitioner processing authority fails before provider I/O', async () => {
+test('E35 extraction requires exact processing authority before provider I/O or extraction writes', async () => {
   fakeProvider.reset();
   const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'authority-required.pdf', 'application/pdf');
-  const result = await requestJson(server, appRoute(EXTRACTION_ROUTE), {
-    method: 'POST',
-    token: userA.token,
-    body: { upload_id: uploadRef.upload_id, org_id: tenantA.id, json_schema: REFERRAL_SCHEMA },
+  const base = { upload_id: uploadRef.upload_id, org_id: tenantA.id, json_schema: REFERRAL_SCHEMA };
+  const cases = [
+    { label: 'missing', body: base },
+    { label: 'partial', body: { ...base, processing_authority_confirmed: true } },
+    {
+      label: 'forged-confirmation',
+      body: {
+        ...base,
+        processing_authority_confirmed: false,
+        processing_authority_attestation_version: REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+      },
+    },
+    {
+      label: 'forged-version',
+      body: {
+        ...base,
+        processing_authority_confirmed: true,
+        processing_authority_attestation_version: 'referral-processing-authority-v2026-07-20.0',
+      },
+    },
+    {
+      label: 'forged-source',
+      body: {
+        ...base,
+        processing_authority_confirmed: true,
+        processing_authority_attestation_version: REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+        processing_authority_attestation_source: 'client_claimed_source',
+      },
+    },
+  ];
+  for (const authorityCase of cases) {
+    const before = uploadExtractionWriteSnapshot(uploadRef.upload_id);
+    const result = await requestJson(server, appRoute(EXTRACTION_ROUTE), {
+      method: 'POST',
+      token: userA.token,
+      body: authorityCase.body,
+    });
+    assert.ok(result.status === 400 || result.status === 403, `${authorityCase.label}: ${result.text}`);
+    assert.equal(result.body?.status, 'error');
+    assert.match(result.body?.code || '', /processing_authority/);
+    assert.equal(fakeProvider.calls.length, 0);
+    assert.deepEqual(
+      uploadExtractionWriteSnapshot(uploadRef.upload_id),
+      before,
+      `${authorityCase.label} authority changed extraction state`,
+    );
+  }
+});
+
+test('E35a expanded, reduced, or reordered referral schemas reject before provider I/O or extraction writes', async () => {
+  fakeProvider.reset();
+  const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'schema-integrity.pdf', 'application/pdf');
+  const expanded = structuredClone(REFERRAL_SCHEMA);
+  expanded.properties.unreviewed_field = { type: 'string' };
+  const reduced = structuredClone(REFERRAL_SCHEMA);
+  delete reduced.properties.medicare_referral_type;
+  const reordered = structuredClone(REFERRAL_SCHEMA);
+  reordered.properties = Object.fromEntries(Object.entries(reordered.properties).reverse());
+
+  for (const [label, jsonSchema] of [
+    ['expanded', expanded],
+    ['reduced', reduced],
+    ['reordered', reordered],
+  ]) {
+    const before = uploadExtractionWriteSnapshot(uploadRef.upload_id);
+    const result = await extract(userA, {
+      upload_id: uploadRef.upload_id,
+      org_id: tenantA.id,
+      json_schema: jsonSchema,
+    });
+    assert.equal(result.status, 400, `${label}: ${result.text}`);
+    assert.equal(result.body?.code, 'noncanonical_referral_schema');
+    assert.equal(fakeProvider.calls.length, 0);
+    assert.deepEqual(
+      uploadExtractionWriteSnapshot(uploadRef.upload_id),
+      before,
+      `${label} schema changed extraction state`,
+    );
+  }
+});
+
+test('E35b a provider-returned under-13 DOB is blocked once, quarantined content-free, and not retried', async () => {
+  fakeProvider.reset();
+  fakeProvider.setMode('under-13');
+  const uploadRef = await uploadReferral(
+    userA,
+    tenantA.id,
+    pdfFixture({ marker: 'ASSURANCE_PROFILE_UNDER_13', dateOfBirth: '2020-01-02' }),
+    'provider-under-13.pdf',
+    'application/pdf',
+  );
+  const filePath = path.join(server.uploadsDir, getUploadRow(uploadRef.upload_id).stored_name);
+  const markerPath = path.join(server.uploadsDir, `${uploadRef.upload_id}.provider-block`);
+  try {
+    const result = await extract(userA, {
+      upload_id: uploadRef.upload_id,
+      org_id: tenantA.id,
+      json_schema: REFERRAL_SCHEMA,
+    });
+    assert.equal(result.status, 409, result.text);
+    assert.equal(result.body?.status, 'error');
+    assert.equal(result.body?.code, 'extracted_subject_under_13');
+    assert.equal(result.body?.stage, 'post_extraction_age_gate');
+    assert.deepEqual(
+      Object.keys(result.body).sort(),
+      ['code', 'details', 'diagnostic_reference', 'stage', 'status'],
+    );
+    assert.equal(Object.hasOwn(result.body, 'output'), false);
+    for (const forbidden of [
+      CANONICAL_REFERRAL_PROFILE_UNDER_13.full_name,
+      CANONICAL_REFERRAL_PROFILE_UNDER_13.date_of_birth,
+      'provider-under-13.pdf',
+    ]) {
+      assert.equal(result.text.includes(forbidden), false, `409 response disclosed ${forbidden}`);
+    }
+    assert.equal(fakeProvider.calls.length, 1, 'provider must be called exactly once before the age gate');
+
+    const quarantined = getUploadRow(uploadRef.upload_id);
+    assert.equal(quarantined.lifecycle_state, 'expired');
+    assert.equal(quarantined.subject_age_band, 'under_13');
+    assert.ok(Date.parse(quarantined.expires_at) <= Date.now(), quarantined.expires_at);
+    assert.equal(fs.existsSync(filePath), true, 'cleanup owns physical deletion after quarantine');
+    assert.equal(fs.statSync(markerPath).size, 0, 'the durable no-retry marker must remain content-free');
+
+    const db = openAssuranceDb();
+    try {
+      const ageGate = db.prepare(`
+        SELECT metadata_json FROM upload_audit
+        WHERE upload_id = ? AND event_type = 'post_extraction_age_gate' AND outcome = 'blocked'
+        ORDER BY created_at DESC LIMIT 1
+      `).get(uploadRef.upload_id);
+      assert.ok(ageGate, 'quarantine audit is required');
+      const metadata = JSON.parse(ageGate.metadata_json);
+      assert.deepEqual(metadata, {
+        code: 'extracted_subject_under_13',
+        state_from: 'processing',
+        state_to: 'expired',
+        live_access_revoked_immediately: true,
+        physical_cleanup_scheduled: true,
+      });
+      assert.doesNotMatch(
+        ageGate.metadata_json,
+        /Synthetic Minor|2020-01-02|provider-under-13|date.of.birth|\bdob\b/i,
+      );
+    } finally {
+      db.close();
+    }
+
+    const retry = await extract(userA, {
+      upload_id: uploadRef.upload_id,
+      org_id: tenantA.id,
+      json_schema: REFERRAL_SCHEMA,
+    });
+    assert.equal(retry.status, 404, retry.text);
+    assert.equal(fakeProvider.calls.length, 1, 'quarantined referrals must never re-enter the provider path');
+
+    const registryModule = await import('../uploadRegistry.mjs');
+    const cleanupDb = openAssuranceDb();
+    try {
+      const cleanup = registryModule.cleanupExpiredUploads({
+        db: cleanupDb,
+        uploadsDir: server.uploadsDir,
+        now: new Date(),
+        dryRun: false,
+      });
+      assert.equal(cleanup.removed, 1);
+    } finally {
+      cleanupDb.close();
+    }
+    assert.equal(getUploadRow(uploadRef.upload_id).lifecycle_state, 'deleted');
+    assert.equal(fs.existsSync(filePath), false);
+    assert.equal(fs.existsSync(markerPath), false);
+  } finally {
+    fakeProvider.reset();
+  }
+});
+
+test('E35c a quarantine database abort cannot make provider-returned under-13 bytes retryable', async () => {
+  fakeProvider.reset();
+  fakeProvider.setMode('under-13');
+  const uploadRef = await uploadReferral(
+    userA,
+    tenantA.id,
+    pdfFixture({ marker: 'ASSURANCE_PROFILE_UNDER_13', dateOfBirth: '2020-01-02' }),
+    'provider-under-13-db-abort.pdf',
+    'application/pdf',
+  );
+  const markerPath = path.join(server.uploadsDir, `${uploadRef.upload_id}.provider-block`);
+  const db = openAssuranceDb();
+  try {
+    db.exec(`
+      CREATE TRIGGER synthetic_fail_under_13_quarantine
+      BEFORE UPDATE OF subject_age_band ON upload_registry
+      WHEN NEW.id = '${uploadRef.upload_id}' AND NEW.subject_age_band = 'under_13'
+      BEGIN
+        SELECT RAISE(ABORT, 'synthetic quarantine database abort');
+      END;
+    `);
+  } finally {
+    db.close();
+  }
+
+  try {
+    const first = await extract(userA, {
+      upload_id: uploadRef.upload_id,
+      org_id: tenantA.id,
+      json_schema: REFERRAL_SCHEMA,
+    });
+    assert.equal(first.status, 409, first.text);
+    assert.equal(first.body?.code, 'extracted_subject_under_13');
+    assert.equal(fakeProvider.calls.length, 1);
+    assert.equal(fs.statSync(markerPath).size, 0, 'the independent marker must survive the SQLite abort');
+    assert.notEqual(getUploadRow(uploadRef.upload_id).subject_age_band, 'under_13');
+
+    const retry = await extract(userA, {
+      upload_id: uploadRef.upload_id,
+      org_id: tenantA.id,
+      json_schema: REFERRAL_SCHEMA,
+    });
+    assert.equal(retry.status, 409, retry.text);
+    assert.equal(retry.body?.code, 'provider_retry_blocked');
+    assert.equal(fakeProvider.calls.length, 1, 'the database abort must not permit a second provider call');
+  } finally {
+    const cleanupDb = openAssuranceDb();
+    try {
+      cleanupDb.exec('DROP TRIGGER IF EXISTS synthetic_fail_under_13_quarantine');
+    } finally {
+      cleanupDb.close();
+    }
+    const cancelled = await requestJson(server, appRoute(CANCEL_ROUTE), {
+      method: 'POST',
+      token: userA.token,
+      body: { org_id: tenantA.id, upload_ids: [uploadRef.upload_id] },
+    });
+    assert.equal(cancelled.status, 200, cancelled.text);
+    assert.equal(fs.existsSync(markerPath), false, 'cancellation must remove the provider block marker');
+    fakeProvider.reset();
+  }
+});
+
+test('E35d simultaneous marker and database quarantine faults remain blocked in the live process', async () => {
+  fakeProvider.reset();
+  fakeProvider.setMode('under-13');
+  const uploadRef = await uploadReferral(
+    userA,
+    tenantA.id,
+    pdfFixture({ marker: 'ASSURANCE_PROFILE_UNDER_13', dateOfBirth: '2020-01-02' }),
+    'provider-under-13-dual-fault.pdf',
+    'application/pdf',
+  );
+  const markerPath = path.join(server.uploadsDir, `${uploadRef.upload_id}.provider-block`);
+  fakeProvider.setBeforeRespond(() => {
+    fs.mkdirSync(markerPath, { mode: 0o700 });
   });
-  assert.equal(result.status, 403, result.text);
-  assert.equal(result.body?.status, 'error');
-  assert.equal(fakeProvider.calls.length, 0);
+  const db = openAssuranceDb();
+  try {
+    db.exec(`
+      CREATE TRIGGER synthetic_fail_under_13_dual_quarantine
+      BEFORE UPDATE OF subject_age_band ON upload_registry
+      WHEN NEW.id = '${uploadRef.upload_id}' AND NEW.subject_age_band = 'under_13'
+      BEGIN
+        SELECT RAISE(ABORT, 'synthetic dual quarantine database abort');
+      END;
+    `);
+  } finally {
+    db.close();
+  }
+
+  try {
+    const first = await extract(userA, {
+      upload_id: uploadRef.upload_id,
+      org_id: tenantA.id,
+      json_schema: REFERRAL_SCHEMA,
+    });
+    assert.equal(first.status, 409, first.text);
+    assert.equal(first.body?.code, 'extracted_subject_under_13');
+    assert.equal(fakeProvider.calls.length, 1);
+    assert.notEqual(getUploadRow(uploadRef.upload_id).subject_age_band, 'under_13');
+
+    const retry = await extract(userA, {
+      upload_id: uploadRef.upload_id,
+      org_id: tenantA.id,
+      json_schema: REFERRAL_SCHEMA,
+    });
+    assert.equal(retry.status, 409, retry.text);
+    assert.equal(retry.body?.code, 'provider_retry_blocked');
+    assert.equal(fakeProvider.calls.length, 1, 'dual quarantine faults must not permit a second provider call');
+  } finally {
+    const cleanupDb = openAssuranceDb();
+    try {
+      cleanupDb.exec('DROP TRIGGER IF EXISTS synthetic_fail_under_13_dual_quarantine');
+    } finally {
+      cleanupDb.close();
+    }
+    if (fs.existsSync(markerPath)) fs.rmSync(markerPath, { recursive: true, force: true });
+    const cancelled = await requestJson(server, appRoute(CANCEL_ROUTE), {
+      method: 'POST',
+      token: userA.token,
+      body: { org_id: tenantA.id, upload_ids: [uploadRef.upload_id] },
+    });
+    assert.equal(cancelled.status, 200, cancelled.text);
+    const quotaDb = openAssuranceDb();
+    try {
+      quotaDb.prepare('UPDATE upload_registry SET created_at = ? WHERE id = ?').run(
+        new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+        uploadRef.upload_id,
+      );
+    } finally {
+      quotaDb.close();
+    }
+    fakeProvider.reset();
+  }
 });
 
 test('E36 practitioner cancellation immediately deletes bytes and redacts unbound filenames', async () => {
@@ -986,7 +1867,12 @@ test('E38 authority and provider provenance are persisted as bounded content-fre
     `).all(uploadRef.upload_id);
     const authority = JSON.parse(rows.find((row) => row.event_type === 'processing_authority_attested').metadata_json);
     const extraction = JSON.parse(rows.find((row) => row.event_type === 'document_extraction').metadata_json);
-    assert.deepEqual(Object.keys(authority).sort(), ['attestation_version', 'upload_purpose']);
+    assert.deepEqual(Object.keys(authority).sort(), [
+      'processing_authority_attestation_source',
+      'processing_authority_attestation_version',
+      'processing_authority_confirmed',
+      'upload_purpose',
+    ]);
     assert.deepEqual(Object.keys(extraction).sort(), [
       'actual_cost_microusd',
       'estimated_cost_microusd',
@@ -1005,7 +1891,15 @@ test('E38 authority and provider provenance are persisted as bounded content-fre
       'request_tools_disabled',
       'schema_hash',
     ]);
-    assert.equal(typeof authority.attestation_version, 'string');
+    assert.equal(
+      authority.processing_authority_attestation_source,
+      REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_SOURCE,
+    );
+    assert.equal(
+      authority.processing_authority_attestation_version,
+      REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+    );
+    assert.equal(authority.processing_authority_confirmed, true);
     assert.equal(authority.upload_purpose, 'referral-extraction');
     assert.equal(extraction.provider_model, 'synthetic-assurance-model');
     assert.equal(extraction.provider_request_constructed, true);
@@ -1165,7 +2059,7 @@ test('E42 deleted upload registry metadata is purged after two years unless lega
   }
 });
 
-test('E43 an authorised bound referral can be re-extracted without changing its retained lifecycle', async () => {
+test('E43 bound re-extraction requires every current selected-practice legal instrument before provider I/O', async () => {
   fakeProvider.reset();
   const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'bound-reextract.pdf', 'application/pdf');
   const client = await requestJson(server, appRoute('/entities/Client'), {
@@ -1179,6 +2073,23 @@ test('E43 an authorised bound referral can be re-extracted without changing its 
   });
   assert.equal(document.status, 200, document.text);
   assert.equal(getUploadRow(uploadRef.upload_id).lifecycle_state, 'bound');
+
+  for (const documentId of ['collection-notice', 'clinical-use-notice', 'ai-notice']) {
+    makeLegalReceiptStale(userA, tenantA.id, documentId);
+    fakeProvider.reset();
+    const blocked = await extract(userA, {
+      upload_id: uploadRef.upload_id,
+      org_id: tenantA.id,
+      json_schema: REFERRAL_SCHEMA,
+    });
+    assert.equal(blocked.status, 403, blocked.text);
+    assert.equal(blocked.body?.code, 'acceptance_required');
+    assert.equal(fakeProvider.calls.length, 0, `${documentId} must fail before provider I/O`);
+    assert.equal(getUploadRow(uploadRef.upload_id).lifecycle_state, 'bound');
+    await acceptCurrentNotices(userA, tenantA.id);
+  }
+
+  fakeProvider.reset();
   const result = await extract(userA, {
     upload_id: uploadRef.upload_id,
     org_id: tenantA.id,
@@ -1186,6 +2097,47 @@ test('E43 an authorised bound referral can be re-extracted without changing its 
   });
   assertSuccess(result, PROFILE_A);
   assert.equal(getUploadRow(uploadRef.upload_id).lifecycle_state, 'bound');
+});
+
+test('E43a a stale owner-contract receipt blocks bound re-extraction before provider I/O', async () => {
+  const owner = await registerUser(server, 'synthetic-bound-owner-legal-gate@example.test');
+  await activateUser(server, adminToken, owner.id);
+  const ownerOrg = await createOrganizationForUser(server, adminToken, owner, 'owner');
+  await acceptCurrentNotices(owner, ownerOrg.id);
+
+  const uploadRef = await uploadReferral(owner, ownerOrg.id, pdfFixture(), 'bound-owner-contract.pdf', 'application/pdf');
+  const client = await requestJson(server, appRoute('/entities/Client'), {
+    method: 'POST', token: owner.token,
+    body: { org_id: ownerOrg.id, full_name: 'Bound Owner Contract Client' },
+  });
+  assert.equal(client.status, 200, client.text);
+  const document = await requestJson(server, appRoute('/entities/ClientDocument'), {
+    method: 'POST', token: owner.token,
+    body: { org_id: ownerOrg.id, client_id: client.body.id, name: 'Bound owner referral', file_url: uploadRef.file_url },
+  });
+  assert.equal(document.status, 200, document.text);
+  assert.equal(getUploadRow(uploadRef.upload_id).lifecycle_state, 'bound');
+
+  makeLegalReceiptStale(owner, ownerOrg.id, 'terms');
+  fakeProvider.reset();
+  const blocked = await extract(owner, {
+    upload_id: uploadRef.upload_id,
+    org_id: ownerOrg.id,
+    json_schema: REFERRAL_SCHEMA,
+  });
+  assert.equal(blocked.status, 403, blocked.text);
+  assert.equal(blocked.body?.code, 'acceptance_required');
+  assert.equal(fakeProvider.calls.length, 0);
+  assert.equal(getUploadRow(uploadRef.upload_id).lifecycle_state, 'bound');
+
+  await acceptCurrentNotices(owner, ownerOrg.id);
+  fakeProvider.reset();
+  const restored = await extract(owner, {
+    upload_id: uploadRef.upload_id,
+    org_id: ownerOrg.id,
+    json_schema: REFERRAL_SCHEMA,
+  });
+  assertSuccess(restored, PROFILE_A);
 });
 
 test('E44 non-Australian or non-release professions fail closed across profile, clinical, upload, and extraction paths', async () => {
@@ -1241,16 +2193,23 @@ test('E44 non-Australian or non-release professions fail closed across profile, 
   }
 });
 
-test('E45 failed provider calls retain bounded policy provenance and production model overrides are prohibited', async () => {
+test('E45 failed provider calls retain bounded provenance while schema preflight writes nothing', async () => {
   fakeProvider.reset();
   fakeProvider.setMode('provider-500');
   const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'failed-provenance.pdf', 'application/pdf');
+  const providerAttemptStartedAt = Date.now();
   const result = await extract(userA, {
     upload_id: uploadRef.upload_id,
     org_id: tenantA.id,
     json_schema: REFERRAL_SCHEMA,
   });
   assert.equal(result.status, 502, result.text);
+  const failedUpload = getUploadRow(uploadRef.upload_id);
+  assert.equal(failedUpload.lifecycle_state, 'temporary');
+  assert.ok(
+    Date.parse(failedUpload.expires_at) <= providerAttemptStartedAt + 60 * 60 * 1000,
+    failedUpload.expires_at,
+  );
 
   const db = openAssuranceDb();
   try {
@@ -1259,9 +2218,14 @@ test('E45 failed provider calls retain bounded policy provenance and production 
       WHERE upload_id = ? AND event_type = 'document_extraction' AND outcome = 'failed'
       ORDER BY created_at DESC LIMIT 1
     `).get(uploadRef.upload_id);
+    assert.ok(row, JSON.stringify(db.prepare(`
+      SELECT event_type, outcome, metadata_json FROM upload_audit
+      WHERE upload_id = ? ORDER BY created_at DESC
+    `).all(uploadRef.upload_id)));
     const metadata = JSON.parse(row.metadata_json);
     assert.deepEqual(Object.keys(metadata).sort(), [
       'code',
+      'diagnostic_reference',
       'file_count',
       'prompt_version',
       'provider_contact_attempted',
@@ -1275,8 +2239,9 @@ test('E45 failed provider calls retain bounded policy provenance and production 
       'request_store_disabled',
       'request_tools_disabled',
       'schema_hash',
+      'stage',
     ]);
-    assert.match(metadata.schema_hash, /^[0-9a-f]{64}$/);
+    assert.equal(metadata.schema_hash, REFERRAL_EXTRACTION_SCHEMA_SHA256);
     assert.equal(metadata.provider_status_class, '5xx');
     assert.equal(metadata.provider_model, 'synthetic-assurance-model');
     assert.equal(metadata.provider_request_constructed, true);
@@ -1297,32 +2262,20 @@ test('E45 failed provider calls retain bounded policy provenance and production 
   }
 
   const preProvider = await uploadReferral(userA, tenantA.id, pdfFixture(), 'pre-provider-failure.pdf', 'application/pdf');
+  const preProviderBefore = uploadExtractionWriteSnapshot(preProvider.upload_id);
   const invalidSchema = await extract(userA, {
     upload_id: preProvider.upload_id,
     org_id: tenantA.id,
     json_schema: {},
   });
   assert.equal(invalidSchema.status, 400, invalidSchema.text);
+  assert.equal(invalidSchema.body?.code, 'noncanonical_referral_schema');
   assert.equal(fakeProvider.calls.length, 0);
-  const preProviderDb = openAssuranceDb();
-  try {
-    const row = preProviderDb.prepare(`
-      SELECT metadata_json FROM upload_audit
-      WHERE upload_id = ? AND event_type = 'document_extraction' AND outcome = 'failed'
-      ORDER BY created_at DESC LIMIT 1
-    `).get(preProvider.upload_id);
-    const metadata = JSON.parse(row.metadata_json);
-    assert.deepEqual(Object.keys(metadata).sort(), [
-      'code',
-      'file_count',
-      'provider_contact_attempted',
-      'provider_request_constructed',
-    ]);
-    assert.equal(metadata.provider_request_constructed, false);
-    assert.equal(metadata.provider_contact_attempted, false);
-  } finally {
-    preProviderDb.close();
-  }
+  assert.deepEqual(
+    uploadExtractionWriteSnapshot(preProvider.upload_id),
+    preProviderBefore,
+    'schema preflight must occur before authority audit, usage reservation, or lifecycle writes',
+  );
 
   const priorModel = process.env.OPENAI_DOCUMENT_EXTRACTION_MODEL;
   const priorSelftest = process.env.SELFTEST;
@@ -1607,4 +2560,334 @@ test('E52 bulk update keeps each upload binding aligned with its actual updated 
   const applied = getUploadRow(appliedUpload.upload_id);
   assert.equal(applied.lifecycle_state, 'bound');
   assert.equal(applied.bound_entity_id, document.body.id);
+});
+
+test('E53 oversized and over-deep request structures are rejected instead of silently truncating upload-reference scans', async () => {
+  const client = await requestJson(server, appRoute('/entities/Client'), {
+    method: 'POST', token: userA.token,
+    body: { org_id: tenantA.id, full_name: 'Reference Complexity Boundary' },
+  });
+  assert.equal(client.status, 200, client.text);
+  const syntheticFileReference = `/uploads/${randomUUID()}`;
+  const before = await requestJson(server, appRoute('/entities/ClientDocument'), { token: userA.token });
+
+  const oversized = {};
+  for (let index = 0; index < 1000; index += 1) oversized[`f${index}`] = index;
+  oversized.hidden_file_reference = syntheticFileReference;
+  const oversizedResult = await requestJson(server, appRoute('/entities/ClientDocument'), {
+    method: 'POST', token: userA.token,
+    body: {
+      org_id: tenantA.id,
+      client_id: client.body.id,
+      name: 'Must reject oversized reference tree',
+      metadata: oversized,
+    },
+  });
+  assert.equal(oversizedResult.status, 400, oversizedResult.text);
+
+  let overDeep = syntheticFileReference;
+  for (let depth = 0; depth < 13; depth += 1) overDeep = { next: overDeep };
+  const deepResult = await requestJson(server, appRoute('/entities/ClientDocument'), {
+    method: 'POST', token: userA.token,
+    body: {
+      org_id: tenantA.id,
+      client_id: client.body.id,
+      name: 'Must reject deep reference tree',
+      metadata: overDeep,
+    },
+  });
+  assert.equal(deepResult.status, 400, deepResult.text);
+
+  const after = await requestJson(server, appRoute('/entities/ClientDocument'), { token: userA.token });
+  assert.equal(after.body.length, before.body.length, 'rejected structures must not create a clinical row');
+});
+
+test('E54 an incomplete cleanup reference scan is isolated once and never recurs', async () => {
+  const uploadId = randomUUID();
+  const storedName = `${uploadId}.pdf`;
+  const fileUrl = `/uploads/${uploadId}`;
+  const bytes = pdfFixture();
+  const filePath = path.join(server.uploadsDir, storedName);
+  const recordId = randomUUID();
+  const overflow = {};
+  for (let index = 0; index < 1000; index += 1) overflow[`f${index}`] = index;
+  overflow.hidden_file_reference = fileUrl;
+  const expiredAt = new Date(Date.now() - 60_000).toISOString();
+  const db = openAssuranceDb();
+  try {
+    fs.writeFileSync(filePath, bytes, { flag: 'wx' });
+    db.prepare(`
+      INSERT INTO upload_registry (
+        id, stored_name, original_name, org_id, uploader_user_id, purpose,
+        detected_mime, byte_size, sha256, lifecycle_state, subject_age_band,
+        created_at, expires_at, is_legacy
+      ) VALUES (?, ?, 'cleanup-incomplete-scan.pdf', ?, ?, 'referral-extraction',
+                'application/pdf', ?, ?, 'expired', '13_or_over', ?, ?, 0)
+    `).run(
+      uploadId,
+      storedName,
+      tenantA.id,
+      userA.id,
+      bytes.length,
+      createHash('sha256').update(bytes).digest('hex'),
+      expiredAt,
+      expiredAt,
+    );
+    db.prepare(`
+      INSERT INTO entity_ClientDocument (id, data, created_date, updated_date, created_by)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(
+      recordId,
+      JSON.stringify({ org_id: tenantA.id, client_id: randomUUID(), name: 'Synthetic legacy overflow', overflow }),
+      expiredAt,
+      expiredAt,
+      userA.email,
+    );
+    const { cleanupExpiredUploads } = await import('../uploadRegistry.mjs');
+    const first = cleanupExpiredUploads({ db, uploadsDir: server.uploadsDir, now: new Date() });
+    assert.ok(first.examined >= 1);
+    assert.ok(first.isolated >= 1);
+    const isolated = db.prepare('SELECT * FROM upload_registry WHERE id = ?').get(uploadId);
+    assert.equal(isolated.lifecycle_state, 'expired');
+    assert.equal(isolated.expires_at, null);
+    assert.equal(fs.existsSync(filePath), true, 'incomplete scans must retain bytes for disposition review');
+    const disposition = db.prepare('SELECT * FROM upload_disposition WHERE upload_id = ?').get(uploadId);
+    assert.equal(disposition.status, 'review-required');
+    assert.equal(disposition.reason_code, 'cleanup_reference_scan_incomplete');
+
+    const second = cleanupExpiredUploads({ db, uploadsDir: server.uploadsDir, now: new Date() });
+    assert.equal(second.examined, 0, 'isolated incomplete scans must not recur every minute');
+
+    db.prepare('DELETE FROM entity_ClientDocument WHERE id = ?').run(recordId);
+    db.prepare('UPDATE upload_registry SET expires_at = ? WHERE id = ?').run(expiredAt, uploadId);
+    const finalCleanup = cleanupExpiredUploads({ db, uploadsDir: server.uploadsDir, now: new Date() });
+    assert.ok(finalCleanup.removed >= 1);
+    assert.equal(db.prepare('SELECT lifecycle_state FROM upload_registry WHERE id = ?').get(uploadId).lifecycle_state, 'deleted');
+    assert.equal(fs.existsSync(filePath), false);
+  } finally {
+    db.prepare('DELETE FROM entity_ClientDocument WHERE id = ?').run(recordId);
+    db.close();
+    if (fs.existsSync(filePath)) fs.rmSync(filePath);
+  }
+});
+
+test('E55 a multi-file provider failure shortens every unbound upload before the first provider response', async () => {
+  fakeProvider.reset();
+  fakeProvider.setModeSequence(['semantic', 'provider-500']);
+  const primary = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    canonicalMultiFileCsvFixture('primary'),
+    'failure-retention-primary.csv',
+    'text/csv',
+  );
+  const additional = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    canonicalMultiFileCsvFixture('additional'),
+    'failure-retention-additional.csv',
+    'text/csv',
+  );
+  const uploadIds = [primary.upload_id, additional.upload_id];
+  const originalExpiries = uploadIds.map((uploadId) => Date.parse(getUploadRow(uploadId).expires_at));
+  let preResponseSnapshot = null;
+  let preResponseObservedAt = null;
+  fakeProvider.setBeforeRespond(() => {
+    if (preResponseSnapshot) return;
+    preResponseObservedAt = Date.now();
+    preResponseSnapshot = uploadIds.map((uploadId) => getUploadRow(uploadId));
+  });
+
+  try {
+    const result = await extract(colleagueA, {
+      file_urls: [primary.file_url, additional.file_url],
+      org_id: tenantA.id,
+      json_schema: REFERRAL_SCHEMA,
+    });
+    assertControlledFailure(result);
+    assert.equal(result.status, 502, result.text);
+    assert.equal(result.body?.code, 'provider_error');
+    assert.equal(fakeProvider.calls.length, 2, 'the later per-file provider call must be the controlled failure');
+    assert.ok(preResponseSnapshot, 'the fake provider must capture lifecycle state before its first response');
+
+    for (const [index, row] of preResponseSnapshot.entries()) {
+      const shortenedExpiry = Date.parse(row.expires_at);
+      assert.equal(row.lifecycle_state, 'processing');
+      assert.ok(Number.isFinite(shortenedExpiry), row.expires_at);
+      assert.ok(shortenedExpiry < originalExpiries[index], 'provider preflight must shorten the original referral TTL');
+      assert.ok(
+        shortenedExpiry <= preResponseObservedAt + 60 * 60 * 1000,
+        `failure cleanup exceeds one hour before provider response: ${row.expires_at}`,
+      );
+
+      const afterFailure = getUploadRow(row.id);
+      assert.equal(afterFailure.lifecycle_state, 'temporary');
+      assert.ok(
+        Date.parse(afterFailure.expires_at) <= shortenedExpiry,
+        'failure handling must retain or further shorten the pre-provider expiry',
+      );
+    }
+  } finally {
+    fakeProvider.reset();
+  }
+});
+
+test('E56 a later-file local integrity failure makes zero provider calls and retains every shortened expiry', async () => {
+  fakeProvider.reset();
+  const primary = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    canonicalMultiFileCsvFixture('primary'),
+    'local-integrity-primary.csv',
+    'text/csv',
+  );
+  const additional = await uploadReferral(
+    colleagueA,
+    tenantA.id,
+    canonicalMultiFileCsvFixture('additional'),
+    'local-integrity-additional.csv',
+    'text/csv',
+  );
+  const uploadIds = [primary.upload_id, additional.upload_id];
+  const originalExpiries = uploadIds.map((uploadId) => Date.parse(getUploadRow(uploadId).expires_at));
+  const additionalRow = getUploadRow(additional.upload_id);
+  fs.appendFileSync(path.join(server.uploadsDir, additionalRow.stored_name), Buffer.from([0]));
+
+  const attemptStartedAt = Date.now();
+  const result = await extract(colleagueA, {
+    file_urls: [primary.file_url, additional.file_url],
+    org_id: tenantA.id,
+    json_schema: REFERRAL_SCHEMA,
+  });
+  assert.equal(result.status, 409, result.text);
+  assert.equal(result.body?.code, 'upload_integrity_failed');
+  assert.equal(fakeProvider.calls.length, 0, 'all local file reads must finish before the first provider request');
+
+  const db = openAssuranceDb();
+  try {
+    for (const [index, uploadId] of uploadIds.entries()) {
+      const row = db.prepare('SELECT * FROM upload_registry WHERE id = ?').get(uploadId);
+      const shortenedExpiry = Date.parse(row.expires_at);
+      assert.equal(row.lifecycle_state, 'temporary');
+      assert.ok(shortenedExpiry < originalExpiries[index], 'local preflight must shorten the original referral TTL');
+      assert.ok(
+        shortenedExpiry <= attemptStartedAt + 60 * 60 * 1000,
+        `failed local preflight exceeds one-hour retention: ${row.expires_at}`,
+      );
+      const transitions = db.prepare(`
+        SELECT metadata_json FROM upload_audit
+        WHERE upload_id = ? AND event_type = 'upload_state_changed'
+        ORDER BY created_at ASC, id ASC
+      `).all(uploadId).map((audit) => JSON.parse(audit.metadata_json));
+      assert.ok(
+        transitions.some((transition) => transition.state_to === 'processing'),
+        'each selected upload must enter the shortened processing state before local read completion',
+      );
+      assert.ok(
+        transitions.some((transition) => transition.state_from === 'processing' && transition.state_to === 'temporary'),
+        'each already-processing upload must return to temporary without restoring its prior TTL',
+      );
+    }
+  } finally {
+    db.close();
+    fakeProvider.reset();
+  }
+});
+
+test('E57 repeated failed extraction retries cannot extend the first shortened expiry', async () => {
+  fakeProvider.reset();
+  fakeProvider.setMode('provider-500');
+  const uploadRef = await uploadReferral(
+    userA,
+    tenantA.id,
+    pdfFixture(),
+    'failure-retention-retry.pdf',
+    'application/pdf',
+  );
+
+  const firstAttemptStartedAt = Date.now();
+  const first = await extract(userA, {
+    upload_id: uploadRef.upload_id,
+    org_id: tenantA.id,
+    json_schema: REFERRAL_SCHEMA,
+  });
+  assert.equal(first.status, 502, first.text);
+  const firstExpiry = Date.parse(getUploadRow(uploadRef.upload_id).expires_at);
+  assert.ok(firstExpiry <= firstAttemptStartedAt + 60 * 60 * 1000);
+
+  await new Promise((resolve) => setTimeout(resolve, 25));
+  const secondAttemptStartedAt = Date.now();
+  const second = await extract(userA, {
+    upload_id: uploadRef.upload_id,
+    org_id: tenantA.id,
+    json_schema: REFERRAL_SCHEMA,
+  });
+  assert.equal(second.status, 502, second.text);
+  const afterRetry = getUploadRow(uploadRef.upload_id);
+  const secondExpiry = Date.parse(afterRetry.expires_at);
+  assert.equal(afterRetry.lifecycle_state, 'temporary');
+  assert.ok(secondAttemptStartedAt > firstAttemptStartedAt);
+  assert.ok(secondExpiry <= firstExpiry, 'a later failed retry must not restart the failure-retention clock');
+  assert.ok(secondExpiry <= secondAttemptStartedAt + 60 * 60 * 1000);
+  assert.equal(fakeProvider.calls.length, 2);
+  fakeProvider.reset();
+});
+
+test('E58 the first cleanup tick at a shortened failure expiry removes bytes and terminalizes metadata', async () => {
+  fakeProvider.reset();
+  fakeProvider.setMode('provider-500');
+  const uploadRef = await uploadReferral(
+    userA,
+    tenantA.id,
+    pdfFixture(),
+    'failure-retention-cleanup.pdf',
+    'application/pdf',
+  );
+  const result = await extract(userA, {
+    upload_id: uploadRef.upload_id,
+    org_id: tenantA.id,
+    json_schema: REFERRAL_SCHEMA,
+  });
+  assert.equal(result.status, 502, result.text);
+
+  const failedRow = getUploadRow(uploadRef.upload_id);
+  const filePath = path.join(server.uploadsDir, failedRow.stored_name);
+  const firstEligibleTick = new Date(failedRow.expires_at);
+  assert.equal(failedRow.lifecycle_state, 'temporary');
+  assert.equal(fs.existsSync(filePath), true);
+
+  const { cleanupExpiredUploads } = await import('../uploadRegistry.mjs');
+  const db = openAssuranceDb();
+  try {
+    const cleanup = cleanupExpiredUploads({
+      db,
+      uploadsDir: server.uploadsDir,
+      now: firstEligibleTick,
+      dryRun: false,
+    });
+    assert.ok(cleanup.examined >= 1);
+    assert.ok(cleanup.removed >= 1);
+    const terminal = db.prepare('SELECT * FROM upload_registry WHERE id = ?').get(uploadRef.upload_id);
+    assert.equal(terminal.lifecycle_state, 'deleted');
+    assert.equal(terminal.deleted_at, firstEligibleTick.toISOString());
+    assert.equal(terminal.expires_at, failedRow.expires_at, 'cleanup must preserve the bounded failure deadline');
+    assert.equal(terminal.original_name, '[deleted]');
+    assert.equal(fs.existsSync(filePath), false, 'the first eligible maintenance tick must physically remove bytes');
+
+    const cleanupAudit = db.prepare(`
+      SELECT outcome, metadata_json FROM upload_audit
+      WHERE upload_id = ? AND event_type = 'upload_cleanup'
+      ORDER BY created_at DESC, id DESC LIMIT 1
+    `).get(uploadRef.upload_id);
+    assert.equal(cleanupAudit?.outcome, 'removed');
+    assert.deepEqual(JSON.parse(cleanupAudit.metadata_json), {
+      dry_run: false,
+      state_from: 'temporary',
+      state_to: 'deleted',
+    });
+    assert.doesNotMatch(cleanupAudit.metadata_json, /failure-retention-cleanup|Alex River|file_data|input_file/i);
+  } finally {
+    db.close();
+    fakeProvider.reset();
+  }
 });

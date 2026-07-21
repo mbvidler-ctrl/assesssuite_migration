@@ -1,5 +1,11 @@
 import http from 'node:http';
-import { MERGED_PROFILE, detectFixtureProfile } from './synthetic-fixtures.mjs';
+import { detectFixtureProfile } from './synthetic-fixtures.mjs';
+import {
+  CANONICAL_REFERRAL_PROFILE_UNDER_13,
+  canonicalProviderProfile,
+  detectCanonicalReferralFixtureProfile,
+} from './syntheticReferralFixtures.mjs';
+import { REFERRAL_EXTRACTION_SCHEMA_PROPERTY_KEYS } from '../../../src/lib/referralExtractionSchema.js';
 
 function responseEnvelope(output) {
   const text = JSON.stringify(output);
@@ -33,6 +39,8 @@ function decodedProviderInput(payload) {
 
 export async function startFakeOpenAI() {
   let mode = 'semantic';
+  let modeSequence = [];
+  let beforeRespond = null;
   const calls = [];
   const sockets = new Set();
   const server = http.createServer(async (req, res) => {
@@ -50,6 +58,10 @@ export async function startFakeOpenAI() {
       res.end(JSON.stringify({ error: { message: 'FAKE_PROVIDER_MALFORMED_REQUEST_CANARY' } }));
       return;
     }
+    const providerSchema = payload?.text?.format?.schema;
+    const schemaPropertyNames = Object.keys(providerSchema?.properties || {});
+    const canonicalSchema =
+      JSON.stringify(schemaPropertyNames) === JSON.stringify(REFERRAL_EXTRACTION_SCHEMA_PROPERTY_KEYS);
     calls.push({
       route: req.url,
       store: payload.store,
@@ -57,10 +69,16 @@ export async function startFakeOpenAI() {
       hasBackground: Object.hasOwn(payload, 'background'),
       background: payload.background,
       promptCacheRetention: payload.prompt_cache_retention,
+      schemaPropertyNames,
+      schemaPropertyCount: schemaPropertyNames.length,
+      schemaRequired: Array.isArray(providerSchema?.required) ? [...providerSchema.required] : null,
+      schemaAdditionalProperties: providerSchema?.additionalProperties,
       input: decodedProviderInput(payload),
     });
+    if (beforeRespond) await beforeRespond({ payload, call: calls.at(-1) });
+    const responseMode = modeSequence.length > 0 ? modeSequence.shift() : mode;
 
-    if (mode === 'timeout') {
+    if (responseMode === 'timeout') {
       const timer = setTimeout(() => {
         if (!res.destroyed) res.writeHead(504).end();
       }, 5_000);
@@ -68,39 +86,47 @@ export async function startFakeOpenAI() {
       req.on('close', () => clearTimeout(timer));
       return;
     }
-    if (mode === 'provider-400' || mode === 'provider-500') {
-      const status = mode === 'provider-400' ? 400 : 500;
+    if (responseMode === 'provider-400' || responseMode === 'provider-500') {
+      const status = responseMode === 'provider-400' ? 400 : 500;
       res.writeHead(status, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ error: { message: 'FAKE_PROVIDER_PRIVATE_BODY_CANARY' } }));
       return;
     }
-    if (mode === 'empty') {
+    if (responseMode === 'empty') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ...responseEnvelope({}), output: [], output_text: '' }));
       return;
     }
-    if (mode === 'placeholder') {
+    if (responseMode === 'placeholder') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(responseEnvelope({
-        full_name: 'Mock Patient', date_of_birth: null, diagnoses: ['placeholder'], referrer: null, phone: null,
-      })));
+      const output = canonicalSchema
+        ? canonicalProviderProfile({ full_name: 'Mock Patient', primary_condition: 'placeholder' })
+        : { full_name: 'Mock Patient', date_of_birth: null, diagnoses: ['placeholder'], referrer: null, phone: null };
+      res.end(JSON.stringify(responseEnvelope(output)));
       return;
     }
-    if (mode === 'missing-value-sentinels') {
+    if (responseMode === 'missing-value-sentinels') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(responseEnvelope({
-        full_name: 'Alex River', date_of_birth: 'N/A', diagnoses: ['not provided'], referrer: 'Not specified', phone: null,
-      })));
+      const output = canonicalSchema
+        ? canonicalProviderProfile({
+            full_name: 'Alex River',
+            date_of_birth: 'N/A',
+            comorbidities: ['not provided'],
+            referral_source_name: 'Not specified',
+          })
+        : { full_name: 'Alex River', date_of_birth: 'N/A', diagnoses: ['not provided'], referrer: 'Not specified', phone: null };
+      res.end(JSON.stringify(responseEnvelope(output)));
       return;
     }
-    if (mode === 'missing-fields') {
+    if (responseMode === 'missing-fields') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(responseEnvelope({
-        full_name: 'Alex River', date_of_birth: null, diagnoses: [], referrer: null, phone: null,
-      })));
+      const output = canonicalSchema
+        ? canonicalProviderProfile({ full_name: 'Alex River', comorbidities: [] })
+        : { full_name: 'Alex River', date_of_birth: null, diagnoses: [], referrer: null, phone: null };
+      res.end(JSON.stringify(responseEnvelope(output)));
       return;
     }
-    if (mode === 'malformed') {
+    if (responseMode === 'malformed') {
       const envelope = responseEnvelope({});
       envelope.output_text = '{not-json';
       envelope.output[0].content[0].text = '{not-json';
@@ -108,14 +134,34 @@ export async function startFakeOpenAI() {
       res.end(JSON.stringify(envelope));
       return;
     }
-    if (mode === 'schema-invalid') {
+    if (responseMode === 'schema-invalid') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify(responseEnvelope({
-        full_name: 42, date_of_birth: 'not-a-date', diagnoses: 'ankle sprain', referrer: null, phone: null,
-      })));
+      const output = canonicalSchema
+        ? {
+            ...canonicalProviderProfile({}),
+            full_name: 42,
+            date_of_birth: 'not-a-date',
+            comorbidities: 'ankle sprain',
+          }
+        : { full_name: 42, date_of_birth: 'not-a-date', diagnoses: 'ankle sprain', referrer: null, phone: null };
+      res.end(JSON.stringify(responseEnvelope(output)));
       return;
     }
-    if (mode === 'refusal') {
+    if (responseMode === 'under-13') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      const output = canonicalSchema
+        ? canonicalProviderProfile(CANONICAL_REFERRAL_PROFILE_UNDER_13)
+        : {
+            full_name: CANONICAL_REFERRAL_PROFILE_UNDER_13.full_name,
+            date_of_birth: CANONICAL_REFERRAL_PROFILE_UNDER_13.date_of_birth,
+            diagnoses: ['ankle sprain'],
+            referrer: 'Dr Synthetic',
+            phone: null,
+          };
+      res.end(JSON.stringify(responseEnvelope(output)));
+      return;
+    }
+    if (responseMode === 'refusal') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({
         id: 'resp_refusal', object: 'response', status: 'completed',
@@ -125,8 +171,8 @@ export async function startFakeOpenAI() {
     }
 
     const decodedInput = decodedProviderInput(payload);
-    const output = decodedInput.includes('ASSURANCE_PROFILE_A') && decodedInput.includes('ASSURANCE_PROFILE_FILL')
-      ? MERGED_PROFILE
+    const output = canonicalSchema
+      ? canonicalProviderProfile(detectCanonicalReferralFixtureProfile(decodedInput))
       : detectFixtureProfile(decodedInput);
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(responseEnvelope(output)));
@@ -140,8 +186,12 @@ export async function startFakeOpenAI() {
   return {
     baseUrl: `http://127.0.0.1:${address.port}/v1/responses`,
     calls,
-    setMode(next) { mode = next; },
-    reset() { mode = 'semantic'; calls.length = 0; },
+    setMode(next) { mode = next; modeSequence = []; },
+    setModeSequence(next) {
+      modeSequence = Array.isArray(next) ? [...next] : [];
+    },
+    setBeforeRespond(next) { beforeRespond = typeof next === 'function' ? next : null; },
+    reset() { mode = 'semantic'; modeSequence = []; beforeRespond = null; calls.length = 0; },
     async stop() {
       for (const socket of sockets) socket.destroy();
       await new Promise((resolve) => server.close(resolve));

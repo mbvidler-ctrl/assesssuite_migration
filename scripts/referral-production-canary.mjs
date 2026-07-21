@@ -21,7 +21,28 @@ import { fileURLToPath } from 'node:url';
 import { createClient } from '@base44/sdk';
 
 import { DOCUMENT_EXTRACTION_PROVIDER_PROBE_ACK } from '../server/documentExtraction.mjs';
-import { PROFILE_A, REFERRAL_SCHEMA, pdfFixture } from '../server/tests/support/synthetic-fixtures.mjs';
+import {
+  REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_SOURCE,
+  REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+} from '../server/uploadRegistry.mjs';
+import {
+  CANONICAL_REFERRAL_PROFILE_A,
+  pdfFixture,
+} from '../server/tests/support/synthetic-fixtures.mjs';
+import {
+  REFERRAL_EXTRACTION_SCHEMA,
+  REFERRAL_EXTRACTION_SCHEMA_SHA256,
+} from '../src/lib/referralExtractionSchema.js';
+import {
+  buildReferralClientData,
+  buildReferralConditionData,
+  prepareReferralReviewData,
+} from '../src/lib/referralReview.js';
+import {
+  buildReviewedReferralCommitPayload,
+  commitReviewedReferral,
+  createReferralCommitIdempotencyKey,
+} from '../src/lib/referralCommit.js';
 import {
   REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE,
   REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
@@ -71,13 +92,13 @@ function safeReleaseSha(value) {
 function extractionIsGrounded(output) {
   if (!output || typeof output !== 'object' || Array.isArray(output)) return false;
   if (typeof output.full_name !== 'string' || output.full_name.trim().toLowerCase() !== 'alex river') return false;
-  if (output.date_of_birth !== PROFILE_A.date_of_birth) return false;
-  if (!Array.isArray(output.diagnoses)) return false;
-  const diagnoses = output.diagnoses.map((value) => String(value).trim().toLowerCase());
-  if (!diagnoses.some((value) => value.includes('ankle sprain'))) return false;
-  if (!diagnoses.some((value) => value.includes('asthma'))) return false;
-  if (typeof output.referrer !== 'string' || !output.referrer.toLowerCase().includes('synthetic')) return false;
-  if (!(output.phone === null || output.phone === undefined || output.phone === '')) return false;
+  if (output.date_of_birth !== CANONICAL_REFERRAL_PROFILE_A.date_of_birth) return false;
+  if (output.referral_source !== CANONICAL_REFERRAL_PROFILE_A.referral_source) return false;
+  if (typeof output.referral_source_name !== 'string' || !output.referral_source_name.toLowerCase().includes('synthetic')) return false;
+  if (typeof output.primary_condition !== 'string' || !output.primary_condition.toLowerCase().includes('ankle sprain')) return false;
+  if (!Array.isArray(output.comorbidities)) return false;
+  if (!output.comorbidities.some((value) => String(value).trim().toLowerCase().includes('asthma'))) return false;
+  if (typeof output.primary_gp_name !== 'string' || !output.primary_gp_name.toLowerCase().includes('synthetic')) return false;
   return !/mock|placeholder|dummy|unknown patient/i.test(JSON.stringify(output));
 }
 
@@ -245,6 +266,9 @@ export async function runIsolatedReferralCanary({
       file: new File([fixtureBytes], SYNTHETIC_REFERRAL_FILENAME, { type: 'application/pdf' }),
       org_id: organisation.id,
       purpose: 'referral-extraction',
+      processing_authority_confirmed: true,
+      processing_authority_attestation_version:
+        REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
       subject_age_confirmation: REFERRAL_SUBJECT_AGE_CONFIRMATION,
       subject_age_attestation_version: REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
     });
@@ -257,8 +281,10 @@ export async function runIsolatedReferralCanary({
     const extraction = await sdk.integrations.Core.ExtractDataFromUploadedFile({
       org_id: organisation.id,
       file_urls: [upload.file_url],
-      json_schema: REFERRAL_SCHEMA,
+      json_schema: REFERRAL_EXTRACTION_SCHEMA,
       processing_authority_confirmed: true,
+      processing_authority_attestation_version:
+        REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
     });
     checks.extraction_grounded = extraction?.status === 'success' && extractionIsGrounded(extraction.output);
     if (!checks.extraction_grounded) throw new Error('extraction grounding failed');
@@ -293,6 +319,11 @@ export async function runIsolatedReferralCanary({
         registeredMetadata?.subject_age_attestation_source === REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE &&
         registeredMetadata?.subject_age_attestation_version === REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION &&
         registeredMetadata?.subject_age_band === REFERRAL_SUBJECT_AGE_CONFIRMATION &&
+        registeredMetadata?.processing_authority_attestation_source ===
+          REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_SOURCE &&
+        registeredMetadata?.processing_authority_attestation_version ===
+          REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION &&
+        registeredMetadata?.processing_authority_confirmed === true &&
         !Object.keys(registeredMetadata || {}).some((key) => /date.of.birth|dob/i.test(key));
 
       const auditRows = auditDb.prepare(`
@@ -309,6 +340,7 @@ export async function runIsolatedReferralCanary({
       }
       checks.extraction_provider_contacted =
         metadata?.provider_contact_attempted === true && metadata?.provider_status_class === '2xx';
+      checks.canonical_schema_verified = metadata?.schema_hash === REFERRAL_EXTRACTION_SCHEMA_SHA256;
       checks.provider_policy_enforced =
         metadata?.request_store_disabled === true &&
         metadata?.request_background_disabled === true &&
@@ -323,31 +355,49 @@ export async function runIsolatedReferralCanary({
       !checks.requested_filename_registered ||
       !checks.age_attestation_provenance_recorded ||
       !checks.extraction_provider_contacted ||
+      !checks.canonical_schema_verified ||
       !checks.provider_policy_enforced
     ) {
       throw new Error('audit verification failed');
     }
 
     stage = 'review_persistence';
-    const reviewedClient = await sdk.entities.Client.create({
-      org_id: organisation.id,
+    const reviewedData = prepareReferralReviewData({
+      ...extraction.output,
       full_name: `${extraction.output.full_name} — Practitioner Reviewed`,
-      date_of_birth: extraction.output.date_of_birth,
-      assigned_clinician_email: currentUser.email,
+      // The synthetic provider fixture omits gender. This explicit canary-only
+      // value represents the practitioner's mandatory review of that field.
+      gender: 'other',
     });
-    const retainedDocument = await sdk.entities.ClientDocument.create({
-      org_id: organisation.id,
-      client_id: reviewedClient.id,
-      document_type: 'referral',
-      file_url: upload.file_url,
-      file_name: SYNTHETIC_REFERRAL_FILENAME,
-      notes: 'Synthetic isolated production canary',
+    const commitPayload = buildReviewedReferralCommitPayload({
+      idempotencyKey: createReferralCommitIdempotencyKey(),
+      orgId: organisation.id,
+      operation: 'create',
+      client: buildReferralClientData(reviewedData),
+      conditions: buildReferralConditionData(reviewedData),
+      uploadIds: [upload.upload_id],
     });
+    const commitResult = await commitReviewedReferral(sdk, commitPayload);
+    const replayResult = await commitReviewedReferral(sdk, commitPayload);
     const clientsAfterReview = await sdk.entities.Client.filter({ org_id: organisation.id });
+    const reviewedClient = clientsAfterReview.find((client) => client.id === commitResult.client_id);
+    const retainedDocuments = await sdk.entities.ClientDocument.filter({
+      org_id: organisation.id,
+      client_id: commitResult.client_id,
+    });
+    const retainedDocument = retainedDocuments[0];
     checks.reviewed_client_created =
-      clientsAfterReview.length === clientsBefore.length + 1 && reviewedClient?.org_id === organisation.id;
+      commitResult.status === 'success' &&
+      commitResult.operation === 'create' &&
+      replayResult.client_id === commitResult.client_id &&
+      clientsAfterReview.length === clientsBefore.length + 1 &&
+      reviewedClient?.org_id === organisation.id &&
+      reviewedClient?.assigned_clinician_email === currentUser.email;
     checks.document_retained =
-      retainedDocument?.org_id === organisation.id && retainedDocument?.file_url === upload.file_url;
+      commitResult.counts?.documents_retained === 1 &&
+      retainedDocuments.length === 1 &&
+      retainedDocument?.org_id === organisation.id &&
+      retainedDocument?.file_url === upload.file_url;
     if (!checks.reviewed_client_created || !checks.document_retained) {
       throw new Error('review persistence failed');
     }
@@ -360,10 +410,16 @@ export async function runIsolatedReferralCanary({
         FROM upload_registry
         WHERE id = ?
       `).get(upload.upload_id);
+      const receipt = retentionDb.prepare(`
+        SELECT client_id
+        FROM referral_commit_receipt
+        WHERE idempotency_key = ?
+      `).get(commitPayload.idempotency_key);
       checks.upload_bound =
         retainedUpload?.lifecycle_state === 'bound' &&
         retainedUpload?.bound_entity_type === 'ClientDocument' &&
-        retainedUpload?.bound_entity_id === retainedDocument.id;
+        retainedUpload?.bound_entity_id === retainedDocument.id &&
+        receipt?.client_id === commitResult.client_id;
     } finally {
       retentionDb.close();
     }

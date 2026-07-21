@@ -1,10 +1,25 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
+import {
+  Card as CardPrimitive,
+  CardContent as CardContentPrimitive,
+  CardHeader as CardHeaderPrimitive,
+  CardTitle as CardTitlePrimitive,
+} from "@/components/ui/card";
+import { Checkbox as CheckboxPrimitive } from "@/components/ui/checkbox";
+import { Label as LabelPrimitive } from "@/components/ui/label";
 import { ShieldCheck } from "lucide-react";
 import { getLegalDocument } from "@/lib/legal/documentRegistry";
+
+// The shared JavaScript UI wrappers intentionally forward arbitrary DOM and
+// Radix props, but their generated checkJs signatures expose ref-only props.
+// Keep this screen's JSX contract explicit without changing runtime behavior.
+const Card = /** @type {React.ComponentType<any>} */ (CardPrimitive);
+const CardContent = /** @type {React.ComponentType<any>} */ (CardContentPrimitive);
+const CardHeader = /** @type {React.ComponentType<any>} */ (CardHeaderPrimitive);
+const CardTitle = /** @type {React.ComponentType<any>} */ (CardTitlePrimitive);
+const Checkbox = /** @type {React.ComponentType<any>} */ (CheckboxPrimitive);
+const Label = /** @type {React.ComponentType<any>} */ (LabelPrimitive);
 
 // Single consolidated consent for the post-payment first-run sign-up
 // (ProfileSetup). ONE mandatory checkbox by which the user accepts every
@@ -59,7 +74,10 @@ export default function ConsentSection({ values, onChange, error, isFoundingOwne
             id="consent-accepted"
             checked={values.accepted}
             onCheckedChange={(v) => onChange("accepted", v === true)}
-            aria-describedby="consent-accepted-details"
+            aria-describedby={error
+              ? "consent-accepted-details consent-accepted-error"
+              : "consent-accepted-details"}
+            aria-invalid={Boolean(error)}
             className="mt-0.5"
           />
           <div className="text-sm text-slate-700 leading-snug">
@@ -93,7 +111,17 @@ export default function ConsentSection({ values, onChange, error, isFoundingOwne
                 </li>
               )}
             </ul>
-            {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+            {error && (
+              <p
+                id="consent-accepted-error"
+                role="alert"
+                aria-live="assertive"
+                aria-atomic="true"
+                className="text-red-500 text-xs mt-1"
+              >
+                {error}
+              </p>
+            )}
           </div>
         </div>
 

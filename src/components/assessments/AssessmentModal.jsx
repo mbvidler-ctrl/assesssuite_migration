@@ -11,6 +11,7 @@ import EditAssessmentModal from "./EditAssessmentModal";
 import EditQualityChecksModal from "./EditQualityChecksModal";
 import AssessmentTestRunnerRouter from "./AssessmentTestRunnerRouter";
 import { base44 } from "@/api/base44Client";
+import { renderSafeHtmlDocument } from "@/lib/safeHtml";
 export default function AssessmentModal({ assessment, onClose, onAddToClient, clientId, onRunTest }) {
   const [showTestRunner, setShowTestRunner] = useState(false);
   const [tempClientAssessment, setTempClientAssessment] = useState(null);
@@ -1884,8 +1885,7 @@ Score: ___/4</li>
     `;
     
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(printContent);
-    printWindow.document.close();
+    renderSafeHtmlDocument(printWindow, printContent);
     printWindow.print();
   };
 

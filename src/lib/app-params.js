@@ -61,7 +61,9 @@ const resolveServerUrl = () => {
 
 const getAppParams = () => {
 	return {
-		appId: getAppParamValue("app_id", { defaultValue: import.meta.env.VITE_BASE44_APP_ID }),
+		appId: getAppParamValue("app_id", {
+			defaultValue: import.meta.env.VITE_BASE44_APP_ID || "local-assesssuite",
+		}),
 		serverUrl: resolveServerUrl(),
 		token: getAppParamValue("access_token", { removeFromUrl: true }),
 		fromUrl: getAppParamValue("from_url", { defaultValue: window.location.href }),

@@ -11,6 +11,7 @@ import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
 import { ClientReport } from "@/entities/ClientReport"; // Added import
 import { SecureFileImage } from "@/components/files/SecureFile";
+import { sanitizeHtmlWithBreaks } from "@/lib/safeHtml";
 
 export default function CustomReportGenerator({ client, onClose }) {
   const [isLoading, setIsLoading] = useState(true);
@@ -384,7 +385,7 @@ Return the improved version with proper formatting:`;
                 <h2 className="text-center text-2xl font-bold">Clinical Report for {client.full_name}</h2>
               </div>
               
-              <div dangerouslySetInnerHTML={{ __html: finalReport.replace(/\n/g, '<br />') }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(finalReport) }} />
             </div>
 
             <div className="flex justify-between pt-6">

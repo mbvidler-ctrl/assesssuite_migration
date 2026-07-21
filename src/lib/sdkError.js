@@ -1,5 +1,6 @@
 const MAX_PUBLIC_DETAILS_LENGTH = 500;
 const MAX_TOKEN_LENGTH = 80;
+const UUID_V4_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 /**
  * @param {unknown} value
@@ -30,6 +31,13 @@ function normalizeStatus(value) {
   return Number.isInteger(status) && status >= 100 && status <= 599 ? status : null;
 }
 
+function normalizeDiagnosticReference(...values) {
+  const diagnosticReference = values.find(
+    (value) => typeof value === 'string' && UUID_V4_PATTERN.test(value),
+  );
+  return diagnosticReference || null;
+}
+
 function responseData(response) {
   return isRecord(response) && isRecord(response.data) ? response.data : null;
 }
@@ -51,7 +59,7 @@ function publicDetailsFrom(data) {
  *
  * @param {unknown} error
  * @param {{stage?: string, fallbackDetails?: string}} [options]
- * @returns {{stage: string, status: number|null, code: string, details: string}}
+ * @returns {{stage: string, status: number|null, code: string, diagnosticReference: string|null, details: string}}
  */
 export function normalizeSdkError(error, options = {}) {
   const source = isRecord(error) ? error : {};
@@ -78,6 +86,12 @@ export function normalizeSdkError(error, options = {}) {
     stage: normalizeToken(options.stage, 'request'),
     status,
     code,
+    diagnosticReference: normalizeDiagnosticReference(
+      source.diagnostic_reference,
+      sdkData?.diagnostic_reference,
+      axiosData?.diagnostic_reference,
+      originalData?.diagnostic_reference,
+    ),
     details: publicDetailsFrom(sdkData)
       || publicDetailsFrom(axiosData)
       || publicDetailsFrom(originalData)
@@ -91,6 +105,6 @@ export function normalizeSdkError(error, options = {}) {
  * clinical workflow even though they are safe to show to the current user.
  */
 export function sdkErrorLogMetadata(error, options = {}) {
-  const { stage, status, code } = normalizeSdkError(error, options);
-  return { stage, status, code };
+  const { stage, status, code, diagnosticReference } = normalizeSdkError(error, options);
+  return { stage, status, code, diagnosticReference };
 }

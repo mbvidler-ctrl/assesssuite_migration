@@ -12,6 +12,7 @@ import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
 import { SecureFileImage } from "@/components/files/SecureFile";
 import { todayLocal } from "@/lib/localDate";
+import { renderSafeHtmlDocument, replaceWithSafeHtml, sanitizeHtmlWithBreaks } from "@/lib/safeHtml";
 
 const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref) => {
   const formatDate = (date) => {
@@ -113,21 +114,21 @@ const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref
         {reportData.summary && (
           <>
             <div className="section-title">Program Summary</div>
-            <div dangerouslySetInnerHTML={{ __html: reportData.summary.replace(/\n/g, '<br />') }} />
+            <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.summary) }} />
           </>
         )}
 
         {reportData.goals_achieved && (
           <>
             <div className="section-title">Goals Achieved</div>
-            <div dangerouslySetInnerHTML={{ __html: reportData.goals_achieved.replace(/\n/g, '<br />') }} />
+            <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.goals_achieved) }} />
           </>
         )}
 
         {reportData.recommendations && (
           <>
             <div className="section-title">Recommendations</div>
-            <div dangerouslySetInnerHTML={{ __html: reportData.recommendations.replace(/\n/g, '<br />') }} />
+            <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.recommendations) }} />
           </>
         )}
 
@@ -295,15 +296,15 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
     if (!printWindow) {
       toast.warning("Popup blocked. Using current window print...");
       const originalContent = document.body.innerHTML;
-      document.body.innerHTML = printRef.current.innerHTML;
+      replaceWithSafeHtml(document.body, printRef.current.innerHTML);
       window.print();
-      document.body.innerHTML = originalContent;
+      replaceWithSafeHtml(document.body, originalContent);
       window.location.reload();
       return;
     }
 
     try {
-      printWindow.document.write(`
+      renderSafeHtmlDocument(printWindow, `
         <!DOCTYPE html>
         <html>
         <head>
@@ -315,8 +316,6 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
         </body>
         </html>
       `);
-      
-      printWindow.document.close();
       
       setTimeout(() => {
         printWindow.focus();
@@ -621,7 +620,7 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
                   <div>
                     <h5 className="font-semibold text-slate-800">Program Summary:</h5>
                     {reportData.summary ? (
-                      <div className="text-slate-600" dangerouslySetInnerHTML={{ __html: reportData.summary.replace(/\n/g, '<br />') }} />
+                      <div className="text-slate-600" dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.summary) }} />
                     ) : (
                       <p className="text-slate-600">Not provided</p>
                     )}
@@ -629,7 +628,7 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
                   <div>
                     <h5 className="font-semibold text-slate-800">Goals Achieved:</h5>
                     {reportData.goals_achieved ? (
-                      <div className="text-slate-600" dangerouslySetInnerHTML={{ __html: reportData.goals_achieved.replace(/\n/g, '<br />') }} />
+                      <div className="text-slate-600" dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.goals_achieved) }} />
                     ) : (
                       <p className="text-slate-600">Not provided</p>
                     )}
@@ -637,7 +636,7 @@ export default function MedicareFinalLetter({ client, onClose, editingReport }) 
                   <div>
                     <h5 className="font-semibold text-slate-800">Recommendations:</h5>
                     {reportData.recommendations ? (
-                      <div className="text-slate-600" dangerouslySetInnerHTML={{ __html: reportData.recommendations.replace(/\n/g, '<br />') }} />
+                      <div className="text-slate-600" dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.recommendations) }} />
                     ) : (
                       <p className="text-slate-600">Not provided</p>
                     )}

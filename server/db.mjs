@@ -10,6 +10,28 @@ import fs from 'node:fs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, 'data');
 
+export const PARITY_ASSURANCE_DB_PATH = '/app/server/data/assesssuite-parity.db';
+
+/**
+ * Database overrides are permitted only for the existing isolated test
+ * harness or for the one exact production parity database. The parity case is
+ * intentionally duplicated here even though productionBootstrap validates
+ * the same value, so bypassing that bootstrap cannot widen the filesystem
+ * target.
+ */
+export function isDatabaseOverrideAllowed(environment = process.env, override = environment.ASSESSSUITE_DB_PATH) {
+  if (!override) return true;
+  const isolatedGateHarness =
+    environment.NODE_ENV === 'test' &&
+    environment.ASSESSSUITE_DB_PATH_ACK ===
+      'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_NON_PRODUCTION_GATE_DATABASE';
+  const isolatedProductionParity =
+    environment.NODE_ENV === 'production' &&
+    environment.PARITY_ASSURANCE_MODE === '1' &&
+    override === PARITY_ASSURANCE_DB_PATH;
+  return isolatedGateHarness || isolatedProductionParity;
+}
+
 const entitySchemasPath = path.join(
   __dirname,
   '..',
@@ -68,13 +90,9 @@ export function loadOrgScopedEntities() {
 export function openDatabase() {
   const isSelftest = process.env.SELFTEST === '1';
   const override = process.env.ASSESSSUITE_DB_PATH;
-  const isolatedGateHarness =
-    process.env.NODE_ENV === 'test' &&
-    process.env.ASSESSSUITE_DB_PATH_ACK ===
-      'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_NON_PRODUCTION_GATE_DATABASE';
-  if (override && !isolatedGateHarness) {
+  if (!isDatabaseOverrideAllowed(process.env, override)) {
     throw new Error(
-      'ASSESSSUITE_DB_PATH is permitted only under the explicit isolated gate harness',
+      'ASSESSSUITE_DB_PATH is permitted only under the explicit isolated gate harness or exact production parity path',
     );
   }
   const dbFile = override ? path.resolve(override) : path.join(dataDir, isSelftest ? 'selftest.db' : 'app.db');
@@ -148,7 +166,7 @@ export function openDatabase() {
       byte_size INTEGER NOT NULL CHECK (byte_size >= 0),
       sha256 TEXT NOT NULL,
       lifecycle_state TEXT NOT NULL CHECK (
-        lifecycle_state IN ('temporary', 'processing', 'review-pending', 'bound', 'expired', 'deleted')
+        lifecycle_state IN ('registering', 'temporary', 'processing', 'review-pending', 'bound', 'expired', 'deleted')
       ),
       subject_age_band TEXT NOT NULL DEFAULT 'unknown' CHECK (
         subject_age_band IN ('unknown', 'under_13', '13_or_over')
@@ -221,7 +239,85 @@ export function openDatabase() {
       ON extraction_usage (org_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_extraction_usage_created
       ON extraction_usage (created_at);
+
+    -- A reviewed referral spans several ordinary entity tables plus the
+    -- upload registry. Keep its retry receipt outside the generic entity API:
+    -- callers must never be able to forge, enumerate or mutate idempotency
+    -- state through base44.entities.*.
+    CREATE TABLE IF NOT EXISTS referral_commit_receipt (
+      idempotency_key TEXT PRIMARY KEY,
+      request_sha256 TEXT NOT NULL CHECK (length(request_sha256) = 64),
+      actor_user_id TEXT NOT NULL,
+      org_id TEXT NOT NULL,
+      operation TEXT NOT NULL CHECK (operation IN ('create', 'update')),
+      client_id TEXT NOT NULL,
+      result_json TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_referral_commit_receipt_actor_created
+      ON referral_commit_receipt (actor_user_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_referral_commit_receipt_org_created
+      ON referral_commit_receipt (org_id, created_at);
   `);
+
+  // Existing production databases predate the crash-safe `registering`
+  // lifecycle. SQLite cannot widen a CHECK constraint in place, so rebuild
+  // only this internal table in one transaction when the recorded DDL lacks
+  // the new state. No generic entity or clinical row is involved.
+  const uploadRegistryDdl = String(
+    db.prepare("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'upload_registry'").get()?.sql || '',
+  );
+  if (!uploadRegistryDdl.includes("'registering'")) {
+    db.exec(`
+      BEGIN IMMEDIATE;
+      CREATE TABLE upload_registry_registering_migration (
+        id TEXT PRIMARY KEY,
+        stored_name TEXT NOT NULL UNIQUE,
+        original_name TEXT NOT NULL,
+        org_id TEXT NOT NULL,
+        uploader_user_id TEXT NOT NULL,
+        purpose TEXT NOT NULL,
+        detected_mime TEXT NOT NULL,
+        byte_size INTEGER NOT NULL CHECK (byte_size >= 0),
+        sha256 TEXT NOT NULL,
+        lifecycle_state TEXT NOT NULL CHECK (
+          lifecycle_state IN ('registering', 'temporary', 'processing', 'review-pending', 'bound', 'expired', 'deleted')
+        ),
+        subject_age_band TEXT NOT NULL DEFAULT 'unknown' CHECK (
+          subject_age_band IN ('unknown', 'under_13', '13_or_over')
+        ),
+        created_at TEXT NOT NULL,
+        expires_at TEXT,
+        bound_at TEXT,
+        deleted_at TEXT,
+        bound_entity_type TEXT,
+        bound_entity_id TEXT,
+        is_legacy INTEGER NOT NULL DEFAULT 0 CHECK (is_legacy IN (0, 1))
+      );
+      INSERT INTO upload_registry_registering_migration (
+        id, stored_name, original_name, org_id, uploader_user_id, purpose,
+        detected_mime, byte_size, sha256, lifecycle_state, subject_age_band,
+        created_at, expires_at, bound_at, deleted_at, bound_entity_type,
+        bound_entity_id, is_legacy
+      )
+      SELECT
+        id, stored_name, original_name, org_id, uploader_user_id, purpose,
+        detected_mime, byte_size, sha256, lifecycle_state, subject_age_band,
+        created_at, expires_at, bound_at, deleted_at, bound_entity_type,
+        bound_entity_id, is_legacy
+      FROM upload_registry;
+      DROP TABLE upload_registry;
+      ALTER TABLE upload_registry_registering_migration RENAME TO upload_registry;
+      CREATE INDEX idx_upload_registry_org_state
+        ON upload_registry (org_id, lifecycle_state);
+      CREATE INDEX idx_upload_registry_uploader_created
+        ON upload_registry (uploader_user_id, created_at);
+      CREATE INDEX idx_upload_registry_expiry
+        ON upload_registry (expires_at, lifecycle_state);
+      COMMIT;
+    `);
+  }
 
   return { db, entityNames: new Set(entityNames) };
 }

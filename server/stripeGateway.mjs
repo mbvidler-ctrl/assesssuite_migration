@@ -5,7 +5,8 @@
 // webhook signature verification.
 //
 // Mode selection is a single switch — stripeEnabled(), below. When it
-// returns false (the default: no STRIPE_SECRET_KEY, or SELFTEST=1), no code
+// returns false (the default: PAYMENTS_ENABLED is not exactly 1, no
+// STRIPE_SECRET_KEY, SELFTEST=1, or parity assurance mode), no code
 // in this module is reachable from the four functions and the existing
 // deterministic mock (server/mocks/stripe.mjs) serves everything, so the
 // demo's behaviour is unchanged. When a key is supplied, each function
@@ -30,15 +31,21 @@ const REQUEST_TIMEOUT_MS = 20_000;
 const WEBHOOK_TOLERANCE_SECONDS = 300; // 5 minutes, per Stripe's own default
 
 /**
- * True only when a real Stripe key is configured AND this is not a
- * self-test run. SELFTEST=1 always forces the mock path regardless of any
- * key present in the environment, so `npm run selftest` can never touch the
- * network. This is the single mode switch — the four functions branch on
- * this helper and nothing else.
+ * True only when PAYMENTS_ENABLED is exactly 1, a real Stripe key is
+ * configured, and this is neither a self-test nor parity-assurance run.
+ * SELFTEST=1 and PARITY_ASSURANCE_MODE=1 always force the mock path regardless
+ * of any inherited key, so those postures cannot touch the Stripe network.
+ * Ordinary payment functions branch on this helper; the network sink repeats
+ * the gate independently so a direct gateway import cannot bypass it.
  */
-export function stripeEnabled() {
-  if (process.env.SELFTEST === '1') return false;
-  const key = process.env.STRIPE_SECRET_KEY;
+function paymentsGateEnabled(environment = process.env) {
+  if (environment.SELFTEST === '1' || environment.PARITY_ASSURANCE_MODE === '1') return false;
+  return environment.PAYMENTS_ENABLED === '1';
+}
+
+export function stripeEnabled(environment = process.env) {
+  if (!paymentsGateEnabled(environment)) return false;
+  const key = environment.STRIPE_SECRET_KEY;
   return typeof key === 'string' && key.trim() !== '';
 }
 
@@ -66,6 +73,15 @@ export class StripeApiError extends Error {
  * their URLSearchParams. GET requests carry params in the query string.
  */
 async function stripeRequest(method, apiPath, params = []) {
+  // Enforce the capability at the network sink as well as at every ordinary
+  // caller's mode branch. An imported gateway method must never turn a secret
+  // alone into authority for a real payment request.
+  if (!paymentsGateEnabled()) {
+    throw new StripeApiError('Real payment flows are disabled by PAYMENTS_ENABLED', {
+      status: 0,
+      code: 'payments_disabled',
+    });
+  }
   const key = (process.env.STRIPE_SECRET_KEY || '').trim();
   if (!key) {
     throw new StripeApiError('STRIPE_SECRET_KEY is not set', { status: 0 });

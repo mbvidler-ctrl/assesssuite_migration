@@ -30,6 +30,7 @@ test('normalizes the installed Base44Error shape without exposing its original r
     stage: 'extraction',
     status: 403,
     code: 'acceptance_required',
+    diagnosticReference: null,
     details: 'Current AI document-extraction acceptance is required.',
   });
 
@@ -38,6 +39,7 @@ test('normalizes the installed Base44Error shape without exposing its original r
     stage: 'extraction',
     status: 403,
     code: 'acceptance_required',
+    diagnosticReference: null,
   });
   assert.equal(JSON.stringify(metadata).includes('Synthetic Patient'), false);
   assert.equal(JSON.stringify(metadata).includes('synthetic referral content'), false);
@@ -57,6 +59,7 @@ test('supports the migration upload error field and Axios fallback shape', () =>
     stage: 'upload',
     status: 422,
     code: 'file_invalid',
+    diagnosticReference: null,
     details: 'Upload a PDF, PNG, JPG or CSV document.',
   });
 });
@@ -74,6 +77,7 @@ test('uses a controlled fallback instead of an untrusted thrown message', () => 
     stage: 'request',
     status: null,
     code: 'request_failed',
+    diagnosticReference: null,
     details: 'The referral could not be processed. No client data was changed.',
   });
   assert.equal(JSON.stringify(normalized).includes('Synthetic Patient'), false);
@@ -87,4 +91,20 @@ test('sanitizes server-controlled public details before display', () => {
 
   assert.equal(normalized.details, 'Provider request failed.');
   assert.equal(normalized.code, 'http_502');
+});
+
+test('accepts only UUIDv4 diagnostic references from controlled response shapes', () => {
+  const reference = '38b4329d-4674-4ff2-a3bb-e231b45676ac';
+  assert.equal(normalizeSdkError({
+    status: 409,
+    data: {
+      code: 'processing_authority_required',
+      details: 'Confirm authority before extraction.',
+      diagnostic_reference: reference,
+    },
+  }).diagnosticReference, reference);
+  assert.equal(normalizeSdkError({
+    status: 409,
+    data: { diagnostic_reference: 'not-a-safe-reference' },
+  }).diagnosticReference, null);
 });

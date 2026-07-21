@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Download, Loader2, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { renderSafeHtmlDocument } from "@/lib/safeHtml";
 
 export default function ClientDataExporter({ client, isOpen, onClose }) {
   const [isExporting, setIsExporting] = useState(false);
@@ -406,8 +407,7 @@ export default function ClientDataExporter({ client, isOpen, onClose }) {
 
       // Open in new window for printing
       const printWindow = window.open('', '_blank');
-      printWindow.document.write(htmlContent);
-      printWindow.document.close();
+      renderSafeHtmlDocument(printWindow, htmlContent);
       
       // Wait a moment then trigger print
       setTimeout(() => {

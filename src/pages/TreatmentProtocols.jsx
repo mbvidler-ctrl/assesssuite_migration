@@ -1,9 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Card as CardPrimitive,
+  CardContent as CardContentPrimitive,
+  CardHeader as CardHeaderPrimitive,
+  CardTitle as CardTitlePrimitive,
+} from "@/components/ui/card";
+import { Button as ButtonPrimitive } from "@/components/ui/button";
+import { Input as InputPrimitive } from "@/components/ui/input";
+import { Badge as BadgePrimitive } from "@/components/ui/badge";
+import {
+  Tabs as TabsPrimitive,
+  TabsContent as TabsContentPrimitive,
+  TabsList as TabsListPrimitive,
+  TabsTrigger as TabsTriggerPrimitive,
+} from "@/components/ui/tabs";
 import { base44 } from "@/api/base44Client";
 import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 import {
@@ -26,11 +36,49 @@ import ClickableReferences from "../components/assessments/ClickableReferences";
 import { format } from "date-fns";
 import ImportToSOAPModal from "../components/protocols/ImportToSOAPModal";
 
+// The shared JavaScript UI wrappers accept the rendered props below, while
+// checkJs infers ref-only signatures from forwardRef. These source-local
+// declarations preserve the actual component contract without runtime casts.
+const Card = /** @type {React.ComponentType<any>} */ (CardPrimitive);
+const CardContent = /** @type {React.ComponentType<any>} */ (CardContentPrimitive);
+const CardHeader = /** @type {React.ComponentType<any>} */ (CardHeaderPrimitive);
+const CardTitle = /** @type {React.ComponentType<any>} */ (CardTitlePrimitive);
+const Button = /** @type {React.ComponentType<any>} */ (ButtonPrimitive);
+const Input = /** @type {React.ComponentType<any>} */ (InputPrimitive);
+const Badge = /** @type {React.ComponentType<any>} */ (BadgePrimitive);
+const Tabs = /** @type {React.ComponentType<any>} */ (TabsPrimitive);
+const TabsContent = /** @type {React.ComponentType<any>} */ (TabsContentPrimitive);
+const TabsList = /** @type {React.ComponentType<any>} */ (TabsListPrimitive);
+const TabsTrigger = /** @type {React.ComponentType<any>} */ (TabsTriggerPrimitive);
+
+const REVIEWED_PROTOCOL_CATEGORIES = new Set([
+  "musculoskeletal",
+  "cardio_pulmonary",
+  "metabolic",
+  "neurological",
+  "mental_health",
+  "geriatric",
+  "general",
+]);
+
+const PROTOCOL_CATEGORY_ICONS = Object.freeze({
+  musculoskeletal: "\u{1F9B4}",
+  cardio_pulmonary: "\u2764\uFE0F",
+  metabolic: "\u{1F489}",
+  neurological: "\u{1F9E0}",
+  mental_health: "\u{1F9D8}",
+  geriatric: "\u{1F9D3}",
+  general: "\u{1F397}\uFE0F",
+});
+
 export default function TreatmentProtocols() {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedCondition, setSelectedCondition] = useState(null);
   const [protocolData, setProtocolData] = useState(null);
+  const [reviewedProtocols, setReviewedProtocols] = useState([]);
+  const [isCatalogueLoading, setIsCatalogueLoading] = useState(true);
+  const [catalogueError, setCatalogueError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -47,154 +95,16 @@ export default function TreatmentProtocols() {
     references: false
   });
 
-  const commonConditions = [
-    // Musculoskeletal
-    { name: "Osteoarthritis", category: "musculoskeletal", icon: "🦴" },
-    { name: "Rheumatoid Arthritis", category: "musculoskeletal", icon: "🦴" },
-    { name: "Psoriatic Arthritis", category: "musculoskeletal", icon: "🦴" },
-    { name: "Ankylosing Spondylitis", category: "musculoskeletal", icon: "🦴" },
-    { name: "Chronic Low Back Pain", category: "musculoskeletal", icon: "🦴" },
-    { name: "Thoracic Pain", category: "musculoskeletal", icon: "🦴" },
-    { name: "Cervical Pain", category: "musculoskeletal", icon: "🦴" },
-    { name: "Sacroiliac Joint Dysfunction", category: "musculoskeletal", icon: "🦴" },
-    { name: "Rotator Cuff Injury", category: "musculoskeletal", icon: "🦴" },
-    { name: "Rotator Cuff Tendinopathy", category: "musculoskeletal", icon: "🦴" },
-    { name: "Adhesive Capsulitis (Frozen Shoulder)", category: "musculoskeletal", icon: "🦴" },
-    { name: "Shoulder Impingement", category: "musculoskeletal", icon: "🦴" },
-    { name: "Lateral Epicondylalgia (Tennis Elbow)", category: "musculoskeletal", icon: "🦴" },
-    { name: "Medial Epicondylalgia (Golfer's Elbow)", category: "musculoskeletal", icon: "🦴" },
-    { name: "Carpal Tunnel Syndrome", category: "musculoskeletal", icon: "🦴" },
-    { name: "De Quervain's Tenosynovitis", category: "musculoskeletal", icon: "🦴" },
-    { name: "Plantar Fasciitis", category: "musculoskeletal", icon: "🦴" },
-    { name: "Achilles Tendinopathy", category: "musculoskeletal", icon: "🦴" },
-    { name: "Hip Labral Tear", category: "musculoskeletal", icon: "🦴" },
-    { name: "Knee Meniscus Tear", category: "musculoskeletal", icon: "🦴" },
-    { name: "Post-Operative Knee Meniscectomy (Arthroscopic)", category: "musculoskeletal", icon: "🦴" },
-    { name: "Patellofemoral Pain Syndrome", category: "musculoskeletal", icon: "🦴" },
-    { name: "Chondromalacia Patellae", category: "musculoskeletal", icon: "🦴" },
-    { name: "Tibial Stress Syndrome (Shin Splints)", category: "musculoskeletal", icon: "🦴" },
-    { name: "Stress Fractures", category: "musculoskeletal", icon: "🦴" },
-    { name: "Osteoporosis", category: "musculoskeletal", icon: "🦴" },
-    { name: "Osteopenia", category: "musculoskeletal", icon: "🦴" },
-    { name: "Scoliosis", category: "musculoskeletal", icon: "🦴" },
-    { name: "Kyphosis", category: "musculoskeletal", icon: "🦴" },
-    { name: "Chronic Pain Syndrome", category: "musculoskeletal", icon: "🦴" },
-    { name: "Fibromyalgia", category: "musculoskeletal", icon: "🦴" },
-    { name: "Hypermobility Spectrum Disorder", category: "musculoskeletal", icon: "🦴" },
-    { name: "Ehlers-Danlos Syndrome (Hypermobile Type)", category: "musculoskeletal", icon: "🦴" },
-    { name: "Post-Operative THR", category: "musculoskeletal", icon: "🦴" },
-    { name: "Post-Operative TKR", category: "musculoskeletal", icon: "🦴" },
-    { name: "Post-Operative ACL Reconstruction", category: "musculoskeletal", icon: "🦴" },
-    { name: "Post-Operative Rotator Cuff Repair", category: "musculoskeletal", icon: "🦴" },
-    { name: "Post-Operative Spinal Fusion", category: "musculoskeletal", icon: "🦴" },
-    { name: "Post-Operative Laminectomy", category: "musculoskeletal", icon: "🦴" },
-    { name: "ORIF Fracture Rehabilitation", category: "musculoskeletal", icon: "🦴" },
-    
-    // Cardio & Pulmonary
-    { name: "Hypertension", category: "cardio_pulmonary", icon: "❤" },
-    { name: "Hypotension", category: "cardio_pulmonary", icon: "❤" },
-    { name: "Postural Orthostatic Tachycardia Syndrome (POTS)", category: "cardio_pulmonary", icon: "❤" },
-    { name: "Coronary Artery Disease", category: "cardio_pulmonary", icon: "❤" },
-    { name: "Angina", category: "cardio_pulmonary", icon: "❤" },
-    { name: "Myocardial Infarction (Post-MI Rehab)", category: "cardio_pulmonary", icon: "❤" },
-    { name: "Congestive Heart Failure (HFrEF/HFpEF)", category: "cardio_pulmonary", icon: "❤" },
-    { name: "Dilated Cardiomyopathy", category: "cardio_pulmonary", icon: "❤" },
-    { name: "Arrhythmias (AF/SVT/PVCs)", category: "cardio_pulmonary", icon: "❤" },
-    { name: "Peripheral Arterial Disease", category: "cardio_pulmonary", icon: "❤" },
-    { name: "Deep Vein Thrombosis (Post-Acute)", category: "cardio_pulmonary", icon: "❤" },
-    { name: "Aortic Aneurysm", category: "cardio_pulmonary", icon: "❤" },
-    { name: "Endocarditis (Post-Acute Recovery)", category: "cardio_pulmonary", icon: "❤" },
-    { name: "Chronic Oedema", category: "cardio_pulmonary", icon: "❤" },
-    { name: "Lymphoedema", category: "cardio_pulmonary", icon: "❤" },
-    { name: "COPD", category: "cardio_pulmonary", icon: "🫁" },
-    
-    // Metabolic
-    { name: "Type 2 Diabetes Mellitus", category: "metabolic", icon: "💉" },
-    { name: "Type 1 Diabetes Mellitus", category: "metabolic", icon: "💉" },
-    { name: "Pre-Diabetes", category: "metabolic", icon: "💉" },
-    { name: "Metabolic Syndrome", category: "metabolic", icon: "💉" },
-    { name: "Obesity Class I", category: "metabolic", icon: "⚖" },
-    { name: "Obesity Class II", category: "metabolic", icon: "⚖" },
-    { name: "Obesity Class III", category: "metabolic", icon: "⚖" },
-    { name: "Non-Alcoholic Fatty Liver Disease (NAFLD)", category: "metabolic", icon: "💉" },
-    { name: "Polycystic Ovary Syndrome (PCOS)", category: "metabolic", icon: "💉" },
-    { name: "Dyslipidaemia", category: "metabolic", icon: "💉" },
-    { name: "Hypercholesterolaemia", category: "metabolic", icon: "💉" },
-    { name: "Gout", category: "metabolic", icon: "💉" },
-    { name: "Hypothyroidism", category: "metabolic", icon: "💉" },
-    { name: "Hyperthyroidism", category: "metabolic", icon: "💉" },
-    { name: "Chronic Kidney Disease (Stage 1-4)", category: "metabolic", icon: "💉" },
-    { name: "Bariatric Surgery Pre/Post Rehabilitation", category: "metabolic", icon: "⚖" },
-    
-    // Neurological
-    { name: "Parkinson's Disease", category: "neurological", icon: "🧠" },
-    { name: "Multiple Sclerosis", category: "neurological", icon: "🧠" },
-    { name: "Motor Neuron Disease", category: "neurological", icon: "🧠" },
-    { name: "Peripheral Neuropathy", category: "neurological", icon: "🧠" },
-    { name: "Diabetic Neuropathy", category: "neurological", icon: "🧠" },
-    { name: "Traumatic Brain Injury (TBI)", category: "neurological", icon: "🧠" },
-    { name: "Stroke (Ischaemic)", category: "neurological", icon: "🧠" },
-    { name: "Stroke (Haemorrhagic)", category: "neurological", icon: "🧠" },
-    { name: "Spinal Cord Injury (Incomplete/Complete)", category: "neurological", icon: "🧠" },
-    { name: "Cerebral Palsy (Adult)", category: "neurological", icon: "🧠" },
-    { name: "Functional Neurological Disorder (FND)", category: "neurological", icon: "🧠" },
-    { name: "Dystonia", category: "neurological", icon: "🧠" },
-    { name: "Ataxia", category: "neurological", icon: "🧠" },
-    { name: "Cerebellar Degeneration", category: "neurological", icon: "🧠" },
-    { name: "Guillain-Barre Syndrome", category: "neurological", icon: "🧠" },
-    { name: "Post-Concussion Syndrome", category: "neurological", icon: "🧠" },
-    { name: "Vestibular Hypofunction", category: "neurological", icon: "🧠" },
-    { name: "BPPV", category: "neurological", icon: "🧠" },
-    
-    // Mental Health
-    { name: "Depression (Mild)", category: "mental_health", icon: "🧘" },
-    { name: "Depression (Moderate)", category: "mental_health", icon: "🧘" },
-    { name: "Depression (Severe)", category: "mental_health", icon: "🧘" },
-    { name: "Generalised Anxiety Disorder", category: "mental_health", icon: "🧘" },
-    { name: "Panic Disorder", category: "mental_health", icon: "🧘" },
-    { name: "PTSD", category: "mental_health", icon: "🧘" },
-    { name: "Obsessive-Compulsive Disorder", category: "mental_health", icon: "🧘" },
-    { name: "Bipolar Disorder", category: "mental_health", icon: "🧘" },
-    { name: "Schizophrenia", category: "mental_health", icon: "🧘" },
-    { name: "Schizoaffective Disorder", category: "mental_health", icon: "🧘" },
-    { name: "Eating Disorders (AN/BN/BED)", category: "mental_health", icon: "🧘" },
-    { name: "ADHD", category: "mental_health", icon: "🧘" },
-    { name: "Autism Spectrum Disorder", category: "mental_health", icon: "🧘" },
-    { name: "Intellectual Disability", category: "mental_health", icon: "🧘" },
-    { name: "Borderline Personality Disorder", category: "mental_health", icon: "🧘" },
-    { name: "Substance Use Disorder - Alcohol", category: "mental_health", icon: "🧘" },
-    { name: "Substance Use Disorder - Amphetamines", category: "mental_health", icon: "🧘" },
-    { name: "Substance Use Disorder - Opioids", category: "mental_health", icon: "🧘" },
-    { name: "Substance Use Disorder - Benzodiazepines", category: "mental_health", icon: "🧘" },
-    { name: "Substance Use Disorder - Polysubstance", category: "mental_health", icon: "🧘" },
-    { name: "Chronic Stress Disorder", category: "mental_health", icon: "🧘" },
-    { name: "Insomnia", category: "mental_health", icon: "🧘" },
-    { name: "Sleep Disorders", category: "mental_health", icon: "🧘" },
-    
-    // Geriatric
-    { name: "Falls Prevention (Elderly)", category: "geriatric", icon: "👴" },
-    { name: "Frailty Syndrome", category: "geriatric", icon: "👴" },
-    { name: "Sarcopenia", category: "geriatric", icon: "👴" },
-    
-    // General
-    { name: "Cancer Rehabilitation", category: "general", icon: "🎗" },
-    { name: "Chronic Fatigue Syndrome", category: "general", icon: "🎗" },
-    { name: "Long COVID", category: "general", icon: "🎗" },
-  ];
-
-  const categories = [
-    { value: "all", label: "All Categories", icon: Activity },
-    { value: "musculoskeletal", label: "Musculoskeletal", icon: Activity },
-    { value: "cardio_pulmonary", label: "Cardio & Pulmonary", icon: Activity },
-    { value: "metabolic", label: "Metabolic", icon: Activity },
-    { value: "neurological", label: "Neurological", icon: Activity },
-    { value: "mental_health", label: "Mental Health", icon: Activity },
-    { value: "geriatric", label: "Geriatric", icon: Activity },
-    { value: "general", label: "General", icon: Activity },
-  ];
-
-  const filteredConditions = commonConditions.filter(condition => {
-    const matchesSearch = condition.name.toLowerCase().includes(searchTerm.toLowerCase());
+  const catalogueConditions = reviewedProtocols.map((protocol) => ({
+    id: protocol.id,
+    name: protocol.condition_name,
+    category: protocol.category,
+    icon: PROTOCOL_CATEGORY_ICONS[protocol.category] || PROTOCOL_CATEGORY_ICONS.general,
+    protocol,
+  }));
+  const normalizedSearchTerm = searchTerm.trim().toLocaleLowerCase();
+  const filteredConditions = catalogueConditions.filter(condition => {
+    const matchesSearch = condition.name.toLocaleLowerCase().includes(normalizedSearchTerm);
     const matchesCategory = selectedCategory === "all" || condition.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
@@ -239,405 +149,71 @@ export default function TreatmentProtocols() {
   };
 
   useEffect(() => {
-    base44.auth.me().then(u => setCurrentUser(u)).catch(() => {});
+    let active = true;
+    base44.auth.me().then(u => {
+      if (active) setCurrentUser(u);
+    }).catch(() => {});
+
+    (async () => {
+      setIsCatalogueLoading(true);
+      setCatalogueError(false);
+      try {
+        const rows = await base44.entities.TreatmentProtocol.list();
+        const uniqueByName = new Map();
+        for (const row of Array.isArray(rows) ? rows : []) {
+          const name = typeof row?.condition_name === "string" ? row.condition_name.trim() : "";
+          if (!name) continue;
+          const key = name.toLocaleLowerCase();
+          if (uniqueByName.has(key)) continue;
+          const category = REVIEWED_PROTOCOL_CATEGORIES.has(row.category) ? row.category : "general";
+          uniqueByName.set(key, { ...row, condition_name: name, category });
+        }
+        const catalogue = [...uniqueByName.values()].sort((left, right) => (
+          left.condition_name.localeCompare(right.condition_name, undefined, { sensitivity: "base" })
+        ));
+        if (active) setReviewedProtocols(catalogue);
+      } catch (error) {
+        console.error("Error loading reviewed treatment protocols:", error);
+        if (active) {
+          setReviewedProtocols([]);
+          setCatalogueError(true);
+          toast.error("Failed to load reviewed treatment protocols");
+        }
+      } finally {
+        if (active) setIsCatalogueLoading(false);
+      }
+    })();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const loadProtocol = async (condition) => {
+    const reviewedProtocol = condition?.protocol;
+    if (!reviewedProtocol) {
+      toast.error("No reviewed treatment protocol is available for that condition.");
+      return;
+    }
+
     setSelectedCondition(condition);
     setIsLoading(true);
     setProtocolData(null);
 
     try {
-      // Try to load from database first
-      const protocols = await base44.entities.TreatmentProtocol.filter({ condition_name: condition.name });
-      
-      if (protocols.length > 0) {
-        const protocol = protocols[0];
-        // Validate references if they exist
-        if (protocol.references) {
-          protocol.references = await validateReferences(protocol.references);
-        }
-        setProtocolData(protocol);
-      } else {
-        // Generate protocol using AI
-        toast.info("Generating protocol from latest research...", { duration: 2000 });
-
-        // Retrieval-grounded generation: fetch REAL references up front so the
-        // protocol is grounded and its citations are real by construction, not
-        // invented by the model.
-        let retrievedRefs = [];
-        try {
-          const ev = await base44.functions.invoke('searchEvidence', { query: condition.name, limit: 6 });
-          const evp = ev?.data ?? ev;
-          retrievedRefs = Array.isArray(evp?.results) ? evp.results : [];
-        } catch (e) {
-          retrievedRefs = [];
-        }
-        const groundingBlock = retrievedRefs
-          .map((r, i) => `[${i + 1}] ${(r.authors || []).slice(0, 3).join(', ')}${r.year ? ` (${r.year})` : ''}. ${r.title}. https://doi.org/${r.doi}`)
-          .join('\n');
-
-        let result;
-        try {
-          result = await base44.integrations.Core.InvokeLLM({
-            prompt: (groundingBlock ? `VERIFIED REFERENCES you may cite (do NOT invent, guess, or add any others):\n${groundingBlock}\n\n` : '') + `Create a comprehensive, evidence-based exercise rehabilitation protocol for: ${condition.name}
-
-You are a senior exercise physiologist creating a detailed treatment protocol. Include:
-
-1. OVERVIEW:
-- Pathophysiology (what's happening in the body)
-- Functional impact on daily life
-- Prevalence data
-
-2. ASSESSMENT & SCREENING:
-- Key physical assessments
-- Validated outcome measures (with abbreviations)
-- Screening tools to use
-- Evidence supporting these assessments
-
-3. EXERCISE PRESCRIPTION:
-- At least 8-12 specific, named exercises with exact dosages (sets, reps, intensity, tempo)
-- Exercise types (e.g., resistance, aerobic, flexibility, balance) and purposes
-- Detailed modifications for different functional levels (beginner, intermediate, advanced)
-- Evidence level for each exercise (e.g., Level 1a, Level 2, etc.)
-- Specific equipment needed for each exercise
-- Key coaching cues and common errors to avoid
-- Frequency, session duration, program duration
-- Overall evidence summary
-
-4. PROGRESSION GUIDELINES:
-- Multiple phases with specific timelines
-- Goals for each phase
-- Criteria to progress to next phase
-- Evidence base
-
-5. CONTRAINDICATIONS:
-- Absolute contraindications (never exercise)
-- Relative contraindications (use caution)
-- Red flags requiring medical referral
-
-6. EXPECTED OUTCOMES:
-- Timeframe for improvements
-- Key outcome measures
-- Success indicators
-- Effect sizes from research
-
-7. META-ANALYSIS SUMMARY:
-- Key findings from systematic reviews
-- Pooled effect sizes
-- Quality of evidence (GRADE)
-
-8. REFERENCES - CRITICAL INSTRUCTIONS:
-- ONLY include references that have a REAL, WORKING DOI that you are 100% certain exists
-- Every reference MUST include a complete DOI in format: https://doi.org/10.XXXX/XXXXX
-- The DOI will be verified programmatically against doi.org — fake or guessed DOIs will fail verification and be silently discarded
-- If you are not certain a DOI is real and working, DO NOT include that reference at all
-- It is far better to return 0 references than to include any fabricated or uncertain citations
-- Prefer high-impact guidelines (ACSM, Cochrane, ESSA) and systematic reviews from well-known journals
-- NEVER guess, construct, or partially remember a DOI — only include DOIs you know with certainty
-- Citation format: Author, A. B., & Author, C. D. (Year). Title of article. Journal Name, volume(issue), pages. https://doi.org/10.XXXX/XXXXX
-
-9. CLINICAL NOTE:
-- Brief reminder about clinical judgment and individualization
-
-Be specific, evidence-based, and practical for clinical use.`,
-          add_context_from_internet: true,
-          response_json_schema: {
-            type: "object",
-            properties: {
-              overview: {
-                type: "object",
-                properties: {
-                  pathophysiology: { type: "string" },
-                  functional_impact: { type: "string" },
-                  prevalence: { type: "string" }
-                }
-              },
-              assessment: {
-                type: "object",
-                properties: {
-                  key_assessments: { type: "array", items: { type: "string" } },
-                  outcome_measures: { type: "array", items: { type: "string" } },
-                  screening_tools: { type: "array", items: { type: "string" } },
-                  evidence_base: { type: "string" }
-                }
-              },
-              exercise_prescription: {
-                type: "object",
-                properties: {
-                  exercises: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        name: { type: "string" },
-                        type: { type: "string" },
-                        dosage: { type: "string" },
-                        purpose: { type: "string" },
-                        modifications: { type: "string" },
-                        evidence_level: { type: "string" },
-                        equipment: { type: "string" },
-                        coaching_cues: { type: "string" }
-                      }
-                    }
-                  },
-                  frequency: { type: "string" },
-                  session_duration: { type: "string" },
-                  program_duration: { type: "string" },
-                  evidence_summary: { type: "string" }
-                }
-              },
-              progression: {
-                type: "object",
-                properties: {
-                  phases: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        phase_name: { type: "string" },
-                        duration: { type: "string" },
-                        goals: { type: "string" },
-                        criteria: { type: "string" }
-                      }
-                    }
-                  },
-                  evidence_base: { type: "string" }
-                }
-              },
-              contraindications: {
-                type: "object",
-                properties: {
-                  absolute: { type: "array", items: { type: "string" } },
-                  relative: { type: "array", items: { type: "string" } },
-                  red_flags: { type: "array", items: { type: "string" } }
-                }
-              },
-              outcomes: {
-                type: "object",
-                properties: {
-                  expected_timeframe: { type: "string" },
-                  key_outcomes: { type: "array", items: { type: "string" } },
-                  success_indicators: { type: "array", items: { type: "string" } },
-                  effect_sizes: { type: "string" }
-                }
-              },
-              meta_analysis_summary: {
-                type: "object",
-                properties: {
-                  key_findings: { type: "array", items: { type: "string" } },
-                  pooled_effects: { type: "string" },
-                  quality_of_evidence: { type: "string" }
-                }
-              },
-              references: {
-                type: "array",
-                items: {
-                  type: "object",
-                  properties: {
-                    citation: { type: "string" },
-                    key_finding: { type: "string" },
-                    study_type: { type: "string" }
-                  }
-                }
-              },
-              clinical_note: { type: "string" }
-            }
-          }
-        });
-        } catch (internetError) {
-          console.warn("Failed with internet context, retrying without:", internetError);
-          
-          // Fallback: try without internet context
-          result = await base44.integrations.Core.InvokeLLM({
-            prompt: `Create a comprehensive, evidence-based exercise rehabilitation protocol for: ${condition.name}
-
-You are a senior exercise physiologist creating a detailed treatment protocol. Include:
-
-1. OVERVIEW:
-- Pathophysiology (what's happening in the body)
-- Functional impact on daily life
-- Prevalence data
-
-2. ASSESSMENT & SCREENING:
-- Key physical assessments
-- Validated outcome measures (with abbreviations)
-- Screening tools to use
-- Evidence supporting these assessments
-
-3. EXERCISE PRESCRIPTION:
-- At least 8-12 specific, named exercises with exact dosages (sets, reps, intensity, tempo)
-- Exercise types (e.g., resistance, aerobic, flexibility, balance) and purposes
-- Detailed modifications for different functional levels (beginner, intermediate, advanced)
-- Evidence level for each exercise (e.g., Level 1a, Level 2, etc.)
-- Specific equipment needed for each exercise
-- Key coaching cues and common errors to avoid
-- Frequency, session duration, program duration
-- Overall evidence summary
-
-4. PROGRESSION GUIDELINES:
-- Multiple phases with specific timelines
-- Goals for each phase
-- Criteria to progress to next phase
-- Evidence base
-
-5. CONTRAINDICATIONS:
-- Absolute contraindications (never exercise)
-- Relative contraindications (use caution)
-- Red flags requiring medical referral
-
-6. EXPECTED OUTCOMES:
-- Timeframe for improvements
-- Key outcome measures
-- Success indicators
-- Effect sizes from research
-
-7. META-ANALYSIS SUMMARY:
-- Key findings from systematic reviews
-- Pooled effect sizes
-- Quality of evidence (GRADE)
-
-8. REFERENCES - CRITICAL INSTRUCTIONS:
-- ONLY include references that have a REAL, WORKING DOI that you are 100% certain exists
-- Every reference MUST include a complete DOI in format: https://doi.org/10.XXXX/XXXXX
-- The DOI will be verified programmatically against doi.org — fake or guessed DOIs will fail verification and be silently discarded
-- If you are not certain a DOI is real and working, DO NOT include that reference at all
-- It is far better to return 0 references than to include any fabricated or uncertain citations
-- Prefer high-impact guidelines (ACSM, Cochrane, ESSA) and systematic reviews from well-known journals
-- NEVER guess, construct, or partially remember a DOI — only include DOIs you know with certainty
-- Citation format: Author, A. B., & Author, C. D. (Year). Title of article. Journal Name, volume(issue), pages. https://doi.org/10.XXXX/XXXXX
-
-9. CLINICAL NOTE:
-- Brief reminder about clinical judgment and individualization
-
-Be specific, evidence-based, and practical for clinical use.`,
-            add_context_from_internet: false,
-            response_json_schema: {
-              type: "object",
-              properties: {
-                overview: {
-                  type: "object",
-                  properties: {
-                    pathophysiology: { type: "string" },
-                    functional_impact: { type: "string" },
-                    prevalence: { type: "string" }
-                  }
-                },
-                assessment: {
-                  type: "object",
-                  properties: {
-                    key_assessments: { type: "array", items: { type: "string" } },
-                    outcome_measures: { type: "array", items: { type: "string" } },
-                    screening_tools: { type: "array", items: { type: "string" } },
-                    evidence_base: { type: "string" }
-                  }
-                },
-                exercise_prescription: {
-                  type: "object",
-                  properties: {
-                    exercises: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          name: { type: "string" },
-                          type: { type: "string" },
-                          dosage: { type: "string" },
-                          purpose: { type: "string" },
-                          modifications: { type: "string" },
-                          evidence_level: { type: "string" }
-                        }
-                      }
-                    },
-                    frequency: { type: "string" },
-                    session_duration: { type: "string" },
-                    program_duration: { type: "string" },
-                    evidence_summary: { type: "string" }
-                  }
-                },
-                progression: {
-                  type: "object",
-                  properties: {
-                    phases: {
-                      type: "array",
-                      items: {
-                        type: "object",
-                        properties: {
-                          phase_name: { type: "string" },
-                          duration: { type: "string" },
-                          goals: { type: "string" },
-                          criteria: { type: "string" }
-                        }
-                      }
-                    },
-                    evidence_base: { type: "string" }
-                  }
-                },
-                contraindications: {
-                  type: "object",
-                  properties: {
-                    absolute: { type: "array", items: { type: "string" } },
-                    relative: { type: "array", items: { type: "string" } },
-                    red_flags: { type: "array", items: { type: "string" } }
-                  }
-                },
-                outcomes: {
-                  type: "object",
-                  properties: {
-                    expected_timeframe: { type: "string" },
-                    key_outcomes: { type: "array", items: { type: "string" } },
-                    success_indicators: { type: "array", items: { type: "string" } },
-                    effect_sizes: { type: "string" }
-                  }
-                },
-                meta_analysis_summary: {
-                  type: "object",
-                  properties: {
-                    key_findings: { type: "array", items: { type: "string" } },
-                    pooled_effects: { type: "string" },
-                    quality_of_evidence: { type: "string" }
-                  }
-                },
-                references: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      citation: { type: "string" },
-                      key_finding: { type: "string" },
-                      study_type: { type: "string" }
-                    }
-                  }
-                },
-                clinical_note: { type: "string" }
-              }
-            }
-          });
-        }
-
-        // Ground the citations: replace any model-produced references with the
-        // real retrieved works (verified by construction). validateReferences
-        // then runs as a safety net (it also confirms each retrieved ref).
-        if (retrievedRefs.length > 0) {
-          result.references = retrievedRefs.map((r) => ({
-            citation: `${(r.authors || []).slice(0, 3).join(', ')}${r.year ? ` (${r.year})` : ''}. ${r.title}. https://doi.org/${r.doi}`,
-            key_finding: '',
-            study_type: 'retrieved',
-          }));
-        }
-        if (result.references) {
-          result.references = await validateReferences(result.references);
-        }
-
-        setProtocolData(result);
+      const protocol = { ...reviewedProtocol };
+      if (Array.isArray(reviewedProtocol.references)) {
+        protocol.references = await validateReferences(reviewedProtocol.references);
       }
+      setProtocolData(protocol);
     } catch (error) {
-      console.error("Error loading protocol:", error);
-      toast.error(`Failed to load treatment protocol: ${error.message || 'Unknown error'}`);
+      console.error("Error loading reviewed treatment protocol:", error);
+      toast.error("Failed to load the reviewed treatment protocol.");
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const toggleSection = (section) => {
     setExpandedSections(prev => ({
@@ -735,35 +311,13 @@ Be specific, evidence-based, and practical for clinical use.`,
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                       <Input
-                        placeholder="Search or enter custom condition..."
+                        aria-label="Search reviewed treatment protocols"
+                        placeholder="Search reviewed protocols..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && searchTerm.trim()) {
-                            loadProtocol({ 
-                              name: searchTerm.trim(), 
-                              category: 'general', 
-                              icon: '🔍' 
-                            });
-                          }
-                        }}
                         className="pl-10"
                       />
                     </div>
-                    {searchTerm && !filteredConditions.some(c => c.name.toLowerCase() === searchTerm.toLowerCase()) && (
-                      <Button
-                        variant="default"
-                        className="w-full bg-blue-600 hover:bg-blue-700"
-                        onClick={() => loadProtocol({ 
-                          name: searchTerm.trim(), 
-                          category: 'general', 
-                          icon: '🔍' 
-                        })}
-                      >
-                        <Search className="w-4 h-4 mr-2" />
-                        Generate Protocol for "{searchTerm}"
-                      </Button>
-                    )}
                   </div>
 
                   <Tabs value={selectedCategory} onValueChange={setSelectedCategory}>
@@ -779,12 +333,31 @@ Be specific, evidence-based, and practical for clinical use.`,
                       <TabsTrigger value="neurological">Neuro</TabsTrigger>
                       <TabsTrigger value="mental_health">Mental</TabsTrigger>
                     </TabsList>
+                    <TabsList className="grid grid-cols-2 gap-2 mt-2">
+                      <TabsTrigger value="geriatric">Geriatric</TabsTrigger>
+                      <TabsTrigger value="general">General</TabsTrigger>
+                    </TabsList>
                   </Tabs>
 
                   <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-                    {filteredConditions.map((condition, index) => (
+                    {isCatalogueLoading ? (
+                      <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-500">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        Loading reviewed protocols...
+                      </div>
+                    ) : catalogueError ? (
+                      <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                        The reviewed treatment protocol catalogue is temporarily unavailable. Please reload and try again.
+                      </p>
+                    ) : filteredConditions.length === 0 ? (
+                      <p role="status" className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
+                        {normalizedSearchTerm
+                          ? `No reviewed treatment protocol matches "${searchTerm.trim()}". Try another search or category.`
+                          : "No reviewed treatment protocols are available in this category."}
+                      </p>
+                    ) : filteredConditions.map((condition) => (
                       <Button
-                        key={index}
+                        key={condition.id || condition.name}
                         variant={selectedCondition?.name === condition.name ? "default" : "outline"}
                         className="w-full justify-start h-auto py-3 text-left"
                         onClick={() => loadProtocol(condition)}
@@ -839,7 +412,7 @@ Be specific, evidence-based, and practical for clinical use.`,
                         Loading treatment protocol for {selectedCondition?.name}...
                       </p>
                       <p className="text-sm text-slate-500">
-                        Retrieving latest evidence-based research
+                        Checking the reviewed protocol references
                       </p>
                     </div>
                   </CardContent>

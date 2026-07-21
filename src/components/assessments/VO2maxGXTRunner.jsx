@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { X, Save, AlertTriangle, CheckCircle, XCircle, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { sanitizeHtml } from "@/lib/safeHtml";
 
 // ─── ACSM VO₂ FORMULAS ─────────────────────────────────────────────────────
 // Treadmill: VO₂ (ml/kg/min) = (speed × 0.1) + (speed × grade × 1.8) + 3.5
@@ -707,7 +708,7 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
             <Card className="border-blue-200 bg-blue-50/40">
               <CardHeader className="pb-2"><CardTitle className="text-base text-blue-900">🧠 Auto-Generated CPET Interpretation</CardTitle></CardHeader>
               <CardContent>
-                <p className="text-sm text-blue-900 leading-relaxed" dangerouslySetInnerHTML={{ __html: interpretationPara }} />
+                <p className="text-sm text-blue-900 leading-relaxed" dangerouslySetInnerHTML={{ __html: sanitizeHtml(interpretationPara) }} />
                 <p className="text-xs text-blue-500 mt-2">Auto-generated based on entered data. Review and customise in clinical notes below.</p>
               </CardContent>
             </Card>

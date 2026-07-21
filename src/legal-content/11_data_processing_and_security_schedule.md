@@ -5,6 +5,9 @@
 **Publication authority:** Mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE, activated by Maxwell Vidler on 19 July 2026  
 **Approved by:** Maxwell Vidler under mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE on 19 July 2026
 **Version:** RC-2026.07.19
+**Controlled revision:** 21 July 2026, revision 2026-07-21.1, authorised by mission UM-AUTO-20260720-ASSESSSUITE-REFERRAL-RECOVERY
+
+> **21 July controlled-revision note:** This revision corrects the pre-provider child-data gate to a categorical 13-or-over practitioner confirmation, adds durable pre-write registration and fail-closed post-provider contradiction handling, and records the provider-start expiry reduction, isolated failed-deletion review, fixed 730-day production audit period, deployment-verified five-day snapshot setting and separately authorised off-traffic restore boundary. Treating-practice responsibility for patient capacity and authority records, the authorised sensitive-data transfer and the complete current selected-practice legal-bundle gate remain unchanged.
 
 ## 1. Purpose and roles
 
@@ -39,7 +42,8 @@ Customer must:
 - ensure instructions do not require unlawful or unsafe processing;
 - review and sign clinical output and maintain required records;
 - ensure each referral was lawfully obtained, give the applicable collection notice, and document any required patient/representative authority before extraction;
-- not submit personal data of a child under 13 or the applicable age of digital consent to OpenAI unless AssessSuite has verified the required Zero Data Retention control and the Customer has documented capacity or parent/guardian authority;
+- keep the underlying patient-level records of capacity, representative authority, participation or assent where appropriate, notice, consent or other authority, and any objection, withdrawal or change in authority; AssessSuite records only the categorical practitioner action attestation in the current release;
+- not knowingly or on reasonable suspicion submit personal data of a child under 13 or the applicable age of digital consent to OpenAI unless AssessSuite has separately enabled that category after verifying the required Zero Data Retention control for the relevant production project;
 - respond to patients, referrers, funders and regulators, with AssessSuite assistance;
 - notify AssessSuite promptly of an incident or unlawful instruction.
 
@@ -62,13 +66,15 @@ AssessSuite must:
 
 For referral/document extraction, AssessSuite must additionally:
 
+- create a tenant- and purpose-bound registration and content-free authority audit receipt before writing any upload bytes;
 - accept only an authenticated, purpose-labelled upload owned by the validated Customer organisation;
 - send a PDF/image inline, or bounded locally parsed CSV text, only through `/v1/responses` with `store: false`, the shortest documented in-memory prompt-cache policy supported by the selected pre-GPT-5.6 model, and without OpenAI Files, conversations, Assistants, vector stores, background mode, web search or external tools;
 - exclude raw referral content, extracted health information and provider bodies from application logs, traces, analytics, support tickets and error messages;
 - return proposed values only to a mandatory practitioner review step and make no clinical-entity write until the practitioner affirmatively confirms the reviewed data;
-- require the authenticated practitioner to attest that the Customer has documented the applicable patient/representative notice and consent or another valid function-specific authority, and retain content-free evidence tied to the actor, Customer and upload;
+- require the authenticated practitioner to attest that the Customer has documented the applicable patient/representative notice and consent or another valid function-specific authority and categorically confirm that the patient is 13 or older, without requiring a separately entered date of birth for the pre-provider gate, and retain content-free evidence tied to the actor, Customer and upload;
 - rely on the release-specific attestation by Maxwell Vidler that the AssessSuite account has an account-specific arrangement authorising intentional sensitive-data transfer; do not request, copy, log or publish the confidential arrangement, and fail closed if the attestation is withdrawn or cannot be tied to the production account;
-- disable the provider call for a child under 13 or the applicable age of digital consent unless Zero Data Retention is verified for the relevant OpenAI organisation/project; and
+- block any referral not categorically confirmed as 13 or older, and prohibit a provider call for data known or suspected to concern a child under 13 or the applicable age of digital consent unless Zero Data Retention is verified for the relevant OpenAI organisation/project;
+- if an extracted proposed date of birth contradicts the pre-provider 13-or-over category, return no clinical proposal, create a durable content-free no-retry quarantine marker before relying on the database quarantine transition, immediately revoke application access and schedule physical cleanup; and
 - prohibit training opt-in, feedback sharing, sale, marketing, research, product improvement and every other secondary use of the referral or extracted health information.
 
 ## 5. Subprocessors and overseas handling
@@ -103,9 +109,11 @@ AssessSuite must provide current, proportionate evidence of relevant security, p
 1. Customer may export information during the subscription and exit window in the approved formats.
 2. Termination does not authorise immediate clinical-record destruction.
 3. AssessSuite must follow applicable statutory health-information rules, Customer’s lawful instructions, legal holds, patient rights, incident preservation and the approved backup cycle. Customer labelling does not determine whether raw audio, prompts, responses or another item is regulated health information.
-4. Where deletion is authorised and implemented, it must address primary records, derivatives, search indexes, file objects, caches and expiry from backups, with evidence proportionate to the available controls. Where law, a legal hold, an open incident or current product capability prevents immediate deletion, the information must be isolated from ordinary use and the reason and planned disposition recorded. RC-2026.07.19 does not represent automated jurisdiction-specific expiry calculation, complete self-service deletion or independently tested restoration of every backup.
-5. An unbound referral upload expires no later than 24 hours after upload. Cancellation, rejection or failure queues deletion for the next cleanup run, targeted within one hour and subject to the 24-hour outer bound. A referral explicitly bound to a validated clinical entity follows the applicable clinical-record period instead. When its owning clinical reference is removed, ordinary access is revoked and the object is isolated behind retained disposition metadata pending a lawful retention, transfer or deletion decision. Metadata-only upload and extraction audit events are retained for two years unless an incident, complaint or legal hold requires longer retention.
-6. AssessSuite deletion cannot force early deletion from OpenAI’s abuse-monitoring or legal/safety retention described above. The public instruments must not describe `store: false` as zero retention.
+4. Where deletion is authorised and implemented, it must address primary records, derivatives, search indexes, file objects, caches and scheduled expiry from backups, with evidence proportionate to the available controls. Where law, a legal hold, an open incident or current product capability prevents immediate deletion, the information must be isolated from ordinary use and the reason and planned disposition recorded. RC-2026.07.19 does not represent automated jurisdiction-specific expiry calculation, complete self-service deletion or independently tested restoration of every backup.
+5. Before upload bytes are written, AssessSuite creates the registration and authority receipt required by section 4. An unbound referral then receives an original live-application-storage cap no later than 24 hours after creation. Immediately before provider contact, its live expiry is durably reduced to the earlier of the existing expiry and one hour after processing starts. Successful extraction may restore only the time remaining under the original creation-plus-24-hour cap while mandatory review is pending. Cancellation, rejection or expiry revokes ordinary application use and schedules cleanup; post-provider under-13 quarantine immediately revokes application access under section 4. Physical deletion occurs only when cleanup succeeds. If it does not, the object is isolated, removed from recurring minute-by-minute cleanup selection and placed in a review-required disposition process. A referral affirmatively bound to a validated clinical entity follows the applicable clinical-record period instead. When its owning clinical reference is removed, ordinary access is revoked and the object remains isolated behind disposition metadata pending a lawful retention, transfer or deletion decision. Routine production retention of metadata-only upload and extraction audit receipts is exactly 730 days; incident, complaint or legal-hold evidence may be preserved separately as required.
+6. Revision 2026-07-21.1 becomes production-effective only if the trusted deployment verifies the Sydney Fly source volume's encryption state, identifies the exact automatic scheduled-snapshot configuration and resulting snapshot evidence, pins retention to five days, and retains Fly provider assurance that snapshots and backups capture encrypted volume block devices without decrypting them. Fly exposes no separate per-snapshot encryption field, and this control does not claim one. After that gate passes, live-volume deletion does not retroactively purge bytes already captured in an unexpired snapshot, and snapshot bytes remain unavailable through ordinary application access.
+7. A snapshot restore requires separate administrative authority and must target a separate volume kept off traffic. AssessSuite must reconcile registration-state, expired, deleted and disposition-controlled uploads and complete database/file-integrity checks before any separately authorised traffic switch. This Schedule does not guarantee restoration or represent that an independent restoration exercise has been completed.
+8. AssessSuite deletion cannot force early deletion from OpenAI’s abuse-monitoring or legal/safety retention described above. The public instruments must not describe `store: false` as zero retention.
 
 ## Annex A — minimum security controls
 
@@ -118,7 +126,7 @@ The production control programme covers the following controls according to each
 - secure coding, dependency and secret scanning, peer review and tested release/rollback;
 - vulnerability intake, prioritisation, remediation and independent tenant-boundary testing;
 - authentication, access, change, export, deletion, consent, acceptance and administrative logging proportionate to the enabled function;
-- approved database and object storage, backup and restoration controls proportionate to the enabled function and recorded operational posture;
+- approved database and object storage controls, deployment verification of the encrypted source volume and exact automatic five-day snapshot identity/retention, retained provider assurance that snapshotting does not decrypt the volume block device, and separately authorised off-traffic restore and reconciliation controls proportionate to the enabled function and recorded operational posture;
 - monitoring and alerting without unapproved patient content;
 - a default-off document-extraction feature flag, enforced provider-contract, practitioner-authority and child/ZDR gates, `store: false`, shortest-policy prompt caching, bounded inline requests and tests proving no raw content appears in logs;
 - least-privilege support access, recorded approvals and time-bounded elevation;

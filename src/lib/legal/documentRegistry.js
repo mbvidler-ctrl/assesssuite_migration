@@ -6,17 +6,20 @@
 // old Layout.jsx). Every acceptance check and every content page must read
 // version/title/status from here — never re-declare it locally.
 //
-// Content source: controlled copies of the AssessSuite policy suite
+// Content source: the 21 July 2026 controlled-revision copies of the AssessSuite policy suite
 // (Unimatter/02_Client_and_Venture_Matters/AssessSuite/work-product/
-// policy-suite-20260711/), current version RC-2026.07.19, under
+// policy-suite-20260711/), current suite version RC-2026.07.19, under
 // src/legal-content/.
-// Do not hand-edit the copied .md files independently of that source — if the
-// suite changes, re-copy the file and bump SUITE_VERSION below.
+// The Privacy Policy and AI Notice carry controlled revision 2026-07-21.2.
+// The unchanged Terms, DPA and Subprocessor Schedule retain 2026-07-21.1.
+// A content revision changes its exact fingerprint and therefore triggers
+// document-bound re-acceptance even when the bounded recovery deliberately
+// leaves the suite-wide identifier unchanged.
 
 export const SUITE_VERSION = 'RC-2026.07.19';
 export const SUPERSEDED_SUITE_VERSIONS = Object.freeze(['RC-2026.07.11']);
 export const SUITE_PUBLICATION_AUTHORITY =
-  'Mission UM-AUTO-20260719-ASSESSSUITE-REFERRAL-SIGNUP-RELEASE, activated by Maxwell Vidler on 19 July 2026';
+  'Mission UM-AUTO-20260720-ASSESSSUITE-REFERRAL-RECOVERY, activated by Maxwell Vidler on 20 July 2026';
 
 // Production clinical access requires SUITE_VERSION only. The superseded
 // identifier is exported for audit and the compatibility-only rollback image;
@@ -26,7 +29,7 @@ export const SUITE_PUBLICATION_AUTHORITY =
 // Matches doc 00's release-candidate boundary. This is deliberately verbatim
 // from the suite's own header line for each instrument, not paraphrased.
 export const SUITE_STATUS_BANNER =
-  'RC-2026.07.19 — EFFECTIVE ONLY WHEN THE VERIFIED DEPLOYMENT RECORDS AN EFFECTIVE DATE. Function-specific activation gates continue to apply.';
+  'RC-2026.07.19 — EFFECTIVE FROM 19 JULY 2026; CONTROLLED REVISION 2026-07-21.2 EFFECTIVE ONLY THROUGH VERIFIED EXACT-SHA DEPLOYMENT. Function-specific activation gates continue to apply.';
 
 // event types written to LegalAcceptanceEvent — see server/local-entity-schemas.json
 export const EVENT_TYPES = {
@@ -47,7 +50,9 @@ export const LEGAL_DOCUMENTS = {
     title: 'AssessSuite Practitioner and Clinic SaaS Terms',
     slug: 'terms',
     file: '02_practitioner_and_clinic_saas_terms.md',
-    releaseStatus: 'APPROVED FOR PUBLICATION AND ACCEPTANCE WITH THE 19 JULY 2026 RELEASE',
+    releaseStatus: 'APPROVED FOR PUBLICATION AND ACCEPTANCE WITH RC-2026.07.19 — CONTROLLED REVISION 2026-07-21.1',
+    controlledRevision: '2026-07-21.1',
+    revisionAuthority: 'Mission UM-AUTO-20260720-ASSESSSUITE-REFERRAL-RECOVERY',
     publicRoute: true,
     eventType: EVENT_TYPES.CONTRACT_ACCEPTANCE,
   },
@@ -55,7 +60,9 @@ export const LEGAL_DOCUMENTS = {
     title: 'AssessSuite Privacy Policy',
     slug: 'privacy',
     file: '03_privacy_policy.md',
-    releaseStatus: 'APPROVED FOR PUBLICATION WITH RC-2026.07.19 — FUNCTION-SPECIFIC ACTIVATION GATES APPLY',
+    releaseStatus: 'APPROVED FOR PUBLICATION WITH RC-2026.07.19 — CONTROLLED REVISION 2026-07-21.2; FUNCTION-SPECIFIC ACTIVATION GATES APPLY',
+    controlledRevision: '2026-07-21.2',
+    revisionAuthority: 'Mission UM-AUTO-20260720-ASSESSSUITE-REFERRAL-RECOVERY',
     publicRoute: true,
   },
   'clinical-use-notice': {
@@ -70,7 +77,9 @@ export const LEGAL_DOCUMENTS = {
     title: 'AssessSuite AI and Automated Processing Transparency Notice',
     slug: 'ai-notice',
     file: '05_ai_and_automated_processing_transparency_notice.md',
-    releaseStatus: 'APPROVED FOR PUBLICATION WITH RC-2026.07.19 — FUNCTION-SPECIFIC ACTIVATION GATES APPLY',
+    releaseStatus: 'APPROVED FOR PUBLICATION WITH RC-2026.07.19 — CONTROLLED REVISION 2026-07-21.2; FUNCTION-SPECIFIC ACTIVATION GATES APPLY',
+    controlledRevision: '2026-07-21.2',
+    revisionAuthority: 'Mission UM-AUTO-20260720-ASSESSSUITE-REFERRAL-RECOVERY',
     publicRoute: true,
     eventType: EVENT_TYPES.AI_TRANSPARENCY_CONSENT,
   },
@@ -116,7 +125,9 @@ export const LEGAL_DOCUMENTS = {
     title: 'AssessSuite Data Processing and Security Schedule',
     slug: 'data-processing-schedule',
     file: '11_data_processing_and_security_schedule.md',
-    releaseStatus: 'APPROVED FOR PUBLICATION WITH RC-2026.07.19 — PROCESSING ACTIVATION GATES APPLY',
+    releaseStatus: 'APPROVED FOR PUBLICATION WITH RC-2026.07.19 — CONTROLLED REVISION 2026-07-21.1; PROCESSING ACTIVATION GATES APPLY',
+    controlledRevision: '2026-07-21.1',
+    revisionAuthority: 'Mission UM-AUTO-20260720-ASSESSSUITE-REFERRAL-RECOVERY',
     publicRoute: true,
     eventType: EVENT_TYPES.CONTRACT_ACCEPTANCE,
   },
@@ -124,7 +135,9 @@ export const LEGAL_DOCUMENTS = {
     title: 'AssessSuite Approved Subprocessor and Cross-Border Data Schedule',
     slug: 'subprocessors',
     file: '25_approved_subprocessor_and_cross_border_schedule_template.md',
-    releaseStatus: 'PUBLIC SCHEDULE — CURRENT PROVIDERS AND ACTIVATION CONDITIONS LISTED',
+    releaseStatus: 'PUBLIC SCHEDULE — CONTROLLED REVISION 2026-07-21.1; CURRENT PROVIDERS AND ACTIVATION CONDITIONS LISTED',
+    controlledRevision: '2026-07-21.1',
+    revisionAuthority: 'Mission UM-AUTO-20260720-ASSESSSUITE-REFERRAL-RECOVERY',
     publicRoute: true,
     eventType: EVENT_TYPES.CONTRACT_ACCEPTANCE,
   },

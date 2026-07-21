@@ -13,6 +13,7 @@ import { format } from 'date-fns';
 import { useSecureFileUrl } from "@/components/files/SecureFile";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { todayLocal } from "@/lib/localDate";
+import { renderSafeHtmlDocument, sanitizeHtml } from "@/lib/safeHtml";
 
 // Helper function to build the assessment table HTML
 const buildAssessmentTableHTML = (clientAssessments) => {
@@ -258,7 +259,7 @@ const PrintableReport = ({ client, reportData, conditions, assessmentResults, lo
     }
 
     try {
-      printWindow.document.write(`
+      renderSafeHtmlDocument(printWindow, `
         <!DOCTYPE html>
         <html>
         <head>
@@ -364,7 +365,6 @@ const PrintableReport = ({ client, reportData, conditions, assessmentResults, lo
         </body>
         </html>
       `);
-      printWindow.document.close();
       setTimeout(() => {
         printWindow.focus();
         printWindow.print();
@@ -409,7 +409,7 @@ const PrintableReport = ({ client, reportData, conditions, assessmentResults, lo
             <div className="report-title">
               DVA End-of-Cycle Report for ${client.full_name}
             </div>
-            <div className="report-content" dangerouslySetInnerHTML={{ __html: reportContent }} />
+            <div className="report-content" dangerouslySetInnerHTML={{ __html: sanitizeHtml(reportContent) }} />
           </div>
         </div>
       </div>

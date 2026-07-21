@@ -11,6 +11,7 @@ import { format } from 'date-fns';
 import { ClientReport } from "@/entities/ClientReport";
 import { todayLocal } from "@/lib/localDate";
 import { SecureFileImage } from "@/components/files/SecureFile";
+import { renderSafeHtmlDocument, replaceWithSafeHtml } from "@/lib/safeHtml";
 
 const PrintableReport = React.forwardRef(({ letterData, client, clinician }, ref) => {
   if (!letterData || !client || !clinician) {
@@ -441,15 +442,15 @@ Return only the improved plain text version with clear structure, no additional 
     if (!printWindow) {
       toast.warning("Popup blocked. Using current window print...");
       const originalContent = document.body.innerHTML;
-      document.body.innerHTML = printRef.current.outerHTML;
+      replaceWithSafeHtml(document.body, printRef.current.outerHTML);
       window.print();
-      document.body.innerHTML = originalContent;
+      replaceWithSafeHtml(document.body, originalContent);
       window.location.reload();
       return;
     }
 
     try {
-      printWindow.document.write(`
+      renderSafeHtmlDocument(printWindow, `
         <!DOCTYPE html>
         <html>
         <head>
@@ -461,8 +462,6 @@ Return only the improved plain text version with clear structure, no additional 
         </body>
         </html>
       `);
-      
-      printWindow.document.close();
       
       setTimeout(() => {
         printWindow.focus();

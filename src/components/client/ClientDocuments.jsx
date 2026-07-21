@@ -29,7 +29,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import ClientDataExtractor from '../documents/ClientDataExtractor';
 import { SecureFileLink } from '@/components/files/SecureFile';
 
 const documentTypeLabels = {
@@ -50,7 +49,7 @@ const documentTypeColors = {
   other: 'bg-slate-100 text-slate-800'
 };
 
-export default function ClientDocuments({ clientId, client, allAssessments = [], onDataExtracted }) {
+export default function ClientDocuments({ clientId, client }) {
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -58,7 +57,6 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadType, setUploadType] = useState('other');
-  const [showExtractor, setShowExtractor] = useState(false);
 
   useEffect(() => {
     loadDocuments();
@@ -142,8 +140,6 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
     return <File className="w-4 h-4" />;
   };
 
-  const documentUrls = documents.map(doc => doc.file_url);
-
   return (
     <>
       <AlertDialog open={!!deleteDoc} onOpenChange={(open) => !open && setDeleteDoc(null)}>
@@ -171,17 +167,6 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
               Documents
             </CardTitle>
             <div className="flex items-center gap-2">
-              {documents.length > 0 && (
-                <Button 
-                  variant="outline" 
-                  size="sm"
-                  onClick={() => setShowExtractor(!showExtractor)}
-                  className="border-blue-300 hover:bg-blue-50"
-                >
-                  <FileText className="w-4 h-4 mr-2" />
-                  Scan for Data
-                </Button>
-              )}
               <Button 
                 variant="outline" 
                 size="sm"
@@ -194,18 +179,6 @@ export default function ClientDocuments({ clientId, client, allAssessments = [],
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {showExtractor && documents.length > 0 && (
-            <ClientDataExtractor
-              fileUrls={documentUrls}
-              client={client}
-              allAssessments={allAssessments}
-              onExtracted={() => {
-                setShowExtractor(false);
-                if (onDataExtracted) onDataExtracted();
-              }}
-            />
-          )}
-
           {showUploadForm && (
             <div className="p-4 bg-blue-50 rounded-lg border border-blue-200 space-y-3">
               <div>

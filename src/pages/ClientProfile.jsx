@@ -616,8 +616,6 @@ export default function ClientProfile() {
               <ClientDocuments 
                 clientId={clientId} 
                 client={client}
-                allAssessments={allAssessments}
-                onDataExtracted={loadClientData}
               />
               <NutritionSummaryCard 
                 clientId={clientId}

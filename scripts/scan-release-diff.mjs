@@ -45,11 +45,17 @@ export function scanReleaseDiff(diff) {
       if (pattern.test(line)) findings.push({ file, kind: 'provider-secret-format' });
     }
 
-    const assignment = /\b([A-Za-z0-9_]*(?:API[_-]?KEY|SECRET|TOKEN|PASSWORD)[A-Za-z0-9_]*)\s*[:=]\s*(?:(['"])([^'"\r\n]+)\2|([A-Za-z0-9+_./=-]{16,}))/gi;
+    const assignment = /\b([A-Za-z0-9_]*(?:API[_-]?KEY|SECRET|TOKEN|PASSWORD)[A-Za-z0-9_]*)\s*([:=])\s*(?:(['"])([^'"\r\n]+)\3|([A-Za-z0-9+_./=-]{16,}))/gi;
     for (const match of line.matchAll(assignment)) {
-      const value = match[3] || match[4];
+      const value = match[4] || match[5];
       if (isReviewedTestCanary(value, file)) continue;
-      if (!match[2]) {
+      if (!match[3]) {
+        // An unquoted identifier or member expression is a runtime reference,
+        // not credential material embedded in the release diff.
+        const isCodeObjectReference = match[2] === ':'
+          && /\.(?:[cm]?[jt]sx?)$/i.test(file)
+          && /^[A-Za-z_$][A-Za-z0-9_$]*(?:\.[A-Za-z_$][A-Za-z0-9_$]*)*$/.test(value);
+        if (isCodeObjectReference) continue;
         if (/^(?:process\.)?env\.|^(?:config|secrets?)\./i.test(value)) continue;
         const classes = [/[a-z]/, /[A-Z]/, /\d/, /[+_./=-]/].filter((pattern) => pattern.test(value)).length;
         if (classes < 3 || entropy(value) < 3.5) continue;

@@ -1,7 +1,8 @@
 // Transactional email — real Resend adapter behind the house mock-fallback
 // pattern (same shape as server/stripeGateway.mjs and server/llm.mjs):
-// RESEND_API_KEY set and SELFTEST!=1 → real sends via https://api.resend.com;
-// otherwise outbox-only. EVERY send — real or not — is also recorded to the
+// OUTBOUND_EMAIL_ENABLED=1 plus RESEND_API_KEY, outside self-test/parity mode,
+// enables real sends via https://api.resend.com; otherwise this is outbox-only.
+// EVERY send — real or not — is also recorded to the
 // SQLite outbox_email table as the audit log, so the existing selftest
 // assertions and local inspection keep working unchanged.
 //
@@ -27,10 +28,21 @@ export function initEmail(outboxRepo) {
   outbox = outboxRepo;
 }
 
-export function emailEnabled() {
-  if (process.env.SELFTEST === '1') return false;
-  const key = process.env.RESEND_API_KEY;
+export function emailEnabled(environment = process.env) {
+  if (environment.SELFTEST === '1' || environment.PARITY_ASSURANCE_MODE === '1') return false;
+  if (environment.OUTBOUND_EMAIL_ENABLED !== '1') return false;
+  const key = environment.RESEND_API_KEY;
   return typeof key === 'string' && key.trim() !== '';
+}
+
+/**
+ * Future real-SMS adapters must branch on this affirmative capability gate.
+ * The current SendSMS implementation remains outbox-only regardless of this
+ * value; exposing the gate now makes the no-egress release posture explicit.
+ */
+export function smsEnabled(environment = process.env) {
+  if (environment.SELFTEST === '1' || environment.PARITY_ASSURANCE_MODE === '1') return false;
+  return environment.OUTBOUND_SMS_ENABLED === '1';
 }
 
 /**

@@ -14,6 +14,7 @@ import { SecureFileImage } from "@/components/files/SecureFile";
 import { Toaster, toast } from "sonner";
 import { format } from 'date-fns';
 import { todayLocal } from "@/lib/localDate";
+import { renderSafeHtmlDocument, replaceWithSafeHtml, sanitizeHtmlWithBreaks } from "@/lib/safeHtml";
 
 const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref) => {
   const formatDate = (date) => {
@@ -245,7 +246,7 @@ const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref
         {reportData.clinical_summary && (
           <>
             <div className="section-heading">Clinical Summary</div>
-            <div dangerouslySetInnerHTML={{ __html: reportData.clinical_summary.replace(/\n/g, '<br />') }} />
+            <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.clinical_summary) }} />
           </>
         )}
 
@@ -253,7 +254,7 @@ const PrintableReport = React.forwardRef(({ reportData, client, clinician }, ref
         {reportData.ongoing_plan && (
           <>
             <div className="section-heading">Ongoing Management Plan</div>
-            <div dangerouslySetInnerHTML={{ __html: reportData.ongoing_plan.replace(/\n/g, '<br />') }} />
+            <div dangerouslySetInnerHTML={{ __html: sanitizeHtmlWithBreaks(reportData.ongoing_plan) }} />
           </>
         )}
 
@@ -770,15 +771,15 @@ ${reportData.ongoing_plan}`;
     if (!printWindow) {
       // Fallback for pop-up blockers: directly print current document body
       const originalContent = document.body.innerHTML;
-      document.body.innerHTML = printRef.current.outerHTML;
+      replaceWithSafeHtml(document.body, printRef.current.outerHTML);
       window.print();
-      document.body.innerHTML = originalContent; // Restore original content
+      replaceWithSafeHtml(document.body, originalContent); // Restore original content
       window.location.reload(); // Refresh to ensure full functionality
       return;
     }
 
     try {
-      printWindow.document.write(`
+      renderSafeHtmlDocument(printWindow, `
         <!DOCTYPE html>
         <html>
         <head>
@@ -790,8 +791,6 @@ ${reportData.ongoing_plan}`;
         </body>
         </html>
       `);
-      
-      printWindow.document.close();
       
       setTimeout(() => {
         printWindow.focus();

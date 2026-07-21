@@ -2,7 +2,7 @@
 // its standalone output firewall. This module intentionally has no server,
 // database, SDK or provider imports.
 
-export const CANARY_SCHEMA_VERSION = 'assesssuite.isolated-referral-production-canary.v1';
+export const CANARY_SCHEMA_VERSION = 'assesssuite.isolated-referral-production-canary.v2';
 export const CANARY_NAME = 'installed-sdk-referral-journey';
 export const SYNTHETIC_REFERRAL_FILENAME = 'AssessSuite_Demo_GP_Referral(1).pdf';
 export const REQUIRED_CANARY_ACKNOWLEDGEMENT =
@@ -18,6 +18,7 @@ export const CHECK_NAMES = Object.freeze([
   'upload_registered',
   'real_provider_mode',
   'extraction_provider_contacted',
+  'canonical_schema_verified',
   'extraction_grounded',
   'provider_policy_enforced',
   'no_client_before_review',

@@ -4,6 +4,7 @@ import { Printer, X, Download } from "lucide-react";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { useSecureFileUrl } from "@/components/files/SecureFile";
+import { renderSafeHtmlDocument } from "@/lib/safeHtml";
 
 
 const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
@@ -38,7 +39,7 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
     const content = document.querySelector('.print-content');
     if (!content || !printWindow) return;
     
-    printWindow.document.write(`
+    renderSafeHtmlDocument(printWindow, `
       <!DOCTYPE html>
       <html>
         <head>
@@ -133,7 +134,6 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
         <body>${content.innerHTML}</body>
       </html>
     `);
-    printWindow.document.close();
     printWindow.focus();
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
   };

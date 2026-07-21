@@ -60,6 +60,28 @@ test('T03 production secret preflight is sealed to the exact production app befo
   assert.match(source, /OPENAI_DOCUMENT_EXTRACTION_MODEL/);
 });
 
+test('T03b direct local production deployment is fail-closed in favour of the trusted workflow', () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(repoRoot, 'package.json'), 'utf8'));
+  const command = manifest.scripts?.['deploy:prod'];
+  assert.equal(typeof command, 'string');
+  assert.match(command, /Direct production deployment is disabled/);
+  assert.match(command, /production-deploy workflow/);
+  assert.doesNotMatch(command, /\bfly\s+deploy\b/);
+  const result = spawnSync(process.platform === 'win32' ? 'npm.cmd' : 'npm', ['run', 'deploy:prod'], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  assert.notEqual(result.status, 0, result.stdout + result.stderr);
+
+  const launchRunbook = fs.readFileSync(
+    path.join(repoRoot, 'docs', 'launch', '20260713-go-live-runbook.md'),
+    'utf8',
+  );
+  assert.match(launchRunbook, /sealed workflow is the only place permitted to invoke `fly deploy/);
+  assert.match(launchRunbook, /never run that command locally/);
+  assert.match(launchRunbook, /Do not run `npm run deploy:prod`/);
+});
+
 test('T04 public-surface workflow checks explicitly propagate failures and require anonymous file 401', () => {
   for (const file of ['production-deploy.yml', 'production-rollback.yml']) {
     const source = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', file), 'utf8');
@@ -103,13 +125,20 @@ test('T05 release scanner accepts the exact reviewed diff and rejects constructe
   assert.ok(scanReleaseDiff(fakeDiff).some((finding) => finding.kind === 'provider-secret-format'));
   assert.equal(scanReleaseDiff(fakeDiff).filter((finding) => finding.kind === 'provider-secret-format').length, 2);
   assert.ok(scanReleaseDiff(fakeDiff).some((finding) => finding.kind === 'literal-sensitive-assignment'));
+
+  const runtimeReferences = [
+    'diff --git a/server/tests/probe.mjs b/server/tests/probe.mjs',
+    '+++ b/server/tests/probe.mjs',
+    '+const request = { token: authenticatedUser.token };',
+    '+const options = { API_KEY: configuredProviderCredential };',
+  ].join('\n');
+  assert.deepEqual(scanReleaseDiff(runtimeReferences), []);
 });
 
-test('T06 UI extraction callers preserve authority, file bounds, 13+ gate, and explicit organisation persistence', () => {
+test('T06 referral extraction is the sole visible extraction path and preserves its authority boundary', () => {
   const helper = fs.readFileSync(path.join(repoRoot, 'src', 'lib', 'fileIntegrations.js'), 'utf8');
   const referral = fs.readFileSync(path.join(repoRoot, 'src', 'components', 'documents', 'ReferralUploader.jsx'), 'utf8');
-  const client = fs.readFileSync(path.join(repoRoot, 'src', 'components', 'documents', 'ClientDataExtractor.jsx'), 'utf8');
-  const historical = fs.readFileSync(path.join(repoRoot, 'src', 'components', 'documents', 'HistoricalAssessmentExtractor.jsx'), 'utf8');
+  const clientDocuments = fs.readFileSync(path.join(repoRoot, 'src', 'components', 'client', 'ClientDocuments.jsx'), 'utf8');
   const nonReferralUploaders = [
     ['assessments', 'CBMRunner.jsx'],
     ['calendar', 'SOAPNoteModal.jsx'],
@@ -118,10 +147,8 @@ test('T06 UI extraction callers preserve authority, file bounds, 13+ gate, and e
   ].map((segments) => fs.readFileSync(path.join(repoRoot, 'src', 'components', ...segments), 'utf8'));
   const integrations = fs.readFileSync(path.join(repoRoot, 'server', 'integrations.mjs'), 'utf8');
   const uploadRegistry = fs.readFileSync(path.join(repoRoot, 'server', 'uploadRegistry.mjs'), 'utf8');
-  for (const source of [referral, client, historical]) {
-    assert.match(source, /processing_authority_confirmed:\s*true/);
-    assert.match(source, /DOCUMENT_EXTRACTION_MAX_FILES/);
-  }
+  assert.match(referral, /processing_authority_confirmed:\s*true/);
+  assert.match(referral, /DOCUMENT_EXTRACTION_MAX_FILES/);
   assert.match(helper, /params\.file_urls\.length > DOCUMENT_EXTRACTION_MAX_FILES/);
   assert.match(referral, /subject_age_confirmation:\s*REFERRAL_SUBJECT_AGE_CONFIRMATION/);
   assert.match(referral, /subject_age_attestation_version:\s*REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION/);
@@ -142,8 +169,16 @@ test('T06 UI extraction callers preserve authority, file bounds, 13+ gate, and e
   assert.match(referral, /Organization\.get\(membership\.org_id\)/);
   assert.match(referral, /name:\s*organization\?\.name \|\| membership\.org_id/);
   assert.doesNotMatch(referral, /id="referral-(?:date-of-birth|processing-authority)"/);
-  assert.match(referral, /Confirm Patient 13\+ &amp; Extract Data/);
-  assert.match(historical, /ClientAssessment\.create\(\{[\s\S]*?org_id:\s*orgId,[\s\S]*?client_id:\s*clientId/);
+  assert.match(referral, /Extract Data from \{files\.length\} file\(s\)/);
+  assert.match(referral, /aria-describedby="referral-extraction-attestation"/);
+  assert.match(referral, /id="referral-extraction-attestation"/);
+  assert.match(referral, /\{REFERRAL_PROCESSING_ATTESTATION\}/);
+  assert.doesNotMatch(referral, /<HistoricalAssessmentExtractor/);
+  assert.doesNotMatch(clientDocuments, /ClientDataExtractor|Scan for (?:Client )?Data|showExtractor/);
+  assert.match(
+    integrations,
+    /referralUploadCount !== uploads\.length[\s\S]*?'generic_extraction_disabled'[\s\S]*?Automated extraction is approved only for the referral workflow\./,
+  );
 });
 
 test('T07 referral workflow auto-resolves one practice but requires an explicit valid multi-practice choice', () => {
@@ -164,7 +199,7 @@ test('T07 referral workflow auto-resolves one practice but requires an explicit 
   assert.equal(REFERRAL_SUBJECT_AGE_CONFIRMATION, '13_or_over');
   assert.equal(
     REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
-    'referral-subject-age-attestation-v2026-07-20.1',
+    'referral-subject-age-attestation-v2026-07-21.1',
   );
   assert.match(REFERRAL_PROCESSING_ATTESTATION, /13 or older/);
   assert.match(REFERRAL_PROCESSING_ATTESTATION, /documented.*notice and consent.*valid authority/i);
@@ -190,12 +225,11 @@ function assertImmutablePushDigestBinding(source) {
   assert.equal((releaseStep.match(/docker push "\$new_image_tag"/g) || []).length, 1);
 }
 
-test('T08 one-shot release deploys the immutable digest returned by its single gated-image push', () => {
-  const source = fs.readFileSync(
-    path.join(repoRoot, '.github', 'workflows', 'production-referral-hotfix-one-shot.yml'),
-    'utf8',
+test('T08 application candidate carries no branch-sourced secret-bearing hotfix workflow', () => {
+  assert.equal(
+    fs.existsSync(path.join(repoRoot, '.github', 'workflows', 'production-referral-hotfix-one-shot.yml')),
+    false,
   );
-  assertImmutablePushDigestBinding(source);
 });
 
 test('T09 SOAP history print output encodes persisted values and isolates the popup', () => {
@@ -237,7 +271,8 @@ test('T09 SOAP history print output encodes persisted values and isolates the po
   assert.match(historyPrint, /action:\s*entry\.action/);
   assert.match(historyPrint, /userEmail:\s*entry\.user_email/);
   assert.match(historyPrint, /timestamp:\s*moment\(entry\.timestamp\)\.format\('LLL'\)/);
-  assert.match(historyPrint, /document\.write\(printHtml\)/);
+  assert.match(historyPrint, /renderSafeHtmlDocument\(printWindow, printHtml\)/);
+  assert.doesNotMatch(historyPrint, /document\.write/);
 });
 
 test('T10 generic production release also binds deployment to its single pushed digest', () => {
@@ -246,4 +281,20 @@ test('T10 generic production release also binds deployment to its single pushed 
     'utf8',
   );
   assertImmutablePushDigestBinding(source);
+});
+
+test('T11 every production mutation workflow pins the established 3 GB Sydney volume', () => {
+  for (const file of [
+    'production-deploy.yml',
+    'production-rollback.yml',
+  ]) {
+    const source = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', file), 'utf8');
+    assert.match(
+      source,
+      /Number\(volume\.size_gb \?\? volume\.sizeGb \?\? volume\.SizeGB\) !== 3/,
+      `${file} must pin the established 3 GB volume`,
+    );
+    assert.match(source, /one 3 GB assesssuite_data volume in syd/);
+    assert.doesNotMatch(source, /one 1 GB assesssuite_data volume in syd/);
+  }
 });

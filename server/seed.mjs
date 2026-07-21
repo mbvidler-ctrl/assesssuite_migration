@@ -390,10 +390,10 @@ function seedCataloguesCore({ entityNames, repoFor, note, seedCatalogue }) {
   seedCatalogue('Exercise', CATALOGUE_EXERCISES);
 
   // Treatment protocols: the client-authorised live export. The
-  // TreatmentProtocols page does a cache lookup by condition_name and only
-  // calls the model on a miss — seeding these makes matched conditions render
-  // instantly and avoids per-condition model spend. Deduplicated on
-  // condition_name (the app's lookup key; first occurrence wins).
+  // TreatmentProtocols page is catalogue-only and never falls through to
+  // dynamic clinical generation. Seeding makes reviewed catalogue entries
+  // available on every production startup. Deduplicated on condition_name
+  // (the app's lookup key; first occurrence wins).
   if (entityNames.has('TreatmentProtocol')) {
     const seenProtocol = new Set();
     const importedProtocols = loadImportedCatalogue('treatmentprotocol-part').filter((p) => {
@@ -444,7 +444,16 @@ export function runCatalogueSeed({ db, entityNames }) {
   note('Catalogue-only seed complete (no synthetic tenants, users, or clients).');
 }
 
+export function assertSyntheticSeedEnvironment(environment = process.env) {
+  if (environment.NODE_ENV === 'production') {
+    throw new Error(
+      'The full synthetic seed is disabled in production; use the bounded production catalogue bootstrap.',
+    );
+  }
+}
+
 export function runSeed({ db, entityNames }) {
+  assertSyntheticSeedEnvironment();
   const log = [];
   function note(message) {
     log.push(message);
@@ -1121,6 +1130,10 @@ function isMainModule() {
 }
 
 if (isMainModule()) {
+  // Refuse before openDatabase() can create, migrate or otherwise touch the
+  // production store. The production image has a separate catalogue-only
+  // entry point and must never pass through this demo-data command.
+  assertSyntheticSeedEnvironment();
   const { db, entityNames } = openDatabase();
   runSeed({ db, entityNames });
 }

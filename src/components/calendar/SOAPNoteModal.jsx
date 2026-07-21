@@ -11,6 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { uploadTenantFile } from "@/lib/fileIntegrations";
+import { buildSoapHistoryPrintHtml, renderSafeHtmlDocument } from "@/lib/safeHtml";
 import { X, Save, ChevronLeft, ChevronRight, Lock, Edit, History, Printer, Calendar, Clock, MapPin, Trash2, AlertTriangle, RefreshCw, Mic, Square, Loader2, Activity, ClipboardList, Sparkles, Paperclip, Upload, FileText, Copy, Check } from "lucide-react";
 import {
   Accordion,
@@ -53,7 +54,6 @@ import { recordLegalEvent } from "@/lib/legal/recordAcceptance";
 import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
 import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 import { useAuth } from "@/lib/AuthContext";
-import { buildSoapHistoryPrintHtml } from "@/lib/safeHtml";
 
 export default function SOAPNoteModal({
   appointment,
@@ -862,12 +862,8 @@ export default function SOAPNoteModal({
 
     const printWindow = window.open('', '_blank', 'width=800,height=600');
     if (printWindow) {
-        printWindow.document.write('<html><head><title>SOAP Note</title>');
-        printWindow.document.write('<style>@media print { body { -webkit-print-color-adjust: exact; } }</style>');
-        printWindow.document.write('</head><body>');
         // Pass location_name and location_id from sessionDetails to the PrintableSOAPNote component
-        printWindow.document.write(printRef.current.innerHTML);
-        printWindow.document.close();
+        renderSafeHtmlDocument(printWindow, `<html><head><title>SOAP Note</title><style>@media print { body { -webkit-print-color-adjust: exact; } }</style></head><body>${printRef.current.innerHTML}</body></html>`);
         printWindow.focus();
         setTimeout(() => {
           printWindow.print();
@@ -1689,8 +1685,7 @@ export default function SOAPNoteModal({
                                                 })),
                                               });
 
-                                              printWindow.document.write(printHtml);
-                                              printWindow.document.close();
+                                              renderSafeHtmlDocument(printWindow, printHtml);
                                               printWindow.focus();
                                               setTimeout(() => {
                                                 printWindow.print();

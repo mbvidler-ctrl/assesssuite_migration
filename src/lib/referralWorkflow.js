@@ -1,17 +1,17 @@
 export const REFERRAL_SUBJECT_AGE_CONFIRMATION = '13_or_over';
 export const REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION =
-  'referral-subject-age-attestation-v2026-07-20.1';
+  'referral-subject-age-attestation-v2026-07-21.1';
 // Recorded by the server, never accepted from the browser. Exported beside
 // the version so assurance code verifies the same bounded provenance value.
 export const REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE =
   'authenticated_practitioner_action';
 
-// The published RC notice still describes the superseded exact-DOB UI. Its
-// controlled content/fingerprint is intentionally untouched by this hotfix;
-// correct that wording only through the separate controlled legal-copy path.
+// The controlled AI notice revision 2026-07-21.1 describes this categorical
+// action attestation. No separate date of birth is collected for the provider
+// age gate; a DOB found in the source remains proposed data for human review.
 
 export const REFERRAL_PROCESSING_ATTESTATION =
-  'By selecting Confirm Patient 13+ & Extract, you attest that the patient is 13 or older and the practice has documented the patient or representative notice and consent, or another valid authority, for AssessSuite and OpenAI to process this referral.';
+  'Starting extraction confirms that the patient is 13 or older and that the practice has documented the patient or representative notice and consent, or another valid authority, for AssessSuite and OpenAI to process this referral. No client record changes until you review and confirm the extracted data.';
 
 /**
  * Preserve an explicit, still-valid practice choice. A single unique practice

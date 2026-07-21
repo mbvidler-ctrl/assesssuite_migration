@@ -92,6 +92,14 @@ export const UPDATE_ME_GUARDED_FIELDS = new Set([
   // activation via updateMe (ProfileSetup previously set 'active') is refused.
   'account_status',
   'email_verified',
+  // Payment and entitlement state is established only by the Stripe webhook,
+  // the bounded subscription synchroniser, or an administrator. Allowing a
+  // caller to self-assert any of these fields turns the ProfileSetup payment
+  // gate into a client-side convention.
+  'subscription_status',
+  'stripe_customer_id',
+  'stripe_subscription_id',
+  'subscription_start_date',
 ]);
 
 /**

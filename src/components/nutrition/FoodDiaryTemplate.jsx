@@ -2,6 +2,7 @@ import React from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Printer } from 'lucide-react';
+import { renderSafeHtmlDocument } from '@/lib/safeHtml';
 
 export default function FoodDiaryTemplate({ isOpen, onClose }) {
   const print24Hour = () => {
@@ -94,8 +95,7 @@ export default function FoodDiaryTemplate({ isOpen, onClose }) {
     `;
 
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(printContent);
-    printWindow.document.close();
+    renderSafeHtmlDocument(printWindow, printContent);
     printWindow.print();
   };
 
@@ -175,8 +175,7 @@ export default function FoodDiaryTemplate({ isOpen, onClose }) {
     `;
 
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(printContent);
-    printWindow.document.close();
+    renderSafeHtmlDocument(printWindow, printContent);
     printWindow.print();
   };
 
