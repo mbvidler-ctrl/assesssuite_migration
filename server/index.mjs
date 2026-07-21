@@ -695,8 +695,10 @@ const GLOBAL_READONLY_ENTITIES = new Set(['Assessment', 'Exercise', 'TreatmentPr
  *    only) — the create path was previously un-gated, an admin-mint vector;
  *  - shared catalogues: admin-only writes;
  *  - LegalAcceptance: a user may only write their own acceptance;
- *  - Organization/OrganizationMember: non-admin create is retired in favour
- *    of the atomic, entitlement-gated EnsureFounderOrganization operation;
+ *  - Organization: every generic non-admin mutation is denied; tenant roots
+ *    are created and maintained only by server-owned/admin operations;
+ *  - OrganizationMember: non-admin create is retired in favour of the atomic,
+ *    entitlement-gated EnsureFounderOrganization operation;
  *  - org-scoped entities: enforceWriteOrgScope (forces org_id to a member org).
  */
 function writeAuthDenied(entityName, data, sessionUser, { isCreate }) {
@@ -706,7 +708,14 @@ function writeAuthDenied(entityName, data, sessionUser, { isCreate }) {
   if (GLOBAL_READONLY_ENTITIES.has(entityName)) {
     return { ok: false, status: 403, message: 'admin access required to modify a shared catalogue' };
   }
-  if (isCreate && (entityName === 'Organization' || entityName === 'OrganizationMember')) {
+  if (entityName === 'Organization') {
+    return {
+      ok: false,
+      status: 403,
+      message: 'organisation changes are server-controlled',
+    };
+  }
+  if (isCreate && entityName === 'OrganizationMember') {
     return {
       ok: false,
       status: 403,
@@ -765,6 +774,10 @@ function entityAccessDenied(req, res, entityName, sessionUser, isAdmin) {
     return true;
   }
   const isMutation = req.method !== 'GET';
+  if (!isAdmin && entityName === 'Organization' && isMutation) {
+    sendError(res, 403, 'organisation changes are server-controlled');
+    return true;
+  }
   if (!isAdmin && CLINICAL_ENTITIES.has(entityName) && !isInitialClinicalReleaseEligible(sessionUser)) {
     sendError(res, 403, 'clinical access is not approved for this account profile');
     return true;
@@ -1045,8 +1058,8 @@ async function handleEntitiesRoute(req, res, url, match) {
     const existing = repo.getById(rest);
     if (!existing) return sendError(res, 404, 'record not found');
     if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
-    if (entityName === 'OrganizationMember' && !isAdmin) {
-      return sendError(res, 403, 'membership removal is server-controlled');
+    if (!isAdmin && (entityName === 'Organization' || entityName === 'OrganizationMember')) {
+      return sendError(res, 403, 'organisation and membership removal is server-controlled');
     }
     if (!isAdmin && GLOBAL_READONLY_ENTITIES.has(entityName)) {
       return sendError(res, 403, 'admin access required to modify a shared catalogue');
@@ -1071,8 +1084,14 @@ async function handleEntitiesRoute(req, res, url, match) {
 
   if (req.method === 'DELETE' && !rest) {
     // DELETE-with-body deleteMany.
-    if (!isAdmin && (isUserCollection || entityName === 'OrganizationMember' || GLOBAL_READONLY_ENTITIES.has(entityName))) {
-      // Never let a non-admin bulk-delete Users or a shared catalogue.
+    if (!isAdmin && (
+      isUserCollection ||
+      entityName === 'Organization' ||
+      entityName === 'OrganizationMember' ||
+      GLOBAL_READONLY_ENTITIES.has(entityName)
+    )) {
+      // Never let a non-admin bulk-delete Users, tenant roots/memberships, or
+      // a shared catalogue.
       return sendError(res, 403, 'admin access required');
     }
     if (!isAdmin && entityName === 'Client') {
