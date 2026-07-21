@@ -247,6 +247,13 @@ function validateWorkflow(rawSource) {
     'overwrite: false',
   ]) if (!upload.includes(marker)) fail(`receipt upload lacks ${marker}`);
   if (/\*|production-state-raw|runner\.temp\s*$/m.test(upload)) fail('receipt upload path is broader than the exact bounded JSON file');
+  if (!source.includes('ARTIFACT_DIGEST: sha256:${{ steps.upload.outputs.artifact-digest }}')) {
+    fail('snapshot summary does not canonicalise the GitHub artifact digest');
+  }
+  for (const marker of [
+    '[[ "$ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]',
+    'echo "- Artifact digest: $ARTIFACT_DIGEST"',
+  ]) if (!source.includes(marker)) fail(`snapshot summary lacks ${marker}`);
 
   const beforeCapture = source.slice(0, source.indexOf('      - name: Final secret-bearing read-only Fly production state capture'));
   const afterCapture = source.slice(source.indexOf('\n      - name: Upload bounded content-free production state receipt'));
@@ -299,6 +306,8 @@ if (selftest) {
     ['receipt-bound-weakened', 'if (Buffer.byteLength(encoded) > 8192)', 'if (false)'],
     ['upload-broadened', 'path: ${{ runner.temp }}/production-state-receipt/production-state-snapshot.json', 'path: ${{ runner.temp }}'],
     ['retention-weakened', 'retention-days: 3\n', 'retention-days: 30\n'],
+    ['artifact-digest-prefix-removed', 'ARTIFACT_DIGEST: sha256:${{ steps.upload.outputs.artifact-digest }}', 'ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}'],
+    ['artifact-digest-shape-weakened', '[[ "$ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]', '[[ -n "$ARTIFACT_DIGEST" ]]'],
   ];
   const escaped = [];
   for (const [name, from, to] of mutations) {

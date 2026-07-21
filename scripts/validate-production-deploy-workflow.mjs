@@ -204,9 +204,9 @@ function validateDeployWorkflow(input) {
 
   for (const needle of [
     'candidate_image_artifact_id: ${{ steps.upload_candidate.outputs.artifact-id }}',
-    'candidate_image_artifact_digest: ${{ steps.upload_candidate.outputs.artifact-digest }}',
+    'candidate_image_artifact_digest: sha256:${{ steps.upload_candidate.outputs.artifact-digest }}',
     'release_control_artifact_id: ${{ steps.upload_controls.outputs.artifact-id }}',
-    'release_control_artifact_digest: ${{ steps.upload_controls.outputs.artifact-digest }}',
+    'release_control_artifact_digest: sha256:${{ steps.upload_controls.outputs.artifact-digest }}',
     'docker save "assesssuite-release-gate:$APPLICATION_SHA" | gzip -1 -n',
     'candidate-build-receipt.json',
   ]) if (!gates.includes(needle)) fail('missing immutable gate handoff ' + needle);
@@ -1041,7 +1041,7 @@ function validateParityWorkflow(input) {
     'CMD ["run-wave"]', 'docker build --tag "assesssuite-parity-runner:$APPLICATION_SHA"',
     'docker save "$image" | gzip -1 -n',
     'parity_runner_artifact_id: ${{ steps.upload_runner.outputs.artifact-id }}',
-    'parity_runner_artifact_digest: ${{ steps.upload_runner.outputs.artifact-digest }}',
+    'parity_runner_artifact_digest: sha256:${{ steps.upload_runner.outputs.artifact-digest }}',
   ]) if (!prepare.includes(needle)) fail('missing frozen parity runner boundary ' + needle);
 
   if (countOf(active, '${{ secrets.FLY_API_TOKEN }}') !== 1) fail('parity Fly token expression differs');
@@ -1101,6 +1101,8 @@ function validateParityWorkflow(input) {
     'fly proxy 48787:8787 "$current_private_ipv6" --app "$app" --bind-addr 127.0.0.1 --quiet',
     'fly machine exec "$current_machine_id" "$command" --app "$app"',
     '--volume "$current_volume_id:/app/server/data"',
+    '--metadata "assesssuite-campaign=$PARITY_NAMESPACE"',
+    "c.metadata?.['assesssuite-campaign'] !== 'asr-r2-20260721'",
     '--restart no --autostart=false --autostop=off --skip-dns-registration',
     '--size 3 --region syd --snapshot-retention 5 --scheduled-snapshots=true',
     'browser.mandatory_checkbox_count !== 1', 'browser.marketing_default_checked !== false',
@@ -1194,6 +1196,8 @@ function parityMutationCases(source) {
   replace('browser-review-bypass', 'browser.mandatory_review_presented !== true', 'false');
   replace('browser-signup-checkbox-bypass', 'browser.mandatory_checkbox_count !== 1', 'false');
   replace('screenshot-wide-upload', 'path: ${{ runner.temp }}/bounded-synthetic-screenshots/*.png', 'path: ${{ runner.temp }}/all-files');
+  replace('artifact-digest-prefix-removed', 'parity_runner_artifact_digest: sha256:${{ steps.upload_runner.outputs.artifact-digest }}', 'parity_runner_artifact_digest: ${{ steps.upload_runner.outputs.artifact-digest }}');
+  replace('campaign-selector-metadata-removed', '--metadata "assesssuite-campaign=$PARITY_NAMESPACE" ', '');
   replace('validator-pin-mutated', '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + '0'.repeat(64));
   return cases;
 }
@@ -1291,6 +1295,7 @@ function validateDeployWorkflowV2(input) {
   ]) requireText(needle, 'sealed deploy-bundle control ' + needle);
   requireText('CANDIDATE_IMAGE_REF: registry.fly.io/assesssuite-production@${{ inputs.application_image_digest }}', 'predeclared candidate digest reference');
   requireText('[[ "$CANDIDATE_IMAGE_REF" == "registry.fly.io/assesssuite-production@$APPLICATION_IMAGE_DIGEST" ]]', 'candidate digest/ref identity');
+  requireText('[[ "$DEPLOY_BUNDLE_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]', 'canonical deploy-bundle artifact digest');
   requireText('[[ "$CONFIRMATION" == "DEPLOY assesssuite-production EXACT SHA" ]]', 'exact deployment confirmation');
   requireText('[[ "$reviewed_mode" == "$EXTRACTION_RUNTIME_MODE" ]]', 'deploy extraction-mode config binding');
   requireText('[[ "$reviewed_under_age_mode" == "$UNDER_AGE_ZDR_RUNTIME_MODE" ]]', 'deploy under-age config binding');
@@ -1357,6 +1362,15 @@ function validatePrepareReleaseWorkflow(input) {
   requireText('[[ "$SOURCE_BRANCH" == "main" ]]', 'fixed main source branch');
   requireText('[[ "$ROLLBACK_SOURCE_BRANCH" == "main" ]]', 'fixed main rollback branch');
   requireText('ROLLBACK_SOURCE_SHA: ${{ inputs.application_sha }}', 'fixed rollback source SHA');
+  for (const needle of [
+    'candidate_image_artifact_digest: sha256:${{ steps.upload_candidate.outputs.artifact-digest }}',
+    'release_control_artifact_digest: sha256:${{ steps.upload_controls.outputs.artifact-digest }}',
+    'publication_artifact_digest: sha256:${{ steps.upload_publication.outputs.artifact-digest }}',
+    'compatibility_artifact_digest: sha256:${{ steps.upload_compatibility.outputs.artifact-digest }}',
+    'deploy_bundle_artifact_digest: sha256:${{ steps.upload_deploy_bundle.outputs.artifact-digest }}',
+    'COMPATIBILITY_ARTIFACT_DIGEST: sha256:${{ steps.upload_compatibility.outputs.artifact-digest }}',
+    'DEPLOY_BUNDLE_ARTIFACT_DIGEST: sha256:${{ steps.upload_deploy_bundle.outputs.artifact-digest }}',
+  ]) requireText(needle, 'canonical GitHub artifact digest handoff ' + needle);
 
   const expectedGateSteps = [
     'Validate trusted dispatch context and inputs','Check out exact application SHA','Verify exact SHA and remote branch tip',
@@ -1405,7 +1419,7 @@ function validatePrepareReleaseWorkflow(input) {
     '[[ "$actual_files" == "$expected_files" ]]', 'name: deploy-bundle-${{ needs.gates.outputs.application_sha }}',
     'retention-days: 3', 'path: ${{ runner.temp }}/deploy-bundle',
     'deploy_bundle_artifact_id: ${{ steps.upload_deploy_bundle.outputs.artifact-id }}',
-    'deploy_bundle_artifact_digest: ${{ steps.upload_deploy_bundle.outputs.artifact-digest }}',
+    'deploy_bundle_artifact_digest: sha256:${{ steps.upload_deploy_bundle.outputs.artifact-digest }}',
     'deploy_bundle_manifest_sha256: ${{ steps.bundle.outputs.deploy_bundle_manifest_sha256 }}',
     'APPLICATION_IMAGE_DIGEST: ${{ needs.publish_image.outputs.candidate_registry_digest }}',
     'application_image_digest: e.APPLICATION_IMAGE_DIGEST,',
@@ -1436,6 +1450,7 @@ function deployMutationCasesV2(source) {
   replace('run-head-bypass', "          same(row.head_sha, process.env.APPLICATION_SHA, 'head SHA');", '          true;');
   replace('run-actor-bypass', "          same(row.actor?.login, 'mbvidler-ctrl', 'actor');", '          true;');
   replace('artifact-digest-bypass', "          same(row.digest, process.env.DEPLOY_BUNDLE_ARTIFACT_DIGEST, 'digest');", '          true;');
+  replace('artifact-digest-shape-weakened', '[[ "$DEPLOY_BUNDLE_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]', '[[ "$DEPLOY_BUNDLE_ARTIFACT_DIGEST" =~ ^[0-9a-f]{64}$ ]]');
   replace('artifact-expiry-bypass', "          same(row.expired, false, 'expiry state');", '          true;');
   replace('artifact-run-bypass', "          same(row.workflow_run?.id, process.env.PREPARATION_RUN_ID, 'run id');", '          true;');
   replace('manifest-hash-bypass', '          [[ "$(sha256sum "$manifest" | awk \'{print $1}\')" == "$DEPLOY_BUNDLE_MANIFEST_SHA256" ]]', '          true');
@@ -1492,6 +1507,8 @@ function prepareReleaseMutationCases(source) {
   replace('bundle-code-injected', '          copy_regular candidate/fly.production.toml fly.production.toml 65536', '          copy_regular candidate/server/index.mjs index.mjs 65536\n          copy_regular candidate/fly.production.toml fly.production.toml 65536');
   replace('bundle-retention-weakened', '          retention-days: 3', '          retention-days: 1');
   replace('bundle-upload-broadened', '          path: ${{ runner.temp }}/deploy-bundle', '          path: ${{ runner.temp }}');
+  replace('candidate-artifact-digest-prefix-removed', 'candidate_image_artifact_digest: sha256:${{ steps.upload_candidate.outputs.artifact-digest }}', 'candidate_image_artifact_digest: ${{ steps.upload_candidate.outputs.artifact-digest }}');
+  replace('deploy-bundle-artifact-digest-prefix-removed', 'deploy_bundle_artifact_digest: sha256:${{ steps.upload_deploy_bundle.outputs.artifact-digest }}', 'deploy_bundle_artifact_digest: ${{ steps.upload_deploy_bundle.outputs.artifact-digest }}');
   replace('manifest-candidate-digest-bypass', "            application_image_digest: e.APPLICATION_IMAGE_DIGEST,", "            application_image_digest: 'sha256:' + '0'.repeat(64),");
   replace('confirmation-weakened', '          [[ "$CONFIRMATION" == "PREPARE assesssuite-production EXACT SHA" ]]', '          [[ -n "$CONFIRMATION" ]]');
   replace('validator-pin-mutated', '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + '0'.repeat(64));

@@ -75,7 +75,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_SNAPSHOT_VALIDATOR_SHA256: b6b81d33751c282ff8c3a7a8af94d90a528fceb7fe7e75ee2e7893cb0f26e83c
+          EXPECTED_SNAPSHOT_VALIDATOR_SHA256: e7a709891b86e96a768a5d997fe18ae5bee361bb4f086a199dab0bce029fa3c6
         run: |
           set -euo pipefail
           [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$TRUSTED_WORKFLOW_SHA" ]]
@@ -334,7 +334,7 @@ jobs:
         env:
           RECEIPT_SHA256: ${{ steps.capture.outputs.receipt_sha256 }}
           ARTIFACT_ID: ${{ steps.upload.outputs.artifact-id }}
-          ARTIFACT_DIGEST: ${{ steps.upload.outputs.artifact-digest }}
+          ARTIFACT_DIGEST: sha256:${{ steps.upload.outputs.artifact-digest }}
           CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
         run: |
           set -euo pipefail
