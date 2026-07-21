@@ -24,6 +24,18 @@ function isUncertainCommitFailure(error) {
   return status === null || status >= 500;
 }
 
+function unconfirmedCommitError() {
+  return Object.assign(
+    new Error('The reviewed referral save result could not be confirmed.'),
+    {
+      data: {
+        code: 'unconfirmed_referral_commit_result',
+        details: UNCONFIRMED_COMMIT_DETAILS,
+      },
+    },
+  );
+}
+
 /**
  * @typedef {object} ReviewedReferralCommitPayload
  * @property {string} idempotency_key
@@ -113,7 +125,18 @@ export async function commitReviewedReferral(base44Client, payload) {
     // the exact payload and key is a receipt lookup, not a second clinical
     // write, and resolves the common uncertain-transport case before the UI
     // makes any claim about persistence.
-    response = await base44Client.functions.invoke(FUNCTION_NAME, payload);
+    try {
+      response = await base44Client.functions.invoke(FUNCTION_NAME, payload);
+    } catch (reconciliationError) {
+      // A second uncertain failure cannot distinguish a committed receipt from
+      // a request that never arrived. Replace every upstream detail with the
+      // controlled unconfirmed-result contract so the UI never makes a false
+      // claim about whether clinical data changed.
+      if (isUncertainCommitFailure(reconciliationError)) {
+        throw unconfirmedCommitError();
+      }
+      throw reconciliationError;
+    }
   }
   const result = response?.data ?? response;
   if (
@@ -122,15 +145,8 @@ export async function commitReviewedReferral(base44Client, payload) {
     || typeof result.client_id !== 'string'
     || !result.client_id
   ) {
-    const error = Object.assign(
-      new Error('The reviewed referral response was invalid.'),
-      {
-        data: {
-          code: 'invalid_referral_commit_response',
-          details: UNCONFIRMED_COMMIT_DETAILS,
-        },
-      },
-    );
+    const error = unconfirmedCommitError();
+    error.data.code = 'invalid_referral_commit_response';
     throw error;
   }
   return result;

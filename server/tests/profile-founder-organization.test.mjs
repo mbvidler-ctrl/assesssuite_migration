@@ -7,6 +7,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { createEntityRepository } from '../db.mjs';
+import { createSubscriptionEntitlementUpdater } from '../functions/_shared.mjs';
 import { createFounderOrganizationEnsurer } from '../integrations.mjs';
 import {
   activateUser,
@@ -112,6 +113,133 @@ test('self-service profile updates cannot forge payment or Stripe entitlement st
   }
 });
 
+test('provider-backed subscription reconciliation persists the exact trusted entitlement', async () => {
+  const server = await startTestServer();
+  try {
+    const adminToken = await loginAdmin(server);
+    const user = await registerUser(server, 'synthetic-subscription-reconcile@example.test');
+    const customerId = `mock_cus_reconcile_${Date.now()}`;
+    const subscriptionId = `mock_sub_reconcile_${Date.now()}`;
+
+    const webhook = await requestJson(
+      server,
+      `/api/apps/${server.appId}/functions/stripeWebhook`,
+      {
+        method: 'POST',
+        token: adminToken,
+        body: {
+          type: 'checkout.session.completed',
+          data: {
+            object: {
+              customer: customerId,
+              subscription: subscriptionId,
+              client_reference_id: user.id,
+              customer_email: user.email,
+            },
+          },
+        },
+      },
+    );
+    assert.equal(webhook.status, 200, webhook.text);
+
+    // Simulate stale local entitlement state while the provider remains the
+    // source of truth. The sync response and persisted User record must agree.
+    const stale = await requestJson(
+      server,
+      `/api/apps/${server.appId}/entities/User/${user.id}`,
+      {
+        method: 'PUT',
+        token: adminToken,
+        body: {
+          subscription_status: 'inactive',
+          stripe_customer_id: null,
+          stripe_subscription_id: null,
+          subscription_start_date: null,
+        },
+      },
+    );
+    assert.equal(stale.status, 200, stale.text);
+
+    const sync = await requestJson(
+      server,
+      `/api/apps/${server.appId}/functions/syncStripeSubscription`,
+      { method: 'POST', token: user.token, body: {} },
+    );
+    assert.equal(sync.status, 200, sync.text);
+    assert.equal(sync.body?.success, true);
+    assert.equal(sync.body?.data?.subscription_status, 'active');
+    assert.equal(sync.body?.data?.stripe_customer_id, customerId);
+    assert.equal(sync.body?.data?.stripe_subscription_id, subscriptionId);
+    assert.equal(typeof sync.body?.data?.subscription_start_date, 'string');
+
+    const me = await requestJson(server, `/api/apps/${server.appId}/entities/User/me`, {
+      token: user.token,
+    });
+    assert.equal(me.status, 200, me.text);
+    assert.deepEqual(
+      {
+        subscription_status: me.body?.subscription_status,
+        stripe_customer_id: me.body?.stripe_customer_id,
+        stripe_subscription_id: me.body?.stripe_subscription_id,
+        subscription_start_date: me.body?.subscription_start_date,
+      },
+      sync.body.data,
+    );
+  } finally {
+    await server.stop();
+  }
+});
+
+test('trusted subscription writer is user-bound, exact-shape, and fail-closed', async () => {
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'assesssuite-entitlement-writer-'));
+  const dbPath = path.join(tempRoot, 'writer.db');
+  const db = new DatabaseSync(dbPath);
+  try {
+    db.exec(`
+      CREATE TABLE entity_User (
+        id TEXT PRIMARY KEY, data TEXT NOT NULL, created_date TEXT NOT NULL,
+        updated_date TEXT NOT NULL, created_by TEXT
+      );
+    `);
+    const users = createEntityRepository(db, 'User');
+    const target = users.create({ email: 'writer-target@example.test', role: 'user' }, null);
+    const bystander = users.create({ email: 'writer-bystander@example.test', role: 'user' }, null);
+    const update = createSubscriptionEntitlementUpdater(db, { id: target.id });
+    const entitlement = {
+      subscription_status: 'active',
+      stripe_customer_id: 'cus_provider_truth',
+      stripe_subscription_id: 'sub_provider_truth',
+      subscription_start_date: '2026-07-21T00:00:00.000Z',
+    };
+
+    const persisted = await update(entitlement);
+    for (const [field, value] of Object.entries(entitlement)) {
+      assert.equal(persisted[field], value);
+      assert.equal(users.getById(target.id)[field], value);
+    }
+    assert.equal(users.getById(target.id).role, 'user');
+    assert.equal(users.getById(bystander.id).subscription_status, undefined);
+
+    await assert.rejects(
+      update({ ...entitlement, role: 'admin' }),
+      /invalid subscription entitlement field set/,
+    );
+    await assert.rejects(
+      update({ ...entitlement, subscription_start_date: '21 July 2026' }),
+      /invalid subscription entitlement start date/,
+    );
+    await assert.rejects(
+      createSubscriptionEntitlementUpdater(db, null)(entitlement),
+      /authentication required/,
+    );
+    assert.equal(users.getById(target.id).role, 'user');
+    assert.equal(users.getById(bystander.id).subscription_status, undefined);
+  } finally {
+    db.close();
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
+});
+
 test('generic organisation founder writes are denied for pending and invited paid users', async () => {
   const server = await startTestServer();
   try {
@@ -164,6 +292,144 @@ test('generic organisation founder writes are denied for pending and invited pai
     assert.equal(memberships.length, 1);
     assert.equal(memberships[0].org_id, invitedOrg.id);
     assert.equal(memberships[0].role, 'clinician');
+  } finally {
+    await server.stop();
+  }
+});
+
+test('every generic non-admin organisation-root mutation is denied without side effects', async () => {
+  const server = await startTestServer();
+  try {
+    const adminToken = await loginAdmin(server);
+    const user = await registerUser(server, 'synthetic-organization-root-guard@example.test');
+    await activatePaidUser(server, adminToken, user);
+    const organization = await createOrganizationForUser(
+      server,
+      adminToken,
+      user,
+      'clinician',
+    );
+    const collection = `/api/apps/${server.appId}/entities/Organization`;
+    const foreign = await requestJson(server, collection, {
+      method: 'POST', token: adminToken, body: { name: 'Synthetic Foreign Practice' },
+    });
+    assert.equal(foreign.status, 200, foreign.text);
+    const beforeOrganizations = entityRows(server.dbPath, 'Organization');
+    const beforeMemberships = entityRows(server.dbPath, 'OrganizationMember');
+
+    const attempts = [
+      {
+        label: 'single update',
+        path: `${collection}/${organization.id}`,
+        method: 'PUT',
+        body: { name: 'Caller Mutated Practice', subscription_status: 'active' },
+      },
+      {
+        label: 'single delete',
+        path: `${collection}/${organization.id}`,
+        method: 'DELETE',
+      },
+      {
+        label: 'delete many',
+        path: collection,
+        method: 'DELETE',
+        body: { id: organization.id },
+      },
+      {
+        label: 'bulk create',
+        path: `${collection}/bulk`,
+        method: 'POST',
+        body: [{ name: 'Caller Created Practice' }],
+      },
+      {
+        label: 'bulk update',
+        path: `${collection}/bulk`,
+        method: 'PUT',
+        body: [{ id: organization.id, name: 'Caller Bulk Mutated Practice' }],
+      },
+      {
+        label: 'update many',
+        path: `${collection}/update-many`,
+        method: 'PATCH',
+        body: { query: { id: organization.id }, data: { name: 'Caller Patch Mutated Practice' } },
+      },
+      {
+        label: 'empty bulk create',
+        path: `${collection}/bulk`,
+        method: 'POST',
+        body: [],
+      },
+      {
+        label: 'empty bulk update',
+        path: `${collection}/bulk`,
+        method: 'PUT',
+        body: [],
+      },
+      {
+        label: 'no-match update many',
+        path: `${collection}/update-many`,
+        method: 'PATCH',
+        body: { query: { id: 'nonexistent-organization' }, data: { name: 'No Match' } },
+      },
+      {
+        label: 'foreign update',
+        path: `${collection}/${foreign.body.id}`,
+        method: 'PUT',
+        body: { name: 'Foreign Mutation' },
+      },
+      {
+        label: 'nonexistent update',
+        path: `${collection}/nonexistent-organization`,
+        method: 'PUT',
+        body: { name: 'Existence Probe' },
+      },
+      {
+        label: 'foreign delete',
+        path: `${collection}/${foreign.body.id}`,
+        method: 'DELETE',
+      },
+      {
+        label: 'nonexistent delete',
+        path: `${collection}/nonexistent-organization`,
+        method: 'DELETE',
+      },
+    ];
+
+    for (const attempt of attempts) {
+      const response = await requestJson(server, attempt.path, {
+        method: attempt.method,
+        token: user.token,
+        body: attempt.body,
+      });
+      assert.equal(response.status, 403, `${attempt.label}: ${response.text}`);
+      assert.equal(response.body?.message, 'organisation changes are server-controlled');
+    }
+
+    for (const anonymousAttempt of [
+      { path: `${collection}/${organization.id}`, method: 'DELETE' },
+      { path: `${collection}/bulk`, method: 'PUT', body: [] },
+      {
+        path: `${collection}/update-many`,
+        method: 'PATCH',
+        body: { query: {}, data: { name: 'Anonymous Mutation' } },
+      },
+    ]) {
+      const response = await requestJson(server, anonymousAttempt.path, anonymousAttempt);
+      assert.equal(response.status, 401, response.text);
+    }
+
+    const ownRead = await requestJson(server, `${collection}/${organization.id}`, { token: user.token });
+    const foreignRead = await requestJson(server, `${collection}/${foreign.body.id}`, { token: user.token });
+    assert.equal(ownRead.status, 200, ownRead.text);
+    assert.equal(foreignRead.status, 404, foreignRead.text);
+    assert.deepEqual(entityRows(server.dbPath, 'Organization'), beforeOrganizations);
+    assert.deepEqual(entityRows(server.dbPath, 'OrganizationMember'), beforeMemberships);
+
+    const adminUpdate = await requestJson(server, `${collection}/${organization.id}`, {
+      method: 'PUT', token: adminToken, body: { name: 'Synthetic Admin-Maintained Practice' },
+    });
+    assert.equal(adminUpdate.status, 200, adminUpdate.text);
+    assert.equal(adminUpdate.body?.name, 'Synthetic Admin-Maintained Practice');
   } finally {
     await server.stop();
   }

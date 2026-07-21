@@ -1303,12 +1303,40 @@ async function runChecks(baseUrl, appId) {
       );
     }
 
-    // 3. syncStripeSubscription reflects the mock store.
+    // 3. Make the local entitlement deliberately stale, then prove
+    // syncStripeSubscription both reports and PERSISTS the provider state.
+    // The public updateMe surface must strip these fields, so reconciliation
+    // uses its own narrow server-owned writer.
+    const { status: staleStatus } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/entities/User/${stripeUserId}`,
+      {
+        method: 'PUT',
+        token: adminToken,
+        body: {
+          subscription_status: 'inactive',
+          stripe_customer_id: null,
+          stripe_subscription_id: null,
+          subscription_start_date: null,
+        },
+      },
+    );
+    record('subscription sync fixture is made stale', staleStatus === 200, `status=${staleStatus}`);
+
     const { status: syncStatus, body: syncBody } = await api(
       baseUrl,
       appId,
       `/api/apps/${appId}/functions/syncStripeSubscription`,
-      { method: 'POST', token: stripeUserToken, body: {} },
+      {
+        method: 'POST',
+        token: stripeUserToken,
+        body: {
+          stripe_customer_id: 'cus_caller_controlled',
+          stripe_subscription_id: 'sub_caller_controlled',
+          subscription_status: 'active',
+        },
+      },
     );
     record(
       'syncStripeSubscription reconciles from the mock Stripe store',
@@ -1317,6 +1345,26 @@ async function runChecks(baseUrl, appId) {
         syncBody?.data?.stripe_customer_id === mockCustomerId &&
         syncBody?.data?.stripe_subscription_id === mockSubscriptionId,
       `status=${syncStatus} body=${JSON.stringify(syncBody)}`,
+    );
+    const { status: syncedMeStatus, body: syncedMeBody } = await api(
+      baseUrl,
+      appId,
+      `/api/apps/${appId}/entities/User/me`,
+      { token: stripeUserToken },
+    );
+    record(
+      'syncStripeSubscription persists the exact provider entitlement',
+      syncedMeStatus === 200 &&
+        syncedMeBody?.subscription_status === syncBody?.data?.subscription_status &&
+        syncedMeBody?.stripe_customer_id === syncBody?.data?.stripe_customer_id &&
+        syncedMeBody?.stripe_subscription_id === syncBody?.data?.stripe_subscription_id &&
+        syncedMeBody?.subscription_start_date === syncBody?.data?.subscription_start_date &&
+        syncedMeBody?.id === meBody?.id &&
+        syncedMeBody?.email === meBody?.email &&
+        syncedMeBody?.role === meBody?.role &&
+        syncedMeBody?.account_status === meBody?.account_status &&
+        syncedMeBody?.email_verified === meBody?.email_verified,
+      `status=${syncedMeStatus} body=${JSON.stringify(syncedMeBody)}`,
     );
   }
 
