@@ -88,9 +88,9 @@ test('T04 public-surface workflow checks explicitly propagate failures and requi
     assert.match(source, /read_public_surface\(\)[\s\S]*?node --input-type=module <<'NODE' \|\| return 1/);
     assert.match(source, /anonymous-file[\s\S]*?\[\[ "\$status" == '401' \]\] \|\| return 1/);
   }
-  for (const file of ['production-deploy.yml', 'production-prepare-rollback-image.yml']) {
+  for (const file of ['production-prepare-release.yml', 'production-prepare-rollback-image.yml']) {
     const source = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', file), 'utf8');
-    const marker = file === 'production-deploy.yml'
+    const marker = file === 'production-prepare-release.yml'
       ? '      - name: Secret and high-entropy diff scan'
       : '      - name: Secret scan and local image gate';
     const start = source.indexOf(marker);
@@ -98,7 +98,8 @@ test('T04 public-surface workflow checks explicitly propagate failures and requi
     assert.notEqual(start, -1, `${file} scanner step is missing`);
     const scannerStep = source.slice(start, end === -1 ? undefined : end);
     assert.match(scannerStep, /env:[\s\S]*?EXPECTED_RELEASE_SCANNER_SHA256:\s*[0-9a-f]{64}[\s\S]*?run:/);
-    assert.match(scannerStep, /actual_scanner_sha256=.*sha256sum scripts\/scan-release-diff\.mjs/);
+    assert.match(scannerStep, /sha256sum scripts\/scan-release-diff\.mjs/);
+    assert.match(scannerStep, /\$EXPECTED_RELEASE_SCANNER_SHA256/);
     assert.match(scannerStep, /node scripts\/scan-release-diff\.mjs/);
   }
 });
@@ -205,24 +206,36 @@ test('T07 referral workflow auto-resolves one practice but requires an explicit 
   assert.match(REFERRAL_PROCESSING_ATTESTATION, /documented.*notice and consent.*valid authority/i);
 });
 
-function assertImmutablePushDigestBinding(source) {
-  const releaseStep = source.slice(source.indexOf('      - name: Final secret-bearing Fly release command'));
+function assertTwoPhaseImmutableDigestBinding(preparationSource, deploySource) {
+  const publishStart = preparationSource.indexOf('      - name: Publish immutable image and seal compatibility bundle');
+  const publishEnd = preparationSource.indexOf('\n      - name:', publishStart + 1);
+  assert.notEqual(publishStart, -1);
+  const publishStep = preparationSource.slice(publishStart, publishEnd === -1 ? undefined : publishEnd);
+  assert.match(publishStep, /push_output="\$\(timeout[\s\S]*?docker push "\$new_image_tag" 2>&1\)"/);
+  assert.match(
+    publishStep,
+    /candidate_registry_digest="\$\(printf '%s\\n' "\$push_output"[\s\S]*?digest: \(sha256:\[0-9a-f\]\{64\}\)/,
+  );
+  assert.match(publishStep, /candidate_image_ref="registry\.fly\.io\/\$app@\$candidate_registry_digest"/);
+  assert.equal((publishStep.match(/docker push "\$new_image_tag"/g) || []).length, 1);
+  assert.doesNotMatch(publishStep, /\bfly deploy\b/);
+
+  const releaseStep = deploySource.slice(
+    deploySource.indexOf('      - name: Final secret-bearing Fly release command and public verification'),
+  );
   assert.notEqual(releaseStep.length, 0);
-  assert.match(releaseStep, /push_output="\$\(docker push "\$new_image_tag" 2>&1\)"/);
   assert.match(
-    releaseStep,
-    /candidate_digest="\$\(printf '%s\\n' "\$push_output"[\s\S]*?digest: \(sha256:\[0-9a-f\]\{64\}\)/,
+    deploySource,
+    /CANDIDATE_IMAGE_REF:\s*registry\.fly\.io\/assesssuite-production@\$\{\{ inputs\.application_image_digest \}\}/,
   );
+  assert.match(releaseStep, /--image "\$candidate_image_ref"/);
+  assert.match(releaseStep, /--remote-only/);
+  assert.match(releaseStep, /--skip-release-command/);
+  assert.doesNotMatch(releaseStep, /docker (?:build|push|run)|npm (?:ci|run)|actions\/checkout/);
   assert.match(
-    releaseStep,
-    /docker image inspect "\$new_image_tag"[\s\S]*?\.RepoDigests[\s\S]*?"\$\{#local_repo_digests\[@\]\}" -eq 1[\s\S]*?"\$\{local_repo_digests\[0\]\}" == "\$candidate_image_ref"/,
+    deploySource,
+    /artifact-ids:\s*\$\{\{ inputs\.deploy_bundle_artifact_id \}\}[\s\S]*?github-token:\s*\$\{\{ github\.token \}\}[\s\S]*?run-id:\s*\$\{\{ inputs\.preparation_run_id \}\}/,
   );
-  assert.doesNotMatch(releaseStep, /imagetools inspect "\$new_image_tag"/);
-  assert.match(
-    releaseStep,
-    /docker buildx imagetools inspect "\$candidate_image_ref"[\s\S]*?fly deploy[\s\S]*?--image "\$candidate_image_ref"/,
-  );
-  assert.equal((releaseStep.match(/docker push "\$new_image_tag"/g) || []).length, 1);
 }
 
 test('T08 application candidate carries no branch-sourced secret-bearing hotfix workflow', () => {
@@ -275,12 +288,16 @@ test('T09 SOAP history print output encodes persisted values and isolates the po
   assert.doesNotMatch(historyPrint, /document\.write/);
 });
 
-test('T10 generic production release also binds deployment to its single pushed digest', () => {
-  const source = fs.readFileSync(
+test('T10 production publication and deployment are split at the immutable digest boundary', () => {
+  const preparationSource = fs.readFileSync(
+    path.join(repoRoot, '.github', 'workflows', 'production-prepare-release.yml'),
+    'utf8',
+  );
+  const deploySource = fs.readFileSync(
     path.join(repoRoot, '.github', 'workflows', 'production-deploy.yml'),
     'utf8',
   );
-  assertImmutablePushDigestBinding(source);
+  assertTwoPhaseImmutableDigestBinding(preparationSource, deploySource);
 });
 
 test('T11 every production mutation workflow pins the established 3 GB Sydney volume', () => {
@@ -291,10 +308,11 @@ test('T11 every production mutation workflow pins the established 3 GB Sydney vo
     const source = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', file), 'utf8');
     assert.match(
       source,
-      /Number\(volume\.size_gb \?\? volume\.sizeGb \?\? volume\.SizeGB\) !== 3/,
+      /volume\.size_gb !== 3/,
       `${file} must pin the established 3 GB volume`,
     );
-    assert.match(source, /one 3 GB assesssuite_data volume in syd/);
+    assert.match(source, /volume\.name !== 'assesssuite_data'/);
+    assert.match(source, /volume\.region !== 'syd'/);
     assert.doesNotMatch(source, /one 1 GB assesssuite_data volume in syd/);
   }
 });

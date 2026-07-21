@@ -24,6 +24,7 @@ The compatibility source is the same merged `main` revision, not a separately ma
 Production mutations are permitted only through the reviewed workflow definitions on `main`:
 
 - `.github/workflows/production-prepare-rollback-image.yml`;
+- `.github/workflows/production-prepare-release.yml`;
 - `.github/workflows/production-deploy.yml`;
 - `.github/workflows/production-rollback.yml`; and
 - `.github/workflows/production-parity-assurance.yml`.
@@ -40,10 +41,10 @@ Do not inspect or mutate production clinical records, referral contents, uploade
 | Immutable default-branch source | Remote `main`, `github.sha`, `github.workflow_sha`, checked-out application SHA and both runtime source SHAs equal `C`. |
 | Trusted definitions | Every workflow dispatch uses `--ref main`; the workflow path/ref, repository, actor, non-fork status and remote `main` tip are checked before source execution. |
 | Read-only GitHub token | Workflow permissions remain least privilege; only parity receipt chaining additionally requires `actions: read`. |
-| Secret isolation | Source, install, tests, scans and local image gates run without `FLY_API_TOKEN`. Only reviewed inline sealed steps receive it. Candidate code is never executed with that token. |
+| Secret isolation | Source, install, tests, scans and local image gates run without `FLY_API_TOKEN`. The preparation workflow exposes it only to the reviewed registry-publication step; the deploy workflow exposes it only to its final reviewed release step. Candidate code is never executed with that token. |
 | Supply-chain pins | Every third-party action, Node runtime, Fly CLI archive and Docker base image remains pinned to the reviewed immutable identity. |
 | Exact configuration | The LF-byte SHA-256 values of `fly.production.toml` and `fly.rollback.production.toml` at `C` match the dispatch inputs and workflow checks. |
-| Immutable images | Candidate and compatibility images are built from `C`, pushed once, resolved to `registry.fly.io/assesssuite-production@sha256:<64-hex>`, and thereafter selected only by digest. |
+| Immutable images and handoff | Candidate and compatibility images are built from `C`. The preparation workflow pushes the candidate once, resolves it to `registry.fly.io/assesssuite-production@sha256:<64-hex>`, proves exact-image compatibility and seals a bounded deploy bundle. The deploy workflow accepts only that exact preparation run, artifact identities, manifest hash and digest. |
 | Current-state lock | Immediately refreshed release, image, Machine ID and volume ID must match the dispatch inputs immediately before each mutation. |
 | Topology lock | Exactly one production Machine in `syd` is attached to the exact encrypted 3 GB `assesssuite_data` volume. No second production Machine or production volume is accepted. |
 | Snapshot lock | Scheduled snapshots and five-day retention are re-established and re-read on the exact production volume; deploy additionally creates and proves one new on-demand predeployment snapshot. |
@@ -99,6 +100,7 @@ Validate every trusted workflow in ordinary and mutation-test modes:
 
 ```powershell
 $workflows = @(
+  '.github/workflows/production-prepare-release.yml',
   '.github/workflows/production-deploy.yml',
   '.github/workflows/production-prepare-rollback-image.yml',
   '.github/workflows/production-rollback.yml',
@@ -212,9 +214,37 @@ The workflow must:
 
 Record the workflow run ID/URL, config hash, image tag, immutable digest, topology and unchanged-release proof. Do not proceed unless the digest can be independently inspected and is available for immediate rollback.
 
-## 9. Deploy the exact merged candidate
+## 9. Publish and deploy the exact merged candidate
 
-Create and start the distinct deploy capability/effect intents, then dispatch:
+### 9.1 Publish and seal the candidate without a live release
+
+Create and start the distinct candidate-publication capability/effect intent, then dispatch the preparation workflow at `C`:
+
+```powershell
+gh workflow run production-prepare-release.yml --ref main `
+  -f trusted_workflow_sha=$C `
+  -f application_sha=$C `
+  -f candidate_config_sha256=$CandidateConfigSha256 `
+  -f rollback_config_sha256=$RollbackConfigSha256 `
+  -f rollback_image=$CompatibilityImageDigest `
+  -f extraction_runtime_mode=enabled `
+  -f provider_terms_attestation=TERMS-VERIFIED-HEALTH-DATA-20260719 `
+  -f provider_terms_evidence_id=EVD-20260719-ASSESSSUITE-OPENAI-HEALTH-TERMS-ATTESTATION `
+  -f under_age_zdr_runtime_mode=disabled `
+  -f under_age_zdr_attestation=UNDER-AGE-ZDR-DISABLED `
+  -f under_age_zdr_evidence_id=NOT-APPLICABLE-UNDER-AGE-ZDR-DISABLED `
+  -f capability_intent_id=$PrepareReleaseIntentId `
+  -f authority_reference=UM-AUTO-20260721-ASSESSSUITE-REFERRAL-RECOVERY-R2 `
+  -f confirmation='PREPARE assesssuite-production EXACT SHA'
+```
+
+This workflow must run all candidate gates and build the image without the Fly credential, hand the exact image to a separate publication job, push it once, resolve its immutable registry digest, prove it against the prebuilt compatibility image and seal the bounded six-file deploy bundle. It must not invoke `fly deploy` or otherwise change the live release, Machine or volume.
+
+Record and independently validate the successful preparation run ID, exact candidate image reference and `sha256:` digest, deploy-bundle artifact ID and artifact digest, and deploy-bundle manifest SHA-256. The subsequent production intent must declare those exact values before the deploy dispatch. A mutable tag, a recreated bundle, a failed or expired preparation run, or any mismatch between the content-free receipts and those declared values is a stop condition.
+
+### 9.2 Consume the sealed handoff and perform the live effect
+
+Refresh the production release, image, Machine and volume again. Create and start the distinct deploy capability/effect intents only after the preparation evidence has been validated, then dispatch the `production-deploy workflow`:
 
 ```powershell
 gh workflow run production-deploy.yml --ref main `
@@ -222,13 +252,10 @@ gh workflow run production-deploy.yml --ref main `
   -f application_sha=$C `
   -f candidate_config_sha256=$CandidateConfigSha256 `
   -f rollback_config_sha256=$RollbackConfigSha256 `
-  -f source_branch=main `
   -f expected_current_release=$CurrentRelease `
   -f expected_current_image=$CurrentImage `
   -f expected_machine_id=$ProductionMachineId `
   -f expected_volume_id=$ProductionVolumeId `
-  -f rollback_source_sha=$C `
-  -f rollback_source_branch=main `
   -f rollback_image=$CompatibilityImageDigest `
   -f rollback_release_sha=$C `
   -f extraction_runtime_mode=enabled `
@@ -239,12 +266,17 @@ gh workflow run production-deploy.yml --ref main `
   -f under_age_zdr_evidence_id=NOT-APPLICABLE-UNDER-AGE-ZDR-DISABLED `
   -f capability_intent_id=$DeployIntentId `
   -f authority_reference=UM-AUTO-20260721-ASSESSSUITE-REFERRAL-RECOVERY-R2 `
+  -f preparation_run_id=$PreparationRunId `
+  -f application_image_digest=$CandidateImageDigest `
+  -f deploy_bundle_artifact_id=$DeployBundleArtifactId `
+  -f deploy_bundle_artifact_digest=$DeployBundleArtifactDigest `
+  -f deploy_bundle_manifest_sha256=$DeployBundleManifestSha256 `
   -f confirmation='DEPLOY assesssuite-production EXACT SHA'
 ```
 
-The sealed workflow must refuse mutation unless it proves all frozen identities and current-state guards. Before deployment it must create exactly one new on-demand snapshot and record content-free evidence comprising the snapshot ID, digest, source volume ID, creation count and UTC timestamp. The snapshot must bind to the exact encrypted production volume; no unsupported per-snapshot encryption claim is required.
+The sealed deploy workflow must refuse mutation unless it proves the preparation run succeeded at `C`, downloads the bounded bundle by its immutable artifact ID, verifies the artifact digest, exact six-file allowlist, manifest hash, receipt chain, candidate digest and compatibility-image binding, and proves all frozen identities and current-state guards. Before deployment it must create exactly one new on-demand snapshot and record content-free evidence comprising the snapshot ID, digest, source volume ID, creation count and UTC timestamp. The snapshot must bind to the exact encrypted production volume; no unsupported per-snapshot encryption claim is required.
 
-The workflow then pushes the already gated candidate image, resolves its immutable digest and deploys that digest with the reviewed candidate configuration using immediate, single-Machine update semantics. It must preserve the exact production volume and topology.
+The deploy workflow must not rebuild or republish the candidate. It deploys only the prepublished digest declared in the production intent and sealed by the preparation workflow, using the reviewed candidate configuration and immediate, single-Machine update semantics. It must preserve the exact production volume and topology.
 
 Enabled extraction cannot close on deterministic tests alone. Require both:
 

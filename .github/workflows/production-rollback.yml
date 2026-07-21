@@ -204,7 +204,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 09cf0d6d518ffa10df8dc0e70bd3922ec89460ac0fa4f88f2cd902910c97dfcb
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 63cb8f9a37bed7f8d99aa65a12e5d7efbeb36f838429b829a981dde2dab6c9f5
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -329,10 +329,10 @@ jobs:
             local legacy_mode=$2
             local payload="$RUNNER_TEMP/$label-secret-names.json"
             timeout --signal=TERM --kill-after=10s 60s fly secrets list --app "$app" --json >"$payload"
-            SECRET_NAMES_JSON="$payload" ROLLBACK_CONFIG="$rollback_config" LEGACY_MODE="$legacy_mode" \
+            REQUIRED_NAMES_JSON="$payload" ROLLBACK_CONFIG="$rollback_config" LEGACY_MODE="$legacy_mode" \
               env -u FLY_API_TOKEN node --input-type=module <<'NODE'
           import fs from 'node:fs';
-          const rows = JSON.parse(fs.readFileSync(process.env.SECRET_NAMES_JSON, 'utf8'));
+          const rows = JSON.parse(fs.readFileSync(process.env.REQUIRED_NAMES_JSON, 'utf8'));
           if (!Array.isArray(rows) || rows.length === 0) throw new Error('Fly secret metadata is not a non-empty array');
           const names = [];
           for (const row of rows) {

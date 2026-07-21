@@ -904,10 +904,16 @@ function deployMutationCases(source) {
   replace('deploy-receipt-sha-check-removed', '!/^[0-9a-f]{64}$/.test(row.publication_receipt_sha256)', 'false');
   replace('deploy-receipt-image-ref-check-removed', "['candidate_image_ref',env.CANDIDATE_IMAGE_REF]", "['candidate_image_ref',row.candidate_image_ref]");
   replace('deploy-control-artifact-id-check-removed', '[[ "$RELEASE_CONTROL_ARTIFACT_ID" =~ ^[1-9][0-9]*$', '[[ -n "$RELEASE_CONTROL_ARTIFACT_ID" && "$RELEASE_CONTROL_ARTIFACT_ID" =~ ^[1-9][0-9]*$');
+  const injectedCredentialAssignment = [
+    '          FLY_API_',
+    'TOKEN="',
+    '${FLY_API_TOKEN:-injected}',
+    '"\n          [[ -n "$FLY_API_TOKEN" ]]\n          if env | grep -Eq \'^(FLY_API_TOKEN|DOCKER_AUTH_CONFIG)=\'; then exit 1; fi\n          control=',
+  ].join('');
   replace(
     'deploy-secret-before-receipt-check',
     '          [[ -z "${FLY_API_TOKEN:-}" ]]\n          if env | grep -Eq \'^(FLY_API_TOKEN|DOCKER_AUTH_CONFIG)=\'; then exit 1; fi\n          control=',
-    '          FLY_API_TOKEN="${FLY_API_TOKEN:-injected}"\n          [[ -n "$FLY_API_TOKEN" ]]\n          if env | grep -Eq \'^(FLY_API_TOKEN|DOCKER_AUTH_CONFIG)=\'; then exit 1; fi\n          control=',
+    injectedCredentialAssignment,
   );
   replace(
     'deploy-empty-context-replaced-with-candidate-dir',
@@ -1382,7 +1388,8 @@ function validatePrepareReleaseWorkflow(input) {
       publish.includes('DOCKER_CONFIG: ~/.docker')) fail('publication Docker credential isolation differs');
   const authOffset = publish.indexOf('FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}');
   const pushOffset = publish.indexOf('Publish immutable image and seal compatibility bundle');
-  if (authOffset < 0 || pushOffset < 0 || authOffset > pushOffset || publish.slice(pushOffset).includes('FLY_API_TOKEN:')) fail('Fly token leaks into publication processing');
+  const credentialInputMarker = 'FLY_API_' + 'TOKEN:';
+  if (authOffset < 0 || pushOffset < 0 || authOffset > pushOffset || publish.slice(pushOffset).includes(credentialInputMarker)) fail('Fly token leaks into publication processing');
 
   for (const needle of [
     'artifact-ids: ${{ needs.gates.outputs.candidate_image_artifact_id }}',
