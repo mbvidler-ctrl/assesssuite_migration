@@ -3,12 +3,20 @@ name: Production deploy - exact SHA
 on:
   workflow_dispatch:
     inputs:
-      application_sha:
-        description: Exact 40-character application commit SHA; must equal the remote source-branch tip
+      trusted_workflow_sha:
+        description: Exact current main SHA supplying this trusted workflow; must equal github.workflow_sha and the remote main tip
         required: true
         type: string
-      source_branch:
-        description: Repository branch whose remote tip is the application SHA
+      application_sha:
+        description: Exact 40-character application commit SHA; must equal this workflow SHA and the remote main tip
+        required: true
+        type: string
+      candidate_config_sha256:
+        description: Reviewed SHA-256 of the exact candidate fly.production.toml Git blob (LF bytes)
+        required: true
+        type: string
+      rollback_config_sha256:
+        description: Reviewed SHA-256 of the exact fly.rollback.production.toml Git blob from the same main commit (LF bytes)
         required: true
         type: string
       expected_current_release:
@@ -19,12 +27,12 @@ on:
         description: Current full registry.fly.io/assesssuite-production image reference
         required: true
         type: string
-      rollback_source_sha:
-        description: Exact reviewed source SHA supplying fly.production.toml for rollback
+      expected_machine_id:
+        description: Exact sole production Fly Machine ID recorded immediately before dispatch
         required: true
         type: string
-      rollback_source_branch:
-        description: Repository branch whose remote tip is the rollback source SHA
+      expected_volume_id:
+        description: Exact sole attached assesssuite_data Fly Volume ID recorded immediately before dispatch
         required: true
         type: string
       rollback_image:
@@ -75,12 +83,33 @@ on:
         description: Mission/order and approved deployment-intent reference
         required: true
         type: string
+      preparation_run_id:
+        description: Successful production-prepare-release workflow run ID that sealed the exact candidate
+        required: true
+        type: string
+      application_image_digest:
+        description: Exact sha256 registry digest declared in the authorised production intent before this dispatch
+        required: true
+        type: string
+      deploy_bundle_artifact_id:
+        description: Immutable bounded deploy-bundle artifact ID from the preparation run
+        required: true
+        type: string
+      deploy_bundle_artifact_digest:
+        description: Exact deploy-bundle artifact digest from the preparation run
+        required: true
+        type: string
+      deploy_bundle_manifest_sha256:
+        description: Exact SHA-256 of the bounded deploy-bundle manifest declared in the authorised production intent
+        required: true
+        type: string
       confirmation:
         description: Type DEPLOY assesssuite-production EXACT SHA
         required: true
         type: string
 
 permissions:
+  actions: read
   contents: read
 
 concurrency:
@@ -88,69 +117,167 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  gates:
-    name: Verify provenance and run release gates
+  deploy:
+    name: Deploy exact SHA and verify production
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
-    outputs:
-      application_sha: ${{ steps.metadata.outputs.application_sha }}
-      build_timestamp: ${{ steps.metadata.outputs.build_timestamp }}
-      source_branch: ${{ steps.metadata.outputs.source_branch }}
+    # Inner command deadlines reserve enough of this ceiling for the complete
+    # automatic rollback and verification path after any late canary failure.
+    timeout-minutes: 90
     steps:
-      - name: Validate trusted dispatch context and inputs
+      - name: Record the rollback-reserved deployment-job deadline
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'DEPLOY_JOB_STARTED_EPOCH=%s\n' "$(date -u +%s)" >> "$GITHUB_ENV"
+
+      - name: Validate immutable production intent and successful preparation run
         shell: bash
         env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 09cf0d6d518ffa10df8dc0e70bd3922ec89460ac0fa4f88f2cd902910c97dfcb
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
-          SOURCE_BRANCH: ${{ inputs.source_branch }}
-          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
-          ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
+          CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
+          ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
+          SOURCE_BRANCH: main
           EXPECTED_CURRENT_RELEASE: ${{ inputs.expected_current_release }}
           EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}
+          EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          ROLLBACK_SOURCE_SHA: ${{ inputs.application_sha }}
+          ROLLBACK_SOURCE_BRANCH: main
           ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
           ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
           CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
           AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          PREPARATION_RUN_ID: ${{ inputs.preparation_run_id }}
+          CANDIDATE_IMAGE_REF: registry.fly.io/assesssuite-production@${{ inputs.application_image_digest }}
+          APPLICATION_IMAGE_DIGEST: ${{ inputs.application_image_digest }}
+          DEPLOY_BUNDLE_ARTIFACT_ID: ${{ inputs.deploy_bundle_artifact_id }}
+          DEPLOY_BUNDLE_ARTIFACT_DIGEST: ${{ inputs.deploy_bundle_artifact_digest }}
+          DEPLOY_BUNDLE_MANIFEST_SHA256: ${{ inputs.deploy_bundle_manifest_sha256 }}
           CONFIRMATION: ${{ inputs.confirmation }}
           EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
           WORKFLOW_REF: ${{ github.workflow_ref }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
           REPOSITORY: ${{ github.repository }}
           ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
           IS_FORK: ${{ github.event.repository.fork }}
         run: |
           set -euo pipefail
+          set +x
           [[ "$REPOSITORY" == "mbvidler-ctrl/assesssuite_migration" ]]
-          [[ "$ACTOR" == "mbvidler-ctrl" ]]
-          [[ "$IS_FORK" == "false" ]]
-          [[ "$EVENT_REF" == "refs/heads/main" ]]
+          [[ "$ACTOR" == "mbvidler-ctrl" && "$TRIGGERING_ACTOR" == "mbvidler-ctrl" ]]
+          [[ "$IS_FORK" == "false" && "$EVENT_REF" == "refs/heads/main" ]]
           [[ "$WORKFLOW_REF" == "mbvidler-ctrl/assesssuite_migration/.github/workflows/production-deploy.yml@refs/heads/main" ]]
-          [[ "$CONFIRMATION" == "DEPLOY assesssuite-production EXACT SHA" ]]
-          [[ "$APPLICATION_SHA" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$ROLLBACK_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$ROLLBACK_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
-          [[ "$SOURCE_BRANCH" =~ ^[A-Za-z0-9._/-]{1,180}$ ]]
-          [[ "$ROLLBACK_SOURCE_BRANCH" =~ ^[A-Za-z0-9._/-]{1,180}$ ]]
-          [[ "$SOURCE_BRANCH" != *".."* && "$SOURCE_BRANCH" != /* && "$SOURCE_BRANCH" != */ ]]
-          [[ "$ROLLBACK_SOURCE_BRANCH" != *".."* && "$ROLLBACK_SOURCE_BRANCH" != /* && "$ROLLBACK_SOURCE_BRANCH" != */ ]]
-          [[ "$EXPECTED_CURRENT_RELEASE" =~ ^[A-Za-z0-9._:-]{1,120}$ ]]
+          [[ "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" && "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$APPLICATION_SHA" =~ ^[0-9a-f]{40}$ && "$APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$SOURCE_BRANCH" == "main" && "$ROLLBACK_SOURCE_BRANCH" == "main" ]]
+          [[ "$ROLLBACK_SOURCE_SHA" == "$APPLICATION_SHA" && "$ROLLBACK_RELEASE_SHA" == "$APPLICATION_SHA" ]]
+          [[ "$CANDIDATE_CONFIG_SHA256" =~ ^[0-9a-f]{64}$ && "$ROLLBACK_CONFIG_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$EXPECTED_CURRENT_RELEASE" =~ ^v[1-9][0-9]*$ ]]
           [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\.fly\.io/assesssuite-production(:[A-Za-z0-9._-]{1,128}|@sha256:[0-9a-f]{64})$ ]]
+          [[ "$EXPECTED_MACHINE_ID" =~ ^[0-9a-f]{14,32}$ && "$EXPECTED_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]
           [[ "$ROLLBACK_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
-          [[ "$ROLLBACK_RELEASE_SHA" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ -n "$CAPABILITY_INTENT_ID" && "$CAPABILITY_INTENT_ID" != *$'\n'* ]]
-          [[ -n "$AUTHORITY_REFERENCE" && "$AUTHORITY_REFERENCE" != *$'\n'* ]]
+          [[ "$CANDIDATE_IMAGE_REF" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
+          [[ "$APPLICATION_IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$CANDIDATE_IMAGE_REF" == "registry.fly.io/assesssuite-production@$APPLICATION_IMAGE_DIGEST" ]]
+          [[ "$PREPARATION_RUN_ID" =~ ^[1-9][0-9]*$ && "$PREPARATION_RUN_ID" != "$GITHUB_RUN_ID" ]]
+          [[ "$DEPLOY_BUNDLE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$DEPLOY_BUNDLE_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$DEPLOY_BUNDLE_MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$CAPABILITY_INTENT_ID" =~ ^[A-Za-z0-9._:-]{1,160}$ ]]
+          [[ "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
+          [[ "$CONFIRMATION" == "DEPLOY assesssuite-production EXACT SHA" ]]
 
-      - name: Check out exact application SHA
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+          trusted_validator="$RUNNER_TEMP/trusted-validator.mjs"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            "https://raw.githubusercontent.com/$REPOSITORY/$APPLICATION_SHA/scripts/validate-production-deploy-workflow.mjs" \
+            >"$trusted_validator"
+          [[ -f "$trusted_validator" && ! -L "$trusted_validator" && "$(wc -c <"$trusted_validator")" -le 262144 ]]
+          printf '%s  %s\n' "$EXPECTED_TRUSTED_VALIDATOR_SHA256" "$trusted_validator" | sha256sum --check --strict
+          rm -f "$trusted_validator"
+
+          run_json="$RUNNER_TEMP/preparation-run.json"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'Accept: application/vnd.github+json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPOSITORY/actions/runs/$PREPARATION_RUN_ID" >"$run_json"
+          [[ -s "$run_json" && "$(wc -c <"$run_json")" -le 262144 ]]
+          RUN_JSON="$run_json" env -u GH_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RUN_JSON, 'utf8'));
+          const same = (a, b, label) => { if (String(a) !== String(b)) throw new Error(`Preparation run ${label} differs`); };
+          if (!Number.isSafeInteger(row.id) || row.id < 1) throw new Error('Preparation run id is not a safe positive integer');
+          same(row.id, process.env.PREPARATION_RUN_ID, 'id');
+          if (!Number.isSafeInteger(row.run_attempt) || row.run_attempt < 1) throw new Error('Preparation run attempt is invalid');
+          same(row.event, 'workflow_dispatch', 'event');
+          same(row.status, 'completed', 'status');
+          same(row.conclusion, 'success', 'conclusion');
+          same(row.head_branch, 'main', 'branch');
+          same(row.head_sha, process.env.APPLICATION_SHA, 'head SHA');
+          same(row.path, '.github/workflows/production-prepare-release.yml', 'workflow path');
+          same(row.repository?.full_name, process.env.REPOSITORY, 'repository');
+          same(row.head_repository?.full_name, process.env.REPOSITORY, 'head repository');
+          same(row.actor?.login, 'mbvidler-ctrl', 'actor');
+          same(row.triggering_actor?.login, 'mbvidler-ctrl', 'triggering actor');
+          fs.appendFileSync(process.env.GITHUB_ENV, `PREPARATION_RUN_ATTEMPT=${row.run_attempt}\n`);
+          NODE
+          rm -f "$run_json"
+
+          artifact_json="$RUNNER_TEMP/deploy-bundle-artifact.json"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+            --header "Authorization: Bearer $GH_TOKEN" \
+            --header 'Accept: application/vnd.github+json' \
+            --header 'X-GitHub-Api-Version: 2022-11-28' \
+            "https://api.github.com/repos/$REPOSITORY/actions/artifacts/$DEPLOY_BUNDLE_ARTIFACT_ID" >"$artifact_json"
+          [[ -s "$artifact_json" && "$(wc -c <"$artifact_json")" -le 65536 ]]
+          ARTIFACT_JSON="$artifact_json" env -u GH_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.ARTIFACT_JSON, 'utf8'));
+          const same = (a, b, label) => { if (String(a) !== String(b)) throw new Error(`Deploy-bundle artifact ${label} differs`); };
+          if (!Number.isSafeInteger(row.id) || row.id < 1) throw new Error('Deploy-bundle artifact id is not a safe positive integer');
+          same(row.id, process.env.DEPLOY_BUNDLE_ARTIFACT_ID, 'id');
+          same(row.name, `deploy-bundle-${process.env.APPLICATION_SHA}`, 'name');
+          same(row.digest, process.env.DEPLOY_BUNDLE_ARTIFACT_DIGEST, 'digest');
+          same(row.expired, false, 'expiry state');
+          same(row.workflow_run?.id, process.env.PREPARATION_RUN_ID, 'run id');
+          same(row.workflow_run?.head_sha, process.env.APPLICATION_SHA, 'head SHA');
+          if (!Number.isSafeInteger(row.size_in_bytes) || row.size_in_bytes < 1 || row.size_in_bytes > 1_048_576) {
+            throw new Error('Deploy-bundle artifact size is invalid');
+          }
+          NODE
+          rm -f "$artifact_json"
+
+      - name: Download bounded deploy bundle by immutable artifact ID
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          ref: ${{ inputs.application_sha }}
-          fetch-depth: 0
-          persist-credentials: false
+          artifact-ids: ${{ inputs.deploy_bundle_artifact_id }}
+          path: ${{ runner.temp }}/deploy-bundle
+          github-token: ${{ github.token }}
+          repository: mbvidler-ctrl/assesssuite_migration
+          run-id: ${{ inputs.preparation_run_id }}
 
-      - name: Verify exact SHA and remote branch tip
-        id: metadata
+      - name: Validate sealed controls and compatibility receipt before secret injection
         shell: bash
         env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
-          SOURCE_BRANCH: ${{ inputs.source_branch }}
+          SOURCE_BRANCH: main
+          CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
+          ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
+          ROLLBACK_SOURCE_SHA: ${{ inputs.application_sha }}
+          ROLLBACK_SOURCE_BRANCH: main
+          ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
+          CANDIDATE_IMAGE_REF: registry.fly.io/assesssuite-production@${{ inputs.application_image_digest }}
+          APPLICATION_IMAGE_DIGEST: ${{ inputs.application_image_digest }}
+          PREPARATION_RUN_ID: ${{ inputs.preparation_run_id }}
+          DEPLOY_BUNDLE_ARTIFACT_ID: ${{ inputs.deploy_bundle_artifact_id }}
+          DEPLOY_BUNDLE_ARTIFACT_DIGEST: ${{ inputs.deploy_bundle_artifact_digest }}
+          DEPLOY_BUNDLE_MANIFEST_SHA256: ${{ inputs.deploy_bundle_manifest_sha256 }}
           EXTRACTION_RUNTIME_MODE: ${{ inputs.extraction_runtime_mode }}
           PROVIDER_TERMS_ATTESTATION: ${{ inputs.provider_terms_attestation }}
           PROVIDER_TERMS_EVIDENCE_ID: ${{ inputs.provider_terms_evidence_id }}
@@ -159,355 +286,123 @@ jobs:
           UNDER_AGE_ZDR_EVIDENCE_ID: ${{ inputs.under_age_zdr_evidence_id }}
         run: |
           set -euo pipefail
-          actual_sha="$(git rev-parse --verify 'HEAD^{commit}')"
-          [[ "$actual_sha" == "$APPLICATION_SHA" ]]
-          remote_sha="$(git ls-remote --exit-code origin "refs/heads/$SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')"
-          [[ "$remote_sha" == "$APPLICATION_SHA" ]]
-          [[ -z "$(git status --porcelain --untracked-files=no)" ]]
-
-          if grep -Eq '^[[:space:]]*DOCUMENT_EXTRACTION_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.production.toml; then
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          if env | grep -Eq '^(FLY_API_TOKEN|DOCKER_AUTH_CONFIG)='; then exit 1; fi
+          bundle="$RUNNER_TEMP/deploy-bundle"
+          candidate_config="$bundle/fly.production.toml"
+          rollback_config="$bundle/fly.rollback.production.toml"
+          manifest="$bundle/deploy-bundle-manifest.json"
+          expected_files=$'candidate-build-receipt.json\ncompatibility-receipt.json\ndeploy-bundle-manifest.json\nfly.production.toml\nfly.rollback.production.toml\npublication-receipt.json'
+          actual_files="$(find "$bundle" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)"
+          [[ "$actual_files" == "$expected_files" ]]
+          for file in fly.production.toml fly.rollback.production.toml candidate-build-receipt.json publication-receipt.json compatibility-receipt.json deploy-bundle-manifest.json; do
+            [[ -f "$bundle/$file" && ! -L "$bundle/$file" ]]
+            [[ "$(stat -c '%F' "$bundle/$file")" == 'regular file' ]]
+          done
+          [[ "$(wc -c <"$candidate_config")" -gt 0 && "$(wc -c <"$candidate_config")" -le 65536 ]]
+          [[ "$(wc -c <"$rollback_config")" -gt 0 && "$(wc -c <"$rollback_config")" -le 65536 ]]
+          for file in candidate-build-receipt.json publication-receipt.json compatibility-receipt.json deploy-bundle-manifest.json; do
+            [[ "$(wc -c <"$bundle/$file")" -gt 0 && "$(wc -c <"$bundle/$file")" -le 12288 ]]
+          done
+          [[ "$(sha256sum "$manifest" | awk '{print $1}')" == "$DEPLOY_BUNDLE_MANIFEST_SHA256" ]]
+          [[ "$(sha256sum "$candidate_config" | awk '{print $1}')" == "$CANDIDATE_CONFIG_SHA256" ]]
+          [[ "$(sha256sum "$rollback_config" | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
+          BUNDLE="$bundle" MANIFEST="$manifest" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          const canonical = (name) => {
+            const raw = fs.readFileSync(path.join(process.env.BUNDLE, name), 'utf8');
+            const value = JSON.parse(raw);
+            if (raw !== `${JSON.stringify(value)}\n`) throw new Error(`${name} is not canonical single-object JSON`);
+            return value;
+          };
+          const exactKeys = (value, expected, label) => {
+            if (!value || typeof value !== 'object' || Array.isArray(value) ||
+                JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([...expected].sort())) {
+              throw new Error(`${label} keys differ`);
+            }
+          };
+          const digest = (name) => crypto.createHash('sha256').update(fs.readFileSync(path.join(process.env.BUNDLE, name))).digest('hex');
+          const build = canonical('candidate-build-receipt.json');
+          const publication = canonical('publication-receipt.json');
+          const compatibility = canonical('compatibility-receipt.json');
+          const manifest = canonical('deploy-bundle-manifest.json');
+          const markers = ['ROLLBACK_PROOF_REGISTERING_STATE','ROLLBACK_PROOF_39_FIELD_PER_FILE_MERGE','ROLLBACK_PROOF_AGE_QUARANTINE','ROLLBACK_PROOF_REFERRAL_COMMIT_RECEIPT_REPLAY'];
+          exactKeys(build, ['schema_version','application_sha','source_branch','build_timestamp','candidate_image_id','candidate_archive_sha256'], 'Candidate build receipt');
+          exactKeys(publication, ['schema_version','application_sha','workflow_sha','source_branch','build_timestamp','candidate_config_sha256','rollback_config_sha256','candidate_image_artifact_id','candidate_image_artifact_digest','candidate_archive_sha256','candidate_image_id','candidate_registry_digest','candidate_image_ref','rollback_image_ref','rollback_image_id','rollback_archive_sha256','github_run_id','github_run_attempt','published_at'], 'Publication receipt');
+          exactKeys(compatibility, ['schema_version','result','workflow_sha','application_sha','candidate_config_sha256','rollback_config_sha256','candidate_image_ref','rollback_image_ref','candidate_image_id','rollback_image_id','forward_proof_digest','rollback_proof_digest','publication_artifact_id','publication_artifact_digest','release_control_artifact_id','release_control_artifact_digest','publication_receipt_sha256','markers','github_run_id','github_run_attempt','verified_at'], 'Compatibility receipt');
+          exactKeys(manifest, ['schema_version','result','publication_run_id','publication_run_attempt','workflow_sha','application_sha','build_timestamp','candidate_config_sha256','rollback_config_sha256','candidate_image_artifact_id','candidate_image_artifact_digest','release_control_artifact_id','release_control_artifact_digest','publication_artifact_id','publication_artifact_digest','compatibility_artifact_id','compatibility_artifact_digest','candidate_build_receipt_sha256','publication_receipt_sha256','compatibility_receipt_sha256','candidate_image_id','candidate_image_ref','application_image_digest','rollback_image_ref','rollback_image_id','markers'], 'Deploy bundle manifest');
+          const e = process.env;
+          const same = (actual, expected, label) => { if (String(actual) !== String(expected)) throw new Error(`${label} differs`); };
+          same(manifest.schema_version, 'assesssuite.deploy-bundle-manifest.v1', 'Manifest schema');
+          same(manifest.result, 'PASS', 'Manifest result');
+          same(manifest.publication_run_id, e.PREPARATION_RUN_ID, 'Manifest run id');
+          same(manifest.publication_run_attempt, e.PREPARATION_RUN_ATTEMPT, 'Manifest run attempt');
+          same(manifest.workflow_sha, e.TRUSTED_WORKFLOW_SHA, 'Manifest workflow SHA');
+          same(manifest.application_sha, e.APPLICATION_SHA, 'Manifest application SHA');
+          same(manifest.candidate_config_sha256, e.CANDIDATE_CONFIG_SHA256, 'Manifest candidate config hash');
+          same(manifest.rollback_config_sha256, e.ROLLBACK_CONFIG_SHA256, 'Manifest rollback config hash');
+          same(manifest.candidate_image_ref, e.CANDIDATE_IMAGE_REF, 'Manifest candidate image ref');
+          same(manifest.application_image_digest, e.APPLICATION_IMAGE_DIGEST, 'Manifest application image digest');
+          same(manifest.rollback_image_ref, e.ROLLBACK_IMAGE, 'Manifest rollback image ref');
+          same(manifest.candidate_build_receipt_sha256, digest('candidate-build-receipt.json'), 'Candidate build receipt hash');
+          same(manifest.publication_receipt_sha256, digest('publication-receipt.json'), 'Publication receipt hash');
+          same(manifest.compatibility_receipt_sha256, digest('compatibility-receipt.json'), 'Compatibility receipt hash');
+          same(build.schema_version, 'assesssuite.candidate-build-receipt.v1', 'Build schema');
+          same(build.application_sha, e.APPLICATION_SHA, 'Build application SHA');
+          same(build.source_branch, 'main', 'Build source branch');
+          same(build.build_timestamp, manifest.build_timestamp, 'Build timestamp');
+          same(build.candidate_image_id, manifest.candidate_image_id, 'Build candidate image id');
+          same(publication.schema_version, 'assesssuite.image-publication-receipt.v1', 'Publication schema');
+          for (const [key, expected] of [['application_sha',e.APPLICATION_SHA],['workflow_sha',e.TRUSTED_WORKFLOW_SHA],['source_branch','main'],['build_timestamp',manifest.build_timestamp],['candidate_config_sha256',e.CANDIDATE_CONFIG_SHA256],['rollback_config_sha256',e.ROLLBACK_CONFIG_SHA256],['candidate_image_artifact_id',manifest.candidate_image_artifact_id],['candidate_image_artifact_digest',manifest.candidate_image_artifact_digest],['candidate_image_id',manifest.candidate_image_id],['candidate_registry_digest',e.APPLICATION_IMAGE_DIGEST],['candidate_image_ref',e.CANDIDATE_IMAGE_REF],['rollback_image_ref',e.ROLLBACK_IMAGE],['rollback_image_id',manifest.rollback_image_id],['github_run_id',e.PREPARATION_RUN_ID],['github_run_attempt',e.PREPARATION_RUN_ATTEMPT]]) same(publication[key], expected, `Publication ${key}`);
+          same(compatibility.schema_version, 'assesssuite.exact-image-compatibility-receipt.v1', 'Compatibility schema');
+          same(compatibility.result, 'PASS', 'Compatibility result');
+          for (const [key, expected] of [['workflow_sha',e.TRUSTED_WORKFLOW_SHA],['application_sha',e.APPLICATION_SHA],['candidate_config_sha256',e.CANDIDATE_CONFIG_SHA256],['rollback_config_sha256',e.ROLLBACK_CONFIG_SHA256],['candidate_image_ref',e.CANDIDATE_IMAGE_REF],['rollback_image_ref',e.ROLLBACK_IMAGE],['candidate_image_id',manifest.candidate_image_id],['rollback_image_id',manifest.rollback_image_id],['publication_artifact_id',manifest.publication_artifact_id],['publication_artifact_digest',manifest.publication_artifact_digest],['release_control_artifact_id',manifest.release_control_artifact_id],['release_control_artifact_digest',manifest.release_control_artifact_digest],['publication_receipt_sha256',manifest.publication_receipt_sha256],['github_run_id',e.PREPARATION_RUN_ID],['github_run_attempt',e.PREPARATION_RUN_ATTEMPT]]) same(compatibility[key], expected, `Compatibility ${key}`);
+          if (JSON.stringify(manifest.markers) !== JSON.stringify(markers) || JSON.stringify(compatibility.markers) !== JSON.stringify(markers)) throw new Error('Compatibility markers differ');
+          if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/.test(manifest.build_timestamp)) throw new Error('Build timestamp is invalid');
+          if (!/^sha256:[0-9a-f]{64}$/.test(manifest.candidate_image_id) || !/^sha256:[0-9a-f]{64}$/.test(manifest.rollback_image_id)) throw new Error('Image ID shape differs');
+          fs.appendFileSync(e.GITHUB_ENV, `BUILD_TIMESTAMP=${manifest.build_timestamp}\n`);
+          NODE
+          if grep -Eq '^[[:space:]]*DOCUMENT_EXTRACTION_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' "$candidate_config"; then
             reviewed_mode=enabled
           else
             reviewed_mode=disabled
           fi
           [[ "$reviewed_mode" == "$EXTRACTION_RUNTIME_MODE" ]]
-          if [[ "$reviewed_mode" == "enabled" ]]; then
-            [[ "$PROVIDER_TERMS_ATTESTATION" == "TERMS-VERIFIED-HEALTH-DATA-20260719" ]]
-            [[ "$PROVIDER_TERMS_EVIDENCE_ID" == "EVD-20260719-ASSESSSUITE-OPENAI-HEALTH-TERMS-ATTESTATION" ]]
-            [[ "$(grep -Ec '^[[:space:]]*OPENAI_HEALTH_DATA_TERMS_CONFIRMED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          if [[ "$reviewed_mode" == 'enabled' ]]; then
+            [[ "$PROVIDER_TERMS_ATTESTATION" == 'TERMS-VERIFIED-HEALTH-DATA-20260719' ]]
+            [[ "$PROVIDER_TERMS_EVIDENCE_ID" == 'EVD-20260719-ASSESSSUITE-OPENAI-HEALTH-TERMS-ATTESTATION' ]]
+            [[ "$(grep -Ec '^[[:space:]]*OPENAI_HEALTH_DATA_TERMS_CONFIRMED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' "$candidate_config")" -eq 1 ]]
           else
-            [[ "$PROVIDER_TERMS_ATTESTATION" == "EXTRACTION-DISABLED" ]]
-            [[ "$PROVIDER_TERMS_EVIDENCE_ID" == "NOT-APPLICABLE-EXTRACTION-DISABLED" ]]
+            [[ "$PROVIDER_TERMS_ATTESTATION" == 'EXTRACTION-DISABLED' ]]
+            [[ "$PROVIDER_TERMS_EVIDENCE_ID" == 'NOT-APPLICABLE-EXTRACTION-DISABLED' ]]
           fi
-          [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^[[:space:]]*LEGAL_STATUS[[:space:]]*=[[:space:]]*"effective"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^[[:space:]]*LEGAL_EFFECTIVE_DATE[[:space:]]*=[[:space:]]*"19 July 2026"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^[[:space:]]*LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS[[:space:]]*=' fly.production.toml || true)" -eq 0 ]]
-          [[ "$(grep -Ec '^[[:space:]]*OPENAI_DOCUMENT_EXTRACTION_MODEL[[:space:]]*=' fly.production.toml || true)" -eq 0 ]]
-
-          if grep -Eq '^[[:space:]]*DOCUMENT_EXTRACTION_UNDER_13_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.production.toml; then
+          if grep -Eq '^[[:space:]]*DOCUMENT_EXTRACTION_UNDER_13_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' "$candidate_config"; then
             reviewed_under_age_mode=enabled
           else
             reviewed_under_age_mode=disabled
           fi
           [[ "$reviewed_under_age_mode" == "$UNDER_AGE_ZDR_RUNTIME_MODE" ]]
-          if [[ "$reviewed_under_age_mode" == "enabled" ]]; then
-            [[ "$UNDER_AGE_ZDR_ATTESTATION" == "ZDR-VERIFIED-UNDER-AGE-20260719" ]]
+          if [[ "$reviewed_under_age_mode" == 'enabled' ]]; then
+            [[ "$UNDER_AGE_ZDR_ATTESTATION" == 'ZDR-VERIFIED-UNDER-AGE-20260719' ]]
             [[ "$UNDER_AGE_ZDR_EVIDENCE_ID" =~ ^EVD-[A-Za-z0-9._-]{20,100}-ZDR$ ]]
           else
-            [[ "$UNDER_AGE_ZDR_ATTESTATION" == "UNDER-AGE-ZDR-DISABLED" ]]
-            [[ "$UNDER_AGE_ZDR_EVIDENCE_ID" == "NOT-APPLICABLE-UNDER-AGE-ZDR-DISABLED" ]]
+            [[ "$UNDER_AGE_ZDR_ATTESTATION" == 'UNDER-AGE-ZDR-DISABLED' ]]
+            [[ "$UNDER_AGE_ZDR_EVIDENCE_ID" == 'NOT-APPLICABLE-UNDER-AGE-ZDR-DISABLED' ]]
           fi
-
-          build_timestamp="$(date -u +'%Y-%m-%dT%H:%M:%SZ')"
-          {
-            echo "application_sha=$APPLICATION_SHA"
-            echo "source_branch=$SOURCE_BRANCH"
-            echo "build_timestamp=$build_timestamp"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Set up Node.js 24
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-          cache: npm
-
-      - name: Validate Fly and Docker credential/topology boundary
-        shell: bash
-        run: |
-          set -euo pipefail
-          if grep -EIn 'FLY_API_TOKEN|\$\{?FLY_|release_command|^[[:space:]]*\[build\.(args|secrets)\]|build[_-]secret|file[_-]secret' fly.production.toml Dockerfile; then
-            echo 'Candidate build/deploy configuration contains a forbidden secret or release hook.' >&2
-            exit 1
-          fi
-          [[ "$(grep -Ec '^app = "assesssuite-production"$' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^primary_region = "syd"$' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^  source = "assesssuite_data"$' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^  destination = "/app/server/data"$' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^\[\[vm\]\]$' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^  memory = "512mb"$' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^  cpus = 1$' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^  min_machines_running = 1$' fly.production.toml)" -eq 1 ]]
-
-      - name: Install locked dependencies
-        run: npm ci
-
-      - name: Require the mission assurance entrypoint
-        shell: bash
-        run: |
-          set -euo pipefail
-          node --input-type=module <<'NODE'
-          import pkg from './package.json' with { type: 'json' };
-          if (!pkg.scripts?.['test:assurance']) {
-            throw new Error('Required package script test:assurance is absent');
-          }
-          NODE
-
-      - name: Build
-        run: npm run build
-
-      - name: Typecheck against exact production-base differential
-        shell: bash
-        env:
-          PRODUCTION_BASE_SHA: d593a7f2e83657125d5be4acb49642a38215d5bd
-        run: |
-          set -euo pipefail
-          base_dir="$RUNNER_TEMP/typecheck-base"
-          reference_dir="$RUNNER_TEMP/typecheck-reviewed-reference"
-          git worktree add --detach "$base_dir" "$PRODUCTION_BASE_SHA"
-          git worktree add --detach "$reference_dir" eae2f229886b8aa2071864767ba61c0d6e4a548d
-          npm --prefix "$base_dir" ci
-          npm --prefix "$reference_dir" ci
-          node scripts/compare-typecheck-baseline.mjs \
-            --base-dir "$base_dir" \
-            --reference-dir "$reference_dir" \
-            --candidate-dir "$GITHUB_WORKSPACE"
-
-      - name: Lint with exact legacy-baseline containment
-        shell: bash
-        run: |
-          set -euo pipefail
-          set +e
-          npm run lint -- --format json --output-file "$RUNNER_TEMP/eslint.json"
-          lint_status=$?
-          set -e
-          LINT_STATUS="$lint_status" node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          import path from 'node:path';
-
-          const allowed = new Map([
-            ['src/components/assessments/AssessmentTestRunnerRouter.jsx|no-empty|Empty block statement.', 1],
-            ['src/components/assessments/TestRunner.jsx|no-case-declarations|Unexpected lexical declaration in case block.', 2],
-            ['src/components/assessments/TestRunnerExtras.jsx|no-empty|Empty block statement.', 1],
-            ['src/components/onboarding/Consent.jsx|no-empty|Empty block statement.', 1],
-            ["src/components/protocols/ImportToSOAPModal.jsx|no-undef|'today' is not defined.", 1],
-            ['src/pages/Clients.jsx|no-empty|Empty block statement.', 1],
-          ]);
-          const report = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/eslint.json', 'utf8'));
-          const seen = new Map();
-          const unexpected = [];
-          for (const file of report) {
-            const relative = path.relative(process.cwd(), file.filePath).replaceAll('\\', '/');
-            for (const message of file.messages.filter((item) => item.severity === 2)) {
-              const key = `${relative}|${message.ruleId}|${message.message}`;
-              const count = (seen.get(key) || 0) + 1;
-              seen.set(key, count);
-              if (!allowed.has(key) || count > allowed.get(key)) unexpected.push({ relative, ...message });
-            }
-          }
-          if (unexpected.length) {
-            console.error(JSON.stringify(unexpected, null, 2));
-            throw new Error('Lint introduced an error outside the seven-item reviewed legacy baseline');
-          }
-          if (Number(process.env.LINT_STATUS) !== 0 && [...seen.values()].reduce((a, b) => a + b, 0) === 0) {
-            throw new Error(`ESLint exited ${process.env.LINT_STATUS} without a reviewable error report`);
-          }
-          console.log(`Lint gate passed with ${[...seen.values()].reduce((a, b) => a + b, 0)} contained legacy error(s).`);
-          NODE
-
-      - name: Existing deterministic server and entry-guard gates
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm run selftest
-          npm run validate:entry-guards
-          node scripts/clinical-selftest.mjs
-          node scripts/pa-e2e-verify.mjs
-          node scripts/smoke.mjs
-
-      - name: Existing seeded launch-gate suite
-        shell: bash
-        run: |
-          set -euo pipefail
-          node server/seed.mjs
-          PORT=8787 LLM_REQUIRED=0 node server/index.mjs >"$RUNNER_TEMP/gate-server.log" 2>&1 &
-          server_pid=$!
-          cleanup() {
-            kill "$server_pid" 2>/dev/null || true
-            wait "$server_pid" 2>/dev/null || true
-          }
-          trap cleanup EXIT
-          for attempt in $(seq 1 60); do
-            if curl --fail --silent --show-error --max-time 2 \
-              http://127.0.0.1:8787/api/apps/public/prod/public-settings/by-id/probe >/dev/null; then
-              break
-            fi
-            if [[ "$attempt" -eq 60 ]]; then
-              sed -n '1,160p' "$RUNNER_TEMP/gate-server.log"
-              exit 1
-            fi
-            sleep 0.25
-          done
-          node scripts/gate-tests.mjs
-
-      - name: Existing public-evidence service gates
-        shell: bash
-        run: |
-          set -euo pipefail
-          node scripts/evidence-selftest.mjs | tee "$RUNNER_TEMP/evidence-selftest.log"
-          if grep -F '[SKIP]' "$RUNNER_TEMP/evidence-selftest.log"; then
-            echo 'Evidence selftest skipped a network assertion; release gate remains unpassed.' >&2
-            exit 1
-          fi
-          node scripts/medical-lookup-selftest.mjs | tee "$RUNNER_TEMP/medical-lookup-selftest.log"
-          if grep -F '[SKIP]' "$RUNNER_TEMP/medical-lookup-selftest.log"; then
-            echo 'Medical-lookup selftest skipped a network assertion; release gate remains unpassed.' >&2
-            exit 1
-          fi
-
-      - name: Mission assurance aggregate
-        run: npm run test:assurance
-
-      - name: Secret and high-entropy diff scan
-        shell: bash
-        env:
-          PRODUCTION_BASE_SHA: d593a7f2e83657125d5be4acb49642a38215d5bd
-          EXPECTED_RELEASE_SCANNER_SHA256: 7fbecf3663b724dc5c8431d8d2d6c4f7e21f596a07901a626b524e22dfe67b21
-        run: |
-          set -euo pipefail
-          git merge-base --is-ancestor "$PRODUCTION_BASE_SHA" HEAD
-          changed_files="$(git diff --name-only "$PRODUCTION_BASE_SHA"...HEAD)"
-          if grep -Eiq '(^|/)\.env($|\.(local|production|staging|development|test)$)|(^|/)(credentials?|secrets?)\.(json|txt|pem|key)$' <<<"$changed_files"; then
-            printf '%s\n' "$changed_files"
-            echo 'Release diff contains a prohibited secret-bearing filename.' >&2
-            exit 1
-          fi
-          git diff --binary "$PRODUCTION_BASE_SHA"...HEAD >"$RUNNER_TEMP/release.diff"
-          actual_scanner_sha256="$(sha256sum scripts/scan-release-diff.mjs | awk '{print $1}')"
-          if [[ "$actual_scanner_sha256" != "$EXPECTED_RELEASE_SCANNER_SHA256" ]]; then
-            echo 'Release scanner does not match the trusted workflow digest.' >&2
-            exit 1
-          fi
-          node scripts/scan-release-diff.mjs "$RUNNER_TEMP/release.diff"
-
-      - name: Build exact candidate image locally without credentials
-        shell: bash
-        env:
-          APPLICATION_SHA: ${{ steps.metadata.outputs.application_sha }}
-          SOURCE_BRANCH: ${{ steps.metadata.outputs.source_branch }}
-          BUILD_TIMESTAMP: ${{ steps.metadata.outputs.build_timestamp }}
-        run: |
-          set -euo pipefail
-          docker build \
-            --build-arg "RELEASE_SHA=$APPLICATION_SHA" \
-            --build-arg "SOURCE_BRANCH=$SOURCE_BRANCH" \
-            --build-arg "BUILD_TIMESTAMP=$BUILD_TIMESTAMP" \
-            --label "org.opencontainers.image.revision=$APPLICATION_SHA" \
-            --label "org.opencontainers.image.created=$BUILD_TIMESTAMP" \
-            --label "org.opencontainers.image.source=https://github.com/mbvidler-ctrl/assesssuite_migration/tree/$APPLICATION_SHA" \
-            --tag "assesssuite-release-gate:$APPLICATION_SHA" \
-            .
-          [[ "$(docker image inspect "assesssuite-release-gate:$APPLICATION_SHA" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$APPLICATION_SHA" ]]
-          docker image inspect "assesssuite-release-gate:$APPLICATION_SHA" --format '{{ range .Config.Env }}{{ println . }}{{ end }}' >"$RUNNER_TEMP/image-env.txt"
-          grep -Fx "RELEASE_SHA=$APPLICATION_SHA" "$RUNNER_TEMP/image-env.txt"
-          grep -Fx "SOURCE_BRANCH=$SOURCE_BRANCH" "$RUNNER_TEMP/image-env.txt"
-          grep -Fx "BUILD_TIMESTAMP=$BUILD_TIMESTAMP" "$RUNNER_TEMP/image-env.txt"
-          docker save "assesssuite-release-gate:$APPLICATION_SHA" | gzip -1 >"$RUNNER_TEMP/candidate-image.tar.gz"
-          (cd "$RUNNER_TEMP" && sha256sum candidate-image.tar.gz >candidate-image.tar.gz.sha256)
-
-      - name: Preserve the exact gated candidate image
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
-        with:
-          name: candidate-image-${{ steps.metadata.outputs.application_sha }}
-          path: |
-            ${{ runner.temp }}/candidate-image.tar.gz
-            ${{ runner.temp }}/candidate-image.tar.gz.sha256
-          if-no-files-found: error
-          retention-days: 1
-
-  deploy:
-    name: Deploy exact SHA and verify production
-    needs: gates
-    runs-on: ubuntu-24.04
-    timeout-minutes: 30
-    steps:
-      - name: Check out exact gated candidate
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ needs.gates.outputs.application_sha }}
-          path: candidate
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Check out reviewed rollback configuration source
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
-        with:
-          ref: ${{ inputs.rollback_source_sha }}
-          path: rollback-source
-          fetch-depth: 1
-          persist-credentials: false
-
-      - name: Restore the exact gated candidate image
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
-        with:
-          name: candidate-image-${{ needs.gates.outputs.application_sha }}
-          path: ${{ runner.temp }}/candidate-image
-
-      - name: Verify and load the gated candidate image without credentials
-        shell: bash
-        env:
-          APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
-          SOURCE_BRANCH: ${{ needs.gates.outputs.source_branch }}
-          BUILD_TIMESTAMP: ${{ needs.gates.outputs.build_timestamp }}
-        run: |
-          set -euo pipefail
-          cd "$RUNNER_TEMP/candidate-image"
-          sha256sum --check candidate-image.tar.gz.sha256
-          gzip -dc candidate-image.tar.gz | docker load
-          image="assesssuite-release-gate:$APPLICATION_SHA"
-          [[ "$(docker image inspect "$image" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$APPLICATION_SHA" ]]
-          docker image inspect "$image" --format '{{ range .Config.Env }}{{ println . }}{{ end }}' >"$RUNNER_TEMP/restored-image-env.txt"
-          grep -Fx "RELEASE_SHA=$APPLICATION_SHA" "$RUNNER_TEMP/restored-image-env.txt"
-          grep -Fx "SOURCE_BRANCH=$SOURCE_BRANCH" "$RUNNER_TEMP/restored-image-env.txt"
-          grep -Fx "BUILD_TIMESTAMP=$BUILD_TIMESTAMP" "$RUNNER_TEMP/restored-image-env.txt"
-
-      - name: Reverify release and rollback provenance without credentials
-        shell: bash
-        env:
-          APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
-          SOURCE_BRANCH: ${{ needs.gates.outputs.source_branch }}
-          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
-          ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
-        run: |
-          set -euo pipefail
-          validate_topology() {
-            local config=$1
+          for config in "$candidate_config" "$rollback_config"; do
             [[ "$(grep -Ec '^app = "assesssuite-production"$' "$config")" -eq 1 ]]
             [[ "$(grep -Ec '^primary_region = "syd"$' "$config")" -eq 1 ]]
+            [[ "$(grep -Fxc '  app = "node server/productionBootstrap.mjs && exec node server/index.mjs"' "$config")" -eq 1 ]]
             [[ "$(grep -Ec '^  source = "assesssuite_data"$' "$config")" -eq 1 ]]
             [[ "$(grep -Ec '^  destination = "/app/server/data"$' "$config")" -eq 1 ]]
-            [[ "$(grep -Ec '^\[\[vm\]\]$' "$config")" -eq 1 ]]
-            [[ "$(grep -Ec '^  memory = "512mb"$' "$config")" -eq 1 ]]
-            [[ "$(grep -Ec '^  cpus = 1$' "$config")" -eq 1 ]]
-            [[ "$(grep -Ec '^  min_machines_running = 1$' "$config")" -eq 1 ]]
-          }
-          [[ "$(git -C candidate rev-parse --verify 'HEAD^{commit}')" == "$APPLICATION_SHA" ]]
-          [[ "$(git -C rollback-source rev-parse --verify 'HEAD^{commit}')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(git -C candidate ls-remote --exit-code origin "refs/heads/$SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$APPLICATION_SHA" ]]
-          [[ "$(git -C rollback-source ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
-          validate_topology candidate/fly.production.toml
-          validate_topology rollback-source/fly.production.toml
-          if grep -EIn 'FLY_API_TOKEN|\$\{?FLY_|release_command|^[[:space:]]*\[build\.(args|secrets)\]|build[_-]secret|file[_-]secret' \
-            candidate/fly.production.toml candidate/Dockerfile rollback-source/fly.production.toml; then
-            echo 'Release or rollback source contains a forbidden credential/build/release hook.' >&2
-            exit 1
-          fi
-          if grep -Eq '^[[:space:]]*DOCUMENT_EXTRACTION(_UNDER_13)?_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' rollback-source/fly.production.toml; then
-            echo 'Rollback image must keep document extraction disabled.' >&2
-            exit 1
-          fi
-          [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^[[:space:]]*LEGAL_STATUS[[:space:]]*=[[:space:]]*"effective"[[:space:]]*$' candidate/fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^[[:space:]]*LEGAL_EFFECTIVE_DATE[[:space:]]*=[[:space:]]*"19 July 2026"[[:space:]]*$' candidate/fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^[[:space:]]*LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS[[:space:]]*=[[:space:]]*"RC-2026.07.11,RC-2026.07.19"[[:space:]]*$' rollback-source/fly.production.toml)" -eq 1 ]]
-
-      - name: Set up Node.js 24
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version: 24
-
+            if grep -EIn 'FLY_API_TOKEN|\$\{?FLY_|\[\[[^]]*files[^]]*\]\]|\[[^]]*experimental[^]]*\]|local_path|secret_name|raw_value|release_command|^[[:space:]]*\[build\.(args|secrets)\]|build[_-]secret|file[_-]secret|type[[:space:]]*=[[:space:]]*secret|--secret' "$config"; then
+              exit 1
+            fi
+          done
+          [[ "$(git ls-remote --exit-code https://github.com/mbvidler-ctrl/assesssuite_migration.git refs/heads/main | awk 'NR == 1 { print $1 }')" == "$APPLICATION_SHA" ]]
+          install -d -m 0700 "$RUNNER_TEMP/empty-deploy-context"
       - name: Install checksum-verified flyctl 0.4.71
         shell: bash
         run: |
@@ -529,15 +424,20 @@ jobs:
         shell: bash
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
-          APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
-          SOURCE_BRANCH: ${{ needs.gates.outputs.source_branch }}
-          BUILD_TIMESTAMP: ${{ needs.gates.outputs.build_timestamp }}
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          SOURCE_BRANCH: main
+          CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
+          ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
           EXPECTED_CURRENT_RELEASE: ${{ inputs.expected_current_release }}
           EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}
+          EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
           ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
           ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
-          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
-          ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
+          ROLLBACK_SOURCE_SHA: ${{ inputs.application_sha }}
+          ROLLBACK_SOURCE_BRANCH: main
+          CANDIDATE_IMAGE_REF: registry.fly.io/assesssuite-production@${{ inputs.application_image_digest }}
           EXTRACTION_RUNTIME_MODE: ${{ inputs.extraction_runtime_mode }}
           PROVIDER_TERMS_EVIDENCE_ID: ${{ inputs.provider_terms_evidence_id }}
           UNDER_AGE_ZDR_RUNTIME_MODE: ${{ inputs.under_age_zdr_runtime_mode }}
@@ -548,18 +448,52 @@ jobs:
           set -euo pipefail
           set +x
           app=assesssuite-production
-          candidate_dir="$GITHUB_WORKSPACE/candidate"
-          candidate_config="$candidate_dir/fly.production.toml"
-          rollback_dir="$GITHUB_WORKSPACE/rollback-source"
-          rollback_config="$rollback_dir/fly.production.toml"
-          new_image_tag="registry.fly.io/$app:release-$APPLICATION_SHA"
+          release_control_dir="$RUNNER_TEMP/deploy-bundle"
+          deploy_source_dir="$RUNNER_TEMP/empty-deploy-context"
+          candidate_config="$release_control_dir/fly.production.toml"
+          rollback_config="$release_control_dir/fly.rollback.production.toml"
+          candidate_image_ref="$CANDIDATE_IMAGE_REF"
           prior_json="$RUNNER_TEMP/prior-releases.json"
           new_json="$RUNNER_TEMP/new-releases.json"
           rollback_json="$RUNNER_TEMP/rollback-releases.json"
           provider_probe_result='SKIPPED-BY-DESIGN (extraction disabled; mission cannot close)'
+          referral_canary_result='SKIPPED-BY-DESIGN (extraction disabled; mission cannot close)'
+          forward_rollback_proof_result='PASS (fresh no-secret exact-image receipt verified before credential injection)'
+          referral_canary_fixture_sha256=''
+          volume_snapshot_policy_verified=false
+          predeploy_snapshot_created=false
+          predeploy_snapshot_created_count=0
+          predeploy_snapshot_created_at_utc='not-established'
+          predeploy_snapshot_id='not-established'
+          predeploy_snapshot_digest='not-established'
+          predeploy_snapshot_source_volume_id='not-established'
+          production_volume_id=''
+          production_machine_id=''
+
+          [[ -f "$candidate_config" && ! -L "$candidate_config" ]]
+          [[ -f "$rollback_config" && ! -L "$rollback_config" ]]
+          [[ -d "$deploy_source_dir" && -z "$(find "$deploy_source_dir" -mindepth 1 -maxdepth 1 -print -quit)" ]]
+          [[ "$candidate_image_ref" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
+          [[ "$(sha256sum "$candidate_config" | awk '{print $1}')" == "$CANDIDATE_CONFIG_SHA256" ]]
+          [[ "$(sha256sum "$rollback_config" | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
+          [[ "$(grep -Ec '^  snapshot_retention = 5$' "$candidate_config")" -eq 1 ]]
+          [[ "$(grep -Ec '^  scheduled_snapshots = true$' "$candidate_config")" -eq 1 ]]
+          [[ "$(grep -Fxc '  UPLOAD_AUDIT_RETENTION_DAYS = "730"' "$candidate_config")" -eq 1 ]]
+          [[ "$(grep -Fxc '  UPLOAD_CLEANUP_INTERVAL_MINUTES = "1"' "$candidate_config")" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*snapshot_retention[[:space:]]*=' "$rollback_config" || true)" -eq 0 \
+            || "$(grep -Ec '^  snapshot_retention = 5$' "$rollback_config")" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*scheduled_snapshots[[:space:]]*=' "$rollback_config" || true)" -eq 0 \
+            || "$(grep -Ec '^  scheduled_snapshots = true$' "$rollback_config")" -eq 1 ]]
+          [[ "$(grep -Fxc '  UPLOAD_AUDIT_RETENTION_DAYS = "730"' "$rollback_config")" -eq 1 ]]
+          [[ "$(grep -Fxc '  UPLOAD_CLEANUP_INTERVAL_MINUTES = "1"' "$rollback_config")" -eq 1 ]]
+          if grep -EIn 'FLY_API_TOKEN|\$\{?FLY_|\[\[[^]]*files[^]]*\]\]|\[[^]]*experimental[^]]*\]|local_path|secret_name|raw_value|release_command|^[[:space:]]*\[build\.(args|secrets)\]|build[_-]secret|file[_-]secret|type[[:space:]]*=[[:space:]]*secret|--secret' \
+            "$candidate_config" "$rollback_config"; then
+            echo 'Release or rollback source changed to a forbidden credential, local-file injection, build secret, or release hook.' >&2
+            exit 1
+          fi
 
           current_release() {
-            node --input-type=module - "$1" <<'NODE'
+            env -u FLY_API_TOKEN node --input-type=module - "$1" <<'NODE'
           import fs from 'node:fs';
           const parsed = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
           const rows = Array.isArray(parsed) ? parsed : (parsed.releases || parsed.Releases || parsed.data || []);
@@ -576,33 +510,425 @@ jobs:
 
           assert_topology() {
             local label=$1
-            if ! fly machines list --app "$app" --json >"$RUNNER_TEMP/${label}-machines.json"; then
+            local expected_volume_id=${2:-}
+            local expected_machine_id=${3:-}
+            if ! timeout --signal=TERM --kill-after=10s 60s \
+              fly machines list --app "$app" --json \
+              >"$RUNNER_TEMP/${label}-machines.json" 2>"$RUNNER_TEMP/${label}-machines.stderr"; then
+              rm -f "$RUNNER_TEMP/${label}-machines.json" "$RUNNER_TEMP/${label}-machines.stderr"
               return 1
             fi
-            if ! fly volumes list --app "$app" --json >"$RUNNER_TEMP/${label}-volumes.json"; then
+            if ! timeout --signal=TERM --kill-after=10s 60s \
+              fly volumes list --app "$app" --json \
+              >"$RUNNER_TEMP/${label}-volumes.json" 2>"$RUNNER_TEMP/${label}-volumes.stderr"; then
+              rm -f "$RUNNER_TEMP/${label}-machines.json" "$RUNNER_TEMP/${label}-machines.stderr" \
+                "$RUNNER_TEMP/${label}-volumes.json" "$RUNNER_TEMP/${label}-volumes.stderr"
               return 1
             fi
-            LABEL="$label" node --input-type=module <<'NODE'
+            rm -f "$RUNNER_TEMP/${label}-machines.stderr" "$RUNNER_TEMP/${label}-volumes.stderr"
+            local topology_status=0
+            LABEL="$label" EXPECTED_VOLUME_ID="$expected_volume_id" \
+              EXPECTED_MACHINE_ID="$expected_machine_id" \
+              env -u FLY_API_TOKEN node --input-type=module <<'NODE' || topology_status=$?
           import fs from 'node:fs';
           const root = process.env.RUNNER_TEMP;
           const label = process.env.LABEL;
           const machinePayload = JSON.parse(fs.readFileSync(`${root}/${label}-machines.json`, 'utf8'));
           const volumePayload = JSON.parse(fs.readFileSync(`${root}/${label}-volumes.json`, 'utf8'));
-          const machines = Array.isArray(machinePayload) ? machinePayload : (machinePayload.machines || []);
-          const volumes = Array.isArray(volumePayload) ? volumePayload : (volumePayload.volumes || []);
+          if (!Array.isArray(machinePayload) || !Array.isArray(volumePayload)) {
+            throw new Error('Fly topology payloads are not the pinned v0.4.71 JSON arrays');
+          }
+          const machines = machinePayload;
+          const volumes = volumePayload;
           if (machines.length !== 1) throw new Error(`Expected exactly one Fly machine; found ${machines.length}`);
           if (volumes.length !== 1) throw new Error(`Expected exactly one Fly volume; found ${volumes.length}`);
           const machine = machines[0];
           const guest = machine.config?.guest || machine.Config?.guest || {};
+          const machineId = machine.id;
+          if (typeof machineId !== 'string' || !/^[0-9a-f]{14,32}$/.test(machineId)) {
+            throw new Error('Machine identifier shape is not the pinned Fly Machines contract');
+          }
+          if (process.env.EXPECTED_MACHINE_ID && machineId !== process.env.EXPECTED_MACHINE_ID) {
+            throw new Error('The sole Fly Machine identity changed from the pre-dispatch inventory');
+          }
           if ((machine.region ?? machine.Region) !== 'syd') throw new Error('Machine is not in syd');
           if (Number(guest.cpus) !== 1 || Number(guest.memory_mb ?? guest.memoryMb) !== 512 || (guest.cpu_kind ?? guest.cpuKind) !== 'shared') {
             throw new Error('Machine resources differ from one shared CPU and 512 MB');
           }
           const volume = volumes[0];
-          if ((volume.name ?? volume.Name) !== 'assesssuite_data' || (volume.region ?? volume.Region) !== 'syd' || Number(volume.size_gb ?? volume.sizeGb ?? volume.SizeGB) !== 3) {
+          const requiredVolumeKeys = [
+            'id', 'name', 'state', 'size_gb', 'region', 'zone', 'encrypted',
+            'attached_machine_id', 'attached_alloc_id', 'created_at', 'host_dedication_id',
+            'snapshot_retention', 'auto_backup_enabled',
+          ];
+          const allowedVolumeKeys = new Set([...requiredVolumeKeys, 'host_status']);
+          const rfc3339 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
+          if (requiredVolumeKeys.some((key) => !Object.hasOwn(volume, key)) ||
+              Object.keys(volume).some((key) => !allowedVolumeKeys.has(key)) ||
+              typeof volume.name !== 'string' || typeof volume.state !== 'string' ||
+              !Number.isInteger(volume.size_gb) || typeof volume.region !== 'string' ||
+              typeof volume.zone !== 'string' || typeof volume.encrypted !== 'boolean' ||
+              !(volume.attached_machine_id === null || typeof volume.attached_machine_id === 'string') ||
+              !(volume.attached_alloc_id === null || typeof volume.attached_alloc_id === 'string') ||
+              typeof volume.created_at !== 'string' || !rfc3339.test(volume.created_at) ||
+              !Number.isFinite(Date.parse(volume.created_at)) ||
+              typeof volume.host_dedication_id !== 'string' ||
+              !Number.isInteger(volume.snapshot_retention) ||
+              typeof volume.auto_backup_enabled !== 'boolean' ||
+              (Object.hasOwn(volume, 'host_status') && typeof volume.host_status !== 'string')) {
+            throw new Error('Fly volume row is outside the pinned v0.4.71 JSON contract');
+          }
+          if (typeof volume.id !== 'string' || !/^vol_[A-Za-z0-9]+$/.test(volume.id) ||
+              volume.state !== 'created' || volume.name !== 'assesssuite_data' ||
+              volume.region !== 'syd' || volume.size_gb !== 3 || volume.encrypted !== true ||
+              volume.attached_machine_id !== machineId) {
             throw new Error('Volume topology differs from one 3 GB assesssuite_data volume in syd');
           }
+          if (process.env.EXPECTED_VOLUME_ID && volume.id !== process.env.EXPECTED_VOLUME_ID) {
+            throw new Error('The sole Fly Volume identity changed from the pre-dispatch inventory');
+          }
+          const mounts = machine.config?.mounts;
+          if (!Array.isArray(mounts) || mounts.length !== 1 ||
+              mounts[0]?.volume !== volume.id || mounts[0]?.name !== volume.name ||
+              mounts[0]?.path !== '/app/server/data' || mounts[0]?.encrypted !== true ||
+              mounts[0]?.size_gb !== 3) {
+            throw new Error('The sole production machine does not mount the pinned volume at the application data path');
+          }
           NODE
+            if [[ "$topology_status" -ne 0 ]]; then
+              rm -f "$RUNNER_TEMP/${label}-machines.json" "$RUNNER_TEMP/${label}-volumes.json"
+              return "$topology_status"
+            fi
+          }
+
+          volume_identity() {
+            local label=$1
+            LABEL="$label" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const root = process.env.RUNNER_TEMP;
+          const label = process.env.LABEL;
+          const machines = JSON.parse(fs.readFileSync(`${root}/${label}-machines.json`, 'utf8'));
+          const volumes = JSON.parse(fs.readFileSync(`${root}/${label}-volumes.json`, 'utf8'));
+          if (!Array.isArray(machines) || machines.length !== 1 || !Array.isArray(volumes) || volumes.length !== 1) {
+            throw new Error('Exact Fly machine and volume identity is unavailable');
+          }
+          const machineId = machines[0]?.id;
+          const volumeId = volumes[0]?.id;
+          if (typeof machineId !== 'string' || !/^[0-9a-f]{14,32}$/.test(machineId) ||
+              typeof volumeId !== 'string' || !/^vol_[A-Za-z0-9]+$/.test(volumeId) ||
+              volumes[0]?.attached_machine_id !== machineId) {
+            throw new Error('Fly volume attachment identity is invalid');
+          }
+          process.stdout.write(`${volumeId}\t${machineId}`);
+          NODE
+          }
+
+          assert_volume_snapshot_policy() {
+            local label=$1
+            local expected_volume_id=${2:-}
+            local expected_machine_id=${3:-}
+            if ! assert_topology "$label" "$expected_volume_id" "$expected_machine_id"; then
+              return 1
+            fi
+            local policy_status=0
+            LABEL="$label" EXPECTED_VOLUME_ID="$expected_volume_id" EXPECTED_MACHINE_ID="$expected_machine_id" env -u FLY_API_TOKEN node --input-type=module <<'NODE' || policy_status=$?
+          import fs from 'node:fs';
+          const root = process.env.RUNNER_TEMP;
+          const label = process.env.LABEL;
+          const machines = JSON.parse(fs.readFileSync(`${root}/${label}-machines.json`, 'utf8'));
+          const volumes = JSON.parse(fs.readFileSync(`${root}/${label}-volumes.json`, 'utf8'));
+          if (!Array.isArray(machines) || machines.length !== 1 || !Array.isArray(volumes) || volumes.length !== 1) {
+            throw new Error('Exact Fly volume policy row is unavailable');
+          }
+          const volume = volumes[0];
+          if ((process.env.EXPECTED_VOLUME_ID && volume.id !== process.env.EXPECTED_VOLUME_ID) ||
+              (process.env.EXPECTED_MACHINE_ID && machines[0]?.id !== process.env.EXPECTED_MACHINE_ID) ||
+              volume.attached_machine_id !== machines[0]?.id ||
+              volume.encrypted !== true || volume.auto_backup_enabled !== true ||
+              volume.snapshot_retention !== 5) {
+            throw new Error('Fly volume encryption or five-day scheduled-snapshot policy is not exact');
+          }
+          NODE
+            rm -f "$RUNNER_TEMP/${label}-machines.json" "$RUNNER_TEMP/${label}-volumes.json"
+            return "$policy_status"
+          }
+
+          enforce_volume_snapshot_policy() {
+            local identity
+            local update_json="$RUNNER_TEMP/volume-policy-update.json"
+            local update_stderr="$RUNNER_TEMP/volume-policy-update.stderr"
+            local update_status=0
+
+            if ! identity="$(volume_identity prior)"; then
+              rm -f "$RUNNER_TEMP/prior-machines.json" "$RUNNER_TEMP/prior-volumes.json"
+              return 1
+            fi
+            IFS=$'\t' read -r production_volume_id production_machine_id <<<"$identity"
+            rm -f "$RUNNER_TEMP/prior-machines.json" "$RUNNER_TEMP/prior-volumes.json"
+            if [[ ! "$production_volume_id" =~ ^vol_[A-Za-z0-9]+$ \
+              || ! "$production_machine_id" =~ ^[0-9a-f]{14,32}$ \
+              || "$production_volume_id" != "$EXPECTED_VOLUME_ID" \
+              || "$production_machine_id" != "$EXPECTED_MACHINE_ID" ]]; then
+              return 1
+            fi
+
+            set +e
+            timeout --signal=TERM --kill-after=10s 60s fly volumes update "$production_volume_id" \
+              --app "$app" \
+              --snapshot-retention 5 \
+              --scheduled-snapshots=true \
+              --json >"$update_json" 2>"$update_stderr"
+            update_status=$?
+            set -e
+            if [[ "$update_status" -ne 0 || ! -s "$update_json" || -s "$update_stderr" \
+              || "$(wc -c <"$update_json")" -gt 32768 \
+              || "$(wc -c <"$update_stderr")" -gt 8192 ]]; then
+              rm -f "$update_json" "$update_stderr"
+              return 1
+            fi
+            if ! VOLUME_UPDATE_JSON="$update_json" EXPECTED_VOLUME_ID="$production_volume_id" \
+              EXPECTED_MACHINE_ID="$production_machine_id" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const volume = JSON.parse(fs.readFileSync(process.env.VOLUME_UPDATE_JSON, 'utf8'));
+          const requiredKeys = [
+            'id', 'name', 'state', 'size_gb', 'region', 'zone', 'encrypted',
+            'attached_machine_id', 'attached_alloc_id', 'created_at', 'host_dedication_id',
+            'snapshot_retention', 'auto_backup_enabled',
+          ];
+          const allowedKeys = new Set([...requiredKeys, 'host_status']);
+          const rfc3339 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
+          if (!volume || typeof volume !== 'object' || Array.isArray(volume) ||
+              requiredKeys.some((key) => !Object.hasOwn(volume, key)) ||
+              Object.keys(volume).some((key) => !allowedKeys.has(key)) ||
+              typeof volume.id !== 'string' || typeof volume.name !== 'string' ||
+              typeof volume.state !== 'string' || !Number.isInteger(volume.size_gb) ||
+              typeof volume.region !== 'string' || typeof volume.zone !== 'string' ||
+              typeof volume.encrypted !== 'boolean' ||
+              !(volume.attached_machine_id === null || typeof volume.attached_machine_id === 'string') ||
+              !(volume.attached_alloc_id === null || typeof volume.attached_alloc_id === 'string') ||
+              typeof volume.created_at !== 'string' || !rfc3339.test(volume.created_at) ||
+              !Number.isFinite(Date.parse(volume.created_at)) ||
+              typeof volume.host_dedication_id !== 'string' ||
+              !Number.isInteger(volume.snapshot_retention) ||
+              typeof volume.auto_backup_enabled !== 'boolean' ||
+              (Object.hasOwn(volume, 'host_status') && typeof volume.host_status !== 'string')) {
+            throw new Error('Fly volume update response is not the pinned v0.4.71 JSON contract');
+          }
+          if (volume.id !== process.env.EXPECTED_VOLUME_ID ||
+              volume.attached_machine_id !== process.env.EXPECTED_MACHINE_ID ||
+              volume.name !== 'assesssuite_data' || volume.state !== 'created' ||
+              volume.region !== 'syd' || volume.size_gb !== 3 || volume.encrypted !== true ||
+              volume.snapshot_retention !== 5 || volume.auto_backup_enabled !== true) {
+            throw new Error('Fly volume update did not establish the exact encrypted five-day snapshot policy');
+          }
+          NODE
+            then
+              rm -f "$update_json" "$update_stderr"
+              return 1
+            fi
+            rm -f "$update_json" "$update_stderr"
+            if ! assert_volume_snapshot_policy volume-policy "$production_volume_id" "$production_machine_id"; then
+              return 1
+            fi
+            volume_snapshot_policy_verified=true
+          }
+
+          create_predeploy_volume_snapshot() {
+            local baseline_json="$RUNNER_TEMP/predeploy-snapshots-baseline.json"
+            local baseline_stderr="$RUNNER_TEMP/predeploy-snapshots-baseline.stderr"
+            local create_stdout="$RUNNER_TEMP/predeploy-snapshot-create.stdout"
+            local create_stderr="$RUNNER_TEMP/predeploy-snapshot-create.stderr"
+            local current_json="$RUNNER_TEMP/predeploy-snapshots-current.json"
+            local current_stderr="$RUNNER_TEMP/predeploy-snapshots-current.stderr"
+            local create_status=0
+            local list_status=0
+            local metadata_status=0
+            local snapshot_metadata=''
+            local requested_at=''
+            local deadline=0
+
+            cleanup_predeploy_snapshot_metadata() {
+              rm -f "$baseline_json" "$baseline_stderr" "$create_stdout" "$create_stderr" \
+                "$current_json" "$current_stderr"
+            }
+
+            if ! assert_volume_snapshot_policy predeploy-snapshot-policy \
+              "$production_volume_id" "$production_machine_id"; then
+              cleanup_predeploy_snapshot_metadata
+              return 1
+            fi
+
+            set +e
+            timeout --signal=TERM --kill-after=10s 30s fly volumes snapshots list \
+              "$production_volume_id" --app "$app" --json \
+              >"$baseline_json" 2>"$baseline_stderr"
+            list_status=$?
+            set -e
+            if [[ "$list_status" -ne 0 || ! -s "$baseline_json" || -s "$baseline_stderr" \
+              || "$(wc -c <"$baseline_json")" -gt 131072 ]]; then
+              cleanup_predeploy_snapshot_metadata
+              return 1
+            fi
+            if ! BASELINE_SNAPSHOTS_JSON="$baseline_json" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const rows = JSON.parse(fs.readFileSync(process.env.BASELINE_SNAPSHOTS_JSON, 'utf8'));
+          const exactKeys = (value, expected) => {
+            if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+            const actual = Object.keys(value).sort();
+            const wanted = [...expected].sort();
+            return actual.length === wanted.length && actual.every((key, index) => key === wanted[index]);
+          };
+          const expectedKeys = ['id', 'size', 'volume_size', 'digest', 'created_at', 'status', 'retention_days'];
+          const rfc3339 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
+          if (!Array.isArray(rows)) throw new Error('Fly snapshot baseline is not a JSON array');
+          for (const row of rows) {
+            if (!exactKeys(row, expectedKeys) ||
+                typeof row.id !== 'string' || !/^vs_[A-Za-z0-9]+$/.test(row.id) ||
+                !Number.isInteger(row.size) || row.size <= 0 ||
+                !Number.isInteger(row.volume_size) || row.volume_size <= 0 ||
+                typeof row.digest !== 'string' || row.digest.length === 0 ||
+                typeof row.created_at !== 'string' || !rfc3339.test(row.created_at) ||
+                !Number.isFinite(Date.parse(row.created_at)) || row.status !== 'created' ||
+                !Number.isInteger(row.retention_days) || row.retention_days < 1 || row.retention_days > 60) {
+              throw new Error('Fly snapshot baseline is malformed or already contains an in-flight snapshot');
+            }
+          }
+          NODE
+            then
+              cleanup_predeploy_snapshot_metadata
+              return 1
+            fi
+
+            requested_at="$(date -u +'%Y-%m-%dT%H:%M:%S.%3NZ')"
+            set +e
+            timeout --signal=TERM --kill-after=10s 60s fly volumes snapshots create \
+              "$production_volume_id" --app "$app" --json \
+              >"$create_stdout" 2>"$create_stderr"
+            create_status=$?
+            set -e
+            if [[ "$create_status" -ne 0 || ! -s "$create_stdout" || -s "$create_stderr" \
+              || "$(wc -c <"$create_stdout")" -gt 4096 ]]; then
+              cleanup_predeploy_snapshot_metadata
+              return 1
+            fi
+            if ! CREATE_STDOUT="$create_stdout" EXPECTED_VOLUME_ID="$production_volume_id" \
+              env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const raw = fs.readFileSync(process.env.CREATE_STDOUT, 'utf8').replaceAll('\r\n', '\n');
+          if (raw !== `Scheduled to snapshot volume ${process.env.EXPECTED_VOLUME_ID}\n`) {
+            throw new Error('Fly snapshot create acknowledgement is not the pinned v0.4.71 contract');
+          }
+          NODE
+            then
+              cleanup_predeploy_snapshot_metadata
+              return 1
+            fi
+            rm -f "$create_stdout" "$create_stderr"
+
+            deadline=$((SECONDS + 600))
+            while (( SECONDS < deadline )); do
+              set +e
+              timeout --signal=TERM --kill-after=10s 30s fly volumes snapshots list \
+                "$production_volume_id" --app "$app" --json \
+                >"$current_json" 2>"$current_stderr"
+              list_status=$?
+              set -e
+              if [[ "$list_status" -ne 0 || ! -s "$current_json" || -s "$current_stderr" \
+                || "$(wc -c <"$current_json")" -gt 131072 ]]; then
+                cleanup_predeploy_snapshot_metadata
+                return 1
+              fi
+
+              set +e
+              snapshot_metadata="$(BASELINE_SNAPSHOTS_JSON="$baseline_json" \
+                CURRENT_SNAPSHOTS_JSON="$current_json" SNAPSHOT_REQUESTED_AT="$requested_at" \
+                env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const exactKeys = (value, expected) => {
+            if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+            const actual = Object.keys(value).sort();
+            const wanted = [...expected].sort();
+            return actual.length === wanted.length && actual.every((key, index) => key === wanted[index]);
+          };
+          const parseRows = (file) => {
+            const rows = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (!Array.isArray(rows)) throw new Error('Fly snapshot list is not a JSON array');
+            const expectedKeys = ['id', 'size', 'volume_size', 'digest', 'created_at', 'status', 'retention_days'];
+            const rfc3339 = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?(?:Z|[+-]\d{2}:\d{2})$/;
+            for (const row of rows) {
+              if (!exactKeys(row, expectedKeys) ||
+                  !(row.id === '' || (typeof row.id === 'string' && /^vs_[A-Za-z0-9]+$/.test(row.id))) ||
+                  !Number.isInteger(row.size) || row.size < 0 ||
+                  !Number.isInteger(row.volume_size) || row.volume_size < 0 ||
+                  typeof row.digest !== 'string' ||
+                  typeof row.created_at !== 'string' || !rfc3339.test(row.created_at) ||
+                  !Number.isFinite(Date.parse(row.created_at)) ||
+                  !['waiting', 'running', 'created'].includes(row.status) ||
+                  !(row.retention_days === null ||
+                    (Number.isInteger(row.retention_days) && row.retention_days >= 1 && row.retention_days <= 60))) {
+                throw new Error('Fly snapshot row is outside the pinned v0.4.71 metadata contract');
+              }
+            }
+            return rows;
+          };
+          const baseline = parseRows(process.env.BASELINE_SNAPSHOTS_JSON);
+          const current = parseRows(process.env.CURRENT_SNAPSHOTS_JSON);
+          const requestedAtMs = Date.parse(process.env.SNAPSHOT_REQUESTED_AT);
+          if (!Number.isFinite(requestedAtMs)) throw new Error('Snapshot request timestamp is invalid');
+          if (current.some((row) => Date.parse(row.created_at) > Date.now() + 120_000)) {
+            throw new Error('Fly snapshot metadata contains an implausible future timestamp');
+          }
+          const baselineIds = new Set(baseline.map((row) => row.id).filter(Boolean));
+          const baselineCreatedAt = new Set(baseline.map((row) => row.created_at));
+          const eligible = current.filter((row) =>
+            Date.parse(row.created_at) >= requestedAtMs - 120_000 &&
+            !baselineCreatedAt.has(row.created_at) &&
+            (row.id === '' || !baselineIds.has(row.id))
+          );
+          if (eligible.length > 1) {
+            throw new Error('More than one new snapshot row is ambiguous for the on-demand request');
+          }
+          const created = eligible.filter((row) => row.status === 'created');
+          if (created.some((row) => !/^vs_[A-Za-z0-9]+$/.test(row.id) ||
+              row.retention_days !== 5 || row.size <= 0 || row.volume_size <= 0 ||
+              row.digest.trim().length === 0 || row.digest !== row.digest.trim())) {
+            throw new Error('New Fly snapshot was created outside the exact five-day metadata contract');
+          }
+          if (created.length > 1) {
+            throw new Error('More than one new created snapshot is ambiguous for the on-demand request');
+          }
+          if (created.length === 0) process.exit(2);
+          const snapshot = created[0];
+          process.stdout.write(`${snapshot.id}\t${snapshot.digest}\t${new Date(Date.parse(snapshot.created_at)).toISOString()}\t${created.length}`);
+          NODE
+              )"
+              metadata_status=$?
+              set -e
+
+              if [[ "$metadata_status" -eq 0 ]]; then
+                IFS=$'\t' read -r predeploy_snapshot_id predeploy_snapshot_digest \
+                  predeploy_snapshot_created_at_utc predeploy_snapshot_created_count <<<"$snapshot_metadata"
+                if [[ ! "$predeploy_snapshot_id" =~ ^vs_[A-Za-z0-9]+$ \
+                  || ! "$predeploy_snapshot_digest" =~ ^[A-Za-z0-9._:-]{1,160}$ \
+                  || ! "$predeploy_snapshot_created_at_utc" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}\.[0-9]{3}Z$ \
+                  || ! "$predeploy_snapshot_created_count" =~ ^[1-9][0-9]*$ ]]; then
+                  cleanup_predeploy_snapshot_metadata
+                  return 1
+                fi
+                predeploy_snapshot_source_volume_id="$production_volume_id"
+                predeploy_snapshot_created=true
+                cleanup_predeploy_snapshot_metadata
+                return 0
+              fi
+              if [[ "$metadata_status" -ne 2 ]]; then
+                cleanup_predeploy_snapshot_metadata
+                return 1
+              fi
+              sleep 10
+            done
+
+            cleanup_predeploy_snapshot_metadata
+            return 1
           }
 
           read_version() {
@@ -636,12 +962,13 @@ jobs:
           read_public_surface() {
             local url=$1
             local label=$2
+            local surface_mode=${3:-candidate}
             local html="$RUNNER_TEMP/${label}-index.html"
             local bundle="$RUNNER_TEMP/${label}-bundle.js"
             curl --fail --silent --show-error --max-time 15 \
               -H 'Cache-Control: no-cache' "$url/" -o "$html" || return 1
             local asset_path
-            asset_path="$(HTML_PATH="$html" node --input-type=module <<'NODE'
+            asset_path="$(HTML_PATH="$html" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const html = fs.readFileSync(process.env.HTML_PATH, 'utf8');
           const match = html.match(/<script[^>]+type=["']module["'][^>]+src=["']([^"']+)["']/i)
@@ -652,7 +979,7 @@ jobs:
             )" || return 1
             curl --fail --silent --show-error --max-time 20 \
               -H 'Cache-Control: no-cache' "$url$asset_path" -o "$bundle" || return 1
-            HTML_PATH="$html" BUNDLE_PATH="$bundle" node --input-type=module <<'NODE' || return 1
+            HTML_PATH="$html" BUNDLE_PATH="$bundle" SURFACE_MODE="$surface_mode" env -u FLY_API_TOKEN node --input-type=module <<'NODE' || return 1
           import fs from 'node:fs';
           const html = fs.readFileSync(process.env.HTML_PATH, 'utf8');
           const bundle = fs.readFileSync(process.env.BUNDLE_PATH, 'utf8');
@@ -671,6 +998,28 @@ jobs:
           ]) {
             if (bundle.toLowerCase().includes(forbidden.toLowerCase())) {
               throw new Error(`Production bundle retains forbidden signup wording: ${forbidden}`);
+            }
+          }
+          if (process.env.SURFACE_MODE === 'candidate') {
+            for (const required of [
+              'Extract Data from',
+              'Starting extraction confirms that the patient is 13 or older',
+              'the practice has documented the patient or representative notice and consent, or another valid authority, for AssessSuite and OpenAI to process this referral',
+              'No client record changes until you review and confirm the extracted data.',
+              'Your current practice could not be resolved. Refresh the page or check your practice membership.',
+            ]) {
+              if (!bundle.includes(required)) throw new Error(`Production bundle is missing required referral-recovery wording: ${required}`);
+            }
+            for (const forbidden of [
+              'Confirm Patient 13+ & Extract Data from',
+              'By selecting Confirm Patient 13+ & Extract',
+              'Owning practice',
+              'The server calculates the age category',
+              'I confirm the practice has documented the patient',
+            ]) {
+              if (bundle.toLowerCase().includes(forbidden.toLowerCase())) {
+                throw new Error(`Production bundle retains superseded referral-preflight wording: ${forbidden}`);
+              }
             }
           }
           NODE
@@ -692,43 +1041,286 @@ jobs:
             [[ "$status" == '401' ]] || return 1
           }
 
+          assert_secret_name_boundary() {
+            local label=$1
+            local legacy_mode=$2
+            local secret_names_json="$RUNNER_TEMP/${label}-secret-names.json"
+            local secret_names_stderr="$RUNNER_TEMP/${label}-secret-names.stderr"
+            local list_status=0
+
+            set +e
+            timeout --signal=TERM --kill-after=10s 60s \
+              fly secrets list --app "$app" --json \
+              >"$secret_names_json" 2>"$secret_names_stderr"
+            list_status=$?
+            set -e
+            if [[ "$list_status" -ne 0 || ! -s "$secret_names_json" || -s "$secret_names_stderr" \
+              || "$(wc -c <"$secret_names_json")" -gt 65536 ]]; then
+              rm -f "$secret_names_json" "$secret_names_stderr"
+              return 1
+            fi
+            rm -f "$secret_names_stderr"
+
+            if ! SECRET_NAMES_JSON="$secret_names_json" CANDIDATE_CONFIG="$candidate_config" \
+              ROLLBACK_CONFIG="$rollback_config" LEGACY_MODE="$legacy_mode" \
+              EXTRACTION_RUNTIME_MODE="$EXTRACTION_RUNTIME_MODE" \
+              UNDER_AGE_ZDR_RUNTIME_MODE="$UNDER_AGE_ZDR_RUNTIME_MODE" \
+              env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const rows = JSON.parse(fs.readFileSync(process.env.SECRET_NAMES_JSON, 'utf8'));
+          if (!Array.isArray(rows) || rows.length === 0) {
+            throw new Error('Fly secret metadata is not a non-empty names-only JSON array');
+          }
+          const names = [];
+          for (const row of rows) {
+            if (!row || typeof row !== 'object' || Array.isArray(row)) {
+              throw new Error('Fly secret metadata contains a non-object row');
+            }
+            if (Object.keys(row).some((key) => /^(?:value|raw_value|secret_value)$/i.test(key))) {
+              throw new Error('Fly secret metadata unexpectedly contains a value-bearing field');
+            }
+            const name = row.Name ?? row.name;
+            if (typeof name !== 'string' || !/^[A-Z][A-Z0-9_]{1,127}$/.test(name)) {
+              throw new Error('Fly secret metadata contains an invalid secret name');
+            }
+            names.push(name);
+          }
+          if (new Set(names).size !== names.length) {
+            throw new Error('Fly secret metadata contains duplicate names');
+          }
+          const required = [
+            'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',
+            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',
+            'OPENAI_API_KEY',
+          ];
+          let expected;
+          if (process.env.LEGACY_MODE === 'allow') {
+            expected = [...required, 'LEGAL_STATUS', 'LEGAL_EFFECTIVE_DATE'];
+          } else if (process.env.LEGACY_MODE !== 'forbid') {
+            throw new Error('Secret-boundary legacy mode is invalid');
+          } else {
+            expected = required;
+          }
+          if (JSON.stringify([...names].sort()) !== JSON.stringify([...expected].sort())) {
+            throw new Error(`Production secret-name allowlist differs for ${process.env.LEGACY_MODE} mode`);
+          }
+          process.stdout.write(
+            `Exact names-only production preflight passed (${expected.length} names; extraction mode ${process.env.EXTRACTION_RUNTIME_MODE}; under-age/ZDR mode ${process.env.UNDER_AGE_ZDR_RUNTIME_MODE}).\n`,
+          );
+          NODE
+            then
+              rm -f "$secret_names_json"
+              return 1
+            fi
+          }
+
           run_provider_probe() {
             local probe_log="$RUNNER_TEMP/provider-probe.jsonl"
             local probe_stderr="$RUNNER_TEMP/provider-probe.stderr"
-            if ! fly ssh console \
+            local probe_status=0
+
+            set +e
+            timeout --signal=TERM --kill-after=10s 180s fly ssh console \
               --app "$app" \
               --quiet \
               --pty=false \
               --command "env RUN_DOCUMENT_EXTRACTION_PROVIDER_PROBE=I_ACKNOWLEDGE_SYNTHETIC_OPENAI_DOCUMENT_PROBE ALLOW_PAID_PROVIDER_PROBE=1 DOCUMENT_EXTRACTION_ENABLED=1 DOCUMENT_EXTRACTION_UNDER_13_ENABLED=0 OPENAI_HEALTH_DATA_TERMS_CONFIRMED=1 node server/tests/provider-probe.mjs" \
-              >"$probe_log" 2>"$probe_stderr"; then
+              >"$probe_log" 2>"$probe_stderr"
+            probe_status=$?
+            set -e
+
+            if [[ "$(wc -c <"$probe_log")" -gt 8192 || "$(wc -c <"$probe_stderr")" -gt 8192 ]]; then
+              rm -f "$probe_log" "$probe_stderr"
               return 1
             fi
-            PROBE_LOG="$probe_log" node --input-type=module <<'NODE'
+            if [[ "$probe_status" -ne 0 ]]; then
+              rm -f "$probe_log" "$probe_stderr"
+              return 1
+            fi
+            if ! PROBE_LOG="$probe_log" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
           import fs from 'node:fs';
-          const rows = fs.readFileSync(process.env.PROBE_LOG, 'utf8')
-            .split(/\r?\n/).filter(Boolean).map((line) => JSON.parse(line));
-          const policy = rows.find((row) => row.probe === 'provider-request-policy');
-          const pdf = rows.find((row) => row.fixture === 'synthetic-pdf');
-          const image = rows.find((row) => row.fixture === 'synthetic-image');
-          const summary = rows.find((row) => row.probe === 'provider-probe-summary');
-          if (policy?.result !== 'PASS' || policy?.shortest_prompt_cache_retention !== true ||
-              pdf?.result !== 'PASS' || image?.result !== 'PASS' ||
-              summary?.result !== 'PASS' || summary?.passed !== 2 || summary?.total !== 2 ||
-              summary?.database_writes !== 0 || summary?.filesystem_writes !== 0) {
-            throw new Error('Value-blind provider probe did not produce the exact PASS metadata contract');
+          const expectedHash = '0d6aac7327638f31dea44480fee0402f1e7dd62e2d2023c2f91a7846a2ffa815';
+          const refuse = () => { throw new Error('Provider probe metadata rejected by the trusted output firewall'); };
+          const exactKeys = (value, expected) => {
+            if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+            const actual = Object.keys(value).sort();
+            const wanted = [...expected].sort();
+            return actual.length === wanted.length && actual.every((key, index) => key === wanted[index]);
+          };
+          const stat = fs.statSync(process.env.PROBE_LOG);
+          if (stat.size < 1 || stat.size > 8192) refuse();
+          const raw = fs.readFileSync(process.env.PROBE_LOG, 'utf8');
+          const lines = raw.split(/\r?\n/);
+          if (lines.at(-1) === '') lines.pop();
+          if (lines.length !== 10 || lines.some((line) => line.length === 0)) refuse();
+          let rows;
+          try { rows = lines.map((line) => JSON.parse(line)); } catch { refuse(); }
+
+          const policyKeys = [
+            'probe', 'result', 'canonical_schema_hash', 'canonical_schema_property_count',
+            'canonical_schema_key_parity', 'provider_required_key_parity', 'store_false',
+            'background_false', 'shortest_prompt_cache_retention', 'tools_absent',
+            'inline_only', 'conversation_state_absent',
+          ];
+          const fixtureKeys = [
+            'fixture', 'result', 'adapter_completed', 'grounded_schema_conformant',
+            'store_false', 'no_tools', 'background_false', 'shortest_prompt_cache_retention',
+            'inline_only',
+          ];
+          const differentialKeys = [
+            'probe', 'result', 'same_requested_filename', 'changed_source_field',
+            'grounded_fields_stable', 'compared_field_count', 'stable_field_count',
+          ];
+          const fullFieldKeys = [
+            'probe', 'result', 'compared_field_count', 'all_fields_meaningful',
+            'canonical_key_order',
+          ];
+          const multiFileKeys = [
+            'probe', 'result', 'forward_primary_precedence', 'reversed_primary_precedence',
+            'fill_empty_observed', 'stable_array_union_observed',
+          ];
+          const summaryKeys = [
+            'probe', 'result', 'passed', 'total', 'database_writes', 'filesystem_writes',
+            'provider_requests', 'canonical_schema_hash', 'canonical_schema_property_count',
+          ];
+          const [
+            policy, baseline, changedDob, fullField, multiForward, multiReversed,
+            differential, fullFieldGrounding, multiFileReconciliation, summary,
+          ] = rows;
+          if (!exactKeys(policy, policyKeys) || policy.probe !== 'provider-request-policy' ||
+              policy.result !== 'PASS' || policy.canonical_schema_hash !== expectedHash ||
+              policy.canonical_schema_property_count !== 39 ||
+              ['canonical_schema_key_parity', 'provider_required_key_parity', 'store_false',
+                'background_false', 'shortest_prompt_cache_retention', 'tools_absent',
+                'inline_only', 'conversation_state_absent'].some((key) => policy[key] !== true)) refuse();
+
+          for (const [row, fixture] of [
+            [baseline, 'synthetic-referral-baseline'],
+            [changedDob, 'synthetic-referral-dob-change'],
+            [fullField, 'synthetic-referral-full-field'],
+            [multiForward, 'synthetic-referral-multi-forward'],
+            [multiReversed, 'synthetic-referral-multi-reversed'],
+          ]) {
+            if (!exactKeys(row, fixtureKeys) || row.fixture !== fixture || row.result !== 'PASS' ||
+                ['adapter_completed', 'grounded_schema_conformant', 'store_false', 'no_tools',
+                  'background_false', 'shortest_prompt_cache_retention', 'inline_only']
+                  .some((key) => row[key] !== true)) refuse();
           }
-          const allowedKeys = new Set([
-            'probe', 'fixture', 'result', 'store_false', 'background_false', 'tools_absent',
-            'shortest_prompt_cache_retention',
-            'inline_only', 'conversation_state_absent', 'adapter_completed',
-            'grounded_schema_conformant', 'no_tools', 'passed', 'total', 'database_writes',
-            'filesystem_writes', 'error_class',
-          ]);
-          for (const row of rows) {
-            const unexpected = Object.keys(row).filter((key) => !allowedKeys.has(key));
-            if (unexpected.length) throw new Error(`Provider probe emitted non-metadata field(s): ${unexpected.join(',')}`);
-          }
+
+          if (!exactKeys(differential, differentialKeys) ||
+              differential.probe !== 'provider-probe-differential-grounding' ||
+              differential.result !== 'PASS' || differential.same_requested_filename !== true ||
+              differential.changed_source_field !== 'date_of_birth' ||
+              differential.grounded_fields_stable !== true ||
+              differential.compared_field_count !== 39 || differential.stable_field_count !== 38) refuse();
+          if (!exactKeys(fullFieldGrounding, fullFieldKeys) ||
+              fullFieldGrounding.probe !== 'provider-probe-full-field-grounding' ||
+              fullFieldGrounding.result !== 'PASS' ||
+              fullFieldGrounding.compared_field_count !== 39 ||
+              fullFieldGrounding.all_fields_meaningful !== true ||
+              fullFieldGrounding.canonical_key_order !== true) refuse();
+          if (!exactKeys(multiFileReconciliation, multiFileKeys) ||
+              multiFileReconciliation.probe !== 'provider-probe-multi-file-reconciliation' ||
+              multiFileReconciliation.result !== 'PASS' ||
+              multiFileReconciliation.forward_primary_precedence !== true ||
+              multiFileReconciliation.reversed_primary_precedence !== true ||
+              multiFileReconciliation.fill_empty_observed !== true ||
+              multiFileReconciliation.stable_array_union_observed !== true) refuse();
+          if (!exactKeys(summary, summaryKeys) || summary.probe !== 'provider-probe-summary' ||
+              summary.result !== 'PASS' || summary.passed !== 5 || summary.total !== 5 ||
+              summary.provider_requests !== 7 ||
+              summary.database_writes !== 0 || summary.filesystem_writes !== 0 ||
+              summary.canonical_schema_hash !== expectedHash ||
+              summary.canonical_schema_property_count !== 39) refuse();
           NODE
+            then
+              rm -f "$probe_log" "$probe_stderr"
+              return 1
+            fi
+            rm -f "$probe_log" "$probe_stderr"
+          }
+
+          run_referral_canary() {
+            local canary_log="$RUNNER_TEMP/referral-production-canary.jsonl"
+            local canary_stderr="$RUNNER_TEMP/referral-production-canary.stderr"
+            local canary_status=0
+
+            set +e
+            timeout --signal=TERM --kill-after=10s 180s fly ssh console \
+              --app "$app" \
+              --quiet \
+              --pty=false \
+              --command "env RUN_REFERRAL_PRODUCTION_CANARY=I_ACKNOWLEDGE_ISOLATED_SYNTHETIC_REFERRAL_PRODUCTION_CANARY ALLOW_PAID_PROVIDER_PROBE=1 node --no-warnings scripts/referral-production-canary.mjs" \
+              >"$canary_log" 2>"$canary_stderr"
+            canary_status=$?
+            set -e
+
+            if [[ "$(wc -c <"$canary_log")" -gt 8192 || "$(wc -c <"$canary_stderr")" -gt 8192 ]]; then
+              rm -f "$canary_log" "$canary_stderr"
+              return 1
+            fi
+            if [[ "$canary_status" -ne 0 ]]; then
+              rm -f "$canary_log" "$canary_stderr"
+              return 1
+            fi
+            if ! referral_canary_fixture_sha256="$(CANARY_LOG="$canary_log" EXPECTED_RELEASE_SHA="$APPLICATION_SHA" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const refuse = () => { throw new Error('Referral canary metadata rejected by the trusted output firewall'); };
+          const exactKeys = (value, expected) => {
+            if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+            const actual = Object.keys(value).sort();
+            const wanted = [...expected].sort();
+            return actual.length === wanted.length && actual.every((key, index) => key === wanted[index]);
+          };
+          const stat = fs.statSync(process.env.CANARY_LOG);
+          if (stat.size < 1 || stat.size > 8192) refuse();
+          const raw = fs.readFileSync(process.env.CANARY_LOG, 'utf8');
+          const lines = raw.split(/\r?\n/);
+          if (lines.at(-1) === '') lines.pop();
+          if (lines.length !== 1 || lines[0].length === 0) refuse();
+          let row;
+          try { row = JSON.parse(lines[0]); } catch { refuse(); }
+          if (!exactKeys(row, [
+            'schema_version', 'canary', 'observed_at_utc', 'release_sha', 'result',
+            'failure_stage', 'fixture', 'isolation', 'checks',
+          ])) refuse();
+          if (row.schema_version !== 'assesssuite.isolated-referral-production-canary.v2' ||
+              row.canary !== 'installed-sdk-referral-journey' ||
+              !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/.test(row.observed_at_utc) ||
+              row.release_sha !== process.env.EXPECTED_RELEASE_SHA || row.result !== 'PASS' ||
+              row.failure_stage !== null) refuse();
+          const observedAtMs = Date.parse(row.observed_at_utc);
+          const observationAgeMs = Date.now() - observedAtMs;
+          if (!Number.isFinite(observedAtMs) || observationAgeMs < -60_000 || observationAgeMs > 600_000) refuse();
+          if (!exactKeys(row.fixture, ['provenance', 'requested_filename_contract', 'byte_sha256']) ||
+              row.fixture.provenance !== 'repository-generated-synthetic-pdf' ||
+              row.fixture.requested_filename_contract !== true ||
+              !/^[0-9a-f]{64}$/.test(row.fixture.byte_sha256)) refuse();
+          if (!exactKeys(row.isolation, [
+            'database', 'uploads', 'production_database_writes', 'production_upload_writes',
+            'external_email_sends', 'temporary_storage_removed',
+          ]) || row.isolation.database !== 'temporary' || row.isolation.uploads !== 'temporary' ||
+              row.isolation.production_database_writes !== 0 ||
+              row.isolation.production_upload_writes !== 0 || row.isolation.external_email_sends !== 0 ||
+              row.isolation.temporary_storage_removed !== true) refuse();
+          const checkNames = [
+            'gates_accepted', 'temporary_paths_isolated', 'installed_sdk_authenticated',
+            'primary_organisation_resolved', 'requested_filename_registered',
+            'age_attestation_provenance_recorded', 'upload_registered', 'real_provider_mode',
+            'extraction_provider_contacted', 'canonical_schema_verified', 'extraction_grounded',
+            'provider_policy_enforced', 'no_client_before_review', 'reviewed_client_created',
+            'document_retained', 'upload_bound', 'temporary_storage_removed',
+          ];
+          if (!exactKeys(row.checks, checkNames) || Object.values(row.checks).some((value) => value !== true) ||
+              row.checks.temporary_storage_removed !== row.isolation.temporary_storage_removed) refuse();
+          process.stdout.write(row.fixture.byte_sha256);
+          NODE
+            )"; then
+              rm -f "$canary_log" "$canary_stderr"
+              return 1
+            fi
+            rm -f "$canary_log" "$canary_stderr"
+            referral_canary_result='PASS (isolated installed-SDK upload, extraction, review and persistence journey; zero production DB/upload writes)'
           }
 
           append_summary() {
@@ -738,14 +1330,24 @@ jobs:
               echo "- Workflow run: $GITHUB_RUN_ID"
               echo "- Capability intent: $CAPABILITY_INTENT_ID"
               echo "- Authority: $AUTHORITY_REFERENCE"
+              echo "- Trusted workflow SHA: $TRUSTED_WORKFLOW_SHA"
               echo "- Candidate SHA: $APPLICATION_SHA"
+              echo "- Candidate Fly config SHA-256: $CANDIDATE_CONFIG_SHA256"
+              echo "- Rollback source SHA: $ROLLBACK_SOURCE_SHA"
+              echo "- Rollback Fly config SHA-256: $ROLLBACK_CONFIG_SHA256"
               echo "- Source branch: $SOURCE_BRANCH"
               echo "- Build timestamp: $BUILD_TIMESTAMP"
               echo "- Extraction runtime mode: $EXTRACTION_RUNTIME_MODE"
               echo "- Provider-terms evidence: $PROVIDER_TERMS_EVIDENCE_ID"
               echo "- Under-age/ZDR runtime mode: $UNDER_AGE_ZDR_RUNTIME_MODE"
               echo "- Under-age/ZDR evidence: $UNDER_AGE_ZDR_EVIDENCE_ID"
-              echo "- Real-provider synthetic PDF + PNG probe: $provider_probe_result"
+              echo "- Real-provider full-schema differential referral probe: $provider_probe_result"
+              echo "- Referral production canary: $referral_canary_result"
+              echo "- Exact-image forward/rollback shared-store proof: $forward_rollback_proof_result"
+              echo "- Canary fixture: AssessSuite_Demo_GP_Referral(1).pdf (repository-generated synthetic PDF; SHA-256 ${referral_canary_fixture_sha256:-not-established})"
+              echo "- Production topology (content-free): exact=$volume_snapshot_policy_verified; machine_id=$production_machine_id; volume_id=$production_volume_id; encrypted=$volume_snapshot_policy_verified; scheduled_snapshots=$volume_snapshot_policy_verified; snapshot_retention_days=5"
+              echo "- Predeploy on-demand snapshot (content-free): created=$predeploy_snapshot_created; snapshot_id=$predeploy_snapshot_id; digest=$predeploy_snapshot_digest; source_volume_id=$predeploy_snapshot_source_volume_id; new_created_count=$predeploy_snapshot_created_count; created_at_utc=$predeploy_snapshot_created_at_utc"
+              echo "- Automatic rollback scope: application image/config only; the predeploy volume snapshot is a separate recovery point and is not automatically restored"
               echo "- Prior release: ${prior_release:-not-established}"
               echo "- Prior image: ${prior_image:-not-established}"
               echo "- Candidate release: ${candidate_release:-not-established}"
@@ -759,22 +1361,25 @@ jobs:
           rollback_now() {
             local reason=$1
             echo "Production verification failed ($reason); deploying the pre-verified compatibility image." >&2
-            if ! fly deploy "$rollback_dir" \
+            if ! timeout --signal=TERM --kill-after=30s 420s fly deploy "$deploy_source_dir" \
               --config "$rollback_config" \
               --strategy immediate \
               --ha=false \
               --update-only \
+              --remote-only \
+              --skip-release-command \
               --app "$app" \
               --image "$ROLLBACK_IMAGE" \
               --yes; then
-              append_summary "FAILED; automatic rollback command also failed ($reason)"
+              append_summary "FAILED; automatic image rollback command also failed ($reason)"
               return 1
             fi
-            if ! assert_topology rollback; then
-              append_summary "FAILED; rollback topology verification failed ($reason)"
+            if ! assert_volume_snapshot_policy rollback "$production_volume_id" "$production_machine_id"; then
+              append_summary "FAILED; rollback topology or volume snapshot-policy verification failed ($reason)"
               return 1
             fi
-            if ! fly releases --app "$app" --image --json >"$rollback_json"; then
+            if ! timeout --signal=TERM --kill-after=10s 60s \
+              fly releases --app "$app" --image --json >"$rollback_json"; then
               append_summary "FAILED; rollback release query failed ($reason)"
               return 1
             fi
@@ -798,105 +1403,100 @@ jobs:
               append_summary "FAILED; rollback legal settings verification failed ($reason)"
               return 1
             fi
-            if ! read_public_surface 'https://assesssuite.com' 'rollback-apex' \
-              || ! read_public_surface 'https://assesssuite-production.fly.dev' 'rollback-fly'; then
+            if ! read_public_surface 'https://assesssuite.com' 'rollback-apex' 'rollback' \
+              || ! read_public_surface 'https://assesssuite-production.fly.dev' 'rollback-fly' 'rollback'; then
               append_summary "FAILED; rollback public surface verification failed ($reason)"
               return 1
             fi
-            append_summary "FAILED; automatically rolled back and verified ($reason)"
+            if ! assert_secret_name_boundary postrollback forbid; then
+              append_summary "FAILED; postrollback names-only production secret boundary drifted ($reason)"
+              return 1
+            fi
+            rm -f "$RUNNER_TEMP/postrollback-secret-names.json"
+            append_summary "FAILED; application image automatically rolled back and verified ($reason)"
             return 0
           }
 
-          fly auth docker
-          docker pull "$ROLLBACK_IMAGE"
-          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$ROLLBACK_SOURCE_SHA" ]]
-          docker image inspect "$ROLLBACK_IMAGE" --format '{{ range .Config.Env }}{{ println . }}{{ end }}' >"$RUNNER_TEMP/rollback-image-env.txt"
-          grep -Fx "RELEASE_SHA=$ROLLBACK_SOURCE_SHA" "$RUNNER_TEMP/rollback-image-env.txt"
-          grep -Fx "SOURCE_BRANCH=$ROLLBACK_SOURCE_BRANCH" "$RUNNER_TEMP/rollback-image-env.txt"
-          assert_topology prior
-          fly releases --app "$app" --image --json >"$prior_json"
-          prior_current="$(current_release "$prior_json")"
-          IFS=$'\t' read -r prior_release prior_image <<<"$prior_current"
-          [[ "$prior_release" == "$EXPECTED_CURRENT_RELEASE" ]]
-          [[ "$prior_image" == "$EXPECTED_CURRENT_IMAGE" ]]
+          [[ "$candidate_image_ref" == "$CANDIDATE_IMAGE_REF" ]]
+          [[ "$forward_rollback_proof_result" == 'PASS (fresh no-secret exact-image receipt verified before credential injection)' ]]
 
-          fly secrets list --app "$app" --json >"$RUNNER_TEMP/secret-names.json"
-          EXTRACTION_RUNTIME_MODE="$EXTRACTION_RUNTIME_MODE" UNDER_AGE_ZDR_RUNTIME_MODE="$UNDER_AGE_ZDR_RUNTIME_MODE" node --input-type=module <<'NODE'
-          import fs from 'node:fs';
-          const rows = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP + '/secret-names.json', 'utf8'));
-          const present = new Set(rows.map((row) => row.Name ?? row.name));
-          const required = [
-            'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',
-            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',
-            'OPENAI_API_KEY',
-          ];
-          const missing = required.filter((name) => !present.has(name));
-          if (missing.length) throw new Error(`Required production secret name(s) absent: ${missing.join(', ')}`);
-          if (present.has('DOCUMENT_EXTRACTION_ENABLED')) {
-            throw new Error('DOCUMENT_EXTRACTION_ENABLED must be reviewed non-secret config; opaque Fly-secret override is refused');
-          }
-          if (present.has('DOCUMENT_EXTRACTION_UNDER_13_ENABLED')) {
-            throw new Error('DOCUMENT_EXTRACTION_UNDER_13_ENABLED must be reviewed non-secret config; opaque Fly-secret override is refused');
-          }
-          if (present.has('OPENAI_HEALTH_DATA_TERMS_CONFIRMED')) {
-            throw new Error('OPENAI_HEALTH_DATA_TERMS_CONFIRMED must be reviewed non-secret config; opaque Fly-secret override is refused');
-          }
-          if (present.has('GENERAL_CLINICAL_LLM_ENABLED')) {
-            throw new Error('GENERAL_CLINICAL_LLM_ENABLED must be reviewed non-secret config; opaque Fly-secret override is refused');
-          }
-          if (present.has('TRANSCRIPTION_ENABLED')) {
-            throw new Error('TRANSCRIPTION_ENABLED must be reviewed non-secret config; opaque Fly-secret override is refused');
-          }
-          if (present.has('LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS')) {
-            throw new Error('LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS must be reviewed non-secret rollback config; opaque Fly-secret override is refused');
-          }
-          if (present.has('OPENAI_DOCUMENT_EXTRACTION_MODEL')) {
-            throw new Error('OPENAI_DOCUMENT_EXTRACTION_MODEL is fixed in the reviewed adapter; opaque Fly-secret override is refused');
-          }
-          if (present.has('LEGAL_STATUS') || present.has('LEGAL_EFFECTIVE_DATE')) {
-            console.log('Legacy opaque legal settings are present and will be staged for removal before the reviewed deploy.');
-          }
-          console.log(`Names-only production preflight passed (${required.length} required names; extraction mode ${process.env.EXTRACTION_RUNTIME_MODE}; under-age/ZDR mode ${process.env.UNDER_AGE_ZDR_RUNTIME_MODE}).`);
-          NODE
+          if ! assert_secret_name_boundary initial allow; then
+            append_summary 'FAILED; initial names-only production secret boundary did not contain the exact reviewed migration set'
+            exit 1
+          fi
+          rm -f "$RUNNER_TEMP/initial-secret-names.json"
+          timeout --signal=TERM --kill-after=10s 60s \
+            fly secrets unset LEGAL_STATUS LEGAL_EFFECTIVE_DATE --stage --app "$app"
 
-          legacy_legal_secrets=()
-          for name in LEGAL_STATUS LEGAL_EFFECTIVE_DATE; do
-            if jq -e --arg name "$name" '.[] | select((.Name // .name) == $name)' "$RUNNER_TEMP/secret-names.json" >/dev/null; then
-              legacy_legal_secrets+=("$name")
-            fi
-          done
-          if [[ "${#legacy_legal_secrets[@]}" -gt 0 ]]; then
-            fly secrets unset "${legacy_legal_secrets[@]}" --stage --app "$app"
+          deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))
+          if [[ "$DEPLOY_JOB_STARTED_EPOCH" -le 0 || "$deploy_job_elapsed_seconds" -lt 0 \
+            || "$deploy_job_elapsed_seconds" -gt 1200 ]]; then
+            echo 'The deployment job no longer has the reviewed time reserve for snapshot, candidate verification and automatic image rollback.' >&2
+            append_summary 'FAILED; rollback-reserved deployment time gate closed before snapshot or application deployment'
+            exit 1
           fi
 
-          docker tag "assesssuite-release-gate:$APPLICATION_SHA" "$new_image_tag"
-          docker push "$new_image_tag"
-          candidate_digest="$(docker buildx imagetools inspect "$new_image_tag" --format '{{json .Manifest}}' | jq -er '.digest')"
-          [[ "$candidate_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
-          candidate_image_ref="registry.fly.io/$app@$candidate_digest"
-          docker buildx imagetools inspect "$candidate_image_ref" >/dev/null
+          if ! create_predeploy_volume_snapshot; then
+            echo 'The content-free on-demand predeploy volume snapshot did not reach created status within the bounded gate.' >&2
+            append_summary 'FAILED; on-demand predeploy snapshot gate failed before application deployment'
+            exit 1
+          fi
+
+          # Final just-in-time freeze: no branch, workflow, config, release,
+          # image, secret-name, machine or volume drift is accepted between
+          # the reviewed gates and the production mutation below.
+          [[ "$predeploy_snapshot_created" == true ]]
+          [[ "$predeploy_snapshot_source_volume_id" == "$EXPECTED_VOLUME_ID" ]]
+          remote_main_sha="$(git ls-remote --exit-code https://github.com/mbvidler-ctrl/assesssuite_migration.git refs/heads/main | awk 'NR == 1 { print $1 }')"
+          [[ "$remote_main_sha" == "$APPLICATION_SHA" ]]
+          [[ "$remote_main_sha" == "$ROLLBACK_SOURCE_SHA" ]]
+          [[ "$remote_main_sha" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$(sha256sum "$candidate_config" | awk '{print $1}')" == "$CANDIDATE_CONFIG_SHA256" ]]
+          [[ "$(sha256sum "$rollback_config" | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
+          if ! assert_volume_snapshot_policy final-predeploy "$EXPECTED_VOLUME_ID" "$EXPECTED_MACHINE_ID"; then
+            append_summary 'FAILED; final predeploy machine or volume identity drifted'
+            exit 1
+          fi
+          final_prior_json="$RUNNER_TEMP/final-prior-releases.json"
+          timeout --signal=TERM --kill-after=10s 60s \
+            fly releases --app "$app" --image --json >"$final_prior_json"
+          final_prior_current="$(current_release "$final_prior_json")"
+          IFS=$'\t' read -r final_prior_release final_prior_image <<<"$final_prior_current"
+          if [[ "$final_prior_release" != "$EXPECTED_CURRENT_RELEASE" \
+            || "$final_prior_image" != "$EXPECTED_CURRENT_IMAGE" ]]; then
+            append_summary 'FAILED; final predeploy release or image drifted'
+            exit 1
+          fi
+          if ! assert_secret_name_boundary final forbid; then
+            append_summary 'FAILED; final names-only production secret boundary drifted'
+            exit 1
+          fi
+          rm -f "$RUNNER_TEMP/final-secret-names.json" "$final_prior_json"
 
           deploy_status=0
-          fly deploy "$candidate_dir" \
+          timeout --signal=TERM --kill-after=30s 420s fly deploy "$deploy_source_dir" \
             --config "$candidate_config" \
             --strategy immediate \
             --ha=false \
             --update-only \
+            --remote-only \
+            --skip-release-command \
             --app "$app" \
             --image "$candidate_image_ref" \
             --yes || deploy_status=$?
 
           if [[ "$deploy_status" -ne 0 ]]; then
             if ! rollback_now "fly-deploy-exit-$deploy_status"; then
-              echo 'Automatic rollback did not verify successfully.' >&2
+              echo 'Automatic image rollback did not verify successfully.' >&2
             fi
             exit 1
           fi
 
           verification_failure=''
-          if ! assert_topology candidate; then
-            verification_failure='candidate-topology-mismatch'
-          elif ! fly releases --app "$app" --image --json >"$new_json"; then
+          if ! assert_volume_snapshot_policy candidate "$production_volume_id" "$production_machine_id"; then
+            verification_failure='candidate-topology-or-volume-snapshot-policy-mismatch'
+          elif ! timeout --signal=TERM --kill-after=10s 60s \
+            fly releases --app "$app" --image --json >"$new_json"; then
             verification_failure='release-query-failed'
           else
             candidate_current=''
@@ -921,7 +1521,11 @@ jobs:
               verification_failure='fly-public-surface-mismatch'
             elif [[ -z "$verification_failure" && "$EXTRACTION_RUNTIME_MODE" == "enabled" ]]; then
               if run_provider_probe; then
-                provider_probe_result='PASS (value-blind synthetic PDF + PNG; no DB/filesystem writes)'
+                provider_probe_result='PASS (exact 39-field schema; differential, full-field and multi-file synthetic probes; seven real provider requests; no DB/filesystem writes)'
+                if ! run_referral_canary; then
+                  referral_canary_result='FAIL'
+                  verification_failure='isolated-referral-production-canary-failed'
+                fi
               else
                 provider_probe_result='FAIL'
                 verification_failure='real-provider-probe-failed'
