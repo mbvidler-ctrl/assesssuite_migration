@@ -15,10 +15,10 @@ export default function Paywall() {
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'Inter, -apple-system, sans-serif' }}>
       <div style={{ background: '#fff', borderRadius: '20px', padding: '56px 48px', maxWidth: '560px', width: '100%', textAlign: 'center', boxShadow: '0 4px 40px rgba(15,23,42,0.10)', border: '1px solid #e2e8f0' }}>
-        <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/358c0c514_Logo-Transparent1.png" alt="AssessSuite Clinical" style={{ height: '60px', marginBottom: '32px' }} />
+        <img src="/cadence-bio-clinics.svg" alt="Cadence Bio-Clinics" style={{ height: '60px', marginBottom: '32px' }} />
         <h1 style={{ fontSize: '28px', fontWeight: 800, color: '#0f172a', marginBottom: '12px', letterSpacing: '-0.5px' }}>Subscribe to Get Started</h1>
         <p style={{ fontSize: '16px', color: '#64748b', marginBottom: '40px', lineHeight: 1.7 }}>
-          {user?.full_name ? `Welcome, ${user.full_name}! ` : ''}Your account is ready. Complete your subscription to access AssessSuite Clinical.
+          {user?.full_name ? `Welcome, ${user.full_name}! ` : ''}Your account is ready. Complete your subscription to access Cadence Bio-Clinics.
         </p>
 
         <div style={{ display: 'flex', gap: '16px', marginBottom: '24px', flexWrap: 'wrap' }}>
@@ -47,7 +47,7 @@ export default function Paywall() {
         </ul>
 
         <p style={{ fontSize: '13px', color: '#94a3b8', marginBottom: '20px' }}>
-          Questions? <a href="mailto:admin@assesssuite.com" style={{ color: '#2563eb', textDecoration: 'none' }}>admin@assesssuite.com</a> or 1800 317 553
+          Questions? <a href="https://demo.unimatter.com.au" style={{ color: '#2563eb', textDecoration: 'none' }}>Cadence Bio-Clinics demonstration</a> or the demonstration administrator
         </p>
         <button onClick={logout} style={{ background: 'none', border: 'none', fontSize: '13px', color: '#94a3b8', cursor: 'pointer' }}>Sign out</button>
       </div>

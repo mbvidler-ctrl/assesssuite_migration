@@ -8,7 +8,7 @@ export default function CreateAccount() {
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', fontFamily: 'Inter, -apple-system, sans-serif' }}>
       <div style={{ background: '#fff', borderRadius: '20px', padding: '56px 48px', maxWidth: '500px', width: '100%', textAlign: 'center', boxShadow: '0 4px 40px rgba(15,23,42,0.10)', border: '1px solid #e2e8f0' }}>
         
-        <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/358c0c514_Logo-Transparent1.png" alt="AssessSuite Clinical" style={{ height: '56px', marginBottom: '28px' }} />
+        <img src="/cadence-bio-clinics.svg" alt="Cadence Bio-Clinics" style={{ height: '56px', marginBottom: '28px' }} />
         
         <div style={{ background: '#dcfce7', color: '#16a34a', fontSize: '13px', fontWeight: 700, padding: '6px 16px', borderRadius: '100px', display: 'inline-block', marginBottom: '20px' }}>
           ✓ Subscription confirmed
@@ -19,7 +19,7 @@ export default function CreateAccount() {
         </h1>
         
         <p style={{ fontSize: '15px', color: '#64748b', marginBottom: '32px', lineHeight: 1.7 }}>
-          You're one step away from accessing AssessSuite Clinical. Click below to create your login — use the same email you used at checkout.
+          You're one step away from accessing Cadence Bio-Clinics. Click below to create your login — use the same email you used at checkout.
         </p>
 
         <button

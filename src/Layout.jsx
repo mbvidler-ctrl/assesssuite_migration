@@ -157,7 +157,7 @@ export default function Layout({ children, currentPageName }) {
             <div className="flex items-center justify-center -my-8">
               <img
                 src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/4c24cafdd_Logo-Transparent1.png"
-                alt="AssessSuite Clinical Logo"
+                alt="Cadence Bio-Clinics Logo"
                 className="h-auto w-full max-w-[180px]"
               />
             </div>

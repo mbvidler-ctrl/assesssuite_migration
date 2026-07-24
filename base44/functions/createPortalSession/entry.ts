@@ -5,7 +5,7 @@ Deno.serve(async (req) => {
   try {
     const { stripeCustomerId } = await req.json();
     const stripeKey = Deno.env.get("Stripe_Secret_Key") || "";
-    const appUrl = Deno.env.get("APP_URL") || "https://assesssuite.com";
+    const appUrl = Deno.env.get("APP_URL") || "https://demo.unimatter.com.au";
     if (!stripeCustomerId) return new Response(JSON.stringify({ error: "No Stripe customer ID found." }), { status: 400, headers: { "Content-Type": "application/json" } });
     const params = new URLSearchParams();
     params.append("customer", stripeCustomerId);

@@ -37,40 +37,40 @@ const LEGAL_DOCS = {
 const LEGAL_DOCUMENT_CONTENT = {
   terms_conditions_global: `## TERMS & CONDITIONS
 
-**AssessSuite**
+**Cadence Bio-Clinics**
 
 Last updated: 30 December 2025
 
 ### 1. Acceptance of Terms
 
-By accessing or using AssessSuite (the "Application", "Service"), you agree to be bound by these Terms & Conditions and all incorporated policies. If you do not agree, you must not use the Application.
+By accessing or using Cadence Bio-Clinics (the "Application", "Service"), you agree to be bound by these Terms & Conditions and all incorporated policies. If you do not agree, you must not use the Application.
 
 ### 2. Intended Users
 
-AssessSuite is intended for qualified health professionals (including Exercise Physiologists and other allied health professionals) and authorised end users accessing the Application under appropriate professional supervision. You confirm that you are legally permitted to use the Application in your jurisdiction.
+Cadence Bio-Clinics is intended for qualified health professionals (including Exercise Physiologists and other allied health professionals) and authorised end users accessing the Application under appropriate professional supervision. You confirm that you are legally permitted to use the Application in your jurisdiction.
 
 ### 3. Nature of the Application
 
-AssessSuite is a clinical decision-support and documentation platform.
+Cadence Bio-Clinics is a clinical decision-support and documentation platform.
 The Application provides assessment frameworks, reference information, workflow tools, and reporting support.
 
-AssessSuite does not provide medical advice, diagnosis, or treatment and does not replace professional judgement or clinical responsibility. All outputs are assistive only.
+Cadence Bio-Clinics does not provide medical advice, diagnosis, or treatment and does not replace professional judgement or clinical responsibility. All outputs are assistive only.
 
 ### 4. Account Responsibility
 
 You are responsible for maintaining the confidentiality of your login credentials and for all activity conducted under your account. Information entered into the Application must be accurate, lawful, and appropriate for clinical use.
 
-AssessSuite may suspend or terminate accounts where misuse, unauthorised access, data scraping, reverse engineering, or other suspicious activity is detected.
+Cadence Bio-Clinics may suspend or terminate accounts where misuse, unauthorised access, data scraping, reverse engineering, or other suspicious activity is detected.
 
 ### 5. Intellectual Property
 
-All software, workflows, assessment logic, prompts, templates, reports, layouts, and underlying systems within AssessSuite are the intellectual property of AssessSuite unless otherwise stated.
+All software, workflows, assessment logic, prompts, templates, reports, layouts, and underlying systems within Cadence Bio-Clinics are the intellectual property of Cadence Bio-Clinics unless otherwise stated.
 
 You may not copy, reproduce, reverse engineer, scrape, distribute, commercialise, or use any part of the Application to create competing products or services.
 
 ### 6. Fees and Billing
 
-Access to AssessSuite may require payment. By subscribing, you agree to the pricing, billing cycle, and payment terms presented at the time of purchase. Prices may change with reasonable notice.
+Access to Cadence Bio-Clinics may require payment. By subscribing, you agree to the pricing, billing cycle, and payment terms presented at the time of purchase. Prices may change with reasonable notice.
 
 ### 7. No Refund and No Cancellation Policy
 
@@ -86,11 +86,11 @@ Nothing in this section excludes rights that cannot be excluded under applicable
 
 ### 8. Suspension and Termination
 
-AssessSuite may suspend or terminate access without refund if these Terms are breached, the Application is used unlawfully, or intellectual property misuse is suspected.
+Cadence Bio-Clinics may suspend or terminate access without refund if these Terms are breached, the Application is used unlawfully, or intellectual property misuse is suspected.
 
 ### 9. Limitation of Liability
 
-To the maximum extent permitted by law, AssessSuite is provided "as is". AssessSuite is not liable for clinical outcomes, decisions, or actions taken based on Application outputs. Any liability is limited to the amount paid by the user in the preceding three months, if any.
+To the maximum extent permitted by law, Cadence Bio-Clinics is provided "as is". Cadence Bio-Clinics is not liable for clinical outcomes, decisions, or actions taken based on Application outputs. Any liability is limited to the amount paid by the user in the preceding three months, if any.
 
 ### 10. Governing Law
 
@@ -98,17 +98,17 @@ These Terms are governed by the laws of Australia. Mandatory consumer rights und
 
   privacy_policy_global: `## PRIVACY POLICY
 
-**AssessSuite**
+**Cadence Bio-Clinics**
 
 Last updated: 30 December 2025
 
 ### 1. Information Collected
 
-AssessSuite may collect personal information such as name, email address, professional details, usage data, and health-related data entered by users as part of clinical workflows.
+Cadence Bio-Clinics may collect personal information such as name, email address, professional details, usage data, and health-related data entered by users as part of clinical workflows.
 
 ### 2. Sensitive and Health Data
 
-Health and assessment data entered into AssessSuite is treated as sensitive information and handled with enhanced safeguards.
+Health and assessment data entered into Cadence Bio-Clinics is treated as sensitive information and handled with enhanced safeguards.
 
 ### 3. Use of Information
 
@@ -119,7 +119,7 @@ Information is used to:
 - Maintain security and audit integrity
 - Comply with legal and regulatory obligations
 
-AssessSuite does not sell user data.
+Cadence Bio-Clinics does not sell user data.
 
 ### 4. Data Storage and Transfers
 
@@ -131,27 +131,27 @@ Users may request access to their data, correction of inaccuracies, or deletion 
 
 ### 6. Security
 
-AssessSuite implements reasonable administrative, technical, and organisational measures to protect data. No system is completely secure, and users acknowledge this risk.`,
+Cadence Bio-Clinics implements reasonable administrative, technical, and organisational measures to protect data. No system is completely secure, and users acknowledge this risk.`,
 
   medical_health_disclaimer_global: `## MEDICAL & HEALTH DISCLAIMER
 
-**AssessSuite**
+**Cadence Bio-Clinics**
 
 Last updated: 30 December 2025
 
-AssessSuite does not provide medical advice, diagnosis, or treatment.
+Cadence Bio-Clinics does not provide medical advice, diagnosis, or treatment.
 
-The Application is not intended for emergency use and does not replace consultation with qualified healthcare providers. Information generated by AssessSuite should not be relied upon as the sole basis for clinical decisions.
+The Application is not intended for emergency use and does not replace consultation with qualified healthcare providers. Information generated by Cadence Bio-Clinics should not be relied upon as the sole basis for clinical decisions.
 
 Clinicians must apply independent professional judgement at all times.`,
 
   professional_use_disclaimer_global: `## PROFESSIONAL USE DISCLAIMER
 
-**AssessSuite**
+**Cadence Bio-Clinics**
 
 Last updated: 30 December 2025
 
-AssessSuite is a clinical support tool only.
+Cadence Bio-Clinics is a clinical support tool only.
 
 Responsibility for:
 
@@ -162,15 +162,15 @@ Responsibility for:
 
 remains entirely with the treating clinician.
 
-Use of AssessSuite does not create a clinician–patient relationship between AssessSuite and any user or client.`,
+Use of Cadence Bio-Clinics does not create a clinician–patient relationship between Cadence Bio-Clinics and any user or client.`,
 
   ai_automation_transparency_global: `## AI & AUTOMATION TRANSPARENCY
 
-**AssessSuite**
+**Cadence Bio-Clinics**
 
 Last updated: 30 December 2025
 
-AssessSuite may use automated processes to assist with:
+Cadence Bio-Clinics may use automated processes to assist with:
 
 - Structuring assessments
 - Generating summaries

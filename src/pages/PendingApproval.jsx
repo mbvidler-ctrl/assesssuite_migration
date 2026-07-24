@@ -53,9 +53,9 @@ export default function PendingApproval() {
         <CardContent className="space-y-4 text-center">
           <p className="text-slate-600">
             Your account has been suspended. Please contact us at{' '}
-            <a href="mailto:admin@assesssuite.com" className="text-blue-600 underline">admin@assesssuite.com</a>
+            <a href="https://demo.unimatter.com.au" className="text-blue-600 underline">Cadence Bio-Clinics demonstration</a>
             {' '}or call{' '}
-            <a href="tel:1800317553" className="text-blue-600 underline">1800 317 553</a>
+            <a href="https://demo.unimatter.com.au" className="text-blue-600 underline">the demonstration page</a>
             {' '}to resolve this.
           </p>
           <div className="pt-4 border-t">

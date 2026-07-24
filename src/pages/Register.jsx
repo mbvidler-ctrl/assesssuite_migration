@@ -134,7 +134,7 @@ export default function Register() {
     <AuthLayout
       icon={Mail}
       title="Create your account"
-      subtitle="Join AssessSuite Clinical"
+      subtitle="Join Cadence Bio-Clinics"
       footer={
         <>
           Already have an account?{" "}

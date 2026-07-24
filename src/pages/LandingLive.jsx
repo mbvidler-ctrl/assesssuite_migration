@@ -409,12 +409,12 @@ export default function LandingLive() {
         {showSuccess && (
           <div style={{ background: '#d1fae5', borderBottom: '2px solid #10b981', padding: '20px', textAlign: 'center', position: 'sticky', top: 0, zIndex: 999 }}>
             <p style={{ fontSize: '18px', fontWeight: '600', color: '#065f46', margin: '0 0 10px 0' }}>
-              🎉 Payment successful! Welcome to Assess Suite Clinical.
+              🎉 Payment successful! Welcome to Cadence Bio-Clinics.
             </p>
             <p style={{ color: '#047857', margin: '0 0 14px 0' }}>
               Click below to create your account and get started.
             </p>
-            <a href="https://assesssuite.com" style={{ background: '#10b981', color: 'white', padding: '10px 24px', borderRadius: '8px', textDecoration: 'none', fontWeight: '600' }}>
+            <a href="https://demo.unimatter.com.au" style={{ background: '#10b981', color: 'white', padding: '10px 24px', borderRadius: '8px', textDecoration: 'none', fontWeight: '600' }}>
               Create Your Account →
             </a>
           </div>
@@ -422,7 +422,7 @@ export default function LandingLive() {
         <nav>
           <div className="nav-brand">
             <div style={{height: "56px", overflow: "hidden", display: "flex", alignItems: "center"}}>
-              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/358c0c514_Logo-Transparent1.png" alt="AssessSuite Clinical" style={{height: "200px", width: "auto", marginTop: "-70px", marginBottom: "-70px"}} />
+              <img src="/cadence-bio-clinics.svg" alt="Cadence Bio-Clinics" style={{height: "200px", width: "auto", marginTop: "-70px", marginBottom: "-70px"}} />
             </div>
           </div>
           <div className="nav-links">
@@ -436,7 +436,7 @@ export default function LandingLive() {
 
         <section className="hero">
           <h1>Exercise Physiology at it's Clinical Best.</h1>
-          <p>AssessSuite Clinical gives clinicians the tools to assess with greater accuracy, document more efficiently, and deliver more consistent client care. Designed specifically for Exercise Physiologists, the platform brings together assessments, clinical notes, outcome tracking, and professional reporting into one modern workflow built for growing practices and evolving healthcare systems.</p>
+          <p>Cadence Bio-Clinics gives clinicians the tools to assess with greater accuracy, document more efficiently, and deliver more consistent client care. Designed specifically for Exercise Physiologists, the platform brings together assessments, clinical notes, outcome tracking, and professional reporting into one modern workflow built for growing practices and evolving healthcare systems.</p>
           <div className="hero-ctas">
             <button onClick={() => setShowComingSoon(true)} className="btn-primary" style={{display:'inline-block',cursor:'pointer',border:'none'}}>Sign In / Sign Up →</button>
           </div>
@@ -478,7 +478,7 @@ export default function LandingLive() {
             {["Cardiovascular & Aerobic Fitness","Strength & Power","Balance & Vestibular","Mobility & Flexibility","Neurological & Cognitive","Pain & Psychological","Respiratory & Metabolic","Functional Independence","Outcome Measures & Questionnaires","Sports Performance & Agility","Body Composition","Chronic Disease Management"].map(c => (
               <div key={c} className="cat-pill">{c}</div>
             ))}
-            <a href="mailto:admin@assesssuite.com?subject=Assessment%20Request%20-%20AssessSuite%20Clinical" className="cat-pill" style={{textDecoration: "none"}}>
+            <a href="https://demo.unimatter.com.au" className="cat-pill" style={{textDecoration: "none"}}>
               Request an Assessment
             </a>
           </div>
@@ -489,7 +489,7 @@ export default function LandingLive() {
           <div className="reporting-grid">
             <div>
               <h2>Reports structured around funder requirements.</h2>
-              <p className="section-sub">Select your country to see every funder-ready report AssessSuite Clinical generates — structured EP reports with objective data tables, goal-based outcomes, and clinical justification built in.</p>
+              <p className="section-sub">Select your country to see every funder-ready report Cadence Bio-Clinics generates — structured EP reports with objective data tables, goal-based outcomes, and clinical justification built in.</p>
               <div className="country-tabs" style={{marginBottom: 0}}>
                 {countryButtons.map(({ code, label }) => (
                   <button
@@ -537,12 +537,12 @@ export default function LandingLive() {
              </div>
            </div>
            <p className="pricing-note">One subscription = one clinician. Each EP in your practice needs their own subscription.</p>
-           <p className="pricing-note" style={{marginTop: "20px"}}>Looking for corporate pricing? <a href="mailto:admin@assesssuite.com?subject=Corporate%20Pricing%20Inquiry%20-%20AssessSuite%20Clinical" style={{color: "#2563eb", textDecoration: "none", fontWeight: 500}}>Reach out</a> for teams and multi-clinic practices.</p>
+           <p className="pricing-note" style={{marginTop: "20px"}}>Looking for corporate pricing? <a href="https://demo.unimatter.com.au" style={{color: "#2563eb", textDecoration: "none", fontWeight: 500}}>Reach out</a> for teams and multi-clinic practices.</p>
          </section>
 
         <section className="features" id="features">
            <h2>Everything an Exercise Physiologist needs.</h2>
-           <p className="section-sub">From first assessment to final report — AssessSuite Clinical handles the clinical work and the paperwork.</p>
+           <p className="section-sub">From first assessment to final report — Cadence Bio-Clinics handles the clinical work and the paperwork.</p>
            <div className="features-grid">
              <div className="feature-card">
                <div className="feature-icon">🧪</div>
@@ -579,14 +579,14 @@ export default function LandingLive() {
            </div>
            <div style={{marginTop: "40px", paddingTop: "40px", borderTop: "1px solid #e2e8f0", textAlign: "center"}}>
              <p style={{fontSize: "14px", color: "#64748b", maxWidth: "700px", margin: "0 auto"}}>
-               <strong>Note:</strong> AssessSuite Clinical is assessment software built specifically for Exercise Physiologists. It is not clinic management software — it doesn't handle billing, referrer invoicing, or practice administration. It focuses on what EPs do: run assessments, generate SOAP notes, and create evidence-based reports.
+               <strong>Note:</strong> Cadence Bio-Clinics is assessment software built specifically for Exercise Physiologists. It is not clinic management software — it doesn't handle billing, referrer invoicing, or practice administration. It focuses on what EPs do: run assessments, generate SOAP notes, and create evidence-based reports.
              </p>
            </div>
          </section>
 
         <section className="final-cta">
           <h2>Ready to spend less time documenting<br />and more time with clients?</h2>
-          <p>Join Exercise Physiologists already using AssessSuite Clinical to run better assessments, write better reports, and reclaim their clinical time.</p>
+          <p>Join Exercise Physiologists already using Cadence Bio-Clinics to run better assessments, write better reports, and reclaim their clinical time.</p>
           <button onClick={() => setShowComingSoon(true)} className="btn-white" style={{display:"inline-block",border:'none',cursor:'pointer',color:'#fff'}}>Sign In / Sign Up →</button>
         </section>
 
@@ -594,26 +594,25 @@ export default function LandingLive() {
           <div className="footer-top">
             <div className="footer-brand">
               <img 
-                src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/29dfd4c64_Logo-Transparent1.png" 
-                alt="AssessSuite Clinical Logo" 
+                src="/cadence-bio-clinics.svg"
+                alt="Cadence Bio-Clinics Logo"
                 style={{maxWidth: "180px", marginBottom: "12px", filter: "brightness(0) invert(1)"}}
               />
             </div>
 
             <div className="footer-col">
               <div className="footer-col-title">Contact &amp; Support</div>
-              <a href="tel:1800317553" style={{color:"#fff"}}>📞 1800 317 553</a>
-              <a href="mailto:admin@assesssuite.com" style={{color:"#fff"}}>✉ï¸ admin@assesssuite.com</a>
+              <a href="https://demo.unimatter.com.au" style={{color:"#fff"}}>Demonstration access</a>
+              <a href="https://demo.unimatter.com.au" style={{color:"#fff"}}>✉ï¸ Cadence Bio-Clinics demonstration</a>
               <div style={{fontSize:"12px",color:"#fff",marginTop:"4px"}}>Mon–Thu, 10:00am–2:00pm AEST</div>
             </div>
 
             <div className="footer-col">
               <div className="footer-col-title">About Us</div>
               <div style={{fontSize:"13px",color:"#fff",lineHeight:"1.7"}}>
-                AssessSuite Clinical is a product of<br/>
-                <strong style={{color:"#fff"}}>Assess Suite Pty Ltd</strong><br/>
-                ABN 53 694 044 481<br/>
-                Australian Private Company
+                Cadence Bio-Clinics is a product of<br/>
+                <strong style={{color:"#fff"}}>Cadence Bio-Clinics</strong><br/>
+                Synthetic demonstration
               </div>
             </div>
 
@@ -625,7 +624,7 @@ export default function LandingLive() {
           </div>
 
           <div className="footer-bottom" style={{textAlign:"right", position:"relative"}}>
-            <span style={{color:"#fff"}}>© 2026 Assess Suite Pty Ltd. All rights reserved.</span>
+            <span style={{color:"#fff"}}>Cadence Bio-Clinics · Synthetic demonstration</span>
 
           </div>
         </footer>
@@ -638,19 +637,19 @@ export default function LandingLive() {
           <div style={{background:'#fff',borderRadius:'20px',padding:'48px 40px',maxWidth:'680px',width:'100%',maxHeight:'80vh',overflowY:'auto',boxShadow:'0 8px 48px rgba(15,23,42,0.2)',fontFamily:'Inter,sans-serif'}}>
             <h2 style={{fontSize:'26px',fontWeight:800,color:'#0f172a',marginBottom:'20px',letterSpacing:'-0.5px'}}>Privacy Policy</h2>
             <div style={{fontSize:'14px',color:'#475569',lineHeight:1.8}}>
-              <p style={{marginBottom:'16px'}}><strong>Assess Suite Pty Ltd</strong> (ABN 53 694 044 481) is committed to protecting your privacy in accordance with the <em>Privacy Act 1988</em> (Cth) and the Australian Privacy Principles (APPs).</p>
+              <p style={{marginBottom:'16px'}}><strong>Cadence Bio-Clinics</strong> is a synthetic demonstration presented for illustrative purposes.</p>
               <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>1. Information We Collect</h3>
-              <p style={{marginBottom:'12px'}}>We collect personal information necessary to provide the AssessSuite Clinical platform, including your name, email address, professional registration details, and clinical data entered into the platform on behalf of clients.</p>
+              <p style={{marginBottom:'12px'}}>We collect personal information necessary to provide the Cadence Bio-Clinics platform, including your name, email address, professional registration details, and clinical data entered into the platform on behalf of clients.</p>
               <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>2. How We Use Your Information</h3>
-              <p style={{marginBottom:'12px'}}>Personal information is used solely to deliver and improve the AssessSuite Clinical platform. We do not sell, rent, or share your personal information with third parties for marketing purposes.</p>
+              <p style={{marginBottom:'12px'}}>Personal information is used solely to deliver and improve the Cadence Bio-Clinics platform. We do not sell, rent, or share your personal information with third parties for marketing purposes.</p>
               <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>3. Data Storage & Security</h3>
               <p style={{marginBottom:'12px'}}>All data is stored on secure Australian-based servers. We implement industry-standard security measures including encryption at rest and in transit. Access is restricted to authorised personnel only.</p>
               <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>4. Client Health Data</h3>
               <p style={{marginBottom:'12px'}}>Health information entered into the platform relates to your clients and is treated as sensitive information under the Privacy Act. You, as the clinician, are responsible for obtaining appropriate consent from your clients prior to recording their data.</p>
               <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>5. Access & Correction</h3>
-              <p style={{marginBottom:'12px'}}>You may request access to or correction of your personal information at any time by contacting us at <a href="mailto:admin@assesssuite.com" style={{color:'#2563eb'}}>admin@assesssuite.com</a>.</p>
+              <p style={{marginBottom:'12px'}}>You may request access to or correction of your personal information at any time by contacting us at <a href="https://demo.unimatter.com.au" style={{color:'#2563eb'}}>Cadence Bio-Clinics demonstration</a>.</p>
               <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>6. Contact</h3>
-              <p style={{marginBottom:'12px'}}>For privacy-related enquiries, contact our Privacy Officer at <a href="mailto:admin@assesssuite.com" style={{color:'#2563eb'}}>admin@assesssuite.com</a> or call 1800 317 553.</p>
+              <p style={{marginBottom:'12px'}}>For privacy-related enquiries, contact our Privacy Officer at <a href="https://demo.unimatter.com.au" style={{color:'#2563eb'}}>Cadence Bio-Clinics demonstration</a> or call the demonstration administrator.</p>
               <p style={{marginTop:'24px',fontSize:'12px',color:'#94a3b8'}}>Last updated: June 2026</p>
             </div>
             <button onClick={()=>setShowPrivacy(false)} style={{marginTop:'28px',background:'#2563eb',color:'#fff',border:'none',borderRadius:'10px',padding:'12px 28px',fontSize:'15px',fontWeight:700,cursor:'pointer'}}>Close</button>
@@ -664,23 +663,23 @@ export default function LandingLive() {
           <div style={{background:'#fff',borderRadius:'20px',padding:'48px 40px',maxWidth:'680px',width:'100%',maxHeight:'80vh',overflowY:'auto',boxShadow:'0 8px 48px rgba(15,23,42,0.2)',fontFamily:'Inter,sans-serif'}}>
             <h2 style={{fontSize:'26px',fontWeight:800,color:'#0f172a',marginBottom:'20px',letterSpacing:'-0.5px'}}>Terms of Service</h2>
             <div style={{fontSize:'14px',color:'#475569',lineHeight:1.8}}>
-              <p style={{marginBottom:'16px'}}>These Terms of Service govern your use of the AssessSuite Clinical platform provided by <strong>Assess Suite Pty Ltd</strong> (ABN 53 694 044 481).</p>
+              <p style={{marginBottom:'16px'}}>These Terms of Service govern your use of the <strong>Cadence Bio-Clinics synthetic demonstration</strong>.</p>
               <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>1. Acceptance of Terms</h3>
-              <p style={{marginBottom:'12px'}}>By accessing or using AssessSuite Clinical, you agree to be bound by these Terms. If you do not agree, you must not use the platform.</p>
+              <p style={{marginBottom:'12px'}}>By accessing or using Cadence Bio-Clinics, you agree to be bound by these Terms. If you do not agree, you must not use the platform.</p>
               <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>2. Permitted Use</h3>
-              <p style={{marginBottom:'12px'}}>AssessSuite Clinical is licensed for use by registered Exercise Physiologists and allied health professionals within their professional scope of practice. You must not use the platform for unlawful purposes or in a manner inconsistent with your professional registration obligations.</p>
+              <p style={{marginBottom:'12px'}}>Cadence Bio-Clinics is licensed for use by registered Exercise Physiologists and allied health professionals within their professional scope of practice. You must not use the platform for unlawful purposes or in a manner inconsistent with your professional registration obligations.</p>
               <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>3. Subscription & Payment</h3>
               <p style={{marginBottom:'12px'}}>Subscriptions are billed as selected (monthly or annually). Payments are processed securely via Stripe. You may cancel at any time; cancellation takes effect at the end of the current billing period. No refunds are provided for partial periods.</p>
               <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>4. Clinical Responsibility</h3>
-              <p style={{marginBottom:'12px'}}>AssessSuite Clinical is a documentation and assessment tool. It does not replace clinical judgment. You remain fully responsible for all clinical decisions made in relation to your clients. Assess Suite Pty Ltd accepts no liability for clinical outcomes.</p>
+              <p style={{marginBottom:'12px'}}>Cadence Bio-Clinics is a documentation and assessment tool. It does not replace clinical judgment. You remain fully responsible for all clinical decisions made in relation to your clients. The Cadence Bio-Clinics demonstration accepts no liability for clinical outcomes.</p>
               <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>5. Intellectual Property</h3>
-              <p style={{marginBottom:'12px'}}>All platform content, software, and materials are the intellectual property of Assess Suite Pty Ltd. You may not reproduce, distribute, or create derivative works without express written permission.</p>
+              <p style={{marginBottom:'12px'}}>All platform content, software, and materials are the intellectual property of the Cadence Bio-Clinics demonstration. You may not reproduce, distribute, or create derivative works without express written permission.</p>
               <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>6. Limitation of Liability</h3>
-              <p style={{marginBottom:'12px'}}>To the maximum extent permitted by law, Assess Suite Pty Ltd's liability is limited to the amount paid by you in the 12 months preceding the claim. We exclude liability for indirect, consequential, or special damages.</p>
+              <p style={{marginBottom:'12px'}}>To the maximum extent permitted by law, the Cadence Bio-Clinics demonstration's liability is limited to the amount paid by you in the 12 months preceding the claim. We exclude liability for indirect, consequential, or special damages.</p>
               <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>7. Governing Law</h3>
               <p style={{marginBottom:'12px'}}>These Terms are governed by the laws of Queensland, Australia. Any disputes will be subject to the exclusive jurisdiction of Queensland courts.</p>
               <h3 style={{fontSize:'16px',fontWeight:700,color:'#0f172a',margin:'20px 0 8px'}}>8. Contact</h3>
-              <p style={{marginBottom:'12px'}}>For any questions regarding these Terms, contact us at <a href="mailto:admin@assesssuite.com" style={{color:'#2563eb'}}>admin@assesssuite.com</a>.</p>
+              <p style={{marginBottom:'12px'}}>For any questions regarding these Terms, contact us at <a href="https://demo.unimatter.com.au" style={{color:'#2563eb'}}>Cadence Bio-Clinics demonstration</a>.</p>
               <p style={{marginTop:'24px',fontSize:'12px',color:'#94a3b8'}}>Last updated: June 2026</p>
             </div>
             <button onClick={()=>setShowTerms(false)} style={{marginTop:'28px',background:'#2563eb',color:'#fff',border:'none',borderRadius:'10px',padding:'12px 28px',fontSize:'15px',fontWeight:700,cursor:'pointer'}}>Close</button>
@@ -693,7 +692,7 @@ export default function LandingLive() {
           <div style={{background:'#fff',borderRadius:'20px',padding:'48px 40px',maxWidth:'420px',width:'100%',textAlign:'center',boxShadow:'0 8px 48px rgba(15,23,42,0.2)',fontFamily:'Inter,sans-serif'}}>
             <div style={{fontSize:'48px',marginBottom:'16px'}}>🚀</div>
             <h2 style={{fontSize:'26px',fontWeight:800,color:'#0f172a',marginBottom:'12px',letterSpacing:'-0.5px'}}>Coming Soon</h2>
-            <p style={{fontSize:'16px',color:'#64748b',marginBottom:'8px',lineHeight:1.6}}>AssessSuite Clinical launches on</p>
+            <p style={{fontSize:'16px',color:'#64748b',marginBottom:'8px',lineHeight:1.6}}>Cadence Bio-Clinics launches on</p>
             <div style={{background:'#eff6ff',color:'#2563eb',fontSize:'22px',fontWeight:800,padding:'14px 24px',borderRadius:'12px',display:'inline-block',marginBottom:'20px',letterSpacing:'-0.5px'}}>June 8, 2026</div>
             <p style={{fontSize:'14px',color:'#94a3b8',marginBottom:'28px',lineHeight:1.6}}>We're putting the finishing touches on the platform. Check back on launch day to sign up and get started.</p>
             <button onClick={() => setShowComingSoon(false)} style={{background:'#2563eb',color:'#fff',border:'none',borderRadius:'10px',padding:'14px 32px',fontSize:'16px',fontWeight:700,cursor:'pointer'}}>

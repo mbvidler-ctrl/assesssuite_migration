@@ -38,7 +38,7 @@ export default function Signup() {
       <div className="hidden md:flex md:w-5/12 bg-gradient-to-br from-blue-600 to-blue-800 flex-col justify-between p-12 text-white">
         <div className="flex items-center gap-3 mb-3">
           <img
-            src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/358c0c514_Logo-Transparent1.png"
+            src="/cadence-bio-clinics.svg"
             alt="Allied Assess"
             className="h-40 brightness-0 invert"
           />
@@ -49,12 +49,12 @@ export default function Signup() {
             Assessment software<br />built for clinicians.
           </h1>
           <p className="text-blue-100 text-lg leading-relaxed">
-            Join allied health professionals using AssessSuite Clinical to automate assessments, SOAP notes, and reports.
+            Join allied health professionals using Cadence Bio-Clinics to automate assessments, SOAP notes, and reports.
           </p>
         </div>
 
         <p className="text-blue-300 text-sm">
-          © 2026 Assess Suite Pty Ltd · ABN 53 694 044 481
+          Cadence Bio-Clinics · Synthetic demonstration ·
         </p>
       </div>
 
@@ -65,7 +65,7 @@ export default function Signup() {
           {/* Mobile logo */}
           <div className="md:hidden flex justify-center">
             <img
-              src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/358c0c514_Logo-Transparent1.png"
+              src="/cadence-bio-clinics.svg"
               alt="Allied Assess"
               className="h-10"
             />
