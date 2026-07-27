@@ -31,6 +31,7 @@ const suites = [
   'upload-admission-security.test.mjs',
   'protocol-client-picker.test.mjs',
   'treatment-protocol-catalogue.test.mjs',
+  'apss-user-facing-copy.test.mjs',
   'rich-text-editor-security.test.mjs',
   'upload-lifecycle-config.test.mjs',
   'production-parity-contract.test.mjs',

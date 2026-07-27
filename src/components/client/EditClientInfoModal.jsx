@@ -259,7 +259,7 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
       setShowAPSSForm(false);
       toast.success('Safety Screen completed successfully');
     } catch (error) {
-      console.error('Failed to save APSS:', error);
+      console.error('Failed to save the Safety Screen:', error);
       toast.error('Failed to save Safety Screen data');
     } finally {
       setIsSubmitting(false);
@@ -278,7 +278,7 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
       setShowAPSSStage2(false);
       toast.success('Clinical Risk Review completed successfully');
     } catch (error) {
-      console.error('Failed to save APSS Stage 2:', error);
+      console.error('Failed to save the Clinical Risk Review:', error);
       toast.error('Failed to save Clinical Risk Review data');
     } finally {
       setIsSubmitting(false);
