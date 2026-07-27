@@ -964,7 +964,7 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
       <Card className="bg-yellow-50 border-yellow-200">
         <CardContent className="pt-6">
           <p className="text-sm text-slate-700">
-            <strong>Important Information:</strong> This screening tool is part of the Adult Pre-Exercise Screening System (APSS) and should be read with the APSS guidelines (see <a href="https://www.essa.org.au" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">www.essa.org.au</a> and <a href="https://www.sma.org.au" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">www.sma.org.au</a>). We recommend you consult with an appropriate exercise or medical professional for more information.
+            <strong>Important Information:</strong> This screening tool should be read with the published pre-exercise screening guidelines (see <a href="https://www.essa.org.au" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">www.essa.org.au</a> and <a href="https://www.sma.org.au" target="_blank" rel="noopener noreferrer" className="text-blue-600 underline">www.sma.org.au</a>). We recommend you consult with an appropriate exercise or medical professional for more information.
           </p>
         </CardContent>
       </Card>

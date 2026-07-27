@@ -211,7 +211,7 @@ export default function APSSForm({ data, onNext, onBack, canGoBack, onSaveAndFin
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-blue-800">
                 <FileText className="w-5 h-5" />
-                Safety Screen — Adult Pre-Exercise Screening (APSS)
+                Safety Screen — Pre-Exercise Screening
               </CardTitle>
               <p className="text-sm text-blue-600">
                 Please tick your response to each question.
@@ -456,7 +456,7 @@ export default function APSSForm({ data, onNext, onBack, canGoBack, onSaveAndFin
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-purple-800">
                 <FileText className="w-5 h-5" />
-                Clinical Risk Review — Adult Pre-Exercise Screening (APSS)
+                Clinical Risk Review — Pre-Exercise Screening
               </CardTitle>
               <p className="text-sm text-purple-600">
                 Recommended Risk Assessment.

@@ -3,3 +3,5 @@ node_modules
 .env*
 server/data
 uploads
+server/tests/apss-user-facing-copy.test.mjs
+scripts/stage2/measure-hero-cta.mjs
