@@ -32,6 +32,7 @@ const suites = [
   'protocol-client-picker.test.mjs',
   'treatment-protocol-catalogue.test.mjs',
   'apss-user-facing-copy.test.mjs',
+  'landing-responsive-layout.test.mjs',
   'rich-text-editor-security.test.mjs',
   'upload-lifecycle-config.test.mjs',
   'production-parity-contract.test.mjs',
