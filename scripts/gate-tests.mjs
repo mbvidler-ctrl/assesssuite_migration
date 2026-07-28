@@ -122,8 +122,11 @@ async function main() {
     method: 'POST', token: betaTok,
     body: { plan: 'monthly' },
   });
-  const checkoutOk = checkout.status === 200 && typeof (checkout.data?.url || checkout.data?.data?.url) === 'string';
-  record('G8.17a', checkoutOk, `createCheckoutSession returns a url=${checkoutOk}`);
+  // Seeded clinicians carry subscription_status 'active', so the hardened
+  // checkout contract refuses a second subscription and routes the account to
+  // the billing portal. The eligible-account URL path is covered by selftest.
+  const checkoutRefused = checkout.status === 409 && typeof checkout.data?.error === 'string';
+  record('G8.17a', checkoutRefused, `createCheckoutSession refuses an already-subscribed account → ${checkout.status} (expect 409)`);
 
   const webhook = await api(`/api/apps/${APP}/functions/stripeWebhook`, {
     method: 'POST', token: adminTok,
