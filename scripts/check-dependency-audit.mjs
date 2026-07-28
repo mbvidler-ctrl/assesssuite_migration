@@ -1,0 +1,105 @@
+// Fail-closed dependency vulnerability audit.
+//
+// Equivalent to `npm audit --audit-level=moderate` except that advisories in
+// the reviewed allowlist below do not fail the gate. Every allowlist entry
+// must name the advisory, the reason no compliant fix exists, and the human
+// authorisation. Any advisory not listed here — including a new advisory on
+// an already-listed package — still fails the gate. Any error obtaining or
+// parsing the audit report fails the gate.
+
+import { spawnSync } from 'node:child_process';
+
+const ALLOWLISTED_ADVISORIES = new Map([
+  [
+    'GHSA-qwww-vcr4-c8h2',
+    {
+      packages: ['react-router', 'react-router-dom'],
+      reason:
+        'react-router RSC-mode CSRF. The only fixed release (react-router 8.3.0) requires ' +
+        'React >= 19.2.7; this application is a React 18 Vite SPA that does not enable RSC ' +
+        'mode, so the vulnerable surface is not reachable. react-router-dom has no fixed ' +
+        'release. Remove this entry with the React 19 / react-router 8 migration.',
+      authorised:
+        'Maxwell Vidler, 2026-07-28, mission UM-AUTO-20260728-ASSESSSUITE-LANDSCAPE-CTA-LIVE-FIX (option A)',
+    },
+  ],
+]);
+
+const FAILING_SEVERITIES = new Set(['moderate', 'high', 'critical']);
+const GHSA_PATTERN = /GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}/;
+
+const fail = (message) => {
+  console.error(`Dependency audit gate failed: ${message}`);
+  process.exit(1);
+};
+
+const result = spawnSync('npm', ['audit', '--json'], {
+  encoding: 'utf8',
+  maxBuffer: 64 * 1024 * 1024,
+});
+if (result.error || result.signal) {
+  fail(`npm audit did not run (${result.error?.message ?? `signal ${result.signal}`})`);
+}
+
+let report;
+try {
+  report = JSON.parse(result.stdout);
+} catch {
+  fail('npm audit produced unparseable output');
+}
+if (report.error) {
+  fail(`npm audit reported an error: ${report.error.summary ?? report.error.code ?? 'unknown'}`);
+}
+const vulnerabilities = report.vulnerabilities;
+if (!vulnerabilities || typeof vulnerabilities !== 'object') {
+  fail('npm audit output has no vulnerability map');
+}
+
+const blocking = [];
+const allowlisted = [];
+for (const [packageName, entry] of Object.entries(vulnerabilities)) {
+  if (!FAILING_SEVERITIES.has(entry?.severity)) continue;
+
+  // Direct advisories carry objects in `via`; purely transitive findings
+  // carry only package-name strings and are rooted in another entry that has
+  // the direct advisory objects, so evaluating every entry covers the chain.
+  const advisoryIds = [];
+  let hasDirectAdvisory = false;
+  for (const via of Array.isArray(entry.via) ? entry.via : []) {
+    if (typeof via !== 'object' || via === null) continue;
+    hasDirectAdvisory = true;
+    if (!FAILING_SEVERITIES.has(via.severity)) continue;
+    const id = `${via.url ?? ''} ${via.title ?? ''}`.match(GHSA_PATTERN)?.[0];
+    if (!id) {
+      blocking.push(`${packageName}: advisory without a recognisable GHSA id (${via.title ?? 'untitled'})`);
+      continue;
+    }
+    advisoryIds.push(id);
+  }
+
+  for (const id of advisoryIds) {
+    if (ALLOWLISTED_ADVISORIES.has(id)) {
+      allowlisted.push(`${packageName}: ${id}`);
+    } else {
+      blocking.push(`${packageName}: ${id} (${entry.severity})`);
+    }
+  }
+  if (hasDirectAdvisory && advisoryIds.length === 0 && blocking.length === 0) {
+    blocking.push(`${packageName}: ${entry.severity} advisory shape not understood — failing closed`);
+  }
+}
+
+if (blocking.length > 0) {
+  console.error('Blocking advisories (moderate or above, not allowlisted):');
+  for (const line of blocking) console.error(`  - ${line}`);
+  process.exit(1);
+}
+
+if (allowlisted.length > 0) {
+  console.log('Allowlisted advisories accepted under reviewed exception:');
+  for (const line of allowlisted) console.log(`  - ${line}`);
+  for (const [id, meta] of ALLOWLISTED_ADVISORIES) {
+    console.log(`  ${id}: ${meta.authorised}`);
+  }
+}
+console.log('Dependency audit gate passed.');
