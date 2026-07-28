@@ -244,7 +244,7 @@ export default function LandingLive() {
         .lp .hero h1 { font-size: 56px; font-weight: 900; line-height: 1.1; color: #0f172a; max-width: 840px; margin: 0 auto 12px; letter-spacing: -1.5px; font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif; }
         .lp .hero-product { font-size: 22px; font-weight: 700; color: #2563eb; margin-bottom: 24px; }
         .lp .hero p { font-size: 20px; color: #475569; max-width: 620px; margin: 0 auto 40px; line-height: 1.7; }
-        .lp .hero-ctas { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+        .lp .hero-ctas { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
         .lp .btn-primary { background: #2563eb; color: #fff; padding: 16px 36px; border-radius: 10px; font-size: 17px; font-weight: 700; transition: background 0.2s, transform 0.1s; display: inline-block; cursor: pointer; border: none; }
         .lp .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); }
         .lp .btn-secondary { background: #fff; color: #2563eb; border: 2px solid #2563eb; padding: 16px 36px; border-radius: 10px; font-size: 17px; font-weight: 700; display: inline-block; }
@@ -390,7 +390,7 @@ export default function LandingLive() {
         .lp .footer-links { display: flex; gap: 24px; }
         .lp .footer-links a { font-size: 13px; color: #64748b; }
         .lp .footer-links a:hover { color: #94a3b8; }
-        @media (max-width: 900px) {
+        @media (max-width: 900px), (max-height: 520px) and (orientation: landscape) {
           .lp nav { padding: 16px 24px; }
           .lp .nav-links { display: none; }
           .lp .hero { padding: 60px 24px 50px; }
@@ -399,6 +399,11 @@ export default function LandingLive() {
           .lp .problem-grid, .lp .features-grid, .lp .ep-grid, .lp .reporting-grid, .lp .cap-grid, .lp .pricing-grid { grid-template-columns: 1fr; }
           .lp .ep-strip, .lp .coming-soon { padding: 40px 24px; }
           .lp footer { padding: 32px 24px; flex-direction: column; text-align: center; }
+        }
+        @media (max-height: 520px) and (orientation: landscape) {
+          .lp .hero { padding: 40px 24px 40px; }
+          .lp .hero h1 { font-size: 32px; }
+          .lp .hero p { font-size: 16px; margin-bottom: 28px; }
         }
       `}</style>
 
