@@ -435,13 +435,16 @@ jobs:
           fi
 
       - name: Mission assurance aggregate
-        run: npm run test:assurance
+        shell: bash
+        run: |
+          set -euo pipefail
+          npx --no-install playwright install --with-deps chromium
+          npm run test:assurance
 
       - name: Rendered referral browser journey gate
         shell: bash
         run: |
           set -euo pipefail
-          npx --no-install playwright install --with-deps chromium
           npm run test:referral-browser
           npm run test:safe-html-output
 
