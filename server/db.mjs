@@ -87,6 +87,18 @@ export function loadOrgScopedEntities() {
  * table required by the contract exists. SELFTEST=1 uses a dedicated,
  * freshly-recreated database file so self-test runs never pollute dev data.
  */
+/**
+ * The exact database file openDatabase() will use for the given environment,
+ * before any override-policy enforcement. Exported so the sandbox bootstrap
+ * can wipe precisely this file (and its WAL/SHM siblings) ahead of a
+ * fresh reseed, with no second path-resolution logic to drift.
+ */
+export function resolveDatabaseFile(environment = process.env) {
+  const isSelftest = environment.SELFTEST === '1';
+  const override = environment.ASSESSSUITE_DB_PATH;
+  return override ? path.resolve(override) : path.join(dataDir, isSelftest ? 'selftest.db' : 'app.db');
+}
+
 export function openDatabase() {
   const isSelftest = process.env.SELFTEST === '1';
   const override = process.env.ASSESSSUITE_DB_PATH;
@@ -95,7 +107,7 @@ export function openDatabase() {
       'ASSESSSUITE_DB_PATH is permitted only under the explicit isolated gate harness or exact production parity path',
     );
   }
-  const dbFile = override ? path.resolve(override) : path.join(dataDir, isSelftest ? 'selftest.db' : 'app.db');
+  const dbFile = resolveDatabaseFile(process.env);
   if (override && path.extname(dbFile).toLowerCase() !== '.db') {
     throw new Error('ASSESSSUITE_DB_PATH must identify an exact .db file');
   }

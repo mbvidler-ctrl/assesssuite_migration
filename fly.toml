@@ -1,15 +1,45 @@
-# Fly.io configuration — AssessSuite private demo (durable lane, 7 July 2026).
+# Fly.io configuration — AssessSuite SANDBOX (production-parity, 28 July 2026).
 # Neutral app name by design (workplace-confidentiality constraint).
-# Always-on single machine in Sydney; synthetic data reseeds on boot.
+#
+# This is the containerised secure sandbox: it runs the SAME image production
+# uses (fly.production.toml / Dockerfile, unchanged), but the [processes]
+# override boots through server/sandboxBootstrap.mjs, which on every boot:
+#   1. wipes the ephemeral database (no volume is mounted here — state never
+#      survives a redeploy, and the wipe resets it on restarts too);
+#   2. reseeds the full synthetic dataset from the captured schemas
+#      (server/seed.mjs — SYNTHETIC DATA ONLY, generated from schema
+#      knowledge; no production user, client, or clinical record is ever
+#      copied into this app);
+#   3. runs scripts/sandbox-data-provenance-gate.mjs and refuses to start
+#      the server unless every record provably traces to the seed manifest.
+#
+# Egress posture: outbound email/SMS/payments are pinned to 0 below and
+# enforced again by the bootstrap guards, so synthetic records can never
+# message or bill anything real. Keep provider secrets (OPENAI_API_KEY,
+# RESEND_API_KEY, STRIPE_*) UNSET on this app — integrations fall back to
+# their deterministic mocks. Fly secrets are per-app and never cross apps.
+#
+# Single always-on machine in Sydney. Do not scale beyond one machine or the
+# SQLite state would split — same topology constraint as production.
 app = "unimatter-demo"
 primary_region = "syd"
 
 [build]
   dockerfile = "Dockerfile"
 
+[processes]
+  app = "node server/sandboxBootstrap.mjs && exec node server/index.mjs"
+
 [env]
   ALLOW_OPEN_REGISTRATION = "0"
   PORT = "8787"
+  SANDBOX_MODE = "1"
+  OUTBOUND_EMAIL_ENABLED = "0"
+  OUTBOUND_SMS_ENABLED = "0"
+  PAYMENTS_ENABLED = "0"
+  TRANSCRIPTION_ENABLED = "0"
+  GENERAL_CLINICAL_LLM_ENABLED = "0"
+  DOCUMENT_EXTRACTION_ENABLED = "0"
 
 [http_service]
   internal_port = 8787
@@ -17,6 +47,7 @@ primary_region = "syd"
   auto_stop_machines = false
   auto_start_machines = true
   min_machines_running = 1
+  processes = ["app"]
 
 [[vm]]
   memory = "512mb"

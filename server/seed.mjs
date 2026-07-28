@@ -454,12 +454,50 @@ export function runCatalogueSeed({ db, entityNames }) {
   }
 }
 
+// The one Fly app whose database holds real client and clinical data. The
+// synthetic seeder must never run there under any combination of switches.
+export const PRODUCTION_FLY_APP_NAME = 'assesssuite-production';
+
+/**
+ * Natural keys of every account and tenant the synthetic seeder creates.
+ * scripts/sandbox-data-provenance-gate.mjs verifies a sandbox database
+ * against this manifest, so it must list every seeded identity. The
+ * accompanying full-run test (server/tests/sandbox-bootstrap.test.mjs)
+ * seeds a fresh database and runs the gate, so drift between this manifest
+ * and the seed calls below fails CI rather than passing silently.
+ */
+export const SANDBOX_SEED_MANIFEST = Object.freeze({
+  organisationNames: Object.freeze(['Org Alpha', 'Org Beta']),
+  userEmails: Object.freeze([
+    'owner@org-alpha.seed.test',
+    'clinician@org-alpha.seed.test',
+    'owner@org-beta.seed.test',
+    'clinician@org-beta.seed.test',
+  ]),
+  // Every Client record carries a _seed_key and an address on this domain.
+  clientEmailDomain: 'example-seed.test',
+  // Every other email-like string in a seeded database must end in one of
+  // these reserved TLD suffixes (RFC 2606 .test / .example never resolve).
+  syntheticEmailSuffixes: Object.freeze(['.test', '.example', '@example.com']),
+});
+
 export function assertSyntheticSeedEnvironment(environment = process.env) {
-  if (environment.NODE_ENV === 'production') {
-    throw new Error(
-      'The full synthetic seed is disabled in production; use the bounded production catalogue bootstrap.',
-    );
-  }
+  if (environment.NODE_ENV !== 'production') return;
+  // Sandbox exception: the containerised sandbox intentionally runs the
+  // production image (NODE_ENV=production baked in) but must reseed the
+  // full synthetic dataset on boot. It is admitted only under the explicit
+  // sandbox switch, never for the production Fly app, never combined with
+  // the parity-assurance lane, and never against an overridden database
+  // path (the sandbox uses only the default ephemeral store).
+  const sandboxSeedAllowed =
+    environment.SANDBOX_MODE === '1' &&
+    environment.FLY_APP_NAME !== PRODUCTION_FLY_APP_NAME &&
+    !environment.ASSESSSUITE_DB_PATH &&
+    environment.PARITY_ASSURANCE_MODE !== '1';
+  if (sandboxSeedAllowed) return;
+  throw new Error(
+    'The full synthetic seed is disabled in production; use the bounded production catalogue bootstrap.',
+  );
 }
 
 export function runSeed({ db, entityNames }) {
@@ -644,6 +682,8 @@ export function runSeed({ db, entityNames }) {
     seedDay,
     conditionNames,
     seedKey,
+    withNutritionPlan = false,
+    withAdverseEvent = false,
   }) {
     // Idempotency key: normally org_id + full_name + date_of_birth is a
     // sufficient natural key, but the deliberate G7 near-duplicate client
@@ -858,7 +898,190 @@ export function runSeed({ db, entityNames }) {
     );
     note('  -> 1 SavedReport row');
 
+    // --- ClientOnboardingEpisode (1): the initial referral episode mirroring
+    // the intake fields recorded on the Client itself. ---
+    repoFor('ClientOnboardingEpisode').create(
+      {
+        org_id: org.id,
+        client_id: client.id,
+        episode_number: 1,
+        episode_label: 'Initial referral episode',
+        episode_date: isoDate(seedYear, seedMonth, seedDay),
+        status: 'active',
+        funding_source: fundingSource || 'self_funded',
+        referral_source: 'gp',
+        referral_source_name: 'Dr Seed Referrer',
+        referral_reason: 'Functional decline requiring exercise physiology review',
+        referral_date: isoDate(seedYear, seedMonth, seedDay),
+        apss_completed: true,
+        apss_stage2_completed: false,
+        consent_confirmed: true,
+        privacy_consent: true,
+        assessment_consent: true,
+        pricing_explained: true,
+        client_goals: 'Improve function and independence with daily activities',
+        medical_conditions_snapshot: conditionsForClient.map((name) => ({
+          condition_name: name,
+          is_active: true,
+        })),
+      },
+      clinician.email,
+    );
+    note('  -> 1 ClientOnboardingEpisode row');
+
+    // --- ClientDocument (1): the referral letter on file. The file_url is a
+    // deliberate synthetic marker, not a stored upload — no binary content is
+    // seeded, and the provenance gate treats seed:// as provably synthetic. ---
+    const documentSlug = (fullName || 'client').toLowerCase().replace(/[^a-z]+/g, '-');
+    repoFor('ClientDocument').create(
+      {
+        org_id: org.id,
+        client_id: client.id,
+        document_type: 'referral',
+        file_url: `seed://synthetic-documents/referral-letter-${documentSlug}.pdf`,
+        file_name: `Referral letter - ${fullName}.pdf`,
+        notes: 'SYNTHETIC seed document record; no real file is stored behind this entry.',
+      },
+      clinician.email,
+    );
+    note('  -> 1 ClientDocument row');
+
+    // --- ClientNutritionPlan (optional, 1): plausible energy numbers only. ---
+    if (withNutritionPlan) {
+      repoFor('ClientNutritionPlan').create(
+        {
+          org_id: org.id,
+          client_id: client.id,
+          weight_goal: 'lose',
+          current_weight_kg: 86,
+          height_cm: 168,
+          target_weight_kg: 78,
+          activity_level: 'lightly_active',
+          bmr: 1520,
+          tdee: 2090,
+          recommended_calories: 1840,
+          current_eating_patterns: 'Regular meals with frequent takeaway lunches during the working week.',
+          dietary_preferences: 'No specific restrictions; prefers simple meal preparation.',
+          nutrition_goals: 'Gradual weight reduction supporting the exercise programme goals.',
+          general_advice_given: 'Discussed portion awareness and protein intake around exercise sessions.',
+          sample_meal_plan: 'Breakfast: oats with yoghurt. Lunch: chicken and salad wrap. Dinner: lean protein with vegetables.',
+          behavioral_strategies: 'Meal planning on Sundays; keep a simple food diary for review.',
+          referred_to_dietitian: false,
+          referred_to_diabetes_educator: false,
+          energy_unit_preference: 'Cal',
+          last_updated: isoDate(seedYear, seedMonth, seedDay),
+        },
+        clinician.email,
+      );
+      note('  -> 1 ClientNutritionPlan row');
+    }
+
+    // --- AdverseEvent (optional, 1): a reported AESI fall, submitted. ---
+    if (withAdverseEvent) {
+      repoFor('AdverseEvent').create(
+        {
+          org_id: org.id,
+          client_id: client.id,
+          clinician_email: clinician.email,
+          clinician_name: clinician.clinician_name,
+          clinician_provider_number: clinician.provider_number,
+          report_date: isoDate(seedYear, seedMonth, seedDay + 2),
+          person_completing_form: clinician.clinician_name,
+          date_became_aware: isoDate(seedYear, seedMonth, seedDay + 2),
+          how_learned: 'reported_phone_email',
+          date_of_onset: isoDate(seedYear, seedMonth, seedDay + 1),
+          event_description: 'Client reported a minor stumble at home the evening after the supervised session, with no injury sustained.',
+          is_sae: 'no',
+          is_aesi: 'yes',
+          aesi_type: 'fall',
+          aesi_when_occurred: 'The evening following the supervised exercise session.',
+          aesi_relationship_to_activity: 'unlikely',
+          aesi_action_taken: 'Balance component of the programme reviewed and footwear advice provided.',
+          aesi_action_reason: 'Precautionary programme adjustment following the reported stumble.',
+          aesi_hospitalized: 'no',
+          aesi_outcome: 'Resolved without injury',
+          aesi_resolution_date: isoDate(seedYear, seedMonth, seedDay + 2),
+          aesi_outcome_notes: 'No injury; client reassured and monitoring continued at subsequent sessions.',
+          clinician_acknowledgment: true,
+          digital_signature: clinician.clinician_name,
+          attachments: [],
+          status: 'submitted',
+          supervisor_notified: true,
+          supervisor_notified_date: isoDate(seedYear, seedMonth, seedDay + 2),
+        },
+        clinician.email,
+      );
+      note('  -> 1 AdverseEvent row');
+    }
+
     return client;
+  }
+
+  // -------------------------------------------------------------------------
+  // Org-level fixtures beyond the client clusters — idempotent by natural key.
+  // -------------------------------------------------------------------------
+
+  function seedClinicPolicy(org, owner) {
+    const policyName = `${org.name} Standard Consent Policy`;
+    const { created } = findOrCreate(
+      'ClinicPolicy',
+      (p) => p.org_id === org.id && p.policy_name === policyName,
+      {
+        org_id: org.id,
+        policy_name: policyName,
+        version_label: 'v1.0',
+        effective_date: isoDate(2026, 1, 1),
+        is_active: true,
+        show_primary_consent: true,
+        consent_primary_text: 'I consent to receiving exercise physiology services from this clinic.',
+        show_privacy_consent: true,
+        consent_privacy_text: 'I consent to the collection and handling of my health information per the clinic privacy policy.',
+        show_assessment_consent: true,
+        consent_assessment_text: 'I consent to the physical and questionnaire-based assessments described to me.',
+        show_pricing_consent: true,
+        consent_pricing_text: 'The fee schedule and billing arrangements have been explained to me.',
+        show_cancellation_policy: true,
+        cancellation_policy_text: 'Appointments cancelled with less than 24 hours notice may incur a cancellation fee.',
+        notes: 'SYNTHETIC seed policy for sandbox demonstration.',
+      },
+      owner.email,
+    );
+    note(`ClinicPolicy for ${org.name} ${created ? 'created' : 'already present'}`);
+  }
+
+  function seedAssessmentRequests(org, owner) {
+    const requests = [
+      {
+        request_type: 'new_assessment',
+        assessment_name: 'Berg Balance Scale',
+        details: 'Requesting the Berg Balance Scale be added for falls-risk clients.',
+        status: 'pending',
+      },
+      {
+        request_type: 'error_report',
+        assessment_name: 'Six-Minute Walk Test',
+        details: 'Normative comparison band appears mislabelled for the 60-79 age group.',
+        status: 'reviewed',
+        admin_notes: 'Reviewed; normative labels confirmed against the catalogue source.',
+      },
+    ];
+    let createdCount = 0;
+    for (const request of requests) {
+      const { created } = findOrCreate(
+        'AssessmentRequest',
+        (r) => r.org_id === org.id && r.assessment_name === request.assessment_name
+          && r.request_type === request.request_type,
+        {
+          org_id: org.id,
+          user_email: owner.email,
+          user_name: owner.clinician_name,
+          ...request,
+        },
+        owner.email,
+      );
+      if (created) createdCount += 1;
+    }
+    note(`AssessmentRequest fixtures for ${org.name}: ${createdCount} created`);
   }
 
   // -------------------------------------------------------------------------
@@ -1002,6 +1225,7 @@ export function runSeed({ db, entityNames }) {
     seedMonth: 5,
     seedDay: 4,
     conditionNames: [CONDITION_NAMES[0], CONDITION_NAMES[1]],
+    withAdverseEvent: true,
   });
   const tobiasFerreira = seedClientCluster({
     org: orgAlpha,
@@ -1028,6 +1252,7 @@ export function runSeed({ db, entityNames }) {
     seedMonth: 5,
     seedDay: 18,
     conditionNames: [CONDITION_NAMES[3], CONDITION_NAMES[4]],
+    withNutritionPlan: true,
   });
   // Deliberate near-duplicate within Org Alpha (same name + DOB) to exercise
   // G7 duplicate-detection testing — a second client record sharing exactly
@@ -1062,6 +1287,7 @@ export function runSeed({ db, entityNames }) {
     seedMonth: 4,
     seedDay: 27,
     conditionNames: [CONDITION_NAMES[5], CONDITION_NAMES[6]],
+    withNutritionPlan: true,
   });
   const callumAshworth = seedClientCluster({
     org: orgBeta,
@@ -1075,6 +1301,7 @@ export function runSeed({ db, entityNames }) {
     seedMonth: 5,
     seedDay: 6,
     conditionNames: [CONDITION_NAMES[7]],
+    withAdverseEvent: true,
   });
   const rosalindMeiklejohn = seedClientCluster({
     org: orgBeta,
@@ -1089,6 +1316,12 @@ export function runSeed({ db, entityNames }) {
     seedDay: 20,
     conditionNames: [CONDITION_NAMES[2], CONDITION_NAMES[5]],
   });
+
+  // --- Org-level fixtures: consent policy + assessment requests per org ---
+  seedClinicPolicy(orgAlpha, alphaOwner);
+  seedClinicPolicy(orgBeta, betaOwner);
+  seedAssessmentRequests(orgAlpha, alphaOwner);
+  seedAssessmentRequests(orgBeta, betaOwner);
 
   // --- Credentials record (synthetic, safe to commit) ---
   const credentialsPath = path.join(repoRoot, 'scripts', 'seed-credentials.md');
