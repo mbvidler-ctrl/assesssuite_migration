@@ -11,13 +11,21 @@ const pageSource = fs.readFileSync(
   'utf8',
 );
 
-test('treatment-protocol search exposes reviewed catalogue rows and no disabled generation path', () => {
+test('treatment-protocol search keeps reviewed rows and restores the grounded custom-condition fallback', () => {
   assert.match(pageSource, /base44\.entities\.TreatmentProtocol\.list\(\)/);
   assert.match(pageSource, /No reviewed treatment protocol matches/);
-  assert.doesNotMatch(pageSource, /Core\.InvokeLLM/);
-  assert.doesNotMatch(pageSource, /searchEvidence/);
-  assert.doesNotMatch(pageSource, /Generate Protocol for/);
-  assert.doesNotMatch(pageSource, /enter custom condition/i);
+  assert.match(pageSource, /exactCatalogueCondition/);
+  assert.match(pageSource, /!isCatalogueLoading && !catalogueError && customCondition/);
+  assert.match(pageSource, /Generate AI-assisted protocol for/);
+  assert.match(pageSource, /base44\.functions\.invoke\("searchEvidence"/);
+  assert.match(pageSource, /base44\.integrations\.Core\.InvokeLLM/);
+  assert.match(pageSource, /response_json_schema: PROTOCOL_RESPONSE_SCHEMA/);
+  assert.match(pageSource, /validateReferences\(groundedReferences\)/);
+  assert.ok(
+    pageSource.indexOf('base44.functions.invoke("searchEvidence"')
+      < pageSource.indexOf('base44.integrations.Core.InvokeLLM'),
+    'verified evidence retrieval must precede custom protocol generation',
+  );
   assert.doesNotMatch(pageSource, /TreatmentProtocol\.filter/);
 });
 
@@ -28,7 +36,9 @@ test('reviewed catalogue preparation is null-safe, deduplicated and sorted befor
   assert.match(pageSource, /\[\.\.\.uniqueByName\.values\(\)\]\.sort/);
   assert.match(pageSource, /condition_name\.localeCompare/);
   assert.match(pageSource, /const reviewedProtocol = condition\?\.protocol/);
+  assert.match(pageSource, /if \(reviewedProtocol\)/);
   assert.match(pageSource, /onClick=\{\(\) => loadProtocol\(condition\)\}/);
   assert.match(pageSource, /setProtocolData\(protocol\)/);
+  assert.match(pageSource, /<AIDisclosureNote \/>/);
   assert.match(pageSource, /<ImportToSOAPModal/);
 });

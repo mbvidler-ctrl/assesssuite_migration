@@ -257,7 +257,7 @@ jobs:
           [[ "$(grep -Fxc '  DOCUMENT_EXTRACTION_ENABLED = "1"' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Fxc '  DOCUMENT_EXTRACTION_UNDER_13_ENABLED = "0"' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Fxc '  OPENAI_HEALTH_DATA_TERMS_CONFIRMED = "1"' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Fxc '  GENERAL_CLINICAL_LLM_ENABLED = "0"' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Fxc '  GENERAL_CLINICAL_LLM_ENABLED = "1"' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Fxc '  TRANSCRIPTION_ENABLED = "0"' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^  source = "assesssuite_data"$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^  snapshot_retention = 5$' fly.production.toml)" -eq 1 ]]

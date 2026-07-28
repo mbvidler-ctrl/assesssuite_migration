@@ -48,10 +48,10 @@ primary_region = "syd"
   PAYMENTS_ENABLED = "1"
   UPLOADS_DIR = "/app/server/data/uploads"
   LLM_REQUIRED = "1"
-  # This release authorises only the bounded referral/document-extraction
-  # path. Legacy general clinical generation remains server-disabled until a
-  # separate function-level decision and release gate are completed.
-  GENERAL_CLINICAL_LLM_ENABLED = "0"
+  # Emergency global clinical-AI restoration authorised by Maxwell Vidler on
+  # 28 July 2026. LLM_REQUIRED remains enabled so provider failures stay loud;
+  # the reviewed rollback configuration remains fail-closed at 0.
+  GENERAL_CLINICAL_LLM_ENABLED = "1"
   TRANSCRIPTION_ENABLED = "0"
   DOCUMENT_EXTRACTION_ENABLED = "1"
   OPENAI_HEALTH_DATA_TERMS_CONFIRMED = "1"
