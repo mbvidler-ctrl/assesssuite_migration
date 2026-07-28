@@ -257,13 +257,13 @@ jobs:
         run: npm ci
 
       - name: Fail-closed dependency vulnerability audit
-        run: npm audit --audit-level=moderate
+        run: node scripts/check-dependency-audit.mjs
 
       - name: Validate the exact trusted workflow control
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: dd11d92d8156e8b4a9e37cb37567e4a1972ed5575df50e6ffef6c943a8d7d70d
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 5d928e26027242c33a6bb4d450a8d01ea567ed2ae80b82e7d975645a7f117409
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -812,7 +812,7 @@ jobs:
           rollback_digest="$(printf '%s\n' "$rollback_push" | sed -nE 's/^.*digest: (sha256:[0-9a-f]{64}) size: [0-9]+.*$/\1/p' | tail -n 1)"
           [[ "$forward_digest" =~ ^sha256:[0-9a-f]{64}$ && "$rollback_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
           npm ci
-          npm audit --audit-level=moderate
+          node scripts/check-dependency-audit.mjs
           proof_log="$RUNNER_TEMP/exact-image-forward-rollback.tap"
           proof_stderr="$RUNNER_TEMP/exact-image-forward-rollback.stderr"
           env -u FLY_API_TOKEN -u DOCKER_AUTH_CONFIG \

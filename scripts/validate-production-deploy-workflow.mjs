@@ -559,7 +559,7 @@ function validateAuxWorkflow(input, kind) {
     requireCount('docker push "$image_tag"', 1, 'single registry publication command');
     requireText('PRODUCTION_BASE_SHA: 183c8e47a0025ad311f5f6c1ea063c2feb430817', 'exact production-base revision');
     requireCount('PRODUCTION_BASE_SHA: 183c8e47a0025ad311f5f6c1ea063c2feb430817', 3, 'production-base revision uses');
-    requireCount('npm audit --audit-level=moderate', 1, 'fail-closed dependency vulnerability audit');
+    requireCount('node scripts/check-dependency-audit.mjs', 1, 'fail-closed dependency vulnerability audit');
     requireText('EXPECTED_RELEASE_SCANNER_SHA256: 1b34b794ab79f5ea022525f31bf70397c629ca0a16baf4320503c6cfdbd36c5c', 'trusted release-scanner digest');
     requireStepText('Build, typecheck differential, selftest, and rollback proof', 'node --test server/tests/production-startup.test.mjs', 'production-startup negative test');
     requireStepText('Build, typecheck differential, selftest, and rollback proof', 'npm run test:rollback-compatibility', 'rollback disabled-runtime compatibility proof execution');
@@ -677,7 +677,7 @@ function auxMutationCases(source, kind) {
   if (kind === 'prepare') {
     replace(
       'dependency-audit-removed',
-      '      - name: Fail-closed dependency vulnerability audit\n        run: npm audit --audit-level=moderate',
+      '      - name: Fail-closed dependency vulnerability audit\n        run: node scripts/check-dependency-audit.mjs',
       '      - name: Fail-closed dependency vulnerability audit\n        run: true',
     );
   }
