@@ -45,5 +45,18 @@ test('a missing verified flag fails closed, not open', () => {
 test('TreatmentProtocols.jsx wires the truthful badge into the references map', () => {
   assert.match(pageSource, /import \{ getReferenceVerificationBadge \} from "@\/lib\/referenceVerificationBadge";/);
   assert.match(pageSource, /getReferenceVerificationBadge\(ref\)/);
-  assert.doesNotMatch(pageSource, /<Badge className="bg-green-600 text-white text-xs">✓ Verified<\/Badge>/);
+  // Whitespace/quote-style insensitive: the truthful checkmark text is only
+  // ever produced by getReferenceVerificationBadge() above, never a literal
+  // in the page, so its bare presence anywhere in the page — regardless of
+  // surrounding JSX syntax, quote style, extra whitespace, or a second
+  // render site elsewhere on the page — is itself the defect.
+  assert.doesNotMatch(
+    pageSource,
+    /✓ Verified/,
+    'the "✓ Verified" label must only ever come from getReferenceVerificationBadge(), never a hardcoded literal in the page',
+  );
+  // Behavioural: the badge actually rendered must be the dynamic object
+  // returned above, not a literal className/label pair standing in for it.
+  assert.match(pageSource, /className=\{badge\.className\}/, 'the reference badge className must come from the dynamic badge object');
+  assert.match(pageSource, /\{badge\.label\}/, 'the reference badge label must come from the dynamic badge object');
 });

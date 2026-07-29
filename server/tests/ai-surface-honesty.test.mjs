@@ -11,6 +11,43 @@ function readSrc(relativePath) {
   return fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
 }
 
+// Strips block and line comments so a guard-defeating mutation cannot hide
+// behind prose that merely mentions the guarded identifier (e.g. a doc
+// comment saying "ai.canTrigger flips mid-session" instead of the real
+// `if (!ai.canTrigger)` check). None of the files this suite reads contain a
+// "//" inside a string literal, so this simple pass is safe here.
+function stripComments(src) {
+  return src
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/(^|[^:'"`\\])\/\/.*$/gm, '$1');
+}
+
+// Brace-matches the body of an arrow function declared as
+// `const <marker> = ...(...) => { ... }`, returning just the text between the
+// outermost braces. Used to scope an assertion to a single function's body
+// instead of the whole file, so surrounding prose/state cannot satisfy it.
+function extractArrowBody(src, marker) {
+  const start = src.indexOf(marker);
+  assert.ok(start >= 0, `expected to find "${marker}"`);
+  const arrowIdx = src.indexOf('=>', start);
+  assert.ok(arrowIdx >= 0, `expected an arrow function after "${marker}"`);
+  const braceStart = src.indexOf('{', arrowIdx);
+  assert.ok(braceStart >= 0, `expected a function body after "${marker}"`);
+  let depth = 0;
+  let i = braceStart;
+  for (; i < src.length; i++) {
+    if (src[i] === '{') depth++;
+    else if (src[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        i++;
+        break;
+      }
+    }
+  }
+  return src.slice(braceStart + 1, i - 1);
+}
+
 const CONSUMER_FILES = [
   'src/pages/TreatmentProtocols.jsx',
   'src/components/client/MedicationAlerts.jsx',
@@ -47,9 +84,16 @@ test('H03 no US spelling in AI-availability copy sites', () => {
 
 test('H04 the V2 fix — MedicationAlerts no longer gates non-AI content behind !error', () => {
   const src = readSrc('src/components/client/MedicationAlerts.jsx');
-  assert.doesNotMatch(src, /!isLoading && !error && renderDetails\(false\)/);
-  assert.match(src, /\{!isLoading && renderDetails\(false\)\}/);
-  assert.doesNotMatch(src, /!expanded && !isLoading && !error/);
+  // Scoped, semantic check: brace-match the JSX expression that actually
+  // renders renderDetails(false) and assert on that expression alone. A
+  // reformat (line wraps, extra whitespace) cannot break this because the
+  // negated character class spans newlines; operand order or an added
+  // conjunct show up directly as a failing/passing membership check on the
+  // extracted expression rather than as an exact-string mismatch.
+  const guard = /\{([^{}]*?renderDetails\(false\))\}/.exec(src);
+  assert.ok(guard, 'MedicationAlerts.jsx must render renderDetails(false) from a JSX expression');
+  assert.doesNotMatch(guard[1], /error/, 'renderDetails(false) must not be gated on error/aiErrorKind state');
+  assert.match(guard[1], /!isLoading/, 'renderDetails(false) must still be gated on !isLoading');
 });
 
 test('H05 AssessmentRecommendations honesty', () => {
@@ -57,13 +101,24 @@ test('H05 AssessmentRecommendations honesty', () => {
   assert.match(src, /source === 'ai'/);
   assert.match(src, /AI_COPY\.ruleBasedBadge/);
   assert.doesNotMatch(src, /AI-Suggested Assessments/);
-  assert.match(src, /source === 'ai' && recommendations\.length > 0 && <AIDisclosureNote/);
-  assert.doesNotMatch(src, /\{recommendations\.length > 0 && <AIDisclosureNote/);
+
+  // Scoped, semantic check: brace-match the JSX expression that renders
+  // <AIDisclosureNote and assert both its guarding conditions are present in
+  // that expression, regardless of operand order or added whitespace.
+  const disclosure = /\{([^{}]*?<AIDisclosureNote)/.exec(src);
+  assert.ok(disclosure, 'AssessmentRecommendations.jsx must render <AIDisclosureNote from a JSX expression');
+  assert.match(disclosure[1], /source === 'ai'/, 'AIDisclosureNote must be gated on source === \'ai\'');
+  assert.match(disclosure[1], /recommendations\.length > 0/, 'AIDisclosureNote must be gated on recommendations.length > 0');
 });
 
 test('H06 affordance discipline — no surface hides its AI button', () => {
   const protocolsSrc = readSrc('src/pages/TreatmentProtocols.jsx');
-  assert.match(protocolsSrc, /disabled=\{isLoading \|\| !ai\.canTrigger\}/);
+  // Scoped, semantic check: find the disabled= expression that references
+  // !ai.canTrigger and assert isLoading is gated in that SAME expression,
+  // rather than pinning the exact operand order/spacing.
+  const disabledExpr = /disabled=\{([^{}]*!ai\.canTrigger[^{}]*)\}/.exec(protocolsSrc);
+  assert.ok(disabledExpr, 'TreatmentProtocols.jsx must gate its AI action with a disabled= expression referencing !ai.canTrigger');
+  assert.match(disabledExpr[1], /isLoading/, 'the same disabled= expression must also gate on isLoading');
 
   const classB = [
     'src/components/reports/wizard-steps/SectionEditor.jsx',
@@ -87,12 +142,17 @@ test('H07 no call against a withdrawn capability', () => {
     'src/components/client/AssessmentRecommendations.jsx',
     'src/pages/ClientConditions.jsx',
   ]) {
-    const src = readSrc(file);
-    const guardIndex = src.indexOf('ai.canTrigger');
+    // Comments stripped first, so a doc comment mentioning ai.canTrigger (or
+    // a useEffect dependency-array entry, which is not a comment but also
+    // does not gate anything) cannot stand in for the real guard. The guard
+    // itself must be the structural `if (!ai.canTrigger) { ...; return; }`
+    // early return, not a bare textual occurrence of the identifier.
+    const src = stripComments(readSrc(file));
+    const guard = /if\s*\(\s*!ai\.canTrigger\s*\)\s*\{[\s\S]*?return;\s*\}/.exec(src);
     const invokeIndex = src.indexOf('InvokeLLM(');
-    assert.ok(guardIndex >= 0, `${file} must reference ai.canTrigger`);
+    assert.ok(guard, `${file} must contain an early-return guard: if (!ai.canTrigger) { ...; return; }`);
     assert.ok(invokeIndex >= 0, `${file} must call InvokeLLM(`);
-    assert.ok(guardIndex < invokeIndex, `${file}: ai.canTrigger must be checked before InvokeLLM( is called`);
+    assert.ok(guard.index < invokeIndex, `${file}: the !ai.canTrigger early-return guard must precede InvokeLLM(`);
   }
 });
 
@@ -119,7 +179,24 @@ test('H10 AuthContext contract', () => {
   assert.match(src, /refreshPublicSettings/);
   assert.match(src, /visibilitychange/);
   assert.match(src, /appPublicSettings/);
-  assert.doesNotMatch(src, /refreshPublicSettings[\s\S]{0,400}setIsLoadingPublicSettings/);
+
+  // Scoped, semantic check: brace-match the refreshPublicSettings function
+  // body itself (comments stripped) and assert directly on it, rather than
+  // an arbitrary character-count proximity window. This survives both an
+  // added comment/JSDoc between the function and an unrelated identifier
+  // (which merely widens a proximity window) and a defect placed anywhere
+  // within the function body (which a fixed-size window can walk out of).
+  const body = extractArrowBody(stripComments(src), 'const refreshPublicSettings');
+  assert.doesNotMatch(
+    body,
+    /setIsLoadingPublicSettings/,
+    'refreshPublicSettings must never touch isLoadingPublicSettings — src/App.jsx gates the whole SPA on that flag',
+  );
+  assert.doesNotMatch(
+    body,
+    /checkAppState\(/,
+    'refreshPublicSettings must not delegate to checkAppState() — that would blank the app to a loading screen and re-run auth mid-consult',
+  );
 });
 
 test('H11 anti-drift — index.mjs never reads the raw env var; capabilities.mjs is the single source', () => {

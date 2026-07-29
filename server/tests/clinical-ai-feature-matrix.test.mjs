@@ -10,10 +10,11 @@
 // Known limitation: PROTOCOL_SCHEMA below is a reduced-but-topologically-
 // faithful copy of TreatmentProtocols.jsx's PROTOCOL_RESPONSE_SCHEMA — it
 // keeps all nine top-level keys but simplifies some nested sub-schemas. The
-// drift guards in section "drift guards" below only assert that top-level
-// (and, for the small schemas, every leaf) key name still appears in the
-// source file; they do not assert full structural equality, so a
-// restructuring (not just a rename) of the client schema may not be caught.
+// drift guards in section "drift guards" below scope their assertions to
+// the actual schema literal in each source file (never the whole file), and
+// for PROTOCOL_RESPONSE_SCHEMA pin the exact top-level key set, so a
+// restructuring that renames, adds, or deletes a top-level key is caught;
+// they do not assert full structural equality of nested sub-schemas.
 
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -164,26 +165,95 @@ before(() => {
 // treatment-protocol-catalogue.test.mjs. If a call-site schema is edited in
 // the client without a matching update here, these fail loudly rather than
 // letting the fixtures silently drift out of sync with production shapes.
+//
+// Each guard is scoped to the schema object literal itself (brace-matched),
+// never the whole file — matching a key name in render code, prompt prose or
+// component state (all of which happen to reuse these names) no longer
+// satisfies the guard. The PROTOCOL_RESPONSE_SCHEMA guard additionally pins
+// the exact top-level key SET, so both a deletion and an undocumented
+// addition are caught, not merely a presence check per known key.
 // ---------------------------------------------------------------------------
 
-test('drift guard: PROTOCOL_SCHEMA top-level keys still exist in TreatmentProtocols.jsx', () => {
+// Brace-matches the object literal that starts at the first `{` following
+// `marker`, returning the literal (including its own braces).
+function sliceObjectLiteral(source, marker) {
+  const start = source.indexOf(marker);
+  assert.notEqual(start, -1, `expected to find "${marker}"`);
+  const braceStart = source.indexOf('{', start);
+  assert.notEqual(braceStart, -1, `expected an object literal after "${marker}"`);
+  let depth = 0;
+  let i = braceStart;
+  for (; i < source.length; i++) {
+    if (source[i] === '{') depth++;
+    else if (source[i] === '}') {
+      depth--;
+      if (depth === 0) {
+        i++;
+        break;
+      }
+    }
+  }
+  return source.slice(braceStart, i);
+}
+
+// Returns the keys declared directly inside an object literal block (depth 1
+// relative to the block's own outer braces) — i.e. not keys nested inside a
+// sub-object. `block` must start with the literal's opening `{`.
+function topLevelKeys(block) {
+  const keys = [];
+  let depth = 0;
+  let i = 0;
+  while (i < block.length) {
+    const ch = block[i];
+    if (ch === '{') {
+      depth++;
+      i++;
+      continue;
+    }
+    if (ch === '}') {
+      depth--;
+      i++;
+      continue;
+    }
+    if (depth === 1) {
+      const m = /^\s*(?:"([A-Za-z_$][\w$]*)"|([A-Za-z_$][\w$]*))\s*:/.exec(block.slice(i));
+      if (m) {
+        keys.push(m[1] || m[2]);
+        i += m[0].length;
+        continue;
+      }
+    }
+    i++;
+  }
+  return keys;
+}
+
+test('drift guard: PROTOCOL_SCHEMA top-level key set matches PROTOCOL_RESPONSE_SCHEMA in TreatmentProtocols.jsx', () => {
   const source = fs.readFileSync(path.join(repoRoot, 'src/pages/TreatmentProtocols.jsx'), 'utf8');
-  for (const key of Object.keys(PROTOCOL_SCHEMA.properties)) {
-    assert.match(source, new RegExp(`\\b${key}\\b`), `expected TreatmentProtocols.jsx to still declare "${key}"`);
-  }
+  const schemaBlock = sliceObjectLiteral(source, 'const PROTOCOL_RESPONSE_SCHEMA');
+  const propertiesBlock = sliceObjectLiteral(schemaBlock, 'properties:');
+  const actualKeys = new Set(topLevelKeys(propertiesBlock));
+  const expectedKeys = new Set(Object.keys(PROTOCOL_SCHEMA.properties));
+  assert.deepEqual(
+    actualKeys,
+    expectedKeys,
+    `PROTOCOL_RESPONSE_SCHEMA top-level keys drifted from the PROTOCOL_SCHEMA fixture (actual: ${[...actualKeys].sort()}, expected: ${[...expectedKeys].sort()})`,
+  );
 });
 
-test('drift guard: MEDICATION_ALERTS_SCHEMA leaf keys still exist in MedicationAlerts.jsx', () => {
+test('drift guard: MEDICATION_ALERTS_SCHEMA leaf keys still exist in MedicationAlerts.jsx\'s response_json_schema literal', () => {
   const source = fs.readFileSync(path.join(repoRoot, 'src/components/client/MedicationAlerts.jsx'), 'utf8');
+  const schemaBlock = sliceObjectLiteral(source, 'const response_json_schema');
   for (const key of ['alerts', 'medication_name', 'alert_text']) {
-    assert.match(source, new RegExp(`\\b${key}\\b`), `expected MedicationAlerts.jsx to still declare "${key}"`);
+    assert.match(schemaBlock, new RegExp(`\\b${key}\\b`), `expected MedicationAlerts.jsx's response_json_schema literal to still declare "${key}"`);
   }
 });
 
-test('drift guard: NUTRITION_SCHEMA leaf keys still exist in NutritionPlanCreator.jsx', () => {
+test('drift guard: NUTRITION_SCHEMA leaf keys still exist in NutritionPlanCreator.jsx\'s response_json_schema literal', () => {
   const source = fs.readFileSync(path.join(repoRoot, 'src/components/client/NutritionPlanCreator.jsx'), 'utf8');
+  const schemaBlock = sliceObjectLiteral(source, 'response_json_schema:');
   for (const key of ['general_advice', 'sample_meal_plan', 'behavioral_strategies']) {
-    assert.match(source, new RegExp(`\\b${key}\\b`), `expected NutritionPlanCreator.jsx to still declare "${key}"`);
+    assert.match(schemaBlock, new RegExp(`\\b${key}\\b`), `expected NutritionPlanCreator.jsx's response_json_schema literal to still declare "${key}"`);
   }
 });
 

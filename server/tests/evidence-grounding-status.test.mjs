@@ -56,5 +56,27 @@ test('a missing reviewsOnlyApplied is never reported as confirmed review-level g
 test('TreatmentProtocols.jsx uses the helper and no longer overclaims before the search has even run', () => {
   assert.match(pageSource, /import \{ describeEvidenceGrounding \} from "@\/lib\/evidenceGroundingStatus";/);
   assert.match(pageSource, /describeEvidenceGrounding\(\{/);
-  assert.doesNotMatch(pageSource, /Generating an AI-assisted protocol from verified research/);
+
+  // Whitespace-insensitive: collapse runs of whitespace before matching so a
+  // reformat (line wraps, re-indentation) of the old literal cannot silently
+  // defeat this guard.
+  const normalized = pageSource.replace(/\s+/g, ' ');
+  assert.doesNotMatch(normalized, /Generating an AI-assisted protocol from verified research/);
+
+  // Behavioural: the copy actually shown to the clinician (both the toast and
+  // the persisted page note) must be sourced from groundingStatus.message —
+  // the helper's own honest wording — rather than any static literal. This
+  // closes the loophole a bare wording check cannot: any hardcoded
+  // overclaiming string reintroduced at these call sites, worded however you
+  // like, fails these assertions because it is not groundingStatus.message.
+  assert.match(
+    pageSource,
+    /toast\.warning\(groundingStatus\.message\)/,
+    'the grounding warning toast must be sourced from groundingStatus.message, not a static string',
+  );
+  assert.match(
+    pageSource,
+    /setEvidenceGroundingNote\(groundingStatus\.message\)/,
+    'the persisted grounding note must be sourced from groundingStatus.message, not a static string',
+  );
 });
