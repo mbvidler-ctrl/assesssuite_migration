@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { selectAppendableNote } from "@/lib/clinical/soapNoteTarget";
+import { appendObjectiveToSoapNote } from "@/lib/clinical/soapNoteTarget";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -86,23 +86,14 @@ export default function ModifiedRankinScaleMRSRunner({ clientId, appointmentId, 
       }, '-note_date', 1);
 
       // A published note is a finalised clinical record and the server refuses
-      // this append outright. Previously the result was simply dropped when no
-      // note existed at all; it now lands in a fresh draft either way, matching
-      // the other standalone runners.
-      const soapNote = selectAppendableNote(soapNotes);
-      if (soapNote) {
-        const updatedObjective = (soapNote.objective || "") + "\n\n" + soapText;
-        await base44.entities.SOAPNote.update(soapNote.id, { objective: updatedObjective });
-      } else {
-        await base44.entities.SOAPNote.create({
-          org_id: assessmentData.org_id,
-          client_id: clientId,
-          appointment_id: appointmentId,
-          note_date: new Date().toISOString(),
-          objective: soapText,
-          status: "draft",
-        });
-      }
+      // this append outright. The shared decision skips it and lands the result
+      // in a fresh draft either way, matching the other standalone runners.
+      await appendObjectiveToSoapNote(base44.entities.SOAPNote, soapNotes, soapText, {
+        org_id: assessmentData.org_id,
+        client_id: clientId,
+        appointment_id: appointmentId,
+        note_date: new Date().toISOString(),
+      });
 
       onComplete?.({
         measure: "Modified Rankin Scale (mRS)",

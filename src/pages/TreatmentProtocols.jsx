@@ -39,7 +39,7 @@ import { getReferenceVerificationBadge } from "@/lib/referenceVerificationBadge"
 import { describeEvidenceGrounding } from "@/lib/evidenceGroundingStatus";
 import { useAiCapability } from "@/hooks/useAiCapability";
 import { AI_COPY, aiErrorMessage } from "@/lib/aiCapabilities";
-import { normaliseProtocolResponse, PROTOCOL_SECTION_LABELS } from "@/lib/protocolResponse";
+import { buildProtocolViewModel, normaliseProtocolResponse, PROTOCOL_SECTION_LABELS } from "@/lib/protocolResponse";
 // The import provenance is driven by the SAME predicate as the on-screen
 // "AI-assisted draft" badge, so the label the clinician sees and the label
 // that reaches the clinical record can never disagree.
@@ -432,19 +432,21 @@ export default function TreatmentProtocols() {
         prompt: buildProtocolPrompt(conditionName, groundingBlock),
         response_json_schema: PROTOCOL_RESPONSE_SCHEMA,
       });
-      const normalised = normaliseProtocolResponse(result);
-      if (!normalised.ok) {
+
+      // Normalise first, then attach the server-derived references — the
+      // normaliser must not see or rewrite the verified reference objects. The
+      // shared handoff is the ONLY path from a raw model result to page state,
+      // so a malformed field can never crash the page (A1) via a bypass.
+      const references = await validateReferences(groundedReferences);
+      const view = buildProtocolViewModel(result, references);
+      if (!view.ok) {
         /** @type {Error & {userMessage?: string}} */
         const invalidResultError = new Error("The AI service returned an invalid treatment protocol.");
         invalidResultError.userMessage = "The AI service returned a protocol that could not be read. Nothing has been saved.";
         throw invalidResultError;
       }
-
-      // Normalise first, then attach the server-derived references — the
-      // normaliser must not see or rewrite the verified reference objects.
-      const references = await validateReferences(groundedReferences);
-      setProtocolData({ ...normalised.protocol, references });
-      setProtocolIssues(normalised.dropped);
+      setProtocolData(view.protocol);
+      setProtocolIssues(view.dropped);
     } catch (error) {
       console.error("Error loading treatment protocol:", error);
       const kind = reviewedProtocol ? null : ai.reportError(error);
@@ -589,7 +591,13 @@ export default function TreatmentProtocols() {
                           <Search className="w-4 h-4 mr-2" />
                           Generate AI-assisted protocol for &quot;{customCondition.name}&quot;
                         </Button>
-                        {!ai.canTrigger && <p className="text-xs text-slate-500">{AI_COPY.protocolUnavailableNote}</p>}
+                        {!ai.canTrigger && (
+                          <p className="text-xs text-slate-500">
+                            {ai.reason === 'unconfigured'
+                              ? AI_COPY.unavailableUnconfigured
+                              : AI_COPY.protocolUnavailableNote}
+                          </p>
+                        )}
                       </>
                     )}
                   </div>
@@ -740,6 +748,24 @@ export default function TreatmentProtocols() {
                               protocolIssues.map((path) => PROTOCOL_SECTION_LABELS[path.split(".")[0]] || path.split(".")[0])
                             )].join(", ")}. Review the remaining content carefully and use your own
                             clinical judgement to fill any gaps.
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Evidence-grounding degradation notice — a top-level
+                      sibling (like the incomplete-draft notice above), never
+                      buried inside the collapsed-by-default References card, so
+                      a clinician cannot miss that review-level evidence was not
+                      found. */}
+                  {evidenceGroundingNote && (
+                    <Card className="bg-amber-50 border-amber-300">
+                      <CardContent className="py-3">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm text-amber-900">
+                            <strong>Evidence grounding degraded.</strong> {evidenceGroundingNote}
                           </p>
                         </div>
                       </CardContent>
@@ -1133,12 +1159,6 @@ export default function TreatmentProtocols() {
                    </CardHeader>
                    {expandedSections.references && (
                      <CardContent>
-                       {evidenceGroundingNote && (
-                         <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                           <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                           <span>{evidenceGroundingNote}</span>
-                         </div>
-                       )}
                        {protocolData.references && protocolData.references.length > 0 ? (
                          <div className="space-y-3">
                            {protocolData.references.map((ref, i) => {
@@ -1182,6 +1202,7 @@ export default function TreatmentProtocols() {
         protocolData={protocolData}
         conditionName={selectedCondition?.name}
         provenance={selectedCondition?.protocol ? PROTOCOL_PROVENANCE.REVIEWED : PROTOCOL_PROVENANCE.AI}
+        droppedPaths={protocolIssues}
       />
 </>
   );

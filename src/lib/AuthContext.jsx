@@ -110,7 +110,19 @@ export const AuthProvider = ({ children }) => {
     try {
       const publicSettings = await fetchPublicSettings();
       setAppPublicSettings(publicSettings);
-      setCapabilityOverrides({});
+      // A runtime withdrawal is cleared ONLY when the server positively
+      // re-publishes that capability as available. An unknown-optimistic
+      // payload (a server that publishes no capabilities block) must never
+      // re-enable an affordance the server just refused — otherwise every
+      // background refresh silently wipes the withdrawal and the AI buttons
+      // flap back on against a server that is still 503-ing.
+      const fresh = readCapabilities(publicSettings);
+      setCapabilityOverrides((prev) => Object.fromEntries(
+        Object.entries(prev).filter(([key]) => {
+          const cap = fresh[key];
+          return !(cap && cap.published && cap.available === true);
+        }),
+      ));
       setPublicSettingsFetchedAt(Date.now());
     } catch {
       // Keep last known state; never surface a settings-refresh error to a clinician.

@@ -25,7 +25,7 @@ import { aiProvenanceEntry, appendAiProvenance } from "@/lib/clinical/aiProvenan
 // `provenance` deliberately DEFAULTS TO AI: a missing or unrecognised prop
 // must fail towards over-disclosure, never towards presenting an AI draft as
 // reviewed content.
-export default function ImportToSOAPModal({ isOpen, onClose, protocolData, conditionName, provenance }) {
+export default function ImportToSOAPModal({ isOpen, onClose, protocolData, conditionName, provenance, droppedPaths }) {
   const [clients, setClients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -67,6 +67,10 @@ export default function ImportToSOAPModal({ isOpen, onClose, protocolData, condi
         conditionName,
         provenance: resolvedProvenance,
         dateLabel,
+        // Carry the normaliser's dropped paths so the note states the same
+        // thing the screen does — dropped contraindications are never written
+        // as "none were supplied".
+        droppedPaths,
       });
       const todayDateStr = todayLocal();
 

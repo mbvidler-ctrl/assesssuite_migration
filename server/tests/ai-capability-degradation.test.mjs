@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 import {
   AI_COPY,
+  aiErrorMessage,
   classifyAiError,
   mergeCapabilityOverrides,
   readCapabilities,
@@ -93,6 +94,24 @@ test('D04 classifyAiError', () => {
   assert.equal(classifyAiError(new Error('Network Error')), 'request_failed');
   assert.equal(classifyAiError({}), 'request_failed');
   assert.equal(classifyAiError(null), 'request_failed');
+});
+
+test('D04a a per-account authorisation refusal is permanent, not a transient outage', () => {
+  // The WP3 eligibility gate returns clinical_release_unavailable / account_inactive
+  // at HTTP 403. These are permanent for this account and must NEVER be shown
+  // as "try again".
+  for (const code of ['clinical_release_unavailable', 'account_inactive']) {
+    const error = { response: { status: 403, data: { code, error: 'AI generation is not approved for this account profile.' } } };
+    assert.equal(classifyAiError(error), 'not_authorised', code);
+    assert.equal(aiErrorMessage(classifyAiError(error)), AI_COPY.notAuthorised, code);
+    // It must not read as the transient request-failed copy.
+    assert.notEqual(aiErrorMessage(classifyAiError(error)), AI_COPY.requestFailed, code);
+
+    // The affordance closes (retrying cannot succeed) rather than staying live.
+    const surface = resolveAiSurfaceState({ capability: { available: true, reason: 'available' }, error });
+    assert.equal(surface.mode, 'unavailable', code);
+    assert.equal(surface.canTrigger, false, code);
+  }
 });
 
 test('D05 resolveAiSurfaceState', () => {

@@ -18,6 +18,10 @@ export default function MedicationAlerts({ conditions, client }) {
     const [labels, setLabels] = useState([]); // authoritative openFDA label data per medication
     const [isLoading, setIsLoading] = useState(false);
     const [aiErrorKind, setAiErrorKind] = useState(null);
+    // The authoritative drug-label lookup could not be completed (transport
+    // failure, empty response, or a server-reported networkError). Held so the
+    // card never renders a positive "no alerts" all-clear off a failed lookup.
+    const [labelLookupFailed, setLabelLookupFailed] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const [showDialog, setShowDialog] = useState(false);
     // Guards the openFDA/RxNorm grounding lookup from re-firing when
@@ -40,6 +44,7 @@ export default function MedicationAlerts({ conditions, client }) {
             if (medications.length === 0) {
                 setAlerts([]);
                 setLabels([]);
+                setLabelLookupFailed(false);
                 labelsLoadedRef.current = null;
                 return;
             }
@@ -54,15 +59,26 @@ export default function MedicationAlerts({ conditions, client }) {
             const medicationsKey = medications.slice().sort().join('|');
             let labelResults = labels;
             if (labelsLoadedRef.current !== medicationsKey) {
+                let degraded = false;
                 try {
                     const resp = await base44.functions.invoke('medicalLookup', { medications });
                     const payload = resp?.data ?? resp;
                     labelResults = Array.isArray(payload?.medications) ? payload.medications : [];
+                    // A response with no entries, or one the server flagged as a
+                    // per-medication networkError, is NOT a completed lookup —
+                    // the authoritative label source was unreachable.
+                    degraded = labelResults.length === 0 || labelResults.some((l) => l?.networkError);
                 } catch (e) {
                     labelResults = [];
+                    degraded = true;
                 }
-                labelsLoadedRef.current = medicationsKey;
+                // Only memoise a lookup that actually delivered. On failure the
+                // ref is left unset so the next effect run retries, instead of
+                // latching a false "no alerts" all-clear for the component's
+                // lifetime.
+                labelsLoadedRef.current = degraded ? null : medicationsKey;
                 setLabels(labelResults);
+                setLabelLookupFailed(degraded);
             }
 
             if (!ai.canTrigger) {
@@ -182,8 +198,14 @@ export default function MedicationAlerts({ conditions, client }) {
                 </div>
             )}
 
-            {labelsWithData.length === 0 && alerts.length === 0 && !aiNotice && (
+            {labelsWithData.length === 0 && alerts.length === 0 && !aiNotice && !labelLookupFailed && (
                 <p className="text-slate-600">No specific exercise-related alerts identified for the listed medications.</p>
+            )}
+
+            {labelLookupFailed && (
+                <p role="status" className="text-sm text-amber-800">
+                    The manufacturer&apos;s drug-label source (openFDA/RxNorm) could not be reached, so label warnings — including boxed warnings — are not shown. Absence of warnings here does not mean none apply; check the Australian product information.
+                </p>
             )}
         </>
     );
@@ -225,7 +247,7 @@ export default function MedicationAlerts({ conditions, client }) {
                     </div>
                 )}
             </CardHeader>
-            {(expanded || isLoading || aiNotice) && (
+            {(expanded || isLoading || aiNotice || labelLookupFailed) && (
                 <CardContent className="space-y-4">
                     {isLoading && (
                         <div className="space-y-3">

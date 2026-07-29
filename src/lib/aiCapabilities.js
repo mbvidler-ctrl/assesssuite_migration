@@ -25,6 +25,7 @@ export const AI_COPY = Object.freeze({
   withdrawnMidSession: 'AI writing assistance has just been switched off. The AI buttons are now unavailable — nothing you have saved is affected.',
   requestFailed: 'The AI service did not respond. Nothing has been saved — please try again.',
   providerFailed: 'The AI service could not complete this request. Nothing has been saved — please try again.',
+  notAuthorised: 'AI writing assistance is not approved for your account. This is an account permission, not a temporary outage, so retrying will not help — ask your administrator if you believe you should have access.',
   nonAiUnaffected: 'The information above does not come from AI and is unaffected.',
   ruleBasedBadge: 'Rule-based',
   ruleBasedExplanation: 'These suggestions are matched from the condition tags recorded in your assessment library. They are not AI-generated.',
@@ -110,6 +111,12 @@ export function classifyAiError(error) {
   if (code === 'ai_capability_disabled') return 'withdrawn';
   if (code === 'ai_provider_unconfigured') return 'unconfigured';
   if (code === 'ai_provider_failed') return 'provider_failed';
+  // Deterministic per-account authorisation refusal from the WP3 eligibility
+  // gate (server/integrations.mjs). This is a permanent 403 for this account,
+  // NOT a transient outage — it must never surface as "try again".
+  if (code === 'clinical_release_unavailable' || code === 'account_inactive' || code === 'ai_not_authorised') {
+    return 'not_authorised';
+  }
   // Cross-version bridge: a NEW bundle against a PRE-capabilities server,
   // whose body still carries the generic {code:"internal_error"} shape.
   if (status === 503 && /general ai generation is disabled on this server/i.test(details || '')) return 'withdrawn';
@@ -131,6 +138,8 @@ export function aiErrorMessage(kind) {
       return AI_COPY.unavailableUnconfiguredShort;
     case 'provider_failed':
       return AI_COPY.providerFailed;
+    case 'not_authorised':
+      return AI_COPY.notAuthorised;
     default:
       return AI_COPY.requestFailed;
   }
@@ -204,11 +213,14 @@ export function resolveAiSurfaceState({
   if (error) {
     const kind = classifyAiError(error);
     const withdrawn = kind === 'withdrawn' || kind === 'unconfigured';
+    // A permanent per-account authorisation refusal closes the affordance
+    // like a withdrawal: retrying cannot succeed for this account.
+    const permanent = withdrawn || kind === 'not_authorised';
     return {
-      mode: withdrawn ? 'unavailable' : 'failed',
-      canTrigger: !withdrawn,
+      mode: permanent ? 'unavailable' : 'failed',
+      canTrigger: !permanent,
       message: aiErrorMessage(kind),
-      tone: withdrawn ? 'muted' : 'warning',
+      tone: permanent ? 'muted' : 'warning',
       showAiSection: false,
       showNonAiContent,
     };

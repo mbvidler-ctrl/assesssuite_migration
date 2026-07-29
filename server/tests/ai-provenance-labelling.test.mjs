@@ -22,12 +22,15 @@ import {
   markAiAssistedText,
 } from '../../src/lib/clinical/aiProvenance.js';
 import {
+  appendObjectiveToSoapNote,
   isPublishedNote,
   localDayOf,
   selectAppendableNote,
 } from '../../src/lib/clinical/soapNoteTarget.js';
 import {
   BLOCKED_BY_PUBLISHED_MESSAGE,
+  CONTRAINDICATIONS_DROPPED_WARNING,
+  NO_CONTRAINDICATIONS_WARNING,
   PROTOCOL_PROVENANCE,
   buildProtocolPlanText,
   selectProtocolImportTarget,
@@ -310,9 +313,50 @@ test('P13 a concurrent-amendment refusal is explained, not surfaced as a bare fa
   assert.match(modal, /Nothing you typed has been saved\./);
 });
 
-test('P12 every background SOAP-note writer selects an appendable note', () => {
-  // R5: the published-note guard makes any write to a finalised note 409.
-  // These five sites appended into whichever note they found first.
+test('P12 the shared append-or-create decision skips a published note behaviourally', async () => {
+  // R5: the published-note guard makes any write to a finalised note 409. The
+  // decision now lives in one pure helper, so this asserts the DATA FLOW —
+  // that the returned target is the note actually written — not a spelling.
+  // The previous grep passed a mutation that kept selectAppendableNote( as a
+  // dead binding while writing soapNotes.at(0); this fails it.
+
+  // Every candidate is published -> never update, create a fresh draft.
+  const publishedOnly = [{ id: 'p1', status: 'published', objective: 'final' }];
+  const calls1 = [];
+  const entity1 = {
+    update: async (id, fields) => { calls1.push(['update', id, fields]); },
+    create: async (fields) => { calls1.push(['create', fields]); },
+  };
+  const r1 = await appendObjectiveToSoapNote(entity1, publishedOnly, 'NEW OBJECTIVE', { org_id: 'o', client_id: 'c' });
+  assert.deepEqual(r1, { mode: 'create' });
+  assert.equal(calls1.some(([kind]) => kind === 'update'), false, 'must never update a published note');
+  const created = calls1.find(([kind]) => kind === 'create');
+  assert.ok(created, 'must create a fresh draft when every candidate is published');
+  assert.equal(created[1].status, 'draft');
+  assert.equal(created[1].objective, 'NEW OBJECTIVE');
+  assert.equal(created[1].org_id, 'o');
+
+  // A published note ahead of a draft -> the draft is the one written.
+  const mixed = [
+    { id: 'p2', status: 'published', objective: 'final' },
+    { id: 'd2', status: 'draft', objective: 'existing' },
+  ];
+  const calls2 = [];
+  const entity2 = {
+    update: async (id, fields) => { calls2.push(['update', id, fields]); },
+    create: async (fields) => { calls2.push(['create', fields]); },
+  };
+  const r2 = await appendObjectiveToSoapNote(entity2, mixed, 'APPENDED', {});
+  assert.deepEqual(r2, { mode: 'append', noteId: 'd2' });
+  assert.equal(calls2.some(([kind]) => kind === 'create'), false, 'must not create when an appendable draft exists');
+  assert.deepEqual(calls2[0], ['update', 'd2', { objective: 'existing\n\nAPPENDED' }]);
+});
+
+test('P12b every background SOAP writer routes through the shared decision, not a direct write', () => {
+  // Slimmed structural invariant (genuinely grep-enforceable): each writer
+  // consumes appendObjectiveToSoapNote and holds NO direct SOAPNote.update(
+  // call site of its own — so the note-selection data-flow cannot be
+  // re-inlined and defeated with a different spelling.
   const writers = [
     ['src', 'components', 'assessments', 'TestRunnerSOAPHelper.jsx'],
     ['src', 'components', 'assessments', 'SixMeterWalkStandaloneWrapper.jsx'],
@@ -322,9 +366,51 @@ test('P12 every background SOAP-note writer selects an appendable note', () => {
   ];
   for (const writer of writers) {
     const source = readSource(...writer);
-    assert.match(source, /selectAppendableNote\(/, writer.join('/'));
-    assert.doesNotMatch(source, /existingSoapNotes\[0\]/, writer.join('/'));
-    assert.doesNotMatch(source, /existingSOAPNotes\[0\]/, writer.join('/'));
-    assert.doesNotMatch(source, /soapNotes\[0\]/, writer.join('/'));
+    assert.match(source, /appendObjectiveToSoapNote\(/, writer.join('/'));
+    assert.doesNotMatch(source, /SOAPNote\.update\(/, writer.join('/'));
   }
+});
+
+test('P14 dropped contraindications are disclosed as such, never as "none were supplied"', () => {
+  // A scalar contraindications.absolute is dropped by the normaliser; the note
+  // must state that content was supplied and discarded, not the false absence.
+  const whollyDropped = buildProtocolPlanText(
+    { exercise_prescription: AI_FIXTURE.exercise_prescription },
+    {
+      conditionName: 'Dementia',
+      provenance: PROTOCOL_PROVENANCE.AI,
+      dateLabel: DATE_LABEL,
+      droppedPaths: ['contraindications.absolute', 'contraindications.red_flags'],
+    },
+  );
+  assert.ok(whollyDropped.includes(CONTRAINDICATIONS_DROPPED_WARNING), whollyDropped);
+  assert.equal(whollyDropped.includes(NO_CONTRAINDICATIONS_WARNING), false);
+
+  // Partial drop: a surviving field must not read as a complete list.
+  const partial = buildProtocolPlanText(
+    { contraindications: { relative: ['Uncontrolled hypertension'] } },
+    {
+      conditionName: 'Dementia',
+      provenance: PROTOCOL_PROVENANCE.AI,
+      dateLabel: DATE_LABEL,
+      droppedPaths: ['contraindications.absolute'],
+    },
+  );
+  assert.match(partial, /Relative: Uncontrolled hypertension/);
+  assert.ok(partial.includes(CONTRAINDICATIONS_DROPPED_WARNING), partial);
+
+  // Regression guard: a genuine absence (no dropped paths) is unchanged.
+  const genuine = buildProtocolPlanText(
+    { exercise_prescription: AI_FIXTURE.exercise_prescription },
+    { conditionName: 'Dementia', provenance: PROTOCOL_PROVENANCE.AI, dateLabel: DATE_LABEL },
+  );
+  assert.ok(genuine.includes(NO_CONTRAINDICATIONS_WARNING), genuine);
+  assert.equal(genuine.includes(CONTRAINDICATIONS_DROPPED_WARNING), false);
+});
+
+test('P15 the protocol import modal threads the normaliser dropped paths into the record', () => {
+  const modal = readSource('src', 'components', 'protocols', 'ImportToSOAPModal.jsx');
+  assert.match(modal, /droppedPaths/);
+  const page = readSource('src', 'pages', 'TreatmentProtocols.jsx');
+  assert.match(page, /droppedPaths=\{protocolIssues\}/);
 });

@@ -42,6 +42,17 @@ test('a genuine systematic-review result is ok and reported as success', () => {
   assert.equal(status.tone, 'success');
 });
 
+test('a missing reviewsOnlyApplied is never reported as confirmed review-level grounding', () => {
+  // Tri-state: absence of the flag (older server image / alternate path) must
+  // fall to a warning, never fall through to the success message.
+  for (const missing of [undefined, null]) {
+    const status = describeEvidenceGrounding({ networkError: false, resultCount: 2, reviewsOnlyApplied: missing });
+    assert.equal(status.ok, true);
+    assert.equal(status.tone, 'warning', String(missing));
+    assert.doesNotMatch(status.message, /Systematic-review evidence retrieved/);
+  }
+});
+
 test('TreatmentProtocols.jsx uses the helper and no longer overclaims before the search has even run', () => {
   assert.match(pageSource, /import \{ describeEvidenceGrounding \} from "@\/lib\/evidenceGroundingStatus";/);
   assert.match(pageSource, /describeEvidenceGrounding\(\{/);

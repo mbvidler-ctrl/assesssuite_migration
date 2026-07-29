@@ -211,6 +211,27 @@ export function normaliseProtocolResponse(raw) {
 }
 
 /**
+ * The single sanctioned handoff from a raw InvokeLLM result to the page's
+ * view-model: normalise the model output, then attach the server-verified
+ * references (which the normaliser must never see or rewrite). A non-renderable
+ * result short-circuits so the page can throw its invalid-protocol error.
+ *
+ * This exists so the InvokeLLM -> page-state path is a real function call, not
+ * a textual pattern: a bypass that spreads the raw result cannot attach
+ * references here, and re-introduces the A1 crash class the normaliser closes.
+ *
+ * @param {unknown} result raw InvokeLLM output
+ * @param {unknown} references server-verified reference objects to attach
+ * @returns {{ ok: boolean, protocol: object|null, dropped: string[] }}
+ */
+export function buildProtocolViewModel(result, references) {
+  const normalised = normaliseProtocolResponse(result);
+  if (!normalised.ok) return { ok: false, protocol: null, dropped: [] };
+  const refs = Array.isArray(references) ? references : [];
+  return { ok: true, protocol: { ...normalised.protocol, references: refs }, dropped: normalised.dropped };
+}
+
+/**
  * Contract helper (test/diagnostic use, not called by app code): walks
  * PROTOCOL_RENDER_CONTRACT over an arbitrary object and returns dotted paths
  * where the page would call `.map` on a non-array, or render a

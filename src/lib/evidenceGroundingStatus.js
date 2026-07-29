@@ -18,9 +18,21 @@ export function describeEvidenceGrounding({ networkError, resultCount, reviewsOn
         'No systematic-review evidence was found for this condition — broader indexed research was used instead of review-level evidence.',
     };
   }
+  // Tri-state: only an explicit reviewsOnlyApplied === true confirms
+  // review-level grounding. A missing/unknown field (an older server image or
+  // a future evidence path) must never be reported as confirmed systematic-
+  // review evidence purely because the flag was absent — fail to a warning.
+  if (reviewsOnlyApplied === true) {
+    return {
+      ok: true,
+      tone: 'success',
+      message: 'Systematic-review evidence retrieved for this condition.',
+    };
+  }
   return {
     ok: true,
-    tone: 'success',
-    message: 'Systematic-review evidence retrieved for this condition.',
+    tone: 'warning',
+    message:
+      'Verified research was retrieved for this condition, but this server did not report whether it was review-level evidence.',
   };
 }

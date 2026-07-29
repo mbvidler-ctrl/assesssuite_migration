@@ -34,6 +34,13 @@ export const PROTOCOL_PROVENANCE = Object.freeze({
 export const NO_CONTRAINDICATIONS_WARNING =
   'No contraindications or red flags were supplied with this protocol. Screen the client independently before prescribing.';
 
+// Emitted when the normaliser dropped one or more contraindication fields
+// (e.g. the AI returned contraindications.absolute as a string). The record
+// must state the same thing the screen does — that content was supplied and
+// discarded — never the false "none were supplied".
+export const CONTRAINDICATIONS_DROPPED_WARNING =
+  'Contraindication or red-flag content was supplied with this protocol but could not be read and has been left out. Do not read this note as evidence that none apply. Screen the client independently before prescribing.';
+
 export const NO_REFERENCES_WARNING = 'No verified references accompanied this protocol.';
 
 export const LATER_PHASES_NOTICE =
@@ -61,13 +68,17 @@ function plainObject(value) {
 
 /**
  * @param {unknown} protocolData
- * @param {{conditionName?: unknown, provenance?: string, dateLabel?: string}} [options]
+ * @param {{conditionName?: unknown, provenance?: string, dateLabel?: string, droppedPaths?: unknown}} [options]
  * @returns {string}
  */
-export function buildProtocolPlanText(protocolData, { conditionName, provenance, dateLabel } = {}) {
+export function buildProtocolPlanText(protocolData, { conditionName, provenance, dateLabel, droppedPaths } = {}) {
   const protocol = plainObject(protocolData) || {};
   const name = text(conditionName).trim() || 'Unnamed condition';
   const isAi = provenance !== PROTOCOL_PROVENANCE.REVIEWED;
+  // Dotted paths the normaliser dropped (src/lib/protocolResponse.js). Guarded
+  // because the raw-catalogue fallback path passes nothing.
+  const dropped = Array.isArray(droppedPaths) ? droppedPaths : [];
+  const contraDropped = dropped.some((path) => typeof path === 'string' && path.split('.')[0] === 'contraindications');
 
   let planText = `TREATMENT PROTOCOL: ${name}\n\n`;
 
@@ -128,11 +139,16 @@ export function buildProtocolPlanText(protocolData, { conditionName, provenance,
   const relative = contraindications ? list(contraindications.relative) : [];
   const redFlags = contraindications ? list(contraindications.red_flags) : [];
   if (absolute.length === 0 && relative.length === 0 && redFlags.length === 0) {
-    planText += `${NO_CONTRAINDICATIONS_WARNING}\n`;
+    // A genuine absence is stated as such; a discarded field is NOT — writing
+    // "none were supplied" over dropped content would misstate the record.
+    planText += `${contraDropped ? CONTRAINDICATIONS_DROPPED_WARNING : NO_CONTRAINDICATIONS_WARNING}\n`;
   } else {
     if (absolute.length > 0) planText += `Absolute: ${absolute.join('; ')}\n`;
     if (relative.length > 0) planText += `Relative: ${relative.join('; ')}\n`;
     if (redFlags.length > 0) planText += `Red flags: ${redFlags.join('; ')}\n`;
+    // Partial drop: some fields survived, but at least one was discarded. The
+    // surviving list must not read as complete.
+    if (contraDropped) planText += `${CONTRAINDICATIONS_DROPPED_WARNING}\n`;
   }
 
   // --- References, with the verification state the data actually carries --
