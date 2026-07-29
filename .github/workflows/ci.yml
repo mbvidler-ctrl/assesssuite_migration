@@ -59,6 +59,12 @@ jobs:
       - name: Self-test (server/selftest.mjs)
         run: npm run selftest
 
+      # The assurance battery contains browser-backed suites (rich-text
+      # security, landing layout); Chromium must be present before it runs —
+      # the same ordering the release workflow established in PR #18.
+      - name: Install pinned Playwright Chromium
+        run: npx --no-install playwright install --with-deps chromium
+
       - name: Offline assurance battery (server/tests/run-assurance.mjs)
         run: npm run test:assurance
 
