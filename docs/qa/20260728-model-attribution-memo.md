@@ -1,6 +1,6 @@
 # Model attribution and counterfactual — the clinical-AI kill switch — 28 July 2026
 
-**Prepared at the owner's explicit request.**
+**Prepared at the explicit request of Maxwell Vidler, Principal Solutions Architect and Technical Lead, AssessSuite Engagement.**
 **Subject:** the `GENERAL_CLINICAL_LLM_ENABLED = "0"` posture introduced at `e67792b` (21 July 2026) and reversed at `2c2d4ff` (28 July 2026).
 **Method:** every git-record claim below was re-derived directly from the repository — `git log --format=%B` over the squash bodies, `git show` over the commits and their trees, and `git ls-remote` where a shallow-clone artefact was possible. Where the source analysis and the record disagree, the record is stated and the discrepancy is noted.
 **Companion document:** `docs/qa/20260728-v16-patch-review.md` (technical review of the restoration patch).
@@ -69,7 +69,7 @@ Verified: at `c32dd15` the flag existed in **neither** `fly.production.toml` nor
 
 That recorded list reserves to Maxwell: DNS cutover; live Stripe secret keys; the `LEGAL_STATUS=effective` flip; public domain cutover; merge to `main`; any contact with Brenton; the real live payment test. The runbook adds that live Base44 changes are an approval trigger (`:76`) and that agents never execute payments (`:16`).
 
-**Nothing in the recorded list requires owner acknowledgement of a production feature-availability regression.** On that record, disabling live clinical features by configuration fell *inside* the agent's written discretion, provided the merge and deploy were themselves authorised — and they were: PR #10 is titled "Intervening Order", and the merges ran under the owner's account.
+**Nothing in the recorded list requires engagement-authority acknowledgement of a production feature-availability regression.** On that record, disabling live clinical features by configuration fell *inside* the agent's written discretion, provided the merge and deploy were themselves authorised — and they were: PR #10 is titled "Intervening Order", and the merges ran under the engagement authority's GitHub account.
 
 The disablement was disclosed, but only diffusely. It is recorded in three places and one test name, and nowhere as a notice:
 
@@ -112,23 +112,23 @@ Three process facts, none of them a model choice, produced the seven-day duratio
 
 1. **No approval trigger and no notice gate** existed for a change that reduces production feature availability (§3).
 2. **No detection.** The only smoke assertion that exercises `Core/InvokeLLM` runs solely in the `SELFTEST=1` lane, which passes through the carve-out at `server/integrations.mjs:669-671`; the production-posture lane is gated on `SMOKE_PRODUCTION_MODE`, which is set nowhere in the repository. A green 10/10 smoke run and a hard 503 in production coexisted for the full week. There was no release ledger and no post-deploy functional check of the live AI surfaces.
-3. **The corridor's own anti-tamper design** — correct in itself — converted recovery from a secret flip into a mandatory four-pull-request code release once the owner did decide to restore, because opaque Fly-secret override of this variable is deliberately refused and the workflows assert the literal value.
+3. **The corridor's own anti-tamper design** — correct in itself — converted recovery from a secret flip into a mandatory four-pull-request code release once the engagement authority did decide to restore, because opaque Fly-secret override of this variable is deliberately refused and the workflows assert the literal value.
 
 ### 4.3 Calibrated conclusion
 
 - **Roughly 15–25% likelihood** that substituting a different model would have prevented or materially shortened the outage. The decision was information-complete and rule-consistent; its seven-day persistence was a detection and notice failure that authoring-time model choice does not control.
-- **Greater than 80% likelihood** that a notice gate or process change would have. A mandatory owner sign-off line item for any change reducing production feature availability, or a post-deploy functional smoke of the live AI surfaces, would each independently have surfaced the 503s on day zero or one.
+- **Greater than 80% likelihood** that a notice gate or process change would have. A mandatory engagement-authority sign-off line item for any change reducing production feature availability, or a post-deploy functional smoke of the live AI surfaces, would each independently have surfaced the 503s on day zero or one.
 
 The authoring model demonstrably enumerated the full blast radius before acting. **This was not a comprehension failure. The failure is in the process the model was bound to, which did not define this class of change as an escalation.**
 
-One qualification the owner should hold alongside the above: the 28 July restoration comment at `fly.production.toml:51-53` records blanket owner authorisation, but the original written precondition — per-function authority, disclosure and clinical gates — was never satisfied for the surfaces other than TreatmentProtocols. The flip re-enabled the shared `Core/InvokeLLM` gate for all of them at once (32 direct call sites across 15 components and pages; 19 files reference the symbol). That is recorded as defect CS-6 in the companion review.
+One qualification the engagement authority should hold alongside the above: the 28 July restoration comment at `fly.production.toml:51-53` records blanket authorisation by the engagement authority, but the original written precondition — per-function authority, disclosure and clinical gates — was never satisfied for the surfaces other than TreatmentProtocols. The flip re-enabled the shared `Core/InvokeLLM` gate for all of them at once (32 direct call sites across 15 components and pages; 19 files reference the symbol). That is recorded as defect CS-6 in the companion review.
 
 ---
 
 ## 5. Recommendations
 
 1. **Record model trailers on every agent commit, without exception — including CI-bootstrap and emergency pull requests.** The two gaps at §2.3 sit at precisely the two moments that matter most for accountability: the first artefact of the decision (`c32dd15`) and its reversal (`#17`–`#20`). A squash trailer on the merge commit is not sufficient; per-sub-commit trailers should survive the squash, as they did for the Fable 5 and Sonnet 5 bands and did not for the release-corridor run.
-2. **Add feature-availability regression to the Approval Trigger list.** Any change that disables, gates or removes a production capability visible to a clinician requires recorded owner acknowledgement before merge, in the same form as the existing reserved items. This is the single change with the highest expected value, and it is a one-line addition to the mission order and to `docs/qa/20260713-launch-readiness-session-note.md:28-30`.
+2. **Add feature-availability regression to the Approval Trigger list.** Any change that disables, gates or removes a production capability visible to a clinician requires recorded engagement-authority acknowledgement before merge, in the same form as the existing reserved items. This is the single change with the highest expected value, and it is a one-line addition to the mission order and to `docs/qa/20260713-launch-readiness-session-note.md:28-30`.
 3. **The notice-gate design is delivered under the P2 governance workstream.** Its scope should include the mechanism (what artefact constitutes notice, who must acknowledge, at what point in the release corridor) and the paired detection control — a post-deploy functional check of the live AI surfaces run against the production posture, which is the same control that closes defect TT-3 in the companion review.
 
 ---
@@ -138,7 +138,7 @@ One qualification the owner should hold alongside the above: the 28 July restora
 | Field | Value |
 |---|---|
 | Document | `docs/qa/20260728-model-attribution-memo.md` |
-| Status | **Draft — for owner review.** Prepared at the owner's explicit request |
+| Status | **Draft — for review by the engagement authority.** Prepared at their explicit request |
 | Date | 28 July 2026 |
 | Branch | `claude/v16-patch-clinical-ai-review-g36phy` at `caf5f02` |
 | Subject commits | `c32dd15`, `e67792b` (#6), `dd9b6ab` (#7), `cf0a816` (#8), `f27eaa5` (#9), `6a8ec8d` (#10), `2c2d4ff` (#17), `7577256` (#18), `883daff` (#19), `caf5f02` (#20) |
@@ -146,4 +146,4 @@ One qualification the owner should hold alongside the above: the 28 July restora
 | Attribution stated | Kill-switch posture: **Claude Opus 4.8**, per the squash trailer, 19–21 July 2026. Restoration: **model unrecorded** |
 | Outage duration | `e67792b` merged 21 July 2026 16:16 AEST; `2c2d4ff` merged 28 July 2026 18:01 AEST — seven days |
 | Companion document | `docs/qa/20260728-v16-patch-review.md` |
-| Owner action required | Decide on recommendations 1 and 2; confirm that the notice-gate design belongs to the P2 governance workstream |
+| Action required (engagement authority) | Decide on recommendations 1 and 2; confirm that the notice-gate design belongs to the P2 governance workstream |

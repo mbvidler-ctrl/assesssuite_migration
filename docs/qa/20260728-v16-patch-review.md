@@ -3,7 +3,7 @@
 **Scope:** the four commits of the v16 emergency restoration on branch `claude/v16-patch-clinical-ai-review-g36phy` — `2c2d4ff` (#17), `7577256` (#18), `883daff` (#19), `caf5f02` (#20).
 **Purpose:** establish what the patch changed, what it got right, and what defects remain open in the restored clinical-AI path.
 **Method:** every file and line reference below was re-derived from the working tree at `caf5f02` before inclusion. Findings that could not be re-verified, or whose central claim proved to be an artefact of the local shallow clone, are excluded or corrected in place and marked as such.
-**Status:** draft for owner review. No remediation has been performed under this document.
+**Status:** draft — for review by the Principal Solutions Architect and Technical Lead, AssessSuite Engagement. No remediation has been performed under this document.
 
 ---
 
@@ -211,7 +211,7 @@ These items are not defects introduced by the v16 patch, but the patch moved pro
 | WP5 | Test and detection restoration | TT-1, TT-2, TT-3, TT-4, TT-5 |
 | WP6 | Configuration and documentation drift | all of §6 |
 
-Sequencing note for the owner: WP1 and WP4 address content that reaches the clinical record and is the only group where an existing patient artefact may already be affected. WP3 and WP5 address the conditions under which the next such defect would go undetected. WP6 is low risk and mechanical, but the emergency deploy lane is currently inert and should be re-pinned before it is next needed rather than during an incident.
+Sequencing note for the engagement authority: WP1 and WP4 address content that reaches the clinical record and is the only group where an existing patient artefact may already be affected. WP3 and WP5 address the conditions under which the next such defect would go undetected. WP6 is low risk and mechanical, but the emergency deploy lane is currently inert and should be re-pinned before it is next needed rather than during an incident.
 
 ---
 
@@ -220,11 +220,11 @@ Sequencing note for the owner: WP1 and WP4 address content that reaches the clin
 | Field | Value |
 |---|---|
 | Document | `docs/qa/20260728-v16-patch-review.md` |
-| Status | **Draft — for owner review.** Not an approval, not a sign-off, and not authority to deploy |
+| Status | **Draft — for review by the engagement authority.** Not an approval, not a sign-off, and not authority to deploy |
 | Date | 28 July 2026 |
 | Branch reviewed | `claude/v16-patch-clinical-ai-review-g36phy` at `caf5f02` |
 | Commits in scope | `2c2d4ff` (#17), `7577256` (#18), `883daff` (#19), `caf5f02` (#20) |
 | Verification basis | Every file and line reference re-derived from the working tree at `caf5f02`. The catalogue contract test was executed. Configuration hashes were recomputed locally. Remote reference resolution was checked with `git ls-remote` where a shallow-clone artefact was possible |
 | Excluded | Three findings from the source review were refuted on re-verification and are not carried here. One finding is carried with a correction recorded in place (§6, release evidence anchor). One clinical-exposure claim is carried as plausible rather than confirmed (CS-5) |
 | Companion document | `docs/qa/20260728-model-attribution-memo.md` (governance and model attribution) |
-| Owner action required | Confirm the WP1–WP6 grouping and sequencing; direct whether any already-persisted AI-drafted SOAP content requires retrospective review |
+| Action required (engagement authority) | Confirm the WP1–WP6 grouping and sequencing; direct whether any already-persisted AI-drafted SOAP content requires retrospective review |
