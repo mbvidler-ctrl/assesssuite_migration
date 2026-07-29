@@ -66,6 +66,14 @@ import {
   REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
   REFERRAL_SUBJECT_AGE_CONFIRMATION,
 } from '../src/lib/referralWorkflow.js';
+import {
+  CLINICAL_AI_DISABLED_CODE,
+  CLINICAL_AI_DISABLED_MESSAGE,
+  CLINICAL_AI_PROVIDER_FAILED_CODE,
+  CLINICAL_AI_UNCONFIGURED_CODE,
+  CLINICAL_AI_UNCONFIGURED_MESSAGE,
+  generalClinicalLlmSwitchedOn,
+} from './capabilities.mjs';
 
 // UPLOADS_DIR override: in production the uploads store must live on the
 // persistent volume (mounted at server/data), so all three readers of this
@@ -666,11 +674,12 @@ function sendJson(res, status, payload) {
 // ---------------------------------------------------------------------------
 
 async function handleInvokeLLM(body) {
-  const selftestMockAllowed =
-    process.env.SELFTEST === '1' && process.env.GENERAL_CLINICAL_LLM_ENABLED === undefined;
-  if (process.env.GENERAL_CLINICAL_LLM_ENABLED !== '1' && !selftestMockAllowed) {
-    const error = new Error('General AI generation is disabled on this server.');
+  if (!generalClinicalLlmSwitchedOn()) {
+    const error = new Error(CLINICAL_AI_DISABLED_MESSAGE);
     error.httpStatus = 503;
+    // Machine-readable so the browser can distinguish "capability withdrawn"
+    // from a transport blip and degrade honestly instead of retrying blindly.
+    error.code = CLINICAL_AI_DISABLED_CODE;
     throw error;
   }
   const { prompt, response_json_schema: schema } = body || {};
@@ -689,14 +698,16 @@ async function handleInvokeLLM(body) {
       if (LLM_REQUIRED) {
         const e = new Error('AI generation failed.');
         e.httpStatus = 502;
+        e.code = CLINICAL_AI_PROVIDER_FAILED_CODE;
         throw e;
       }
       console.log('[llm] real model failed; using the explicit non-production mock fallback');
     }
   } else if (LLM_REQUIRED) {
     // Production: never silently serve mock clinical content when no key is set.
-    const e = new Error('AI generation is not configured on this server.');
+    const e = new Error(CLINICAL_AI_UNCONFIGURED_MESSAGE);
     e.httpStatus = 503;
+    e.code = CLINICAL_AI_UNCONFIGURED_CODE;
     throw e;
   }
 

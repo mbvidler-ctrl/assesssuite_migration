@@ -35,6 +35,8 @@ import { Toaster, toast } from "sonner";
 import ClickableReferences from "../components/assessments/ClickableReferences";
 import { format } from "date-fns";
 import ImportToSOAPModal from "../components/protocols/ImportToSOAPModal";
+import { useAiCapability } from "@/hooks/useAiCapability";
+import { AI_COPY, aiErrorMessage } from "@/lib/aiCapabilities";
 
 // The shared JavaScript UI wrappers accept the rendered props below, while
 // checkJs infers ref-only signatures from forwardRef. These source-local
@@ -198,6 +200,7 @@ Use Australian English. This is clinical decision support, not diagnosis or a su
 );
 
 export default function TreatmentProtocols() {
+  const ai = useAiCapability();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedCondition, setSelectedCondition] = useState(null);
@@ -336,6 +339,13 @@ export default function TreatmentProtocols() {
       toast.error("Enter a condition before loading a treatment protocol.");
       return;
     }
+    // Covers both the button and the Enter-key path (:516-528 legacy line
+    // numbers) with one guard — a reviewed catalogue selection never calls
+    // the AI, so only the AI-assisted draft path is gated here.
+    if (!reviewedProtocol && !ai.canTrigger) {
+      toast.error(ai.unavailableMessage);
+      return;
+    }
 
     setSelectedCondition({ ...condition, name: conditionName });
     setIsLoading(true);
@@ -370,7 +380,10 @@ export default function TreatmentProtocols() {
           && typeof reference?.doi === "string"
         ));
       if (evidencePayload?.networkError || retrievedRefs.length === 0) {
-        throw new Error("No verified research could be retrieved for this condition.");
+        /** @type {Error & {userMessage?: string}} */
+        const evidenceError = new Error("No verified research could be retrieved for this condition.");
+        evidenceError.userMessage = "No verified research could be retrieved for this condition, so no protocol was generated.";
+        throw evidenceError;
       }
 
       const groundedReferences = retrievedRefs.map((reference) => {
@@ -395,17 +408,21 @@ export default function TreatmentProtocols() {
         response_json_schema: PROTOCOL_RESPONSE_SCHEMA,
       });
       if (!result || typeof result !== "object" || Array.isArray(result)) {
-        throw new Error("The AI service returned an invalid treatment protocol.");
+        /** @type {Error & {userMessage?: string}} */
+        const invalidResultError = new Error("The AI service returned an invalid treatment protocol.");
+        invalidResultError.userMessage = "The AI service returned a protocol that could not be read. Nothing has been saved.";
+        throw invalidResultError;
       }
 
       const references = await validateReferences(groundedReferences);
       setProtocolData({ ...result, references });
     } catch (error) {
       console.error("Error loading treatment protocol:", error);
+      const kind = reviewedProtocol ? null : ai.reportError(error);
       toast.error(
         reviewedProtocol
           ? "Failed to load the reviewed treatment protocol."
-          : `Failed to generate the treatment protocol: ${error?.message || "Unknown error"}`,
+          : (error?.userMessage || aiErrorMessage(kind)),
       );
     } finally {
       setIsLoading(false);
@@ -532,15 +549,19 @@ export default function TreatmentProtocols() {
                       />
                     </div>
                     {!isCatalogueLoading && !catalogueError && customCondition && (
-                      <Button
-                        variant="default"
-                        className="w-full bg-blue-600 hover:bg-blue-700"
-                        onClick={() => loadProtocol(customCondition)}
-                        disabled={isLoading}
-                      >
-                        <Search className="w-4 h-4 mr-2" />
-                        Generate AI-assisted protocol for &quot;{customCondition.name}&quot;
-                      </Button>
+                      <>
+                        <Button
+                          variant="default"
+                          className="w-full bg-blue-600 hover:bg-blue-700"
+                          onClick={() => loadProtocol(customCondition)}
+                          disabled={isLoading || !ai.canTrigger}
+                          title={ai.unavailableMessage || undefined}
+                        >
+                          <Search className="w-4 h-4 mr-2" />
+                          Generate AI-assisted protocol for &quot;{customCondition.name}&quot;
+                        </Button>
+                        {!ai.canTrigger && <p className="text-xs text-slate-500">{AI_COPY.protocolUnavailableNote}</p>}
+                      </>
                     )}
                   </div>
 
@@ -576,7 +597,7 @@ export default function TreatmentProtocols() {
                     ) : filteredConditions.length === 0 ? (
                       <p role="status" className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
                         {normalizedSearchTerm
-                          ? `No reviewed treatment protocol matches "${customConditionName}". Generate an AI-assisted draft or try another search.`
+                          ? `No reviewed treatment protocol matches "${customConditionName}". ${ai.canTrigger ? "Generate an AI-assisted draft or try another search." : "AI-assisted drafting is currently unavailable — please try another search."}`
                           : "No reviewed treatment protocols are available in this category."}
                       </p>
                     ) : filteredConditions.map((condition) => (

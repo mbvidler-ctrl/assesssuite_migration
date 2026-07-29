@@ -1844,6 +1844,7 @@ test('E37 general clinical InvokeLLM remains disabled outside the referral adapt
     );
     assert.equal(result.status, 503, result.text);
     assert.equal(result.body?.error, 'General AI generation is disabled on this server.');
+    assert.equal(result.body?.code, 'ai_capability_disabled', result.text);
   } finally {
     await isolated.stop();
   }

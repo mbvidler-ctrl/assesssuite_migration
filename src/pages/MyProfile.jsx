@@ -35,6 +35,7 @@ import {
 import { Toaster, toast } from 'sonner';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ClinicPolicies from "../components/settings/ClinicPolicies";
+import AiFeatureStatusCard from "../components/settings/AiFeatureStatusCard";
 import { SecureFileImage } from "@/components/files/SecureFile";
 import {
   Dialog,
@@ -331,6 +332,7 @@ export default function MyProfile() {
             <TabsList className="bg-white/80 backdrop-blur-sm">
               <TabsTrigger value="profile">Profile & Locations</TabsTrigger>
               <TabsTrigger value="policies">Policies & Consent Forms</TabsTrigger>
+              <TabsTrigger value="ai">AI features</TabsTrigger>
             </TabsList>
 
             <TabsContent value="profile">
@@ -669,6 +671,10 @@ export default function MyProfile() {
 
             <TabsContent value="policies">
               <ClinicPolicies />
+            </TabsContent>
+
+            <TabsContent value="ai">
+              <AiFeatureStatusCard />
             </TabsContent>
           </Tabs>
 

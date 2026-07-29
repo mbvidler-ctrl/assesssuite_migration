@@ -42,6 +42,10 @@ const suites = [
   'referral-production-canary.test.mjs',
   'rollback-compatibility.test.mjs',
   'release-tools.test.mjs',
+  'public-capabilities-contract.test.mjs',
+  'ai-capability-degradation.test.mjs',
+  'ai-surface-honesty.test.mjs',
+  'soap-dissection-fail-closed.test.mjs',
 ];
 
 for (const suite of suites) {

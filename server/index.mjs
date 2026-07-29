@@ -23,6 +23,7 @@ import {
   normaliseEmail,
 } from './auth.mjs';
 import { createFounderOrganizationEnsurer, handleCoreIntegration } from './integrations.mjs';
+import { publicCapabilities } from './capabilities.mjs';
 import { initEmail, sendEmail, otpEmail, resetEmail, welcomeEmail, adminNotifyEmail, inviteEmail } from './email.mjs';
 import {
   UPLOAD_POLICY,
@@ -1961,6 +1962,12 @@ function handlePublicSettings(req, res, appId) {
   //   RC-2026.07.19 (the immutable content identifier recorded in
   //   LegalAcceptanceEvent rows); bumping them would stale every acceptance
   //   and lock out all active users.
+  // - capabilities: the runtime feature posture, mirrored from the same
+  //   predicates the endpoints enforce (server/capabilities.mjs).
+  //   transcription_enabled is retained verbatim as the legacy raw-switch
+  //   alias — a bundle built before this block existed must keep working
+  //   unchanged, and a bundle built after it must treat an absent block as
+  //   UNKNOWN and never hide a working feature.
   return sendJson(res, 200, {
     id: appId,
     public_settings: {
@@ -1969,6 +1976,7 @@ function handlePublicSettings(req, res, appId) {
         status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',
         effective_date: process.env.LEGAL_EFFECTIVE_DATE || null,
       },
+      capabilities: publicCapabilities(),
     },
   });
 }

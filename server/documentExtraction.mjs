@@ -11,6 +11,7 @@ import {
   REFERRAL_EXTRACTION_SCHEMA_PROPERTY_COUNT,
   REFERRAL_EXTRACTION_SCHEMA_SHA256,
 } from '../src/lib/referralExtractionSchema.js';
+import { documentExtractionAvailable } from './capabilities.mjs';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 // Pin the reviewed provider snapshot. A mutable family alias could silently
@@ -604,7 +605,7 @@ export function assertProviderRequestPolicy(payload) {
 }
 
 export function assertDocumentExtractionEnabled(environment = process.env) {
-  if (environment.DOCUMENT_EXTRACTION_ENABLED !== '1') {
+  if (!documentExtractionAvailable(environment)) {
     throw new ExtractionError(503, 'extraction_disabled', 'Document extraction is currently unavailable.');
   }
 }

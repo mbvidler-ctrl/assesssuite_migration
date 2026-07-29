@@ -11,6 +11,8 @@ import { META_TEMPLATES, REPORT_META_TEMPLATE_MAP } from "@/components/reports/U
 import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 import { SecureFileLink } from "@/components/files/SecureFile";
 import { uploadTenantFile } from "@/lib/fileIntegrations";
+import { useAiCapability } from "@/hooks/useAiCapability";
+import { aiErrorMessage } from "@/lib/aiCapabilities";
 
 const SECTION_GUIDANCE = {
   "Referral Details": {
@@ -240,6 +242,7 @@ const SECTION_GUIDANCE = {
 };
 
 export default function SectionEditor({ sections, content, onChange, client, clientAssessments, clientConditions, selectedAssessmentIds, clinician, priorReports, soapNotes, reportTypeKey, reportTitle }) {
+  const ai = useAiCapability();
   const [activeSection, setActiveSection] = useState(sections[0]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isTidying, setIsTidying] = useState(false);
@@ -542,7 +545,7 @@ Write ONLY the "${activeSection}" section. Return ONLY plain text — no HTML, n
       onChange({ ...content, [activeSection]: response });
       toast.success("Content generated!");
     } catch (error) {
-      toast.error("Failed to generate content");
+      toast.error(aiErrorMessage(ai.reportError(error)));
     } finally {
       setIsGenerating(false);
     }
@@ -568,7 +571,7 @@ ${content[activeSection]}`;
       onChange({ ...content, [activeSection]: response });
       toast.success("Content tidied!");
     } catch (error) {
-      toast.error("Failed to tidy content");
+      toast.error(aiErrorMessage(ai.reportError(error)));
     } finally {
       setIsTidying(false);
     }
@@ -577,6 +580,8 @@ ${content[activeSection]}`;
   const handleGenerateAll = async () => {
     setIsGeneratingAll(true);
     const newContent = { ...content };
+    const eligibleSections = sections.filter(s => !s.toLowerCase().includes('signature') && !s.toLowerCase().includes('attachment'));
+    let completed = 0;
     try {
       const { clientContext, priorReportContext, soapContext } = buildFullContext();
       for (const section of sections) {
@@ -675,11 +680,21 @@ CLINICAL WRITING RULES — FOLLOW STRICTLY:
 Write ONLY the "${section}" section. Return ONLY plain text — no HTML, no markdown, no bullet symbols except plain hyphens for lists.`;
         const response = await InvokeLLM({ prompt });
         newContent[section] = response;
+        completed += 1;
       }
       onChange(newContent);
       toast.success("All sections generated!");
     } catch (error) {
-      toast.error("Failed to generate all sections");
+      const kind = ai.reportError(error);
+      // A partial result silently discarded and reported as a flat failure
+      // is exactly the dishonest degradation this change removes — keep
+      // whatever completed before the failure and say how much.
+      if (completed > 0) onChange(newContent);
+      toast.error(
+        completed > 0
+          ? `Generated ${completed} of ${eligibleSections.length} sections before AI writing assistance stopped responding. ${aiErrorMessage(kind)}`
+          : aiErrorMessage(kind),
+      );
     } finally {
       setIsGeneratingAll(false);
     }
@@ -743,13 +758,15 @@ Write ONLY the "${section}" section. Return ONLY plain text — no HTML, no mark
           variant="outline"
           size="sm"
           onClick={handleGenerateAll}
-          disabled={isGeneratingAll}
+          disabled={isGeneratingAll || !ai.canTrigger}
+          title={ai.unavailableMessage || undefined}
           className="border-purple-300 text-purple-700 hover:bg-purple-50"
         >
           {isGeneratingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
           Generate All Sections
         </Button>
       </div>
+      {!ai.canTrigger && <p className="text-xs text-slate-500">{ai.unavailableMessage}</p>}
 
       <div className="flex gap-4">
         <div className="w-48 flex-shrink-0 space-y-1">
@@ -779,11 +796,11 @@ Write ONLY the "${section}" section. Return ONLY plain text — no HTML, no mark
             <div className="flex gap-2">
               {!isSignatureSection && !isAttachmentSection && (
                 <>
-                  <Button size="sm" variant="outline" onClick={handleTidy} disabled={isTidying || !content[activeSection]?.trim()} className="text-xs">
+                  <Button size="sm" variant="outline" onClick={handleTidy} disabled={isTidying || !content[activeSection]?.trim() || !ai.canTrigger} title={ai.unavailableMessage || undefined} className="text-xs">
                     {isTidying ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Wand2 className="w-3 h-3 mr-1" />}
                     Tidy
                   </Button>
-                  <Button size="sm" onClick={handleGenerate} disabled={isGenerating} className="bg-blue-600 hover:bg-blue-700 text-white text-xs">
+                  <Button size="sm" onClick={handleGenerate} disabled={isGenerating || !ai.canTrigger} title={ai.unavailableMessage || undefined} className="bg-blue-600 hover:bg-blue-700 text-white text-xs">
                     {isGenerating ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Sparkles className="w-3 h-3 mr-1" />}
                     {content[activeSection]?.trim() ? 'Regenerate' : 'AI Generate'}
                   </Button>

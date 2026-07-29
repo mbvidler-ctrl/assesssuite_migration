@@ -54,6 +54,7 @@ import { recordLegalEvent } from "@/lib/legal/recordAcceptance";
 import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
 import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 import { useAuth } from "@/lib/AuthContext";
+import { useAiCapability } from "@/hooks/useAiCapability";
 
 export default function SOAPNoteModal({
   appointment,
@@ -68,6 +69,7 @@ export default function SOAPNoteModal({
   // recording stays available; Transcribe/Dissect surfaces hide when off.
   const { appPublicSettings } = useAuth();
   const transcriptionEnabled = appPublicSettings?.public_settings?.transcription_enabled === true;
+  const ai = useAiCapability();
 
   const [soapNote, setSoapNote] = useState(null);
   const [originalSoapNote, setOriginalSoapNote] = useState(null);
@@ -636,7 +638,13 @@ export default function SOAPNoteModal({
           plan: payload.plan ? (prev.plan ? prev.plan + '\n\n' + payload.plan : payload.plan) : prev.plan,
         }));
         setShowTranscriptPanel(false);
-        toast.success('SOAP note populated from transcript!');
+        if (payload.simulated) {
+          toast.warning(
+            'SOAP note populated from placeholder content — no real AI dissection was performed. Check the transcription provider configuration before relying on this note.'
+          );
+        } else {
+          toast.success('SOAP note populated from transcript!');
+        }
       } else {
         toast.error('Failed to dissect transcript.');
       }
@@ -1485,7 +1493,8 @@ export default function SOAPNoteModal({
                               setIsGeneratingAssessment(false);
                             }
                           }}
-                          disabled={isGeneratingAssessment}
+                          disabled={isGeneratingAssessment || !ai.canTrigger}
+                          title={!ai.canTrigger ? ai.unavailableMessage : undefined}
                         >
                           {isGeneratingAssessment ? (
                             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -1587,7 +1596,8 @@ export default function SOAPNoteModal({
                                 setIsGeneratingPlan(false);
                               }
                             }}
-                            disabled={isGeneratingPlan}
+                            disabled={isGeneratingPlan || !ai.canTrigger}
+                            title={!ai.canTrigger ? ai.unavailableMessage : undefined}
                           >
                             {isGeneratingPlan ? (
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />

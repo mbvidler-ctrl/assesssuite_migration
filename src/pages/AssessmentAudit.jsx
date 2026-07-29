@@ -24,8 +24,11 @@ import {
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { useAiCapability } from "@/hooks/useAiCapability";
+import { aiErrorMessage } from "@/lib/aiCapabilities";
 
 export default function AssessmentAudit() {
+  const ai = useAiCapability();
   const [currentUser, setCurrentUser] = useState(null);
   const [assessments, setAssessments] = useState([]);
   const [auditResults, setAuditResults] = useState(() => {
@@ -822,7 +825,7 @@ export default function AssessmentAudit() {
       setAuditResults([...auditResults]);
     } catch (error) {
       console.error('Failed to generate fix:', error);
-      toast.error('Failed to generate fix');
+      toast.error(aiErrorMessage(ai.reportError(error)));
       fix.status = 'error';
       setAuditResults([...auditResults]);
     } finally {
@@ -1172,11 +1175,13 @@ Return only requested fields as JSON.`;
                   <TabsTrigger value="all">All Assessments</TabsTrigger>
                 </TabsList>
                 
+                <div className="flex flex-col items-end gap-1">
                 <div className="flex gap-2">
                   {auditResults.some(r => r.proposedFixes?.some(f => f.status === 'pending')) && (
-                    <Button 
-                      onClick={generateAllFixes} 
-                      disabled={generatingFixes}
+                    <Button
+                      onClick={generateAllFixes}
+                      disabled={generatingFixes || !ai.canTrigger}
+                      title={ai.unavailableMessage || undefined}
                       className="bg-blue-600 hover:bg-blue-700"
                     >
                       {generatingFixes ? (
@@ -1192,7 +1197,7 @@ Return only requested fields as JSON.`;
                       )}
                     </Button>
                   )}
-                  
+
                   {auditResults.some(r => r.proposedFixes?.some(f => f.type === 'test_runner' && f.status === 'ready')) && (
                     <Button 
                       onClick={approveAllTestRunners}
@@ -1202,6 +1207,8 @@ Return only requested fields as JSON.`;
                       Approve All Test Runners
                     </Button>
                   )}
+                </div>
+                {!ai.canTrigger && <p className="text-xs text-slate-500">{ai.unavailableMessage}</p>}
                 </div>
               </div>
 
