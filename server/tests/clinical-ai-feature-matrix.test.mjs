@@ -88,9 +88,11 @@ const MEDICATION_ALERTS_BODY = {
 // src/pages/TreatmentProtocols.jsx:76-176 PROTOCOL_RESPONSE_SCHEMA — all
 // nine top-level keys are kept, nested sub-schemas are simplified (see the
 // file-level comment above on the drift-guard limitation this implies).
-// add_context_from_internet: true reproduces the finding that
-// server/integrations.mjs:676 never reads this field (no-op) — asserted
-// below via hasTools === false.
+// WP2 removed the dead add_context_from_internet field from this call site
+// (it was a client-side no-op) and made the server reject it outright as an
+// unknown parameter (see server/tests/invoke-llm-param-contract.test.mjs),
+// so this fixture no longer sends it — sending it now 400s rather than
+// being silently ignored.
 const PROTOCOL_SCHEMA = {
   type: 'object',
   properties: {
@@ -107,7 +109,6 @@ const PROTOCOL_SCHEMA = {
 };
 const PROTOCOL_BODY = {
   prompt: 'Create a comprehensive, evidence-informed exercise rehabilitation protocol for the clinical topic "osteoarthritis".',
-  add_context_from_internet: true,
   response_json_schema: PROTOCOL_SCHEMA,
 };
 
@@ -370,12 +371,17 @@ test('Boot E: real-provider path under LLM_REQUIRED=1 against the fake chat/comp
       assert.ok(!sent.includes('123456789'), 'raw ID-shaped digit run must not reach the provider');
     });
 
-    await t.test('no-op confirmation: add_context_from_internet never reaches the provider as a tool', async () => {
+    // WP2 superseded the old no-op-confirmation coverage: add_context_from_
+    // internet used to reach the server and be silently ignored (never sent
+    // to the provider as a tool). It is now rejected outright as an unknown
+    // parameter before the provider is ever contacted — a stricter,
+    // fail-closed contract, not a weakened one.
+    await t.test('a caller cannot resurrect add_context_from_internet: it 400s before the provider is contacted', async () => {
       fakeChat.reset();
-      const result = await invokeLlm(server, admin, PROTOCOL_BODY);
-      assert.equal(result.status, 200, result.text);
-      assert.equal(fakeChat.calls.length, 1);
-      assert.equal(fakeChat.calls[0].hasTools, false);
+      const result = await invokeLlm(server, admin, { ...PROTOCOL_BODY, add_context_from_internet: true });
+      assert.equal(result.status, 400, result.text);
+      assert.match(result.body?.error || '', /add_context_from_internet/);
+      assert.equal(fakeChat.calls.length, 0, 'the provider must never be contacted for a rejected request');
     });
 
     await t.test('failure sub-modes', async () => {

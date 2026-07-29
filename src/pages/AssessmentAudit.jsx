@@ -951,8 +951,7 @@ COMPONENT REQUIREMENTS:
 Based on the assessment instructions and type, determine the appropriate data capture structure. Return ONLY the complete component code.`;
 
     const response = await base44.integrations.Core.InvokeLLM({
-      prompt: prompt,
-      add_context_from_internet: true
+      prompt: prompt
     });
 
     if (!response || typeof response !== 'string') return null;
@@ -992,7 +991,6 @@ Return only requested fields as JSON.`;
 
     const response = await base44.integrations.Core.InvokeLLM({
       prompt: prompt,
-      add_context_from_internet: true,
       response_json_schema: schema
     });
 

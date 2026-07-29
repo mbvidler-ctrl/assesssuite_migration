@@ -1,0 +1,49 @@
+// WP2 — honest evidence-grounding copy for the treatment-protocol UI.
+//
+// Behavioural coverage of describeEvidenceGrounding, plus a wiring safety
+// net over TreatmentProtocols.jsx confirming the overclaiming pre-fetch
+// toast wording is gone and the helper is actually called.
+
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import test from 'node:test';
+import { fileURLToPath } from 'node:url';
+
+import { describeEvidenceGrounding } from '../../src/lib/evidenceGroundingStatus.js';
+
+const testsDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(testsDir, '..', '..');
+const pageSource = fs.readFileSync(
+  path.join(repoRoot, 'src', 'pages', 'TreatmentProtocols.jsx'),
+  'utf8',
+);
+
+test('a network error is never-ok, regardless of result count', () => {
+  const status = describeEvidenceGrounding({ networkError: true, resultCount: 3, reviewsOnlyApplied: true });
+  assert.equal(status.ok, false);
+});
+
+test('zero results is never-ok', () => {
+  const status = describeEvidenceGrounding({ networkError: false, resultCount: 0, reviewsOnlyApplied: true });
+  assert.equal(status.ok, false);
+});
+
+test('a degraded (non-reviews-only) result is ok but honestly flagged as a warning', () => {
+  const status = describeEvidenceGrounding({ networkError: false, resultCount: 2, reviewsOnlyApplied: false });
+  assert.equal(status.ok, true);
+  assert.equal(status.tone, 'warning');
+  assert.match(status.message, /systematic-review/);
+});
+
+test('a genuine systematic-review result is ok and reported as success', () => {
+  const status = describeEvidenceGrounding({ networkError: false, resultCount: 2, reviewsOnlyApplied: true });
+  assert.equal(status.ok, true);
+  assert.equal(status.tone, 'success');
+});
+
+test('TreatmentProtocols.jsx uses the helper and no longer overclaims before the search has even run', () => {
+  assert.match(pageSource, /import \{ describeEvidenceGrounding \} from "@\/lib\/evidenceGroundingStatus";/);
+  assert.match(pageSource, /describeEvidenceGrounding\(\{/);
+  assert.doesNotMatch(pageSource, /Generating an AI-assisted protocol from verified research/);
+});

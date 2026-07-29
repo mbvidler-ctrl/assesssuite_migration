@@ -93,6 +93,16 @@ async function getJson(url, timeoutMs = 12000) {
   }
 }
 
+// Filter-value metacharacters carry meaning in OpenAlex's `filter=` grammar —
+// a comma separates AND-ed filter clauses. OpenAlex percent-decodes the
+// filter param server-side before splitting on ',', so percent-encoding the
+// whole joined string does NOT stop a literal comma in query text from
+// acting as a filter separator once decoded — it must never reach the filter
+// builder. Strip it (and collapse resulting whitespace) before use.
+function sanitizeOpenAlexFilterTerm(value) {
+  return String(value || '').replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 // ---- backends --------------------------------------------------------------
 function normaliseOpenAlexWork(w) {
   if (!w) return null;
@@ -115,7 +125,7 @@ async function openAlexByDoi(doi) {
   return { networkError: false, work: normaliseOpenAlexWork(w) };
 }
 async function openAlexByTitle(title) {
-  const url = `https://api.openalex.org/works?filter=title.search:${encodeURIComponent(title)}&per-page=8&mailto=${encodeURIComponent(MAILTO)}`;
+  const url = `https://api.openalex.org/works?filter=title.search:${encodeURIComponent(sanitizeOpenAlexFilterTerm(title))}&per-page=8&mailto=${encodeURIComponent(MAILTO)}`;
   const res = await throttled(() => getJson(url));
   if (!res.ok) return { networkError: !res.status, works: [] };
   const works = res.json && Array.isArray(res.json.results) ? res.json.results.map(normaliseOpenAlexWork).filter(Boolean) : [];
@@ -239,8 +249,9 @@ export async function verifyCitation(input, { useCache = true } = {}) {
 // cite only from it, instead of inventing DOIs. Prefers review/guideline
 // literature, most-cited first. Returns real works only (never fabricated).
 export async function searchEvidence(query, { limit = 5, reviewsOnly = true } = {}) {
-  const q = String(query || '').trim();
-  if (!q) return { query: q, results: [], networkError: false };
+  const q = sanitizeOpenAlexFilterTerm(query);
+  let reviewsOnlyApplied = reviewsOnly;
+  if (!q) return { query: q, results: [], networkError: false, reviewsOnlyApplied };
   const filters = [`title.search:${q}`];
   if (reviewsOnly) filters.push('type:review');
   const url =
@@ -249,15 +260,16 @@ export async function searchEvidence(query, { limit = 5, reviewsOnly = true } = 
   let res = await throttled(() => getJson(url));
   // Fall back to non-review search if the review filter is too narrow.
   if (res.ok && (!res.json || !Array.isArray(res.json.results) || res.json.results.length === 0) && reviewsOnly) {
+    reviewsOnlyApplied = false;
     const url2 = `https://api.openalex.org/works?filter=${encodeURIComponent(`title.search:${q}`)}&per-page=${limit}&sort=cited_by_count:desc&mailto=${encodeURIComponent(MAILTO)}`;
     res = await throttled(() => getJson(url2));
   }
-  if (!res.ok) return { query: q, results: [], networkError: !res.status };
+  if (!res.ok) return { query: q, results: [], networkError: !res.status, reviewsOnlyApplied };
   const results = (res.json && Array.isArray(res.json.results) ? res.json.results : [])
     .map(normaliseOpenAlexWork)
     .filter((w) => w && w.title && w.doi)
     .map((w) => ({ title: w.title, authors: w.authors.slice(0, 4), year: w.year, doi: w.doi, source: 'openalex' }));
-  return { query: q, results, networkError: false };
+  return { query: q, results, networkError: false, reviewsOnlyApplied };
 }
 
 export async function verifyCitations(citations, opts) {

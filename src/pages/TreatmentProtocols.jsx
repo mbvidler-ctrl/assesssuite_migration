@@ -35,6 +35,8 @@ import { Toaster, toast } from "sonner";
 import ClickableReferences from "../components/assessments/ClickableReferences";
 import { format } from "date-fns";
 import ImportToSOAPModal from "../components/protocols/ImportToSOAPModal";
+import { getReferenceVerificationBadge } from "@/lib/referenceVerificationBadge";
+import { describeEvidenceGrounding } from "@/lib/evidenceGroundingStatus";
 import { useAiCapability } from "@/hooks/useAiCapability";
 import { AI_COPY, aiErrorMessage } from "@/lib/aiCapabilities";
 import { normaliseProtocolResponse, PROTOCOL_SECTION_LABELS } from "@/lib/protocolResponse";
@@ -214,6 +216,7 @@ export default function TreatmentProtocols() {
   const [isCatalogueLoading, setIsCatalogueLoading] = useState(true);
   const [catalogueError, setCatalogueError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [evidenceGroundingNote, setEvidenceGroundingNote] = useState(null);
   const [protocolIssues, setProtocolIssues] = useState([]);
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
@@ -356,6 +359,7 @@ export default function TreatmentProtocols() {
     setSelectedCondition({ ...condition, name: conditionName });
     setIsLoading(true);
     setProtocolData(null);
+    setEvidenceGroundingNote(null);
     setProtocolIssues([]);
 
     try {
@@ -374,7 +378,7 @@ export default function TreatmentProtocols() {
         return;
       }
 
-      toast.info("Generating an AI-assisted protocol from verified research...", { duration: 2000 });
+      toast.info("Searching the medical literature to ground the AI-assisted protocol...", { duration: 2000 });
 
       // searchEvidence is intentionally required before InvokeLLM. Besides
       // grounding the prompt in real literature, this preserves the server's
@@ -392,11 +396,20 @@ export default function TreatmentProtocols() {
           typeof reference?.title === "string"
           && typeof reference?.doi === "string"
         ));
-      if (evidencePayload?.networkError || retrievedRefs.length === 0) {
+      const groundingStatus = describeEvidenceGrounding({
+        networkError: evidencePayload?.networkError,
+        resultCount: retrievedRefs.length,
+        reviewsOnlyApplied: evidencePayload?.reviewsOnlyApplied,
+      });
+      if (!groundingStatus.ok) {
         /** @type {Error & {userMessage?: string}} */
-        const evidenceError = new Error("No verified research could be retrieved for this condition.");
+        const evidenceError = new Error(groundingStatus.message);
         evidenceError.userMessage = "No verified research could be retrieved for this condition, so no protocol was generated.";
         throw evidenceError;
+      }
+      if (groundingStatus.tone === 'warning') {
+        toast.warning(groundingStatus.message);
+        setEvidenceGroundingNote(groundingStatus.message);
       }
 
       const groundedReferences = retrievedRefs.map((reference) => {
@@ -417,7 +430,6 @@ export default function TreatmentProtocols() {
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: buildProtocolPrompt(conditionName, groundingBlock),
-        add_context_from_internet: true,
         response_json_schema: PROTOCOL_RESPONSE_SCHEMA,
       });
       const normalised = normaliseProtocolResponse(result);
@@ -1121,26 +1133,35 @@ export default function TreatmentProtocols() {
                    </CardHeader>
                    {expandedSections.references && (
                      <CardContent>
+                       {evidenceGroundingNote && (
+                         <div className="mb-3 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                           <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                           <span>{evidenceGroundingNote}</span>
+                         </div>
+                       )}
                        {protocolData.references && protocolData.references.length > 0 ? (
                          <div className="space-y-3">
-                           {protocolData.references.map((ref, i) => (
-                             <div key={i} className="p-3 rounded-lg border bg-green-50 border-green-200">
-                               <div className="flex items-start justify-between gap-2 mb-1">
-                                 <div className="text-sm text-slate-900 flex-1">
-                                   <ClickableReferences references={ref.citation} />
+                           {protocolData.references.map((ref, i) => {
+                             const badge = getReferenceVerificationBadge(ref);
+                             return (
+                               <div key={i} className={`p-3 rounded-lg border ${badge.cardClassName}`}>
+                                 <div className="flex items-start justify-between gap-2 mb-1">
+                                   <div className="text-sm text-slate-900 flex-1">
+                                     <ClickableReferences references={ref.citation} />
+                                   </div>
+                                   <div className="flex gap-1 flex-shrink-0">
+                                     <Badge className={badge.className}>{badge.label}</Badge>
+                                     {ref.study_type && (
+                                       <Badge variant="outline" className="text-xs">{ref.study_type}</Badge>
+                                     )}
+                                   </div>
                                  </div>
-                                 <div className="flex gap-1 flex-shrink-0">
-                                   <Badge className="bg-green-600 text-white text-xs">✓ Verified</Badge>
-                                   {ref.study_type && (
-                                     <Badge variant="outline" className="text-xs">{ref.study_type}</Badge>
-                                   )}
-                                 </div>
+                                 {ref.key_finding && (
+                                   <p className="text-xs text-slate-600 italic mt-1">Key Finding: {ref.key_finding}</p>
+                                 )}
                                </div>
-                               {ref.key_finding && (
-                                 <p className="text-xs text-slate-600 italic mt-1">Key Finding: {ref.key_finding}</p>
-                               )}
-                             </div>
-                           ))}
+                             );
+                           })}
                          </div>
                        ) : (
                          <p className="text-sm text-slate-500 italic">No verified references available for this protocol. Consult current clinical practice guidelines and peer-reviewed literature directly.</p>

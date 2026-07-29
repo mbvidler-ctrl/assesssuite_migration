@@ -691,7 +691,28 @@ const generalLlmAdmission = createGeneralLlmAdmission({
   userMax: boundedSetting(process.env, GENERAL_LLM_LIMITS.userConcurrency.env, 2, 1, 4),
 });
 
+const ALLOWED_INVOKE_LLM_PARAMS = new Set(['prompt', 'response_json_schema']);
+
+// Fail closed on shape, not just on the feature flag: a caller must not be
+// able to add a parameter (e.g. add_context_from_internet) that implies
+// capability this server does not implement (web retrieval, tool use, ...)
+// and have it silently ignored. Validated before the flag check so a
+// malformed request is rejected the same way whether or not the flag is on.
+function assertKnownInvokeLLMParams(rawBody) {
+  const unknownKeys = Object.keys(rawBody || {}).filter((key) => !ALLOWED_INVOKE_LLM_PARAMS.has(key));
+  if (unknownKeys.length > 0) {
+    const error = new Error(
+      `Unsupported InvokeLLM parameter(s): ${unknownKeys.join(', ')}. This server implements only ` +
+      `{ prompt, response_json_schema } — it performs no web retrieval, tool use, or other extended ` +
+      `behaviour, so a caller must not rely on any other parameter to change model output.`
+    );
+    error.httpStatus = 400;
+    throw error;
+  }
+}
+
 async function handleInvokeLLM(body, context) {
+  assertKnownInvokeLLMParams(body);
   // generalClinicalLlmSwitchedOn() is the published predicate; it resolves
   // GENERAL_CLINICAL_LLM_ENABLED (and its self-test mock carve-out) through
   // the capability-flag registry, so this gate and /public-settings cannot
