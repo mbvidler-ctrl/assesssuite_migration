@@ -38,7 +38,11 @@ test('reviewed catalogue preparation is null-safe, deduplicated and sorted befor
   assert.match(pageSource, /const reviewedProtocol = condition\?\.protocol/);
   assert.match(pageSource, /if \(reviewedProtocol\)/);
   assert.match(pageSource, /onClick=\{\(\) => loadProtocol\(condition\)\}/);
-  assert.match(pageSource, /setProtocolData\(protocol\)/);
+  // WP3 hardening: a reviewed catalogue row that does not fit the shared
+  // render contract (src/lib/protocolResponse.js) falls back to the raw row
+  // rather than the normalised one, so a malformed reviewed row never
+  // regresses to nothing being shown at all.
+  assert.match(pageSource, /setProtocolData\(reviewed\.ok \? reviewed\.protocol : protocol\)/);
   assert.match(pageSource, /<AIDisclosureNote \/>/);
   assert.match(pageSource, /<ImportToSOAPModal/);
 });

@@ -21,7 +21,7 @@ import path from 'node:path';
 import { after, before, test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { loginAdmin, requestJson, startTestServer } from './support/server-harness.mjs';
+import { activateUser, loginAdmin, registerUser, requestJson, startTestServer } from './support/server-harness.mjs';
 import { startFakeOpenAIChat } from './support/fake-openai-chat.mjs';
 import { MODEL_FAST, MODEL_QUALITY, pickModel } from '../llm.mjs';
 
@@ -32,6 +32,21 @@ const INVOKE_LLM_ROUTE = (appId) => `/api/apps/${appId}/integration-endpoints/Co
 
 async function invokeLlm(server, token, body) {
   return requestJson(server, INVOKE_LLM_ROUTE(server.appId), { method: 'POST', token, body });
+}
+
+// WP3 hardening added a clinical-release gate to InvokeLLM (identical to the
+// one handleExtractDataFromUploadedFile already enforced): the bootstrap
+// admin has no country/profession, so it is never clinically eligible (see
+// src/lib/clinicalRelease.js). Boots A and B only prove the flag-off 503,
+// which fires before the eligibility gate is ever consulted, so they keep
+// using the plain admin token. Every boot that expects InvokeLLM to actually
+// run needs a provisioned, fully activated clinician instead — a stronger
+// fixture, not a weakened assertion.
+async function loginEligibleClinician(server) {
+  const adminToken = await loginAdmin(server);
+  const clinician = await registerUser(server, 'feature-matrix-clinician@example.test');
+  await activateUser(server, adminToken, clinician.id);
+  return clinician.token;
 }
 
 // ---------------------------------------------------------------------------
@@ -218,7 +233,7 @@ test('Boot B: flag-off 503 is identical even when LLM_REQUIRED=1 (flag gate fire
 test('Boot C: flag on + LLM_REQUIRED=0 + no key serves the deterministic mock for every shape', async () => {
   const server = await startTestServer({ GENERAL_CLINICAL_LLM_ENABLED: '1', LLM_REQUIRED: '0' });
   try {
-    const admin = await loginAdmin(server);
+    const admin = await loginEligibleClinician(server);
 
     const plain = await invokeLlm(server, admin, PLAIN_PROMPT_BODY);
     assert.equal(plain.status, 200, plain.text);
@@ -264,7 +279,7 @@ test('Boot C: flag on + LLM_REQUIRED=0 + no key serves the deterministic mock fo
 test('Boot D: flag on + LLM_REQUIRED=1 + no key 503s with a distinct "not configured" message', async () => {
   const server = await startTestServer({ GENERAL_CLINICAL_LLM_ENABLED: '1', LLM_REQUIRED: '1' });
   try {
-    const admin = await loginAdmin(server);
+    const admin = await loginEligibleClinician(server);
     const result = await invokeLlm(server, admin, PLAIN_PROMPT_BODY);
     assert.equal(result.status, 503, result.text);
     assert.equal(result.body?.error, 'AI generation is not configured on this server.');
@@ -293,9 +308,15 @@ test('Boot E: real-provider path under LLM_REQUIRED=1 against the fake chat/comp
     LLM_REQUIRED: '1',
     OPENAI_API_KEY: 'synthetic-provider-key-canary',
     OPENAI_CHAT_TEST_BASE_URL: fakeChat.baseUrl,
+    // This boot drives well over a dozen sequential calls from the same
+    // clinician across its sub-tests; raise the per-account burst ceiling so
+    // the WP3 rate limiter (proven separately in
+    // invoke-llm-throttling.test.mjs) never interferes with what this suite
+    // is actually testing (provider wiring, model selection, de-identification).
+    GENERAL_CLINICAL_LLM_USER_BURST_LIMIT: '60',
   });
   try {
-    const admin = await loginAdmin(server);
+    const admin = await loginEligibleClinician(server);
 
     await t.test('default mode: all six shapes reach the fake provider and get synthetic content', async () => {
       for (const shape of SIX_SHAPES) {
@@ -407,7 +428,7 @@ test('Boot G: real-provider failure with LLM_REQUIRED=0 silently falls back to t
     OPENAI_CHAT_TEST_BASE_URL: fakeChat2.baseUrl,
   });
   try {
-    const admin = await loginAdmin(server);
+    const admin = await loginEligibleClinician(server);
     const result = await invokeLlm(server, admin, MEDICATION_ALERTS_BODY);
     assert.equal(result.status, 200, result.text);
     assert.ok(Array.isArray(result.body.alerts));

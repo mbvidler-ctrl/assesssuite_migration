@@ -30,7 +30,9 @@ import {
 // the cross-check is not evaluated by the code it is auditing.
 import { parseFlyEnv } from './support/fly-config.mjs';
 import {
+  activateUser,
   loginAdmin,
+  registerUser,
   requestJson,
   startTestServer,
 } from './support/server-harness.mjs';
@@ -40,6 +42,18 @@ const repoRoot = path.resolve(testsDir, '..', '..');
 
 const POSTURES = ['strict', 'implied-on', 'forced-off'];
 const AMERICAN_SPELLINGS = /\b(behavior|authorize|authorization|organization|analyze|center|color)\b/i;
+
+// WP3 hardening added a clinical-release gate to InvokeLLM: the bootstrap
+// admin has no country/profession, so it is never clinically eligible (see
+// src/lib/clinicalRelease.js). R00 characterises the flag/self-test-mock
+// behaviour, which is independent of that gate, so it needs a provisioned,
+// fully activated clinician instead of the plain admin token.
+async function loginEligibleClinician(server) {
+  const adminToken = await loginAdmin(server);
+  const clinician = await registerUser(server, 'capability-flag-registry-clinician@example.test');
+  await activateUser(server, adminToken, clinician.id);
+  return clinician.token;
+}
 
 // R00 — characterisation. Written and confirmed GREEN on the unmodified
 // tree (before server/capabilityFlags.mjs is wired into any call site) and
@@ -56,7 +70,7 @@ test('R00 characterises pre-refactor InvokeLLM and transcription-reporting behav
   // unset, harness default SELFTEST=1 -> the self-test mock path (200).
   const unsetServer = await startTestServer();
   try {
-    const admin = await loginAdmin(unsetServer);
+    const admin = await loginEligibleClinician(unsetServer);
     const result = await requestJson(
       unsetServer,
       `/api/apps/${unsetServer.appId}/integration-endpoints/Core/InvokeLLM`,
@@ -106,7 +120,7 @@ test('R00 characterises pre-refactor InvokeLLM and transcription-reporting behav
     OPENAI_API_KEY: '',
   });
   try {
-    const admin = await loginAdmin(enabledServer);
+    const admin = await loginEligibleClinician(enabledServer);
     const result = await requestJson(
       enabledServer,
       `/api/apps/${enabledServer.appId}/integration-endpoints/Core/InvokeLLM`,

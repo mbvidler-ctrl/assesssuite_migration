@@ -65,6 +65,14 @@ import { invokeLLM as invokeRealLLM, llmEnabled } from './llm.mjs';
 import { adminNotificationRecipient, sendEmail } from './email.mjs';
 import { createFixedWindowRateLimiter } from './rateLimit.mjs';
 import {
+  assertPromptWithinLimits,
+  createGeneralLlmAdmission,
+  createGeneralLlmThrottle,
+  GENERAL_LLM_LIMITS,
+  boundedSetting,
+  LlmAccessError,
+} from './llmAdmission.mjs';
+import {
   REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
   REFERRAL_SUBJECT_AGE_CONFIRMATION,
 } from '../src/lib/referralWorkflow.js';
@@ -675,7 +683,15 @@ function sendJson(res, status, payload) {
 // InvokeLLM
 // ---------------------------------------------------------------------------
 
-async function handleInvokeLLM(body) {
+// Process-local, exactly like activeExtractions below: each spawned test
+// server gets its own counters and windows, so there is no cross-test bleed.
+const generalLlmThrottle = createGeneralLlmThrottle();
+const generalLlmAdmission = createGeneralLlmAdmission({
+  globalMax: boundedSetting(process.env, GENERAL_LLM_LIMITS.globalConcurrency.env, 4, 1, 8),
+  userMax: boundedSetting(process.env, GENERAL_LLM_LIMITS.userConcurrency.env, 2, 1, 4),
+});
+
+async function handleInvokeLLM(body, context) {
   // generalClinicalLlmSwitchedOn() is the published predicate; it resolves
   // GENERAL_CLINICAL_LLM_ENABLED (and its self-test mock carve-out) through
   // the capability-flag registry, so this gate and /public-settings cannot
@@ -688,58 +704,87 @@ async function handleInvokeLLM(body) {
     error.code = CLINICAL_AI_DISABLED_CODE;
     throw error;
   }
+  // Same clinical release gate the extraction endpoint enforces
+  // (handleExtractDataFromUploadedFile, this file) — this endpoint reaches
+  // the same provider and spends the same key. Deliberately does NOT
+  // require hasCurrentLegalAcceptance / an org_id: no existing InvokeLLM
+  // caller sends org_id, so requiring one would break every caller (see
+  // src/components/client/*, src/components/calendar/SOAPNoteModal.jsx,
+  // src/pages/{TreatmentProtocols,AssessmentAudit}.jsx).
+  if (
+    !context
+    || !context.sessionUser
+    || typeof context.isClinicalUseEligible !== 'function'
+    || !context.isClinicalUseEligible()
+  ) {
+    throw new LlmAccessError(403, 'clinical_release_unavailable', 'AI generation is not approved for this account profile.');
+  }
+  if (context.sessionUser.account_status !== 'active') {
+    throw new LlmAccessError(403, 'account_inactive', 'Account approval is required before AI generation.');
+  }
   const { prompt, response_json_schema: schema } = body || {};
   const schemaObj = schema && typeof schema === 'object' ? { ...schema, type: schema.type || 'object' } : null;
   const jsonKeys = schemaObj ? null : extractJsonKeysFromPrompt(prompt);
 
-  // Real model path (engagement election E6). De-identification is applied
-  // inside invokeRealLLM before any egress. The prompt's own wording drives
-  // prose-vs-JSON for the no-schema case, so the heuristic is not needed here.
-  // Any failure falls through to the deterministic mock so the demo never
-  // hard-fails on a network/API error.
-  if (llmEnabled()) {
-    try {
-      return await invokeRealLLM({ prompt, schema: schemaObj });
-    } catch {
-      if (LLM_REQUIRED) {
-        const e = new Error('AI generation failed.');
-        e.httpStatus = 502;
-        e.code = CLINICAL_AI_PROVIDER_FAILED_CODE;
-        throw e;
+  // Size ceiling before the rate limiter so a junk-sized prompt is rejected
+  // without burning the caller's window, then per-account throttle, then the
+  // concurrency slot — ordering is normative, see server/llmAdmission.mjs.
+  assertPromptWithinLimits({ prompt, schema: schemaObj });
+  const throttleKey = `user:${context.sessionUser.id}`;
+  generalLlmThrottle.consume(throttleKey);
+  const releaseGeneralLlmSlot = generalLlmAdmission.acquire(context.sessionUser.id);
+  try {
+    // Real model path (engagement election E6). De-identification is applied
+    // inside invokeRealLLM before any egress. The prompt's own wording drives
+    // prose-vs-JSON for the no-schema case, so the heuristic is not needed here.
+    // Any failure falls through to the deterministic mock so the demo never
+    // hard-fails on a network/API error.
+    if (llmEnabled()) {
+      try {
+        return await invokeRealLLM({ prompt, schema: schemaObj });
+      } catch {
+        if (LLM_REQUIRED) {
+          const e = new Error('AI generation failed.');
+          e.httpStatus = 502;
+          e.code = CLINICAL_AI_PROVIDER_FAILED_CODE;
+          throw e;
+        }
+        console.log('[llm] real model failed; using the explicit non-production mock fallback');
       }
-      console.log('[llm] real model failed; using the explicit non-production mock fallback');
+    } else if (LLM_REQUIRED) {
+      // Production: never silently serve mock clinical content when no key is set.
+      const e = new Error(CLINICAL_AI_UNCONFIGURED_MESSAGE);
+      e.httpStatus = 503;
+      e.code = CLINICAL_AI_UNCONFIGURED_CODE;
+      throw e;
     }
-  } else if (LLM_REQUIRED) {
-    // Production: never silently serve mock clinical content when no key is set.
-    const e = new Error(CLINICAL_AI_UNCONFIGURED_MESSAGE);
-    e.httpStatus = 503;
-    e.code = CLINICAL_AI_UNCONFIGURED_CODE;
-    throw e;
-  }
 
-  if (schemaObj) {
-    return instantiateSchema(schemaObj, 'response');
-  }
-
-  // No schema: check whether the prompt itself asks for a JSON-shaped
-  // response by embedding an example object literal (PrivateHealthInitial
-  // Assessment.jsx pattern) — if so, return a JSON string so the caller's
-  // own JSON.parse succeeds; otherwise return placeholder prose.
-  if (jsonKeys && jsonKeys.length > 0) {
-    const obj = {};
-    for (const key of jsonKeys) {
-      obj[key] = `Mock generated content for "${key}". Placeholder clinical narrative produced by the local InvokeLLM mock — not real AI output.`;
+    if (schemaObj) {
+      return instantiateSchema(schemaObj, 'response');
     }
-    return JSON.stringify(obj);
-  }
 
-  const topic = typeof prompt === 'string' && prompt.trim() ? prompt.trim().slice(0, 80).replace(/\s+/g, ' ') : 'the requested topic';
-  return (
-    `This is placeholder narrative content generated by the local InvokeLLM mock in place of ` +
-    `a real language model call. It stands in for a response to a prompt beginning: "${topic}". ` +
-    `The mock produces deterministic, non-clinical filler prose of sufficient length to exercise ` +
-    `downstream formatting, word-count, and editing logic without contacting any external service.`
-  );
+    // No schema: check whether the prompt itself asks for a JSON-shaped
+    // response by embedding an example object literal (PrivateHealthInitial
+    // Assessment.jsx pattern) — if so, return a JSON string so the caller's
+    // own JSON.parse succeeds; otherwise return placeholder prose.
+    if (jsonKeys && jsonKeys.length > 0) {
+      const obj = {};
+      for (const key of jsonKeys) {
+        obj[key] = `Mock generated content for "${key}". Placeholder clinical narrative produced by the local InvokeLLM mock — not real AI output.`;
+      }
+      return JSON.stringify(obj);
+    }
+
+    const topic = typeof prompt === 'string' && prompt.trim() ? prompt.trim().slice(0, 80).replace(/\s+/g, ' ') : 'the requested topic';
+    return (
+      `This is placeholder narrative content generated by the local InvokeLLM mock in place of ` +
+      `a real language model call. It stands in for a response to a prompt beginning: "${topic}". ` +
+      `The mock produces deterministic, non-clinical filler prose of sufficient length to exercise ` +
+      `downstream formatting, word-count, and editing logic without contacting any external service.`
+    );
+  } finally {
+    releaseGeneralLlmSlot();
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1853,7 +1898,7 @@ export async function handleCoreIntegration(req, res, context) {
 
     switch (endpointName) {
       case 'InvokeLLM': {
-        const result = await handleInvokeLLM(body);
+        const result = await handleInvokeLLM(body, context);
         // InvokeLLM's real response is either a bare string or a bare object,
         // never wrapped — but HTTP responses need a body. The SDK's axios
         // response-data unwrapping happens beneath JSON parsing, so a JSON

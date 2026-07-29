@@ -37,6 +37,7 @@ import { format } from "date-fns";
 import ImportToSOAPModal from "../components/protocols/ImportToSOAPModal";
 import { useAiCapability } from "@/hooks/useAiCapability";
 import { AI_COPY, aiErrorMessage } from "@/lib/aiCapabilities";
+import { normaliseProtocolResponse, PROTOCOL_SECTION_LABELS } from "@/lib/protocolResponse";
 
 // The shared JavaScript UI wrappers accept the rendered props below, while
 // checkJs infers ref-only signatures from forwardRef. These source-local
@@ -209,6 +210,7 @@ export default function TreatmentProtocols() {
   const [isCatalogueLoading, setIsCatalogueLoading] = useState(true);
   const [catalogueError, setCatalogueError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [protocolIssues, setProtocolIssues] = useState([]);
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -350,6 +352,7 @@ export default function TreatmentProtocols() {
     setSelectedCondition({ ...condition, name: conditionName });
     setIsLoading(true);
     setProtocolData(null);
+    setProtocolIssues([]);
 
     try {
       if (reviewedProtocol) {
@@ -357,7 +360,13 @@ export default function TreatmentProtocols() {
         if (Array.isArray(reviewedProtocol.references)) {
           protocol.references = await validateReferences(reviewedProtocol.references);
         }
-        setProtocolData(protocol);
+        // Falling back to the raw row when the reviewed catalogue does not
+        // fit the render contract guarantees zero regression for
+        // clinician-reviewed content; the root error boundary is the
+        // backstop for a genuinely broken row.
+        const reviewed = normaliseProtocolResponse(protocol);
+        setProtocolData(reviewed.ok ? reviewed.protocol : protocol);
+        setProtocolIssues(reviewed.ok ? reviewed.dropped : []);
         return;
       }
 
@@ -407,15 +416,19 @@ export default function TreatmentProtocols() {
         add_context_from_internet: true,
         response_json_schema: PROTOCOL_RESPONSE_SCHEMA,
       });
-      if (!result || typeof result !== "object" || Array.isArray(result)) {
+      const normalised = normaliseProtocolResponse(result);
+      if (!normalised.ok) {
         /** @type {Error & {userMessage?: string}} */
         const invalidResultError = new Error("The AI service returned an invalid treatment protocol.");
         invalidResultError.userMessage = "The AI service returned a protocol that could not be read. Nothing has been saved.";
         throw invalidResultError;
       }
 
+      // Normalise first, then attach the server-derived references — the
+      // normaliser must not see or rewrite the verified reference objects.
       const references = await validateReferences(groundedReferences);
-      setProtocolData({ ...result, references });
+      setProtocolData({ ...normalised.protocol, references });
+      setProtocolIssues(normalised.dropped);
     } catch (error) {
       console.error("Error loading treatment protocol:", error);
       const kind = reviewedProtocol ? null : ai.reportError(error);
@@ -697,6 +710,25 @@ export default function TreatmentProtocols() {
                       </div>
                     </CardHeader>
                   </Card>
+
+                  {/* Degraded AI-assisted draft notice */}
+                  {protocolIssues.length > 0 && (
+                    <Card className="bg-slate-50 border-slate-300">
+                      <CardContent className="py-3">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm text-slate-700">
+                            <strong>Incomplete AI-assisted draft.</strong> Part of this draft did not
+                            match the expected format and has been left out:{" "}
+                            {[...new Set(
+                              protocolIssues.map((path) => PROTOCOL_SECTION_LABELS[path.split(".")[0]] || path.split(".")[0])
+                            )].join(", ")}. Review the remaining content carefully and use your own
+                            clinical judgement to fill any gaps.
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Clinical Judgment & Responsibility Note - Moved to Top */}
                   <Card className="bg-amber-50 border-amber-300">

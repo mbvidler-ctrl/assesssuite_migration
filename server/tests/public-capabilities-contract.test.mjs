@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { startTestServer, requestJson, loginAdmin } from './support/server-harness.mjs';
+import { activateUser, startTestServer, registerUser, requestJson, loginAdmin } from './support/server-harness.mjs';
 
 // Every predicate this endpoint publishes is also the enforcement predicate
 // at the call site (server/capabilities.mjs). This suite is the pinned proof
@@ -15,6 +15,19 @@ const ALLOWED_REASONS = new Set(['available', 'switched_off', 'unconfigured']);
 
 async function fetchPublicSettings(server) {
   return requestJson(server, `/api/apps/public/prod/public-settings/by-id/${server.appId}`);
+}
+
+// WP3 hardening added a clinical-release gate to InvokeLLM: the bootstrap
+// admin has no country/profession, so it is never clinically eligible (see
+// src/lib/clinicalRelease.js). Every check in this suite that expects
+// InvokeLLM to reach the flag/posture branch under test (rather than being
+// refused on eligibility first) needs a provisioned, fully activated
+// clinician instead of the plain admin token.
+async function loginEligibleClinician(server) {
+  const adminToken = await loginAdmin(server);
+  const clinician = await registerUser(server, 'public-capabilities-clinician@example.test');
+  await activateUser(server, adminToken, clinician.id);
+  return clinician.token;
 }
 
 test('C01 capabilities block shape — switched on, no provider required', async () => {
@@ -85,11 +98,11 @@ test('C03 agreement, unconfigured — the production "flag on, no provider" post
       reason: 'unconfigured',
     });
 
-    const adminToken = await loginAdmin(server);
+    const clinicianToken = await loginEligibleClinician(server);
     const invoke = await requestJson(
       server,
       `/api/apps/${server.appId}/integration-endpoints/Core/InvokeLLM`,
-      { method: 'POST', token: adminToken, body: { prompt: 'synthetic C03 check' } },
+      { method: 'POST', token: clinicianToken, body: { prompt: 'synthetic C03 check' } },
     );
     assert.equal(invoke.status, 503, invoke.text);
     assert.equal(invoke.body?.code, 'ai_provider_unconfigured');
@@ -164,11 +177,11 @@ test('C05 SELFTEST carve-out — GENERAL_CLINICAL_LLM_ENABLED genuinely unset', 
       reason: 'available',
     });
 
-    const adminToken = await loginAdmin(server);
+    const clinicianToken = await loginEligibleClinician(server);
     const invoke = await requestJson(
       server,
       `/api/apps/${server.appId}/integration-endpoints/Core/InvokeLLM`,
-      { method: 'POST', token: adminToken, body: { prompt: 'synthetic C05 check' } },
+      { method: 'POST', token: clinicianToken, body: { prompt: 'synthetic C05 check' } },
     );
     assert.equal(invoke.status, 200, invoke.text);
   } finally {

@@ -1607,7 +1607,7 @@ async function runChecks(baseUrl, appId) {
       baseUrl,
       appId,
       `/api/apps/${appId}/integration-endpoints/Core/InvokeLLM`,
-      { method: 'POST', token: adminToken, body: { prompt: 'Write a short clinical note.' } },
+      { method: 'POST', token: userAToken, body: { prompt: 'Write a short clinical note.' } },
     );
     record(
       'InvokeLLM without response_json_schema returns a raw string',
@@ -1639,7 +1639,7 @@ async function runChecks(baseUrl, appId) {
       baseUrl,
       appId,
       `/api/apps/${appId}/integration-endpoints/Core/InvokeLLM`,
-      { method: 'POST', token: adminToken, body: { prompt: 'Give medication alerts', response_json_schema: schema } },
+      { method: 'POST', token: userAToken, body: { prompt: 'Give medication alerts', response_json_schema: schema } },
     );
     record(
       'InvokeLLM with response_json_schema returns the schema-shaped object directly',

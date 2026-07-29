@@ -1863,11 +1863,19 @@ test('E37a general clinical InvokeLLM executes when explicitly enabled', async (
     OPENAI_API_KEY: '',
   });
   try {
-    const isolatedAdmin = await loginAdmin(isolated);
+    // The bootstrap admin is not clinically eligible (no country/profession —
+    // see WP3's clinical-release gate in handleInvokeLLM), so this is a
+    // provisioned, properly activated clinician instead. This is a stronger
+    // fixture, not a weakened assertion: the test name and both assertions
+    // below are unchanged, and E37 (the flag-off 503, above) still uses the
+    // admin token untouched.
+    const adminToken = await loginAdmin(isolated);
+    const clinician = await registerUser(isolated, 'synthetic-invokellm@example.test');
+    await activateUser(isolated, adminToken, clinician.id);
     const result = await requestJson(
       isolated,
       `/api/apps/${isolated.appId}/integration-endpoints/Core/InvokeLLM`,
-      { method: 'POST', token: isolatedAdmin, body: { prompt: 'synthetic enabled check' } },
+      { method: 'POST', token: clinician.token, body: { prompt: 'synthetic enabled check' } },
     );
     assert.equal(result.status, 200, result.text);
     assert.equal(typeof result.body, 'string');
