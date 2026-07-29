@@ -1850,6 +1850,12 @@ test('E37 general clinical InvokeLLM remains disabled outside the referral adapt
   }
 });
 
+// NOTE: this proves only the SELFTEST=1/LLM_REQUIRED=0 deterministic-mock
+// branch. Under the real production posture (LLM_REQUIRED=1), the identical
+// request 503s instead (see server/integrations.mjs:696-701) — this test
+// must not be read as evidence that InvokeLLM works in production. See
+// server/tests/clinical-ai-feature-matrix.test.mjs for coverage of both
+// LLM_REQUIRED values against a fake real chat/completions provider.
 test('E37a general clinical InvokeLLM executes when explicitly enabled', async () => {
   const isolated = await startTestServer({
     GENERAL_CLINICAL_LLM_ENABLED: '1',
