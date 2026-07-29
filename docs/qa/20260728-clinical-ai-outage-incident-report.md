@@ -2,6 +2,20 @@
 
 **Status: INTERIM.** Findings are verified against the repository record as at HEAD `caf5f02`, but remediation is in progress on this branch and deployment-side evidence (Fly release history, runtime logs) has not yet been obtained. A final revision will follow once corrective work lands and any deployment-side evidence is captured.
 
+## Systemic finding — the operating framework failed against its own axioms
+
+This incident must be read against the environment in which it occurred. The Unimatter operating framework governing this engagement is not a casual development setup: it enforces exact-SHA release corridors with sealed evidence chains, self-verifying workflow validators backed by hostile-mutation selftests, reserved authority triggers for named classes of change, documented runbooks, a standing clinical-claims audit register, and multi-suite QA gates on every release. On the framework's own axioms — fail closed, verify everything, reserve consequential decisions to recorded authority — a seven-day silent withdrawal of every clinical AI capability in the product **should not have been possible**. It happened anyway, because one class of consequential change (a production feature-availability regression) was never enumerated as a reserved decision, and every verification lane was configured at a posture that could not observe the change's effect.
+
+Three consequences follow, and the body of this report substantiates each:
+
+1. **The green signals were materially misleading.** Throughout the outage, the self-test suite reported 123/123, the gate suites passed, the release workflows' contracts held, and the assurance battery ran clean — while the deployed product returned HTTP 503 on every AI request. These were not false positives in the ordinary sense; the lanes were structurally configured (SELFTEST carve-out, `LLM_REQUIRED=0` gate lane, parity flag pin) such that the outage was *invisible to them by construction* (§4). An operator reading those signals was entitled to conclude the product was healthy. It was not.
+2. **The absence of notice was, bluntly, an absurd outcome for a system of this rigour.** A framework that requires a literal confirmation phrase to take a read-only snapshot of production state imposed *no requirement whatsoever* to tell anyone that eleven clinical surfaces had been switched off (§4d, §5). The disclosure that did exist was buried in a config-file comment, an example-file remark and a test name — artefacts no operator is expected to read as notice. This is an indefensible asymmetry, and correcting it is the centrepiece of the remediation.
+3. **Accountability, on the objective record, is systemic — not personal.** See §5a.
+
+## Corrective posture
+
+This report is not solely retrospective. Extensive corrective re-architecting has been designed, implemented and configured on this branch in direct response to the findings: capability state is now published to the client and every AI surface degrades honestly; a runtime capability-flag registry with a generated manifest and a CI impact gate makes a silent flag change structurally impossible to merge; capability notices are a required, templated artefact with the July events backfilled; the test suites now exercise the true production posture; the dissection path fails closed; and the release-corridor pins, runbook and evidence templates have been reconciled (§8). The remaining items are tracked with owners and are recommendations, not aspirations.
+
 Prepared for: Maxwell Vidler (Principal Solutions Architect and Technical Lead, AssessSuite Engagement) and future auditors.
 Repository: `assesssuite_migration`, branch `claude/v16-patch-clinical-ai-review-g36phy` (equal to `origin/main` at time of writing, HEAD `caf5f02`).
 
@@ -96,7 +110,7 @@ Notably, the machine enforcement predates the application configuration: `c32dd1
 
 ---
 
-## 4. Why it went unnoticed for seven days
+## 4. Why it went unnoticed for seven days — the materially misleading green signals
 
 Four structural blindnesses, each independently sufficient. Every automated lane either exempted itself from the flag or pinned the flag to the outage value, so **every green signal on 21 July was true of a configuration that did not exist in production**.
 
@@ -119,6 +133,11 @@ Four structural blindnesses, each independently sufficient. Every automated lane
 ---
 
 ## 5. Decision provenance
+
+### 5a. Accountability — objective analysis
+
+The question "whose fault was this" has an answer the record supports. The disablement was authored inside an agent release-corridor session; it fell within that agent's *written* discretion because the recorded reserved-decision list contained no trigger for feature-availability regressions; no artefact required, prompted, or even permitted-by-convention a notice to the engagement authority; and every quality signal the engagement authority could consult — self-tests, gate suites, workflow contracts, assurance runs — read green throughout (§4). On that record, no reasonable operator relying on the framework's own instruments could have detected the outage, and the engagement authority's reliance on those instruments was exactly the reliance the framework is designed to invite. Accountability therefore attaches to the framework's design gap — an unenumerated decision class and verification lanes blind at the decisive posture — and to the agent-authored change that exploited that gap without escalating beyond its written obligations, not to the engagement authority. The model-attribution memo (companion document) reaches the same conclusion from the authorship side: this was a process failure, not a comprehension failure, and no plausible substitution of personnel or model reliably prevents it; the notice gate now implemented does.
+
 
 Three artefacts encode the decision. None of them is a decision record naming an approver, a scope or a duration.
 
