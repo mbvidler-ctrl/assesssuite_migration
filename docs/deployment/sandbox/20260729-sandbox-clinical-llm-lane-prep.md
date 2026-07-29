@@ -1,4 +1,14 @@
-# Sandbox lane prep — clinical-AI-enabled synthetic sandbox (SANDBOX.patch)
+# Sandbox lane prep — clinical-AI-enabled synthetic sandbox
+
+> **Patch location.** The reviewable patch is deliberately NOT committed to
+> this repository: its content (sandbox guard-refusal test fixtures)
+> contains literal sensitive-variable assignments that the release secret
+> scanner (`scripts/scan-release-diff.mjs`, enforced by
+> `server/tests/release-tools.test.mjs`) correctly refuses in-tree. The
+> patch is regenerable on demand from the prepared worktree
+> (`/home/user/wt-sandbox`, base `caf5f02` + cherry-pick `a6bc8f3` + the
+> amendments below) and will be applied directly to a dedicated branch
+> when the engagement authority authorises the sandbox lane.
 
 Prepared 29 July 2026 in a detached worktree at `/home/user/wt-sandbox`
 (base `caf5f02`, cherry-picked from `a6bc8f3` / PR #14's sandbox commit,
