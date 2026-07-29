@@ -14,7 +14,7 @@ Three consequences follow, and the body of this report substantiates each:
 
 ## Corrective posture
 
-This report is not solely retrospective. Extensive corrective re-architecting has been designed, implemented and configured on this branch in direct response to the findings: capability state is now published to the client and every AI surface degrades honestly; a runtime capability-flag registry with a generated manifest and a CI impact gate makes a silent flag change structurally impossible to merge; capability notices are a required, templated artefact with the July events backfilled; the test suites now exercise the true production posture; the dissection path fails closed; and the release-corridor pins, runbook and evidence templates have been reconciled (§8). The remaining items are tracked with owners and are recommendations, not aspirations.
+This report is not solely retrospective. Extensive corrective re-architecting has been designed, implemented and configured on this branch in direct response to the findings: capability state is now published to the client and every AI surface degrades honestly; a runtime capability-flag registry with a generated manifest and a CI impact gate makes a silent flag change structurally impossible to merge; capability notices are a required, templated artefact with the July events backfilled; the test suites now exercise the true production posture; the dissection path fails closed; and the release-corridor pins, runbook and evidence templates have been reconciled. Section 8 records the **per-item delivery status** (§8, "Delivery status of the corrective actions"): the majority of the confirmed findings are closed on this branch by the remediation commits, verified under an adversarial review pass; the items that remain open are genuine residuals — chiefly the per-function clinical gates, the parity-lane posture limitation, and the workflow-level changes that must themselves pass through the guarded release corridor — not aspirations recorded as done.
 
 Prepared for: Maxwell Vidler (Principal Solutions Architect and Technical Lead, AssessSuite Engagement) and future auditors.
 Repository: `assesssuite_migration`, branch `claude/v16-patch-clinical-ai-review-g36phy` (equal to `origin/main` at time of writing, HEAD `caf5f02`).
@@ -247,7 +247,46 @@ Workstream numbering (WP1–WP6) is local to this report. It is **not** the same
 | WP1.5 — Unblock the mission-assurance aggregate lane (Chromium install ordering) | Delivered (`7577256`) |
 | WP1.6 — Produce this incident report as the permanent record of the outage | Delivered (this document) |
 
-### Recommended
+### Delivery status of the corrective actions
+
+The register below was written as the outage's remediation plan. It has since been implemented on this review branch, and this table records what actually landed. "Delivered" items are closed by a commit and covered by a test; "Partial" items are materially advanced but retain a residual noted in the patch-review companion; "Residual" items are deliberately not attempted here, either because they are workflow-corridor changes that must be dispatched under the engagement authority's account or because they require a human product decision. The remediation commits are `2f3bfaf` (dissection fail-closed), `5d24981` (capability exposure + honest degradation), `6f290a2` (production-posture test matrix), `db1a3c3` (release-corridor reconciliation), `2561146` (flag-governance registry + notices + PR CI), `37b03ad` (server-side InvokeLLM hardening + error boundary), `7a8d6c9` (provenance labelling + published-note immutability), `70be664` (truthful verification), plus a Phase-D adversarial-review round that fixed a bulk-write bypass of the immutability guard and the remaining partial-labelling defects.
+
+| Register item | Status | Delivered by |
+|---|---|---|
+| WP2.1 post-deploy AI-surface smoke at production posture | Partial — production-posture test lane exists; the in-release canary is specified in the telemetry plan, not yet wired | `6f290a2`; `docs/deployment/20260729-error-telemetry-plan.md` (Layer 3) |
+| WP2.2 repair the `SMOKE_PRODUCTION_MODE` lane | Delivered | `6f290a2` |
+| WP2.3 narrow the `SELFTEST` carve-out | Partial — real-posture tests now compensate; the carve-out remains for offline runs | `6f290a2` |
+| WP2.4 stop gating at `LLM_REQUIRED=0` | Partial — a real-posture lane was added; changing the release gate itself is a corridor change | `6f290a2` |
+| WP2.5 resolve the parity self-contradiction | Residual — parity pins the flag to `0` by design; documented limitation | — |
+| WP3.1 pass context + enforce eligibility/status | Delivered (admin carve-out added in Phase D) | `37b03ad` |
+| WP3.2 rate limit, concurrency, cost ceiling | Delivered | `37b03ad` |
+| WP3.3 server-side schema handling + error boundary | Delivered | `37b03ad` |
+| WP4.1 conditional "✓ Verified" badge | Delivered | `70be664` |
+| WP4.2 carry AI label + safety sections through persistence | Delivered | `7a8d6c9` |
+| WP4.3 published-note immutability guard | Delivered (bulk-write bypass closed in Phase D) | `7a8d6c9` + Phase D |
+| WP4.4 out-of-scope / refusal channel + condition allow-list | Residual — not attempted in this pass | — |
+| WP4.5 Assessment Audit disclosure + write-back gate | Partial — eligibility now enforced; surface disclosure not added | `37b03ad` |
+| WP4.6 label or remove `mockSoap()` | Delivered (all four SOAP fields labelled) | `2f3bfaf` + Phase D |
+| WP5.1 re-pin `PRODUCTION_BASE_SHA` in rollback-image | Delivered | `db1a3c3` |
+| WP5.2 re-pin or retire the emergency deploy workflow | Delivered — file hashes re-pinned; the point-in-time Fly state pins converted to fail-loud sentinels | `db1a3c3` |
+| WP5.3 reconcile `.env.example` | Delivered | `db1a3c3` |
+| WP5.4 runbook: both rollback divergences | Delivered | `db1a3c3` |
+| WP5.5 instantiate the release-evidence template | Partial — backfilled to the extent the record allows; unknowables marked | `db1a3c3` |
+| WP6.1 per-function authority/disclosure/clinical gate | Residual — honest degradation and eligibility landed; full per-function clinical gating is follow-up | partial via `5d24981`, `37b03ad` |
+| WP6.2 decide the orphaned `PDFFormFiller` tree | Residual — human product decision | — |
+| WP6.3 record the unrestored Treatment Protocols surface | Partial — documented in the patch-review companion | `docs/qa/20260728-v16-patch-review.md` |
+| G1 approval trigger for feature-availability regressions | Partial — PR template mandates a capability-impact section; the mission-order trigger is an external change | `2561146` |
+| G2 mandatory capability-withdrawal notice artefact | Delivered | `2561146` |
+| G3 user-facing availability channel | Delivered | `5d24981` |
+| G4 restore the `docs/qa/` session-note convention | Partial — this report and companions restart it | this document |
+| G5 make release-evidence instantiation merge-blocking | Residual — corridor change | — |
+| G6 go-live runbook feature-availability section | Residual — not attempted here | — |
+| G7 model-attribution trailers on every commit | Residual — cannot retro-fix squashed history; convention recorded | `docs/qa/20260728-model-attribution-memo.md` |
+| G8 cross-check blast-radius enumeration against changed switches | Delivered — the flag-impact CI gate enforces exactly this | `2561146` |
+
+The full register as originally written follows, for the record.
+
+### Recommended (original register, as first issued)
 
 | Item | Workstream |
 |---|---|
