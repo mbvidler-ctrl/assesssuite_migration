@@ -13,8 +13,15 @@ import { activateUser, startTestServer, registerUser, requestJson, loginAdmin } 
 
 const ALLOWED_REASONS = new Set(['available', 'switched_off', 'unconfigured']);
 
-async function fetchPublicSettings(server) {
-  return requestJson(server, `/api/apps/public/prod/public-settings/by-id/${server.appId}`);
+// The /public-settings route is unauthenticated (server/index.mjs's
+// isPublicRoute allow-list), so an anonymous caller now gets only a coarse
+// general_clinical_llm.available boolean, with the switched_off/unconfigured
+// reason withheld — that distinction discloses whether a provider credential
+// is currently present on the server. A caller presenting a valid bearer
+// token still gets the full tri-state, which is what the parity checks below
+// (publication == enforcement) need, so they pass an authenticated token.
+async function fetchPublicSettings(server, token) {
+  return requestJson(server, `/api/apps/public/prod/public-settings/by-id/${server.appId}`, { token });
 }
 
 // WP3 hardening added a clinical-release gate to InvokeLLM: the bootstrap
@@ -37,7 +44,8 @@ test('C01 capabilities block shape — switched on, no provider required', async
     OPENAI_API_KEY: '',
   });
   try {
-    const { status, body } = await fetchPublicSettings(server);
+    const adminToken = await loginAdmin(server);
+    const { status, body } = await fetchPublicSettings(server, adminToken);
     assert.equal(status, 200);
     assert.equal(body.public_settings.capabilities.version, 1);
     assert.deepEqual(body.public_settings.capabilities.general_clinical_llm, {
@@ -63,13 +71,13 @@ test('C01 capabilities block shape — switched on, no provider required', async
 test('C02 agreement, switched off — publication matches enforcement', async () => {
   const server = await startTestServer({ GENERAL_CLINICAL_LLM_ENABLED: '0' });
   try {
-    const { body } = await fetchPublicSettings(server);
+    const adminToken = await loginAdmin(server);
+    const { body } = await fetchPublicSettings(server, adminToken);
     assert.deepEqual(body.public_settings.capabilities.general_clinical_llm, {
       available: false,
       reason: 'switched_off',
     });
 
-    const adminToken = await loginAdmin(server);
     const invoke = await requestJson(
       server,
       `/api/apps/${server.appId}/integration-endpoints/Core/InvokeLLM`,
@@ -92,13 +100,13 @@ test('C03 agreement, unconfigured — the production "flag on, no provider" post
     { selftest: true },
   );
   try {
-    const { body } = await fetchPublicSettings(server);
+    const clinicianToken = await loginEligibleClinician(server);
+    const { body } = await fetchPublicSettings(server, clinicianToken);
     assert.deepEqual(body.public_settings.capabilities.general_clinical_llm, {
       available: false,
       reason: 'unconfigured',
     });
 
-    const clinicianToken = await loginEligibleClinician(server);
     const invoke = await requestJson(
       server,
       `/api/apps/${server.appId}/integration-endpoints/Core/InvokeLLM`,
@@ -171,13 +179,13 @@ test('C05 SELFTEST carve-out — GENERAL_CLINICAL_LLM_ENABLED genuinely unset', 
     { selftest: true },
   );
   try {
-    const { body } = await fetchPublicSettings(server);
+    const clinicianToken = await loginEligibleClinician(server);
+    const { body } = await fetchPublicSettings(server, clinicianToken);
     assert.deepEqual(body.public_settings.capabilities.general_clinical_llm, {
       available: true,
       reason: 'available',
     });
 
-    const clinicianToken = await loginEligibleClinician(server);
     const invoke = await requestJson(
       server,
       `/api/apps/${server.appId}/integration-endpoints/Core/InvokeLLM`,
@@ -198,8 +206,58 @@ test('C06 public channel — capabilities present with no Authorization header',
     );
     assert.equal(status, 200);
     assert.ok(body.public_settings.capabilities);
+    // Anonymous shape: a coarse boolean only, no reason disclosed (see C10).
+    assert.equal(typeof body.public_settings.capabilities.general_clinical_llm.available, 'boolean');
+    assert.equal(
+      Object.hasOwn(body.public_settings.capabilities.general_clinical_llm, 'reason'),
+      false,
+    );
   } finally {
     await server.stop();
+  }
+});
+
+test('C10 anonymous callers get a coarse general_clinical_llm boolean; authenticated callers get the full reason', async () => {
+  // The finding this pins: prior to the fix, an unauthenticated caller could
+  // distinguish "feature switched off" from "provider credential absent" —
+  // pre-auth fingerprinting of server provider-configuration state.
+  const unconfigured = await startTestServer(
+    { GENERAL_CLINICAL_LLM_ENABLED: '1', LLM_REQUIRED: '1', OPENAI_API_KEY: '' },
+    { selftest: true },
+  );
+  const switchedOff = await startTestServer({ GENERAL_CLINICAL_LLM_ENABLED: '0' });
+  try {
+    const anonUnconfigured = await fetchPublicSettings(unconfigured);
+    const anonSwitchedOff = await fetchPublicSettings(switchedOff);
+
+    // Both anonymous responses carry only the coarse boolean — no `reason`
+    // key at all — so the two distinct server postures are indistinguishable
+    // to an unauthenticated caller.
+    assert.deepEqual(
+      Object.keys(anonUnconfigured.body.public_settings.capabilities.general_clinical_llm),
+      ['available'],
+    );
+    assert.deepEqual(
+      Object.keys(anonSwitchedOff.body.public_settings.capabilities.general_clinical_llm),
+      ['available'],
+    );
+    assert.equal(anonUnconfigured.body.public_settings.capabilities.general_clinical_llm.available, false);
+    assert.equal(anonSwitchedOff.body.public_settings.capabilities.general_clinical_llm.available, false);
+
+    // transcription/document_extraction are plain feature switches, not
+    // provider-presence signals, and remain fully disclosed even anonymously.
+    assert.ok(Object.hasOwn(anonUnconfigured.body.public_settings.capabilities.transcription, 'reason'));
+
+    // An authenticated caller still gets the full, distinguishable posture.
+    const adminToken = await loginAdmin(unconfigured);
+    const authUnconfigured = await fetchPublicSettings(unconfigured, adminToken);
+    assert.deepEqual(authUnconfigured.body.public_settings.capabilities.general_clinical_llm, {
+      available: false,
+      reason: 'unconfigured',
+    });
+  } finally {
+    await unconfigured.stop();
+    await switchedOff.stop();
   }
 });
 

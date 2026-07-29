@@ -52,6 +52,11 @@ test('an unknown InvokeLLM parameter is rejected with 400 even though prompt-onl
     );
     assert.equal(withDeadParam.status, 400, withDeadParam.text);
     assert.match(withDeadParam.body?.error || '', /add_context_from_internet/);
+    // The refusal must carry a specific, machine-readable code — not the
+    // generic 'internal_error' sentinel a client would otherwise have to
+    // treat as an unclassified server fault (see server/integrations.mjs's
+    // handleCoreIntegration error mapper).
+    assert.equal(withDeadParam.body?.code, 'unsupported_parameter', withDeadParam.text);
   } finally {
     await server.stop();
   }
@@ -70,6 +75,7 @@ test('param-shape validation runs before the feature-flag check', async () => {
     // fire — a deliberate, testable ordering decision (see WP2 brief risk 2).
     assert.equal(result.status, 400, result.text);
     assert.match(result.body?.error || '', /tools/);
+    assert.equal(result.body?.code, 'unsupported_parameter', result.text);
   } finally {
     await isolated.stop();
   }

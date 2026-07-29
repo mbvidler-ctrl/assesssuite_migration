@@ -9,6 +9,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { activateUser, loginAdmin, registerUser, requestJson, startTestServer } from './support/server-harness.mjs';
+import { startFakeOpenAIChat } from './support/fake-openai-chat.mjs';
 import { LlmAccessError, boundedSetting, createGeneralLlmAdmission } from '../llmAdmission.mjs';
 
 const INVOKE_LLM_ROUTE = (appId) => `/api/apps/${appId}/integration-endpoints/Core/InvokeLLM`;
@@ -102,6 +103,61 @@ test('T9: the global rate ceiling refuses a request once the shared window is ex
     assert.equal(three.body?.code, 'llm_rate_limited', three.text);
   } finally {
     await server.stop();
+  }
+});
+
+// T12 (RED before the fix — today a busy rejection has already burned a
+// burst-limit token): a concurrency 429 (llm_busy) must not cost the caller
+// any of their per-minute burst allowance, exactly as the size ceiling
+// already documents for itself ("checked before the rate limiter is
+// consumed so a junk-sized request is rejected without burning the caller's
+// window" — server/llmAdmission.mjs). The real chat/completions fake is used
+// (loopback-only, synthetic key) so the first call genuinely holds its
+// concurrency slot across an await, instead of racing the deterministic
+// mock's synchronous return (see T10's comment on why that would be flaky).
+test('T12: a concurrency 429 (llm_busy) does not consume a burst-limit token', async () => {
+  const fakeChat = await startFakeOpenAIChat();
+  fakeChat.setMode('timeout');
+  const server = await startTestServer({
+    GENERAL_CLINICAL_LLM_ENABLED: '1',
+    LLM_REQUIRED: '0',
+    OPENAI_API_KEY: 'synthetic-llm-busy-refund-canary',
+    OPENAI_CHAT_TEST_BASE_URL: fakeChat.baseUrl,
+    // The fake provider's 'timeout' mode holds for 5s; the client aborts
+    // after this much shorter window, so the first call keeps its
+    // concurrency slot for a known, generous interval without the test
+    // itself waiting 5 seconds.
+    OPENAI_CHAT_TEST_TIMEOUT_MS: '300',
+    GENERAL_CLINICAL_LLM_USER_CONCURRENCY: '1',
+    GENERAL_CLINICAL_LLM_USER_BURST_LIMIT: '2',
+  });
+  try {
+    const adminToken = await loginAdmin(server);
+    const clinician = await activatedClinician(server, adminToken, 'wp3-llm-busy-refund@example.test');
+
+    const first = invokeLlm(server, clinician.token, { prompt: 'holds the slot' });
+    // Give the first call a head start so it has consumed its concurrency
+    // slot (a synchronous step, reached long before the 300ms provider
+    // abort) before the second call is dispatched.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    const busy = await invokeLlm(server, clinician.token, { prompt: 'refused for busyness' });
+    assert.equal(busy.status, 429, busy.text);
+    assert.equal(busy.body?.code, 'llm_busy', busy.text);
+
+    const firstResult = await first;
+    assert.equal(firstResult.status, 200, firstResult.text);
+
+    // With a burst limit of 2: the first call spent one token, and the busy
+    // rejection above must not have spent the second. This third call is
+    // therefore only the SECOND consumption and must succeed; if the busy
+    // rejection had already burned a token, this would be the third
+    // consumption and would be refused with llm_rate_limited instead.
+    const third = await invokeLlm(server, clinician.token, { prompt: 'still within the burst budget' });
+    assert.equal(third.status, 200, third.text);
+  } finally {
+    await server.stop();
+    await fakeChat.stop();
   }
 });
 

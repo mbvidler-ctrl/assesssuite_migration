@@ -707,6 +707,14 @@ function assertKnownInvokeLLMParams(rawBody) {
       `behaviour, so a caller must not rely on any other parameter to change model output.`
     );
     error.httpStatus = 400;
+    // Machine-readable so a client can distinguish "your request shape is
+    // unsupported" from an unclassified server fault, matching every other
+    // refusal on this endpoint (ai_capability_disabled, clinical_release_
+    // unavailable, prompt_too_large, llm_busy, ...). Without this the
+    // handleCoreIntegration mapper falls back to the generic 'internal_error'
+    // sentinel, which is the wrong contract for a client-shape error.
+    error.code = 'unsupported_parameter';
+    error.publicMessage = error.message;
     throw error;
   }
 }
@@ -732,15 +740,22 @@ async function handleInvokeLLM(body, context) {
   // caller sends org_id, so requiring one would break every caller (see
   // src/components/client/*, src/components/calendar/SOAPNoteModal.jsx,
   // src/pages/{TreatmentProtocols,AssessmentAudit}.jsx).
-  if (
-    !context
-    || !context.sessionUser
-    || typeof context.isClinicalUseEligible !== 'function'
-    || !context.isClinicalUseEligible()
-  ) {
+  //
+  // Admins are exempt from both limbs, mirroring the sibling gates
+  // (server/functions/index.mjs's `user.role !== 'admin' && ...` and the
+  // entity gate at `!isAdmin && CLINICAL_ENTITIES.has(...)`). Without this
+  // carve-out the bootstrap admin — who has no country/profession, so is
+  // never clinically eligible — is permanently refused, which breaks the
+  // admin-only Assessment Audit AI surface (src/pages/AssessmentAudit.jsx)
+  // for the only role that can open the page.
+  if (!context || !context.sessionUser) {
     throw new LlmAccessError(403, 'clinical_release_unavailable', 'AI generation is not approved for this account profile.');
   }
-  if (context.sessionUser.account_status !== 'active') {
+  const isAdmin = context.sessionUser.role === 'admin';
+  if (!isAdmin && (typeof context.isClinicalUseEligible !== 'function' || !context.isClinicalUseEligible())) {
+    throw new LlmAccessError(403, 'clinical_release_unavailable', 'AI generation is not approved for this account profile.');
+  }
+  if (!isAdmin && context.sessionUser.account_status !== 'active') {
     throw new LlmAccessError(403, 'account_inactive', 'Account approval is required before AI generation.');
   }
   const { prompt, response_json_schema: schema } = body || {};
@@ -748,13 +763,18 @@ async function handleInvokeLLM(body, context) {
   const jsonKeys = schemaObj ? null : extractJsonKeysFromPrompt(prompt);
 
   // Size ceiling before the rate limiter so a junk-sized prompt is rejected
-  // without burning the caller's window, then per-account throttle, then the
-  // concurrency slot — ordering is normative, see server/llmAdmission.mjs.
+  // without burning the caller's window, then the concurrency slot, then the
+  // per-account throttle — ordering is normative, see server/llmAdmission.mjs.
+  // The concurrency slot is acquired FIRST (it has no side effect other than
+  // throwing LlmAccessError(429, 'llm_busy')) so a request refused for
+  // busyness never spends one of the caller's rate-limit tokens; a request
+  // that clears the slot but then trips the throttle still releases the
+  // slot via the finally below.
   assertPromptWithinLimits({ prompt, schema: schemaObj });
-  const throttleKey = `user:${context.sessionUser.id}`;
-  generalLlmThrottle.consume(throttleKey);
   const releaseGeneralLlmSlot = generalLlmAdmission.acquire(context.sessionUser.id);
   try {
+    const throttleKey = `user:${context.sessionUser.id}`;
+    generalLlmThrottle.consume(throttleKey);
     // Real model path (engagement election E6). De-identification is applied
     // inside invokeRealLLM before any egress. The prompt's own wording drives
     // prose-vs-JSON for the no-schema case, so the heuristic is not needed here.

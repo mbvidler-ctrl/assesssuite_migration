@@ -86,7 +86,14 @@ test('dissect_to_soap labels its mock output as simulated when the mock path is 
       assert.equal(result.status, 200, JSON.stringify(result.body));
       assert.equal(result.body.success, true);
       assert.equal(result.body.simulated, true);
+      // All four SOAP fields are persisted free text (SOAPNote.subjective/
+      // objective/assessment/plan) — each must carry its own durable
+      // simulation notice, not just subjective, or three of four fields
+      // enter the record as unlabelled fabricated clinical content.
       assert.match(result.body.subjective, /simulat/i);
+      assert.match(result.body.objective, /simulat/i);
+      assert.match(result.body.assessment, /simulat/i);
+      assert.match(result.body.plan, /simulat/i);
     },
   );
 });
@@ -106,6 +113,9 @@ test('dissect_to_soap mock is still labelled outside self-test when no key is co
       assert.equal(result.status, 200, JSON.stringify(result.body));
       assert.equal(result.body.simulated, true);
       assert.match(result.body.subjective, /simulat/i);
+      assert.match(result.body.objective, /simulat/i);
+      assert.match(result.body.assessment, /simulat/i);
+      assert.match(result.body.plan, /simulat/i);
     },
   );
 });

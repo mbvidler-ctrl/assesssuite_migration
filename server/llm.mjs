@@ -20,15 +20,19 @@ export const MODEL_QUALITY = process.env.OPENAI_MODEL_QUALITY || 'gpt-4.1';
 
 // Test-only provider override (mirrors server/documentExtraction.mjs's
 // DOCUMENT_EXTRACTION_TEST_BASE_URL). Honoured ONLY when SELFTEST==='1'
-// (forbidden during production bootstrap — server/productionBootstrap.mjs)
-// AND the supplied URL resolves to a loopback http:// address. An inherited
-// real OPENAI_API_KEY therefore still cannot reach a real provider from a
-// test run without also explicitly wiring a validated loopback URL, and
-// this override cannot exist at all in production.
+// (forbidden during production bootstrap — server/productionBootstrap.mjs),
+// the supplied URL resolves to a loopback http:// address, AND OPENAI_API_KEY
+// itself is an obviously synthetic/test value (the shipped suites' own
+// convention — see server/tests/clinical-ai-feature-matrix.test.mjs — is a
+// key beginning "synthetic-"). The key check matters just as much as the
+// loopback check: without it, a shell-exported real OPENAI_API_KEY that
+// happens to be present when a test wires this override would still be
+// transmitted, in plaintext, to whatever is listening on that loopback URL.
 function resolveChatTestBaseUrl() {
   if (process.env.SELFTEST !== '1') return null;
   const raw = process.env.OPENAI_CHAT_TEST_BASE_URL;
   if (!raw) return null;
+  if (!/^synthetic-/.test(process.env.OPENAI_API_KEY || '')) return null;
   let parsed;
   try {
     parsed = new URL(raw);

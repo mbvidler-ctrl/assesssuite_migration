@@ -48,8 +48,12 @@
 // when doing so is legitimate: self-test, no transcript supplied, or (as a
 // non-production convenience) when LLM_REQUIRED is unset and the real call
 // is unavailable/fails. Whenever it IS served, the payload always carries
-// simulated: true plus an inline textual notice, so no caller (and no
-// clinician, via SOAPNoteModal.jsx) can mistake it for a real dissection.
+// simulated: true, and every one of the four SOAP fields (subjective,
+// objective, assessment, plan) is itself prefixed with the same inline
+// textual notice — not subjective alone — so the marker travels with the
+// free text into the persisted record and survives export, print and
+// rollback, and no caller (and no clinician, via SOAPNoteModal.jsx) can
+// mistake any field of it for a real dissection.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -173,14 +177,20 @@ function mockSoap(hasTranscript) {
   return {
     success: true,
     simulated: true,
+    // The notice is prefixed onto every field, not just subjective. Each of
+    // these four strings is what gets persisted into SOAPNote.subjective/
+    // objective/assessment/plan (see SOAPNoteModal.jsx dissectToSOAP), so the
+    // marker must be durable in the free text of every field it labels — a
+    // notice on subjective alone would leave objective/assessment/plan
+    // reading as unlabelled fabricated clinical content once persisted.
     subjective:
       notice +
       (hasTranscript
         ? 'Client reports improved pain levels since last session, with residual morning stiffness.'
         : 'Client reports as discussed during the session.'),
-    objective: 'Range of motion and exercise tolerance reassessed during today\'s session.',
-    assessment: 'Client demonstrates continued progress consistent with the current treatment plan.',
-    plan: 'Continue current exercise programme; reassess at next scheduled session.',
+    objective: notice + 'Range of motion and exercise tolerance reassessed during today\'s session.',
+    assessment: notice + 'Client demonstrates continued progress consistent with the current treatment plan.',
+    plan: notice + 'Continue current exercise programme; reassess at next scheduled session.',
   };
 }
 

@@ -15,6 +15,8 @@
 // One server boot, offline, no provider, no network.
 
 import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import net from 'node:net';
 import { after, before, test } from 'node:test';
 
 import {
@@ -25,6 +27,10 @@ import {
   requestJson,
   startTestServer,
 } from './support/server-harness.mjs';
+
+function delay(ms) {
+  return new Promise((resolve) => { setTimeout(resolve, ms); });
+}
 
 const REFUSAL = 'a published clinical note may only be changed by recording an amendment';
 
@@ -143,6 +149,12 @@ before(async () => {
   secondOrg = second.org;
   await joinOrganization(second.user, clinicianOrg);
   outsider = second;
+  // N14 needs the primary clinician to hold a SECOND, legitimate org
+  // membership, so that supplying secondOrg.id on an amendment passes the
+  // ordinary org-scope check (writeAuthDenied) and reaches the
+  // identity-pin under test in publishedNoteMutationDenied, rather than
+  // being refused earlier by "org_id is outside your organisations".
+  await joinOrganization(clinician.user, secondOrg);
 
   const created = await requestJson(server, route('/entities/Client'), {
     method: 'POST',
@@ -351,4 +363,164 @@ test('N12 cross-tenant refusal is unchanged and still wins over the new guard', 
   });
   assert.equal(result.status, 404, result.text);
   assert.equal(result.body?.message, 'record not found', result.text);
+});
+
+test('N10b bulk publish-then-tamper in one array is refused, baseline unchanged', async () => {
+  // The confirmed critical bypass: item 1 publishes the note, item 2 rewrites
+  // its content in the SAME request. Validating both against a pre-write
+  // snapshot let item 2 pass because the snapshot still showed a draft.
+  const note = await createNote();
+  const result = await requestJson(server, route('/entities/SOAPNote/bulk'), {
+    method: 'PUT',
+    token: clinician.user.token,
+    body: [
+      {
+        id: note.id,
+        status: 'published',
+        published_date: new Date().toISOString(),
+        published_by: clinician.user.email,
+        history: [{
+          timestamp: new Date().toISOString(),
+          user_email: clinician.user.email,
+          action: 'published',
+        }],
+      },
+      { id: note.id, subjective: 'TAMPERED-VIA-BULK', plan: 'TAMPERED-PLAN' },
+    ],
+  });
+  assert.equal(result.status, 409, result.text);
+
+  const reread = await requestJson(server, route(`/entities/SOAPNote/${note.id}`), {
+    token: clinician.user.token,
+  });
+  assert.equal(reread.status, 200, reread.text);
+  assert.equal(reread.body.status, 'draft');
+  assert.equal(reread.body.subjective, note.subjective);
+  assert.equal(reread.body.plan, note.plan);
+});
+
+test('N10c three duplicate amendments in one bulk array are refused, not silently multiply-applied', async () => {
+  // The second confirmed variant: three valid-looking amendments for the SAME
+  // already-published note in one array. Each was validated against the same
+  // pre-write snapshot, so all three applied while only one 'amended' history
+  // entry was ever recorded.
+  const note = await publish(await createNote());
+  const result = await requestJson(server, route('/entities/SOAPNote/bulk'), {
+    method: 'PUT',
+    token: clinician.user.token,
+    body: [
+      { id: note.id, ...amendmentBody(note, { subjective: 'AMEND-1' }) },
+      { id: note.id, ...amendmentBody(note, { subjective: 'AMEND-2' }) },
+      { id: note.id, ...amendmentBody(note, { subjective: 'AMEND-3' }) },
+    ],
+  });
+  // Duplicate ids in one bulk array are refused outright; if duplicates were
+  // ever tolerated in future, at most one content rewrite may land per
+  // recorded 'amended' entry — never three rewrites behind one entry.
+  assert.equal(result.status, 409, result.text);
+
+  const reread = await requestJson(server, route(`/entities/SOAPNote/${note.id}`), {
+    token: clinician.user.token,
+  });
+  assert.equal(reread.body.subjective, note.subjective);
+  assert.equal((reread.body.history || []).length, 1);
+});
+
+test('N13 TOCTOU: a stalled chunked PUT cannot land tampered content by racing a publish', async () => {
+  // The guard read `existing` before the awaited body read. Because the body
+  // stream is caller-paced (chunked transfer-encoding), an attacker can hold
+  // that await open, let a second request publish the note in the meantime,
+  // then finish the body — the guard evaluates against the pre-publish
+  // (draft) snapshot it captured before either await, and the write lands on
+  // the now-published record with no amendment entry.
+  const note = await createNote();
+  const requestPath = route(`/entities/SOAPNote/${note.id}`);
+  const socket = net.connect(server.listenerPort, '127.0.0.1');
+  await once(socket, 'connect');
+  const head =
+    `PUT ${requestPath} HTTP/1.1\r\n`
+    + `Host: 127.0.0.1:${server.listenerPort}\r\n`
+    + `X-App-Id: ${server.appId}\r\n`
+    + `Authorization: Bearer ${clinician.user.token}\r\n`
+    + 'Content-Type: application/json\r\n'
+    + 'Transfer-Encoding: chunked\r\n'
+    + 'Connection: close\r\n\r\n';
+  socket.write(head);
+  const firstChunk = '{"subjective":"TAMPERED-VIA-RACE",';
+  socket.write(`${firstChunk.length.toString(16)}\r\n${firstChunk}\r\n`);
+
+  // Give the stalled request's body-await a moment to actually be pending,
+  // then publish the note through an ordinary, complete request.
+  await delay(300);
+  const published = await publish(note);
+  assert.equal(published.status, 'published');
+
+  const secondChunk = '"plan":"TAMPERED-PLAN"}';
+  socket.write(`${secondChunk.length.toString(16)}\r\n${secondChunk}\r\n0\r\n\r\n`);
+
+  const raw = await new Promise((resolve, reject) => {
+    let buffer = '';
+    socket.on('data', (chunk) => { buffer += chunk.toString('utf8'); });
+    socket.on('end', () => resolve(buffer));
+    socket.on('error', reject);
+  });
+  const statusLine = raw.split('\r\n')[0];
+  assert.match(statusLine, /409/, raw);
+
+  const reread = await requestJson(server, requestPath, { token: clinician.user.token });
+  assert.equal(reread.status, 200, reread.text);
+  assert.equal(reread.body.status, 'published');
+  assert.equal(reread.body.subjective, note.subjective);
+  assert.equal(reread.body.plan, note.plan);
+  assert.equal((reread.body.history || []).length, 1);
+  assert.equal(reread.body.history[0].action, 'published');
+});
+
+test('N14 an amendment cannot reattach a published note to a different client or org', async () => {
+  const note = await publish(await createNote());
+  const otherClient = await requestJson(server, route('/entities/Client'), {
+    method: 'POST',
+    token: clinician.user.token,
+    body: { org_id: clinicianOrg.id, full_name: 'Synthetic Second Patient' },
+  });
+  assert.equal(otherClient.status, 200, otherClient.text);
+
+  const reattachedClient = await requestJson(server, route(`/entities/SOAPNote/${note.id}`), {
+    method: 'PUT',
+    token: clinician.user.token,
+    body: amendmentBody(note, { client_id: otherClient.body.id }),
+  });
+  assert.equal(reattachedClient.status, 409, reattachedClient.text);
+  assert.equal(reattachedClient.body?.message, REFUSAL, reattachedClient.text);
+
+  const reparentedOrg = await requestJson(server, route(`/entities/SOAPNote/${note.id}`), {
+    method: 'PUT',
+    token: clinician.user.token,
+    body: amendmentBody(note, { org_id: secondOrg.id }),
+  });
+  assert.equal(reparentedOrg.status, 409, reparentedOrg.text);
+  assert.equal(reparentedOrg.body?.message, REFUSAL, reparentedOrg.text);
+
+  const reread = await requestJson(server, route(`/entities/SOAPNote/${note.id}`), {
+    token: clinician.user.token,
+  });
+  assert.equal(reread.body.client_id, note.client_id);
+  assert.equal(reread.body.org_id, note.org_id);
+
+  // The same pin applies through bulkUpdate.
+  const bulkReattach = await requestJson(server, route('/entities/SOAPNote/bulk'), {
+    method: 'PUT',
+    token: clinician.user.token,
+    body: [{ id: note.id, ...amendmentBody(note, { client_id: otherClient.body.id }) }],
+  });
+  assert.equal(bulkReattach.status, 409, bulkReattach.text);
+
+  // A sanctioned amendment that resends the SAME client_id/org_id (exactly
+  // what SOAPNoteModal does on every amendment save) must still succeed.
+  const sanctioned = await requestJson(server, route(`/entities/SOAPNote/${note.id}`), {
+    method: 'PUT',
+    token: clinician.user.token,
+    body: amendmentBody(note, { client_id: note.client_id, org_id: note.org_id }),
+  });
+  assert.equal(sanctioned.status, 200, sanctioned.text);
 });

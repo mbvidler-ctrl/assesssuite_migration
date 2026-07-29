@@ -94,13 +94,14 @@ async function getJson(url, timeoutMs = 12000) {
 }
 
 // Filter-value metacharacters carry meaning in OpenAlex's `filter=` grammar —
-// a comma separates AND-ed filter clauses. OpenAlex percent-decodes the
-// filter param server-side before splitting on ',', so percent-encoding the
-// whole joined string does NOT stop a literal comma in query text from
-// acting as a filter separator once decoded — it must never reach the filter
-// builder. Strip it (and collapse resulting whitespace) before use.
+// a comma separates AND-ed filter clauses and a pipe separates OR-ed values
+// within one clause. OpenAlex percent-decodes the filter param server-side
+// before splitting on these, so percent-encoding the whole joined string does
+// NOT stop a literal comma or pipe in query text from acting as a filter
+// separator once decoded — neither must ever reach the filter builder. Strip
+// both (and collapse resulting whitespace) before use.
 function sanitizeOpenAlexFilterTerm(value) {
-  return String(value || '').replace(/,/g, ' ').replace(/\s+/g, ' ').trim();
+  return String(value || '').replace(/[,|]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 // ---- backends --------------------------------------------------------------
@@ -115,9 +116,15 @@ function normaliseOpenAlexWork(w) {
   };
 }
 async function openAlexByDoi(doi) {
+  // Same reasoning as sanitizeOpenAlexFilterTerm() above: extractDoi()'s
+  // regex admits a comma or pipe, either of which would let a fabricated
+  // trailing DOI widen or fork this filter clause once OpenAlex decodes it.
+  // Sanitise here exactly as the title-search path already does, so the doi
+  // lookup can never carry an extra AND/OR clause.
+  const safeDoi = sanitizeOpenAlexFilterTerm(doi);
   // Encode special characters but keep the DOI's slashes raw — OpenAlex's doi
   // filter rejects a percent-encoded slash (%2F) and returns no result.
-  const doiParam = encodeURIComponent(doi).replace(/%2F/gi, '/');
+  const doiParam = encodeURIComponent(safeDoi).replace(/%2F/gi, '/');
   const url = `https://api.openalex.org/works?filter=doi:${doiParam}&per-page=1&mailto=${encodeURIComponent(MAILTO)}`;
   const res = await throttled(() => getJson(url));
   if (!res.ok) return { networkError: !res.status, work: null };

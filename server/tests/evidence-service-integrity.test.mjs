@@ -8,7 +8,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { searchEvidence } from '../evidence.mjs';
+import { searchEvidence, verifyCitation } from '../evidence.mjs';
 
 function fakeOpenAlexWork(overrides = {}) {
   return {
@@ -102,6 +102,55 @@ test('reviewsOnlyApplied is true when the reviews-only search itself succeeds', 
     const result = await searchEvidence('common condition');
     assert.equal(calls, 1);
     assert.equal(result.reviewsOnlyApplied, true);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+// Defence-in-depth consistency check: WP2's sanitizeOpenAlexFilterTerm() was
+// wired into openAlexByTitle() and searchEvidence() but not into
+// openAlexByDoi(), which built its filter value straight from extractDoi()'s
+// output — and that regex admits both a comma and a pipe (OpenAlex's AND and
+// OR clause separators once the filter value is percent-decoded server-side).
+// This does not currently open a reachable "fabricated DOI badged Verified"
+// path (every in-repo caller of verifyCitation supplies a title, and the
+// title cross-check in candidateMatches() catches a mismatched canonical
+// work) — but the DOI lookup path should still be sanitised the same way the
+// title path already is, rather than relying on that second check alone.
+test('a pipe in a DOI cannot inject a second OpenAlex filter clause on the DOI lookup path', { concurrency: false }, async () => {
+  const originalFetch = globalThis.fetch;
+  const capturedUrls = [];
+  globalThis.fetch = async (url) => {
+    capturedUrls.push(url);
+    return jsonResponse({ results: [fakeOpenAlexWork()] });
+  };
+  try {
+    await verifyCitation({ doi: '10.9999/does-not-exist|10.1016/j.jphys.2018.02.012' }, { useCache: false });
+    assert.equal(capturedUrls.length, 1, 'exactly one fetch call expected for the doi lookup');
+    const requestedUrl = new URL(capturedUrls[0]);
+    const filterParam = requestedUrl.searchParams.get('filter');
+    // Only the pipe (OpenAlex's OR separator) is sanitised out of the doi
+    // value; it must not survive into the filter clause as a second,
+    // attacker-controlled DOI to be OR-ed against.
+    assert.equal(filterParam.split('|').length, 1, 'the pipe must not survive into the doi filter clause');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('a comma in a DOI cannot inject a second OpenAlex filter clause on the DOI lookup path', { concurrency: false }, async () => {
+  const originalFetch = globalThis.fetch;
+  const capturedUrls = [];
+  globalThis.fetch = async (url) => {
+    capturedUrls.push(url);
+    return jsonResponse({ results: [fakeOpenAlexWork()] });
+  };
+  try {
+    await verifyCitation({ doi: '10.9999/does-not-exist,10.1016/j.jphys.2018.02.012' }, { useCache: false });
+    assert.equal(capturedUrls.length, 1, 'exactly one fetch call expected for the doi lookup');
+    const requestedUrl = new URL(capturedUrls[0]);
+    const filterParam = requestedUrl.searchParams.get('filter');
+    assert.equal(filterParam.split(',').length, 1, 'the comma must not survive into the doi filter clause');
   } finally {
     globalThis.fetch = originalFetch;
   }
