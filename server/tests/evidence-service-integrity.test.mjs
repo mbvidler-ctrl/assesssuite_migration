@@ -155,3 +155,31 @@ test('a comma in a DOI cannot inject a second OpenAlex filter clause on the DOI 
     globalThis.fetch = originalFetch;
   }
 });
+
+test('a bracket field-tag in a title cannot re-scope the PubMed eutils term', { concurrency: false }, async () => {
+  const originalFetch = globalThis.fetch;
+  const eutilsTerms = [];
+  globalThis.fetch = async (url) => {
+    const u = new URL(url);
+    if (u.hostname.includes('eutils.ncbi.nlm.nih.gov') && u.pathname.includes('esearch')) {
+      eutilsTerms.push(u.searchParams.get('term'));
+      return jsonResponse({ esearchresult: { idlist: [] } });
+    }
+    // OpenAlex title lookup returns nothing so verifyCitation falls through to PubMed.
+    return jsonResponse({ results: [] });
+  };
+  try {
+    // A title carrying its own [Author] field tag and quotes: after sanitisation
+    // the only field tag in the eutils term must be the [Title] tag we append.
+    await verifyCitation({ title: 'Smith J[Author] "exercise therapy" AND *' }, { useCache: false });
+    assert.ok(eutilsTerms.length >= 1, 'the PubMed esearch path was exercised');
+    for (const term of eutilsTerms) {
+      const decoded = decodeURIComponent(term);
+      const fieldTags = decoded.match(/\[[^\]]*\]/g) || [];
+      assert.deepEqual(fieldTags, ['[Title]'], `only the appended [Title] tag may remain, got ${JSON.stringify(fieldTags)}`);
+      assert.doesNotMatch(decoded, /["*]/, 'no injected quote or star metacharacters survive');
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});

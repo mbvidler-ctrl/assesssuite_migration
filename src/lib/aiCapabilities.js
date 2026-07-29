@@ -102,6 +102,25 @@ export function mergeCapabilityOverrides(capabilities, overrides) {
 }
 
 /**
+ * Reconcile a set of runtime capability withdrawals against a freshly fetched
+ * capabilities block. A withdrawal is cleared ONLY when the server positively
+ * re-publishes that capability as available; an unknown-optimistic payload (a
+ * server that publishes no capabilities block, so `fresh[key]` is undefined)
+ * must retain the withdrawal, otherwise every background refresh silently wipes
+ * it and the AI affordances flap back on against a server still returning 503.
+ */
+export function reconcileOverridesOnRefresh(prevOverrides, freshCapabilities) {
+  if (!prevOverrides || typeof prevOverrides !== 'object') return {};
+  const fresh = freshCapabilities && typeof freshCapabilities === 'object' ? freshCapabilities : {};
+  return Object.fromEntries(
+    Object.entries(prevOverrides).filter(([key]) => {
+      const cap = fresh[key];
+      return !(cap && cap.published && cap.available === true);
+    }),
+  );
+}
+
+/**
  * Classify an AI call failure into a posture the UI can act on. A null
  * status (transport failure) must NEVER classify as a capability
  * withdrawal — only an explicit server signal does.

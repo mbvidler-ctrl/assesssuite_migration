@@ -138,8 +138,18 @@ async function openAlexByTitle(title) {
   const works = res.json && Array.isArray(res.json.results) ? res.json.results.map(normaliseOpenAlexWork).filter(Boolean) : [];
   return { networkError: false, works };
 }
+// PubMed's `term` grammar treats square brackets as field tags (e.g. [Title],
+// [Author]) and *, ", and boolean AND/OR/NOT as operators. A citation title
+// carrying any of these could re-scope or alter the query once eutils parses
+// it, exactly the sibling risk the OpenAlex sanitiser addresses; strip the
+// bracket/quote/star metacharacters (the `[Title]` field tag is appended by us,
+// after sanitisation) and collapse whitespace before interpolating.
+function sanitizePubmedTerm(value) {
+  return String(value || '').replace(/[[\]"*]/g, ' ').replace(/\s+/g, ' ').trim();
+}
 async function pubmedByTitle(title) {
-  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(title)}%5BTitle%5D&retmax=6&retmode=json`;
+  const safeTitle = sanitizePubmedTerm(title);
+  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(safeTitle)}%5BTitle%5D&retmax=6&retmode=json`;
   const s = await throttled(() => getJson(searchUrl), 12000);
   if (!s.ok) return { networkError: !s.status, works: [] };
   const ids = (s.json && s.json.esearchresult && s.json.esearchresult.idlist) || [];

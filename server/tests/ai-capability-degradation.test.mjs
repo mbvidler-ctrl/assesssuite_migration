@@ -10,6 +10,7 @@ import {
   classifyAiError,
   mergeCapabilityOverrides,
   readCapabilities,
+  reconcileOverridesOnRefresh,
   resolveAiSurfaceState,
 } from '../../src/lib/aiCapabilities.js';
 
@@ -183,6 +184,49 @@ test('D07 mergeCapabilityOverrides', () => {
   assert.deepEqual(merged.general_clinical_llm, { available: false, reason: 'switched_off', published: true });
   // Unrelated keys untouched.
   assert.deepEqual(merged.transcription, { available: true, reason: 'unknown', published: false });
+});
+
+test('D07a reconcileOverridesOnRefresh keeps a withdrawal against an unknown-optimistic refresh', () => {
+  const prev = { general_clinical_llm: 'switched_off' };
+  // A server that publishes NO capabilities block for this key (the pre-fix
+  // failure mode): the withdrawal must survive, not be wiped. This is the
+  // regression the AuthContext refresh fix depends on — reverting the filter
+  // to `{}` makes this assertion fail.
+  assert.deepEqual(reconcileOverridesOnRefresh(prev, {}), prev);
+  assert.deepEqual(
+    reconcileOverridesOnRefresh(prev, { general_clinical_llm: { available: false, published: true, reason: 'switched_off' } }),
+    prev,
+    'a still-refused capability keeps its override',
+  );
+});
+
+test('D07b reconcileOverridesOnRefresh clears a withdrawal only on a positive published re-enable', () => {
+  const prev = { general_clinical_llm: 'switched_off', transcription: 'switched_off' };
+  const fresh = {
+    general_clinical_llm: { available: true, published: true, reason: 'available' },
+    transcription: { available: false, published: true, reason: 'switched_off' },
+  };
+  // Only the positively re-published key clears; the still-off one persists.
+  assert.deepEqual(reconcileOverridesOnRefresh(prev, fresh), { transcription: 'switched_off' });
+  // An available-but-unpublished signal is not a positive re-enable.
+  assert.deepEqual(
+    reconcileOverridesOnRefresh({ general_clinical_llm: 'switched_off' }, { general_clinical_llm: { available: true, published: false } }),
+    { general_clinical_llm: 'switched_off' },
+  );
+  assert.deepEqual(reconcileOverridesOnRefresh({}, fresh), {});
+  assert.deepEqual(reconcileOverridesOnRefresh(null, fresh), {});
+});
+
+test('D07c AuthContext refresh routes through reconcileOverridesOnRefresh, not a bare wipe', () => {
+  const authSource = fs.readFileSync(path.join(repoRoot, 'src', 'lib', 'AuthContext.jsx'), 'utf8');
+  assert.match(authSource, /setCapabilityOverrides\(\(prev\)\s*=>\s*reconcileOverridesOnRefresh\(prev,\s*fresh\)\)/);
+  // Scope the no-bare-wipe check to refreshPublicSettings only; an explicit
+  // reset elsewhere (e.g. clearing overrides on an auth-state change) is fine.
+  const start = authSource.indexOf('const refreshPublicSettings');
+  const end = authSource.indexOf('const noteCapabilityWithdrawn');
+  assert.ok(start !== -1 && end > start, 'refreshPublicSettings body located');
+  const refreshBody = authSource.slice(start, end);
+  assert.doesNotMatch(refreshBody, /setCapabilityOverrides\(\{\}\)/, 'the refresh path must not unconditionally wipe overrides');
 });
 
 // Short labels and badges (button text, status words, headings) are not

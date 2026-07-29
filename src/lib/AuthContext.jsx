@@ -2,7 +2,7 @@ import React, { createContext, useState, useContext, useEffect, useMemo, useRef 
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
-import { mergeCapabilityOverrides, readCapabilities } from '@/lib/aiCapabilities';
+import { mergeCapabilityOverrides, readCapabilities, reconcileOverridesOnRefresh } from '@/lib/aiCapabilities';
 
 const AuthContext = createContext();
 
@@ -117,12 +117,7 @@ export const AuthProvider = ({ children }) => {
       // background refresh silently wipes the withdrawal and the AI buttons
       // flap back on against a server that is still 503-ing.
       const fresh = readCapabilities(publicSettings);
-      setCapabilityOverrides((prev) => Object.fromEntries(
-        Object.entries(prev).filter(([key]) => {
-          const cap = fresh[key];
-          return !(cap && cap.published && cap.available === true);
-        }),
-      ));
+      setCapabilityOverrides((prev) => reconcileOverridesOnRefresh(prev, fresh));
       setPublicSettingsFetchedAt(Date.now());
     } catch {
       // Keep last known state; never surface a settings-refresh error to a clinician.
