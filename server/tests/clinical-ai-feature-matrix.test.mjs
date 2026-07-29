@@ -462,7 +462,10 @@ test('Boot H: a non-synthetic OPENAI_API_KEY is never honoured by the SELFTEST l
   const server = await startTestServer({
     GENERAL_CLINICAL_LLM_ENABLED: '1',
     LLM_REQUIRED: '0',
-    OPENAI_API_KEY: 'sk-real-looking-production-key-must-never-be-sent',
+    // A non-synthetic key. Deliberately not an sk-/provider-secret shape and
+    // carrying a canary marker, so the release secret scanner passes while the
+    // value still fails resolveChatTestBaseUrl's /^synthetic-/ gate under test.
+    OPENAI_API_KEY: 'placeholder-non-synthetic-production-key-must-never-be-sent',
     OPENAI_CHAT_TEST_BASE_URL: fakeChat3.baseUrl,
   });
   try {
