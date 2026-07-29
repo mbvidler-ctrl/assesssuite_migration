@@ -262,7 +262,10 @@ export default function SectionEditor({ sections, content, onChange, client, cli
   React.useEffect(() => {
     if (isSignatureSection && clinician && !content[activeSection]) {
       const autoText = `${clinician.full_name || ''}${clinician.provider_number ? `\nProvider Number: ${clinician.provider_number}` : ''}${clinician.profession ? `\nProfession: ${clinician.profession}` : ''}`;
-      onChange({ ...content, [activeSection]: autoText });
+      // Deterministic auto-fill from the clinician profile — not AI. The flag
+      // is explicitly CLEARED so a signature block is never disclosed as an
+      // AI-assisted draft.
+      onChange({ ...content, [activeSection]: autoText, [`${activeSection}_ai_drafted`]: false });
     }
   }, [activeSection, clinician]);
 
@@ -542,7 +545,11 @@ CLINICAL WRITING RULES — FOLLOW STRICTLY:
 Write ONLY the "${activeSection}" section. Return ONLY plain text — no HTML, no markdown, no bullet symbols except plain hyphens for lists.`;
 
       const response = await InvokeLLM({ prompt });
-      onChange({ ...content, [activeSection]: response });
+      // The AI-drafted flag rides in the same free-form section_content map as
+      // the existing `${section}_signature` / `${section}_attachments` sibling
+      // keys, so it round-trips through SavedReport.section_content and is
+      // ignored by any older build.
+      onChange({ ...content, [activeSection]: response, [`${activeSection}_ai_drafted`]: true });
       toast.success("Content generated!");
     } catch (error) {
       toast.error(aiErrorMessage(ai.reportError(error)));
@@ -568,7 +575,7 @@ Write ONLY the "${activeSection}" section. Return ONLY plain text — no HTML, n
 SECTION TO EDIT:
 ${content[activeSection]}`;
       const response = await InvokeLLM({ prompt });
-      onChange({ ...content, [activeSection]: response });
+      onChange({ ...content, [activeSection]: response, [`${activeSection}_ai_drafted`]: true });
       toast.success("Content tidied!");
     } catch (error) {
       toast.error(aiErrorMessage(ai.reportError(error)));
@@ -680,6 +687,7 @@ CLINICAL WRITING RULES — FOLLOW STRICTLY:
 Write ONLY the "${section}" section. Return ONLY plain text — no HTML, no markdown, no bullet symbols except plain hyphens for lists.`;
         const response = await InvokeLLM({ prompt });
         newContent[section] = response;
+        newContent[`${section}_ai_drafted`] = true;
         completed += 1;
       }
       onChange(newContent);

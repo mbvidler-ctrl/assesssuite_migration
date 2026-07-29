@@ -784,6 +784,51 @@ function writeAuthDenied(entityName, data, sessionUser, { isCreate }) {
   return enforceWriteOrgScope(entityName, data, sessionUser, { isCreate });
 }
 
+// A published SOAP note is a finalised clinical record. The only sanctioned
+// change is an amendment, which SOAPNoteModal records as ONE appended
+// history entry attributed to the caller. Attachment/audio additions made
+// while amending are immediate partial writes that carry no history, so they
+// are the single documented exception (residual: they remain writable, and
+// removable, without an audit trail — narrower than today's behaviour, which
+// permits everything). Everything else is refused — notably the treatment
+// protocol import, which wrote `{ plan }` straight into a locked note, so an
+// AI-drafted plan could silently rewrite a countersigned record.
+const PUBLISHED_NOTE_ADDITIVE_FIELDS = new Set([
+  'plan_attachments', 'session_audio_urls', 'session_audio_url',
+]);
+
+function publishedNoteMutationDenied(entityName, existing, data, sessionUser) {
+  if (entityName !== 'SOAPNote') return { ok: true };
+  if (existing?.status !== 'published') return { ok: true };
+  const payload = data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+  const keys = Object.keys(payload).filter((key) => key !== 'id');
+  if (keys.length > 0 && keys.every((key) => PUBLISHED_NOTE_ADDITIVE_FIELDS.has(key))) {
+    return { ok: true };
+  }
+  const denied = {
+    ok: false,
+    status: 409,
+    message: 'a published clinical note may only be changed by recording an amendment',
+  };
+  if (payload.status !== 'published') return denied;
+  // The submitted history must be the stored history plus exactly one new
+  // 'amended' entry attributed to the caller. A prefix check (rather than a
+  // length check) is what stops a rewrite or truncation of the audit trail.
+  const prior = Array.isArray(existing.history) ? existing.history : [];
+  const next = Array.isArray(payload.history) ? payload.history : null;
+  if (!next || next.length !== prior.length + 1) return denied;
+  for (let i = 0; i < prior.length; i += 1) {
+    if (JSON.stringify(next[i]) !== JSON.stringify(prior[i])) return denied;
+  }
+  const entry = next[next.length - 1];
+  if (!entry || entry.action !== 'amended') return denied;
+  if (entry.user_email !== sessionUser?.email) return denied;
+  if (!entry.timestamp || Number.isNaN(Date.parse(entry.timestamp))) return denied;
+  if (Object.hasOwn(payload, 'published_date') && payload.published_date !== existing.published_date) return denied;
+  if (Object.hasOwn(payload, 'published_by') && payload.published_by !== existing.published_by) return denied;
+  return { ok: true };
+}
+
 /**
  * Hard authorisation gate for the entities router. Sends the refusal and
  * returns true when the request must not proceed:
@@ -1058,6 +1103,8 @@ async function handleEntitiesRoute(req, res, url, match) {
       }
       const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: false });
       if (!auth.ok) return sendError(res, auth.status, auth.message);
+      const immutability = publishedNoteMutationDenied(entityName, existing, data, sessionUser);
+      if (!immutability.ok) return sendError(res, immutability.status, immutability.message);
       const owner = clinicPolicyOwnerDenied(entityName, sessionUser, existing?.org_id);
       if (owner) return sendError(res, owner.status, owner.message);
     }
@@ -1346,6 +1393,10 @@ async function handleBulk(req, res, entityName) {
         }
         const auth = writeAuthDenied(entityName, item, sessionUser, { isCreate: false });
         if (!auth.ok) return sendError(res, auth.status, auth.message);
+        // A guard on only the single PUT would be bypassable by routing the
+        // same write through bulkUpdate.
+        const immutability = publishedNoteMutationDenied(entityName, existing, item, sessionUser);
+        if (!immutability.ok) return sendError(res, immutability.status, immutability.message);
         const owner = clinicPolicyOwnerDenied(entityName, sessionUser, existing?.org_id);
         if (owner) return sendError(res, owner.status, owner.message);
         if (entityName === 'ClinicPolicy') {
@@ -1423,6 +1474,15 @@ async function handleUpdateMany(req, res, entityName) {
   }
   const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
   const matched = repo.listAll().filter((record) => matchesQuery(record, scopedQuery));
+  if (!isAdmin) {
+    // A shared `data` payload can never be a valid per-record amendment (the
+    // history prefix differs per note), so any sweep that matches a published
+    // note is refused outright. That is the intended fail-closed outcome.
+    for (const record of matched) {
+      const immutability = publishedNoteMutationDenied(entityName, record, data, sessionUser);
+      if (!immutability.ok) return sendError(res, immutability.status, immutability.message);
+    }
+  }
   if (!isAdmin && entityName === 'ClinicPolicy' && matched.some(
     (record) => !isOrganizationOwner(sessionUser?.email, record.org_id),
   )) {

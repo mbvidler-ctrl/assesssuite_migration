@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { selectAppendableNote } from "@/lib/clinical/soapNoteTarget";
 import { toast } from "sonner";
 import EightFootUpandGoRunner from "./8FootUpandGoRunner";
 import ClientSelectorModal from "./ClientSelectorModal";
@@ -103,8 +104,11 @@ export default function EightFootUpandGoStandaloneWrapper({ assessment, client, 
         appointment_id: appointmentId
       });
 
-      if (existingSoapNotes && existingSoapNotes.length > 0) {
-        const soapNote = existingSoapNotes[0];
+      // A published note is a finalised clinical record and the server refuses
+      // this append outright, so the result goes into a fresh draft instead.
+      const soapNote = selectAppendableNote(existingSoapNotes);
+
+      if (soapNote) {
         const updatedObjective = soapNote.objective 
           ? `${soapNote.objective}\n\n${objectiveText}`
           : objectiveText;

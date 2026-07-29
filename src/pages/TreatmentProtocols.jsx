@@ -38,6 +38,10 @@ import ImportToSOAPModal from "../components/protocols/ImportToSOAPModal";
 import { useAiCapability } from "@/hooks/useAiCapability";
 import { AI_COPY, aiErrorMessage } from "@/lib/aiCapabilities";
 import { normaliseProtocolResponse, PROTOCOL_SECTION_LABELS } from "@/lib/protocolResponse";
+// The import provenance is driven by the SAME predicate as the on-screen
+// "AI-assisted draft" badge, so the label the clinician sees and the label
+// that reaches the clinical record can never disagree.
+import { PROTOCOL_PROVENANCE } from "@/lib/clinical/protocolImport";
 
 // The shared JavaScript UI wrappers accept the rendered props below, while
 // checkJs infers ref-only signatures from forwardRef. These source-local
@@ -1156,6 +1160,7 @@ export default function TreatmentProtocols() {
         onClose={() => setShowImportModal(false)}
         protocolData={protocolData}
         conditionName={selectedCondition?.name}
+        provenance={selectedCondition?.protocol ? PROTOCOL_PROVENANCE.REVIEWED : PROTOCOL_PROVENANCE.AI}
       />
 </>
   );

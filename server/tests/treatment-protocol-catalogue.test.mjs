@@ -46,3 +46,17 @@ test('reviewed catalogue preparation is null-safe, deduplicated and sorted befor
   assert.match(pageSource, /<AIDisclosureNote \/>/);
   assert.match(pageSource, /<ImportToSOAPModal/);
 });
+
+// WP1: what is written into the clinical record must carry the same
+// provenance the clinician was shown. The import provenance is therefore
+// driven by the SAME predicate as the on-screen "AI-assisted draft" badge
+// (`selectedCondition?.protocol`), so the two can never disagree.
+test('protocol import provenance is driven by the same predicate as the on-screen badge', () => {
+  assert.match(pageSource, /import \{ PROTOCOL_PROVENANCE \} from "@\/lib\/clinical\/protocolImport";/);
+  assert.match(
+    pageSource,
+    /provenance=\{selectedCondition\?\.protocol \? PROTOCOL_PROVENANCE\.REVIEWED : PROTOCOL_PROVENANCE\.AI\}/,
+  );
+  // The badge predicate itself must stay the negation of the same expression.
+  assert.match(pageSource, /\{!selectedCondition\?\.protocol && \(/);
+});

@@ -14,8 +14,18 @@ import {
   filterClientPickerRows,
   loadAccessibleClientPickerRows,
 } from "@/lib/protocolClientPicker";
+import {
+  BLOCKED_BY_PUBLISHED_MESSAGE,
+  PROTOCOL_PROVENANCE,
+  buildProtocolPlanText,
+  selectProtocolImportTarget,
+} from "@/lib/clinical/protocolImport";
+import { aiProvenanceEntry, appendAiProvenance } from "@/lib/clinical/aiProvenance";
 
-export default function ImportToSOAPModal({ isOpen, onClose, protocolData, conditionName }) {
+// `provenance` deliberately DEFAULTS TO AI: a missing or unrecognised prop
+// must fail towards over-disclosure, never towards presenting an AI draft as
+// reviewed content.
+export default function ImportToSOAPModal({ isOpen, onClose, protocolData, conditionName, provenance }) {
   const [clients, setClients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -43,67 +53,49 @@ export default function ImportToSOAPModal({ isOpen, onClose, protocolData, condi
     }
   };
 
-  const generatePlanText = () => {
-    let planText = `TREATMENT PROTOCOL: ${conditionName}\n\n`;
-
-    if (protocolData.exercise_prescription) {
-      planText += `EXERCISE PRESCRIPTION:\n`;
-      
-      if (protocolData.exercise_prescription.exercises) {
-        protocolData.exercise_prescription.exercises.forEach((ex, i) => {
-          planText += `\n${i + 1}. ${ex.name} (${ex.type})\n`;
-          planText += `   Dosage: ${ex.dosage}\n`;
-          planText += `   Purpose: ${ex.purpose}\n`;
-          if (ex.modifications) {
-            planText += `   Modifications: ${ex.modifications}\n`;
-          }
-        });
-      }
-
-      planText += `\n`;
-      if (protocolData.exercise_prescription.frequency) {
-        planText += `Frequency: ${protocolData.exercise_prescription.frequency}\n`;
-      }
-      if (protocolData.exercise_prescription.session_duration) {
-        planText += `Session Duration: ${protocolData.exercise_prescription.session_duration}\n`;
-      }
-      if (protocolData.exercise_prescription.program_duration) {
-        planText += `Program Duration: ${protocolData.exercise_prescription.program_duration}\n`;
-      }
-    }
-
-    if (protocolData.progression?.phases?.[0]) {
-      const firstPhase = protocolData.progression.phases[0];
-      planText += `\nCURRENT PHASE: ${firstPhase.phase_name}\n`;
-      planText += `Goals: ${firstPhase.goals}\n`;
-      planText += `Duration: ${firstPhase.duration}\n`;
-    }
-
-    return planText;
-  };
-
   const handleSelectClient = async (client) => {
     try {
-      const planText = generatePlanText();
+      const resolvedProvenance = provenance === PROTOCOL_PROVENANCE.REVIEWED
+        ? PROTOCOL_PROVENANCE.REVIEWED
+        : PROTOCOL_PROVENANCE.AI;
+      const dateLabel = format(new Date(), 'dd/MM/yyyy');
+      // The shared builder carries the provenance block, the contraindications
+      // and the references into the note. The old inline generator dropped all
+      // three, so what reached the clinical record was not what the clinician
+      // reviewed on screen.
+      const planText = buildProtocolPlanText(protocolData, {
+        conditionName,
+        provenance: resolvedProvenance,
+        dateLabel,
+      });
       const todayDateStr = todayLocal();
 
-      // Check if there's a SOAP note for today. note_date may be a full
-      // timestamp, so convert it to the same LOCAL calendar day before
-      // comparing — a UTC comparison shifts morning notes to yesterday.
+      // note_date may be a full timestamp, so it is compared on the LOCAL
+      // calendar day — a UTC comparison shifts morning notes to yesterday.
+      // A published note is a finalised record and is never appended to; the
+      // server refuses that write outright.
       const allClientNotes = await base44.entities.SOAPNote.filter({ client_id: client.id });
-      const todayNote = allClientNotes.find(note => {
-        const noteDate = format(new Date(note.note_date), 'yyyy-MM-dd');
-        return noteDate === todayDateStr;
-      });
+      const target = selectProtocolImportTarget(allClientNotes, { todayDateStr });
+      const provenanceEntry = resolvedProvenance === PROTOCOL_PROVENANCE.AI
+        ? aiProvenanceEntry({
+            source: 'treatment-protocol-import',
+            fields: ['plan'],
+            dateLabel,
+            subject: typeof conditionName === 'string' ? conditionName : null,
+          })
+        : null;
 
-      if (todayNote) {
-        // Append to existing plan
+      if (target.mode === 'append') {
+        const todayNote = target.note;
         const updatedPlan = todayNote.plan ? `${todayNote.plan}\n\n${planText}` : planText;
-        await base44.entities.SOAPNote.update(todayNote.id, { plan: updatedPlan });
+        const payload = { plan: updatedPlan };
+        if (provenanceEntry) {
+          payload.ai_provenance = appendAiProvenance(todayNote.ai_provenance, provenanceEntry);
+        }
+        await base44.entities.SOAPNote.update(todayNote.id, payload);
         toast.success(`Protocol added to ${clientPickerDisplayName(client)}'s notes for today`);
       } else {
-        // Create new SOAP note for today
-        await base44.entities.SOAPNote.create({
+        const payload = {
           org_id: client.org_id,
           client_id: client.id,
           note_date: todayDateStr,
@@ -113,8 +105,16 @@ export default function ImportToSOAPModal({ isOpen, onClose, protocolData, condi
           objective: '',
           assessment: '',
           other: ''
-        });
-        toast.success(`Protocol added to ${clientPickerDisplayName(client)}'s notes for today`);
+        };
+        if (provenanceEntry) {
+          payload.ai_provenance = appendAiProvenance(null, provenanceEntry);
+        }
+        await base44.entities.SOAPNote.create(payload);
+        toast.success(
+          target.blockedByPublished
+            ? BLOCKED_BY_PUBLISHED_MESSAGE
+            : `Protocol added to ${clientPickerDisplayName(client)}'s notes for today`,
+        );
       }
 
       onClose();

@@ -1,5 +1,6 @@
 import { base44 } from "@/api/base44Client";
 import { todayLocal } from "@/lib/localDate";
+import { selectAppendableNote } from "@/lib/clinical/soapNoteTarget";
 
 async function ensureSoapText(assessmentToUpdateId) {
   // Legacy enrichment that POSTed to a foreign Base44 app
@@ -75,7 +76,11 @@ export async function saveAssessmentToSOAP({ clientToUse, appointmentId, objecti
   const existingSOAPNotes = await base44.entities.SOAPNote.filter({ appointment_id: finalAppointmentId });
   const fields = Object.assign({}, clientToUse);
 
-  if (existingSOAPNotes.length === 0) {
+  // A published note is a finalised clinical record and the server refuses
+  // this append outright, so the result goes into a fresh draft instead.
+  const existingNote = selectAppendableNote(existingSOAPNotes);
+
+  if (!existingNote) {
     await base44.entities.SOAPNote.create({
       org_id: fields.org_id,
       client_id: fields.id,
@@ -88,7 +93,6 @@ export async function saveAssessmentToSOAP({ clientToUse, appointmentId, objecti
       status: 'draft'
     });
   } else {
-    const existingNote = existingSOAPNotes[0];
     let updatedObjective = existingNote.objective || '';
     if (updatedObjective && !updatedObjective.trim().endsWith('\n')) {
       updatedObjective += '\n\n';

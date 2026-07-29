@@ -55,6 +55,12 @@ import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
 import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 import { useAuth } from "@/lib/AuthContext";
 import { useAiCapability } from "@/hooks/useAiCapability";
+import { normalizeSdkError } from "@/lib/sdkError";
+import {
+  aiProvenanceEntry,
+  appendAiProvenance,
+  markAiAssistedText,
+} from "@/lib/clinical/aiProvenance";
 
 export default function SOAPNoteModal({
   appointment,
@@ -630,12 +636,27 @@ export default function SOAPNoteModal({
       const result = await base44.functions.invoke('transcribeSession', { action: 'dissect_to_soap', transcript: sessionTranscript });
       const payload = result?.data ?? result;
       if (payload?.success) {
+        // Each dissected field is labelled BEFORE it is concatenated into the
+        // clinician's own text, so the marker sits with the AI-drafted block
+        // rather than at the top of a mixed field. The plain-text half of the
+        // label survives export, print and a rollback; the ai_provenance array
+        // is the additive half.
+        const dateLabel = moment().format('DD/MM/YYYY');
+        const detail = 'Drafted automatically from the session transcript.';
+        const markField = (value) => markAiAssistedText(value, { dateLabel, detail });
+        const dissectedFields = ['subjective', 'objective', 'assessment', 'plan']
+          .filter((field) => Boolean(payload[field]));
         setSoapNote(prev => ({
           ...prev,
-          subjective: payload.subjective ? (prev.subjective ? prev.subjective + '\n\n' + payload.subjective : payload.subjective) : prev.subjective,
-          objective: payload.objective ? (prev.objective ? prev.objective + '\n\n' + payload.objective : payload.objective) : prev.objective,
-          assessment: payload.assessment ? (prev.assessment ? prev.assessment + '\n\n' + payload.assessment : payload.assessment) : prev.assessment,
-          plan: payload.plan ? (prev.plan ? prev.plan + '\n\n' + payload.plan : payload.plan) : prev.plan,
+          subjective: payload.subjective ? (prev.subjective ? prev.subjective + '\n\n' + markField(payload.subjective) : markField(payload.subjective)) : prev.subjective,
+          objective: payload.objective ? (prev.objective ? prev.objective + '\n\n' + markField(payload.objective) : markField(payload.objective)) : prev.objective,
+          assessment: payload.assessment ? (prev.assessment ? prev.assessment + '\n\n' + markField(payload.assessment) : markField(payload.assessment)) : prev.assessment,
+          plan: payload.plan ? (prev.plan ? prev.plan + '\n\n' + markField(payload.plan) : markField(payload.plan)) : prev.plan,
+          ai_provenance: appendAiProvenance(prev.ai_provenance, aiProvenanceEntry({
+            source: 'transcript-dissection',
+            fields: dissectedFields,
+            dateLabel,
+          })),
         }));
         setShowTranscriptPanel(false);
         if (payload.simulated) {
@@ -800,7 +821,11 @@ export default function SOAPNoteModal({
         status: newStatus,
         published_date: publishedDate,
         published_by: publishedBy,
-        history: [...(soapNote.history || []), ...(historyEntry ? [historyEntry] : [])]
+        history: [...(soapNote.history || []), ...(historyEntry ? [historyEntry] : [])],
+        // Additive metadata half of the AI label. The durable half already
+        // lives inside the free-text fields above, so a rollback that ignores
+        // this key still shows the clinician the content was AI-drafted.
+        ai_provenance: soapNote.ai_provenance || []
       };
 
       // Remove appointment_id entirely if undefined
@@ -838,7 +863,17 @@ export default function SOAPNoteModal({
       }
     } catch (error) {
       console.error(`Error saving note (${actionType}):`, error);
-      toast.error(`Failed to save note: ${error.message || 'Unknown error'}`);
+      // A published note may only change through a recorded amendment, so the
+      // server refuses a write whose history does not continue the stored one
+      // — which is what a concurrent amendment elsewhere looks like. Saying
+      // "Failed to save note: 409" would leave the clinician guessing whether
+      // their text was kept.
+      const status = normalizeSdkError(error, { stage: 'soap_note_save' }).status;
+      toast.error(
+        status === 409
+          ? 'This note was amended by someone else while you had it open. Nothing you typed has been saved. Close and reopen the note, then reapply your changes.'
+          : `Failed to save note: ${error.message || 'Unknown error'}`,
+      );
     } finally {
       setIsSaving(false);
     }
@@ -1484,7 +1519,19 @@ export default function SOAPNoteModal({
                                   }
                                 }
                               });
-                              handleInputChange("assessment", result.assessment);
+                              const dateLabel = moment().format('DD/MM/YYYY');
+                              setSoapNote(prev => ({
+                                ...prev,
+                                assessment: markAiAssistedText(result.assessment, {
+                                  dateLabel,
+                                  detail: 'Drafted from the note context.',
+                                }),
+                                ai_provenance: appendAiProvenance(prev.ai_provenance, aiProvenanceEntry({
+                                  source: 'soap-assessment-ai-help',
+                                  fields: ['assessment'],
+                                  dateLabel,
+                                })),
+                              }));
                               toast.success("AI assessment generated");
                             } catch (error) {
                               console.error("Failed to generate assessment:", error);
@@ -1587,7 +1634,19 @@ export default function SOAPNoteModal({
                                     }
                                   }
                                 });
-                                handleInputChange("plan", result.plan);
+                                const dateLabel = moment().format('DD/MM/YYYY');
+                                setSoapNote(prev => ({
+                                  ...prev,
+                                  plan: markAiAssistedText(result.plan, {
+                                    dateLabel,
+                                    detail: 'Drafted from the note context.',
+                                  }),
+                                  ai_provenance: appendAiProvenance(prev.ai_provenance, aiProvenanceEntry({
+                                    source: 'soap-plan-ai-help',
+                                    fields: ['plan'],
+                                    dateLabel,
+                                  })),
+                                }));
                                 toast.success("AI plan generated");
                               } catch (error) {
                                 console.error("Failed to generate plan:", error);
