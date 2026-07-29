@@ -33,9 +33,23 @@
 //     applies de-identification, model pick and the JSON-schema mechanism)
 //     with a clinical-scribe prompt.
 //
-// On any failure — key absent, self-test, bad/missing file, network or API
-// error — each action falls back to the deterministic mock below, whose text
-// states plainly that it is fallback placeholder output.
+// On any failure of the *transcribe* action — key absent, self-test,
+// bad/missing file, network or API error — it falls back to the
+// deterministic mockTranscript below, whose text states plainly that it is
+// fallback placeholder output.
+//
+// dissect_to_soap does NOT follow that same "always degrade silently" rule.
+// Production posture (LLM_REQUIRED=1) makes provider failure or a missing
+// key fail loud — a 502 (real call attempted and failed) or 503 (no
+// provider configured), exactly mirroring the semantics server/integrations
+// .mjs enforces for InvokeLLM (server/integrations.mjs:684-699) — because a
+// SOAP note is clinical documentation, not a demo narrative, and it must
+// never be silently fabricated in production. mockSoap is only ever served
+// when doing so is legitimate: self-test, no transcript supplied, or (as a
+// non-production convenience) when LLM_REQUIRED is unset and the real call
+// is unavailable/fails. Whenever it IS served, the payload always carries
+// simulated: true plus an inline textual notice, so no caller (and no
+// clinician, via SOAPNoteModal.jsx) can mistake it for a real dissection.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -152,11 +166,16 @@ function mockTranscript(audioUrl) {
 }
 
 function mockSoap(hasTranscript) {
+  const notice =
+    '[Simulated SOAP note — placeholder content, not generated from AI analysis of the transcript.] ';
   return {
     success: true,
-    subjective: hasTranscript
-      ? 'Client reports improved pain levels since last session, with residual morning stiffness.'
-      : 'Client reports as discussed during the session.',
+    simulated: true,
+    subjective:
+      notice +
+      (hasTranscript
+        ? 'Client reports improved pain levels since last session, with residual morning stiffness.'
+        : 'Client reports as discussed during the session.'),
     objective: 'Range of motion and exercise tolerance reassessed during today\'s session.',
     assessment: 'Client demonstrates continued progress consistent with the current treatment plan.',
     plan: 'Continue current exercise programme; reassess at next scheduled session.',
@@ -238,24 +257,39 @@ export default async function transcribeSession(ctx) {
   if (action === 'dissect_to_soap') {
     const { transcript } = body || {};
     const hasTranscript = typeof transcript === 'string' && transcript.trim().length > 0;
+    const selftest = process.env.SELFTEST === '1';
 
-    if (hasTranscript && llmEnabled() && process.env.SELFTEST !== '1') {
-      try {
-        // invokeLLM applies de-identification, model pick and the JSON-schema
-        // mechanism; it throws on any failure so this falls through to the mock.
-        const result = await invokeLLM({
-          prompt: buildSoapPrompt(transcript),
-          schema: SOAP_SCHEMA,
-        });
-        return respond(200, {
-          success: result?.success !== false,
-          subjective: typeof result?.subjective === 'string' ? result.subjective : '',
-          objective: typeof result?.objective === 'string' ? result.objective : '',
-          assessment: typeof result?.assessment === 'string' ? result.assessment : '',
-          plan: typeof result?.plan === 'string' ? result.plan : '',
-        });
-      } catch (err) {
-        console.log('[transcribeSession] real dissection failed, falling back to mock:', err.message);
+    if (hasTranscript && !selftest) {
+      if (llmEnabled()) {
+        try {
+          // invokeLLM applies de-identification, model pick and the JSON-schema
+          // mechanism; it throws on any failure so this falls through below.
+          const result = await invokeLLM({
+            prompt: buildSoapPrompt(transcript),
+            schema: SOAP_SCHEMA,
+          });
+          return respond(200, {
+            success: result?.success !== false,
+            simulated: false,
+            subjective: typeof result?.subjective === 'string' ? result.subjective : '',
+            objective: typeof result?.objective === 'string' ? result.objective : '',
+            assessment: typeof result?.assessment === 'string' ? result.assessment : '',
+            plan: typeof result?.plan === 'string' ? result.plan : '',
+          });
+        } catch (err) {
+          console.log('[transcribeSession] real dissection failed:', err.message);
+          if (process.env.LLM_REQUIRED === '1') {
+            // Production posture: a real call was attempted and failed —
+            // never silently degrade to fabricated clinical content.
+            return respond(502, { error: 'SOAP dissection is temporarily unavailable.' });
+          }
+          // Non-production convenience: fall through to the labelled mock below.
+        }
+      } else if (process.env.LLM_REQUIRED === '1') {
+        // Production posture: no provider configured at all — never
+        // silently serve a fabricated SOAP note when a real transcript
+        // was supplied and a real dissection was expected.
+        return respond(503, { error: 'SOAP dissection is not configured on this server.' });
       }
     }
 
