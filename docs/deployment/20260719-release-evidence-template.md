@@ -27,7 +27,8 @@ Do not include secret values, production records, referral contents, provider pa
 
 | Field | Evidence |
 |---|---|
-| Confirmed production base | `d593a7f2e83657125d5be4acb49642a38215d5bd` |
+| Confirmed production base | |
+| Production-base source workflow(s) and line(s) | |
 | Local verified SHA | |
 | Remote source branch | |
 | Remote branch-tip SHA | |
@@ -48,6 +49,8 @@ Do not include secret values, production records, referral contents, provider pa
 | `test:rollback-compatibility` result | `NOT RUN` |
 | Adult extraction disabled in compatibility config | `NOT VERIFIED` |
 | Under-age extraction disabled in compatibility config | `NOT VERIFIED` |
+| General clinical AI drafting enabled in candidate config (`GENERAL_CLINICAL_LLM_ENABLED`) | `NOT VERIFIED` |
+| General clinical AI drafting disabled in compatibility config | `NOT VERIFIED` |
 | Build-only workflow run ID/URL | |
 | Compatibility image tag | |
 | Immutable compatibility image digest | |

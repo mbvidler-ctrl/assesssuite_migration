@@ -58,9 +58,9 @@ jobs:
         shell: bash
         env:
           APPLICATION_SHA: ${{ inputs.application_sha }}
-          CANDIDATE_CONFIG_SHA256: 93a1bd117d69c3768a283f53322af234a3c9a20951b1d676056dec2c2129f3b7
+          CANDIDATE_CONFIG_SHA256: 0cee8bd01ef3d77a57744aca75990a231714cbf596372d20c06013ac45da3d37
           DOCKERFILE_SHA256: eb9cee4fcd56adf63b90d29a95cec13ed747cd00741f3f48ee1a059d94ce1f7f
-          PACKAGE_LOCK_SHA256: 083de8e13ee88be5180ea2a0ea0054992d85695552ef659996686e302d7c0f0b
+          PACKAGE_LOCK_SHA256: 4816c0a71c013937340a1b48a8d5208136b0d6de78073f0774c4a11d2ae3bedc
         run: |
           set -euo pipefail
           [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$APPLICATION_SHA" ]]
@@ -101,14 +101,28 @@ jobs:
 
       - name: Publish immutable image and update exact production machine
         shell: bash
+        # The four values below are a point-in-time Fly state snapshot, not
+        # static facts, and cannot be verified from source alone. Before ANY
+        # dispatch of this workflow, an operator with Fly production access
+        # must run, immediately beforehand:
+        #   fly releases --app assesssuite-production --image --json
+        #   fly machines list --app assesssuite-production --json
+        #   fly volumes list --app assesssuite-production --json
+        # record the current completed release number, its full image
+        # digest, the sole Machine ID and the sole attached Volume ID, and
+        # land them here via a fast, reviewed one-line PR immediately before
+        # dispatch. The REPLACE-BEFORE-DISPATCH sentinel below is
+        # deliberate: it hard-fails the release/topology jq checks in this
+        # step with an explicit, readable reason, instead of silently
+        # running against stale facts from an earlier release.
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           BUILD_TIMESTAMP: ${{ steps.build.outputs.build_timestamp }}
-          EXPECTED_CURRENT_RELEASE: v13
-          EXPECTED_CURRENT_IMAGE: registry.fly.io/assesssuite-production@sha256:e016c1ffbcf0da6e46a2815161d2b0a2fef34141e0f80068d2235f4032cd8e75
-          PRODUCTION_MACHINE_ID: 82d1160a774968
-          PRODUCTION_VOLUME_ID: vol_vxm5g29kzzwx09n4
+          EXPECTED_CURRENT_RELEASE: REPLACE-BEFORE-DISPATCH-RUN-STATE-SNAPSHOT
+          EXPECTED_CURRENT_IMAGE: REPLACE-BEFORE-DISPATCH-RUN-STATE-SNAPSHOT
+          PRODUCTION_MACHINE_ID: REPLACE-BEFORE-DISPATCH-RUN-STATE-SNAPSHOT
+          PRODUCTION_VOLUME_ID: REPLACE-BEFORE-DISPATCH-RUN-STATE-SNAPSHOT
         run: |
           set -euo pipefail
           set +x

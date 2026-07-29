@@ -557,8 +557,8 @@ function validateAuxWorkflow(input, kind) {
     requireCount('io.assesssuite.trusted-workflow', 2, 'rollback workflow label creation and verification');
     if (/\bfly deploy\b/.test(active)) fail('build-only rollback-image workflow contains a production deploy command');
     requireCount('docker push "$image_tag"', 1, 'single registry publication command');
-    requireText('PRODUCTION_BASE_SHA: 183c8e47a0025ad311f5f6c1ea063c2feb430817', 'exact production-base revision');
-    requireCount('PRODUCTION_BASE_SHA: 183c8e47a0025ad311f5f6c1ea063c2feb430817', 3, 'production-base revision uses');
+    requireText('PRODUCTION_BASE_SHA: 6a8ec8d70d87d7b17bcb89e03a9fea4e2871b6d5', 'exact production-base revision');
+    requireCount('PRODUCTION_BASE_SHA: 6a8ec8d70d87d7b17bcb89e03a9fea4e2871b6d5', 3, 'production-base revision uses');
     requireCount('node scripts/check-dependency-audit.mjs', 1, 'fail-closed dependency vulnerability audit');
     requireText('EXPECTED_RELEASE_SCANNER_SHA256: 1b34b794ab79f5ea022525f31bf70397c629ca0a16baf4320503c6cfdbd36c5c', 'trusted release-scanner digest');
     requireStepText('Build, typecheck differential, selftest, and rollback proof', 'node --test server/tests/production-startup.test.mjs', 'production-startup negative test');
