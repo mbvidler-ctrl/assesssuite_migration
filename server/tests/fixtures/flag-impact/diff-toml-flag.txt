@@ -1,0 +1,9 @@
+diff --git a/fly.production.toml b/fly.production.toml
+index 1111111..2222222 100644
+--- a/fly.production.toml
++++ b/fly.production.toml
+@@ -50,7 +50,7 @@
+   LLM_REQUIRED = "1"
+-  GENERAL_CLINICAL_LLM_ENABLED = "1"
++  GENERAL_CLINICAL_LLM_ENABLED = "0"
+   TRANSCRIPTION_ENABLED = "0"

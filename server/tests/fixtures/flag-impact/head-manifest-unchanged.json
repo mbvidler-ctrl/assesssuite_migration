@@ -1,0 +1,27 @@
+{
+  "_generated": "fixture",
+  "flagCount": 2,
+  "flags": [
+    {
+      "name": "DOCUMENT_EXTRACTION_ENABLED",
+      "values": { "production": "1", "rollback": "0", "parity": "1", "envExample": "" },
+      "serverGates": [
+        { "file": "server/documentExtraction.mjs", "route": "POST /integration-endpoints/Core/ExtractDataFromUploadedFile", "effectWhenOff": "503 extraction_disabled" }
+      ],
+      "clientSurfaces": [],
+      "totalCallSites": 0
+    },
+    {
+      "name": "GENERAL_CLINICAL_LLM_ENABLED",
+      "values": { "production": "1", "rollback": "0", "parity": "0", "envExample": "" },
+      "serverGates": [
+        { "file": "server/integrations.mjs", "route": "POST /integration-endpoints/Core/InvokeLLM", "effectWhenOff": "503 General AI generation is disabled on this server." }
+      ],
+      "clientSurfaces": [
+        { "path": "src/pages/TreatmentProtocols.jsx", "callSites": 1 },
+        { "path": "src/components/calendar/SOAPNoteModal.jsx", "callSites": 2 }
+      ],
+      "totalCallSites": 3
+    }
+  ]
+}

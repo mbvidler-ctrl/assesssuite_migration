@@ -41,6 +41,8 @@
 
 import { randomUUID } from 'node:crypto';
 
+import { capabilityEnabled } from './capabilityFlags.mjs';
+
 import {
   assertCanonicalReferralExtractionSchema,
   assertDocumentExtractionEnabled,
@@ -84,7 +86,7 @@ import {
 // to the deterministic mock — a real-model failure returns 502 and a missing
 // key returns 503, so mock clinical content is never served or persisted in
 // production. Unset in dev/demo and always under SELFTEST (mock-fallback kept).
-const LLM_REQUIRED = process.env.LLM_REQUIRED === '1';
+const LLM_REQUIRED = capabilityEnabled('LLM_REQUIRED');
 
 const diagnosticPolicy = (status, stage, message) => Object.freeze({ status, stage, message });
 
@@ -674,6 +676,10 @@ function sendJson(res, status, payload) {
 // ---------------------------------------------------------------------------
 
 async function handleInvokeLLM(body) {
+  // generalClinicalLlmSwitchedOn() is the published predicate; it resolves
+  // GENERAL_CLINICAL_LLM_ENABLED (and its self-test mock carve-out) through
+  // the capability-flag registry, so this gate and /public-settings cannot
+  // disagree and neither can drift from server/capabilityFlags.mjs.
   if (!generalClinicalLlmSwitchedOn()) {
     const error = new Error(CLINICAL_AI_DISABLED_MESSAGE);
     error.httpStatus = 503;

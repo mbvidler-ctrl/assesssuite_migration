@@ -54,6 +54,20 @@ work beyond security remediation without Maxwell's separate direction.
 - Stripe: `server/stripeGateway.mjs` is a real, env-gated adapter behind the
   existing mock contract — see `docs/stripe/20260708-stripe-activation-runbook.md`.
   No live Stripe keys are present in this repository.
+- Runtime capability switches: `server/capabilityFlags.mjs` is the source of
+  truth for every production feature flag (`ALLOW_OPEN_REGISTRATION`,
+  `DOCUMENT_EXTRACTION_ENABLED`, `GENERAL_CLINICAL_LLM_ENABLED`,
+  `TRANSCRIPTION_ENABLED`, the outbound-egress and payment gates, and more) —
+  see `docs/deployment/capability-manifest.md` for the operator-facing view.
+  Any new runtime capability switch must be registered there and nowhere else
+  read raw from `process.env`. `npm run flags:check` must pass before a
+  capability-flag change merges. A capability-reducing change (a switch
+  moving towards "off", a client surface or server gate disappearing, or a
+  raw edit to a flag's value in `fly.production.toml`,
+  `fly.rollback.production.toml`, `.env.example` or a workflow file) requires
+  a notice under `docs/deployment/notices/` naming the flag, with a real
+  `owner_acknowledgement` — see that directory's `README.md` and
+  `npm run check:flag-impact`.
 
 ## Current verified baseline (confirmed live, 11 July 2026)
 

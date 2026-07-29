@@ -1,0 +1,790 @@
+// Runtime capability flag registry — the single source of truth for every
+// production feature switch this server reads from the environment.
+//
+// This module is deliberately pure: zero imports, zero `node:` builtins, no
+// side effects beyond the frozen object literals below. It must be safely
+// importable from a throwaway copy of the tree (the diff gate in
+// scripts/check-flag-impact.mjs does exactly that), so nothing may run at
+// module scope beyond object construction.
+//
+// A flag entering this file is a runtime behaviour change, not a
+// documentation exercise: `server/**/*.mjs` must read every registered name
+// through capabilityEnabled()/capabilityConfigured()/selftestMockAllowed()
+// below, never as a raw `process.env.NAME`. `npm run flags:check`
+// (scripts/flag-manifest.mjs) enforces that chokepoint and cross-checks this
+// registry against fly.production.toml, fly.rollback.production.toml,
+// .env.example, server/productionBootstrap.mjs and
+// scripts/check-production-secrets.mjs. See docs/deployment/notices/README.md
+// for when a capability-reducing change requires a notice under
+// docs/deployment/notices/.
+//
+// Posture taxonomy (why a single `env[name] === '1'` helper is not enough):
+//   - 'strict'      — the switch means exactly what it says; no self-test or
+//                      parity-assurance carve-out.
+//   - 'implied-on'  — `env[name] === '1' || SELFTEST === '1'`; the harness
+//                      default (SELFTEST=1) always sees this as on.
+//   - 'forced-off'  — `SELFTEST === '1' || PARITY_ASSURANCE_MODE === '1'`
+//                      forces the gate off regardless of the raw value; used
+//                      for the outbound-egress switches so offline suites and
+//                      the hidden same-app parity harness can never reach a
+//                      real provider.
+// These three postures are restatements of the pre-refactor call sites, not
+// a new design — see the equivalence net in
+// server/tests/capability-flag-registry.test.mjs (R05), which asserts
+// capabilityEnabled() equals a literal copy of each pre-refactor expression
+// over a full cartesian environment sweep.
+//
+// Layering with server/capabilities.mjs: this file is the LOW-LEVEL
+// registry — flag names, postures, values and blast-radius metadata, with no
+// imports and no product vocabulary. server/capabilities.mjs sits above it
+// and owns the product-facing contract published at /public-settings
+// (`general_clinical_llm`, `transcription`, `document_extraction`, the
+// tri-state posture and the machine-readable refusal codes); every predicate
+// it exposes resolves through capabilityEnabled()/selftestMockAllowed()
+// here, so the two never hold parallel flag lists. The dependency only ever
+// points that way — this module must stay import-free (the registry_impure
+// finding in scripts/flag-manifest.mjs enforces it).
+//
+// `capabilityConfigured(name)` is the raw, un-postured `env[name] === '1'`
+// reading. It exists for exactly one caller today
+// (server/index.mjs's public-settings handler for TRANSCRIPTION_ENABLED):
+// the value reported to the browser must be the strict configured value, not
+// the implied-on effective value, or SELFTEST=1 would make the UI believe
+// transcription is live in every dev and test run.
+//
+// Descriptor field notes not obvious from their names:
+//   - kind: 'capability' — an affirmative feature switch; env[name] !== '1'
+//     is understood to reduce what the product can do.
+//     'posture' — governs *how* a capability behaves (fail-open vs
+//     fail-closed, open vs closed registration, retention behaviour) rather
+//     than switching a feature on or off; flipping it is a policy change, not
+//     a capability regression, so the diff gate does not treat it as
+//     automatically capability-reducing.
+//   - capabilityReducing / reducesAvailabilityWhen: for 'capability' flags,
+//     capabilityReducing is true and reducesAvailabilityWhen is the raw
+//     value ('0') that the diff gate treats as "this triggering flag moved
+//     to a reduced posture". For 'posture' flags both are false/null — a
+//     posture flip is recorded (a notice is still good practice) but is not
+//     mechanically forced into the "reduces" bucket the way a capability
+//     flag's 1 -> 0 move is.
+//   - noticeRequired mirrors capabilityReducing today; it is a separate
+//     field (rather than the gate reusing capabilityReducing directly) so a
+//     future flag can require a notice on ANY value change without being
+//     folded into the reduces/restores classifier.
+//   - values.*: null means "this environment variable is asserted absent",
+//     not "unknown" — see scripts/flag-manifest.mjs's config_value_drift and
+//     env_example_drift findings.
+//   - opaqueOverrideForbidden mirrors scripts/check-production-secrets.mjs's
+//     FORBIDDEN_OPAQUE_OVERRIDES exactly (that script is read, never
+//     imported or edited, by the override_guard_gap finding). Changing which
+//     names are opaque-override-forbidden is a separately reviewed edit to
+//     that script and is out of scope for this registry.
+
+const FLAGS = [
+  {
+    name: 'ALLOW_OPEN_REGISTRATION',
+    kind: 'capability',
+    selftest: 'implied-on',
+    selftestMock: null,
+    forcedOffUnder: null,
+    noticeRequired: true,
+    capabilityReducing: true,
+    reducesAvailabilityWhen: '0',
+    owner: 'Maxwell Vidler',
+    ownerName: 'Self-service sign-up',
+    ownerSummary:
+      'Controls whether a new practitioner can create their own account without an existing admin inviting them.',
+    whenOff:
+      'The public sign-up, email-verification and resend-code pages return a plain "self-registration is disabled" error; existing accounts are unaffected.',
+    values: {
+      production: '1',
+      rollback: '1',
+      parity: null,
+      envExample: null,
+    },
+    serverGates: [
+      {
+        file: 'server/index.mjs',
+        symbol: 'ALLOW_OPEN_REGISTRATION',
+        route: 'POST /api/apps/:appId/auth/register',
+        effectWhenOff: '403 "self-registration is disabled for this deployment"',
+      },
+      {
+        file: 'server/index.mjs',
+        symbol: 'ALLOW_OPEN_REGISTRATION',
+        route: 'POST /api/apps/:appId/auth/verify-otp',
+        effectWhenOff: '403 "account verification is disabled for this deployment"',
+      },
+      {
+        file: 'server/index.mjs',
+        symbol: 'ALLOW_OPEN_REGISTRATION',
+        route: 'POST /api/apps/:appId/auth/resend-otp',
+        effectWhenOff: '403 "account verification is disabled for this deployment"',
+      },
+    ],
+    reportedVia: null,
+    clientDetector: null,
+    detectorNote:
+      'Registration is a full-page auth flow rather than an InvokeLLM/ExtractDataFromUploadedFile call site; ' +
+      'a marker-based client detector would find nothing meaningful to count. The server-gate table above is the ' +
+      'complete blast-radius record for this flag.',
+    clientSurfaces: [],
+    opaqueOverrideForbidden: false,
+    overrideNote:
+      'Not currently in FORBIDDEN_OPAQUE_OVERRIDES (scripts/check-production-secrets.mjs:35-45). Its absence is ' +
+      'the current, reviewed posture; adding it is a deliberate, separately-reviewed registry and script edit ' +
+      'outside this item.',
+    caveats: [],
+    documentedIn: ['fly.production.toml'],
+  },
+  {
+    name: 'DOCUMENT_EXTRACTION_ENABLED',
+    kind: 'capability',
+    selftest: 'strict',
+    selftestMock: null,
+    forcedOffUnder: null,
+    noticeRequired: true,
+    capabilityReducing: true,
+    reducesAvailabilityWhen: '0',
+    owner: 'Maxwell Vidler',
+    ownerName: 'Referral document extraction',
+    ownerSummary:
+      'Controls whether an uploaded referral document is automatically read by the extraction provider to pre-fill the intake form.',
+    whenOff:
+      'Referral upload continues to accept and store the file, but automated field extraction refuses with ' +
+      '"Document extraction is currently unavailable." — practitioners must key the referral details in by hand.',
+    values: {
+      production: '1',
+      rollback: '0',
+      parity: '1',
+      envExample: '',
+    },
+    serverGates: [
+      {
+        file: 'server/index.mjs',
+        symbol: 'parseCompatibilityVersions',
+        route: '(boot-time invariant, not a per-request route)',
+        effectWhenOff:
+          'No boot-time throw; the rollback-only LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS allowlist may be set ' +
+          'safely. When this flag is "1", setting that allowlist throws at start-up instead.',
+      },
+      {
+        file: 'server/documentExtraction.mjs',
+        symbol: 'assertDocumentExtractionEnabled',
+        route: 'POST /integration-endpoints/Core/ExtractDataFromUploadedFile',
+        effectWhenOff: '503 extraction_disabled "Document extraction is currently unavailable."',
+      },
+      {
+        file: 'server/capabilities.mjs',
+        symbol: 'documentExtractionAvailable',
+        route: 'GET /api/apps/public/prod/public-settings/by-id/:appId (publication of the enforced posture)',
+        effectWhenOff: 'public_settings.capabilities.document_extraction is published as { available: false, reason: "switched_off" }.',
+      },
+    ],
+    reportedVia: 'GET /api/apps/public/prod/public-settings/by-id/:appId → public_settings.capabilities.document_extraction',
+    clientDetector: null,
+    detectorNote:
+      'ExtractDataFromUploadedFile( occurs in exactly one src/ file (src/lib/fileIntegrations.js, the SDK ' +
+      'wrapper), so a marker-based detector would yield no useful surface set. The upload UI always offers the ' +
+      'file picker; only the automated extraction step is gated server-side, so there is no client conditional ' +
+      'to detect.',
+    clientSurfaces: [],
+    opaqueOverrideForbidden: true,
+    overrideNote:
+      'Present in FORBIDDEN_OPAQUE_OVERRIDES (scripts/check-production-secrets.mjs:35-45); a bare Fly secret set ' +
+      'cannot change this value outside a reviewed release.',
+    caveats: [],
+    documentedIn: ['.env.example', 'fly.production.toml', 'fly.rollback.production.toml'],
+  },
+  {
+    name: 'DOCUMENT_EXTRACTION_UNDER_13_ENABLED',
+    kind: 'capability',
+    selftest: 'strict',
+    selftestMock: null,
+    forcedOffUnder: null,
+    noticeRequired: true,
+    capabilityReducing: true,
+    reducesAvailabilityWhen: '0',
+    owner: 'Maxwell Vidler',
+    ownerName: 'Under-13 document extraction',
+    ownerSummary:
+      'Additional fail-closed gate for referral documents whose subject is under 13 or whose age is unknown; ' +
+      'must stay off until independently verified zero-data-retention evidence is recorded for the exact ' +
+      'production provider project.',
+    whenOff:
+      'Extraction of an under-13 (or age-unknown) referral document is refused with a privacy-review message; ' +
+      'the practitioner keys the referral details in by hand instead.',
+    values: {
+      production: '0',
+      rollback: '0',
+      parity: '0',
+      envExample: '',
+    },
+    serverGates: [
+      {
+        file: 'server/documentExtraction.mjs',
+        symbol: 'providerConfiguration',
+        route: 'POST /integration-endpoints/Core/ExtractDataFromUploadedFile (subject under 13 or age unknown)',
+        effectWhenOff: '409 under_13_review_required "This referral requires a privacy review before automated extraction can be used."',
+      },
+    ],
+    reportedVia: null,
+    clientDetector: null,
+    detectorNote:
+      'Same reasoning as DOCUMENT_EXTRACTION_ENABLED: no InvokeLLM/ExtractDataFromUploadedFile-shaped client ' +
+      'surface exists to detect; the gate is entirely server-side.',
+    clientSurfaces: [],
+    opaqueOverrideForbidden: true,
+    overrideNote:
+      'Present in FORBIDDEN_OPAQUE_OVERRIDES (scripts/check-production-secrets.mjs:35-45); a bare Fly secret set ' +
+      'cannot change this value outside a reviewed release.',
+    caveats: [],
+    documentedIn: ['.env.example', 'fly.production.toml', 'fly.rollback.production.toml'],
+  },
+  {
+    name: 'GENERAL_CLINICAL_LLM_ENABLED',
+    kind: 'capability',
+    selftest: 'strict',
+    selftestMock: 'when-unset',
+    forcedOffUnder: null,
+    noticeRequired: true,
+    capabilityReducing: true,
+    reducesAvailabilityWhen: '0',
+    owner: 'Maxwell Vidler',
+    ownerName: 'Legacy general clinical AI drafting',
+    ownerSummary:
+      'The single switch behind every non-referral AI-assisted drafting action across the product: SOAP note ' +
+      'assist, treatment protocols, nutrition advice, medication alerts, assessment recommendations, assessment ' +
+      'audit, and the whole report suite (GP summary, DVA, private health, Form 32, custom reports).',
+    whenOff:
+      'None of those AI-assisted actions can run; the exact user-visible effect (a disabled and labelled control, ' +
+      'a labelled non-AI fallback, or — on the report surfaces not yet migrated to the capability hook — a plain ' +
+      'error message) differs by surface, see the client-surfaces table.',
+    values: {
+      production: '1',
+      rollback: '0',
+      parity: '0',
+      envExample: '',
+    },
+    serverGates: [
+      {
+        file: 'server/integrations.mjs',
+        symbol: 'handleInvokeLLM',
+        route: 'POST /integration-endpoints/Core/InvokeLLM',
+        effectWhenOff: '503 ai_capability_disabled "General AI generation is disabled on this server."',
+      },
+      {
+        file: 'server/capabilities.mjs',
+        symbol: 'generalClinicalLlmSwitchedOn / generalClinicalLlmPosture',
+        route: 'GET /api/apps/public/prod/public-settings/by-id/:appId (publication of the enforced posture)',
+        effectWhenOff: 'public_settings.capabilities.general_clinical_llm is published as { available: false, reason: "switched_off" }, which is what lets each client surface disable and label its control instead of failing when pressed.',
+      },
+    ],
+    reportedVia: 'GET /api/apps/public/prod/public-settings/by-id/:appId → public_settings.capabilities.general_clinical_llm (tri-state: available, switched_off, unconfigured)',
+    clientDetector: {
+      marker: 'InvokeLLM',
+      roots: ['src'],
+      extensions: ['.js', '.jsx'],
+      exclude: [
+        { path: 'src/api/integrations.js', reason: 'SDK re-export surface, not a calling surface.' },
+        { path: 'src/integrations/Core.js', reason: 'SDK re-export surface, not a calling surface.' },
+      ],
+    },
+    detectorNote: null,
+    clientSurfaces: [
+      {
+        path: 'src/components/reports/DVAPatientCarePlan.jsx',
+        label: 'DVA patient care plan report',
+        callSites: 4,
+        failureMode: 'hard-error',
+        userVisibleWhenOff: 'Generating any section of the DVA care plan report fails with an error message where the drafted text should appear.',
+      },
+      {
+        path: 'src/components/reports/GPSummary.jsx',
+        label: 'GP summary report',
+        callSites: 4,
+        failureMode: 'hard-error',
+        userVisibleWhenOff: 'Generating any section of the GP summary report fails with an error message where the drafted text should appear.',
+      },
+      {
+        path: 'src/components/reports/PrivateHealthProgressReport.jsx',
+        label: 'Private health progress report',
+        callSites: 4,
+        failureMode: 'hard-error',
+        userVisibleWhenOff: 'Generating any section of the private health progress report fails with an error message where the drafted text should appear.',
+      },
+      {
+        path: 'src/components/reports/PrivateHealthInitialAssessment.jsx',
+        label: 'Private health initial assessment report',
+        callSites: 3,
+        failureMode: 'hard-error',
+        userVisibleWhenOff: 'Generating any section of the private health initial assessment report fails with an error message where the drafted text should appear.',
+      },
+      {
+        path: 'src/components/reports/wizard-steps/SectionEditor.jsx',
+        label: 'Report wizard — Generate / Regenerate / Tidy per section',
+        callSites: 3,
+        failureMode: 'disabled-with-notice',
+        userVisibleWhenOff: 'Generate, Regenerate and Tidy stay visible on every report wizard section but are disabled and labelled as unavailable, rather than failing when pressed.',
+      },
+      {
+        path: 'src/components/calendar/SOAPNoteModal.jsx',
+        label: 'SOAP note Assessment/Plan drafting assist',
+        callSites: 2,
+        failureMode: 'disabled-with-notice',
+        userVisibleWhenOff: 'The AI drafting assist inside a SOAP note is disabled and labelled as unavailable; the clinician writes the note unaided and sees no error.',
+      },
+      {
+        path: 'src/components/reports/CustomReportGenerator.jsx',
+        label: 'Custom report generator',
+        callSites: 2,
+        failureMode: 'hard-error',
+        userVisibleWhenOff: 'Generating a custom report section fails with an error message where the drafted text should appear.',
+      },
+      {
+        path: 'src/components/reports/PDFFormFiller.jsx',
+        label: 'PDF form filler (legacy, unrouted)',
+        callSites: 2,
+        failureMode: 'feature-hidden',
+        userVisibleWhenOff: 'No user-visible effect: this tree is orphaned/unreachable legacy code, flagged in the 21 July 2026 change for a human removal decision that has not yet been made.',
+      },
+      {
+        path: 'src/pages/AssessmentAudit.jsx',
+        label: 'Assessment audit AI text fields',
+        callSites: 2,
+        failureMode: 'disabled-with-notice',
+        userVisibleWhenOff: 'The controls that draft the AI-authored contraindications, scoring and instructions text are disabled and labelled as unavailable.',
+      },
+      {
+        path: 'src/components/client/AssessmentRecommendations.jsx',
+        label: 'Assessment recommendations',
+        callSites: 1,
+        failureMode: 'labelled-fallback',
+        userVisibleWhenOff: 'The panel falls back to catalogue keyword matching, but it is badged "Rule-based" and carries an explanation, so the substitution is stated rather than silent.',
+      },
+      {
+        path: 'src/components/client/MedicationAlerts.jsx',
+        label: 'Medication safety alerts',
+        callSites: 1,
+        failureMode: 'disabled-with-notice',
+        userVisibleWhenOff: 'The card no longer attempts the AI considerations and says AI writing assistance is unavailable; the authoritative openFDA and RxNorm label data still renders.',
+      },
+      {
+        path: 'src/components/client/NutritionPlanCreator.jsx',
+        label: 'Nutrition plan advice',
+        callSites: 1,
+        failureMode: 'disabled-with-notice',
+        userVisibleWhenOff: 'The control that drafts nutrition plan advice is disabled and labelled as unavailable; none of the three advice fields populate and no error is shown.',
+      },
+      {
+        path: 'src/components/reports/Form32Generator.jsx',
+        label: 'Form 32 report generator',
+        callSites: 1,
+        failureMode: 'hard-error',
+        userVisibleWhenOff: 'Generating the Form 32 report fails with an error message where the drafted text should appear.',
+      },
+      {
+        path: 'src/pages/ClientConditions.jsx',
+        label: 'Condition-based assessment suggestions',
+        callSites: 1,
+        failureMode: 'disabled-with-notice',
+        userVisibleWhenOff: 'Condition-based assessment suggestions are disabled and labelled as unavailable; a failed attempt reports its error state instead of rendering an empty panel.',
+      },
+      {
+        path: 'src/pages/TreatmentProtocols.jsx',
+        label: 'Treatment protocol generation (custom condition path)',
+        callSites: 1,
+        failureMode: 'disabled-with-notice',
+        userVisibleWhenOff: 'Generating a custom (non-catalogue) treatment protocol is disabled and labelled as unavailable; the reviewed catalogue lookup is unaffected and remains available.',
+      },
+    ],
+    opaqueOverrideForbidden: true,
+    overrideNote:
+      'Present in FORBIDDEN_OPAQUE_OVERRIDES (scripts/check-production-secrets.mjs:35-45); a bare Fly secret set ' +
+      'cannot change this value outside a reviewed release.',
+    caveats: [
+      'The self-test mock carve-out compares against `undefined`. Exporting the variable as an empty string ' +
+        'defeats it; this is current, deliberate behaviour, recorded rather than changed.',
+    ],
+    documentedIn: ['.env.example', 'fly.production.toml', 'fly.rollback.production.toml'],
+  },
+  {
+    name: 'LLM_REQUIRED',
+    kind: 'posture',
+    selftest: 'strict',
+    selftestMock: null,
+    forcedOffUnder: null,
+    noticeRequired: false,
+    capabilityReducing: false,
+    reducesAvailabilityWhen: null,
+    owner: 'Maxwell Vidler',
+    ownerName: 'Fail-loud AI provider posture',
+    ownerSummary:
+      'When on, InvokeLLM never silently substitutes mock clinical content: a real-model failure returns a ' +
+      'loud 502 and a missing provider key returns 503, instead of quietly serving placeholder text.',
+    whenOff:
+      'A missing or failing AI provider falls back to the deterministic mock instead of failing loudly. This is ' +
+      'a safety posture, not a feature switch: it does not change whether AI drafting is offered, only what ' +
+      'happens when the real provider is unavailable.',
+    values: {
+      production: '1',
+      rollback: '1',
+      parity: null,
+      envExample: null,
+    },
+    serverGates: [
+      {
+        file: 'server/integrations.mjs',
+        symbol: 'LLM_REQUIRED',
+        route: 'POST /integration-endpoints/Core/InvokeLLM (and every internal caller of invokeLLM)',
+        effectWhenOff: 'A missing key or a provider failure returns the deterministic placeholder mock content instead of a 502/503.',
+      },
+      {
+        file: 'server/functions/transcribeSession.mjs',
+        symbol: 'transcribeSession (dissect_to_soap action)',
+        route: 'POST /functions/transcribeSession (action: dissect_to_soap)',
+        effectWhenOff: 'A missing key or a failed dissection falls through to the mock SOAP note (always carrying simulated: true) instead of returning 503/502.',
+      },
+      {
+        file: 'server/capabilities.mjs',
+        symbol: 'generalClinicalLlmPosture',
+        route: 'GET /api/apps/public/prod/public-settings/by-id/:appId (publication of the enforced posture)',
+        effectWhenOff: 'A switched-on capability with no provider configured is published as available rather than { available: false, reason: "unconfigured" }, matching the mock-fallback the endpoint would actually serve.',
+      },
+    ],
+    reportedVia: null,
+    clientDetector: null,
+    detectorNote:
+      'LLM_REQUIRED governs server-side failure behaviour only; it does not gate any client call site, so a ' +
+      'marker-based detector has nothing to find.',
+    clientSurfaces: [],
+    opaqueOverrideForbidden: false,
+    overrideNote:
+      'Not currently in FORBIDDEN_OPAQUE_OVERRIDES (scripts/check-production-secrets.mjs:35-45). Its absence is ' +
+      'the current, reviewed posture; adding it is a deliberate, separately-reviewed registry and script edit ' +
+      'outside this item.',
+    caveats: [],
+    documentedIn: ['fly.production.toml'],
+  },
+  {
+    name: 'OUTBOUND_EMAIL_ENABLED',
+    kind: 'capability',
+    selftest: 'forced-off',
+    selftestMock: null,
+    forcedOffUnder: ['SELFTEST', 'PARITY_ASSURANCE_MODE'],
+    noticeRequired: true,
+    capabilityReducing: true,
+    reducesAvailabilityWhen: '0',
+    owner: 'Maxwell Vidler',
+    ownerName: 'Real transactional email delivery',
+    ownerSummary:
+      'Controls whether transactional email (OTP codes, password resets, admin notifications) is actually sent ' +
+      'via Resend, as opposed to being recorded to the outbox only.',
+    whenOff:
+      'Email is still written to the SQLite outbox (nothing is lost), but no real message is sent — recipients ' +
+      'receive nothing, so a real inbox never sees the OTP code or notification.',
+    values: {
+      production: '1',
+      rollback: '1',
+      parity: '0',
+      envExample: '',
+    },
+    serverGates: [
+      {
+        file: 'server/email.mjs',
+        symbol: 'emailEnabled',
+        route: '(internal — every sendEmail() call site, including OTP and admin notifications)',
+        effectWhenOff: 'sendEmail() records to the outbox and returns { recorded: true, sent: false } without a network call.',
+      },
+      {
+        file: 'server/index.mjs',
+        symbol: 'transactionalEmailDeliveryRequired',
+        route: '(internal — startup/health posture only)',
+        effectWhenOff: 'Reports that transactional email delivery is not required/live for this run.',
+      },
+    ],
+    reportedVia: null,
+    clientDetector: null,
+    detectorNote:
+      'Email delivery is a server-side egress switch with no client-side conditional to detect; the outbox path ' +
+      'is identical from the browser’s point of view either way.',
+    clientSurfaces: [],
+    opaqueOverrideForbidden: false,
+    overrideNote:
+      'Not currently in FORBIDDEN_OPAQUE_OVERRIDES (scripts/check-production-secrets.mjs:35-45). Its absence is ' +
+      'the current, reviewed posture; adding it is a deliberate, separately-reviewed registry and script edit ' +
+      'outside this item.',
+    caveats: [],
+    documentedIn: ['.env.example', 'fly.production.toml', 'fly.rollback.production.toml'],
+  },
+  {
+    name: 'OUTBOUND_SMS_ENABLED',
+    kind: 'capability',
+    selftest: 'forced-off',
+    selftestMock: null,
+    forcedOffUnder: ['SELFTEST', 'PARITY_ASSURANCE_MODE'],
+    noticeRequired: true,
+    capabilityReducing: true,
+    reducesAvailabilityWhen: '0',
+    owner: 'Maxwell Vidler',
+    ownerName: 'Real SMS delivery',
+    ownerSummary:
+      'Explicit future capability gate for a real SMS adapter. No real SMS transport exists yet — the SendSMS ' +
+      'implementation remains outbox-only regardless of this value, so this switch documents the no-egress ' +
+      'posture rather than currently changing behaviour.',
+    whenOff:
+      'No change: SMS is outbox-only in every posture until a separately reviewed adapter and provider ' +
+      'credential are implemented.',
+    values: {
+      production: '0',
+      rollback: '0',
+      parity: '0',
+      envExample: '0',
+    },
+    serverGates: [
+      {
+        file: 'server/email.mjs',
+        symbol: 'smsEnabled',
+        route: '(internal — reserved for a future real-SMS adapter; SendSMS is outbox-only today regardless)',
+        effectWhenOff: 'No behaviour change today; the outbox-only SendSMS implementation does not branch on this value.',
+      },
+    ],
+    reportedVia: null,
+    clientDetector: null,
+    detectorNote:
+      'No real SMS adapter exists yet, so there is no client-side conditional this flag could gate.',
+    clientSurfaces: [],
+    opaqueOverrideForbidden: false,
+    overrideNote:
+      'Not currently in FORBIDDEN_OPAQUE_OVERRIDES (scripts/check-production-secrets.mjs:35-45). Its absence is ' +
+      'the current, reviewed posture; adding it is a deliberate, separately-reviewed registry and script edit ' +
+      'outside this item.',
+    caveats: [],
+    documentedIn: ['.env.example', 'fly.production.toml', 'fly.rollback.production.toml'],
+  },
+  {
+    name: 'PAYMENTS_ENABLED',
+    kind: 'capability',
+    selftest: 'forced-off',
+    selftestMock: null,
+    forcedOffUnder: ['SELFTEST', 'PARITY_ASSURANCE_MODE'],
+    noticeRequired: true,
+    capabilityReducing: true,
+    reducesAvailabilityWhen: '0',
+    owner: 'Maxwell Vidler',
+    ownerName: 'Real Stripe billing',
+    ownerSummary:
+      'Controls whether the four billing functions (checkout, portal, webhook, subscription sync) call the ' +
+      'real Stripe API, as opposed to the deterministic mock.',
+    whenOff:
+      'Checkout, the billing portal, webhook handling and subscription sync all run against the deterministic ' +
+      'mock instead of real Stripe; no real card charge or subscription can occur.',
+    values: {
+      production: '1',
+      rollback: '1',
+      parity: '0',
+      envExample: '',
+    },
+    serverGates: [
+      {
+        file: 'server/stripeGateway.mjs',
+        symbol: 'paymentsGateEnabled',
+        route: 'the four billing functions (createCheckoutSession, createPortalSession, stripeWebhook, syncStripeSubscription)',
+        effectWhenOff: 'Every gated Stripe function uses server/mocks/stripe.mjs instead of a real network call.',
+      },
+    ],
+    reportedVia: null,
+    clientDetector: null,
+    detectorNote:
+      'Payment mode selection is a server-side switch with no client-side conditional to detect; the billing UI ' +
+      'is identical either way.',
+    clientSurfaces: [],
+    opaqueOverrideForbidden: false,
+    overrideNote:
+      'Not currently in FORBIDDEN_OPAQUE_OVERRIDES (scripts/check-production-secrets.mjs:35-45). Its absence is ' +
+      'the current, reviewed posture; adding it is a deliberate, separately-reviewed registry and script edit ' +
+      'outside this item.',
+    caveats: [],
+    documentedIn: ['.env.example', 'fly.production.toml', 'fly.rollback.production.toml'],
+  },
+  {
+    name: 'TRANSCRIPTION_ENABLED',
+    kind: 'capability',
+    selftest: 'implied-on',
+    selftestMock: null,
+    forcedOffUnder: null,
+    noticeRequired: true,
+    capabilityReducing: true,
+    reducesAvailabilityWhen: '0',
+    owner: 'Maxwell Vidler',
+    ownerName: 'SOAP note transcription and dissection',
+    ownerSummary:
+      'Controls whether a clinician can turn a recorded consult into a draft SOAP note via Whisper transcription ' +
+      'and AI dissection. Audio recording itself always stays available; only the Transcribe/Dissect step is ' +
+      'gated.',
+    whenOff:
+      'The Transcribe/Dissect controls hide in the SOAP note UI, and the server refuses the underlying call with ' +
+      'a plain "Transcription is not enabled on this deployment." error if it is somehow reached.',
+    values: {
+      production: '0',
+      rollback: '0',
+      parity: '0',
+      envExample: '',
+    },
+    serverGates: [
+      {
+        file: 'server/functions/transcribeSession.mjs',
+        symbol: 'transcribeSession (module default export)',
+        route: 'POST /functions/transcribeSession',
+        effectWhenOff: '403 "Transcription is not enabled on this deployment."',
+      },
+      {
+        file: 'server/capabilities.mjs',
+        symbol: 'transcriptionAvailable',
+        route: 'GET /api/apps/public/prod/public-settings/by-id/:appId (publication of the enforced posture)',
+        effectWhenOff: 'public_settings.capabilities.transcription is published as { available: false, reason: "switched_off" }, and the legacy public_settings.transcription_enabled boolean reports false.',
+      },
+    ],
+    reportedVia: 'GET /api/apps/public/prod/public-settings/by-id/:appId → public_settings.capabilities.transcription (implied-on, mirrors the server gate) and the legacy public_settings.transcription_enabled boolean (strict/configured)',
+    clientDetector: null,
+    detectorNote:
+      'Transcription is driven through server/functions/transcribeSession.mjs and the public-settings-reported ' +
+      'boolean, not an InvokeLLM-shaped call site; the InvokeLLM marker detector does not apply here, and no ' +
+      'other reliable marker exists to walk src/ for this surface.',
+    clientSurfaces: [
+      {
+        path: 'src/components/calendar/SOAPNoteModal.jsx',
+        label: 'Transcribe / Dissect-to-SOAP controls',
+        callSites: 1,
+        failureMode: 'feature-hidden',
+        userVisibleWhenOff: 'The Transcribe and Dissect-to-SOAP controls are hidden entirely; recording remains available.',
+      },
+    ],
+    opaqueOverrideForbidden: true,
+    overrideNote:
+      'Present in FORBIDDEN_OPAQUE_OVERRIDES (scripts/check-production-secrets.mjs:35-45); a bare Fly secret set ' +
+      'cannot change this value outside a reviewed release.',
+    caveats: [
+      '`dissect_to_soap` used to return an unlabelled mock SOAP note with `success: true` on provider failure ' +
+        'even when `LLM_REQUIRED=1` (Phase A finding A3). That path now fails closed — 502 on a failed real ' +
+        'dissection, 503 when no provider is configured — and any mock it is still allowed to serve carries ' +
+        '`simulated: true`. This switch never governed that behaviour; `LLM_REQUIRED` does.',
+      'The legacy `public_settings.transcription_enabled` boolean reports the strict/configured value, while the ' +
+        'server gate and the `public_settings.capabilities.transcription` entry are implied-on (they honour ' +
+        'SELFTEST=1). The divergence is deliberate: the legacy alias keeps its pre-existing meaning for bundles ' +
+        'built before the capabilities block existed.',
+    ],
+    documentedIn: ['.env.example', 'fly.production.toml', 'fly.rollback.production.toml'],
+  },
+  {
+    name: 'UPLOAD_AUDIT_LEGAL_HOLD',
+    kind: 'posture',
+    selftest: 'strict',
+    selftestMock: null,
+    forcedOffUnder: null,
+    noticeRequired: false,
+    capabilityReducing: false,
+    reducesAvailabilityWhen: null,
+    owner: 'Maxwell Vidler',
+    ownerName: 'Upload audit legal hold',
+    ownerSummary:
+      'When on, suspends the routine deletion of upload-audit metadata records that scheduled retention cleanup ' +
+      'would otherwise remove.',
+    whenOff:
+      'No change from the normal posture: upload-audit metadata is subject to the ordinary retention-driven ' +
+      'cleanup schedule.',
+    values: {
+      production: null,
+      rollback: null,
+      parity: null,
+      envExample: '',
+    },
+    serverGates: [
+      {
+        file: 'server/uploadRegistry.mjs',
+        symbol: 'legal hold ternary/early-return (lines 792, 1981, 2093, 2103)',
+        route: '(internal — scheduled upload-audit retention cleanup)',
+        effectWhenOff: 'Retention cleanup proceeds normally; audit rows are not exempted from deletion.',
+      },
+    ],
+    reportedVia: null,
+    clientDetector: null,
+    detectorNote:
+      'This posture governs a scheduled server-side cleanup job with no client-side conditional to detect.',
+    clientSurfaces: [],
+    opaqueOverrideForbidden: false,
+    overrideNote:
+      'scripts/validate-production-deploy-workflow.mjs:283,1087,1315,1429 actively assert that this name never ' +
+      'enters the trusted workflow secret allowlist, with negative mutations pinning that refusal at ' +
+      ':926,:1185,:1473. That validator behaviour is deliberate and is not to be "fixed" by adding this name to ' +
+      'FORBIDDEN_OPAQUE_OVERRIDES or the workflow allowlist.',
+    caveats: [],
+    documentedIn: ['.env.example'],
+  },
+];
+
+const CAPABILITY_FLAGS = Object.freeze(
+  [...FLAGS]
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((flag) => Object.freeze({
+      ...flag,
+      forcedOffUnder: flag.forcedOffUnder ? Object.freeze([...flag.forcedOffUnder]) : null,
+      values: Object.freeze({ ...flag.values }),
+      serverGates: Object.freeze(flag.serverGates.map((gate) => Object.freeze({ ...gate }))),
+      clientDetector: flag.clientDetector
+        ? Object.freeze({
+          ...flag.clientDetector,
+          roots: Object.freeze([...flag.clientDetector.roots]),
+          extensions: Object.freeze([...flag.clientDetector.extensions]),
+          exclude: Object.freeze(flag.clientDetector.exclude.map((entry) => Object.freeze({ ...entry }))),
+        })
+        : null,
+      clientSurfaces: Object.freeze(flag.clientSurfaces.map((surface) => Object.freeze({ ...surface }))),
+      caveats: Object.freeze([...flag.caveats]),
+      documentedIn: Object.freeze([...flag.documentedIn]),
+    })),
+);
+
+const CAPABILITY_FLAG_NAMES = Object.freeze(CAPABILITY_FLAGS.map((flag) => flag.name));
+
+const BY_NAME = new Map(CAPABILITY_FLAGS.map((flag) => [flag.name, flag]));
+
+function mustGet(name) {
+  const spec = BY_NAME.get(name);
+  if (!spec) {
+    throw new Error(
+      `Unregistered runtime flag "${name}". Register it in server/capabilityFlags.mjs ` +
+      `and regenerate the manifests (npm run flags:write).`,
+    );
+  }
+  return spec;
+}
+
+export function getFlag(name) {
+  return mustGet(name);
+}
+
+export function capabilityConfigured(name, environment = process.env) {
+  mustGet(name);
+  return environment[name] === '1';
+}
+
+export function capabilityEnabled(name, environment = process.env) {
+  const spec = mustGet(name);
+  if (spec.selftest === 'forced-off') {
+    if (environment.SELFTEST === '1' || environment.PARITY_ASSURANCE_MODE === '1') return false;
+    return environment[name] === '1';
+  }
+  if (spec.selftest === 'implied-on') {
+    return environment[name] === '1' || environment.SELFTEST === '1';
+  }
+  return environment[name] === '1'; // 'strict'
+}
+
+export function selftestMockAllowed(name, environment = process.env) {
+  const spec = mustGet(name);
+  if (spec.selftestMock !== 'when-unset') return false;
+  return environment.SELFTEST === '1' && environment[name] === undefined;
+}
+
+export { CAPABILITY_FLAGS, CAPABILITY_FLAG_NAMES };

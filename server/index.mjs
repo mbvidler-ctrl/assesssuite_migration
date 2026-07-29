@@ -24,6 +24,7 @@ import {
 } from './auth.mjs';
 import { createFounderOrganizationEnsurer, handleCoreIntegration } from './integrations.mjs';
 import { publicCapabilities } from './capabilities.mjs';
+import { capabilityConfigured, capabilityEnabled } from './capabilityFlags.mjs';
 import { initEmail, sendEmail, otpEmail, resetEmail, welcomeEmail, adminNotifyEmail, inviteEmail } from './email.mjs';
 import {
   UPLOAD_POLICY,
@@ -92,8 +93,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'change-me-local';
 // explicitly set to '1'. Seeded accounts use password login and are unaffected.
 // The self-test spawns an isolated throwaway server (SELFTEST=1) and validates
 // the registration/OTP flows, so they remain enabled there.
-const ALLOW_OPEN_REGISTRATION =
-  process.env.ALLOW_OPEN_REGISTRATION === '1' || process.env.SELFTEST === '1';
+const ALLOW_OPEN_REGISTRATION = capabilityEnabled('ALLOW_OPEN_REGISTRATION');
 // OTP / reset hardening (launch): random per-user codes with expiry, attempt
 // lockout, and per-account send throttles. The fixed 000000 code is accepted
 // only under SELFTEST=1 (see verify-otp).
@@ -422,7 +422,7 @@ const CURRENT_LEGAL_DOCUMENT_RECEIPTS = new Map(
 function parseCompatibilityVersions() {
   const raw = process.env.LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS;
   if (!raw) return [];
-  if (process.env.DOCUMENT_EXTRACTION_ENABLED === '1') {
+  if (capabilityEnabled('DOCUMENT_EXTRACTION_ENABLED')) {
     throw new Error(
       'LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS cannot be used while document extraction is enabled',
     );
@@ -1637,9 +1637,7 @@ function registrationRateLimit(req, email) {
 }
 
 function transactionalEmailDeliveryRequired() {
-  return process.env.OUTBOUND_EMAIL_ENABLED === '1' &&
-    process.env.SELFTEST !== '1' &&
-    process.env.PARITY_ASSURANCE_MODE !== '1';
+  return capabilityEnabled('OUTBOUND_EMAIL_ENABLED');
 }
 
 async function handleAuthRoute(req, res, url, appId, action) {
@@ -1971,7 +1969,7 @@ function handlePublicSettings(req, res, appId) {
   return sendJson(res, 200, {
     id: appId,
     public_settings: {
-      transcription_enabled: process.env.TRANSCRIPTION_ENABLED === '1',
+      transcription_enabled: capabilityConfigured('TRANSCRIPTION_ENABLED'),
       legal: {
         status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',
         effective_date: process.env.LEGAL_EFFECTIVE_DATE || null,

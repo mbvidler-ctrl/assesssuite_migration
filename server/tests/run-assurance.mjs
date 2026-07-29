@@ -47,6 +47,9 @@ const suites = [
   'ai-surface-honesty.test.mjs',
   'soap-dissection-fail-closed.test.mjs',
   'clinical-ai-feature-matrix.test.mjs',
+  'production-deploy-workflow-validator.test.mjs',
+  'capability-flag-registry.test.mjs',
+  'flag-impact-gate.test.mjs',
 ];
 
 for (const suite of suites) {

@@ -12,6 +12,8 @@
 // must not 500 a registration or reset request. The OTP/reset flows remain
 // recoverable via resend.
 
+import { capabilityEnabled } from './capabilityFlags.mjs';
+
 const RESEND_URL = 'https://api.resend.com/emails';
 const SEND_TIMEOUT_MS = 15000;
 
@@ -46,8 +48,7 @@ export function initEmail(outboxRepo) {
 }
 
 export function emailEnabled(environment = process.env) {
-  if (environment.SELFTEST === '1' || environment.PARITY_ASSURANCE_MODE === '1') return false;
-  if (environment.OUTBOUND_EMAIL_ENABLED !== '1') return false;
+  if (!capabilityEnabled('OUTBOUND_EMAIL_ENABLED', environment)) return false;
   const key = environment.RESEND_API_KEY;
   return typeof key === 'string' && key.trim() !== '';
 }
@@ -58,8 +59,7 @@ export function emailEnabled(environment = process.env) {
  * value; exposing the gate now makes the no-egress release posture explicit.
  */
 export function smsEnabled(environment = process.env) {
-  if (environment.SELFTEST === '1' || environment.PARITY_ASSURANCE_MODE === '1') return false;
-  return environment.OUTBOUND_SMS_ENABLED === '1';
+  return capabilityEnabled('OUTBOUND_SMS_ENABLED', environment);
 }
 
 /**

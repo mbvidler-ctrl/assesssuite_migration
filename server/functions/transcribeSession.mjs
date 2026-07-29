@@ -55,6 +55,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { transcriptionAvailable } from '../capabilities.mjs';
+import { capabilityEnabled } from '../capabilityFlags.mjs';
 import { deidentify, invokeLLM, llmEnabled } from '../llm.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -224,7 +226,11 @@ export default async function transcribeSession(ctx) {
   // Launch posture: transcription is disabled for users unless expressly
   // enabled (TRANSCRIPTION_ENABLED=1). The code path is kept intact — this
   // is a switch, not a removal. SELFTEST keeps the regression suite running.
-  if (process.env.TRANSCRIPTION_ENABLED !== '1' && process.env.SELFTEST !== '1') {
+  // transcriptionAvailable() is the published predicate (server/
+  // capabilities.mjs); it resolves TRANSCRIPTION_ENABLED's 'implied-on'
+  // posture through the capability-flag registry, so this gate, the
+  // /public-settings capabilities block and the flag manifest cannot drift.
+  if (!transcriptionAvailable()) {
     return respond(403, { error: 'Transcription is not enabled on this deployment.' });
   }
 
@@ -278,14 +284,14 @@ export default async function transcribeSession(ctx) {
           });
         } catch (err) {
           console.log('[transcribeSession] real dissection failed:', err.message);
-          if (process.env.LLM_REQUIRED === '1') {
+          if (capabilityEnabled('LLM_REQUIRED')) {
             // Production posture: a real call was attempted and failed —
             // never silently degrade to fabricated clinical content.
             return respond(502, { error: 'SOAP dissection is temporarily unavailable.' });
           }
           // Non-production convenience: fall through to the labelled mock below.
         }
-      } else if (process.env.LLM_REQUIRED === '1') {
+      } else if (capabilityEnabled('LLM_REQUIRED')) {
         // Production posture: no provider configured at all — never
         // silently serve a fabricated SOAP note when a real transcript
         // was supplied and a real dissection was expected.
