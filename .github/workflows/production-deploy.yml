@@ -24,7 +24,7 @@ on:
         required: true
         type: string
       expected_current_image:
-        description: Current full registry.fly.io/assesssuite-production image reference
+        description: Current immutable registry.fly.io/assesssuite-production image digest reference
         required: true
         type: string
       expected_machine_id:
@@ -178,7 +178,7 @@ jobs:
           [[ "$ROLLBACK_SOURCE_SHA" == "$APPLICATION_SHA" && "$ROLLBACK_RELEASE_SHA" == "$APPLICATION_SHA" ]]
           [[ "$CANDIDATE_CONFIG_SHA256" =~ ^[0-9a-f]{64}$ && "$ROLLBACK_CONFIG_SHA256" =~ ^[0-9a-f]{64}$ ]]
           [[ "$EXPECTED_CURRENT_RELEASE" =~ ^v[1-9][0-9]*$ ]]
-          [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\.fly\.io/assesssuite-production(:[A-Za-z0-9._-]{1,128}|@sha256:[0-9a-f]{64})$ ]]
+          [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
           [[ "$EXPECTED_MACHINE_ID" =~ ^[0-9a-f]{14,32}$ && "$EXPECTED_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]
           [[ "$ROLLBACK_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
           [[ "$CANDIDATE_IMAGE_REF" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
@@ -493,19 +493,56 @@ jobs:
           fi
 
           current_release() {
-            env -u FLY_API_TOKEN node --input-type=module - "$1" <<'NODE'
+            local releases_json=$1
+            local image_json="${releases_json%.json}-image.json"
+            local current=''
+            rm -f "$image_json"
+            if ! timeout --signal=TERM --kill-after=10s 60s \
+              fly image show "$EXPECTED_MACHINE_ID" --app "$app" --json >"$image_json"; then
+              rm -f "$image_json"
+              return 1
+            fi
+            if ! current="$(env -u FLY_API_TOKEN node --input-type=module - "$releases_json" "$image_json" <<'NODE'
           import fs from 'node:fs';
           const parsed = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const imageValue = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
+          const imageRow = Array.isArray(imageValue)
+            ? (imageValue.length === 1 ? imageValue[0] : null)
+            : (imageValue.image ?? imageValue.Image ?? imageValue);
           const rows = Array.isArray(parsed) ? parsed : (parsed.releases || parsed.Releases || parsed.data || []);
           if (!Array.isArray(rows) || rows.length === 0) throw new Error('Fly returned no release rows');
           const status = (row) => String(row.Status ?? row.status ?? '').toLowerCase();
           const row = rows.find((item) => ['complete', 'completed', 'success', 'succeeded'].includes(status(item))) || rows[0];
           const rawId = row.Version ?? row.version ?? row.ID ?? row.id ?? row.ReleaseId ?? row.releaseId ?? row.release_id;
-          const image = row.ImageRef ?? row.imageRef ?? row.image_ref ?? row.Image ?? row.image ?? row.DockerImage ?? row.docker_image;
-          if (rawId === undefined || !image) throw new Error(`Unrecognised Fly release shape: ${Object.keys(row).join(',')}`);
+          const releaseImage = row.ImageRef ?? row.imageRef ?? row.image_ref ?? row.Image ?? row.image ?? row.DockerImage ?? row.docker_image;
+          if (rawId === undefined) throw new Error(`Unrecognised Fly release shape: ${Object.keys(row).join(',')}`);
+          if (!imageRow || typeof imageRow !== 'object' || Array.isArray(imageRow)) throw new Error('Unrecognised Fly image shape');
+          const registry = imageRow.Registry ?? imageRow.registry;
+          const repository = imageRow.Repository ?? imageRow.repository;
+          const digest = imageRow.Digest ?? imageRow.digest;
+          const machineId = imageRow.MachineID ?? imageRow.machineId ?? imageRow.machine_id;
+          const rawTag = imageRow.Tag ?? imageRow.tag;
+          if (machineId !== process.env.EXPECTED_MACHINE_ID ||
+              registry !== 'registry.fly.io' || repository !== 'assesssuite-production' ||
+              !/^sha256:[0-9a-f]{64}$/.test(String(digest))) {
+            throw new Error('Fly current image identity is invalid');
+          }
+          const immutableImage = `${registry}/${repository}@${digest}`;
+          const tagImage = typeof rawTag === 'string' && /^[A-Za-z0-9._-]{1,128}$/.test(rawTag)
+            ? `${registry}/${repository}:${rawTag}`
+            : null;
+          if (![immutableImage, tagImage].filter(Boolean).includes(releaseImage)) {
+            throw new Error('Fly release and current Machine image do not bind');
+          }
           const id = /^\d+$/.test(String(rawId)) ? `v${rawId}` : String(rawId);
-          process.stdout.write(`${id}\t${image}`);
+          process.stdout.write(`${id}\t${immutableImage}`);
           NODE
+            )"; then
+              rm -f "$image_json"
+              return 1
+            fi
+            rm -f "$image_json"
+            printf '%s' "$current"
           }
 
           assert_topology() {
