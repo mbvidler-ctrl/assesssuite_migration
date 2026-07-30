@@ -161,6 +161,9 @@ export async function startTestServer(extraEnv = {}, options = {}) {
       '--network', 'host',
       '--mount', `type=bind,source=${tempRoot},target=${containerDataDir}`,
     ];
+    if (typeof process.getuid === 'function' && typeof process.getgid === 'function') {
+      args.push('--user', `${process.getuid()}:${process.getgid()}`);
+    }
     for (const [key, value] of Object.entries(containerEnvironment)) {
       args.push('--env', `${key}=${value ?? ''}`);
     }
