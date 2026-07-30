@@ -207,37 +207,33 @@ export default function Astrand6MinuteCycleTestRunner({ client, onSave, onClose 
       <div className="flex justify-between">
         <Button
           variant="outline"
-          color="gray"
           onClick={onClose}
-          icon={<X />}
         >
+          <X className="w-4 h-4" />
           Close
         </Button>
         <div className="flex space-x-2">
           <Button
             variant="outline"
-            color="green"
             onClick={handleStartTest}
-            icon={<Play />}
             disabled={isTesting}
           >
+            <Play className="w-4 h-4" />
             Start Test
           </Button>
           <Button
             variant="outline"
-            color="red"
             onClick={handleStopTest}
-            icon={<AlertTriangle />}
             disabled={!isTesting}
           >
+            <AlertTriangle className="w-4 h-4" />
             Stop Test
           </Button>
           <Button
             variant="outline"
-            color="blue"
             onClick={handleSaveTest}
-            icon={<Save />}
           >
+            <Save className="w-4 h-4" />
             Save Test
           </Button>
         </div>

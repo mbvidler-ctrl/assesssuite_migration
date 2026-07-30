@@ -238,8 +238,8 @@ export default function RepeatedSprintAbilityTestShuttle1515mRunner({ client, on
             className="mr-2"
             onClick={handleStart}
             disabled={isRunning}
-            leftIcon={<Play />}
           >
+            <Play className="w-4 h-4" />
             Start Test
           </Button>
           <Button
@@ -247,16 +247,16 @@ export default function RepeatedSprintAbilityTestShuttle1515mRunner({ client, on
             className="mr-2"
             onClick={handleStop}
             disabled={!isRunning}
-            leftIcon={<X />}
           >
+            <X className="w-4 h-4" />
             Stop Test
           </Button>
           <Button
             variant="secondary"
             onClick={handleSave}
             disabled={sprintTimes.length === 0}
-            leftIcon={<Save />}
           >
+            <Save className="w-4 h-4" />
             Save Data
           </Button>
         </div>

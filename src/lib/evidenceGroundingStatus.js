@@ -2,6 +2,13 @@
 // UI never claims systematic-review or "verified research" grounding when
 // the server silently degraded to a broader search (server/evidence.mjs's
 // reviewsOnly fallback, reported via reviewsOnlyApplied).
+/**
+ * @param {{
+ *   networkError?: unknown,
+ *   resultCount?: number,
+ *   reviewsOnlyApplied?: boolean
+ * }} [result]
+ */
 export function describeEvidenceGrounding({ networkError, resultCount, reviewsOnlyApplied } = {}) {
   if (networkError || !resultCount) {
     return {
