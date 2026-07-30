@@ -806,7 +806,7 @@ jobs:
           candidate_image_id="$(node --input-type=module -e "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],'utf8')).candidate_image_id)" "$publication")"
           rollback_image_id="$(node --input-type=module -e "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],'utf8')).rollback_image_id)" "$publication")"
           [[ "$(docker image inspect "assesssuite-release-gate:$APPLICATION_SHA" --format '{{.Id}}')" == "$candidate_image_id" ]]
-          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{.Id}}')" == "$rollback_image_id" ]]
+          [[ "$(docker image inspect "$rollback_image_id" --format '{{.Id}}')" == "$rollback_image_id" ]]
           registry_container="$(docker run --detach --rm --name assesssuite-proof-registry -p 127.0.0.1:5000:5000 docker.io/library/registry:2.8.3@sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373)"
           cleanup_registry() { docker rm --force "$registry_container" >/dev/null 2>&1 || true; }
           trap cleanup_registry EXIT
