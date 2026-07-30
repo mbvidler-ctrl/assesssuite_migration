@@ -874,7 +874,7 @@ function validateAuxWorkflow(input, kind) {
       'if [[ "$rollback_status" -ne 0 ]]; then',
       observerFailureExit,
     );
-    const postrollbackSecretCheck = finalActive.indexOf(
+    const postrollbackBoundaryCheck = finalActive.indexOf(
       'assert_secret_name_boundary postrollback forbid',
       reconciledCommandFailure,
     );
@@ -883,13 +883,13 @@ function validateAuxWorkflow(input, kind) {
       : '';
     if (rollbackCommand < 0 || rollbackStatusCapture < 0 || observerCall < 0 ||
         observerFailureSummary < 0 || observerFailureExit < 0 || reconciledCommandFailure < 0 ||
-        postrollbackSecretCheck < 0 || /\b(?:exit|return)(?:\s|;|$)/m.test(commandFailureWindow) ||
+        postrollbackBoundaryCheck < 0 || /\b(?:exit|return)(?:\s|;|$)/m.test(commandFailureWindow) ||
         !(rollbackCommand < rollbackStatusCapture &&
           rollbackStatusCapture < observerCall &&
           observerCall < observerFailureSummary &&
           observerFailureSummary < observerFailureExit &&
           observerFailureExit < reconciledCommandFailure &&
-          reconciledCommandFailure < postrollbackSecretCheck)) {
+          reconciledCommandFailure < postrollbackBoundaryCheck)) {
       fail('standalone rollback does not always observe, reconcile, or report command and observer status');
     }
     const order = [

@@ -134,7 +134,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 8a065f8ed2e4e302f1c6bb1b5f46902589d2b59cfc19a91541c14d7a7f2e3f5b
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 2f6a6420af00e2ae35d62df9981f00293046d3dd60e993534aaaf6d474d50f35
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
