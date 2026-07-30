@@ -625,11 +625,11 @@ function validateAuxWorkflow(input, kind) {
       "const settled = JSON.stringify([...required].sort());",
       "const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",
       'if (observed === settled) {',
-      'SECRET_BOUNDARY_STATE_PATH="$boundary_state_path"',
-      'rollback_initial_secret_boundary_state="$(<"$RUNNER_TEMP/initial-secret-boundary-state")"',
-      '[[ "$rollback_initial_secret_boundary_state" == \'settled\' || "$rollback_initial_secret_boundary_state" == \'transition-pending\' ]]',
-      'if [[ "$rollback_initial_secret_boundary_state" == \'transition-pending\' ]]; then',
-      'elif [[ "$rollback_initial_secret_boundary_state" != \'settled\' ]]; then',
+      'BOUNDARY_STATE_PATH="$boundary_state_path"',
+      'rollback_initial_boundary_state="$(<"$RUNNER_TEMP/initial-secret-boundary-state")"',
+      '[[ "$rollback_initial_boundary_state" == \'settled\' || "$rollback_initial_boundary_state" == \'transition-pending\' ]]',
+      'if [[ "$rollback_initial_boundary_state" == \'transition-pending\' ]]; then',
+      'elif [[ "$rollback_initial_boundary_state" != \'settled\' ]]; then',
       'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"',
     ]) requireStepText(finalStepName, needle, 'retry-aware rollback secret boundary ' + needle);
     if (finalActive.includes('LEGAL_STATUS') || finalActive.includes('LEGAL_EFFECTIVE_DATE')) {
@@ -1351,11 +1351,11 @@ function validateDeployWorkflowV2(input) {
     "const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",
     "if (observed === settled) {", "} else if (observed === transitionPending) {",
     "boundaryState = 'settled';", "boundaryState = 'transition-pending';",
-    'SECRET_BOUNDARY_STATE_PATH="$boundary_state_path"',
-    'initial_secret_boundary_state="$(<"$RUNNER_TEMP/initial-secret-boundary-state")"',
-    '[[ "$initial_secret_boundary_state" == \'settled\' || "$initial_secret_boundary_state" == \'transition-pending\' ]]',
-    'if [[ "$initial_secret_boundary_state" == \'transition-pending\' ]]; then',
-    'elif [[ "$initial_secret_boundary_state" != \'settled\' ]]; then',
+    'BOUNDARY_STATE_PATH="$boundary_state_path"',
+    'initial_boundary_state="$(<"$RUNNER_TEMP/initial-secret-boundary-state")"',
+    '[[ "$initial_boundary_state" == \'settled\' || "$initial_boundary_state" == \'transition-pending\' ]]',
+    'if [[ "$initial_boundary_state" == \'transition-pending\' ]]; then',
+    'elif [[ "$initial_boundary_state" != \'settled\' ]]; then',
     'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"',
   ]) requireText(needle, 'reviewed transitional secret boundary ' + needle);
   if (deploy.includes('LEGAL_STATUS') || deploy.includes('LEGAL_EFFECTIVE_DATE')) {
