@@ -435,7 +435,7 @@ jobs:
               return 1
             fi
             rm -f "$image_json"
-            printf '%s' "$current"
+            printf '%s\n' "$current"
           }
 
           assert_topology() {
