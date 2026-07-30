@@ -150,8 +150,35 @@ after(async () => {
 });
 
 test('R00 rollback config is a same-revision, extraction- and general-AI-disabled posture', () => {
+  const candidateSource = fs.readFileSync(path.join(process.cwd(), 'fly.production.toml'), 'utf8');
+  const rollbackSource = fs.readFileSync(
+    path.join(process.cwd(), 'fly.rollback.production.toml'),
+    'utf8',
+  );
   const candidate = parseReviewedFlyConfig('fly.production.toml');
   const rollback = parseReviewedFlyConfig('fly.rollback.production.toml');
+  const topLevelProcessesTable =
+    /^\s*\[\s*(?:processes|"processes"|'processes')\s*\]\s*(?:#.*)?$/m;
+  assert.doesNotMatch(
+    candidateSource,
+    topLevelProcessesTable,
+    'candidate config must inherit the Dockerfile CMD, not define a top-level [processes] command',
+  );
+  assert.doesNotMatch(
+    rollbackSource,
+    topLevelProcessesTable,
+    'rollback config must inherit the Dockerfile CMD, not define a top-level [processes] command',
+  );
+  assert.equal(
+    candidate.get('http_service.processes'),
+    '["app"]',
+    'candidate HTTP service must remain bound to the implicit app process group',
+  );
+  assert.equal(
+    rollback.get('http_service.processes'),
+    '["app"]',
+    'rollback HTTP service must remain bound to the implicit app process group',
+  );
   assert.equal(candidate.get('env.DOCUMENT_EXTRACTION_ENABLED'), '"1"');
   assert.equal(rollback.get('env.DOCUMENT_EXTRACTION_ENABLED'), '"0"');
   assert.equal(candidate.get('env.GENERAL_CLINICAL_LLM_ENABLED'), '"1"');

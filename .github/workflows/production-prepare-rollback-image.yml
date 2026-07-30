@@ -141,8 +141,8 @@ jobs:
           set -euo pipefail
           config=fly.rollback.production.toml
           [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(git ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
+          [[ "$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
           [[ -z "$(git status --porcelain --untracked-files=no)" ]]
           [[ -f "$config" && ! -L "$config" ]]
           [[ -f Dockerfile && ! -L Dockerfile ]]
@@ -153,7 +153,34 @@ jobs:
           [[ "$(sha256sum "$config" | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
           [[ "$(grep -Ec '^app = "assesssuite-production"$' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^primary_region = "syd"$' "$config")" -eq 1 ]]
-          [[ "$(grep -Fxc '  app = "node server/productionBootstrap.mjs && exec node server/index.mjs"' "$config")" -eq 1 ]]
+          python3 -I - "$config" <<'PY'
+          import pathlib
+          import sys
+          import tomllib
+
+          def process_entries(value, path=()):
+              entries = []
+              if isinstance(value, dict):
+                  for key, nested in value.items():
+                      next_path = path + (key,)
+                      if key == 'processes':
+                          entries.append((next_path, nested))
+                      entries.extend(process_entries(nested, next_path))
+              elif isinstance(value, list):
+                  for index, nested in enumerate(value):
+                      entries.extend(process_entries(nested, path + (index,)))
+              return entries
+
+          for raw_path in sys.argv[1:]:
+              path = pathlib.Path(raw_path)
+              try:
+                  with path.open('rb') as stream:
+                      document = tomllib.load(stream)
+              except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
+                  raise SystemExit(f'Fly config is not valid TOML: {path.name}') from error
+              if process_entries(document) != [(('http_service', 'processes'), ['app'])]:
+                  raise SystemExit(f'Fly config process contract is not exact: {path.name}')
+          PY
           [[ "$(grep -Ec '^  source = "assesssuite_data"$' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^  destination = "/app/server/data"$' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^  snapshot_retention = 5$' "$config")" -eq 1 ]]
@@ -201,7 +228,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 06dc6709a57745d9997239e72f014e1fc8798160042e382135f5d410b9f9de7e
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 8a065f8ed2e4e302f1c6bb1b5f46902589d2b59cfc19a91541c14d7a7f2e3f5b
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -350,7 +377,7 @@ jobs:
           set -euo pipefail
           archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
           bin_dir="$RUNNER_TEMP/flyctl-bin"
-          curl --fail --location --silent --show-error \
+          curl --fail --location --silent --show-error --max-time 120 \
             'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz' \
             --output "$archive"
           echo 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2  '"$archive" | sha256sum --check --strict
@@ -387,54 +414,77 @@ jobs:
 
           current_release() {
             local releases_json=$1
-            local image_json="${releases_json%.json}-image.json"
+            local command_timeout_seconds=${2:-60}
+            local machine_json="${releases_json%.json}-machine.json"
             local current=''
-            rm -f "$image_json"
-            if ! timeout --signal=TERM --kill-after=10s 60s \
-              fly image show "$EXPECTED_MACHINE_ID" --app "$app" --json >"$image_json"; then
-              rm -f "$image_json"
+            [[ "$command_timeout_seconds" =~ ^([1-9]|[1-5][0-9]|60)$ ]] || return 1
+            rm -f "$machine_json"
+            if ! timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s" \
+              fly machines list --app "$app" --json >"$machine_json"; then
+              rm -f "$machine_json"
               return 1
             fi
-            if ! current="$(env -u FLY_API_TOKEN node --input-type=module - "$releases_json" "$image_json" <<'NODE'
+            if ! current="$(env -u FLY_API_TOKEN node --input-type=module - "$releases_json" "$machine_json" <<'NODE'
           import fs from 'node:fs';
           const parsed = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
-          const imageValue = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
-          const imageRow = Array.isArray(imageValue)
-            ? (imageValue.length === 1 ? imageValue[0] : null)
-            : (imageValue.image ?? imageValue.Image ?? imageValue);
+          const machines = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
           const rows = Array.isArray(parsed) ? parsed : (parsed.releases || parsed.Releases || parsed.data || []);
           if (!Array.isArray(rows) || rows.length === 0) throw new Error('Fly returned no release rows');
           const status = (row) => String(row.Status ?? row.status ?? '').toLowerCase();
-          const row = rows.find((item) => ['complete', 'completed', 'success', 'succeeded'].includes(status(item))) || rows[0];
-          const rawId = row.Version ?? row.version ?? row.ID ?? row.id ?? row.ReleaseId ?? row.releaseId ?? row.release_id;
+          const completeStatuses = new Set(['complete', 'completed', 'success', 'succeeded']);
+          const terminalFailureStatuses = new Set(['failed', 'failure', 'cancelled', 'canceled']);
+          const seenVersions = new Set();
+          const releases = rows.map((row) => {
+            const rawId = row.Version ?? row.version ?? row.ID ?? row.id ?? row.ReleaseId ?? row.releaseId ?? row.release_id;
+            const match = /^v?([1-9][0-9]*)$/.exec(String(rawId));
+            if (!match) throw new Error('Fly release identifier is not a positive numeric version');
+            const version = Number(match[1]);
+            if (!Number.isSafeInteger(version)) throw new Error('Fly release version is outside the safe integer range');
+            if (seenVersions.has(version)) throw new Error('Fly returned duplicate numeric release versions');
+            seenVersions.add(version);
+            const releaseStatus = status(row);
+            const inProgress = row.InProgress ?? row.inProgress ?? row.in_progress;
+            if (inProgress !== undefined && typeof inProgress !== 'boolean') {
+              throw new Error('Fly release InProgress state is not boolean');
+            }
+            return { row, version, releaseStatus, inProgress };
+          });
+          const completed = releases.filter((item) => completeStatuses.has(item.releaseStatus));
+          if (completed.length === 0) throw new Error('Fly returned no completed release rows');
+          const latest = completed.reduce((current, item) => item.version > current.version ? item : current);
+          if (latest.inProgress === true) throw new Error('Latest completed Fly release is still marked in progress');
+          for (const item of releases.filter((candidate) => candidate.version > latest.version)) {
+            if (item.inProgress === true || !terminalFailureStatuses.has(item.releaseStatus)) {
+              throw new Error('A higher Fly release is in progress or has an unknown nonterminal state');
+            }
+          }
+          const row = latest.row;
           const releaseImage = row.ImageRef ?? row.imageRef ?? row.image_ref ?? row.Image ?? row.image ?? row.DockerImage ?? row.docker_image;
-          if (rawId === undefined) throw new Error('Unrecognised Fly release shape');
-          if (!imageRow || typeof imageRow !== 'object' || Array.isArray(imageRow)) throw new Error('Unrecognised Fly image shape');
-          const registry = imageRow.Registry ?? imageRow.registry;
-          const repository = imageRow.Repository ?? imageRow.repository;
-          const digest = imageRow.Digest ?? imageRow.digest;
-          const machineId = imageRow.MachineID ?? imageRow.machineId ?? imageRow.machine_id;
-          const rawTag = imageRow.Tag ?? imageRow.tag;
-          if (machineId !== process.env.EXPECTED_MACHINE_ID ||
+          if (!Array.isArray(machines) || machines.length !== 1) throw new Error('Fly returned a non-sole Machine inventory');
+          const machine = machines[0];
+          const machineId = machine.id ?? machine.ID;
+          const machineState = String(machine.state ?? machine.State ?? '').toLowerCase();
+          const imageRef = machine.image_ref ?? machine.imageRef ?? machine.ImageRef;
+          const registry = imageRef?.registry ?? imageRef?.Registry;
+          const repository = imageRef?.repository ?? imageRef?.Repository;
+          const digest = imageRef?.digest ?? imageRef?.Digest;
+          const configuredImage = machine.config?.image ?? machine.Config?.image;
+          if (machineId !== process.env.EXPECTED_MACHINE_ID || machineState !== 'started' ||
               registry !== 'registry.fly.io' || repository !== 'assesssuite-production' ||
               !/^sha256:[0-9a-f]{64}$/.test(String(digest))) {
-            throw new Error('Fly current image identity is invalid');
+            throw new Error('Fly current Machine identity, state, or image_ref is invalid');
           }
-          const immutableImage = registry + '/' + repository + '@' + digest;
-          const tagImage = typeof rawTag === 'string' && /^[A-Za-z0-9._-]{1,128}$/.test(rawTag)
-            ? registry + '/' + repository + ':' + rawTag
-            : null;
-          if (![immutableImage, tagImage].filter(Boolean).includes(releaseImage)) {
-            throw new Error('Fly release and current Machine image do not bind');
+          const immutableImage = `${registry}/${repository}@${digest}`;
+          if (configuredImage !== immutableImage || releaseImage !== immutableImage) {
+            throw new Error('Fly release, Machine config.image and Machine image_ref digest do not bind');
           }
-          const id = /^\d+$/.test(String(rawId)) ? 'v' + rawId : String(rawId);
-          process.stdout.write(id + '\t' + immutableImage);
+          process.stdout.write(`v${latest.version}\t${immutableImage}`);
           NODE
             )"; then
-              rm -f "$image_json"
+              rm -f "$machine_json"
               return 1
             fi
-            rm -f "$image_json"
+            rm -f "$machine_json"
             printf '%s\n' "$current"
           }
 
@@ -589,8 +639,8 @@ jobs:
 
           timeout --signal=TERM --kill-after=10s 60s fly auth docker
           [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(git ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
+          [[ "$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
           [[ "$(sha256sum "$config" | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
           assert_topology prepolicy ignore
           prior_json="$RUNNER_TEMP/prepublication-releases.json"
@@ -621,8 +671,8 @@ jobs:
           timeout --signal=TERM --kill-after=10s 60s docker buildx imagetools inspect "$image_ref" >/dev/null
 
           # Registry publication must not race an unreviewed production or source change.
-          [[ "$(git ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
+          [[ "$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
           [[ "$(sha256sum "$config" | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
           assert_topology postpublication exact
           post_json="$RUNNER_TEMP/postpublication-releases.json"

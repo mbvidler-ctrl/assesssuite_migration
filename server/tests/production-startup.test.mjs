@@ -38,11 +38,10 @@ test('production container starts only the explicit catalogue bootstrap', () => 
     /CMD \["sh", "-c", "node server\/productionBootstrap\.mjs && exec node server\/index\.mjs"\]/,
   );
   assert.doesNotMatch(dockerfile, /CMD[^\n]*node server\/seed\.mjs/);
-  assert.equal(
-    flyConfig.split(/\r?\n/).filter((line) =>
-      line === '  app = "node server/productionBootstrap.mjs && exec node server/index.mjs"').length,
-    1,
-    'the Fly process override must preserve the catalogue bootstrap',
+  assert.doesNotMatch(
+    flyConfig,
+    /^\s*\[\s*(?:processes|"processes"|'processes')\s*\]\s*(?:#.*)?$/m,
+    'Fly must inherit the shell-safe image CMD instead of tokenizing a process override',
   );
   assert.doesNotMatch(flyConfig, /^\s*app\s*=\s*"node server\/index\.mjs"\s*$/m);
 });

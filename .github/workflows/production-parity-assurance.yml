@@ -236,7 +236,7 @@ jobs:
           set -euo pipefail
           cd application
           [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$APPLICATION_SHA" ]]
-          [[ "$(git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$APPLICATION_SHA" ]]
+          [[ "$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$APPLICATION_SHA" ]]
           [[ "$APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
           [[ -z "$(git status --porcelain --untracked-files=no)" ]]
           for file in \
@@ -251,6 +251,34 @@ jobs:
           [[ "$(sha256sum server/tests/production-parity-wave.mjs | awk '{print $1}')" == "$PARITY_RUNNER_SHA256" ]]
           [[ "$(sha256sum server/tests/support/syntheticReferralFixtures.mjs | awk '{print $1}')" == "$PARITY_FIXTURE_SHA256" ]]
           [[ "$(sha256sum server/tests/production-parity-cleanup.mjs | awk '{print $1}')" == "$PARITY_CLEANUP_SHA256" ]]
+          python3 -I - fly.production.toml <<'PY'
+          import pathlib
+          import sys
+          import tomllib
+
+          def process_entries(value, path=()):
+              entries = []
+              if isinstance(value, dict):
+                  for key, nested in value.items():
+                      next_path = path + (key,)
+                      if key == 'processes':
+                          entries.append((next_path, nested))
+                      entries.extend(process_entries(nested, next_path))
+              elif isinstance(value, list):
+                  for index, nested in enumerate(value):
+                      entries.extend(process_entries(nested, path + (index,)))
+              return entries
+
+          for raw_path in sys.argv[1:]:
+              path = pathlib.Path(raw_path)
+              try:
+                  with path.open('rb') as stream:
+                      document = tomllib.load(stream)
+              except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
+                  raise SystemExit(f'Fly config is not valid TOML: {path.name}') from error
+              if process_entries(document) != [(('http_service', 'processes'), ['app'])]:
+                  raise SystemExit(f'Fly config process contract is not exact: {path.name}')
+          PY
           [[ "$(grep -Fxc '  OUTBOUND_EMAIL_ENABLED = "1"' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Fxc '  OUTBOUND_SMS_ENABLED = "0"' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Fxc '  PAYMENTS_ENABLED = "1"' fly.production.toml)" -eq 1 ]]
@@ -273,7 +301,7 @@ jobs:
       - name: Validate the exact trusted production workflow control
         shell: bash
         env:
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 06dc6709a57745d9997239e72f014e1fc8798160042e382135f5d410b9f9de7e
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 8a065f8ed2e4e302f1c6bb1b5f46902589d2b59cfc19a91541c14d7a7f2e3f5b
         run: |
           set -euo pipefail
           cd application
@@ -496,14 +524,14 @@ jobs:
           gzip -dc parity-runner.tar.gz | docker load >/dev/null
           expected_id="$(node --input-type=module -e "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],'utf8')).image_id)" parity-runner-receipt.json)"
           [[ "$(docker image inspect "assesssuite-parity-runner:$APPLICATION_SHA" --format '{{.Id}}')" == "$expected_id" ]]
-          docker pull --platform linux/amd64 docker.io/library/node:24.4.1-bookworm-slim@sha256:36ae19f59c91f3303c7a648f07493fe14c4bd91320ac8d898416327bacf1bbfa >/dev/null
+          timeout --signal=TERM --kill-after=30s 300s docker pull --platform linux/amd64 docker.io/library/node:24.4.1-bookworm-slim@sha256:36ae19f59c91f3303c7a648f07493fe14c4bd91320ac8d898416327bacf1bbfa >/dev/null
 
       - name: Install checksum-verified flyctl 0.4.71
         shell: bash
         run: |
           set -euo pipefail
           archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
-          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \
             --output "$archive" \
             'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'
           printf '%s  %s\n' 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2' "$archive" | sha256sum --check --strict
@@ -676,13 +704,54 @@ jobs:
           const releases = Array.isArray(releasesRaw) ? releasesRaw : (releasesRaw.releases || releasesRaw.data || []);
           if (!Array.isArray(machines) || !Array.isArray(volumes) || !Array.isArray(releases) || releases.length === 0) throw new Error('Fly JSON contract differs');
           const releaseStatus = (r) => String(r.Status ?? r.status ?? '').toLowerCase();
-          const release = releases.find((r) => ['complete', 'completed', 'success', 'succeeded'].includes(releaseStatus(r))) || releases[0];
-          const rawRelease = release.Version ?? release.version ?? release.ID ?? release.id;
-          const releaseId = /^\d+$/.test(String(rawRelease)) ? `v${rawRelease}` : String(rawRelease);
+          const completeStatuses = new Set(['complete', 'completed', 'success', 'succeeded']);
+          const terminalFailureStatuses = new Set(['failed', 'failure', 'cancelled', 'canceled']);
+          const seenVersions = new Set();
+          const parsedReleases = releases.map((row) => {
+            const rawId = row.Version ?? row.version ?? row.ID ?? row.id ?? row.ReleaseId ?? row.releaseId ?? row.release_id;
+            const match = /^v?([1-9][0-9]*)$/.exec(String(rawId));
+            if (!match) throw new Error('Fly release identifier is not a positive numeric version');
+            const version = Number(match[1]);
+            if (!Number.isSafeInteger(version)) throw new Error('Fly release version is outside the safe integer range');
+            if (seenVersions.has(version)) throw new Error('Fly returned duplicate numeric release versions');
+            seenVersions.add(version);
+            const status = releaseStatus(row);
+            const inProgress = row.InProgress ?? row.inProgress ?? row.in_progress;
+            if (inProgress !== undefined && typeof inProgress !== 'boolean') throw new Error('Fly release InProgress state is not boolean');
+            return { row, version, status, inProgress };
+          });
+          const completed = parsedReleases.filter((item) => completeStatuses.has(item.status));
+          if (completed.length === 0) throw new Error('Fly returned no completed release rows');
+          const latest = completed.reduce((current, item) => item.version > current.version ? item : current);
+          if (latest.inProgress === true) throw new Error('Latest completed Fly release is still marked in progress');
+          for (const item of parsedReleases.filter((candidate) => candidate.version > latest.version)) {
+            if (item.inProgress === true || !terminalFailureStatuses.has(item.status)) {
+              throw new Error('A higher Fly release is in progress or has an unknown nonterminal state');
+            }
+          }
+          const release = latest.row;
+          const releaseId = `v${latest.version}`;
           const releaseImage = release.ImageRef ?? release.imageRef ?? release.image_ref ?? release.Image ?? release.image;
-          if (releaseId !== process.env.EXPECTED_LIVE_RELEASE || releaseImage !== process.env.LIVE_IMAGE) throw new Error('Live release or image changed');
-          const prod = machines.find((m) => m.id === process.env.EXPECTED_PRODUCTION_MACHINE_ID);
-          if (!prod || (prod.region ?? prod.Region) !== 'syd') throw new Error('Exact production Machine is absent');
+          const productionMachines = machines.filter((m) => (m.id ?? m.ID) === process.env.EXPECTED_PRODUCTION_MACHINE_ID);
+          if (productionMachines.length !== 1) throw new Error('Exact production Machine inventory differs');
+          const prod = productionMachines[0];
+          const prodState = String(prod.state ?? prod.State ?? '').toLowerCase();
+          const imageRef = prod.image_ref ?? prod.imageRef ?? prod.ImageRef;
+          const registry = imageRef?.registry ?? imageRef?.Registry;
+          const repository = imageRef?.repository ?? imageRef?.Repository;
+          const digest = imageRef?.digest ?? imageRef?.Digest;
+          const configuredImage = prod.config?.image ?? prod.Config?.image;
+          if (prodState !== 'started' || (prod.region ?? prod.Region) !== 'syd' ||
+              registry !== 'registry.fly.io' || repository !== 'assesssuite-production' ||
+              !/^sha256:[0-9a-f]{64}$/.test(String(digest))) {
+            throw new Error('Exact production Machine state or image_ref differs');
+          }
+          const immutableImage = `${registry}/${repository}@${digest}`;
+          if (releaseId !== process.env.EXPECTED_LIVE_RELEASE ||
+              immutableImage !== process.env.LIVE_IMAGE ||
+              configuredImage !== immutableImage || releaseImage !== immutableImage) {
+            throw new Error('Live release, Machine config.image and Machine image_ref changed');
+          }
           const prodVolume = volumes.find((v) => v.id === process.env.EXPECTED_PRODUCTION_VOLUME_ID);
           if (!prodVolume || prodVolume.state !== 'created' || prodVolume.name !== 'assesssuite_data' || prodVolume.region !== 'syd' || prodVolume.size_gb !== 3 || prodVolume.encrypted !== true || prodVolume.attached_machine_id !== prod.id) throw new Error('Production Volume identity/topology changed');
           const prodMounts = prod.config?.mounts;

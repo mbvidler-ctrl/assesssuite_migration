@@ -19,9 +19,11 @@ Both deployable runtime modes derive from `C`:
 - the candidate image uses `fly.production.toml`; and
 - the compatibility image uses `fly.rollback.production.toml`, which preserves the compatible application/schema behavior but disables adult and under-age document extraction and reverts general clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED`) to its reviewed disabled default, regardless of the candidate's currently authorised setting.
 
+Neither Fly TOML overrides the image startup command. Both must omit a top-level `[processes]` table so the Dockerfile's shell-interpreted `CMD ["sh", "-c", "node server/productionBootstrap.mjs && exec node server/index.mjs"]` remains authoritative. Their `[http_service]` `processes = ["app"]` setting only binds the public service to the implicit `app` process group; it does not define that group's command.
+
 The compatibility source is the same merged `main` revision, not a separately maintained ref. `application_sha`, `trusted_workflow_sha`, `rollback_source_sha` and `rollback_release_sha` must all equal `C`; `source_branch` and `rollback_source_branch` must both equal `main`. The immutable image digests and the SHA-256 hashes of the two Fly configuration blobs distinguish the enabled candidate from the extraction- and general-AI-disabled compatibility runtime.
 
-As of 28 July 2026 there are two deliberate, machine-enforced differences between the candidate and compatibility configurations, not one: adult/under-age document extraction, and general clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED`). The candidate runs general clinical AI drafting enabled under the dated authorisation recorded in `fly.production.toml`; the compatibility image always reverts it to disabled. `server/tests/rollback-compatibility.test.mjs` (test R00, lines 152-180) is the authoritative, enforced statement of both differences — treat this runbook as a summary of that test, not the reverse.
+As of 28 July 2026 there are two deliberate, machine-enforced differences between the candidate and compatibility configurations, not one: adult/under-age document extraction, and general clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED`). The candidate runs general clinical AI drafting enabled under the dated authorisation recorded in `fly.production.toml`; the compatibility image always reverts it to disabled. The `R00 rollback config is a same-revision, extraction- and general-AI-disabled posture` test in `server/tests/rollback-compatibility.test.mjs` is the authoritative, enforced statement of both differences — treat this runbook as a summary of that test, not the reverse.
 
 Production mutations are permitted only through the reviewed workflow definitions on `main`:
 
@@ -119,7 +121,7 @@ Also require:
 - the release diff scanner and a value-blind high-entropy/secret scan to pass;
 - no moderate-or-higher production dependency advisory;
 - exact forward-write/compatibility-read behavior under both runtime configurations;
-- production startup to be `node server/productionBootstrap.mjs && exec node server/index.mjs`, with no production execution of the general synthetic seed;
+- production startup to remain owned by the Dockerfile's shell-interpreted `CMD ["sh", "-c", "node server/productionBootstrap.mjs && exec node server/index.mjs"]`, with neither Fly TOML defining a top-level `[processes]` override and with no production execution of the general synthetic seed;
 - the real document-extraction adapter to remain fail-closed, tenant-authorised and review-before-commit;
 - the production output boundary and all HTML sinks to remain sanitised;
 - signup to present one mandatory consolidated acceptance and one default-off optional marketing choice, with no adult-only, paediatric exclusion, state/territory/jurisdiction or pre-payment DOB control; and

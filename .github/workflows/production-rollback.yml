@@ -75,7 +75,7 @@ jobs:
   rollback:
     name: Roll back through the immutable compatibility image
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 70
     steps:
       - name: Validate trusted rollback dispatch and inputs
         shell: bash
@@ -105,6 +105,7 @@ jobs:
           IS_FORK: ${{ github.event.repository.fork }}
         run: |
           set -euo pipefail
+          printf 'ROLLBACK_JOB_STARTED_EPOCH=%s\n' "$(date -u +%s)" >> "$GITHUB_ENV"
           [[ "$REPOSITORY" == "mbvidler-ctrl/assesssuite_migration" ]]
           [[ "$ACTOR" == "mbvidler-ctrl" ]]
           [[ "$TRIGGERING_ACTOR" == "mbvidler-ctrl" ]]
@@ -127,7 +128,7 @@ jobs:
           [[ "$FAILED_APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
           [[ "$ROLLBACK_CONFIG_SHA256" =~ ^[0-9a-f]{64}$ ]]
           [[ "$EXPECTED_CURRENT_RELEASE" =~ ^v[1-9][0-9]*$ ]]
-          [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\.fly\.io/assesssuite-production(:[A-Za-z0-9._-]{1,128}|@sha256:[0-9a-f]{64})$ ]]
+          [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
           [[ "$EXPECTED_MACHINE_ID" =~ ^[0-9a-f]{14,32}$ ]]
           [[ "$EXPECTED_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]
           [[ "$ROLLBACK_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
@@ -156,8 +157,8 @@ jobs:
           source_dir=rollback-source
           config="$source_dir/fly.rollback.production.toml"
           [[ "$(git -C "$source_dir" rev-parse --verify 'HEAD^{commit}')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(git -C "$source_dir" ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(git -C "$source_dir" ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$source_dir" ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
+          [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$source_dir" ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
           [[ -z "$(git -C "$source_dir" status --porcelain --untracked-files=no)" ]]
           [[ -f "$config" && ! -L "$config" ]]
           [[ -f "$source_dir/Dockerfile" && ! -L "$source_dir/Dockerfile" ]]
@@ -165,7 +166,34 @@ jobs:
           [[ "$(sha256sum "$config" | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
           [[ "$(grep -Ec '^app = "assesssuite-production"$' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^primary_region = "syd"$' "$config")" -eq 1 ]]
-          [[ "$(grep -Fxc '  app = "node server/productionBootstrap.mjs && exec node server/index.mjs"' "$config")" -eq 1 ]]
+          python3 -I - "$config" <<'PY'
+          import pathlib
+          import sys
+          import tomllib
+
+          def process_entries(value, path=()):
+              entries = []
+              if isinstance(value, dict):
+                  for key, nested in value.items():
+                      next_path = path + (key,)
+                      if key == 'processes':
+                          entries.append((next_path, nested))
+                      entries.extend(process_entries(nested, next_path))
+              elif isinstance(value, list):
+                  for index, nested in enumerate(value):
+                      entries.extend(process_entries(nested, path + (index,)))
+              return entries
+
+          for raw_path in sys.argv[1:]:
+              path = pathlib.Path(raw_path)
+              try:
+                  with path.open('rb') as stream:
+                      document = tomllib.load(stream)
+              except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
+                  raise SystemExit(f'Fly config is not valid TOML: {path.name}') from error
+              if process_entries(document) != [(('http_service', 'processes'), ['app'])]:
+                  raise SystemExit(f'Fly config process contract is not exact: {path.name}')
+          PY
           [[ "$(grep -Ec '^  source = "assesssuite_data"$' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^  destination = "/app/server/data"$' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^  snapshot_retention = 5$' "$config")" -eq 1 ]]
@@ -204,7 +232,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 06dc6709a57745d9997239e72f014e1fc8798160042e382135f5d410b9f9de7e
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 8a065f8ed2e4e302f1c6bb1b5f46902589d2b59cfc19a91541c14d7a7f2e3f5b
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -233,7 +261,7 @@ jobs:
           set -euo pipefail
           archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
           bin_dir="$RUNNER_TEMP/flyctl-bin"
-          curl --fail --location --silent --show-error \
+          curl --fail --location --silent --show-error --max-time 120 \
             'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz' \
             --output "$archive"
           echo 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2  '"$archive" | sha256sum --check --strict
@@ -269,29 +297,99 @@ jobs:
           rollback_dir="$GITHUB_WORKSPACE/rollback-source"
           rollback_config="$rollback_dir/fly.rollback.production.toml"
           prior_json="$RUNNER_TEMP/prior-releases.json"
-          new_json="$RUNNER_TEMP/rollback-releases.json"
 
           current_release() {
-            env -u FLY_API_TOKEN node --input-type=module - "$1" <<'NODE'
+            local releases_json=$1
+            local command_timeout_seconds=${2:-60}
+            local machine_json="${releases_json%.json}-machine.json"
+            local current=''
+            [[ "$command_timeout_seconds" =~ ^([1-9]|[1-5][0-9]|60)$ ]] || return 1
+            rm -f "$machine_json"
+            if ! timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s" \
+              fly machines list --app "$app" --json >"$machine_json"; then
+              rm -f "$machine_json"
+              return 1
+            fi
+            if ! current="$(env -u FLY_API_TOKEN node --input-type=module - "$releases_json" "$machine_json" <<'NODE'
           import fs from 'node:fs';
           const parsed = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const machines = JSON.parse(fs.readFileSync(process.argv[3], 'utf8'));
           const rows = Array.isArray(parsed) ? parsed : (parsed.releases || parsed.Releases || parsed.data || []);
           if (!Array.isArray(rows) || rows.length === 0) throw new Error('Fly returned no release rows');
           const status = (row) => String(row.Status ?? row.status ?? '').toLowerCase();
-          const row = rows.find((item) => ['complete', 'completed', 'success', 'succeeded'].includes(status(item))) || rows[0];
-          const rawId = row.Version ?? row.version ?? row.ID ?? row.id ?? row.ReleaseId ?? row.releaseId ?? row.release_id;
-          const image = row.ImageRef ?? row.imageRef ?? row.image_ref ?? row.Image ?? row.image ?? row.DockerImage ?? row.docker_image;
-          if (rawId === undefined || !image) throw new Error('Unrecognised Fly release shape');
-          const id = /^\d+$/.test(String(rawId)) ? 'v' + rawId : String(rawId);
-          process.stdout.write(id + '\t' + image);
+          const completeStatuses = new Set(['complete', 'completed', 'success', 'succeeded']);
+          const terminalFailureStatuses = new Set(['failed', 'failure', 'cancelled', 'canceled']);
+          const seenVersions = new Set();
+          const releases = rows.map((row) => {
+            const rawId = row.Version ?? row.version ?? row.ID ?? row.id ?? row.ReleaseId ?? row.releaseId ?? row.release_id;
+            const match = /^v?([1-9][0-9]*)$/.exec(String(rawId));
+            if (!match) throw new Error('Fly release identifier is not a positive numeric version');
+            const version = Number(match[1]);
+            if (!Number.isSafeInteger(version)) throw new Error('Fly release version is outside the safe integer range');
+            if (seenVersions.has(version)) throw new Error('Fly returned duplicate numeric release versions');
+            seenVersions.add(version);
+            const releaseStatus = status(row);
+            const inProgress = row.InProgress ?? row.inProgress ?? row.in_progress;
+            if (inProgress !== undefined && typeof inProgress !== 'boolean') {
+              throw new Error('Fly release InProgress state is not boolean');
+            }
+            return { row, version, releaseStatus, inProgress };
+          });
+          const completed = releases.filter((item) => completeStatuses.has(item.releaseStatus));
+          if (completed.length === 0) throw new Error('Fly returned no completed release rows');
+          const latest = completed.reduce((current, item) => item.version > current.version ? item : current);
+          if (latest.inProgress === true) throw new Error('Latest completed Fly release is still marked in progress');
+          for (const item of releases.filter((candidate) => candidate.version > latest.version)) {
+            if (item.inProgress === true || !terminalFailureStatuses.has(item.releaseStatus)) {
+              throw new Error('A higher Fly release is in progress or has an unknown nonterminal state');
+            }
+          }
+          const row = latest.row;
+          const releaseImage = row.ImageRef ?? row.imageRef ?? row.image_ref ?? row.Image ?? row.image ?? row.DockerImage ?? row.docker_image;
+          if (!Array.isArray(machines) || machines.length !== 1) throw new Error('Fly returned a non-sole Machine inventory');
+          const machine = machines[0];
+          const machineId = machine.id ?? machine.ID;
+          const machineState = String(machine.state ?? machine.State ?? '').toLowerCase();
+          const imageRef = machine.image_ref ?? machine.imageRef ?? machine.ImageRef;
+          const registry = imageRef?.registry ?? imageRef?.Registry;
+          const repository = imageRef?.repository ?? imageRef?.Repository;
+          const digest = imageRef?.digest ?? imageRef?.Digest;
+          const configuredImage = machine.config?.image ?? machine.Config?.image;
+          if (machineId !== process.env.EXPECTED_MACHINE_ID || machineState !== 'started' ||
+              registry !== 'registry.fly.io' || repository !== 'assesssuite-production' ||
+              !/^sha256:[0-9a-f]{64}$/.test(String(digest))) {
+            throw new Error('Fly current Machine identity, state, or image_ref is invalid');
+          }
+          const immutableImage = `${registry}/${repository}@${digest}`;
+          if (configuredImage !== immutableImage || releaseImage !== immutableImage) {
+            throw new Error('Fly release, Machine config.image and Machine image_ref digest do not bind');
+          }
+          process.stdout.write(`v${latest.version}\t${immutableImage}`);
           NODE
+            )"; then
+              rm -f "$machine_json"
+              return 1
+            fi
+            rm -f "$machine_json"
+            printf '%s\n' "$current"
           }
 
           assert_topology() {
             local label=$1
-            timeout --signal=TERM --kill-after=10s 60s fly machines list --app "$app" --json >"$RUNNER_TEMP/$label-machines.json"
-            timeout --signal=TERM --kill-after=10s 60s fly volumes list --app "$app" --json >"$RUNNER_TEMP/$label-volumes.json"
-            LABEL="$label" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+            local command_timeout_seconds=${2:-60}
+            [[ "$command_timeout_seconds" =~ ^([1-9]|[1-5][0-9]|60)$ ]] || return 1
+            if ! timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s" \
+              fly machines list --app "$app" --json >"$RUNNER_TEMP/$label-machines.json"; then
+              rm -f "$RUNNER_TEMP/$label-machines.json" "$RUNNER_TEMP/$label-volumes.json"
+              return 1
+            fi
+            if ! timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s" \
+              fly volumes list --app "$app" --json >"$RUNNER_TEMP/$label-volumes.json"; then
+              rm -f "$RUNNER_TEMP/$label-machines.json" "$RUNNER_TEMP/$label-volumes.json"
+              return 1
+            fi
+            local topology_status=0
+            LABEL="$label" env -u FLY_API_TOKEN node --input-type=module <<'NODE' || topology_status=$?
           import fs from 'node:fs';
           const root = process.env.RUNNER_TEMP;
           const label = process.env.LABEL;
@@ -322,6 +420,7 @@ jobs:
           }
           NODE
             rm -f "$RUNNER_TEMP/$label-machines.json" "$RUNNER_TEMP/$label-volumes.json"
+            return "$topology_status"
           }
 
           assert_secret_name_boundary() {
@@ -475,6 +574,74 @@ jobs:
             [[ "$status" == '401' ]] || return 1
           }
 
+          wait_for_rollback_observer_stabilization() {
+            local max_attempts=5
+            local required_consecutive_matches=2
+            local retry_delay_seconds=10
+            local command_timeout_seconds=20
+            local attempt=1
+            local consecutive_matches=0
+            local last_matching_observation=''
+            local attempt_failure=''
+            local rollback_current=''
+            local observer_releases_json="$RUNNER_TEMP/rollback-observer-releases.json"
+
+            rollback_observer_failure='not-observed'
+            while (( attempt <= max_attempts )); do
+              attempt_failure=''
+              rollback_current=''
+              if ! assert_topology "rollback-observer-$attempt" "$command_timeout_seconds"; then
+                attempt_failure='topology-or-volume-snapshot-policy-mismatch'
+              elif ! timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s" \
+                fly releases --app "$app" --image --json >"$observer_releases_json"; then
+                attempt_failure='release-query-failed'
+              elif ! rollback_current="$(current_release "$observer_releases_json" "$command_timeout_seconds")"; then
+                attempt_failure='release-machine-image-binding-mismatch'
+              else
+                IFS=$'\t' read -r rollback_release rollback_image_actual <<<"$rollback_current"
+                if [[ ! "$rollback_release" =~ ^v[1-9][0-9]*$ \
+                  || ! "$final_prior_release" =~ ^v[1-9][0-9]*$ ]] \
+                  || (( 10#${rollback_release#v} <= 10#${final_prior_release#v} )); then
+                  attempt_failure='rollback-release-not-newer-than-final-prior'
+                elif [[ "$rollback_image_actual" != "$ROLLBACK_IMAGE" ]]; then
+                  attempt_failure='rollback-image-mismatch'
+                elif [[ "$rollback_current" == "$last_matching_observation" ]]; then
+                  consecutive_matches=$((consecutive_matches + 1))
+                else
+                  last_matching_observation="$rollback_current"
+                  consecutive_matches=1
+                fi
+
+                if [[ -z "$attempt_failure" ]]; then
+                  rollback_observer_failure='exact-match-awaiting-confirmation'
+                  echo "Rollback Fly observer exact match ${consecutive_matches}/${required_consecutive_matches} on attempt ${attempt}." >&2
+                  if (( consecutive_matches >= required_consecutive_matches )); then
+                    rollback_observer_failure=''
+                    return 0
+                  fi
+                fi
+              fi
+
+              if [[ -n "$attempt_failure" ]]; then
+                rollback_observer_failure="$attempt_failure"
+                consecutive_matches=0
+                last_matching_observation=''
+                rollback_release=''
+                rollback_image_actual=''
+                echo "Rollback Fly observer attempt ${attempt}/${max_attempts} was not exact (${attempt_failure}); waiting for control-plane convergence." >&2
+              fi
+              if (( attempt == max_attempts )); then
+                break
+              fi
+              sleep "$retry_delay_seconds"
+              attempt=$((attempt + 1))
+            done
+
+            rollback_observer_failure=${rollback_observer_failure:-stabilization-window-exhausted}
+            echo "Rollback Fly observer failed to produce ${required_consecutive_matches} consecutive exact topology and release/image observations in ${max_attempts} attempts (${rollback_observer_failure})." >&2
+            return 1
+          }
+
           write_summary() {
             {
               echo '## AssessSuite production rollback'
@@ -514,8 +681,8 @@ jobs:
           fi
 
           [[ "$(git -C "$rollback_dir" rev-parse --verify 'HEAD^{commit}')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(git -C "$rollback_dir" ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
+          [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
           [[ "$(sha256sum "$rollback_config" | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
           assert_topology prior
           timeout --signal=TERM --kill-after=10s 60s fly releases --app "$app" --image --json >"$prior_json"
@@ -529,8 +696,8 @@ jobs:
 
           # Final just-in-time freeze immediately before the sole application mutation.
           [[ "$(git -C "$rollback_dir" rev-parse --verify 'HEAD^{commit}')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(git -C "$rollback_dir" ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
+          [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
           [[ "$(sha256sum "$rollback_config" | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
           assert_topology final-predeploy
           final_prior_json="$RUNNER_TEMP/final-prior-releases.json"
@@ -538,6 +705,17 @@ jobs:
           IFS=$'\t' read -r final_prior_release final_prior_image < <(current_release "$final_prior_json")
           [[ "$final_prior_release" == "$EXPECTED_CURRENT_RELEASE" ]]
           [[ "$final_prior_image" == "$EXPECTED_CURRENT_IMAGE" ]]
+          rollback_job_timeout_seconds=4200
+          maximum_bounded_rollback_path_seconds=2624
+          maximum_pre_mutation_elapsed_seconds=1200
+          (( maximum_pre_mutation_elapsed_seconds + maximum_bounded_rollback_path_seconds <= rollback_job_timeout_seconds ))
+          rollback_job_started_epoch=${ROLLBACK_JOB_STARTED_EPOCH:-0}
+          rollback_job_elapsed_seconds=$(( $(date -u +%s) - rollback_job_started_epoch ))
+          if [[ "$rollback_job_started_epoch" -le 0 || "$rollback_job_elapsed_seconds" -lt 0 \
+            || "$rollback_job_elapsed_seconds" -gt "$maximum_pre_mutation_elapsed_seconds" ]]; then
+            write_summary 'ROLLBACK TIME RESERVE EXHAUSTED BEFORE THE FIRST PRODUCTION MUTATION'
+            exit 1
+          fi
           if [[ "$rollback_initial_boundary_state" == 'transition-pending' ]]; then
             timeout --signal=TERM --kill-after=10s 60s \
               fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"
@@ -556,17 +734,17 @@ jobs:
             --app "$app" \
             --image "$ROLLBACK_IMAGE" \
             --yes || rollback_status=$?
-          if [[ "$rollback_status" -ne 0 ]]; then
-            write_summary "ROLLBACK COMMAND FAILED (exit $rollback_status)"
+
+          rollback_observer_failure=''
+          if ! wait_for_rollback_observer_stabilization; then
+            write_summary "ROLLBACK COMMAND EXIT ${rollback_status}; OBSERVER STABILIZATION FAILED (${rollback_observer_failure:-unknown})"
             exit 1
           fi
-
-          assert_topology rollback
+          if [[ "$rollback_status" -ne 0 ]]; then
+            echo "Rollback command returned exit ${rollback_status}, but the bounded observer proved the newer exact rollback release and topology." >&2
+          fi
           assert_secret_name_boundary postrollback forbid
           rm -f "$RUNNER_TEMP/postrollback-secret-names.json"
-          timeout --signal=TERM --kill-after=10s 60s fly releases --app "$app" --image --json >"$new_json"
-          IFS=$'\t' read -r rollback_release rollback_image_actual < <(current_release "$new_json")
-          [[ "$rollback_image_actual" == "$ROLLBACK_IMAGE" ]]
           if ! read_version 'https://assesssuite.com' "$RUNNER_TEMP/rollback-apex-version.json" \
             || ! read_version 'https://assesssuite-production.fly.dev' "$RUNNER_TEMP/rollback-fly-version.json"; then
             write_summary 'ROLLBACK /api/version VERIFICATION FAILED'
@@ -583,4 +761,4 @@ jobs:
             exit 1
           fi
 
-          write_summary 'ROLLED BACK AND VERIFIED'
+          write_summary "ROLLED BACK AND VERIFIED (rollback command exit ${rollback_status})"

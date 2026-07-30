@@ -101,10 +101,10 @@ function sha256(bytes) {
 function assertCanonicalFlyStartupContract() {
   const flyConfig = fs.readFileSync(path.join(repoRoot, 'fly.production.toml'), 'utf8');
   const dockerfile = fs.readFileSync(path.join(repoRoot, 'Dockerfile'), 'utf8');
-  assert.match(
+  assert.doesNotMatch(
     flyConfig,
-    /\[processes\]\s+app\s*=\s*"node server\/productionBootstrap\.mjs && exec node server\/index\.mjs"/,
-    'Fly must run the bounded production bootstrap and then replace it with the server',
+    /^\s*\[\s*(?:processes|"processes"|'processes')\s*\]\s*(?:#.*)?$/m,
+    'Fly must inherit the shell-safe image CMD instead of tokenizing a process override',
   );
   assert.match(
     dockerfile,
