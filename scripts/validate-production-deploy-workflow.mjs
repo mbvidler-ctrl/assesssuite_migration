@@ -1332,6 +1332,11 @@ function validateDeployWorkflowV2(input) {
   requireText('[[ "$CONFIRMATION" == "DEPLOY assesssuite-production EXACT SHA" ]]', 'exact deployment confirmation');
   requireText('[[ "$reviewed_mode" == "$EXTRACTION_RUNTIME_MODE" ]]', 'deploy extraction-mode config binding');
   requireText('[[ "$reviewed_under_age_mode" == "$UNDER_AGE_ZDR_RUNTIME_MODE" ]]', 'deploy under-age config binding');
+  requireText(
+    'production_volume_id="$EXPECTED_VOLUME_ID"\n' +
+    '          production_machine_id="$EXPECTED_MACHINE_ID"',
+    'predeploy snapshot identity binding',
+  );
 
   const secretOffset = deploy.indexOf('FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}');
   const bundleOffset = deploy.indexOf('Validate sealed controls and compatibility receipt before secret injection');
@@ -1553,6 +1558,13 @@ function deployMutationCasesV2(source) {
     'general-clinical-llm-secret-removal-omitted',
     'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"',
     'true # GENERAL_CLINICAL_LLM_ENABLED staged-secret removal omitted',
+  );
+  replace(
+    'predeploy-snapshot-identity-unbound',
+    'production_volume_id="$EXPECTED_VOLUME_ID"\n' +
+      '          production_machine_id="$EXPECTED_MACHINE_ID"',
+    "production_volume_id=''\n" +
+      "          production_machine_id=''",
   );
   cases.push({
     name: 'general-clinical-llm-secret-removal-premature',
