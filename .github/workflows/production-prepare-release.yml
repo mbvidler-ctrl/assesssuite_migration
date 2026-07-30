@@ -799,8 +799,8 @@ jobs:
           for (const [key, value] of [['application_sha',e.APPLICATION_SHA],['workflow_sha',e.TRUSTED_WORKFLOW_SHA],['source_branch',e.SOURCE_BRANCH],['build_timestamp',e.BUILD_TIMESTAMP],['candidate_config_sha256',e.CANDIDATE_CONFIG_SHA256],['rollback_config_sha256',e.ROLLBACK_CONFIG_SHA256],['candidate_image_artifact_id',e.CANDIDATE_IMAGE_ARTIFACT_ID],['candidate_image_artifact_digest',e.CANDIDATE_IMAGE_ARTIFACT_DIGEST],['candidate_image_ref',e.CANDIDATE_IMAGE_REF],['rollback_image_ref',e.ROLLBACK_IMAGE]]) if (row[key] !== value) throw new Error(`Publication ${key} differs`);
           if (!/^sha256:[0-9a-f]{64}$/.test(row.candidate_image_id) || !/^sha256:[0-9a-f]{64}$/.test(row.rollback_image_id) || !/^sha256:[0-9a-f]{64}$/.test(row.candidate_registry_digest) || !/^[0-9a-f]{64}$/.test(row.candidate_archive_sha256) || !/^[0-9a-f]{64}$/.test(row.rollback_archive_sha256)) throw new Error('Publication digest shape differs');
           NODE
-          sha256sum --check --strict "$RUNNER_TEMP/candidate-image/candidate-image.tar.gz.sha256"
-          sha256sum --check --strict "$RUNNER_TEMP/publication/rollback-image.tar.gz.sha256"
+          (cd "$RUNNER_TEMP/candidate-image" && sha256sum --check --strict candidate-image.tar.gz.sha256)
+          (cd "$RUNNER_TEMP/publication" && sha256sum --check --strict rollback-image.tar.gz.sha256)
           gzip -dc "$RUNNER_TEMP/candidate-image/candidate-image.tar.gz" | docker load >/dev/null
           gzip -dc "$RUNNER_TEMP/publication/rollback-image.tar.gz" | docker load >/dev/null
           candidate_image_id="$(node --input-type=module -e "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],'utf8')).candidate_image_id)" "$publication")"
