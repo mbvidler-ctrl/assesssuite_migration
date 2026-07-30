@@ -1,9 +1,11 @@
 # Fly.io configuration — AssessSuite PRODUCTION (launch, 13 July 2026).
 #
 # Differences from the demo (fly.toml / unimatter-demo), all deliberate:
-#   - [processes] repeats the bounded production bootstrap before the server:
+#   - The image CMD runs the bounded production bootstrap before the server:
 #     only approved reference catalogues are seeded idempotently; the full
-#     synthetic seeder refuses to run under NODE_ENV=production.
+#     synthetic seeder refuses to run under NODE_ENV=production. Do not add a
+#     Fly [processes] override: Fly passes it as argv and does not evaluate
+#     shell operators such as `&&`.
 #   - A persistent volume holds server/data (SQLite WAL db) and, via
 #     UPLOADS_DIR, the uploads store — state survives deploys and restarts.
 #   - ALLOW_OPEN_REGISTRATION=1: self-signup is open (the image carries the
@@ -35,9 +37,6 @@ primary_region = "syd"
 
 [build]
   dockerfile = "Dockerfile"
-
-[processes]
-  app = "node server/productionBootstrap.mjs && exec node server/index.mjs"
 
 [env]
   PORT = "8787"

@@ -166,11 +166,11 @@ jobs:
           set -euo pipefail
           actual_sha="$(git rev-parse --verify 'HEAD^{commit}')"
           [[ "$actual_sha" == "$APPLICATION_SHA" ]]
-          remote_sha="$(git ls-remote --exit-code origin "refs/heads/$SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')"
+          remote_sha="$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin "refs/heads/$SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')"
           [[ "$remote_sha" == "$APPLICATION_SHA" ]]
-          trusted_remote_sha="$(git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')"
+          trusted_remote_sha="$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')"
           [[ "$trusted_remote_sha" == "$TRUSTED_WORKFLOW_SHA" ]]
-          git fetch --no-tags --force origin "refs/heads/main:refs/remotes/origin/main"
+          timeout --signal=TERM --kill-after=10s 120s git fetch --no-tags --force origin "refs/heads/main:refs/remotes/origin/main"
           git cat-file -e "$TRUSTED_WORKFLOW_SHA^{commit}"
           [[ -z "$(git status --porcelain --untracked-files=no)" ]]
           [[ ! -L fly.production.toml ]]
@@ -241,7 +241,34 @@ jobs:
           fi
           [[ "$(grep -Ec '^app = "assesssuite-production"$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^primary_region = "syd"$' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Fxc '  app = "node server/productionBootstrap.mjs && exec node server/index.mjs"' fly.production.toml)" -eq 1 ]]
+          python3 -I - fly.production.toml <<'PY'
+          import pathlib
+          import sys
+          import tomllib
+
+          def process_entries(value, path=()):
+              entries = []
+              if isinstance(value, dict):
+                  for key, nested in value.items():
+                      next_path = path + (key,)
+                      if key == 'processes':
+                          entries.append((next_path, nested))
+                      entries.extend(process_entries(nested, next_path))
+              elif isinstance(value, list):
+                  for index, nested in enumerate(value):
+                      entries.extend(process_entries(nested, path + (index,)))
+              return entries
+
+          for raw_path in sys.argv[1:]:
+              path = pathlib.Path(raw_path)
+              try:
+                  with path.open('rb') as stream:
+                      document = tomllib.load(stream)
+              except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:
+                  raise SystemExit(f'Fly config is not valid TOML: {path.name}') from error
+              if process_entries(document) != [(('http_service', 'processes'), ['app'])]:
+                  raise SystemExit(f'Fly config process contract is not exact: {path.name}')
+          PY
           [[ "$(grep -Ec '^  source = "assesssuite_data"$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^  destination = "/app/server/data"$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^  snapshot_retention = 5$' fly.production.toml)" -eq 1 ]]
@@ -263,7 +290,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 06dc6709a57745d9997239e72f014e1fc8798160042e382135f5d410b9f9de7e
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 2f6a6420af00e2ae35d62df9981f00293046d3dd60e993534aaaf6d474d50f35
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -616,7 +643,7 @@ jobs:
         run: |
           set -euo pipefail
           archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
-          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \
             --output "$archive" \
             'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'
           printf '%s  %s\n' 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2' "$archive" | sha256sum --check --strict

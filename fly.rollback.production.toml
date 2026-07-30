@@ -12,9 +12,6 @@ primary_region = "syd"
 [build]
   dockerfile = "Dockerfile"
 
-[processes]
-  app = "node server/productionBootstrap.mjs && exec node server/index.mjs"
-
 [env]
   PORT = "8787"
   ALLOW_OPEN_REGISTRATION = "1"

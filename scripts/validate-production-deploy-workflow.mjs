@@ -10,6 +10,18 @@ const rawSource = fs.readFileSync(workflowPath, 'utf8');
 const validatorSelfSha256 = createHash('sha256')
   .update(fs.readFileSync(new URL(import.meta.url), 'utf8').replaceAll('\r\n', '\n'))
   .digest('hex');
+const TOML_PROCESS_CONTRACT_MARKERS = [
+  'import tomllib',
+  'def process_entries(value, path=()):',
+  "if key == 'processes':",
+  'entries.extend(process_entries(nested, next_path))',
+  'entries.extend(process_entries(nested, path + (index,)))',
+  'for raw_path in sys.argv[1:]:',
+  "with path.open('rb') as stream:",
+  'document = tomllib.load(stream)',
+  'except (OSError, UnicodeError, tomllib.TOMLDecodeError) as error:',
+  "process_entries(document) != [(('http_service', 'processes'), ['app'])]",
+];
 if (cliArgs.includes('--print-self-sha')) {
   process.stdout.write(`${validatorSelfSha256}\n`);
   process.exit(0);
@@ -471,13 +483,16 @@ function validateAuxWorkflow(input, kind) {
     ['npm[[:space:]]+run[[:space:]]+seed', 'npm seed command denylist'],
     ['synthetic data reseeds on every boot', 'full seed startup denylist'],
     ['server/productionBootstrap.mjs', 'catalogue-only bootstrap requirement'],
-    ['  app = "node server/productionBootstrap.mjs && exec node server/index.mjs"', 'catalogue-only Fly process override'],
+    ["python3 -I - \"$config\" <<'PY'", 'isolated semantic Fly process contract'],
     ['snapshot_retention = 5', 'five-day snapshot config'],
     ['scheduled_snapshots = true', 'scheduled snapshot config'],
     ['UPLOAD_AUDIT_RETENTION_DAYS = "730"', 'upload audit retention config'],
     ['UPLOAD_CLEANUP_INTERVAL_MINUTES = "1"', 'upload cleanup config'],
     ['fly.rollback.production.toml', 'default-branch rollback config path'],
   ]) requireStepText(verificationStepName, needle, label);
+  for (const marker of TOML_PROCESS_CONTRACT_MARKERS) {
+    requireStepText(verificationStepName, marker, `semantic Fly process contract ${marker}`);
+  }
 
   const trustedStep = byName.get('Validate exact trusted release controls');
   for (const workflow of [
@@ -519,6 +534,59 @@ function validateAuxWorkflow(input, kind) {
     'mounts[0]?.size_gb !== 3',
   ]) if (!topology.includes(needle)) fail(`topology contract lacks ${needle}`);
   if (/^\s*return 0\s*$/m.test(topology) || topology.includes('&& false')) fail('topology function has a fail-open bypass');
+  if (kind === 'rollback') {
+    for (const needle of [
+      'local command_timeout_seconds=${2:-60}',
+      '[[ "$command_timeout_seconds" =~ ^([1-9]|[1-5][0-9]|60)$ ]] || return 1',
+      'if ! timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s"',
+      'fly machines list --app "$app" --json',
+      'fly volumes list --app "$app" --json',
+      'local topology_status=0',
+      "env -u FLY_API_TOKEN node --input-type=module <<'NODE' || topology_status=$?",
+      'return "$topology_status"',
+    ]) if (!topology.includes(needle)) fail(`rollback topology failure propagation lacks ${needle}`);
+    if (countOf(topology, 'if ! timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s"') !== 2 ||
+        countOf(topology, 'return 1') < 2) {
+      fail('rollback topology queries do not both propagate bounded failures explicitly');
+    }
+  }
+  const releaseReader = functionBody('current_release', 'assert_topology');
+  for (const needle of [
+    'local command_timeout_seconds=${2:-60}',
+    'timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s"',
+    'fly machines list --app "$app" --json',
+    "const completeStatuses = new Set(['complete', 'completed', 'success', 'succeeded']);",
+    "const terminalFailureStatuses = new Set(['failed', 'failure', 'cancelled', 'canceled']);",
+    'const seenVersions = new Set();',
+    'const releases = rows.map((row) => {',
+    "const match = /^v?([1-9][0-9]*)$/.exec(String(rawId));",
+    "if (seenVersions.has(version)) throw new Error('Fly returned duplicate numeric release versions');",
+    'const inProgress = row.InProgress ?? row.inProgress ?? row.in_progress;',
+    "if (inProgress !== undefined && typeof inProgress !== 'boolean') {",
+    "if (inProgress !== undefined && typeof inProgress !== 'boolean') {",
+    'const completed = releases.filter((item) => completeStatuses.has(item.releaseStatus));',
+    "if (completed.length === 0) throw new Error('Fly returned no completed release rows');",
+    'const latest = completed.reduce((current, item) => item.version > current.version ? item : current);',
+    "if (latest.inProgress === true) throw new Error('Latest completed Fly release is still marked in progress');",
+    'for (const item of releases.filter((candidate) => candidate.version > latest.version)) {',
+    'if (item.inProgress === true || !terminalFailureStatuses.has(item.releaseStatus)) {',
+    'if (!Array.isArray(machines) || machines.length !== 1)',
+    "if (machineId !== process.env.EXPECTED_MACHINE_ID || machineState !== 'started' ||",
+    "registry !== 'registry.fly.io' || repository !== 'assesssuite-production'",
+    "!/^sha256:[0-9a-f]{64}$/.test(String(digest))",
+    'const configuredImage = machine.config?.image ?? machine.Config?.image;',
+    'if (configuredImage !== immutableImage || releaseImage !== immutableImage)',
+    'process.stdout.write(`v${latest.version}\\t${immutableImage}`);',
+  ]) if (!releaseReader.includes(needle)) fail(`release/Machine binding lacks ${needle}`);
+  for (const forbidden of [
+    'fly image show ',
+    '|| rows[0]',
+    'const latest = completed[0]',
+    'const latest = releases[0]',
+    'if (![immutableImage, tagImage].filter(Boolean).includes(releaseImage))',
+  ]) {
+    if (releaseReader.includes(forbidden)) fail(`release/Machine binding retains stale control ${forbidden}`);
+  }
 
   const secrets = functionBody(
     'assert_secret_name_boundary',
@@ -536,6 +604,10 @@ function validateAuxWorkflow(input, kind) {
   if (/^\s*return 0\s*$/m.test(secrets) || secrets.includes('&& false')) fail('secret boundary has a fail-open bypass');
 
   requireText('a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2', 'pinned flyctl archive digest');
+  requireText(
+    'curl --fail --location --silent --show-error --max-time 120',
+    'bounded flyctl archive download',
+  );
   requireText("'[\"sh\",\"-c\",\"node server/productionBootstrap.mjs && exec node server/index.mjs\"]'", 'exact catalogue-only image command');
   requireText("'[\"docker-entrypoint.sh\"]'", 'exact image entrypoint');
   requireText('io.assesssuite.rollback-proof', 'rollback compatibility proof label');
@@ -592,7 +664,10 @@ function validateAuxWorkflow(input, kind) {
     if (/^\s*return 0\s*$/m.test(enforcement) || enforcement.includes('&& false')) {
       fail('prepare volume-policy enforcement has a fail-open bypass');
     }
-    requireCount('[[ "$(git ls-remote --exit-code origin refs/heads/main | awk \'NR == 1 { print $1 }\')" == "$TRUSTED_WORKFLOW_SHA" ]]', 3, 'initial and pre/post-publication trusted-main freezes');
+    requireCount('[[ "$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main | awk \'NR == 1 { print $1 }\')" == "$TRUSTED_WORKFLOW_SHA" ]]', 3, 'bounded initial and pre/post-publication trusted-main freezes');
+    if (countOf(active, 'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin') !== 6) {
+      fail('prepare rollback-image remote observations are not all bounded to 60 seconds');
+    }
     const order = [
       'assert_topology prepolicy ignore',
       'assert_secret_name_boundary prepublication allow',
@@ -607,6 +682,145 @@ function validateAuxWorkflow(input, kind) {
       fail('prepare workflow publication checks are not in the reviewed order');
     }
   } else {
+    if (!active.includes('timeout-minutes: 70')) fail('standalone rollback job timeout differs');
+    requireStepText(
+      dispatchStepName,
+      'printf \'ROLLBACK_JOB_STARTED_EPOCH=%s\\n\' "$(date -u +%s)" >> "$GITHUB_ENV"',
+      'standalone rollback job-start timestamp',
+    );
+    for (const needle of [
+      'rollback_job_timeout_seconds=4200',
+      'maximum_bounded_rollback_path_seconds=2624',
+      'maximum_pre_mutation_elapsed_seconds=1200',
+      '(( maximum_pre_mutation_elapsed_seconds + maximum_bounded_rollback_path_seconds <= rollback_job_timeout_seconds ))',
+      'rollback_job_started_epoch=${ROLLBACK_JOB_STARTED_EPOCH:-0}',
+      '"$rollback_job_elapsed_seconds" -gt "$maximum_pre_mutation_elapsed_seconds"',
+      "write_summary 'ROLLBACK TIME RESERVE EXHAUSTED BEFORE THE FIRST PRODUCTION MUTATION'",
+    ]) requireStepText(finalStepName, needle, 'standalone rollback time reserve ' + needle);
+    const rollbackReserveBeforeFirstMutation =
+      '          rollback_job_timeout_seconds=4200\n' +
+      '          maximum_bounded_rollback_path_seconds=2624\n' +
+      '          maximum_pre_mutation_elapsed_seconds=1200\n' +
+      '          (( maximum_pre_mutation_elapsed_seconds + maximum_bounded_rollback_path_seconds <= rollback_job_timeout_seconds ))\n' +
+      '          rollback_job_started_epoch=${ROLLBACK_JOB_STARTED_EPOCH:-0}\n' +
+      '          rollback_job_elapsed_seconds=$(( $(date -u +%s) - rollback_job_started_epoch ))\n' +
+      '          if [[ "$rollback_job_started_epoch" -le 0 || "$rollback_job_elapsed_seconds" -lt 0 \\\n' +
+      '            || "$rollback_job_elapsed_seconds" -gt "$maximum_pre_mutation_elapsed_seconds" ]]; then\n' +
+      "            write_summary 'ROLLBACK TIME RESERVE EXHAUSTED BEFORE THE FIRST PRODUCTION MUTATION'\n" +
+      '            exit 1\n' +
+      '          fi\n' +
+      '          if [[ "$rollback_initial_boundary_state" == \'transition-pending\' ]]; then';
+    if (!finalActive.includes(rollbackReserveBeforeFirstMutation) ||
+        countOf(finalActive, 'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"') !== 1) {
+      fail('standalone rollback time-reserve refusal is not immediately before the first production mutation');
+    }
+    if (countOf(active, 'timeout --signal=TERM --kill-after=10s 60s git -C "') !== 6) {
+      fail('standalone rollback Git remote observations are not all bounded to 60 seconds');
+    }
+    const rollbackObserver = functionBody('wait_for_rollback_observer_stabilization', 'write_summary');
+    for (const needle of [
+      'local max_attempts=5',
+      'local required_consecutive_matches=2',
+      'local retry_delay_seconds=10',
+      'local command_timeout_seconds=20',
+      'while (( attempt <= max_attempts )); do',
+      'assert_topology "rollback-observer-$attempt" "$command_timeout_seconds"',
+      'timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s"',
+      'fly releases --app "$app" --image --json >"$observer_releases_json"',
+      'rollback_current="$(current_release "$observer_releases_json" "$command_timeout_seconds")"',
+      'if [[ ! "$rollback_release" =~ ^v[1-9][0-9]*$',
+      '|| ! "$final_prior_release" =~ ^v[1-9][0-9]*$ ]]',
+      '(( 10#${rollback_release#v} <= 10#${final_prior_release#v} ))',
+      "attempt_failure='rollback-release-not-newer-than-final-prior'",
+      'elif [[ "$rollback_image_actual" != "$ROLLBACK_IMAGE" ]]; then',
+      'elif [[ "$rollback_current" == "$last_matching_observation" ]]; then',
+      'consecutive_matches=$((consecutive_matches + 1))',
+      'if (( consecutive_matches >= required_consecutive_matches )); then',
+      'if [[ -n "$attempt_failure" ]]; then',
+      'consecutive_matches=0',
+      "last_matching_observation=''",
+      'sleep "$retry_delay_seconds"',
+      'attempt=$((attempt + 1))',
+      'return 0',
+      'return 1',
+    ]) if (!rollbackObserver.includes(needle)) fail(`rollback observer stabilization lacks ${needle}`);
+    if (!rollbackObserver ||
+        rollbackObserver.includes('fly deploy ') ||
+        rollbackObserver.includes('write_summary ') ||
+        rollbackObserver.includes('exit ') ||
+        countOf(rollbackObserver, 'return 0') !== 1 ||
+        countOf(rollbackObserver, 'return 1') !== 1) {
+      fail('standalone rollback observer can fail open or redeploy before convergence is exhausted');
+    }
+    const observerLoop = rollbackObserver.indexOf('while (( attempt <= max_attempts )); do');
+    const observerTopology = rollbackObserver.indexOf(
+      'assert_topology "rollback-observer-$attempt" "$command_timeout_seconds"',
+      observerLoop,
+    );
+    const observerReleaseTimeout = rollbackObserver.indexOf(
+      'timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s"',
+      observerTopology,
+    );
+    const observerReleaseQuery = rollbackObserver.indexOf(
+      'fly releases --app "$app" --image --json >"$observer_releases_json"',
+      observerReleaseTimeout,
+    );
+    const observerBinding = rollbackObserver.indexOf(
+      'rollback_current="$(current_release "$observer_releases_json" "$command_timeout_seconds")"',
+      observerReleaseQuery,
+    );
+    const observerNewRelease = rollbackObserver.indexOf(
+      '(( 10#${rollback_release#v} <= 10#${final_prior_release#v} ))',
+      observerBinding,
+    );
+    const observerExactImage = rollbackObserver.indexOf(
+      'elif [[ "$rollback_image_actual" != "$ROLLBACK_IMAGE" ]]; then',
+      observerNewRelease,
+    );
+    const observerThreshold = rollbackObserver.indexOf(
+      'if (( consecutive_matches >= required_consecutive_matches )); then',
+      observerExactImage,
+    );
+    const observerSuccess = rollbackObserver.indexOf('return 0', observerThreshold);
+    const observerMismatchBranch = rollbackObserver.indexOf(
+      'if [[ -n "$attempt_failure" ]]; then',
+      observerSuccess,
+    );
+    const observerConsecutiveReset = rollbackObserver.indexOf(
+      'consecutive_matches=0',
+      observerMismatchBranch,
+    );
+    const observerIdentityReset = rollbackObserver.indexOf(
+      "last_matching_observation=''",
+      observerMismatchBranch,
+    );
+    const observerAttemptIncrement = rollbackObserver.indexOf(
+      'attempt=$((attempt + 1))',
+      observerIdentityReset,
+    );
+    const observerDone = rollbackObserver.lastIndexOf('done');
+    const observerFailure = rollbackObserver.indexOf('return 1', observerDone);
+    if ([observerLoop, observerTopology, observerReleaseTimeout, observerReleaseQuery,
+      observerBinding, observerNewRelease,
+      observerExactImage, observerThreshold, observerSuccess, observerMismatchBranch,
+      observerConsecutiveReset, observerIdentityReset, observerAttemptIncrement,
+      observerDone, observerFailure].some((offset) => offset < 0) ||
+        !(observerLoop < observerTopology &&
+          observerTopology < observerReleaseTimeout &&
+          observerReleaseTimeout < observerReleaseQuery &&
+          observerReleaseQuery < observerBinding &&
+          observerBinding < observerNewRelease &&
+          observerNewRelease < observerExactImage &&
+          observerExactImage < observerThreshold &&
+          observerThreshold < observerSuccess &&
+          observerSuccess < observerMismatchBranch &&
+          observerMismatchBranch < observerConsecutiveReset &&
+          observerConsecutiveReset < observerIdentityReset &&
+          observerIdentityReset < observerAttemptIncrement &&
+          observerAttemptIncrement < observerDone &&
+          observerDone < observerFailure)) {
+      fail('standalone rollback observer does not enforce ordered, consecutive, bounded exact observations');
+    }
     requireStepText(
       finalStepName,
       'rollback_config="$rollback_dir/fly.rollback.production.toml"',
@@ -614,6 +828,11 @@ function validateAuxWorkflow(input, kind) {
     );
     requireStepText(dispatchStepName, '[[ "$CONFIRMATION" == "ROLLBACK assesssuite-production COMPATIBILITY IMAGE" ]]', 'explicit emergency rollback confirmation');
     requireStepText(dispatchStepName, '[[ "$INCIDENT_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]', 'incident reference shape');
+    requireStepText(
+      dispatchStepName,
+      '[[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\\.fly\\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]',
+      'immutable digest-only expected current image',
+    );
     requireCount('io.assesssuite.rollback-proof', 1, 'rollback proof label verification');
     requireCount('io.assesssuite.trusted-workflow', 1, 'rollback workflow label verification');
     if (/\bdocker push\b/.test(active)) fail('emergency rollback workflow may not publish a new image');
@@ -642,7 +861,37 @@ function validateAuxWorkflow(input, kind) {
     requireStepText(finalStepName, "read_version 'https://assesssuite-production.fly.dev'", 'Fly-domain rollback version verification');
     requireStepText(finalStepName, "read_public_surface 'https://assesssuite.com' 'rollback-apex'", 'apex rollback public-surface verification');
     requireStepText(finalStepName, "read_public_surface 'https://assesssuite-production.fly.dev' 'rollback-fly'", 'Fly-domain rollback public-surface verification');
-    requireCount('[[ "$(git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main | awk \'NR == 1 { print $1 }\')" == "$TRUSTED_WORKFLOW_SHA" ]]', 2, 'preflight and final-predeploy trusted-main freezes');
+    requireCount('[[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main | awk \'NR == 1 { print $1 }\')" == "$TRUSTED_WORKFLOW_SHA" ]]', 2, 'bounded preflight and final-predeploy trusted-main freezes');
+    const rollbackCommand = finalActive.indexOf('timeout --signal=TERM --kill-after=30s 420s fly deploy "$rollback_dir"');
+    const rollbackStatusCapture = finalActive.indexOf('--yes || rollback_status=$?', rollbackCommand);
+    const observerCall = finalActive.indexOf('if ! wait_for_rollback_observer_stabilization; then');
+    const observerFailureSummary = finalActive.indexOf(
+      'write_summary "ROLLBACK COMMAND EXIT ${rollback_status}; OBSERVER STABILIZATION FAILED (${rollback_observer_failure:-unknown})"',
+      observerCall,
+    );
+    const observerFailureExit = finalActive.indexOf('exit 1', observerFailureSummary);
+    const reconciledCommandFailure = finalActive.indexOf(
+      'if [[ "$rollback_status" -ne 0 ]]; then',
+      observerFailureExit,
+    );
+    const postrollbackBoundaryCheck = finalActive.indexOf(
+      'assert_secret_name_boundary postrollback forbid',
+      reconciledCommandFailure,
+    );
+    const commandFailureWindow = rollbackCommand >= 0 && observerCall > rollbackCommand
+      ? finalActive.slice(rollbackCommand, observerCall)
+      : '';
+    if (rollbackCommand < 0 || rollbackStatusCapture < 0 || observerCall < 0 ||
+        observerFailureSummary < 0 || observerFailureExit < 0 || reconciledCommandFailure < 0 ||
+        postrollbackBoundaryCheck < 0 || /\b(?:exit|return)(?:\s|;|$)/m.test(commandFailureWindow) ||
+        !(rollbackCommand < rollbackStatusCapture &&
+          rollbackStatusCapture < observerCall &&
+          observerCall < observerFailureSummary &&
+          observerFailureSummary < observerFailureExit &&
+          observerFailureExit < reconciledCommandFailure &&
+          reconciledCommandFailure < postrollbackBoundaryCheck)) {
+      fail('standalone rollback does not always observe, reconcile, or report command and observer status');
+    }
     const order = [
       'assert_topology prior',
       'assert_secret_name_boundary initial allow',
@@ -651,7 +900,7 @@ function validateAuxWorkflow(input, kind) {
       'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"',
       'assert_secret_name_boundary final forbid',
       'fly deploy "$rollback_dir"',
-      'assert_topology rollback',
+      'if ! wait_for_rollback_observer_stabilization; then',
       'assert_secret_name_boundary postrollback forbid',
       "read_version 'https://assesssuite.com'",
       "read_public_surface 'https://assesssuite.com' 'rollback-apex'",
@@ -659,6 +908,13 @@ function validateAuxWorkflow(input, kind) {
     if (order.some((position) => position < 0) ||
         order.some((position, index) => index > 0 && position <= order[index - 1])) {
       fail('emergency rollback checks and deploy are not in the reviewed order');
+    }
+    for (const forbidden of [
+      'assert_topology rollback',
+      'rollback_current="$(current_release "$new_json")"',
+      '[[ "$rollback_image_actual" == "$ROLLBACK_IMAGE" ]]',
+    ]) {
+      if (finalActive.includes(forbidden)) fail(`standalone rollback retains a one-shot observer: ${forbidden}`);
     }
   }
 
@@ -719,6 +975,7 @@ function auxMutationCases(source, kind) {
   shadow('shadow-rollback-workflow-sha-identity', '          [[ "$ROLLBACK_SOURCE_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]', '          [[ -n "$ROLLBACK_SOURCE_SHA" ]]');
   if (kind === 'rollback') {
     shadow('shadow-failed-application-workflow-sha-identity', '          [[ "$FAILED_APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]', '          [[ -n "$FAILED_APPLICATION_SHA" ]]');
+    shadow('shadow-rollback-job-timeout', '    timeout-minutes: 70', '    timeout-minutes: 25');
   }
   replace(
     'seed-denylist-removed',
@@ -726,9 +983,109 @@ function auxMutationCases(source, kind) {
     '|synthetic data reseeds on every boot',
   );
   replace(
-    'fly-process-bootstrap-removed',
-    '          [[ "$(grep -Fxc \'  app = "node server/productionBootstrap.mjs && exec node server/index.mjs"\' "$config")" -eq 1 ]]',
-    '          [[ "$(grep -Fxc \'  app = "node server/index.mjs"\' "$config")" -eq 1 ]]',
+    'fly-process-contract-invocation-removed',
+    "          python3 -I - \"$config\" <<'PY'",
+    "          true <<'PY'",
+  );
+  replace(
+    'fly-process-contract-parser-bypassed',
+    '              document = tomllib.load(stream)',
+    '              document = {}',
+  );
+  replace(
+    'fly-process-contract-dictionary-recursion-removed',
+    '                      entries.extend(process_entries(nested, next_path))',
+    '                      true',
+  );
+  replace(
+    'fly-process-contract-array-recursion-removed',
+    '                  entries.extend(process_entries(nested, path + (index,)))',
+    '                  true',
+  );
+  replace(
+    'fly-process-contract-argv-narrowed-to-first-config',
+    '          for raw_path in sys.argv[1:]:',
+    '          for raw_path in sys.argv[1:2]:',
+  );
+  replace(
+    'fly-process-contract-exact-selector-weakened',
+    "              if process_entries(document) != [(('http_service', 'processes'), ['app'])]:",
+    "              if False:",
+  );
+  replace(
+    'release-reader-all-rows-bypass',
+    '          const releases = rows.map((row) => {',
+    '          const releases = rows.slice(0, 1).map((row) => {',
+  );
+  replace(
+    'release-reader-numeric-version-bypass',
+    "            const match = /^v?([1-9][0-9]*)$/.exec(String(rawId));",
+    "            const match = /^v?(.+)$/.exec(String(rawId));",
+  );
+  replace(
+    'release-reader-duplicate-version-bypass',
+    "            if (seenVersions.has(version)) throw new Error('Fly returned duplicate numeric release versions');",
+    '            if (false) throw new Error();',
+  );
+  replace(
+    'release-reader-completed-filter-bypass',
+    '          const completed = releases.filter((item) => completeStatuses.has(item.releaseStatus));',
+    '          const completed = releases;',
+  );
+  replace(
+    'release-reader-latest-completed-bypass',
+    '          const latest = completed.reduce((current, item) => item.version > current.version ? item : current);',
+    '          const latest = completed[0];',
+  );
+  replace(
+    'release-reader-latest-inprogress-bypass',
+    "          if (latest.inProgress === true) throw new Error('Latest completed Fly release is still marked in progress');",
+    '          if (false) throw new Error();',
+  );
+  replace(
+    'release-reader-higher-state-bypass',
+    '            if (item.inProgress === true || !terminalFailureStatuses.has(item.releaseStatus)) {',
+    '            if (false) {',
+  );
+  replace(
+    'release-reader-unknown-higher-state-accepted',
+    "          const terminalFailureStatuses = new Set(['failed', 'failure', 'cancelled', 'canceled']);",
+    "          const terminalFailureStatuses = new Set(['failed', 'failure', 'cancelled', 'canceled', 'pending']);",
+  );
+  replace(
+    'release-reader-machine-query-replaced',
+    '              fly machines list --app "$app" --json >"$machine_json"; then',
+    '              fly image show --app "$app" --json >"$machine_json"; then',
+  );
+  replace(
+    'release-reader-sole-machine-bypass',
+    "          if (!Array.isArray(machines) || machines.length !== 1) throw new Error('Fly returned a non-sole Machine inventory');",
+    '          if (false) throw new Error();',
+  );
+  replace(
+    'release-reader-machine-identity-bypass',
+    '          if (machineId !== process.env.EXPECTED_MACHINE_ID || machineState !== \'started\' ||',
+    '          if (false || machineState !== \'started\' ||',
+  );
+  replace(
+    'release-reader-machine-state-bypass',
+    '          if (machineId !== process.env.EXPECTED_MACHINE_ID || machineState !== \'started\' ||',
+    '          if (machineId !== process.env.EXPECTED_MACHINE_ID || false ||',
+  );
+  replace(
+    'release-reader-machine-image-ref-bypass',
+    "              registry !== 'registry.fly.io' || repository !== 'assesssuite-production' ||",
+    '              false ||',
+  );
+  replace(
+    'release-reader-machine-digest-bypass',
+    '              !/^sha256:[0-9a-f]{64}$/.test(String(digest))) {',
+    '              false) {',
+  );
+  replace(
+    'release-reader-release-config-image-binding-bypass',
+    '          if (configuredImage !== immutableImage || releaseImage !== immutableImage) {',
+    '          if (false) {',
   );
   const imageVariable = kind === 'prepare' ? 'image' : 'ROLLBACK_IMAGE';
   replace(
@@ -766,6 +1123,21 @@ function auxMutationCases(source, kind) {
   );
 
   if (kind === 'prepare') {
+    cases.push({
+      name: 'prepare-remote-timeouts-removed',
+      mutate: (value) => {
+        const target = 'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin';
+        if (countOf(value, target) !== 6) {
+          throw new Error('mutation prepare-remote-timeouts-removed expected six targets');
+        }
+        return value.replaceAll(target, 'git ls-remote --exit-code origin');
+      },
+    });
+    replace(
+      'prepare-flyctl-download-timeout-removed',
+      '          curl --fail --location --silent --show-error --max-time 120 \\',
+      '          curl --fail --location --silent --show-error \\',
+    );
     replace(
       'rollback-config-path-reverted',
       '          config=fly.rollback.production.toml',
@@ -861,9 +1233,153 @@ function auxMutationCases(source, kind) {
       'final-main-check-removed',
       '          # Final just-in-time freeze immediately before the sole application mutation.\n' +
         '          [[ "$(git -C "$rollback_dir" rev-parse --verify \'HEAD^{commit}\')" == "$ROLLBACK_SOURCE_SHA" ]]\n' +
-        '          [[ "$(git -C "$rollback_dir" ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk \'NR == 1 { print $1 }\')" == "$ROLLBACK_SOURCE_SHA" ]]\n' +
-        '          [[ "$(git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main | awk \'NR == 1 { print $1 }\')" == "$TRUSTED_WORKFLOW_SHA" ]]',
+        '          [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk \'NR == 1 { print $1 }\')" == "$ROLLBACK_SOURCE_SHA" ]]\n' +
+        '          [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main | awk \'NR == 1 { print $1 }\')" == "$TRUSTED_WORKFLOW_SHA" ]]',
       '          # Final just-in-time freeze immediately before the sole application mutation.\n          true',
+    );
+    replace(
+      'expected-current-image-tag-accepted',
+      '          [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\\.fly\\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]',
+      '          [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\\.fly\\.io/assesssuite-production(:[A-Za-z0-9._-]{1,128}|@sha256:[0-9a-f]{64})$ ]]',
+    );
+    replace(
+      'topology-node-status-propagation-removed',
+      "            LABEL=\"$label\" env -u FLY_API_TOKEN node --input-type=module <<'NODE' || topology_status=$?",
+      "            LABEL=\"$label\" env -u FLY_API_TOKEN node --input-type=module <<'NODE'",
+    );
+    replace(
+      'rollback-observer-max-attempts-reduced-to-one',
+      '            local max_attempts=5',
+      '            local max_attempts=1',
+    );
+    replace(
+      'rollback-observer-consecutive-matches-reduced-to-one',
+      '            local required_consecutive_matches=2',
+      '            local required_consecutive_matches=1',
+    );
+    replace(
+      'rollback-observer-topology-bypass',
+      '              if ! assert_topology "rollback-observer-$attempt" "$command_timeout_seconds"; then',
+      '              if false; then',
+    );
+    replace(
+      'rollback-observer-release-query-bypass',
+      '                fly releases --app "$app" --image --json >"$observer_releases_json"; then',
+      '                true >"$observer_releases_json"; then',
+    );
+    replace(
+      'rollback-observer-release-timeout-removed',
+      '              elif ! timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s" \\\n' +
+        '                fly releases --app "$app" --image --json >"$observer_releases_json"; then',
+      '              elif ! fly releases --app "$app" --image --json >"$observer_releases_json"; then',
+    );
+    replace(
+      'rollback-observer-new-release-proof-bypass',
+      '                  || (( 10#${rollback_release#v} <= 10#${final_prior_release#v} )); then',
+      '                  || false; then',
+    );
+    replace(
+      'rollback-observer-exact-image-bypass',
+      '                elif [[ "$rollback_image_actual" != "$ROLLBACK_IMAGE" ]]; then',
+      '                elif false; then',
+    );
+    replace(
+      'rollback-observer-consecutive-identity-bypass',
+      '                elif [[ "$rollback_current" == "$last_matching_observation" ]]; then',
+      '                elif [[ -n "$rollback_current" ]]; then',
+    );
+    replace(
+      'rollback-observer-caller-bypass',
+      '          if ! wait_for_rollback_observer_stabilization; then',
+      '          if false; then',
+    );
+    replace(
+      'rollback-command-failure-short-circuits-observer',
+      '          rollback_observer_failure=\'\'\n          if ! wait_for_rollback_observer_stabilization; then',
+      '          if [[ "$rollback_status" -ne 0 ]]; then exit 1; fi\n          rollback_observer_failure=\'\'\n          if ! wait_for_rollback_observer_stabilization; then',
+    );
+    replace(
+      'rollback-command-success-short-circuits-observer',
+      '          rollback_observer_failure=\'\'\n          if ! wait_for_rollback_observer_stabilization; then',
+      '          exit 0\n          rollback_observer_failure=\'\'\n          if ! wait_for_rollback_observer_stabilization; then',
+    );
+    cases.push({
+      name: 'rollback-time-reserve-moved-after-first-mutation',
+      mutate: (value) => {
+        const reserve =
+          '          rollback_job_timeout_seconds=4200\n' +
+          '          maximum_bounded_rollback_path_seconds=2624\n' +
+          '          maximum_pre_mutation_elapsed_seconds=1200\n' +
+          '          (( maximum_pre_mutation_elapsed_seconds + maximum_bounded_rollback_path_seconds <= rollback_job_timeout_seconds ))\n' +
+          '          rollback_job_started_epoch=${ROLLBACK_JOB_STARTED_EPOCH:-0}\n' +
+          '          rollback_job_elapsed_seconds=$(( $(date -u +%s) - rollback_job_started_epoch ))\n' +
+          '          if [[ "$rollback_job_started_epoch" -le 0 || "$rollback_job_elapsed_seconds" -lt 0 \\\n' +
+          '            || "$rollback_job_elapsed_seconds" -gt "$maximum_pre_mutation_elapsed_seconds" ]]; then\n' +
+          "            write_summary 'ROLLBACK TIME RESERVE EXHAUSTED BEFORE THE FIRST PRODUCTION MUTATION'\n" +
+          '            exit 1\n' +
+          '          fi\n';
+        const firstMutation =
+          '          if [[ "$rollback_initial_boundary_state" == \'transition-pending\' ]]; then\n' +
+          '            timeout --signal=TERM --kill-after=10s 60s \\\n' +
+          '              fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"\n' +
+          '          elif [[ "$rollback_initial_boundary_state" != \'settled\' ]]; then\n' +
+          '            exit 1\n' +
+          '          fi\n';
+        return replaceOnce(
+          value,
+          reserve + firstMutation,
+          firstMutation + reserve,
+          'rollback-time-reserve-moved-after-first-mutation',
+        );
+      },
+    });
+    replace(
+      'rollback-job-timeout-reduced',
+      '    timeout-minutes: 70',
+      '    timeout-minutes: 25',
+    );
+    replace(
+      'rollback-time-reserve-gate-removed',
+      '          (( maximum_pre_mutation_elapsed_seconds + maximum_bounded_rollback_path_seconds <= rollback_job_timeout_seconds ))',
+      '          true',
+    );
+    replace(
+      'rollback-pre-mutation-deadline-expanded',
+      '          maximum_pre_mutation_elapsed_seconds=1200',
+      '          maximum_pre_mutation_elapsed_seconds=3600',
+    );
+    replace(
+      'rollback-flyctl-download-timeout-removed',
+      '          curl --fail --location --silent --show-error --max-time 120 \\',
+      '          curl --fail --location --silent --show-error \\',
+    );
+    cases.push({
+      name: 'rollback-main-remote-timeouts-removed',
+      mutate: (value) => {
+        const target = 'timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main';
+        if (countOf(value, target) !== 2) {
+          throw new Error('mutation rollback-main-remote-timeouts-removed expected two targets');
+        }
+        return value.replaceAll(
+          target,
+          'git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main',
+        );
+      },
+    });
+    replace(
+      'rollback-observer-redeploy-inside-loop',
+      '              sleep "$retry_delay_seconds"',
+      '              fly deploy "$rollback_dir" --app "$app" --image "$ROLLBACK_IMAGE" --yes\n              sleep "$retry_delay_seconds"',
+    );
+    replace(
+      'rollback-observer-attempt-increment-removed',
+      '              attempt=$((attempt + 1))',
+      '              true # rollback observer attempt increment removed',
+    );
+    replace(
+      'rollback-observer-consecutive-reset-removed',
+      "                consecutive_matches=0\n                last_matching_observation=''",
+      "                true # rollback observer consecutive reset removed\n                last_matching_observation=''",
     );
     replace(
       'public-surface-check-removed',
@@ -1065,6 +1581,29 @@ function validateParityWorkflow(input) {
     '[[ "$PARITY_NAMESPACE" == "asr-r2-20260721" ]]',
     '[[ "$ACTION" =~ ^(volume-create|machine-create|provider-wave|namespace-cleanup|machine-delete|volume-delete)$ ]]',
   ]) if (!prepare.includes(needle)) fail('missing parity provenance/mission guard ' + needle);
+  if (!prepare.includes("python3 -I - fly.production.toml <<'PY'")) {
+    fail('parity preparation does not invoke the isolated semantic Fly process contract');
+  }
+  for (const marker of TOML_PROCESS_CONTRACT_MARKERS) {
+    if (!prepare.includes(marker)) fail('parity semantic Fly process contract missing ' + marker);
+  }
+  for (const needle of [
+    'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main',
+    'timeout --signal=TERM --kill-after=30s 300s docker pull --platform linux/amd64',
+    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120",
+  ]) requireText(needle, 'bounded parity remote operation ' + needle);
+  const parityFlyctlDownload =
+    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \\\n" +
+    '            --output "$archive" \\\n' +
+    "            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'";
+  if (countOf(active, 'git ls-remote') !== 1 ||
+      countOf(active, 'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main') !== 1 ||
+      countOf(active, 'docker pull') !== 1 ||
+      countOf(active, 'timeout --signal=TERM --kill-after=30s 300s docker pull --platform linux/amd64') !== 1 ||
+      countOf(active, 'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz') !== 1 ||
+      countOf(active, parityFlyctlDownload) !== 1) {
+    fail('parity remote operations are not exclusively bound to their reviewed bounded commands');
+  }
 
   if (prepare.includes('${{ secrets.FLY_API_TOKEN }}')) fail('Fly token enters parity preparation');
   for (const needle of [
@@ -1128,6 +1667,32 @@ function validateParityWorkflow(input) {
     'assert_inventory post clean NOT-CREATED NOT-CREATED NOT-CREATED\n              current_volume_id=NOT-CREATED',
     '[[ "$current_machine_id" == "NOT-CREATED" && "$current_private_ipv6" == "NOT-CREATED" && "$current_volume_id" == "NOT-CREATED" ]]',
   ]) if (!active.includes(needle)) fail('missing parity cleanup recovery/terminal receipt control ' + needle);
+
+  for (const needle of [
+    'const parsedReleases = releases.map((row) => {',
+    "const match = /^v?([1-9][0-9]*)$/.exec(String(rawId));",
+    "const terminalFailureStatuses = new Set(['failed', 'failure', 'cancelled', 'canceled']);",
+    "if (seenVersions.has(version)) throw new Error('Fly returned duplicate numeric release versions');",
+    'const completed = parsedReleases.filter((item) => completeStatuses.has(item.status));',
+    'const latest = completed.reduce((current, item) => item.version > current.version ? item : current);',
+    "if (latest.inProgress === true) throw new Error('Latest completed Fly release is still marked in progress');",
+    'if (item.inProgress === true || !terminalFailureStatuses.has(item.status)) {',
+    'const productionMachines = machines.filter((m) => (m.id ?? m.ID) === process.env.EXPECTED_PRODUCTION_MACHINE_ID);',
+    "if (productionMachines.length !== 1) throw new Error('Exact production Machine inventory differs');",
+    "if (prodState !== 'started' || (prod.region ?? prod.Region) !== 'syd' ||",
+    "registry !== 'registry.fly.io' || repository !== 'assesssuite-production' ||",
+    "!/^sha256:[0-9a-f]{64}$/.test(String(digest))",
+    'const configuredImage = prod.config?.image ?? prod.Config?.image;',
+    'immutableImage !== process.env.LIVE_IMAGE',
+    'configuredImage !== immutableImage || releaseImage !== immutableImage',
+  ]) requireText(needle, 'parity production release/Machine binding ' + needle);
+  for (const forbidden of [
+    '.find((r) =>',
+    '|| releases[0]',
+    'fly image show ',
+  ]) {
+    if (active.includes(forbidden)) fail('parity production release/Machine binding retains stale control ' + forbidden);
+  }
 
   for (const needle of [
     'fly proxy 48787:8787 "$current_private_ipv6" --app "$app" --bind-addr 127.0.0.1 --quiet',
@@ -1230,6 +1795,151 @@ function parityMutationCases(source) {
   replace('screenshot-wide-upload', 'path: ${{ runner.temp }}/bounded-synthetic-screenshots/*.png', 'path: ${{ runner.temp }}/all-files');
   replace('artifact-digest-prefix-removed', 'parity_runner_artifact_digest: sha256:${{ steps.upload_runner.outputs.artifact-digest }}', 'parity_runner_artifact_digest: ${{ steps.upload_runner.outputs.artifact-digest }}');
   replace('campaign-selector-metadata-removed', '--metadata "assesssuite-campaign=$PARITY_NAMESPACE" ', '');
+  replace(
+    'candidate-process-contract-invocation-removed',
+    "          python3 -I - fly.production.toml <<'PY'",
+    "          true <<'PY'",
+  );
+  replace(
+    'candidate-process-contract-parser-bypassed',
+    '              document = tomllib.load(stream)',
+    '              document = {}',
+  );
+  replace(
+    'candidate-process-contract-dictionary-recursion-removed',
+    '                      entries.extend(process_entries(nested, next_path))',
+    '                      true',
+  );
+  replace(
+    'candidate-process-contract-array-recursion-removed',
+    '                  entries.extend(process_entries(nested, path + (index,)))',
+    '                  true',
+  );
+  replace(
+    'candidate-process-contract-argv-narrowed-to-first-config',
+    '          for raw_path in sys.argv[1:]:',
+    '          for raw_path in sys.argv[1:2]:',
+  );
+  replace(
+    'candidate-process-contract-exact-selector-weakened',
+    "              if process_entries(document) != [(('http_service', 'processes'), ['app'])]:",
+    "              if False:",
+  );
+  replace(
+    'parity-release-all-rows-bypass',
+    '          const parsedReleases = releases.map((row) => {',
+    '          const parsedReleases = releases.slice(0, 1).map((row) => {',
+  );
+  replace(
+    'parity-release-numeric-version-bypass',
+    "            const match = /^v?([1-9][0-9]*)$/.exec(String(rawId));",
+    "            const match = /^v?(.+)$/.exec(String(rawId));",
+  );
+  replace(
+    'parity-release-duplicate-version-bypass',
+    "            if (seenVersions.has(version)) throw new Error('Fly returned duplicate numeric release versions');",
+    '            if (false) throw new Error();',
+  );
+  replace(
+    'parity-release-completed-filter-bypass',
+    '          const completed = parsedReleases.filter((item) => completeStatuses.has(item.status));',
+    '          const completed = parsedReleases;',
+  );
+  replace(
+    'parity-release-latest-selection-bypass',
+    '          const latest = completed.reduce((current, item) => item.version > current.version ? item : current);',
+    '          const latest = completed[0];',
+  );
+  replace(
+    'parity-release-latest-inprogress-bypass',
+    "          if (latest.inProgress === true) throw new Error('Latest completed Fly release is still marked in progress');",
+    '          if (false) throw new Error();',
+  );
+  replace(
+    'parity-higher-release-state-bypass',
+    '            if (item.inProgress === true || !terminalFailureStatuses.has(item.status)) {',
+    '            if (false) {',
+  );
+  replace(
+    'parity-unknown-higher-release-state-accepted',
+    "          const terminalFailureStatuses = new Set(['failed', 'failure', 'cancelled', 'canceled']);",
+    "          const terminalFailureStatuses = new Set(['failed', 'failure', 'cancelled', 'canceled', 'pending']);",
+  );
+  replace(
+    'parity-production-machine-inventory-bypass',
+    "          if (productionMachines.length !== 1) throw new Error('Exact production Machine inventory differs');",
+    '          if (false) throw new Error();',
+  );
+  replace(
+    'parity-production-machine-state-bypass',
+    "          if (prodState !== 'started' || (prod.region ?? prod.Region) !== 'syd' ||",
+    "          if (false || (prod.region ?? prod.Region) !== 'syd' ||",
+  );
+  replace(
+    'parity-production-machine-image-ref-bypass',
+    "              registry !== 'registry.fly.io' || repository !== 'assesssuite-production' ||",
+    '              false ||',
+  );
+  replace(
+    'parity-production-machine-digest-bypass',
+    '              !/^sha256:[0-9a-f]{64}$/.test(String(digest))) {',
+    '              false) {',
+  );
+  replace(
+    'parity-production-live-image-bypass',
+    '              immutableImage !== process.env.LIVE_IMAGE ||',
+    '              false ||',
+  );
+  replace(
+    'parity-production-release-config-binding-bypass',
+    '              configuredImage !== immutableImage || releaseImage !== immutableImage) {',
+    '              false) {',
+  );
+  replace(
+    'parity-main-remote-timeout-removed',
+    'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main',
+    'git ls-remote --exit-code origin refs/heads/main',
+  );
+  replace(
+    'parity-proxy-image-pull-timeout-removed',
+    'timeout --signal=TERM --kill-after=30s 300s docker pull --platform linux/amd64',
+    'docker pull --platform linux/amd64',
+  );
+  replace(
+    'parity-flyctl-download-timeout-removed',
+    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120",
+    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location",
+  );
+  replace(
+    'parity-main-remote-bounded-dummy-unbounded-real',
+    '          [[ "$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main | awk \'NR == 1 { print $1 }\')" == "$APPLICATION_SHA" ]]',
+    '          if false; then\n' +
+      '            timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main >/dev/null\n' +
+      '          fi\n' +
+      '          [[ "$(git ls-remote --exit-code origin refs/heads/main | awk \'NR == 1 { print $1 }\')" == "$APPLICATION_SHA" ]]',
+  );
+  replace(
+    'parity-proxy-image-bounded-dummy-unbounded-real',
+    '          timeout --signal=TERM --kill-after=30s 300s docker pull --platform linux/amd64 docker.io/library/node:24.4.1-bookworm-slim@sha256:36ae19f59c91f3303c7a648f07493fe14c4bd91320ac8d898416327bacf1bbfa >/dev/null',
+    '          if false; then\n' +
+      '            timeout --signal=TERM --kill-after=30s 300s docker pull --platform linux/amd64 docker.io/library/node:24.4.1-bookworm-slim@sha256:36ae19f59c91f3303c7a648f07493fe14c4bd91320ac8d898416327bacf1bbfa >/dev/null\n' +
+      '          fi\n' +
+      '          docker pull --platform linux/amd64 docker.io/library/node:24.4.1-bookworm-slim@sha256:36ae19f59c91f3303c7a648f07493fe14c4bd91320ac8d898416327bacf1bbfa >/dev/null',
+  );
+  replace(
+    'parity-flyctl-bounded-dummy-unbounded-real',
+    "          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \\\n" +
+      '            --output "$archive" \\\n' +
+      "            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'",
+    '          if false; then\n' +
+      "            curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \\\n" +
+      '              --output "$archive" \\\n' +
+      "              'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'\n" +
+      '          fi\n' +
+      "          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \\\n" +
+      '            --output "$archive" \\\n' +
+      "            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'",
+  );
   replace('validator-pin-mutated', '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + '0'.repeat(64));
   return cases;
 }
@@ -1261,7 +1971,7 @@ function validateDeployWorkflowV2(input) {
   requireText('group: assesssuite-production\n  cancel-in-progress: false', 'shared production concurrency');
   requireText('EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, 'exact trusted deploy validator digest');
   if (JSON.stringify(jobs) !== JSON.stringify(['deploy'])) fail('deploy job sequence differs: ' + JSON.stringify(jobs));
-  if (!deploy.includes('runs-on: ubuntu-24.04') || !deploy.includes('timeout-minutes: 90')) fail('deploy job runner or timeout differs');
+  if (!deploy.includes('runs-on: ubuntu-24.04') || !deploy.includes('timeout-minutes: 120')) fail('deploy job runner or timeout differs');
 
   const expectedInputs = [
     'trusted_workflow_sha','application_sha','candidate_config_sha256','rollback_config_sha256',
@@ -1349,6 +2059,17 @@ function validateDeployWorkflowV2(input) {
   ]) requireText(needle, 'remote-only production control ' + needle);
   if (countOf(deploy, '--remote-only') !== 2 || countOf(deploy, '--skip-release-command') !== 2 ||
       countOf(deploy, 'fly deploy "$deploy_source_dir"') !== 2) fail('candidate and rollback are not both remote-only empty-context deploys');
+  if (countOf(deploy, 'assert_fly_process_contract() {') !== 2 ||
+      countOf(deploy, "python3 -I - \"$@\" <<'PY'") !== 2 ||
+      countOf(deploy, 'assert_fly_process_contract "$candidate_config" "$rollback_config"') !== 2) {
+    fail('candidate and rollback configs do not pass both isolated semantic Fly process gates');
+  }
+  for (const marker of TOML_PROCESS_CONTRACT_MARKERS) {
+    if (countOf(deploy, marker) !== 2) fail('deploy semantic Fly process contracts differ at ' + marker);
+  }
+  if (deploy.includes('app = "node server/productionBootstrap.mjs && exec node server/index.mjs"')) {
+    fail('deploy config contract reintroduces a flyctl-tokenized process command instead of inheriting the image CMD');
+  }
   const exactEight = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY'";
   if (!deploy.includes(exactEight) || deploy.includes('UPLOAD_AUDIT_LEGAL_HOLD')) fail('deploy exact application-secret allowlist differs');
   for (const needle of [
@@ -1372,10 +2093,48 @@ function validateDeployWorkflowV2(input) {
   const transitionalRemoval = deploy.indexOf('fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"');
   const finalSecretBoundary = deploy.indexOf('if ! assert_secret_name_boundary final forbid; then');
   const candidateDeploy = deploy.indexOf('fly deploy "$deploy_source_dir"', finalSecretBoundary);
+  for (const needle of [
+    'printf \'DEPLOY_JOB_STARTED_EPOCH=%s\\n\' "$(date -u +%s)" >> "$GITHUB_ENV"',
+    'curl --fail --location --silent --show-error --max-time 120',
+    'deployment_job_timeout_seconds=7200',
+    'maximum_post_gate_path_seconds=4788',
+    'maximum_gate_elapsed_seconds=1200',
+    '(( maximum_gate_elapsed_seconds + maximum_post_gate_path_seconds <= deployment_job_timeout_seconds ))',
+    '"$deploy_job_elapsed_seconds" -gt "$maximum_gate_elapsed_seconds"',
+  ]) requireText(needle, 'bounded deploy recovery budget ' + needle);
+  const deployReserveBeforeFirstMutation =
+    '          deployment_job_timeout_seconds=7200\n' +
+    '          maximum_post_gate_path_seconds=4788\n' +
+    '          maximum_gate_elapsed_seconds=1200\n' +
+    '          (( maximum_gate_elapsed_seconds + maximum_post_gate_path_seconds <= deployment_job_timeout_seconds ))\n' +
+    '          deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))\n' +
+    '          if [[ "$DEPLOY_JOB_STARTED_EPOCH" -le 0 || "$deploy_job_elapsed_seconds" -lt 0 \\\n' +
+    '            || "$deploy_job_elapsed_seconds" -gt "$maximum_gate_elapsed_seconds" ]]; then\n' +
+    "            echo 'The deployment job no longer has the reviewed time reserve for snapshot, candidate verification and automatic image rollback.' >&2\n" +
+    "            append_summary 'FAILED; rollback-reserved deployment time gate closed before snapshot or application deployment'\n" +
+    '            exit 1\n' +
+    '          fi\n\n' +
+    '          if ! create_predeploy_volume_snapshot; then';
+  if (!deploy.includes(deployReserveBeforeFirstMutation) ||
+      countOf(deploy, 'if ! create_predeploy_volume_snapshot; then') !== 1) {
+    fail('deploy time-reserve refusal is not immediately before the first production mutation');
+  }
+  if (countOf(
+    deploy,
+    'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code https://github.com/mbvidler-ctrl/assesssuite_migration.git refs/heads/main',
+  ) !== 2) {
+    fail('deploy remote-main observations are not both bounded to 60 seconds');
+  }
+  if (countOf(
+    deploy,
+    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --max-time 60",
+  ) !== 3) {
+    fail('deploy GitHub control downloads are not all bounded to 60 seconds');
+  }
   const predeployFreezes = [
     'deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))',
     'if ! create_predeploy_volume_snapshot; then',
-    'remote_main_sha="$(git ls-remote --exit-code https://github.com/mbvidler-ctrl/assesssuite_migration.git refs/heads/main',
+    'remote_main_sha="$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code https://github.com/mbvidler-ctrl/assesssuite_migration.git refs/heads/main',
     '[[ "$(sha256sum "$candidate_config" | awk \'{print $1}\')" == "$CANDIDATE_CONFIG_SHA256" ]]',
     'if ! assert_volume_snapshot_policy final-predeploy "$EXPECTED_VOLUME_ID" "$EXPECTED_MACHINE_ID"; then',
     'if [[ "$final_prior_release" != "$EXPECTED_CURRENT_RELEASE"',
@@ -1384,6 +2143,513 @@ function validateDeployWorkflowV2(input) {
       transitionalRemoval < 0 || finalSecretBoundary < 0 || candidateDeploy < 0 ||
       !(transitionalRemoval < finalSecretBoundary && finalSecretBoundary < candidateDeploy)) {
     fail('conditional transitional secret removal is not last-mutation ordered');
+  }
+
+  const observerStart = deploy.indexOf('wait_for_candidate_observer_stabilization() {');
+  const rollbackObserverStart = deploy.indexOf('wait_for_rollback_observer_stabilization() {');
+  const observerEnd = observerStart < 0 ? -1 : rollbackObserverStart;
+  const observer = observerStart >= 0 && observerEnd > observerStart
+    ? deploy.slice(observerStart, observerEnd)
+    : '';
+  const rollbackObserverEnd = rollbackObserverStart < 0
+    ? -1
+    : deploy.indexOf('append_summary() {', rollbackObserverStart);
+  const rollbackObserver = rollbackObserverStart >= 0 && rollbackObserverEnd > rollbackObserverStart
+    ? deploy.slice(rollbackObserverStart, rollbackObserverEnd)
+    : '';
+  for (const needle of [
+    'local max_attempts=5',
+    'local required_consecutive_matches=2',
+    'local retry_delay_seconds=10',
+    'local command_timeout_seconds=20',
+    'while (( attempt <= max_attempts )); do',
+    'assert_volume_snapshot_policy "candidate-observer-$attempt"',
+    '"$production_volume_id" "$production_machine_id" "$command_timeout_seconds"',
+    'timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s"',
+    'fly releases --app "$app" --image --json >"$new_json"',
+    'candidate_current="$(current_release "$new_json" "$command_timeout_seconds")"',
+    "local candidate_attempt_release=''",
+    "local candidate_attempt_image=''",
+    'IFS=$\'\\t\' read -r candidate_attempt_release candidate_attempt_image <<<"$candidate_current"',
+    'if [[ ! "$candidate_attempt_release" =~ ^v[1-9][0-9]*$',
+    '|| ! "$final_prior_release" =~ ^v[1-9][0-9]*$ ]]',
+    '(( 10#${candidate_attempt_release#v} <= 10#${final_prior_release#v} ))',
+    "attempt_failure='candidate-release-not-newer-than-final-prior'",
+    'elif [[ "$candidate_attempt_image" != "$candidate_image_ref" ]]; then',
+    'elif [[ "$candidate_current" == "$last_matching_observation" ]]; then',
+    'consecutive_matches=$((consecutive_matches + 1))',
+    'if (( consecutive_matches >= required_consecutive_matches )); then',
+    'candidate_release="$candidate_attempt_release"',
+    'candidate_image="$candidate_attempt_image"',
+    'if [[ -n "$attempt_failure" ]]; then',
+    'consecutive_matches=0',
+    "last_matching_observation=''",
+    'sleep "$retry_delay_seconds"',
+    'attempt=$((attempt + 1))',
+    'return 0',
+    'return 1',
+  ]) {
+    if (!observer.includes(needle)) fail('candidate observer stabilization contract missing ' + needle);
+  }
+  if (!observer ||
+      observer.includes('rollback_now') ||
+      observer.includes('verification_failure=') ||
+      observer.includes('exit ') ||
+      countOf(observer, 'return 0') !== 1 ||
+      countOf(observer, 'return 1') !== 1) {
+    fail('candidate observer can fail open or initiate destructive rollback before stabilization is exhausted');
+  }
+  const observerLoop = observer.indexOf('while (( attempt <= max_attempts )); do');
+  const observerTopology = observer.indexOf(
+    'assert_volume_snapshot_policy "candidate-observer-$attempt"',
+    observerLoop,
+  );
+  const observerReleaseTimeout = observer.indexOf(
+    'timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s"',
+    observerTopology,
+  );
+  const observerReleaseQuery = observer.indexOf(
+    'fly releases --app "$app" --image --json >"$new_json"',
+    observerReleaseTimeout,
+  );
+  const observerBinding = observer.indexOf(
+    'candidate_current="$(current_release "$new_json" "$command_timeout_seconds")"',
+    observerReleaseQuery,
+  );
+  const observerReleaseValues = observer.indexOf(
+    'IFS=$\'\\t\' read -r candidate_attempt_release candidate_attempt_image <<<"$candidate_current"',
+    observerBinding,
+  );
+  const observerNewRelease = observer.indexOf(
+    '(( 10#${candidate_attempt_release#v} <= 10#${final_prior_release#v} ))',
+    observerReleaseValues,
+  );
+  const observerExactImage = observer.indexOf(
+    'elif [[ "$candidate_attempt_image" != "$candidate_image_ref" ]]; then',
+    observerNewRelease,
+  );
+  const observerThreshold = observer.indexOf(
+    'if (( consecutive_matches >= required_consecutive_matches )); then',
+    observerExactImage,
+  );
+  const observerReleasePublication = observer.indexOf(
+    'candidate_release="$candidate_attempt_release"',
+    observerThreshold,
+  );
+  const observerImagePublication = observer.indexOf(
+    'candidate_image="$candidate_attempt_image"',
+    observerReleasePublication,
+  );
+  const observerSuccess = observer.indexOf('return 0', observerImagePublication);
+  const observerDone = observer.lastIndexOf('done');
+  const observerFailure = observer.indexOf('return 1', observerDone);
+  const observerMismatchBranch = observer.indexOf('if [[ -n "$attempt_failure" ]]; then', observerExactImage);
+  const observerConsecutiveReset = observer.indexOf('consecutive_matches=0', observerMismatchBranch);
+  const observerIdentityReset = observer.indexOf("last_matching_observation=''", observerMismatchBranch);
+  const observerAttemptIncrement = observer.indexOf('attempt=$((attempt + 1))', observerMismatchBranch);
+  if ([observerLoop, observerTopology, observerReleaseTimeout, observerReleaseQuery,
+    observerBinding, observerReleaseValues, observerNewRelease, observerExactImage, observerThreshold,
+    observerReleasePublication, observerImagePublication,
+    observerSuccess, observerDone, observerFailure, observerMismatchBranch, observerConsecutiveReset,
+    observerIdentityReset, observerAttemptIncrement].some((offset) => offset < 0) ||
+      !(observerLoop < observerTopology &&
+        observerTopology < observerReleaseTimeout &&
+        observerReleaseTimeout < observerReleaseQuery &&
+        observerReleaseQuery < observerBinding &&
+        observerBinding < observerReleaseValues &&
+        observerReleaseValues < observerNewRelease &&
+        observerNewRelease < observerExactImage &&
+        observerExactImage < observerThreshold &&
+        observerThreshold < observerReleasePublication &&
+        observerReleasePublication < observerImagePublication &&
+        observerImagePublication < observerSuccess &&
+        observerSuccess < observerMismatchBranch &&
+        observerMismatchBranch < observerConsecutiveReset &&
+        observerConsecutiveReset < observerIdentityReset &&
+        observerIdentityReset < observerAttemptIncrement &&
+        observerAttemptIncrement < observerDone &&
+         observerDone < observerFailure)) {
+    fail('candidate observer does not enforce ordered, consecutive, bounded exact observations');
+  }
+  for (const needle of [
+    'local max_attempts=5',
+    'local required_consecutive_matches=2',
+    'local retry_delay_seconds=10',
+    'local command_timeout_seconds=20',
+    'while (( attempt <= max_attempts )); do',
+    'assert_volume_snapshot_policy "rollback-observer-$attempt"',
+    '"$production_volume_id" "$production_machine_id" "$command_timeout_seconds"',
+    'timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s"',
+    'fly releases --app "$app" --image --json >"$rollback_json"',
+    'rollback_current="$(current_release "$rollback_json" "$command_timeout_seconds")"',
+    'if [[ ! "$rollback_release" =~ ^v[1-9][0-9]*$',
+    '|| ! "$candidate_release" =~ ^v[1-9][0-9]*$',
+    '|| ! "$final_prior_release" =~ ^v[1-9][0-9]*$ ]]',
+    '10#${rollback_release#v} <= 10#${candidate_release#v}',
+    '10#${rollback_release#v} <= 10#${final_prior_release#v}',
+    "attempt_failure='rollback-release-not-newer-than-candidate-and-final-prior'",
+    'elif [[ "$rollback_image_actual" != "$ROLLBACK_IMAGE" ]]; then',
+    'elif [[ "$rollback_current" == "$last_matching_observation" ]]; then',
+    'consecutive_matches=$((consecutive_matches + 1))',
+    'if (( consecutive_matches >= required_consecutive_matches )); then',
+    'if [[ -n "$attempt_failure" ]]; then',
+    'consecutive_matches=0',
+    "last_matching_observation=''",
+    'sleep "$retry_delay_seconds"',
+    'attempt=$((attempt + 1))',
+    'return 0',
+    'return 1',
+  ]) {
+    if (!rollbackObserver.includes(needle)) fail('rollback observer stabilization contract missing ' + needle);
+  }
+  if (!rollbackObserver ||
+      rollbackObserver.includes('rollback_now') ||
+      rollbackObserver.includes('verification_failure=') ||
+      rollbackObserver.includes('fly deploy ') ||
+      rollbackObserver.includes('append_summary ') ||
+      rollbackObserver.includes('exit ') ||
+      countOf(rollbackObserver, 'return 0') !== 1 ||
+      countOf(rollbackObserver, 'return 1') !== 1) {
+    fail('rollback observer can fail open or initiate another rollback before stabilization is exhausted');
+  }
+  const rollbackObserverLoop = rollbackObserver.indexOf('while (( attempt <= max_attempts )); do');
+  const rollbackObserverTopology = rollbackObserver.indexOf(
+    'assert_volume_snapshot_policy "rollback-observer-$attempt"',
+    rollbackObserverLoop,
+  );
+  const rollbackObserverReleaseTimeout = rollbackObserver.indexOf(
+    'timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s"',
+    rollbackObserverTopology,
+  );
+  const rollbackObserverReleaseQuery = rollbackObserver.indexOf(
+    'fly releases --app "$app" --image --json >"$rollback_json"',
+    rollbackObserverReleaseTimeout,
+  );
+  const rollbackObserverBinding = rollbackObserver.indexOf(
+    'rollback_current="$(current_release "$rollback_json" "$command_timeout_seconds")"',
+    rollbackObserverReleaseQuery,
+  );
+  const rollbackObserverExactImage = rollbackObserver.indexOf(
+    'elif [[ "$rollback_image_actual" != "$ROLLBACK_IMAGE" ]]; then',
+    rollbackObserverBinding,
+  );
+  const rollbackObserverNewRelease = rollbackObserver.indexOf(
+    '10#${rollback_release#v} <= 10#${candidate_release#v}',
+    rollbackObserverBinding,
+  );
+  const rollbackObserverNewerThanPrior = rollbackObserver.indexOf(
+    '10#${rollback_release#v} <= 10#${final_prior_release#v}',
+    rollbackObserverNewRelease,
+  );
+  const rollbackObserverThreshold = rollbackObserver.indexOf(
+    'if (( consecutive_matches >= required_consecutive_matches )); then',
+    rollbackObserverExactImage,
+  );
+  const rollbackObserverSuccess = rollbackObserver.indexOf('return 0', rollbackObserverThreshold);
+  const rollbackObserverDone = rollbackObserver.lastIndexOf('done');
+  const rollbackObserverFailure = rollbackObserver.indexOf('return 1', rollbackObserverDone);
+  const rollbackObserverMismatchBranch = rollbackObserver.indexOf(
+    'if [[ -n "$attempt_failure" ]]; then',
+    rollbackObserverExactImage,
+  );
+  const rollbackObserverConsecutiveReset = rollbackObserver.indexOf(
+    'consecutive_matches=0',
+    rollbackObserverMismatchBranch,
+  );
+  const rollbackObserverIdentityReset = rollbackObserver.indexOf(
+    "last_matching_observation=''",
+    rollbackObserverMismatchBranch,
+  );
+  const rollbackObserverAttemptIncrement = rollbackObserver.indexOf(
+    'attempt=$((attempt + 1))',
+    rollbackObserverMismatchBranch,
+  );
+  if ([rollbackObserverLoop, rollbackObserverTopology, rollbackObserverReleaseTimeout,
+    rollbackObserverReleaseQuery, rollbackObserverBinding,
+    rollbackObserverNewRelease, rollbackObserverNewerThanPrior,
+    rollbackObserverExactImage, rollbackObserverThreshold, rollbackObserverSuccess,
+    rollbackObserverDone, rollbackObserverFailure, rollbackObserverMismatchBranch,
+    rollbackObserverConsecutiveReset, rollbackObserverIdentityReset,
+    rollbackObserverAttemptIncrement].some((offset) => offset < 0) ||
+      !(rollbackObserverLoop < rollbackObserverTopology &&
+        rollbackObserverTopology < rollbackObserverReleaseTimeout &&
+        rollbackObserverReleaseTimeout < rollbackObserverReleaseQuery &&
+        rollbackObserverReleaseQuery < rollbackObserverBinding &&
+        rollbackObserverBinding < rollbackObserverNewRelease &&
+        rollbackObserverNewRelease < rollbackObserverNewerThanPrior &&
+        rollbackObserverNewerThanPrior < rollbackObserverExactImage &&
+        rollbackObserverExactImage < rollbackObserverThreshold &&
+        rollbackObserverThreshold < rollbackObserverSuccess &&
+        rollbackObserverSuccess < rollbackObserverMismatchBranch &&
+        rollbackObserverMismatchBranch < rollbackObserverConsecutiveReset &&
+        rollbackObserverConsecutiveReset < rollbackObserverIdentityReset &&
+        rollbackObserverIdentityReset < rollbackObserverAttemptIncrement &&
+        rollbackObserverAttemptIncrement < rollbackObserverDone &&
+        rollbackObserverDone < rollbackObserverFailure)) {
+    fail('rollback observer does not enforce ordered, consecutive, bounded exact observations');
+  }
+  if (countOf(deploy, 'local command_timeout_seconds=${2:-60}') !== 1 ||
+      countOf(deploy, 'local command_timeout_seconds=${4:-60}') !== 2 ||
+      countOf(deploy, '[[ "$command_timeout_seconds" =~ ^([1-9]|[1-5][0-9]|60)$ ]] || return 1') !== 3 ||
+      !deploy.includes('assert_topology "$label" "$expected_volume_id" "$expected_machine_id" "$command_timeout_seconds"')) {
+    fail('observer command deadlines are not bounded through the release, Machine and topology helpers');
+  }
+  for (const needle of [
+    'local topology_status=0',
+    "env -u FLY_API_TOKEN node --input-type=module <<'NODE' || topology_status=$?",
+    'if [[ "$topology_status" -ne 0 ]]; then',
+    'return "$topology_status"',
+    'local policy_status=0',
+    "env -u FLY_API_TOKEN node --input-type=module <<'NODE' || policy_status=$?",
+    'return "$policy_status"',
+  ]) {
+    if (!deploy.includes(needle)) fail('observer topology failure propagation missing ' + needle);
+  }
+  for (const needle of [
+    'fly machines list --app "$app" --json',
+    "const completeStatuses = new Set(['complete', 'completed', 'success', 'succeeded']);",
+    "const terminalFailureStatuses = new Set(['failed', 'failure', 'cancelled', 'canceled']);",
+    'const seenVersions = new Set();',
+    'const releases = rows.map((row) => {',
+    "const match = /^v?([1-9][0-9]*)$/.exec(String(rawId));",
+    "if (seenVersions.has(version)) throw new Error('Fly returned duplicate numeric release versions');",
+    'const inProgress = row.InProgress ?? row.inProgress ?? row.in_progress;',
+    'const completed = releases.filter((item) => completeStatuses.has(item.releaseStatus));',
+    "if (completed.length === 0) throw new Error('Fly returned no completed release rows');",
+    'const latest = completed.reduce((current, item) => item.version > current.version ? item : current);',
+    "if (latest.inProgress === true) throw new Error('Latest completed Fly release is still marked in progress');",
+    'for (const item of releases.filter((candidate) => candidate.version > latest.version)) {',
+    'if (item.inProgress === true || !terminalFailureStatuses.has(item.releaseStatus)) {',
+    'if (!Array.isArray(machines) || machines.length !== 1)',
+    "if (machineId !== process.env.EXPECTED_MACHINE_ID || machineState !== 'started' ||",
+    "registry !== 'registry.fly.io' || repository !== 'assesssuite-production'",
+    "!/^sha256:[0-9a-f]{64}$/.test(String(digest))",
+    'const configuredImage = machine.config?.image ?? machine.Config?.image;',
+    'if (configuredImage !== immutableImage || releaseImage !== immutableImage)',
+    'const id = `v${latest.version}`;',
+  ]) {
+    if (!deploy.includes(needle)) fail('current release selection contract missing ' + needle);
+  }
+  for (const forbidden of [
+    'fly image show ',
+    '|| rows[0]',
+    'const latest = completed[0]',
+    'const latest = releases[0]',
+    'if (![immutableImage, tagImage].filter(Boolean).includes(releaseImage))',
+  ]) {
+    if (deploy.includes(forbidden)) fail('current release selection retains stale control ' + forbidden);
+  }
+  if (countOf(deploy, "candidate_release=''") !== 1 ||
+      countOf(deploy, "candidate_image=''") !== 1 ||
+      countOf(deploy, 'candidate_release="$candidate_attempt_release"') !== 1 ||
+      countOf(deploy, 'candidate_image="$candidate_attempt_image"') !== 1) {
+    fail('candidate release/image globals are not preserved exactly once after observer stabilization');
+  }
+  const failedCandidateBranch = deploy.indexOf('if [[ "$deploy_status" -ne 0 ]]; then', candidateDeploy);
+  const failedCandidateObserver = deploy.indexOf(
+    'if ! wait_for_candidate_observer_stabilization; then',
+    failedCandidateBranch,
+  );
+  const failedCandidateSummary = deploy.indexOf(
+    'append_summary "FAILED; candidate deploy command exit ${deploy_status}; candidate release was not proved (${candidate_observer_failure:-unknown}); automatic rollback was not attempted"',
+    failedCandidateObserver,
+  );
+  const failedCandidateObserverExit = deploy.indexOf('exit 1', failedCandidateSummary);
+  const failedCandidateRollback = deploy.indexOf(
+    'if ! rollback_now "fly-deploy-exit-${deploy_status};candidate-proved-at-${candidate_release}"; then',
+    failedCandidateObserverExit,
+  );
+  const verificationFailureInit = deploy.indexOf("verification_failure=''", failedCandidateRollback);
+  const failedCandidateAnchoredRollbackBlock =
+    '            if ! rollback_now "fly-deploy-exit-${deploy_status};candidate-proved-at-${candidate_release}"; then\n' +
+    "              echo 'Automatic image rollback did not verify successfully.' >&2\n" +
+    '            fi\n' +
+    '            exit 1\n' +
+    '          fi\n\n' +
+    "          verification_failure=''";
+  const failedCandidateAnchoredRollback = deploy.indexOf(
+    failedCandidateAnchoredRollbackBlock,
+    failedCandidateObserverExit,
+  );
+  const failedCandidateFinalExit = failedCandidateAnchoredRollback < 0
+    ? -1
+    : failedCandidateAnchoredRollback +
+      failedCandidateAnchoredRollbackBlock.indexOf('            exit 1\n');
+  const unprovedCandidateWindow = failedCandidateBranch >= 0 && failedCandidateObserver > failedCandidateBranch
+    ? deploy.slice(failedCandidateBranch, failedCandidateObserver)
+    : '';
+  if ([failedCandidateBranch, failedCandidateObserver, failedCandidateSummary,
+    failedCandidateObserverExit, failedCandidateRollback, failedCandidateAnchoredRollback,
+    failedCandidateFinalExit,
+    verificationFailureInit].some((offset) => offset < 0) ||
+      unprovedCandidateWindow.includes('rollback_now') ||
+      /\b(?:exit|return)(?:\s|;|$)/m.test(unprovedCandidateWindow) ||
+      !(candidateDeploy < failedCandidateBranch &&
+        failedCandidateBranch < failedCandidateObserver &&
+        failedCandidateObserver < failedCandidateSummary &&
+        failedCandidateSummary < failedCandidateObserverExit &&
+        failedCandidateObserverExit < failedCandidateRollback &&
+        failedCandidateRollback < failedCandidateFinalExit &&
+        failedCandidateFinalExit < verificationFailureInit)) {
+    fail('failed candidate command can roll back without first proving and preserving the exact candidate release');
+  }
+  const observerCall = deploy.indexOf(
+    'if ! wait_for_candidate_observer_stabilization; then',
+    verificationFailureInit,
+  );
+  const observerTimeoutFailure = deploy.indexOf(
+    'verification_failure="candidate-observer-stabilization-timeout:${candidate_observer_failure:-unknown}"',
+    observerCall,
+  );
+  const firstPublicCheck = deploy.indexOf(
+    "elif ! read_version 'https://assesssuite.com' \"$APPLICATION_SHA\"",
+    observerCall,
+  );
+  const verificationRollback = deploy.indexOf('if [[ -n "$verification_failure" ]]; then', observerCall);
+  const preservedCandidateGate = deploy.indexOf(
+    'if [[ ! "$candidate_release" =~ ^v[1-9][0-9]*$',
+    verificationRollback,
+  );
+  const preservedCandidateImage = deploy.indexOf(
+    '|| "$candidate_image" != "$candidate_image_ref"',
+    preservedCandidateGate,
+  );
+  const preservedCandidateReleaseOrder = deploy.indexOf(
+    '(( 10#${candidate_release#v} <= 10#${final_prior_release#v} ))',
+    preservedCandidateImage,
+  );
+  const unprovedCandidateRollbackRefusal = deploy.indexOf(
+    'append_summary "FAILED; candidate release was not globally preserved after observer stabilization; automatic rollback was not attempted (${verification_failure})"',
+    preservedCandidateReleaseOrder,
+  );
+  const unprovedCandidateRollbackExit = deploy.indexOf(
+    'exit 1',
+    unprovedCandidateRollbackRefusal,
+  );
+  const verificationRollbackCall = deploy.indexOf(
+    'if ! rollback_now "$verification_failure"; then',
+    verificationRollback,
+  );
+  const verificationFailureExit = deploy.indexOf('exit 1', verificationRollbackCall);
+  const unprovedVerificationRollbackWindow = verificationRollback >= 0 &&
+      preservedCandidateGate > verificationRollback
+    ? deploy.slice(verificationRollback, preservedCandidateGate)
+    : '';
+  if ([observerCall, observerTimeoutFailure, firstPublicCheck, verificationRollback,
+    preservedCandidateGate, preservedCandidateImage, preservedCandidateReleaseOrder,
+    unprovedCandidateRollbackRefusal, unprovedCandidateRollbackExit,
+    verificationRollbackCall, verificationFailureExit].some((offset) => offset < 0) ||
+      unprovedVerificationRollbackWindow.includes('rollback_now') ||
+      !(candidateDeploy < observerCall &&
+        observerCall < observerTimeoutFailure &&
+        observerTimeoutFailure < firstPublicCheck &&
+        firstPublicCheck < verificationRollback &&
+        verificationRollback < preservedCandidateGate &&
+        preservedCandidateGate < preservedCandidateImage &&
+        preservedCandidateImage < preservedCandidateReleaseOrder &&
+        preservedCandidateReleaseOrder < unprovedCandidateRollbackRefusal &&
+        unprovedCandidateRollbackRefusal < unprovedCandidateRollbackExit &&
+        unprovedCandidateRollbackExit < verificationRollbackCall &&
+         verificationRollbackCall < verificationFailureExit)) {
+    fail('verification rollback can run without a stabilized, globally preserved candidate release');
+  }
+  const rollbackNowStart = deploy.indexOf('rollback_now() {');
+  const rollbackNowEnd = rollbackNowStart < 0
+    ? -1
+    : deploy.indexOf('[[ "$candidate_image_ref" == "$CANDIDATE_IMAGE_REF" ]]', rollbackNowStart);
+  const rollbackNow = rollbackNowStart >= 0 && rollbackNowEnd > rollbackNowStart
+    ? deploy.slice(rollbackNowStart, rollbackNowEnd)
+    : '';
+  const candidateCommandWindow = candidateDeploy >= 0 && failedCandidateBranch > candidateDeploy
+    ? deploy.slice(candidateDeploy, failedCandidateBranch)
+    : '';
+  const exactCandidateDeployCommand =
+    'fly deploy "$deploy_source_dir" \\\n' +
+    '            --config "$candidate_config" \\\n' +
+    '            --strategy immediate \\\n' +
+    '            --ha=false \\\n' +
+    '            --update-only \\\n' +
+    '            --remote-only \\\n' +
+    '            --skip-release-command \\\n' +
+    '            --app "$app" \\\n' +
+    '            --image "$candidate_image_ref" \\\n' +
+    '            --yes || deploy_status=$?';
+  const exactRollbackDeployCommand =
+    'fly deploy "$deploy_source_dir" \\\n' +
+    '              --config "$rollback_config" \\\n' +
+    '              --strategy immediate \\\n' +
+    '              --ha=false \\\n' +
+    '              --update-only \\\n' +
+    '              --remote-only \\\n' +
+    '              --skip-release-command \\\n' +
+    '              --app "$app" \\\n' +
+    '              --image "$ROLLBACK_IMAGE" \\\n' +
+    '              --yes || rollback_command_status=$?';
+  if (countOf(candidateCommandWindow, exactCandidateDeployCommand) !== 1 ||
+      countOf(candidateCommandWindow, 'fly deploy "$deploy_source_dir"') !== 1 ||
+      countOf(rollbackNow, exactRollbackDeployCommand) !== 1 ||
+      countOf(rollbackNow, 'fly deploy "$deploy_source_dir"') !== 1) {
+    fail('candidate and rollback fly deploy argv are not exactly bound to their scoped config and immutable image');
+  }
+  const rollbackDeploy = rollbackNow.indexOf('fly deploy "$deploy_source_dir"');
+  const rollbackCommandStatusCapture = rollbackNow.indexOf(
+    '--yes || rollback_command_status=$?',
+    rollbackDeploy,
+  );
+  const rollbackObserverCall = rollbackNow.indexOf('if ! wait_for_rollback_observer_stabilization; then');
+  const rollbackObserverFailureSummary = rollbackNow.indexOf(
+    'append_summary "FAILED; rollback command exit ${rollback_command_status}; observer stabilization exhausted (${rollback_observer_failure:-unknown}; $reason)"',
+    rollbackObserverCall,
+  );
+  const rollbackObserverFailureReturn = rollbackNow.indexOf('return 1', rollbackObserverFailureSummary);
+  const reconciledRollbackCommandFailure = rollbackNow.indexOf(
+    'if [[ "$rollback_command_status" -ne 0 ]]; then',
+    rollbackObserverFailureReturn,
+  );
+  const rollbackPublicCheck = rollbackNow.indexOf(
+    "if ! read_version 'https://assesssuite.com' \"$ROLLBACK_RELEASE_SHA\"",
+    reconciledRollbackCommandFailure,
+  );
+  const rollbackCommandWindow = rollbackDeploy >= 0 && rollbackObserverCall > rollbackDeploy
+    ? rollbackNow.slice(rollbackDeploy, rollbackObserverCall)
+    : '';
+  if (!rollbackNow ||
+      [rollbackDeploy, rollbackCommandStatusCapture, rollbackObserverCall,
+        rollbackObserverFailureSummary, rollbackObserverFailureReturn,
+        reconciledRollbackCommandFailure, rollbackPublicCheck].some((offset) => offset < 0) ||
+      /\b(?:exit|return)(?:\s|;|$)/m.test(rollbackCommandWindow) ||
+      !(rollbackDeploy < rollbackCommandStatusCapture &&
+        rollbackCommandStatusCapture < rollbackObserverCall &&
+        rollbackObserverCall < rollbackObserverFailureSummary &&
+        rollbackObserverFailureSummary < rollbackObserverFailureReturn &&
+        rollbackObserverFailureReturn < reconciledRollbackCommandFailure &&
+        reconciledRollbackCommandFailure < rollbackPublicCheck)) {
+    fail('automatic rollback does not always observe, reconcile, or report command and observer status');
+  }
+  if (!deploy.includes(
+    '            if ! rollback_now "$verification_failure"; then\n' +
+      "              echo 'Automatic rollback did not verify successfully.' >&2\n" +
+      '            fi\n' +
+      '            exit 1\n' +
+      '          fi',
+  )) {
+    fail('verification-failure rollback branch does not terminate with its own anchored failure exit');
+  }
+  for (const forbidden of [
+    'assert_volume_snapshot_policy candidate "$production_volume_id" "$production_machine_id"',
+    "verification_failure='candidate-topology-or-volume-snapshot-policy-mismatch'",
+    "verification_failure='release-query-failed'",
+    "verification_failure='release-response-invalid'",
+    "verification_failure='deployed-image-mismatch'",
+  ]) {
+    if (deploy.includes(forbidden)) fail('one-shot candidate observer failure can still reach rollback: ' + forbidden);
+  }
+  for (const forbidden of [
+    'assert_volume_snapshot_policy rollback "$production_volume_id" "$production_machine_id"',
+    'rollback_current="$(current_release "$rollback_json")"',
+    '[[ "$rollback_image_actual" == "$ROLLBACK_IMAGE" ]]',
+  ]) {
+    if (rollbackNow.includes(forbidden)) fail('automatic rollback still uses a one-shot observer: ' + forbidden);
   }
   for (const forbidden of ['continue-on-error:', 'set -x', 'set -o xtrace', 'fly auth docker', 'registry.fly.io/assesssuite-production:latest']) {
     if (active.includes(forbidden)) fail('deploy contains forbidden fail-open/mutable/registry control ' + forbidden);
@@ -1434,6 +2700,33 @@ function validatePrepareReleaseWorkflow(input) {
   requireText('[[ "$SOURCE_BRANCH" == "main" ]]', 'fixed main source branch');
   requireText('[[ "$ROLLBACK_SOURCE_BRANCH" == "main" ]]', 'fixed main rollback branch');
   requireText('ROLLBACK_SOURCE_SHA: ${{ inputs.application_sha }}', 'fixed rollback source SHA');
+  if (!gates.includes("python3 -I - fly.production.toml <<'PY'")) {
+    fail('prepare-release gates do not invoke the isolated semantic Fly process contract');
+  }
+  for (const marker of TOML_PROCESS_CONTRACT_MARKERS) {
+    if (!gates.includes(marker)) fail('prepare-release semantic Fly process contract missing ' + marker);
+  }
+  for (const needle of [
+    'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin "refs/heads/$SOURCE_BRANCH"',
+    'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main',
+    'timeout --signal=TERM --kill-after=10s 120s git fetch --no-tags --force origin',
+    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120",
+  ]) requireText(needle, 'bounded prepare-release remote operation ' + needle);
+  const prepareReleaseFlyctlDownload =
+    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \\\n" +
+    '            --output "$archive" \\\n' +
+    "            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'";
+  if (countOf(active, 'git ls-remote') !== 2 ||
+      countOf(active, 'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin "refs/heads/$SOURCE_BRANCH"') !== 1 ||
+      countOf(active, 'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main') !== 1 ||
+      countOf(active, 'git fetch') !== 1 ||
+      countOf(active, 'timeout --signal=TERM --kill-after=10s 120s git fetch --no-tags --force origin') !== 1 ||
+      countOf(active, 'docker pull') !== 1 ||
+      countOf(active, 'timeout --signal=TERM --kill-after=30s 300s docker pull "$ROLLBACK_IMAGE"') !== 1 ||
+      countOf(active, 'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz') !== 1 ||
+      countOf(active, prepareReleaseFlyctlDownload) !== 1) {
+    fail('prepare-release remote operations are not exclusively bound to their reviewed bounded commands');
+  }
   for (const needle of [
     'candidate_image_artifact_digest: sha256:${{ steps.upload_candidate.outputs.artifact-digest }}',
     'release_control_artifact_digest: sha256:${{ steps.upload_controls.outputs.artifact-digest }}',
@@ -1505,6 +2798,29 @@ function validatePrepareReleaseWorkflow(input) {
 function deployMutationCasesV2(source) {
   const cases = [];
   const replace = (name, from, to) => cases.push({ name, mutate: (value) => replaceOnce(value, from, to, name) });
+  const replaceWithin = (name, startMarker, endMarker, from, to) => cases.push({
+    name,
+    mutate: (value) => {
+      if (countOf(value, startMarker) !== 1 || countOf(value, endMarker) !== 1) {
+        throw new Error(`mutation ${name} could not isolate its function boundary`);
+      }
+      const start = value.indexOf(startMarker);
+      const end = value.indexOf(endMarker, start + startMarker.length);
+      if (start < 0 || end <= start) throw new Error(`mutation ${name} has an invalid function boundary`);
+      const body = value.slice(start, end);
+      return value.slice(0, start) + replaceOnce(body, from, to, name) + value.slice(end);
+    },
+  });
+  const replaceEvery = (name, from, to, expected) => cases.push({
+    name,
+    mutate: (value) => {
+      const found = countOf(value, from);
+      if (found !== expected) {
+        throw new Error(`mutation ${name} expected ${expected} targets, found ${found}`);
+      }
+      return value.replaceAll(from, to);
+    },
+  });
   replace('trigger-push', 'on:\n  workflow_dispatch:', 'on:\n  push:\n    branches: [main]\n  workflow_dispatch:');
   replace('permissions-write', 'permissions:\n  actions: read\n  contents: read', 'permissions:\n  actions: write\n  contents: write');
   replace('input-interface-expanded', '      confirmation:\n', '      unsafe_override:\n        required: true\n        type: string\n      confirmation:\n');
@@ -1583,6 +2899,562 @@ function deployMutationCasesV2(source) {
       );
     },
   });
+  replaceEvery(
+    'process-contract-rollback-config-dropped',
+    '          assert_fly_process_contract "$candidate_config" "$rollback_config"',
+    '          assert_fly_process_contract "$candidate_config"',
+    2,
+  );
+  replaceEvery(
+    'process-contract-parser-bypassed',
+    '              document = tomllib.load(stream)',
+    '              document = {}',
+    2,
+  );
+  replaceEvery(
+    'process-contract-dictionary-recursion-removed',
+    '                      entries.extend(process_entries(nested, next_path))',
+    '                      true',
+    2,
+  );
+  replaceEvery(
+    'process-contract-array-recursion-removed',
+    '                  entries.extend(process_entries(nested, path + (index,)))',
+    '                  true',
+    2,
+  );
+  replaceEvery(
+    'process-contract-argv-narrowed-to-first-config',
+    '          for raw_path in sys.argv[1:]:',
+    '          for raw_path in sys.argv[1:2]:',
+    2,
+  );
+  replaceEvery(
+    'process-contract-exact-selector-weakened',
+    "              if process_entries(document) != [(('http_service', 'processes'), ['app'])]:",
+    "              if False:",
+    2,
+  );
+  replace(
+    'release-reader-all-rows-bypass',
+    '          const releases = rows.map((row) => {',
+    '          const releases = rows.slice(0, 1).map((row) => {',
+  );
+  replace(
+    'release-reader-numeric-version-bypass',
+    "            const match = /^v?([1-9][0-9]*)$/.exec(String(rawId));",
+    "            const match = /^v?(.+)$/.exec(String(rawId));",
+  );
+  replace(
+    'release-reader-duplicate-version-bypass',
+    "            if (seenVersions.has(version)) throw new Error('Fly returned duplicate numeric release versions');",
+    '            if (false) throw new Error();',
+  );
+  replace(
+    'release-reader-unknown-higher-state-accepted',
+    "          const terminalFailureStatuses = new Set(['failed', 'failure', 'cancelled', 'canceled']);",
+    "          const terminalFailureStatuses = new Set(['failed', 'failure', 'cancelled', 'canceled', 'pending']);",
+  );
+  replace(
+    'release-reader-higher-state-bypass',
+    '            if (item.inProgress === true || !terminalFailureStatuses.has(item.releaseStatus)) {',
+    '            if (false) {',
+  );
+  replace(
+    'release-reader-machine-query-replaced',
+    '              fly machines list --app "$app" --json >"$machine_json"; then',
+    '              fly image show --app "$app" --json >"$machine_json"; then',
+  );
+  replace(
+    'release-reader-sole-machine-bypass',
+    "          if (!Array.isArray(machines) || machines.length !== 1) throw new Error('Fly returned a non-sole Machine inventory');",
+    '          if (false) throw new Error();',
+  );
+  replace(
+    'release-reader-machine-identity-bypass',
+    '          if (machineId !== process.env.EXPECTED_MACHINE_ID || machineState !== \'started\' ||',
+    '          if (false || machineState !== \'started\' ||',
+  );
+  replace(
+    'release-reader-machine-state-bypass',
+    '          if (machineId !== process.env.EXPECTED_MACHINE_ID || machineState !== \'started\' ||',
+    '          if (machineId !== process.env.EXPECTED_MACHINE_ID || false ||',
+  );
+  replace(
+    'release-reader-machine-image-ref-bypass',
+    "              registry !== 'registry.fly.io' || repository !== 'assesssuite-production' ||",
+    '              false ||',
+  );
+  replace(
+    'release-reader-machine-digest-bypass',
+    '              !/^sha256:[0-9a-f]{64}$/.test(String(digest))) {',
+    '              false) {',
+  );
+  replace(
+    'release-reader-release-config-image-binding-bypass',
+    '          if (configuredImage !== immutableImage || releaseImage !== immutableImage) {',
+    '          if (false) {',
+  );
+  const candidateObserverFunction = 'wait_for_candidate_observer_stabilization() {';
+  const rollbackObserverFunction = 'wait_for_rollback_observer_stabilization() {';
+  const observerFunctionsEnd = 'append_summary() {';
+  replace(
+    'observer-topology-status-propagation-removed',
+    "              env -u FLY_API_TOKEN node --input-type=module <<'NODE' || topology_status=$?",
+    "              env -u FLY_API_TOKEN node --input-type=module <<'NODE'",
+  );
+  replaceWithin(
+    'observer-max-attempts-reduced-to-one',
+    candidateObserverFunction,
+    rollbackObserverFunction,
+    '            local max_attempts=5',
+    '            local max_attempts=1',
+  );
+  replaceWithin(
+    'observer-consecutive-matches-reduced-to-one',
+    candidateObserverFunction,
+    rollbackObserverFunction,
+    '            local required_consecutive_matches=2',
+    '            local required_consecutive_matches=1',
+  );
+  replaceWithin(
+    'observer-command-timeout-expanded',
+    candidateObserverFunction,
+    rollbackObserverFunction,
+    '            local command_timeout_seconds=20',
+    '            local command_timeout_seconds=60',
+  );
+  replaceWithin(
+    'observer-early-success-exit',
+    candidateObserverFunction,
+    rollbackObserverFunction,
+    '            while (( attempt <= max_attempts )); do',
+    '            exit 0\n            while (( attempt <= max_attempts )); do',
+  );
+  replace(
+    'observer-topology-bypass',
+    '              if ! assert_volume_snapshot_policy "candidate-observer-$attempt" \\\n' +
+      '                "$production_volume_id" "$production_machine_id" "$command_timeout_seconds"; then',
+    '              if false; then',
+  );
+  replace(
+    'observer-release-machine-binding-bypass',
+    '              elif ! candidate_current="$(current_release "$new_json" "$command_timeout_seconds")"; then',
+    '              elif false; then',
+  );
+  replace(
+    'observer-release-timeout-removed',
+    '              elif ! timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s" \\\n' +
+      '                fly releases --app "$app" --image --json >"$new_json"; then',
+    '              elif ! fly releases --app "$app" --image --json >"$new_json"; then',
+  );
+  replace(
+    'observer-completed-release-filter-bypass',
+    '          const completed = releases.filter((item) => completeStatuses.has(item.releaseStatus));',
+    '          const completed = releases;',
+  );
+  replace(
+    'observer-latest-completed-release-selection-bypass',
+    '          const latest = completed.reduce((current, item) => item.version > current.version ? item : current);',
+    '          const latest = completed[0];',
+  );
+  replace(
+    'observer-latest-completed-inprogress-bypass',
+    "          if (latest.inProgress === true) throw new Error('Latest completed Fly release is still marked in progress');",
+    '          if (false) throw new Error();',
+  );
+  replace(
+    'observer-exact-image-bypass',
+    '                elif [[ "$candidate_attempt_image" != "$candidate_image_ref" ]]; then',
+    '                elif false; then',
+  );
+  replace(
+    'observer-candidate-new-release-proof-bypass',
+    '                  || (( 10#${candidate_attempt_release#v} <= 10#${final_prior_release#v} )); then',
+    '                  || false; then',
+  );
+  replace(
+    'observer-candidate-release-published-before-threshold',
+    '                  if (( consecutive_matches >= required_consecutive_matches )); then\n' +
+      '                    candidate_release="$candidate_attempt_release"',
+    '                  candidate_release="$candidate_attempt_release"\n' +
+      '                  if (( consecutive_matches >= required_consecutive_matches )); then',
+  );
+  replace(
+    'observer-consecutive-observation-identity-bypass',
+    '                elif [[ "$candidate_current" == "$last_matching_observation" ]]; then',
+    '                elif [[ -n "$candidate_current" ]]; then',
+  );
+  replace(
+    'observer-timeout-failure-bypass',
+    "          verification_failure=''\n" +
+      "          candidate_observer_failure=''\n" +
+      '          if ! wait_for_candidate_observer_stabilization; then',
+    "          verification_failure=''\n" +
+      "          candidate_observer_failure=''\n" +
+      '          if false; then',
+  );
+  replaceWithin(
+    'observer-destructive-rollback-in-loop',
+    candidateObserverFunction,
+    rollbackObserverFunction,
+    '              sleep "$retry_delay_seconds"',
+    '              rollback_now "transient-observer-mismatch"\n              sleep "$retry_delay_seconds"',
+  );
+  replaceWithin(
+    'observer-attempt-increment-removed',
+    candidateObserverFunction,
+    rollbackObserverFunction,
+    '              attempt=$((attempt + 1))',
+    '              true # observer attempt increment removed',
+  );
+  replaceWithin(
+    'observer-consecutive-reset-removed',
+    candidateObserverFunction,
+    rollbackObserverFunction,
+    '                consecutive_matches=0\n                last_matching_observation=\'\'',
+    '                true # observer consecutive-match reset removed\n                last_matching_observation=\'\'',
+  );
+  replace(
+    'observer-observation-identity-reset-removed',
+    '                last_matching_observation=\'\'\n                candidate_attempt_release=\'\'',
+    '                true # observer matching-identity reset removed\n                candidate_attempt_release=\'\'',
+  );
+  replaceWithin(
+    'rollback-observer-max-attempts-reduced-to-one',
+    rollbackObserverFunction,
+    observerFunctionsEnd,
+    '            local max_attempts=5',
+    '            local max_attempts=1',
+  );
+  replaceWithin(
+    'rollback-observer-consecutive-matches-reduced-to-one',
+    rollbackObserverFunction,
+    observerFunctionsEnd,
+    '            local required_consecutive_matches=2',
+    '            local required_consecutive_matches=1',
+  );
+  replaceWithin(
+    'rollback-observer-command-timeout-expanded',
+    rollbackObserverFunction,
+    observerFunctionsEnd,
+    '            local command_timeout_seconds=20',
+    '            local command_timeout_seconds=60',
+  );
+  replaceWithin(
+    'rollback-observer-early-success-exit',
+    rollbackObserverFunction,
+    observerFunctionsEnd,
+    '            while (( attempt <= max_attempts )); do',
+    '            exit 0\n            while (( attempt <= max_attempts )); do',
+  );
+  replace(
+    'rollback-observer-topology-bypass',
+    '              if ! assert_volume_snapshot_policy "rollback-observer-$attempt" \\\n' +
+      '                "$production_volume_id" "$production_machine_id" "$command_timeout_seconds"; then',
+    '              if false; then',
+  );
+  replace(
+    'rollback-observer-release-query-bypass',
+    '                fly releases --app "$app" --image --json >"$rollback_json"; then',
+    '                true >"$rollback_json"; then',
+  );
+  replace(
+    'rollback-observer-release-machine-binding-bypass',
+    '              elif ! rollback_current="$(current_release "$rollback_json" "$command_timeout_seconds")"; then',
+    '              elif false; then',
+  );
+  replace(
+    'rollback-observer-release-timeout-removed',
+    '              elif ! timeout --signal=TERM --kill-after=10s "${command_timeout_seconds}s" \\\n' +
+      '                fly releases --app "$app" --image --json >"$rollback_json"; then',
+    '              elif ! fly releases --app "$app" --image --json >"$rollback_json"; then',
+  );
+  replace(
+    'rollback-observer-newer-than-candidate-bypass',
+    '                  || (( 10#${rollback_release#v} <= 10#${candidate_release#v} \\',
+    '                  || (( false \\',
+  );
+  replace(
+    'rollback-observer-newer-than-prior-bypass',
+    '                    || 10#${rollback_release#v} <= 10#${final_prior_release#v} )); then',
+    '                    || false )); then',
+  );
+  replace(
+    'rollback-observer-exact-image-bypass',
+    '                elif [[ "$rollback_image_actual" != "$ROLLBACK_IMAGE" ]]; then',
+    '                elif false; then',
+  );
+  replace(
+    'rollback-observer-consecutive-observation-identity-bypass',
+    '                elif [[ "$rollback_current" == "$last_matching_observation" ]]; then',
+    '                elif [[ -n "$rollback_current" ]]; then',
+  );
+  replace(
+    'rollback-observer-caller-bypass',
+    '            if ! wait_for_rollback_observer_stabilization; then',
+    '            if false; then',
+  );
+  replace(
+    'automatic-rollback-command-failure-short-circuits-observer',
+    "            rollback_observer_failure=''\n            if ! wait_for_rollback_observer_stabilization; then",
+    "            if [[ \"$rollback_command_status\" -ne 0 ]]; then return 1; fi\n" +
+      "            rollback_observer_failure=''\n            if ! wait_for_rollback_observer_stabilization; then",
+  );
+  replace(
+    'automatic-rollback-command-success-short-circuits-observer',
+    "            rollback_observer_failure=''\n            if ! wait_for_rollback_observer_stabilization; then",
+    "            return 0\n" +
+      "            rollback_observer_failure=''\n            if ! wait_for_rollback_observer_stabilization; then",
+  );
+  replace(
+    'failed-candidate-observer-bypass',
+    '            if ! wait_for_candidate_observer_stabilization; then\n' +
+      '              append_summary "FAILED; candidate deploy command exit ${deploy_status}; candidate release was not proved',
+    '            if false; then\n' +
+      '              append_summary "FAILED; candidate deploy command exit ${deploy_status}; candidate release was not proved',
+  );
+  replace(
+    'failed-candidate-rollback-before-proof',
+    "            candidate_observer_failure=''\n            if ! wait_for_candidate_observer_stabilization; then",
+    "            candidate_observer_failure=''\n" +
+      '            rollback_now "unproved-candidate"\n' +
+      '            if ! wait_for_candidate_observer_stabilization; then',
+  );
+  replace(
+    'failed-candidate-success-short-circuits-observer',
+    "            candidate_observer_failure=''\n            if ! wait_for_candidate_observer_stabilization; then",
+    "            exit 0\n" +
+      "            candidate_observer_failure=''\n            if ! wait_for_candidate_observer_stabilization; then",
+  );
+  replaceWithin(
+    'rollback-observer-destructive-rollback-in-loop',
+    rollbackObserverFunction,
+    observerFunctionsEnd,
+    '              sleep "$retry_delay_seconds"',
+    '              rollback_now "transient-rollback-observer-mismatch"\n              sleep "$retry_delay_seconds"',
+  );
+  replaceWithin(
+    'rollback-observer-attempt-increment-removed',
+    rollbackObserverFunction,
+    observerFunctionsEnd,
+    '              attempt=$((attempt + 1))',
+    '              true # rollback observer attempt increment removed',
+  );
+  replaceWithin(
+    'rollback-observer-consecutive-reset-removed',
+    rollbackObserverFunction,
+    observerFunctionsEnd,
+    "                consecutive_matches=0\n                last_matching_observation=''",
+    "                true # rollback observer consecutive reset removed\n                last_matching_observation=''",
+  );
+  replace(
+    'observer-timeout-rollback-bypass',
+    '            if ! rollback_now "$verification_failure"; then',
+    '            if false; then',
+  );
+  cases.push({
+    name: 'candidate-and-rollback-image-bindings-swapped',
+    mutate: (value) => {
+      const candidate = '--image "$candidate_image_ref"';
+      const rollback = '--image "$ROLLBACK_IMAGE"';
+      if (countOf(value, candidate) !== 1 || countOf(value, rollback) !== 1) {
+        throw new Error('mutation candidate-and-rollback-image-bindings-swapped expected one target each');
+      }
+      return value
+        .replace(candidate, '--image "$SWAPPED_IMAGE_SENTINEL"')
+        .replace(rollback, candidate)
+        .replace('--image "$SWAPPED_IMAGE_SENTINEL"', rollback);
+    },
+  });
+  cases.push({
+    name: 'candidate-and-rollback-config-bindings-swapped',
+    mutate: (value) => {
+      const candidate = '--config "$candidate_config"';
+      const rollback = '--config "$rollback_config"';
+      if (countOf(value, candidate) !== 1 || countOf(value, rollback) !== 1) {
+        throw new Error('mutation candidate-and-rollback-config-bindings-swapped expected one target each');
+      }
+      return value
+        .replace(candidate, '--config "$SWAPPED_CONFIG_SENTINEL"')
+        .replace(rollback, candidate)
+        .replace('--config "$SWAPPED_CONFIG_SENTINEL"', rollback);
+    },
+  });
+  cases.push({
+    name: 'candidate-config-displaced-to-decoy',
+    mutate: (value) => {
+      const name = 'candidate-config-displaced-to-decoy';
+      const displaced = replaceOnce(
+        value,
+        '            --config "$candidate_config" \\',
+        '            --config "/tmp/unreviewed-candidate.toml" \\',
+        name,
+      );
+      return replaceOnce(
+        displaced,
+        '\n          if [[ "$deploy_status" -ne 0 ]]; then',
+        '\n          true --config "$candidate_config"\n          if [[ "$deploy_status" -ne 0 ]]; then',
+        name,
+      );
+    },
+  });
+  cases.push({
+    name: 'candidate-image-displaced-to-decoy',
+    mutate: (value) => {
+      const name = 'candidate-image-displaced-to-decoy';
+      const displaced = replaceOnce(
+        value,
+        '            --image "$candidate_image_ref" \\',
+        '            --image "registry.fly.io/assesssuite-production@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" \\',
+        name,
+      );
+      return replaceOnce(
+        displaced,
+        '\n          if [[ "$deploy_status" -ne 0 ]]; then',
+        '\n          true --image "$candidate_image_ref"\n          if [[ "$deploy_status" -ne 0 ]]; then',
+        name,
+      );
+    },
+  });
+  cases.push({
+    name: 'rollback-config-displaced-to-decoy',
+    mutate: (value) => {
+      const name = 'rollback-config-displaced-to-decoy';
+      const displaced = replaceOnce(
+        value,
+        '              --config "$rollback_config" \\',
+        '              --config "/tmp/unreviewed-rollback.toml" \\',
+        name,
+      );
+      return replaceOnce(
+        displaced,
+        "              --yes || rollback_command_status=$?\n            rollback_observer_failure=''",
+        "              --yes || rollback_command_status=$?\n" +
+          '            true --config "$rollback_config"\n' +
+          "            rollback_observer_failure=''",
+        name,
+      );
+    },
+  });
+  cases.push({
+    name: 'rollback-image-displaced-to-decoy',
+    mutate: (value) => {
+      const name = 'rollback-image-displaced-to-decoy';
+      const displaced = replaceOnce(
+        value,
+        '              --image "$ROLLBACK_IMAGE" \\',
+        '              --image "registry.fly.io/assesssuite-production@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff" \\',
+        name,
+      );
+      return replaceOnce(
+        displaced,
+        "              --yes || rollback_command_status=$?\n            rollback_observer_failure=''",
+        "              --yes || rollback_command_status=$?\n" +
+          '            true --image "$ROLLBACK_IMAGE"\n' +
+          "            rollback_observer_failure=''",
+        name,
+      );
+    },
+  });
+  replace(
+    'failed-candidate-rollback-anchored-exit-removed',
+    '            if ! rollback_now "fly-deploy-exit-${deploy_status};candidate-proved-at-${candidate_release}"; then\n' +
+      "              echo 'Automatic image rollback did not verify successfully.' >&2\n" +
+      '            fi\n' +
+      '            exit 1\n' +
+      '          fi\n\n' +
+      "          verification_failure=''",
+    '            if ! rollback_now "fly-deploy-exit-${deploy_status};candidate-proved-at-${candidate_release}"; then\n' +
+      "              echo 'Automatic image rollback did not verify successfully.' >&2\n" +
+      '            fi\n' +
+      '            true\n' +
+      '          fi\n\n' +
+      "          verification_failure=''",
+  );
+  replace(
+    'verification-rollback-anchored-exit-removed',
+    "            if ! rollback_now \"$verification_failure\"; then\n" +
+      "              echo 'Automatic rollback did not verify successfully.' >&2\n" +
+      "            fi\n" +
+      '            exit 1\n' +
+      '          fi',
+    "            if ! rollback_now \"$verification_failure\"; then\n" +
+      "              echo 'Automatic rollback did not verify successfully.' >&2\n" +
+      "            fi\n" +
+      '            true\n' +
+      '          fi',
+  );
+  replace(
+    'verification-rollback-preserved-candidate-gate-bypass',
+    '            if [[ ! "$candidate_release" =~ ^v[1-9][0-9]*$ \\',
+    '            if false && [[ ! "$candidate_release" =~ ^v[1-9][0-9]*$ \\',
+  );
+  replace(
+    'verification-rollback-before-preserved-candidate-proof',
+    '          if [[ -n "$verification_failure" ]]; then\n' +
+      '            if [[ ! "$candidate_release" =~ ^v[1-9][0-9]*$ \\',
+    '          if [[ -n "$verification_failure" ]]; then\n' +
+      '            rollback_now "unproved-candidate"\n' +
+      '            if [[ ! "$candidate_release" =~ ^v[1-9][0-9]*$ \\',
+  );
+  replace('deploy-job-timeout-reduced', '    timeout-minutes: 120', '    timeout-minutes: 90');
+  replace(
+    'deploy-pre-mutation-deadline-expanded',
+    '          maximum_gate_elapsed_seconds=1200',
+    '          maximum_gate_elapsed_seconds=3600',
+  );
+  replace(
+    'deploy-time-reserve-proof-removed',
+    '          (( maximum_gate_elapsed_seconds + maximum_post_gate_path_seconds <= deployment_job_timeout_seconds ))',
+      '          true',
+  );
+  cases.push({
+    name: 'deploy-time-reserve-moved-after-first-mutation',
+    mutate: (value) => {
+      const reserve =
+        '          deployment_job_timeout_seconds=7200\n' +
+        '          maximum_post_gate_path_seconds=4788\n' +
+        '          maximum_gate_elapsed_seconds=1200\n' +
+        '          (( maximum_gate_elapsed_seconds + maximum_post_gate_path_seconds <= deployment_job_timeout_seconds ))\n' +
+        '          deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))\n' +
+        '          if [[ "$DEPLOY_JOB_STARTED_EPOCH" -le 0 || "$deploy_job_elapsed_seconds" -lt 0 \\\n' +
+        '            || "$deploy_job_elapsed_seconds" -gt "$maximum_gate_elapsed_seconds" ]]; then\n' +
+        "            echo 'The deployment job no longer has the reviewed time reserve for snapshot, candidate verification and automatic image rollback.' >&2\n" +
+        "            append_summary 'FAILED; rollback-reserved deployment time gate closed before snapshot or application deployment'\n" +
+        '            exit 1\n' +
+        '          fi\n\n';
+      const firstMutation =
+        '          if ! create_predeploy_volume_snapshot; then\n' +
+        "            echo 'The content-free on-demand predeploy volume snapshot did not reach created status within the bounded gate.' >&2\n" +
+        "            append_summary 'FAILED; on-demand predeploy snapshot gate failed before application deployment'\n" +
+        '            exit 1\n' +
+        '          fi\n\n';
+      return replaceOnce(
+        value,
+        reserve + firstMutation,
+        firstMutation + reserve,
+        'deploy-time-reserve-moved-after-first-mutation',
+      );
+    },
+  });
+  replace(
+    'deploy-flyctl-download-timeout-removed',
+    '          curl --fail --location --silent --show-error --max-time 120 \\',
+    '          curl --fail --location --silent --show-error \\',
+  );
+  replaceEvery(
+    'deploy-remote-main-timeouts-removed',
+    'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code https://github.com/mbvidler-ctrl/assesssuite_migration.git refs/heads/main',
+    'git ls-remote --exit-code https://github.com/mbvidler-ctrl/assesssuite_migration.git refs/heads/main',
+    2,
+  );
+  replaceEvery(
+    'deploy-github-control-timeouts-removed',
+    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --max-time 60",
+    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error",
+    3,
+  );
   replace('postrollback-secret-check-removed', '            if ! assert_secret_name_boundary postrollback forbid; then', '            if false; then');
   replace('validator-pin-mutated', '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + '0'.repeat(64));
   return cases;
@@ -1622,6 +3494,102 @@ function prepareReleaseMutationCases(source) {
   replace('candidate-artifact-digest-prefix-removed', 'candidate_image_artifact_digest: sha256:${{ steps.upload_candidate.outputs.artifact-digest }}', 'candidate_image_artifact_digest: ${{ steps.upload_candidate.outputs.artifact-digest }}');
   replace('deploy-bundle-artifact-digest-prefix-removed', 'deploy_bundle_artifact_digest: sha256:${{ steps.upload_deploy_bundle.outputs.artifact-digest }}', 'deploy_bundle_artifact_digest: ${{ steps.upload_deploy_bundle.outputs.artifact-digest }}');
   replace('manifest-candidate-digest-bypass', "            application_image_digest: e.APPLICATION_IMAGE_DIGEST,", "            application_image_digest: 'sha256:' + '0'.repeat(64),");
+  replace(
+    'candidate-process-contract-invocation-removed',
+    "          python3 -I - fly.production.toml <<'PY'",
+    "          true <<'PY'",
+  );
+  replace(
+    'candidate-process-contract-parser-bypassed',
+    '              document = tomllib.load(stream)',
+    '              document = {}',
+  );
+  replace(
+    'candidate-process-contract-dictionary-recursion-removed',
+    '                      entries.extend(process_entries(nested, next_path))',
+    '                      true',
+  );
+  replace(
+    'candidate-process-contract-array-recursion-removed',
+    '                  entries.extend(process_entries(nested, path + (index,)))',
+    '                  true',
+  );
+  replace(
+    'candidate-process-contract-argv-narrowed-to-first-config',
+    '          for raw_path in sys.argv[1:]:',
+    '          for raw_path in sys.argv[1:2]:',
+  );
+  replace(
+    'candidate-process-contract-exact-selector-weakened',
+    "              if process_entries(document) != [(('http_service', 'processes'), ['app'])]:",
+    "              if False:",
+  );
+  replace(
+    'prepare-release-source-remote-timeout-removed',
+    'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin "refs/heads/$SOURCE_BRANCH"',
+    'git ls-remote --exit-code origin "refs/heads/$SOURCE_BRANCH"',
+  );
+  replace(
+    'prepare-release-main-remote-timeout-removed',
+    'timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main',
+    'git ls-remote --exit-code origin refs/heads/main',
+  );
+  replace(
+    'prepare-release-fetch-timeout-removed',
+    'timeout --signal=TERM --kill-after=10s 120s git fetch --no-tags --force origin',
+    'git fetch --no-tags --force origin',
+  );
+  replace(
+    'prepare-release-flyctl-download-timeout-removed',
+    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120",
+    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location",
+  );
+  replace(
+    'prepare-release-source-remote-bounded-dummy-unbounded-real',
+    '          remote_sha="$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin "refs/heads/$SOURCE_BRANCH" | awk \'NR == 1 { print $1 }\')"',
+    '          if false; then\n' +
+      '            timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin "refs/heads/$SOURCE_BRANCH" >/dev/null\n' +
+      '          fi\n' +
+      '          remote_sha="$(git ls-remote --exit-code origin "refs/heads/$SOURCE_BRANCH" | awk \'NR == 1 { print $1 }\')"',
+  );
+  replace(
+    'prepare-release-main-remote-bounded-dummy-unbounded-real',
+    '          trusted_remote_sha="$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main | awk \'NR == 1 { print $1 }\')"',
+    '          if false; then\n' +
+      '            timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code origin refs/heads/main >/dev/null\n' +
+      '          fi\n' +
+      '          trusted_remote_sha="$(git ls-remote --exit-code origin refs/heads/main | awk \'NR == 1 { print $1 }\')"',
+  );
+  replace(
+    'prepare-release-fetch-bounded-dummy-unbounded-real',
+    '          timeout --signal=TERM --kill-after=10s 120s git fetch --no-tags --force origin "refs/heads/main:refs/remotes/origin/main"',
+    '          if false; then\n' +
+      '            timeout --signal=TERM --kill-after=10s 120s git fetch --no-tags --force origin "refs/heads/main:refs/remotes/origin/main"\n' +
+      '          fi\n' +
+      '          git fetch --no-tags --force origin "refs/heads/main:refs/remotes/origin/main"',
+  );
+  replace(
+    'prepare-release-flyctl-bounded-dummy-unbounded-real',
+    "          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \\\n" +
+      '            --output "$archive" \\\n' +
+      "            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'",
+    '          if false; then\n' +
+      "            curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \\\n" +
+      '              --output "$archive" \\\n' +
+      "              'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'\n" +
+      '          fi\n' +
+      "          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \\\n" +
+      '            --output "$archive" \\\n' +
+      "            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'",
+  );
+  replace(
+    'prepare-release-rollback-image-bounded-dummy-unbounded-real',
+    '          timeout --signal=TERM --kill-after=30s 300s docker pull "$ROLLBACK_IMAGE" >/dev/null',
+    '          if false; then\n' +
+      '            timeout --signal=TERM --kill-after=30s 300s docker pull "$ROLLBACK_IMAGE" >/dev/null\n' +
+      '          fi\n' +
+      '          docker pull "$ROLLBACK_IMAGE" >/dev/null',
+  );
   replace('confirmation-weakened', '          [[ "$CONFIRMATION" == "PREPARE assesssuite-production EXACT SHA" ]]', '          [[ -n "$CONFIRMATION" ]]');
   replace('validator-pin-mutated', '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + '0'.repeat(64));
   return cases;

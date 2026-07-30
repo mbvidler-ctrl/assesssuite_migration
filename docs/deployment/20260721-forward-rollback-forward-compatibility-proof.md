@@ -48,16 +48,20 @@ Both variables are required together, and each must be a named
 `repository@sha256:<digest>` reference. `COMPATIBILITY_CONTAINER_CLI` may be
 set to a Docker-compatible CLI; it defaults to `docker`.
 
-The canonical current Fly process is
-`node server/productionBootstrap.mjs && exec node server/index.mjs`, matching
-the current Dockerfile command. Image compatibility mode deliberately
-overrides that command with `node server/index.mjs`: the proof needs an
-isolated synthetic database and must not claim to exercise production
-bootstrap, catalogue or secret gates. It mounts the same temporary store into
-each image and uses host networking so the app and synthetic provider remain
-on `127.0.0.1`. The container runtime must therefore support host networking.
-The wrapper removes `FLY_API_TOKEN` and production provider/payment secret
-variables from the proof subprocess before any phase starts.
+The production startup command is owned by the Dockerfile's shell-interpreted
+`CMD ["sh", "-c", "node server/productionBootstrap.mjs && exec node server/index.mjs"]`.
+Both `fly.production.toml` and `fly.rollback.production.toml` deliberately omit
+a top-level `[processes]` table, so neither overrides that command. Their
+`[http_service]` `processes = ["app"]` setting only binds the public service to
+the implicit `app` process group. Image compatibility mode deliberately
+overrides the image command at the isolated test-container invocation with
+`node server/index.mjs`: the proof needs a synthetic database and must not
+claim to exercise production bootstrap, catalogue or secret gates. It mounts
+the same temporary store into each image and uses host networking so the app
+and synthetic provider remain on `127.0.0.1`. The container runtime must
+therefore support host networking. The wrapper removes `FLY_API_TOKEN` and
+production provider/payment secret variables from the proof subprocess before
+any phase starts.
 
 This is a data-contract and image-compatibility proof. It is not a substitute
 for the separate Fly volume-topology, snapshot, restore, release-provenance or
