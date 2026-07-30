@@ -38,7 +38,25 @@ test('reviewed catalogue preparation is null-safe, deduplicated and sorted befor
   assert.match(pageSource, /const reviewedProtocol = condition\?\.protocol/);
   assert.match(pageSource, /if \(reviewedProtocol\)/);
   assert.match(pageSource, /onClick=\{\(\) => loadProtocol\(condition\)\}/);
-  assert.match(pageSource, /setProtocolData\(protocol\)/);
+  // WP3 hardening: a reviewed catalogue row that does not fit the shared
+  // render contract (src/lib/protocolResponse.js) falls back to the raw row
+  // rather than the normalised one, so a malformed reviewed row never
+  // regresses to nothing being shown at all.
+  assert.match(pageSource, /setProtocolData\(reviewed\.ok \? reviewed\.protocol : protocol\)/);
   assert.match(pageSource, /<AIDisclosureNote \/>/);
   assert.match(pageSource, /<ImportToSOAPModal/);
+});
+
+// WP1: what is written into the clinical record must carry the same
+// provenance the clinician was shown. The import provenance is therefore
+// driven by the SAME predicate as the on-screen "AI-assisted draft" badge
+// (`selectedCondition?.protocol`), so the two can never disagree.
+test('protocol import provenance is driven by the same predicate as the on-screen badge', () => {
+  assert.match(pageSource, /import \{ PROTOCOL_PROVENANCE \} from "@\/lib\/clinical\/protocolImport";/);
+  assert.match(
+    pageSource,
+    /provenance=\{selectedCondition\?\.protocol \? PROTOCOL_PROVENANCE\.REVIEWED : PROTOCOL_PROVENANCE\.AI\}/,
+  );
+  // The badge predicate itself must stay the negation of the same expression.
+  assert.match(pageSource, /\{!selectedCondition\?\.protocol && \(/);
 });

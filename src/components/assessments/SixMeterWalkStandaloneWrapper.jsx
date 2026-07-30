@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { appendObjectiveToSoapNote } from "@/lib/clinical/soapNoteTarget";
 import { toast } from "sonner";
 import SixMeterWalkTestRunner from "./6MeterWalkTestRunner";
 import { generateSOAPForSpecialMeasurements } from "./SOAPObjectiveGenerator";
@@ -105,25 +106,15 @@ export default function SixMeterWalkStandaloneWrapper({ assessment, client, clie
         appointment_id: appointmentId
       });
 
-      if (existingSoapNotes && existingSoapNotes.length > 0) {
-        const soapNote = existingSoapNotes[0];
-        const updatedObjective = soapNote.objective 
-          ? `${soapNote.objective}\n\n${objectiveText}`
-          : objectiveText;
-        
-        await base44.entities.SOAPNote.update(soapNote.id, {
-          objective: updatedObjective
-        });
-      } else {
-        await base44.entities.SOAPNote.create({
-          org_id: selectedClient.org_id,
-          client_id: selectedClient.id,
-          appointment_id: appointmentId,
-          note_date: now.toISOString(),
-          objective: objectiveText,
-          status: 'draft'
-        });
-      }
+      // A published note is a finalised clinical record and the server refuses
+      // this append outright, so the shared decision skips it and writes a
+      // fresh draft instead.
+      await appendObjectiveToSoapNote(base44.entities.SOAPNote, existingSoapNotes, objectiveText, {
+        org_id: selectedClient.org_id,
+        client_id: selectedClient.id,
+        appointment_id: appointmentId,
+        note_date: now.toISOString(),
+      });
 
       toast.success("6-Meter Walk Test saved successfully!");
       if (onSave) onSave(data);

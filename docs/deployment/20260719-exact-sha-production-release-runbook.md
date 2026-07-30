@@ -17,9 +17,11 @@ R2 has one release unit: application code, policy surfaces, tests, production co
 Both deployable runtime modes derive from `C`:
 
 - the candidate image uses `fly.production.toml`; and
-- the compatibility image uses `fly.rollback.production.toml`, which preserves the compatible application/schema behavior but disables adult and under-age document extraction.
+- the compatibility image uses `fly.rollback.production.toml`, which preserves the compatible application/schema behavior but disables adult and under-age document extraction and reverts general clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED`) to its reviewed disabled default, regardless of the candidate's currently authorised setting.
 
-The compatibility source is the same merged `main` revision, not a separately maintained ref. `application_sha`, `trusted_workflow_sha`, `rollback_source_sha` and `rollback_release_sha` must all equal `C`; `source_branch` and `rollback_source_branch` must both equal `main`. The immutable image digests and the SHA-256 hashes of the two Fly configuration blobs distinguish the enabled candidate from the extraction-disabled compatibility runtime.
+The compatibility source is the same merged `main` revision, not a separately maintained ref. `application_sha`, `trusted_workflow_sha`, `rollback_source_sha` and `rollback_release_sha` must all equal `C`; `source_branch` and `rollback_source_branch` must both equal `main`. The immutable image digests and the SHA-256 hashes of the two Fly configuration blobs distinguish the enabled candidate from the extraction- and general-AI-disabled compatibility runtime.
+
+As of 28 July 2026 there are two deliberate, machine-enforced differences between the candidate and compatibility configurations, not one: adult/under-age document extraction, and general clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED`). The candidate runs general clinical AI drafting enabled under the dated authorisation recorded in `fly.production.toml`; the compatibility image always reverts it to disabled. `server/tests/rollback-compatibility.test.mjs` (test R00, lines 152-180) is the authoritative, enforced statement of both differences — treat this runbook as a summary of that test, not the reverse.
 
 Production mutations are permitted only through the reviewed workflow definitions on `main`:
 
@@ -204,7 +206,7 @@ gh workflow run production-prepare-rollback-image.yml --ref main `
 The workflow must:
 
 - check out `C` and prove the remote `main` tip is still `C`;
-- verify the rollback-config LF-byte hash and extraction-disabled settings;
+- verify the rollback-config LF-byte hash and the extraction- and general-AI-disabled settings;
 - run build, differential typecheck, selftest, compatibility and forward/rollback proof gates;
 - prove the exact one-Machine/one-volume topology;
 - enforce and re-read scheduled snapshots and five-day retention on the existing production volume;
@@ -409,7 +411,7 @@ gh workflow run production-rollback.yml --ref main `
   -f confirmation='ROLLBACK assesssuite-production COMPATIBILITY IMAGE'
 ```
 
-Require exact current-state and topology guards, exact same-main config provenance, extraction disabled for adult and under-age data, immutable digest deployment, unchanged production volume and `C` from both public version endpoints. Do not use `fly releases rollback`: an earlier application image may not preserve the current legal, upload-lifecycle or receipt compatibility contracts.
+Require exact current-state and topology guards, exact same-main config provenance, extraction disabled for adult and under-age data and general clinical AI drafting reverted to disabled, immutable digest deployment, unchanged production volume and `C` from both public version endpoints. Do not use `fly releases rollback`: an earlier application image may not preserve the current legal, upload-lifecycle or receipt compatibility contracts.
 
 ## 12. Snapshot restore is separate and off-traffic
 
@@ -435,14 +437,14 @@ Stop the affected action and reconcile before continuing if:
 - any SHA, blob hash, workflow identity, immutable image digest or remote tip differs;
 - the current release/image/Machine/volume or snapshot policy differs from the frozen guard;
 - a required test, independent review, dependency scan, workflow validator or mutation test is absent, skipped or fails;
-- the compatibility image is absent, mutable, unavailable or not extraction-disabled;
+- the compatibility image is absent, mutable, unavailable, not extraction-disabled, or not general-AI-disabled;
 - the actual provider probe, installed-SDK canary or public verification is not an exact PASS;
 - a secret value could be exposed, candidate source could execute with the Fly credential, or an opaque feature-setting secret overrides reviewed configuration;
 - parity can select the production Machine/volume, exceeds one provider request, attempts communication/payment, writes clinical state or fails zero-residue cleanup;
 - a workflow result is ambiguous or a broker attempt remains unresolved; or
 - automatic or manual rollback cannot be verified.
 
-R2 is complete only when the same exact `C` and immutable candidate digest are live on both public domains, all release/provider/canary/topology/snapshot gates pass, the extraction-disabled compatibility digest remains available, two consecutive fresh parity waves are clean, no temporary parity resources remain and the evidence register contains no unresolved release blocker.
+R2 is complete only when the same exact `C` and immutable candidate digest are live on both public domains, all release/provider/canary/topology/snapshot gates pass, the extraction- and general-AI-disabled compatibility digest remains available, two consecutive fresh parity waves are clean, no temporary parity resources remain and the evidence register contains no unresolved release blocker.
 
 ## 14. Primary technical references
 

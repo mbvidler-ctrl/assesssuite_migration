@@ -57,6 +57,21 @@ Base: `/apps/{appId}/entities/{EntityName}`
 GET `/apps/public/prod/public-settings/by-id/{appId}` with header `X-App-Id`.
 - 200 → object stored as `appPublicSettings` (shape `{id, public_settings}` per the code comment; return `{id: appId, public_settings: {...}}`).
 - 403 with `{message, extra_data: {reason: 'auth_required' | 'user_not_registered' | ...}}` drives the app's error states. Default local behaviour: always 200.
+- `public_settings.capabilities` (added, see server/capabilities.mjs — the single source of truth for both this publication and the enforcing endpoints):
+  ```
+  "capabilities": {
+    "version": 1,
+    "general_clinical_llm": { "available": true,  "reason": "available" },
+    "transcription":        { "available": false, "reason": "switched_off" },
+    "document_extraction":  { "available": true,  "reason": "available" }
+  }
+  ```
+  - `capabilities` is strictly additive. `version` is an integer; clients MUST ignore unknown keys and MUST NOT fail on a higher version.
+  - `reason` ∈ `{"available","switched_off","unconfigured"}`. `unconfigured` means the switch is on but no provider is configured under `LLM_REQUIRED=1`, i.e. every call will 503.
+  - Each entry answers exactly one question: "would the server-level switch let this through right now?" Per-user gates (`isClinicalUseEligible`, extraction acceptance, the under-13 age gate) are NOT reflected and remain authoritative server-side. No client copy may promise a call will succeed.
+  - A consumer seeing a missing block, missing key, or non-boolean `available` MUST treat it as `{available:true, reason:'unknown'}` — never as false (fail-open on absence, fail-closed on signal).
+  - `transcription_enabled` is retained permanently as the legacy alias and keeps its exact current expression `process.env.TRANSCRIPTION_ENABLED === '1'`. It is the raw switch; `capabilities.transcription` mirrors the ENFORCEMENT predicate at `server/functions/transcribeSession.mjs`, which additionally accepts `SELFTEST`. They agree in every non-SELFTEST boot; they diverge only under `SELFTEST=1`, which production forbids (`server/productionBootstrap.mjs`). This divergence is deliberate — do not "unify" the two expressions.
+  - No secret, provider name, key material, tenant identifier or version string is disclosed. Disclosure class is identical to the already-public `transcription_enabled`.
 
 ## Functions (`modules/functions.js`)
 

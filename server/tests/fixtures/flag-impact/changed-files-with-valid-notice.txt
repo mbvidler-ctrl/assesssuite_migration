@@ -1,0 +1,3 @@
+server/capabilityFlags.mjs
+docs/deployment/flag-manifest.json
+docs/deployment/notices/notice-valid.md

@@ -23,6 +23,8 @@ import {
   normaliseEmail,
 } from './auth.mjs';
 import { createFounderOrganizationEnsurer, handleCoreIntegration } from './integrations.mjs';
+import { publicCapabilities } from './capabilities.mjs';
+import { capabilityConfigured, capabilityEnabled } from './capabilityFlags.mjs';
 import { initEmail, sendEmail, otpEmail, resetEmail, welcomeEmail, adminNotifyEmail, inviteEmail } from './email.mjs';
 import {
   UPLOAD_POLICY,
@@ -91,8 +93,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'change-me-local';
 // explicitly set to '1'. Seeded accounts use password login and are unaffected.
 // The self-test spawns an isolated throwaway server (SELFTEST=1) and validates
 // the registration/OTP flows, so they remain enabled there.
-const ALLOW_OPEN_REGISTRATION =
-  process.env.ALLOW_OPEN_REGISTRATION === '1' || process.env.SELFTEST === '1';
+const ALLOW_OPEN_REGISTRATION = capabilityEnabled('ALLOW_OPEN_REGISTRATION');
 // OTP / reset hardening (launch): random per-user codes with expiry, attempt
 // lockout, and per-account send throttles. The fixed 000000 code is accepted
 // only under SELFTEST=1 (see verify-otp).
@@ -421,7 +422,7 @@ const CURRENT_LEGAL_DOCUMENT_RECEIPTS = new Map(
 function parseCompatibilityVersions() {
   const raw = process.env.LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS;
   if (!raw) return [];
-  if (process.env.DOCUMENT_EXTRACTION_ENABLED === '1') {
+  if (capabilityEnabled('DOCUMENT_EXTRACTION_ENABLED')) {
     throw new Error(
       'LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS cannot be used while document extraction is enabled',
     );
@@ -783,6 +784,70 @@ function writeAuthDenied(entityName, data, sessionUser, { isCreate }) {
   return enforceWriteOrgScope(entityName, data, sessionUser, { isCreate });
 }
 
+// A published SOAP note is a finalised clinical record. The only sanctioned
+// change is an amendment, which SOAPNoteModal records as ONE appended
+// history entry attributed to the caller. Attachment/audio additions made
+// while amending are immediate partial writes that carry no history, so they
+// are the single documented exception (residual: they remain writable, and
+// removable, without an audit trail — narrower than today's behaviour, which
+// permits everything). Everything else is refused — notably the treatment
+// protocol import, which wrote `{ plan }` straight into a locked note, so an
+// AI-drafted plan could silently rewrite a countersigned record.
+const PUBLISHED_NOTE_ADDITIVE_FIELDS = new Set([
+  'plan_attachments', 'session_audio_urls', 'session_audio_url',
+]);
+
+function publishedNoteMutationDenied(entityName, existing, data, sessionUser) {
+  if (entityName !== 'SOAPNote') return { ok: true };
+  if (existing?.status !== 'published') return { ok: true };
+  const payload = data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+  const keys = Object.keys(payload).filter((key) => key !== 'id');
+  if (keys.length > 0 && keys.every((key) => PUBLISHED_NOTE_ADDITIVE_FIELDS.has(key))) {
+    return { ok: true };
+  }
+  const denied = {
+    ok: false,
+    status: 409,
+    message: 'a published clinical note may only be changed by recording an amendment',
+  };
+  if (payload.status !== 'published') return denied;
+  // The submitted history must be the stored history plus exactly one new
+  // 'amended' entry attributed to the caller. A prefix check (rather than a
+  // length check) is what stops a rewrite or truncation of the audit trail.
+  const prior = Array.isArray(existing.history) ? existing.history : [];
+  const next = Array.isArray(payload.history) ? payload.history : null;
+  if (!next || next.length !== prior.length + 1) return denied;
+  for (let i = 0; i < prior.length; i += 1) {
+    if (JSON.stringify(next[i]) !== JSON.stringify(prior[i])) return denied;
+  }
+  const entry = next[next.length - 1];
+  if (!entry || entry.action !== 'amended') return denied;
+  if (entry.user_email !== sessionUser?.email) return denied;
+  if (!entry.timestamp || Number.isNaN(Date.parse(entry.timestamp))) return denied;
+  if (Object.hasOwn(payload, 'published_date') && payload.published_date !== existing.published_date) return denied;
+  if (Object.hasOwn(payload, 'published_by') && payload.published_by !== existing.published_by) return denied;
+  // Record identity is fixed at publication. An amendment revises the
+  // clinical narrative; it never changes whose record this is. Pinned by
+  // comparison to `existing` (not by key presence) because the sanctioned
+  // amendment flow (SOAPNoteModal) legitimately resends client_id/org_id on
+  // every amendment save — a presence check would 409 that legitimate flow.
+  // appointment_id is excluded from this pin: unlinking (value -> null) and
+  // linking (null -> value) an existing unlinked note to its own
+  // appointment are both legitimate; only relinking an already-linked note
+  // to a DIFFERENT appointment is an identity change.
+  for (const field of ['client_id', 'org_id']) {
+    if (Object.hasOwn(payload, field) && payload[field] !== existing[field]) return denied;
+  }
+  if (
+    Object.hasOwn(payload, 'appointment_id')
+    && existing.appointment_id
+    && payload.appointment_id !== existing.appointment_id
+  ) {
+    return denied;
+  }
+  return { ok: true };
+}
+
 /**
  * Hard authorisation gate for the entities router. Sends the refusal and
  * returns true when the request must not proceed:
@@ -1043,13 +1108,19 @@ async function handleEntitiesRoute(req, res, url, match) {
 
   if (req.method === 'PUT' && rest) {
     if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
+    const data = await readJsonBody(req);
+    // The record is re-read AFTER the awaited body stream, not before it. The
+    // request body is caller-paced (e.g. chunked transfer-encoding), so a
+    // snapshot taken before this await can be arbitrarily stale by the time
+    // it is written — a TOCTOU window an attacker controls, not a narrow
+    // race. Every downstream guard and the update itself must see the row as
+    // it stands right now, immediately before the write.
     const existing = repo.getById(rest);
     if (!existing) return sendError(res, 404, 'record not found');
     if (!isAdmin && !isUserCollection && !isWithinOrgScope(existing, sessionUser, entityName)) {
       return sendError(res, 404, 'record not found');
     }
     if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, existing?.org_id)) return;
-    const data = await readJsonBody(req);
     if (!isAdmin) {
       if (entityName === 'OrganizationMember') {
         const membership = validateMembershipUpdate(existing, data, sessionUser);
@@ -1057,6 +1128,8 @@ async function handleEntitiesRoute(req, res, url, match) {
       }
       const auth = writeAuthDenied(entityName, data, sessionUser, { isCreate: false });
       if (!auth.ok) return sendError(res, auth.status, auth.message);
+      const immutability = publishedNoteMutationDenied(entityName, existing, data, sessionUser);
+      if (!immutability.ok) return sendError(res, immutability.status, immutability.message);
       const owner = clinicPolicyOwnerDenied(entityName, sessionUser, existing?.org_id);
       if (owner) return sendError(res, owner.status, owner.message);
     }
@@ -1326,6 +1399,16 @@ async function handleBulk(req, res, entityName) {
   if (req.method === 'PUT') {
     // bulkUpdate: JSON array of records, each carrying its own id.
     const items = Array.isArray(body) ? body : body.items || [];
+    // Reject a same-request duplicate target before any write. Both known
+    // bypasses of the published-note immutability guard (publish-then-tamper
+    // in one array; N duplicate amendments in one array) require the same id
+    // twice: every item was validated against a pre-write snapshot, so a
+    // later item for the same id never saw an earlier item's effect. This
+    // closes that shape outright, on top of the write-time re-check below.
+    const bulkIds = items.map((item) => item?.id).filter(Boolean);
+    if (new Set(bulkIds).size !== bulkIds.length) {
+      return sendError(res, 409, 'a bulk update may reference each record only once');
+    }
     if (!isAdmin) {
       // Mirror the single-PUT guards: refuse User/catalogue writes, only
       // update records within the caller's org, and never relocate one into
@@ -1345,6 +1428,10 @@ async function handleBulk(req, res, entityName) {
         }
         const auth = writeAuthDenied(entityName, item, sessionUser, { isCreate: false });
         if (!auth.ok) return sendError(res, auth.status, auth.message);
+        // A guard on only the single PUT would be bypassable by routing the
+        // same write through bulkUpdate.
+        const immutability = publishedNoteMutationDenied(entityName, existing, item, sessionUser);
+        if (!immutability.ok) return sendError(res, immutability.status, immutability.message);
         const owner = clinicPolicyOwnerDenied(entityName, sessionUser, existing?.org_id);
         if (owner) return sendError(res, owner.status, owner.message);
         if (entityName === 'ClinicPolicy') {
@@ -1371,9 +1458,30 @@ async function handleBulk(req, res, entityName) {
         uploads: orgId ? prepareUploadBindings(entityName, item, orgId, item.id, sessionUser) : [],
       };
     });
-    const completed = planned
-      .map((plan) => ({ plan, record: repo.update(plan.item.id, plan.item) }))
-      .filter(({ record }) => Boolean(record));
+    // Write-time gate. The preflight loop above is a fast fail for the
+    // common case, but it validates every item against a getById() snapshot
+    // taken before any item in this array has been written — the exact
+    // defect that let one item disarm the immutability guard for another.
+    // The authoritative check happens here: re-read the record immediately
+    // before writing it, so it reflects every earlier write this same
+    // request has already made, and abort the whole request on first
+    // refusal rather than silently skipping the offending item.
+    const completed = [];
+    for (const plan of planned) {
+      const freshExisting = repo.getById(plan.item.id);
+      if (!freshExisting) continue;
+      if (!isAdmin) {
+        if (!isWithinOrgScope(freshExisting, sessionUser, entityName)) {
+          return sendError(res, 404, 'record not found');
+        }
+        const auth = writeAuthDenied(entityName, plan.item, sessionUser, { isCreate: false });
+        if (!auth.ok) return sendError(res, auth.status, auth.message);
+        const immutability = publishedNoteMutationDenied(entityName, freshExisting, plan.item, sessionUser);
+        if (!immutability.ok) return sendError(res, immutability.status, immutability.message);
+      }
+      const record = repo.update(plan.item.id, plan.item);
+      if (record) completed.push({ plan, record });
+    }
     completed.forEach(({ record, plan }) => {
       if (plan.uploads.length > 0) {
         commitUploadBindings(plan.uploads, {
@@ -1422,6 +1530,15 @@ async function handleUpdateMany(req, res, entityName) {
   }
   const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
   const matched = repo.listAll().filter((record) => matchesQuery(record, scopedQuery));
+  if (!isAdmin) {
+    // A shared `data` payload can never be a valid per-record amendment (the
+    // history prefix differs per note), so any sweep that matches a published
+    // note is refused outright. That is the intended fail-closed outcome.
+    for (const record of matched) {
+      const immutability = publishedNoteMutationDenied(entityName, record, data, sessionUser);
+      if (!immutability.ok) return sendError(res, immutability.status, immutability.message);
+    }
+  }
   if (!isAdmin && entityName === 'ClinicPolicy' && matched.some(
     (record) => !isOrganizationOwner(sessionUser?.email, record.org_id),
   )) {
@@ -1636,9 +1753,7 @@ function registrationRateLimit(req, email) {
 }
 
 function transactionalEmailDeliveryRequired() {
-  return process.env.OUTBOUND_EMAIL_ENABLED === '1' &&
-    process.env.SELFTEST !== '1' &&
-    process.env.PARITY_ASSURANCE_MODE !== '1';
+  return capabilityEnabled('OUTBOUND_EMAIL_ENABLED');
 }
 
 async function handleAuthRoute(req, res, url, appId, action) {
@@ -1961,14 +2076,34 @@ function handlePublicSettings(req, res, appId) {
   //   RC-2026.07.19 (the immutable content identifier recorded in
   //   LegalAcceptanceEvent rows); bumping them would stale every acceptance
   //   and lock out all active users.
+  // - capabilities: the runtime feature posture, mirrored from the same
+  //   predicates the endpoints enforce (server/capabilities.mjs).
+  //   transcription_enabled is retained verbatim as the legacy raw-switch
+  //   alias — a bundle built before this block existed must keep working
+  //   unchanged, and a bundle built after it must treat an absent block as
+  //   UNKNOWN and never hide a working feature.
+  //   This route is unauthenticated (server/index.mjs's isPublicRoute
+  //   allow-list), so the general_clinical_llm tri-state's 'unconfigured'
+  //   vs 'switched_off' distinction — which discloses whether a provider
+  //   credential is currently present on the server — is only published in
+  //   full to a caller who presents a valid session. An anonymous caller
+  //   gets a coarse boolean only, no reason. transcription/document_
+  //   extraction are plain feature switches (not provider-presence signals)
+  //   and are unaffected either way.
+  const sessionUser = resolveSessionUser(req);
+  const capabilities = publicCapabilities();
+  const capabilitiesForCaller = sessionUser
+    ? capabilities
+    : { ...capabilities, general_clinical_llm: { available: capabilities.general_clinical_llm.available } };
   return sendJson(res, 200, {
     id: appId,
     public_settings: {
-      transcription_enabled: process.env.TRANSCRIPTION_ENABLED === '1',
+      transcription_enabled: capabilityConfigured('TRANSCRIPTION_ENABLED'),
       legal: {
         status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',
         effective_date: process.env.LEGAL_EFFECTIVE_DATE || null,
       },
+      capabilities: capabilitiesForCaller,
     },
   });
 }

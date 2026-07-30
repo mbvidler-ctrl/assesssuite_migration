@@ -1844,11 +1844,18 @@ test('E37 general clinical InvokeLLM remains disabled outside the referral adapt
     );
     assert.equal(result.status, 503, result.text);
     assert.equal(result.body?.error, 'General AI generation is disabled on this server.');
+    assert.equal(result.body?.code, 'ai_capability_disabled', result.text);
   } finally {
     await isolated.stop();
   }
 });
 
+// NOTE: this proves only the SELFTEST=1/LLM_REQUIRED=0 deterministic-mock
+// branch. Under the real production posture (LLM_REQUIRED=1), the identical
+// request 503s instead (see server/integrations.mjs:696-701) — this test
+// must not be read as evidence that InvokeLLM works in production. See
+// server/tests/clinical-ai-feature-matrix.test.mjs for coverage of both
+// LLM_REQUIRED values against a fake real chat/completions provider.
 test('E37a general clinical InvokeLLM executes when explicitly enabled', async () => {
   const isolated = await startTestServer({
     GENERAL_CLINICAL_LLM_ENABLED: '1',
@@ -1856,11 +1863,19 @@ test('E37a general clinical InvokeLLM executes when explicitly enabled', async (
     OPENAI_API_KEY: '',
   });
   try {
-    const isolatedAdmin = await loginAdmin(isolated);
+    // The bootstrap admin is not clinically eligible (no country/profession —
+    // see WP3's clinical-release gate in handleInvokeLLM), so this is a
+    // provisioned, properly activated clinician instead. This is a stronger
+    // fixture, not a weakened assertion: the test name and both assertions
+    // below are unchanged, and E37 (the flag-off 503, above) still uses the
+    // admin token untouched.
+    const adminToken = await loginAdmin(isolated);
+    const clinician = await registerUser(isolated, 'synthetic-invokellm@example.test');
+    await activateUser(isolated, adminToken, clinician.id);
     const result = await requestJson(
       isolated,
       `/api/apps/${isolated.appId}/integration-endpoints/Core/InvokeLLM`,
-      { method: 'POST', token: isolatedAdmin, body: { prompt: 'synthetic enabled check' } },
+      { method: 'POST', token: clinician.token, body: { prompt: 'synthetic enabled check' } },
     );
     assert.equal(result.status, 200, result.text);
     assert.equal(typeof result.body, 'string');

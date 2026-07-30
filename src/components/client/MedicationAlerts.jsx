@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { InvokeLLM } from '@/integrations/Core';
 import { base44 } from '@/api/base44Client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,14 +9,26 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/components/ui/accordion';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import AIDisclosureNote from '@/components/legal/AIDisclosureNote';
+import { useAiCapability } from '@/hooks/useAiCapability';
+import { AI_COPY, aiErrorMessage } from '@/lib/aiCapabilities';
 
 export default function MedicationAlerts({ conditions, client }) {
+    const ai = useAiCapability();
     const [alerts, setAlerts] = useState([]);
     const [labels, setLabels] = useState([]); // authoritative openFDA label data per medication
     const [isLoading, setIsLoading] = useState(false);
-    const [error, setError] = useState(null);
+    const [aiErrorKind, setAiErrorKind] = useState(null);
+    // The authoritative drug-label lookup could not be completed (transport
+    // failure, empty response, or a server-reported networkError). Held so the
+    // card never renders a positive "no alerts" all-clear off a failed lookup.
+    const [labelLookupFailed, setLabelLookupFailed] = useState(false);
     const [expanded, setExpanded] = useState(false);
     const [showDialog, setShowDialog] = useState(false);
+    // Guards the openFDA/RxNorm grounding lookup from re-firing when
+    // ai.canTrigger flips mid-session (a capability transition must re-run
+    // the AI step honestly, but must not repeat the label lookup it already
+    // completed for the same medication list).
+    const labelsLoadedRef = useRef(null);
 
     useEffect(() => {
         const run = async () => {
@@ -32,24 +44,49 @@ export default function MedicationAlerts({ conditions, client }) {
             if (medications.length === 0) {
                 setAlerts([]);
                 setLabels([]);
+                setLabelLookupFailed(false);
+                labelsLoadedRef.current = null;
                 return;
             }
 
             setIsLoading(true);
-            setError(null);
+            setAiErrorKind(null);
 
             // 1) Authoritative grounding: fetch real drug-label information
             //    (RxNorm ingredient + openFDA label) for each medication. Terms
-            //    only leave the server — no client data.
-            let labelResults = [];
-            try {
-                const resp = await base44.functions.invoke('medicalLookup', { medications });
-                const payload = resp?.data ?? resp;
-                labelResults = Array.isArray(payload?.medications) ? payload.medications : [];
-            } catch (e) {
-                labelResults = [];
+            //    only leave the server — no client data. Never repeated for the
+            //    same medication list on a bare capability transition.
+            const medicationsKey = medications.slice().sort().join('|');
+            let labelResults = labels;
+            if (labelsLoadedRef.current !== medicationsKey) {
+                let degraded = false;
+                try {
+                    const resp = await base44.functions.invoke('medicalLookup', { medications });
+                    const payload = resp?.data ?? resp;
+                    labelResults = Array.isArray(payload?.medications) ? payload.medications : [];
+                    // A response with no entries, or one the server flagged as a
+                    // per-medication networkError, is NOT a completed lookup —
+                    // the authoritative label source was unreachable.
+                    degraded = labelResults.length === 0 || labelResults.some((l) => l?.networkError);
+                } catch (e) {
+                    labelResults = [];
+                    degraded = true;
+                }
+                // Only memoise a lookup that actually delivered. On failure the
+                // ref is left unset so the next effect run retries, instead of
+                // latching a false "no alerts" all-clear for the component's
+                // lifetime.
+                labelsLoadedRef.current = degraded ? null : medicationsKey;
+                setLabels(labelResults);
+                setLabelLookupFailed(degraded);
             }
-            setLabels(labelResults);
+
+            if (!ai.canTrigger) {
+                setAlerts([]);
+                setAiErrorKind(null);
+                setIsLoading(false);
+                return;
+            }
 
             // 2) AI considerations, GROUNDED in the retrieved label text where
             //    available (the model is instructed to base its sentence only on
@@ -90,14 +127,14 @@ export default function MedicationAlerts({ conditions, client }) {
                 setAlerts(result && result.alerts ? result.alerts : []);
             } catch (err) {
                 console.error("Error fetching medication alerts:", err);
-                setError("An error occurred while analyzing medications.");
+                setAiErrorKind(ai.reportError(err));
             } finally {
                 setIsLoading(false);
             }
         };
 
         run();
-    }, [conditions, client?.apss_s2_medications_list]);
+    }, [conditions, client?.apss_s2_medications_list, ai.canTrigger]);
 
     const conditionMeds = (conditions || []).some(c => c.medication && c.medication.trim() !== '');
     const apssQ15Meds = (client?.apss_s2_medications_list || '').trim() !== '';
@@ -161,11 +198,19 @@ export default function MedicationAlerts({ conditions, client }) {
                 </div>
             )}
 
-            {labelsWithData.length === 0 && alerts.length === 0 && (
+            {labelsWithData.length === 0 && alerts.length === 0 && !aiNotice && !labelLookupFailed && (
                 <p className="text-slate-600">No specific exercise-related alerts identified for the listed medications.</p>
+            )}
+
+            {labelLookupFailed && (
+                <p role="status" className="text-sm text-amber-800">
+                    The manufacturer&apos;s drug-label source (openFDA/RxNorm) could not be reached, so label warnings — including boxed warnings — are not shown. Absence of warnings here does not mean none apply; check the Australian product information.
+                </p>
             )}
         </>
     );
+
+    const aiNotice = !ai.canTrigger ? ai.unavailableMessage : (aiErrorKind ? aiErrorMessage(aiErrorKind) : null);
 
     return (
         <Card className="bg-amber-50 border-amber-200">
@@ -184,7 +229,7 @@ export default function MedicationAlerts({ conditions, client }) {
                         </Button>
                     </div>
                 </div>
-                {!expanded && !isLoading && !error && (
+                {!expanded && !isLoading && (
                     <div className="flex flex-wrap items-center gap-1.5 pt-1">
                         {medNames.slice(0, 6).map((m, i) => (
                             <Badge key={i} variant="outline" className="border-amber-300 text-amber-900 bg-amber-100/60">{m}</Badge>
@@ -202,7 +247,7 @@ export default function MedicationAlerts({ conditions, client }) {
                     </div>
                 )}
             </CardHeader>
-            {(expanded || isLoading || error) && (
+            {(expanded || isLoading || aiNotice || labelLookupFailed) && (
                 <CardContent className="space-y-4">
                     {isLoading && (
                         <div className="space-y-3">
@@ -210,8 +255,10 @@ export default function MedicationAlerts({ conditions, client }) {
                             <Skeleton className="h-6 w-3/4" />
                         </div>
                     )}
-                    {error && <p className="text-red-600">{error}</p>}
-                    {!isLoading && !error && renderDetails(false)}
+                    {!isLoading && renderDetails(false)}
+                    {!isLoading && aiNotice && (
+                        <p role="status" className="text-sm text-amber-800">{aiNotice} {AI_COPY.nonAiUnaffected}</p>
+                    )}
                 </CardContent>
             )}
 
@@ -225,8 +272,10 @@ export default function MedicationAlerts({ conditions, client }) {
                     </DialogHeader>
                     <div className="space-y-4">
                         {isLoading && <p className="text-slate-600">Loading…</p>}
-                        {error && <p className="text-red-600">{error}</p>}
-                        {!isLoading && !error && renderDetails(true)}
+                        {!isLoading && renderDetails(true)}
+                        {!isLoading && aiNotice && (
+                            <p role="status" className="text-sm text-amber-800">{aiNotice} {AI_COPY.nonAiUnaffected}</p>
+                        )}
                     </div>
                 </DialogContent>
             </Dialog>

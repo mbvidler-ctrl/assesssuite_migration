@@ -201,7 +201,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 5d928e26027242c33a6bb4d450a8d01ea567ed2ae80b82e7d975645a7f117409
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: c336a175d274ca0103332a0a40c94fe0b4e6585cbfffdd6dd33b919d93eaf1c6
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -255,7 +255,7 @@ jobs:
         env:
           SUPERSEDED_LEGAL_VERSION: ${{ inputs.superseded_legal_version }}
           NEW_LEGAL_VERSION: ${{ inputs.new_legal_version }}
-          PRODUCTION_BASE_SHA: 183c8e47a0025ad311f5f6c1ea063c2feb430817
+          PRODUCTION_BASE_SHA: 6a8ec8d70d87d7b17bcb89e03a9fea4e2871b6d5
         run: |
           set -euo pipefail
           npm run build
@@ -287,10 +287,11 @@ jobs:
       - name: Lint only compatibility-source changes
         shell: bash
         env:
-          PRODUCTION_BASE_SHA: 183c8e47a0025ad311f5f6c1ea063c2feb430817
+          PRODUCTION_BASE_SHA: 6a8ec8d70d87d7b17bcb89e03a9fea4e2871b6d5
         run: |
           set -euo pipefail
           git cat-file -e "$PRODUCTION_BASE_SHA^{commit}"
+          git merge-base --is-ancestor "$PRODUCTION_BASE_SHA" HEAD
           mapfile -t lint_files < <(git diff --name-only --diff-filter=ACMR "$PRODUCTION_BASE_SHA" HEAD -- '*.js' '*.jsx' '*.mjs' '*.ts' '*.tsx')
           if [[ "${#lint_files[@]}" -gt 0 ]]; then
             npx --no-install eslint "${lint_files[@]}"
@@ -303,10 +304,11 @@ jobs:
           ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
           ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
           BUILD_TIMESTAMP: ${{ steps.metadata.outputs.build_timestamp }}
-          PRODUCTION_BASE_SHA: 183c8e47a0025ad311f5f6c1ea063c2feb430817
+          PRODUCTION_BASE_SHA: 6a8ec8d70d87d7b17bcb89e03a9fea4e2871b6d5
           EXPECTED_RELEASE_SCANNER_SHA256: 1b34b794ab79f5ea022525f31bf70397c629ca0a16baf4320503c6cfdbd36c5c
         run: |
           set -euo pipefail
+          git merge-base --is-ancestor "$PRODUCTION_BASE_SHA" HEAD
           changed_files="$(git diff --name-only "$PRODUCTION_BASE_SHA"...HEAD)"
           if grep -Eiq '(^|/)\.env($|\.(local|production|staging|development|test)$)|(^|/)(credentials?|secrets?)\.(json|txt|pem|key)$' <<<"$changed_files"; then
             printf '%s\n' "$changed_files"

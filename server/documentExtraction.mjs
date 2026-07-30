@@ -6,11 +6,13 @@
 
 import { createHash } from 'node:crypto';
 
+import { capabilityEnabled } from './capabilityFlags.mjs';
 import {
   REFERRAL_EXTRACTION_SCHEMA,
   REFERRAL_EXTRACTION_SCHEMA_PROPERTY_COUNT,
   REFERRAL_EXTRACTION_SCHEMA_SHA256,
 } from '../src/lib/referralExtractionSchema.js';
+import { documentExtractionAvailable } from './capabilities.mjs';
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 // Pin the reviewed provider snapshot. A mutable family alias could silently
@@ -604,7 +606,11 @@ export function assertProviderRequestPolicy(payload) {
 }
 
 export function assertDocumentExtractionEnabled(environment = process.env) {
-  if (environment.DOCUMENT_EXTRACTION_ENABLED !== '1') {
+  // documentExtractionAvailable() is the published predicate (P1's
+  // publish==enforce invariant); it resolves through the capability-flag
+  // registry, so this gate still reads DOCUMENT_EXTRACTION_ENABLED through
+  // the single chokepoint.
+  if (!documentExtractionAvailable(environment)) {
     throw new ExtractionError(503, 'extraction_disabled', 'Document extraction is currently unavailable.');
   }
 }
@@ -612,7 +618,7 @@ export function assertDocumentExtractionEnabled(environment = process.env) {
 function providerConfiguration(subjectAgeBands) {
   assertDocumentExtractionEnabled();
   const needsUnderAgeGate = subjectAgeBands.some((value) => value !== '13_or_over');
-  if (needsUnderAgeGate && process.env.DOCUMENT_EXTRACTION_UNDER_13_ENABLED !== '1') {
+  if (needsUnderAgeGate && !capabilityEnabled('DOCUMENT_EXTRACTION_UNDER_13_ENABLED')) {
     throw new ExtractionError(
       409,
       'under_13_review_required',

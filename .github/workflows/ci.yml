@@ -1,0 +1,89 @@
+# CI — pull request checks (offline, read-only, no production contact).
+#
+# This is the ONLY pull_request-triggered workflow in this repository. It is
+# deliberately and completely separate from the production release corridor
+# (production-deploy.yml, production-prepare-release.yml,
+# production-prepare-rollback-image.yml, production-rollback.yml,
+# production-parity-assurance.yml, production-state-snapshot.yml,
+# emergency-production-deploy.yml): those are workflow_dispatch-only, require
+# an exact trusted-workflow SHA input, and hold every Fly/production secret.
+# This workflow requests none of that — permissions are contents: read only,
+# no secrets are referenced, and no step contacts Fly, Docker Hub, OpenAI,
+# Resend, Stripe or any other live service. The only network activity is
+# `npm ci` resolving packages from the npm registry.
+#
+# Every suite here already runs fully offline against synthetic fixtures and
+# a throwaway local SQLite store (see server/tests/support/server-harness.mjs)
+# — nothing here is new test infrastructure, this workflow just runs the
+# existing offline battery on every pull request instead of nowhere.
+
+name: CI (pull request checks)
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Build, lint, and offline assurance battery
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out pull request
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Self-test (server/selftest.mjs)
+        run: npm run selftest
+
+      # The assurance battery contains browser-backed suites (rich-text
+      # security, landing layout); Chromium must be present before it runs —
+      # the same ordering the release workflow established in PR #18.
+      - name: Install pinned Playwright Chromium
+        run: npx --no-install playwright install --with-deps chromium
+
+      - name: Offline assurance battery (server/tests/run-assurance.mjs)
+        run: npm run test:assurance
+
+      - name: Capability-flag registry and manifest check
+        run: node scripts/flag-manifest.mjs check
+
+      - name: Capability-flag blast-radius impact gate
+        shell: bash
+        # fetch-depth: 0 above is what makes the base commit resolvable here;
+        # the base SHA arrives through the environment rather than by
+        # expression interpolation into the script body.
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          base_sha="${BASE_SHA}"
+          if git cat-file -e "${base_sha}:docs/deployment/flag-manifest.json" 2>/dev/null; then
+            node scripts/check-flag-impact.mjs --base "${base_sha}"
+          else
+            echo "No docs/deployment/flag-manifest.json exists at the pull request base (${base_sha})."
+            echo "There is nothing to diff a capability-flag change against yet; skipping the gate for this PR."
+          fi

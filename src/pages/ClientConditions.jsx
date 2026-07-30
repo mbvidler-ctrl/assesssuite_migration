@@ -22,18 +22,22 @@ import {
 import { createPageUrl } from "@/utils";
 import { format } from "date-fns";
 import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
+import { useAiCapability } from "@/hooks/useAiCapability";
+import { AI_COPY } from "@/lib/aiCapabilities";
 
 export default function ClientConditions() {
+  const ai = useAiCapability();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const clientId = searchParams.get("id");
-  
+
   const [client, setClient] = useState(null);
   const [conditions, setConditions] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingCondition, setEditingCondition] = useState(null);
   const [suggestedAssessments, setSuggestedAssessments] = useState([]);
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
+  const [suggestionState, setSuggestionState] = useState('idle'); // idle|loading|ready|empty|unavailable|failed
   const [formData, setFormData] = useState({
     condition_name: "",
     condition_type: "primary",
@@ -64,25 +68,32 @@ export default function ClientConditions() {
 
   const generateAssessmentSuggestions = async () => {
     if (conditions.length === 0) return;
-    
+    if (!ai.canTrigger) {
+      setSuggestedAssessments([]);
+      setSuggestionState('unavailable');
+      return;
+    }
+
     setIsLoadingSuggestions(true);
+    setSuggestionState('loading');
     try {
       const conditionsList = conditions.map(c => c.condition_name).join(", ");
       const prompt = `Based on the following medical conditions: ${conditionsList}, suggest appropriate physical and psychological assessment tests that would be most beneficial for a clinical evaluation. Consider evidence-based practice and focus on assessments that are commonly used in physiotherapy and exercise physiology. Return only the assessment names, one per line.`;
-      
+
       const response = await InvokeLLM({
-        prompt: prompt,
-        add_context_from_internet: false
+        prompt: prompt
       });
-      
+
       const suggestions = response.split('\n').filter(line => line.trim()).map(line => ({
         name: line.replace(/^\d+\.\s*/, '').replace(/^-\s*/, '').trim(),
         reason: `Recommended for ${conditionsList}`
       }));
-      
+
       setSuggestedAssessments(suggestions);
+      setSuggestionState(suggestions.length ? 'ready' : 'empty');
     } catch (error) {
-      console.error("Error generating suggestions:", error);
+      ai.reportError(error);
+      setSuggestionState('failed');
     }
     setIsLoadingSuggestions(false);
   };
@@ -202,7 +213,7 @@ export default function ClientConditions() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-purple-800">
                 <Lightbulb className="w-5 h-5" />
-                AI Assessment Suggestions
+                Assessment Suggestions
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -218,13 +229,14 @@ export default function ClientConditions() {
                       </Badge>
                     ))}
                   </div>
-                  <AIDisclosureNote className="mt-3" />
+                  {suggestionState === 'ready' && <AIDisclosureNote className="mt-3" />}
                 </div>
               ) : (
                 <div className="flex items-center gap-3">
-                  <Button 
+                  <Button
                     onClick={generateAssessmentSuggestions}
-                    disabled={isLoadingSuggestions}
+                    disabled={isLoadingSuggestions || !ai.canTrigger}
+                    title={ai.unavailableMessage || undefined}
                     variant="outline"
                     className="bg-white/60"
                   >
@@ -241,7 +253,13 @@ export default function ClientConditions() {
                     )}
                   </Button>
                   <p className="text-sm text-purple-600">
-                    AI will analyze conditions and suggest appropriate tests
+                    {suggestionState === 'unavailable'
+                      ? ai.unavailableMessage
+                      : suggestionState === 'failed'
+                        ? AI_COPY.requestFailed
+                        : suggestionState === 'empty'
+                          ? 'No assessment suggestions were returned for these conditions.'
+                          : 'AI will analyse the conditions and suggest appropriate tests'}
                   </p>
                 </div>
               )}

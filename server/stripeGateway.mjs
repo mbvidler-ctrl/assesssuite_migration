@@ -26,6 +26,8 @@
 
 import { createHmac, timingSafeEqual } from 'node:crypto';
 
+import { capabilityEnabled } from './capabilityFlags.mjs';
+
 const STRIPE_API_BASE = 'https://api.stripe.com';
 const REQUEST_TIMEOUT_MS = 20_000;
 const WEBHOOK_TOLERANCE_SECONDS = 300; // 5 minutes, per Stripe's own default
@@ -39,8 +41,7 @@ const WEBHOOK_TOLERANCE_SECONDS = 300; // 5 minutes, per Stripe's own default
  * the gate independently so a direct gateway import cannot bypass it.
  */
 function paymentsGateEnabled(environment = process.env) {
-  if (environment.SELFTEST === '1' || environment.PARITY_ASSURANCE_MODE === '1') return false;
-  return environment.PAYMENTS_ENABLED === '1';
+  return capabilityEnabled('PAYMENTS_ENABLED', environment);
 }
 
 export function stripeEnabled(environment = process.env) {

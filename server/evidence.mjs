@@ -93,6 +93,17 @@ async function getJson(url, timeoutMs = 12000) {
   }
 }
 
+// Filter-value metacharacters carry meaning in OpenAlex's `filter=` grammar —
+// a comma separates AND-ed filter clauses and a pipe separates OR-ed values
+// within one clause. OpenAlex percent-decodes the filter param server-side
+// before splitting on these, so percent-encoding the whole joined string does
+// NOT stop a literal comma or pipe in query text from acting as a filter
+// separator once decoded — neither must ever reach the filter builder. Strip
+// both (and collapse resulting whitespace) before use.
+function sanitizeOpenAlexFilterTerm(value) {
+  return String(value || '').replace(/[,|]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
 // ---- backends --------------------------------------------------------------
 function normaliseOpenAlexWork(w) {
   if (!w) return null;
@@ -105,9 +116,15 @@ function normaliseOpenAlexWork(w) {
   };
 }
 async function openAlexByDoi(doi) {
+  // Same reasoning as sanitizeOpenAlexFilterTerm() above: extractDoi()'s
+  // regex admits a comma or pipe, either of which would let a fabricated
+  // trailing DOI widen or fork this filter clause once OpenAlex decodes it.
+  // Sanitise here exactly as the title-search path already does, so the doi
+  // lookup can never carry an extra AND/OR clause.
+  const safeDoi = sanitizeOpenAlexFilterTerm(doi);
   // Encode special characters but keep the DOI's slashes raw — OpenAlex's doi
   // filter rejects a percent-encoded slash (%2F) and returns no result.
-  const doiParam = encodeURIComponent(doi).replace(/%2F/gi, '/');
+  const doiParam = encodeURIComponent(safeDoi).replace(/%2F/gi, '/');
   const url = `https://api.openalex.org/works?filter=doi:${doiParam}&per-page=1&mailto=${encodeURIComponent(MAILTO)}`;
   const res = await throttled(() => getJson(url));
   if (!res.ok) return { networkError: !res.status, work: null };
@@ -115,14 +132,24 @@ async function openAlexByDoi(doi) {
   return { networkError: false, work: normaliseOpenAlexWork(w) };
 }
 async function openAlexByTitle(title) {
-  const url = `https://api.openalex.org/works?filter=title.search:${encodeURIComponent(title)}&per-page=8&mailto=${encodeURIComponent(MAILTO)}`;
+  const url = `https://api.openalex.org/works?filter=title.search:${encodeURIComponent(sanitizeOpenAlexFilterTerm(title))}&per-page=8&mailto=${encodeURIComponent(MAILTO)}`;
   const res = await throttled(() => getJson(url));
   if (!res.ok) return { networkError: !res.status, works: [] };
   const works = res.json && Array.isArray(res.json.results) ? res.json.results.map(normaliseOpenAlexWork).filter(Boolean) : [];
   return { networkError: false, works };
 }
+// PubMed's `term` grammar treats square brackets as field tags (e.g. [Title],
+// [Author]) and *, ", and boolean AND/OR/NOT as operators. A citation title
+// carrying any of these could re-scope or alter the query once eutils parses
+// it, exactly the sibling risk the OpenAlex sanitiser addresses; strip the
+// bracket/quote/star metacharacters (the `[Title]` field tag is appended by us,
+// after sanitisation) and collapse whitespace before interpolating.
+function sanitizePubmedTerm(value) {
+  return String(value || '').replace(/[[\]"*]/g, ' ').replace(/\s+/g, ' ').trim();
+}
 async function pubmedByTitle(title) {
-  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(title)}%5BTitle%5D&retmax=6&retmode=json`;
+  const safeTitle = sanitizePubmedTerm(title);
+  const searchUrl = `https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi?db=pubmed&term=${encodeURIComponent(safeTitle)}%5BTitle%5D&retmax=6&retmode=json`;
   const s = await throttled(() => getJson(searchUrl), 12000);
   if (!s.ok) return { networkError: !s.status, works: [] };
   const ids = (s.json && s.json.esearchresult && s.json.esearchresult.idlist) || [];
@@ -239,8 +266,9 @@ export async function verifyCitation(input, { useCache = true } = {}) {
 // cite only from it, instead of inventing DOIs. Prefers review/guideline
 // literature, most-cited first. Returns real works only (never fabricated).
 export async function searchEvidence(query, { limit = 5, reviewsOnly = true } = {}) {
-  const q = String(query || '').trim();
-  if (!q) return { query: q, results: [], networkError: false };
+  const q = sanitizeOpenAlexFilterTerm(query);
+  let reviewsOnlyApplied = reviewsOnly;
+  if (!q) return { query: q, results: [], networkError: false, reviewsOnlyApplied };
   const filters = [`title.search:${q}`];
   if (reviewsOnly) filters.push('type:review');
   const url =
@@ -249,15 +277,16 @@ export async function searchEvidence(query, { limit = 5, reviewsOnly = true } = 
   let res = await throttled(() => getJson(url));
   // Fall back to non-review search if the review filter is too narrow.
   if (res.ok && (!res.json || !Array.isArray(res.json.results) || res.json.results.length === 0) && reviewsOnly) {
+    reviewsOnlyApplied = false;
     const url2 = `https://api.openalex.org/works?filter=${encodeURIComponent(`title.search:${q}`)}&per-page=${limit}&sort=cited_by_count:desc&mailto=${encodeURIComponent(MAILTO)}`;
     res = await throttled(() => getJson(url2));
   }
-  if (!res.ok) return { query: q, results: [], networkError: !res.status };
+  if (!res.ok) return { query: q, results: [], networkError: !res.status, reviewsOnlyApplied };
   const results = (res.json && Array.isArray(res.json.results) ? res.json.results : [])
     .map(normaliseOpenAlexWork)
     .filter((w) => w && w.title && w.doi)
     .map((w) => ({ title: w.title, authors: w.authors.slice(0, 4), year: w.year, doi: w.doi, source: 'openalex' }));
-  return { query: q, results, networkError: false };
+  return { query: q, results, networkError: false, reviewsOnlyApplied };
 }
 
 export async function verifyCitations(citations, opts) {

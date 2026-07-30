@@ -8,6 +8,8 @@ import { toast } from 'sonner';
 import { base44 } from '@/api/base44Client';
 import { todayLocal } from "@/lib/localDate";
 import AIDisclosureNote from '@/components/legal/AIDisclosureNote';
+import { useAiCapability } from '@/hooks/useAiCapability';
+import { AI_COPY } from '@/lib/aiCapabilities';
 
 // Derive a list of clinical conditions from APSS Stage 2 fields on the client object
 function extractApssConditions(client) {
@@ -29,10 +31,12 @@ function extractApssConditions(client) {
 }
 
 export default function AssessmentRecommendations({ clientConditions, allAssessments, clientAssessments, clientId, onAssessmentAdded, client }) {
+  const ai = useAiCapability();
   const [recommendations, setRecommendations] = useState([]);
   const [addingId, setAddingId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [source, setSource] = useState(null); // 'ai' | 'rule_based'
 
   const apssConditions = extractApssConditions(client);
   const allConditions = [
@@ -46,14 +50,20 @@ export default function AssessmentRecommendations({ clientConditions, allAssessm
       return;
     }
     generateAIRecommendations();
-  }, [clientConditions, allAssessments, clientAssessments, client]);
+  }, [clientConditions, allAssessments, clientAssessments, client, ai.canTrigger]);
 
   const generateAIRecommendations = async () => {
+    if (!ai.canTrigger) {
+      fallbackToBasicMatching();
+      setSource('rule_based');
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     try {
       const existingAssessmentIds = new Set(clientAssessments.map(ca => ca.assessment_id));
       const availableAssessments = allAssessments.filter(a => !existingAssessmentIds.has(a.id));
-      
+
       if (availableAssessments.length === 0) {
         setRecommendations([]);
         setIsLoading(false);
@@ -122,10 +132,15 @@ Focus on assessments that will:
         .slice(0, 5);
 
       setRecommendations(matchedRecommendations);
+      setSource('ai');
     } catch (error) {
       console.error("Error generating AI recommendations:", error);
-      // Fallback to basic matching
+      ai.reportError(error);
+      // Fallback to basic matching — the keyword matcher runs against curated
+      // conditions_indicated catalogue data and has genuine standalone
+      // value; it must simply stop being presented as AI.
       fallbackToBasicMatching();
+      setSource('rule_based');
     } finally {
       setIsLoading(false);
     }
@@ -187,24 +202,39 @@ Focus on assessments that will:
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CardTitle className="flex items-center gap-2 text-yellow-800">
-              <Sparkles className="w-5 h-5" />
-              AI-Suggested Assessments
+              {source === 'ai' ? <Sparkles className="w-5 h-5" /> : <Lightbulb className="w-5 h-5" />}
+              Suggested Assessments
             </CardTitle>
+            <Badge variant="outline" className="border-yellow-300 text-yellow-800">
+              {source === 'ai' ? AI_COPY.aiAssistedBadge : AI_COPY.ruleBasedBadge}
+            </Badge>
             <Badge variant="secondary">{recommendations.length}</Badge>
           </div>
           {isExpanded ? <ChevronUp className="w-5 h-5 text-yellow-700" /> : <ChevronDown className="w-5 h-5 text-yellow-700" />}
         </div>
-        {!isExpanded && <p className="text-sm text-yellow-700">Based on the client's conditions and pre-exercise screening results</p>}
+        {!isExpanded && (
+          <p className="text-sm text-yellow-700">
+            {source === 'rule_based' ? AI_COPY.ruleBasedExplanation : "Based on the client's conditions and pre-exercise screening results"}
+          </p>
+        )}
       </CardHeader>
       {isExpanded && (
         <CardContent>
+          {source === 'rule_based' && (
+            <p className="text-sm text-yellow-800 mb-3">{AI_COPY.ruleBasedExplanation}</p>
+          )}
+          {!ai.canTrigger && (
+            <p className="text-xs text-slate-500 mb-3">{ai.unavailableMessage}</p>
+          )}
           {isLoading ? (
           <div className="flex items-center justify-center py-6">
             <Loader2 className="w-6 h-6 animate-spin text-yellow-600 mr-2" />
-            <span className="text-sm text-yellow-700">Analyzing conditions...</span>
+            <span className="text-sm text-yellow-700">{AI_COPY.analysingConditions}</span>
           </div>
         ) : recommendations.length === 0 ? (
-          <p className="text-sm text-yellow-700 text-center py-4">No additional assessments recommended at this time.</p>
+          <p className="text-sm text-yellow-700 text-center py-4">
+            {!ai.canTrigger ? ai.unavailableMessage : "No additional assessments recommended at this time."}
+          </p>
         ) : (
           <div className="space-y-3">
             {recommendations.map(assessment => (
@@ -231,7 +261,7 @@ Focus on assessments that will:
             ))}
           </div>
         )}
-        {recommendations.length > 0 && <AIDisclosureNote className="mt-3" />}
+        {source === 'ai' && recommendations.length > 0 && <AIDisclosureNote className="mt-3" />}
         </CardContent>
       )}
     </Card>

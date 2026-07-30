@@ -35,6 +35,15 @@ import { Toaster, toast } from "sonner";
 import ClickableReferences from "../components/assessments/ClickableReferences";
 import { format } from "date-fns";
 import ImportToSOAPModal from "../components/protocols/ImportToSOAPModal";
+import { getReferenceVerificationBadge } from "@/lib/referenceVerificationBadge";
+import { describeEvidenceGrounding } from "@/lib/evidenceGroundingStatus";
+import { useAiCapability } from "@/hooks/useAiCapability";
+import { AI_COPY, aiErrorMessage } from "@/lib/aiCapabilities";
+import { buildProtocolViewModel, normaliseProtocolResponse, PROTOCOL_SECTION_LABELS } from "@/lib/protocolResponse";
+// The import provenance is driven by the SAME predicate as the on-screen
+// "AI-assisted draft" badge, so the label the clinician sees and the label
+// that reaches the clinical record can never disagree.
+import { PROTOCOL_PROVENANCE } from "@/lib/clinical/protocolImport";
 
 // The shared JavaScript UI wrappers accept the rendered props below, while
 // checkJs infers ref-only signatures from forwardRef. These source-local
@@ -198,6 +207,7 @@ Use Australian English. This is clinical decision support, not diagnosis or a su
 );
 
 export default function TreatmentProtocols() {
+  const ai = useAiCapability();
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [selectedCondition, setSelectedCondition] = useState(null);
@@ -206,6 +216,8 @@ export default function TreatmentProtocols() {
   const [isCatalogueLoading, setIsCatalogueLoading] = useState(true);
   const [catalogueError, setCatalogueError] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [evidenceGroundingNote, setEvidenceGroundingNote] = useState(null);
+  const [protocolIssues, setProtocolIssues] = useState([]);
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -336,10 +348,19 @@ export default function TreatmentProtocols() {
       toast.error("Enter a condition before loading a treatment protocol.");
       return;
     }
+    // Covers both the button and the Enter-key path (:516-528 legacy line
+    // numbers) with one guard — a reviewed catalogue selection never calls
+    // the AI, so only the AI-assisted draft path is gated here.
+    if (!reviewedProtocol && !ai.canTrigger) {
+      toast.error(ai.unavailableMessage);
+      return;
+    }
 
     setSelectedCondition({ ...condition, name: conditionName });
     setIsLoading(true);
     setProtocolData(null);
+    setEvidenceGroundingNote(null);
+    setProtocolIssues([]);
 
     try {
       if (reviewedProtocol) {
@@ -347,11 +368,17 @@ export default function TreatmentProtocols() {
         if (Array.isArray(reviewedProtocol.references)) {
           protocol.references = await validateReferences(reviewedProtocol.references);
         }
-        setProtocolData(protocol);
+        // Falling back to the raw row when the reviewed catalogue does not
+        // fit the render contract guarantees zero regression for
+        // clinician-reviewed content; the root error boundary is the
+        // backstop for a genuinely broken row.
+        const reviewed = normaliseProtocolResponse(protocol);
+        setProtocolData(reviewed.ok ? reviewed.protocol : protocol);
+        setProtocolIssues(reviewed.ok ? reviewed.dropped : []);
         return;
       }
 
-      toast.info("Generating an AI-assisted protocol from verified research...", { duration: 2000 });
+      toast.info("Searching the medical literature to ground the AI-assisted protocol...", { duration: 2000 });
 
       // searchEvidence is intentionally required before InvokeLLM. Besides
       // grounding the prompt in real literature, this preserves the server's
@@ -369,8 +396,20 @@ export default function TreatmentProtocols() {
           typeof reference?.title === "string"
           && typeof reference?.doi === "string"
         ));
-      if (evidencePayload?.networkError || retrievedRefs.length === 0) {
-        throw new Error("No verified research could be retrieved for this condition.");
+      const groundingStatus = describeEvidenceGrounding({
+        networkError: evidencePayload?.networkError,
+        resultCount: retrievedRefs.length,
+        reviewsOnlyApplied: evidencePayload?.reviewsOnlyApplied,
+      });
+      if (!groundingStatus.ok) {
+        /** @type {Error & {userMessage?: string}} */
+        const evidenceError = new Error(groundingStatus.message);
+        evidenceError.userMessage = "No verified research could be retrieved for this condition, so no protocol was generated.";
+        throw evidenceError;
+      }
+      if (groundingStatus.tone === 'warning') {
+        toast.warning(groundingStatus.message);
+        setEvidenceGroundingNote(groundingStatus.message);
       }
 
       const groundedReferences = retrievedRefs.map((reference) => {
@@ -391,21 +430,30 @@ export default function TreatmentProtocols() {
 
       const result = await base44.integrations.Core.InvokeLLM({
         prompt: buildProtocolPrompt(conditionName, groundingBlock),
-        add_context_from_internet: true,
         response_json_schema: PROTOCOL_RESPONSE_SCHEMA,
       });
-      if (!result || typeof result !== "object" || Array.isArray(result)) {
-        throw new Error("The AI service returned an invalid treatment protocol.");
-      }
 
+      // Normalise first, then attach the server-derived references — the
+      // normaliser must not see or rewrite the verified reference objects. The
+      // shared handoff is the ONLY path from a raw model result to page state,
+      // so a malformed field can never crash the page (A1) via a bypass.
       const references = await validateReferences(groundedReferences);
-      setProtocolData({ ...result, references });
+      const view = buildProtocolViewModel(result, references);
+      if (!view.ok) {
+        /** @type {Error & {userMessage?: string}} */
+        const invalidResultError = new Error("The AI service returned an invalid treatment protocol.");
+        invalidResultError.userMessage = "The AI service returned a protocol that could not be read. Nothing has been saved.";
+        throw invalidResultError;
+      }
+      setProtocolData(view.protocol);
+      setProtocolIssues(view.dropped);
     } catch (error) {
       console.error("Error loading treatment protocol:", error);
+      const kind = reviewedProtocol ? null : ai.reportError(error);
       toast.error(
         reviewedProtocol
           ? "Failed to load the reviewed treatment protocol."
-          : `Failed to generate the treatment protocol: ${error?.message || "Unknown error"}`,
+          : (error?.userMessage || aiErrorMessage(kind)),
       );
     } finally {
       setIsLoading(false);
@@ -532,15 +580,25 @@ export default function TreatmentProtocols() {
                       />
                     </div>
                     {!isCatalogueLoading && !catalogueError && customCondition && (
-                      <Button
-                        variant="default"
-                        className="w-full bg-blue-600 hover:bg-blue-700"
-                        onClick={() => loadProtocol(customCondition)}
-                        disabled={isLoading}
-                      >
-                        <Search className="w-4 h-4 mr-2" />
-                        Generate AI-assisted protocol for &quot;{customCondition.name}&quot;
-                      </Button>
+                      <>
+                        <Button
+                          variant="default"
+                          className="w-full bg-blue-600 hover:bg-blue-700"
+                          onClick={() => loadProtocol(customCondition)}
+                          disabled={isLoading || !ai.canTrigger}
+                          title={ai.unavailableMessage || undefined}
+                        >
+                          <Search className="w-4 h-4 mr-2" />
+                          Generate AI-assisted protocol for &quot;{customCondition.name}&quot;
+                        </Button>
+                        {!ai.canTrigger && (
+                          <p className="text-xs text-slate-500">
+                            {ai.reason === 'unconfigured'
+                              ? AI_COPY.unavailableUnconfigured
+                              : AI_COPY.protocolUnavailableNote}
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -576,7 +634,7 @@ export default function TreatmentProtocols() {
                     ) : filteredConditions.length === 0 ? (
                       <p role="status" className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
                         {normalizedSearchTerm
-                          ? `No reviewed treatment protocol matches "${customConditionName}". Generate an AI-assisted draft or try another search.`
+                          ? `No reviewed treatment protocol matches "${customConditionName}". ${ai.canTrigger ? "Generate an AI-assisted draft or try another search." : "AI-assisted drafting is currently unavailable — please try another search."}`
                           : "No reviewed treatment protocols are available in this category."}
                       </p>
                     ) : filteredConditions.map((condition) => (
@@ -676,6 +734,43 @@ export default function TreatmentProtocols() {
                       </div>
                     </CardHeader>
                   </Card>
+
+                  {/* Degraded AI-assisted draft notice */}
+                  {protocolIssues.length > 0 && (
+                    <Card className="bg-slate-50 border-slate-300">
+                      <CardContent className="py-3">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 text-slate-500 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm text-slate-700">
+                            <strong>Incomplete AI-assisted draft.</strong> Part of this draft did not
+                            match the expected format and has been left out:{" "}
+                            {[...new Set(
+                              protocolIssues.map((path) => PROTOCOL_SECTION_LABELS[path.split(".")[0]] || path.split(".")[0])
+                            )].join(", ")}. Review the remaining content carefully and use your own
+                            clinical judgement to fill any gaps.
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  {/* Evidence-grounding degradation notice — a top-level
+                      sibling (like the incomplete-draft notice above), never
+                      buried inside the collapsed-by-default References card, so
+                      a clinician cannot miss that review-level evidence was not
+                      found. */}
+                  {evidenceGroundingNote && (
+                    <Card className="bg-amber-50 border-amber-300">
+                      <CardContent className="py-3">
+                        <div className="flex items-start gap-3">
+                          <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                          <p className="text-sm text-amber-900">
+                            <strong>Evidence grounding degraded.</strong> {evidenceGroundingNote}
+                          </p>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
 
                   {/* Clinical Judgment & Responsibility Note - Moved to Top */}
                   <Card className="bg-amber-50 border-amber-300">
@@ -1066,24 +1161,27 @@ export default function TreatmentProtocols() {
                      <CardContent>
                        {protocolData.references && protocolData.references.length > 0 ? (
                          <div className="space-y-3">
-                           {protocolData.references.map((ref, i) => (
-                             <div key={i} className="p-3 rounded-lg border bg-green-50 border-green-200">
-                               <div className="flex items-start justify-between gap-2 mb-1">
-                                 <div className="text-sm text-slate-900 flex-1">
-                                   <ClickableReferences references={ref.citation} />
+                           {protocolData.references.map((ref, i) => {
+                             const badge = getReferenceVerificationBadge(ref);
+                             return (
+                               <div key={i} className={`p-3 rounded-lg border ${badge.cardClassName}`}>
+                                 <div className="flex items-start justify-between gap-2 mb-1">
+                                   <div className="text-sm text-slate-900 flex-1">
+                                     <ClickableReferences references={ref.citation} />
+                                   </div>
+                                   <div className="flex gap-1 flex-shrink-0">
+                                     <Badge className={badge.className}>{badge.label}</Badge>
+                                     {ref.study_type && (
+                                       <Badge variant="outline" className="text-xs">{ref.study_type}</Badge>
+                                     )}
+                                   </div>
                                  </div>
-                                 <div className="flex gap-1 flex-shrink-0">
-                                   <Badge className="bg-green-600 text-white text-xs">✓ Verified</Badge>
-                                   {ref.study_type && (
-                                     <Badge variant="outline" className="text-xs">{ref.study_type}</Badge>
-                                   )}
-                                 </div>
+                                 {ref.key_finding && (
+                                   <p className="text-xs text-slate-600 italic mt-1">Key Finding: {ref.key_finding}</p>
+                                 )}
                                </div>
-                               {ref.key_finding && (
-                                 <p className="text-xs text-slate-600 italic mt-1">Key Finding: {ref.key_finding}</p>
-                               )}
-                             </div>
-                           ))}
+                             );
+                           })}
                          </div>
                        ) : (
                          <p className="text-sm text-slate-500 italic">No verified references available for this protocol. Consult current clinical practice guidelines and peer-reviewed literature directly.</p>
@@ -1103,6 +1201,8 @@ export default function TreatmentProtocols() {
         onClose={() => setShowImportModal(false)}
         protocolData={protocolData}
         conditionName={selectedCondition?.name}
+        provenance={selectedCondition?.protocol ? PROTOCOL_PROVENANCE.REVIEWED : PROTOCOL_PROVENANCE.AI}
+        droppedPaths={protocolIssues}
       />
 </>
   );

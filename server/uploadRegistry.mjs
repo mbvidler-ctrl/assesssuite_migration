@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
 
+import { capabilityEnabled } from './capabilityFlags.mjs';
 import {
   REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE,
   REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
@@ -789,7 +790,7 @@ export function createUploadRegistry(db, { uploadsDir }) {
       JSON.stringify(safeAuditMetadata(metadata)),
       createdAt,
       expiresAt,
-      process.env.UPLOAD_AUDIT_LEGAL_HOLD === '1' ? 1 : 0,
+      capabilityEnabled('UPLOAD_AUDIT_LEGAL_HOLD') ? 1 : 0,
     );
   }
 
@@ -1978,7 +1979,7 @@ function isolateCleanupCandidate({ db, row, now, reasonCode, references }) {
       }),
       recordedAt,
       auditExpiry,
-      process.env.UPLOAD_AUDIT_LEGAL_HOLD === '1' ? 1 : 0,
+      capabilityEnabled('UPLOAD_AUDIT_LEGAL_HOLD') ? 1 : 0,
     );
     db.exec('COMMIT');
     transactionStarted = false;
@@ -2090,7 +2091,7 @@ export function cleanupExpiredUploads({ db, uploadsDir, now = new Date(), dryRun
         JSON.stringify({ dry_run: false, state_from: row.lifecycle_state, state_to: 'deleted' }),
         nowIso,
         auditExpiry,
-        process.env.UPLOAD_AUDIT_LEGAL_HOLD === '1' ? 1 : 0,
+        capabilityEnabled('UPLOAD_AUDIT_LEGAL_HOLD') ? 1 : 0,
       );
     }
     if (exists) result.removed += 1;
@@ -2100,7 +2101,7 @@ export function cleanupExpiredUploads({ db, uploadsDir, now = new Date(), dryRun
 }
 
 export function cleanupExpiredUploadAudit({ db, now = new Date(), dryRun = false }) {
-  if (process.env.UPLOAD_AUDIT_LEGAL_HOLD === '1') return { removed: 0, dryRun: Boolean(dryRun), legalHold: true };
+  if (capabilityEnabled('UPLOAD_AUDIT_LEGAL_HOLD')) return { removed: 0, dryRun: Boolean(dryRun), legalHold: true };
   const nowIso = new Date(now).toISOString();
   const count = Number(
     db.prepare('SELECT COUNT(*) AS n FROM upload_audit WHERE legal_hold = 0 AND expires_at <= ?').get(nowIso)?.n || 0,

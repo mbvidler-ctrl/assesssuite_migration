@@ -12,8 +12,11 @@ import { Calculator, BookOpen, AlertTriangle, Sparkles, Loader2, FileText } from
 import { toast } from "sonner";
 import FoodDiaryTemplate from "../nutrition/FoodDiaryTemplate";
 import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
+import { useAiCapability } from "@/hooks/useAiCapability";
+import { aiErrorMessage } from "@/lib/aiCapabilities";
 
 export default function NutritionPlanCreator({ isOpen, onClose, client, onSuccess }) {
+  const ai = useAiCapability();
   const [step, setStep] = useState(1);
   const [isCalculating, setIsCalculating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -188,7 +191,7 @@ CRITICAL: This is EDUCATION not prescription. Frame as "example of how to meet d
       toast.success("AI advice generated!");
     } catch (error) {
       console.error("Failed to generate advice:", error);
-      toast.error("Failed to generate AI advice");
+      toast.error(aiErrorMessage(ai.reportError(error)));
     } finally {
       setIsGeneratingAdvice(false);
     }
@@ -468,9 +471,10 @@ CRITICAL: This is EDUCATION not prescription. Frame as "example of how to meet d
 
           {/* Step 3: Advice & Recommendations */}
           <TabsContent value="step3" className="space-y-4">
-            <Button 
+            <Button
               onClick={handleGenerateAdvice}
-              disabled={isGeneratingAdvice}
+              disabled={isGeneratingAdvice || !ai.canTrigger}
+              title={ai.unavailableMessage || undefined}
               variant="outline"
               className="w-full"
             >
@@ -486,6 +490,7 @@ CRITICAL: This is EDUCATION not prescription. Frame as "example of how to meet d
                 </>
               )}
             </Button>
+            {!ai.canTrigger && <p className="text-xs text-slate-500">{ai.unavailableMessage}</p>}
             <AIDisclosureNote />
 
             <div>

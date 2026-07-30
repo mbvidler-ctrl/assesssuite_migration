@@ -145,35 +145,30 @@ async function main() {
   }
   const baseUrl = `http://127.0.0.1:${port}`;
   const appId = 'smoke-test-app';
-  const productionGateMode = process.env.SMOKE_PRODUCTION_MODE === '1';
 
   // Always start from a clean throwaway db file — this script owns it
   // exclusively and never touches server/data/app.db.
   removeThrowawayDbFiles();
 
-  console.log(
-    `[smoke] starting shim on ${baseUrl} (${productionGateMode ? 'production gates' : 'SELFTEST=1'}, throwaway db)`,
-  );
+  console.log(`[smoke] starting shim on ${baseUrl} (SELFTEST=1, throwaway db)`);
   const child = spawn(process.execPath, [serverEntry], {
     env: {
       ...process.env,
-      SELFTEST: productionGateMode ? '0' : '1',
-      NODE_ENV: productionGateMode ? 'test' : process.env.NODE_ENV,
-      ASSESSSUITE_DB_PATH: productionGateMode ? dbFile : process.env.ASSESSSUITE_DB_PATH,
-      ASSESSSUITE_DB_PATH_ACK: productionGateMode
-        ? 'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_NON_PRODUCTION_GATE_DATABASE'
-        : process.env.ASSESSSUITE_DB_PATH_ACK,
+      SELFTEST: '1',
+      NODE_ENV: process.env.NODE_ENV,
+      ASSESSSUITE_DB_PATH: process.env.ASSESSSUITE_DB_PATH,
+      ASSESSSUITE_DB_PATH_ACK: process.env.ASSESSSUITE_DB_PATH_ACK,
       PORT: String(port),
       ASSESSSUITE_BIND_HOST: '127.0.0.1',
       ADMIN_EMAIL: 'admin@local.test',
       ADMIN_PASSWORD: 'change-me-local',
-      OPENAI_API_KEY: productionGateMode ? '' : process.env.OPENAI_API_KEY,
-      STRIPE_SECRET_KEY: productionGateMode ? '' : process.env.STRIPE_SECRET_KEY,
-      SMTP_HOST: productionGateMode ? '' : process.env.SMTP_HOST,
-      SMTP_USER: productionGateMode ? '' : process.env.SMTP_USER,
-      SMTP_PASS: productionGateMode ? '' : process.env.SMTP_PASS,
-      LLM_REQUIRED: productionGateMode ? '0' : process.env.LLM_REQUIRED,
-      TRANSCRIPTION_ENABLED: productionGateMode ? '0' : process.env.TRANSCRIPTION_ENABLED,
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+      STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+      SMTP_HOST: process.env.SMTP_HOST,
+      SMTP_USER: process.env.SMTP_USER,
+      SMTP_PASS: process.env.SMTP_PASS,
+      LLM_REQUIRED: process.env.LLM_REQUIRED,
+      TRANSCRIPTION_ENABLED: process.env.TRANSCRIPTION_ENABLED,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -387,6 +382,10 @@ async function main() {
     // -----------------------------------------------------------------
     // Integration: InvokeLLM with a schema -> object
     // -----------------------------------------------------------------
+    // This only proves the SELFTEST=1 mock/schema-instantiation path
+    // (schema-shaped 200), not production LLM_REQUIRED=1 behaviour on any
+    // of the 11 clinical-AI surfaces — see
+    // server/tests/clinical-ai-feature-matrix.test.mjs for that coverage.
     {
       const schema = {
         type: 'object',

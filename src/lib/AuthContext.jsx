@@ -1,9 +1,25 @@
-import React, { createContext, useState, useContext, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect, useMemo, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
+import { mergeCapabilityOverrides, readCapabilities, reconcileOverridesOnRefresh } from '@/lib/aiCapabilities';
 
 const AuthContext = createContext();
+
+// Hoisted so both checkAppState() and the capability-only refreshPublicSettings()
+// share one request shape. Behaviour must stay byte-identical to the inline
+// call this replaced.
+async function fetchPublicSettings() {
+  const appClient = createAxiosClient({
+    baseURL: `${appParams.serverUrl}/api/apps/public`,
+    headers: {
+      'X-App-Id': appParams.appId
+    },
+    token: appParams.token, // Include token if available
+    interceptResponses: true
+  });
+  return appClient.get(`/prod/public-settings/by-id/${appParams.appId}`);
+}
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
@@ -12,6 +28,9 @@ export const AuthProvider = ({ children }) => {
   const [isLoadingPublicSettings, setIsLoadingPublicSettings] = useState(true);
   const [authError, setAuthError] = useState(null);
   const [appPublicSettings, setAppPublicSettings] = useState(null); // Contains only { id, public_settings }
+  const [capabilityOverrides, setCapabilityOverrides] = useState({});
+  const [publicSettingsFetchedAt, setPublicSettingsFetchedAt] = useState(null);
+  const lastRefreshAttemptRef = useRef(0);
 
   useEffect(() => {
     checkAppState();
@@ -21,22 +40,15 @@ export const AuthProvider = ({ children }) => {
     try {
       setIsLoadingPublicSettings(true);
       setAuthError(null);
-      
+
       // First, check app public settings (with token if available)
       // This will tell us if auth is required, user not registered, etc.
-      const appClient = createAxiosClient({
-        baseURL: `${appParams.serverUrl}/api/apps/public`,
-        headers: {
-          'X-App-Id': appParams.appId
-        },
-        token: appParams.token, // Include token if available
-        interceptResponses: true
-      });
-      
       try {
-        const publicSettings = await appClient.get(`/prod/public-settings/by-id/${appParams.appId}`);
+        const publicSettings = await fetchPublicSettings();
         setAppPublicSettings(publicSettings);
-        
+        setPublicSettingsFetchedAt(Date.now());
+        setCapabilityOverrides({});
+
         // If we got the app public settings successfully, check if user is authenticated
         if (appParams.token) {
           await checkUserAuth();
@@ -87,6 +99,60 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Capability re-check ONLY. It must never touch isLoadingPublicSettings —
+  // src/App.jsx:48 gates the entire SPA on that flag, so reusing
+  // checkAppState() here would blank the app to a loading screen and re-run
+  // auth mid-consult. It must never clear appPublicSettings on failure: a
+  // transport blip is not a capability withdrawal.
+  const refreshPublicSettings = async ({ force = false } = {}) => {
+    if (!force && Date.now() - lastRefreshAttemptRef.current < 60_000) return;
+    lastRefreshAttemptRef.current = Date.now();
+    try {
+      const publicSettings = await fetchPublicSettings();
+      setAppPublicSettings(publicSettings);
+      // A runtime withdrawal is cleared ONLY when the server positively
+      // re-publishes that capability as available. An unknown-optimistic
+      // payload (a server that publishes no capabilities block) must never
+      // re-enable an affordance the server just refused — otherwise every
+      // background refresh silently wipes the withdrawal and the AI buttons
+      // flap back on against a server that is still 503-ing.
+      const fresh = readCapabilities(publicSettings);
+      setCapabilityOverrides((prev) => reconcileOverridesOnRefresh(prev, fresh));
+      setPublicSettingsFetchedAt(Date.now());
+    } catch {
+      // Keep last known state; never surface a settings-refresh error to a clinician.
+    }
+  };
+
+  // Records a runtime capability withdrawal learned from a 503 mid-session,
+  // then forces an immediate re-check so the published state catches up.
+  const noteCapabilityWithdrawn = (key, reason) => {
+    setCapabilityOverrides((prev) => ({ ...prev, [key]: reason }));
+    refreshPublicSettings({ force: true });
+  };
+
+  // The bound on staleness is already (a) next focus/tab re-show or (b)
+  // exactly one failed click, whichever comes first — no polling timer and
+  // no setTimeout are needed and neither would add a useful guarantee here.
+  useEffect(() => {
+    const onWake = () => {
+      if (document.visibilityState === undefined || document.visibilityState === 'visible') {
+        refreshPublicSettings();
+      }
+    };
+    window.addEventListener('focus', onWake);
+    document.addEventListener('visibilitychange', onWake);
+    return () => {
+      window.removeEventListener('focus', onWake);
+      document.removeEventListener('visibilitychange', onWake);
+    };
+  }, []);
+
+  const capabilities = useMemo(
+    () => mergeCapabilityOverrides(readCapabilities(appPublicSettings), capabilityOverrides),
+    [appPublicSettings, capabilityOverrides],
+  );
+
   const checkUserAuth = async () => {
     try {
       // Now check if the user is authenticated
@@ -136,9 +202,13 @@ export const AuthProvider = ({ children }) => {
       isLoadingPublicSettings,
       authError,
       appPublicSettings,
+      capabilities,
+      publicSettingsFetchedAt,
       logout,
       navigateToLogin,
-      checkAppState
+      checkAppState,
+      refreshPublicSettings,
+      noteCapabilityWithdrawn
     }}>
       {children}
     </AuthContext.Provider>

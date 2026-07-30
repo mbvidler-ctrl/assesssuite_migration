@@ -1,5 +1,6 @@
 import { base44 } from "@/api/base44Client";
 import { todayLocal } from "@/lib/localDate";
+import { appendObjectiveToSoapNote } from "@/lib/clinical/soapNoteTarget";
 
 async function ensureSoapText(assessmentToUpdateId) {
   // Legacy enrichment that POSTed to a foreign Base44 app
@@ -75,27 +76,18 @@ export async function saveAssessmentToSOAP({ clientToUse, appointmentId, objecti
   const existingSOAPNotes = await base44.entities.SOAPNote.filter({ appointment_id: finalAppointmentId });
   const fields = Object.assign({}, clientToUse);
 
-  if (existingSOAPNotes.length === 0) {
-    await base44.entities.SOAPNote.create({
-      org_id: fields.org_id,
-      client_id: fields.id,
-      appointment_id: finalAppointmentId,
-      note_date: new Date().toISOString(),
-      subjective: '',
-      objective: objectiveText,
-      assessment: '',
-      plan: '',
-      status: 'draft'
-    });
-  } else {
-    const existingNote = existingSOAPNotes[0];
-    let updatedObjective = existingNote.objective || '';
-    if (updatedObjective && !updatedObjective.trim().endsWith('\n')) {
-      updatedObjective += '\n\n';
-    }
-    updatedObjective += objectiveText;
-    await base44.entities.SOAPNote.update(existingNote.id, { objective: updatedObjective });
-  }
+  // A published note is a finalised clinical record and the server refuses
+  // this append outright, so the shared decision skips it and writes a fresh
+  // draft instead.
+  await appendObjectiveToSoapNote(base44.entities.SOAPNote, existingSOAPNotes, objectiveText, {
+    org_id: fields.org_id,
+    client_id: fields.id,
+    appointment_id: finalAppointmentId,
+    note_date: new Date().toISOString(),
+    subjective: '',
+    assessment: '',
+    plan: '',
+  });
 
   await ensureSoapText(assessmentToUpdateId);
 }

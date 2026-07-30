@@ -15,15 +15,50 @@
 // protects real data if the platform is ever run against it.
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
-const MODEL_FAST = process.env.OPENAI_MODEL_FAST || 'gpt-4.1-mini';
-const MODEL_QUALITY = process.env.OPENAI_MODEL_QUALITY || 'gpt-4.1';
+export const MODEL_FAST = process.env.OPENAI_MODEL_FAST || 'gpt-4.1-mini';
+export const MODEL_QUALITY = process.env.OPENAI_MODEL_QUALITY || 'gpt-4.1';
+
+// Test-only provider override (mirrors server/documentExtraction.mjs's
+// DOCUMENT_EXTRACTION_TEST_BASE_URL). Honoured ONLY when SELFTEST==='1'
+// (forbidden during production bootstrap — server/productionBootstrap.mjs),
+// the supplied URL resolves to a loopback http:// address, AND OPENAI_API_KEY
+// itself is an obviously synthetic/test value (the shipped suites' own
+// convention — see server/tests/clinical-ai-feature-matrix.test.mjs — is a
+// key beginning "synthetic-"). The key check matters just as much as the
+// loopback check: without it, a shell-exported real OPENAI_API_KEY that
+// happens to be present when a test wires this override would still be
+// transmitted, in plaintext, to whatever is listening on that loopback URL.
+function resolveChatTestBaseUrl() {
+  if (process.env.SELFTEST !== '1') return null;
+  const raw = process.env.OPENAI_CHAT_TEST_BASE_URL;
+  if (!raw) return null;
+  if (!/^synthetic-/.test(process.env.OPENAI_API_KEY || '')) return null;
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return null;
+  }
+  const loopback = ['127.0.0.1', 'localhost', '::1', '[::1]'].includes(parsed.hostname);
+  if (!loopback || parsed.protocol !== 'http:') return null;
+  return parsed.href;
+}
+
+function resolveChatTestTimeoutMs() {
+  const raw = Number(process.env.OPENAI_CHAT_TEST_TIMEOUT_MS);
+  if (!Number.isFinite(raw)) return 500;
+  return Math.min(5_000, Math.max(50, Math.floor(raw)));
+}
 
 export function llmEnabled() {
   // SELFTEST must always use the deterministic mock, even if a key is
   // present in the inherited environment (defence in depth — .env.local is
   // already skipped under SELFTEST, but a shell-exported key would
-  // otherwise leak real calls into test runs).
-  if (process.env.SELFTEST === '1') return false;
+  // otherwise leak real calls into test runs) — except when a validated
+  // loopback OPENAI_CHAT_TEST_BASE_URL has been explicitly wired, which
+  // lets tests exercise the real code path against a fake local provider
+  // (see resolveChatTestBaseUrl()).
+  if (process.env.SELFTEST === '1' && !resolveChatTestBaseUrl()) return false;
   return Boolean(process.env.OPENAI_API_KEY);
 }
 
@@ -52,7 +87,7 @@ export function deidentify(input) {
   return { text, redactions: n };
 }
 
-function pickModel(prompt, schema) {
+export function pickModel(prompt, schema) {
   const long = typeof prompt === 'string' && prompt.length > 1800;
   const wide = schema && schema.properties && Object.keys(schema.properties).length > 6;
   return long || wide ? MODEL_QUALITY : MODEL_FAST;
@@ -60,9 +95,11 @@ function pickModel(prompt, schema) {
 
 async function callOpenAI({ messages, model, json }) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 45000);
+  const testBaseUrl = resolveChatTestBaseUrl();
+  const url = testBaseUrl || OPENAI_URL;
+  const timer = setTimeout(() => controller.abort(), testBaseUrl ? resolveChatTestTimeoutMs() : 45000);
   try {
-    const res = await fetch(OPENAI_URL, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
