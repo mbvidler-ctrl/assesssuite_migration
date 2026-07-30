@@ -204,7 +204,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: ed3b574859609f75b6fa830e67cebb22a86f73138ed378277dc44ef9ab10f4e9
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 166d29cd4ed5d658493d7a2e2696d0134837035c5dc668f875f177b86d77fd21
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -328,8 +328,11 @@ jobs:
             local label=$1
             local legacy_mode=$2
             local payload="$RUNNER_TEMP/$label-secret-names.json"
+            local boundary_state_path="$RUNNER_TEMP/$label-secret-boundary-state"
+            rm -f "$boundary_state_path"
             timeout --signal=TERM --kill-after=10s 60s fly secrets list --app "$app" --json >"$payload"
             REQUIRED_NAMES_JSON="$payload" ROLLBACK_CONFIG="$rollback_config" LEGACY_MODE="$legacy_mode" \
+              SECRET_BOUNDARY_STATE_PATH="$boundary_state_path" \
               env -u FLY_API_TOKEN node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const rows = JSON.parse(fs.readFileSync(process.env.REQUIRED_NAMES_JSON, 'utf8'));
@@ -355,6 +358,10 @@ jobs:
           ];
           const missing = required.filter((name) => !present.has(name));
           if (missing.length) throw new Error('Required production secret name(s) absent: ' + missing.join(', '));
+          const observed = JSON.stringify([...present].sort());
+          const settled = JSON.stringify([...required].sort());
+          const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());
+          let boundaryState;
           const configText = fs.readFileSync(process.env.ROLLBACK_CONFIG, 'utf8').replaceAll('\r\n', '\n');
           const forbidden = new Set([
             'NODE_ENV', 'SELFTEST', 'RELEASE_SHA', 'SOURCE_BRANCH', 'BUILD_TIMESTAMP',
@@ -366,13 +373,24 @@ jobs:
           ]);
           for (const match of configText.matchAll(/^\s{2}([A-Z][A-Z0-9_]*)\s*=/gm)) forbidden.add(match[1]);
           if (process.env.LEGACY_MODE === 'allow') {
-            forbidden.delete('LEGAL_STATUS');
-            forbidden.delete('LEGAL_EFFECTIVE_DATE');
+            forbidden.delete('GENERAL_CLINICAL_LLM_ENABLED');
+            if (observed === settled) {
+              boundaryState = 'settled';
+            } else if (observed === transitionPending) {
+              boundaryState = 'transition-pending';
+            } else {
+              throw new Error('Production secret-name allowlist differs for allow mode');
+            }
           } else if (process.env.LEGACY_MODE !== 'forbid') {
             throw new Error('Secret-boundary legacy mode is invalid');
+          } else if (observed !== settled) {
+            throw new Error('Production secret-name allowlist differs for forbid mode');
+          } else {
+            boundaryState = 'exact-eight';
           }
           const opaqueOverrides = [...forbidden].filter((name) => present.has(name)).sort();
           if (opaqueOverrides.length) throw new Error('Forbidden opaque production secret name(s) present: ' + opaqueOverrides.join(', '));
+          fs.writeFileSync(process.env.SECRET_BOUNDARY_STATE_PATH, `${boundaryState}\n`, { encoding: 'utf8', mode: 0o600 });
           NODE
           }
 
@@ -505,16 +523,8 @@ jobs:
           [[ "$prior_release" == "$EXPECTED_CURRENT_RELEASE" ]]
           [[ "$prior_image" == "$EXPECTED_CURRENT_IMAGE" ]]
           assert_secret_name_boundary initial allow
-
-          legacy_legal_secrets=()
-          for name in LEGAL_STATUS LEGAL_EFFECTIVE_DATE; do
-            if jq -e --arg name "$name" '.[] | select((.Name // .name) == $name)' "$RUNNER_TEMP/initial-secret-names.json" >/dev/null; then
-              legacy_legal_secrets+=("$name")
-            fi
-          done
-          if [[ "${#legacy_legal_secrets[@]}" -gt 0 ]]; then
-            timeout --signal=TERM --kill-after=10s 60s fly secrets unset "${legacy_legal_secrets[@]}" --stage --app "$app"
-          fi
+          rollback_initial_secret_boundary_state="$(<"$RUNNER_TEMP/initial-secret-boundary-state")"
+          [[ "$rollback_initial_secret_boundary_state" == 'settled' || "$rollback_initial_secret_boundary_state" == 'transition-pending' ]]
           rm -f "$RUNNER_TEMP/initial-secret-names.json"
 
           # Final just-in-time freeze immediately before the sole application mutation.
@@ -528,8 +538,14 @@ jobs:
           IFS=$'\t' read -r final_prior_release final_prior_image < <(current_release "$final_prior_json")
           [[ "$final_prior_release" == "$EXPECTED_CURRENT_RELEASE" ]]
           [[ "$final_prior_image" == "$EXPECTED_CURRENT_IMAGE" ]]
+          if [[ "$rollback_initial_secret_boundary_state" == 'transition-pending' ]]; then
+            timeout --signal=TERM --kill-after=10s 60s \
+              fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"
+          elif [[ "$rollback_initial_secret_boundary_state" != 'settled' ]]; then
+            exit 1
+          fi
           assert_secret_name_boundary final forbid
-          rm -f "$RUNNER_TEMP/final-secret-names.json" "$final_prior_json"
+          rm -f "$RUNNER_TEMP/initial-secret-boundary-state" "$RUNNER_TEMP/final-secret-names.json" "$RUNNER_TEMP/final-secret-boundary-state" "$final_prior_json"
 
           rollback_status=0
           timeout --signal=TERM --kill-after=30s 420s fly deploy "$rollback_dir" \

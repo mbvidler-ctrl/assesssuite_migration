@@ -134,7 +134,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: ed3b574859609f75b6fa830e67cebb22a86f73138ed378277dc44ef9ab10f4e9
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 166d29cd4ed5d658493d7a2e2696d0134837035c5dc668f875f177b86d77fd21
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
@@ -1084,8 +1084,10 @@ jobs:
             local legacy_mode=$2
             local required_names_json="$RUNNER_TEMP/${label}-required-names.json"
             local required_names_stderr="$RUNNER_TEMP/${label}-required-names.stderr"
+            local boundary_state_path="$RUNNER_TEMP/${label}-secret-boundary-state"
             local list_status=0
 
+            rm -f "$boundary_state_path"
             set +e
             timeout --signal=TERM --kill-after=10s 60s \
               fly secrets list --app "$app" --json \
@@ -1101,6 +1103,7 @@ jobs:
 
             if ! REQUIRED_NAMES_JSON="$required_names_json" CANDIDATE_CONFIG="$candidate_config" \
               ROLLBACK_CONFIG="$rollback_config" LEGACY_MODE="$legacy_mode" \
+              SECRET_BOUNDARY_STATE_PATH="$boundary_state_path" \
               EXTRACTION_RUNTIME_MODE="$EXTRACTION_RUNTIME_MODE" \
               UNDER_AGE_ZDR_RUNTIME_MODE="$UNDER_AGE_ZDR_RUNTIME_MODE" \
               env -u FLY_API_TOKEN node --input-type=module <<'NODE'
@@ -1131,25 +1134,33 @@ jobs:
             'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',
             'OPENAI_API_KEY',
           ];
-          let expected;
+          const observed = JSON.stringify([...names].sort());
+          let boundaryState;
           if (process.env.LEGACY_MODE === 'allow') {
-            // One-time migration: the reviewed candidate config preserves the
-            // live value while the staged deploy removes this opaque override.
-            expected = [...required, 'GENERAL_CLINICAL_LLM_ENABLED'];
+            const settled = JSON.stringify([...required].sort());
+            const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());
+            if (observed === settled) {
+              boundaryState = 'settled';
+            } else if (observed === transitionPending) {
+              boundaryState = 'transition-pending';
+            } else {
+              throw new Error('Production secret-name allowlist differs for allow mode');
+            }
           } else if (process.env.LEGACY_MODE !== 'forbid') {
             throw new Error('Secret-boundary legacy mode is invalid');
           } else {
-            expected = required;
+            if (observed !== JSON.stringify([...required].sort())) {
+              throw new Error('Production secret-name allowlist differs for forbid mode');
+            }
+            boundaryState = 'exact-eight';
           }
-          if (JSON.stringify([...names].sort()) !== JSON.stringify([...expected].sort())) {
-            throw new Error(`Production secret-name allowlist differs for ${process.env.LEGACY_MODE} mode`);
-          }
+          fs.writeFileSync(process.env.SECRET_BOUNDARY_STATE_PATH, `${boundaryState}\n`, { encoding: 'utf8', mode: 0o600 });
           process.stdout.write(
-            `Exact names-only production preflight passed (${expected.length} names; extraction mode ${process.env.EXTRACTION_RUNTIME_MODE}; under-age/ZDR mode ${process.env.UNDER_AGE_ZDR_RUNTIME_MODE}).\n`,
+            `Exact names-only production preflight passed (${boundaryState}; extraction mode ${process.env.EXTRACTION_RUNTIME_MODE}; under-age/ZDR mode ${process.env.UNDER_AGE_ZDR_RUNTIME_MODE}).\n`,
           );
           NODE
             then
-              rm -f "$required_names_json"
+              rm -f "$required_names_json" "$boundary_state_path"
               return 1
             fi
           }
@@ -1464,9 +1475,9 @@ jobs:
             append_summary 'FAILED; initial names-only production secret boundary did not contain the exact reviewed migration set'
             exit 1
           fi
+          initial_secret_boundary_state="$(<"$RUNNER_TEMP/initial-secret-boundary-state")"
+          [[ "$initial_secret_boundary_state" == 'settled' || "$initial_secret_boundary_state" == 'transition-pending' ]]
           rm -f "$RUNNER_TEMP/initial-secret-names.json"
-          timeout --signal=TERM --kill-after=10s 60s \
-            fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"
 
           deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))
           if [[ "$DEPLOY_JOB_STARTED_EPOCH" -le 0 || "$deploy_job_elapsed_seconds" -lt 0 \
@@ -1507,11 +1518,18 @@ jobs:
             append_summary 'FAILED; final predeploy release or image drifted'
             exit 1
           fi
+          if [[ "$initial_secret_boundary_state" == 'transition-pending' ]]; then
+            timeout --signal=TERM --kill-after=10s 60s \
+              fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"
+          elif [[ "$initial_secret_boundary_state" != 'settled' ]]; then
+            append_summary 'FAILED; initial secret-boundary state marker was invalid'
+            exit 1
+          fi
           if ! assert_secret_name_boundary final forbid; then
             append_summary 'FAILED; final names-only production secret boundary drifted'
             exit 1
           fi
-          rm -f "$RUNNER_TEMP/final-secret-names.json" "$final_prior_json"
+          rm -f "$RUNNER_TEMP/initial-secret-boundary-state" "$RUNNER_TEMP/final-secret-names.json" "$RUNNER_TEMP/final-secret-boundary-state" "$final_prior_json"
 
           deploy_status=0
           timeout --signal=TERM --kill-after=30s 420s fly deploy "$deploy_source_dir" \

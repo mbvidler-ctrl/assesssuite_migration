@@ -621,7 +621,23 @@ function validateAuxWorkflow(input, kind) {
     requireStepText(dispatchStepName, '[[ "$ROLLBACK_IMAGE" =~ ^registry\\.fly\\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]', 'digest-only rollback image input');
     requireStepText(finalStepName, '--image "$ROLLBACK_IMAGE"', 'digest-pinned emergency rollback deploy');
     requireStepText(finalStepName, 'assert_secret_name_boundary final forbid', 'final secret-name drift check');
-    requireStepText(finalStepName, 'fly secrets unset "${legacy_legal_secrets[@]}" --stage --app "$app"', 'legacy opaque legal-secret removal');
+    for (const needle of [
+      "const settled = JSON.stringify([...required].sort());",
+      "const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",
+      'if (observed === settled) {',
+      'SECRET_BOUNDARY_STATE_PATH="$boundary_state_path"',
+      'rollback_initial_secret_boundary_state="$(<"$RUNNER_TEMP/initial-secret-boundary-state")"',
+      '[[ "$rollback_initial_secret_boundary_state" == \'settled\' || "$rollback_initial_secret_boundary_state" == \'transition-pending\' ]]',
+      'if [[ "$rollback_initial_secret_boundary_state" == \'transition-pending\' ]]; then',
+      'elif [[ "$rollback_initial_secret_boundary_state" != \'settled\' ]]; then',
+      'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"',
+    ]) requireStepText(finalStepName, needle, 'retry-aware rollback secret boundary ' + needle);
+    if (finalActive.includes('LEGAL_STATUS') || finalActive.includes('LEGAL_EFFECTIVE_DATE')) {
+      fail('emergency rollback reintroduces legal metadata as Fly secrets');
+    }
+    if (countOf(finalActive, 'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"') !== 1) {
+      fail('emergency rollback transitional secret removal is not singular');
+    }
     requireStepText(finalStepName, "read_version 'https://assesssuite.com'", 'apex rollback version verification');
     requireStepText(finalStepName, "read_version 'https://assesssuite-production.fly.dev'", 'Fly-domain rollback version verification');
     requireStepText(finalStepName, "read_public_surface 'https://assesssuite.com' 'rollback-apex'", 'apex rollback public-surface verification');
@@ -630,8 +646,9 @@ function validateAuxWorkflow(input, kind) {
     const order = [
       'assert_topology prior',
       'assert_secret_name_boundary initial allow',
-      'fly secrets unset "${legacy_legal_secrets[@]}" --stage',
       'assert_topology final-predeploy',
+      '[[ "$final_prior_release" == "$EXPECTED_CURRENT_RELEASE" ]]',
+      'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"',
       'assert_secret_name_boundary final forbid',
       'fly deploy "$rollback_dir"',
       'assert_topology rollback',
@@ -824,6 +841,21 @@ function auxMutationCases(source, kind) {
       'final-secret-check-removed',
       '          assert_secret_name_boundary final forbid',
       '          true',
+    );
+    replace(
+      'rollback-settled-retry-refused',
+      'if (observed === settled) {',
+      'if (false) {',
+    );
+    replace(
+      'rollback-general-secret-removal-omitted',
+      'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"',
+      'true # GENERAL_CLINICAL_LLM_ENABLED staged-secret removal omitted',
+    );
+    replace(
+      'rollback-general-secret-removal-premature',
+      '          # Final just-in-time freeze immediately before the sole application mutation.',
+      '          timeout --signal=TERM --kill-after=10s 60s \\\n            fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"\n\n          # Final just-in-time freeze immediately before the sole application mutation.',
     );
     replace(
       'final-main-check-removed',
@@ -1315,9 +1347,39 @@ function validateDeployWorkflowV2(input) {
   const exactEight = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY'";
   if (!deploy.includes(exactEight) || deploy.includes('UPLOAD_AUDIT_LEGAL_HOLD')) fail('deploy exact application-secret allowlist differs');
   for (const needle of [
-    "expected = [...required, 'GENERAL_CLINICAL_LLM_ENABLED'];",
+    "const settled = JSON.stringify([...required].sort());",
+    "const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",
+    "if (observed === settled) {", "} else if (observed === transitionPending) {",
+    "boundaryState = 'settled';", "boundaryState = 'transition-pending';",
+    'SECRET_BOUNDARY_STATE_PATH="$boundary_state_path"',
+    'initial_secret_boundary_state="$(<"$RUNNER_TEMP/initial-secret-boundary-state")"',
+    '[[ "$initial_secret_boundary_state" == \'settled\' || "$initial_secret_boundary_state" == \'transition-pending\' ]]',
+    'if [[ "$initial_secret_boundary_state" == \'transition-pending\' ]]; then',
+    'elif [[ "$initial_secret_boundary_state" != \'settled\' ]]; then',
     'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"',
   ]) requireText(needle, 'reviewed transitional secret boundary ' + needle);
+  if (deploy.includes('LEGAL_STATUS') || deploy.includes('LEGAL_EFFECTIVE_DATE')) {
+    fail('legal metadata re-enters the Fly secret-name boundary');
+  }
+  if (countOf(deploy, 'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"') !== 1) {
+    fail('transitional GENERAL_CLINICAL_LLM_ENABLED removal is not singular');
+  }
+  const transitionalRemoval = deploy.indexOf('fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"');
+  const finalSecretBoundary = deploy.indexOf('if ! assert_secret_name_boundary final forbid; then');
+  const candidateDeploy = deploy.indexOf('fly deploy "$deploy_source_dir"', finalSecretBoundary);
+  const predeployFreezes = [
+    'deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))',
+    'if ! create_predeploy_volume_snapshot; then',
+    'remote_main_sha="$(git ls-remote --exit-code https://github.com/mbvidler-ctrl/assesssuite_migration.git refs/heads/main',
+    '[[ "$(sha256sum "$candidate_config" | awk \'{print $1}\')" == "$CANDIDATE_CONFIG_SHA256" ]]',
+    'if ! assert_volume_snapshot_policy final-predeploy "$EXPECTED_VOLUME_ID" "$EXPECTED_MACHINE_ID"; then',
+    'if [[ "$final_prior_release" != "$EXPECTED_CURRENT_RELEASE"',
+  ].map((needle) => deploy.indexOf(needle));
+  if (predeployFreezes.some((offset) => offset < 0 || offset >= transitionalRemoval) ||
+      transitionalRemoval < 0 || finalSecretBoundary < 0 || candidateDeploy < 0 ||
+      !(transitionalRemoval < finalSecretBoundary && finalSecretBoundary < candidateDeploy)) {
+    fail('conditional transitional secret removal is not last-mutation ordered');
+  }
   for (const forbidden of ['continue-on-error:', 'set -x', 'set -o xtrace', 'fly auth docker', 'registry.fly.io/assesssuite-production:latest']) {
     if (active.includes(forbidden)) fail('deploy contains forbidden fail-open/mutable/registry control ' + forbidden);
   }
@@ -1479,14 +1541,36 @@ function deployMutationCasesV2(source) {
   replace('secret-allowlist-extra', "            'OPENAI_API_KEY',\n          ];", "            'OPENAI_API_KEY', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
   replace(
     'secret-allowlist-legal-metadata-reintroduced',
-    "expected = [...required, 'GENERAL_CLINICAL_LLM_ENABLED'];",
-    "expected = [...required, 'GENERAL_CLINICAL_LLM_ENABLED', 'LEGAL_STATUS', 'LEGAL_EFFECTIVE_DATE'];",
+    "const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",
+    "const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED', 'LEGAL_STATUS', 'LEGAL_EFFECTIVE_DATE'].sort());",
+  );
+  replace(
+    'settled-retry-refused',
+    'if (observed === settled) {',
+    'if (false) {',
   );
   replace(
     'general-clinical-llm-secret-removal-omitted',
     'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"',
     'true # GENERAL_CLINICAL_LLM_ENABLED staged-secret removal omitted',
   );
+  cases.push({
+    name: 'general-clinical-llm-secret-removal-premature',
+    mutate: (value) => {
+      const withoutRemoval = replaceOnce(
+        value,
+        '          timeout --signal=TERM --kill-after=10s 60s \\\n              fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"\n',
+        '',
+        'general-clinical-llm-secret-removal-premature',
+      );
+      return replaceOnce(
+        withoutRemoval,
+        '          deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))',
+        '          timeout --signal=TERM --kill-after=10s 60s \\\n            fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"\n\n          deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))',
+        'general-clinical-llm-secret-removal-premature',
+      );
+    },
+  });
   replace('postrollback-secret-check-removed', '            if ! assert_secret_name_boundary postrollback forbid; then', '            if false; then');
   replace('validator-pin-mutated', '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + '0'.repeat(64));
   return cases;
