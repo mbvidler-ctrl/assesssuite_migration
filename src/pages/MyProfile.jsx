@@ -214,7 +214,7 @@ export default function MyProfile() {
     setUploadingLocationId(locationId);
     try {
       if (!userOrgId) {
-        throw new Error('Select the owning practice before uploading a logo.');
+        throw new Error('Select the practice before uploading a logo.');
       }
       const { file_url } = await uploadTenantFile({
         file,
@@ -229,7 +229,7 @@ export default function MyProfile() {
         fallbackDetails: 'Failed to upload logo.',
       });
       console.warn("Logo upload failed", sdkErrorLogMetadata(error, { stage: 'upload' }));
-      toast.error(error?.message === 'Select the owning practice before uploading a logo.'
+      toast.error(error?.message === 'Select the practice before uploading a logo.'
         ? error.message
         : failure.details);
     }
