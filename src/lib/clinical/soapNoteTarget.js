@@ -10,23 +10,40 @@
 // Pure, dependency-free, no Vite alias (node --test resolves none).
 
 /**
+ * @typedef {{
+ *   id?: unknown,
+ *   objective?: unknown,
+ *   status?: unknown,
+ *   [key: string]: unknown
+ * }} SoapNoteRecord
+ */
+
+/**
+ * @param {unknown} note
+ * @returns {note is SoapNoteRecord}
+ */
+function isSoapNoteRecord(note) {
+  return note !== null && typeof note === 'object';
+}
+
+/**
  * @param {unknown} note
  * @returns {boolean}
  */
 export function isPublishedNote(note) {
-  return Boolean(note) && typeof note === 'object' && note.status === 'published';
+  return isSoapNoteRecord(note) && note.status === 'published';
 }
 
 /**
  * First note that may still be appended to, or null when every candidate is
  * a finalised record.
  * @param {unknown} notes
- * @returns {object|null}
+ * @returns {SoapNoteRecord|null}
  */
 export function selectAppendableNote(notes) {
   if (!Array.isArray(notes)) return null;
   for (const note of notes) {
-    if (!note || typeof note !== 'object') continue;
+    if (!isSoapNoteRecord(note)) continue;
     if (isPublishedNote(note)) continue;
     return note;
   }
@@ -76,7 +93,16 @@ export async function appendObjectiveToSoapNote(entity, notes, objectiveText, cr
  */
 export function localDayOf(value) {
   if (value === null || value === undefined || value === '') return null;
-  const date = value instanceof Date ? value : new Date(value);
+  let date;
+  if (value instanceof Date) {
+    date = value;
+  } else if (typeof value === 'string') {
+    date = new Date(value);
+  } else if (typeof value === 'number') {
+    date = new Date(value);
+  } else {
+    return null;
+  }
   const time = date.getTime();
   if (!Number.isFinite(time)) return null;
   const year = String(date.getFullYear()).padStart(4, '0');

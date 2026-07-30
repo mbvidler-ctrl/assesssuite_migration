@@ -122,7 +122,7 @@ export default function PatientSpecificFunctionalScalePSFSRunner({ client, onSav
           Close
         </Button>
         <Button
-          variant="primary"
+          variant="default"
           size="sm"
           onClick={handleSave}
           disabled={isSaving}
