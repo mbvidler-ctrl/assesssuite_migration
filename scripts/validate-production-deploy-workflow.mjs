@@ -1268,6 +1268,7 @@ function validateDeployWorkflowV2(input) {
     'artifact-ids: ${{ inputs.deploy_bundle_artifact_id }}',
     'github-token: ${{ github.token }}', 'repository: mbvidler-ctrl/assesssuite_migration',
     'run-id: ${{ inputs.preparation_run_id }}', 'path: ${{ runner.temp }}/deploy-bundle',
+    'merge-multiple: true',
     'same(row.path, \'.github/workflows/production-prepare-release.yml\', \'workflow path\')',
     "same(row.event, 'workflow_dispatch', 'event')", "same(row.status, 'completed', 'status')",
     "same(row.conclusion, 'success', 'conclusion')", "same(row.head_branch, 'main', 'branch')",
@@ -1442,6 +1443,7 @@ function deployMutationCasesV2(source) {
   replace('docker-injected', '          install -d -m 0700 "$RUNNER_TEMP/empty-deploy-context"', '          docker run candidate\n          install -d -m 0700 "$RUNNER_TEMP/empty-deploy-context"');
   replace('in-run-needs-injected', '    runs-on: ubuntu-24.04\n', '    needs: publish_image\n    runs-on: ubuntu-24.04\n');
   replace('bundle-download-by-name', '          artifact-ids: ${{ inputs.deploy_bundle_artifact_id }}', '          name: deploy-bundle');
+  replace('bundle-download-merge-disabled', '          merge-multiple: true', '          merge-multiple: false');
   replace('bundle-download-run-id-removed', '          run-id: ${{ inputs.preparation_run_id }}\n', '');
   replace('bundle-download-token-removed', '          github-token: ${{ github.token }}\n', '');
   replace('bundle-download-repository-changed', '          repository: mbvidler-ctrl/assesssuite_migration', '          repository: attacker/fork');
