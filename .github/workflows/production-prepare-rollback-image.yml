@@ -574,6 +574,10 @@ jobs:
           if (process.env.LEGACY_MODE === 'allow') {
             forbidden.delete('LEGAL_STATUS');
             forbidden.delete('LEGAL_EFFECTIVE_DATE');
+            // Build-only publication cannot mutate Fly secrets. Permit the
+            // known emergency feature-flag override only until the governed
+            // deploy stages its removal and proves the final exact boundary.
+            forbidden.delete('GENERAL_CLINICAL_LLM_ENABLED');
           } else {
             throw new Error('Build-only secret-boundary legacy mode is invalid');
           }

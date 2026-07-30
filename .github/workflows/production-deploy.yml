@@ -1133,6 +1133,9 @@ jobs:
           let expected;
           if (process.env.LEGACY_MODE === 'allow') {
             expected = [...required, 'LEGAL_STATUS', 'LEGAL_EFFECTIVE_DATE'];
+            // One-time migration: the reviewed candidate config preserves the
+            // live value while the staged deploy removes this opaque override.
+            expected.push('GENERAL_CLINICAL_LLM_ENABLED');
           } else if (process.env.LEGACY_MODE !== 'forbid') {
             throw new Error('Secret-boundary legacy mode is invalid');
           } else {
@@ -1463,7 +1466,8 @@ jobs:
           fi
           rm -f "$RUNNER_TEMP/initial-secret-names.json"
           timeout --signal=TERM --kill-after=10s 60s \
-            fly secrets unset LEGAL_STATUS LEGAL_EFFECTIVE_DATE --stage --app "$app"
+            fly secrets unset LEGAL_STATUS LEGAL_EFFECTIVE_DATE \
+              GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"
 
           deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))
           if [[ "$DEPLOY_JOB_STARTED_EPOCH" -le 0 || "$deploy_job_elapsed_seconds" -lt 0 \
