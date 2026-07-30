@@ -1314,6 +1314,10 @@ function validateDeployWorkflowV2(input) {
       countOf(deploy, 'fly deploy "$deploy_source_dir"') !== 2) fail('candidate and rollback are not both remote-only empty-context deploys');
   const exactEight = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY'";
   if (!deploy.includes(exactEight) || deploy.includes('UPLOAD_AUDIT_LEGAL_HOLD')) fail('deploy exact application-secret allowlist differs');
+  for (const needle of [
+    "expected = [...required, 'GENERAL_CLINICAL_LLM_ENABLED'];",
+    'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"',
+  ]) requireText(needle, 'reviewed transitional secret boundary ' + needle);
   for (const forbidden of ['continue-on-error:', 'set -x', 'set -o xtrace', 'fly auth docker', 'registry.fly.io/assesssuite-production:latest']) {
     if (active.includes(forbidden)) fail('deploy contains forbidden fail-open/mutable/registry control ' + forbidden);
   }
@@ -1473,6 +1477,16 @@ function deployMutationCasesV2(source) {
   replace('skip-release-command-removed', '              --skip-release-command \\\n', '');
   replace('empty-context-replaced', 'fly deploy "$deploy_source_dir" \\\n            --config "$candidate_config"', 'fly deploy "$GITHUB_WORKSPACE/candidate" \\\n            --config "$candidate_config"');
   replace('secret-allowlist-extra', "            'OPENAI_API_KEY',\n          ];", "            'OPENAI_API_KEY', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
+  replace(
+    'secret-allowlist-legal-metadata-reintroduced',
+    "expected = [...required, 'GENERAL_CLINICAL_LLM_ENABLED'];",
+    "expected = [...required, 'GENERAL_CLINICAL_LLM_ENABLED', 'LEGAL_STATUS', 'LEGAL_EFFECTIVE_DATE'];",
+  );
+  replace(
+    'general-clinical-llm-secret-removal-omitted',
+    'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"',
+    'true # GENERAL_CLINICAL_LLM_ENABLED staged-secret removal omitted',
+  );
   replace('postrollback-secret-check-removed', '            if ! assert_secret_name_boundary postrollback forbid; then', '            if false; then');
   replace('validator-pin-mutated', '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + '0'.repeat(64));
   return cases;

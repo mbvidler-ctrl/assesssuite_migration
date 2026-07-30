@@ -134,7 +134,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 97bea240660b78e0e1a52160aeb397337743bf500020a354dc71486f65b68be3
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: ed3b574859609f75b6fa830e67cebb22a86f73138ed378277dc44ef9ab10f4e9
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
@@ -1133,10 +1133,9 @@ jobs:
           ];
           let expected;
           if (process.env.LEGACY_MODE === 'allow') {
-            expected = [...required, 'LEGAL_STATUS', 'LEGAL_EFFECTIVE_DATE'];
             // One-time migration: the reviewed candidate config preserves the
             // live value while the staged deploy removes this opaque override.
-            expected.push('GENERAL_CLINICAL_LLM_ENABLED');
+            expected = [...required, 'GENERAL_CLINICAL_LLM_ENABLED'];
           } else if (process.env.LEGACY_MODE !== 'forbid') {
             throw new Error('Secret-boundary legacy mode is invalid');
           } else {
@@ -1467,8 +1466,7 @@ jobs:
           fi
           rm -f "$RUNNER_TEMP/initial-secret-names.json"
           timeout --signal=TERM --kill-after=10s 60s \
-            fly secrets unset LEGAL_STATUS LEGAL_EFFECTIVE_DATE \
-              GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"
+            fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"
 
           deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))
           if [[ "$DEPLOY_JOB_STARTED_EPOCH" -le 0 || "$deploy_job_elapsed_seconds" -lt 0 \

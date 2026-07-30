@@ -273,7 +273,7 @@ jobs:
       - name: Validate the exact trusted production workflow control
         shell: bash
         env:
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 97bea240660b78e0e1a52160aeb397337743bf500020a354dc71486f65b68be3
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: ed3b574859609f75b6fa830e67cebb22a86f73138ed378277dc44ef9ab10f4e9
         run: |
           set -euo pipefail
           cd application
