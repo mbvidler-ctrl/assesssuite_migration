@@ -104,12 +104,43 @@ test('build and routing configuration preserves the split-hosting boundary', () 
   assert.ok(vercel.redirects.every((redirect) => !/(?:api|functions|uploads)/i.test(redirect.source)));
   assert.ok(contentSecurityPolicy);
   assert.doesNotMatch(contentSecurityPolicy, /va\.vercel-scripts\.com/);
+  assert.doesNotMatch(contentSecurityPolicy, /fonts\.(?:googleapis|gstatic)\.com/);
   assert.match(contentSecurityPolicy, /(?:^|;\s*)script-src 'self'(?:;|$)/);
   assert.match(contentSecurityPolicy, /(?:^|;\s*)connect-src 'self'(?:;|$)/);
+  assert.match(contentSecurityPolicy, /(?:^|;\s*)font-src 'self'(?:;|$)/);
   assert.match(platformHtml, /noindex, nofollow, noarchive/);
   assert.doesNotMatch(landingConfig, /\bserverPort\s*:|\bproxy\s*:/);
   for (const ignored of ['.env', 'node_modules', 'dist', 'apps/app-ep', 'server']) {
     assert.match(vercelIgnore, new RegExp(`^${ignored.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'));
+  }
+});
+
+test('landing restores Plus Jakarta Sans from a self-hosted licensed asset', () => {
+  const landing = read('src/pages/LandingLive.jsx');
+  const landingMain = read('apps/landing/src/main.jsx');
+  const fontCss = read('apps/landing/src/landing-fonts.css');
+  const fontLicense = read('apps/landing/public/fonts/plus-jakarta-sans/OFL.txt');
+
+  assert.match(landingMain, /import ['"]\.\/landing-fonts\.css['"]/);
+  assert.match(fontCss, /@font-face/);
+  assert.match(fontCss, /font-family:\s*['"]Plus Jakarta Sans['"]/);
+  assert.match(fontCss, /font-weight:\s*200 800/);
+  assert.match(fontCss, /font-display:\s*swap/);
+  assert.match(fontCss, /url\(['"]\/fonts\/plus-jakarta-sans\/PlusJakartaSans-Variable\.woff2['"]\)/);
+  assert.doesNotMatch(fontCss, /https?:|\/\//);
+  assert.match(fontLicense, /SIL OPEN FONT LICENSE Version 1\.1/);
+
+  for (const selector of [
+    '\\.lp \\.hero h1',
+    '\\.lp h2',
+    '\\.lp \\.feature-card h3',
+    '\\.lp \\.feature-card p',
+  ]) {
+    assert.match(
+      landing,
+      new RegExp(`${selector} \\{[^}]*font-family: 'Plus Jakarta Sans'`),
+      `${selector} must prefer Plus Jakarta Sans`,
+    );
   }
 });
 

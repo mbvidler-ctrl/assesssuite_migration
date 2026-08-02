@@ -51,6 +51,7 @@ if (landingReady) {
     ['AuthProvider', 'authentication provider'],
     ['media.base44.com', 'external Base44 media dependency'],
     ['fonts.googleapis.com', 'external Google Fonts dependency'],
+    ['fonts.gstatic.com', 'external Google Fonts asset dependency'],
     ['AssessSuite Website Terms of Use', 'draft website-terms title'],
     ['The proposed website operator is Assess Suite Pty Ltd', 'draft website-terms content'],
     ['AssessSuite Vulnerability Disclosure Policy', 'draft vulnerability-disclosure title'],
@@ -65,6 +66,30 @@ if (landingReady) {
 
   if (!landing.includes('https://app.assesssuite.com')) {
     fail('landing artifact does not contain the secure application origin');
+  }
+
+  for (const marker of [
+    '@font-face',
+    'Plus Jakarta Sans',
+    'font-display:swap',
+    '/fonts/plus-jakarta-sans/PlusJakartaSans-Variable.woff2',
+  ]) {
+    if (!landing.includes(marker)) fail(`landing artifact is missing local font marker: ${marker}`);
+  }
+
+  const landingFont = path.join(
+    landingRoot,
+    'fonts',
+    'plus-jakarta-sans',
+    'PlusJakartaSans-Variable.woff2',
+  );
+  if (!fs.existsSync(landingFont) || !fs.statSync(landingFont).isFile()) {
+    fail('landing artifact is missing the self-hosted Plus Jakarta Sans font');
+  } else {
+    const font = fs.readFileSync(landingFont);
+    if (font.length === 0 || font.subarray(0, 4).toString('ascii') !== 'wOF2') {
+      fail('landing Plus Jakarta Sans asset is not a valid non-empty WOFF2 file');
+    }
   }
 }
 
