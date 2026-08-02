@@ -204,7 +204,7 @@ jobs:
           curl --proto '=https' --tlsv1.2 --fail --silent --show-error --max-time 60 \
             "https://raw.githubusercontent.com/$REPOSITORY/$APPLICATION_SHA/scripts/validate-production-deploy-workflow.mjs" \
             >"$trusted_validator"
-          [[ -f "$trusted_validator" && ! -L "$trusted_validator" && "$(wc -c <"$trusted_validator")" -le 262144 ]]
+          [[ -f "$trusted_validator" && ! -L "$trusted_validator" && "$(wc -c <"$trusted_validator")" -le 524288 ]]
           printf '%s  %s\n' "$EXPECTED_TRUSTED_VALIDATOR_SHA256" "$trusted_validator" | sha256sum --check --strict
           rm -f "$trusted_validator"
 
