@@ -623,7 +623,7 @@ jobs:
                 !Array.isArray(value.sourcesContent) || value.sourcesContent.length !== value.sources.length ||
                 !Array.isArray(value.names) || typeof value.mappings !== 'string' || value.mappings.length === 0 ||
                 !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value.debugId) ||
-                (value.file !== undefined && value.file !== path.posix.basename(runtimePath))) {
+                (value.file !== undefined && value.file !== runtimePath)) {
               throw new Error(`Invalid source-map structure: ${mapPath}`);
             }
             const runtimeValue = fs.readFileSync(path.join(root, runtimePath), 'utf8');
