@@ -12,6 +12,7 @@ const dataDir = path.join(__dirname, 'data');
 
 export const PARITY_ASSURANCE_DB_PATH = '/app/server/data/assesssuite-parity.db';
 export const SESSION_ABSOLUTE_TTL_MS = 8 * 60 * 60 * 1000;
+export const SESSION_MAX_CONCURRENT_PER_USER = 8;
 
 const SESSION_STORE_TABLE = 'session_records';
 
@@ -112,8 +113,12 @@ export function ensureSessionSchema(db) {
 
       CREATE INDEX IF NOT EXISTS idx_session_records_expires_date
         ON ${SESSION_STORE_TABLE}(expires_date);
+      CREATE INDEX IF NOT EXISTS idx_session_records_expires_julianday
+        ON ${SESSION_STORE_TABLE}(julianday(expires_date));
       CREATE INDEX IF NOT EXISTS idx_session_records_user_id
         ON ${SESSION_STORE_TABLE}(user_id);
+      CREATE INDEX IF NOT EXISTS idx_session_records_user_created_token
+        ON ${SESSION_STORE_TABLE}(user_id, created_date DESC, token DESC);
     `);
 
     const expired = db
@@ -129,6 +134,26 @@ export function ensureSessionSchema(db) {
       .run();
     revokedSessions += Number(expired.changes || 0);
 
+    const overCap = db
+      .prepare(`
+        DELETE FROM ${SESSION_STORE_TABLE}
+        WHERE token IN (
+          SELECT token
+          FROM (
+            SELECT
+              token,
+              ROW_NUMBER() OVER (
+                PARTITION BY user_id
+                ORDER BY created_date DESC, token DESC
+              ) AS session_position
+            FROM ${SESSION_STORE_TABLE}
+          )
+          WHERE session_position > ?
+        )
+      `)
+      .run(SESSION_MAX_CONCURRENT_PER_USER);
+    revokedSessions += Number(overCap.changes || 0);
+
     db.exec(`
       CREATE VIEW sessions AS
       SELECT token, user_id, created_date, expires_date
@@ -143,14 +168,6 @@ export function ensureSessionSchema(db) {
       CREATE TRIGGER session_records_insert_guard
       BEFORE INSERT ON ${SESSION_STORE_TABLE}
       BEGIN
-        DELETE FROM ${SESSION_STORE_TABLE}
-        WHERE julianday(created_date) IS NULL
-           OR julianday(created_date) > julianday('now', '+1 second')
-           OR julianday(expires_date) IS NULL
-           OR julianday(expires_date) <= julianday('now')
-           OR julianday(expires_date) <= julianday(created_date)
-           OR julianday(expires_date) > julianday(created_date, '+8 hours');
-
         SELECT CASE
           WHEN julianday(NEW.created_date) IS NULL
             THEN RAISE(ABORT, 'invalid session creation time')
@@ -165,6 +182,18 @@ export function ensureSessionSchema(db) {
           WHEN julianday(NEW.expires_date) > julianday(NEW.created_date, '+8 hours')
             THEN RAISE(ABORT, 'session lifetime exceeds eight hours')
         END;
+
+        DELETE FROM ${SESSION_STORE_TABLE}
+        WHERE julianday(expires_date) <= julianday(NEW.created_date);
+
+        DELETE FROM ${SESSION_STORE_TABLE}
+        WHERE token IN (
+          SELECT token
+          FROM ${SESSION_STORE_TABLE}
+          WHERE user_id = NEW.user_id
+          ORDER BY created_date DESC, token DESC
+          LIMIT -1 OFFSET ${SESSION_MAX_CONCURRENT_PER_USER - 1}
+        );
       END;
 
       CREATE TRIGGER session_records_update_guard
@@ -693,15 +722,6 @@ export function createSessionRepository(
     const issuedAt = currentTimeMs();
     const createdDate = new Date(issuedAt).toISOString();
     const expiresDate = new Date(issuedAt + absoluteTtlMs).toISOString();
-    db.prepare(`
-      DELETE FROM ${SESSION_STORE_TABLE}
-      WHERE julianday(created_date) IS NULL
-         OR julianday(created_date) > julianday(?)
-         OR julianday(expires_date) IS NULL
-         OR julianday(expires_date) <= julianday(?)
-         OR julianday(expires_date) <= julianday(created_date)
-         OR julianday(expires_date) > julianday(created_date, '+8 hours')
-    `).run(createdDate, createdDate);
     db.prepare(
       `INSERT INTO ${SESSION_STORE_TABLE}
         (token, user_id, created_date, expires_date) VALUES (?, ?, ?, ?)`,

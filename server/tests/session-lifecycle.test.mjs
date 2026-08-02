@@ -17,6 +17,8 @@ import {
   startTestServer,
 } from './support/server-harness.mjs';
 
+const EXPECTED_MAX_CONCURRENT_SESSIONS = 8;
+
 function openMemoryDatabase() {
   const db = new DatabaseSync(':memory:');
   ensureSessionSchema(db);
@@ -172,23 +174,133 @@ test('migration is idempotent and preserves only a valid bounded session', () =>
   db.close();
 });
 
+test('migration and retained rollback inserts enforce the per-user session cap', () => {
+  const db = new DatabaseSync(':memory:');
+  db.exec(`
+    CREATE TABLE sessions (
+      token TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      created_date TEXT NOT NULL,
+      expires_date TEXT
+    );
+  `);
+  const insertLegacy = db.prepare(`
+    INSERT INTO sessions (token, user_id, created_date, expires_date)
+    VALUES (?, ?, ?, ?)
+  `);
+  const baseline = Date.now() - 60_000;
+  for (let index = 0; index < EXPECTED_MAX_CONCURRENT_SESSIONS + 4; index += 1) {
+    const created = new Date(baseline + index).toISOString();
+    insertLegacy.run(
+      `legacy-${String(index).padStart(2, '0')}`,
+      'rollback-user',
+      created,
+      new Date(Date.parse(created) + SESSION_ABSOLUTE_TTL_MS).toISOString(),
+    );
+  }
+
+  assert.deepEqual(ensureSessionSchema(db), { migrated: true, revokedSessions: 4 });
+  assert.equal(
+    db.prepare('SELECT COUNT(*) AS count FROM session_records WHERE user_id = ?')
+      .get('rollback-user').count,
+    EXPECTED_MAX_CONCURRENT_SESSIONS,
+  );
+  assert.equal(
+    db.prepare('SELECT token FROM sessions WHERE token = ?').get('legacy-00'),
+    undefined,
+  );
+  assert.equal(
+    db.prepare('SELECT token FROM sessions WHERE token = ?').get('legacy-11').token,
+    'legacy-11',
+  );
+
+  const rollbackInsert = db.prepare(
+    'INSERT INTO sessions (token, user_id, created_date) VALUES (?, ?, ?)',
+  );
+  for (let index = 0; index < 4; index += 1) {
+    rollbackInsert.run(`rollback-new-${index}`, 'rollback-user', '2999-01-01T00:00:00.000Z');
+  }
+  assert.equal(
+    db.prepare('SELECT COUNT(*) AS count FROM session_records WHERE user_id = ?')
+      .get('rollback-user').count,
+    EXPECTED_MAX_CONCURRENT_SESSIONS,
+  );
+  assert.equal(
+    db.prepare('SELECT token FROM sessions WHERE token = ?').get('rollback-new-3').token,
+    'rollback-new-3',
+  );
+  db.close();
+});
+
 test('new session issuance opportunistically removes unpresented expired rows', () => {
   const db = openMemoryDatabase();
-  db.exec('DROP TRIGGER session_records_insert_guard;');
-  db.prepare(`
-    INSERT INTO session_records (token, user_id, created_date, expires_date)
-    VALUES (?, ?, ?, ?)
-  `).run(
-    'expired-token',
-    'user-a',
-    '2000-01-01T00:00:00.000Z',
-    '2000-01-01T08:00:00.000Z',
-  );
   const sessions = createSessionRepository(db);
+  const expiredToken = sessions.create('user-a');
+  db.exec('DROP TRIGGER session_records_update_guard;');
+  db.prepare('UPDATE session_records SET expires_date = ? WHERE token = ?').run(
+    '2000-01-01T00:00:00.000Z',
+    expiredToken,
+  );
   const current = sessions.create('user-b');
 
-  assert.equal(db.prepare('SELECT * FROM session_records WHERE token = ?').get('expired-token'), undefined);
+  assert.equal(db.prepare('SELECT * FROM session_records WHERE token = ?').get(expiredToken), undefined);
   assert.equal(db.prepare('SELECT * FROM session_records WHERE token = ?').get(current).user_id, 'user-b');
+  db.close();
+});
+
+test('routine session issuance uses indexed expiry and per-user retention plans', () => {
+  const db = openMemoryDatabase();
+  const observedAt = new Date().toISOString();
+  const expiryPlan = db.prepare(`
+    EXPLAIN QUERY PLAN
+    DELETE FROM session_records
+    WHERE julianday(expires_date) <= julianday(?)
+  `).all(observedAt);
+  const retentionPlan = db.prepare(`
+    EXPLAIN QUERY PLAN
+    SELECT token
+    FROM session_records
+    WHERE user_id = ?
+    ORDER BY created_date DESC, token DESC
+    LIMIT -1 OFFSET ?
+  `).all('synthetic-valid-user', EXPECTED_MAX_CONCURRENT_SESSIONS - 1);
+
+  assert.match(
+    expiryPlan.map((step) => step.detail).join('\n'),
+    /USING INDEX idx_session_records_expires_julianday/,
+  );
+  assert.match(
+    retentionPlan.map((step) => step.detail).join('\n'),
+    /USING COVERING INDEX idx_session_records_user_created_token/,
+  );
+  assert.doesNotMatch(
+    retentionPlan.map((step) => step.detail).join('\n'),
+    /USE TEMP B-TREE|SCAN session_records/,
+  );
+  db.close();
+});
+
+test('session issuance retains only the newest bounded set for one user', () => {
+  const db = openMemoryDatabase();
+  let now = Date.now() - 1_000;
+  const sessions = createSessionRepository(db, { now: () => now });
+  const issued = [];
+  const other = sessions.create('other-user');
+
+  for (let index = 0; index < EXPECTED_MAX_CONCURRENT_SESSIONS + 4; index += 1) {
+    now += 1;
+    issued.push(sessions.create('bounded-user'));
+  }
+
+  const retained = db
+    .prepare('SELECT token FROM session_records WHERE user_id = ? ORDER BY created_date ASC')
+    .all('bounded-user')
+    .map((row) => row.token);
+  assert.equal(retained.length, EXPECTED_MAX_CONCURRENT_SESSIONS);
+  assert.deepEqual(retained, issued.slice(-EXPECTED_MAX_CONCURRENT_SESSIONS));
+  assert.equal(sessions.findByToken(issued[0]), null);
+  assert.equal(sessions.findByToken(issued.at(-1))?.user_id, 'bounded-user');
+  assert.equal(sessions.findByToken(other)?.user_id, 'other-user');
   db.close();
 });
 

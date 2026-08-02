@@ -19,10 +19,32 @@ for an office-day application. It is fixed in code for this narrow change so a
 missing or malformed production setting cannot silently restore unbounded
 sessions.
 
+Active sessions are also capped at eight per user. Issuing a ninth session
+retains the new token and the seven most recently issued existing tokens, and
+revokes only that user's older tokens. This leaves ordinary desktop, mobile
+and secondary-browser use available while preventing a valid credential from
+growing one user's session set without limit.
+
 References:
 
 - <https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html#absolute-timeout>
 - <https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html#user-resets-password>
+
+## Availability finding and patch contract
+
+The Low/P3 availability path required a caller to know a valid user's
+credentials and repeatedly complete the ordinary login route. Each successful
+login called `sessions.create()`, which repeated a non-sargable whole-table
+cleanup already performed by the insert trigger, and no control bounded that
+user's active rows. Five hundred synthetic successful issuances retained five
+hundred rows and SQLite reported `SCAN session_records` for the cleanup plan.
+
+The remediation boundary is the session store, rather than login-specific rate
+handling, because OTP verification and the retained rollback binary also issue
+sessions. The required invariants are: indexed work during normal issuance; a
+finite per-user active-session set; no cross-user eviction; eight-hour absolute
+expiry; reset-wide revocation; and unchanged legitimate login, logout,
+authenticated password-change and password-reset behaviour.
 
 ## Migration and rollback behaviour
 
@@ -42,8 +64,17 @@ backing rows. The original rollback image remains data-path compatible without
 reopening AS-HIGH-002.
 
 The backing table indexes expiry and user identity. Hardened startup removes
-expired or malformed rows, and every new session issuance opportunistically
-removes expired rows so normal use cannot grow the table indefinitely.
+expired or malformed rows and reduces any pre-existing per-user excess to the
+same eight-session ceiling. Every new session issuance opportunistically
+removes expired rows and enforces the ceiling at the SQLite insert boundary,
+including inserts made by the retained rollback binary.
+
+Routine issuance does not repeat the previous non-sargable whole-table cleanup
+in both the repository and insert trigger. Expiry cleanup uses an expression
+index on `julianday(expires_date)`, and per-user retention uses the covering
+`(user_id, created_date DESC, token DESC)` index. The repository performs the
+single insert; the database trigger owns cleanup, validation and retention for
+both current and rollback callers.
 
 Rollback safety assumes the reviewed image/config rollback continues to use
 the migrated production volume. The release workflow does not automatically
@@ -89,19 +120,24 @@ be inferred from this patch.
    deletion through the compatibility view;
 5. storage-boundary rejection of explicit overlong and future-created rows;
 6. idempotent migration and preservation of a valid bounded session;
-7. opportunistic expired-row cleanup;
-8. rejection of a repository TTL above eight hours;
-9. backing-row immutability against timestamp renewal;
-10. concurrent session revocation without cross-user impact;
-11. persistence across a database restart;
-12. database-layer reset revocation that survives a retained-image rollback;
-13. non-activation of that trigger for ordinary authenticated password change;
-14. logout-route revocation;
-15. entity-route and function-route rejection of an expired token;
-16. end-to-end password-reset revocation, true two-process single-use
+7. migration-time and retained-binary enforcement of the eight-session
+   per-user cap;
+8. opportunistic expired-row cleanup through the insert boundary;
+9. indexed query plans for routine expiry cleanup and per-user retention, with
+   no session-table scan or temporary ordering tree;
+10. retention of only the newest eight sessions without cross-user eviction;
+11. rejection of a repository TTL above eight hours;
+12. backing-row immutability against timestamp renewal;
+13. concurrent session revocation without cross-user impact;
+14. persistence across a database restart;
+15. database-layer reset revocation that survives a retained-image rollback;
+16. non-activation of that trigger for ordinary authenticated password change;
+17. logout-route revocation;
+18. entity-route and function-route rejection of an expired token;
+19. end-to-end password-reset revocation, true two-process single-use
     completion, malformed-expiry rejection, old-password rejection and fresh
     login; and
-17. transactional rollback of password/reset-token changes when session
+20. transactional rollback of password/reset-token changes when session
     revocation is fault-injected to fail.
 
 The suite is included in `npm run test:assurance`.
