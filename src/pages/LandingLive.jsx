@@ -238,7 +238,7 @@ export default function LandingLive() {
         .lp .hero { background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%); padding: 100px 60px 90px; text-align: center; }
         .lp .hero-badge { display: inline-block; background: #dbeafe; color: #1d4ed8; font-size: 13px; font-weight: 600; padding: 6px 16px; border-radius: 100px; margin-bottom: 28px; }
         .lp .hero-company { font-size: 15px; font-weight: 700; color: #2563eb; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
-        .lp .hero h1 { font-size: 56px; font-weight: 900; line-height: 1.1; color: #0f172a; max-width: 840px; margin: 0 auto 12px; letter-spacing: -1.5px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        .lp .hero h1 { font-size: 56px; font-weight: 900; line-height: 1.1; color: #0f172a; max-width: 840px; margin: 0 auto 12px; letter-spacing: -1.5px; font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .lp .hero-product { font-size: 22px; font-weight: 700; color: #2563eb; margin-bottom: 24px; }
         .lp .hero p { font-size: 20px; color: #475569; max-width: 620px; margin: 0 auto 40px; line-height: 1.7; }
         .lp .hero-ctas { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
@@ -252,7 +252,7 @@ export default function LandingLive() {
         .lp .ep-strip p strong { color: #e2e8f0; }
         .lp section { padding: 90px 60px; }
         .lp .section-label { font-size: 12px; font-weight: 700; color: #2563eb; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; }
-        .lp h2 { font-size: 42px; font-weight: 800; color: #0f172a; line-height: 1.2; letter-spacing: -1px; margin-bottom: 16px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        .lp h2 { font-size: 42px; font-weight: 800; color: #0f172a; line-height: 1.2; letter-spacing: -1px; margin-bottom: 16px; font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .lp .section-sub { font-size: 18px; color: #64748b; line-height: 1.7; max-width: 600px; margin-bottom: 52px; }
         .lp .problem { background: #fff; text-align: center; }
         .lp .problem h2 { max-width: 700px; margin: 0 auto 16px; }
@@ -285,8 +285,8 @@ export default function LandingLive() {
         .lp .feature-card:nth-child(6) .feature-icon { --bg-color: transparent; }
         .lp .feature-card:nth-child(7) .feature-icon { --bg-color: transparent; }
         .lp .feature-card:nth-child(8) .feature-icon { --bg-color: transparent; }
-        .lp .feature-card h3 { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 8px; text-align: left; letter-spacing: -0.3px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
-        .lp .feature-card p { font-size: 14px; color: #64748b; line-height: 1.6; text-align: left; font-weight: 400; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        .lp .feature-card h3 { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 8px; text-align: left; letter-spacing: -0.3px; font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        .lp .feature-card p { font-size: 14px; color: #64748b; line-height: 1.6; text-align: left; font-weight: 400; font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .lp .feature-card-content { flex: 1; }
         .lp .library { background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 50%, #f0fdf4 100%); position: relative; text-align: center; overflow: hidden; }
         .lp .library .section-label { color: #2563eb; }
