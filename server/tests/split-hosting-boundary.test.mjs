@@ -78,6 +78,33 @@ test('marketing entry has no authenticated application or API provider imports',
   assert.doesNotMatch(platformApp, /pages\/LandingLive/);
   assert.doesNotMatch(marketingMain, /@vercel\/analytics|Analytics|beforeSend/);
   assert.doesNotMatch(platformMain, /@vercel\/analytics|Analytics/);
+
+  const usageEndpoint = 'https://app.assesssuite.com/api/usage/page-load';
+  assert.equal(marketingMain.split(usageEndpoint).length - 1, 1);
+  assert.match(marketingMain, /if \(!import\.meta\.env\.PROD/);
+  assert.match(marketingMain, /'https:\/\/assesssuite\.com'/);
+  assert.match(marketingMain, /'https:\/\/www\.assesssuite\.com'/);
+  assert.equal((marketingMain.match(/reportLandingPageLoad\(\);/g) || []).length, 1);
+
+  const fetchOptions = marketingMain.match(/window\.fetch\(LANDING_PAGE_LOAD_ENDPOINT, \{([\s\S]*?)\n\s*\}\)/)?.[1];
+  assert.ok(fetchOptions, 'expected the isolated landing usage request');
+  assert.match(fetchOptions, /method:\s*'POST'/);
+  assert.match(fetchOptions, /credentials:\s*'omit'/);
+  assert.match(fetchOptions, /referrerPolicy:\s*'no-referrer'/);
+  assert.match(fetchOptions, /keepalive:\s*true/);
+  assert.doesNotMatch(fetchOptions, /\bbody\s*:/);
+});
+
+test('authenticated navigation keeps page logging and adds one tab-session AppOpen sentinel', () => {
+  const tracker = read('src/lib/NavigationTracker.jsx');
+
+  assert.match(tracker, /base44\.appLogs\.logUserInApp\(pageName\)/);
+  assert.equal((tracker.match(/base44\.appLogs\.logUserInApp\('AppOpen'\)/g) || []).length, 1);
+  assert.match(tracker, /if \(!isAuthenticated \|\| !claimAppOpenForBrowserSession\(\)\) return;/);
+  assert.match(tracker, /window\.sessionStorage\.getItem\(APP_OPEN_SESSION_KEY\)/);
+  assert.match(tracker, /window\.sessionStorage\.setItem\(APP_OPEN_SESSION_KEY, '1'\)/);
+  assert.match(tracker, /\}, \[isAuthenticated\]\);/);
+  assert.doesNotMatch(tracker, /localStorage|document\.referrer|navigator\.|location\.href[^\n]*AppOpen/);
 });
 
 test('build and routing configuration preserves the split-hosting boundary', () => {
@@ -86,6 +113,7 @@ test('build and routing configuration preserves the split-hosting boundary', () 
   const vercel = JSON.parse(read('vercel.json'));
   const platformHtml = read('apps/app-ep/index.html');
   const landingConfig = read('apps/landing/vite.config.js');
+  const splitVerifier = read('scripts/verify-split-build.mjs');
   const vercelIgnore = read('.vercelignore');
   const contentSecurityPolicy = vercel.headers
     .flatMap((route) => route.headers)
@@ -106,8 +134,25 @@ test('build and routing configuration preserves the split-hosting boundary', () 
   assert.doesNotMatch(contentSecurityPolicy, /va\.vercel-scripts\.com/);
   assert.doesNotMatch(contentSecurityPolicy, /fonts\.(?:googleapis|gstatic)\.com/);
   assert.match(contentSecurityPolicy, /(?:^|;\s*)script-src 'self'(?:;|$)/);
-  assert.match(contentSecurityPolicy, /(?:^|;\s*)connect-src 'self'(?:;|$)/);
+  const connectSource = contentSecurityPolicy.match(/(?:^|;\s*)connect-src ([^;]+)(?:;|$)/)?.[1];
+  assert.equal(connectSource, "'self' https://app.assesssuite.com");
   assert.match(contentSecurityPolicy, /(?:^|;\s*)font-src 'self'(?:;|$)/);
+  assert.match(splitVerifier, /landingUsageEndpoint = 'https:\/\/app\.assesssuite\.com\/api\/usage\/page-load'/);
+  assert.match(splitVerifier, /usageEndpointOccurrences !== 1/);
+  assert.match(splitVerifier, /landing\.replace\(landingUsageEndpoint, ''\)/);
+  for (const marker of [
+    "['/api/'",
+    "['/functions/'",
+    "['X-App-Id'",
+    "['/api/apps/'",
+    "['Bearer ${'",
+    "['appLogs'",
+    "['AuthProvider'",
+    "['/_vercel/insights'",
+    "['va.vercel-scripts.com'",
+  ]) {
+    assert.ok(splitVerifier.includes(marker), `compiled landing guard lost ${marker}`);
+  }
   assert.match(platformHtml, /noindex, nofollow, noarchive/);
   assert.doesNotMatch(landingConfig, /\bserverPort\s*:|\bproxy\s*:/);
   for (const ignored of ['.env', 'node_modules', 'dist', 'apps/app-ep', 'server']) {
@@ -144,7 +189,7 @@ test('landing restores Plus Jakarta Sans from a self-hosted licensed asset', () 
   }
 });
 
-test('published analytics notices disclose the disabled state and historical referrer limitation', () => {
+test('published analytics notices disclose disabled Vercel analytics and the aggregate-only replacement', () => {
   const packageJson = read('package.json');
   const packageLock = read('package-lock.json');
   const cookieNotice = read('src/legal-content/10_cookie_analytics_and_tracking_notice.md');
@@ -161,9 +206,13 @@ test('published analytics notices disclose the disabled state and historical ref
   }
   assert.match(cookieNotice, /custom events/);
   assert.match(cookieNotice, /query string and URL fragment/);
+  assert.match(cookieNotice, /first-party aggregate/i);
+  assert.match(cookieNotice, /Australia\/Brisbane/);
+  assert.match(cookieNotice, /no raw measurement-event row/i);
   assert.doesNotMatch(cookieNotice, /Off by default until PIA/);
-  assert.match(registry, /2026-08-02\.2/);
-  assert.match(registry, /PUBLIC-SITE ANALYTICS DISABLED/);
+  assert.match(registry, /2026-08-02\.3/);
+  assert.match(registry, /VERCEL WEB ANALYTICS DISABLED/);
+  assert.match(registry, /FIRST-PARTY AGGREGATE MEASUREMENT/);
   assert.match(registry, /effectiveDate: '2 August 2026'/);
   assert.match(marketingLegalPage, /doc\.effectiveDate \|\| SUITE_EFFECTIVE_DATE/);
   assert.doesNotMatch(read('apps/landing/src/main.jsx'), /@vercel\/analytics|Analytics|beforeSend/);

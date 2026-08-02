@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const landingRoot = path.join(repoRoot, 'apps', 'landing', 'dist');
 const platformRoot = path.join(repoRoot, 'dist');
+const landingUsageEndpoint = 'https://app.assesssuite.com/api/usage/page-load';
 
 const fail = (message) => {
   console.error(`FAIL: ${message}`);
@@ -40,6 +41,14 @@ const platformReady = assertDirectory(platformRoot, 'platform');
 
 if (landingReady) {
   const landing = artifactText(landingRoot);
+  const usageEndpointOccurrences = landing.split(landingUsageEndpoint).length - 1;
+  if (usageEndpointOccurrences !== 1) {
+    fail(`landing artifact must contain exactly one approved usage endpoint; found ${usageEndpointOccurrences}`);
+  }
+
+  // Remove the one approved, bodyless usage sentinel before applying the
+  // blanket backend-marker prohibition. Any other API path still fails.
+  const landingWithoutApprovedUsageEndpoint = landing.replace(landingUsageEndpoint, '');
   const bannedLandingMarkers = [
     ['/api/', 'API route marker'],
     ['/functions/', 'function route marker'],
@@ -61,7 +70,9 @@ if (landingReady) {
   ];
 
   for (const [marker, label] of bannedLandingMarkers) {
-    if (landing.includes(marker)) fail(`landing artifact contains ${label}: ${marker}`);
+    if (landingWithoutApprovedUsageEndpoint.includes(marker)) {
+      fail(`landing artifact contains ${label}: ${marker}`);
+    }
   }
 
   if (!landing.includes('https://app.assesssuite.com')) {

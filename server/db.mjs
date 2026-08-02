@@ -12,6 +12,39 @@ const dataDir = path.join(__dirname, 'data');
 
 export const PARITY_ASSURANCE_DB_PATH = '/app/server/data/assesssuite-parity.db';
 
+export const USAGE_METRIC_NAMES = Object.freeze([
+  'marketing_page_load',
+  'successful_sign_in',
+  'new_verified_account',
+  'app_open',
+]);
+
+const USAGE_METRIC_SET = new Set(USAGE_METRIC_NAMES);
+const BRISBANE_TIME_ZONE = 'Australia/Brisbane';
+const brisbaneDateFormatter = new Intl.DateTimeFormat('en-AU', {
+  timeZone: BRISBANE_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+export function brisbaneDay(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) throw new TypeError('usage analytics requires a valid date');
+  const parts = Object.fromEntries(
+    brisbaneDateFormatter
+      .formatToParts(date)
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value]),
+  );
+  return `${parts.year}-${parts.month}-${parts.day}`;
+}
+
+function offsetCalendarDay(day, offset) {
+  const [year, month, date] = day.split('-').map(Number);
+  return new Date(Date.UTC(year, month - 1, date + offset)).toISOString().slice(0, 10);
+}
+
 /**
  * Database overrides are permitted only for the existing isolated test
  * harness or for the one exact production parity database. The parity case is
@@ -133,6 +166,27 @@ export function openDatabase() {
       user_id TEXT NOT NULL,
       created_date TEXT NOT NULL
     );
+
+    -- Identifier-free operational analytics. Every write is a daily aggregate
+    -- increment; this table has no event, request, user or session dimension.
+    CREATE TABLE IF NOT EXISTS usage_daily_aggregate (
+      day TEXT PRIMARY KEY CHECK (
+        length(day) = 10 AND
+        day GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+      ),
+      marketing_page_load INTEGER NOT NULL DEFAULT 0 CHECK (
+        typeof(marketing_page_load) = 'integer' AND marketing_page_load BETWEEN 0 AND 9007199254740991
+      ),
+      successful_sign_in INTEGER NOT NULL DEFAULT 0 CHECK (
+        typeof(successful_sign_in) = 'integer' AND successful_sign_in BETWEEN 0 AND 9007199254740991
+      ),
+      new_verified_account INTEGER NOT NULL DEFAULT 0 CHECK (
+        typeof(new_verified_account) = 'integer' AND new_verified_account BETWEEN 0 AND 9007199254740991
+      ),
+      app_open INTEGER NOT NULL DEFAULT 0 CHECK (
+        typeof(app_open) = 'integer' AND app_open BETWEEN 0 AND 9007199254740991
+      )
+    ) WITHOUT ROWID;
   `);
 
   db.exec(`
@@ -421,6 +475,70 @@ export function createSessionRepository(db) {
   }
 
   return { create, findByToken, remove };
+}
+
+/**
+ * Identifier-free daily usage counters. Metric names are a closed enum and
+ * are interpolated only while preparing the four static upsert statements.
+ */
+export function createUsageAnalyticsRepository(db, { clock = () => new Date() } = {}) {
+  const incrementStatements = Object.fromEntries(
+    USAGE_METRIC_NAMES.map((metric) => [
+      metric,
+      db.prepare(`
+        INSERT INTO usage_daily_aggregate (day, ${metric})
+        VALUES (?, 1)
+        ON CONFLICT(day) DO UPDATE SET ${metric} = ${metric} + 1
+      `),
+    ]),
+  );
+  const summaryStatement = db.prepare(`
+    SELECT
+      day,
+      marketing_page_load,
+      successful_sign_in,
+      new_verified_account,
+      app_open
+    FROM usage_daily_aggregate
+    WHERE day BETWEEN ? AND ?
+    ORDER BY day ASC
+  `);
+
+  function currentDate() {
+    const value = clock();
+    return value instanceof Date ? value : new Date(value);
+  }
+
+  function increment(metric, at = currentDate()) {
+    if (!USAGE_METRIC_SET.has(metric)) throw new TypeError('unknown usage metric');
+    const day = brisbaneDay(at);
+    incrementStatements[metric].run(day);
+    return day;
+  }
+
+  function summarize(days = 30, at = currentDate()) {
+    if (!Number.isInteger(days) || days < 1 || days > 90) {
+      throw new RangeError('usage summary days must be an integer from 1 to 90');
+    }
+    const endDay = brisbaneDay(at);
+    const startDay = offsetCalendarDay(endDay, 1 - days);
+    const rowsByDay = new Map(
+      summaryStatement.all(startDay, endDay).map((row) => [row.day, row]),
+    );
+    return Array.from({ length: days }, (_, index) => {
+      const day = offsetCalendarDay(startDay, index);
+      const stored = rowsByDay.get(day);
+      return {
+        day,
+        marketing_page_load: Number(stored?.marketing_page_load || 0),
+        successful_sign_in: Number(stored?.successful_sign_in || 0),
+        new_verified_account: Number(stored?.new_verified_account || 0),
+        app_open: Number(stored?.app_open || 0),
+      };
+    });
+  }
+
+  return Object.freeze({ increment, summarize });
 }
 
 /**

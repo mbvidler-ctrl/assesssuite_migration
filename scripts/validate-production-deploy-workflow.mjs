@@ -630,8 +630,8 @@ function validateAuxWorkflow(input, kind) {
     'configText.matchAll', 'env -u FLY_API_TOKEN node --input-type=module',
   ]) if (!secrets.includes(needle)) fail(`names-only secret boundary lacks ${needle}`);
   if (kind === 'rollback') {
-    for (const needle of ["'OPENAI_API_KEY', 'SENTRY_DSN'", "boundaryState = 'exact-nine';"]) {
-      if (!secrets.includes(needle)) fail(`rollback exact nine-name secret boundary lacks ${needle}`);
+    for (const needle of ["'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN'", "boundaryState = 'exact-ten';"]) {
+      if (!secrets.includes(needle)) fail(`rollback exact ten-name secret boundary lacks ${needle}`);
     }
   }
   if (/^\s*return 0\s*$/m.test(secrets) || secrets.includes('&& false')) fail('secret boundary has a fail-open bypass');
@@ -1533,6 +1533,12 @@ function auxMutationCases(source, kind) {
     replace('rollback-legal-app-routes-removed', '            for route in legal/privacy login; do', '            for route in root-only; do');
     replace('rollback-post-topology-removed', '          if ! assert_topology postrollback; then', '          if false; then');
     replace('rollback-app-url-staging-mutated', 'fly secrets set APP_URL=https://app.assesssuite.com --stage --app "$app"', 'fly secrets set APP_URL=https://assesssuite.com --stage --app "$app"');
+    replace(
+      'rollback-dashboard-token-allowlist-removed',
+      "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',",
+      "            'OPENAI_API_KEY', 'SENTRY_DSN',",
+    );
+    replace('rollback-exact-ten-marker-reverted', "boundaryState = 'exact-ten';", "boundaryState = 'exact-nine';");
   }
   return cases;
 }
@@ -1618,7 +1624,9 @@ function deployMutationCases(source) {
   replace('deploy-skip-release-command-removed', '              --skip-release-command \\\n', '');
   replace('deploy-remote-only-removed', '              --remote-only \\\n', '');
   replace('deploy-mutable-tag', 'candidate_image_ref="$CANDIDATE_IMAGE_REF"', 'candidate_image_ref="registry.fly.io/assesssuite-production:latest"');
-  replace('secret-allowlist-extra-app-key', "            'OPENAI_API_KEY', 'SENTRY_DSN',\n          ];", "            'OPENAI_API_KEY', 'SENTRY_DSN', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
+  replace('secret-allowlist-extra-app-key', "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',\n          ];", "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
+  replace('dashboard-token-allowlist-removed', "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',", "            'OPENAI_API_KEY', 'SENTRY_DSN',");
+  replace('cleanup-aggregate-proof-removed', "'rows_deleted','usage_aggregate_rows_deleted','files_deleted'", "'rows_deleted','files_deleted'");
   replace('validator-pin-mutated', '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + '0'.repeat(64));
   return cases;
 }
@@ -1800,8 +1808,12 @@ function validateParityWorkflow(input) {
   ]) if (!effect.includes(needle)) fail('missing loopback relay/container cleanup boundary ' + needle);
   if (countOf(effect, 'cleanup_browser_boundary') !== 3) fail('browser boundary cleanup is not invoked on both trap and successful wave paths');
 
-  const exactNine = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY', 'SENTRY_DSN'";
-  if (!effect.includes(exactNine) || !effect.includes('JSON.stringify([...names].sort()) !== JSON.stringify([...expected].sort())') || !effect.includes('Parity requires the exact nine-name production secret allowlist')) fail('parity exact nine-name secret allowlist is absent');
+  const exactTen = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN'";
+  if (!effect.includes(exactTen) || !effect.includes('JSON.stringify([...names].sort()) !== JSON.stringify([...expected].sort())') || !effect.includes('Parity requires the exact ten-name production secret allowlist')) fail('parity exact ten-name secret allowlist is absent');
+  for (const needle of [
+    "'rows_deleted','usage_aggregate_rows_deleted','files_deleted'",
+    'row.usage_aggregate_rows_deleted > row.rows_deleted',
+  ]) if (!effect.includes(needle)) fail('parity aggregate cleanup proof lacks ' + needle);
   if (effect.includes('UPLOAD_AUDIT_LEGAL_HOLD')) fail('parity secret allowlist contains an unreviewed app-consumed key');
 
   for (const needle of [
@@ -1948,7 +1960,9 @@ function parityMutationCases(source) {
   replace('runner-subcommand-removed', '--entrypoint node "$parity_runner_image" server/tests/production-parity-wave.mjs run-wave', '--entrypoint node "$parity_runner_image" server/tests/production-parity-wave.mjs');
   replace('browser-receipt-not-stdout', '>"$RUNNER_TEMP/browser.raw" 2>"$RUNNER_TEMP/browser.stderr"', '>/dev/null 2>"$RUNNER_TEMP/browser.stderr"');
   replace('browser-cleanup-removed', '              cleanup_browser_boundary\n              rm -f "$RUNNER_TEMP/browser.stderr"', '              rm -f "$RUNNER_TEMP/browser.stderr"');
-  replace('secret-allowlist-extra-app-key', "            'OPENAI_API_KEY', 'SENTRY_DSN',\n          ];", "            'OPENAI_API_KEY', 'SENTRY_DSN', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
+  replace('secret-allowlist-extra-app-key', "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',\n          ];", "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
+  replace('dashboard-token-allowlist-removed', "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',", "            'OPENAI_API_KEY', 'SENTRY_DSN',");
+  replace('cleanup-aggregate-proof-removed', "'rows_deleted','usage_aggregate_rows_deleted','files_deleted'", "'rows_deleted','files_deleted'");
   replace('fresh-wave-absence-proof-removed', "            if (row.action === 'volume-delete' && (row.parity_machine_id !== 'NOT-CREATED' || row.parity_private_ipv6 !== 'NOT-CREATED' || row.parity_volume_id !== 'NOT-CREATED'))", '            if (false)');
   replace('machine-delete-retry-removed', "            const retryDelete = row.action === 'machine-delete' && row.result === 'FAILED'", '            const retryDelete = false && row.action === \'machine-delete\'');
   replace('volume-delete-failed-machine-absence-removed', "row.action === 'machine-delete' && ['PASS', 'FAILED'].includes(row.result)", "row.action === 'machine-delete' && row.result === 'PASS'");
@@ -2233,13 +2247,14 @@ function validateDeployWorkflowV2(input) {
   if (countOf(active, '${{ secrets.FLY_API_TOKEN }}') !== 1 ||
       countOf(active, '${{ secrets.SENTRY_AUTH_TOKEN }}') !== 0 ||
       countOf(active, '${{ secrets.SENTRY_DSN }}') !== 1 ||
-      countOf(active, '${{ secrets.') !== 2) fail('deploy credential expressions differ from the fresh Fly-only runner design');
+      countOf(active, '${{ secrets.ASSESSSUITE_DASHBOARD_METRICS_TOKEN }}') !== 1 ||
+      countOf(active, '${{ secrets.') !== 3) fail('deploy credential expressions differ from the fresh Fly-only runner design');
   if (deploy.includes('actions/checkout@') || /(^|\n)\s*(?:npm|npx|docker)\s/.test(deploy) ||
       /(^|\n)\s*node\s+(?:candidate|server|scripts)\//.test(deploy) || deploy.includes('working-directory:')) {
     fail('deploy job can execute candidate or repository code');
   }
   const finalFlyStep = deployStep('Final secret-bearing Fly release command and public verification');
-  if (finalFlyStep.includes('${{ secrets.SENTRY_AUTH_TOKEN }}') || countOf(finalFlyStep, '${{ secrets.FLY_API_TOKEN }}') !== 1 || countOf(finalFlyStep, '${{ secrets.SENTRY_DSN }}') !== 1) fail('final Fly step credential boundary differs');
+  if (finalFlyStep.includes('${{ secrets.SENTRY_AUTH_TOKEN }}') || countOf(finalFlyStep, '${{ secrets.FLY_API_TOKEN }}') !== 1 || countOf(finalFlyStep, '${{ secrets.SENTRY_DSN }}') !== 1 || countOf(finalFlyStep, '${{ secrets.ASSESSSUITE_DASHBOARD_METRICS_TOKEN }}') !== 1) fail('final Fly step credential boundary differs');
   if (/(^|\n)\s+(?:npm|npx)\s/.test(finalFlyStep) || finalFlyStep.includes('actions/checkout@')) fail('final Fly step can execute repository package code');
   if (/(^|\n)\s+needs:/.test(deploy) || deploy.includes('needs.') || deploy.includes('CANDIDATE_IMAGE_REF: ${{ needs.publish_image')) fail('deploy retains an in-run or cyclic publication dependency');
 
@@ -2314,12 +2329,15 @@ function validateDeployWorkflowV2(input) {
     '[[ -z "${FLY_API_TOKEN:-}" ]]', 'empty-deploy-context', 'fly deploy "$deploy_source_dir"',
     '--remote-only', '--skip-release-command', '--image "$candidate_image_ref"', '--image "$ROLLBACK_IMAGE"',
     'refs/heads/main', 'assert_secret_name_boundary initial allow', 'assert_secret_name_boundary final forbid',
-    'assert_secret_name_boundary postrollback forbid',
+    'assert_secret_name_boundary postrollback forbid', 'assert_secret_name_boundary postactivation forbid',
   ]) requireText(needle, 'remote-only production control ' + needle);
   requireText('source = "assesssuite_data_r12"', 'active r12 volume mount source');
   requireText('EXPECTED_APP_URL = "https://app.assesssuite.com"', 'exact application URL config boundary');
   if (countOf(deploy, 'EXPECTED_APP_URL = "https://app.assesssuite.com"') !== 2) fail('deploy does not validate EXPECTED_APP_URL in both reviewed configs');
-  requireText('fly secrets set APP_URL=https://app.assesssuite.com SENTRY_DSN="$SENTRY_DSN" --stage --app "$app"', 'exact application URL and Sentry DSN staged secrets');
+  requireText('fly secrets set APP_URL=https://app.assesssuite.com SENTRY_DSN="$SENTRY_DSN" ASSESSSUITE_DASHBOARD_METRICS_TOKEN="$ASSESSSUITE_DASHBOARD_METRICS_TOKEN" --stage --app "$app"', 'exact application URL, Sentry DSN and dashboard token staged secrets');
+  if (countOf(deploy, 'fly secrets set ') !== 1 || /\bfly\s+(?:machine\s+restart|restart)\b/.test(deploy)) {
+    fail('dashboard token must be staged in the sole candidate secret mutation without a separate restart');
+  }
   const topologyStart = deploy.indexOf('          assert_topology() {');
   const topologyEnd = topologyStart < 0 ? -1 : deploy.indexOf('          volume_identity() {', topologyStart);
   const topology = topologyStart >= 0 && topologyEnd > topologyStart
@@ -2363,20 +2381,20 @@ function validateDeployWorkflowV2(input) {
   if (deploy.includes('app = "node server/productionBootstrap.mjs && exec node server/index.mjs"')) {
     fail('deploy config contract reintroduces a flyctl-tokenized process command instead of inheriting the image CMD');
   }
-  const exactNine = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY', 'SENTRY_DSN'";
-  if (!deploy.includes(exactNine) || deploy.includes('UPLOAD_AUDIT_LEGAL_HOLD')) fail('deploy exact nine-name application-secret allowlist differs');
+  const exactTen = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN'";
+  if (!deploy.includes(exactTen) || deploy.includes('UPLOAD_AUDIT_LEGAL_HOLD')) fail('deploy exact ten-name application-secret allowlist differs');
   for (const needle of [
     "const settled = JSON.stringify([...required].sort());",
-    "const preSentry = JSON.stringify(required.filter((name) => name !== 'SENTRY_DSN').sort());",
+    "const preDashboard = JSON.stringify(required.filter((name) => name !== 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN').sort());",
     "const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",
-    "const preSentryTransitionPending = JSON.stringify([...required.filter((name) => name !== 'SENTRY_DSN'), 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",
-    "if (observed === settled) {", "} else if (observed === preSentry) {", "} else if (observed === transitionPending) {", "} else if (observed === preSentryTransitionPending) {",
-    "boundaryState = 'settled';", "boundaryState = 'pre-sentry';", "boundaryState = 'transition-pending';", "boundaryState = 'pre-sentry-transition-pending';", "boundaryState = 'exact-nine';",
+    "const preDashboardTransitionPending = JSON.stringify([...required.filter((name) => name !== 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN'), 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",
+    "if (observed === settled) {", "} else if (observed === preDashboard) {", "} else if (observed === transitionPending) {", "} else if (observed === preDashboardTransitionPending) {",
+    "boundaryState = 'settled';", "boundaryState = 'pre-dashboard';", "boundaryState = 'transition-pending';", "boundaryState = 'pre-dashboard-transition-pending';", "boundaryState = 'exact-ten';",
     'BOUNDARY_STATE_PATH="$boundary_state_path"',
     'initial_boundary_state="$(<"$RUNNER_TEMP/initial-secret-boundary-state")"',
-    '[[ "$initial_boundary_state" == \'settled\' || "$initial_boundary_state" == \'pre-sentry\' || "$initial_boundary_state" == \'transition-pending\' || "$initial_boundary_state" == \'pre-sentry-transition-pending\' ]]',
-    'if [[ "$initial_boundary_state" == \'transition-pending\' || "$initial_boundary_state" == \'pre-sentry-transition-pending\' ]]; then',
-    'elif [[ "$initial_boundary_state" != \'settled\' && "$initial_boundary_state" != \'pre-sentry\' ]]; then',
+    '[[ "$initial_boundary_state" == \'settled\' || "$initial_boundary_state" == \'pre-dashboard\' || "$initial_boundary_state" == \'transition-pending\' || "$initial_boundary_state" == \'pre-dashboard-transition-pending\' ]]',
+    'if [[ "$initial_boundary_state" == \'transition-pending\' || "$initial_boundary_state" == \'pre-dashboard-transition-pending\' ]]; then',
+    'elif [[ "$initial_boundary_state" != \'settled\' && "$initial_boundary_state" != \'pre-dashboard\' ]]; then',
     'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"',
   ]) requireText(needle, 'reviewed transitional secret boundary ' + needle);
   for (const needle of [
@@ -2385,6 +2403,15 @@ function validateDeployWorkflowV2(input) {
     "parsed.pathname !== '/4511827129663488'",
     "!/^[0-9a-f]{32}$/.test(parsed.username)",
   ]) if (!finalFlyStep.includes(needle)) fail('final Fly step exact Sentry DSN validation missing ' + needle);
+  for (const needle of [
+    'ASSESSSUITE_DASHBOARD_METRICS_TOKEN_VALUE="$ASSESSSUITE_DASHBOARD_METRICS_TOKEN" node --input-type=module',
+    "const byteLength = Buffer.byteLength(value, 'utf8');",
+    'byteLength < 32 || byteLength > 4096',
+    '/[\\r\\n]/.test(value)',
+  ]) if (!finalFlyStep.includes(needle)) fail('final Fly step dashboard token validation missing ' + needle);
+  if (/(?:echo|printf)[^\n]*ASSESSSUITE_DASHBOARD_METRICS_TOKEN/.test(finalFlyStep) || !finalFlyStep.includes('set +x')) {
+    fail('dashboard token could enter release logs');
+  }
   if (deploy.includes('sentry-cli') || deploy.includes('sourcemaps inject') || deploy.includes('sourcemaps upload') || deploy.includes('SENTRY_AUTH_TOKEN')) {
     fail('fresh Fly runner retains Sentry upload tooling or credential material');
   }
@@ -2397,18 +2424,20 @@ function validateDeployWorkflowV2(input) {
   const transitionalRemoval = deploy.indexOf('fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"');
   const finalSecretBoundary = deploy.indexOf('if ! assert_secret_name_boundary final forbid; then');
   const candidateDeploy = deploy.indexOf('fly deploy "$deploy_source_dir"', finalSecretBoundary);
+  const postactivationBoundary = deploy.indexOf('assert_secret_name_boundary postactivation forbid', candidateDeploy);
+  if (postactivationBoundary < candidateDeploy) fail('exact-ten secret boundary is not re-proved after candidate activation');
   for (const needle of [
     'printf \'DEPLOY_JOB_STARTED_EPOCH=%s\\n\' "$(date -u +%s)" >> "$GITHUB_ENV"',
     'curl --fail --location --silent --show-error --max-time 120',
     'deployment_job_timeout_seconds=7200',
-    'maximum_post_gate_path_seconds=4788',
+    'maximum_post_gate_path_seconds=4848',
     'maximum_gate_elapsed_seconds=1200',
     '(( maximum_gate_elapsed_seconds + maximum_post_gate_path_seconds <= deployment_job_timeout_seconds ))',
     '"$deploy_job_elapsed_seconds" -gt "$maximum_gate_elapsed_seconds"',
   ]) requireText(needle, 'bounded deploy recovery budget ' + needle);
   const deployReserveBeforeFirstMutation =
     '          deployment_job_timeout_seconds=7200\n' +
-    '          maximum_post_gate_path_seconds=4788\n' +
+    '          maximum_post_gate_path_seconds=4848\n' +
     '          maximum_gate_elapsed_seconds=1200\n' +
     '          (( maximum_gate_elapsed_seconds + maximum_post_gate_path_seconds <= deployment_job_timeout_seconds ))\n' +
     '          deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))\n' +
@@ -3214,11 +3243,13 @@ function deployMutationCasesV2(source) {
   replace('checkout-injected', '    steps:\n      - name: Record the rollback-reserved deployment-job deadline', '    steps:\n      - name: Unauthorized checkout\n        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\n      - name: Record the rollback-reserved deployment-job deadline');
   replace('npm-injected', '          app=assesssuite-production\n          release_control_dir="$RUNNER_TEMP/deploy-bundle"', '          npm ci\n          app=assesssuite-production\n          release_control_dir="$RUNNER_TEMP/deploy-bundle"');
   replace('sentry-auth-token-injected', '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}', '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}\n          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}');
+  replace('dashboard-github-secret-removed', '          ASSESSSUITE_DASHBOARD_METRICS_TOKEN: ${{ secrets.ASSESSSUITE_DASHBOARD_METRICS_TOKEN }}\n', '');
+  replace('dashboard-token-length-gate-weakened', 'byteLength < 32 || byteLength > 4096', 'byteLength < 8 || byteLength > 4096');
   replace('deploy-sentry-dsn-host-mutated', "parsed.hostname !== 'o4511822688813056.ingest.us.sentry.io'", "parsed.hostname !== 'example.invalid'");
   replace('deploy-sentry-dsn-project-mutated', "parsed.pathname !== '/4511827129663488'", "parsed.pathname !== '/0'");
   replace(
-    'pre-sentry-initial-state-rejected-before-staging',
-    '          elif [[ "$initial_boundary_state" != \'settled\' && "$initial_boundary_state" != \'pre-sentry\' ]]; then',
+    'pre-dashboard-initial-state-rejected-before-staging',
+    '          elif [[ "$initial_boundary_state" != \'settled\' && "$initial_boundary_state" != \'pre-dashboard\' ]]; then',
     '          elif [[ "$initial_boundary_state" != \'settled\' ]]; then',
   );
   replace('docker-injected', '          install -d -m 0700 "$RUNNER_TEMP/empty-deploy-context"', '          docker run candidate\n          install -d -m 0700 "$RUNNER_TEMP/empty-deploy-context"');
@@ -3258,7 +3289,10 @@ function deployMutationCasesV2(source) {
   replace('postrollback-legal-app-routes-removed', '              for route in legal/privacy login; do', '              for route in root-only; do');
   replace('postrollback-topology-check-removed', '            if ! assert_volume_snapshot_policy postrollback "$EXPECTED_VOLUME_ID" "$EXPECTED_MACHINE_ID"; then', '            if false; then');
   replace('candidate-expected-app-url-check-removed', '          [[ "$(grep -Fxc \'  EXPECTED_APP_URL = "https://app.assesssuite.com"\' "$candidate_config")" -eq 1 ]]', '          true');
-  replace('app-url-secret-staging-mutated', 'fly secrets set APP_URL=https://app.assesssuite.com SENTRY_DSN="$SENTRY_DSN" --stage --app "$app"', 'fly secrets set APP_URL=https://assesssuite.com SENTRY_DSN="$SENTRY_DSN" --stage --app "$app"');
+  replace('app-url-secret-staging-mutated', 'fly secrets set APP_URL=https://app.assesssuite.com SENTRY_DSN="$SENTRY_DSN" ASSESSSUITE_DASHBOARD_METRICS_TOKEN="$ASSESSSUITE_DASHBOARD_METRICS_TOKEN" --stage --app "$app"', 'fly secrets set APP_URL=https://assesssuite.com SENTRY_DSN="$SENTRY_DSN" ASSESSSUITE_DASHBOARD_METRICS_TOKEN="$ASSESSSUITE_DASHBOARD_METRICS_TOKEN" --stage --app "$app"');
+  replace('dashboard-token-not-staged', ' SENTRY_DSN="$SENTRY_DSN" ASSESSSUITE_DASHBOARD_METRICS_TOKEN="$ASSESSSUITE_DASHBOARD_METRICS_TOKEN" --stage', ' SENTRY_DSN="$SENTRY_DSN" --stage');
+  replace('dashboard-token-separate-restart', '          deploy_status=0', '          fly machine restart --app "$app"\n          deploy_status=0');
+  replace('postactivation-secret-boundary-removed', '          elif ! assert_secret_name_boundary postactivation forbid; then', '          elif false; then');
   replace(
     'mutable-candidate-ref',
     '          PREPARATION_RUN_ID: ${{ inputs.preparation_run_id }}\n          CANDIDATE_IMAGE_REF: registry.fly.io/assesssuite-production@${{ inputs.application_image_digest }}',
@@ -3268,7 +3302,8 @@ function deployMutationCasesV2(source) {
   replace('remote-only-removed', '              --remote-only \\\n', '');
   replace('skip-release-command-removed', '              --skip-release-command \\\n', '');
   replace('empty-context-replaced', 'fly deploy "$deploy_source_dir" \\\n            --config "$candidate_config"', 'fly deploy "$GITHUB_WORKSPACE/candidate" \\\n            --config "$candidate_config"');
-  replace('secret-allowlist-extra', "            'OPENAI_API_KEY', 'SENTRY_DSN',\n          ];", "            'OPENAI_API_KEY', 'SENTRY_DSN', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
+  replace('secret-allowlist-extra', "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',\n          ];", "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
+  replace('dashboard-token-final-allowlist-removed', "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',", "            'OPENAI_API_KEY', 'SENTRY_DSN',");
   replace(
     'secret-allowlist-legal-metadata-reintroduced',
     "const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",
@@ -3823,7 +3858,7 @@ function deployMutationCasesV2(source) {
     mutate: (value) => {
       const reserve =
         '          deployment_job_timeout_seconds=7200\n' +
-        '          maximum_post_gate_path_seconds=4788\n' +
+        '          maximum_post_gate_path_seconds=4848\n' +
         '          maximum_gate_elapsed_seconds=1200\n' +
         '          (( maximum_gate_elapsed_seconds + maximum_post_gate_path_seconds <= deployment_job_timeout_seconds ))\n' +
         '          deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))\n' +

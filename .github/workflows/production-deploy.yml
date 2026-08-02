@@ -138,7 +138,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 574a839f96df392f1d3e0309c9bc2581e5a97a3c957c2fadfc557b88802d0d04
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 0e414e9a97659386a42a576a3b27cc77bbbd6af574aca640434f2d86887733b8
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
@@ -518,6 +518,7 @@ jobs:
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
           SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          ASSESSSUITE_DASHBOARD_METRICS_TOKEN: ${{ secrets.ASSESSSUITE_DASHBOARD_METRICS_TOKEN }}
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           SOURCE_BRANCH: main
@@ -555,6 +556,13 @@ jobs:
               parsed.port !== '' || parsed.pathname !== '/4511827129663488' || parsed.search !== '' ||
               parsed.hash !== '' || parsed.password !== '' || !/^[0-9a-f]{32}$/.test(parsed.username)) {
             throw new Error('Sentry DSN does not match the approved production project');
+          }
+          NODE
+          ASSESSSUITE_DASHBOARD_METRICS_TOKEN_VALUE="$ASSESSSUITE_DASHBOARD_METRICS_TOKEN" node --input-type=module <<'NODE'
+          const value = process.env.ASSESSSUITE_DASHBOARD_METRICS_TOKEN_VALUE || '';
+          const byteLength = Buffer.byteLength(value, 'utf8');
+          if (byteLength < 32 || byteLength > 4096 || /[\r\n]/.test(value)) {
+            throw new Error('AssessSuite dashboard metrics token must be a single-line secret of at least 32 bytes');
           }
           NODE
           app=assesssuite-production
@@ -1356,23 +1364,23 @@ jobs:
           const required = [
             'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',
             'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',
-            'OPENAI_API_KEY', 'SENTRY_DSN',
+            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',
           ];
           const observed = JSON.stringify([...names].sort());
           let boundaryState;
           if (process.env.LEGACY_MODE === 'allow') {
             const settled = JSON.stringify([...required].sort());
-            const preSentry = JSON.stringify(required.filter((name) => name !== 'SENTRY_DSN').sort());
+            const preDashboard = JSON.stringify(required.filter((name) => name !== 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN').sort());
             const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());
-            const preSentryTransitionPending = JSON.stringify([...required.filter((name) => name !== 'SENTRY_DSN'), 'GENERAL_CLINICAL_LLM_ENABLED'].sort());
+            const preDashboardTransitionPending = JSON.stringify([...required.filter((name) => name !== 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN'), 'GENERAL_CLINICAL_LLM_ENABLED'].sort());
             if (observed === settled) {
               boundaryState = 'settled';
-            } else if (observed === preSentry) {
-              boundaryState = 'pre-sentry';
+            } else if (observed === preDashboard) {
+              boundaryState = 'pre-dashboard';
             } else if (observed === transitionPending) {
               boundaryState = 'transition-pending';
-            } else if (observed === preSentryTransitionPending) {
-              boundaryState = 'pre-sentry-transition-pending';
+            } else if (observed === preDashboardTransitionPending) {
+              boundaryState = 'pre-dashboard-transition-pending';
             } else {
               throw new Error('Production secret-name allowlist differs for allow mode');
             }
@@ -1382,7 +1390,7 @@ jobs:
             if (observed !== JSON.stringify([...required].sort())) {
               throw new Error('Production secret-name allowlist differs for forbid mode');
             }
-            boundaryState = 'exact-nine';
+            boundaryState = 'exact-ten';
           }
           fs.writeFileSync(process.env.BOUNDARY_STATE_PATH, `${boundaryState}\n`, { encoding: 'utf8', mode: 0o600 });
           process.stdout.write(
@@ -1841,7 +1849,7 @@ jobs:
             exit 1
           fi
           initial_boundary_state="$(<"$RUNNER_TEMP/initial-secret-boundary-state")"
-          [[ "$initial_boundary_state" == 'settled' || "$initial_boundary_state" == 'pre-sentry' || "$initial_boundary_state" == 'transition-pending' || "$initial_boundary_state" == 'pre-sentry-transition-pending' ]]
+          [[ "$initial_boundary_state" == 'settled' || "$initial_boundary_state" == 'pre-dashboard' || "$initial_boundary_state" == 'transition-pending' || "$initial_boundary_state" == 'pre-dashboard-transition-pending' ]]
           rm -f "$RUNNER_TEMP/initial-secret-names.json"
 
           # Freeze the exact pre-split release before the first production
@@ -1869,7 +1877,7 @@ jobs:
           rm -f "$pre_mutation_json"
 
           deployment_job_timeout_seconds=7200
-          maximum_post_gate_path_seconds=4788
+          maximum_post_gate_path_seconds=4848
           maximum_gate_elapsed_seconds=1200
           (( maximum_gate_elapsed_seconds + maximum_post_gate_path_seconds <= deployment_job_timeout_seconds ))
           deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))
@@ -1910,19 +1918,19 @@ jobs:
             append_summary 'FAILED; final predeploy release or image drifted'
             exit 1
           fi
-          if [[ "$initial_boundary_state" == 'transition-pending' || "$initial_boundary_state" == 'pre-sentry-transition-pending' ]]; then
+          if [[ "$initial_boundary_state" == 'transition-pending' || "$initial_boundary_state" == 'pre-dashboard-transition-pending' ]]; then
             timeout --signal=TERM --kill-after=10s 60s \
               fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"
-          elif [[ "$initial_boundary_state" != 'settled' && "$initial_boundary_state" != 'pre-sentry' ]]; then
+          elif [[ "$initial_boundary_state" != 'settled' && "$initial_boundary_state" != 'pre-dashboard' ]]; then
             append_summary 'FAILED; initial secret-boundary state marker was invalid'
             exit 1
           fi
-          # Stage the exact application origin immediately before the sole
-          # application deploy. The candidate bootstrap also refuses to start
-          # unless APP_URL equals EXPECTED_APP_URL from the reviewed config.
-          [[ -n "$SENTRY_DSN" ]]
+          # Stage the exact application origin, Sentry DSN and dashboard token
+          # immediately before the sole application deploy. --stage binds all
+          # three to the candidate release without a separate restart.
+          [[ -n "$SENTRY_DSN" && -n "$ASSESSSUITE_DASHBOARD_METRICS_TOKEN" ]]
           timeout --signal=TERM --kill-after=10s 60s \
-            fly secrets set APP_URL=https://app.assesssuite.com SENTRY_DSN="$SENTRY_DSN" --stage --app "$app"
+            fly secrets set APP_URL=https://app.assesssuite.com SENTRY_DSN="$SENTRY_DSN" ASSESSSUITE_DASHBOARD_METRICS_TOKEN="$ASSESSSUITE_DASHBOARD_METRICS_TOKEN" --stage --app "$app"
           if ! assert_secret_name_boundary final forbid; then
             append_summary 'FAILED; final names-only production secret boundary drifted'
             exit 1
@@ -1957,6 +1965,10 @@ jobs:
           candidate_observer_failure=''
           if ! wait_for_candidate_observer_stabilization; then
             verification_failure="candidate-observer-stabilization-timeout:${candidate_observer_failure:-unknown}"
+          elif ! assert_secret_name_boundary postactivation forbid; then
+            verification_failure='postactivation-secret-boundary-mismatch'
+          elif ! rm -f "$RUNNER_TEMP/postactivation-required-names.json" "$RUNNER_TEMP/postactivation-secret-boundary-state"; then
+            verification_failure='postactivation-secret-boundary-evidence-cleanup-failed'
           elif ! read_version 'https://app.assesssuite.com' "$APPLICATION_SHA" "$RUNNER_TEMP/apex-version.json"; then
             verification_failure='apex-version-mismatch'
           elif ! read_version 'https://assesssuite-production.fly.dev' "$APPLICATION_SHA" "$RUNNER_TEMP/fly-version.json"; then

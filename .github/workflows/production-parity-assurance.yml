@@ -301,7 +301,7 @@ jobs:
       - name: Validate the exact trusted production workflow control
         shell: bash
         env:
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 574a839f96df392f1d3e0309c9bc2581e5a97a3c957c2fadfc557b88802d0d04
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 0e414e9a97659386a42a576a3b27cc77bbbd6af574aca640434f2d86887733b8
         run: |
           set -euo pipefail
           cd application
@@ -863,9 +863,9 @@ jobs:
           const expected = [
             'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',
             'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',
-            'OPENAI_API_KEY', 'SENTRY_DSN',
+            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',
           ];
-          if (JSON.stringify([...names].sort()) !== JSON.stringify([...expected].sort())) throw new Error('Parity requires the exact nine-name production secret allowlist');
+          if (JSON.stringify([...names].sort()) !== JSON.stringify([...expected].sort())) throw new Error('Parity requires the exact ten-name production secret allowlist');
           NODE
             rm -f "$RUNNER_TEMP/secret-names.json"
           }
@@ -958,10 +958,10 @@ jobs:
             CLEANUP="$1" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const row = JSON.parse(fs.readFileSync(process.env.CLEANUP, 'utf8'));
-          const keys = ['schema_version','action','result','namespace','wave_id','runner_sha256','fixture_sha256','cleanup_sha256','config_sha256','database_path','uploads_dir','rows_deleted','files_deleted','remaining_namespace_rows','remaining_namespace_files','nonnamespace_rows_touched','nonnamespace_files_touched','clinical_rows_deleted'].sort();
+          const keys = ['schema_version','action','result','namespace','wave_id','runner_sha256','fixture_sha256','cleanup_sha256','config_sha256','database_path','uploads_dir','rows_deleted','usage_aggregate_rows_deleted','files_deleted','remaining_namespace_rows','remaining_namespace_files','nonnamespace_rows_touched','nonnamespace_files_touched','clinical_rows_deleted'].sort();
           if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys)) throw new Error('Cleanup receipt keys differ');
           if (row.schema_version !== 'assesssuite.production-parity.v1' || row.action !== 'cleanup-and-verify' || row.result !== 'PASS' || row.namespace !== 'asr-r2-20260721' || row.wave_id !== process.env.WAVE_ID || row.config_sha256 !== process.env.CANDIDATE_CONFIG_SHA256 || row.runner_sha256 !== process.env.PARITY_RUNNER_SHA256 || row.fixture_sha256 !== process.env.PARITY_FIXTURE_SHA256 || row.cleanup_sha256 !== process.env.PARITY_CLEANUP_SHA256) throw new Error('Cleanup receipt identity differs');
-          if (row.database_path !== '/app/server/data/assesssuite-parity.db' || row.uploads_dir !== '/app/server/data/assesssuite-parity-uploads' || !Number.isInteger(row.rows_deleted) || row.rows_deleted < 0 || !Number.isInteger(row.files_deleted) || row.files_deleted < 0 || row.remaining_namespace_rows !== 0 || row.remaining_namespace_files !== 0 || row.nonnamespace_rows_touched !== 0 || row.nonnamespace_files_touched !== 0 || row.clinical_rows_deleted !== 0) throw new Error('Cleanup zero-residue proof differs');
+          if (row.database_path !== '/app/server/data/assesssuite-parity.db' || row.uploads_dir !== '/app/server/data/assesssuite-parity-uploads' || !Number.isInteger(row.rows_deleted) || row.rows_deleted < 0 || !Number.isInteger(row.usage_aggregate_rows_deleted) || row.usage_aggregate_rows_deleted < 0 || row.usage_aggregate_rows_deleted > row.rows_deleted || !Number.isInteger(row.files_deleted) || row.files_deleted < 0 || row.remaining_namespace_rows !== 0 || row.remaining_namespace_files !== 0 || row.nonnamespace_rows_touched !== 0 || row.nonnamespace_files_touched !== 0 || row.clinical_rows_deleted !== 0) throw new Error('Cleanup zero-residue proof differs');
           NODE
           }
 

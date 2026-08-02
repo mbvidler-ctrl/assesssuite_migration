@@ -80,7 +80,7 @@ export const OBSERVE_RECEIPT_KEYS = Object.freeze([
 export const CLEANUP_RECEIPT_KEYS = Object.freeze([
   'schema_version', 'action', 'result', 'namespace', 'wave_id',
   'runner_sha256', 'fixture_sha256', 'cleanup_sha256', 'config_sha256',
-  'database_path', 'uploads_dir', 'rows_deleted', 'files_deleted',
+  'database_path', 'uploads_dir', 'rows_deleted', 'usage_aggregate_rows_deleted', 'files_deleted',
   'remaining_namespace_rows', 'remaining_namespace_files',
   'nonnamespace_rows_touched', 'nonnamespace_files_touched', 'clinical_rows_deleted',
 ]);
@@ -244,6 +244,7 @@ function baselineCounts(db) {
     clients: clinical.clients,
     payments: clinical.payments,
     extractionUsage: tableCount(db, 'extraction_usage'),
+    usageDailyAggregateRows: db.prepare('SELECT * FROM usage_daily_aggregate ORDER BY day ASC').all(),
     outboundEmail: tableCount(db, 'outbox_email'),
     outboundSms: tableCount(db, 'outbox_sms'),
     outboundEmailIds: db.prepare('SELECT id FROM outbox_email').all().map((row) => row.id).sort(),
@@ -304,6 +305,7 @@ function assertFreshParityDatabase(db) {
   for (const tableName of [
     'sessions', 'outbox_email', 'outbox_sms', 'upload_registry', 'upload_disposition',
     'upload_audit', 'extraction_usage', 'referral_commit_receipt',
+    'usage_daily_aggregate',
   ]) {
     if (tableCount(db, tableName) !== 0) throw new Error('parity_database_contains_internal_rows');
   }
@@ -418,6 +420,11 @@ export function seedParityDatabase(environment = process.env) {
 }
 
 function missionContext(db, contract, control = loadControl(db, contract.waveId)) {
+  const baselineUsageDailyAggregateRows = control?.baseline?.usageDailyAggregateRows;
+  if (control?.baseline && (!Array.isArray(baselineUsageDailyAggregateRows)
+    || baselineUsageDailyAggregateRows.length !== 0)) {
+    throw new Error('parity_usage_aggregate_baseline_not_empty');
+  }
   const emails = new Set([
     PARITY_ADMIN_EMAIL,
     contract.identity.email,
@@ -465,6 +472,7 @@ function missionContext(db, contract, control = loadControl(db, contract.waveId)
       name,
       new Set(control?.baseline?.clinicalIds?.[name] || []),
     ])),
+    baselineUsageDailyAggregateRows: baselineUsageDailyAggregateRows || [],
   };
 }
 
@@ -490,6 +498,12 @@ function missionInternalRows(db, context) {
   ));
   const uploadIds = new Set(uploadRows.map((row) => row.id));
   return {
+    // The parity database is an isolated exact path and seed refuses any
+    // pre-existing aggregate row. Every aggregate row created after that
+    // empty baseline therefore belongs to this synthetic parity lifecycle.
+    usage_daily_aggregate: context.hasSeedBaseline && context.baselineUsageDailyAggregateRows.length === 0
+      ? db.prepare('SELECT * FROM usage_daily_aggregate ORDER BY day ASC').all()
+      : [],
     sessions: db.prepare('SELECT * FROM sessions').all().filter((row) => userIds.includes(row.user_id)),
     upload_registry: uploadRows,
     upload_disposition: db.prepare('SELECT * FROM upload_disposition').all().filter((row) => (
@@ -589,6 +603,7 @@ function nonnamespaceDigest(db, entityNames, state) {
     upload_disposition: ['upload_id'],
     upload_audit: ['id'],
     extraction_usage: ['id'],
+    usage_daily_aggregate: ['day'],
     referral_commit_receipt: ['idempotency_key'],
     outbox_email: ['id'],
     outbox_sms: ['id'],
@@ -831,9 +846,17 @@ export function cleanupNamespaceStore({ db, entityNames, contract, uploadsDir })
   );
   const filesDeleted = removeMissionFiles(before.internalRows, uploadsDir);
   let rowsDeleted = 0;
+  let usageAggregateRowsDeleted = 0;
 
   db.exec('BEGIN IMMEDIATE');
   try {
+    usageAggregateRowsDeleted = deleteRowsByKey(
+      db,
+      'usage_daily_aggregate',
+      before.internalRows.usage_daily_aggregate,
+      'day',
+    );
+    rowsDeleted += usageAggregateRowsDeleted;
     rowsDeleted += deleteRowsByKey(db, 'upload_disposition', before.internalRows.upload_disposition, 'upload_id');
     rowsDeleted += deleteRowsByKey(db, 'upload_audit', before.internalRows.upload_audit, 'id');
     rowsDeleted += deleteRowsByKey(db, 'extraction_usage', before.internalRows.extraction_usage, 'id');
@@ -874,6 +897,7 @@ export function cleanupNamespaceStore({ db, entityNames, contract, uploadsDir })
   if (nonnamespaceFilesAfter !== nonnamespaceFilesBefore) throw new Error('nonnamespace_files_changed');
   return {
     rowsDeleted,
+    usageAggregateRowsDeleted,
     filesDeleted,
     remainingNamespaceRows: after.rowCount,
     remainingNamespaceFiles: remainingFiles,
@@ -894,6 +918,7 @@ export function cleanupAndVerify(environment = process.env) {
     const receipt = {
       ...commonReceipt('namespace-cleanup', contract),
       rows_deleted: result.rowsDeleted,
+      usage_aggregate_rows_deleted: result.usageAggregateRowsDeleted,
       files_deleted: result.filesDeleted,
       remaining_namespace_rows: result.remainingNamespaceRows,
       remaining_namespace_files: result.remainingNamespaceFiles,
