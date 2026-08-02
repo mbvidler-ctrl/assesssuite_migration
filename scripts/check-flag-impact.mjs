@@ -34,6 +34,12 @@ const WATCHED_CONFIG_FILES = [
   '.env.example',
 ];
 
+const LIVE_DIFF_PATHSPEC = [
+  ...WATCHED_CONFIG_FILES,
+  '.github/workflows',
+];
+const GIT_MAX_BUFFER_BYTES = 8 * 1024 * 1024;
+
 function isWatchedDiffFile(filePath) {
   if (WATCHED_CONFIG_FILES.includes(filePath)) return true;
   return /^\.github\/workflows\/.+\.ya?ml$/.test(filePath);
@@ -450,7 +456,11 @@ function runOffline(args, repoRoot) {
 }
 
 function runGit(repoRoot, gitArgs) {
-  return execFileSync('git', gitArgs, { cwd: repoRoot, encoding: 'utf8' });
+  return execFileSync('git', gitArgs, {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    maxBuffer: GIT_MAX_BUFFER_BYTES,
+  });
 }
 
 function runLive(args, repoRoot) {
@@ -470,7 +480,14 @@ function runLive(args, repoRoot) {
   const baseManifest = JSON.parse(baseManifestText);
   const changedFiles = runGit(repoRoot, ['diff', '--name-only', `${base}...HEAD`])
     .split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
-  const diffText = runGit(repoRoot, ['diff', '--binary', `${base}...HEAD`]);
+  const diffText = runGit(repoRoot, [
+    'diff',
+    '--no-ext-diff',
+    '--no-textconv',
+    `${base}...HEAD`,
+    '--',
+    ...LIVE_DIFF_PATHSPEC,
+  ]);
   const notesDir = path.join(repoRoot, 'docs', 'deployment', 'notices');
   const notices = readNoticesForChangedFiles(changedFiles, notesDir);
 
