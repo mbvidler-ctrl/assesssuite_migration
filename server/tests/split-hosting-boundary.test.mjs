@@ -87,6 +87,9 @@ test('build and routing configuration preserves the split-hosting boundary', () 
   const platformHtml = read('apps/app-ep/index.html');
   const landingConfig = read('apps/landing/vite.config.js');
   const vercelIgnore = read('.vercelignore');
+  const contentSecurityPolicy = vercel.headers
+    .flatMap((route) => route.headers)
+    .find((header) => header.key === 'Content-Security-Policy')?.value;
 
   assert.equal(packageJson.scripts.build, 'npm run build:platform');
   assert.ok(jsConfig.compilerOptions.types.includes('vite/client'));
@@ -99,6 +102,10 @@ test('build and routing configuration preserves the split-hosting boundary', () 
   )));
   assert.ok(vercel.redirects.some((redirect) => redirect.destination === 'https://app.assesssuite.com/:path'));
   assert.ok(vercel.redirects.every((redirect) => !/(?:api|functions|uploads)/i.test(redirect.source)));
+  assert.ok(contentSecurityPolicy);
+  assert.doesNotMatch(contentSecurityPolicy, /va\.vercel-scripts\.com/);
+  assert.match(contentSecurityPolicy, /(?:^|;\s*)script-src 'self'(?:;|$)/);
+  assert.match(contentSecurityPolicy, /(?:^|;\s*)connect-src 'self'(?:;|$)/);
   assert.match(platformHtml, /noindex, nofollow, noarchive/);
   assert.doesNotMatch(landingConfig, /\bserverPort\s*:|\bproxy\s*:/);
   for (const ignored of ['.env', 'node_modules', 'dist', 'apps/app-ep', 'server']) {
