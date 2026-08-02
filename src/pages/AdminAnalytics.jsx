@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import { appParams } from "@/lib/app-params";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Users, Activity, BarChart3, Loader2,
-  TrendingUp, UserCheck, ClipboardList, Download, ShieldCheck, Database
+  TrendingUp, UserCheck, ClipboardList, Download, ShieldCheck, Database,
+  MousePointerClick, LogIn, UserPlus, AppWindow
 } from "lucide-react";
 import { differenceInYears } from "date-fns";
 import { SimpleBarChart, HorizBarChart } from "@/components/analytics/AnalyticsCharts";
@@ -64,7 +66,7 @@ const COLORS = ["#3b82f6", "#10b981", "#a855f7", "#f59e0b", "#ef4444", "#06b6d4"
 
 // ── Reusable components ───────────────────────────────────────────────────
 
-function StatCard({ icon: Icon, label, value, color = "blue" }) {
+function StatCard({ icon: Icon, label, value, color = "blue", detail = null }) {
   const colors = {
     blue: "bg-blue-50 text-blue-600",
     green: "bg-green-50 text-green-600",
@@ -81,6 +83,7 @@ function StatCard({ icon: Icon, label, value, color = "blue" }) {
           <div>
             <p className="text-2xl font-bold text-slate-900">{value}</p>
             <p className="text-xs text-slate-500">{label}</p>
+            {detail && <p className="text-[11px] text-slate-400 mt-1">{detail}</p>}
           </div>
         </div>
       </CardContent>
@@ -89,6 +92,54 @@ function StatCard({ icon: Icon, label, value, color = "blue" }) {
 }
 
 // ── CSV export ────────────────────────────────────────────────────────────
+
+const USAGE_METRIC_KEYS = [
+  "marketing_page_load",
+  "successful_sign_in",
+  "new_verified_account",
+  "app_open",
+];
+
+function isUsageSummary(value) {
+  if (!value || value.time_zone !== "Australia/Brisbane" || value.range_days !== 30) return false;
+  if (!Array.isArray(value.daily) || value.daily.length !== 30) return false;
+  return value.daily.every((row) =>
+    /^\d{4}-\d{2}-\d{2}$/.test(row?.day || "")
+    && USAGE_METRIC_KEYS.every((key) => Number.isSafeInteger(row[key]) && row[key] >= 0));
+}
+
+async function fetchAdminUsageSummary() {
+  const sessionValue = appParams.token;
+  if (!sessionValue) return null;
+
+  const response = await fetch("/api/usage/summary?days=30", {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Bearer ${sessionValue}`,
+      "X-App-Id": appParams.appId,
+    },
+    credentials: "same-origin",
+    cache: "no-store",
+    redirect: "error",
+  });
+  if (!response.ok) return null;
+  const summary = await response.json();
+  return isUsageSummary(summary) ? summary : null;
+}
+
+function summariseUsage(summary) {
+  const rows = summary?.daily || [];
+  const today = rows.at(-1) || Object.fromEntries(USAGE_METRIC_KEYS.map((key) => [key, 0]));
+  const sum = (key, days) => rows.slice(-days).reduce((total, row) => total + row[key], 0);
+  return {
+    today,
+    pageLoads7: sum("marketing_page_load", 7),
+    signIns7: sum("successful_sign_in", 7),
+    accounts30: sum("new_verified_account", 30),
+    appOpens7: sum("app_open", 7),
+  };
+}
 
 function exportCSV(rows, filename) {
   if (!rows.length) return;
@@ -114,6 +165,8 @@ export default function AdminAnalytics() {
   const [clientAssessments, setClientAssessments] = useState([]);
   const [assessmentDefs, setAssessmentDefs] = useState([]);
   const [soapNotes, setSoapNotes] = useState([]);
+  const [usageSummary, setUsageSummary] = useState(null);
+  const [usageStatus, setUsageStatus] = useState("loading");
 
   useEffect(() => {
     (async () => {
@@ -126,18 +179,21 @@ export default function AdminAnalytics() {
         return;
       }
 
-      const [cls, conds, cas, defs, notes] = await Promise.all([
+      const [cls, conds, cas, defs, notes, usage] = await Promise.all([
         base44.entities.Client.list(),
         base44.entities.ClientCondition.list(),
         base44.entities.ClientAssessment.list(),
         base44.entities.Assessment.list(),
         base44.entities.SOAPNote.list(),
+        fetchAdminUsageSummary().catch(() => null),
       ]);
       setClients(cls || []);
       setConditions(conds || []);
       setClientAssessments(cas || []);
       setAssessmentDefs(defs || []);
       setSoapNotes(notes || []);
+      setUsageSummary(usage);
+      setUsageStatus(usage ? "ready" : "unavailable");
       setIsLoading(false);
     })();
   }, []);
@@ -181,6 +237,7 @@ export default function AdminAnalytics() {
     .map(([name, count]) => ({ name, count }));
 
   const unknownCount = clientAssessments.filter(ca => !defMap[ca.assessment_id]).length;
+  const usage = useMemo(() => summariseUsage(usageSummary), [usageSummary]);
 
   // Results by age band
   const clientMap = useMemo(() => Object.fromEntries(clients.map(c => [c.id, c])), [clients]);
@@ -261,15 +318,58 @@ export default function AdminAnalytics() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-2">
-              <BarChart3 className="w-8 h-8 text-blue-600" /> Clinical Analytics
+              <BarChart3 className="w-8 h-8 text-blue-600" /> AssessSuite Analytics
             </h1>
-            <p className="text-slate-500 mt-1">Aggregated, de-identified data across all clinicians and clients</p>
+            <p className="text-slate-500 mt-1">A simple overview of site, sign-in and clinical activity</p>
           </div>
           <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
             <ShieldCheck className="w-4 h-4 shrink-0" />
             <span>No identifiable client data. Exports suppress groups &lt;{EXPORT_MIN_GROUP}.</span>
           </div>
         </div>
+
+        <Card className="bg-white/80 backdrop-blur-sm border-slate-200/60">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Activity className="w-5 h-5 text-blue-600" /> Site &amp; app activity
+            </CardTitle>
+            <p className="text-sm text-slate-500">
+              Daily totals only. Page loads are not individual people, and no visitor or patient details are recorded here.
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <StatCard
+                icon={MousePointerClick}
+                label="Page loads today"
+                value={usageStatus === "ready" ? usage.today.marketing_page_load : "—"}
+                detail={usageStatus === "ready" ? `${usage.pageLoads7} over 7 days` : "Temporarily unavailable"}
+                color="blue"
+              />
+              <StatCard
+                icon={LogIn}
+                label="Successful sign-ins today"
+                value={usageStatus === "ready" ? usage.today.successful_sign_in : "—"}
+                detail={usageStatus === "ready" ? `${usage.signIns7} over 7 days` : "Temporarily unavailable"}
+                color="orange"
+              />
+              <StatCard
+                icon={UserPlus}
+                label="New verified accounts today"
+                value={usageStatus === "ready" ? usage.today.new_verified_account : "—"}
+                detail={usageStatus === "ready" ? `${usage.accounts30} over 30 days` : "Temporarily unavailable"}
+                color="purple"
+              />
+              <StatCard
+                icon={AppWindow}
+                label="App opens today"
+                value={usageStatus === "ready" ? usage.today.app_open : "—"}
+                detail={usageStatus === "ready" ? `${usage.appOpens7} over 7 days` : "Temporarily unavailable"}
+                color="green"
+              />
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Summary stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">

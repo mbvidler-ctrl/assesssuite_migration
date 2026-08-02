@@ -107,6 +107,27 @@ test('authenticated navigation keeps page logging and adds one tab-session AppOp
   assert.doesNotMatch(tracker, /localStorage|document\.referrer|navigator\.|location\.href[^\n]*AppOpen/);
 });
 
+test('admin analytics presents the four aggregate usage measures through an authenticated same-origin request', () => {
+  const adminAnalytics = read('src/pages/AdminAnalytics.jsx');
+
+  for (const marker of [
+    '/api/usage/summary?days=30',
+    'appParams.token',
+    'appParams.appId',
+    'credentials: "same-origin"',
+    'redirect: "error"',
+    'Page loads today',
+    'Successful sign-ins today',
+    'New verified accounts today',
+    'App opens today',
+    'Page loads are not individual people',
+  ]) {
+    assert.ok(adminAnalytics.includes(marker), `admin usage view lost ${marker}`);
+  }
+  assert.match(adminAnalytics, /Authorization:\s*`Bearer \$\{sessionValue\}`/);
+  assert.doesNotMatch(adminAnalytics, /document\.referrer|navigator\.|location\.href/);
+});
+
 test('build and routing configuration preserves the split-hosting boundary', () => {
   const packageJson = JSON.parse(read('package.json'));
   const jsConfig = JSON.parse(read('jsconfig.json'));
