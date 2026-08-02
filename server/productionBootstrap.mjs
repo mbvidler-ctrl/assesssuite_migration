@@ -12,6 +12,7 @@ import { openDatabase, PARITY_ASSURANCE_DB_PATH } from './db.mjs';
 import { runCatalogueSeed } from './seed.mjs';
 
 export const PARITY_ASSURANCE_UPLOADS_DIR = '/app/server/data/assesssuite-parity-uploads';
+export const PRODUCTION_APP_URL = 'https://app.assesssuite.com';
 
 export function assertParityAssuranceEnvironment(environment = process.env) {
   const mode = environment.PARITY_ASSURANCE_MODE;
@@ -44,6 +45,12 @@ export function assertProductionBootstrapEnvironment(environment = process.env) 
   }
   if (environment.SELFTEST === '1') {
     throw new Error('SELFTEST is forbidden during production bootstrap.');
+  }
+  if (environment.EXPECTED_APP_URL !== PRODUCTION_APP_URL) {
+    throw new Error(`Production bootstrap requires EXPECTED_APP_URL=${PRODUCTION_APP_URL}.`);
+  }
+  if (environment.APP_URL !== environment.EXPECTED_APP_URL) {
+    throw new Error('Production bootstrap requires APP_URL to match EXPECTED_APP_URL.');
   }
   assertParityAssuranceEnvironment(environment);
 }

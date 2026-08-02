@@ -13,12 +13,18 @@ import {
 } from '../db.mjs';
 import {
   PARITY_ASSURANCE_UPLOADS_DIR,
+  PRODUCTION_APP_URL,
   runProductionBootstrap,
 } from '../productionBootstrap.mjs';
 import { runCatalogueSeed, runSeed } from '../seed.mjs';
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testsDir, '..', '..');
+const productionAppEnvironment = Object.freeze({
+  NODE_ENV: 'production',
+  EXPECTED_APP_URL: PRODUCTION_APP_URL,
+  APP_URL: PRODUCTION_APP_URL,
+});
 
 function restoreEnvironment(previous) {
   for (const [name, value] of Object.entries(previous)) {
@@ -85,7 +91,7 @@ test('production bootstrap is fail-closed and invokes only the catalogue seeder'
   const calls = [];
   const db = { close: () => calls.push('close') };
   runProductionBootstrap({
-    environment: { NODE_ENV: 'production' },
+    environment: { ...productionAppEnvironment },
     openDatabaseFn: () => {
       calls.push('open');
       return { db, entityNames: new Set(['Assessment']) };
@@ -99,7 +105,7 @@ test('production bootstrap is fail-closed and invokes only the catalogue seeder'
 
   assert.throws(
     () => runProductionBootstrap({
-      environment: { NODE_ENV: 'production', SELFTEST: '1' },
+      environment: { ...productionAppEnvironment, SELFTEST: '1' },
       openDatabaseFn: () => { throw new Error('database was opened'); },
     }),
     /SELFTEST is forbidden/,
@@ -112,7 +118,7 @@ test('production bootstrap is fail-closed and invokes only the catalogue seeder'
 
 test('production parity assurance requires the exact no-egress and isolation posture before database access', () => {
   const safeParityEnvironment = {
-    NODE_ENV: 'production',
+    ...productionAppEnvironment,
     PARITY_ASSURANCE_MODE: '1',
     OUTBOUND_EMAIL_ENABLED: '0',
     OUTBOUND_SMS_ENABLED: '0',
@@ -169,11 +175,33 @@ test('production parity assurance requires the exact no-egress and isolation pos
 
   assert.throws(
     () => runProductionBootstrap({
-      environment: { NODE_ENV: 'production', PARITY_ASSURANCE_MODE: 'true' },
+      environment: { ...productionAppEnvironment, PARITY_ASSURANCE_MODE: 'true' },
       openDatabaseFn: () => { throw new Error('database was opened'); },
     }),
     /PARITY_ASSURANCE_MODE must be exactly 0 or 1/,
   );
+});
+
+test('production bootstrap refuses an unproved or stale application origin before database access', () => {
+  for (const environment of [
+    { NODE_ENV: 'production', APP_URL: PRODUCTION_APP_URL },
+    { NODE_ENV: 'production', EXPECTED_APP_URL: PRODUCTION_APP_URL },
+    { ...productionAppEnvironment, APP_URL: 'https://assesssuite.com' },
+    { ...productionAppEnvironment, EXPECTED_APP_URL: 'https://assesssuite.com' },
+  ]) {
+    let databaseOpened = false;
+    assert.throws(
+      () => runProductionBootstrap({
+        environment,
+        openDatabaseFn: () => {
+          databaseOpened = true;
+          throw new Error('database was opened');
+        },
+      }),
+      /EXPECTED_APP_URL|APP_URL/,
+    );
+    assert.equal(databaseOpened, false);
+  }
 });
 
 test('database override policy permits only the existing test harness or exact production parity database', () => {

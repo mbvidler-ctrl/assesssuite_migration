@@ -64,7 +64,7 @@ on:
         required: true
         type: string
       expected_production_volume_id:
-        description: Exact production Volume ID that must never be attached, read or mutated
+        description: Exact attached assesssuite_data_r12 Volume ID that parity must never read or mutate
         required: true
         type: string
       parity_machine_id:
@@ -287,7 +287,7 @@ jobs:
           [[ "$(grep -Fxc '  OPENAI_HEALTH_DATA_TERMS_CONFIRMED = "1"' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Fxc '  GENERAL_CLINICAL_LLM_ENABLED = "1"' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Fxc '  TRANSCRIPTION_ENABLED = "0"' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^  source = "assesssuite_data"$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^  source = "assesssuite_data_r12"$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^  snapshot_retention = 5$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^  scheduled_snapshots = true$' fly.production.toml)" -eq 1 ]]
 
@@ -301,7 +301,7 @@ jobs:
       - name: Validate the exact trusted production workflow control
         shell: bash
         env:
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 2f6a6420af00e2ae35d62df9981f00293046d3dd60e993534aaaf6d474d50f35
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 931cd44877a4ae733aa05707a7425807e0b8fc55c0f49555afcb419c8b1e603f
         run: |
           set -euo pipefail
           cd application
@@ -753,12 +753,32 @@ jobs:
             throw new Error('Live release, Machine config.image and Machine image_ref changed');
           }
           const prodVolume = volumes.find((v) => v.id === process.env.EXPECTED_PRODUCTION_VOLUME_ID);
-          if (!prodVolume || prodVolume.state !== 'created' || prodVolume.name !== 'assesssuite_data' || prodVolume.region !== 'syd' || prodVolume.size_gb !== 3 || prodVolume.encrypted !== true || prodVolume.attached_machine_id !== prod.id) throw new Error('Production Volume identity/topology changed');
+          const activeVolumes = volumes.filter((v) => v.name === 'assesssuite_data_r12');
+          const legacyVolumes = volumes.filter((v) => v.name === 'assesssuite_data');
+          if (activeVolumes.length !== 1 || activeVolumes[0]?.id !== prodVolume?.id ||
+              !prodVolume || prodVolume.state !== 'created' || prodVolume.name !== 'assesssuite_data_r12' ||
+              prodVolume.region !== 'syd' || prodVolume.size_gb !== 3 || prodVolume.encrypted !== true ||
+              prodVolume.attached_machine_id !== prod.id || prodVolume.snapshot_retention !== 5 ||
+              prodVolume.auto_backup_enabled !== true) throw new Error('Production active Volume identity/topology changed');
+          const legacyVolume = legacyVolumes[0];
+          if (legacyVolumes.length !== 1 || !/^vol_[A-Za-z0-9]+$/.test(legacyVolume?.id) ||
+              legacyVolume.id === prodVolume.id || legacyVolume.state !== 'created' || legacyVolume.region !== 'syd' ||
+              legacyVolume.size_gb !== 3 || legacyVolume.encrypted !== true ||
+              legacyVolume.attached_machine_id !== null || legacyVolume.attached_alloc_id !== null ||
+              legacyVolume.snapshot_retention !== 5 || legacyVolume.auto_backup_enabled !== true) {
+            throw new Error('Legacy assesssuite_data Volume is not the exact detached preserved recovery volume');
+          }
+          if (process.env.CURRENT_VOLUME_ID !== 'NOT-CREATED' &&
+              (process.env.CURRENT_VOLUME_ID === prodVolume.id || process.env.CURRENT_VOLUME_ID === legacyVolume.id)) {
+            throw new Error('Parity CURRENT_VOLUME_ID selects a preserved production Volume');
+          }
           const prodMounts = prod.config?.mounts;
-          if (!Array.isArray(prodMounts) || prodMounts.length !== 1 || prodMounts[0]?.volume !== prodVolume.id || prodMounts[0]?.path !== '/app/server/data') throw new Error('Production mount changed');
-          if (machines.some((m) => m.id !== prod.id && (m.config?.mounts || []).some((mount) => mount.volume === prodVolume.id))) throw new Error('A parity Machine references the production Volume');
+          if (!Array.isArray(prodMounts) || prodMounts.length !== 1 || prodMounts[0]?.volume !== prodVolume.id ||
+              prodMounts[0]?.name !== 'assesssuite_data_r12' || prodMounts[0]?.path !== '/app/server/data' ||
+              prodMounts[0]?.encrypted !== true || prodMounts[0]?.size_gb !== 3) throw new Error('Production mount changed');
+          if (machines.some((m) => m.id !== prod.id && (m.config?.mounts || []).some((mount) => mount.volume === prodVolume.id || mount.volume === legacyVolume.id))) throw new Error('A parity Machine references a preserved production Volume');
           const parityMachines = machines.filter((m) => m.id !== prod.id);
-          const parityVolumes = volumes.filter((v) => v.id !== prodVolume.id);
+          const parityVolumes = volumes.filter((v) => v.id !== prodVolume.id && v.id !== legacyVolume.id);
           const expected = {
             clean: [0, 0],
             'volume-only': [0, 1],

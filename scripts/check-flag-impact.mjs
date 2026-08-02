@@ -56,6 +56,8 @@ const NOTICE_REQUIRED_HEADINGS = [
   '## Restoration criteria',
 ];
 
+const normalizeEol = (text) => String(text).replaceAll('\r\n', '\n');
+
 /**
  * Parses one capability notice. Returns { ok: true, fields } or
  * { ok: false, errors: string[] }. fileName is the bare filename
@@ -64,7 +66,8 @@ const NOTICE_REQUIRED_HEADINGS = [
  */
 export function parseNotice(fileName, text) {
   const errors = [];
-  const fenceMatch = String(text).match(NOTICE_FENCE);
+  const source = normalizeEol(text);
+  const fenceMatch = source.match(NOTICE_FENCE);
   if (!fenceMatch) {
     return { ok: false, errors: [`${fileName}: missing the <!--capability-notice ... capability-notice--> fence.`] };
   }
@@ -91,13 +94,13 @@ export function parseNotice(fileName, text) {
     errors.push(`${fileName}: direction "${fields.direction}" is not one of reduces|restores|neutral.`);
   }
   for (const heading of NOTICE_REQUIRED_HEADINGS) {
-    const headingIndex = text.indexOf(heading);
+    const headingIndex = source.indexOf(heading);
     if (headingIndex === -1) {
       errors.push(`${fileName}: missing required heading "${heading}".`);
       continue;
     }
-    const nextHeadingIndex = text.indexOf('\n## ', headingIndex + heading.length);
-    const body = text.slice(headingIndex + heading.length, nextHeadingIndex === -1 ? undefined : nextHeadingIndex).trim();
+    const nextHeadingIndex = source.indexOf('\n## ', headingIndex + heading.length);
+    const body = source.slice(headingIndex + heading.length, nextHeadingIndex === -1 ? undefined : nextHeadingIndex).trim();
     if (!body) errors.push(`${fileName}: heading "${heading}" has no content.`);
   }
   if (errors.length > 0) return { ok: false, errors };

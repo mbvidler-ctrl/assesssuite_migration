@@ -75,7 +75,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_SNAPSHOT_VALIDATOR_SHA256: e7a709891b86e96a768a5d997fe18ae5bee361bb4f086a199dab0bce029fa3c6
+          EXPECTED_SNAPSHOT_VALIDATOR_SHA256: 47285db5c49f45df8c090d5824da17340cee09724f51e6bc1de162ac5099c49e
         run: |
           set -euo pipefail
           [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$TRUSTED_WORKFLOW_SHA" ]]
@@ -164,7 +164,7 @@ jobs:
           read_fly_json initial-image image show
           read_fly_json initial-machines machines list
           read_fly_json initial-volumes volumes list
-          read_public_version 'https://assesssuite.com' "$state_dir/apex-version.json"
+          read_public_version 'https://app.assesssuite.com' "$state_dir/apex-version.json"
           read_public_version 'https://assesssuite-production.fly.dev' "$state_dir/fly-version.json"
           read_fly_json final-releases releases --image
           read_fly_json final-image image show
@@ -218,11 +218,18 @@ jobs:
           const readTopology = (machinesName, volumesName) => {
             const machines = asRows(parse(machinesName), ['machines', 'Machines', 'data']);
             const volumes = asRows(parse(volumesName), ['volumes', 'Volumes', 'data']);
-            if (machines.length !== 1 || volumes.length !== 1) throw new Error('Expected exact one-machine/one-volume production topology');
+            if (machines.length !== 1 || volumes.length !== 2) throw new Error('Expected exact one-machine/two-volume production topology');
             const machine = machines[0];
-            const volume = volumes[0];
             const machineId = requireString(machine.id, /^[0-9a-f]{14,32}$/, 'Production Machine ID');
-            const volumeId = requireString(volume.id, /^vol_[A-Za-z0-9]+$/, 'Production volume ID');
+            if (new Set(volumes.map((row) => row?.id)).size !== 2 ||
+                new Set(volumes.map((row) => row?.name)).size !== 2) {
+              throw new Error('Production volume IDs and names must be unique');
+            }
+            const volume = volumes.find((row) => row?.name === 'assesssuite_data_r12');
+            const legacyVolume = volumes.find((row) => row?.name === 'assesssuite_data');
+            if (!volume || !legacyVolume) throw new Error('Required active and legacy production volumes are not both present');
+            const volumeId = requireString(volume.id, /^vol_[A-Za-z0-9]+$/, 'Active production volume ID');
+            const legacyVolumeId = requireString(legacyVolume.id, /^vol_[A-Za-z0-9]+$/, 'Legacy production volume ID');
             const guest = machine.config?.guest ?? machine.Config?.guest ?? {};
             const mounts = machine.config?.mounts ?? machine.Config?.mounts;
             if ((machine.region ?? machine.Region) !== 'syd' || machine.state !== 'started' ||
@@ -230,10 +237,16 @@ jobs:
                 (guest.cpu_kind ?? guest.cpuKind) !== 'shared') {
               throw new Error('Production Machine region, state, or resources drifted');
             }
-            if (volume.name !== 'assesssuite_data' || volume.region !== 'syd' || volume.state !== 'created' ||
+            if (volume.name !== 'assesssuite_data_r12' || volume.region !== 'syd' || volume.state !== 'created' ||
                 volume.size_gb !== 3 || volume.encrypted !== true || volume.attached_machine_id !== machineId ||
                 volume.snapshot_retention !== 5 || volume.auto_backup_enabled !== true) {
-              throw new Error('Production volume identity, attachment, encryption, or snapshot policy drifted');
+              throw new Error('Active production volume identity, attachment, encryption, or snapshot policy drifted');
+            }
+            if (legacyVolume.name !== 'assesssuite_data' || legacyVolume.region !== 'syd' ||
+                legacyVolume.state !== 'created' || legacyVolume.size_gb !== 3 || legacyVolume.encrypted !== true ||
+                legacyVolume.attached_machine_id !== null || legacyVolume.attached_alloc_id !== null ||
+                legacyVolume.snapshot_retention !== 5 || legacyVolume.auto_backup_enabled !== true) {
+              throw new Error('Legacy assesssuite_data volume is not the exact detached preserved recovery volume');
             }
             if (!Array.isArray(mounts) || mounts.length !== 1 || mounts[0]?.volume !== volumeId ||
                 mounts[0]?.name !== volume.name || mounts[0]?.path !== '/app/server/data' ||
@@ -247,16 +260,25 @@ jobs:
               machine_cpus: 1,
               machine_memory_mb: 512,
               machine_cpu_kind: 'shared',
-              volume_id: volumeId,
-              volume_name: 'assesssuite_data',
-              volume_region: 'syd',
-              volume_state: 'created',
-              volume_size_gb: 3,
-              volume_encrypted: true,
-              volume_attached_machine_id: machineId,
-              volume_mount_path: '/app/server/data',
-              scheduled_snapshots: true,
-              snapshot_retention_days: 5,
+              active_volume_id: volumeId,
+              active_volume_name: 'assesssuite_data_r12',
+              active_volume_region: 'syd',
+              active_volume_state: 'created',
+              active_volume_size_gb: 3,
+              active_volume_encrypted: true,
+              active_volume_attached_machine_id: machineId,
+              active_volume_mount_path: '/app/server/data',
+              active_volume_scheduled_snapshots: true,
+              active_volume_snapshot_retention_days: 5,
+              legacy_volume_id: legacyVolumeId,
+              legacy_volume_name: 'assesssuite_data',
+              legacy_volume_region: 'syd',
+              legacy_volume_state: 'created',
+              legacy_volume_size_gb: 3,
+              legacy_volume_encrypted: true,
+              legacy_volume_attached_machine_id: null,
+              legacy_volume_scheduled_snapshots: true,
+              legacy_volume_snapshot_retention_days: 5,
             };
           };
           const initialRelease = readRelease('initial-releases');
@@ -284,7 +306,7 @@ jobs:
             }
           }
           const receipt = {
-            schema_version: 'assesssuite-production-state-snapshot-v1',
+            schema_version: 'assesssuite-production-state-snapshot-v2',
             result: 'PASS',
             application: 'assesssuite-production',
             captured_at: new Date().toISOString(),
@@ -298,7 +320,7 @@ jobs:
             public_release_sha: apexSha,
             topology: {
               machine_count: 1,
-              volume_count: 1,
+              volume_count: 2,
               ...initialTopology,
             },
           };

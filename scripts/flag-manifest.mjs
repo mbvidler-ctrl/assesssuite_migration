@@ -42,6 +42,8 @@ const SKIP_DIR_NAMES = new Set(['node_modules', 'dist', '.git', 'e2e']);
 const GENERATED_MANIFEST_BANNER =
   'Generated from server/capabilityFlags.mjs by scripts/flag-manifest.mjs. Do not edit by hand. Regenerate: npm run flags:write';
 
+const normalizeEol = (text) => String(text).replaceAll('\r\n', '\n');
+
 // ---------------------------------------------------------------------------
 // Filesystem walking (zero deps: fs.readdirSync recursive, Node >= 20.1)
 // ---------------------------------------------------------------------------
@@ -220,7 +222,8 @@ function readNoticeFiles(repoRoot) {
 
 function auditNotice(name, text, registryNames) {
   const findings = [];
-  const fenceMatch = text.match(NOTICE_FENCE);
+  const source = normalizeEol(text);
+  const fenceMatch = source.match(NOTICE_FENCE);
   if (!fenceMatch) {
     findings.push({ kind: 'notice_malformed', notice: name, message: `${name}: missing the capability-notice HTML-comment fence.` });
     return findings;
@@ -242,13 +245,13 @@ function auditNotice(name, text, registryNames) {
     }
   }
   for (const heading of NOTICE_REQUIRED_HEADINGS) {
-    const headingIndex = text.indexOf(heading);
+    const headingIndex = source.indexOf(heading);
     if (headingIndex === -1) {
       findings.push({ kind: 'notice_malformed', notice: name, message: `${name}: missing required heading "${heading}".` });
       continue;
     }
-    const nextHeadingIndex = text.indexOf('\n## ', headingIndex + heading.length);
-    const body = text.slice(headingIndex + heading.length, nextHeadingIndex === -1 ? undefined : nextHeadingIndex).trim();
+    const nextHeadingIndex = source.indexOf('\n## ', headingIndex + heading.length);
+    const body = source.slice(headingIndex + heading.length, nextHeadingIndex === -1 ? undefined : nextHeadingIndex).trim();
     if (!body) {
       findings.push({ kind: 'notice_malformed', notice: name, message: `${name}: heading "${heading}" has no content.` });
     }
@@ -624,8 +627,12 @@ function runCheck({ repoRoot = DEFAULT_REPO_ROOT } = {}) {
   const expectedJson = renderManifestJson(inputs.manifest);
   const expectedMd = renderOperatorManifest(inputs.manifest, { repoRoot });
 
-  const actualJson = fs.existsSync(manifestPath) ? fs.readFileSync(manifestPath, 'utf8') : null;
-  const actualMd = fs.existsSync(operatorPath) ? fs.readFileSync(operatorPath, 'utf8') : null;
+  const actualJson = fs.existsSync(manifestPath)
+    ? normalizeEol(fs.readFileSync(manifestPath, 'utf8'))
+    : null;
+  const actualMd = fs.existsSync(operatorPath)
+    ? normalizeEol(fs.readFileSync(operatorPath, 'utf8'))
+    : null;
 
   if (actualJson !== expectedJson) {
     findings.push({ kind: 'manifest_stale', file: 'docs/deployment/flag-manifest.json', message: 'docs/deployment/flag-manifest.json is stale. Run: npm run flags:write' });

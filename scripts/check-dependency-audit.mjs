@@ -8,6 +8,8 @@
 // parsing the audit report fails the gate.
 
 import { spawnSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import path from 'node:path';
 
 const ALLOWLISTED_ADVISORIES = new Map([
   [
@@ -33,7 +35,32 @@ const fail = (message) => {
   process.exit(1);
 };
 
-const result = spawnSync('npm', ['audit', '--json'], {
+const resolveNpmCli = () => {
+  const invokedNpm = process.env.npm_execpath;
+  if (
+    invokedNpm &&
+    path.basename(invokedNpm).toLowerCase() === 'npm-cli.js' &&
+    existsSync(invokedNpm)
+  ) {
+    return invokedNpm;
+  }
+
+  const nodeDirectory = path.dirname(process.execPath);
+  const bundledNpm =
+    process.platform === 'win32'
+      ? path.join(nodeDirectory, 'node_modules', 'npm', 'bin', 'npm-cli.js')
+      : path.join(nodeDirectory, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js');
+  return existsSync(bundledNpm) ? bundledNpm : null;
+};
+
+const npmCli = resolveNpmCli();
+if (!npmCli) {
+  fail('could not resolve the npm CLI paired with the current Node installation');
+}
+
+// Run npm's JavaScript entry point with the current Node executable. This
+// avoids Windows .cmd shell semantics while retaining argument-array safety.
+const result = spawnSync(process.execPath, [npmCli, 'audit', '--json'], {
   encoding: 'utf8',
   maxBuffer: 64 * 1024 * 1024,
 });
@@ -78,7 +105,8 @@ for (const [packageName, entry] of Object.entries(vulnerabilities)) {
   }
 
   for (const id of advisoryIds) {
-    if (ALLOWLISTED_ADVISORIES.has(id)) {
+    const exception = ALLOWLISTED_ADVISORIES.get(id);
+    if (exception?.packages.includes(packageName)) {
       allowlisted.push(`${packageName}: ${id}`);
     } else {
       blocking.push(`${packageName}: ${id} (${entry.severity})`);

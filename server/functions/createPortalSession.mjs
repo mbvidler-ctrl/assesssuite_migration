@@ -28,15 +28,16 @@ export default async function createPortalSession(ctx) {
   }
 
   if (stripeGateway.stripeEnabled()) {
-    // Real mode. Stripe requires an absolute return_url; entry.ts used
-    // APP_URL + '/Settings' and so does this branch. An optional `flow`
+    // Real mode. Stripe requires an absolute return_url. The captured Base44
+    // function used the retired /Settings path; the migrated app's canonical
+    // account and billing route is /MyProfile. An optional `flow`
     // ('subscription_update' | 'payment_method_update') is forwarded to the
     // gateway as flow_data so the portal opens directly on that flow.
     const appUrl = (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, '');
     try {
       const session = await stripeGateway.createPortalSession({
         stripeCustomerId,
-        returnUrl: `${appUrl}/Settings`,
+        returnUrl: `${appUrl}/MyProfile`,
         flow,
         subscriptionId,
       });
@@ -47,6 +48,6 @@ export default async function createPortalSession(ctx) {
   }
 
   // Mock mode (default) — unchanged behaviour.
-  const session = createMockPortalSession({ stripeCustomerId, returnUrl: '/Settings' });
+  const session = createMockPortalSession({ stripeCustomerId, returnUrl: '/MyProfile' });
   return respond(200, { url: session.url });
 }

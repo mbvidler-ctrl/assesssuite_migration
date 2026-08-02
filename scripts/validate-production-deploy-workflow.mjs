@@ -318,7 +318,7 @@ const EXPECTED_PREPARE_STEPS = [
 
 const EXPECTED_ROLLBACK_STEPS = [
   'Validate trusted rollback dispatch and inputs',
-  'Check out reviewed rollback configuration source only',
+  'Check out trusted rollback controls and complete history',
   'Verify rollback provenance and compatibility configuration',
   'Set up Node.js 24',
   'Validate exact trusted release controls',
@@ -421,9 +421,9 @@ function validateAuxWorkflow(input, kind) {
     ]
     : [
       'trusted_workflow_sha', 'failed_application_sha', 'expected_current_release',
-      'expected_current_image', 'expected_machine_id', 'expected_volume_id',
+      'expected_current_image', 'expected_machine_id', 'expected_volume_id', 'expected_legacy_volume_id',
       'rollback_source_sha', 'rollback_source_branch', 'rollback_config_sha256',
-      'rollback_image', 'rollback_release_sha', 'capability_intent_id',
+      'rollback_image', 'capability_intent_id',
       'authority_reference', 'incident_reference', 'confirmation',
     ];
   const inputMatches = [...triggerBlock.matchAll(/^      ([a-z][a-z0-9_]+):$/gm)];
@@ -462,20 +462,24 @@ function validateAuxWorkflow(input, kind) {
     ['[[ "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]', 'authority reference shape'],
     ['git check-ref-format "refs/heads/$ROLLBACK_SOURCE_BRANCH"', 'rollback branch validation'],
   ]) requireStepText(dispatchStepName, needle, label);
-  for (const [needle, label] of [
-    ['[[ "$ROLLBACK_SOURCE_BRANCH" == "main" ]]', 'rollback default-branch binding'],
-    ['[[ "$ROLLBACK_SOURCE_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]', 'rollback and workflow SHA identity'],
-  ]) requireStepText(dispatchStepName, needle, label);
+  requireStepText(dispatchStepName, '[[ "$ROLLBACK_SOURCE_BRANCH" == "main" ]]', 'rollback default-branch binding');
+  if (kind === 'prepare') {
+    requireStepText(dispatchStepName, '[[ "$ROLLBACK_SOURCE_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]', 'rollback and workflow SHA identity');
+  }
   if (kind === 'rollback') {
+    requireStepText(dispatchStepName, '[[ "$EXPECTED_LEGACY_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]', 'legacy volume input shape');
+    requireStepText(dispatchStepName, '[[ "$EXPECTED_VOLUME_ID" != "$EXPECTED_LEGACY_VOLUME_ID" ]]', 'active and legacy volume distinction');
+    requireCount('EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}', 2, 'legacy volume input bindings');
+    requireCount('ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_source_sha }}', 2, 'derived rollback release SHA bindings');
     requireStepText(
       dispatchStepName,
       '[[ "$FAILED_APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]',
       'failed application and workflow SHA identity',
     );
+    requireStepText(dispatchStepName, '[[ "$ROLLBACK_SOURCE_SHA" != "$FAILED_APPLICATION_SHA" ]]', 'strict ancestor rollback source distinction');
   }
 
-  for (const [needle, label] of [
-    ['refs/heads/$ROLLBACK_SOURCE_BRANCH', 'initial rollback remote-tip binding'],
+  const verificationControls = [
     ['refs/heads/main', 'initial trusted-main binding'],
     ['== "$TRUSTED_WORKFLOW_SHA" ]]', 'initial trusted-main equality'],
     ['== "$ROLLBACK_CONFIG_SHA256" ]]', 'initial rollback-config digest binding'],
@@ -486,10 +490,17 @@ function validateAuxWorkflow(input, kind) {
     ["python3 -I - \"$config\" <<'PY'", 'isolated semantic Fly process contract'],
     ['snapshot_retention = 5', 'five-day snapshot config'],
     ['scheduled_snapshots = true', 'scheduled snapshot config'],
+    ['source = "assesssuite_data_r12"', 'active r12 volume mount source'],
     ['UPLOAD_AUDIT_RETENTION_DAYS = "730"', 'upload audit retention config'],
     ['UPLOAD_CLEANUP_INTERVAL_MINUTES = "1"', 'upload cleanup config'],
     ['fly.rollback.production.toml', 'default-branch rollback config path'],
-  ]) requireStepText(verificationStepName, needle, label);
+  ];
+  if (kind === 'prepare') verificationControls.unshift(['refs/heads/$ROLLBACK_SOURCE_BRANCH', 'initial rollback remote-tip binding']);
+  if (kind === 'rollback') {
+    verificationControls.push(['git -C "$source_dir" merge-base --is-ancestor "$ROLLBACK_SOURCE_SHA" "$FAILED_APPLICATION_SHA"', 'rollback ancestor proof']);
+    verificationControls.push(['EXPECTED_APP_URL = "https://app.assesssuite.com"', 'exact application URL config']);
+  }
+  for (const [needle, label] of verificationControls) requireStepText(verificationStepName, needle, label);
   for (const marker of TOML_PROCESS_CONTRACT_MARKERS) {
     requireStepText(verificationStepName, marker, `semantic Fly process contract ${marker}`);
   }
@@ -523,14 +534,31 @@ function validateAuxWorkflow(input, kind) {
     kind === 'prepare' ? 'enforce_volume_snapshot_policy' : 'assert_secret_name_boundary',
   );
   for (const needle of [
-    'machines.length !== 1', 'volumes.length !== 1',
+    'machines.length !== 1', 'volumes.length !== 2',
     'machine.id !== process.env.EXPECTED_MACHINE_ID',
+    "machine.state !== 'started'",
+    'new Set(volumes.map((row) => row?.id)).size !== 2',
+    'new Set(volumes.map((row) => row?.name)).size !== 2',
+    "row?.name === 'assesssuite_data_r12'",
+    "row?.name === 'assesssuite_data'",
     'volume.id !== process.env.EXPECTED_VOLUME_ID',
+    "volume.name !== 'assesssuite_data_r12'",
+    "volume.region !== 'syd'", "volume.state !== 'created'",
     'volume.size_gb !== 3', 'volume.encrypted !== true',
     'volume.attached_machine_id !== machine.id',
     'volume.snapshot_retention !== 5', 'volume.auto_backup_enabled !== true',
+    "legacyVolume.name !== 'assesssuite_data'",
+    kind === 'rollback'
+      ? 'legacyVolume.id !== process.env.EXPECTED_LEGACY_VOLUME_ID'
+      : '!/^vol_[A-Za-z0-9]+$/.test(legacyVolume.id)',
+    "legacyVolume.region !== 'syd'", "legacyVolume.state !== 'created'",
+    'legacyVolume.size_gb !== 3',
+    'legacyVolume.encrypted !== true',
+    'legacyVolume.attached_machine_id !== null', 'legacyVolume.attached_alloc_id !== null',
+    'legacyVolume.snapshot_retention !== 5', 'legacyVolume.auto_backup_enabled !== true',
     'mounts.length !== 1', "mounts[0]?.path !== '/app/server/data'",
-    'mounts[0]?.volume !== volume.id', 'mounts[0]?.encrypted !== true',
+    'mounts[0]?.volume !== volume.id', 'mounts[0]?.name !== volume.name',
+    'mounts[0]?.encrypted !== true',
     'mounts[0]?.size_gb !== 3',
   ]) if (!topology.includes(needle)) fail(`topology contract lacks ${needle}`);
   if (/^\s*return 0\s*$/m.test(topology) || topology.includes('&& false')) fail('topology function has a fail-open bypass');
@@ -610,9 +638,20 @@ function validateAuxWorkflow(input, kind) {
   );
   requireText("'[\"sh\",\"-c\",\"node server/productionBootstrap.mjs && exec node server/index.mjs\"]'", 'exact catalogue-only image command');
   requireText("'[\"docker-entrypoint.sh\"]'", 'exact image entrypoint');
-  requireText('io.assesssuite.rollback-proof', 'rollback compatibility proof label');
-  requireText('io.assesssuite.trusted-workflow', 'rollback build-workflow provenance label');
-  requireText('registering-state+39-field-per-file-merge+age-quarantine+referral-commit-receipt-replay', 'complete rollback proof label value');
+  if (kind === 'prepare') {
+    requireText('io.assesssuite.rollback-proof', 'rollback compatibility proof label');
+    requireText('io.assesssuite.trusted-workflow', 'rollback build-workflow provenance label');
+    requireText('registering-state+39-field-per-file-merge+age-quarantine+referral-commit-receipt-replay', 'complete rollback proof label value');
+  } else {
+    requireText('ref: ${{ inputs.trusted_workflow_sha }}', 'trusted rollback-control checkout');
+    requireStepText(verificationStepName, '== "$TRUSTED_WORKFLOW_SHA" ]]', 'trusted rollback-control checkout identity');
+    requireStepText(finalStepName, 'org.opencontainers.image.revision', 'rollback image OCI revision binding');
+    requireStepText(finalStepName, 'read_version \'https://app.assesssuite.com\' "$FAILED_APPLICATION_SHA"', 'current version check before mutation');
+    requireStepText(finalStepName, "'Exercise Physiology at its Clinical Best.'", 'pre-split landing marker');
+    requireStepText(finalStepName, 'for route in legal/privacy login; do', 'legal and application route verification');
+    requireStepText(finalStepName, 'assert_topology postrollback', 'postrollback r12 and detached-legacy topology verification');
+    requireStepText(finalStepName, 'fly secrets set APP_URL=https://app.assesssuite.com --stage --app "$app"', 'exact application URL staged secret');
+  }
   requireAtLeast('refs/heads/main', 3, 'trusted main-tip checks');
   requireAtLeast('== "$ROLLBACK_CONFIG_SHA256" ]]', 2, 'rollback config digest checks');
   requireAtLeast('assert_topology', 3, 'repeated topology checks');
@@ -658,6 +697,7 @@ function validateAuxWorkflow(input, kind) {
       'fly volumes update "$EXPECTED_VOLUME_ID"', '--snapshot-retention 5',
       '--scheduled-snapshots=true', 'volume.id !== process.env.EXPECTED_VOLUME_ID',
       'volume.attached_machine_id !== process.env.EXPECTED_MACHINE_ID',
+      "volume.name !== 'assesssuite_data_r12'",
       'volume.snapshot_retention !== 5', 'volume.auto_backup_enabled !== true',
       'volume.encrypted !== true',
     ]) if (!enforcement.includes(needle)) fail(`prepare volume-policy enforcement lacks ${needle}`);
@@ -714,7 +754,7 @@ function validateAuxWorkflow(input, kind) {
         countOf(finalActive, 'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"') !== 1) {
       fail('standalone rollback time-reserve refusal is not immediately before the first production mutation');
     }
-    if (countOf(active, 'timeout --signal=TERM --kill-after=10s 60s git -C "') !== 6) {
+    if (countOf(active, 'timeout --signal=TERM --kill-after=10s 60s git -C "') !== 3) {
       fail('standalone rollback Git remote observations are not all bounded to 60 seconds');
     }
     const rollbackObserver = functionBody('wait_for_rollback_observer_stabilization', 'write_summary');
@@ -833,8 +873,6 @@ function validateAuxWorkflow(input, kind) {
       '[[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\\.fly\\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]',
       'immutable digest-only expected current image',
     );
-    requireCount('io.assesssuite.rollback-proof', 1, 'rollback proof label verification');
-    requireCount('io.assesssuite.trusted-workflow', 1, 'rollback workflow label verification');
     if (/\bdocker push\b/.test(active)) fail('emergency rollback workflow may not publish a new image');
     requireCount('fly deploy "$rollback_dir"', 1, 'single emergency rollback deploy command');
     requireStepText(dispatchStepName, '[[ "$ROLLBACK_IMAGE" =~ ^registry\\.fly\\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]', 'digest-only rollback image input');
@@ -857,9 +895,9 @@ function validateAuxWorkflow(input, kind) {
     if (countOf(finalActive, 'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"') !== 1) {
       fail('emergency rollback transitional secret removal is not singular');
     }
-    requireStepText(finalStepName, "read_version 'https://assesssuite.com'", 'apex rollback version verification');
+    requireStepText(finalStepName, "read_version 'https://app.assesssuite.com'", 'application-host rollback version verification');
     requireStepText(finalStepName, "read_version 'https://assesssuite-production.fly.dev'", 'Fly-domain rollback version verification');
-    requireStepText(finalStepName, "read_public_surface 'https://assesssuite.com' 'rollback-apex'", 'apex rollback public-surface verification');
+    requireStepText(finalStepName, "read_public_surface 'https://app.assesssuite.com' 'rollback-apex'", 'application-host rollback public-surface verification');
     requireStepText(finalStepName, "read_public_surface 'https://assesssuite-production.fly.dev' 'rollback-fly'", 'Fly-domain rollback public-surface verification');
     requireCount('[[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main | awk \'NR == 1 { print $1 }\')" == "$TRUSTED_WORKFLOW_SHA" ]]', 2, 'bounded preflight and final-predeploy trusted-main freezes');
     const rollbackCommand = finalActive.indexOf('timeout --signal=TERM --kill-after=30s 420s fly deploy "$rollback_dir"');
@@ -897,13 +935,15 @@ function validateAuxWorkflow(input, kind) {
       'assert_secret_name_boundary initial allow',
       'assert_topology final-predeploy',
       '[[ "$final_prior_release" == "$EXPECTED_CURRENT_RELEASE" ]]',
+      "read_version 'https://app.assesssuite.com' \"$FAILED_APPLICATION_SHA\"",
       'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"',
+      'fly secrets set APP_URL=https://app.assesssuite.com --stage --app "$app"',
       'assert_secret_name_boundary final forbid',
       'fly deploy "$rollback_dir"',
       'if ! wait_for_rollback_observer_stabilization; then',
       'assert_secret_name_boundary postrollback forbid',
-      "read_version 'https://assesssuite.com'",
-      "read_public_surface 'https://assesssuite.com' 'rollback-apex'",
+      "read_version 'https://app.assesssuite.com' \"$ROLLBACK_RELEASE_SHA\"",
+      "read_public_surface 'https://app.assesssuite.com' 'rollback-apex'",
     ].map((needle) => finalActive.indexOf(needle));
     if (order.some((position) => position < 0) ||
         order.some((position, index) => index > 0 && position <= order[index - 1])) {
@@ -932,6 +972,14 @@ function auxMutationCases(source, kind) {
   const replace = (name, from, to) => cases.push({
     name,
     mutate: (value) => replaceOnce(value, from, to, name),
+  });
+  const replaceEvery = (name, from, to, expected) => cases.push({
+    name,
+    mutate: (value) => {
+      const found = countOf(value, from);
+      if (found !== expected) throw new Error(`mutation ${name} expected ${expected} targets, found ${found}`);
+      return value.replaceAll(from, to);
+    },
   });
   const shadow = (name, from, weakened) => replace(
     name,
@@ -972,9 +1020,12 @@ function auxMutationCases(source, kind) {
   shadow('shadow-workflow-sha', '          [[ "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]', '          [[ -n "$WORKFLOW_SHA" ]]');
   shadow('shadow-event-sha', '          [[ "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]', '          [[ -n "$EVENT_SHA" ]]');
   shadow('shadow-rollback-main-branch', '          [[ "$ROLLBACK_SOURCE_BRANCH" == "main" ]]', '          [[ -n "$ROLLBACK_SOURCE_BRANCH" ]]');
-  shadow('shadow-rollback-workflow-sha-identity', '          [[ "$ROLLBACK_SOURCE_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]', '          [[ -n "$ROLLBACK_SOURCE_SHA" ]]');
+  if (kind === 'prepare') {
+    shadow('shadow-rollback-workflow-sha-identity', '          [[ "$ROLLBACK_SOURCE_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]', '          [[ -n "$ROLLBACK_SOURCE_SHA" ]]');
+  }
   if (kind === 'rollback') {
     shadow('shadow-failed-application-workflow-sha-identity', '          [[ "$FAILED_APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]', '          [[ -n "$FAILED_APPLICATION_SHA" ]]');
+    shadow('shadow-rollback-source-distinction', '          [[ "$ROLLBACK_SOURCE_SHA" != "$FAILED_APPLICATION_SHA" ]]', '          [[ -n "$ROLLBACK_SOURCE_SHA" ]]');
     shadow('shadow-rollback-job-timeout', '    timeout-minutes: 70', '    timeout-minutes: 25');
   }
   replace(
@@ -1099,6 +1150,73 @@ function auxMutationCases(source, kind) {
     '          if (!/^[0-9a-f]{14,32}$/.test(machine.id) ||',
   );
   replace(
+    'topology-two-volume-count-bypassed',
+    '          if (!Array.isArray(machines) || machines.length !== 1 || !Array.isArray(volumes) || volumes.length !== 2) {',
+    '          if (!Array.isArray(machines) || machines.length !== 1 || !Array.isArray(volumes)) {',
+  );
+  replace(
+    'topology-volume-name-uniqueness-bypassed',
+    '              new Set(volumes.map((row) => row?.name)).size !== 2) {',
+    '              false) {',
+  );
+  replace(
+    'topology-active-volume-selector-changed',
+    "          const volume = volumes.find((row) => row?.name === 'assesssuite_data_r12');",
+    "          const volume = volumes.find((row) => row?.name === 'assesssuite_data');",
+  );
+  replace(
+    'topology-active-volume-name-bypassed',
+    "volume.id !== process.env.EXPECTED_VOLUME_ID || volume.name !== 'assesssuite_data_r12'",
+    'volume.id !== process.env.EXPECTED_VOLUME_ID || false',
+  );
+  replace(
+    'topology-legacy-detachment-bypassed',
+    'legacyVolume.attached_machine_id !== null',
+    'false',
+  );
+  replace(
+    'topology-legacy-policy-bypassed',
+    'legacyVolume.snapshot_retention !== 5',
+    'false',
+  );
+  replace(
+    'topology-machine-started-state-bypassed',
+    "machine.state !== 'started'",
+    'false',
+  );
+  replace(
+    'topology-legacy-id-binding-bypassed',
+    kind === 'rollback'
+      ? 'legacyVolume.id !== process.env.EXPECTED_LEGACY_VOLUME_ID'
+      : '!/^vol_[A-Za-z0-9]+$/.test(legacyVolume.id)',
+    'false',
+  );
+  replace(
+    'topology-legacy-state-bypassed',
+    "legacyVolume.state !== 'created'",
+    'false',
+  );
+  replace(
+    'topology-legacy-encryption-bypassed',
+    'legacyVolume.encrypted !== true',
+    'false',
+  );
+  replace(
+    'topology-legacy-auto-backup-bypassed',
+    'legacyVolume.auto_backup_enabled !== true',
+    'false',
+  );
+  replace(
+    'topology-active-mount-name-bypassed',
+    'mounts[0]?.name !== volume.name',
+    'false',
+  );
+  replace(
+    'topology-config-source-reverted',
+    'source = "assesssuite_data_r12"',
+    'source = "assesssuite_data"',
+  );
+  replace(
     'topology-size-assertion-disabled',
     "              volume.region !== 'syd' || volume.state !== 'created' || volume.size_gb !== 3 ||",
     "              volume.region !== 'syd' || volume.state !== 'created' || (volume.size_gb !== 3 && false) ||",
@@ -1116,13 +1234,12 @@ function auxMutationCases(source, kind) {
     '                Object.keys(row).some((key) => /^(?:value|raw_value|secret_value)$/i.test(key))) {',
     '                false) {',
   );
-  replace(
-    'proof-label-removed',
-    `          [[ "$(docker image inspect "$${imageVariable}" --format '{{ index .Config.Labels "io.assesssuite.rollback-proof" }}')" == 'registering-state+39-field-per-file-merge+age-quarantine+referral-commit-receipt-replay' ]]`,
-    '          true',
-  );
-
   if (kind === 'prepare') {
+    replace(
+      'proof-label-removed',
+      `          [[ "$(docker image inspect "$${imageVariable}" --format '{{ index .Config.Labels "io.assesssuite.rollback-proof" }}')" == 'registering-state+39-field-per-file-merge+age-quarantine+referral-commit-receipt-replay' ]]`,
+      '          true',
+    );
     cases.push({
       name: 'prepare-remote-timeouts-removed',
       mutate: (value) => {
@@ -1189,6 +1306,24 @@ function auxMutationCases(source, kind) {
       '          true',
     );
   } else {
+    replaceEvery(
+      'rollback-legacy-volume-input-rebound-to-active',
+      '          EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}',
+      '          EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_volume_id }}',
+      2,
+    );
+    replace(
+      'rollback-volume-distinction-bypassed',
+      '          [[ "$EXPECTED_VOLUME_ID" != "$EXPECTED_LEGACY_VOLUME_ID" ]]',
+      '          true',
+    );
+    replaceEvery(
+      'rollback-release-sha-rebound-to-failed-candidate',
+      '          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_source_sha }}',
+      '          ROLLBACK_RELEASE_SHA: ${{ inputs.failed_application_sha }}',
+      2,
+    );
+    replace('rollback-controls-checkout-rebound-to-old-image-source', '          ref: ${{ inputs.trusted_workflow_sha }}', '          ref: ${{ inputs.rollback_source_sha }}');
     replace(
       'rollback-config-path-reverted',
       '          config="$source_dir/fly.rollback.production.toml"',
@@ -1232,9 +1367,10 @@ function auxMutationCases(source, kind) {
     replace(
       'final-main-check-removed',
       '          # Final just-in-time freeze immediately before the sole application mutation.\n' +
-        '          [[ "$(git -C "$rollback_dir" rev-parse --verify \'HEAD^{commit}\')" == "$ROLLBACK_SOURCE_SHA" ]]\n' +
-        '          [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk \'NR == 1 { print $1 }\')" == "$ROLLBACK_SOURCE_SHA" ]]\n' +
-        '          [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main | awk \'NR == 1 { print $1 }\')" == "$TRUSTED_WORKFLOW_SHA" ]]',
+        '          [[ "$(git -C "$rollback_dir" rev-parse --verify \'HEAD^{commit}\')" == "$TRUSTED_WORKFLOW_SHA" ]]\n' +
+        '          [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main | awk \'NR == 1 { print $1 }\')" == "$TRUSTED_WORKFLOW_SHA" ]]\n' +
+        '          git -C "$rollback_dir" cat-file -e "$ROLLBACK_SOURCE_SHA^{commit}"\n' +
+        '          git -C "$rollback_dir" merge-base --is-ancestor "$ROLLBACK_SOURCE_SHA" "$FAILED_APPLICATION_SHA"',
       '          # Final just-in-time freeze immediately before the sole application mutation.\n          true',
     );
     replace(
@@ -1383,9 +1519,15 @@ function auxMutationCases(source, kind) {
     );
     replace(
       'public-surface-check-removed',
-      "          if ! read_public_surface 'https://assesssuite.com' 'rollback-apex' \\",
+      "          if ! read_public_surface 'https://app.assesssuite.com' 'rollback-apex' \\",
       '          if false \\',
     );
+    replace('rollback-ancestor-proof-bypassed', '          git -C "$source_dir" merge-base --is-ancestor "$ROLLBACK_SOURCE_SHA" "$FAILED_APPLICATION_SHA"', '          true');
+    replace('rollback-pre-mutation-version-rebound-to-source', "read_version 'https://app.assesssuite.com' \"$FAILED_APPLICATION_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"", "read_version 'https://app.assesssuite.com' \"$ROLLBACK_SOURCE_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"");
+    replace('rollback-old-landing-marker-removed', "            'Exercise Physiology at its Clinical Best.',", "            'unrelated marker',");
+    replace('rollback-legal-app-routes-removed', '            for route in legal/privacy login; do', '            for route in root-only; do');
+    replace('rollback-post-topology-removed', '          if ! assert_topology postrollback; then', '          if false; then');
+    replace('rollback-app-url-staging-mutated', 'fly secrets set APP_URL=https://app.assesssuite.com --stage --app "$app"', 'fly secrets set APP_URL=https://assesssuite.com --stage --app "$app"');
   }
   return cases;
 }
@@ -1685,7 +1827,29 @@ function validateParityWorkflow(input) {
     'const configuredImage = prod.config?.image ?? prod.Config?.image;',
     'immutableImage !== process.env.LIVE_IMAGE',
     'configuredImage !== immutableImage || releaseImage !== immutableImage',
+    'const prodVolume = volumes.find((v) => v.id === process.env.EXPECTED_PRODUCTION_VOLUME_ID);',
+    "activeVolumes.length !== 1 || activeVolumes[0]?.id !== prodVolume?.id",
+    "prodVolume.name !== 'assesssuite_data_r12'",
+    "prodVolume.region !== 'syd'", 'prodVolume.size_gb !== 3',
+    'prodVolume.encrypted !== true',
+    'prodVolume.attached_machine_id !== prod.id',
+    'prodVolume.snapshot_retention !== 5',
+    'prodVolume.auto_backup_enabled !== true',
+    "const legacyVolumes = volumes.filter((v) => v.name === 'assesssuite_data');",
+    'legacyVolumes.length !== 1',
+    "legacyVolume.state !== 'created'", "legacyVolume.region !== 'syd'",
+    'legacyVolume.size_gb !== 3', 'legacyVolume.encrypted !== true',
+    'legacyVolume.attached_machine_id !== null',
+    'legacyVolume.attached_alloc_id !== null',
+    'legacyVolume.snapshot_retention !== 5',
+    'legacyVolume.auto_backup_enabled !== true',
+    "process.env.CURRENT_VOLUME_ID === prodVolume.id || process.env.CURRENT_VOLUME_ID === legacyVolume.id",
+    'v.id !== prodVolume.id && v.id !== legacyVolume.id',
+    "prodMounts[0]?.name !== 'assesssuite_data_r12'",
+    'prodMounts[0]?.volume !== prodVolume.id', "prodMounts[0]?.path !== '/app/server/data'",
+    'prodMounts[0]?.encrypted !== true', 'prodMounts[0]?.size_gb !== 3',
   ]) requireText(needle, 'parity production release/Machine binding ' + needle);
+  requireText('source = "assesssuite_data_r12"', 'parity active r12 volume mount source');
   for (const forbidden of [
     '.find((r) =>',
     '|| releases[0]',
@@ -1940,6 +2104,66 @@ function parityMutationCases(source) {
       '            --output "$archive" \\\n' +
       "            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'",
   );
+  replace(
+    'parity-topology-config-source-reverted',
+    'source = "assesssuite_data_r12"',
+    'source = "assesssuite_data"',
+  );
+  replace(
+    'parity-active-volume-name-bypassed',
+    "prodVolume.name !== 'assesssuite_data_r12'",
+    'false',
+  );
+  replace(
+    'parity-active-volume-policy-bypassed',
+    'prodVolume.snapshot_retention !== 5',
+    'false',
+  );
+  replace(
+    'parity-legacy-detachment-bypassed',
+    'legacyVolume.attached_machine_id !== null',
+    'false',
+  );
+  replace(
+    'parity-legacy-policy-bypassed',
+    'legacyVolume.snapshot_retention !== 5',
+    'false',
+  );
+  replace(
+    'parity-legacy-volume-misclassified',
+    'v.id !== prodVolume.id && v.id !== legacyVolume.id',
+    'v.id !== prodVolume.id',
+  );
+  replace(
+    'parity-production-mount-name-bypassed',
+    "prodMounts[0]?.name !== 'assesssuite_data_r12'",
+    'false',
+  );
+  replace(
+    'parity-expected-active-volume-id-unbound',
+    'const prodVolume = volumes.find((v) => v.id === process.env.EXPECTED_PRODUCTION_VOLUME_ID);',
+    "const prodVolume = volumes.find((v) => v.name === 'assesssuite_data_r12');",
+  );
+  replace(
+    'parity-active-volume-attachment-bypassed',
+    'prodVolume.attached_machine_id !== prod.id',
+    'false',
+  );
+  replace(
+    'parity-production-mount-volume-bypassed',
+    'prodMounts[0]?.volume !== prodVolume.id',
+    'false',
+  );
+  replace(
+    'parity-production-mount-path-bypassed',
+    "prodMounts[0]?.path !== '/app/server/data'",
+    'false',
+  );
+  replace(
+    'parity-current-volume-production-selection-bypassed',
+    "process.env.CURRENT_VOLUME_ID === prodVolume.id || process.env.CURRENT_VOLUME_ID === legacyVolume.id",
+    'false',
+  );
   replace('validator-pin-mutated', '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + '0'.repeat(64));
   return cases;
 }
@@ -1976,7 +2200,7 @@ function validateDeployWorkflowV2(input) {
   const expectedInputs = [
     'trusted_workflow_sha','application_sha','candidate_config_sha256','rollback_config_sha256',
     'expected_current_release','expected_current_image','expected_machine_id','expected_volume_id',
-    'rollback_image','rollback_release_sha','extraction_runtime_mode','provider_terms_attestation',
+    'expected_legacy_volume_id','rollback_source_sha','rollback_image','extraction_runtime_mode','provider_terms_attestation',
     'provider_terms_evidence_id','under_age_zdr_runtime_mode','under_age_zdr_attestation',
     'under_age_zdr_evidence_id','capability_intent_id','authority_reference','preparation_run_id',
     'application_image_digest','deploy_bundle_artifact_id','deploy_bundle_artifact_digest',
@@ -2026,11 +2250,13 @@ function validateDeployWorkflowV2(input) {
     'expected_files=$\'candidate-build-receipt.json\\ncompatibility-receipt.json\\ndeploy-bundle-manifest.json\\nfly.production.toml\\nfly.rollback.production.toml\\npublication-receipt.json\'',
     '[[ "$actual_files" == "$expected_files" ]]', "stat -c '%F'", '[[ -f "$bundle/$file" && ! -L "$bundle/$file" ]]',
     '[[ "$(sha256sum "$manifest" | awk \'{print $1}\')" == "$DEPLOY_BUNDLE_MANIFEST_SHA256" ]]',
-    'raw !== `${JSON.stringify(value)}\\n`', "same(manifest.schema_version, 'assesssuite.deploy-bundle-manifest.v1', 'Manifest schema')",
+    'raw !== `${JSON.stringify(value)}\\n`', "same(manifest.schema_version, 'assesssuite.deploy-bundle-manifest.v2', 'Manifest schema')",
     "same(manifest.result, 'PASS', 'Manifest result')", "same(manifest.publication_run_id, e.PREPARATION_RUN_ID, 'Manifest run id')",
     "same(manifest.publication_run_attempt, e.PREPARATION_RUN_ATTEMPT, 'Manifest run attempt')",
     "same(manifest.candidate_image_ref, e.CANDIDATE_IMAGE_REF, 'Manifest candidate image ref')",
     "same(manifest.application_image_digest, e.APPLICATION_IMAGE_DIGEST, 'Manifest application image digest')",
+    "same(manifest.rollback_source_sha, e.ROLLBACK_SOURCE_SHA, 'Manifest rollback source SHA')",
+    "same(manifest.rollback_image_ref, e.EXPECTED_CURRENT_IMAGE, 'Manifest expected current image ref')",
     "same(manifest.publication_receipt_sha256, digest('publication-receipt.json'), 'Publication receipt hash')",
     "same(manifest.compatibility_receipt_sha256, digest('compatibility-receipt.json'), 'Compatibility receipt hash')",
     "['publication_receipt_sha256',manifest.publication_receipt_sha256]",
@@ -2040,6 +2266,25 @@ function validateDeployWorkflowV2(input) {
   requireText('[[ "$CANDIDATE_IMAGE_REF" == "registry.fly.io/assesssuite-production@$APPLICATION_IMAGE_DIGEST" ]]', 'candidate digest/ref identity');
   requireText('[[ "$DEPLOY_BUNDLE_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]', 'canonical deploy-bundle artifact digest');
   requireText('[[ "$CONFIRMATION" == "DEPLOY assesssuite-production EXACT SHA" ]]', 'exact deployment confirmation');
+  requireText('ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}', 'independent rollback source SHA input binding');
+  if (countOf(deploy, 'ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}') !== 3) fail('rollback source SHA is not bound independently at all three deploy gates');
+  requireText('EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}', 'independent legacy volume ID input binding');
+  if (countOf(deploy, 'EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}') !== 3) fail('legacy volume ID is not bound independently at all three deploy gates');
+  requireText('[[ "$EXPECTED_MACHINE_ID" =~ ^[0-9a-f]{14,32}$ && "$EXPECTED_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ && "$EXPECTED_LEGACY_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]', 'active and legacy volume input shapes');
+  requireText('[[ "$EXPECTED_VOLUME_ID" != "$EXPECTED_LEGACY_VOLUME_ID" ]]', 'active and legacy volume distinction');
+  if (countOf(deploy, 'ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_source_sha }}') !== 2) fail('rollback release SHA is not derived from the rollback source in both deploy gates');
+  requireText('[[ "$ROLLBACK_RELEASE_SHA" == "$ROLLBACK_SOURCE_SHA" ]]', 'rollback release/source identity');
+  requireText('[[ "$ROLLBACK_IMAGE" == "$EXPECTED_CURRENT_IMAGE" ]]', 'rollback image/current image identity');
+  requireText('row.merge_base_commit?.sha !== process.env.ROLLBACK_SOURCE_SHA', 'GitHub rollback ancestor proof');
+  requireText("same(manifest.rollback_source_sha, e.ROLLBACK_SOURCE_SHA, 'Manifest rollback source SHA')", 'manifest rollback source binding');
+  requireText("['rollback_source_sha',e.ROLLBACK_SOURCE_SHA]", 'compatibility rollback source binding');
+  requireText("same(manifest.expected_legacy_volume_id, e.EXPECTED_LEGACY_VOLUME_ID, 'Manifest legacy volume ID')", 'manifest legacy volume binding');
+  requireText("['expected_legacy_volume_id',e.EXPECTED_LEGACY_VOLUME_ID]", 'publication and compatibility legacy volume binding');
+  requireText("read_version 'https://app.assesssuite.com' \"$ROLLBACK_SOURCE_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"", 'pre-mutation application-host version freeze');
+  requireText("read_version 'https://assesssuite-production.fly.dev' \"$ROLLBACK_SOURCE_SHA\" \"$RUNNER_TEMP/pre-mutation-fly-version.json\"", 'pre-mutation Fly-domain version freeze');
+  requireText("'Exercise Physiology at its Clinical Best.'", 'postrollback pre-split landing marker');
+  requireText('for route in legal/privacy login; do', 'postrollback legal and application route checks');
+  requireText('assert_volume_snapshot_policy postrollback "$EXPECTED_VOLUME_ID" "$EXPECTED_MACHINE_ID"', 'postrollback r12 and detached-legacy topology check');
   requireText('[[ "$reviewed_mode" == "$EXTRACTION_RUNTIME_MODE" ]]', 'deploy extraction-mode config binding');
   requireText('[[ "$reviewed_under_age_mode" == "$UNDER_AGE_ZDR_RUNTIME_MODE" ]]', 'deploy under-age config binding');
   requireText(
@@ -2057,6 +2302,40 @@ function validateDeployWorkflowV2(input) {
     'refs/heads/main', 'assert_secret_name_boundary initial allow', 'assert_secret_name_boundary final forbid',
     'assert_secret_name_boundary postrollback forbid',
   ]) requireText(needle, 'remote-only production control ' + needle);
+  requireText('source = "assesssuite_data_r12"', 'active r12 volume mount source');
+  requireText('EXPECTED_APP_URL = "https://app.assesssuite.com"', 'exact application URL config boundary');
+  if (countOf(deploy, 'EXPECTED_APP_URL = "https://app.assesssuite.com"') !== 2) fail('deploy does not validate EXPECTED_APP_URL in both reviewed configs');
+  requireText('fly secrets set APP_URL=https://app.assesssuite.com --stage --app "$app"', 'exact application URL staged secret');
+  const topologyStart = deploy.indexOf('          assert_topology() {');
+  const topologyEnd = topologyStart < 0 ? -1 : deploy.indexOf('          volume_identity() {', topologyStart);
+  const topology = topologyStart >= 0 && topologyEnd > topologyStart
+    ? deploy.slice(topologyStart, topologyEnd)
+    : '';
+  for (const needle of [
+    'volumes.length !== 2',
+    "machine.state !== 'started'",
+    'new Set(volumes.map((row) => row.id)).size !== 2',
+    'new Set(volumes.map((row) => row.name)).size !== 2',
+    "volumes.find((row) => row.name === 'assesssuite_data_r12')",
+    "volumes.find((row) => row.name === 'assesssuite_data')",
+    "volume.name !== 'assesssuite_data_r12'",
+    'volume.id !== process.env.EXPECTED_VOLUME_ID',
+    "volume.state !== 'created'", "volume.region !== 'syd'",
+    'volume.size_gb !== 3', 'volume.encrypted !== true',
+    'volume.attached_machine_id !== machineId',
+    'volume.snapshot_retention !== 5', 'volume.auto_backup_enabled !== true',
+    'mounts[0]?.volume !== volume.id', 'mounts[0]?.name !== volume.name',
+    "mounts[0]?.path !== '/app/server/data'", 'mounts[0]?.encrypted !== true',
+    'mounts[0]?.size_gb !== 3',
+    'legacyVolume.id !== process.env.EXPECTED_LEGACY_VOLUME_ID',
+    "legacyVolume.state !== 'created'", "legacyVolume.region !== 'syd'",
+    'legacyVolume.attached_machine_id !== null',
+    'legacyVolume.attached_alloc_id !== null',
+    'legacyVolume.size_gb !== 3',
+    'legacyVolume.encrypted !== true',
+    'legacyVolume.snapshot_retention !== 5',
+    'legacyVolume.auto_backup_enabled !== true',
+  ]) if (!topology.includes(needle)) fail('two-volume production topology control lacks ' + needle);
   if (countOf(deploy, '--remote-only') !== 2 || countOf(deploy, '--skip-release-command') !== 2 ||
       countOf(deploy, 'fly deploy "$deploy_source_dir"') !== 2) fail('candidate and rollback are not both remote-only empty-context deploys');
   if (countOf(deploy, 'assert_fly_process_contract() {') !== 2 ||
@@ -2128,7 +2407,7 @@ function validateDeployWorkflowV2(input) {
   if (countOf(
     deploy,
     "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --max-time 60",
-  ) !== 3) {
+  ) !== 4) {
     fail('deploy GitHub control downloads are not all bounded to 60 seconds');
   }
   const predeployFreezes = [
@@ -2502,7 +2781,7 @@ function validateDeployWorkflowV2(input) {
     observerCall,
   );
   const firstPublicCheck = deploy.indexOf(
-    "elif ! read_version 'https://assesssuite.com' \"$APPLICATION_SHA\"",
+    "elif ! read_version 'https://app.assesssuite.com' \"$APPLICATION_SHA\"",
     observerCall,
   );
   const verificationRollback = deploy.indexOf('if [[ -n "$verification_failure" ]]; then', observerCall);
@@ -2607,7 +2886,7 @@ function validateDeployWorkflowV2(input) {
     rollbackObserverFailureReturn,
   );
   const rollbackPublicCheck = rollbackNow.indexOf(
-    "if ! read_version 'https://assesssuite.com' \"$ROLLBACK_RELEASE_SHA\"",
+    "if ! read_version 'https://app.assesssuite.com' \"$ROLLBACK_RELEASE_SHA\"",
     reconciledRollbackCommandFailure,
   );
   const rollbackCommandWindow = rollbackDeploy >= 0 && rollbackObserverCall > rollbackDeploy
@@ -2693,13 +2972,30 @@ function validatePrepareReleaseWorkflow(input) {
   if (!publish.includes('needs: gates') || !compatibility.includes('needs: [gates, publish_image]')) fail('prepare-release DAG differs');
   if (gates.includes('needs.publish_image') || gates.includes('CANDIDATE_IMAGE_REF:')) fail('gates illegally references downstream publication output');
 
-  const expectedInputs = ['trusted_workflow_sha','application_sha','candidate_config_sha256','rollback_config_sha256','rollback_image','extraction_runtime_mode','provider_terms_attestation','provider_terms_evidence_id','under_age_zdr_runtime_mode','under_age_zdr_attestation','under_age_zdr_evidence_id','capability_intent_id','authority_reference','confirmation'];
+  const expectedInputs = ['trusted_workflow_sha','application_sha','candidate_config_sha256','rollback_config_sha256','rollback_source_sha','expected_current_image','expected_volume_id','expected_legacy_volume_id','rollback_image','extraction_runtime_mode','provider_terms_attestation','provider_terms_evidence_id','under_age_zdr_runtime_mode','under_age_zdr_attestation','under_age_zdr_evidence_id','capability_intent_id','authority_reference','confirmation'];
   const declaredInputs = [...trigger.matchAll(/^      ([a-z0-9_]+):$/gm)].map((match) => match[1]);
   if (JSON.stringify(declaredInputs.sort()) !== JSON.stringify([...expectedInputs].sort())) fail('prepare-release dispatch interface differs');
   requireText('[[ "$CONFIRMATION" == "PREPARE assesssuite-production EXACT SHA" ]]', 'exact preparation confirmation');
   requireText('[[ "$SOURCE_BRANCH" == "main" ]]', 'fixed main source branch');
   requireText('[[ "$ROLLBACK_SOURCE_BRANCH" == "main" ]]', 'fixed main rollback branch');
-  requireText('ROLLBACK_SOURCE_SHA: ${{ inputs.application_sha }}', 'fixed rollback source SHA');
+  requireText('ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}', 'independent rollback source SHA');
+  if (countOf(active, 'ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}') !== 6) fail('prepare-release rollback source is not bound through all gates, receipts and summary');
+  requireText('EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}', 'independent active volume ID');
+  requireText('EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}', 'independent legacy volume ID');
+  if (countOf(active, 'EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}') !== 5 || countOf(active, 'EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}') !== 5) fail('prepare-release volume IDs are not bound through all five gates and receipts');
+  requireText('[[ "$EXPECTED_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ && "$EXPECTED_LEGACY_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]', 'active and legacy volume input shapes');
+  requireText('[[ "$EXPECTED_VOLUME_ID" != "$EXPECTED_LEGACY_VOLUME_ID" ]]', 'active and legacy volume distinction');
+  requireText('[[ "$ROLLBACK_SOURCE_SHA" != "$APPLICATION_SHA" ]]', 'strictly distinct rollback source');
+  requireText('git merge-base --is-ancestor "$ROLLBACK_SOURCE_SHA" "$APPLICATION_SHA"', 'rollback source ancestor proof');
+  requireText('[[ "$ROLLBACK_IMAGE" == "$EXPECTED_CURRENT_IMAGE" ]]', 'rollback/current image identity');
+  requireText('rollback_source_sha: process.env.ROLLBACK_SOURCE_SHA', 'rollback source receipt binding');
+  if (countOf(active, 'rollback_source_sha: process.env.ROLLBACK_SOURCE_SHA') !== 2 || !active.includes('rollback_source_sha: e.ROLLBACK_SOURCE_SHA')) fail('all three prepare-release receipts do not bind rollback source SHA');
+  requireText('expected_legacy_volume_id: process.env.EXPECTED_LEGACY_VOLUME_ID', 'legacy volume receipt binding');
+  if (countOf(active, 'expected_legacy_volume_id: process.env.EXPECTED_LEGACY_VOLUME_ID') !== 2 || !active.includes('expected_legacy_volume_id: e.EXPECTED_LEGACY_VOLUME_ID')) fail('all three prepare-release receipts do not bind the legacy volume ID');
+  requireText('EXPECTED_APP_URL = "https://app.assesssuite.com"', 'exact application URL in both configs');
+  if (countOf(active, 'EXPECTED_APP_URL = "https://app.assesssuite.com"') < 2) fail('prepare-release does not validate both exact app URL configs');
+  if (publish.includes('io.assesssuite.rollback-proof') || publish.includes('io.assesssuite.trusted-workflow')) fail('prepare-release incorrectly requires rollback-only labels on the frozen current candidate image');
+  requireText('source = "assesssuite_data_r12"', 'prepare-release active r12 volume mount source');
   if (!gates.includes("python3 -I - fly.production.toml <<'PY'")) {
     fail('prepare-release gates do not invoke the isolated semantic Fly process contract');
   }
@@ -2741,7 +3037,7 @@ function validatePrepareReleaseWorkflow(input) {
     'Validate trusted dispatch context and inputs','Check out exact application SHA','Verify exact SHA and remote branch tip',
     'Set up Node.js 24','Validate Fly and Docker credential/topology boundary','Install locked dependencies',
     'Fail-closed dependency vulnerability audit','Validate the exact trusted workflow control',
-    'Require the referral assurance entrypoints and reviewed canary code','Build','Typecheck against exact production-base differential',
+    'Require the referral assurance entrypoints and reviewed canary code','Build and verify split-hosting surfaces','Typecheck against exact production-base differential',
     'Lint with exact legacy-baseline containment','Existing deterministic server and entry-guard gates','Existing seeded launch-gate suite',
     'Existing public-evidence service gates','Mission assurance aggregate','Rendered referral browser journey gate',
     'Secret and high-entropy diff scan','Build exact candidate image locally without credentials',
@@ -2752,6 +3048,25 @@ function validatePrepareReleaseWorkflow(input) {
   if (JSON.stringify(stepsIn(gates)) !== JSON.stringify(expectedGateSteps)) fail('prepare-release gate steps differ');
   if (JSON.stringify(stepsIn(publish)) !== JSON.stringify(expectedPublishSteps)) fail('prepare-release publication steps differ');
   if (JSON.stringify(stepsIn(compatibility)) !== JSON.stringify(expectedCompatibilitySteps)) fail('prepare-release compatibility steps differ');
+  requireText("for (const script of ['build:platform', 'build:landing', 'verify:split-build', 'test:split-hosting'])", 'complete split-hosting package-script declaration');
+  requireText('if (!pkg.scripts?.[script])', 'fail-closed split-hosting package-script check');
+  for (const script of ['build:platform', 'build:landing', 'verify:split-build', 'test:split-hosting']) {
+    if (!gates.includes(`npm run ${script}`)) fail('prepare-release split-hosting gate is not executed: ' + script);
+  }
+  for (const [needle, label] of [
+    ['is_prohibited_release_filename() {', 'release filename predicate'],
+    ['local normalized=${changed_file,,}', 'case-normalized filename check'],
+    ['if [[ "$changed_file" == \'.env.example\' ]]; then', 'exact root .env.example exception'],
+    ['"$normalized" =~ (^|/)\\.env($|\\.)', 'all other .env and .env.* filenames prohibited'],
+    ['"$normalized" =~ (^|/)(credentials?|secrets?)\\.(json|txt|pem|key)$', 'credential filename prohibition'],
+    ['done < <(git diff --name-only -z "$PRODUCTION_BASE_SHA"...HEAD)', 'NUL-safe exact release filename diff'],
+    ['if is_prohibited_release_filename "$changed_file"; then', 'filename predicate invocation'],
+    ['if [[ -s "$prohibited_file_list" ]]; then', 'nonempty prohibited filename refusal'],
+    ['git diff --binary "$PRODUCTION_BASE_SHA"...HEAD >"$RUNNER_TEMP/release.diff"', 'unfiltered release content scan input'],
+  ]) requireText(needle, label);
+  if (active.includes('*/.env.example') || active.includes(':!.env.example')) {
+    fail('prepare-release broadens or removes the one exact root .env.example content-scanned exception');
+  }
 
   const actions = [...active.matchAll(/^\s*uses:\s*([^\s#]+)(?:\s*#.*)?$/gm)].map((match) => match[1]);
   if (actions.length !== 12) fail('prepare-release pinned action count differs');
@@ -2777,9 +3092,13 @@ function validatePrepareReleaseWorkflow(input) {
     '[[ "$(grep -Fxc "# $marker=PASS" "$proof_log")" -eq 1 ]]',
     'release_control_artifact_id: process.env.RELEASE_CONTROL_ARTIFACT_ID',
     'release_control_artifact_digest: process.env.RELEASE_CONTROL_ARTIFACT_DIGEST',
+    "schema_version: 'assesssuite.exact-image-compatibility-receipt.v2'",
+    'expected_volume_id: process.env.EXPECTED_VOLUME_ID',
+    'expected_legacy_volume_id: process.env.EXPECTED_LEGACY_VOLUME_ID',
   ]) if (!compatibility.includes(needle)) fail('prepare-release compatibility boundary missing ' + needle);
+  requireText("schema_version: 'assesssuite.image-publication-receipt.v2'", 'prepare-release publication receipt v2');
   for (const needle of [
-    "schema_version: 'assesssuite.deploy-bundle-manifest.v1'", "result: 'PASS'",
+    "schema_version: 'assesssuite.deploy-bundle-manifest.v2'", "result: 'PASS'",
     "expected_files=$'candidate-build-receipt.json\\ncompatibility-receipt.json\\ndeploy-bundle-manifest.json\\nfly.production.toml\\nfly.rollback.production.toml\\npublication-receipt.json'",
     '[[ "$actual_files" == "$expected_files" ]]', 'name: deploy-bundle-${{ needs.gates.outputs.application_sha }}',
     'retention-days: 3', 'path: ${{ runner.temp }}/deploy-bundle',
@@ -2850,6 +3169,21 @@ function deployMutationCasesV2(source) {
   replace('publication-hash-link-bypass', "          same(manifest.publication_receipt_sha256, digest('publication-receipt.json'), 'Publication receipt hash');", '          true;');
   replace('compatibility-hash-link-bypass', "          same(manifest.compatibility_receipt_sha256, digest('compatibility-receipt.json'), 'Compatibility receipt hash');", '          true;');
   replace('run-attempt-link-bypass', "          same(manifest.publication_run_attempt, e.PREPARATION_RUN_ATTEMPT, 'Manifest run attempt');", '          true;');
+  replaceEvery('rollback-source-input-rebound-to-candidate', '          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}', '          ROLLBACK_SOURCE_SHA: ${{ inputs.application_sha }}', 3);
+  replaceEvery('legacy-volume-input-rebound-to-active', '          EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}', '          EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_volume_id }}', 3);
+  replace('volume-id-distinction-bypassed', '          [[ "$EXPECTED_VOLUME_ID" != "$EXPECTED_LEGACY_VOLUME_ID" ]]', '          true');
+  replaceEvery('derived-rollback-release-rebound-to-candidate', '          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_source_sha }}', '          ROLLBACK_RELEASE_SHA: ${{ inputs.application_sha }}', 2);
+  replace('rollback-image-current-identity-bypassed', '          [[ "$ROLLBACK_IMAGE" == "$EXPECTED_CURRENT_IMAGE" ]]', '          true');
+  replace('rollback-ancestor-merge-base-bypassed', '              row.merge_base_commit?.sha !== process.env.ROLLBACK_SOURCE_SHA ||', '              false ||');
+  replace('manifest-rollback-source-bypass', "          same(manifest.rollback_source_sha, e.ROLLBACK_SOURCE_SHA, 'Manifest rollback source SHA');", '          true;');
+  replace('manifest-legacy-volume-bypass', "          same(manifest.expected_legacy_volume_id, e.EXPECTED_LEGACY_VOLUME_ID, 'Manifest legacy volume ID');", '          true;');
+  replace('manifest-expected-current-rollback-image-bypass', "          same(manifest.rollback_image_ref, e.EXPECTED_CURRENT_IMAGE, 'Manifest expected current image ref');", '          true;');
+  replace('pre-mutation-app-version-rebound-to-candidate', "read_version 'https://app.assesssuite.com' \"$ROLLBACK_SOURCE_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"", "read_version 'https://app.assesssuite.com' \"$APPLICATION_SHA\" \"$RUNNER_TEMP/pre-mutation-app-version.json\"");
+  replace('postrollback-old-landing-marker-removed', "              'Exercise Physiology at its Clinical Best.',", "              'unrelated marker',");
+  replace('postrollback-legal-app-routes-removed', '              for route in legal/privacy login; do', '              for route in root-only; do');
+  replace('postrollback-topology-check-removed', '            if ! assert_volume_snapshot_policy postrollback "$EXPECTED_VOLUME_ID" "$EXPECTED_MACHINE_ID"; then', '            if false; then');
+  replace('candidate-expected-app-url-check-removed', '          [[ "$(grep -Fxc \'  EXPECTED_APP_URL = "https://app.assesssuite.com"\' "$candidate_config")" -eq 1 ]]', '          true');
+  replace('app-url-secret-staging-mutated', 'fly secrets set APP_URL=https://app.assesssuite.com --stage --app "$app"', 'fly secrets set APP_URL=https://assesssuite.com --stage --app "$app"');
   replace(
     'mutable-candidate-ref',
     '          PREPARATION_RUN_ID: ${{ inputs.preparation_run_id }}\n          CANDIDATE_IMAGE_REF: registry.fly.io/assesssuite-production@${{ inputs.application_image_digest }}',
@@ -3453,7 +3787,103 @@ function deployMutationCasesV2(source) {
     'deploy-github-control-timeouts-removed',
     "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --max-time 60",
     "curl --proto '=https' --tlsv1.2 --fail --silent --show-error",
-    3,
+    4,
+  );
+  replace(
+    'deploy-topology-config-source-reverted',
+    'source = "assesssuite_data_r12"',
+    'source = "assesssuite_data"',
+  );
+  replaceWithin(
+    'deploy-topology-two-volume-count-bypassed',
+    '          assert_topology() {',
+    '          volume_identity() {',
+    '          if (volumes.length !== 2) throw new Error(`Expected exactly two Fly volumes; found ${volumes.length}`);',
+    '          if (false) throw new Error();',
+  );
+  replaceWithin(
+    'deploy-topology-volume-name-uniqueness-bypassed',
+    '          assert_topology() {',
+    '          volume_identity() {',
+    '              new Set(volumes.map((row) => row.name)).size !== 2) {',
+    '              false) {',
+  );
+  replaceWithin(
+    'deploy-topology-active-selector-changed',
+    '          assert_topology() {',
+    '          volume_identity() {',
+    "          const volume = volumes.find((row) => row.name === 'assesssuite_data_r12');",
+    "          const volume = volumes.find((row) => row.name === 'assesssuite_data');",
+  );
+  replaceWithin(
+    'deploy-topology-active-id-unbound',
+    '          assert_topology() {',
+    '          volume_identity() {',
+    '          if (process.env.EXPECTED_VOLUME_ID && volume.id !== process.env.EXPECTED_VOLUME_ID) {',
+    '          if (false) {',
+  );
+  replaceWithin(
+    'deploy-topology-machine-state-bypassed',
+    '          assert_topology() {',
+    '          volume_identity() {',
+    "          if ((machine.region ?? machine.Region) !== 'syd' || machine.state !== 'started') {",
+    "          if ((machine.region ?? machine.Region) !== 'syd' || false) {",
+  );
+  replaceWithin(
+    'deploy-topology-legacy-detachment-bypassed',
+    '          assert_topology() {',
+    '          volume_identity() {',
+    '              legacyVolume.attached_machine_id !== null || legacyVolume.attached_alloc_id !== null ||',
+    '              false ||',
+  );
+  replaceWithin(
+    'deploy-topology-legacy-policy-bypassed',
+    '          assert_topology() {',
+    '          volume_identity() {',
+    '              legacyVolume.snapshot_retention !== 5 || legacyVolume.auto_backup_enabled !== true) {',
+    '              false) {',
+  );
+  replaceWithin(
+    'deploy-topology-active-attachment-bypassed',
+    '          assert_topology() {',
+    '          volume_identity() {',
+    '              volume.attached_machine_id !== machineId || volume.snapshot_retention !== 5 ||',
+    '              false || volume.snapshot_retention !== 5 ||',
+  );
+  replaceWithin(
+    'deploy-topology-active-policy-bypassed',
+    '          assert_topology() {',
+    '          volume_identity() {',
+    '              volume.auto_backup_enabled !== true) {',
+    '              false) {',
+  );
+  replaceWithin(
+    'deploy-topology-legacy-id-bypassed',
+    '          assert_topology() {',
+    '          volume_identity() {',
+    '          if (legacyVolume.id !== process.env.EXPECTED_LEGACY_VOLUME_ID || legacyVolume.state !== \'created\' ||',
+    '          if (false || legacyVolume.state !== \'created\' ||',
+  );
+  replaceWithin(
+    'deploy-topology-legacy-state-bypassed',
+    '          assert_topology() {',
+    '          volume_identity() {',
+    "legacyVolume.state !== 'created'",
+    'false',
+  );
+  replaceWithin(
+    'deploy-topology-legacy-encryption-bypassed',
+    '          assert_topology() {',
+    '          volume_identity() {',
+    'legacyVolume.encrypted !== true',
+    'false',
+  );
+  replaceWithin(
+    'deploy-topology-active-mount-volume-bypassed',
+    '          assert_topology() {',
+    '          volume_identity() {',
+    'mounts[0]?.volume !== volume.id',
+    'false',
   );
   replace('postrollback-secret-check-removed', '            if ! assert_secret_name_boundary postrollback forbid; then', '            if false; then');
   replace('validator-pin-mutated', '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + '0'.repeat(64));
@@ -3463,6 +3893,14 @@ function deployMutationCasesV2(source) {
 function prepareReleaseMutationCases(source) {
   const cases = [];
   const replace = (name, from, to) => cases.push({ name, mutate: (value) => replaceOnce(value, from, to, name) });
+  const replaceEvery = (name, from, to, expected) => cases.push({
+    name,
+    mutate: (value) => {
+      const found = countOf(value, from);
+      if (found !== expected) throw new Error(`mutation ${name} expected ${expected} targets, found ${found}`);
+      return value.replaceAll(from, to);
+    },
+  });
   replace('trigger-push', 'on:\n  workflow_dispatch:', 'on:\n  push:\n    branches: [main]\n  workflow_dispatch:');
   replace('permissions-write', 'permissions:\n  contents: read', 'permissions:\n  contents: write');
   replace('input-interface-expanded', '      confirmation:\n', '      unsafe_override:\n        required: true\n        type: string\n      confirmation:\n');
@@ -3590,9 +4028,124 @@ function prepareReleaseMutationCases(source) {
       '          fi\n' +
       '          docker pull "$ROLLBACK_IMAGE" >/dev/null',
   );
+  replace(
+    'prepare-release-topology-config-source-reverted',
+    'source = "assesssuite_data_r12"',
+    'source = "assesssuite_data"',
+  );
+  cases.push({
+    name: 'prepare-release-rollback-source-rebound-to-candidate',
+    mutate: (value) => {
+      const from = '          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}';
+      if (countOf(value, from) !== 6) throw new Error('mutation prepare-release-rollback-source-rebound-to-candidate expected six targets');
+      return value.replaceAll(from, '          ROLLBACK_SOURCE_SHA: ${{ inputs.application_sha }}');
+    },
+  });
+  cases.push({
+    name: 'prepare-release-legacy-volume-input-rebound-to-active',
+    mutate: (value) => {
+      const from = '          EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}';
+      if (countOf(value, from) !== 5) throw new Error('mutation prepare-release-legacy-volume-input-rebound-to-active expected five targets');
+      return value.replaceAll(from, '          EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_volume_id }}');
+    },
+  });
+  replaceEvery('prepare-release-volume-distinction-bypassed', '          [[ "$EXPECTED_VOLUME_ID" != "$EXPECTED_LEGACY_VOLUME_ID" ]]', '          true', 2);
+  replace('prepare-release-ancestor-proof-bypassed', '          git merge-base --is-ancestor "$ROLLBACK_SOURCE_SHA" "$APPLICATION_SHA"', '          true');
+  replace('prepare-release-rollback-current-image-identity-bypassed', '          [[ "$ROLLBACK_IMAGE" == "$EXPECTED_CURRENT_IMAGE" ]]', '          true');
+  cases.push({
+    name: 'prepare-release-publication-rollback-source-receipt-rebound',
+    mutate: (value) => {
+      const from = '            rollback_source_sha: process.env.ROLLBACK_SOURCE_SHA,';
+      if (countOf(value, from) !== 2) throw new Error('mutation prepare-release-publication-rollback-source-receipt-rebound expected two targets');
+      return value.replaceAll(from, '            rollback_source_sha: process.env.APPLICATION_SHA,');
+    },
+  });
+  cases.push({
+    name: 'prepare-release-legacy-volume-receipts-rebound-to-active',
+    mutate: (value) => {
+      const from = 'expected_legacy_volume_id: process.env.EXPECTED_LEGACY_VOLUME_ID';
+      if (countOf(value, from) !== 2) throw new Error('mutation prepare-release-legacy-volume-receipts-rebound-to-active expected two targets');
+      return value.replaceAll(from, 'expected_legacy_volume_id: process.env.EXPECTED_VOLUME_ID');
+    },
+  });
+  replace('prepare-release-manifest-legacy-volume-rebound-to-active', '            expected_legacy_volume_id: e.EXPECTED_LEGACY_VOLUME_ID,', '            expected_legacy_volume_id: e.EXPECTED_VOLUME_ID,');
+  replace('prepare-release-platform-build-removed', '          npm run build:platform', '          true');
+  replace('prepare-release-landing-build-removed', '          npm run build:landing', '          true');
+  replace('prepare-release-split-build-verification-removed', '          npm run verify:split-build', '          true');
+  replace('prepare-release-split-hosting-test-removed', '          npm run test:split-hosting', '          true');
+  replace('prepare-release-env-example-exception-broadened', '            if [[ "$changed_file" == \'.env.example\' ]]; then', '            if [[ "$changed_file" == \'.env.example\' || "$changed_file" == */.env.example ]]; then');
+  replace('prepare-release-env-filename-gate-weakened', '            if [[ "$normalized" =~ (^|/)\\.env($|\\.) \\', '            if [[ "$normalized" =~ (^|/)\\.env$ \\');
+  replace('prepare-release-filename-predicate-bypassed', '            if is_prohibited_release_filename "$changed_file"; then', '            if false; then');
+  replace('prepare-release-env-example-removed-from-content-scan', '          git diff --binary "$PRODUCTION_BASE_SHA"...HEAD >"$RUNNER_TEMP/release.diff"', '          git diff --binary "$PRODUCTION_BASE_SHA"...HEAD -- . \':!.env.example\' >"$RUNNER_TEMP/release.diff"');
+  replace('prepare-release-candidate-expected-app-url-check-removed', '          [[ "$(grep -Fxc \'  EXPECTED_APP_URL = "https://app.assesssuite.com"\' fly.production.toml)" -eq 1 ]]', '          true');
   replace('confirmation-weakened', '          [[ "$CONFIRMATION" == "PREPARE assesssuite-production EXACT SHA" ]]', '          [[ -n "$CONFIRMATION" ]]');
   replace('validator-pin-mutated', '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + '0'.repeat(64));
   return cases;
+}
+
+const RETIRED_PREPARE_ROLLBACK_WORKFLOW = `name: RETIRED - Production prepare rollback image
+
+on:
+  workflow_dispatch:
+    inputs:
+      acknowledgement:
+        description: Type RETIRED to acknowledge that this operator path is obsolete
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assesssuite-production
+  cancel-in-progress: false
+
+jobs:
+  retired:
+    name: Refuse obsolete compatibility-image preparation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 1
+    steps:
+      - name: Retired workflow refuses execution
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'This operator path is retired. Use production-prepare-release.yml with the dispatch-frozen current production image.' >&2
+          exit 1
+`;
+
+function validateRetiredPrepareRollbackWorkflow(input) {
+  const source = normalized(input);
+  const failures = [];
+  if (source !== RETIRED_PREPARE_ROLLBACK_WORKFLOW) {
+    failures.push('retired rollback-image workflow differs from the exact fail-closed tombstone');
+  }
+  for (const forbidden of [
+    '${{ secrets.', 'uses:', 'FLY_API_TOKEN', 'fly deploy', 'fly volumes',
+    'docker ', 'npm ', 'node ', 'curl ', 'gh ', 'contents: write', 'continue-on-error:',
+  ]) {
+    if (withoutCommentOnlyLines(source).includes(forbidden)) {
+      failures.push('retired rollback-image workflow contains executable or privileged control ' + forbidden);
+    }
+  }
+  return failures;
+}
+
+function retiredPrepareRollbackMutationCases() {
+  const replace = (name, from, to) => ({
+    name,
+    mutate: (value) => replaceOnce(value, from, to, name),
+  });
+  return [
+    replace('retired-name-reactivated', 'name: RETIRED - Production prepare rollback image', 'name: Production prepare rollback image'),
+    replace('retired-trigger-expanded', 'on:\n  workflow_dispatch:', 'on:\n  push:\n    branches: [main]\n  workflow_dispatch:'),
+    replace('retired-input-made-optional', '        required: true', '        required: false'),
+    replace('retired-permission-expanded', '  contents: read', '  contents: write'),
+    replace('retired-timeout-expanded', '    timeout-minutes: 1', '    timeout-minutes: 60'),
+    replace('retired-refusal-removed', '          exit 1', '          exit 0'),
+    replace('retired-secret-injected', '        shell: bash', '        env:\n          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n        shell: bash'),
+    replace('retired-production-command-injected', '          exit 1', '          fly deploy --app assesssuite-production --yes\n          exit 1'),
+  ];
 }
 
 const workflowName = path.basename(workflowPath);
@@ -3601,7 +4154,7 @@ const workflowKind = workflowName === 'production-deploy.yml'
   : workflowName === 'production-prepare-release.yml'
     ? 'prepare_release'
   : workflowName === 'production-prepare-rollback-image.yml'
-    ? 'prepare'
+    ? 'retired_prepare'
     : workflowName === 'production-rollback.yml'
       ? 'rollback'
       : workflowName === 'production-parity-assurance.yml'
@@ -3616,6 +4169,8 @@ const validator = workflowKind === 'deploy'
   ? validateDeployWorkflowV2
   : workflowKind === 'prepare_release'
     ? validatePrepareReleaseWorkflow
+  : workflowKind === 'retired_prepare'
+    ? validateRetiredPrepareRollbackWorkflow
   : workflowKind === 'parity'
     ? validateParityWorkflow
     : (input) => validateAuxWorkflow(input, workflowKind);
@@ -3630,6 +4185,8 @@ if (selftest) {
     ? deployMutationCasesV2(normalized(rawSource))
     : workflowKind === 'prepare_release'
       ? prepareReleaseMutationCases(normalized(rawSource))
+    : workflowKind === 'retired_prepare'
+      ? retiredPrepareRollbackMutationCases()
     : workflowKind === 'parity'
       ? parityMutationCases(normalized(rawSource))
       : auxMutationCases(normalized(rawSource), workflowKind);

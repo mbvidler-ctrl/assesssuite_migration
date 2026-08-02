@@ -16,7 +16,7 @@ This checklist is the only path from the review branch to production. Every step
 
 ## 2. Record current production state (read-only)
 The corridor pre-binds the release it is deploying *from*, so drift is impossible. Capture it immediately before deploying.
-- [ ] Run the **`production-state-snapshot`** workflow (confirmation phrase `SNAPSHOT assesssuite-production READ ONLY`). Record from its output: current `release`, `image` digest, sole `machine_id`, sole `volume_id`.
+- [ ] Run the **`production-state-snapshot`** workflow (confirmation phrase `SNAPSHOT assesssuite-production READ ONLY`). Record from its output: current `release`, image digest, sole `machine_id`, attached `assesssuite_data_r12` `volume_id`, and detached preserved `assesssuite_data` `legacy_volume_id`.
 - [ ] These four values are inputs to the deploy workflow's `expected_current_*` fields.
 
 ## 3. Prepare the release

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
-import { useAuth } from "@/lib/AuthContext";
-import { useNavigate, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
+
+const APP_ORIGIN = (import.meta.env.VITE_APP_ORIGIN || "https://app.assesssuite.com").replace(/\/$/, "");
+const appHref = (path) => `${APP_ORIGIN}${path}`;
 
 // Icon map by funder tag
 const tagIcon = (tag) => {
@@ -184,9 +185,6 @@ const countryButtons = [
 
 export default function LandingLive() {
   const [activeCountry, setActiveCountry] = useState("au");
-  const navigate = useNavigate();
-
-  const showSuccess = new URLSearchParams(window.location.search).get('success') === 'true';
 
   useEffect(() => {
     function animateCounter(id, target, suffix, duration) {
@@ -222,7 +220,6 @@ export default function LandingLive() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800;900&display=swap');
         .lp * { margin: 0; padding: 0; box-sizing: border-box; }
         .lp { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #1a1a2e; background: #fff; }
         .lp a { text-decoration: none; color: inherit; }
@@ -241,7 +238,7 @@ export default function LandingLive() {
         .lp .hero { background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%); padding: 100px 60px 90px; text-align: center; }
         .lp .hero-badge { display: inline-block; background: #dbeafe; color: #1d4ed8; font-size: 13px; font-weight: 600; padding: 6px 16px; border-radius: 100px; margin-bottom: 28px; }
         .lp .hero-company { font-size: 15px; font-weight: 700; color: #2563eb; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 14px; }
-        .lp .hero h1 { font-size: 56px; font-weight: 900; line-height: 1.1; color: #0f172a; max-width: 840px; margin: 0 auto 12px; letter-spacing: -1.5px; font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif; }
+        .lp .hero h1 { font-size: 56px; font-weight: 900; line-height: 1.1; color: #0f172a; max-width: 840px; margin: 0 auto 12px; letter-spacing: -1.5px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .lp .hero-product { font-size: 22px; font-weight: 700; color: #2563eb; margin-bottom: 24px; }
         .lp .hero p { font-size: 20px; color: #475569; max-width: 620px; margin: 0 auto 40px; line-height: 1.7; }
         .lp .hero-ctas { display: flex; flex-direction: column; align-items: center; gap: 4px; width: 100%; }
@@ -255,7 +252,7 @@ export default function LandingLive() {
         .lp .ep-strip p strong { color: #e2e8f0; }
         .lp section { padding: 90px 60px; }
         .lp .section-label { font-size: 12px; font-weight: 700; color: #2563eb; letter-spacing: 1.5px; text-transform: uppercase; margin-bottom: 12px; }
-        .lp h2 { font-size: 42px; font-weight: 800; color: #0f172a; line-height: 1.2; letter-spacing: -1px; margin-bottom: 16px; font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif; }
+        .lp h2 { font-size: 42px; font-weight: 800; color: #0f172a; line-height: 1.2; letter-spacing: -1px; margin-bottom: 16px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .lp .section-sub { font-size: 18px; color: #64748b; line-height: 1.7; max-width: 600px; margin-bottom: 52px; }
         .lp .problem { background: #fff; text-align: center; }
         .lp .problem h2 { max-width: 700px; margin: 0 auto 16px; }
@@ -288,8 +285,8 @@ export default function LandingLive() {
         .lp .feature-card:nth-child(6) .feature-icon { --bg-color: transparent; }
         .lp .feature-card:nth-child(7) .feature-icon { --bg-color: transparent; }
         .lp .feature-card:nth-child(8) .feature-icon { --bg-color: transparent; }
-        .lp .feature-card h3 { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 8px; text-align: left; letter-spacing: -0.3px; font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif; }
-        .lp .feature-card p { font-size: 14px; color: #64748b; line-height: 1.6; text-align: left; font-weight: 400; font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, sans-serif; }
+        .lp .feature-card h3 { font-size: 16px; font-weight: 700; color: #0f172a; margin-bottom: 8px; text-align: left; letter-spacing: -0.3px; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+        .lp .feature-card p { font-size: 14px; color: #64748b; line-height: 1.6; text-align: left; font-weight: 400; font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
         .lp .feature-card-content { flex: 1; }
         .lp .library { background: linear-gradient(135deg, #f0f7ff 0%, #e8f4fd 50%, #f0fdf4 100%); position: relative; text-align: center; overflow: hidden; }
         .lp .library .section-label { color: #2563eb; }
@@ -408,23 +405,10 @@ export default function LandingLive() {
       `}</style>
 
       <div className="lp">
-        {showSuccess && (
-          <div style={{ background: '#d1fae5', borderBottom: '2px solid #10b981', padding: '20px', textAlign: 'center', position: 'sticky', top: 0, zIndex: 999 }}>
-            <p style={{ fontSize: '18px', fontWeight: '600', color: '#065f46', margin: '0 0 10px 0' }}>
-              🎉 Payment successful! Welcome to AssessSuite Clinical.
-            </p>
-            <p style={{ color: '#047857', margin: '0 0 14px 0' }}>
-              Click below to create your account and get started.
-            </p>
-            <a href="https://assesssuite.com" style={{ background: '#10b981', color: 'white', padding: '10px 24px', borderRadius: '8px', textDecoration: 'none', fontWeight: '600' }}>
-              Create Your Account →
-            </a>
-          </div>
-        )}
         <nav>
           <div className="nav-brand">
             <div style={{height: "56px", overflow: "hidden", display: "flex", alignItems: "center"}}>
-              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/358c0c514_Logo-Transparent1.png" alt="AssessSuite Clinical" style={{height: "200px", width: "auto", marginTop: "-70px", marginBottom: "-70px"}} />
+              <img src="/assets/assesssuite-logo-header.png" alt="AssessSuite Clinical" style={{height: "200px", width: "auto", marginTop: "-70px", marginBottom: "-70px"}} />
             </div>
           </div>
           <div className="nav-links">
@@ -432,8 +416,8 @@ export default function LandingLive() {
             <a href="#assessments">Assessments</a>
             <a href="#reporting">Reports</a>
             <a href="#pricing">Pricing</a>
-            <a onClick={() => navigate('/login')} style={{cursor:'pointer', textDecoration:'none'}}>Sign In</a>
-            <a onClick={() => navigate('/register')} className="nav-cta" style={{display:'inline-block',border: 'none', cursor: 'pointer', textDecoration:'none', color:'#fff'}}>Get Started →</a>
+            <a href={appHref('/login')} style={{cursor:'pointer', textDecoration:'none'}}>Sign In</a>
+            <a href={appHref('/register')} className="nav-cta" style={{display:'inline-block',border: 'none', cursor: 'pointer', textDecoration:'none', color:'#fff'}}>Get Started →</a>
           </div>
         </nav>
 
@@ -441,8 +425,8 @@ export default function LandingLive() {
           <h1>Exercise Physiology at its Clinical Best.</h1>
           <p>AssessSuite Clinical gives clinicians the tools to assess with greater accuracy, document more efficiently, and deliver more consistent client care. Designed specifically for Exercise Physiologists, the platform brings together assessments, clinical notes, outcome tracking, and professional reporting into one modern workflow built for growing practices and evolving healthcare systems.</p>
           <div className="hero-ctas">
-            <button onClick={() => navigate('/register')} className="btn-primary" style={{display:'inline-block',cursor:'pointer',border:'none'}}>Get Started →</button>
-            <p style={{marginTop:'14px',fontSize:'0.95rem',color:'#475569'}}>Already using AssessSuite? <a onClick={() => navigate('/login')} style={{cursor:'pointer',textDecoration:'underline',fontWeight:600,color:'#2563eb'}}>Sign in</a></p>
+            <a href={appHref('/register')} className="btn-primary" style={{display:'inline-block',cursor:'pointer',border:'none',textDecoration:'none'}}>Get Started →</a>
+            <p style={{marginTop:'14px',fontSize:'0.95rem',color:'#475569'}}>Already using AssessSuite? <a href={appHref('/login')} style={{cursor:'pointer',textDecoration:'underline',fontWeight:600,color:'#2563eb'}}>Sign in</a></p>
           </div>
         </section>
 
@@ -452,25 +436,25 @@ export default function LandingLive() {
 
           <div className="screenshot-row">
             <div className="screenshot-card">
-              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/f3de54057_image.png" alt="10-Metre Walk Test with clinician instructions" />
+              <img src="/assets/walk-test-instructions.png" alt="10-Metre Walk Test with clinician instructions" />
             </div>
             <div className="screenshot-card">
-              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/5eb559ca6_image.png" alt="Trial runner showing gait speed measurements" />
+              <img src="/assets/gait-speed-runner.png" alt="Trial runner showing gait speed measurements" />
             </div>
             <div className="screenshot-card">
-              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/e9df29d41_image.png" alt="Visual ROM Assessment — joint selector" />
+              <img src="/assets/rom-joint-selector.png" alt="Visual ROM Assessment — joint selector" />
             </div>
             <div className="screenshot-card">
-              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/07f2f5d2f_image.png" alt="Assessment summary with ROM results" />
+              <img src="/assets/rom-assessment-summary.png" alt="Assessment summary with ROM results" />
             </div>
             <div className="screenshot-card">
-              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/63773537e_image.png" alt="DASS-21 questionnaire with instructions" />
+              <img src="/assets/dass21-questionnaire.png" alt="DASS-21 questionnaire with instructions" />
             </div>
             <div className="screenshot-card">
-              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/a0e2d7fd0_image.png" alt="DASS-21 results and clinical interpretation" />
+              <img src="/assets/dass21-results.png" alt="DASS-21 results and clinical interpretation" />
             </div>
             <div className="screenshot-card">
-              <img src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/262107ccf_image.png" alt="PHQ-9 mental health questionnaire runner" />
+              <img src="/assets/phq9-questionnaire.png" alt="PHQ-9 mental health questionnaire runner" />
             </div>
           </div>
 
@@ -526,7 +510,7 @@ export default function LandingLive() {
                <ul className="pricing-features">
                  {["Unlimited assessments","Unlimited clients","All 226+ EP assessments","Automated SOAP notes","Full report generation","Multi-clinician support","All future updates included"].map(f => <li key={f}>{f}</li>)}
                </ul>
-               <button onClick={() => navigate('/register')} className="btn-primary" style={{width:"100%",textAlign:"center",display:"block",border:'none',cursor:'pointer',color:'#fff'}}>Get Started →</button>
+               <a href={appHref('/register')} className="btn-primary" style={{width:"100%",textAlign:"center",display:"block",border:'none',cursor:'pointer',color:'#fff',textDecoration:'none'}}>Get Started →</a>
              </div>
              <div className="pricing-card featured">
                <div className="popular-badge">BEST VALUE</div>
@@ -537,7 +521,7 @@ export default function LandingLive() {
                <ul className="pricing-features">
                  {["Unlimited assessments","Unlimited clients","All 226+ EP assessments","Automated SOAP notes","Full report generation","Multi-clinician support","All future updates included"].map(f => <li key={f}>{f}</li>)}
                </ul>
-               <button onClick={() => navigate('/register')} className="btn-primary" style={{width:"100%",textAlign:"center",display:"block",border:'none',cursor:'pointer',color:'#fff'}}>Get Started →</button>
+               <a href={appHref('/register')} className="btn-primary" style={{width:"100%",textAlign:"center",display:"block",border:'none',cursor:'pointer',color:'#fff',textDecoration:'none'}}>Get Started →</a>
              </div>
            </div>
            <p className="pricing-note">One subscription = one clinician. Each EP in your practice needs their own subscription.</p>
@@ -591,14 +575,14 @@ export default function LandingLive() {
         <section className="final-cta">
           <h2>Ready to spend less time documenting<br />and more time with clients?</h2>
           <p>Join Exercise Physiologists already using AssessSuite Clinical to run better assessments, write better reports, and reclaim their clinical time.</p>
-          <button onClick={() => navigate('/register')} className="btn-white" style={{display:"inline-block",border:'none',cursor:'pointer',color:'#fff'}}>Sign In / Sign Up →</button>
+          <a href={appHref('/register')} className="btn-white" style={{display:"inline-block",border:'none',cursor:'pointer',color:'#fff',textDecoration:'none'}}>Sign In / Sign Up →</a>
         </section>
 
         <footer>
           <div className="footer-top">
             <div className="footer-brand">
               <img 
-                src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/29dfd4c64_Logo-Transparent1.png" 
+                src="/assets/assesssuite-logo-footer.png"
                 alt="AssessSuite Clinical Logo" 
                 style={{maxWidth: "180px", marginBottom: "12px", filter: "brightness(0) invert(1)"}}
               />
@@ -625,6 +609,8 @@ export default function LandingLive() {
               <div className="footer-col-title">Legal</div>
               <Link to="/legal/privacy" style={{color:"#fff"}}>Privacy Policy</Link>
               <Link to="/legal/terms" style={{color:"#fff"}}>Terms of Service</Link>
+              <Link to="/legal/cookies" style={{color:"#fff"}}>Analytics Notice</Link>
+              <Link to="/legal/subprocessors" style={{color:"#fff"}}>Subprocessors</Link>
             </div>
           </div>
 

@@ -19,8 +19,24 @@ on:
         description: Reviewed SHA-256 of the exact fly.rollback.production.toml Git blob from the same main commit (LF bytes)
         required: true
         type: string
+      rollback_source_sha:
+        description: Exact 40-character ancestor commit encoded by the immutable rollback image
+        required: true
+        type: string
+      expected_current_image:
+        description: Current immutable registry.fly.io/assesssuite-production image digest reference; must be the rollback image
+        required: true
+        type: string
+      expected_volume_id:
+        description: Exact attached assesssuite_data_r12 Fly Volume ID from the production-state snapshot
+        required: true
+        type: string
+      expected_legacy_volume_id:
+        description: Exact detached assesssuite_data Fly Volume ID from the same production-state snapshot
+        required: true
+        type: string
       rollback_image:
-        description: Prebuilt legal-version-compatible rollback image reference
+        description: Exact dispatch-frozen current image used for automatic rollback
         required: true
         type: string
       extraction_runtime_mode:
@@ -97,8 +113,11 @@ jobs:
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
           ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
           SOURCE_BRANCH: main
-          ROLLBACK_SOURCE_SHA: ${{ inputs.application_sha }}
+          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
           ROLLBACK_SOURCE_BRANCH: main
+          EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}
           ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
           CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
           AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
@@ -131,11 +150,15 @@ jobs:
           [[ "$ROLLBACK_SOURCE_BRANCH" =~ ^[A-Za-z0-9._/-]{1,180}$ ]]
           [[ "$SOURCE_BRANCH" != *".."* && "$SOURCE_BRANCH" != /* && "$SOURCE_BRANCH" != */ ]]
           [[ "$ROLLBACK_SOURCE_BRANCH" != *".."* && "$ROLLBACK_SOURCE_BRANCH" != /* && "$ROLLBACK_SOURCE_BRANCH" != */ ]]
+          [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
+          [[ "$EXPECTED_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ && "$EXPECTED_LEGACY_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]
+          [[ "$EXPECTED_VOLUME_ID" != "$EXPECTED_LEGACY_VOLUME_ID" ]]
           [[ "$ROLLBACK_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
           [[ "$SOURCE_BRANCH" == "main" ]]
           [[ "$ROLLBACK_SOURCE_BRANCH" == "main" ]]
           [[ "$APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
-          [[ "$ROLLBACK_SOURCE_SHA" == "$APPLICATION_SHA" ]]
+          [[ "$ROLLBACK_SOURCE_SHA" != "$APPLICATION_SHA" ]]
+          [[ "$ROLLBACK_IMAGE" == "$EXPECTED_CURRENT_IMAGE" ]]
           [[ "$CAPABILITY_INTENT_ID" =~ ^[A-Za-z0-9._:-]{1,160}$ ]]
           [[ "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
           git check-ref-format "refs/heads/$SOURCE_BRANCH"
@@ -155,6 +178,7 @@ jobs:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
+          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
           SOURCE_BRANCH: main
           EXTRACTION_RUNTIME_MODE: ${{ inputs.extraction_runtime_mode }}
           PROVIDER_TERMS_ATTESTATION: ${{ inputs.provider_terms_attestation }}
@@ -172,9 +196,15 @@ jobs:
           [[ "$trusted_remote_sha" == "$TRUSTED_WORKFLOW_SHA" ]]
           timeout --signal=TERM --kill-after=10s 120s git fetch --no-tags --force origin "refs/heads/main:refs/remotes/origin/main"
           git cat-file -e "$TRUSTED_WORKFLOW_SHA^{commit}"
+          git cat-file -e "$ROLLBACK_SOURCE_SHA^{commit}"
+          git merge-base --is-ancestor "$ROLLBACK_SOURCE_SHA" "$APPLICATION_SHA"
           [[ -z "$(git status --porcelain --untracked-files=no)" ]]
           [[ ! -L fly.production.toml ]]
+          [[ -f fly.rollback.production.toml && ! -L fly.rollback.production.toml ]]
           [[ "$(sha256sum fly.production.toml | awk '{print $1}')" == "$CANDIDATE_CONFIG_SHA256" ]]
+          [[ "$(sha256sum fly.rollback.production.toml | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
+          [[ "$(grep -Fxc '  EXPECTED_APP_URL = "https://app.assesssuite.com"' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Fxc '  EXPECTED_APP_URL = "https://app.assesssuite.com"' fly.rollback.production.toml)" -eq 1 ]]
 
           if grep -Eq '^[[:space:]]*DOCUMENT_EXTRACTION_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.production.toml; then
             reviewed_mode=enabled
@@ -269,7 +299,7 @@ jobs:
               if process_entries(document) != [(('http_service', 'processes'), ['app'])]:
                   raise SystemExit(f'Fly config process contract is not exact: {path.name}')
           PY
-          [[ "$(grep -Ec '^  source = "assesssuite_data"$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^  source = "assesssuite_data_r12"$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^  destination = "/app/server/data"$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^  snapshot_retention = 5$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^  scheduled_snapshots = true$' fly.production.toml)" -eq 1 ]]
@@ -290,7 +320,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 2f6a6420af00e2ae35d62df9981f00293046d3dd60e993534aaaf6d474d50f35
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 931cd44877a4ae733aa05707a7425807e0b8fc55c0f49555afcb419c8b1e603f
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -344,13 +374,22 @@ jobs:
           if (!pkg.scripts?.['test:forward-rollback-compatibility']) {
             throw new Error('Required exact-image forward/rollback compatibility gate is absent');
           }
+          for (const script of ['build:platform', 'build:landing', 'verify:split-build', 'test:split-hosting']) {
+            if (!pkg.scripts?.[script]) throw new Error(`Required split-hosting package script ${script} is absent`);
+          }
           if (!fs.existsSync('server/tests/forward-rollback-compatibility.test.mjs')) {
             throw new Error('Forward/rollback shared-store proof is absent');
           }
           NODE
 
-      - name: Build
-        run: npm run build
+      - name: Build and verify split-hosting surfaces
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run build:platform
+          npm run build:landing
+          npm run verify:split-build
+          npm run test:split-hosting
 
       - name: Typecheck against exact production-base differential
         shell: bash
@@ -484,9 +523,27 @@ jobs:
         run: |
           set -euo pipefail
           git merge-base --is-ancestor "$PRODUCTION_BASE_SHA" HEAD
-          changed_files="$(git diff --name-only "$PRODUCTION_BASE_SHA"...HEAD)"
-          if grep -Eiq '(^|/)\.env($|\.(local|production|staging|development|test)$)|(^|/)(credentials?|secrets?)\.(json|txt|pem|key)$' <<<"$changed_files"; then
-            printf '%s\n' "$changed_files"
+          is_prohibited_release_filename() {
+            local changed_file=$1
+            local normalized=${changed_file,,}
+            if [[ "$changed_file" == '.env.example' ]]; then
+              return 1
+            fi
+            if [[ "$normalized" =~ (^|/)\.env($|\.) \
+              || "$normalized" =~ (^|/)(credentials?|secrets?)\.(json|txt|pem|key)$ ]]; then
+              return 0
+            fi
+            return 1
+          }
+          prohibited_file_list="$RUNNER_TEMP/prohibited-release-files.txt"
+          : >"$prohibited_file_list"
+          while IFS= read -r -d '' changed_file; do
+            if is_prohibited_release_filename "$changed_file"; then
+              printf '%s\n' "$changed_file" >>"$prohibited_file_list"
+            fi
+          done < <(git diff --name-only -z "$PRODUCTION_BASE_SHA"...HEAD)
+          if [[ -s "$prohibited_file_list" ]]; then
+            cat "$prohibited_file_list"
             echo 'Release diff contains a prohibited secret-bearing filename.' >&2
             exit 1
           fi
@@ -671,6 +728,9 @@ jobs:
           BUILD_TIMESTAMP: ${{ needs.gates.outputs.build_timestamp }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
           ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
+          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}
           ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           CANDIDATE_IMAGE_ARTIFACT_ID: ${{ needs.gates.outputs.candidate_image_artifact_id }}
@@ -696,9 +756,7 @@ jobs:
           timeout --signal=TERM --kill-after=30s 300s docker pull "$ROLLBACK_IMAGE" >/dev/null
           rollback_image_id="$(docker image inspect "$ROLLBACK_IMAGE" --format '{{.Id}}')"
           [[ "$rollback_image_id" =~ ^sha256:[0-9a-f]{64}$ ]]
-          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$APPLICATION_SHA" ]]
-          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "io.assesssuite.trusted-workflow" }}')" == "$TRUSTED_WORKFLOW_SHA" ]]
-          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "io.assesssuite.rollback-proof" }}')" == 'registering-state+39-field-per-file-merge+age-quarantine+referral-commit-receipt-replay' ]]
+          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$ROLLBACK_SOURCE_SHA" ]]
           mkdir -p "$RUNNER_TEMP/publication"
           docker save "$ROLLBACK_IMAGE" | gzip -1 -n >"$RUNNER_TEMP/publication/rollback-image.tar.gz"
           rollback_archive_sha256="$(sha256sum "$RUNNER_TEMP/publication/rollback-image.tar.gz" | awk '{print $1}')"
@@ -710,8 +768,11 @@ jobs:
             env -u FLY_API_TOKEN node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const row = {
-            schema_version: 'assesssuite.image-publication-receipt.v1',
+            schema_version: 'assesssuite.image-publication-receipt.v2',
             application_sha: process.env.APPLICATION_SHA,
+            rollback_source_sha: process.env.ROLLBACK_SOURCE_SHA,
+            expected_volume_id: process.env.EXPECTED_VOLUME_ID,
+            expected_legacy_volume_id: process.env.EXPECTED_LEGACY_VOLUME_ID,
             workflow_sha: process.env.TRUSTED_WORKFLOW_SHA,
             source_branch: process.env.SOURCE_BRANCH,
             build_timestamp: process.env.BUILD_TIMESTAMP,
@@ -803,6 +864,9 @@ jobs:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
           ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
+          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}
           ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
           CANDIDATE_IMAGE_REF: ${{ needs.publish_image.outputs.candidate_image_ref }}
           CANDIDATE_IMAGE_ARTIFACT_ID: ${{ needs.gates.outputs.candidate_image_artifact_id }}
@@ -820,10 +884,10 @@ jobs:
           PUBLICATION="$publication" node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const row = JSON.parse(fs.readFileSync(process.env.PUBLICATION, 'utf8'));
-          const keys = ['schema_version','application_sha','workflow_sha','source_branch','build_timestamp','candidate_config_sha256','rollback_config_sha256','candidate_image_artifact_id','candidate_image_artifact_digest','candidate_archive_sha256','candidate_image_id','candidate_registry_digest','candidate_image_ref','rollback_image_ref','rollback_image_id','rollback_archive_sha256','github_run_id','github_run_attempt','published_at'].sort();
+          const keys = ['schema_version','application_sha','rollback_source_sha','expected_volume_id','expected_legacy_volume_id','workflow_sha','source_branch','build_timestamp','candidate_config_sha256','rollback_config_sha256','candidate_image_artifact_id','candidate_image_artifact_digest','candidate_archive_sha256','candidate_image_id','candidate_registry_digest','candidate_image_ref','rollback_image_ref','rollback_image_id','rollback_archive_sha256','github_run_id','github_run_attempt','published_at'].sort();
           if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys)) throw new Error('Publication receipt keys differ');
           const e = process.env;
-          for (const [key, value] of [['application_sha',e.APPLICATION_SHA],['workflow_sha',e.TRUSTED_WORKFLOW_SHA],['source_branch',e.SOURCE_BRANCH],['build_timestamp',e.BUILD_TIMESTAMP],['candidate_config_sha256',e.CANDIDATE_CONFIG_SHA256],['rollback_config_sha256',e.ROLLBACK_CONFIG_SHA256],['candidate_image_artifact_id',e.CANDIDATE_IMAGE_ARTIFACT_ID],['candidate_image_artifact_digest',e.CANDIDATE_IMAGE_ARTIFACT_DIGEST],['candidate_image_ref',e.CANDIDATE_IMAGE_REF],['rollback_image_ref',e.ROLLBACK_IMAGE]]) if (row[key] !== value) throw new Error(`Publication ${key} differs`);
+          for (const [key, value] of [['application_sha',e.APPLICATION_SHA],['rollback_source_sha',e.ROLLBACK_SOURCE_SHA],['expected_volume_id',e.EXPECTED_VOLUME_ID],['expected_legacy_volume_id',e.EXPECTED_LEGACY_VOLUME_ID],['workflow_sha',e.TRUSTED_WORKFLOW_SHA],['source_branch',e.SOURCE_BRANCH],['build_timestamp',e.BUILD_TIMESTAMP],['candidate_config_sha256',e.CANDIDATE_CONFIG_SHA256],['rollback_config_sha256',e.ROLLBACK_CONFIG_SHA256],['candidate_image_artifact_id',e.CANDIDATE_IMAGE_ARTIFACT_ID],['candidate_image_artifact_digest',e.CANDIDATE_IMAGE_ARTIFACT_DIGEST],['candidate_image_ref',e.CANDIDATE_IMAGE_REF],['rollback_image_ref',e.ROLLBACK_IMAGE]]) if (row[key] !== value) throw new Error(`Publication ${key} differs`);
           if (!/^sha256:[0-9a-f]{64}$/.test(row.candidate_image_id) || !/^sha256:[0-9a-f]{64}$/.test(row.rollback_image_id) || !/^sha256:[0-9a-f]{64}$/.test(row.candidate_registry_digest) || !/^[0-9a-f]{64}$/.test(row.candidate_archive_sha256) || !/^[0-9a-f]{64}$/.test(row.rollback_archive_sha256)) throw new Error('Publication digest shape differs');
           NODE
           (cd "$RUNNER_TEMP/candidate-image" && sha256sum --check --strict candidate-image.tar.gz.sha256)
@@ -866,8 +930,10 @@ jobs:
             node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const row = {
-            schema_version: 'assesssuite.exact-image-compatibility-receipt.v1', result: 'PASS',
+            schema_version: 'assesssuite.exact-image-compatibility-receipt.v2', result: 'PASS',
             workflow_sha: process.env.TRUSTED_WORKFLOW_SHA, application_sha: process.env.APPLICATION_SHA,
+            rollback_source_sha: process.env.ROLLBACK_SOURCE_SHA,
+            expected_volume_id: process.env.EXPECTED_VOLUME_ID, expected_legacy_volume_id: process.env.EXPECTED_LEGACY_VOLUME_ID,
             candidate_config_sha256: process.env.CANDIDATE_CONFIG_SHA256, rollback_config_sha256: process.env.ROLLBACK_CONFIG_SHA256,
             candidate_image_ref: process.env.CANDIDATE_IMAGE_REF, rollback_image_ref: process.env.ROLLBACK_IMAGE,
             candidate_image_id: process.env.CANDIDATE_IMAGE_ID, rollback_image_id: process.env.ROLLBACK_IMAGE_ID,
@@ -907,6 +973,9 @@ jobs:
           PUBLICATION_RUN_ATTEMPT: ${{ github.run_attempt }}
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
+          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}
           BUILD_TIMESTAMP: ${{ needs.gates.outputs.build_timestamp }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
           ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
@@ -958,8 +1027,8 @@ jobs:
           const e = process.env;
           const markers = ['ROLLBACK_PROOF_REGISTERING_STATE','ROLLBACK_PROOF_39_FIELD_PER_FILE_MERGE','ROLLBACK_PROOF_AGE_QUARANTINE','ROLLBACK_PROOF_REFERRAL_COMMIT_RECEIPT_REPLAY'];
           if (build.schema_version !== 'assesssuite.candidate-build-receipt.v1' || build.application_sha !== e.APPLICATION_SHA || build.build_timestamp !== e.BUILD_TIMESTAMP) throw new Error('Candidate build receipt binding differs');
-          if (publication.schema_version !== 'assesssuite.image-publication-receipt.v1' || publication.application_sha !== e.APPLICATION_SHA || publication.workflow_sha !== e.TRUSTED_WORKFLOW_SHA || publication.build_timestamp !== e.BUILD_TIMESTAMP) throw new Error('Publication receipt binding differs');
-          if (compatibility.schema_version !== 'assesssuite.exact-image-compatibility-receipt.v1' || compatibility.result !== 'PASS' || compatibility.application_sha !== e.APPLICATION_SHA || compatibility.workflow_sha !== e.TRUSTED_WORKFLOW_SHA || JSON.stringify(compatibility.markers) !== JSON.stringify(markers)) throw new Error('Compatibility receipt binding differs');
+          if (publication.schema_version !== 'assesssuite.image-publication-receipt.v2' || publication.application_sha !== e.APPLICATION_SHA || publication.rollback_source_sha !== e.ROLLBACK_SOURCE_SHA || publication.expected_volume_id !== e.EXPECTED_VOLUME_ID || publication.expected_legacy_volume_id !== e.EXPECTED_LEGACY_VOLUME_ID || publication.workflow_sha !== e.TRUSTED_WORKFLOW_SHA || publication.build_timestamp !== e.BUILD_TIMESTAMP) throw new Error('Publication receipt binding differs');
+          if (compatibility.schema_version !== 'assesssuite.exact-image-compatibility-receipt.v2' || compatibility.result !== 'PASS' || compatibility.application_sha !== e.APPLICATION_SHA || compatibility.rollback_source_sha !== e.ROLLBACK_SOURCE_SHA || compatibility.expected_volume_id !== e.EXPECTED_VOLUME_ID || compatibility.expected_legacy_volume_id !== e.EXPECTED_LEGACY_VOLUME_ID || compatibility.workflow_sha !== e.TRUSTED_WORKFLOW_SHA || JSON.stringify(compatibility.markers) !== JSON.stringify(markers)) throw new Error('Compatibility receipt binding differs');
           for (const [actual, expected, label] of [
             [build.candidate_image_id, publication.candidate_image_id, 'candidate image id'],
             [publication.candidate_image_ref, e.CANDIDATE_IMAGE_REF, 'candidate image ref'],
@@ -976,12 +1045,15 @@ jobs:
             [compatibility.publication_receipt_sha256, e.PUBLICATION_RECEIPT_SHA256, 'publication receipt hash'],
           ]) if (actual !== expected) throw new Error(`${label} differs`);
           const row = {
-            schema_version: 'assesssuite.deploy-bundle-manifest.v1',
+            schema_version: 'assesssuite.deploy-bundle-manifest.v2',
             result: 'PASS',
             publication_run_id: e.PUBLICATION_RUN_ID,
             publication_run_attempt: e.PUBLICATION_RUN_ATTEMPT,
             workflow_sha: e.TRUSTED_WORKFLOW_SHA,
             application_sha: e.APPLICATION_SHA,
+            rollback_source_sha: e.ROLLBACK_SOURCE_SHA,
+            expected_volume_id: e.EXPECTED_VOLUME_ID,
+            expected_legacy_volume_id: e.EXPECTED_LEGACY_VOLUME_ID,
             build_timestamp: e.BUILD_TIMESTAMP,
             candidate_config_sha256: e.CANDIDATE_CONFIG_SHA256,
             rollback_config_sha256: e.ROLLBACK_CONFIG_SHA256,
@@ -1003,7 +1075,7 @@ jobs:
             rollback_image_id: publication.rollback_image_id,
             markers,
           };
-          const keys = ['schema_version','result','publication_run_id','publication_run_attempt','workflow_sha','application_sha','build_timestamp','candidate_config_sha256','rollback_config_sha256','candidate_image_artifact_id','candidate_image_artifact_digest','release_control_artifact_id','release_control_artifact_digest','publication_artifact_id','publication_artifact_digest','compatibility_artifact_id','compatibility_artifact_digest','candidate_build_receipt_sha256','publication_receipt_sha256','compatibility_receipt_sha256','candidate_image_id','candidate_image_ref','application_image_digest','rollback_image_ref','rollback_image_id','markers'].sort();
+          const keys = ['schema_version','result','publication_run_id','publication_run_attempt','workflow_sha','application_sha','rollback_source_sha','expected_volume_id','expected_legacy_volume_id','build_timestamp','candidate_config_sha256','rollback_config_sha256','candidate_image_artifact_id','candidate_image_artifact_digest','release_control_artifact_id','release_control_artifact_digest','publication_artifact_id','publication_artifact_digest','compatibility_artifact_id','compatibility_artifact_digest','candidate_build_receipt_sha256','publication_receipt_sha256','compatibility_receipt_sha256','candidate_image_id','candidate_image_ref','application_image_digest','rollback_image_ref','rollback_image_id','markers'].sort();
           if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys)) throw new Error('Deploy bundle manifest keys differ');
           fs.writeFileSync(e.MANIFEST, `${JSON.stringify(row)}\n`, { mode: 0o600 });
           NODE
@@ -1051,6 +1123,9 @@ jobs:
           PUBLICATION_RECEIPT_SHA256: ${{ steps.prove.outputs.publication_receipt_sha256 }}
           COMPATIBILITY_RECEIPT_SHA256: ${{ steps.prove.outputs.compatibility_receipt_sha256 }}
           APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
+          ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}
           BUILD_TIMESTAMP: ${{ needs.gates.outputs.build_timestamp }}
         run: |
           set -euo pipefail
@@ -1065,6 +1140,10 @@ jobs:
           [[ "$PUBLICATION_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
           [[ "$COMPATIBILITY_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
           [[ "$APPLICATION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$ROLLBACK_SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EXPECTED_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]
+          [[ "$EXPECTED_LEGACY_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]
+          [[ "$EXPECTED_VOLUME_ID" != "$EXPECTED_LEGACY_VOLUME_ID" ]]
           [[ "$BUILD_TIMESTAMP" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]
           {
             echo '## Immutable production release preparation'
@@ -1088,5 +1167,8 @@ jobs:
             printf '| publication_receipt_sha256 | `%s` |\n' "$PUBLICATION_RECEIPT_SHA256"
             printf '| compatibility_receipt_sha256 | `%s` |\n' "$COMPATIBILITY_RECEIPT_SHA256"
             printf '| application_sha | `%s` |\n' "$APPLICATION_SHA"
+            printf '| rollback_source_sha | `%s` |\n' "$ROLLBACK_SOURCE_SHA"
+            printf '| expected_volume_id | `%s` |\n' "$EXPECTED_VOLUME_ID"
+            printf '| expected_legacy_volume_id | `%s` |\n' "$EXPECTED_LEGACY_VOLUME_ID"
             printf '| build_timestamp | `%s` |\n' "$BUILD_TIMESTAMP"
           } >>"$GITHUB_STEP_SUMMARY"

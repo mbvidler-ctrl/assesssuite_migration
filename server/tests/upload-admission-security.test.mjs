@@ -128,7 +128,9 @@ test('UploadFile admission permits only one buffered request per session user', 
 });
 
 test('UploadFile admission contract remains scoped before request parsing with finally release', () => {
-  const source = fs.readFileSync(new URL('../integrations.mjs', import.meta.url), 'utf8');
+  const source = fs
+    .readFileSync(new URL('../integrations.mjs', import.meta.url), 'utf8')
+    .replaceAll('\r\n', '\n');
   const dispatchStart = source.indexOf('export async function handleCoreIntegration');
   const dispatch = source.slice(dispatchStart);
   const scopedAcquire = dispatch.indexOf("if (endpointName === 'UploadFile')");

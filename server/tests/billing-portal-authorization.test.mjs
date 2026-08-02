@@ -34,6 +34,7 @@ test('billing portal refuses caller-supplied customer identifiers when the sessi
 test('billing portal uses only authenticated-user identifiers and an allowlisted flow', async () => {
   const originalFetch = globalThis.fetch;
   const originalEnvironment = {
+    APP_URL: process.env.APP_URL,
     PAYMENTS_ENABLED: process.env.PAYMENTS_ENABLED,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     SELFTEST: process.env.SELFTEST,
@@ -43,6 +44,7 @@ test('billing portal uses only authenticated-user identifiers and an allowlisted
 
   process.env.PAYMENTS_ENABLED = '1';
   process.env.STRIPE_SECRET_KEY = 'synthetic_test_key';
+  process.env.APP_URL = 'https://app.assesssuite.com/';
   delete process.env.SELFTEST;
   delete process.env.PARITY_ASSURANCE_MODE;
   globalThis.fetch = async (url, options) => {
@@ -74,6 +76,7 @@ test('billing portal uses only authenticated-user identifiers and an allowlisted
     assert.equal(requests.length, 1);
     const form = new URLSearchParams(requests[0].options.body);
     assert.equal(form.get('customer'), 'cus_owned');
+    assert.equal(form.get('return_url'), 'https://app.assesssuite.com/MyProfile');
     assert.equal(form.get('flow_data[subscription_update][subscription]'), 'sub_owned');
     assert.equal(form.has('cus_victim'), false);
     assert.equal(form.has('sub_victim'), false);

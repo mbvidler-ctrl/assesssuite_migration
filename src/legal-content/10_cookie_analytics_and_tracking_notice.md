@@ -1,15 +1,23 @@
 # AssessSuite Cookie, Analytics and Tracking Notice
 
-**Release status:** DRAFT — NOT APPROVED FOR PUBLICATION, ACCEPTANCE OR RELIANCE  
-**Effective date:** None  
-**Approved by:** None  
-**Version:** RC-2026.07.11
+**Release status:** APPROVED FOR PUBLICATION — LIMITED PUBLIC-SITE ANALYTICS ONLY
+
+**Effective date:** 2 August 2026
+
+**Publication authority:** Mission UM-AUTO-20260801-ASSESSSUITE-SPLIT-HOSTING-ANALYTICS
+
+**Approved by:** Maxwell Vidler under mission UM-AUTO-20260801-ASSESSSUITE-SPLIT-HOSTING-ANALYTICS
+
+**Version:** RC-2026.07.19
+**Controlled revision:** 2 August 2026, revision 2026-08-02.1
 
 ## 1. Current position
 
-AssessSuite may use essential browser storage or cookies needed for authentication, session continuity, security, load management and user preferences. At this release-candidate stage, no third-party advertising pixel, cross-site behavioural advertising, or sensitive-data session replay is approved.
+AssessSuite uses Vercel Web Analytics only on the public homepage and public legal pages at `assesssuite.com` and `www.assesssuite.com`. It measures aggregate page views, estimated daily visitors and external referrers. It does not set analytics cookies. Vercel estimates daily visitors using a hash derived from the incoming request that resets each day; the visitor-session value is discarded after 24 hours.
 
-The production release must publish a tested cookie inventory rather than copying a generic banner.
+Before a page-view event is sent, AssessSuite removes the query string and URL fragment from the measured page URL and rejects routes outside the public homepage and public legal pages. AssessSuite does not configure custom events, UTM reporting, feature-flag analytics, session replay, advertising pixels or cross-site behavioural tracking.
+
+Vercel may also derive aggregate country, browser, operating-system and device categories from a request. Web Analytics is not loaded in the authenticated AssessSuite application and is not used on account, patient, clinical, assessment, note, report, payment, upload, function or API routes. Patient Data is not authorised for this service.
 
 ## 2. Categories
 
@@ -17,9 +25,10 @@ The production release must publish a tested cookie inventory rather than copyin
 |---|---|---|
 | Strictly necessary | Sign-in, session, security, fraud prevention, load and legal-preference records | Required for the requested Service; explain and minimise |
 | Functional | Remember non-essential display or workflow preferences | User choice where not necessary |
-| Product analytics | Measure reliability and aggregate feature use without clinical content | Off by default until PIA, provider and data map are approved; obtain consent where required |
-| Session replay | Reconstruct interface activity | Prohibited on authenticated, patient, assessment, note, report and consent paths; any limited use requires field masking, PIA and express approval |
-| Advertising or cross-site tracking | Target or measure marketing | Prohibited on health and authenticated paths; no activation without express opt-in and full disclosure |
+| Limited public-site analytics | Aggregate public page views, estimated daily visitors, referrers and coarse device/location categories | Active only on the allowlisted public marketing and legal routes described above; cookie-free; Patient Data prohibited |
+| Product analytics | Measure authenticated feature use | Not enabled through Vercel Web Analytics and not authorised by this notice |
+| Session replay | Reconstruct interface activity | Prohibited on authenticated, patient, assessment, note, report, payment and consent paths; not enabled on the public site |
+| Advertising or cross-site tracking | Target or measure marketing | Prohibited; no advertising pixel or cross-site behavioural tracking is enabled |
 
 ## 3. Sensitive-path rule
 
@@ -27,28 +36,22 @@ AssessSuite must not send a URL, page title, form field, search term, identifier
 
 This applies even if a provider labels the data pseudonymous. A cookie ID linked with a fertility, condition, medication, exercise-treatment or patient page can itself reveal sensitive information.
 
-## 4. Inventory required before release
+## 4. Current analytics inventory
 
-For every browser or SDK technology, record:
+| Technology | Provider | Public routes | Data and retention boundary |
+|---|---|---|---|
+| Vercel Web Analytics package version 2 | Vercel Inc. | `/` and approved `/legal/<slug>` pages on the production apex and `www` hosts | Cookie-free page views, daily-reset visitor estimate, external referrer and aggregate country/browser/OS/device categories. Measured page URL query strings and fragments are removed. The visitor-session value is discarded after 24 hours. AssessSuite uses the standard Pro reporting window, currently 12 months; Web Analytics Plus and analytics drains are not enabled. |
 
-- cookie or storage key and provider;
-- first- or third-party status;
-- exact purpose and necessity;
-- information collected or inferred;
-- pages and users affected;
-- expiry and retention;
-- likely countries and recipients;
-- consent category and withdrawal control;
-- contract, security and privacy-assessment evidence.
+Essential authentication and session storage in the separately hosted application is outside this limited public-site analytics inventory and remains governed by the Privacy Policy and security controls for the Service.
 
 ## 5. User controls
 
-The website should provide a clear preference control for any non-essential category. Refusing or withdrawing non-essential tracking must not block paid clinical functions. Withdrawal applies prospectively and must be honoured across devices where reasonably linked.
+Vercel Web Analytics does not set analytics cookies. Browser or content-blocking settings may prevent this limited measurement without affecting the public website or paid clinical functions. The public site does not require consent to advertising or session replay because neither is enabled.
 
-Browser blocking may affect essential sign-in functions. Explain the consequence without coercing consent to unrelated analytics.
+Browser blocking may separately affect essential sign-in functions in the authenticated application. AssessSuite does not condition clinical access on accepting public-site analytics.
 
 ## 6. Changes
 
-Adding a provider, pixel, replay tool, advertising purpose or sensitive-page measurement is a privacy-impact and release event. Update the inventory, notice, consent and subprocessor schedule before activation.
+Adding custom events, UTM reporting, feature-flag analytics, session replay, advertising, measurement of authenticated or sensitive routes, an analytics drain or another analytics provider requires a further controlled revision before activation.
 
 Questions or privacy requests may be sent to admin@assesssuite.com or 1800 317 553.
