@@ -17,9 +17,9 @@ import { capabilityEnabled } from './capabilityFlags.mjs';
 const RESEND_URL = 'https://api.resend.com/emails';
 const SEND_TIMEOUT_MS = 15000;
 
-// Sender/reply-to per Brenton's 12 July 2026 confirmations: platform mail
-// from noreply@assesssuite.com; replies and feedback to admin@assesssuite.com.
-const EMAIL_FROM = () => process.env.EMAIL_FROM || 'AssessSuite <noreply@assesssuite.com>';
+// Use a stable, replyable sender by default. Operators can still override it
+// after verifying the corresponding sending identity with the provider.
+const EMAIL_FROM = () => process.env.EMAIL_FROM || 'AssessSuite Clinical <verification@assesssuite.com>';
 const EMAIL_REPLY_TO = () => process.env.EMAIL_REPLY_TO || 'admin@assesssuite.com';
 
 export function adminNotificationRecipient(environment = process.env) {
@@ -64,7 +64,8 @@ export function smsEnabled(environment = process.env) {
 
 /**
  * Records to the outbox (always) and dispatches via Resend (when enabled).
- * Returns { recorded: true, sent: boolean } and never throws.
+ * Returns a delivery outcome and never throws. Confirmed sends include the
+ * provider message id; failures include only safe, structured diagnostics.
  */
 export async function sendEmail({ to, subject, text, html }) {
   let recorded = false;
@@ -100,17 +101,42 @@ export async function sendEmail({ to, subject, text, html }) {
         }),
         signal: controller.signal,
       });
+      const payload = await res.json().catch(() => null);
       if (!res.ok) {
-        const detail = await res.text().catch(() => '');
-        throw new Error(`Resend ${res.status}: ${detail.slice(0, 200)}`);
+        const providerCode = typeof payload?.name === 'string'
+          ? payload.name.slice(0, 80)
+          : undefined;
+        const failure = {
+          stage: 'provider',
+          code: 'provider_rejected',
+          status: res.status,
+          ...(providerCode ? { providerCode } : {}),
+        };
+        console.log('[email] provider rejected send:', failure);
+        return { recorded, sent: false, failure };
       }
-      return { recorded, sent: true };
+
+      const providerId = typeof payload?.id === 'string' ? payload.id.trim() : '';
+      if (!/^[A-Za-z0-9_-]{6,200}$/.test(providerId)) {
+        const failure = {
+          stage: 'provider',
+          code: 'invalid_provider_response',
+          status: res.status,
+        };
+        console.log('[email] provider response did not contain a valid message id:', failure);
+        return { recorded, sent: false, failure };
+      }
+      return { recorded, sent: true, providerId };
     } finally {
       clearTimeout(timer);
     }
   } catch (err) {
-    console.log('[email] real send failed (outbox record retained):', err.message);
-    return { recorded, sent: false };
+    const failure = {
+      stage: 'transport',
+      code: err?.name === 'AbortError' ? 'timeout' : 'network_error',
+    };
+    console.log('[email] real send failed (outbox record retained):', failure);
+    return { recorded, sent: false, failure };
   }
 }
 
@@ -119,8 +145,9 @@ export async function sendEmail({ to, subject, text, html }) {
 // British English; no contractions.
 // ---------------------------------------------------------------------------
 
-function htmlWrap(title, bodyHtml) {
-  return `<!doctype html><html><body style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;max-width:520px;margin:0 auto;padding:24px">
+function htmlWrap(title, bodyHtml, preheader = title) {
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${escapeHtml(title)}</title></head><body style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;max-width:520px;margin:0 auto;padding:24px">
+<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all">${escapeHtml(preheader)}&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
 <h2 style="color:#0f172a;font-size:18px">${escapeHtml(title)}</h2>
 ${bodyHtml}
 <p style="color:#94a3b8;font-size:12px;margin-top:28px">AssessSuite Clinical — a product of Assess Suite Pty Ltd (ABN 53 694 044 481). This is an automated message; replies reach ${escapeHtml(EMAIL_REPLY_TO())}.</p>
@@ -129,12 +156,15 @@ ${bodyHtml}
 
 export function otpEmail(code) {
   const safeCode = escapeHtml(code);
+  const supportAddress = EMAIL_REPLY_TO();
+  const safetyText = `You requested this code from AssessSuite at assesssuite.com. Do not share this code with anyone, including AssessSuite support. AssessSuite will never ask you for it. If you did not request this code, ignore this email and contact ${supportAddress}.`;
   return {
     subject: 'Your AssessSuite verification code',
-    text: `Your AssessSuite verification code is: ${code}\n\nThe code expires in 10 minutes. If you did not request this, you can ignore this email.`,
+    text: `Your AssessSuite verification code is: ${code}\n\nThe code expires in 10 minutes.\n\n${safetyText}`,
     html: htmlWrap(
       'Verify your email',
-      `<p>Your AssessSuite verification code is:</p><p style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#0f172a">${safeCode}</p><p>The code expires in 10 minutes. If you did not request this, you can ignore this email.</p>`,
+      `<p>Your AssessSuite verification code is:</p><p style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#0f172a">${safeCode}</p><p>The code expires in 10 minutes.</p><p>${escapeHtml(safetyText)}</p>`,
+      'Your AssessSuite verification code expires in 10 minutes.',
     ),
   };
 }

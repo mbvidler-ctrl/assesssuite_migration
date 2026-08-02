@@ -118,6 +118,13 @@ const RESET_TTL_MS = 60 * 60 * 1000;
 const registrationIpLimiter = createFixedWindowRateLimiter({ limit: 20, windowMs: 60 * 1000 });
 const registrationEmailLimiter = createFixedWindowRateLimiter({ limit: 5, windowMs: 15 * 60 * 1000 });
 const registrationGlobalLimiter = createFixedWindowRateLimiter({ limit: 60, windowMs: 60 * 1000, maxKeys: 1 });
+// Public auth-email routes can otherwise be used to damage sender reputation
+// by spraying real mailboxes. These limits are deliberately independent from
+// registration so a reset/resend flood cannot consume legitimate signup
+// capacity. The combined budget covers both OTP and password-reset sends.
+const authEmailIpLimiter = createFixedWindowRateLimiter({ limit: 20, windowMs: 60 * 1000 });
+const authEmailAddressLimiter = createFixedWindowRateLimiter({ limit: 5, windowMs: 15 * 60 * 1000 });
+const authEmailGlobalLimiter = createFixedWindowRateLimiter({ limit: 60, windowMs: 60 * 1000, maxKeys: 1 });
 // Default app id used for the dev-only /functions/<name> relative path when it
 // is served in single-process production (mirrors the vite proxy rewrite).
 const DEFAULT_APP_ID = process.env.DEFAULT_APP_ID || 'local-assesssuite';
@@ -1855,6 +1862,18 @@ function registrationRateLimit(req, email) {
   return verdicts.find((verdict) => !verdict.allowed) || { allowed: true };
 }
 
+function authEmailRateLimit(req, email) {
+  // Consume every dimension, including for unknown addresses. Short-circuiting
+  // after account lookup (or only counting known users) would make provider
+  // suppression observable as an account-enumeration side channel.
+  const verdicts = [
+    authEmailGlobalLimiter.consume('auth-email-global'),
+    authEmailIpLimiter.consume(registrationClientKey(req)),
+    authEmailAddressLimiter.consume(normaliseEmail(email)),
+  ];
+  return verdicts.find((verdict) => !verdict.allowed) || { allowed: true };
+}
+
 function transactionalEmailDeliveryRequired() {
   return capabilityEnabled('OUTBOUND_EMAIL_ENABLED');
 }
@@ -2035,6 +2054,9 @@ async function handleAuthRoute(req, res, url, appId, action) {
       return sendError(res, 403, 'account verification is disabled for this deployment');
     }
     const { email } = await readJsonBody(req);
+    if (!authEmailRateLimit(req, email).allowed) {
+      return sendJson(res, 200, { status: 'accepted' });
+    }
     const user = findUserByEmail(email);
     if (user) {
       // Per-account send throttle: one code per RESEND_MIN_INTERVAL_MS.
@@ -2064,6 +2086,9 @@ async function handleAuthRoute(req, res, url, appId, action) {
 
   if (action === 'reset-password-request' && req.method === 'POST') {
     const { email } = await readJsonBody(req);
+    if (!authEmailRateLimit(req, email).allowed) {
+      return sendJson(res, 200, { status: 'accepted' });
+    }
     const user = findUserByEmail(email);
     if (user) {
       if (user.reset_last_request_at && Date.now() - Date.parse(user.reset_last_request_at) < RESEND_MIN_INTERVAL_MS) {
