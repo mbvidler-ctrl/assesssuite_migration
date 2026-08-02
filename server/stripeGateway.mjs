@@ -155,7 +155,91 @@ export async function createCheckoutSession({ priceId, userId, userEmail, succes
     ['subscription_data[metadata][userId]', userId],
     ['subscription_data[metadata][userEmail]', userEmail],
     ['subscription_data[metadata][priceId]', priceId],
+    // Stripe-hosted Checkout validates the code and applies the discount.
+    // No promotion value or discount amount is accepted from the browser.
+    ['allow_promotion_codes', 'true'],
   ]);
+}
+
+/** Lists the promotion codes and coupons needed by the admin surface. */
+export async function listPromotionCodes({ limit = 100 } = {}) {
+  const [promotionCodes, coupons] = await Promise.all([
+    stripeRequest('GET', '/v1/promotion_codes', [['limit', limit]]),
+    stripeRequest('GET', '/v1/coupons', [['limit', limit]]),
+  ]);
+  return {
+    promotionCodes: promotionCodes?.data || [],
+    coupons: coupons?.data || [],
+    hasMore: Boolean(promotionCodes?.has_more || coupons?.has_more),
+  };
+}
+
+/** Creates the discount definition that a customer-facing promotion uses. */
+export async function createCoupon({
+  name,
+  duration,
+  percentOff,
+  amountOff,
+  currency = 'aud',
+  metadata = {},
+}) {
+  const params = [
+    ['name', name],
+    ['duration', duration],
+  ];
+  if (percentOff != null) params.push(['percent_off', percentOff]);
+  if (amountOff != null) {
+    params.push(['amount_off', amountOff]);
+    params.push(['currency', currency]);
+  }
+  for (const [key, value] of Object.entries(metadata)) {
+    params.push([`metadata[${key}]`, value]);
+  }
+  return stripeRequest('POST', '/v1/coupons', params);
+}
+
+/** Creates a current-API promotion code backed by a coupon. */
+export async function createPromotionCode({
+  couponId,
+  code,
+  maxRedemptions,
+  expiresAt,
+  firstTimeOnly = false,
+  minimumAmount,
+  currency = 'aud',
+  metadata = {},
+}) {
+  const params = [
+    ['promotion[type]', 'coupon'],
+    ['promotion[coupon]', couponId],
+    ['code', code],
+    ['active', 'true'],
+    ['max_redemptions', maxRedemptions],
+    ['expires_at', expiresAt],
+    ['restrictions[first_time_transaction]', firstTimeOnly ? 'true' : 'false'],
+  ];
+  if (minimumAmount != null) {
+    params.push(['restrictions[minimum_amount]', minimumAmount]);
+    params.push(['restrictions[minimum_amount_currency]', currency]);
+  }
+  for (const [key, value] of Object.entries(metadata)) {
+    params.push([`metadata[${key}]`, value]);
+  }
+  return stripeRequest('POST', '/v1/promotion_codes', params);
+}
+
+/** Promotion codes are retired rather than deleted, preserving their history. */
+export async function deactivatePromotionCode(promotionCodeId) {
+  return stripeRequest(
+    'POST',
+    `/v1/promotion_codes/${encodeURIComponent(promotionCodeId)}`,
+    [['active', 'false']],
+  );
+}
+
+/** Best-effort rollback for a coupon whose promotion-code creation failed. */
+export async function deleteCoupon(couponId) {
+  return stripeRequest('DELETE', `/v1/coupons/${encodeURIComponent(couponId)}`);
 }
 
 /**

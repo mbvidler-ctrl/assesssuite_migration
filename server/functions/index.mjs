@@ -51,6 +51,7 @@ import medicalLookup from './medicalLookup.mjs';
 import transcribeSession from './transcribeSession.mjs';
 import deactivateAccount from './deactivateAccount.mjs';
 import cancelSubscriptionAndDeactivate from './cancelSubscriptionAndDeactivate.mjs';
+import managePromotions from './managePromotions.mjs';
 
 const REGISTRY = {
   assignOrganizations,
@@ -74,6 +75,7 @@ const REGISTRY = {
   transcribeSession,
   deactivateAccount,
   cancelSubscriptionAndDeactivate,
+  managePromotions,
 };
 
 // Functions that read or produce clinical content: require a session AND an
@@ -104,6 +106,7 @@ const REQUIRES_SESSION = new Set([
   // Combined cancel-and-close: same rationale as deactivateAccount — a
   // session is required, but it must work from any account status.
   'cancelSubscriptionAndDeactivate',
+  'managePromotions',
 ]);
 
 let state = null;

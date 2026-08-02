@@ -49,6 +49,7 @@
  */
 import AdminAnalytics from './pages/AdminAnalytics';
 import AdminApprovals from './pages/AdminApprovals';
+import AdminPromotions from './pages/AdminPromotions';
 import AssessmentAudit from './pages/AssessmentAudit';
 import AssessmentLibrary from './pages/AssessmentLibrary';
 import Calendar from './pages/Calendar';
@@ -76,6 +77,7 @@ import __Layout from './Layout.jsx';
 export const PAGES = {
     "AdminAnalytics": AdminAnalytics,
     "AdminApprovals": AdminApprovals,
+    "AdminPromotions": AdminPromotions,
     "AssessmentAudit": AssessmentAudit,
     "AssessmentLibrary": AssessmentLibrary,
     "Calendar": Calendar,

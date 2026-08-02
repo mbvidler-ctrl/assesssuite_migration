@@ -15,6 +15,8 @@ export const MOCK_CHECKOUT_PRICE_ID = 'price_1TbH07LVAtM9m2RxqiPCaZ8M';
 /** customer_id -> { id, email, subscriptions: [{id, status, current_period_start}] } */
 const customersByEmail = new Map();
 const customersById = new Map();
+const couponsById = new Map();
+const promotionCodesById = new Map();
 
 function ensureCustomer(email) {
   const key = (email || '').toLowerCase();
@@ -57,8 +59,86 @@ export function createMockCheckoutSession({ priceId, userId, userEmail, successU
     success_url: successUrl || null,
     cancel_url: cancelUrl || null,
     price: priceId || null,
+    allow_promotion_codes: true,
     url: `/mock-stripe/checkout/${sessionId}`,
   };
+}
+
+export function createMockCoupon({ name, duration, percentOff, amountOff, currency = 'aud', metadata = {} }) {
+  const id = `mock_coupon_${randomUUID()}`;
+  const coupon = {
+    id,
+    object: 'coupon',
+    name,
+    duration,
+    percent_off: percentOff ?? null,
+    amount_off: amountOff ?? null,
+    currency: amountOff == null ? null : currency,
+    metadata,
+    created: Math.floor(Date.now() / 1000),
+    times_redeemed: 0,
+    valid: true,
+  };
+  couponsById.set(id, coupon);
+  return coupon;
+}
+
+export function createMockPromotionCode({
+  couponId,
+  code,
+  maxRedemptions,
+  expiresAt,
+  firstTimeOnly,
+  minimumAmount,
+  currency = 'aud',
+  metadata = {},
+}) {
+  const duplicate = [...promotionCodesById.values()].find(
+    (promotion) => promotion.active && promotion.code.toLowerCase() === code.toLowerCase(),
+  );
+  if (duplicate) throw new Error('An active promotion code with this code already exists.');
+  const coupon = couponsById.get(couponId);
+  if (!coupon) throw new Error('Coupon not found.');
+  const id = `mock_promo_${randomUUID()}`;
+  const promotion = {
+    id,
+    object: 'promotion_code',
+    active: true,
+    code,
+    created: Math.floor(Date.now() / 1000),
+    promotion: { type: 'coupon', coupon: couponId },
+    coupon,
+    expires_at: expiresAt ?? null,
+    max_redemptions: maxRedemptions ?? null,
+    metadata,
+    restrictions: {
+      first_time_transaction: Boolean(firstTimeOnly),
+      minimum_amount: minimumAmount ?? null,
+      minimum_amount_currency: minimumAmount == null ? null : currency,
+    },
+    times_redeemed: 0,
+  };
+  promotionCodesById.set(id, promotion);
+  return promotion;
+}
+
+export function listMockPromotionCodes() {
+  return {
+    promotionCodes: [...promotionCodesById.values()],
+    coupons: [...couponsById.values()],
+    hasMore: false,
+  };
+}
+
+export function deactivateMockPromotionCode(id) {
+  const promotion = promotionCodesById.get(id);
+  if (!promotion) throw new Error('Promotion code not found.');
+  promotion.active = false;
+  return promotion;
+}
+
+export function deleteMockCoupon(id) {
+  return couponsById.delete(id);
 }
 
 /**
@@ -148,4 +228,9 @@ export function findMockSubscriptionByEmail(email) {
   return { customer, subscription };
 }
 
-export const _mockStripeStore = { customersByEmail, customersById };
+export const _mockStripeStore = {
+  customersByEmail,
+  customersById,
+  couponsById,
+  promotionCodesById,
+};
