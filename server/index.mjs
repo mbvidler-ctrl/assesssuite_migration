@@ -2623,8 +2623,47 @@ function serveDistOrFallback(req, res, pathname) {
   if (!fs.existsSync(distDir)) {
     return sendError(res, 404, 'not found');
   }
-  const candidate = path.join(distDir, decodeURIComponent(pathname));
-  if (candidate.startsWith(distDir) && fs.existsSync(candidate) && fs.statSync(candidate).isFile()) {
+  const rawRequestTarget = typeof req.url === 'string' ? req.url : pathname;
+  const queryIndex = rawRequestTarget.indexOf('?');
+  const rawPathname = rawRequestTarget.startsWith('/')
+    ? rawRequestTarget.slice(0, queryIndex === -1 ? undefined : queryIndex)
+    : pathname;
+  let decodedPathname;
+  try {
+    decodedPathname = decodeURIComponent(rawPathname);
+  } catch {
+    return sendError(res, 400, 'invalid path');
+  }
+  if (decodedPathname.includes('\0')) {
+    return sendError(res, 400, 'invalid path');
+  }
+
+  const canonicalPathname = decodedPathname.replaceAll('\\', '/');
+  const assetNamespace = canonicalPathname === '/assets' || canonicalPathname.startsWith('/assets/');
+  if (assetNamespace) {
+    const segments = canonicalPathname.split('/');
+    if (segments.some((segment) => segment === '.' || segment === '..') || /\.map$/iu.test(canonicalPathname)) {
+      return sendError(res, 404, 'not found');
+    }
+    const assetsRoot = path.resolve(distDir, 'assets');
+    const assetCandidate = path.resolve(distDir, `.${canonicalPathname}`);
+    if (
+      !assetCandidate.startsWith(`${assetsRoot}${path.sep}`)
+      || !fs.existsSync(assetCandidate)
+      || !fs.statSync(assetCandidate).isFile()
+    ) {
+      return sendError(res, 404, 'not found');
+    }
+    return serveFile(res, assetCandidate);
+  }
+
+  const resolvedDistDir = path.resolve(distDir);
+  const candidate = path.resolve(distDir, `.${canonicalPathname}`);
+  if (
+    candidate.startsWith(`${resolvedDistDir}${path.sep}`)
+    && fs.existsSync(candidate)
+    && fs.statSync(candidate).isFile()
+  ) {
     return serveFile(res, candidate);
   }
   const indexPath = path.join(distDir, 'index.html');

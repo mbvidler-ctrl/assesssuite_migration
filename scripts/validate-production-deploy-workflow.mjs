@@ -2314,6 +2314,34 @@ function validateDeployWorkflowV2(input) {
   requireText("'Exercise Physiology at its Clinical Best.'", 'postrollback pre-split landing marker');
   requireText('for route in legal/privacy login; do', 'postrollback legal and application route checks');
   requireText('assert_volume_snapshot_policy postrollback "$EXPECTED_VOLUME_ID" "$EXPECTED_MACHINE_ID"', 'postrollback r12 and detached-legacy topology check');
+  const publicSurfaceStart = finalFlyStep.indexOf('read_public_surface() {');
+  const publicSurfaceEnd = publicSurfaceStart < 0
+    ? -1
+    : finalFlyStep.indexOf('assert_secret_name_boundary() {', publicSurfaceStart);
+  const publicSurface = publicSurfaceStart >= 0 && publicSurfaceEnd > publicSurfaceStart
+    ? finalFlyStep.slice(publicSurfaceStart, publicSurfaceEnd)
+    : '';
+  for (const needle of [
+    "!/^\\/assets\\/[A-Za-z0-9._-]+\\.js$/.test(match[1])",
+    'if [[ "$surface_mode" == \'candidate\' ]]; then',
+    '"$url${asset_path}.map"',
+    '"$url/assets%2F..%2Findex.html"',
+    '--path-as-is --silent --show-error --max-time 10 --max-filesize 65536',
+    '[[ "$map_status" == \'404\' ]] || return 1',
+    '[[ "$(<"$map_body")" == \'{"message":"not found"}\' ]] || return 1',
+    '[[ "$traversal_status" == \'404\' ]] || return 1',
+    '[[ "$(<"$traversal_body")" == \'{"message":"not found"}\' ]] || return 1',
+  ]) if (!publicSurface.includes(needle)) fail('candidate source-map/traversal canary lacks ' + needle);
+  const candidateCanaryGuard = publicSurface.indexOf('if [[ "$surface_mode" == \'candidate\' ]]; then');
+  const candidateCanaryEnd = candidateCanaryGuard < 0 ? -1 : publicSurface.indexOf('            fi', candidateCanaryGuard);
+  for (const needle of ['"$url${asset_path}.map"', '"$url/assets%2F..%2Findex.html"']) {
+    const offset = publicSurface.indexOf(needle);
+    if (offset < candidateCanaryGuard || candidateCanaryEnd <= offset) {
+      fail('candidate source-map/traversal canary is not bounded to candidate mode: ' + needle);
+    }
+  }
+  requireText("read_public_surface 'https://app.assesssuite.com' 'apex'", 'candidate application-host public-surface verification');
+  requireText("read_public_surface 'https://assesssuite-production.fly.dev' 'fly'", 'candidate direct-Fly public-surface verification');
   requireText('[[ "$reviewed_mode" == "$EXTRACTION_RUNTIME_MODE" ]]', 'deploy extraction-mode config binding');
   requireText('[[ "$reviewed_under_age_mode" == "$UNDER_AGE_ZDR_RUNTIME_MODE" ]]', 'deploy under-age config binding');
   requireText(
@@ -2430,14 +2458,14 @@ function validateDeployWorkflowV2(input) {
     'printf \'DEPLOY_JOB_STARTED_EPOCH=%s\\n\' "$(date -u +%s)" >> "$GITHUB_ENV"',
     'curl --fail --location --silent --show-error --max-time 120',
     'deployment_job_timeout_seconds=7200',
-    'maximum_post_gate_path_seconds=4848',
+    'maximum_post_gate_path_seconds=4888',
     'maximum_gate_elapsed_seconds=1200',
     '(( maximum_gate_elapsed_seconds + maximum_post_gate_path_seconds <= deployment_job_timeout_seconds ))',
     '"$deploy_job_elapsed_seconds" -gt "$maximum_gate_elapsed_seconds"',
   ]) requireText(needle, 'bounded deploy recovery budget ' + needle);
   const deployReserveBeforeFirstMutation =
     '          deployment_job_timeout_seconds=7200\n' +
-    '          maximum_post_gate_path_seconds=4848\n' +
+    '          maximum_post_gate_path_seconds=4888\n' +
     '          maximum_gate_elapsed_seconds=1200\n' +
     '          (( maximum_gate_elapsed_seconds + maximum_post_gate_path_seconds <= deployment_job_timeout_seconds ))\n' +
     '          deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))\n' +
@@ -3288,6 +3316,19 @@ function deployMutationCasesV2(source) {
   replace('postrollback-old-landing-marker-removed', "              'Exercise Physiology at its Clinical Best.',", "              'unrelated marker',");
   replace('postrollback-legal-app-routes-removed', '              for route in legal/privacy login; do', '              for route in root-only; do');
   replace('postrollback-topology-check-removed', '            if ! assert_volume_snapshot_policy postrollback "$EXPECTED_VOLUME_ID" "$EXPECTED_MACHINE_ID"; then', '            if false; then');
+  replace(
+    'candidate-entry-asset-parser-weakened',
+    "if (!match || !/^\\/assets\\/[A-Za-z0-9._-]+\\.js$/.test(match[1])) {",
+    "if (!match || !match[1].startsWith('/assets/')) {",
+  );
+  replace('candidate-map-target-fabricated', '"$url${asset_path}.map"', '"$url/assets/fabricated.js.map"');
+  replace('candidate-map-status-bypassed', '[[ "$map_status" == \'404\' ]] || return 1', 'true # map status bypassed');
+  replace('candidate-map-body-bypassed', '[[ "$(<"$map_body")" == \'{"message":"not found"}\' ]] || return 1', 'true # map body bypassed');
+  replace('candidate-traversal-target-substituted', '"$url/assets%2F..%2Findex.html"', '"$url/assets/definitely-missing.js"');
+  replace('candidate-traversal-status-bypassed', '[[ "$traversal_status" == \'404\' ]] || return 1', 'true # traversal status bypassed');
+  replace('candidate-traversal-body-bypassed', '[[ "$(<"$traversal_body")" == \'{"message":"not found"}\' ]] || return 1', 'true # traversal body bypassed');
+  replace('candidate-traversal-path-normalisation-reenabled', 'curl --path-as-is --silent --show-error --max-time 10 --max-filesize 65536', 'curl --silent --show-error --max-time 10 --max-filesize 65536');
+  replace("candidate-direct-fly-public-surface-rebound", "read_public_surface 'https://assesssuite-production.fly.dev' 'fly'", "read_public_surface 'https://app.assesssuite.com' 'fly'");
   replace('candidate-expected-app-url-check-removed', '          [[ "$(grep -Fxc \'  EXPECTED_APP_URL = "https://app.assesssuite.com"\' "$candidate_config")" -eq 1 ]]', '          true');
   replace('app-url-secret-staging-mutated', 'fly secrets set APP_URL=https://app.assesssuite.com SENTRY_DSN="$SENTRY_DSN" ASSESSSUITE_DASHBOARD_METRICS_TOKEN="$ASSESSSUITE_DASHBOARD_METRICS_TOKEN" --stage --app "$app"', 'fly secrets set APP_URL=https://assesssuite.com SENTRY_DSN="$SENTRY_DSN" ASSESSSUITE_DASHBOARD_METRICS_TOKEN="$ASSESSSUITE_DASHBOARD_METRICS_TOKEN" --stage --app "$app"');
   replace('dashboard-token-not-staged', ' SENTRY_DSN="$SENTRY_DSN" ASSESSSUITE_DASHBOARD_METRICS_TOKEN="$ASSESSSUITE_DASHBOARD_METRICS_TOKEN" --stage', ' SENTRY_DSN="$SENTRY_DSN" --stage');
@@ -3858,7 +3899,7 @@ function deployMutationCasesV2(source) {
     mutate: (value) => {
       const reserve =
         '          deployment_job_timeout_seconds=7200\n' +
-        '          maximum_post_gate_path_seconds=4848\n' +
+        '          maximum_post_gate_path_seconds=4888\n' +
         '          maximum_gate_elapsed_seconds=1200\n' +
         '          (( maximum_gate_elapsed_seconds + maximum_post_gate_path_seconds <= deployment_job_timeout_seconds ))\n' +
         '          deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))\n' +

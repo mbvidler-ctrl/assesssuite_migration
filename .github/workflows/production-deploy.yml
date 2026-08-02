@@ -138,7 +138,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 3d8cb0831eb1539e44a88d21c37d73ad9ab976117298b4c80d69afc898fcd4b4
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: e23f40c8e74b527a71a125768f88b74814a4178f60a5276b99d4817d766ae314
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
@@ -1225,12 +1225,33 @@ jobs:
           const html = fs.readFileSync(process.env.HTML_PATH, 'utf8');
           const match = html.match(/<script[^>]+type=["']module["'][^>]+src=["']([^"']+)["']/i)
             || html.match(/<script[^>]+src=["']([^"']+)["'][^>]+type=["']module["']/i);
-          if (!match || !match[1].startsWith('/assets/')) throw new Error('Production HTML did not reference a local module asset');
+          if (!match || !/^\/assets\/[A-Za-z0-9._-]+\.js$/.test(match[1])) {
+            throw new Error('Production HTML did not reference one canonical local JavaScript asset');
+          }
           process.stdout.write(match[1]);
           NODE
             )" || return 1
             curl --fail --silent --show-error --max-time 20 \
               -H 'Cache-Control: no-cache' "$url$asset_path" -o "$bundle" || return 1
+
+            if [[ "$surface_mode" == 'candidate' ]]; then
+              local map_body="$RUNNER_TEMP/${label}-entry-map.json"
+              local map_status
+              map_status="$(curl --silent --show-error --max-time 10 --max-filesize 65536 \
+                -H 'Cache-Control: no-cache' -o "$map_body" -w '%{http_code}' \
+                "$url${asset_path}.map")" || return 1
+              [[ "$map_status" == '404' ]] || return 1
+              [[ "$(<"$map_body")" == '{"message":"not found"}' ]] || return 1
+
+              local traversal_body="$RUNNER_TEMP/${label}-asset-traversal.json"
+              local traversal_status
+              traversal_status="$(curl --path-as-is --silent --show-error --max-time 10 --max-filesize 65536 \
+                -H 'Cache-Control: no-cache' -o "$traversal_body" -w '%{http_code}' \
+                "$url/assets%2F..%2Findex.html")" || return 1
+              [[ "$traversal_status" == '404' ]] || return 1
+              [[ "$(<"$traversal_body")" == '{"message":"not found"}' ]] || return 1
+            fi
+
             HTML_PATH="$html" BUNDLE_PATH="$bundle" SURFACE_MODE="$surface_mode" env -u FLY_API_TOKEN node --input-type=module <<'NODE' || return 1
           import fs from 'node:fs';
           const html = fs.readFileSync(process.env.HTML_PATH, 'utf8');
@@ -1877,7 +1898,7 @@ jobs:
           rm -f "$pre_mutation_json"
 
           deployment_job_timeout_seconds=7200
-          maximum_post_gate_path_seconds=4848
+          maximum_post_gate_path_seconds=4888
           maximum_gate_elapsed_seconds=1200
           (( maximum_gate_elapsed_seconds + maximum_post_gate_path_seconds <= deployment_job_timeout_seconds ))
           deploy_job_elapsed_seconds=$(( $(date -u +%s) - DEPLOY_JOB_STARTED_EPOCH ))

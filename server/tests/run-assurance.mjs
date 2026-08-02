@@ -43,6 +43,7 @@ const suites = [
   'apss-user-facing-copy.test.mjs',
   'landing-responsive-layout.test.mjs',
   'split-hosting-boundary.test.mjs',
+  'static-spa-routing.test.mjs',
   'ci-release-gates.test.mjs',
   'root-error-boundary.test.mjs',
   'rich-text-editor-security.test.mjs',
