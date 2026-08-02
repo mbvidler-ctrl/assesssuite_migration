@@ -345,6 +345,18 @@ const MARKETING_PAGE_ORIGINS = new Set([
   'https://www.assesssuite.com',
 ]);
 
+const USAGE_DASHBOARD_VIEWER_EMAILS = new Set([
+  'mb.vidler@gmail.com',
+  'brenton@primehealthclinics.com',
+]);
+
+function canViewUsageDashboard(user) {
+  if (!user) return false;
+  if (user.role === 'admin') return true;
+  const email = typeof user.email === 'string' ? user.email.trim().toLowerCase() : '';
+  return USAGE_DASHBOARD_VIEWER_EMAILS.has(email);
+}
+
 function recordUsageMetric(metric) {
   try {
     usageAnalytics.increment(metric);
@@ -402,7 +414,7 @@ async function handleMarketingPageLoad(req, res) {
 function handleAdminUsageSummary(req, res, url) {
   const sessionUser = resolveSessionUser(req);
   if (!sessionUser) return sendError(res, 401, 'authentication required');
-  if (sessionUser.role !== 'admin') return sendError(res, 403, 'admin access required');
+  if (!canViewUsageDashboard(sessionUser)) return sendError(res, 403, 'dashboard access required');
   if (req.method !== 'GET') return sendError(res, 405, 'method not allowed');
   const days = parseUsageSummaryDays(url);
   if (days === null) return sendError(res, 400, 'days must be an integer from 1 to 90');

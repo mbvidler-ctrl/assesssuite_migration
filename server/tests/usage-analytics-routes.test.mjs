@@ -4,6 +4,7 @@ import test from 'node:test';
 
 import {
   loginAdmin,
+  registerUser,
   requestJson,
   startTestServer,
 } from './support/server-harness.mjs';
@@ -244,5 +245,23 @@ test('dashboard summary uses a fail-closed constant-time secret and the exact ad
     assert.equal(weakServer.getOutput().includes(weakToken), false);
   } finally {
     await weakServer.stop();
+  }
+});
+
+test('the simple usage dashboard is available only to admins and its two named viewers', async () => {
+  const server = await startTestServer();
+  try {
+    const brenton = await registerUser(server, 'Brenton@primehealthclinics.com');
+    const unrelated = await registerUser(server, 'unrelated-viewer@example.test');
+
+    const allowed = await requestJson(server, '/api/usage/summary?days=30', { token: brenton.token });
+    assert.equal(allowed.status, 200, allowed.text);
+    assertSummarySchema(allowed.body, 30);
+
+    const denied = await requestJson(server, '/api/usage/summary?days=30', { token: unrelated.token });
+    assert.equal(denied.status, 403, denied.text);
+    assert.deepEqual(denied.body, { message: 'dashboard access required' });
+  } finally {
+    await server.stop();
   }
 });

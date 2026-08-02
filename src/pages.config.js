@@ -69,6 +69,7 @@ import ProfileSetup from './pages/ProfileSetup';
 import Reports from './pages/Reports';
 import TestRunner from './pages/TestRunner';
 import TreatmentProtocols from './pages/TreatmentProtocols';
+import UsageOverview from './pages/UsageOverview';
 import __Layout from './Layout.jsx';
 
 
@@ -95,6 +96,7 @@ export const PAGES = {
     "Reports": Reports,
     "TestRunner": TestRunner,
     "TreatmentProtocols": TreatmentProtocols,
+    "UsageOverview": UsageOverview,
 }
 
 export const pagesConfig = {
