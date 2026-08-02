@@ -135,6 +135,9 @@ test('T05 release scanner accepts the exact reviewed diff and rejects constructe
     '+++ b/server/tests/probe.mjs',
     '+const request = { token: authenticatedUser.token };',
     '+const options = { API_KEY: configuredProviderCredential };',
+    '+ASSESSSUITE_DASHBOARD_METRICS_TOKEN="$ASSESSSUITE_DASHBOARD_METRICS_TOKEN"',
+    "+const invalid = { token: 'invalid-session-token' };",
+    "+const weakToken = 'too-short';",
   ].join('\n');
   assert.deepEqual(scanReleaseDiff(runtimeReferences), []);
 });
