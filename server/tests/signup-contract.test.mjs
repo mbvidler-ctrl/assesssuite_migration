@@ -195,7 +195,7 @@ test('S08 each document event records the displayed version, title, and exact co
 
   const privacy = LEGAL_DOCUMENTS.privacy;
   const privacyContent = fs.readFileSync(path.join(legalContentDir, privacy.file), 'utf8');
-  assert.equal(privacy.controlledRevision, '2026-08-02.1');
+  assert.equal(privacy.controlledRevision, '2026-08-02.2');
   assert.equal(privacy.revisionAuthority, 'Mission UM-AUTO-20260801-ASSESSSUITE-SPLIT-HOSTING-ANALYTICS');
   assert.match(privacyContent, /Physical deletion occurs only when cleanup succeeds/);
   assert.match(privacyContent, /removed from recurring minute-by-minute cleanup selection/);
@@ -214,7 +214,7 @@ test('S08 each document event records the displayed version, title, and exact co
   }
 
   for (const id of ['cookies', 'subprocessors']) {
-    assert.equal(LEGAL_DOCUMENTS[id].controlledRevision, '2026-08-02.1');
+    assert.equal(LEGAL_DOCUMENTS[id].controlledRevision, '2026-08-02.2');
     assert.equal(
       LEGAL_DOCUMENTS[id].revisionAuthority,
       'Mission UM-AUTO-20260801-ASSESSSUITE-SPLIT-HOSTING-ANALYTICS',

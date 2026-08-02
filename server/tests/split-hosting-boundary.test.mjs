@@ -106,7 +106,9 @@ test('build and routing configuration preserves the split-hosting boundary', () 
   }
 });
 
-test('published analytics notices retain the approved boundary while collection is disabled', () => {
+test('published analytics notices disclose the disabled state and historical referrer limitation', () => {
+  const packageJson = read('package.json');
+  const packageLock = read('package-lock.json');
   const cookieNotice = read('src/legal-content/10_cookie_analytics_and_tracking_notice.md');
   const privacyPolicy = read('src/legal-content/03_privacy_policy.md');
   const subprocessorSchedule = read('src/legal-content/25_approved_subprocessor_and_cross_border_schedule_template.md');
@@ -116,13 +118,17 @@ test('published analytics notices retain the approved boundary while collection 
   for (const source of [cookieNotice, privacyPolicy, subprocessorSchedule]) {
     assert.match(source, /Vercel Web Analytics/);
     assert.match(source, /Patient Data/);
+    assert.match(source, /disabled/i);
+    assert.match(source, /external referring URL/);
   }
-  assert.match(cookieNotice, /does not configure custom events/);
+  assert.match(cookieNotice, /custom events/);
   assert.match(cookieNotice, /query string and URL fragment/);
   assert.doesNotMatch(cookieNotice, /Off by default until PIA/);
-  assert.match(registry, /2026-08-02\.1/);
-  assert.match(registry, /LIMITED PUBLIC-SITE ANALYTICS ONLY/);
+  assert.match(registry, /2026-08-02\.2/);
+  assert.match(registry, /PUBLIC-SITE ANALYTICS DISABLED/);
   assert.match(registry, /effectiveDate: '2 August 2026'/);
   assert.match(marketingLegalPage, /doc\.effectiveDate \|\| SUITE_EFFECTIVE_DATE/);
   assert.doesNotMatch(read('apps/landing/src/main.jsx'), /@vercel\/analytics|Analytics|beforeSend/);
+  assert.doesNotMatch(packageJson, /@vercel\/analytics/);
+  assert.doesNotMatch(packageLock, /@vercel\/analytics/);
 });
