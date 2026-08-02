@@ -2,13 +2,14 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { Input as InputPrimitive } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Mail, Lock, Loader2, User as UserIcon } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { createPageUrl } from "@/utils";
 
+const Input = /** @type {React.ComponentType<any>} */ (InputPrimitive);
 const RESEND_COOLDOWN_SECONDS = 30;
 
 function maskEmailDestination(value) {
