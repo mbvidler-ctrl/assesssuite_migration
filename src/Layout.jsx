@@ -31,6 +31,16 @@ const navigationItems = [
   { title: "Settings", url: createPageUrl("MyProfile"), icon: UserIcon },
 ];
 
+const usageDashboardViewerEmails = new Set([
+  "mb.vidler@gmail.com",
+  "brenton@primehealthclinics.com",
+]);
+
+function canViewUsageDashboard(user) {
+  const email = typeof user?.email === "string" ? user.email.trim().toLowerCase() : "";
+  return user?.role === "admin" || usageDashboardViewerEmails.has(email);
+}
+
 const BYPASS_PATHS = ["/ProfileSetup", "/PendingApproval", "/Signup", "/Home", "/PaymentRequired", "/LegalNotices", "/AccountDeactivated"];
 
 function isBypassPath(pathname) {
@@ -227,6 +237,16 @@ export default function Layout({ children, currentPageName }) {
                       </SidebarMenuButton>
                     </SidebarMenuItem>
                   ))}
+                  {canViewUsageDashboard(currentUser) && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild className={`hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-xl py-3 px-4 ${location.pathname === createPageUrl("UsageOverview") ? "bg-blue-50 text-blue-700 border border-blue-200/50 shadow-sm" : "text-slate-600"}`}>
+                        <Link to={createPageUrl("UsageOverview")} className="flex items-center gap-3">
+                          <BarChart3 className="w-5 h-5" />
+                          <span className="font-medium">Practice overview</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
                   {currentUser?.role === "admin" && (
                     <>
                       <SidebarMenuItem>
