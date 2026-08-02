@@ -27,6 +27,7 @@ const suites = [
   'billing-webhook-authorization.test.mjs',
   'rate-limit.test.mjs',
   'registration-rate-limit.test.mjs',
+  'session-lifecycle.test.mjs',
   'invoke-llm-authorization.test.mjs',
   'invoke-llm-throttling.test.mjs',
   'invoke-llm-param-contract.test.mjs',

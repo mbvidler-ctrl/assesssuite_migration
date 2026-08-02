@@ -2124,8 +2124,19 @@ async function handleAuthRoute(req, res, url, appId, action) {
     if (typeof new_password !== 'string' || new_password.length < 8) {
       return sendError(res, 400, 'a new password of at least 8 characters is required');
     }
-    const user = userRepo.listAll().find((u) => u.reset_token === reset_token);
-    if (!user || !user.reset_token_expires || Date.parse(user.reset_token_expires) < Date.now()) {
+    // Reject random or malformed bearer values before the deliberately
+    // expensive password hash. The same token is authoritatively re-read
+    // after BEGIN IMMEDIATE below, so this cheap guard is not the single-use
+    // or concurrency boundary.
+    const resetCandidate = userRepo.listAll().find(
+      (candidate) => candidate.reset_token === reset_token,
+    );
+    const candidateExpiresAt = Date.parse(resetCandidate?.reset_token_expires || '');
+    if (
+      !resetCandidate ||
+      !Number.isFinite(candidateExpiresAt) ||
+      candidateExpiresAt <= Date.now()
+    ) {
       return sendError(res, 400, 'invalid or expired reset token');
     }
     const { password_hash, salt } = hashPassword(new_password);
@@ -2134,7 +2145,31 @@ async function handleAuthRoute(req, res, url, appId, action) {
     // admin-invited user (created with no password, account_status:'invited')
     // can reach an email_verified state and actually log in afterward, given
     // login now refuses unverified accounts.
-    userRepo.update(user.id, { password_hash, salt, email_verified: true, reset_token: null, reset_token_expires: null });
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      // Re-read and validate the single-use token only after obtaining the
+      // database write lock. A second process cannot complete a concurrent
+      // reset from a stale pre-transaction user snapshot after the first
+      // process has consumed the token.
+      const user = userRepo.listAll().find((candidate) => candidate.reset_token === reset_token);
+      const resetExpiresAt = Date.parse(user?.reset_token_expires || '');
+      if (!user || !Number.isFinite(resetExpiresAt) || resetExpiresAt <= Date.now()) {
+        db.exec('ROLLBACK');
+        return sendError(res, 400, 'invalid or expired reset token');
+      }
+      userRepo.update(user.id, {
+        password_hash,
+        salt,
+        email_verified: true,
+        reset_token: null,
+        reset_token_expires: null,
+      });
+      sessions.removeForUser(user.id);
+      db.exec('COMMIT');
+    } catch (error) {
+      db.exec('ROLLBACK');
+      throw error;
+    }
     return sendJson(res, 200, { status: 'reset' });
   }
 
