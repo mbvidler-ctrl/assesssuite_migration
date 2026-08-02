@@ -10,8 +10,9 @@
 // (Unimatter/02_Client_and_Venture_Matters/AssessSuite/work-product/
 // policy-suite-20260711/), current suite version RC-2026.07.19, under
 // src/legal-content/.
-// The Privacy Policy and AI Notice carry controlled revision 2026-07-21.2.
-// The unchanged Terms, DPA and Subprocessor Schedule retain 2026-07-21.1.
+// The Privacy Policy, Cookie/Analytics Notice and Subprocessor Schedule carry
+// controlled revision 2026-08-02.1. The AI Notice retains 2026-07-21.2. The
+// unchanged Terms and DPA retain 2026-07-21.1.
 // A content revision changes its exact fingerprint and therefore triggers
 // document-bound re-acceptance even when the bounded recovery deliberately
 // leaves the suite-wide identifier unchanged.
@@ -29,7 +30,7 @@ export const SUITE_PUBLICATION_AUTHORITY =
 // Matches doc 00's release-candidate boundary. This is deliberately verbatim
 // from the suite's own header line for each instrument, not paraphrased.
 export const SUITE_STATUS_BANNER =
-  'RC-2026.07.19 — EFFECTIVE FROM 19 JULY 2026; CONTROLLED REVISION 2026-07-21.2 EFFECTIVE ONLY THROUGH VERIFIED EXACT-SHA DEPLOYMENT. Function-specific activation gates continue to apply.';
+  'RC-2026.07.19 — EFFECTIVE FROM 19 JULY 2026; CONTROLLED REVISION 2026-08-02.1 EFFECTIVE ONLY THROUGH VERIFIED EXACT-SHA DEPLOYMENT. Function-specific activation gates continue to apply.';
 
 // event types written to LegalAcceptanceEvent — see server/local-entity-schemas.json
 export const EVENT_TYPES = {
@@ -60,9 +61,9 @@ export const LEGAL_DOCUMENTS = {
     title: 'AssessSuite Privacy Policy',
     slug: 'privacy',
     file: '03_privacy_policy.md',
-    releaseStatus: 'APPROVED FOR PUBLICATION WITH RC-2026.07.19 — CONTROLLED REVISION 2026-07-21.2; FUNCTION-SPECIFIC ACTIVATION GATES APPLY',
-    controlledRevision: '2026-07-21.2',
-    revisionAuthority: 'Mission UM-AUTO-20260720-ASSESSSUITE-REFERRAL-RECOVERY',
+    releaseStatus: 'APPROVED FOR PUBLICATION WITH RC-2026.07.19 — CONTROLLED REVISION 2026-08-02.1; FUNCTION-SPECIFIC ACTIVATION GATES APPLY',
+    controlledRevision: '2026-08-02.1',
+    revisionAuthority: 'Mission UM-AUTO-20260801-ASSESSSUITE-SPLIT-HOSTING-ANALYTICS',
     publicRoute: true,
   },
   'clinical-use-notice': {
@@ -112,13 +113,16 @@ export const LEGAL_DOCUMENTS = {
     slug: 'website-terms',
     file: '09_website_terms_of_use.md',
     releaseStatus: 'DRAFT — NOT APPROVED FOR PUBLICATION, ACCEPTANCE OR RELIANCE',
-    publicRoute: true,
+    publicRoute: false,
   },
   cookies: {
     title: 'AssessSuite Cookie, Analytics and Tracking Notice',
     slug: 'cookies',
     file: '10_cookie_analytics_and_tracking_notice.md',
-    releaseStatus: 'DRAFT — NOT APPROVED FOR PUBLICATION, ACCEPTANCE OR RELIANCE',
+    releaseStatus: 'APPROVED FOR PUBLICATION — CONTROLLED REVISION 2026-08-02.1; LIMITED PUBLIC-SITE ANALYTICS ONLY',
+    effectiveDate: '2 August 2026',
+    controlledRevision: '2026-08-02.1',
+    revisionAuthority: 'Mission UM-AUTO-20260801-ASSESSSUITE-SPLIT-HOSTING-ANALYTICS',
     publicRoute: true,
   },
   dpa: {
@@ -135,9 +139,9 @@ export const LEGAL_DOCUMENTS = {
     title: 'AssessSuite Approved Subprocessor and Cross-Border Data Schedule',
     slug: 'subprocessors',
     file: '25_approved_subprocessor_and_cross_border_schedule_template.md',
-    releaseStatus: 'PUBLIC SCHEDULE — CONTROLLED REVISION 2026-07-21.1; CURRENT PROVIDERS AND ACTIVATION CONDITIONS LISTED',
-    controlledRevision: '2026-07-21.1',
-    revisionAuthority: 'Mission UM-AUTO-20260720-ASSESSSUITE-REFERRAL-RECOVERY',
+    releaseStatus: 'PUBLIC SCHEDULE — CONTROLLED REVISION 2026-08-02.1; CURRENT PROVIDERS AND ACTIVATION CONDITIONS LISTED',
+    controlledRevision: '2026-08-02.1',
+    revisionAuthority: 'Mission UM-AUTO-20260801-ASSESSSUITE-SPLIT-HOSTING-ANALYTICS',
     publicRoute: true,
     eventType: EVENT_TYPES.CONTRACT_ACCEPTANCE,
   },
@@ -146,7 +150,7 @@ export const LEGAL_DOCUMENTS = {
     slug: 'vulnerability-disclosure',
     file: '28_vulnerability_disclosure_policy.md',
     releaseStatus: 'DRAFT — NO SECURITY CHANNEL OR SAFE-HARBOUR PROGRAM IS YET APPROVED',
-    publicRoute: true,
+    publicRoute: false,
   },
 };
 

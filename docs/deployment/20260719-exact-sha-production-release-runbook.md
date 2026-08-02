@@ -4,7 +4,7 @@
 **Parent campaign:** `UM-CAMPAIGN-20260720-ASSESSSUITE-REFERRAL-ASSURANCE`<br>
 **Repository:** `mbvidler-ctrl/assesssuite_migration`<br>
 **Production app:** `assesssuite-production`<br>
-**Production region and topology:** `syd`; exactly one Machine and one attached, encrypted 3 GB volume named `assesssuite_data`<br>
+**Production region and topology:** `syd`; exactly one Machine, one attached encrypted 3 GB volume named `assesssuite_data_r12`, and one exact detached preserved 3 GB legacy volume named `assesssuite_data`<br>
 **Release corridor:** reviewed `workflow_dispatch` definitions at the exact remote `main` SHA<br>
 **Credential boundary:** existing GitHub Actions secret `FLY_API_TOKEN`; value-blind and available only to sealed workflow steps
 
@@ -14,24 +14,25 @@ This runbook supersedes the release architecture previously recorded in this fil
 
 R2 has one release unit: application code, policy surfaces, tests, production configuration, rollback configuration and trusted workflows reviewed together in one pull request and merged to `main`. Let the resulting exact 40-character remote `main` SHA be `C`.
 
-Both deployable runtime modes derive from `C`:
+The candidate runtime derives from `C`. The rollback runtime is the exact immutable image already live immediately before dispatch, built from a strict ancestor `R`:
 
-- the candidate image uses `fly.production.toml`; and
-- the compatibility image uses `fly.rollback.production.toml`, which preserves the compatible application/schema behavior but disables adult and under-age document extraction and reverts general clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED`) to its reviewed disabled default, regardless of the candidate's currently authorised setting.
+- the candidate image uses `fly.production.toml` from `C`; and
+- the dispatch-frozen previous image is reverified against `R`, then deployed only with the reviewed `fly.rollback.production.toml` from `C`, which disables adult and under-age document extraction and reverts general clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED`) to its reviewed disabled default.
 
 Neither Fly TOML overrides the image startup command. Both must omit a top-level `[processes]` table so the Dockerfile's shell-interpreted `CMD ["sh", "-c", "node server/productionBootstrap.mjs && exec node server/index.mjs"]` remains authoritative. Their `[http_service]` `processes = ["app"]` setting only binds the public service to the implicit `app` process group; it does not define that group's command.
 
-The compatibility source is the same merged `main` revision, not a separately maintained ref. `application_sha`, `trusted_workflow_sha`, `rollback_source_sha` and `rollback_release_sha` must all equal `C`; `source_branch` and `rollback_source_branch` must both equal `main`. The immutable image digests and the SHA-256 hashes of the two Fly configuration blobs distinguish the enabled candidate from the extraction- and general-AI-disabled compatibility runtime.
+`application_sha` and `trusted_workflow_sha` must equal `C`. `rollback_source_sha` is the independently frozen strict ancestor `R`; the workflows derive the expected rollback `/api/version` value from `R` rather than accepting a second operator-entered SHA. `rollback_image` must equal the exact immutable current image captured before candidate deployment. `source_branch` and `rollback_source_branch` remain `main`.
 
-As of 28 July 2026 there are two deliberate, machine-enforced differences between the candidate and compatibility configurations, not one: adult/under-age document extraction, and general clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED`). The candidate runs general clinical AI drafting enabled under the dated authorisation recorded in `fly.production.toml`; the compatibility image always reverts it to disabled. The `R00 rollback config is a same-revision, extraction- and general-AI-disabled posture` test in `server/tests/rollback-compatibility.test.mjs` is the authoritative, enforced statement of both differences — treat this runbook as a summary of that test, not the reverse.
+The reviewed rollback configuration has two deliberate, machine-enforced differences from the candidate configuration: adult/under-age document extraction and general clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED`) are disabled. The exact previous image must pass the current forward/rollback compatibility proof before its digest can enter the deploy bundle.
 
 Production mutations are permitted only through the reviewed workflow definitions on `main`:
 
-- `.github/workflows/production-prepare-rollback-image.yml`;
 - `.github/workflows/production-prepare-release.yml`;
 - `.github/workflows/production-deploy.yml`;
 - `.github/workflows/production-rollback.yml`; and
 - `.github/workflows/production-parity-assurance.yml`.
+
+`.github/workflows/production-prepare-rollback-image.yml` is retained only as a fail-closed manual tombstone. It has no credential, build, registry, Fly or deployment path and always exits non-zero.
 
 Do not run a local `fly deploy`, `fly machine run`, volume mutation, secret mutation or registry push. Do not retrieve, print, copy, replace or otherwise expose `FLY_API_TOKEN` or any production secret value. Release evidence may contain approved secret names, immutable identifiers and content-free counts only.
 
@@ -42,18 +43,18 @@ Do not inspect or mutate production clinical records, referral contents, uploade
 | Control | Required proof |
 |---|---|
 | One reviewed release unit | One bounded integration branch and one pull request contain both application and workflow changes. |
-| Immutable default-branch source | Remote `main`, `github.sha`, `github.workflow_sha`, checked-out application SHA and both runtime source SHAs equal `C`. |
+| Immutable source relationship | Remote `main`, `github.sha`, `github.workflow_sha` and application SHA equal `C`; rollback source `R` is distinct and proven to be a strict ancestor of `C`. |
 | Trusted definitions | Every workflow dispatch uses `--ref main`; the workflow path/ref, repository, actor, non-fork status and remote `main` tip are checked before source execution. |
 | Read-only GitHub token | Workflow permissions remain least privilege; only parity receipt chaining additionally requires `actions: read`. |
 | Secret isolation | Source, install, tests, scans and local image gates run without `FLY_API_TOKEN`. The preparation workflow exposes it only to the reviewed registry-publication step; the deploy workflow exposes it only to its final reviewed release step. Candidate code is never executed with that token. |
 | Supply-chain pins | Every third-party action, Node runtime, Fly CLI archive and Docker base image remains pinned to the reviewed immutable identity. |
 | Exact configuration | The LF-byte SHA-256 values of `fly.production.toml` and `fly.rollback.production.toml` at `C` match the dispatch inputs and workflow checks. |
-| Immutable images and handoff | Candidate and compatibility images are built from `C`. The preparation workflow pushes the candidate once, resolves it to `registry.fly.io/assesssuite-production@sha256:<64-hex>`, proves exact-image compatibility and seals a bounded deploy bundle. The deploy workflow accepts only that exact preparation run, artifact identities, manifest hash and digest. |
-| Current-state lock | Immediately refreshed release, image, Machine ID and volume ID must match the dispatch inputs immediately before each mutation. |
-| Topology lock | Exactly one production Machine in `syd` is attached to the exact encrypted 3 GB `assesssuite_data` volume. No second production Machine or production volume is accepted. |
+| Immutable images and handoff | The preparation workflow pushes the candidate once, resolves it to `registry.fly.io/assesssuite-production@sha256:<64-hex>`, proves compatibility with the dispatch-frozen previous image, and seals both volume IDs and `R` into the receipt chain. The deploy workflow accepts only that exact preparation run, artifact identities, manifest hash and digests. |
+| Current-state lock | Immediately refreshed release, image, Machine ID, active volume ID and detached legacy volume ID must match the dispatch inputs immediately before each mutation. |
+| Topology lock | Exactly one production Machine in `syd` is attached to the exact encrypted 3 GB `assesssuite_data_r12` volume; the exact preserved `assesssuite_data` legacy volume is detached, encrypted and policy-compliant. No additional Machine or volume is accepted. |
 | Snapshot lock | Scheduled snapshots and five-day retention are re-established and re-read on the exact production volume; deploy additionally creates and proves one new on-demand predeployment snapshot. |
-| Runtime identity | Both `https://assesssuite.com/api/version` and `https://assesssuite-production.fly.dev/api/version` return `C` after candidate deployment or compatibility rollback. |
-| Automatic recovery | Any ambiguous deploy, topology, snapshot, public-surface, provider-probe or canary result invokes the preverified compatibility image and verifies it by immutable digest and `C`. |
+| Runtime identity | Both `https://app.assesssuite.com/api/version` and `https://assesssuite-production.fly.dev/api/version` return `C` after candidate deployment and `R` after rollback. |
+| Automatic recovery | Any ambiguous deploy, topology, snapshot, public-surface, provider-probe or canary result invokes the preverified dispatch-frozen previous image and verifies it by immutable digest and `R`. |
 | One effect per parity dispatch | Each parity infrastructure/use/cleanup effect has its own broker intent, workflow run and content-free receipt chained to its predecessor. |
 
 All production-affecting workflow runs share concurrency group `assesssuite-production` with `cancel-in-progress: false`.
@@ -92,7 +93,10 @@ npm.cmd run test:assurance
 npm.cmd run test:referral-browser
 npm.cmd run test:forward-rollback-compatibility
 npm.cmd run selftest
-npm.cmd run build
+npm.cmd run build:platform
+npm.cmd run build:landing
+npm.cmd run verify:split-build
+npm.cmd run test:split-hosting
 npm.cmd run lint
 npm.cmd run typecheck
 git diff --check
@@ -143,8 +147,8 @@ Record at minimum:
 - the integration tip and tree-equality result;
 - the exact blob SHA-256 for candidate config, rollback config, Dockerfile, validator, scanner, provider probe, referral canary and all three parity driver/fixture/cleanup files;
 - the exact workflow Git blob IDs and the complete workflow validation/mutation results;
-- the candidate and compatibility immutable image digests when produced;
-- the immediately refreshed current Fly release/image, sole Machine ID and sole volume ID;
+- the candidate and dispatch-frozen rollback immutable image digests;
+- the immediately refreshed current Fly release/image, sole Machine ID, active volume ID and detached legacy volume ID;
 - the production volume's region, size, encryption, attachment, scheduled-snapshot flag and retention;
 - provider-processing mode and non-secret evidence IDs;
 - the common frozen-input manifest SHA-256; and
@@ -177,46 +181,24 @@ Use value-blind, read-only evidence to refresh and record:
 
 1. the exact current Fly release identifier and full immutable image reference;
 2. the exact sole production Machine ID, region, image and state;
-3. the exact sole `assesssuite_data` volume ID, 3 GB size, `syd` region, encryption state and attachment to that Machine;
-4. scheduled snapshots enabled with retention exactly five days;
+3. the exact active `assesssuite_data_r12` volume ID, 3 GB size, `syd` region, encryption state and attachment to that Machine;
+4. the exact detached preserved `assesssuite_data` legacy volume ID, plus scheduled snapshots and five-day retention on both volumes;
 5. required production secret names present and forbidden opaque configuration names absent; and
 6. both public version endpoints and public legal/settings surfaces.
 
-These values become `expected_current_release`, `expected_current_image`, `expected_machine_id` and `expected_volume_id`. Refresh them again immediately before the rollback-image build, candidate deployment, any rollback and each parity effect. Drift is a stop condition, not a reason to alter the expected input until the drift is understood and the intent is reissued.
+These values become `expected_current_release`, `expected_current_image`, `expected_machine_id`, `expected_volume_id` and `expected_legacy_volume_id`. The state-snapshot receipt is the source of truth for both IDs. Refresh them again immediately before preparation, candidate deployment, any rollback and each parity effect. Drift is a stop condition, not a reason to alter the expected input until the drift is understood and the intent is reissued.
 
-## 8. Build the extraction-disabled compatibility image first
+## 8. Freeze the exact live rollback image and source
 
-Dispatch only the workflow definition at `C` on `main`:
+Do not dispatch `production-prepare-rollback-image.yml`; that obsolete operator path is deliberately retired and always fails. From the immediately refreshed, read-only production-state receipt, freeze:
 
-```powershell
-gh workflow run production-prepare-rollback-image.yml --ref main `
-  -f trusted_workflow_sha=$C `
-  -f rollback_source_sha=$C `
-  -f rollback_config_sha256=$RollbackConfigSha256 `
-  -f expected_current_release=$CurrentRelease `
-  -f expected_current_image=$CurrentImage `
-  -f expected_machine_id=$ProductionMachineId `
-  -f expected_volume_id=$ProductionVolumeId `
-  -f rollback_source_branch=main `
-  -f superseded_legal_version=RC-2026.07.11 `
-  -f new_legal_version=RC-2026.07.19 `
-  -f capability_intent_id=$PrepareIntentId `
-  -f authority_reference=UM-AUTO-20260721-ASSESSSUITE-REFERRAL-RECOVERY-R2 `
-  -f confirmation='PREPARE assesssuite-production COMPATIBILITY IMAGE AND VOLUME POLICY'
-```
+- `R`, the exact 40-character revision reported by both current `/api/version` endpoints and the live image's `org.opencontainers.image.revision` label;
+- the exact current immutable image `registry.fly.io/assesssuite-production@sha256:<64-hex>`;
+- the current release and sole Machine ID;
+- the exact attached `assesssuite_data_r12` volume ID; and
+- the exact detached preserved `assesssuite_data` legacy volume ID.
 
-The workflow must:
-
-- check out `C` and prove the remote `main` tip is still `C`;
-- verify the rollback-config LF-byte hash and the extraction- and general-AI-disabled settings;
-- run build, differential typecheck, selftest, compatibility and forward/rollback proof gates;
-- prove the exact one-Machine/one-volume topology;
-- enforce and re-read scheduled snapshots and five-day retention on the existing production volume;
-- push the gated compatibility image without deploying it;
-- resolve and report exactly one immutable compatibility image digest; and
-- prove that the current production release and image did not change.
-
-Record the workflow run ID/URL, config hash, image tag, immutable digest, topology and unchanged-release proof. Do not proceed unless the digest can be independently inspected and is available for immediate rollback.
+Require `R` to be distinct from and a strict Git ancestor of candidate `C`. The preparation workflow pulls that exact current image, binds its OCI revision to `R`, proves compatibility against the candidate, and carries `R` and both volume IDs through the publication, compatibility and deploy-manifest receipts. No replacement or reconstructed rollback image is accepted.
 
 ## 9. Publish and deploy the exact merged candidate
 
@@ -230,7 +212,11 @@ gh workflow run production-prepare-release.yml --ref main `
   -f application_sha=$C `
   -f candidate_config_sha256=$CandidateConfigSha256 `
   -f rollback_config_sha256=$RollbackConfigSha256 `
-  -f rollback_image=$CompatibilityImageDigest `
+  -f rollback_source_sha=$R `
+  -f expected_current_image=$CurrentImage `
+  -f expected_volume_id=$ProductionVolumeId `
+  -f expected_legacy_volume_id=$LegacyVolumeId `
+  -f rollback_image=$CurrentImage `
   -f extraction_runtime_mode=enabled `
   -f provider_terms_attestation=TERMS-VERIFIED-HEALTH-DATA-20260719 `
   -f provider_terms_evidence_id=EVD-20260719-ASSESSSUITE-OPENAI-HEALTH-TERMS-ATTESTATION `
@@ -242,7 +228,7 @@ gh workflow run production-prepare-release.yml --ref main `
   -f confirmation='PREPARE assesssuite-production EXACT SHA'
 ```
 
-This workflow must run all candidate gates and build the image without the Fly credential, hand the exact image to a separate publication job, push it once, resolve its immutable registry digest, prove it against the prebuilt compatibility image and seal the bounded six-file deploy bundle. It must not invoke `fly deploy` or otherwise change the live release, Machine or volume.
+This workflow must run all candidate gates, including both platform and landing builds plus the compiled and source split-hosting checks, and build the candidate image without the Fly credential. It hands that exact image to a separate publication job, pushes it once, resolves its immutable registry digest, proves it against the dispatch-frozen current image and seals the bounded six-file deploy bundle. It must not invoke `fly deploy` or otherwise change the live release, Machine or either volume.
 
 Record and independently validate the successful preparation run ID, exact candidate image reference and `sha256:` digest, deploy-bundle artifact ID and artifact digest, and deploy-bundle manifest SHA-256. The subsequent production intent must declare those exact values before the deploy dispatch. A mutable tag, a recreated bundle, a failed or expired preparation run, or any mismatch between the content-free receipts and those declared values is a stop condition.
 
@@ -260,8 +246,9 @@ gh workflow run production-deploy.yml --ref main `
   -f expected_current_image=$CurrentImage `
   -f expected_machine_id=$ProductionMachineId `
   -f expected_volume_id=$ProductionVolumeId `
-  -f rollback_image=$CompatibilityImageDigest `
-  -f rollback_release_sha=$C `
+  -f expected_legacy_volume_id=$LegacyVolumeId `
+  -f rollback_source_sha=$R `
+  -f rollback_image=$CurrentImage `
   -f extraction_runtime_mode=enabled `
   -f provider_terms_attestation=TERMS-VERIFIED-HEALTH-DATA-20260719 `
   -f provider_terms_evidence_id=EVD-20260719-ASSESSSUITE-OPENAI-HEALTH-TERMS-ATTESTATION `
@@ -296,7 +283,7 @@ After success, independently verify:
 - the sole production Machine runs that digest in `syd` and remains attached to the original exact production volume;
 - the encrypted 3 GB volume and five-day scheduled-snapshot policy are unchanged;
 - the expected public login/settings/legal surfaces load; and
-- the compatibility digest remains available.
+- the dispatch-frozen previous-image digest remains available.
 
 Any ambiguous mutation, failed provider probe/canary, public mismatch, topology drift or snapshot failure must trigger the workflow's compatibility rollback. Do not count an automatically rolled-back run as a successful deployment.
 
@@ -402,18 +389,18 @@ gh workflow run production-rollback.yml --ref main `
   -f expected_current_image=$CurrentImage `
   -f expected_machine_id=$ProductionMachineId `
   -f expected_volume_id=$ProductionVolumeId `
-  -f rollback_source_sha=$C `
+  -f expected_legacy_volume_id=$LegacyVolumeId `
+  -f rollback_source_sha=$R `
   -f rollback_source_branch=main `
   -f rollback_config_sha256=$RollbackConfigSha256 `
-  -f rollback_image=$CompatibilityImageDigest `
-  -f rollback_release_sha=$C `
+  -f rollback_image=$RollbackImageDigest `
   -f capability_intent_id=$RollbackIntentId `
   -f authority_reference=UM-AUTO-20260721-ASSESSSUITE-REFERRAL-RECOVERY-R2 `
   -f incident_reference=$IncidentReference `
   -f confirmation='ROLLBACK assesssuite-production COMPATIBILITY IMAGE'
 ```
 
-Require exact current-state and topology guards, exact same-main config provenance, extraction disabled for adult and under-age data and general clinical AI drafting reverted to disabled, immutable digest deployment, unchanged production volume and `C` from both public version endpoints. Do not use `fly releases rollback`: an earlier application image may not preserve the current legal, upload-lifecycle or receipt compatibility contracts.
+Require exact current-state and two-volume topology guards, current-main rollback-config provenance, extraction disabled for adult and under-age data and general clinical AI drafting reverted to disabled, immutable digest deployment, unchanged volumes and `R` from both public version endpoints. Do not use `fly releases rollback`: only the exact dispatch-frozen image that passed the preparation receipt chain is authorised.
 
 ## 12. Snapshot restore is separate and off-traffic
 
@@ -439,7 +426,7 @@ Stop the affected action and reconcile before continuing if:
 - any SHA, blob hash, workflow identity, immutable image digest or remote tip differs;
 - the current release/image/Machine/volume or snapshot policy differs from the frozen guard;
 - a required test, independent review, dependency scan, workflow validator or mutation test is absent, skipped or fails;
-- the compatibility image is absent, mutable, unavailable, not extraction-disabled, or not general-AI-disabled;
+- the dispatch-frozen rollback image is absent, mutable, unavailable, not bound to `R`, or fails the current extraction-disabled/general-AI-disabled compatibility proof;
 - the actual provider probe, installed-SDK canary or public verification is not an exact PASS;
 - a secret value could be exposed, candidate source could execute with the Fly credential, or an opaque feature-setting secret overrides reviewed configuration;
 - parity can select the production Machine/volume, exceeds one provider request, attempts communication/payment, writes clinical state or fails zero-residue cleanup;

@@ -39,18 +39,18 @@ test('hero CTA container is a full-width centred column', () => {
   }
 });
 
-test('hero CTA and sign-in keep their semantics and routes', () => {
+test('hero CTA and sign-in cross to the application origin with stable routes', () => {
   const heroCtas = landingSource.match(/<div className="hero-ctas">([\s\S]*?)<\/div>/);
   assert.ok(heroCtas, 'hero-ctas markup is missing');
   assert.match(
     heroCtas[1],
-    /<button onClick=\{\(\) => navigate\('\/register'\)\} className="btn-primary"/,
-    'primary hero CTA must remain a button routing to /register',
+    /<a href=\{appHref\('\/register'\)\} className="btn-primary"/,
+    'primary hero CTA must be an anchor crossing to the application /register route',
   );
   assert.match(heroCtas[1], /Already using AssessSuite\?/, 'sign-in helper copy must remain with the hero CTA');
   assert.match(
     heroCtas[1],
-    /<a onClick=\{\(\) => navigate\('\/login'\)\}/,
-    'sign-in link must keep routing to /login',
+    /<a href=\{appHref\('\/login'\)\}/,
+    'sign-in link must cross to the application /login route',
   );
 });

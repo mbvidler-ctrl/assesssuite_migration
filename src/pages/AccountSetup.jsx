@@ -92,9 +92,9 @@ export default function AccountSetup() {
 
           <p style={{ textAlign: "center", marginTop: "16px", fontSize: "13px", color: "#94a3b8" }}>
             By creating an account you agree to our{" "}
-            <a href="https://assesssuite.com/#terms" style={{ color: "#2563eb", textDecoration: "none" }}>Terms of Service</a>
+            <a href="https://assesssuite.com/legal/terms" style={{ color: "#2563eb", textDecoration: "none" }}>Terms of Service</a>
             {" "}and{" "}
-            <a href="https://assesssuite.com/#privacy-policy" style={{ color: "#2563eb", textDecoration: "none" }}>Privacy Policy</a>.
+            <a href="https://assesssuite.com/legal/privacy" style={{ color: "#2563eb", textDecoration: "none" }}>Privacy Policy</a>.
           </p>
         </div>
       </div>

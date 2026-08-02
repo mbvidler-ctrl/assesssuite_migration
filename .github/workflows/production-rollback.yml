@@ -24,11 +24,15 @@ on:
         required: true
         type: string
       expected_volume_id:
-        description: Exact sole attached assesssuite_data Fly Volume ID recorded immediately before dispatch
+        description: Exact attached assesssuite_data_r12 Fly Volume ID recorded immediately before dispatch
+        required: true
+        type: string
+      expected_legacy_volume_id:
+        description: Exact detached assesssuite_data Fly Volume ID recorded immediately before dispatch
         required: true
         type: string
       rollback_source_sha:
-        description: Exact reviewed source SHA supplying fly.rollback.production.toml; must equal this workflow SHA and the remote main tip
+        description: Exact ancestor commit encoded by the immutable rollback image
         required: true
         type: string
       rollback_source_branch:
@@ -41,10 +45,6 @@ on:
         type: string
       rollback_image:
         description: Prebuilt and verified legal-version-compatible rollback image digest
-        required: true
-        type: string
-      rollback_release_sha:
-        description: Release SHA expected from /api/version after rollback
         required: true
         type: string
       capability_intent_id:
@@ -86,11 +86,12 @@ jobs:
           EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}
           EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
           EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}
           ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
           ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
           ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
           ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
-          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_source_sha }}
           CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
           AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
           INCIDENT_REFERENCE: ${{ inputs.incident_reference }}
@@ -124,23 +125,25 @@ jobs:
           [[ "$ROLLBACK_SOURCE_BRANCH" != *".."* && "$ROLLBACK_SOURCE_BRANCH" != /* && "$ROLLBACK_SOURCE_BRANCH" != */ ]]
           git check-ref-format "refs/heads/$ROLLBACK_SOURCE_BRANCH"
           [[ "$ROLLBACK_SOURCE_BRANCH" == "main" ]]
-          [[ "$ROLLBACK_SOURCE_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
           [[ "$FAILED_APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$ROLLBACK_SOURCE_SHA" != "$FAILED_APPLICATION_SHA" ]]
           [[ "$ROLLBACK_CONFIG_SHA256" =~ ^[0-9a-f]{64}$ ]]
           [[ "$EXPECTED_CURRENT_RELEASE" =~ ^v[1-9][0-9]*$ ]]
           [[ "$EXPECTED_CURRENT_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
           [[ "$EXPECTED_MACHINE_ID" =~ ^[0-9a-f]{14,32}$ ]]
           [[ "$EXPECTED_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]
+          [[ "$EXPECTED_LEGACY_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]
+          [[ "$EXPECTED_VOLUME_ID" != "$EXPECTED_LEGACY_VOLUME_ID" ]]
           [[ "$ROLLBACK_IMAGE" =~ ^registry\.fly\.io/assesssuite-production@sha256:[0-9a-f]{64}$ ]]
           [[ "$ROLLBACK_IMAGE" != "$EXPECTED_CURRENT_IMAGE" ]]
           [[ "$CAPABILITY_INTENT_ID" =~ ^[A-Za-z0-9._:-]{1,160}$ ]]
           [[ "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
           [[ "$INCIDENT_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
 
-      - name: Check out reviewed rollback configuration source only
+      - name: Check out trusted rollback controls and complete history
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
-          ref: ${{ inputs.rollback_source_sha }}
+          ref: ${{ inputs.trusted_workflow_sha }}
           path: rollback-source
           fetch-depth: 0
           persist-credentials: false
@@ -149,6 +152,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          FAILED_APPLICATION_SHA: ${{ inputs.failed_application_sha }}
           ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
           ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
           ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
@@ -156,9 +160,10 @@ jobs:
           set -euo pipefail
           source_dir=rollback-source
           config="$source_dir/fly.rollback.production.toml"
-          [[ "$(git -C "$source_dir" rev-parse --verify 'HEAD^{commit}')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$source_dir" ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
+          [[ "$(git -C "$source_dir" rev-parse --verify 'HEAD^{commit}')" == "$TRUSTED_WORKFLOW_SHA" ]]
           [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$source_dir" ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          git -C "$source_dir" cat-file -e "$ROLLBACK_SOURCE_SHA^{commit}"
+          git -C "$source_dir" merge-base --is-ancestor "$ROLLBACK_SOURCE_SHA" "$FAILED_APPLICATION_SHA"
           [[ -z "$(git -C "$source_dir" status --porcelain --untracked-files=no)" ]]
           [[ -f "$config" && ! -L "$config" ]]
           [[ -f "$source_dir/Dockerfile" && ! -L "$source_dir/Dockerfile" ]]
@@ -194,12 +199,13 @@ jobs:
               if process_entries(document) != [(('http_service', 'processes'), ['app'])]:
                   raise SystemExit(f'Fly config process contract is not exact: {path.name}')
           PY
-          [[ "$(grep -Ec '^  source = "assesssuite_data"$' "$config")" -eq 1 ]]
+          [[ "$(grep -Ec '^  source = "assesssuite_data_r12"$' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^  destination = "/app/server/data"$' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^  snapshot_retention = 5$' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^  scheduled_snapshots = true$' "$config")" -eq 1 ]]
           [[ "$(grep -Fxc '  UPLOAD_AUDIT_RETENTION_DAYS = "730"' "$config")" -eq 1 ]]
           [[ "$(grep -Fxc '  UPLOAD_CLEANUP_INTERVAL_MINUTES = "1"' "$config")" -eq 1 ]]
+          [[ "$(grep -Fxc '  EXPECTED_APP_URL = "https://app.assesssuite.com"' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^\[\[vm\]\]$' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^  memory = "512mb"$' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^  cpus = 1$' "$config")" -eq 1 ]]
@@ -232,7 +238,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 2f6a6420af00e2ae35d62df9981f00293046d3dd60e993534aaaf6d474d50f35
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 931cd44877a4ae733aa05707a7425807e0b8fc55c0f49555afcb419c8b1e603f
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -282,11 +288,12 @@ jobs:
           EXPECTED_CURRENT_IMAGE: ${{ inputs.expected_current_image }}
           EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
           EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          EXPECTED_LEGACY_VOLUME_ID: ${{ inputs.expected_legacy_volume_id }}
           ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
           ROLLBACK_SOURCE_BRANCH: ${{ inputs.rollback_source_branch }}
           ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
           ROLLBACK_IMAGE: ${{ inputs.rollback_image }}
-          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_source_sha }}
           CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
           AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
           INCIDENT_REFERENCE: ${{ inputs.incident_reference }}
@@ -395,22 +402,35 @@ jobs:
           const label = process.env.LABEL;
           const machines = JSON.parse(fs.readFileSync(root + '/' + label + '-machines.json', 'utf8'));
           const volumes = JSON.parse(fs.readFileSync(root + '/' + label + '-volumes.json', 'utf8'));
-          if (!Array.isArray(machines) || machines.length !== 1 || !Array.isArray(volumes) || volumes.length !== 1) {
-            throw new Error('Expected exact one-machine/one-volume production topology');
+          if (!Array.isArray(machines) || machines.length !== 1 || !Array.isArray(volumes) || volumes.length !== 2) {
+            throw new Error('Expected exact one-machine/two-volume production topology');
           }
           const machine = machines[0];
-          const volume = volumes[0];
+          if (new Set(volumes.map((row) => row?.id)).size !== 2 ||
+              new Set(volumes.map((row) => row?.name)).size !== 2) {
+            throw new Error('Production volume IDs and names must be unique');
+          }
+          const volume = volumes.find((row) => row?.name === 'assesssuite_data_r12');
+          const legacyVolume = volumes.find((row) => row?.name === 'assesssuite_data');
+          if (!volume || !legacyVolume) throw new Error('Required active and legacy production volumes are not both present');
           const guest = machine.config?.guest || machine.Config?.guest || {};
           if (machine.id !== process.env.EXPECTED_MACHINE_ID || !/^[0-9a-f]{14,32}$/.test(machine.id) ||
-              (machine.region ?? machine.Region) !== 'syd' || Number(guest.cpus) !== 1 ||
+              (machine.region ?? machine.Region) !== 'syd' || machine.state !== 'started' || Number(guest.cpus) !== 1 ||
               Number(guest.memory_mb ?? guest.memoryMb) !== 512 || (guest.cpu_kind ?? guest.cpuKind) !== 'shared') {
-            throw new Error('Production machine identity or resources drifted');
+            throw new Error('Production machine identity, state, or resources drifted');
           }
-          if (volume.id !== process.env.EXPECTED_VOLUME_ID || volume.name !== 'assesssuite_data' ||
+          if (volume.id !== process.env.EXPECTED_VOLUME_ID || volume.name !== 'assesssuite_data_r12' ||
               volume.region !== 'syd' || volume.state !== 'created' || volume.size_gb !== 3 ||
               volume.encrypted !== true || volume.attached_machine_id !== machine.id ||
               volume.snapshot_retention !== 5 || volume.auto_backup_enabled !== true) {
             throw new Error('Production volume identity, attachment, encryption, or snapshot policy drifted');
+          }
+          if (legacyVolume.id !== process.env.EXPECTED_LEGACY_VOLUME_ID || legacyVolume.name !== 'assesssuite_data' ||
+              legacyVolume.region !== 'syd' || legacyVolume.state !== 'created' || legacyVolume.size_gb !== 3 ||
+              legacyVolume.encrypted !== true || legacyVolume.attached_machine_id !== null ||
+              legacyVolume.attached_alloc_id !== null || legacyVolume.snapshot_retention !== 5 ||
+              legacyVolume.auto_backup_enabled !== true) {
+            throw new Error('Legacy assesssuite_data volume is not the exact detached preserved recovery volume');
           }
           const mounts = machine.config?.mounts;
           if (!Array.isArray(mounts) || mounts.length !== 1 || mounts[0]?.volume !== volume.id ||
@@ -495,11 +515,12 @@ jobs:
 
           read_version() {
             local url=$1
-            local body=$2
+            local expected_sha=$2
+            local body=$3
             for attempt in $(seq 1 20); do
               if curl --fail --silent --show-error --max-time 10 \
                 -H 'Cache-Control: no-cache' "$url/api/version" -o "$body" \
-                && jq -e --arg sha "$ROLLBACK_RELEASE_SHA" \
+                && jq -e --arg sha "$expected_sha" \
                   '.release_sha == $sha and (.build_timestamp | type == "string" and length > 0)' "$body" >/dev/null; then
                 return 0
               fi
@@ -537,10 +558,11 @@ jobs:
           NODE
             )" || return 1
             curl --fail --silent --show-error --max-time 20 -H 'Cache-Control: no-cache' "$url$asset_path" -o "$bundle" || return 1
-            BUNDLE_PATH="$bundle" env -u FLY_API_TOKEN node --input-type=module <<'NODE' || return 1
+            HTML_PATH="$html" BUNDLE_PATH="$bundle" env -u FLY_API_TOKEN node --input-type=module <<'NODE' || return 1
           import fs from 'node:fs';
+          const html = fs.readFileSync(process.env.HTML_PATH, 'utf8');
           const bundle = fs.readFileSync(process.env.BUNDLE_PATH, 'utf8');
-          if (bundle.length < 10_000) throw new Error('Production JavaScript bundle is incomplete');
+          if (!/<!doctype html>/i.test(html) || bundle.length < 10_000) throw new Error('Production static assets are incomplete');
           for (const required of [
             'I have read and agree to the',
             'Optional: send me product updates and marketing by email',
@@ -557,7 +579,21 @@ jobs:
               throw new Error('Production bundle retains forbidden signup wording: ' + forbidden);
             }
           }
+          for (const required of [
+            'Exercise Physiology at its Clinical Best.',
+            'AssessSuite Privacy Policy',
+            'Back to AssessSuite',
+          ]) {
+            if (!bundle.includes(required)) throw new Error('Rollback bundle is missing the pre-split surface marker: ' + required);
+          }
           NODE
+            local route_html
+            for route in legal/privacy login; do
+              route_html="$RUNNER_TEMP/${label}-${route//\//-}.html"
+              curl --fail --silent --show-error --max-time 15 \
+                -H 'Cache-Control: no-cache' "$url/$route" -o "$route_html" || return 1
+              grep -Eqi '<!doctype html>' "$route_html" || return 1
+            done
             local status
             status="$(curl --silent --show-error --max-time 10 -o "$RUNNER_TEMP/$label-register-invalid.json" -w '%{http_code}' \
               -H 'Content-Type: application/json' -X POST --data '{}' "$url/api/apps/prod/auth/register")" || return 1
@@ -659,7 +695,7 @@ jobs:
               echo "- Rollback release: ${rollback_release:-not-established}"
               echo "- Rollback image: ${rollback_image_actual:-$ROLLBACK_IMAGE}"
               echo '- Rollback proof: registering state; exact 39-field per-file schema and merge; age quarantine; referral_commit_receipt replay'
-              echo "- Production topology: machine_id=$EXPECTED_MACHINE_ID; volume_id=$EXPECTED_VOLUME_ID; encrypted=true; scheduled_snapshots=true; snapshot_retention_days=5"
+              echo "- Production topology: machine_id=$EXPECTED_MACHINE_ID; attached_volume_id=$EXPECTED_VOLUME_ID; attached_volume_name=assesssuite_data_r12; detached_legacy_volume_id=$EXPECTED_LEGACY_VOLUME_ID; detached_legacy_volume_name=assesssuite_data; encrypted=true; scheduled_snapshots=true; snapshot_retention_days=5"
               echo "- Result: $1"
             } >> "$GITHUB_STEP_SUMMARY"
           }
@@ -667,8 +703,6 @@ jobs:
           timeout --signal=TERM --kill-after=10s 60s fly auth docker
           timeout --signal=TERM --kill-after=30s 300s docker pull "$ROLLBACK_IMAGE"
           [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "io.assesssuite.trusted-workflow" }}')" == "$TRUSTED_WORKFLOW_SHA" ]]
-          [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{ index .Config.Labels "io.assesssuite.rollback-proof" }}')" == 'registering-state+39-field-per-file-merge+age-quarantine+referral-commit-receipt-replay' ]]
           [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{json .Config.Entrypoint}}')" == '["docker-entrypoint.sh"]' ]]
           [[ "$(docker image inspect "$ROLLBACK_IMAGE" --format '{{json .Config.Cmd}}')" == '["sh","-c","node server/productionBootstrap.mjs && exec node server/index.mjs"]' ]]
           docker image inspect "$ROLLBACK_IMAGE" --format '{{ range .Config.Env }}{{ println . }}{{ end }}' >"$RUNNER_TEMP/rollback-image-env.txt"
@@ -680,9 +714,10 @@ jobs:
             exit 1
           fi
 
-          [[ "$(git -C "$rollback_dir" rev-parse --verify 'HEAD^{commit}')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
+          [[ "$(git -C "$rollback_dir" rev-parse --verify 'HEAD^{commit}')" == "$TRUSTED_WORKFLOW_SHA" ]]
           [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          git -C "$rollback_dir" cat-file -e "$ROLLBACK_SOURCE_SHA^{commit}"
+          git -C "$rollback_dir" merge-base --is-ancestor "$ROLLBACK_SOURCE_SHA" "$FAILED_APPLICATION_SHA"
           [[ "$(sha256sum "$rollback_config" | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
           assert_topology prior
           timeout --signal=TERM --kill-after=10s 60s fly releases --app "$app" --image --json >"$prior_json"
@@ -695,9 +730,10 @@ jobs:
           rm -f "$RUNNER_TEMP/initial-secret-names.json"
 
           # Final just-in-time freeze immediately before the sole application mutation.
-          [[ "$(git -C "$rollback_dir" rev-parse --verify 'HEAD^{commit}')" == "$ROLLBACK_SOURCE_SHA" ]]
-          [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin "refs/heads/$ROLLBACK_SOURCE_BRANCH" | awk 'NR == 1 { print $1 }')" == "$ROLLBACK_SOURCE_SHA" ]]
+          [[ "$(git -C "$rollback_dir" rev-parse --verify 'HEAD^{commit}')" == "$TRUSTED_WORKFLOW_SHA" ]]
           [[ "$(timeout --signal=TERM --kill-after=10s 60s git -C "$rollback_dir" ls-remote --exit-code origin refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          git -C "$rollback_dir" cat-file -e "$ROLLBACK_SOURCE_SHA^{commit}"
+          git -C "$rollback_dir" merge-base --is-ancestor "$ROLLBACK_SOURCE_SHA" "$FAILED_APPLICATION_SHA"
           [[ "$(sha256sum "$rollback_config" | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
           assert_topology final-predeploy
           final_prior_json="$RUNNER_TEMP/final-prior-releases.json"
@@ -705,6 +741,11 @@ jobs:
           IFS=$'\t' read -r final_prior_release final_prior_image < <(current_release "$final_prior_json")
           [[ "$final_prior_release" == "$EXPECTED_CURRENT_RELEASE" ]]
           [[ "$final_prior_image" == "$EXPECTED_CURRENT_IMAGE" ]]
+          if ! read_version 'https://app.assesssuite.com' "$FAILED_APPLICATION_SHA" "$RUNNER_TEMP/pre-mutation-app-version.json" \
+            || ! read_version 'https://assesssuite-production.fly.dev' "$FAILED_APPLICATION_SHA" "$RUNNER_TEMP/pre-mutation-fly-version.json"; then
+            write_summary 'CURRENT /api/version VERIFICATION FAILED BEFORE MUTATION'
+            exit 1
+          fi
           rollback_job_timeout_seconds=4200
           maximum_bounded_rollback_path_seconds=2624
           maximum_pre_mutation_elapsed_seconds=1200
@@ -722,6 +763,8 @@ jobs:
           elif [[ "$rollback_initial_boundary_state" != 'settled' ]]; then
             exit 1
           fi
+          timeout --signal=TERM --kill-after=10s 60s \
+            fly secrets set APP_URL=https://app.assesssuite.com --stage --app "$app"
           assert_secret_name_boundary final forbid
           rm -f "$RUNNER_TEMP/initial-secret-boundary-state" "$RUNNER_TEMP/final-secret-names.json" "$RUNNER_TEMP/final-secret-boundary-state" "$final_prior_json"
 
@@ -745,19 +788,23 @@ jobs:
           fi
           assert_secret_name_boundary postrollback forbid
           rm -f "$RUNNER_TEMP/postrollback-secret-names.json"
-          if ! read_version 'https://assesssuite.com' "$RUNNER_TEMP/rollback-apex-version.json" \
-            || ! read_version 'https://assesssuite-production.fly.dev' "$RUNNER_TEMP/rollback-fly-version.json"; then
+          if ! read_version 'https://app.assesssuite.com' "$ROLLBACK_RELEASE_SHA" "$RUNNER_TEMP/rollback-apex-version.json" \
+            || ! read_version 'https://assesssuite-production.fly.dev' "$ROLLBACK_RELEASE_SHA" "$RUNNER_TEMP/rollback-fly-version.json"; then
             write_summary 'ROLLBACK /api/version VERIFICATION FAILED'
             exit 1
           fi
-          if ! read_public_settings 'https://assesssuite.com' "$RUNNER_TEMP/rollback-apex-public-settings.json" \
+          if ! read_public_settings 'https://app.assesssuite.com' "$RUNNER_TEMP/rollback-apex-public-settings.json" \
               || ! read_public_settings 'https://assesssuite-production.fly.dev' "$RUNNER_TEMP/rollback-fly-public-settings.json"; then
             write_summary 'ROLLBACK LEGAL SETTINGS VERIFICATION FAILED'
             exit 1
           fi
-          if ! read_public_surface 'https://assesssuite.com' 'rollback-apex' \
+          if ! read_public_surface 'https://app.assesssuite.com' 'rollback-apex' \
               || ! read_public_surface 'https://assesssuite-production.fly.dev' 'rollback-fly'; then
             write_summary 'ROLLBACK PUBLIC SURFACE VERIFICATION FAILED'
+            exit 1
+          fi
+          if ! assert_topology postrollback; then
+            write_summary 'POSTROLLBACK r12 AND DETACHED-LEGACY TOPOLOGY VERIFICATION FAILED'
             exit 1
           fi
 

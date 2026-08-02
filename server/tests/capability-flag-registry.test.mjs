@@ -304,11 +304,15 @@ test('R07 unregistered-flag scan finds a synthetic capability-like name and igno
 
 test('R08 manifest freshness and determinism', () => {
   const manifest = buildManifest({ repoRoot });
-  const onDiskJson = fs.readFileSync(path.join(repoRoot, 'docs', 'deployment', 'flag-manifest.json'), 'utf8');
+  const onDiskJson = fs
+    .readFileSync(path.join(repoRoot, 'docs', 'deployment', 'flag-manifest.json'), 'utf8')
+    .replaceAll('\r\n', '\n');
   assert.deepEqual(JSON.parse(renderManifestJson(manifest)), JSON.parse(onDiskJson));
   assert.equal(renderManifestJson(manifest), onDiskJson, 'Run: npm run flags:write');
 
-  const onDiskMd = fs.readFileSync(path.join(repoRoot, 'docs', 'deployment', 'capability-manifest.md'), 'utf8');
+  const onDiskMd = fs
+    .readFileSync(path.join(repoRoot, 'docs', 'deployment', 'capability-manifest.md'), 'utf8')
+    .replaceAll('\r\n', '\n');
   assert.equal(renderOperatorManifest(manifest, { repoRoot }), onDiskMd, 'Run: npm run flags:write');
 
   const manifestAgain = buildManifest({ repoRoot });
@@ -380,6 +384,39 @@ test('R12 override cross-check with scripts/check-production-secrets.mjs, set eq
   const scriptSet = new Set(forbidden.filter((name) => registryNames.has(name)));
   const registrySet = new Set(CAPABILITY_FLAGS.filter((flag) => flag.opaqueOverrideForbidden).map((flag) => flag.name));
   assert.deepEqual([...scriptSet].sort(), [...registrySet].sort());
+});
+
+test('R12b capability notice audit is identical for LF and CRLF input', () => {
+  const noticeLf = [
+    '<!--capability-notice',
+    'notice_id: 20260802-eol-parity',
+    'date: 2026-08-02',
+    'flags: GENERAL_CLINICAL_LLM_ENABLED',
+    'direction: neutral',
+    'release: test',
+    'capability-notice-->',
+    '',
+    '## User-visible effect',
+    'No effect.',
+    '## Surfaces affected',
+    'None.',
+    '## Detection and monitoring',
+    'Synthetic parser test.',
+    '## Restoration criteria',
+    'Not applicable.',
+  ].join('\n');
+  const run = (text) => auditSources({
+    registry: CAPABILITY_FLAGS,
+    serverSources: [],
+    clientSources: {},
+    configs: {},
+    peerLists: {},
+    notices: [{ name: '20260802-eol-parity.md', text }],
+  }).filter((finding) => finding.kind.startsWith('notice_'));
+
+  assert.deepEqual(run(noticeLf), []);
+  assert.deepEqual(run(noticeLf.replaceAll('\n', '\r\n')), []);
+  assert.ok(run('missing fence\r\n').some((finding) => finding.kind === 'notice_malformed'));
 });
 
 test('R13 operator page and every generated string use Australian English and are legible', () => {

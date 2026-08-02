@@ -210,6 +210,13 @@ test('G11 parseNotice rejects malformed notices and accepts both shipped notices
   assert.equal(emptyHeading.ok, false);
   assert.ok(emptyHeading.errors.some((message) => message.includes('no content')));
 
+  const validLf = readNoticeFixture('notice-valid.md').replaceAll('\r\n', '\n');
+  const validCrlf = validLf.replaceAll('\n', '\r\n');
+  const parsedLf = parseNotice('notice-valid.md', validLf);
+  const parsedCrlf = parseNotice('notice-valid.md', validCrlf);
+  assert.equal(parsedLf.ok, true, JSON.stringify(parsedLf.errors));
+  assert.deepEqual(parsedCrlf, parsedLf, 'LF and CRLF notices must parse identically');
+
   // Both real, shipped notices must parse cleanly.
   for (const fileName of [
     '20260721-general-clinical-llm-disabled.md',
@@ -259,4 +266,14 @@ test('G13 PR template covers the required capability-impact checklist', () => {
   assert.match(text, /flags:write/);
   assert.match(text, /docs\/deployment\/notices\//);
   assert.match(text, /- \[ \]/);
+});
+
+test('G14 live git inspection is bounded and excludes unrelated binary payloads', () => {
+  const script = fs.readFileSync(path.join(repoRoot, 'scripts', 'check-flag-impact.mjs'), 'utf8');
+  assert.ok(script.includes('const GIT_MAX_BUFFER_BYTES = 8 * 1024 * 1024;'));
+  assert.ok(script.includes("const LIVE_DIFF_PATHSPEC = [\n  ...WATCHED_CONFIG_FILES,\n  '.github/workflows',\n];"));
+  assert.ok(script.includes('maxBuffer: GIT_MAX_BUFFER_BYTES'));
+  assert.ok(script.includes("'--no-ext-diff',\n    '--no-textconv',"));
+  assert.ok(script.includes("'--',\n    ...LIVE_DIFF_PATHSPEC,"));
+  assert.doesNotMatch(script, /runGit\(repoRoot, \['diff', '--binary', `\$\{base\}\.\.\.HEAD`\]\)/);
 });

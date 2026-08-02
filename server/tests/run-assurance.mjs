@@ -42,6 +42,8 @@ const suites = [
   'evidence-grounding-status.test.mjs',
   'apss-user-facing-copy.test.mjs',
   'landing-responsive-layout.test.mjs',
+  'split-hosting-boundary.test.mjs',
+  'ci-release-gates.test.mjs',
   'root-error-boundary.test.mjs',
   'rich-text-editor-security.test.mjs',
   'upload-lifecycle-config.test.mjs',

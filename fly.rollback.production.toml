@@ -19,6 +19,7 @@ primary_region = "syd"
   OUTBOUND_EMAIL_ENABLED = "1"
   OUTBOUND_SMS_ENABLED = "0"
   PAYMENTS_ENABLED = "1"
+  EXPECTED_APP_URL = "https://app.assesssuite.com"
   UPLOADS_DIR = "/app/server/data/uploads"
   LLM_REQUIRED = "1"
   GENERAL_CLINICAL_LLM_ENABLED = "0"
@@ -33,7 +34,7 @@ primary_region = "syd"
   LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS = "RC-2026.07.11,RC-2026.07.19"
 
 [mounts]
-  source = "assesssuite_data"
+  source = "assesssuite_data_r12"
   destination = "/app/server/data"
   snapshot_retention = 5
   scheduled_snapshots = true

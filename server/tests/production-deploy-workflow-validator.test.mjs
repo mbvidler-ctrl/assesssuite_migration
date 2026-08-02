@@ -12,11 +12,11 @@ const repoRoot = path.resolve(testsDir, '..', '..');
 const validator = path.join(repoRoot, 'scripts', 'validate-production-deploy-workflow.mjs');
 
 const GOVERNED_WORKFLOWS = [
-  { file: 'production-deploy.yml', mutations: 119 },
-  { file: 'production-prepare-release.yml', mutations: 40 },
-  { file: 'production-prepare-rollback-image.yml', mutations: 52 },
-  { file: 'production-rollback.yml', mutations: 73 },
-  { file: 'production-parity-assurance.yml', mutations: 70 },
+  { file: 'production-deploy.yml', mutations: 148, pinsValidator: true },
+  { file: 'production-prepare-release.yml', mutations: 58, pinsValidator: true },
+  { file: 'production-prepare-rollback-image.yml', mutations: 8, pinsValidator: false },
+  { file: 'production-rollback.yml', mutations: 95, pinsValidator: true },
+  { file: 'production-parity-assurance.yml', mutations: 82, pinsValidator: true },
 ];
 
 function workflowPath(file) {
@@ -45,7 +45,7 @@ test('V01 --print-self-sha matches an independently computed hash of the validat
   assert.equal(printed.stdout.trim(), validatorSelfSha());
 });
 
-for (const { file, mutations } of GOVERNED_WORKFLOWS) {
+for (const { file, mutations, pinsValidator } of GOVERNED_WORKFLOWS) {
   test(`V02 ${file} satisfies the trusted release-workflow contract`, () => {
     const result = run(file);
     assert.equal(result.status, 0, result.stdout + result.stderr);
@@ -63,31 +63,22 @@ for (const { file, mutations } of GOVERNED_WORKFLOWS) {
 
   test(`V04 ${file} pins EXPECTED_TRUSTED_VALIDATOR_SHA256 equal to the validator's actual hash`, () => {
     const text = fs.readFileSync(workflowPath(file), 'utf8');
-    assert.match(
-      text,
-      new RegExp(`EXPECTED_TRUSTED_VALIDATOR_SHA256:\\s*${validatorSelfSha()}\\b`),
-    );
+    if (pinsValidator) {
+      assert.match(text, new RegExp(`EXPECTED_TRUSTED_VALIDATOR_SHA256:\\s*${validatorSelfSha()}\\b`));
+    } else {
+      assert.doesNotMatch(text, /EXPECTED_TRUSTED_VALIDATOR_SHA256|uses:|\$\{\{ secrets\./);
+      assert.match(text, /name: RETIRED - Production prepare rollback image/);
+      assert.match(text, /exit 1/);
+    }
   });
 }
 
-test('V05 the release and rollback-image prepare lanes diff against the same production baseline', () => {
-  const releaseText = fs.readFileSync(workflowPath('production-prepare-release.yml'), 'utf8');
+test('V05 the obsolete rollback-image preparation lane is an exact fail-closed tombstone', () => {
   const rollbackText = fs.readFileSync(workflowPath('production-prepare-rollback-image.yml'), 'utf8');
-  const extractShas = (text) =>
-    [...text.matchAll(/PRODUCTION_BASE_SHA:\s*([0-9a-f]{40})/g)].map((match) => match[1]);
-  const releaseShas = new Set(extractShas(releaseText));
-  const rollbackShas = new Set(extractShas(rollbackText));
-  assert.equal(releaseShas.size, 1, 'release workflow should pin exactly one PRODUCTION_BASE_SHA value');
-  assert.equal(
-    rollbackShas.size,
-    1,
-    'rollback-image workflow should pin exactly one PRODUCTION_BASE_SHA value',
-  );
-  assert.deepEqual(
-    [...rollbackShas],
-    [...releaseShas],
-    'rollback-image lane must diff against the same production baseline as the release lane, not a stale one',
-  );
+  assert.match(rollbackText, /^name: RETIRED - Production prepare rollback image$/m);
+  assert.match(rollbackText, /Use production-prepare-release\.yml with the dispatch-frozen current production image/);
+  assert.match(rollbackText, /exit 1/);
+  assert.doesNotMatch(rollbackText, /FLY_API_TOKEN|fly deploy|docker |npm |node |uses:/);
 });
 
 test('V06 every Fly process guard enforces the same semantic TOML contract', () => {
@@ -107,8 +98,8 @@ test('V06 every Fly process guard enforces the same semantic TOML contract', () 
         .map((line) => line.startsWith('          ') ? line.slice(10) : line)
         .join('\n'));
   });
-  assert.equal(programs.length, 6, 'all six governed process-guard sites must be executable');
-  assert.equal(new Set(programs).size, 1, 'all six sites must use the same parser contract');
+  assert.equal(programs.length, 5, 'all five active governed process-guard sites must be executable');
+  assert.equal(new Set(programs).size, 1, 'all five sites must use the same parser contract');
   const [program] = programs;
 
   const allowed = [
@@ -164,7 +155,6 @@ test('V06 every Fly process guard enforces the same semantic TOML contract', () 
 test('V07 every live release reader selects a safe completed release and binds the sole Machine image', () => {
   const releaseReaderFiles = [
     'production-deploy.yml',
-    'production-prepare-rollback-image.yml',
     'production-rollback.yml',
   ];
   const programs = releaseReaderFiles.flatMap((file) => {
@@ -176,7 +166,7 @@ test('V07 every live release reader selects a safe completed release and binds t
       .map((line) => line.startsWith('          ') ? line.slice(10) : line)
       .join('\n'));
   });
-  assert.equal(programs.length, 3, 'all three live release readers must be executable');
+  assert.equal(programs.length, 2, 'both live release readers must be executable');
 
   const machineId = '0123456789abcdef';
   const digest = `sha256:${'a'.repeat(64)}`;
@@ -334,7 +324,8 @@ test('V08 parity inventory binds the latest safe release to the exact started pr
   assert.ok(program, 'parity inventory release/Machine program is executable');
 
   const machineId = '0123456789abcdef';
-  const volumeId = 'vol_production123';
+  const volumeId = 'vol_productionr12';
+  const legacyVolumeId = 'vol_legacy123';
   const digest = `sha256:${'c'.repeat(64)}`;
   const immutableImage = `registry.fly.io/assesssuite-production@${digest}`;
   const release = (version, status, extra = {}) => ({
@@ -354,17 +345,37 @@ test('V08 parity inventory binds the latest safe release to the exact started pr
     },
     config: {
       image: immutableImage,
-      mounts: [{ volume: volumeId, path: '/app/server/data' }],
+      mounts: [{
+        volume: volumeId,
+        name: 'assesssuite_data_r12',
+        path: '/app/server/data',
+        encrypted: true,
+        size_gb: 3,
+      }],
     },
   };
   const volume = {
     id: volumeId,
     state: 'created',
-    name: 'assesssuite_data',
+    name: 'assesssuite_data_r12',
     region: 'syd',
     size_gb: 3,
     encrypted: true,
     attached_machine_id: machineId,
+    snapshot_retention: 5,
+    auto_backup_enabled: true,
+  };
+  const legacyVolume = {
+    id: legacyVolumeId,
+    state: 'created',
+    name: 'assesssuite_data',
+    region: 'syd',
+    size_gb: 3,
+    encrypted: true,
+    attached_machine_id: null,
+    attached_alloc_id: null,
+    snapshot_retention: 5,
+    auto_backup_enabled: true,
   };
   const accepted = [
     [release(16, 'complete'), release(17, 'succeeded')],
@@ -406,6 +417,31 @@ test('V08 parity inventory binds the latest safe release to the exact started pr
       releases: [release(17, 'complete')],
       machines: [{ ...machine, image_ref: { ...machine.image_ref, repository: 'different-app' } }],
     },
+    {
+      label: 'legacy production Volume attached',
+      releases: [release(17, 'complete')],
+      machines: [machine],
+      volumes: [volume, { ...legacyVolume, attached_machine_id: machineId }],
+    },
+    {
+      label: 'legacy production Volume absent',
+      releases: [release(17, 'complete')],
+      machines: [machine],
+      volumes: [volume],
+    },
+    {
+      label: 'active production Volume policy drift',
+      releases: [release(17, 'complete')],
+      machines: [machine],
+      volumes: [{ ...volume, auto_backup_enabled: false }, legacyVolume],
+    },
+    {
+      label: 'parity selector aliases preserved legacy production Volume',
+      releases: [release(17, 'complete')],
+      machines: [machine],
+      volumes: [volume, legacyVolume],
+      currentVolumeId: legacyVolumeId,
+    },
   ];
 
   const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), 'assesssuite-parity-inventory-'));
@@ -415,10 +451,15 @@ test('V08 parity inventory binds the latest safe release to the exact started pr
     `${JSON.stringify(value)}\n`,
     'utf8',
   );
-  const execute = (releases, machines) => {
+  const execute = (
+    releases,
+    machines,
+    volumes = [volume, legacyVolume],
+    currentVolumeId = 'NOT-CREATED',
+  ) => {
     write('releases', releases);
     write('machines', machines);
-    write('volumes', [volume]);
+    write('volumes', volumes);
     return spawnSync(process.execPath, ['--input-type=module', '-'], {
       input: program,
       encoding: 'utf8',
@@ -428,7 +469,7 @@ test('V08 parity inventory binds the latest safe release to the exact started pr
         LABEL: label,
         PHASE: 'clean',
         CURRENT_MACHINE_ID: 'NOT-CREATED',
-        CURRENT_VOLUME_ID: 'NOT-CREATED',
+        CURRENT_VOLUME_ID: currentVolumeId,
         CURRENT_PRIVATE_IPV6: 'NOT-CREATED',
         PARITY_MACHINE_NAME: 'parity-fixture',
         PARITY_VOLUME_NAME: 'parity-fixture-data',
@@ -445,10 +486,122 @@ test('V08 parity inventory binds the latest safe release to the exact started pr
       assert.equal(result.status, 0, result.stdout + result.stderr);
     }
     for (const fixture of rejected) {
-      const result = execute(fixture.releases, fixture.machines);
+      const result = execute(
+        fixture.releases,
+        fixture.machines,
+        fixture.volumes,
+        fixture.currentVolumeId,
+      );
       assert.notEqual(result.status, 0, `parity inventory unexpectedly accepted ${fixture.label}`);
     }
   } finally {
     fs.rmSync(fixtureDir, { recursive: true, force: true });
   }
+});
+
+test('V09 previous-image rollback is dispatch-frozen, ancestrally bound, and verified before and after mutation', () => {
+  const prepare = fs.readFileSync(workflowPath('production-prepare-release.yml'), 'utf8');
+  const deploy = fs.readFileSync(workflowPath('production-deploy.yml'), 'utf8');
+  const rollback = fs.readFileSync(workflowPath('production-rollback.yml'), 'utf8');
+
+  assert.match(prepare, /ROLLBACK_SOURCE_SHA: \$\{\{ inputs\.rollback_source_sha \}\}/);
+  assert.match(prepare, /git merge-base --is-ancestor "\$ROLLBACK_SOURCE_SHA" "\$APPLICATION_SHA"/);
+  assert.match(prepare, /\[\[ "\$ROLLBACK_IMAGE" == "\$EXPECTED_CURRENT_IMAGE" \]\]/);
+  assert.match(prepare, /assesssuite\.image-publication-receipt\.v2/);
+  assert.match(prepare, /assesssuite\.exact-image-compatibility-receipt\.v2/);
+  assert.match(prepare, /assesssuite\.deploy-bundle-manifest\.v2/);
+  assert.equal((prepare.match(/rollback_source_sha: process\.env\.ROLLBACK_SOURCE_SHA/g) || []).length, 2);
+  assert.match(prepare, /rollback_source_sha: e\.ROLLBACK_SOURCE_SHA/);
+  assert.match(prepare, /expected_volume_id: process\.env\.EXPECTED_VOLUME_ID/);
+  assert.match(prepare, /expected_legacy_volume_id: process\.env\.EXPECTED_LEGACY_VOLUME_ID/);
+  assert.match(prepare, /expected_legacy_volume_id: e\.EXPECTED_LEGACY_VOLUME_ID/);
+  assert.match(prepare, /npm run build:platform[\s\S]*?npm run build:landing[\s\S]*?npm run verify:split-build[\s\S]*?npm run test:split-hosting/);
+  assert.match(prepare, /is_prohibited_release_filename\(\)/);
+  assert.match(prepare, /if \[\[ "\$changed_file" == '\.env\.example' \]\]; then/);
+  assert.match(prepare, /"\$normalized" =~ \(\^\|\/\)\\\.env\(\$\|\\\.\)/);
+
+  assert.match(deploy, /merge_base_commit\?\.sha !== process\.env\.ROLLBACK_SOURCE_SHA/);
+  assert.match(deploy, /EXPECTED_LEGACY_VOLUME_ID: \$\{\{ inputs\.expected_legacy_volume_id \}\}/);
+  assert.match(deploy, /legacyVolume\.id !== process\.env\.EXPECTED_LEGACY_VOLUME_ID/);
+  assert.match(deploy, /same\(manifest\.expected_legacy_volume_id, e\.EXPECTED_LEGACY_VOLUME_ID/);
+  assert.doesNotMatch(deploy, /^      rollback_release_sha:$/m);
+  assert.match(deploy, /read_version 'https:\/\/app\.assesssuite\.com' "\$ROLLBACK_SOURCE_SHA" "\$RUNNER_TEMP\/pre-mutation-app-version\.json"/);
+  assert.match(deploy, /same\(manifest\.rollback_source_sha, e\.ROLLBACK_SOURCE_SHA/);
+  assert.match(deploy, /same\(manifest\.rollback_image_ref, e\.EXPECTED_CURRENT_IMAGE/);
+  assert.match(deploy, /Exercise Physiology at its Clinical Best\./);
+  assert.match(deploy, /for route in legal\/privacy login; do/);
+  assert.match(deploy, /assert_volume_snapshot_policy postrollback/);
+
+  assert.match(rollback, /ref: \$\{\{ inputs\.trusted_workflow_sha \}\}/);
+  assert.match(rollback, /git -C "\$source_dir" merge-base --is-ancestor "\$ROLLBACK_SOURCE_SHA" "\$FAILED_APPLICATION_SHA"/);
+  assert.match(rollback, /read_version 'https:\/\/app\.assesssuite\.com' "\$FAILED_APPLICATION_SHA" "\$RUNNER_TEMP\/pre-mutation-app-version\.json"/);
+  assert.match(rollback, /assert_topology postrollback/);
+  assert.match(rollback, /EXPECTED_LEGACY_VOLUME_ID: \$\{\{ inputs\.expected_legacy_volume_id \}\}/);
+  assert.match(rollback, /legacyVolume\.id !== process\.env\.EXPECTED_LEGACY_VOLUME_ID/);
+  assert.match(rollback, /ROLLBACK_RELEASE_SHA: \$\{\{ inputs\.rollback_source_sha \}\}/);
+  assert.doesNotMatch(rollback, /^      rollback_release_sha:$/m);
+
+  for (const text of [prepare, deploy, rollback]) {
+    assert.doesNotMatch(text, /096b24db145187542b71cb76cd613e8909515a5a/);
+    assert.doesNotMatch(text, /32e2046af97040ce5fc62df3fdc97e82c123201b61e137861329a9b171925510/);
+  }
+});
+
+test('V10 the release filename preflight allows only root .env.example and scans its content', () => {
+  const prepare = fs.readFileSync(workflowPath('production-prepare-release.yml'), 'utf8')
+    .replaceAll('\r\n', '\n');
+  const functionStart = prepare.indexOf('          is_prohibited_release_filename() {');
+  const functionEnd = prepare.indexOf('\n          prohibited_file_list=', functionStart);
+  assert.notEqual(functionStart, -1);
+  assert.ok(functionEnd > functionStart);
+  const functionSource = prepare.slice(functionStart, functionEnd)
+    .split('\n')
+    .map((line) => line.startsWith('          ') ? line.slice(10) : line)
+    .join('\n');
+  const bash = process.platform === 'win32'
+    ? [
+      'C:\\Program Files\\Git\\bin\\bash.exe',
+      'C:\\Program Files\\Git\\usr\\bin\\bash.exe',
+    ].find((candidate) => fs.existsSync(candidate))
+    : 'bash';
+  assert.ok(bash, 'Bash is required to execute the release filename predicate');
+  const classify = (filename) => spawnSync(
+    bash,
+    ['-c', `${functionSource}\nis_prohibited_release_filename "$1"`, 'filename-preflight', filename],
+    { cwd: repoRoot, encoding: 'utf8' },
+  );
+
+  for (const filename of ['.env.example', 'README.md', 'src/example.js']) {
+    const result = classify(filename);
+    assert.equal(result.status, 1, `${filename} should be allowed: ${result.stderr}`);
+  }
+  for (const filename of [
+    '.env', '.env.preview', '.env.production', '.ENV.EXAMPLE',
+    'config/.env.example', 'config/.env.local', 'credentials.json', 'src/secrets.pem',
+  ]) {
+    const result = classify(filename);
+    assert.equal(result.status, 0, `${filename} should be prohibited: ${result.stderr}`);
+  }
+
+  const base = '6a8ec8d70d87d7b17bcb89e03a9fea4e2871b6d5';
+  const names = spawnSync('git', ['diff', '--name-only', '-z', `${base}...HEAD`], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+  });
+  assert.equal(names.status, 0, names.stderr);
+  const changedFiles = names.stdout.split('\0').filter(Boolean);
+  assert.ok(changedFiles.includes('.env.example'), 'exact release diff must exercise .env.example');
+  for (const filename of changedFiles) {
+    assert.notEqual(classify(filename).status, 0, `exact release diff contains prohibited filename ${filename}`);
+  }
+
+  const binaryDiff = spawnSync('git', ['diff', '--binary', `${base}...HEAD`], {
+    cwd: repoRoot,
+    encoding: 'utf8',
+    maxBuffer: 128 * 1024 * 1024,
+  });
+  assert.equal(binaryDiff.status, 0, binaryDiff.stderr);
+  assert.match(binaryDiff.stdout, /diff --git a\/\.env\.example b\/\.env\.example/);
+  assert.match(prepare, /git diff --binary "\$PRODUCTION_BASE_SHA"\.\.\.HEAD >"\$RUNNER_TEMP\/release\.diff"/);
+  assert.doesNotMatch(prepare, /:!\.env\.example/);
 });

@@ -88,11 +88,9 @@ test('T04 public-surface workflow checks explicitly propagate failures and requi
     assert.match(source, /read_public_surface\(\)[\s\S]*?node --input-type=module <<'NODE' \|\| return 1/);
     assert.match(source, /anonymous-file[\s\S]*?\[\[ "\$status" == '401' \]\] \|\| return 1/);
   }
-  for (const file of ['production-prepare-release.yml', 'production-prepare-rollback-image.yml']) {
+  for (const file of ['production-prepare-release.yml']) {
     const source = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', file), 'utf8');
-    const marker = file === 'production-prepare-release.yml'
-      ? '      - name: Secret and high-entropy diff scan'
-      : '      - name: Secret scan and local image gate';
+    const marker = '      - name: Secret and high-entropy diff scan';
     const start = source.indexOf(marker);
     const end = source.indexOf('\n      - name:', start + marker.length);
     assert.notEqual(start, -1, `${file} scanner step is missing`);
@@ -102,6 +100,10 @@ test('T04 public-surface workflow checks explicitly propagate failures and requi
     assert.match(scannerStep, /\$EXPECTED_RELEASE_SCANNER_SHA256/);
     assert.match(scannerStep, /node scripts\/scan-release-diff\.mjs/);
   }
+  const retired = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', 'production-prepare-rollback-image.yml'), 'utf8');
+  assert.match(retired, /name: RETIRED - Production prepare rollback image/);
+  assert.match(retired, /exit 1/);
+  assert.doesNotMatch(retired, /FLY_API_TOKEN|fly deploy|docker |npm |node |uses:/);
 });
 
 test('T05 release scanner accepts the exact reviewed diff and rejects constructed secret material', () => {
@@ -220,9 +222,9 @@ function assertTwoPhaseImmutableDigestBinding(preparationSource, deploySource) {
   assert.equal((publishStep.match(/docker push "\$new_image_tag"/g) || []).length, 1);
   assert.doesNotMatch(publishStep, /\bfly deploy\b/);
 
-  const releaseStep = deploySource.slice(
-    deploySource.indexOf('      - name: Final secret-bearing Fly release command and public verification'),
-  );
+  const releaseMarker = deploySource.indexOf('      - name: Final secret-bearing Fly release command and public verification');
+  assert.notEqual(releaseMarker, -1);
+  const releaseStep = deploySource.slice(releaseMarker);
   assert.notEqual(releaseStep.length, 0);
   assert.match(
     deploySource,
@@ -300,7 +302,7 @@ test('T10 production publication and deployment are split at the immutable diges
   assertTwoPhaseImmutableDigestBinding(preparationSource, deploySource);
 });
 
-test('T11 every production mutation workflow pins the established 3 GB Sydney volume', () => {
+test('T11 every production mutation workflow pins the active r12 volume and preserved detached legacy volume', () => {
   for (const file of [
     'production-deploy.yml',
     'production-rollback.yml',
@@ -311,8 +313,17 @@ test('T11 every production mutation workflow pins the established 3 GB Sydney vo
       /volume\.size_gb !== 3/,
       `${file} must pin the established 3 GB volume`,
     );
-    assert.match(source, /volume\.name !== 'assesssuite_data'/);
+    assert.match(source, /volume\.name !== 'assesssuite_data_r12'/);
     assert.match(source, /volume\.region !== 'syd'/);
-    assert.doesNotMatch(source, /one 1 GB assesssuite_data volume in syd/);
+    assert.match(source, /legacyVolume\.name !== 'assesssuite_data'/);
+    assert.match(source, /legacyVolume\.attached_machine_id !== null/);
+    assert.match(source, /legacyVolume\.snapshot_retention !== 5/);
+    assert.match(source, /legacyVolume\.id !== process\.env\.EXPECTED_LEGACY_VOLUME_ID/);
+    assert.match(source, /EXPECTED_LEGACY_VOLUME_ID: \$\{\{ inputs\.expected_legacy_volume_id \}\}/);
+  }
+  for (const file of ['fly.production.toml', 'fly.rollback.production.toml']) {
+    const source = fs.readFileSync(path.join(repoRoot, file), 'utf8');
+    assert.match(source, /^  source = "assesssuite_data_r12"$/m);
+    assert.doesNotMatch(source, /^  source = "assesssuite_data"$/m);
   }
 });
