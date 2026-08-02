@@ -128,6 +128,27 @@ test('admin analytics presents the four aggregate usage measures through an auth
   assert.doesNotMatch(adminAnalytics, /document\.referrer|navigator\.|location\.href/);
 });
 
+test('the private practice overview is independent of clinician onboarding gates', () => {
+  const app = read('src/App.jsx');
+  const layout = read('src/Layout.jsx');
+  const overview = read('src/pages/UsageOverview.jsx');
+  const server = read('server/index.mjs');
+
+  assert.match(app, /ProtectedRoute unauthenticatedElement=\{<Navigate to="\/login" replace \/>\}/);
+  assert.match(layout, /BYPASS_PATHS = \[[^\]]*"\/UsageOverview"[^\]]*\]/);
+  assert.match(layout, /if \(isBypassPath\(location\.pathname\)\) return <>\{children\}<\/>;/);
+
+  for (const source of [layout, overview, server]) {
+    assert.match(source, /brenton@primehealthclinics\.com/);
+    assert.match(source, /mb\.vidler@gmail\.com/);
+  }
+  assert.match(overview, /await base44\.auth\.me\(\)/);
+  assert.match(overview, /if \(!canView\(user\)\)/);
+  assert.match(overview, /fetch\("\/api\/usage\/summary\?days=30"/);
+  assert.match(server, /if \(!sessionUser\) return sendError\(res, 401, 'authentication required'\)/);
+  assert.match(server, /if \(!canViewUsageDashboard\(sessionUser\)\) return sendError\(res, 403, 'dashboard access required'\)/);
+});
+
 test('build and routing configuration preserves the split-hosting boundary', () => {
   const packageJson = JSON.parse(read('package.json'));
   const jsConfig = JSON.parse(read('jsconfig.json'));
