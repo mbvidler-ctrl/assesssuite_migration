@@ -519,6 +519,17 @@ test('V09 previous-image rollback is dispatch-frozen, ancestrally bound, and ver
   assert.match(prepare, /is_prohibited_release_filename\(\)/);
   assert.match(prepare, /if \[\[ "\$changed_file" == '\.env\.example' \]\]; then/);
   assert.match(prepare, /"\$normalized" =~ \(\^\|\/\)\\\.env\(\$\|\\\.\)/);
+  assert.equal(
+    (prepare.match(/PRODUCTION_BASE_SHA: d64baaaf210ded5898f9509d9dfb1c10cee505f8/g) || []).length,
+    2,
+    'release typecheck and content gates must use the exact current production base',
+  );
+  assert.match(
+    prepare,
+    /git worktree add --detach "\$reference_dir" "\$PRODUCTION_BASE_SHA"/,
+    'the reviewed typecheck fingerprint reference must stay bound to the exact production base',
+  );
+  assert.doesNotMatch(prepare, /eae2f229886b8aa2071864767ba61c0d6e4a548d/);
 
   assert.match(deploy, /merge_base_commit\?\.sha !== process\.env\.ROLLBACK_SOURCE_SHA/);
   assert.match(deploy, /EXPECTED_LEGACY_VOLUME_ID: \$\{\{ inputs\.expected_legacy_volume_id \}\}/);
