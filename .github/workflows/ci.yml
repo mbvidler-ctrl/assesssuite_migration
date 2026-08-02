@@ -63,8 +63,13 @@ jobs:
           base_sha="${BASE_SHA}"
           git merge-base --is-ancestor "${base_sha}" HEAD
           changed_files="$(git diff --name-only "${base_sha}"...HEAD)"
-          if grep -Eiq '(^|/)\.env($|\.)|(^|/)(credentials?|secrets?)\.(json|txt|pem|key)$' <<<"${changed_files}"; then
-            printf '%s\n' "${changed_files}"
+          prohibited_secret_files="$(
+            grep -Ei '(^|/)\.env($|\.)|(^|/)(credentials?|secrets?)\.(json|txt|pem|key)$' <<<"${changed_files}" \
+              | grep -Eiv '(^|/)\.env\.example$' \
+              || true
+          )"
+          if [[ -n "${prohibited_secret_files}" ]]; then
+            printf '%s\n' "${prohibited_secret_files}"
             echo 'Pull-request diff contains a prohibited secret-bearing filename.' >&2
             exit 1
           fi

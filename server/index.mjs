@@ -56,6 +56,7 @@ import {
 } from '../src/lib/legal/documentRegistry.js';
 import { effectiveLegalContent } from '../src/lib/legal/effectiveContent.js';
 import { resolveLegalConsentAudiences } from '../src/lib/legal/consentAudience.js';
+import { createErrorTelemetry } from './telemetry.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
@@ -79,6 +80,11 @@ const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
     if (process.env[key] === undefined) process.env[key] = val;
   }
 })();
+
+// Configuration is deliberately lazy inside createErrorTelemetry: importing
+// the module cannot observe credentials, and SENTRY_DSN is first parsed only
+// after environment loading and only if a completed response is a 5xx.
+const errorTelemetry = createErrorTelemetry({ environment: process.env });
 
 const PORT = Number(process.env.PORT) || 8787;
 // Fly requires the production process to accept traffic from its proxy, so the
@@ -2508,6 +2514,9 @@ function serveDistOrFallback(req, res, pathname) {
 // ---------------------------------------------------------------------------
 
 async function requestListener(req, res) {
+  // Observe the final status instead of individual responder calls. This
+  // covers both this core router and the separately mounted functions router.
+  errorTelemetry.observe(req, res);
   try {
     const url = parseUrl(req);
     const pathname = url.pathname;
