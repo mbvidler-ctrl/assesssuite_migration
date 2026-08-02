@@ -4,7 +4,6 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { sanitiseAnalyticsEvent } from '../../apps/landing/src/analytics.js';
 import {
   APPROVED_LANDING_LEGAL_DOCUMENTS,
   getApprovedLandingLegalDocumentBySlug,
@@ -16,55 +15,6 @@ import {
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
-
-test('landing analytics keeps only public production paths and strips query data', () => {
-  const event = sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://assesssuite.com/?utm_source=private#section' },
-    'https://assesssuite.com',
-  );
-  assert.equal(event.url, 'https://assesssuite.com/');
-  assert.equal(event.type, 'pageview');
-
-  const legal = sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://www.assesssuite.com/legal/privacy?token=secret' },
-    'https://www.assesssuite.com',
-  );
-  assert.equal(legal.url, 'https://www.assesssuite.com/legal/privacy');
-
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://assesssuite.com/legal/jane-doe-depression?patient=123' },
-    'https://assesssuite.com',
-  ), null);
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://assesssuite.com/legal/website-terms' },
-    'https://assesssuite.com',
-  ), null);
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://assesssuite.com/legal/vulnerability-disclosure' },
-    'https://assesssuite.com',
-  ), null);
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'http://assesssuite.com/legal/privacy' },
-    'https://assesssuite.com',
-  ), null);
-
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://app.assesssuite.com/Dashboard?client=123' },
-    'https://app.assesssuite.com',
-  ), null);
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://assesssuite.com/login' },
-    'https://assesssuite.com',
-  ), null);
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://preview-branch.vercel.app/' },
-    'https://preview-branch.vercel.app',
-  ), null);
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'event', name: 'future-custom-event', url: 'https://assesssuite.com/' },
-    'https://assesssuite.com',
-  ), null);
-});
 
 test('landing legal routes and imports fail closed for unapproved drafts', () => {
   const draftIds = ['website-terms', 'vulnerability-disclosure'];
@@ -126,7 +76,7 @@ test('marketing entry has no authenticated application or API provider imports',
   assert.match(marketingApp, /BLOCKED_BACKEND_PATH/);
   assert.doesNotMatch(landing, /(?:import|from)\s+['"][^'"]*(?:AuthContext|base44)|\buseAuth\s*\(|\buseNavigate\s*\(/);
   assert.doesNotMatch(platformApp, /pages\/LandingLive/);
-  assert.match(marketingMain, /@vercel\/analytics\/react/);
+  assert.doesNotMatch(marketingMain, /@vercel\/analytics|Analytics|beforeSend/);
   assert.doesNotMatch(platformMain, /@vercel\/analytics|Analytics/);
 });
 
@@ -137,6 +87,9 @@ test('build and routing configuration preserves the split-hosting boundary', () 
   const platformHtml = read('apps/app-ep/index.html');
   const landingConfig = read('apps/landing/vite.config.js');
   const vercelIgnore = read('.vercelignore');
+  const contentSecurityPolicy = vercel.headers
+    .flatMap((route) => route.headers)
+    .find((header) => header.key === 'Content-Security-Policy')?.value;
 
   assert.equal(packageJson.scripts.build, 'npm run build:platform');
   assert.ok(jsConfig.compilerOptions.types.includes('vite/client'));
@@ -149,6 +102,10 @@ test('build and routing configuration preserves the split-hosting boundary', () 
   )));
   assert.ok(vercel.redirects.some((redirect) => redirect.destination === 'https://app.assesssuite.com/:path'));
   assert.ok(vercel.redirects.every((redirect) => !/(?:api|functions|uploads)/i.test(redirect.source)));
+  assert.ok(contentSecurityPolicy);
+  assert.doesNotMatch(contentSecurityPolicy, /va\.vercel-scripts\.com/);
+  assert.match(contentSecurityPolicy, /(?:^|;\s*)script-src 'self'(?:;|$)/);
+  assert.match(contentSecurityPolicy, /(?:^|;\s*)connect-src 'self'(?:;|$)/);
   assert.match(platformHtml, /noindex, nofollow, noarchive/);
   assert.doesNotMatch(landingConfig, /\bserverPort\s*:|\bproxy\s*:/);
   for (const ignored of ['.env', 'node_modules', 'dist', 'apps/app-ep', 'server']) {
@@ -156,7 +113,9 @@ test('build and routing configuration preserves the split-hosting boundary', () 
   }
 });
 
-test('published analytics notices match the bounded implementation', () => {
+test('published analytics notices disclose the disabled state and historical referrer limitation', () => {
+  const packageJson = read('package.json');
+  const packageLock = read('package-lock.json');
   const cookieNotice = read('src/legal-content/10_cookie_analytics_and_tracking_notice.md');
   const privacyPolicy = read('src/legal-content/03_privacy_policy.md');
   const subprocessorSchedule = read('src/legal-content/25_approved_subprocessor_and_cross_border_schedule_template.md');
@@ -166,12 +125,17 @@ test('published analytics notices match the bounded implementation', () => {
   for (const source of [cookieNotice, privacyPolicy, subprocessorSchedule]) {
     assert.match(source, /Vercel Web Analytics/);
     assert.match(source, /Patient Data/);
+    assert.match(source, /disabled/i);
+    assert.match(source, /external referring URL/);
   }
-  assert.match(cookieNotice, /does not configure custom events/);
+  assert.match(cookieNotice, /custom events/);
   assert.match(cookieNotice, /query string and URL fragment/);
   assert.doesNotMatch(cookieNotice, /Off by default until PIA/);
-  assert.match(registry, /2026-08-02\.1/);
-  assert.match(registry, /LIMITED PUBLIC-SITE ANALYTICS ONLY/);
+  assert.match(registry, /2026-08-02\.2/);
+  assert.match(registry, /PUBLIC-SITE ANALYTICS DISABLED/);
   assert.match(registry, /effectiveDate: '2 August 2026'/);
   assert.match(marketingLegalPage, /doc\.effectiveDate \|\| SUITE_EFFECTIVE_DATE/);
+  assert.doesNotMatch(read('apps/landing/src/main.jsx'), /@vercel\/analytics|Analytics|beforeSend/);
+  assert.doesNotMatch(packageJson, /@vercel\/analytics/);
+  assert.doesNotMatch(packageLock, /@vercel\/analytics/);
 });

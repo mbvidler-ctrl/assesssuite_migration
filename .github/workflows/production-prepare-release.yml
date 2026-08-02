@@ -321,7 +321,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 931cd44877a4ae733aa05707a7425807e0b8fc55c0f49555afcb419c8b1e603f
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 574a839f96df392f1d3e0309c9bc2581e5a97a3c957c2fadfc557b88802d0d04
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -562,12 +562,131 @@ jobs:
           APPLICATION_SHA: ${{ steps.metadata.outputs.application_sha }}
           SOURCE_BRANCH: ${{ steps.metadata.outputs.source_branch }}
           BUILD_TIMESTAMP: ${{ steps.metadata.outputs.build_timestamp }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
         run: |
           set -euo pipefail
+          set +x
+          [[ -z "${SENTRY_AUTH_TOKEN:-}" && -z "${FLY_API_TOKEN:-}" && -n "$SENTRY_DSN" ]]
+          if env | grep -Eq '^(SENTRY_AUTH_TOKEN|FLY_API_TOKEN|DOCKER_AUTH_CONFIG)='; then exit 1; fi
+          SENTRY_DSN_VALUE="$SENTRY_DSN" node --input-type=module <<'NODE'
+          const value = process.env.SENTRY_DSN_VALUE;
+          let parsed;
+          try {
+            parsed = new URL(value);
+          } catch {
+            throw new Error('Sentry DSN does not match the approved production project');
+          }
+          if (parsed.protocol !== 'https:' || parsed.hostname !== 'o4511822688813056.ingest.us.sentry.io' ||
+              parsed.port !== '' || parsed.pathname !== '/4511827129663488' || parsed.search !== '' ||
+              parsed.hash !== '' || parsed.password !== '' || !/^[0-9a-f]{32}$/.test(parsed.username)) {
+            throw new Error('Sentry DSN does not match the approved production project');
+          }
+          NODE
+          rm -rf dist
+          RELEASE_SHA="$APPLICATION_SHA" SOURCE_BRANCH="$SOURCE_BRANCH" BUILD_TIMESTAMP="$BUILD_TIMESTAMP" \
+            VITE_BASE44_APP_ID=local-assesssuite \
+            VITE_SENTRY_DSN="$SENTRY_DSN" VITE_SENTRY_RELEASE="$APPLICATION_SHA" VITE_SENTRY_ENVIRONMENT=production \
+            npm run build:platform
+          ./node_modules/.bin/sentry-cli sourcemaps inject dist
+          source_map_manifest="$RUNNER_TEMP/sentry-source-map-manifest.json"
+          SOURCE_MAP_ROOT="$GITHUB_WORKSPACE/dist" SOURCE_MAP_MANIFEST="$source_map_manifest" \
+            APPLICATION_SHA="$APPLICATION_SHA" SOURCE_BRANCH="$SOURCE_BRANCH" BUILD_TIMESTAMP="$BUILD_TIMESTAMP" \
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          const root = process.env.SOURCE_MAP_ROOT;
+          const sha256 = (file) => crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const files = [];
+          const walk = (directory) => {
+            for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+              const absolute = path.join(directory, entry.name);
+              if (entry.isSymbolicLink()) throw new Error(`Source-map build contains a symlink: ${absolute}`);
+              if (entry.isDirectory()) walk(absolute);
+              else if (entry.isFile()) files.push(absolute);
+              else throw new Error(`Source-map build contains a non-regular file: ${absolute}`);
+            }
+          };
+          walk(root);
+          const relative = (file) => path.relative(root, file).replaceAll('\\', '/');
+          const runtimeFiles = files.filter((file) => file.endsWith('.js')).sort((a, b) => relative(a).localeCompare(relative(b)));
+          const mapFiles = files.filter((file) => file.endsWith('.js.map')).sort((a, b) => relative(a).localeCompare(relative(b)));
+          if (runtimeFiles.length === 0 || mapFiles.length !== runtimeFiles.length) {
+            throw new Error('The platform build does not contain a one-to-one JavaScript/source-map set');
+          }
+          const runtimePaths = new Set(runtimeFiles.map(relative));
+          const sourceMaps = mapFiles.map((file) => {
+            const mapPath = relative(file);
+            const runtimePath = mapPath.slice(0, -4);
+            if (!/^assets\/[A-Za-z0-9._-]+\.js\.map$/.test(mapPath) || !runtimePaths.has(runtimePath)) throw new Error(`Orphan or invalid source map: ${mapPath}`);
+            const value = JSON.parse(fs.readFileSync(file, 'utf8'));
+            if (value?.version !== 3 || !Array.isArray(value.sources) || value.sources.length === 0 ||
+                !Array.isArray(value.sourcesContent) || value.sourcesContent.length !== value.sources.length ||
+                !Array.isArray(value.names) || typeof value.mappings !== 'string' || value.mappings.length === 0 ||
+                !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(value.debugId) ||
+                (value.file !== undefined && value.file !== runtimePath)) {
+              throw new Error(`Invalid source-map structure: ${mapPath}`);
+            }
+            const runtimeValue = fs.readFileSync(path.join(root, runtimePath), 'utf8');
+            if (!runtimeValue.includes('_sentryDebugIds') ||
+                runtimeValue.split(`//# debugId=${value.debugId}`).length !== 2) {
+              throw new Error(`Debug ID is not injected into the matching runtime JavaScript: ${runtimePath}`);
+            }
+            return { path: mapPath, runtime_path: runtimePath, bytes: fs.statSync(file).size, sha256: sha256(file) };
+          });
+          const runtimeJs = runtimeFiles.map((file) => {
+            const value = fs.readFileSync(file, 'utf8');
+            const runtimePath = relative(file);
+            if (!/^assets\/[A-Za-z0-9._-]+\.js$/.test(runtimePath)) throw new Error(`Runtime JavaScript path is invalid: ${runtimePath}`);
+            if (/sourceMappingURL\s*=/.test(value)) throw new Error(`Platform source map is publicly referenced: ${runtimePath}`);
+            return { path: runtimePath, bytes: fs.statSync(file).size, sha256: sha256(file) };
+          });
+          const row = {
+            schema_version: 'assesssuite.sentry-source-map-manifest.v1',
+            application_sha: process.env.APPLICATION_SHA,
+            source_branch: process.env.SOURCE_BRANCH,
+            build_timestamp: process.env.BUILD_TIMESTAMP,
+            runtime_js: runtimeJs,
+            source_maps: sourceMaps,
+          };
+          fs.writeFileSync(process.env.SOURCE_MAP_MANIFEST, `${JSON.stringify(row)}\n`, { mode: 0o600 });
+          NODE
+          [[ -f "$source_map_manifest" && ! -L "$source_map_manifest" ]]
+          [[ "$(wc -c <"$source_map_manifest")" -gt 0 && "$(wc -c <"$source_map_manifest")" -le 65536 ]]
+          source_map_payload="$RUNNER_TEMP/sentry-source-map-payload"
+          source_map_archive="$RUNNER_TEMP/sentry-source-maps.tar.gz"
+          rm -rf "$source_map_payload"
+          install -d -m 0700 "$source_map_payload/assets"
+          SOURCE_MAP_ROOT="$GITHUB_WORKSPACE/dist" SOURCE_MAP_PAYLOAD="$source_map_payload" \
+            SOURCE_MAP_MANIFEST="$source_map_manifest" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const root = process.env.SOURCE_MAP_ROOT;
+          const payload = process.env.SOURCE_MAP_PAYLOAD;
+          const manifest = JSON.parse(fs.readFileSync(process.env.SOURCE_MAP_MANIFEST, 'utf8'));
+          const rows = [...manifest.runtime_js, ...manifest.source_maps];
+          const paths = new Set();
+          for (const row of rows) {
+            if (!/^assets\/[A-Za-z0-9._-]+\.js(?:\.map)?$/.test(row.path) || paths.has(row.path)) {
+              throw new Error('Source-map archive path is invalid or duplicated');
+            }
+            paths.add(row.path);
+            const source = path.join(root, row.path);
+            const destination = path.join(payload, row.path);
+            if (!fs.statSync(source).isFile()) throw new Error('Source-map archive input is not a regular file');
+            fs.copyFileSync(source, destination, fs.constants.COPYFILE_EXCL);
+            fs.chmodSync(destination, 0o600);
+          }
+          NODE
+          tar --sort=name --format=ustar --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            -C "$source_map_payload" -cf - assets | gzip -1 -n >"$source_map_archive"
+          [[ -f "$source_map_archive" && ! -L "$source_map_archive" ]]
+          [[ "$(wc -c <"$source_map_archive")" -gt 0 && "$(wc -c <"$source_map_archive")" -le 67108864 ]]
           docker build \
             --build-arg "RELEASE_SHA=$APPLICATION_SHA" \
             --build-arg "SOURCE_BRANCH=$SOURCE_BRANCH" \
             --build-arg "BUILD_TIMESTAMP=$BUILD_TIMESTAMP" \
+            --build-arg "SENTRY_DSN=$SENTRY_DSN" \
             --label "org.opencontainers.image.revision=$APPLICATION_SHA" \
             --label "org.opencontainers.image.created=$BUILD_TIMESTAMP" \
             --label "org.opencontainers.image.source=https://github.com/mbvidler-ctrl/assesssuite_migration/tree/$APPLICATION_SHA" \
@@ -587,6 +706,7 @@ jobs:
             exit 1
           fi
           image_canary_dir="$RUNNER_TEMP/built-image-canary"
+          image_dist_dir="$RUNNER_TEMP/built-image-dist"
           mkdir -p "$image_canary_dir"
           image_container="$(docker create "assesssuite-release-gate:$APPLICATION_SHA")"
           cleanup_image_container() {
@@ -601,6 +721,38 @@ jobs:
             docker cp "$image_container:/app/$relative_path" "$extracted_path"
             cmp --silent "$relative_path" "$extracted_path"
           done
+          if docker export "$image_container" | tar -tf - | grep -Eq '(^|/)[^/]+\.map$'; then
+            echo 'Candidate image contains a forbidden source-map file.' >&2
+            exit 1
+          fi
+          docker cp "$image_container:/app/dist" "$image_dist_dir"
+          SOURCE_MAP_MANIFEST="$source_map_manifest" IMAGE_DIST="$image_dist_dir" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import crypto from 'node:crypto';
+          const manifest = JSON.parse(fs.readFileSync(process.env.SOURCE_MAP_MANIFEST, 'utf8'));
+          const root = process.env.IMAGE_DIST;
+          const files = [];
+          const walk = (directory) => {
+            for (const entry of fs.readdirSync(directory, { withFileTypes: true })) {
+              const absolute = path.join(directory, entry.name);
+              if (entry.isSymbolicLink()) throw new Error(`Candidate image dist contains a symlink: ${absolute}`);
+              if (entry.isDirectory()) walk(absolute);
+              else if (entry.isFile()) files.push(absolute);
+              else throw new Error(`Candidate image dist contains a non-regular file: ${absolute}`);
+            }
+          };
+          walk(root);
+          if (files.some((file) => file.endsWith('.map'))) throw new Error('Candidate image contains source maps');
+          const runtimeJs = files.filter((file) => file.endsWith('.js')).map((file) => ({
+            path: path.relative(root, file).replaceAll('\\', '/'),
+            bytes: fs.statSync(file).size,
+            sha256: crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex'),
+          })).sort((a, b) => a.path.localeCompare(b.path));
+          if (JSON.stringify(runtimeJs) !== JSON.stringify(manifest.runtime_js)) {
+            throw new Error('Byte-proven JavaScript differs from the exact candidate image output');
+          }
+          NODE
           cleanup_image_container
           trap - EXIT
           candidate_image_id="$(docker image inspect "assesssuite-release-gate:$APPLICATION_SHA" --format '{{.Id}}')"
@@ -608,16 +760,23 @@ jobs:
           docker save "assesssuite-release-gate:$APPLICATION_SHA" | gzip -1 -n >"$RUNNER_TEMP/candidate-image.tar.gz"
           candidate_archive_sha256="$(sha256sum "$RUNNER_TEMP/candidate-image.tar.gz" | awk '{print $1}')"
           printf '%s  %s\n' "$candidate_archive_sha256" candidate-image.tar.gz >"$RUNNER_TEMP/candidate-image.tar.gz.sha256"
+          source_map_manifest_sha256="$(sha256sum "$source_map_manifest" | awk '{print $1}')"
+          source_map_archive_sha256="$(sha256sum "$source_map_archive" | awk '{print $1}')"
+          [[ "$source_map_manifest_sha256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$source_map_archive_sha256" =~ ^[0-9a-f]{64}$ ]]
           APPLICATION_SHA="$APPLICATION_SHA" SOURCE_BRANCH="$SOURCE_BRANCH" BUILD_TIMESTAMP="$BUILD_TIMESTAMP" \
             CANDIDATE_IMAGE_ID="$candidate_image_id" CANDIDATE_ARCHIVE_SHA256="$candidate_archive_sha256" \
+            SOURCE_MAP_MANIFEST_SHA256="$source_map_manifest_sha256" SOURCE_MAP_ARCHIVE_SHA256="$source_map_archive_sha256" \
             node --input-type=module >"$RUNNER_TEMP/candidate-build-receipt.json" <<'NODE'
           const row = {
-            schema_version: 'assesssuite.candidate-build-receipt.v1',
+            schema_version: 'assesssuite.candidate-build-receipt.v3',
             application_sha: process.env.APPLICATION_SHA,
             source_branch: process.env.SOURCE_BRANCH,
             build_timestamp: process.env.BUILD_TIMESTAMP,
             candidate_image_id: process.env.CANDIDATE_IMAGE_ID,
             candidate_archive_sha256: process.env.CANDIDATE_ARCHIVE_SHA256,
+            source_map_manifest_sha256: process.env.SOURCE_MAP_MANIFEST_SHA256,
+            source_map_archive_sha256: process.env.SOURCE_MAP_ARCHIVE_SHA256,
           };
           process.stdout.write(`${JSON.stringify(row)}\n`);
           NODE
@@ -625,6 +784,7 @@ jobs:
           install -m 0600 fly.production.toml "$RUNNER_TEMP/release-control/fly.production.toml"
           install -m 0600 fly.rollback.production.toml "$RUNNER_TEMP/release-control/fly.rollback.production.toml"
           install -m 0600 "$RUNNER_TEMP/candidate-build-receipt.json" "$RUNNER_TEMP/release-control/candidate-build-receipt.json"
+          install -m 0600 "$source_map_manifest" "$RUNNER_TEMP/release-control/sentry-source-map-manifest.json"
 
       - name: Preserve the exact gated candidate image
         id: upload_candidate
@@ -635,6 +795,8 @@ jobs:
             ${{ runner.temp }}/candidate-image.tar.gz
             ${{ runner.temp }}/candidate-image.tar.gz.sha256
             ${{ runner.temp }}/candidate-build-receipt.json
+            ${{ runner.temp }}/sentry-source-map-manifest.json
+            ${{ runner.temp }}/sentry-source-maps.tar.gz
           if-no-files-found: error
           retention-days: 1
 
@@ -648,9 +810,218 @@ jobs:
           retention-days: 1
           compression-level: 0
 
+  upload_sentry_source_maps:
+    name: Upload byte-proven source maps from a fresh data-only runner
+    needs: gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Download exact gated source-map data by immutable artifact ID
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.gates.outputs.candidate_image_artifact_id }}
+          path: ${{ runner.temp }}/candidate-data
+          merge-multiple: true
+
+      - name: Validate and extract sealed source-map data without executing candidate code
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
+          SOURCE_BRANCH: ${{ needs.gates.outputs.source_branch }}
+          BUILD_TIMESTAMP: ${{ needs.gates.outputs.build_timestamp }}
+          CANDIDATE_IMAGE_ARTIFACT_ID: ${{ needs.gates.outputs.candidate_image_artifact_id }}
+          CANDIDATE_IMAGE_ARTIFACT_DIGEST: ${{ needs.gates.outputs.candidate_image_artifact_digest }}
+        run: |
+          set -euo pipefail
+          [[ -z "${SENTRY_AUTH_TOKEN:-}" && -z "${SENTRY_DSN:-}" && -z "${FLY_API_TOKEN:-}" ]]
+          if env | grep -Eq '^(SENTRY_AUTH_TOKEN|SENTRY_DSN|FLY_API_TOKEN|DOCKER_AUTH_CONFIG)='; then exit 1; fi
+          artifact="$RUNNER_TEMP/candidate-data"
+          upload_root="$RUNNER_TEMP/sentry-upload"
+          [[ "$CANDIDATE_IMAGE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$CANDIDATE_IMAGE_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          expected_files=$'candidate-build-receipt.json\ncandidate-image.tar.gz\ncandidate-image.tar.gz.sha256\nsentry-source-map-manifest.json\nsentry-source-maps.tar.gz'
+          actual_files="$(find "$artifact" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)"
+          [[ "$actual_files" == "$expected_files" ]]
+          for file in candidate-build-receipt.json candidate-image.tar.gz candidate-image.tar.gz.sha256 sentry-source-map-manifest.json sentry-source-maps.tar.gz; do
+            [[ -f "$artifact/$file" && ! -L "$artifact/$file" ]]
+            [[ "$(stat -c '%F' "$artifact/$file")" == 'regular file' ]]
+          done
+          [[ "$(wc -c <"$artifact/candidate-build-receipt.json")" -gt 0 && "$(wc -c <"$artifact/candidate-build-receipt.json")" -le 8192 ]]
+          [[ "$(wc -c <"$artifact/sentry-source-map-manifest.json")" -gt 0 && "$(wc -c <"$artifact/sentry-source-map-manifest.json")" -le 65536 ]]
+          [[ "$(wc -c <"$artifact/sentry-source-maps.tar.gz")" -gt 0 && "$(wc -c <"$artifact/sentry-source-maps.tar.gz")" -le 67108864 ]]
+          install -d -m 0700 "$upload_root"
+          ARTIFACT_ROOT="$artifact" UPLOAD_ROOT="$upload_root" APPLICATION_SHA="$APPLICATION_SHA" \
+            SOURCE_BRANCH="$SOURCE_BRANCH" BUILD_TIMESTAMP="$BUILD_TIMESTAMP" python3 -I - <<'PY'
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import re
+          import shutil
+          import tarfile
+
+          artifact = pathlib.Path(os.environ['ARTIFACT_ROOT'])
+          upload = pathlib.Path(os.environ['UPLOAD_ROOT'])
+          receipt_path = artifact / 'candidate-build-receipt.json'
+          manifest_path = artifact / 'sentry-source-map-manifest.json'
+          archive_path = artifact / 'sentry-source-maps.tar.gz'
+
+          def sha256(path):
+              digest = hashlib.sha256()
+              with path.open('rb') as stream:
+                  for chunk in iter(lambda: stream.read(1024 * 1024), b''):
+                      digest.update(chunk)
+              return digest.hexdigest()
+
+          def canonical(path):
+              raw = path.read_text(encoding='utf-8')
+              value = json.loads(raw)
+              if raw != json.dumps(value, separators=(',', ':')) + '\n':
+                  raise SystemExit('Source-map control JSON is not canonical')
+              return value
+
+          receipt = canonical(receipt_path)
+          receipt_keys = {
+              'schema_version', 'application_sha', 'source_branch', 'build_timestamp',
+              'candidate_image_id', 'candidate_archive_sha256', 'source_map_manifest_sha256',
+              'source_map_archive_sha256',
+          }
+          if set(receipt) != receipt_keys or receipt['schema_version'] != 'assesssuite.candidate-build-receipt.v3':
+              raise SystemExit('Candidate build receipt contract differs')
+          if (receipt['application_sha'] != os.environ['APPLICATION_SHA'] or
+              receipt['source_branch'] != os.environ['SOURCE_BRANCH'] or
+              receipt['build_timestamp'] != os.environ['BUILD_TIMESTAMP']):
+              raise SystemExit('Candidate build receipt identity differs')
+          if not re.fullmatch(r'sha256:[0-9a-f]{64}', receipt['candidate_image_id']) or any(
+              not re.fullmatch(r'[0-9a-f]{64}', receipt[key]) for key in (
+                  'candidate_archive_sha256', 'source_map_manifest_sha256', 'source_map_archive_sha256'
+              )
+          ):
+              raise SystemExit('Candidate build receipt digest differs')
+          if sha256(manifest_path) != receipt['source_map_manifest_sha256'] or sha256(archive_path) != receipt['source_map_archive_sha256']:
+              raise SystemExit('Source-map archive or manifest hash differs')
+
+          manifest = canonical(manifest_path)
+          if set(manifest) != {'schema_version', 'application_sha', 'source_branch', 'build_timestamp', 'runtime_js', 'source_maps'}:
+              raise SystemExit('Source-map manifest keys differ')
+          if (manifest['schema_version'] != 'assesssuite.sentry-source-map-manifest.v1' or
+              manifest['application_sha'] != os.environ['APPLICATION_SHA'] or
+              manifest['source_branch'] != os.environ['SOURCE_BRANCH'] or
+              manifest['build_timestamp'] != os.environ['BUILD_TIMESTAMP']):
+              raise SystemExit('Source-map manifest identity differs')
+          runtime = manifest['runtime_js']
+          maps = manifest['source_maps']
+          if not isinstance(runtime, list) or not runtime or not isinstance(maps, list) or len(maps) != len(runtime):
+              raise SystemExit('Source-map manifest is not one-to-one')
+          runtime_rows = {}
+          expected = {}
+          for row in runtime:
+              if set(row) != {'path', 'bytes', 'sha256'} or not re.fullmatch(r'assets/[A-Za-z0-9._-]+\.js', row['path']):
+                  raise SystemExit('Runtime JavaScript row differs')
+              if row['path'] in runtime_rows or not isinstance(row['bytes'], int) or not 0 < row['bytes'] <= 50_000_000 or not re.fullmatch(r'[0-9a-f]{64}', row['sha256']):
+                  raise SystemExit('Runtime JavaScript bounds differ')
+              runtime_rows[row['path']] = row
+              expected[row['path']] = row
+          for row in maps:
+              if set(row) != {'path', 'runtime_path', 'bytes', 'sha256'} or not re.fullmatch(r'assets/[A-Za-z0-9._-]+\.js\.map', row['path']):
+                  raise SystemExit('Source-map row differs')
+              if (row['path'] in expected or row['runtime_path'] not in runtime_rows or row['path'] != row['runtime_path'] + '.map' or
+                  not isinstance(row['bytes'], int) or not 0 < row['bytes'] <= 50_000_000 or not re.fullmatch(r'[0-9a-f]{64}', row['sha256'])):
+                  raise SystemExit('Source-map relation or bounds differ')
+              expected[row['path']] = row
+          if sum(row['bytes'] for row in expected.values()) > 67_108_864:
+              raise SystemExit('Source-map payload exceeds the reviewed bound')
+
+          with tarfile.open(archive_path, mode='r:gz') as archive:
+              members = archive.getmembers()
+              files = [member for member in members if member.isfile()]
+              directories = [member for member in members if member.isdir()]
+              if any(not (member.isfile() or member.isdir()) for member in members):
+                  raise SystemExit('Source-map archive contains a non-data member')
+              if any(member.name.rstrip('/') != 'assets' for member in directories):
+                  raise SystemExit('Source-map archive directory set differs')
+              if {member.name for member in files} != set(expected):
+                  raise SystemExit('Source-map archive file set differs')
+              for member in files:
+                  row = expected[member.name]
+                  if member.size != row['bytes']:
+                      raise SystemExit('Source-map archive byte count differs')
+                  source = archive.extractfile(member)
+                  if source is None:
+                      raise SystemExit('Source-map archive member is unreadable')
+                  destination = upload / member.name
+                  destination.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+                  with destination.open('xb') as output:
+                      shutil.copyfileobj(source, output, length=1024 * 1024)
+                  destination.chmod(0o600)
+                  if destination.stat().st_size != row['bytes'] or sha256(destination) != row['sha256']:
+                      raise SystemExit('Extracted source-map data differs')
+
+          uuid = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+          for row in maps:
+              map_value = json.loads((upload / row['path']).read_text(encoding='utf-8'))
+              debug_id = map_value.get('debugId')
+              if not isinstance(debug_id, str) or not uuid.fullmatch(debug_id):
+                  raise SystemExit('Source map does not contain a valid injected debug ID')
+              runtime_value = (upload / row['runtime_path']).read_text(encoding='utf-8')
+              if '_sentryDebugIds' not in runtime_value or runtime_value.count(f'//# debugId={debug_id}') != 1:
+                  raise SystemExit('Runtime JavaScript debug ID does not match its source map')
+              if re.search(r'sourceMappingURL\s*=', runtime_value):
+                  raise SystemExit('Runtime JavaScript publicly references a source map')
+          PY
+          [[ -d "$upload_root/assets" && ! -L "$upload_root/assets" ]]
+          if find "$upload_root" -type l -print -quit | grep -q .; then exit 1; fi
+
+      - name: Install checksum-verified sentry-cli 3.6.2 without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -z "${SENTRY_AUTH_TOKEN:-}" && -z "${SENTRY_DSN:-}" && -z "${FLY_API_TOKEN:-}" ]]
+          archive="$RUNNER_TEMP/sentry-cli-Linux-x86_64"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \
+            --output "$archive" \
+            'https://github.com/getsentry/sentry-cli/releases/download/3.6.2/sentry-cli-Linux-x86_64'
+          printf '%s  %s\n' '3a4bbf2c0d06378d4e59b337647483751a0a2b1603db5fd4991847d0cfd6478c' "$archive" | sha256sum --check --strict
+          install -m 0755 "$archive" "$RUNNER_TEMP/sentry-cli"
+          "$RUNNER_TEMP/sentry-cli" --version | grep -Fx 'sentry-cli 3.6.2'
+
+      - name: Upload exact release source maps with the isolated Sentry credential
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: unimatter
+          SENTRY_PROJECT: assesssuite-production
+          APPLICATION_SHA: ${{ needs.gates.outputs.application_sha }}
+        run: |
+          set -euo pipefail
+          set +x
+          upload_root="$RUNNER_TEMP/sentry-upload"
+          sentry_cli="$RUNNER_TEMP/sentry-cli"
+          cleanup_maps() { find "$upload_root" -type f -delete; }
+          trap cleanup_maps EXIT
+          [[ -n "$SENTRY_AUTH_TOKEN" && "$APPLICATION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ -z "${FLY_API_TOKEN:-}" && -z "${SENTRY_DSN:-}" ]]
+          [[ -x "$sentry_cli" && -d "$upload_root/assets" && ! -L "$upload_root/assets" ]]
+          if "$sentry_cli" releases info "$APPLICATION_SHA" >/dev/null 2>&1; then
+            :
+          else
+            "$sentry_cli" releases new "$APPLICATION_SHA"
+          fi
+          "$sentry_cli" sourcemaps upload \
+            --org "$SENTRY_ORG" \
+            --project "$SENTRY_PROJECT" \
+            --release "$APPLICATION_SHA" \
+            --url-prefix '~/assets' \
+            --validate \
+            "$upload_root/assets"
+          "$sentry_cli" releases finalize "$APPLICATION_SHA"
+          cleanup_maps
+          trap - EXIT
+          ! find "$upload_root" -type f -print -quit | grep -q .
+
   publish_image:
     name: Publish exact candidate image without executing candidate code
-    needs: gates
+    needs: [gates, upload_sentry_source_maps]
     runs-on: ubuntu-24.04
     timeout-minutes: 25
     outputs:
@@ -682,14 +1053,20 @@ jobs:
           [[ -f candidate-image.tar.gz && ! -L candidate-image.tar.gz ]]
           [[ -f candidate-image.tar.gz.sha256 && ! -L candidate-image.tar.gz.sha256 ]]
           [[ -f candidate-build-receipt.json && ! -L candidate-build-receipt.json ]]
+          [[ -f sentry-source-map-manifest.json && ! -L sentry-source-map-manifest.json ]]
+          [[ -f sentry-source-maps.tar.gz && ! -L sentry-source-maps.tar.gz ]]
           sha256sum --check --strict candidate-image.tar.gz.sha256
           RECEIPT="$RUNNER_TEMP/candidate-image/candidate-build-receipt.json" node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const row = JSON.parse(fs.readFileSync(process.env.RECEIPT, 'utf8'));
-          const keys = ['schema_version','application_sha','source_branch','build_timestamp','candidate_image_id','candidate_archive_sha256'].sort();
+          const keys = ['schema_version','application_sha','source_branch','build_timestamp','candidate_image_id','candidate_archive_sha256','source_map_manifest_sha256','source_map_archive_sha256'].sort();
           if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys)) throw new Error('Candidate build receipt keys differ');
-          if (row.schema_version !== 'assesssuite.candidate-build-receipt.v1' || row.application_sha !== process.env.APPLICATION_SHA || row.source_branch !== process.env.SOURCE_BRANCH || row.build_timestamp !== process.env.BUILD_TIMESTAMP || !/^sha256:[0-9a-f]{64}$/.test(row.candidate_image_id) || !/^[0-9a-f]{64}$/.test(row.candidate_archive_sha256)) throw new Error('Candidate build receipt identity differs');
+          if (row.schema_version !== 'assesssuite.candidate-build-receipt.v3' || row.application_sha !== process.env.APPLICATION_SHA || row.source_branch !== process.env.SOURCE_BRANCH || row.build_timestamp !== process.env.BUILD_TIMESTAMP || !/^sha256:[0-9a-f]{64}$/.test(row.candidate_image_id) || !/^[0-9a-f]{64}$/.test(row.candidate_archive_sha256) || !/^[0-9a-f]{64}$/.test(row.source_map_manifest_sha256) || !/^[0-9a-f]{64}$/.test(row.source_map_archive_sha256)) throw new Error('Candidate build receipt identity differs');
           NODE
+          source_map_manifest_sha256="$(sha256sum sentry-source-map-manifest.json | awk '{print $1}')"
+          source_map_archive_sha256="$(sha256sum sentry-source-maps.tar.gz | awk '{print $1}')"
+          [[ "$source_map_manifest_sha256" == "$(node --input-type=module -e "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],'utf8')).source_map_manifest_sha256)" candidate-build-receipt.json)" ]]
+          [[ "$source_map_archive_sha256" == "$(node --input-type=module -e "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.argv[1],'utf8')).source_map_archive_sha256)" candidate-build-receipt.json)" ]]
           gzip -dc candidate-image.tar.gz | docker load >/dev/null
           image="assesssuite-release-gate:$APPLICATION_SHA"
           candidate_image_id="$(docker image inspect "$image" --format '{{.Id}}')"
@@ -1010,14 +1387,16 @@ jobs:
           copy_regular candidate/fly.production.toml fly.production.toml 65536
           copy_regular candidate/fly.rollback.production.toml fly.rollback.production.toml 65536
           copy_regular "$RUNNER_TEMP/candidate-image/candidate-build-receipt.json" candidate-build-receipt.json 8192
+          copy_regular "$RUNNER_TEMP/candidate-image/sentry-source-map-manifest.json" sentry-source-map-manifest.json 65536
           copy_regular "$RUNNER_TEMP/publication/publication-receipt.json" publication-receipt.json 8192
           copy_regular "$RUNNER_TEMP/compatibility/compatibility-receipt.json" compatibility-receipt.json 8192
           [[ "$(sha256sum "$bundle/fly.production.toml" | awk '{print $1}')" == "$CANDIDATE_CONFIG_SHA256" ]]
           [[ "$(sha256sum "$bundle/fly.rollback.production.toml" | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
           candidate_build_receipt_sha256="$(sha256sum "$bundle/candidate-build-receipt.json" | awk '{print $1}')"
+          source_map_manifest_sha256="$(sha256sum "$bundle/sentry-source-map-manifest.json" | awk '{print $1}')"
           [[ "$(sha256sum "$bundle/publication-receipt.json" | awk '{print $1}')" == "$PUBLICATION_RECEIPT_SHA256" ]]
           [[ "$(sha256sum "$bundle/compatibility-receipt.json" | awk '{print $1}')" == "$COMPATIBILITY_RECEIPT_SHA256" ]]
-          CANDIDATE_BUILD_RECEIPT_SHA256="$candidate_build_receipt_sha256" \
+          CANDIDATE_BUILD_RECEIPT_SHA256="$candidate_build_receipt_sha256" SOURCE_MAP_MANIFEST_SHA256="$source_map_manifest_sha256" \
             BUNDLE="$bundle" MANIFEST="$bundle/deploy-bundle-manifest.json" node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import path from 'node:path';
@@ -1027,7 +1406,7 @@ jobs:
           const compatibility = read('compatibility-receipt.json');
           const e = process.env;
           const markers = ['ROLLBACK_PROOF_REGISTERING_STATE','ROLLBACK_PROOF_39_FIELD_PER_FILE_MERGE','ROLLBACK_PROOF_AGE_QUARANTINE','ROLLBACK_PROOF_REFERRAL_COMMIT_RECEIPT_REPLAY'];
-          if (build.schema_version !== 'assesssuite.candidate-build-receipt.v1' || build.application_sha !== e.APPLICATION_SHA || build.build_timestamp !== e.BUILD_TIMESTAMP) throw new Error('Candidate build receipt binding differs');
+          if (build.schema_version !== 'assesssuite.candidate-build-receipt.v3' || build.application_sha !== e.APPLICATION_SHA || build.build_timestamp !== e.BUILD_TIMESTAMP || build.source_map_manifest_sha256 !== e.SOURCE_MAP_MANIFEST_SHA256 || !/^[0-9a-f]{64}$/.test(build.source_map_archive_sha256)) throw new Error('Candidate build receipt binding differs');
           if (publication.schema_version !== 'assesssuite.image-publication-receipt.v2' || publication.application_sha !== e.APPLICATION_SHA || publication.rollback_source_sha !== e.ROLLBACK_SOURCE_SHA || publication.expected_volume_id !== e.EXPECTED_VOLUME_ID || publication.expected_legacy_volume_id !== e.EXPECTED_LEGACY_VOLUME_ID || publication.workflow_sha !== e.TRUSTED_WORKFLOW_SHA || publication.build_timestamp !== e.BUILD_TIMESTAMP) throw new Error('Publication receipt binding differs');
           if (compatibility.schema_version !== 'assesssuite.exact-image-compatibility-receipt.v2' || compatibility.result !== 'PASS' || compatibility.application_sha !== e.APPLICATION_SHA || compatibility.rollback_source_sha !== e.ROLLBACK_SOURCE_SHA || compatibility.expected_volume_id !== e.EXPECTED_VOLUME_ID || compatibility.expected_legacy_volume_id !== e.EXPECTED_LEGACY_VOLUME_ID || compatibility.workflow_sha !== e.TRUSTED_WORKFLOW_SHA || JSON.stringify(compatibility.markers) !== JSON.stringify(markers)) throw new Error('Compatibility receipt binding differs');
           for (const [actual, expected, label] of [
@@ -1067,6 +1446,7 @@ jobs:
             compatibility_artifact_id: e.COMPATIBILITY_ARTIFACT_ID,
             compatibility_artifact_digest: e.COMPATIBILITY_ARTIFACT_DIGEST,
             candidate_build_receipt_sha256: e.CANDIDATE_BUILD_RECEIPT_SHA256,
+            source_map_manifest_sha256: e.SOURCE_MAP_MANIFEST_SHA256,
             publication_receipt_sha256: e.PUBLICATION_RECEIPT_SHA256,
             compatibility_receipt_sha256: e.COMPATIBILITY_RECEIPT_SHA256,
             candidate_image_id: publication.candidate_image_id,
@@ -1076,14 +1456,14 @@ jobs:
             rollback_image_id: publication.rollback_image_id,
             markers,
           };
-          const keys = ['schema_version','result','publication_run_id','publication_run_attempt','workflow_sha','application_sha','rollback_source_sha','expected_volume_id','expected_legacy_volume_id','build_timestamp','candidate_config_sha256','rollback_config_sha256','candidate_image_artifact_id','candidate_image_artifact_digest','release_control_artifact_id','release_control_artifact_digest','publication_artifact_id','publication_artifact_digest','compatibility_artifact_id','compatibility_artifact_digest','candidate_build_receipt_sha256','publication_receipt_sha256','compatibility_receipt_sha256','candidate_image_id','candidate_image_ref','application_image_digest','rollback_image_ref','rollback_image_id','markers'].sort();
+          const keys = ['schema_version','result','publication_run_id','publication_run_attempt','workflow_sha','application_sha','rollback_source_sha','expected_volume_id','expected_legacy_volume_id','build_timestamp','candidate_config_sha256','rollback_config_sha256','candidate_image_artifact_id','candidate_image_artifact_digest','release_control_artifact_id','release_control_artifact_digest','publication_artifact_id','publication_artifact_digest','compatibility_artifact_id','compatibility_artifact_digest','candidate_build_receipt_sha256','source_map_manifest_sha256','publication_receipt_sha256','compatibility_receipt_sha256','candidate_image_id','candidate_image_ref','application_image_digest','rollback_image_ref','rollback_image_id','markers'].sort();
           if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys)) throw new Error('Deploy bundle manifest keys differ');
           fs.writeFileSync(e.MANIFEST, `${JSON.stringify(row)}\n`, { mode: 0o600 });
           NODE
           [[ -f "$bundle/deploy-bundle-manifest.json" && ! -L "$bundle/deploy-bundle-manifest.json" ]]
           [[ "$(stat -c '%F' "$bundle/deploy-bundle-manifest.json")" == 'regular file' ]]
           [[ "$(wc -c <"$bundle/deploy-bundle-manifest.json")" -le 12288 ]]
-          expected_files=$'candidate-build-receipt.json\ncompatibility-receipt.json\ndeploy-bundle-manifest.json\nfly.production.toml\nfly.rollback.production.toml\npublication-receipt.json'
+          expected_files=$'candidate-build-receipt.json\ncompatibility-receipt.json\ndeploy-bundle-manifest.json\nfly.production.toml\nfly.rollback.production.toml\npublication-receipt.json\nsentry-source-map-manifest.json'
           actual_files="$(find "$bundle" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)"
           [[ "$actual_files" == "$expected_files" ]]
           deploy_bundle_manifest_sha256="$(sha256sum "$bundle/deploy-bundle-manifest.json" | awk '{print $1}')"

@@ -8,7 +8,7 @@ const repoRoot = path.resolve(import.meta.dirname, '..', '..');
  * Thin Vite shells keep the public marketing artifact and authenticated
  * platform artifact structurally separate while reusing the reviewed source.
  */
-export function makeAppConfig({ appDir, port, serverPort, outDir }) {
+export function makeAppConfig({ appDir, port, serverPort, outDir, sourcemap = false }) {
   const proxy = serverPort
     ? {
         '/api': {
@@ -43,7 +43,7 @@ export function makeAppConfig({ appDir, port, serverPort, outDir }) {
     build: {
       outDir: outDir || path.join(appDir, 'dist'),
       emptyOutDir: true,
-      sourcemap: false,
+      sourcemap,
     },
     server: { port, strictPort: true, proxy },
     preview: { port, strictPort: true },

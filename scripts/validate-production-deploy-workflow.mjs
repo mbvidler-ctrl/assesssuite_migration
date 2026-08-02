@@ -629,6 +629,11 @@ function validateAuxWorkflow(input, kind) {
     "'RUN_REFERRAL_PRODUCTION_CANARY'", "'LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS'",
     'configText.matchAll', 'env -u FLY_API_TOKEN node --input-type=module',
   ]) if (!secrets.includes(needle)) fail(`names-only secret boundary lacks ${needle}`);
+  if (kind === 'rollback') {
+    for (const needle of ["'OPENAI_API_KEY', 'SENTRY_DSN'", "boundaryState = 'exact-nine';"]) {
+      if (!secrets.includes(needle)) fail(`rollback exact nine-name secret boundary lacks ${needle}`);
+    }
+  }
   if (/^\s*return 0\s*$/m.test(secrets) || secrets.includes('&& false')) fail('secret boundary has a fail-open bypass');
 
   requireText('a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2', 'pinned flyctl archive digest');
@@ -1613,7 +1618,7 @@ function deployMutationCases(source) {
   replace('deploy-skip-release-command-removed', '              --skip-release-command \\\n', '');
   replace('deploy-remote-only-removed', '              --remote-only \\\n', '');
   replace('deploy-mutable-tag', 'candidate_image_ref="$CANDIDATE_IMAGE_REF"', 'candidate_image_ref="registry.fly.io/assesssuite-production:latest"');
-  replace('secret-allowlist-extra-app-key', "            'OPENAI_API_KEY',\n          ];", "            'OPENAI_API_KEY', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
+  replace('secret-allowlist-extra-app-key', "            'OPENAI_API_KEY', 'SENTRY_DSN',\n          ];", "            'OPENAI_API_KEY', 'SENTRY_DSN', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
   replace('validator-pin-mutated', '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + '0'.repeat(64));
   return cases;
 }
@@ -1795,8 +1800,8 @@ function validateParityWorkflow(input) {
   ]) if (!effect.includes(needle)) fail('missing loopback relay/container cleanup boundary ' + needle);
   if (countOf(effect, 'cleanup_browser_boundary') !== 3) fail('browser boundary cleanup is not invoked on both trap and successful wave paths');
 
-  const exactEight = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY'";
-  if (!effect.includes(exactEight) || !effect.includes('JSON.stringify([...names].sort()) !== JSON.stringify([...expected].sort())')) fail('parity exact eight-name secret allowlist is absent');
+  const exactNine = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY', 'SENTRY_DSN'";
+  if (!effect.includes(exactNine) || !effect.includes('JSON.stringify([...names].sort()) !== JSON.stringify([...expected].sort())') || !effect.includes('Parity requires the exact nine-name production secret allowlist')) fail('parity exact nine-name secret allowlist is absent');
   if (effect.includes('UPLOAD_AUDIT_LEGAL_HOLD')) fail('parity secret allowlist contains an unreviewed app-consumed key');
 
   for (const needle of [
@@ -1943,7 +1948,7 @@ function parityMutationCases(source) {
   replace('runner-subcommand-removed', '--entrypoint node "$parity_runner_image" server/tests/production-parity-wave.mjs run-wave', '--entrypoint node "$parity_runner_image" server/tests/production-parity-wave.mjs');
   replace('browser-receipt-not-stdout', '>"$RUNNER_TEMP/browser.raw" 2>"$RUNNER_TEMP/browser.stderr"', '>/dev/null 2>"$RUNNER_TEMP/browser.stderr"');
   replace('browser-cleanup-removed', '              cleanup_browser_boundary\n              rm -f "$RUNNER_TEMP/browser.stderr"', '              rm -f "$RUNNER_TEMP/browser.stderr"');
-  replace('secret-allowlist-extra-app-key', "            'OPENAI_API_KEY',\n          ];", "            'OPENAI_API_KEY', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
+  replace('secret-allowlist-extra-app-key', "            'OPENAI_API_KEY', 'SENTRY_DSN',\n          ];", "            'OPENAI_API_KEY', 'SENTRY_DSN', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
   replace('fresh-wave-absence-proof-removed', "            if (row.action === 'volume-delete' && (row.parity_machine_id !== 'NOT-CREATED' || row.parity_private_ipv6 !== 'NOT-CREATED' || row.parity_volume_id !== 'NOT-CREATED'))", '            if (false)');
   replace('machine-delete-retry-removed', "            const retryDelete = row.action === 'machine-delete' && row.result === 'FAILED'", '            const retryDelete = false && row.action === \'machine-delete\'');
   replace('volume-delete-failed-machine-absence-removed', "row.action === 'machine-delete' && ['PASS', 'FAILED'].includes(row.result)", "row.action === 'machine-delete' && row.result === 'PASS'");
@@ -2184,6 +2189,8 @@ function validateDeployWorkflowV2(input) {
   const deployStart = source.indexOf(deployMarker);
   const deploy = deployStart >= 0 ? withoutCommentOnlyLines(source.slice(deployStart)) : '';
   const steps = [...deploy.matchAll(/^      - name: ([^\n]+)$/gm)].map((match) => match[1].trim());
+  const parsedDeploySteps = parseSteps(deploy, failures);
+  const deployStep = (name) => parsedDeploySteps.find((step) => step.name === name)?.body || '';
 
   if (source.includes('\t')) fail('deploy workflow contains a literal tab');
   if (!source.endsWith('\n')) fail('deploy workflow must end with one LF newline');
@@ -2223,11 +2230,17 @@ function validateDeployWorkflowV2(input) {
   const actions = [...active.matchAll(/^\s*uses:\s*([^\s#]+)(?:\s*#.*)?$/gm)].map((match) => match[1]);
   if (actions.length !== 1) fail('deploy must use exactly one pinned cross-run download action');
   for (const action of actions) if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+@[0-9a-f]{40}$/.test(action)) fail('deploy action is not SHA pinned: ' + action);
-  if (countOf(active, '${{ secrets.FLY_API_TOKEN }}') !== 1 || countOf(active, '${{ secrets.') !== 1) fail('deploy has more than the one late Fly credential expression');
-  if (deploy.includes('actions/checkout@') || /(^|\n)\s*(npm|npx|docker)\s/.test(deploy) ||
+  if (countOf(active, '${{ secrets.FLY_API_TOKEN }}') !== 1 ||
+      countOf(active, '${{ secrets.SENTRY_AUTH_TOKEN }}') !== 0 ||
+      countOf(active, '${{ secrets.SENTRY_DSN }}') !== 1 ||
+      countOf(active, '${{ secrets.') !== 2) fail('deploy credential expressions differ from the fresh Fly-only runner design');
+  if (deploy.includes('actions/checkout@') || /(^|\n)\s*(?:npm|npx|docker)\s/.test(deploy) ||
       /(^|\n)\s*node\s+(?:candidate|server|scripts)\//.test(deploy) || deploy.includes('working-directory:')) {
     fail('deploy job can execute candidate or repository code');
   }
+  const finalFlyStep = deployStep('Final secret-bearing Fly release command and public verification');
+  if (finalFlyStep.includes('${{ secrets.SENTRY_AUTH_TOKEN }}') || countOf(finalFlyStep, '${{ secrets.FLY_API_TOKEN }}') !== 1 || countOf(finalFlyStep, '${{ secrets.SENTRY_DSN }}') !== 1) fail('final Fly step credential boundary differs');
+  if (/(^|\n)\s+(?:npm|npx)\s/.test(finalFlyStep) || finalFlyStep.includes('actions/checkout@')) fail('final Fly step can execute repository package code');
   if (/(^|\n)\s+needs:/.test(deploy) || deploy.includes('needs.') || deploy.includes('CANDIDATE_IMAGE_REF: ${{ needs.publish_image')) fail('deploy retains an in-run or cyclic publication dependency');
 
   for (const needle of [
@@ -2247,7 +2260,7 @@ function validateDeployWorkflowV2(input) {
   ]) requireText(needle, 'cross-run deploy handoff control ' + needle);
 
   for (const needle of [
-    'expected_files=$\'candidate-build-receipt.json\\ncompatibility-receipt.json\\ndeploy-bundle-manifest.json\\nfly.production.toml\\nfly.rollback.production.toml\\npublication-receipt.json\'',
+    'expected_files=$\'candidate-build-receipt.json\\ncompatibility-receipt.json\\ndeploy-bundle-manifest.json\\nfly.production.toml\\nfly.rollback.production.toml\\npublication-receipt.json\\nsentry-source-map-manifest.json\'',
     '[[ "$actual_files" == "$expected_files" ]]', "stat -c '%F'", '[[ -f "$bundle/$file" && ! -L "$bundle/$file" ]]',
     '[[ "$(sha256sum "$manifest" | awk \'{print $1}\')" == "$DEPLOY_BUNDLE_MANIFEST_SHA256" ]]',
     'raw !== `${JSON.stringify(value)}\\n`', "same(manifest.schema_version, 'assesssuite.deploy-bundle-manifest.v2', 'Manifest schema')",
@@ -2259,6 +2272,7 @@ function validateDeployWorkflowV2(input) {
     "same(manifest.rollback_image_ref, e.EXPECTED_CURRENT_IMAGE, 'Manifest expected current image ref')",
     "same(manifest.publication_receipt_sha256, digest('publication-receipt.json'), 'Publication receipt hash')",
     "same(manifest.compatibility_receipt_sha256, digest('compatibility-receipt.json'), 'Compatibility receipt hash')",
+    "same(manifest.source_map_manifest_sha256, digest('sentry-source-map-manifest.json'), 'Source-map manifest hash')",
     "['publication_receipt_sha256',manifest.publication_receipt_sha256]",
     'JSON.stringify(manifest.markers) !== JSON.stringify(markers)', 'BUILD_TIMESTAMP=${manifest.build_timestamp}',
   ]) requireText(needle, 'sealed deploy-bundle control ' + needle);
@@ -2305,7 +2319,7 @@ function validateDeployWorkflowV2(input) {
   requireText('source = "assesssuite_data_r12"', 'active r12 volume mount source');
   requireText('EXPECTED_APP_URL = "https://app.assesssuite.com"', 'exact application URL config boundary');
   if (countOf(deploy, 'EXPECTED_APP_URL = "https://app.assesssuite.com"') !== 2) fail('deploy does not validate EXPECTED_APP_URL in both reviewed configs');
-  requireText('fly secrets set APP_URL=https://app.assesssuite.com --stage --app "$app"', 'exact application URL staged secret');
+  requireText('fly secrets set APP_URL=https://app.assesssuite.com SENTRY_DSN="$SENTRY_DSN" --stage --app "$app"', 'exact application URL and Sentry DSN staged secrets');
   const topologyStart = deploy.indexOf('          assert_topology() {');
   const topologyEnd = topologyStart < 0 ? -1 : deploy.indexOf('          volume_identity() {', topologyStart);
   const topology = topologyStart >= 0 && topologyEnd > topologyStart
@@ -2349,20 +2363,31 @@ function validateDeployWorkflowV2(input) {
   if (deploy.includes('app = "node server/productionBootstrap.mjs && exec node server/index.mjs"')) {
     fail('deploy config contract reintroduces a flyctl-tokenized process command instead of inheriting the image CMD');
   }
-  const exactEight = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY'";
-  if (!deploy.includes(exactEight) || deploy.includes('UPLOAD_AUDIT_LEGAL_HOLD')) fail('deploy exact application-secret allowlist differs');
+  const exactNine = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY', 'SENTRY_DSN'";
+  if (!deploy.includes(exactNine) || deploy.includes('UPLOAD_AUDIT_LEGAL_HOLD')) fail('deploy exact nine-name application-secret allowlist differs');
   for (const needle of [
     "const settled = JSON.stringify([...required].sort());",
+    "const preSentry = JSON.stringify(required.filter((name) => name !== 'SENTRY_DSN').sort());",
     "const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",
-    "if (observed === settled) {", "} else if (observed === transitionPending) {",
-    "boundaryState = 'settled';", "boundaryState = 'transition-pending';",
+    "const preSentryTransitionPending = JSON.stringify([...required.filter((name) => name !== 'SENTRY_DSN'), 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",
+    "if (observed === settled) {", "} else if (observed === preSentry) {", "} else if (observed === transitionPending) {", "} else if (observed === preSentryTransitionPending) {",
+    "boundaryState = 'settled';", "boundaryState = 'pre-sentry';", "boundaryState = 'transition-pending';", "boundaryState = 'pre-sentry-transition-pending';", "boundaryState = 'exact-nine';",
     'BOUNDARY_STATE_PATH="$boundary_state_path"',
     'initial_boundary_state="$(<"$RUNNER_TEMP/initial-secret-boundary-state")"',
-    '[[ "$initial_boundary_state" == \'settled\' || "$initial_boundary_state" == \'transition-pending\' ]]',
-    'if [[ "$initial_boundary_state" == \'transition-pending\' ]]; then',
-    'elif [[ "$initial_boundary_state" != \'settled\' ]]; then',
+    '[[ "$initial_boundary_state" == \'settled\' || "$initial_boundary_state" == \'pre-sentry\' || "$initial_boundary_state" == \'transition-pending\' || "$initial_boundary_state" == \'pre-sentry-transition-pending\' ]]',
+    'if [[ "$initial_boundary_state" == \'transition-pending\' || "$initial_boundary_state" == \'pre-sentry-transition-pending\' ]]; then',
+    'elif [[ "$initial_boundary_state" != \'settled\' && "$initial_boundary_state" != \'pre-sentry\' ]]; then',
     'fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"',
   ]) requireText(needle, 'reviewed transitional secret boundary ' + needle);
+  for (const needle of [
+    'SENTRY_DSN_VALUE="$SENTRY_DSN" node --input-type=module',
+    "parsed.hostname !== 'o4511822688813056.ingest.us.sentry.io'",
+    "parsed.pathname !== '/4511827129663488'",
+    "!/^[0-9a-f]{32}$/.test(parsed.username)",
+  ]) if (!finalFlyStep.includes(needle)) fail('final Fly step exact Sentry DSN validation missing ' + needle);
+  if (deploy.includes('sentry-cli') || deploy.includes('sourcemaps inject') || deploy.includes('sourcemaps upload') || deploy.includes('SENTRY_AUTH_TOKEN')) {
+    fail('fresh Fly runner retains Sentry upload tooling or credential material');
+  }
   if (deploy.includes('LEGAL_STATUS') || deploy.includes('LEGAL_EFFECTIVE_DATE')) {
     fail('legal metadata re-enters the Fly secret-name boundary');
   }
@@ -2955,6 +2980,7 @@ function validatePrepareReleaseWorkflow(input) {
   const jobsSource = source.slice(source.indexOf('\njobs:\n') + 6);
   const jobs = [...jobsSource.matchAll(/^  ([a-z0-9_]+):$/gm)].map((match) => match[1]);
   const gates = jobBody('gates');
+  const sentryUpload = jobBody('upload_sentry_source_maps');
   const publish = jobBody('publish_image');
   const compatibility = jobBody('exact_image_compatibility');
 
@@ -2968,8 +2994,8 @@ function validatePrepareReleaseWorkflow(input) {
   if (active.includes('permissions:\n  actions:') || active.includes('contents: write')) fail('prepare-release permissions exceed contents read');
   requireText('group: assesssuite-production\n  cancel-in-progress: false', 'shared production concurrency');
   requireText('EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, 'exact prepare-release validator digest');
-  if (JSON.stringify(jobs) !== JSON.stringify(['gates','publish_image','exact_image_compatibility'])) fail('prepare-release job sequence differs: ' + JSON.stringify(jobs));
-  if (!publish.includes('needs: gates') || !compatibility.includes('needs: [gates, publish_image]')) fail('prepare-release DAG differs');
+  if (JSON.stringify(jobs) !== JSON.stringify(['gates','upload_sentry_source_maps','publish_image','exact_image_compatibility'])) fail('prepare-release job sequence differs: ' + JSON.stringify(jobs));
+  if (!sentryUpload.includes('needs: gates') || !publish.includes('needs: [gates, upload_sentry_source_maps]') || !compatibility.includes('needs: [gates, publish_image]')) fail('prepare-release DAG differs');
   if (gates.includes('needs.publish_image') || gates.includes('CANDIDATE_IMAGE_REF:')) fail('gates illegally references downstream publication output');
 
   const expectedInputs = ['trusted_workflow_sha','application_sha','candidate_config_sha256','rollback_config_sha256','rollback_source_sha','expected_current_image','expected_volume_id','expected_legacy_volume_id','rollback_image','extraction_runtime_mode','provider_terms_attestation','provider_terms_evidence_id','under_age_zdr_runtime_mode','under_age_zdr_attestation','under_age_zdr_evidence_id','capability_intent_id','authority_reference','confirmation'];
@@ -3044,14 +3070,19 @@ function validatePrepareReleaseWorkflow(input) {
     'Preserve the exact gated candidate image','Preserve sealed release controls',
   ];
   const expectedPublishSteps = ['Download exact gated candidate by immutable artifact ID','Validate and load candidate image as data only','Install checksum-verified flyctl 0.4.71 for registry authentication only','Acquire isolated registry credential','Publish immutable image and seal compatibility bundle','Upload sealed publication receipt and rollback image data'];
+  const expectedSentrySteps = ['Download exact gated source-map data by immutable artifact ID','Validate and extract sealed source-map data without executing candidate code','Install checksum-verified sentry-cli 3.6.2 without credentials','Upload exact release source maps with the isolated Sentry credential'];
   const expectedCompatibilitySteps = ['Check out exact candidate into the no-secret proof runner','Download exact candidate image by immutable artifact ID','Download exact publication bundle by immutable artifact ID','Set up Node.js 24 for isolated compatibility proof','Verify immutable handoff and run exact-image compatibility proof','Upload bounded compatibility proof receipt','Seal bounded deploy bundle from exact regular files','Upload bounded deploy bundle','Emit immutable publication summary'];
   if (JSON.stringify(stepsIn(gates)) !== JSON.stringify(expectedGateSteps)) fail('prepare-release gate steps differ');
+  if (JSON.stringify(stepsIn(sentryUpload)) !== JSON.stringify(expectedSentrySteps)) fail('prepare-release Sentry upload steps differ');
   if (JSON.stringify(stepsIn(publish)) !== JSON.stringify(expectedPublishSteps)) fail('prepare-release publication steps differ');
   if (JSON.stringify(stepsIn(compatibility)) !== JSON.stringify(expectedCompatibilitySteps)) fail('prepare-release compatibility steps differ');
   requireText("for (const script of ['build:platform', 'build:landing', 'verify:split-build', 'test:split-hosting'])", 'complete split-hosting package-script declaration');
   requireText('if (!pkg.scripts?.[script])', 'fail-closed split-hosting package-script check');
   for (const script of ['build:platform', 'build:landing', 'verify:split-build', 'test:split-hosting']) {
     if (!gates.includes(`npm run ${script}`)) fail('prepare-release split-hosting gate is not executed: ' + script);
+  }
+  if (countOf(active, 'npm run build:platform') !== 2) {
+    fail('prepare-release must run the platform build once in baseline gates and once for the sealed Sentry artifact');
   }
   for (const [needle, label] of [
     ['is_prohibited_release_filename() {', 'release filename predicate'],
@@ -3069,10 +3100,23 @@ function validatePrepareReleaseWorkflow(input) {
   }
 
   const actions = [...active.matchAll(/^\s*uses:\s*([^\s#]+)(?:\s*#.*)?$/gm)].map((match) => match[1]);
-  if (actions.length !== 12) fail('prepare-release pinned action count differs');
+  if (actions.length !== 13) fail('prepare-release pinned action count differs');
   for (const action of actions) if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+@[0-9a-f]{40}$/.test(action)) fail('prepare-release action is not SHA pinned: ' + action);
-  if (countOf(active, '${{ secrets.FLY_API_TOKEN }}') !== 1 || countOf(active, '${{ secrets.') !== 1) fail('prepare-release Fly credential expression differs');
-  if (gates.includes('${{ secrets.') || compatibility.includes('${{ secrets.') || /(^|\n)\s+FLY_API_TOKEN:\s/.test(compatibility)) fail('secret enters gates or compatibility job');
+  if (countOf(active, '${{ secrets.FLY_API_TOKEN }}') !== 1 || countOf(active, '${{ secrets.SENTRY_DSN }}') !== 1 || countOf(active, '${{ secrets.SENTRY_AUTH_TOKEN }}') !== 1 || countOf(active, '${{ secrets.') !== 3) fail('prepare-release Sentry and Fly credential expressions differ');
+  if (countOf(gates, '${{ secrets.SENTRY_DSN }}') !== 1 || gates.includes('${{ secrets.FLY_API_TOKEN }}') || gates.includes('${{ secrets.SENTRY_AUTH_TOKEN }}') ||
+      countOf(sentryUpload, '${{ secrets.SENTRY_AUTH_TOKEN }}') !== 1 || sentryUpload.includes('${{ secrets.FLY_API_TOKEN }}') || sentryUpload.includes('${{ secrets.SENTRY_DSN }}') ||
+      publish.includes('${{ secrets.SENTRY_AUTH_TOKEN }}') || publish.includes('${{ secrets.SENTRY_DSN }}') || compatibility.includes('${{ secrets.') || /(^|\n)\s+FLY_API_TOKEN:\s/.test(compatibility)) fail('prepare-release credential placement differs');
+  const candidateBuildStep = parseSteps(gates, failures).find((step) => step.name === 'Build exact candidate image locally without credentials')?.body || '';
+  if (countOf(candidateBuildStep, 'SENTRY_DSN: ${{ secrets.SENTRY_DSN }}') !== 1 || candidateBuildStep.includes('SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}') || candidateBuildStep.includes('FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}')) fail('public Sentry DSN is not isolated to the candidate build gate');
+  const parsedSentrySteps = parseSteps(sentryUpload, failures);
+  const sentryDataStep = parsedSentrySteps.find((step) => step.name === 'Validate and extract sealed source-map data without executing candidate code')?.body || '';
+  const sentryInstallStep = parsedSentrySteps.find((step) => step.name === 'Install checksum-verified sentry-cli 3.6.2 without credentials')?.body || '';
+  const sentryCredentialStep = parsedSentrySteps.find((step) => step.name === 'Upload exact release source maps with the isolated Sentry credential')?.body || '';
+  if (sentryUpload.includes('actions/checkout@') || /(^|\n)\s*(?:npm|npx|docker)\s/.test(sentryUpload) || sentryUpload.includes('working-directory:') ||
+      /(^|\n)\s*node\s+(?:candidate|server|scripts)\//.test(sentryUpload)) fail('fresh Sentry runner can execute candidate or repository code');
+  if (sentryDataStep.includes('${{ secrets.') || sentryInstallStep.includes('${{ secrets.') || countOf(sentryCredentialStep, '${{ secrets.SENTRY_AUTH_TOKEN }}') !== 1 ||
+      sentryCredentialStep.includes('${{ secrets.FLY_API_TOKEN }}') || sentryCredentialStep.includes('${{ secrets.SENTRY_DSN }}')) fail('Sentry auth token is not isolated to the final upload step');
+  if (sentryCredentialStep.includes('python3 ') || sentryCredentialStep.includes('node ') || sentryCredentialStep.includes('curl ') || sentryCredentialStep.includes('tar ')) fail('credentialed Sentry step can execute unverified tooling or parse candidate data');
   if (publish.includes('actions/checkout@') || /(^|\n)\s*(npm|npx)\s/.test(publish) ||
       /(^|\n)\s*docker\s+(?:build|run|create|start|exec)\b/.test(publish) || publish.includes('fly deploy ')) {
     fail('credentialed publication job can execute candidate code or mutate production');
@@ -3099,7 +3143,7 @@ function validatePrepareReleaseWorkflow(input) {
   requireText("schema_version: 'assesssuite.image-publication-receipt.v2'", 'prepare-release publication receipt v2');
   for (const needle of [
     "schema_version: 'assesssuite.deploy-bundle-manifest.v2'", "result: 'PASS'",
-    "expected_files=$'candidate-build-receipt.json\\ncompatibility-receipt.json\\ndeploy-bundle-manifest.json\\nfly.production.toml\\nfly.rollback.production.toml\\npublication-receipt.json'",
+    "expected_files=$'candidate-build-receipt.json\\ncompatibility-receipt.json\\ndeploy-bundle-manifest.json\\nfly.production.toml\\nfly.rollback.production.toml\\npublication-receipt.json\\nsentry-source-map-manifest.json'",
     '[[ "$actual_files" == "$expected_files" ]]', 'name: deploy-bundle-${{ needs.gates.outputs.application_sha }}',
     'retention-days: 3', 'path: ${{ runner.temp }}/deploy-bundle',
     'deploy_bundle_artifact_id: ${{ steps.upload_deploy_bundle.outputs.artifact-id }}',
@@ -3108,6 +3152,29 @@ function validatePrepareReleaseWorkflow(input) {
     'APPLICATION_IMAGE_DIGEST: ${{ needs.publish_image.outputs.candidate_registry_digest }}',
     'application_image_digest: e.APPLICATION_IMAGE_DIGEST,',
   ]) if (!compatibility.includes(needle)) fail('prepare-release deploy-bundle boundary missing ' + needle);
+  for (const needle of [
+    'VITE_SENTRY_DSN="$SENTRY_DSN" VITE_SENTRY_RELEASE="$APPLICATION_SHA" VITE_SENTRY_ENVIRONMENT=production',
+    './node_modules/.bin/sentry-cli sourcemaps inject dist',
+    '--build-arg "SENTRY_DSN=$SENTRY_DSN"', "schema_version: 'assesssuite.sentry-source-map-manifest.v1'",
+    "schema_version: 'assesssuite.candidate-build-receipt.v3'", 'source_map_manifest_sha256', 'source_map_archive_sha256',
+    "docker export \"$image_container\" | tar -tf - | grep -Eq '(^|/)[^/]+\\.map$'",
+    "throw new Error('Byte-proven JavaScript differs from the exact candidate image output')",
+    'install -m 0600 "$source_map_manifest" "$RUNNER_TEMP/release-control/sentry-source-map-manifest.json"',
+    '${{ runner.temp }}/sentry-source-map-manifest.json', '${{ runner.temp }}/sentry-source-maps.tar.gz',
+    "parsed.hostname !== 'o4511822688813056.ingest.us.sentry.io'", "parsed.pathname !== '/4511827129663488'",
+    "!/^[0-9a-f]{32}$/.test(parsed.username)",
+  ]) requireText(needle, 'prepare-release source-map control ' + needle);
+  for (const needle of [
+    'artifact-ids: ${{ needs.gates.outputs.candidate_image_artifact_id }}',
+    "expected_files=$'candidate-build-receipt.json\\ncandidate-image.tar.gz\\ncandidate-image.tar.gz.sha256\\nsentry-source-map-manifest.json\\nsentry-source-maps.tar.gz'",
+    'Source-map archive contains a non-data member', 'Source-map archive file set differs',
+    'Runtime JavaScript debug ID does not match its source map',
+    "'https://github.com/getsentry/sentry-cli/releases/download/3.6.2/sentry-cli-Linux-x86_64'",
+    "'3a4bbf2c0d06378d4e59b337647483751a0a2b1603db5fd4991847d0cfd6478c'",
+    'SENTRY_ORG: unimatter', 'SENTRY_PROJECT: assesssuite-production',
+    '"$sentry_cli" sourcemaps upload', '--release "$APPLICATION_SHA"', "--url-prefix '~/assets'", '--validate',
+    '"$sentry_cli" releases finalize "$APPLICATION_SHA"',
+  ]) if (!sentryUpload.includes(needle)) fail('fresh-runner Sentry upload control missing ' + needle);
   if (compatibility.includes('copy_regular candidate/server') || compatibility.includes('copy_regular candidate/src') || compatibility.includes('copy_regular candidate/scripts')) fail('deploy bundle can include application code');
   if (compatibility.includes('rollback-image.tar.gz') && compatibility.slice(compatibility.indexOf('Seal bounded deploy bundle')).includes('rollback-image.tar.gz')) fail('deploy bundle contains image archive data');
   if (active.includes('UPLOAD_AUDIT_LEGAL_HOLD') || active.includes('continue-on-error:') || active.includes('set -x') || active.includes('set -o xtrace')) fail('prepare-release has extra app secret or fail-open/logging control');
@@ -3144,8 +3211,16 @@ function deployMutationCasesV2(source) {
   replace('permissions-write', 'permissions:\n  actions: read\n  contents: read', 'permissions:\n  actions: write\n  contents: write');
   replace('input-interface-expanded', '      confirmation:\n', '      unsafe_override:\n        required: true\n        type: string\n      confirmation:\n');
   replace('extra-job', '\njobs:\n  deploy:\n', '\njobs:\n  unsafe:\n    runs-on: ubuntu-24.04\n  deploy:\n');
-  replace('checkout-injected', '    steps:\n      - name: Record the rollback-reserved deployment-job deadline', '    steps:\n      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\n      - name: Record the rollback-reserved deployment-job deadline');
-  replace('npm-injected', '          set -euo pipefail\n          set +x\n          [[ "$REPOSITORY"', '          set -euo pipefail\n          npm ci\n          set +x\n          [[ "$REPOSITORY"');
+  replace('checkout-injected', '    steps:\n      - name: Record the rollback-reserved deployment-job deadline', '    steps:\n      - name: Unauthorized checkout\n        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\n      - name: Record the rollback-reserved deployment-job deadline');
+  replace('npm-injected', '          app=assesssuite-production\n          release_control_dir="$RUNNER_TEMP/deploy-bundle"', '          npm ci\n          app=assesssuite-production\n          release_control_dir="$RUNNER_TEMP/deploy-bundle"');
+  replace('sentry-auth-token-injected', '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}', '          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}\n          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}');
+  replace('deploy-sentry-dsn-host-mutated', "parsed.hostname !== 'o4511822688813056.ingest.us.sentry.io'", "parsed.hostname !== 'example.invalid'");
+  replace('deploy-sentry-dsn-project-mutated', "parsed.pathname !== '/4511827129663488'", "parsed.pathname !== '/0'");
+  replace(
+    'pre-sentry-initial-state-rejected-before-staging',
+    '          elif [[ "$initial_boundary_state" != \'settled\' && "$initial_boundary_state" != \'pre-sentry\' ]]; then',
+    '          elif [[ "$initial_boundary_state" != \'settled\' ]]; then',
+  );
   replace('docker-injected', '          install -d -m 0700 "$RUNNER_TEMP/empty-deploy-context"', '          docker run candidate\n          install -d -m 0700 "$RUNNER_TEMP/empty-deploy-context"');
   replace('in-run-needs-injected', '    runs-on: ubuntu-24.04\n', '    needs: publish_image\n    runs-on: ubuntu-24.04\n');
   replace('bundle-download-by-name', '          artifact-ids: ${{ inputs.deploy_bundle_artifact_id }}', '          name: deploy-bundle');
@@ -3183,7 +3258,7 @@ function deployMutationCasesV2(source) {
   replace('postrollback-legal-app-routes-removed', '              for route in legal/privacy login; do', '              for route in root-only; do');
   replace('postrollback-topology-check-removed', '            if ! assert_volume_snapshot_policy postrollback "$EXPECTED_VOLUME_ID" "$EXPECTED_MACHINE_ID"; then', '            if false; then');
   replace('candidate-expected-app-url-check-removed', '          [[ "$(grep -Fxc \'  EXPECTED_APP_URL = "https://app.assesssuite.com"\' "$candidate_config")" -eq 1 ]]', '          true');
-  replace('app-url-secret-staging-mutated', 'fly secrets set APP_URL=https://app.assesssuite.com --stage --app "$app"', 'fly secrets set APP_URL=https://assesssuite.com --stage --app "$app"');
+  replace('app-url-secret-staging-mutated', 'fly secrets set APP_URL=https://app.assesssuite.com SENTRY_DSN="$SENTRY_DSN" --stage --app "$app"', 'fly secrets set APP_URL=https://assesssuite.com SENTRY_DSN="$SENTRY_DSN" --stage --app "$app"');
   replace(
     'mutable-candidate-ref',
     '          PREPARATION_RUN_ID: ${{ inputs.preparation_run_id }}\n          CANDIDATE_IMAGE_REF: registry.fly.io/assesssuite-production@${{ inputs.application_image_digest }}',
@@ -3193,7 +3268,7 @@ function deployMutationCasesV2(source) {
   replace('remote-only-removed', '              --remote-only \\\n', '');
   replace('skip-release-command-removed', '              --skip-release-command \\\n', '');
   replace('empty-context-replaced', 'fly deploy "$deploy_source_dir" \\\n            --config "$candidate_config"', 'fly deploy "$GITHUB_WORKSPACE/candidate" \\\n            --config "$candidate_config"');
-  replace('secret-allowlist-extra', "            'OPENAI_API_KEY',\n          ];", "            'OPENAI_API_KEY', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
+  replace('secret-allowlist-extra', "            'OPENAI_API_KEY', 'SENTRY_DSN',\n          ];", "            'OPENAI_API_KEY', 'SENTRY_DSN', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
   replace(
     'secret-allowlist-legal-metadata-reintroduced',
     "const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",
@@ -3904,8 +3979,10 @@ function prepareReleaseMutationCases(source) {
   replace('trigger-push', 'on:\n  workflow_dispatch:', 'on:\n  push:\n    branches: [main]\n  workflow_dispatch:');
   replace('permissions-write', 'permissions:\n  contents: read', 'permissions:\n  contents: write');
   replace('input-interface-expanded', '      confirmation:\n', '      unsafe_override:\n        required: true\n        type: string\n      confirmation:\n');
-  replace('publish-needs-removed', '    needs: gates\n    runs-on: ubuntu-24.04', '    runs-on: ubuntu-24.04');
+  replace('sentry-upload-needs-removed', '  upload_sentry_source_maps:\n    name: Upload byte-proven source maps from a fresh data-only runner\n    needs: gates', '  upload_sentry_source_maps:\n    name: Upload byte-proven source maps from a fresh data-only runner');
+  replace('publish-sentry-gate-removed', '    needs: [gates, upload_sentry_source_maps]\n    runs-on: ubuntu-24.04', '    needs: gates\n    runs-on: ubuntu-24.04');
   replace('compatibility-needs-publish-removed', '    needs: [gates, publish_image]', '    needs: gates');
+  replace('sentry-upload-job-merged', '\n  upload_sentry_source_maps:\n', '\n  upload_sentry_source_maps_merged:\n');
   replace('jobs-merged', '\n  exact_image_compatibility:\n', '\n  exact_image_compatibility_merged:\n');
   replace(
     'cyclic-gates-reference',
@@ -3918,6 +3995,14 @@ function prepareReleaseMutationCases(source) {
     '      - name: Validate trusted dispatch context and inputs\n        shell: bash\n        env:\n          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}\n          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          APPLICATION_SHA:',
   );
   replace('publish-checkout-injected', '      - name: Download exact gated candidate by immutable artifact ID', '      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\n      - name: Download exact gated candidate by immutable artifact ID');
+  replace('sentry-upload-checkout-injected', '      - name: Download exact gated source-map data by immutable artifact ID', '      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0\n      - name: Download exact gated source-map data by immutable artifact ID');
+  replace('sentry-upload-npm-injected', '          artifact="$RUNNER_TEMP/candidate-data"', '          npm ci\n          artifact="$RUNNER_TEMP/candidate-data"');
+  replace('sentry-upload-fly-token-injected', '          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}\n          SENTRY_ORG: unimatter', '          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}\n          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          SENTRY_ORG: unimatter');
+  replace('sentry-upload-token-moved-into-cli-install', '      - name: Install checksum-verified sentry-cli 3.6.2 without credentials\n        shell: bash\n        run: |', '      - name: Install checksum-verified sentry-cli 3.6.2 without credentials\n        shell: bash\n        env:\n          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}\n        run: |');
+  replace('sentry-cli-checksum-mutated', "'3a4bbf2c0d06378d4e59b337647483751a0a2b1603db5fd4991847d0cfd6478c'", "'0a4bbf2c0d06378d4e59b337647483751a0a2b1603db5fd4991847d0cfd6478c'");
+  replace('sentry-source-map-archive-broadened', "expected_files=$'candidate-build-receipt.json\\ncandidate-image.tar.gz\\ncandidate-image.tar.gz.sha256\\nsentry-source-map-manifest.json\\nsentry-source-maps.tar.gz'", "expected_files=$'candidate-build-receipt.json\\ncandidate-image.tar.gz\\ncandidate-image.tar.gz.sha256\\nsentry-source-map-manifest.json\\nsentry-source-maps.tar.gz\\nunsafe.sh'");
+  replace('sentry-dsn-host-mutated', "parsed.hostname !== 'o4511822688813056.ingest.us.sentry.io'", "parsed.hostname !== 'example.invalid'");
+  replace('sentry-dsn-project-mutated', "parsed.pathname !== '/4511827129663488'", "parsed.pathname !== '/0'");
   replace('publish-npm-injected', '          docker tag "$local_image" "$new_image_tag"', '          npm ci\n          docker tag "$local_image" "$new_image_tag"');
   replace('publish-docker-run-injected', '          docker tag "$local_image" "$new_image_tag"', '          docker run "$local_image"\n          docker tag "$local_image" "$new_image_tag"');
   replace('publish-fly-deploy-injected', '          docker tag "$local_image" "$new_image_tag"', '          fly deploy .\n          docker tag "$local_image" "$new_image_tag"');
@@ -3925,7 +4010,7 @@ function prepareReleaseMutationCases(source) {
   replace('publication-auth-cleanup-removed', '          rm -rf "$DOCKER_CONFIG"', '          true');
   replace('compatibility-secret-injected', '        working-directory: candidate\n        env:\n          APPLICATION_SHA:', '        working-directory: candidate\n        env:\n          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}\n          APPLICATION_SHA:');
   replace('compatibility-marker-weakened', '[[ "$(grep -Fxc "# $marker=PASS" "$proof_log")" -eq 1 ]]', '[[ "$(grep -Fxc "# $marker=PASS" "$proof_log")" -ge 1 ]]');
-  replace('bundle-file-set-bypass', '          [[ "$actual_files" == "$expected_files" ]]', '          true');
+  replace('bundle-file-set-bypass', '          [[ "$actual_files" == "$expected_files" ]]\n          deploy_bundle_manifest_sha256=', '          true\n          deploy_bundle_manifest_sha256=');
   replace('bundle-code-injected', '          copy_regular candidate/fly.production.toml fly.production.toml 65536', '          copy_regular candidate/server/index.mjs index.mjs 65536\n          copy_regular candidate/fly.production.toml fly.production.toml 65536');
   replace('bundle-retention-weakened', '          retention-days: 3', '          retention-days: 1');
   replace('bundle-upload-broadened', '          path: ${{ runner.temp }}/deploy-bundle', '          path: ${{ runner.temp }}');
@@ -3979,8 +4064,12 @@ function prepareReleaseMutationCases(source) {
   );
   replace(
     'prepare-release-flyctl-download-timeout-removed',
-    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120",
-    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location",
+    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \\\n" +
+      '            --output "$archive" \\\n' +
+      "            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'",
+    "curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \\\n" +
+      '            --output "$archive" \\\n' +
+      "            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'",
   );
   replace(
     'prepare-release-source-remote-bounded-dummy-unbounded-real',
@@ -4069,7 +4158,11 @@ function prepareReleaseMutationCases(source) {
     },
   });
   replace('prepare-release-manifest-legacy-volume-rebound-to-active', '            expected_legacy_volume_id: e.EXPECTED_LEGACY_VOLUME_ID,', '            expected_legacy_volume_id: e.EXPECTED_VOLUME_ID,');
-  replace('prepare-release-platform-build-removed', '          npm run build:platform', '          true');
+  replace(
+    'prepare-release-platform-build-removed',
+    '          npm run build:platform\n          npm run build:landing',
+    '          true\n          npm run build:landing',
+  );
   replace('prepare-release-landing-build-removed', '          npm run build:landing', '          true');
   replace('prepare-release-split-build-verification-removed', '          npm run verify:split-build', '          true');
   replace('prepare-release-split-hosting-test-removed', '          npm run test:split-hosting', '          true');

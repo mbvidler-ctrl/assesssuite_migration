@@ -1,6 +1,6 @@
 // Behavioural coverage for src/lib/renderFailure.js (the pure logic behind
 // src/components/system/RootErrorBoundary.jsx) plus a structural check over
-// the boundary component and its wiring in src/main.jsx.
+// the boundary component and its authenticated app entry wiring.
 //
 // No jsdom/react-dom-server path exists here: node --test cannot import a
 // .jsx file, and React 18's server renderToString does not run error
@@ -77,17 +77,26 @@ test('T21: nextRenderFailureState/clearRenderFailureState implement the remount 
 // in the boundary resolves to either react or @/lib/renderFailure. This last
 // assertion is what keeps the fallback from ever depending on the subtree it
 // exists to catch.
-test('T22 (structural): main.jsx wraps App in RootErrorBoundary, whose only imports are react and @/lib/renderFailure', () => {
-  const mainSource = fs.readFileSync(path.join(repoRoot, 'src', 'main.jsx'), 'utf8');
+test('T22 (structural): authenticated app entry wraps App in the isolated RootErrorBoundary', () => {
+  const mainSource = fs.readFileSync(
+    path.join(repoRoot, 'apps', 'app-ep', 'src', 'main.jsx'),
+    'utf8',
+  );
   assert.match(mainSource, /import RootErrorBoundary from ['"]@\/components\/system\/RootErrorBoundary\.jsx['"]/);
-  assert.match(mainSource, /<RootErrorBoundary>[\s\S]*<App\s*\/>[\s\S]*<\/RootErrorBoundary>/);
+  assert.match(mainSource, /initialiseFrontendErrorTelemetry\(\);/);
+  assert.match(
+    mainSource,
+    /<RootErrorBoundary\s+captureError=\{captureFrontendException\}>[\s\S]*<App\s*\/>[\s\S]*<\/RootErrorBoundary>/,
+  );
 
   const boundaryPath = path.join(repoRoot, 'src', 'components', 'system', 'RootErrorBoundary.jsx');
   const boundarySource = fs.readFileSync(boundaryPath, 'utf8');
   assert.match(boundarySource, /static getDerivedStateFromError/);
   assert.match(boundarySource, /componentDidCatch/);
+  assert.match(boundarySource, /this\.props\.captureError\?\.\(error\)/);
+  assert.doesNotMatch(boundarySource, /console\.(?:error|log|warn)/);
 
-  const importLines = [...boundarySource.matchAll(/^import .* from ['"]([^'"]+)['"];?\s*$/gm)].map((m) => m[1]);
+  const importLines = [...boundarySource.matchAll(/\bfrom\s+['"]([^'"]+)['"]/g)].map((m) => m[1]);
   assert.ok(importLines.length > 0, 'expected at least one import line in RootErrorBoundary.jsx');
   for (const specifier of importLines) {
     assert.ok(

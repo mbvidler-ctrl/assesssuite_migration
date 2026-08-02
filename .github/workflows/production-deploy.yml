@@ -138,7 +138,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 931cd44877a4ae733aa05707a7425807e0b8fc55c0f49555afcb419c8b1e603f
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 574a839f96df392f1d3e0309c9bc2581e5a97a3c957c2fadfc557b88802d0d04
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
@@ -322,10 +322,10 @@ jobs:
           candidate_config="$bundle/fly.production.toml"
           rollback_config="$bundle/fly.rollback.production.toml"
           manifest="$bundle/deploy-bundle-manifest.json"
-          expected_files=$'candidate-build-receipt.json\ncompatibility-receipt.json\ndeploy-bundle-manifest.json\nfly.production.toml\nfly.rollback.production.toml\npublication-receipt.json'
+          expected_files=$'candidate-build-receipt.json\ncompatibility-receipt.json\ndeploy-bundle-manifest.json\nfly.production.toml\nfly.rollback.production.toml\npublication-receipt.json\nsentry-source-map-manifest.json'
           actual_files="$(find "$bundle" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)"
           [[ "$actual_files" == "$expected_files" ]]
-          for file in fly.production.toml fly.rollback.production.toml candidate-build-receipt.json publication-receipt.json compatibility-receipt.json deploy-bundle-manifest.json; do
+          for file in fly.production.toml fly.rollback.production.toml candidate-build-receipt.json publication-receipt.json compatibility-receipt.json deploy-bundle-manifest.json sentry-source-map-manifest.json; do
             [[ -f "$bundle/$file" && ! -L "$bundle/$file" ]]
             [[ "$(stat -c '%F' "$bundle/$file")" == 'regular file' ]]
           done
@@ -334,6 +334,7 @@ jobs:
           for file in candidate-build-receipt.json publication-receipt.json compatibility-receipt.json deploy-bundle-manifest.json; do
             [[ "$(wc -c <"$bundle/$file")" -gt 0 && "$(wc -c <"$bundle/$file")" -le 12288 ]]
           done
+          [[ "$(wc -c <"$bundle/sentry-source-map-manifest.json")" -gt 0 && "$(wc -c <"$bundle/sentry-source-map-manifest.json")" -le 65536 ]]
           [[ "$(sha256sum "$manifest" | awk '{print $1}')" == "$DEPLOY_BUNDLE_MANIFEST_SHA256" ]]
           [[ "$(sha256sum "$candidate_config" | awk '{print $1}')" == "$CANDIDATE_CONFIG_SHA256" ]]
           [[ "$(sha256sum "$rollback_config" | awk '{print $1}')" == "$ROLLBACK_CONFIG_SHA256" ]]
@@ -360,11 +361,13 @@ jobs:
           const publication = canonical('publication-receipt.json');
           const compatibility = canonical('compatibility-receipt.json');
           const manifest = canonical('deploy-bundle-manifest.json');
+          const sourceMaps = canonical('sentry-source-map-manifest.json');
           const markers = ['ROLLBACK_PROOF_REGISTERING_STATE','ROLLBACK_PROOF_39_FIELD_PER_FILE_MERGE','ROLLBACK_PROOF_AGE_QUARANTINE','ROLLBACK_PROOF_REFERRAL_COMMIT_RECEIPT_REPLAY'];
-          exactKeys(build, ['schema_version','application_sha','source_branch','build_timestamp','candidate_image_id','candidate_archive_sha256'], 'Candidate build receipt');
+          exactKeys(build, ['schema_version','application_sha','source_branch','build_timestamp','candidate_image_id','candidate_archive_sha256','source_map_manifest_sha256','source_map_archive_sha256'], 'Candidate build receipt');
           exactKeys(publication, ['schema_version','application_sha','rollback_source_sha','expected_volume_id','expected_legacy_volume_id','workflow_sha','source_branch','build_timestamp','candidate_config_sha256','rollback_config_sha256','candidate_image_artifact_id','candidate_image_artifact_digest','candidate_archive_sha256','candidate_image_id','candidate_registry_digest','candidate_image_ref','rollback_image_ref','rollback_image_id','rollback_archive_sha256','github_run_id','github_run_attempt','published_at'], 'Publication receipt');
           exactKeys(compatibility, ['schema_version','result','workflow_sha','application_sha','rollback_source_sha','expected_volume_id','expected_legacy_volume_id','candidate_config_sha256','rollback_config_sha256','candidate_image_ref','rollback_image_ref','candidate_image_id','rollback_image_id','forward_proof_digest','rollback_proof_digest','publication_artifact_id','publication_artifact_digest','release_control_artifact_id','release_control_artifact_digest','publication_receipt_sha256','markers','github_run_id','github_run_attempt','verified_at'], 'Compatibility receipt');
-          exactKeys(manifest, ['schema_version','result','publication_run_id','publication_run_attempt','workflow_sha','application_sha','rollback_source_sha','expected_volume_id','expected_legacy_volume_id','build_timestamp','candidate_config_sha256','rollback_config_sha256','candidate_image_artifact_id','candidate_image_artifact_digest','release_control_artifact_id','release_control_artifact_digest','publication_artifact_id','publication_artifact_digest','compatibility_artifact_id','compatibility_artifact_digest','candidate_build_receipt_sha256','publication_receipt_sha256','compatibility_receipt_sha256','candidate_image_id','candidate_image_ref','application_image_digest','rollback_image_ref','rollback_image_id','markers'], 'Deploy bundle manifest');
+          exactKeys(manifest, ['schema_version','result','publication_run_id','publication_run_attempt','workflow_sha','application_sha','rollback_source_sha','expected_volume_id','expected_legacy_volume_id','build_timestamp','candidate_config_sha256','rollback_config_sha256','candidate_image_artifact_id','candidate_image_artifact_digest','release_control_artifact_id','release_control_artifact_digest','publication_artifact_id','publication_artifact_digest','compatibility_artifact_id','compatibility_artifact_digest','candidate_build_receipt_sha256','source_map_manifest_sha256','publication_receipt_sha256','compatibility_receipt_sha256','candidate_image_id','candidate_image_ref','application_image_digest','rollback_image_ref','rollback_image_id','markers'], 'Deploy bundle manifest');
+          exactKeys(sourceMaps, ['schema_version','application_sha','source_branch','build_timestamp','runtime_js','source_maps'], 'Sentry source-map manifest');
           const e = process.env;
           const same = (actual, expected, label) => { if (String(actual) !== String(expected)) throw new Error(`${label} differs`); };
           same(manifest.schema_version, 'assesssuite.deploy-bundle-manifest.v2', 'Manifest schema');
@@ -385,11 +388,34 @@ jobs:
           same(manifest.candidate_build_receipt_sha256, digest('candidate-build-receipt.json'), 'Candidate build receipt hash');
           same(manifest.publication_receipt_sha256, digest('publication-receipt.json'), 'Publication receipt hash');
           same(manifest.compatibility_receipt_sha256, digest('compatibility-receipt.json'), 'Compatibility receipt hash');
-          same(build.schema_version, 'assesssuite.candidate-build-receipt.v1', 'Build schema');
+          same(manifest.source_map_manifest_sha256, digest('sentry-source-map-manifest.json'), 'Source-map manifest hash');
+          same(build.schema_version, 'assesssuite.candidate-build-receipt.v3', 'Build schema');
           same(build.application_sha, e.APPLICATION_SHA, 'Build application SHA');
           same(build.source_branch, 'main', 'Build source branch');
           same(build.build_timestamp, manifest.build_timestamp, 'Build timestamp');
           same(build.candidate_image_id, manifest.candidate_image_id, 'Build candidate image id');
+          same(build.source_map_manifest_sha256, manifest.source_map_manifest_sha256, 'Build source-map manifest hash');
+          if (!/^[0-9a-f]{64}$/.test(build.source_map_archive_sha256)) throw new Error('Build source-map archive hash differs');
+          same(sourceMaps.schema_version, 'assesssuite.sentry-source-map-manifest.v1', 'Source-map schema');
+          same(sourceMaps.application_sha, e.APPLICATION_SHA, 'Source-map application SHA');
+          same(sourceMaps.source_branch, 'main', 'Source-map branch');
+          same(sourceMaps.build_timestamp, manifest.build_timestamp, 'Source-map build timestamp');
+          if (!Array.isArray(sourceMaps.runtime_js) || sourceMaps.runtime_js.length < 1 ||
+              !Array.isArray(sourceMaps.source_maps) || sourceMaps.source_maps.length !== sourceMaps.runtime_js.length) {
+            throw new Error('Source-map manifest does not contain a one-to-one JavaScript/map set');
+          }
+          const runtimePaths = new Set();
+          for (const item of sourceMaps.runtime_js) {
+            exactKeys(item, ['path','bytes','sha256'], 'Runtime JavaScript manifest row');
+            if (!/^assets\/[A-Za-z0-9._-]+\.js$/.test(item.path) || !Number.isSafeInteger(item.bytes) || item.bytes < 1 || !/^[0-9a-f]{64}$/.test(item.sha256) || runtimePaths.has(item.path)) throw new Error('Runtime JavaScript manifest row is invalid');
+            runtimePaths.add(item.path);
+          }
+          const mapPaths = new Set();
+          for (const item of sourceMaps.source_maps) {
+            exactKeys(item, ['path','runtime_path','bytes','sha256'], 'Source-map manifest row');
+            if (!/^assets\/[A-Za-z0-9._-]+\.js\.map$/.test(item.path) || item.path !== `${item.runtime_path}.map` || !runtimePaths.has(item.runtime_path) || !Number.isSafeInteger(item.bytes) || item.bytes < 1 || !/^[0-9a-f]{64}$/.test(item.sha256) || mapPaths.has(item.path)) throw new Error('Source-map manifest row is invalid');
+            mapPaths.add(item.path);
+          }
           same(publication.schema_version, 'assesssuite.image-publication-receipt.v2', 'Publication schema');
           for (const [key, expected] of [['application_sha',e.APPLICATION_SHA],['rollback_source_sha',e.ROLLBACK_SOURCE_SHA],['expected_volume_id',e.EXPECTED_VOLUME_ID],['expected_legacy_volume_id',e.EXPECTED_LEGACY_VOLUME_ID],['workflow_sha',e.TRUSTED_WORKFLOW_SHA],['source_branch','main'],['build_timestamp',manifest.build_timestamp],['candidate_config_sha256',e.CANDIDATE_CONFIG_SHA256],['rollback_config_sha256',e.ROLLBACK_CONFIG_SHA256],['candidate_image_artifact_id',manifest.candidate_image_artifact_id],['candidate_image_artifact_digest',manifest.candidate_image_artifact_digest],['candidate_image_id',manifest.candidate_image_id],['candidate_registry_digest',e.APPLICATION_IMAGE_DIGEST],['candidate_image_ref',e.CANDIDATE_IMAGE_REF],['rollback_image_ref',e.ROLLBACK_IMAGE],['rollback_image_id',manifest.rollback_image_id],['github_run_id',e.PREPARATION_RUN_ID],['github_run_attempt',e.PREPARATION_RUN_ATTEMPT]]) same(publication[key], expected, `Publication ${key}`);
           same(compatibility.schema_version, 'assesssuite.exact-image-compatibility-receipt.v2', 'Compatibility schema');
@@ -469,6 +495,7 @@ jobs:
           done
           [[ "$(timeout --signal=TERM --kill-after=10s 60s git ls-remote --exit-code https://github.com/mbvidler-ctrl/assesssuite_migration.git refs/heads/main | awk 'NR == 1 { print $1 }')" == "$APPLICATION_SHA" ]]
           install -d -m 0700 "$RUNNER_TEMP/empty-deploy-context"
+
       - name: Install checksum-verified flyctl 0.4.71
         shell: bash
         run: |
@@ -490,6 +517,7 @@ jobs:
         shell: bash
         env:
           FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           SOURCE_BRANCH: main
@@ -514,6 +542,21 @@ jobs:
         run: |
           set -euo pipefail
           set +x
+          [[ -n "$SENTRY_DSN" ]]
+          SENTRY_DSN_VALUE="$SENTRY_DSN" node --input-type=module <<'NODE'
+          const value = process.env.SENTRY_DSN_VALUE;
+          let parsed;
+          try {
+            parsed = new URL(value);
+          } catch {
+            throw new Error('Sentry DSN does not match the approved production project');
+          }
+          if (parsed.protocol !== 'https:' || parsed.hostname !== 'o4511822688813056.ingest.us.sentry.io' ||
+              parsed.port !== '' || parsed.pathname !== '/4511827129663488' || parsed.search !== '' ||
+              parsed.hash !== '' || parsed.password !== '' || !/^[0-9a-f]{32}$/.test(parsed.username)) {
+            throw new Error('Sentry DSN does not match the approved production project');
+          }
+          NODE
           app=assesssuite-production
           release_control_dir="$RUNNER_TEMP/deploy-bundle"
           deploy_source_dir="$RUNNER_TEMP/empty-deploy-context"
@@ -1313,17 +1356,23 @@ jobs:
           const required = [
             'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',
             'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',
-            'OPENAI_API_KEY',
+            'OPENAI_API_KEY', 'SENTRY_DSN',
           ];
           const observed = JSON.stringify([...names].sort());
           let boundaryState;
           if (process.env.LEGACY_MODE === 'allow') {
             const settled = JSON.stringify([...required].sort());
+            const preSentry = JSON.stringify(required.filter((name) => name !== 'SENTRY_DSN').sort());
             const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());
+            const preSentryTransitionPending = JSON.stringify([...required.filter((name) => name !== 'SENTRY_DSN'), 'GENERAL_CLINICAL_LLM_ENABLED'].sort());
             if (observed === settled) {
               boundaryState = 'settled';
+            } else if (observed === preSentry) {
+              boundaryState = 'pre-sentry';
             } else if (observed === transitionPending) {
               boundaryState = 'transition-pending';
+            } else if (observed === preSentryTransitionPending) {
+              boundaryState = 'pre-sentry-transition-pending';
             } else {
               throw new Error('Production secret-name allowlist differs for allow mode');
             }
@@ -1333,7 +1382,7 @@ jobs:
             if (observed !== JSON.stringify([...required].sort())) {
               throw new Error('Production secret-name allowlist differs for forbid mode');
             }
-            boundaryState = 'exact-eight';
+            boundaryState = 'exact-nine';
           }
           fs.writeFileSync(process.env.BOUNDARY_STATE_PATH, `${boundaryState}\n`, { encoding: 'utf8', mode: 0o600 });
           process.stdout.write(
@@ -1792,7 +1841,7 @@ jobs:
             exit 1
           fi
           initial_boundary_state="$(<"$RUNNER_TEMP/initial-secret-boundary-state")"
-          [[ "$initial_boundary_state" == 'settled' || "$initial_boundary_state" == 'transition-pending' ]]
+          [[ "$initial_boundary_state" == 'settled' || "$initial_boundary_state" == 'pre-sentry' || "$initial_boundary_state" == 'transition-pending' || "$initial_boundary_state" == 'pre-sentry-transition-pending' ]]
           rm -f "$RUNNER_TEMP/initial-secret-names.json"
 
           # Freeze the exact pre-split release before the first production
@@ -1861,18 +1910,19 @@ jobs:
             append_summary 'FAILED; final predeploy release or image drifted'
             exit 1
           fi
-          if [[ "$initial_boundary_state" == 'transition-pending' ]]; then
+          if [[ "$initial_boundary_state" == 'transition-pending' || "$initial_boundary_state" == 'pre-sentry-transition-pending' ]]; then
             timeout --signal=TERM --kill-after=10s 60s \
               fly secrets unset GENERAL_CLINICAL_LLM_ENABLED --stage --app "$app"
-          elif [[ "$initial_boundary_state" != 'settled' ]]; then
+          elif [[ "$initial_boundary_state" != 'settled' && "$initial_boundary_state" != 'pre-sentry' ]]; then
             append_summary 'FAILED; initial secret-boundary state marker was invalid'
             exit 1
           fi
           # Stage the exact application origin immediately before the sole
           # application deploy. The candidate bootstrap also refuses to start
           # unless APP_URL equals EXPECTED_APP_URL from the reviewed config.
+          [[ -n "$SENTRY_DSN" ]]
           timeout --signal=TERM --kill-after=10s 60s \
-            fly secrets set APP_URL=https://app.assesssuite.com --stage --app "$app"
+            fly secrets set APP_URL=https://app.assesssuite.com SENTRY_DSN="$SENTRY_DSN" --stage --app "$app"
           if ! assert_secret_name_boundary final forbid; then
             append_summary 'FAILED; final names-only production secret boundary drifted'
             exit 1
