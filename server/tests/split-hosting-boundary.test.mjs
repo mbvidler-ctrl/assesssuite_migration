@@ -4,7 +4,6 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { sanitiseAnalyticsEvent } from '../../apps/landing/src/analytics.js';
 import {
   APPROVED_LANDING_LEGAL_DOCUMENTS,
   getApprovedLandingLegalDocumentBySlug,
@@ -16,55 +15,6 @@ import {
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
-
-test('landing analytics keeps only public production paths and strips query data', () => {
-  const event = sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://assesssuite.com/?utm_source=private#section' },
-    'https://assesssuite.com',
-  );
-  assert.equal(event.url, 'https://assesssuite.com/');
-  assert.equal(event.type, 'pageview');
-
-  const legal = sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://www.assesssuite.com/legal/privacy?token=secret' },
-    'https://www.assesssuite.com',
-  );
-  assert.equal(legal.url, 'https://www.assesssuite.com/legal/privacy');
-
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://assesssuite.com/legal/jane-doe-depression?patient=123' },
-    'https://assesssuite.com',
-  ), null);
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://assesssuite.com/legal/website-terms' },
-    'https://assesssuite.com',
-  ), null);
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://assesssuite.com/legal/vulnerability-disclosure' },
-    'https://assesssuite.com',
-  ), null);
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'http://assesssuite.com/legal/privacy' },
-    'https://assesssuite.com',
-  ), null);
-
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://app.assesssuite.com/Dashboard?client=123' },
-    'https://app.assesssuite.com',
-  ), null);
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://assesssuite.com/login' },
-    'https://assesssuite.com',
-  ), null);
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'pageview', url: 'https://preview-branch.vercel.app/' },
-    'https://preview-branch.vercel.app',
-  ), null);
-  assert.equal(sanitiseAnalyticsEvent(
-    { type: 'event', name: 'future-custom-event', url: 'https://assesssuite.com/' },
-    'https://assesssuite.com',
-  ), null);
-});
 
 test('landing legal routes and imports fail closed for unapproved drafts', () => {
   const draftIds = ['website-terms', 'vulnerability-disclosure'];
@@ -126,7 +76,7 @@ test('marketing entry has no authenticated application or API provider imports',
   assert.match(marketingApp, /BLOCKED_BACKEND_PATH/);
   assert.doesNotMatch(landing, /(?:import|from)\s+['"][^'"]*(?:AuthContext|base44)|\buseAuth\s*\(|\buseNavigate\s*\(/);
   assert.doesNotMatch(platformApp, /pages\/LandingLive/);
-  assert.match(marketingMain, /@vercel\/analytics\/react/);
+  assert.doesNotMatch(marketingMain, /@vercel\/analytics|Analytics|beforeSend/);
   assert.doesNotMatch(platformMain, /@vercel\/analytics|Analytics/);
 });
 
@@ -156,7 +106,7 @@ test('build and routing configuration preserves the split-hosting boundary', () 
   }
 });
 
-test('published analytics notices match the bounded implementation', () => {
+test('published analytics notices retain the approved boundary while collection is disabled', () => {
   const cookieNotice = read('src/legal-content/10_cookie_analytics_and_tracking_notice.md');
   const privacyPolicy = read('src/legal-content/03_privacy_policy.md');
   const subprocessorSchedule = read('src/legal-content/25_approved_subprocessor_and_cross_border_schedule_template.md');
@@ -174,4 +124,5 @@ test('published analytics notices match the bounded implementation', () => {
   assert.match(registry, /LIMITED PUBLIC-SITE ANALYTICS ONLY/);
   assert.match(registry, /effectiveDate: '2 August 2026'/);
   assert.match(marketingLegalPage, /doc\.effectiveDate \|\| SUITE_EFFECTIVE_DATE/);
+  assert.doesNotMatch(read('apps/landing/src/main.jsx'), /@vercel\/analytics|Analytics|beforeSend/);
 });
