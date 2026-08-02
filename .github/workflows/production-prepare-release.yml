@@ -584,6 +584,7 @@ jobs:
           NODE
           rm -rf dist
           RELEASE_SHA="$APPLICATION_SHA" SOURCE_BRANCH="$SOURCE_BRANCH" BUILD_TIMESTAMP="$BUILD_TIMESTAMP" \
+            VITE_BASE44_APP_ID=local-assesssuite \
             VITE_SENTRY_DSN="$SENTRY_DSN" VITE_SENTRY_RELEASE="$APPLICATION_SHA" VITE_SENTRY_ENVIRONMENT=production \
             npm run build:platform
           ./node_modules/.bin/sentry-cli sourcemaps inject dist
