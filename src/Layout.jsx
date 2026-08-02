@@ -41,7 +41,13 @@ function canViewUsageDashboard(user) {
   return user?.role === "admin" || usageDashboardViewerEmails.has(email);
 }
 
-const BYPASS_PATHS = ["/ProfileSetup", "/PendingApproval", "/Signup", "/Home", "/PaymentRequired", "/LegalNotices", "/AccountDeactivated"];
+// The practice overview is an authenticated, separately allowlisted owner view,
+// not a clinical workspace. Keep it outside clinician onboarding, subscription
+// and legal-acceptance gates so an authorised business viewer can see only the
+// aggregate summary without being provisioned as a treating practitioner. The
+// ProtectedRoute, UsageOverview and server summary endpoint each still enforce
+// authentication and the exact viewer allowlist.
+const BYPASS_PATHS = ["/ProfileSetup", "/PendingApproval", "/Signup", "/Home", "/PaymentRequired", "/LegalNotices", "/AccountDeactivated", "/UsageOverview"];
 
 function isBypassPath(pathname) {
   return BYPASS_PATHS.some(p => pathname.toLowerCase() === p.toLowerCase());
