@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -8,6 +8,16 @@ import { Mail, Lock, Loader2, User as UserIcon } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { createPageUrl } from "@/utils";
+
+const RESEND_COOLDOWN_SECONDS = 30;
+
+function maskEmailDestination(value) {
+  const [localPart, domain] = value.split("@");
+  if (!localPart || !domain) return "your email address";
+
+  const visiblePrefix = localPart.slice(0, 1);
+  return `${visiblePrefix}${"*".repeat(Math.max(3, localPart.length - 1))}@${domain}`;
+}
 
 export default function Register() {
   const [fullName, setFullName] = useState("");
@@ -20,6 +30,19 @@ export default function Register() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpCode, setOtpCode] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const [resending, setResending] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [resendConfirmation, setResendConfirmation] = useState("");
+
+  useEffect(() => {
+    if (resendCooldown <= 0) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setResendCooldown((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+
+    return () => window.clearTimeout(timer);
+  }, [resendCooldown]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -34,6 +57,8 @@ export default function Register() {
     setLoading(true);
     try {
       await base44.auth.register({ email, password, full_name: fullName.trim() });
+      setResendConfirmation("Verification code sent.");
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
       setOtpSent(true);
     } catch (err) {
       // A verified account already owns this email (409): offer a route onward
@@ -72,13 +97,19 @@ export default function Register() {
   };
 
   const handleResendOtp = async () => {
-    setLoading(true);
+    if (resending || resendCooldown > 0) return;
+
+    setError("");
+    setResendConfirmation("");
+    setResending(true);
     try {
       await base44.auth.resendOtp(email);
+      setResendConfirmation("Verification code request received.");
+      setResendCooldown(RESEND_COOLDOWN_SECONDS);
     } catch (err) {
       setError(err.message || "Failed to resend OTP");
     } finally {
-      setLoading(false);
+      setResending(false);
     }
   };
 
@@ -102,10 +133,20 @@ export default function Register() {
         }
       >
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+          <div role="alert" className="mb-4 p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
             {error}
           </div>
         )}
+
+        <div className="mb-4 rounded-lg border border-primary/20 bg-primary/5 p-3 text-sm">
+          <p className="font-medium text-foreground" role="status" aria-live="polite">
+            {resendConfirmation || "Verification code sent."}
+          </p>
+          <p className="mt-1 text-muted-foreground">
+            We sent a six-digit code to {maskEmailDestination(email)}. It may take a few minutes to arrive.
+            Check your spam or junk folder if you cannot see it.
+          </p>
+        </div>
 
         <form onSubmit={handleVerifyOtp} className="space-y-4">
           <div className="space-y-2">
@@ -113,16 +154,26 @@ export default function Register() {
             <Input
               id="otp"
               type="text"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              autoComplete="one-time-code"
               autoFocus
               placeholder="000000"
               value={otpCode}
-              onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ""))}
-              maxLength="6"
+              onChange={(e) => {
+                setOtpCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                if (error) setError("");
+              }}
+              maxLength={6}
               className="h-12 text-center tracking-widest text-lg"
               required
             />
           </div>
-          <Button type="submit" className="w-full h-12 font-medium" disabled={verifying}>
+          <Button
+            type="submit"
+            className="w-full h-12 font-medium"
+            disabled={verifying || !/^\d{6}$/.test(otpCode)}
+          >
             {verifying ? (
               <>
                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
@@ -137,11 +188,16 @@ export default function Register() {
         <div className="mt-4 text-center">
           <p className="text-sm text-muted-foreground mb-2">Didn't receive a code?</p>
           <button
+            type="button"
             onClick={handleResendOtp}
-            disabled={loading}
-            className="text-sm text-primary font-medium hover:underline bg-none border-none cursor-pointer p-0"
+            disabled={resending || resendCooldown > 0}
+            className="text-sm text-primary font-medium hover:underline bg-none border-none cursor-pointer p-0 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {loading ? "Resending..." : "Resend code"}
+            {resending
+              ? "Resending..."
+              : resendCooldown > 0
+                ? `Resend code in ${resendCooldown}s`
+                : "Resend code"}
           </button>
         </div>
       </AuthLayout>

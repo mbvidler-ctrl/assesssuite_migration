@@ -109,7 +109,11 @@ test('affirmative email gate plus secret preserves the real adapter path', { con
     fetchCalls += 1;
     assert.equal(url, 'https://api.resend.com/emails');
     assert.equal(options.method, 'POST');
-    return { ok: true };
+    return {
+      ok: true,
+      status: 200,
+      json: async () => ({ id: 'synthetic_resend_message_id' }),
+    };
   };
   try {
     const result = await withEnvironment({
@@ -122,7 +126,11 @@ test('affirmative email gate plus secret preserves the real adapter path', { con
       subject: 'Synthetic positive control',
       text: 'Synthetic only',
     }));
-    assert.deepEqual(result, { recorded: true, sent: true });
+    assert.deepEqual(result, {
+      recorded: true,
+      sent: true,
+      providerId: 'synthetic_resend_message_id',
+    });
     assert.equal(fetchCalls, 1);
   } finally {
     globalThis.fetch = originalFetch;
