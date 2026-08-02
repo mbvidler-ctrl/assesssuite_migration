@@ -132,12 +132,14 @@ test('marketing entry has no authenticated application or API provider imports',
 
 test('build and routing configuration preserves the split-hosting boundary', () => {
   const packageJson = JSON.parse(read('package.json'));
+  const jsConfig = JSON.parse(read('jsconfig.json'));
   const vercel = JSON.parse(read('vercel.json'));
   const platformHtml = read('apps/app-ep/index.html');
   const landingConfig = read('apps/landing/vite.config.js');
   const vercelIgnore = read('.vercelignore');
 
   assert.equal(packageJson.scripts.build, 'npm run build:platform');
+  assert.ok(jsConfig.compilerOptions.types.includes('vite/client'));
   assert.equal(vercel.buildCommand, 'npm run build:landing');
   assert.equal(vercel.outputDirectory, 'apps/landing/dist');
   assert.deepEqual(vercel.rewrites, [{ source: '/legal/:slug', destination: '/' }]);
