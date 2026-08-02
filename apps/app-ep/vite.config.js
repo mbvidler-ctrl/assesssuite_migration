@@ -9,4 +9,7 @@ export default makeAppConfig({
   port: 4101,
   serverPort: 8787,
   outDir: path.join(repoRoot, 'dist'),
+  // Hidden maps are retained only in the isolated release workspace for
+  // Sentry upload. The Dockerfile removes them from the runnable image.
+  sourcemap: 'hidden',
 });

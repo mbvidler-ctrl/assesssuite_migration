@@ -2,7 +2,6 @@ import React from "react";
 import {
   INITIAL_RENDER_FAILURE_STATE,
   clearRenderFailureState,
-  describeRenderFailure,
   nextRenderFailureState,
 } from "@/lib/renderFailure";
 
@@ -22,15 +21,15 @@ export default class RootErrorBoundary extends React.Component {
     return nextRenderFailureState(error);
   }
 
-  componentDidCatch(error, info) {
-    const described = describeRenderFailure(error);
-    // Metadata only: never log rendered values, client records or provider
-    // payloads. describeRenderFailure already bounds and redacts the message.
-    console.error("[ui] render failed", {
-      name: described.name,
-      message: described.message,
-      componentStack: String(info?.componentStack || "").slice(0, 500),
-    });
+  componentDidCatch(error) {
+    // The callback is injected by the authenticated app entry point so this
+    // last-resort boundary keeps its hard import isolation. Never pass the
+    // component stack, rendered values or application state to telemetry.
+    try {
+      this.props.captureError?.(error);
+    } catch {
+      // Telemetry must never prevent the privacy-safe fallback from rendering.
+    }
   }
 
   handleRetry() {

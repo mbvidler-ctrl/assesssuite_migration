@@ -238,7 +238,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 931cd44877a4ae733aa05707a7425807e0b8fc55c0f49555afcb419c8b1e603f
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 574a839f96df392f1d3e0309c9bc2581e5a97a3c957c2fadfc557b88802d0d04
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -473,7 +473,7 @@ jobs:
           const required = [
             'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',
             'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',
-            'OPENAI_API_KEY',
+            'OPENAI_API_KEY', 'SENTRY_DSN',
           ];
           const missing = required.filter((name) => !present.has(name));
           if (missing.length) throw new Error('Required production secret name(s) absent: ' + missing.join(', '));
@@ -505,7 +505,7 @@ jobs:
           } else if (observed !== settled) {
             throw new Error('Production secret-name allowlist differs for forbid mode');
           } else {
-            boundaryState = 'exact-eight';
+            boundaryState = 'exact-nine';
           }
           const opaqueOverrides = [...forbidden].filter((name) => present.has(name)).sort();
           if (opaqueOverrides.length) throw new Error('Forbidden opaque production secret name(s) present: ' + opaqueOverrides.join(', '));
