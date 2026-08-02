@@ -302,6 +302,27 @@ test('T10 production publication and deployment are split at the immutable diges
   assertTwoPhaseImmutableDigestBinding(preparationSource, deploySource);
 });
 
+test('T10b prepare-release metadata verification binds every referenced config digest input', () => {
+  const source = fs.readFileSync(
+    path.join(repoRoot, '.github', 'workflows', 'production-prepare-release.yml'),
+    'utf8',
+  );
+  const marker = '      - name: Verify exact SHA and remote branch tip';
+  const start = source.indexOf(marker);
+  const end = source.indexOf('\n      - name:', start + marker.length);
+  assert.notEqual(start, -1, 'prepare-release metadata verification step is missing');
+  const step = source.slice(start, end === -1 ? undefined : end);
+  assert.equal(
+    (step.match(/ROLLBACK_CONFIG_SHA256:\s*\$\{\{ inputs\.rollback_config_sha256 \}\}/g) || []).length,
+    1,
+    'rollback config digest input must be bound exactly once in the metadata step environment',
+  );
+  assert.match(
+    step,
+    /sha256sum fly\.rollback\.production\.toml[\s\S]*?== "\$ROLLBACK_CONFIG_SHA256"/,
+  );
+});
+
 test('T11 every production mutation workflow pins the active r12 volume and preserved detached legacy volume', () => {
   for (const file of [
     'production-deploy.yml',
