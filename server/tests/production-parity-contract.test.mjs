@@ -208,6 +208,7 @@ test('machine receipt key sets expose bounded seed, readiness, observation and c
     'nonnamespace_rows_touched',
     'nonnamespace_files_touched',
     'clinical_rows_deleted',
+    'usage_aggregate_rows_deleted',
   ]) {
     assert.ok(CLEANUP_RECEIPT_KEYS.includes(key), key);
   }
@@ -356,8 +357,15 @@ test('cleanup executes twice, removes failed-wave rows/files, and preserves nonn
           name,
           name === 'Client' ? ['preserved-client'] : [],
         ])),
+        usageDailyAggregateRows: [],
       },
     }), now);
+
+    db.prepare(`
+      INSERT INTO usage_daily_aggregate (
+        day, marketing_page_load, successful_sign_in, new_verified_account, app_open
+      ) VALUES ('2026-08-03', 1, 1, 1, 1)
+    `).run();
 
     for (const [name, content] of [
       ['mission-upload.bin', 'mission'],
@@ -377,6 +385,7 @@ test('cleanup executes twice, removes failed-wave rows/files, and preserves nonn
     assert.ok(first.rowsDeleted >= 9);
     assert.equal(first.filesDeleted, 3);
     assert.equal(first.clinicalRowsDeleted, 1);
+    assert.equal(first.usageAggregateRowsDeleted, 1);
     assert.equal(first.remainingNamespaceRows, 0);
     assert.equal(first.remainingNamespaceFiles, 0);
     assert.equal(db.prepare("SELECT COUNT(*) AS n FROM entity_User WHERE id = 'preserved-user'").get().n, 1);
@@ -386,12 +395,14 @@ test('cleanup executes twice, removes failed-wave rows/files, and preserves nonn
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM outbox_email').get().n, 1);
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM outbox_sms').get().n, 1);
     assert.equal(db.prepare('SELECT COUNT(*) AS n FROM upload_registry').get().n, 0);
+    assert.equal(db.prepare('SELECT COUNT(*) AS n FROM usage_daily_aggregate').get().n, 0);
     assert.equal(db.prepare("SELECT COUNT(*) AS n FROM upload_disposition WHERE org_id = 'mission-org'").get().n, 0);
     assert.equal(fs.readFileSync(path.join(uploadsDir, 'preserved-sentinel.bin'), 'utf8'), 'preserved');
 
     const second = cleanupNamespaceStore({ db, entityNames, contract, uploadsDir });
     assert.equal(second.rowsDeleted, 0);
     assert.equal(second.filesDeleted, 0);
+    assert.equal(second.usageAggregateRowsDeleted, 0);
     assert.equal(second.remainingNamespaceRows, 0);
     assert.equal(second.remainingNamespaceFiles, 0);
   } finally {

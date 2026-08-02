@@ -8,10 +8,17 @@ import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID, timingSafeEqual } from 'node:crypto';
 import { isIP } from 'node:net';
 
-import { openDatabase, createEntityRepository, createSessionRepository, createOutboxRepository, loadOrgScopedEntities } from './db.mjs';
+import {
+  openDatabase,
+  createEntityRepository,
+  createSessionRepository,
+  createOutboxRepository,
+  createUsageAnalyticsRepository,
+  loadOrgScopedEntities,
+} from './db.mjs';
 import { matchesQuery, applySortSkipLimit, applyProjection } from './query.mjs';
 import {
   hashPassword,
@@ -119,6 +126,7 @@ fs.mkdirSync(uploadsDir, { recursive: true });
 
 const { db, entityNames } = openDatabase();
 const sessions = createSessionRepository(db);
+const usageAnalytics = createUsageAnalyticsRepository(db);
 const outboxEmail = createOutboxRepository(db, 'email');
 const outboxSms = createOutboxRepository(db, 'sms');
 const uploadRegistry = createUploadRegistry(db, { uploadsDir });
@@ -330,6 +338,83 @@ function resolveSessionUser(req) {
   if (!session) return null;
   const user = userRepo.getById(session.user_id);
   return user || null;
+}
+
+const MARKETING_PAGE_ORIGINS = new Set([
+  'https://assesssuite.com',
+  'https://www.assesssuite.com',
+]);
+
+function recordUsageMetric(metric) {
+  try {
+    usageAnalytics.increment(metric);
+    return true;
+  } catch {
+    // Usage counters never interfere with authentication or app operation.
+    return false;
+  }
+}
+
+function parseUsageSummaryDays(url) {
+  const entries = [...url.searchParams.entries()];
+  if (entries.length === 0) return 30;
+  if (entries.length !== 1 || entries[0][0] !== 'days') return null;
+  const raw = entries[0][1];
+  if (!/^(?:[1-9]|[1-8][0-9]|90)$/.test(raw)) return null;
+  return Number(raw);
+}
+
+function fixedUsageSummary(days) {
+  return {
+    time_zone: 'Australia/Brisbane',
+    range_days: days,
+    daily: usageAnalytics.summarize(days),
+  };
+}
+
+function constantTimeDashboardTokenMatches(req) {
+  const configured = process.env.ASSESSSUITE_DASHBOARD_METRICS_TOKEN;
+  const suppliedHeader = req.headers?.['x-assesssuite-dashboard-token'];
+  const supplied = typeof suppliedHeader === 'string' ? suppliedHeader : '';
+  const expected = typeof configured === 'string' && configured.length >= 32 ? configured : '';
+  const suppliedDigest = createHash('sha256').update(supplied, 'utf8').digest();
+  const expectedDigest = createHash('sha256').update(expected, 'utf8').digest();
+  const equal = timingSafeEqual(suppliedDigest, expectedDigest);
+  return expected.length >= 32 && typeof suppliedHeader === 'string' && equal;
+}
+
+async function handleMarketingPageLoad(req, res) {
+  if (req.method !== 'POST') return sendError(res, 405, 'method not allowed');
+  const origin = req.headers?.origin;
+  if (typeof origin !== 'string' || !MARKETING_PAGE_ORIGINS.has(origin)) {
+    req.resume();
+    return sendError(res, 403, 'origin not allowed');
+  }
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Vary', 'Origin');
+  await readBody(req, 0);
+  if (!recordUsageMetric('marketing_page_load')) {
+    return sendError(res, 500, 'usage metric could not be recorded');
+  }
+  return sendNoContent(res);
+}
+
+function handleAdminUsageSummary(req, res, url) {
+  const sessionUser = resolveSessionUser(req);
+  if (!sessionUser) return sendError(res, 401, 'authentication required');
+  if (sessionUser.role !== 'admin') return sendError(res, 403, 'admin access required');
+  if (req.method !== 'GET') return sendError(res, 405, 'method not allowed');
+  const days = parseUsageSummaryDays(url);
+  if (days === null) return sendError(res, 400, 'days must be an integer from 1 to 90');
+  return sendJson(res, 200, fixedUsageSummary(days));
+}
+
+function handleDashboardUsageSummary(req, res, url) {
+  if (!constantTimeDashboardTokenMatches(req)) return sendError(res, 404, 'not found');
+  if (req.method !== 'GET') return sendError(res, 405, 'method not allowed');
+  const days = parseUsageSummaryDays(url);
+  if (days === null) return sendError(res, 400, 'days must be an integer from 1 to 90');
+  return sendJson(res, 200, fixedUsageSummary(days));
 }
 
 /** Returns true if the entity is unauthenticated-accessible per the contract allow-list. */
@@ -1779,6 +1864,7 @@ async function handleAuthRoute(req, res, url, appId, action) {
       return sendError(res, 403, 'please verify your email before signing in — request a new code from the registration page');
     }
     const token = sessions.create(user.id);
+    recordUsageMetric('successful_sign_in');
     return sendJson(res, 200, { access_token: token, user: stripAuthFields(user) });
   }
 
@@ -1915,6 +2001,7 @@ async function handleAuthRoute(req, res, url, appId, action) {
       userRepo.update(user.id, lockFields);
       return sendError(res, 401, 'invalid or expired verification code');
     }
+    const firstVerification = !user.email_verified;
     // Email verification must not activate the account. Activation is granted
     // by successful subscription payment (stripeWebhook) or by an admin.
     const nextStatus = user.account_status === 'active' ? 'active' : 'pending';
@@ -1927,6 +2014,7 @@ async function handleAuthRoute(req, res, url, appId, action) {
       otp_locked_until: null,
     });
     const token = sessions.create(user.id);
+    if (firstVerification) recordUsageMetric('new_verified_account');
     return sendJson(res, 200, { access_token: token, user: stripAuthFields(updated) });
   }
 
@@ -2521,6 +2609,16 @@ async function requestListener(req, res) {
     const url = parseUrl(req);
     const pathname = url.pathname;
 
+    if (pathname === '/api/usage/page-load') {
+      return await handleMarketingPageLoad(req, res);
+    }
+    if (pathname === '/api/usage/summary') {
+      return handleAdminUsageSummary(req, res, url);
+    }
+    if (pathname === '/api/usage/dashboard-summary') {
+      return handleDashboardUsageSummary(req, res, url);
+    }
+
     // Telemetry stubs — always 204, never error.
     if (/^\/api\/apps\/[^/]+\/analytics\/track\/batch$/.test(pathname) && req.method === 'POST') {
       await readBody(req); // drain body (may arrive via sendBeacon)
@@ -2529,6 +2627,9 @@ async function requestListener(req, res) {
     const appLogsMatch = /^\/api\/app-logs\/([^/]+)\/log-user-in-app\/([^/]+)$/.exec(pathname);
     if (appLogsMatch && req.method === 'POST') {
       await readBody(req);
+      if (appLogsMatch[2] === 'AppOpen' && resolveSessionUser(req)) {
+        recordUsageMetric('app_open');
+      }
       return sendNoContent(res);
     }
 

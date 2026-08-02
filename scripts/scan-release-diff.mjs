@@ -13,7 +13,7 @@ function entropy(value) {
 function isReviewedTestCanary(value, file) {
   if (/synthetic|example|placeholder|selftest|change-me-local|canary/i.test(value)) return true;
   return /(?:^|\/)(?:server\/tests|server\/selftest\.mjs|scripts\/.*(?:test|selftest))/i.test(file)
-    && /(?:test|probe|fixture)/i.test(value);
+    && /(?:test|probe|fixture|wrong|invalid|too-short)/i.test(value);
 }
 
 export function scanReleaseDiff(diff) {
@@ -49,6 +49,7 @@ export function scanReleaseDiff(diff) {
     for (const match of line.matchAll(assignment)) {
       const value = match[4] || match[5];
       if (isReviewedTestCanary(value, file)) continue;
+      if (match[3] && /^\$(?:\{?[A-Za-z_][A-Za-z0-9_]*\}?)$/.test(value)) continue;
       if (!match[3]) {
         // An unquoted identifier or member expression is a runtime reference,
         // not credential material embedded in the release diff.

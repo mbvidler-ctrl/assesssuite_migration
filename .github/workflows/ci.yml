@@ -57,7 +57,7 @@ jobs:
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          EXPECTED_RELEASE_SCANNER_SHA256: 1b34b794ab79f5ea022525f31bf70397c629ca0a16baf4320503c6cfdbd36c5c
+          EXPECTED_RELEASE_SCANNER_SHA256: 9cab943c725a8faf159fbeb7ee5c4a020ef1cc4f3e41845f4f6654990bc3775d
         run: |
           set -euo pipefail
           base_sha="${BASE_SHA}"

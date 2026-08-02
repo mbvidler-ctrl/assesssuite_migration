@@ -58,6 +58,7 @@ test('T03 production secret preflight is sealed to the exact production app befo
   const source = fs.readFileSync(secretPreflight, 'utf8');
   assert.match(source, /LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS/);
   assert.match(source, /OPENAI_DOCUMENT_EXTRACTION_MODEL/);
+  assert.match(source, /ASSESSSUITE_DASHBOARD_METRICS_TOKEN/);
 });
 
 test('T03b direct local production deployment is fail-closed in favour of the trusted workflow', () => {
@@ -134,6 +135,9 @@ test('T05 release scanner accepts the exact reviewed diff and rejects constructe
     '+++ b/server/tests/probe.mjs',
     '+const request = { token: authenticatedUser.token };',
     '+const options = { API_KEY: configuredProviderCredential };',
+    '+ASSESSSUITE_DASHBOARD_METRICS_TOKEN="$ASSESSSUITE_DASHBOARD_METRICS_TOKEN"',
+    "+const invalid = { token: 'invalid-session-token' };",
+    "+const weakToken = 'too-short';",
   ].join('\n');
   assert.deepEqual(scanReleaseDiff(runtimeReferences), []);
 });

@@ -12,11 +12,11 @@ const repoRoot = path.resolve(testsDir, '..', '..');
 const validator = path.join(repoRoot, 'scripts', 'validate-production-deploy-workflow.mjs');
 
 const GOVERNED_WORKFLOWS = [
-  { file: 'production-deploy.yml', mutations: 152, pinsValidator: true },
+  { file: 'production-deploy.yml', mutations: 158, pinsValidator: true },
   { file: 'production-prepare-release.yml', mutations: 68, pinsValidator: true },
   { file: 'production-prepare-rollback-image.yml', mutations: 8, pinsValidator: false },
-  { file: 'production-rollback.yml', mutations: 95, pinsValidator: true },
-  { file: 'production-parity-assurance.yml', mutations: 82, pinsValidator: true },
+  { file: 'production-rollback.yml', mutations: 97, pinsValidator: true },
+  { file: 'production-parity-assurance.yml', mutations: 84, pinsValidator: true },
 ];
 
 function workflowPath(file) {

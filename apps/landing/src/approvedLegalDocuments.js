@@ -14,7 +14,7 @@ export const APPROVED_LANDING_LEGAL_DOCUMENTS = Object.freeze({
     title: 'AssessSuite Privacy Policy',
     slug: 'privacy',
     file: '03_privacy_policy.md',
-    releaseStatus: 'APPROVED FOR PUBLICATION WITH RC-2026.07.19 — CONTROLLED REVISION 2026-08-02.2; FUNCTION-SPECIFIC ACTIVATION GATES APPLY',
+    releaseStatus: 'APPROVED FOR PUBLICATION WITH RC-2026.07.19 — CONTROLLED REVISION 2026-08-02.3; FIRST-PARTY AGGREGATE MEASUREMENT EFFECTIVE ONLY AFTER VERIFIED DEPLOYMENT',
     publicRoute: true,
   }),
   'clinical-use-notice': Object.freeze({
@@ -56,7 +56,7 @@ export const APPROVED_LANDING_LEGAL_DOCUMENTS = Object.freeze({
     title: 'AssessSuite Cookie, Analytics and Tracking Notice',
     slug: 'cookies',
     file: '10_cookie_analytics_and_tracking_notice.md',
-    releaseStatus: 'APPROVED FOR PUBLICATION — CONTROLLED REVISION 2026-08-02.2; PUBLIC-SITE ANALYTICS DISABLED',
+    releaseStatus: 'APPROVED FOR PUBLICATION — CONTROLLED REVISION 2026-08-02.3; VERCEL WEB ANALYTICS DISABLED; FIRST-PARTY AGGREGATE MEASUREMENT EFFECTIVE ONLY AFTER VERIFIED DEPLOYMENT',
     effectiveDate: '2 August 2026',
     publicRoute: true,
   }),
@@ -71,7 +71,7 @@ export const APPROVED_LANDING_LEGAL_DOCUMENTS = Object.freeze({
     title: 'AssessSuite Approved Subprocessor and Cross-Border Data Schedule',
     slug: 'subprocessors',
     file: '25_approved_subprocessor_and_cross_border_schedule_template.md',
-    releaseStatus: 'PUBLIC SCHEDULE — CONTROLLED REVISION 2026-08-02.2; CURRENT PROVIDERS AND ACTIVATION CONDITIONS LISTED',
+    releaseStatus: 'PUBLIC SCHEDULE — CONTROLLED REVISION 2026-08-02.3; CURRENT PROVIDERS AND ACTIVATION CONDITIONS LISTED',
     publicRoute: true,
   }),
 });
