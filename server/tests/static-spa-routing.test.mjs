@@ -78,7 +78,7 @@ test('static assets fail closed while application history routes retain the SPA 
   assert.equal(malformedPathResponse.status, 400, 'malformed path encoding must not become a server error');
   assert.deepEqual(JSON.parse(malformedPathResponse.text), { message: 'invalid path' });
 
-  for (const route of ['/Dashboard', '/legal/privacy']) {
+  for (const route of ['/Dashboard', '/UsageOverview', '/legal/privacy']) {
     const response = await fetch(`${server.baseUrl}${route}`);
     assert.equal(response.status, 200, `${route} must retain the SPA history fallback`);
     assert.match(response.headers.get('content-type') ?? '', /^text\/html\b/u);
