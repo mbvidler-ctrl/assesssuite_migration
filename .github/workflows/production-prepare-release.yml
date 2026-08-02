@@ -178,6 +178,7 @@ jobs:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
+          ROLLBACK_CONFIG_SHA256: ${{ inputs.rollback_config_sha256 }}
           ROLLBACK_SOURCE_SHA: ${{ inputs.rollback_source_sha }}
           SOURCE_BRANCH: main
           EXTRACTION_RUNTIME_MODE: ${{ inputs.extraction_runtime_mode }}
