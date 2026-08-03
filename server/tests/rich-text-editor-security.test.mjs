@@ -1,14 +1,18 @@
 import assert from 'node:assert/strict';
+import { once } from 'node:events';
 import fs from 'node:fs';
+import { createServer as createHttpServer } from 'node:http';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
-import { createServer } from 'vite';
+import { createServer as createViteServer } from 'vite';
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testsDir, '..', '..');
 const harnessPath = '/__rich_text_security_test__';
+const navigationTimeoutMs = 30_000;
+const readinessTimeoutMs = 5_000;
 
 const harnessHtml = `<!doctype html>
 <html lang="en">
@@ -49,14 +53,24 @@ const harnessHtml = `<!doctype html>
 </html>`;
 
 let viteServer;
+let harnessServer;
 let browser;
 let page;
 
 test.before(async () => {
-  viteServer = await createServer({
+  viteServer = await createViteServer({
     root: repoRoot,
     logLevel: 'silent',
-    server: { host: '127.0.0.1', port: 0, strictPort: true },
+    appType: 'custom',
+    server: { middlewareMode: true },
+    optimizeDeps: {
+      force: true,
+      entries: [
+        'src/components/ui/RichTextEditor.jsx',
+        'src/lib/richTextSanitizer.js',
+      ],
+      include: ['react-dom/client'],
+    },
     plugins: [{
       name: 'rich-text-security-test-harness',
       configureServer(server) {
@@ -70,19 +84,35 @@ test.before(async () => {
       },
     }],
   });
-  await viteServer.listen();
-  const address = viteServer.httpServer.address();
+  harnessServer = createHttpServer(viteServer.middlewares);
+  harnessServer.listen(0, '127.0.0.1');
+  await once(harnessServer, 'listening');
+  const address = harnessServer.address();
   assert.equal(typeof address, 'object');
+  assert.ok(Number.isInteger(address.port) && address.port > 0);
 
   browser = await chromium.launch({ headless: true });
   page = await browser.newPage();
-  await page.goto(`http://127.0.0.1:${address.port}${harnessPath}`);
-  await page.waitForFunction(() => window.__richTextHarnessReady === true);
+  const response = await page.goto(
+    `http://127.0.0.1:${address.port}${harnessPath}`,
+    { waitUntil: 'domcontentloaded', timeout: navigationTimeoutMs },
+  );
+  assert.equal(response?.status(), 200);
+  await page.waitForFunction(
+    () => window.__richTextHarnessReady === true,
+    undefined,
+    { timeout: readinessTimeoutMs },
+  );
 });
 
 test.after(async () => {
   await page?.close();
   await browser?.close();
+  if (harnessServer?.listening) {
+    await new Promise((resolve, reject) => {
+      harnessServer.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
   await viteServer?.close();
 });
 

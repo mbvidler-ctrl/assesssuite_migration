@@ -11,6 +11,251 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, 'data');
 
 export const PARITY_ASSURANCE_DB_PATH = '/app/server/data/assesssuite-parity.db';
+export const SESSION_ABSOLUTE_TTL_MS = 8 * 60 * 60 * 1000;
+export const SESSION_MAX_CONCURRENT_PER_USER = 8;
+
+const SESSION_STORE_TABLE = 'session_records';
+
+/**
+ * Migrates the legacy sessions table to a rollback-compatible backing table.
+ *
+ * The retained rollback image still inserts three columns and selects directly
+ * from `sessions`. Keeping that name as a filtered view, with INSTEAD OF
+ * triggers, means the older binary receives the same eight-hour absolute
+ * timeout from SQLite itself. It cannot see expired rows or mint an unbounded
+ * null-expiry session after rollback.
+ */
+export function ensureSessionSchema(db) {
+  let migrated = false;
+  let revokedSessions = 0;
+
+  db.exec('BEGIN IMMEDIATE');
+  try {
+    const sessionsObject = db
+      .prepare("SELECT type FROM sqlite_master WHERE name = 'sessions'")
+      .get();
+    const storeObject = db
+      .prepare("SELECT type FROM sqlite_master WHERE name = 'session_records'")
+      .get();
+
+    if (storeObject && storeObject.type !== 'table') {
+      throw new Error('session_records exists but is not a table');
+    }
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ${SESSION_STORE_TABLE} (
+        token TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        created_date TEXT NOT NULL,
+        expires_date TEXT NOT NULL
+      );
+
+      DROP TRIGGER IF EXISTS session_records_insert_guard;
+      DROP TRIGGER IF EXISTS session_records_update_guard;
+    `);
+
+    if (sessionsObject?.type === 'table') {
+      const legacyCount = Number(
+        db.prepare('SELECT COUNT(*) AS count FROM sessions').get().count || 0,
+      );
+      const columns = db.prepare('PRAGMA table_info(sessions)').all();
+      const hasExpiry = columns.some((column) => column.name === 'expires_date');
+      let preserved = 0;
+
+      if (hasExpiry) {
+        preserved = Number(
+          db
+            .prepare(`
+              SELECT COUNT(*) AS count
+              FROM sessions
+              WHERE created_date IS NOT NULL
+                AND julianday(created_date) IS NOT NULL
+                AND julianday(created_date) <= julianday('now', '+1 second')
+                AND expires_date IS NOT NULL
+                AND julianday(expires_date) IS NOT NULL
+                AND julianday(expires_date) > julianday('now')
+                AND julianday(expires_date) > julianday(created_date)
+                AND julianday(expires_date) <= julianday(created_date, '+8 hours')
+            `)
+            .get().count || 0,
+        );
+        db.exec(`
+          INSERT OR REPLACE INTO ${SESSION_STORE_TABLE}
+            (token, user_id, created_date, expires_date)
+          SELECT
+            token,
+            user_id,
+            created_date,
+            strftime('%Y-%m-%dT%H:%M:%fZ', expires_date)
+          FROM sessions
+          WHERE created_date IS NOT NULL
+            AND julianday(created_date) IS NOT NULL
+            AND julianday(created_date) <= julianday('now', '+1 second')
+            AND expires_date IS NOT NULL
+            AND julianday(expires_date) IS NOT NULL
+            AND julianday(expires_date) > julianday('now')
+            AND julianday(expires_date) > julianday(created_date)
+            AND julianday(expires_date) <= julianday(created_date, '+8 hours');
+        `);
+      }
+
+      revokedSessions += legacyCount - preserved;
+      db.exec('DROP TABLE sessions;');
+      migrated = true;
+    } else if (sessionsObject && sessionsObject.type !== 'view') {
+      throw new Error('sessions exists but is neither a table nor a view');
+    }
+
+    db.exec(`
+      DROP TRIGGER IF EXISTS sessions_insert;
+      DROP TRIGGER IF EXISTS sessions_delete;
+      DROP VIEW IF EXISTS sessions;
+
+      CREATE INDEX IF NOT EXISTS idx_session_records_expires_date
+        ON ${SESSION_STORE_TABLE}(expires_date);
+      CREATE INDEX IF NOT EXISTS idx_session_records_expires_julianday
+        ON ${SESSION_STORE_TABLE}(julianday(expires_date));
+      CREATE INDEX IF NOT EXISTS idx_session_records_user_id
+        ON ${SESSION_STORE_TABLE}(user_id);
+      CREATE INDEX IF NOT EXISTS idx_session_records_user_created_token
+        ON ${SESSION_STORE_TABLE}(user_id, created_date DESC, token DESC);
+    `);
+
+    const expired = db
+      .prepare(`
+        DELETE FROM ${SESSION_STORE_TABLE}
+        WHERE julianday(created_date) IS NULL
+           OR julianday(created_date) > julianday('now', '+1 second')
+           OR julianday(expires_date) IS NULL
+           OR julianday(expires_date) <= julianday('now')
+           OR julianday(expires_date) <= julianday(created_date)
+           OR julianday(expires_date) > julianday(created_date, '+8 hours')
+      `)
+      .run();
+    revokedSessions += Number(expired.changes || 0);
+
+    const overCap = db
+      .prepare(`
+        DELETE FROM ${SESSION_STORE_TABLE}
+        WHERE token IN (
+          SELECT token
+          FROM (
+            SELECT
+              token,
+              ROW_NUMBER() OVER (
+                PARTITION BY user_id
+                ORDER BY created_date DESC, token DESC
+              ) AS session_position
+            FROM ${SESSION_STORE_TABLE}
+          )
+          WHERE session_position > ?
+        )
+      `)
+      .run(SESSION_MAX_CONCURRENT_PER_USER);
+    revokedSessions += Number(overCap.changes || 0);
+
+    db.exec(`
+      CREATE VIEW sessions AS
+      SELECT token, user_id, created_date, expires_date
+      FROM ${SESSION_STORE_TABLE}
+      WHERE julianday(created_date) IS NOT NULL
+        AND julianday(created_date) <= julianday('now', '+1 second')
+        AND julianday(expires_date) IS NOT NULL
+        AND julianday(expires_date) > julianday('now')
+        AND julianday(expires_date) > julianday(created_date)
+        AND julianday(expires_date) <= julianday(created_date, '+8 hours');
+
+      CREATE TRIGGER session_records_insert_guard
+      BEFORE INSERT ON ${SESSION_STORE_TABLE}
+      BEGIN
+        SELECT CASE
+          WHEN julianday(NEW.created_date) IS NULL
+            THEN RAISE(ABORT, 'invalid session creation time')
+          WHEN julianday(NEW.created_date) > julianday('now', '+1 second')
+            THEN RAISE(ABORT, 'future session creation time')
+          WHEN julianday(NEW.expires_date) IS NULL
+            THEN RAISE(ABORT, 'invalid session expiry time')
+          WHEN julianday(NEW.expires_date) <= julianday('now')
+            THEN RAISE(ABORT, 'session already expired')
+          WHEN julianday(NEW.expires_date) <= julianday(NEW.created_date)
+            THEN RAISE(ABORT, 'invalid session lifetime')
+          WHEN julianday(NEW.expires_date) > julianday(NEW.created_date, '+8 hours')
+            THEN RAISE(ABORT, 'session lifetime exceeds eight hours')
+        END;
+
+        DELETE FROM ${SESSION_STORE_TABLE}
+        WHERE julianday(expires_date) <= julianday(NEW.created_date);
+
+        DELETE FROM ${SESSION_STORE_TABLE}
+        WHERE token IN (
+          SELECT token
+          FROM ${SESSION_STORE_TABLE}
+          WHERE user_id = NEW.user_id
+          ORDER BY created_date DESC, token DESC
+          LIMIT -1 OFFSET ${SESSION_MAX_CONCURRENT_PER_USER - 1}
+        );
+      END;
+
+      CREATE TRIGGER session_records_update_guard
+      BEFORE UPDATE ON ${SESSION_STORE_TABLE}
+      BEGIN
+        SELECT RAISE(ABORT, 'session records are immutable');
+      END;
+
+      CREATE TRIGGER sessions_insert
+      INSTEAD OF INSERT ON sessions
+      BEGIN
+        INSERT INTO ${SESSION_STORE_TABLE}
+          (token, user_id, created_date, expires_date)
+        VALUES (
+          NEW.token,
+          NEW.user_id,
+          CASE
+            WHEN NEW.expires_date IS NULL
+              THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
+            ELSE NEW.created_date
+          END,
+          CASE
+            WHEN NEW.expires_date IS NULL
+              THEN strftime('%Y-%m-%dT%H:%M:%fZ', 'now', '+8 hours')
+            ELSE NEW.expires_date
+          END
+        );
+      END;
+
+      CREATE TRIGGER sessions_delete
+      INSTEAD OF DELETE ON sessions
+      BEGIN
+        DELETE FROM ${SESSION_STORE_TABLE} WHERE token = OLD.token;
+      END;
+    `);
+
+    const userObject = db
+      .prepare("SELECT type FROM sqlite_master WHERE name = 'entity_User'")
+      .get();
+    if (userObject?.type === 'table') {
+      db.exec(`
+        DROP TRIGGER IF EXISTS user_password_session_revocation;
+        CREATE TRIGGER user_password_session_revocation
+        AFTER UPDATE OF data ON entity_User
+        WHEN json_extract(OLD.data, '$.password_hash')
+          IS NOT json_extract(NEW.data, '$.password_hash')
+          AND json_extract(OLD.data, '$.reset_token') IS NOT NULL
+          AND json_extract(NEW.data, '$.reset_token') IS NULL
+        BEGIN
+          DELETE FROM ${SESSION_STORE_TABLE} WHERE user_id = NEW.id;
+        END;
+      `);
+    }
+
+    db.exec('COMMIT');
+  } catch (error) {
+    db.exec('ROLLBACK');
+    throw error;
+  }
+
+  return { migrated, revokedSessions };
+}
 
 export const USAGE_METRIC_NAMES = Object.freeze([
   'marketing_page_load',
@@ -145,6 +390,12 @@ export function openDatabase() {
 
   const db = new DatabaseSync(dbFile);
   db.exec('PRAGMA journal_mode = WAL;');
+  // Concurrent server processes must wait briefly for the active SQLite
+  // writer so security-sensitive transactions can acquire their lock and
+  // re-read authoritative state. Without a bounded busy timeout, a losing
+  // password-reset request can surface SQLITE_BUSY as a 500 instead of
+  // observing the already-consumed token and failing closed.
+  db.exec('PRAGMA busy_timeout = 5000;');
 
   const entityNames = loadEntityNames();
 
@@ -160,13 +411,9 @@ export function openDatabase() {
     `);
   }
 
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS sessions (
-      token TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      created_date TEXT NOT NULL
-    );
+  ensureSessionSchema(db);
 
+  db.exec(`
     -- Identifier-free operational analytics. Every write is a daily aggregate
     -- increment; this table has no event, request, user or session dimension.
     CREATE TABLE IF NOT EXISTS usage_daily_aggregate (
@@ -453,28 +700,74 @@ export function createEntityRepository(db, entityName) {
 /**
  * Repository for the sessions table (opaque token -> user_id).
  */
-export function createSessionRepository(db) {
+export function createSessionRepository(
+  db,
+  { absoluteTtlMs = SESSION_ABSOLUTE_TTL_MS, now = () => Date.now() } = {},
+) {
+  if (!Number.isFinite(absoluteTtlMs) || absoluteTtlMs <= 0) {
+    throw new Error('session absolute TTL must be a positive finite duration');
+  }
+  if (absoluteTtlMs > SESSION_ABSOLUTE_TTL_MS) {
+    throw new Error('session absolute TTL cannot exceed eight hours');
+  }
+
+  function currentTimeMs() {
+    const value = Number(now());
+    if (!Number.isFinite(value)) throw new Error('session clock returned an invalid time');
+    return value;
+  }
+
   function create(userId) {
     const token = randomUUID() + randomUUID();
-    const now = new Date().toISOString();
-    db.prepare('INSERT INTO sessions (token, user_id, created_date) VALUES (?, ?, ?)').run(
+    const issuedAt = currentTimeMs();
+    const createdDate = new Date(issuedAt).toISOString();
+    const expiresDate = new Date(issuedAt + absoluteTtlMs).toISOString();
+    db.prepare(
+      `INSERT INTO ${SESSION_STORE_TABLE}
+        (token, user_id, created_date, expires_date) VALUES (?, ?, ?, ?)`,
+    ).run(
       token,
       userId,
-      now,
+      createdDate,
+      expiresDate,
     );
     return token;
   }
 
   function findByToken(token) {
-    const row = db.prepare('SELECT * FROM sessions WHERE token = ?').get(token);
-    return row || null;
+    const row = db
+      .prepare(`SELECT * FROM ${SESSION_STORE_TABLE} WHERE token = ?`)
+      .get(token);
+    if (!row) return null;
+    const createdAt = Date.parse(row.created_date || '');
+    const expiresAt = Date.parse(row.expires_date || '');
+    const observedAt = currentTimeMs();
+    if (
+      !Number.isFinite(createdAt) ||
+      !Number.isFinite(expiresAt) ||
+      createdAt > observedAt ||
+      expiresAt <= observedAt ||
+      expiresAt <= createdAt ||
+      expiresAt > createdAt + absoluteTtlMs
+    ) {
+      remove(token);
+      return null;
+    }
+    return row;
   }
 
   function remove(token) {
-    db.prepare('DELETE FROM sessions WHERE token = ?').run(token);
+    db.prepare(`DELETE FROM ${SESSION_STORE_TABLE} WHERE token = ?`).run(token);
   }
 
-  return { create, findByToken, remove };
+  function removeForUser(userId) {
+    const result = db
+      .prepare(`DELETE FROM ${SESSION_STORE_TABLE} WHERE user_id = ?`)
+      .run(userId);
+    return Number(result.changes || 0);
+  }
+
+  return { create, findByToken, remove, removeForUser };
 }
 
 /**

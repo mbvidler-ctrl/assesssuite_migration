@@ -269,7 +269,9 @@ test('G13 PR template covers the required capability-impact checklist', () => {
 });
 
 test('G14 live git inspection is bounded and excludes unrelated binary payloads', () => {
-  const script = fs.readFileSync(path.join(repoRoot, 'scripts', 'check-flag-impact.mjs'), 'utf8');
+  const script = fs
+    .readFileSync(path.join(repoRoot, 'scripts', 'check-flag-impact.mjs'), 'utf8')
+    .replaceAll('\r\n', '\n');
   assert.ok(script.includes('const GIT_MAX_BUFFER_BYTES = 8 * 1024 * 1024;'));
   assert.ok(script.includes("const LIVE_DIFF_PATHSPEC = [\n  ...WATCHED_CONFIG_FILES,\n  '.github/workflows',\n];"));
   assert.ok(script.includes('maxBuffer: GIT_MAX_BUFFER_BYTES'));

@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
+import { fileURLToPath } from 'node:url';
 
 import {
   loginAdmin,
@@ -8,6 +11,29 @@ import {
   requestJson,
   startTestServer,
 } from './support/server-harness.mjs';
+
+const testsDir = path.dirname(fileURLToPath(import.meta.url));
+const repoRoot = path.resolve(testsDir, '..', '..');
+
+const EXPECTED_USAGE_DASHBOARD_VIEWERS = [
+  'brenton@primehealthclinics.com',
+  'mb.vidler@gmail.com',
+];
+
+const USAGE_DASHBOARD_ALLOWLIST_SOURCES = [
+  {
+    relativePath: 'server/index.mjs',
+    pattern: /const\s+USAGE_DASHBOARD_VIEWER_EMAILS\s*=\s*new Set\(\[([\s\S]*?)\]\);/u,
+  },
+  {
+    relativePath: 'src/Layout.jsx',
+    pattern: /const\s+usageDashboardViewerEmails\s*=\s*new Set\(\[([\s\S]*?)\]\);/u,
+  },
+  {
+    relativePath: 'src/pages/UsageOverview.jsx',
+    pattern: /const\s+VIEWER_EMAILS\s*=\s*new Set\(\[([\s\S]*?)\]\);/u,
+  },
+];
 
 const METRIC_KEYS = [
   'day',
@@ -36,6 +62,15 @@ function assertSummarySchema(summary, rangeDays) {
 
 function todaysMetrics(summary) {
   return summary.daily.at(-1);
+}
+
+function readLiteralAllowlist({ relativePath, pattern }) {
+  const source = fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
+  const match = pattern.exec(source);
+  assert.ok(match, `${relativePath} must retain a literal named-viewer Set`);
+  return [...match[1].matchAll(/["']([^"']+)["']/gu)]
+    .map(([, email]) => email.trim().toLowerCase())
+    .toSorted();
 }
 
 test('marketing page-load accepts only exact production origins and a zero-byte body', async () => {
@@ -248,15 +283,27 @@ test('dashboard summary uses a fail-closed constant-time secret and the exact ad
   }
 });
 
+test('the server and client named-viewer allowlists stay identical and limited to the approved viewers', () => {
+  const expected = EXPECTED_USAGE_DASHBOARD_VIEWERS.toSorted();
+  for (const source of USAGE_DASHBOARD_ALLOWLIST_SOURCES) {
+    assert.deepEqual(readLiteralAllowlist(source), expected, `${source.relativePath} allowlist drifted`);
+  }
+});
+
 test('the simple usage dashboard is available only to admins and its two named viewers', async () => {
   const server = await startTestServer();
   try {
-    const brenton = await registerUser(server, 'Brenton@primehealthclinics.com');
+    const namedViewers = [
+      await registerUser(server, 'Brenton@primehealthclinics.com'),
+      await registerUser(server, 'MB.Vidler@gmail.com'),
+    ];
     const unrelated = await registerUser(server, 'unrelated-viewer@example.test');
 
-    const allowed = await requestJson(server, '/api/usage/summary?days=30', { token: brenton.token });
-    assert.equal(allowed.status, 200, allowed.text);
-    assertSummarySchema(allowed.body, 30);
+    for (const viewer of namedViewers) {
+      const allowed = await requestJson(server, '/api/usage/summary?days=30', { token: viewer.token });
+      assert.equal(allowed.status, 200, allowed.text);
+      assertSummarySchema(allowed.body, 30);
+    }
 
     const denied = await requestJson(server, '/api/usage/summary?days=30', { token: unrelated.token });
     assert.equal(denied.status, 403, denied.text);

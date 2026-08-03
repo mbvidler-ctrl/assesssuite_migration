@@ -89,6 +89,23 @@ test('T04 public-surface workflow checks explicitly propagate failures and requi
     assert.match(source, /read_public_surface\(\)[\s\S]*?node --input-type=module <<'NODE' \|\| return 1/);
     assert.match(source, /anonymous-file[\s\S]*?\[\[ "\$status" == '401' \]\] \|\| return 1/);
   }
+  const deploySource = fs.readFileSync(
+    path.join(repoRoot, '.github', 'workflows', 'production-deploy.yml'),
+    'utf8',
+  );
+  for (const required of [
+    "!/^\\/assets\\/[A-Za-z0-9._-]+\\.js$/.test(match[1])",
+    'if [[ "$surface_mode" == \'candidate\' ]]; then',
+    '"$url${asset_path}.map"',
+    '"$url/assets%2F..%2Findex.html"',
+    'curl --path-as-is --silent --show-error --max-time 10 --max-filesize 65536',
+    '[[ "$map_status" == \'404\' ]] || return 1',
+    '[[ "$(<"$map_body")" == \'{"message":"not found"}\' ]] || return 1',
+    '[[ "$traversal_status" == \'404\' ]] || return 1',
+    '[[ "$(<"$traversal_body")" == \'{"message":"not found"}\' ]] || return 1',
+  ]) assert.ok(deploySource.includes(required), `deploy public-surface canary lacks ${required}`);
+  assert.match(deploySource, /read_public_surface 'https:\/\/app\.assesssuite\.com' 'apex'/);
+  assert.match(deploySource, /read_public_surface 'https:\/\/assesssuite-production\.fly\.dev' 'fly'/);
   for (const file of ['production-prepare-release.yml']) {
     const source = fs.readFileSync(path.join(repoRoot, '.github', 'workflows', file), 'utf8');
     const marker = '      - name: Secret and high-entropy diff scan';

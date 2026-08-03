@@ -12,7 +12,7 @@ const repoRoot = path.resolve(testsDir, '..', '..');
 const validator = path.join(repoRoot, 'scripts', 'validate-production-deploy-workflow.mjs');
 
 const GOVERNED_WORKFLOWS = [
-  { file: 'production-deploy.yml', mutations: 158, pinsValidator: true },
+  { file: 'production-deploy.yml', mutations: 167, pinsValidator: true },
   { file: 'production-prepare-release.yml', mutations: 68, pinsValidator: true },
   { file: 'production-prepare-rollback-image.yml', mutations: 8, pinsValidator: false },
   { file: 'production-rollback.yml', mutations: 97, pinsValidator: true },
@@ -519,6 +519,17 @@ test('V09 previous-image rollback is dispatch-frozen, ancestrally bound, and ver
   assert.match(prepare, /is_prohibited_release_filename\(\)/);
   assert.match(prepare, /if \[\[ "\$changed_file" == '\.env\.example' \]\]; then/);
   assert.match(prepare, /"\$normalized" =~ \(\^\|\/\)\\\.env\(\$\|\\\.\)/);
+  assert.equal(
+    (prepare.match(/PRODUCTION_BASE_SHA: 0d972f4a1dee7b6b64a28743bcd87e29daf3275c/g) || []).length,
+    2,
+    'release typecheck and content gates must use the exact current production base',
+  );
+  assert.match(
+    prepare,
+    /git worktree add --detach "\$reference_dir" "\$PRODUCTION_BASE_SHA"/,
+    'the reviewed typecheck fingerprint reference must stay bound to the exact production base',
+  );
+  assert.doesNotMatch(prepare, /eae2f229886b8aa2071864767ba61c0d6e4a548d/);
 
   assert.match(deploy, /merge_base_commit\?\.sha !== process\.env\.ROLLBACK_SOURCE_SHA/);
   assert.match(deploy, /EXPECTED_LEGACY_VOLUME_ID: \$\{\{ inputs\.expected_legacy_volume_id \}\}/);

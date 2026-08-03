@@ -321,7 +321,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 3d8cb0831eb1539e44a88d21c37d73ad9ab976117298b4c80d69afc898fcd4b4
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: e23f40c8e74b527a71a125768f88b74814a4178f60a5276b99d4817d766ae314
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -395,13 +395,13 @@ jobs:
       - name: Typecheck against exact production-base differential
         shell: bash
         env:
-          PRODUCTION_BASE_SHA: 6a8ec8d70d87d7b17bcb89e03a9fea4e2871b6d5
+          PRODUCTION_BASE_SHA: 0d972f4a1dee7b6b64a28743bcd87e29daf3275c
         run: |
           set -euo pipefail
           base_dir="$RUNNER_TEMP/typecheck-base"
           reference_dir="$RUNNER_TEMP/typecheck-reviewed-reference"
           git worktree add --detach "$base_dir" "$PRODUCTION_BASE_SHA"
-          git worktree add --detach "$reference_dir" eae2f229886b8aa2071864767ba61c0d6e4a548d
+          git worktree add --detach "$reference_dir" "$PRODUCTION_BASE_SHA"
           npm --prefix "$base_dir" ci
           npm --prefix "$reference_dir" ci
           node scripts/compare-typecheck-baseline.mjs \
@@ -519,7 +519,7 @@ jobs:
         shell: bash
 
         env:
-          PRODUCTION_BASE_SHA: 6a8ec8d70d87d7b17bcb89e03a9fea4e2871b6d5
+          PRODUCTION_BASE_SHA: 0d972f4a1dee7b6b64a28743bcd87e29daf3275c
           EXPECTED_RELEASE_SCANNER_SHA256: 9cab943c725a8faf159fbeb7ee5c4a020ef1cc4f3e41845f4f6654990bc3775d
         run: |
           set -euo pipefail

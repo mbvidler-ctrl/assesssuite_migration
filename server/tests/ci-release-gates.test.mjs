@@ -30,6 +30,7 @@ test('hosted CI and aggregate assurance retain the split and safe-HTML release s
   assert.match(ci, /npm run test:split-hosting/);
   assert.match(ci, /npm run test:safe-html-output/);
   assert.match(assurance, /'split-hosting-boundary\.test\.mjs'/);
+  assert.match(assurance, /'static-spa-routing\.test\.mjs'/);
 });
 
 test('dependency exceptions bind both advisory ID and reviewed package name', () => {
