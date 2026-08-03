@@ -520,7 +520,7 @@ test('V09 previous-image rollback is dispatch-frozen, ancestrally bound, and ver
   assert.match(prepare, /if \[\[ "\$changed_file" == '\.env\.example' \]\]; then/);
   assert.match(prepare, /"\$normalized" =~ \(\^\|\/\)\\\.env\(\$\|\\\.\)/);
   assert.equal(
-    (prepare.match(/PRODUCTION_BASE_SHA: d64baaaf210ded5898f9509d9dfb1c10cee505f8/g) || []).length,
+    (prepare.match(/PRODUCTION_BASE_SHA: 0d972f4a1dee7b6b64a28743bcd87e29daf3275c/g) || []).length,
     2,
     'release typecheck and content gates must use the exact current production base',
   );

@@ -395,7 +395,7 @@ jobs:
       - name: Typecheck against exact production-base differential
         shell: bash
         env:
-          PRODUCTION_BASE_SHA: d64baaaf210ded5898f9509d9dfb1c10cee505f8
+          PRODUCTION_BASE_SHA: 0d972f4a1dee7b6b64a28743bcd87e29daf3275c
         run: |
           set -euo pipefail
           base_dir="$RUNNER_TEMP/typecheck-base"
@@ -519,7 +519,7 @@ jobs:
         shell: bash
 
         env:
-          PRODUCTION_BASE_SHA: d64baaaf210ded5898f9509d9dfb1c10cee505f8
+          PRODUCTION_BASE_SHA: 0d972f4a1dee7b6b64a28743bcd87e29daf3275c
           EXPECTED_RELEASE_SCANNER_SHA256: 9cab943c725a8faf159fbeb7ee5c4a020ef1cc4f3e41845f4f6654990bc3775d
         run: |
           set -euo pipefail
