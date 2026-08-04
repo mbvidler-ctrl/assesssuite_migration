@@ -23,6 +23,7 @@ const suites = [
   'outbound-capability-gates.test.mjs',
   'billing-portal-authorization.test.mjs',
   'billing-checkout-authorization.test.mjs',
+  'promotion-management.test.mjs',
   'billing-account-closure.test.mjs',
   'billing-webhook-authorization.test.mjs',
   'rate-limit.test.mjs',

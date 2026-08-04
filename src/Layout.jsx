@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import {
   Users, FileText, BarChart3, Stethoscope, ClipboardList,
   User as UserIcon, ExternalLink, Loader2, Calendar as CalendarIcon,
-  Utensils, ShieldCheck
+  Utensils, ShieldCheck, TicketPercent
 } from "lucide-react";
 import { SUITE_VERSION } from "@/lib/legal/documentRegistry";
 import { resolveLegalConsentAudience } from "@/lib/legal/consentAudience";
@@ -255,6 +255,14 @@ export default function Layout({ children, currentPageName }) {
                   )}
                   {currentUser?.role === "admin" && (
                     <>
+                      <SidebarMenuItem>
+                        <SidebarMenuButton asChild className={`hover:bg-purple-50 hover:text-purple-700 transition-all duration-200 rounded-xl py-3 px-4 ${location.pathname === createPageUrl("AdminPromotions") ? "bg-purple-50 text-purple-700 border border-purple-200/50 shadow-sm" : "text-slate-600"}`}>
+                          <Link to={createPageUrl("AdminPromotions")} className="flex items-center gap-3">
+                            <TicketPercent className="w-5 h-5" />
+                            <span className="font-medium">Promotion Codes</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
                       <SidebarMenuItem>
                         <SidebarMenuButton asChild className={`hover:bg-purple-50 hover:text-purple-700 transition-all duration-200 rounded-xl py-3 px-4 ${location.pathname === createPageUrl("AdminApprovals") ? "bg-purple-50 text-purple-700 border border-purple-200/50 shadow-sm" : "text-slate-600"}`}>
                           <Link to={createPageUrl("AdminApprovals")} className="flex items-center gap-3">

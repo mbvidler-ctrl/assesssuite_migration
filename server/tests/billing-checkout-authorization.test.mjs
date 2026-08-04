@@ -109,6 +109,7 @@ test('checkout uses only server-owned price, authenticated identity and applicat
     assert.equal(form.get('customer_email'), 'owned@example.invalid');
     assert.equal(form.get('success_url'), 'https://assesssuite.example.test/Dashboard');
     assert.equal(form.get('cancel_url'), 'https://assesssuite.example.test/PaymentRequired');
+    assert.equal(form.get('allow_promotion_codes'), 'true');
     assert.equal([...form.values()].some((value) => value.includes('attacker.invalid') || value.includes('victim')), false);
   } finally {
     globalThis.fetch = originalFetch;
