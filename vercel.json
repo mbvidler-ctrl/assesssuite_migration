@@ -16,7 +16,7 @@
       "permanent": false
     },
     {
-      "source": "/:path(login|register|forgot-password|reset-password|Paywall|PaymentRequired|CreateAccount|AccountSetup|signin|LegalNotices|AccountDeactivated|signup|AdminAnalytics|AdminApprovals|AssessmentAudit|AssessmentLibrary|Calendar|ClientConditions|ClientProfile|Clients|Dashboard|Finances|FundingForms|Home|MyProfile|NewAssessment|NewAssessmentCreator|Nutrition|Onboarding|PendingApproval|ProfileSetup|Reports|TestRunner|TreatmentProtocols)",
+      "source": "/:path(login|register|forgot-password|reset-password|Paywall|PaymentRequired|CreateAccount|AccountSetup|signin|LegalNotices|AccountDeactivated|signup|AdminAnalytics|AdminApprovals|AssessmentAudit|AssessmentLibrary|Calendar|ClientConditions|ClientProfile|Clients|Dashboard|Finances|FundingForms|Home|MyProfile|NewAssessment|NewAssessmentCreator|Nutrition|Onboarding|PendingApproval|ProfileSetup|Reports|TestRunner|TreatmentProtocols|UsageOverview)",
       "destination": "https://app.assesssuite.com/:path",
       "permanent": false
     }

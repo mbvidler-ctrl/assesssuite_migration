@@ -176,6 +176,19 @@ test('the private practice overview is independent of clinician onboarding gates
   assert.match(server, /if \(!canViewUsageDashboard\(sessionUser\)\) return sendError\(res, 403, 'dashboard access required'\)/);
 });
 
+test('landing redirects the private usage overview to the authenticated application host', () => {
+  const vercel = JSON.parse(read('vercel.json'));
+  const appRouteRedirect = vercel.redirects.find((redirect) => (
+    redirect.destination === 'https://app.assesssuite.com/:path'
+  ));
+
+  assert.ok(appRouteRedirect, 'expected the landing app-route redirect');
+  const allowlist = appRouteRedirect.source.match(/^\/:path\(([^)]+)\)$/)?.[1].split('|');
+  assert.ok(allowlist, 'expected the app-route redirect to use a path allowlist');
+  assert.ok(allowlist.includes('UsageOverview'));
+  assert.equal(appRouteRedirect.permanent, false);
+});
+
 test('build and routing configuration preserves the split-hosting boundary', () => {
   const packageJson = JSON.parse(read('package.json'));
   const jsConfig = JSON.parse(read('jsconfig.json'));
@@ -282,7 +295,7 @@ test('published analytics notices disclose active bounded Vercel analytics and t
   assert.match(cookieNotice, /Australia\/Brisbane/);
   assert.match(cookieNotice, /no raw measurement-event row/i);
   assert.doesNotMatch(cookieNotice, /Off by default until PIA/);
-  assert.match(registry, /2026-08-04\.1/);
+  assert.match(registry, /2026-08-04\.2/);
   assert.match(registry, /VERCEL WEB ANALYTICS ENABLED/);
   assert.match(registry, /FIRST-PARTY AGGREGATE MEASUREMENT/);
   assert.match(registry, /effectiveDate: '4 August 2026'/);
