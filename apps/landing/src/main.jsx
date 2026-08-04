@@ -1,5 +1,7 @@
 import ReactDOM from 'react-dom/client';
+import { Analytics } from '@vercel/analytics/react';
 import LandingApp from './MarketingApp.jsx';
+import { sanitiseAnalyticsEvent } from './analytics.js';
 import './landing-fonts.css';
 import '@/index.css';
 
@@ -30,4 +32,9 @@ function reportLandingPageLoad() {
 // artifact. The origin gate prevents preview, staging and local reporting.
 reportLandingPageLoad();
 
-ReactDOM.createRoot(document.getElementById('root')).render(<LandingApp />);
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <>
+    <LandingApp />
+    <Analytics beforeSend={sanitiseAnalyticsEvent} />
+  </>,
+);

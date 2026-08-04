@@ -65,8 +65,6 @@ if (landingReady) {
     ['The proposed website operator is Assess Suite Pty Ltd', 'draft website-terms content'],
     ['AssessSuite Vulnerability Disclosure Policy', 'draft vulnerability-disclosure title'],
     ['current absence of `/.well-known/security.txt`', 'draft vulnerability-disclosure content'],
-    ['/_vercel/insights', 'Vercel Web Analytics intake path'],
-    ['va.vercel-scripts.com', 'Vercel Web Analytics script host'],
   ];
 
   for (const [marker, label] of bannedLandingMarkers) {
