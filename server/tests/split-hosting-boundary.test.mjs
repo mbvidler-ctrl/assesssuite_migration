@@ -4,6 +4,7 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { sanitiseAnalyticsEvent } from '../../apps/landing/src/analytics.js';
 import {
   APPROVED_LANDING_LEGAL_DOCUMENTS,
   getApprovedLandingLegalDocumentBySlug,
@@ -15,6 +16,31 @@ import {
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (relativePath) => fs.readFileSync(path.join(repoRoot, relativePath), 'utf8');
+
+test('landing analytics keeps only public production paths and strips page query data', () => {
+  const event = sanitiseAnalyticsEvent(
+    { type: 'pageview', url: 'https://assesssuite.com/?utm_source=private#section' },
+    'https://assesssuite.com',
+  );
+  assert.equal(event.url, 'https://assesssuite.com/');
+  assert.equal(event.type, 'pageview');
+
+  const legal = sanitiseAnalyticsEvent(
+    { type: 'pageview', url: 'https://www.assesssuite.com/legal/privacy?token=secret' },
+    'https://www.assesssuite.com',
+  );
+  assert.equal(legal.url, 'https://www.assesssuite.com/legal/privacy');
+
+  for (const [eventData, origin] of [
+    [{ type: 'pageview', url: 'https://assesssuite.com/legal/jane-doe-depression?patient=123' }, 'https://assesssuite.com'],
+    [{ type: 'pageview', url: 'https://assesssuite.com/legal/website-terms' }, 'https://assesssuite.com'],
+    [{ type: 'pageview', url: 'https://app.assesssuite.com/Dashboard?client=123' }, 'https://app.assesssuite.com'],
+    [{ type: 'pageview', url: 'https://preview-branch.vercel.app/' }, 'https://preview-branch.vercel.app'],
+    [{ type: 'event', name: 'future-custom-event', url: 'https://assesssuite.com/' }, 'https://assesssuite.com'],
+  ]) {
+    assert.equal(sanitiseAnalyticsEvent(eventData, origin), null);
+  }
+});
 
 test('landing legal routes and imports fail closed for unapproved drafts', () => {
   const draftIds = ['website-terms', 'vulnerability-disclosure'];
@@ -76,7 +102,8 @@ test('marketing entry has no authenticated application or API provider imports',
   assert.match(marketingApp, /BLOCKED_BACKEND_PATH/);
   assert.doesNotMatch(landing, /(?:import|from)\s+['"][^'"]*(?:AuthContext|base44)|\buseAuth\s*\(|\buseNavigate\s*\(/);
   assert.doesNotMatch(platformApp, /pages\/LandingLive/);
-  assert.doesNotMatch(marketingMain, /@vercel\/analytics|Analytics|beforeSend/);
+  assert.match(marketingMain, /@vercel\/analytics\/react/);
+  assert.match(marketingMain, /beforeSend=\{sanitiseAnalyticsEvent\}/);
   assert.doesNotMatch(platformMain, /@vercel\/analytics|Analytics/);
 
   const usageEndpoint = 'https://app.assesssuite.com/api/usage/page-load';
@@ -149,11 +176,25 @@ test('the private practice overview is independent of clinician onboarding gates
   assert.match(server, /if \(!canViewUsageDashboard\(sessionUser\)\) return sendError\(res, 403, 'dashboard access required'\)/);
 });
 
+test('landing redirects the private usage overview to the authenticated application host', () => {
+  const vercel = JSON.parse(read('vercel.json'));
+  const appRouteRedirect = vercel.redirects.find((redirect) => (
+    redirect.destination === 'https://app.assesssuite.com/:path'
+  ));
+
+  assert.ok(appRouteRedirect, 'expected the landing app-route redirect');
+  const allowlist = appRouteRedirect.source.match(/^\/:path\(([^)]+)\)$/)?.[1].split('|');
+  assert.ok(allowlist, 'expected the app-route redirect to use a path allowlist');
+  assert.ok(allowlist.includes('UsageOverview'));
+  assert.equal(appRouteRedirect.permanent, false);
+});
+
 test('build and routing configuration preserves the split-hosting boundary', () => {
   const packageJson = JSON.parse(read('package.json'));
   const jsConfig = JSON.parse(read('jsconfig.json'));
   const vercel = JSON.parse(read('vercel.json'));
   const platformHtml = read('apps/app-ep/index.html');
+  const landingHtml = read('apps/landing/index.html');
   const landingConfig = read('apps/landing/vite.config.js');
   const splitVerifier = read('scripts/verify-split-build.mjs');
   const vercelIgnore = read('.vercelignore');
@@ -173,6 +214,10 @@ test('build and routing configuration preserves the split-hosting boundary', () 
   assert.ok(vercel.redirects.some((redirect) => redirect.destination === 'https://app.assesssuite.com/:path'));
   assert.ok(vercel.redirects.every((redirect) => !/(?:api|functions|uploads)/i.test(redirect.source)));
   assert.ok(contentSecurityPolicy);
+  assert.match(landingHtml, /<meta name="referrer" content="no-referrer" \/>/);
+  assert.ok(vercel.headers
+    .flatMap((route) => route.headers)
+    .some((header) => header.key === 'Referrer-Policy' && header.value === 'no-referrer'));
   assert.doesNotMatch(contentSecurityPolicy, /va\.vercel-scripts\.com/);
   assert.doesNotMatch(contentSecurityPolicy, /fonts\.(?:googleapis|gstatic)\.com/);
   assert.match(contentSecurityPolicy, /(?:^|;\s*)script-src 'self'(?:;|$)/);
@@ -190,8 +235,6 @@ test('build and routing configuration preserves the split-hosting boundary', () 
     "['Bearer ${'",
     "['appLogs'",
     "['AuthProvider'",
-    "['/_vercel/insights'",
-    "['va.vercel-scripts.com'",
   ]) {
     assert.ok(splitVerifier.includes(marker), `compiled landing guard lost ${marker}`);
   }
@@ -231,7 +274,7 @@ test('landing restores Plus Jakarta Sans from a self-hosted licensed asset', () 
   }
 });
 
-test('published analytics notices disclose disabled Vercel analytics and the aggregate-only replacement', () => {
+test('published analytics notices disclose active bounded Vercel analytics and the aggregate counter', () => {
   const packageJson = read('package.json');
   const packageLock = read('package-lock.json');
   const cookieNotice = read('src/legal-content/10_cookie_analytics_and_tracking_notice.md');
@@ -243,7 +286,7 @@ test('published analytics notices disclose disabled Vercel analytics and the agg
   for (const source of [cookieNotice, privacyPolicy, subprocessorSchedule]) {
     assert.match(source, /Vercel Web Analytics/);
     assert.match(source, /Patient Data/);
-    assert.match(source, /disabled/i);
+    assert.match(source, /enabled/i);
     assert.match(source, /external referring URL/);
   }
   assert.match(cookieNotice, /custom events/);
@@ -252,12 +295,12 @@ test('published analytics notices disclose disabled Vercel analytics and the agg
   assert.match(cookieNotice, /Australia\/Brisbane/);
   assert.match(cookieNotice, /no raw measurement-event row/i);
   assert.doesNotMatch(cookieNotice, /Off by default until PIA/);
-  assert.match(registry, /2026-08-02\.3/);
-  assert.match(registry, /VERCEL WEB ANALYTICS DISABLED/);
+  assert.match(registry, /2026-08-04\.2/);
+  assert.match(registry, /VERCEL WEB ANALYTICS ENABLED/);
   assert.match(registry, /FIRST-PARTY AGGREGATE MEASUREMENT/);
-  assert.match(registry, /effectiveDate: '2 August 2026'/);
+  assert.match(registry, /effectiveDate: '4 August 2026'/);
   assert.match(marketingLegalPage, /doc\.effectiveDate \|\| SUITE_EFFECTIVE_DATE/);
-  assert.doesNotMatch(read('apps/landing/src/main.jsx'), /@vercel\/analytics|Analytics|beforeSend/);
-  assert.doesNotMatch(packageJson, /@vercel\/analytics/);
-  assert.doesNotMatch(packageLock, /@vercel\/analytics/);
+  assert.match(read('apps/landing/src/main.jsx'), /@vercel\/analytics\/react/);
+  assert.match(packageJson, /@vercel\/analytics/);
+  assert.match(packageLock, /@vercel\/analytics/);
 });
