@@ -62,7 +62,7 @@ test('finite route classification never returns a raw request path or query', ()
   }
 });
 
-test('4xx responses are ignored and missing or invalid DSNs cause zero network activity', () => {
+test('unmonitored 4xx responses are ignored and missing or invalid DSNs cause zero network activity', () => {
   for (const sentryDsn of [VALID_DSN, undefined, '', 'not-a-url', 'http://key@example.test/1']) {
     let networkCalls = 0;
     const telemetry = createErrorTelemetry({
@@ -75,6 +75,28 @@ test('4xx responses are ignored and missing or invalid DSNs cause zero network a
     response.emit('finish');
     assert.equal(networkCalls, 0, String(sentryDsn));
   }
+});
+
+test('selected operational rejections are visible without request content', () => {
+  const { telemetry, envelopes } = telemetryHarness();
+  const response = new FakeResponse(413);
+  telemetry.observe({
+    url: '/api/apps/app/integration-endpoints/Core/InvokeLLM?prompt=private-patient-context',
+    body: { prompt: 'must never leave the process' },
+  }, response);
+  response.emit('finish');
+
+  assert.equal(envelopes.length, 1);
+  const serialized = envelopes[0].envelope;
+  assert.equal(serialized.includes('private-patient-context'), false);
+  assert.equal(serialized.includes('must never leave the process'), false);
+  const event = decodedEvent(serialized);
+  assert.equal(event.level, 'warning');
+  assert.deepEqual(event.tags, {
+    status: '413',
+    error_class: 'http_request_rejected',
+    route_family: 'integrations',
+  });
 });
 
 test('DSN configuration is parsed lazily after environment loading', () => {

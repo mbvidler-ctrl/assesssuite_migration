@@ -1,8 +1,7 @@
-// WP2 — honest evidence-grounding copy for the treatment-protocol UI.
-//
-// Behavioural coverage of describeEvidenceGrounding, plus a wiring safety
-// net over TreatmentProtocols.jsx confirming the overclaiming pre-fetch
-// toast wording is gone and the helper is actually called.
+// Deterministic protocol-catalogue governance and page-wiring assurance.
+// This replaces the retired browser evidence-search grounding path: Protocol
+// Assistance now searches controlled catalogue records only and never claims
+// that a browser-side evidence search verified them.
 
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -10,7 +9,10 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
-import { describeEvidenceGrounding } from '../../src/lib/evidenceGroundingStatus.js';
+import {
+  PROTOCOL_SEARCH_STATE,
+  searchProtocolCatalogue,
+} from '../../src/lib/clinical/protocol-assistance/index.js';
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testsDir, '..', '..');
@@ -19,64 +21,116 @@ const pageSource = fs.readFileSync(
   'utf8',
 );
 
-test('a network error is never-ok, regardless of result count', () => {
-  const status = describeEvidenceGrounding({ networkError: true, resultCount: 3, reviewsOnlyApplied: true });
-  assert.equal(status.ok, false);
+const CONTEXT = Object.freeze({
+  profession: 'accredited_exercise_physiologist',
+  scope: 'exercise_physiology',
+  asOf: '2026-08-08',
 });
 
-test('zero results is never-ok', () => {
-  const status = describeEvidenceGrounding({ networkError: false, resultCount: 0, reviewsOnlyApplied: true });
-  assert.equal(status.ok, false);
+function governedRecord(overrides = {}) {
+  return {
+    id: 'protocol-oa-v1',
+    condition_name: 'Osteoarthritis',
+    aliases: ['OA'],
+    category: 'musculoskeletal',
+    profession: ['accredited_exercise_physiologist'],
+    scope: ['exercise_physiology'],
+    source: [{
+      title: 'Synthetic controlled source',
+      url: 'https://example.test/protocol-source',
+    }],
+    reviewer: {
+      name: 'Synthetic Reviewer',
+      credentials: 'AEP',
+      reviewed_at: '2026-08-01',
+    },
+    version: '1.0.0',
+    expiry: '2027-08-01',
+    rights: { status: 'internal_original', holder: 'Synthetic Test Owner' },
+    management_target: 'Functional capacity',
+    approval_status: 'reviewed',
+    overview: { pathophysiology: 'Synthetic catalogue content.' },
+    references: [{ citation: 'Synthetic source citation.' }],
+    ...overrides,
+  };
+}
+
+test('a governed in-scope record is the only kind returned as a match', () => {
+  const result = searchProtocolCatalogue({
+    query: 'osteoarthritis',
+    catalogue: [governedRecord()],
+    ...CONTEXT,
+  });
+  assert.equal(result.state, PROTOCOL_SEARCH_STATE.MATCHES);
+  assert.equal(result.matches.length, 1);
+  assert.equal(result.matches[0].protocol.condition_name, 'Osteoarthritis');
 });
 
-test('a degraded (non-reviews-only) result is ok but honestly flagged as a warning', () => {
-  const status = describeEvidenceGrounding({ networkError: false, resultCount: 2, reviewsOnlyApplied: false });
-  assert.equal(status.ok, true);
-  assert.equal(status.tone, 'warning');
-  assert.match(status.message, /systematic-review/);
-});
+test('missing governance and an expired review fail closed as catalogue_blocked', () => {
+  const ungoverned = governedRecord({ reviewer: undefined });
+  const expired = governedRecord({ id: 'expired', expiry: '2026-08-07' });
 
-test('a genuine systematic-review result is ok and reported as success', () => {
-  const status = describeEvidenceGrounding({ networkError: false, resultCount: 2, reviewsOnlyApplied: true });
-  assert.equal(status.ok, true);
-  assert.equal(status.tone, 'success');
-});
-
-test('a missing reviewsOnlyApplied is never reported as confirmed review-level grounding', () => {
-  // Tri-state: absence of the flag (older server image / alternate path) must
-  // fall to a warning, never fall through to the success message.
-  for (const missing of [undefined, null]) {
-    const status = describeEvidenceGrounding({ networkError: false, resultCount: 2, reviewsOnlyApplied: missing });
-    assert.equal(status.ok, true);
-    assert.equal(status.tone, 'warning', String(missing));
-    assert.doesNotMatch(status.message, /Systematic-review evidence retrieved/);
+  for (const record of [ungoverned, expired]) {
+    const result = searchProtocolCatalogue({
+      query: 'osteoarthritis',
+      catalogue: [record],
+      ...CONTEXT,
+    });
+    assert.equal(result.state, PROTOCOL_SEARCH_STATE.CATALOGUE_BLOCKED);
+    assert.equal(result.matches.length, 0);
+    assert.ok(result.blocked[0].issues.length > 0);
   }
 });
 
-test('TreatmentProtocols.jsx uses the helper and no longer overclaims before the search has even run', () => {
-  assert.match(pageSource, /import \{ describeEvidenceGrounding \} from "@\/lib\/evidenceGroundingStatus";/);
-  assert.match(pageSource, /describeEvidenceGrounding\(\{/);
+test('an out-of-scope or explicitly unsupported record is labelled unsupported, never generated', () => {
+  const outOfScope = governedRecord({ scope: ['physiotherapy'] });
+  const explicitlyUnsupported = {
+    condition_name: 'Osteoarthritis',
+    supported: false,
+    unsupported_reason: 'Outside the controlled Exercise Physiology catalogue.',
+  };
 
-  // Whitespace-insensitive: collapse runs of whitespace before matching so a
-  // reformat (line wraps, re-indentation) of the old literal cannot silently
-  // defeat this guard.
-  const normalized = pageSource.replace(/\s+/g, ' ');
-  assert.doesNotMatch(normalized, /Generating an AI-assisted protocol from verified research/);
+  for (const record of [outOfScope, explicitlyUnsupported]) {
+    const result = searchProtocolCatalogue({
+      query: 'osteoarthritis',
+      catalogue: [record],
+      ...CONTEXT,
+    });
+    assert.equal(result.state, PROTOCOL_SEARCH_STATE.UNSUPPORTED);
+    assert.equal(result.matches.length, 0);
+    assert.ok(result.reasons.length > 0);
+  }
+});
 
-  // Behavioural: the copy actually shown to the clinician (both the toast and
-  // the persisted page note) must be sourced from groundingStatus.message —
-  // the helper's own honest wording — rather than any static literal. This
-  // closes the loophole a bare wording check cannot: any hardcoded
-  // overclaiming string reintroduced at these call sites, worded however you
-  // like, fails these assertions because it is not groundingStatus.message.
-  assert.match(
-    pageSource,
-    /toast\.warning\(groundingStatus\.message\)/,
-    'the grounding warning toast must be sourced from groundingStatus.message, not a static string',
+test('malformed or unavailable catalogues produce explicit blocked states', () => {
+  const malformed = searchProtocolCatalogue({
+    query: 'osteoarthritis',
+    catalogue: [{ condition_name: 'Osteoarthritis' }],
+    ...CONTEXT,
+  });
+  assert.equal(malformed.state, PROTOCOL_SEARCH_STATE.CATALOGUE_BLOCKED);
+
+  const unavailable = searchProtocolCatalogue({
+    query: 'osteoarthritis',
+    catalogue: null,
+    ...CONTEXT,
+  });
+  assert.equal(unavailable.state, PROTOCOL_SEARCH_STATE.CATALOGUE_BLOCKED);
+  assert.equal(unavailable.code, 'catalogue_unavailable');
+});
+
+test('TreatmentProtocols has no evidence-search or generation fallback and makes no verification overclaim', () => {
+  assert.equal(
+    (pageSource.match(/from\s+["']@\/lib\/clinical\/protocol-assistance\/index\.js["']/g) || []).length,
+    1,
+    'the page must consume one governed protocol-assistance engine',
   );
-  assert.match(
+  assert.doesNotMatch(
     pageSource,
-    /setEvidenceGroundingNote\(groundingStatus\.message\)/,
-    'the persisted grounding note must be sourced from groundingStatus.message, not a static string',
+    /describeEvidenceGrounding|searchEvidence|verifyReferences|InvokeLLM|add_context_from_internet/,
   );
+  assert.doesNotMatch(pageSource, /Generating an AI-assisted protocol from verified research/);
+  assert.match(pageSource, /No protocol was generated/);
+  assert.match(pageSource, /verified:\s*false/);
+  assert.match(pageSource, /verified=\{false\}/);
 });

@@ -264,7 +264,7 @@ test('P09 disclosure copy is Australian English and the marker is idempotent', (
   assert.equal(appendAiProvenance([entry], entry).length, 2);
 });
 
-test('P10 the protocol import modal uses the shared builder and target selector', () => {
+test('P10 the legacy protocol import helper remains fail-closed but Protocol Assistance exposes no import-to-SOAP path', () => {
   const source = readSource('src', 'components', 'protocols', 'ImportToSOAPModal.jsx');
   assert.match(source, /buildProtocolPlanText\(/);
   assert.match(source, /selectProtocolImportTarget\(/);
@@ -280,13 +280,11 @@ test('P10 the protocol import modal uses the shared builder and target selector'
   );
 
   const page = readSource('src', 'pages', 'TreatmentProtocols.jsx');
-  assert.match(
-    page,
-    /provenance=\{selectedCondition\?\.protocol \? PROTOCOL_PROVENANCE\.REVIEWED : PROTOCOL_PROVENANCE\.AI\}/,
-  );
+  assert.doesNotMatch(page, /ImportToSOAPModal|PROTOCOL_PROVENANCE|import[- ]to[- ]SOAP/i);
+  assert.doesNotMatch(page, /InvokeLLM|searchEvidence/);
 });
 
-test('P11 report builders and the SOAP modal persist the AI provenance', () => {
+test('P11 report builders preserve legacy AI provenance, deterministic text stays non-AI, and SOAP persists AI provenance', () => {
   const wizard = readSource('src', 'components', 'reports', 'UnifiedReportWizard.jsx');
   assert.match(wizard, /AI_REPORT_DISCLOSURE_SENTENCE/);
   assert.match(wizard, /AI_LETTER_DISCLOSURE_SENTENCE/);
@@ -294,8 +292,11 @@ test('P11 report builders and the SOAP modal persist the AI provenance', () => {
   assert.match(wizard, /ai_assisted_sections/);
 
   const sectionEditor = readSource('src', 'components', 'reports', 'wizard-steps', 'SectionEditor.jsx');
-  assert.match(sectionEditor, /_ai_drafted`\]: true/);
   assert.match(sectionEditor, /_ai_drafted`\]: false/);
+  assert.doesNotMatch(sectionEditor, /InvokeLLM/);
+  assert.match(sectionEditor, /const autoText =/);
+  assert.match(sectionEditor, /Draft-only mode/);
+  assert.match(sectionEditor, /no client context leaves this page/);
 
   const modal = readSource('src', 'components', 'calendar', 'SOAPNoteModal.jsx');
   assert.match(modal, /markAiAssistedText\(/);
@@ -408,9 +409,12 @@ test('P14 dropped contraindications are disclosed as such, never as "none were s
   assert.equal(genuine.includes(CONTRAINDICATIONS_DROPPED_WARNING), false);
 });
 
-test('P15 the protocol import modal threads the normaliser dropped paths into the record', () => {
+test('P15 legacy import records dropped paths while the catalogue page blocks degraded records before display', () => {
   const modal = readSource('src', 'components', 'protocols', 'ImportToSOAPModal.jsx');
   assert.match(modal, /droppedPaths/);
   const page = readSource('src', 'pages', 'TreatmentProtocols.jsx');
-  assert.match(page, /droppedPaths=\{protocolIssues\}/);
+  assert.match(page, /!reviewed\.ok\s*\|\|\s*reviewed\.degraded/);
+  assert.match(page, /matching_catalogue_entry_failed_render_contract/);
+  assert.match(page, /PROTOCOL_SEARCH_STATE\.CATALOGUE_BLOCKED/);
+  assert.doesNotMatch(page, /ImportToSOAPModal/);
 });

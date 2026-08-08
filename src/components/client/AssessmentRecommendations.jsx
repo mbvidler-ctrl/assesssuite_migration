@@ -1,267 +1,166 @@
-import React, { useState, useEffect } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Lightbulb, Plus, Loader2, Sparkles, ChevronDown, ChevronUp } from 'lucide-react';
+import { Lightbulb, Plus, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 import { ClientAssessment } from '@/entities/all';
 import { toast } from 'sonner';
 import { base44 } from '@/api/base44Client';
-import { todayLocal } from "@/lib/localDate";
-import AIDisclosureNote from '@/components/legal/AIDisclosureNote';
-import { useAiCapability } from '@/hooks/useAiCapability';
-import { AI_COPY } from '@/lib/aiCapabilities';
+import { todayLocal } from '@/lib/localDate';
+import {
+  ASSESSMENT_DISCOVERY_STATUS,
+  assessmentDiscoveryStatusMessage,
+  discoverAssessments,
+} from '@/lib/clinical/assessmentDiscovery';
 
-// Derive a list of clinical conditions from APSS Stage 2 fields on the client object
+const DISPLAY_LIMIT = 5;
+
+// Derive condition labels from APSS Stage 2 fields without transmitting client
+// information or using free-text notes as ranking inputs.
 function extractApssConditions(client) {
   if (!client) return [];
   const apss = [];
-  if (client.apss_s2_high_blood_pressure) apss.push({ name: "Hypertension / High Blood Pressure", notes: client.apss_s2_bp_medication_details || null });
-  if (client.apss_s2_high_cholesterol) apss.push({ name: "High Cholesterol / Dyslipidaemia", notes: client.apss_s2_cholesterol_medication_details || null });
-  if (client.apss_s2_high_blood_sugar) apss.push({ name: "High Blood Sugar / Glucose Intolerance", notes: client.apss_s2_glucose_medication_details || null });
-  if (client.apss_s2_smoking) apss.push({ name: "Smoking / Nicotine Use", notes: client.apss_s2_smoking_details || null });
-  if (client.apss_s2_vaping) apss.push({ name: "Vaping", notes: client.apss_s2_vaping_details || null });
-  if (client.apss_s2_family_history) apss.push({ name: "Family History of Cardiovascular Disease", notes: null });
-  if (client.apss_s2_musculoskeletal_issues) apss.push({ name: "Musculoskeletal Issues", notes: client.apss_s2_musculoskeletal_details || null });
-  if (client.apss_s2_hospital_admissions) apss.push({ name: "Recent Hospital Admission", notes: client.apss_s2_hospital_admissions_details || null });
-  if (client.apss_s2_pregnancy) apss.push({ name: "Pregnancy / Recent Childbirth", notes: client.apss_s2_pregnancy_details || null });
-  // BMI flags
-  if (client.apss_s2_bmi && client.apss_s2_bmi >= 30) apss.push({ name: "Obesity (BMI ≥ 30)", notes: `BMI: ${client.apss_s2_bmi}` });
-  else if (client.apss_s2_bmi && client.apss_s2_bmi >= 25) apss.push({ name: "Overweight (BMI 25–29.9)", notes: `BMI: ${client.apss_s2_bmi}` });
+  if (client.apss_s2_high_blood_pressure) apss.push({ name: 'Hypertension / High Blood Pressure' });
+  if (client.apss_s2_high_cholesterol) apss.push({ name: 'High Cholesterol / Dyslipidaemia' });
+  if (client.apss_s2_high_blood_sugar) apss.push({ name: 'High Blood Sugar / Glucose Intolerance' });
+  if (client.apss_s2_smoking) apss.push({ name: 'Smoking / Nicotine Use' });
+  if (client.apss_s2_vaping) apss.push({ name: 'Vaping' });
+  if (client.apss_s2_family_history) apss.push({ name: 'Family History of Cardiovascular Disease' });
+  if (client.apss_s2_musculoskeletal_issues) apss.push({ name: 'Musculoskeletal Issues' });
+  if (client.apss_s2_hospital_admissions) apss.push({ name: 'Recent Hospital Admission' });
+  if (client.apss_s2_pregnancy) apss.push({ name: 'Pregnancy / Recent Childbirth' });
+  if (client.apss_s2_bmi && client.apss_s2_bmi >= 30) apss.push({ name: 'Obesity (BMI >= 30)' });
+  else if (client.apss_s2_bmi && client.apss_s2_bmi >= 25) apss.push({ name: 'Overweight (BMI 25-29.9)' });
   return apss;
 }
 
-export default function AssessmentRecommendations({ clientConditions, allAssessments, clientAssessments, clientId, onAssessmentAdded, client }) {
-  const ai = useAiCapability();
-  const [recommendations, setRecommendations] = useState([]);
+export default function AssessmentRecommendations({
+  clientConditions,
+  allAssessments,
+  clientAssessments,
+  clientId,
+  onAssessmentAdded,
+  client,
+}) {
   const [addingId, setAddingId] = useState(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
-  const [source, setSource] = useState(null); // 'ai' | 'rule_based'
 
-  const apssConditions = extractApssConditions(client);
-  const allConditions = [
-    ...(clientConditions || []).map(c => ({ name: c.condition_name, type: c.condition_type, notes: c.notes })),
-    ...apssConditions.map(c => ({ name: c.name, type: "comorbidity", notes: c.notes }))
-  ];
+  const allConditions = useMemo(() => {
+    const apssConditions = extractApssConditions(client);
+    return [
+      ...(clientConditions || []).map((condition) => ({
+        name: condition.condition_name,
+        type: condition.condition_type,
+      })),
+      ...apssConditions.map((condition) => ({ name: condition.name, type: 'comorbidity' })),
+    ];
+  }, [clientConditions, client]);
 
-  useEffect(() => {
-    if (!allAssessments || allConditions.length === 0) {
-      setRecommendations([]);
-      return;
-    }
-    generateAIRecommendations();
-  }, [clientConditions, allAssessments, clientAssessments, client, ai.canTrigger]);
-
-  const generateAIRecommendations = async () => {
-    if (!ai.canTrigger) {
-      fallbackToBasicMatching();
-      setSource('rule_based');
-      setIsLoading(false);
-      return;
-    }
-    setIsLoading(true);
-    try {
-      const existingAssessmentIds = new Set(clientAssessments.map(ca => ca.assessment_id));
-      const availableAssessments = allAssessments.filter(a => !existingAssessmentIds.has(a.id));
-
-      if (availableAssessments.length === 0) {
-        setRecommendations([]);
-        setIsLoading(false);
-        return;
-      }
-
-      const conditionsList = allConditions;
-
-      const assessmentsList = availableAssessments.map(a => ({
-        id: a.id,
-        name: a.name,
-        category: a.category,
-        description: a.description?.substring(0, 150),
-        conditions_indicated: a.conditions_indicated || []
-      }));
-
-      const prompt = `You are a clinical exercise physiologist. Based on the client's conditions, recommend the most appropriate assessments to perform.
-
-Client Conditions:
-${JSON.stringify(conditionsList, null, 2)}
-
-Available Assessments:
-${JSON.stringify(assessmentsList, null, 2)}
-
-Select the top 5 most clinically relevant assessments for this client. For each recommendation, provide:
-1. The assessment ID (must match exactly from the list)
-2. A brief clinical reason why this assessment is appropriate for the client's conditions
-
-Focus on assessments that will:
-- Help establish baseline function
-- Monitor condition-specific outcomes
-- Guide exercise prescription
-- Track rehabilitation progress`;
-
-      const response = await base44.integrations.Core.InvokeLLM({
-        prompt,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            recommendations: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  assessment_id: { type: "string" },
-                  reason: { type: "string" }
-                },
-                required: ["assessment_id", "reason"]
-              }
-            }
-          },
-          required: ["recommendations"]
-        }
-      });
-
-      const aiRecs = response.recommendations || [];
-      const matchedRecommendations = aiRecs
-        .map(rec => {
-          const assessment = availableAssessments.find(a => a.id === rec.assessment_id);
-          if (assessment) {
-            return { ...assessment, reason: rec.reason };
-          }
-          return null;
-        })
-        .filter(Boolean)
-        .slice(0, 5);
-
-      setRecommendations(matchedRecommendations);
-      setSource('ai');
-    } catch (error) {
-      console.error("Error generating AI recommendations:", error);
-      ai.reportError(error);
-      // Fallback to basic matching — the keyword matcher runs against curated
-      // conditions_indicated catalogue data and has genuine standalone
-      // value; it must simply stop being presented as AI.
-      fallbackToBasicMatching();
-      setSource('rule_based');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const fallbackToBasicMatching = () => {
-    const existingAssessmentIds = new Set(clientAssessments.map(ca => ca.assessment_id));
-    const conditionNames = new Set(allConditions.map(c => c.name.toLowerCase()));
-    
-    const newRecommendations = new Map();
-
-    allAssessments.forEach(assessment => {
-      if (existingAssessmentIds.has(assessment.id)) return;
-
-      const indicatedConditions = assessment.conditions_indicated || [];
-      for (const indicated of indicatedConditions) {
-        if (conditionNames.has(indicated.toLowerCase())) {
-          if (!newRecommendations.has(assessment.id)) {
-            newRecommendations.set(assessment.id, { ...assessment, reason: `Indicated for ${indicated}` });
-          }
-          break;
-        }
-      }
-    });
-
-    setRecommendations(Array.from(newRecommendations.values()).slice(0, 5));
-  };
+  // There is one discovery path in every runtime posture. No model call and
+  // no weaker outage fallback can silently change the result set.
+  const discovery = useMemo(() => discoverAssessments({
+    conditions: allConditions,
+    assessments: allAssessments,
+    existingAssessmentIds: (clientAssessments || []).map((assessment) => assessment.assessment_id),
+    limit: DISPLAY_LIMIT,
+  }), [allConditions, allAssessments, clientAssessments]);
+  const recommendations = discovery.recommendations;
 
   const handleAddAssessment = async (assessment) => {
     setAddingId(assessment.id);
     try {
-      const client = await base44.entities.Client.filter({ id: clientId });
-      const org_id = client[0]?.org_id;
-      
+      const clientRows = await base44.entities.Client.filter({ id: clientId });
+      const org_id = clientRows[0]?.org_id;
+
       await ClientAssessment.create({
-        org_id: org_id,
+        org_id,
         client_id: clientId,
         assessment_id: assessment.id,
         assessment_date: todayLocal(),
-        status: "pending",
+        status: 'pending',
       });
       toast.success(`"${assessment.name}" has been added.`);
-      onAssessmentAdded();
+      onAssessmentAdded?.();
     } catch (error) {
-      console.error("Failed to add recommended assessment:", error);
-      toast.error("Failed to add assessment.");
+      console.error('Failed to add recommended assessment:', error);
+      toast.error('Failed to add assessment.');
     } finally {
       setAddingId(null);
     }
   };
 
-  if (allConditions.length === 0) {
-    return null;
-  }
-
   return (
     <Card className="bg-gradient-to-br from-amber-50 to-yellow-50 border-yellow-200/80">
-      <CardHeader className="cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
+      <CardHeader className="cursor-pointer" onClick={() => setIsExpanded((expanded) => !expanded)}>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CardTitle className="flex items-center gap-2 text-yellow-800">
-              {source === 'ai' ? <Sparkles className="w-5 h-5" /> : <Lightbulb className="w-5 h-5" />}
+              <Lightbulb className="w-5 h-5" />
               Suggested Assessments
             </CardTitle>
             <Badge variant="outline" className="border-yellow-300 text-yellow-800">
-              {source === 'ai' ? AI_COPY.aiAssistedBadge : AI_COPY.ruleBasedBadge}
+              Catalogue-ranked
             </Badge>
             <Badge variant="secondary">{recommendations.length}</Badge>
           </div>
-          {isExpanded ? <ChevronUp className="w-5 h-5 text-yellow-700" /> : <ChevronDown className="w-5 h-5 text-yellow-700" />}
+          {isExpanded
+            ? <ChevronUp className="w-5 h-5 text-yellow-700" />
+            : <ChevronDown className="w-5 h-5 text-yellow-700" />}
         </div>
         {!isExpanded && (
           <p className="text-sm text-yellow-700">
-            {source === 'rule_based' ? AI_COPY.ruleBasedExplanation : "Based on the client's conditions and pre-exercise screening results"}
+            Deterministic matches from recorded conditions and assessment catalogue metadata
           </p>
         )}
       </CardHeader>
       {isExpanded && (
         <CardContent>
-          {source === 'rule_based' && (
-            <p className="text-sm text-yellow-800 mb-3">{AI_COPY.ruleBasedExplanation}</p>
-          )}
-          {!ai.canTrigger && (
-            <p className="text-xs text-slate-500 mb-3">{ai.unavailableMessage}</p>
-          )}
-          {isLoading ? (
-          <div className="flex items-center justify-center py-6">
-            <Loader2 className="w-6 h-6 animate-spin text-yellow-600 mr-2" />
-            <span className="text-sm text-yellow-700">{AI_COPY.analysingConditions}</span>
-          </div>
-        ) : recommendations.length === 0 ? (
-          <p className="text-sm text-yellow-700 text-center py-4">
-            {!ai.canTrigger ? ai.unavailableMessage : "No additional assessments recommended at this time."}
+          <p className="text-sm text-yellow-800 mb-3">
+            These suggestions use one local, rule-based ranking path. They are not AI-generated and require clinician review before use.
           </p>
-        ) : (
-          <div className="space-y-3">
-            {recommendations.map(assessment => (
-              <div key={assessment.id} className="flex items-start justify-between p-3 bg-white/80 rounded-lg border border-yellow-200">
-                <div className="flex-1 mr-3">
-                  <h4 className="font-semibold text-slate-800">{assessment.name}</h4>
-                  <p className="text-sm text-slate-600 mt-1">{assessment.description || assessment.reason}</p>
+          {recommendations.length === 0 ? (
+            <p className="text-sm text-yellow-700 text-center py-4">
+              {assessmentDiscoveryStatusMessage(discovery.status)}
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {discovery.matchCount > recommendations.length && (
+                <p className="text-xs text-slate-600">
+                  Showing the top {recommendations.length} of {discovery.matchCount} catalogue matches.
+                </p>
+              )}
+              {recommendations.map((assessment) => (
+                <div key={assessment.id} className="flex items-start justify-between p-3 bg-white/80 rounded-lg border border-yellow-200">
+                  <div className="flex-1 mr-3">
+                    <h4 className="font-semibold text-slate-800">{assessment.name}</h4>
+                    {assessment.description && (
+                      <p className="text-sm text-slate-600 mt-1">{assessment.description}</p>
+                    )}
+                    <p className="text-xs text-yellow-800 mt-2">Match basis: {assessment.reason}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() => handleAddAssessment(assessment)}
+                    disabled={addingId === assessment.id}
+                  >
+                    {addingId === assessment.id ? (
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    ) : (
+                      <Plus className="w-4 h-4 mr-2" />
+                    )}
+                    Add
+                  </Button>
                 </div>
-                <Button 
-                  size="sm" 
-                  variant="outline"
-                  className="shrink-0"
-                  onClick={() => handleAddAssessment(assessment)}
-                  disabled={addingId === assessment.id}
-                >
-                  {addingId === assessment.id ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Plus className="w-4 h-4 mr-2" />
-                  )}
-                  Add
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-        {source === 'ai' && recommendations.length > 0 && <AIDisclosureNote className="mt-3" />}
+              ))}
+            </div>
+          )}
+          {discovery.status === ASSESSMENT_DISCOVERY_STATUS.READY && (
+            <p className="text-xs text-slate-500 mt-3">
+              Review indications, contraindications, scope and client circumstances before adding an assessment.
+            </p>
+          )}
         </CardContent>
       )}
     </Card>

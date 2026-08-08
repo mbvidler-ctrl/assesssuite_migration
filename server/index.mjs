@@ -64,6 +64,18 @@ import {
 import { effectiveLegalContent } from '../src/lib/legal/effectiveContent.js';
 import { resolveLegalConsentAudiences } from '../src/lib/legal/consentAudience.js';
 import { createErrorTelemetry } from './telemetry.mjs';
+import { bootstrapCoreV1Sandbox } from './core/bootstrap.mjs';
+import { CoreContractError } from './core/errors.mjs';
+import { createCoreV1HttpRouter } from './core/http.mjs';
+import { createLegacySourceResolvers } from './core/legacySourceResolvers.mjs';
+import { createCoreRepositories } from './core/repository.mjs';
+import {
+  CORE_V1_SYNTHETIC_PROVENANCE_FIELD,
+  CORE_V1_SYNTHETIC_PROTECTED_ENTITIES,
+  buildCoreV1SyntheticFixture,
+  hasCoreV1SyntheticFixtureIdentity,
+  isCoreV1SyntheticFixtureRecord,
+} from './core/syntheticFixtures.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
@@ -131,7 +143,13 @@ const DEFAULT_APP_ID = process.env.DEFAULT_APP_ID || 'local-assesssuite';
 
 fs.mkdirSync(uploadsDir, { recursive: true });
 
-const { db, entityNames } = openDatabase();
+const {
+  db,
+  entityNames,
+  coreV1SandboxEnabled,
+  coreV1Schema,
+  coreV1SchemaPresent,
+} = openDatabase();
 const sessions = createSessionRepository(db);
 const usageAnalytics = createUsageAnalyticsRepository(db);
 const outboxEmail = createOutboxRepository(db, 'email');
@@ -176,6 +194,15 @@ function repoFor(entityName) {
   return repoCache.get(entityName);
 }
 
+const coreRepositories = coreV1SandboxEnabled ? createCoreRepositories(db) : null;
+const coreSourceResolvers = coreV1SandboxEnabled
+  ? createLegacySourceResolvers({ repoFor })
+  : null;
+
+if (coreV1SandboxEnabled && (!coreV1Schema || !coreV1SchemaPresent)) {
+  throw new Error('Core V1 sandbox schema installation was not proved');
+}
+
 const ensureFounderOrganization = createFounderOrganizationEnsurer({
   db,
   organizationRepo: repoFor('Organization'),
@@ -186,8 +213,35 @@ const ensureFounderOrganization = createFounderOrganizationEnsurer({
 // Bootstrap: ensure a single admin user exists on startup.
 // ---------------------------------------------------------------------------
 function bootstrapAdmin() {
-  const existingAdmin = userRepo.listAll().find((u) => u.role === 'admin');
-  if (existingAdmin) return;
+  const existingAdmins = userRepo.listAll().filter((user) => user.role === 'admin');
+  if (existingAdmins.length > 0) {
+    if (coreV1SandboxEnabled) {
+      const configuredEmail = normaliseEmail(ADMIN_EMAIL);
+      const existingAdmin = existingAdmins[0];
+      let passwordMatches = false;
+      try {
+        passwordMatches = verifyPassword(
+          ADMIN_PASSWORD,
+          existingAdmin?.password_hash,
+          existingAdmin?.salt,
+        );
+      } catch {
+        // Malformed retained password material has the same closed posture as
+        // a mismatch and must not leak hash/salt details through startup logs.
+        passwordMatches = false;
+      }
+      if (
+        existingAdmins.length !== 1
+        || normaliseEmail(existingAdmin?.email) !== configuredEmail
+        || !passwordMatches
+      ) {
+        throw new Error(
+          'Core V1 sandbox administrator does not match the configured isolated credentials',
+        );
+      }
+    }
+    return;
+  }
   const { password_hash, salt } = hashPassword(ADMIN_PASSWORD);
   const created = userRepo.create(
     {
@@ -205,6 +259,12 @@ function bootstrapAdmin() {
   console.log(`[shim] bootstrap admin created: ${created.email} (id ${created.id})`);
 }
 bootstrapAdmin();
+
+if (coreV1SandboxEnabled) {
+  // This bootstrap can create only validated sandbox configuration and
+  // sandbox_only capabilities. Any elevated/conflicting state fails startup.
+  bootstrapCoreV1Sandbox(coreRepositories, { sandboxEnabled: true });
+}
 
 // ---------------------------------------------------------------------------
 // Functions router — replaceable, mounted from server/functions/index.mjs if
@@ -894,6 +954,190 @@ function writeAuthDenied(entityName, data, sessionUser, { isCreate }) {
   return enforceWriteOrgScope(entityName, data, sessionUser, { isCreate });
 }
 
+// Generic JSON-entity routes are retained as a compatibility store for report
+// DRAFTS. They are not a release controller. In particular, being an admin
+// does not turn a caller-supplied status or release receipt into
+// server-authoritative evidence. Purpose-specific Core persistence must use a
+// separate server-owned path when it is introduced.
+const GENERIC_REPORT_ENTITIES = new Set(['SavedReport', 'ClientReport']);
+const GENERIC_REPORT_DRAFT_METADATA_KEYS = Object.freeze([
+  'compatibilityVersion',
+  'lifecycleState',
+  'releaseEligible',
+  'releaseControlComplete',
+  'reviewStatus',
+  'sourceReportId',
+  'draftRevisionId',
+  'lineageMode',
+]);
+const GENERIC_REPORT_GOVERNANCE_KEY_TOKENS = new Set([
+  'approvalstatus',
+  'approved',
+  'approvedat',
+  'approvedby',
+  'artifactid',
+  'claimledger',
+  'compatibilityversion',
+  'contentfingerprint',
+  'coremetadata',
+  'lifecycle',
+  'lifecyclestate',
+  'releaseauthorizationeventid',
+  'releasebinding',
+  'releasecontrolcomplete',
+  'releaseeligible',
+  'releasestatus',
+  'reporthtmlfingerprint',
+  'reviewed',
+  'reviewedat',
+  'reviewedby',
+  'reviewstatus',
+  'sourcemanifest',
+]);
+const GENERIC_REPORT_TERMINAL_STATUSES = new Set(['final', 'approved', 'released']);
+const GENERIC_REPORT_DRAFT_METADATA_VERSION = 'assesssuite.legacy-report-compatibility.v1';
+const GENERIC_REPORT_DRAFT_REVIEW_STATUS = 'purpose_specific_server_review_pending';
+const GENERIC_REPORT_DRAFT_LINEAGE_MODE = 'new_unapproved_legacy_draft';
+const GENERIC_REPORT_REFUSAL = 'report governance transitions are server-controlled';
+const GENERIC_REPORT_IMMUTABLE_REFUSAL =
+  'final and governed reports are read-only through generic entity routes';
+
+function reportGovernanceKeyToken(key) {
+  return typeof key === 'string' ? key.replace(/[_-]/g, '').toLowerCase() : '';
+}
+
+function normalizedReportStatus(value) {
+  return typeof value === 'string' ? value.trim().toLowerCase() : '';
+}
+
+function isExactGenericDraftMetadata(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
+  const keys = Object.keys(value).sort();
+  const expectedKeys = [...GENERIC_REPORT_DRAFT_METADATA_KEYS].sort();
+  if (keys.length !== expectedKeys.length) return false;
+  if (!keys.every((key, index) => key === expectedKeys[index])) return false;
+  if (value.compatibilityVersion !== GENERIC_REPORT_DRAFT_METADATA_VERSION) return false;
+  if (value.lifecycleState !== 'draft') return false;
+  if (value.releaseEligible !== false || value.releaseControlComplete !== false) return false;
+  if (value.reviewStatus !== GENERIC_REPORT_DRAFT_REVIEW_STATUS) return false;
+  if (value.lineageMode !== GENERIC_REPORT_DRAFT_LINEAGE_MODE) return false;
+  if (
+    value.sourceReportId !== null
+    && (typeof value.sourceReportId !== 'string'
+      || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(value.sourceReportId))
+  ) return false;
+  return typeof value.draftRevisionId === 'string'
+    && /^[A-Za-z0-9][A-Za-z0-9._:-]{7,127}$/.test(value.draftRevisionId);
+}
+
+function hasGenericReportGovernanceFields(record, entityName) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return true;
+  for (const key of Object.keys(record)) {
+    const token = reportGovernanceKeyToken(key);
+    if (!GENERIC_REPORT_GOVERNANCE_KEY_TOKENS.has(token)) continue;
+    if (
+      entityName === 'SavedReport'
+      && key === 'core_metadata'
+      && isExactGenericDraftMetadata(record[key])
+    ) continue;
+    return true;
+  }
+  return false;
+}
+
+function isImmutableGenericReport(record, entityName) {
+  if (!record || !GENERIC_REPORT_ENTITIES.has(entityName)) return false;
+  if (GENERIC_REPORT_TERMINAL_STATUSES.has(normalizedReportStatus(record.status))) return true;
+  return hasGenericReportGovernanceFields(record, entityName);
+}
+
+/**
+ * Fail-closed policy for every generic SavedReport/ClientReport mutation.
+ * Updates are validated against the prospective MERGED row so omitting a
+ * retained final/status/receipt field cannot bypass the gate.
+ */
+function genericReportMutationDenied(entityName, existing, data, { operation }) {
+  if (!GENERIC_REPORT_ENTITIES.has(entityName)) return { ok: true };
+  if (existing && isImmutableGenericReport(existing, entityName)) {
+    return { ok: false, status: 409, message: GENERIC_REPORT_IMMUTABLE_REFUSAL };
+  }
+  if (operation === 'delete') return { ok: true };
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { ok: false, status: 400, message: GENERIC_REPORT_REFUSAL };
+  }
+  const prospective = existing ? { ...existing, ...data } : { ...data };
+  if (
+    Object.prototype.hasOwnProperty.call(prospective, 'status')
+    && prospective.status !== 'draft'
+  ) {
+    return { ok: false, status: 409, message: GENERIC_REPORT_REFUSAL };
+  }
+  if (hasGenericReportGovernanceFields(prospective, entityName)) {
+    return { ok: false, status: 409, message: GENERIC_REPORT_REFUSAL };
+  }
+  // A caller may replace the current wizard's narrowly bounded draft marker,
+  // but may not remove or null it in a partial update. That preserves the
+  // distinction between harmless draft metadata and caller-forged lineage.
+  if (
+    existing
+    && Object.prototype.hasOwnProperty.call(existing, 'core_metadata')
+    && Object.prototype.hasOwnProperty.call(data, 'core_metadata')
+    && !isExactGenericDraftMetadata(data.core_metadata)
+  ) {
+    return { ok: false, status: 409, message: GENERIC_REPORT_REFUSAL };
+  }
+  return { ok: true };
+}
+
+const SYNTHETIC_FIXTURE_ENTITY_SET = new Set(CORE_V1_SYNTHETIC_PROTECTED_ENTITIES);
+const SYNTHETIC_FIXTURE_CHILD_ENTITY_SET = new Set(
+  CORE_V1_SYNTHETIC_PROTECTED_ENTITIES.filter((entityName) => entityName !== 'Client'),
+);
+const SYNTHETIC_FIXTURE_CALLER_FIELD_TOKENS = new Set([
+  reportGovernanceKeyToken('core_v1_synthetic'),
+  reportGovernanceKeyToken(CORE_V1_SYNTHETIC_PROVENANCE_FIELD),
+]);
+const SYNTHETIC_FIXTURE_PROVENANCE_REFUSAL =
+  'synthetic fixture provenance is server-controlled';
+const SYNTHETIC_FIXTURE_IMMUTABLE_REFUSAL =
+  'server-provisioned synthetic fixture records are read-only through generic entity routes';
+const SYNTHETIC_FIXTURE_SOURCE_REFUSAL =
+  'synthetic fixture source records are server-controlled';
+
+function hasCallerSyntheticFixtureFields(data) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+  return Object.keys(data).some(
+    (key) => SYNTHETIC_FIXTURE_CALLER_FIELD_TOKENS.has(reportGovernanceKeyToken(key)),
+  );
+}
+
+/**
+ * Generic entity CRUD cannot mint or modify the server-owned fixture graph.
+ * Admins are intentionally subject to the same boundary. The prospective
+ * client binding is checked so a partial child update cannot retain a hidden
+ * attachment to the fixed synthetic subject.
+ */
+function syntheticFixtureMutationDenied(entityName, existing, data, { operation }) {
+  if (!SYNTHETIC_FIXTURE_ENTITY_SET.has(entityName)) return { ok: true };
+  if (existing && hasCoreV1SyntheticFixtureIdentity(existing, entityName)) {
+    return { ok: false, status: 409, message: SYNTHETIC_FIXTURE_IMMUTABLE_REFUSAL };
+  }
+  if (operation === 'delete') return { ok: true };
+  if (hasCallerSyntheticFixtureFields(data)) {
+    return { ok: false, status: 409, message: SYNTHETIC_FIXTURE_PROVENANCE_REFUSAL };
+  }
+  if (!SYNTHETIC_FIXTURE_CHILD_ENTITY_SET.has(entityName)) return { ok: true };
+  const clientId = Object.prototype.hasOwnProperty.call(data || {}, 'client_id')
+    ? data.client_id
+    : existing?.client_id;
+  if (typeof clientId !== 'string' || clientId.trim() === '') return { ok: true };
+  const client = repoFor('Client')?.getById(clientId);
+  if (client && hasCoreV1SyntheticFixtureIdentity(client, 'Client')) {
+    return { ok: false, status: 409, message: SYNTHETIC_FIXTURE_SOURCE_REFUSAL };
+  }
+  return { ok: true };
+}
+
 // A published SOAP note is a finalised clinical record. The only sanctioned
 // change is an amendment, which SOAPNoteModal records as ONE appended
 // history entry attributed to the caller. Attachment/audio additions made
@@ -1000,6 +1244,64 @@ function entityAccessDenied(req, res, entityName, sessionUser, isAdmin) {
   return false;
 }
 
+function hasCallerSuppliedProtocolOrganization(url) {
+  if (url.searchParams.has('org_id')) return true;
+  const rawQuery = url.searchParams.get('q');
+  if (!rawQuery) return false;
+  try {
+    const query = JSON.parse(rawQuery);
+    return Boolean(
+      query
+      && typeof query === 'object'
+      && !Array.isArray(query)
+      && Object.prototype.hasOwnProperty.call(query, 'org_id')
+    );
+  } catch {
+    // handleList remains the single owner of malformed-query responses.
+    return false;
+  }
+}
+
+/**
+ * TreatmentProtocol is a global, AEP-governed catalogue rather than a tenant
+ * record. Global storage must not imply global clinical eligibility: every
+ * read is authorised against the signed-in user's server-owned profile and
+ * primary-practice legal posture. Admin is intentionally not an exemption.
+ */
+function treatmentProtocolReadAccessDenied(res, sessionUser, url) {
+  const hasCredential = typeof sessionUser?.registration_number === 'string'
+    && sessionUser.registration_number.trim() !== ''
+    && typeof sessionUser?.qualifications === 'string'
+    && sessionUser.qualifications.trim() !== '';
+  if (
+    sessionUser?.account_status !== 'active'
+    || sessionUser?.profession !== 'Exercise Physiologist'
+    || !isInitialClinicalReleaseEligible(sessionUser)
+    || !hasCredential
+  ) {
+    sendError(res, 403, 'protocol catalogue access requires an active, credentialed Australian Exercise Physiologist');
+    return true;
+  }
+
+  // Catalogue tenant context is never caller-selectable. In particular, a
+  // forged foreign org_id cannot substitute another practice's acceptance.
+  if (hasCallerSuppliedProtocolOrganization(url)) {
+    sendError(res, 403, 'protocol catalogue practice context is server-derived');
+    return true;
+  }
+
+  const orgId = selectedClinicalOrgIdForUser(sessionUser.email);
+  if (!orgId || !orgIdsForUser(sessionUser.email).includes(orgId)) {
+    sendError(res, 403, 'protocol catalogue access requires a current primary-practice membership');
+    return true;
+  }
+  if (!hasCurrentLegalAcceptance(sessionUser.email, orgId)) {
+    sendError(res, 403, 'current legal acceptance required for protocol catalogue access');
+    return true;
+  }
+  return false;
+}
+
 function clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, orgId) {
   if (
     !isAdmin &&
@@ -1018,6 +1320,25 @@ function primaryOrgIdForUser(userEmail) {
   const memberships = orgMemberRepo.listAll().filter((m) => m.user_email === userEmail);
   const primary = memberships.find((m) => m.is_primary) || memberships[0];
   return primary?.org_id || null;
+}
+
+/**
+ * Clinical context may use the only membership or one unambiguous explicit
+ * primary. It must never turn storage order into authority for a user with
+ * several practices and no server-side primary selection.
+ */
+function selectedClinicalOrgIdForUser(userEmail) {
+  if (!orgMemberRepo || !userEmail) return null;
+  const memberships = orgMemberRepo.listAll().filter(
+    (membership) => membership.user_email === userEmail && typeof membership.org_id === 'string',
+  );
+  const orgIds = [...new Set(memberships.map((membership) => membership.org_id).filter(Boolean))];
+  const primaryOrgIds = [...new Set(
+    memberships.filter((membership) => membership.is_primary === true).map((membership) => membership.org_id),
+  )];
+  if (primaryOrgIds.length === 1) return primaryOrgIds[0];
+  if (primaryOrgIds.length > 1) return null;
+  return orgIds.length === 1 ? orgIds[0] : null;
 }
 
 /**
@@ -1155,6 +1476,12 @@ async function handleEntitiesRoute(req, res, url, match) {
   if (entityAccessDenied(req, res, entityName, sessionUser, isAdmin)) return;
 
   if (
+    req.method === 'GET'
+    && entityName === 'TreatmentProtocol'
+    && treatmentProtocolReadAccessDenied(res, sessionUser, url)
+  ) return;
+
+  if (
     entityName === 'LegalAcceptanceEvent' &&
     req.method !== 'GET' &&
     !(req.method === 'POST' && !rest)
@@ -1183,6 +1510,19 @@ async function handleEntitiesRoute(req, res, url, match) {
   if (req.method === 'POST' && !rest) {
     const data = await readJsonBody(req);
     const createdBy = sessionUser?.email || null;
+    const reportGovernance = genericReportMutationDenied(entityName, null, data, { operation: 'create' });
+    if (!reportGovernance.ok) {
+      return sendError(res, reportGovernance.status, reportGovernance.message);
+    }
+    const syntheticGovernance = syntheticFixtureMutationDenied(
+      entityName,
+      null,
+      data,
+      { operation: 'create' },
+    );
+    if (!syntheticGovernance.ok) {
+      return sendError(res, syntheticGovernance.status, syntheticGovernance.message);
+    }
     if (!isAdmin) {
       // Central write-authorisation: refuses User/catalogue writes and scopes
       // org-bearing writes to a membership the caller holds.
@@ -1231,6 +1571,19 @@ async function handleEntitiesRoute(req, res, url, match) {
       return sendError(res, 404, 'record not found');
     }
     if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, existing?.org_id)) return;
+    const reportGovernance = genericReportMutationDenied(entityName, existing, data, { operation: 'update' });
+    if (!reportGovernance.ok) {
+      return sendError(res, reportGovernance.status, reportGovernance.message);
+    }
+    const syntheticGovernance = syntheticFixtureMutationDenied(
+      entityName,
+      existing,
+      data,
+      { operation: 'update' },
+    );
+    if (!syntheticGovernance.ok) {
+      return sendError(res, syntheticGovernance.status, syntheticGovernance.message);
+    }
     if (!isAdmin) {
       if (entityName === 'OrganizationMember') {
         const membership = validateMembershipUpdate(existing, data, sessionUser);
@@ -1295,6 +1648,19 @@ async function handleEntitiesRoute(req, res, url, match) {
     if (!isAdmin && !isUserCollection && !isWithinOrgScope(existing, sessionUser, entityName)) {
       return sendError(res, 404, 'record not found');
     }
+    const reportGovernance = genericReportMutationDenied(entityName, existing, null, { operation: 'delete' });
+    if (!reportGovernance.ok) {
+      return sendError(res, reportGovernance.status, reportGovernance.message);
+    }
+    const syntheticGovernance = syntheticFixtureMutationDenied(
+      entityName,
+      existing,
+      null,
+      { operation: 'delete' },
+    );
+    if (!syntheticGovernance.ok) {
+      return sendError(res, syntheticGovernance.status, syntheticGovernance.message);
+    }
     if (!isAdmin) {
       const owner = clinicPolicyOwnerDenied(entityName, sessionUser, existing?.org_id);
       if (owner) return sendError(res, owner.status, owner.message);
@@ -1325,6 +1691,26 @@ async function handleEntitiesRoute(req, res, url, match) {
     const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
     const all = repo.listAll();
     const matched = all.filter((record) => matchesQuery(record, scopedQuery));
+    for (const record of matched) {
+      const reportGovernance = genericReportMutationDenied(
+        entityName,
+        record,
+        null,
+        { operation: 'delete' },
+      );
+      if (!reportGovernance.ok) {
+        return sendError(res, reportGovernance.status, reportGovernance.message);
+      }
+      const syntheticGovernance = syntheticFixtureMutationDenied(
+        entityName,
+        record,
+        null,
+        { operation: 'delete' },
+      );
+      if (!syntheticGovernance.ok) {
+        return sendError(res, syntheticGovernance.status, syntheticGovernance.message);
+      }
+    }
     if (!isAdmin && entityName === 'ClinicPolicy' && matched.some(
       (record) => !isOrganizationOwner(sessionUser?.email, record.org_id),
     )) {
@@ -1457,6 +1843,26 @@ async function handleBulk(req, res, entityName) {
     // bulkCreate: JSON array of records.
     const items = Array.isArray(body) ? body : body.items || [];
     const createdBy = sessionUser?.email || null;
+    for (const item of items) {
+      const reportGovernance = genericReportMutationDenied(
+        entityName,
+        null,
+        item,
+        { operation: 'create' },
+      );
+      if (!reportGovernance.ok) {
+        return sendError(res, reportGovernance.status, reportGovernance.message);
+      }
+      const syntheticGovernance = syntheticFixtureMutationDenied(
+        entityName,
+        null,
+        item,
+        { operation: 'create' },
+      );
+      if (!syntheticGovernance.ok) {
+        return sendError(res, syntheticGovernance.status, syntheticGovernance.message);
+      }
+    }
     if (!isAdmin && entityName === 'OrganizationMember' && items.length !== 1) {
       return sendError(res, 403, 'membership creation must be one server-verifiable record');
     }
@@ -1519,6 +1925,42 @@ async function handleBulk(req, res, entityName) {
     if (new Set(bulkIds).size !== bulkIds.length) {
       return sendError(res, 409, 'a bulk update may reference each record only once');
     }
+    for (const item of items) {
+      const incomingSyntheticGovernance = syntheticFixtureMutationDenied(
+        entityName,
+        null,
+        item,
+        { operation: 'update' },
+      );
+      if (!incomingSyntheticGovernance.ok) {
+        return sendError(
+          res,
+          incomingSyntheticGovernance.status,
+          incomingSyntheticGovernance.message,
+        );
+      }
+      if (!item?.id) continue;
+      const existing = repo.getById(item.id);
+      if (!existing) continue;
+      const reportGovernance = genericReportMutationDenied(
+        entityName,
+        existing,
+        item,
+        { operation: 'update' },
+      );
+      if (!reportGovernance.ok) {
+        return sendError(res, reportGovernance.status, reportGovernance.message);
+      }
+      const syntheticGovernance = syntheticFixtureMutationDenied(
+        entityName,
+        existing,
+        item,
+        { operation: 'update' },
+      );
+      if (!syntheticGovernance.ok) {
+        return sendError(res, syntheticGovernance.status, syntheticGovernance.message);
+      }
+    }
     if (!isAdmin) {
       // Mirror the single-PUT guards: refuse User/catalogue writes, only
       // update records within the caller's org, and never relocate one into
@@ -1580,6 +2022,24 @@ async function handleBulk(req, res, entityName) {
     for (const plan of planned) {
       const freshExisting = repo.getById(plan.item.id);
       if (!freshExisting) continue;
+      const reportGovernance = genericReportMutationDenied(
+        entityName,
+        freshExisting,
+        plan.item,
+        { operation: 'update' },
+      );
+      if (!reportGovernance.ok) {
+        return sendError(res, reportGovernance.status, reportGovernance.message);
+      }
+      const syntheticGovernance = syntheticFixtureMutationDenied(
+        entityName,
+        freshExisting,
+        plan.item,
+        { operation: 'update' },
+      );
+      if (!syntheticGovernance.ok) {
+        return sendError(res, syntheticGovernance.status, syntheticGovernance.message);
+      }
       if (!isAdmin) {
         if (!isWithinOrgScope(freshExisting, sessionUser, entityName)) {
           return sendError(res, 404, 'record not found');
@@ -1628,6 +2088,19 @@ async function handleUpdateMany(req, res, entityName) {
 
   const body = await readJsonBody(req);
   const { query, data } = body || {};
+  const incomingSyntheticGovernance = syntheticFixtureMutationDenied(
+    entityName,
+    null,
+    data,
+    { operation: 'update' },
+  );
+  if (!incomingSyntheticGovernance.ok) {
+    return sendError(
+      res,
+      incomingSyntheticGovernance.status,
+      incomingSyntheticGovernance.message,
+    );
+  }
   if (extractUploadIdsFromValue(data).length > 0) {
     return sendError(res, 400, 'file references must be bound to one explicit record');
   }
@@ -1640,6 +2113,26 @@ async function handleUpdateMany(req, res, entityName) {
   }
   const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
   const matched = repo.listAll().filter((record) => matchesQuery(record, scopedQuery));
+  for (const record of matched) {
+    const reportGovernance = genericReportMutationDenied(
+      entityName,
+      record,
+      data,
+      { operation: 'update' },
+    );
+    if (!reportGovernance.ok) {
+      return sendError(res, reportGovernance.status, reportGovernance.message);
+    }
+    const syntheticGovernance = syntheticFixtureMutationDenied(
+      entityName,
+      record,
+      data,
+      { operation: 'update' },
+    );
+    if (!syntheticGovernance.ok) {
+      return sendError(res, syntheticGovernance.status, syntheticGovernance.message);
+    }
+  }
   if (!isAdmin) {
     // A shared `data` payload can never be a valid per-record amendment (the
     // history prefix differs per note), so any sweep that matches a published
@@ -2709,6 +3202,233 @@ function serveDistOrFallback(req, res, pathname) {
 }
 
 // ---------------------------------------------------------------------------
+// Core V1 isolated sandbox bridge
+// ---------------------------------------------------------------------------
+
+const CORE_V1_ASSURANCE_PATHS = new Set([
+  '/api/core/v1/admin/assurance',
+  '/api/core/v1/assurance/summary',
+]);
+const CORE_V1_AEP_PROFESSIONS = new Set([
+  'exercise_physiologist',
+  'accredited_exercise_physiologist',
+]);
+
+function normalizedCoreProfession(value) {
+  return typeof value === 'string'
+    ? value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+    : '';
+}
+
+function coreAuthorisedOrgIds(sessionUser) {
+  const ids = sessionUser?.role === 'admin'
+    ? (repoFor('Organization')?.listAll() || []).map((organization) => organization.id)
+    : orgIdsForUser(sessionUser?.email);
+  return [...new Set(ids.filter((id) => typeof id === 'string' && id.trim() !== ''))]
+    .sort((left, right) => left.localeCompare(right));
+}
+
+function coreSelectedOrgId({ sessionUser, authorisedOrgIds, request }) {
+  const allowed = new Set(authorisedOrgIds);
+  if (request?.url) {
+    const requestUrl = parseUrl(request);
+    // The assurance pane may select one tenant, but deriveRequestContext still
+    // intersects it with the complete server-derived organisation set. No
+    // header/body value can widen scope, and foreign selections fail closed.
+    if (CORE_V1_ASSURANCE_PATHS.has(requestUrl.pathname)) {
+      const requested = requestUrl.searchParams.get('org_id');
+      if (requested !== null) return requested;
+    }
+  }
+  const primary = selectedClinicalOrgIdForUser(sessionUser?.email);
+  if (primary && allowed.has(primary)) return primary;
+  return authorisedOrgIds.length === 1 ? authorisedOrgIds[0] : null;
+}
+
+function coreQualifiedClinicalUser(requestContext) {
+  const user = userRepo.getById(requestContext?.actor?.userId);
+  const profession = normalizedCoreProfession(user?.profession);
+  const hasCredential = typeof user?.registration_number === 'string'
+    && user.registration_number.trim() !== ''
+    && typeof user?.qualifications === 'string'
+    && user.qualifications.trim() !== '';
+  const memberOfSelectedOrg = orgIdsForUser(user?.email).includes(requestContext?.orgId);
+  if (
+    !user
+    || user.account_status !== 'active'
+    || !CORE_V1_AEP_PROFESSIONS.has(profession)
+    || !isInitialClinicalReleaseEligible(user)
+    || !hasCredential
+    || !memberOfSelectedOrg
+  ) {
+    throw new CoreContractError(
+      'CORE_CLINICAL_ACCESS_REQUIRED',
+      'Core clinical sandbox access requires an active, credentialed Exercise Physiologist in the selected organisation',
+      { httpStatus: 403 },
+    );
+  }
+  return user;
+}
+
+function resolveCoreAssessmentSources(input) {
+  coreQualifiedClinicalUser(input.requestContext);
+  return coreSourceResolvers.resolveAssessmentSources(input);
+}
+
+function resolveCoreProtocolCatalogue(input) {
+  coreQualifiedClinicalUser(input.requestContext);
+  return coreSourceResolvers.resolveProtocolCatalogue(input);
+}
+
+function resolveCoreReportSources(input) {
+  coreQualifiedClinicalUser(input.requestContext);
+  return coreSourceResolvers.resolveVerifiedReportSources(input);
+}
+
+function syntheticFixtureConflict() {
+  return new CoreContractError(
+    'CORE_SYNTHETIC_FIXTURE_CONFLICT',
+    'synthetic fixture storage does not match the compiled server fixture',
+    { httpStatus: 409 },
+  );
+}
+
+/**
+ * Atomically installs the complete, compiled three-record fixture graph.
+ * Generic repositories deliberately cannot select ids or storage metadata;
+ * this route-owned writer is the only path that may persist the provenance
+ * envelope and it treats every partial or altered replay as a conflict.
+ */
+function provisionCoreV1SyntheticFixture({ requestContext, fixtureKey }) {
+  if (
+    requestContext?.purpose !== 'core_administration'
+    || requestContext?.routeId !== 'core_v1.synthetic_fixture_provision'
+    || requestContext?.actor?.role !== 'admin'
+    || requestContext?.actor?.accountStatus !== 'active'
+  ) {
+    throw new CoreContractError(
+      'CORE_ADMIN_REQUIRED',
+      'active administrator access is required',
+      { httpStatus: 403 },
+    );
+  }
+
+  let fixture;
+  try {
+    fixture = buildCoreV1SyntheticFixture({
+      fixtureKey,
+      orgId: requestContext.orgId,
+    });
+  } catch (cause) {
+    throw new CoreContractError(
+      'CORE_SYNTHETIC_FIXTURE_NOT_ALLOWLISTED',
+      'synthetic fixture key is not allowlisted',
+      { cause },
+    );
+  }
+
+  let transactionOpen = false;
+  try {
+    db.exec('BEGIN IMMEDIATE');
+    transactionOpen = true;
+    const existing = fixture.records.map((expected) => ({
+      expected,
+      actual: repoFor(expected.entityName)?.getById(expected.id) ?? null,
+    }));
+    const existingCount = existing.filter(({ actual }) => actual !== null).length;
+    if (existingCount !== 0 && existingCount !== fixture.records.length) {
+      throw syntheticFixtureConflict();
+    }
+
+    let created = false;
+    if (existingCount === fixture.records.length) {
+      if (existing.some(({ expected, actual }) => (
+        !isCoreV1SyntheticFixtureRecord(actual, expected.entityName)
+      ))) {
+        throw syntheticFixtureConflict();
+      }
+    } else {
+      for (const expected of fixture.records) {
+        const repository = repoFor(expected.entityName);
+        if (!repository) throw syntheticFixtureConflict();
+        db.prepare(`
+          INSERT INTO ${repository.table}
+            (id, data, created_date, updated_date, created_by)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(
+          expected.id,
+          JSON.stringify(expected.data),
+          expected.createdDate,
+          expected.updatedDate,
+          expected.createdBy,
+        );
+      }
+      created = true;
+      if (fixture.records.some((expected) => (
+        !isCoreV1SyntheticFixtureRecord(
+          repoFor(expected.entityName)?.getById(expected.id),
+          expected.entityName,
+        )
+      ))) {
+        throw syntheticFixtureConflict();
+      }
+    }
+
+    db.exec('COMMIT');
+    transactionOpen = false;
+    return {
+      fixtureKey: fixture.fixtureKey,
+      subject: fixture.subject,
+      sources: {
+        clientConditionId: fixture.ids.clientConditionId,
+        clientAssessmentId: fixture.ids.clientAssessmentId,
+      },
+      sourceCutoff: fixture.sourceCutoff,
+      created,
+    };
+  } catch (error) {
+    if (transactionOpen) {
+      try { db.exec('ROLLBACK'); } catch { /* preserve the controlled primary failure */ }
+    }
+    if (error instanceof CoreContractError) throw error;
+    throw new CoreContractError(
+      'CORE_SYNTHETIC_FIXTURE_PROVISION_FAILED',
+      'synthetic fixture provisioning failed',
+      { httpStatus: 500, cause: error },
+    );
+  }
+}
+
+const coreV1Router = coreV1SandboxEnabled ? createCoreV1HttpRouter({
+  repositories: coreRepositories,
+  sandboxEnabled: coreV1SandboxEnabled,
+  resolveSessionUser,
+  resolveAuthorisedOrgIds: coreAuthorisedOrgIds,
+  resolveSelectedOrgId: coreSelectedOrgId,
+  resolveProfession: (sessionUser) => sessionUser?.profession ?? null,
+  resolveProtocolScope: ({ requestContext }) => {
+    coreQualifiedClinicalUser(requestContext);
+    return 'exercise_physiology';
+  },
+  isAdmin: (sessionUser) => (
+    sessionUser?.role === 'admin' && sessionUser?.account_status === 'active'
+  ),
+  isClinicalReviewer: ({ requestContext }) => {
+    try {
+      coreQualifiedClinicalUser(requestContext);
+      return true;
+    } catch {
+      return false;
+    }
+  },
+  resolveAssessmentSources: resolveCoreAssessmentSources,
+  resolveProtocolCatalogue: resolveCoreProtocolCatalogue,
+  resolveVerifiedReportSources: resolveCoreReportSources,
+  provisionSyntheticFixture: provisionCoreV1SyntheticFixture,
+  sendJson,
+}) : null;
+
+// ---------------------------------------------------------------------------
 // Main request handler
 // ---------------------------------------------------------------------------
 
@@ -2719,6 +3439,17 @@ async function requestListener(req, res) {
   try {
     const url = parseUrl(req);
     const pathname = url.pathname;
+
+    // Core owns its bounded namespace before legacy entity/function/static
+    // routing. Disabled environments never construct Core repositories or a
+    // Core router because their database has no Core schema; they receive a
+    // hidden JSON 404 instead of an SPA fallback.
+    if (pathname === '/api/core/v1' || pathname.startsWith('/api/core/v1/')) {
+      if (!coreV1Router) return sendJson(res, 404, { error: { code: 'CORE_NOT_FOUND' } });
+      // Awaiting keeps rejections inside this listener's telemetry and error
+      // boundary.
+      if (await coreV1Router.handle(req, res, url)) return;
+    }
 
     if (pathname === '/api/usage/page-load') {
       return await handleMarketingPageLoad(req, res);

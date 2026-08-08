@@ -10,7 +10,7 @@ import { randomUUID } from 'node:crypto';
 
 const COALESCE_WINDOW_MS = 60_000;
 const DEFAULT_TIMEOUT_MS = 1_500;
-const ERROR_CLASS = 'http_server_error';
+const OBSERVED_CLIENT_REJECTIONS = new Set([409, 413, 422, 429]);
 const EXACT_RELEASE = /^[0-9a-f]{40}$/i;
 const APPROVED_SENTRY_HOST = 'o4511822688813056.ingest.us.sentry.io';
 const APPROVED_SENTRY_PROJECT_ID = '4511827129663488';
@@ -114,20 +114,23 @@ function safeEnvironment(environment) {
 }
 
 function normalizeStatus(status) {
-  return Number.isInteger(status) && status >= 500 && status <= 999 ? status : null;
+  if (!Number.isInteger(status)) return null;
+  if (status >= 500 && status <= 599) return status;
+  return OBSERVED_CLIENT_REJECTIONS.has(status) ? status : null;
 }
 
 function buildEvent({ eventId, timestamp, release, environment, status, routeFamily }) {
+  const serverError = status >= 500;
   return {
     event_id: eventId,
     timestamp,
     platform: 'node',
-    level: 'error',
+    level: serverError ? 'error' : 'warning',
     release,
     environment,
     tags: {
       status: String(status),
-      error_class: ERROR_CLASS,
+      error_class: serverError ? 'http_server_error' : 'http_request_rejected',
       route_family: ROUTE_FAMILY_SET.has(routeFamily) ? routeFamily : 'unknown',
     },
   };

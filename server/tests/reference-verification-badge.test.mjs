@@ -28,7 +28,7 @@ test('a verified reference gets the truthful green badge', () => {
   assert.match(badge.className, /bg-green/);
 });
 
-test('the verifyReferences-outage shape (verified:false, verification:"unverifiable") never badges as verified', () => {
+test('an explicitly unverified catalogue reference never badges as verified', () => {
   const badge = getReferenceVerificationBadge({ verified: false, verification: 'unverifiable' });
   assert.equal(badge.verified, false);
   assert.notEqual(badge.label, '✓ Verified');
@@ -44,7 +44,13 @@ test('a missing verified flag fails closed, not open', () => {
 
 test('TreatmentProtocols.jsx wires the truthful badge into the references map', () => {
   assert.match(pageSource, /import \{ getReferenceVerificationBadge \} from "@\/lib\/referenceVerificationBadge";/);
-  assert.match(pageSource, /getReferenceVerificationBadge\(ref\)/);
+  assert.match(pageSource, /getReferenceVerificationBadge\(\{ \.\.\.ref, verified: false \}\)/);
+  assert.match(pageSource, /<ClickableReferences references=\{ref\.citation\} verified=\{false\} \/>/);
+  assert.doesNotMatch(
+    pageSource,
+    /verifyReferences|searchEvidence|InvokeLLM/,
+    'catalogue browsing must remain deterministic and must not perform evidence or generation calls',
+  );
   // Whitespace/quote-style insensitive: the truthful checkmark text is only
   // ever produced by getReferenceVerificationBadge() above, never a literal
   // in the page, so its bare presence anywhere in the page — regardless of

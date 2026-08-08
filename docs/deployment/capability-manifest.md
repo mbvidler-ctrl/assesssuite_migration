@@ -11,9 +11,10 @@ This page lists every runtime switch that changes what the AssessSuite productio
 | Capability | Switch | Production now | Rollback config | Self-test bypass | What the clinic loses when it is off |
 |---|---|---|---|---|---|
 | Self-service sign-up | `ALLOW_OPEN_REGISTRATION` | `1` | `1` | SELFTEST=1 treats it as on | The public sign-up, email-verification and resend-code pages return a plain "self-registration is disabled" error; existing accounts are unaffected. |
+| Core V1 isolated sandbox routes | `CORE_V1_SANDBOX_ENABLED` | `0` | `0` | none | The /api/core/v1/* route family is not exposed and returns the ordinary not-found response. Existing production workflows and user-visible clinical functions are unchanged. |
 | Referral document extraction | `DOCUMENT_EXTRACTION_ENABLED` | `1` | `0` | none | Referral upload continues to accept and store the file, but automated field extraction refuses with "Document extraction is currently unavailable." — practitioners must key the referral details in by hand. |
 | Under-13 document extraction | `DOCUMENT_EXTRACTION_UNDER_13_ENABLED` | `0` | `0` | none | Extraction of an under-13 (or age-unknown) referral document is refused with a privacy-review message; the practitioner keys the referral details in by hand instead. |
-| Legacy general clinical AI drafting | `GENERAL_CLINICAL_LLM_ENABLED` | `1` | `0` | none | None of those AI-assisted actions can run; the exact user-visible effect (a disabled and labelled control, a labelled non-AI fallback, or — on the report surfaces not yet migrated to the capability hook — a plain error message) differs by surface, see the client-surfaces table. |
+| Legacy generic clinical AI drafting | `GENERAL_CLINICAL_LLM_ENABLED` | `0` | `0` | none | The remaining generic AI drafting actions cannot run. Every reachable control is disabled and labelled before it can invoke the endpoint. Core V1 deterministic assessment discovery, governed catalogue lookup, and draft-only report composition remain available independently. |
 | Fail-loud AI provider posture | `LLM_REQUIRED` | `1` | `1` | none | A missing or failing AI provider falls back to the deterministic mock instead of failing loudly. This is a safety posture, not a feature switch: it does not change whether AI drafting is offered, only what happens when the real provider is unavailable. |
 | Real transactional email delivery | `OUTBOUND_EMAIL_ENABLED` | `1` | `1` | SELFTEST/parity assurance force it off | Email is still written to the SQLite outbox (nothing is lost), but no real message is sent — recipients receive nothing, so a real inbox never sees the OTP code or notification. |
 | Real SMS delivery | `OUTBOUND_SMS_ENABLED` | `0` | `0` | SELFTEST/parity assurance force it off | No change: SMS is outbox-only in every posture until a separately reviewed adapter and provider credential are implemented. |
@@ -26,7 +27,6 @@ This page lists every runtime switch that changes what the AssessSuite productio
 | Capability | Switch | Production | Rollback |
 |---|---|---|---|
 | Referral document extraction | `DOCUMENT_EXTRACTION_ENABLED` | `1` | `0` |
-| Legacy general clinical AI drafting | `GENERAL_CLINICAL_LLM_ENABLED` | `1` | `0` |
 
 ## Per-capability detail
 
@@ -45,6 +45,26 @@ Controls whether a new practitioner can create their own account without an exis
 | `server/index.mjs` | POST /api/apps/:appId/auth/resend-otp | 403 "account verification is disabled for this deployment" |
 
 _No client-side detector: Registration is a full-page auth flow rather than an InvokeLLM/ExtractDataFromUploadedFile call site; a marker-based client detector would find nothing meaningful to count. The server-gate table above is the complete blast-radius record for this flag._
+
+### Core V1 isolated sandbox routes (`CORE_V1_SANDBOX_ENABLED`)
+
+Controls explicit exposure of the isolated, admin-only AssessSuite Core V1 sandbox route family. It does not authorise production activation, provider egress, patient-data testing or live deployment.
+
+**When off:** The /api/core/v1/* route family is not exposed and returns the ordinary not-found response. Existing production workflows and user-visible clinical functions are unchanged.
+
+**Server gates:**
+
+| File | Route | Effect when off |
+|---|---|---|
+| `server/index.mjs` | ALL /api/core/v1/* | Core V1 routes remain unmounted or return 404 CORE_NOT_FOUND; production additionally hard-disables sandbox exposure in server/index.mjs even if another configuration source is malformed. |
+
+_No client-side detector: This is a server route-exposure gate with no direct browser call-site marker; the route family is hidden when off._
+
+**Reported to the browser via:** Not published to the browser; enforced at server startup and recorded in the generated operator capability manifest.
+
+**Caveats:**
+
+- The flag permits only isolated sandbox route exposure. Core capability-state, tenant, review, source-lineage and production hard-disable controls remain independently mandatory.
 
 ### Referral document extraction (`DOCUMENT_EXTRACTION_ENABLED`)
 
@@ -78,11 +98,11 @@ Additional fail-closed gate for referral documents whose subject is under 13 or 
 
 _No client-side detector: Same reasoning as DOCUMENT_EXTRACTION_ENABLED: no InvokeLLM/ExtractDataFromUploadedFile-shaped client surface exists to detect; the gate is entirely server-side._
 
-### Legacy general clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED`)
+### Legacy generic clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED`)
 
-The single switch behind every non-referral AI-assisted drafting action across the product: SOAP note assist, treatment protocols, nutrition advice, medication alerts, assessment recommendations, assessment audit, and the whole report suite (GP summary, DVA, private health, Form 32, custom reports).
+A contained legacy switch behind four remaining non-referral generic AI drafting surfaces: SOAP note assist, nutrition advice, medication alerts and assessment-audit draft generation. Core V1 assessment discovery, governed treatment-protocol lookup, and report composition do not use this switch.
 
-**When off:** None of those AI-assisted actions can run; the exact user-visible effect (a disabled and labelled control, a labelled non-AI fallback, or — on the report surfaces not yet migrated to the capability hook — a plain error message) differs by surface, see the client-surfaces table.
+**When off:** The remaining generic AI drafting actions cannot run. Every reachable control is disabled and labelled before it can invoke the endpoint. Core V1 deterministic assessment discovery, governed catalogue lookup, and draft-only report composition remain available independently.
 
 **Server gates:**
 
@@ -91,25 +111,14 @@ The single switch behind every non-referral AI-assisted drafting action across t
 | `server/integrations.mjs` | POST /integration-endpoints/Core/InvokeLLM | 503 ai_capability_disabled "General AI generation is disabled on this server." |
 | `server/capabilities.mjs` | GET /api/apps/public/prod/public-settings/by-id/:appId (publication of the enforced posture) | public_settings.capabilities.general_clinical_llm is published as { available: false, reason: "switched_off" }, which is what lets each client surface disable and label its control instead of failing when pressed. |
 
-**Client surfaces (32 call site(s) across 15 file(s)):**
+**Client surfaces (6 call site(s) across 4 file(s)):**
 
 | File | Call sites | What the clinic sees | Detail |
 |---|---|---|---|
 | `src/components/calendar/SOAPNoteModal.jsx` | 2 | the control stays visible but is disabled and labelled as unavailable | The AI drafting assist inside a SOAP note is disabled and labelled as unavailable; the clinician writes the note unaided and sees no error. |
-| `src/components/client/AssessmentRecommendations.jsx` | 1 | a non-AI substitute runs and is labelled as such | The panel falls back to catalogue keyword matching, but it is badged "Rule-based" and carries an explanation, so the substitution is stated rather than silent. |
 | `src/components/client/MedicationAlerts.jsx` | 1 | the control stays visible but is disabled and labelled as unavailable | The card no longer attempts the AI considerations and says AI writing assistance is unavailable; the authoritative openFDA and RxNorm label data still renders. |
 | `src/components/client/NutritionPlanCreator.jsx` | 1 | the control stays visible but is disabled and labelled as unavailable | The control that drafts nutrition plan advice is disabled and labelled as unavailable; none of the three advice fields populate and no error is shown. |
-| `src/components/reports/CustomReportGenerator.jsx` | 2 | an error message where the text should be | Generating a custom report section fails with an error message where the drafted text should appear. |
-| `src/components/reports/DVAPatientCarePlan.jsx` | 4 | an error message where the text should be | Generating any section of the DVA care plan report fails with an error message where the drafted text should appear. |
-| `src/components/reports/Form32Generator.jsx` | 1 | an error message where the text should be | Generating the Form 32 report fails with an error message where the drafted text should appear. |
-| `src/components/reports/GPSummary.jsx` | 4 | an error message where the text should be | Generating any section of the GP summary report fails with an error message where the drafted text should appear. |
-| `src/components/reports/PDFFormFiller.jsx` | 2 | the feature is unreachable | No user-visible effect: this tree is orphaned/unreachable legacy code, flagged in the 21 July 2026 change for a human removal decision that has not yet been made. |
-| `src/components/reports/PrivateHealthInitialAssessment.jsx` | 3 | an error message where the text should be | Generating any section of the private health initial assessment report fails with an error message where the drafted text should appear. |
-| `src/components/reports/PrivateHealthProgressReport.jsx` | 4 | an error message where the text should be | Generating any section of the private health progress report fails with an error message where the drafted text should appear. |
-| `src/components/reports/wizard-steps/SectionEditor.jsx` | 3 | the control stays visible but is disabled and labelled as unavailable | Generate, Regenerate and Tidy stay visible on every report wizard section but are disabled and labelled as unavailable, rather than failing when pressed. |
 | `src/pages/AssessmentAudit.jsx` | 2 | the control stays visible but is disabled and labelled as unavailable | The controls that draft the AI-authored contraindications, scoring and instructions text are disabled and labelled as unavailable. |
-| `src/pages/ClientConditions.jsx` | 1 | the control stays visible but is disabled and labelled as unavailable | Condition-based assessment suggestions are disabled and labelled as unavailable; a failed attempt reports its error state instead of rendering an empty panel. |
-| `src/pages/TreatmentProtocols.jsx` | 1 | the control stays visible but is disabled and labelled as unavailable | Generating a custom (non-catalogue) treatment protocol is disabled and labelled as unavailable; the reviewed catalogue lookup is unaffected and remains available. |
 
 **Reported to the browser via:** GET /api/apps/public/prod/public-settings/by-id/:appId → public_settings.capabilities.general_clinical_llm (tri-state: available, switched_off, unconfigured)
 
@@ -218,5 +227,6 @@ _No client-side detector: This posture governs a scheduled server-side cleanup j
 
 ## Change history
 
+- [`20260808-general-clinical-llm-core-v1-containment.md`](notices/20260808-general-clinical-llm-core-v1-containment.md)
 - [`20260728-general-clinical-llm-restored.md`](notices/20260728-general-clinical-llm-restored.md)
 - [`20260721-general-clinical-llm-disabled.md`](notices/20260721-general-clinical-llm-disabled.md)

@@ -49,11 +49,7 @@ function extractArrowBody(src, marker) {
 }
 
 const CONSUMER_FILES = [
-  'src/pages/TreatmentProtocols.jsx',
   'src/components/client/MedicationAlerts.jsx',
-  'src/components/client/AssessmentRecommendations.jsx',
-  'src/pages/ClientConditions.jsx',
-  'src/components/reports/wizard-steps/SectionEditor.jsx',
   'src/components/client/NutritionPlanCreator.jsx',
   'src/components/calendar/SOAPNoteModal.jsx',
   'src/pages/AssessmentAudit.jsx',
@@ -96,32 +92,52 @@ test('H04 the V2 fix — MedicationAlerts no longer gates non-AI content behind 
   assert.match(guard[1], /!isLoading/, 'renderDetails(false) must still be gated on !isLoading');
 });
 
-test('H05 AssessmentRecommendations honesty', () => {
+test('H05 AssessmentRecommendations uses one truthful deterministic discovery path', () => {
   const src = readSrc('src/components/client/AssessmentRecommendations.jsx');
-  assert.match(src, /source === 'ai'/);
-  assert.match(src, /AI_COPY\.ruleBasedBadge/);
-  assert.doesNotMatch(src, /AI-Suggested Assessments/);
+  const discoverySrc = readSrc('src/lib/clinical/assessmentDiscovery.js');
 
-  // Scoped, semantic check: brace-match the JSX expression that renders
-  // <AIDisclosureNote and assert both its guarding conditions are present in
-  // that expression, regardless of operand order or added whitespace.
-  const disclosure = /\{([^{}]*?<AIDisclosureNote)/.exec(src);
-  assert.ok(disclosure, 'AssessmentRecommendations.jsx must render <AIDisclosureNote from a JSX expression');
-  assert.match(disclosure[1], /source === 'ai'/, 'AIDisclosureNote must be gated on source === \'ai\'');
-  assert.match(disclosure[1], /recommendations\.length > 0/, 'AIDisclosureNote must be gated on recommendations.length > 0');
+  assert.match(src, /Catalogue-ranked/);
+  assert.match(src, /Deterministic matches/);
+  assert.match(src, /They are not AI-generated/);
+  assert.match(src, /assessmentDiscoveryStatusMessage\(discovery\.status\)/);
+  assert.equal((src.match(/discoverAssessments\(/g) || []).length, 1);
+  assert.doesNotMatch(src, /InvokeLLM|useAiCapability|fallbackToBasicMatching|AI-assisted/);
+
+  assert.match(discoverySrc, /NO_MATCHES: 'no_matches'/);
+  assert.match(discoverySrc, /CATALOGUE_UNAVAILABLE: 'catalogue_unavailable'/);
+  assert.match(discoverySrc, /UNSUPPORTED_CATALOGUE: 'unsupported_catalogue'/);
+  assert.match(discoverySrc, /case ASSESSMENT_DISCOVERY_STATUS\.NO_MATCHES/);
+  assert.match(discoverySrc, /case ASSESSMENT_DISCOVERY_STATUS\.CATALOGUE_UNAVAILABLE/);
+});
+
+test('H05b TreatmentProtocols is one bounded catalogue-only path, not an AI surface', () => {
+  const src = stripComments(readSrc('src/pages/TreatmentProtocols.jsx'));
+  const importCount = (src.match(/from\s+["']@\/lib\/clinical\/protocol-assistance\/index\.js["']/g) || []).length;
+  assert.equal(importCount, 1, 'the page must import exactly one governed protocol-assistance entry point');
+  assert.match(src, /searchProtocolCatalogue/);
+  assert.match(src, /auditProtocolCatalogue/);
+  assert.match(src, /isProtocolAvailableTo/);
+  assert.doesNotMatch(
+    src,
+    /InvokeLLM|searchEvidence|verifyReferences|useAiCapability|ImportToSOAPModal|selectedClient|client_id|patient_id|patientRecord/,
+    'protocol browsing must expose neither generation/evidence calls nor patient context',
+  );
+
+  const handler = extractArrowBody(src, 'const runProtocolSearch');
+  assert.equal((handler.match(/searchProtocolCatalogue\(/g) || []).length, 1);
+  assert.match(handler, /normaliseProtocolResponse\(condition\.protocol\)/);
+  assert.match(handler, /!reviewed\.ok\s*\|\|\s*reviewed\.degraded/);
+  assert.match(handler, /PROTOCOL_SEARCH_STATE\.CATALOGUE_BLOCKED/);
+
+  // Enter + button + governed catalogue-card/autocomplete path.
+  assert.equal((src.match(/runProtocolSearch\(/g) || []).length, 3);
+  for (const state of ['MATCHES', 'NO_MATCH', 'UNSUPPORTED', 'INVALID_QUERY', 'CATALOGUE_BLOCKED']) {
+    assert.match(src, new RegExp(`PROTOCOL_SEARCH_STATE\\.${state}`), `missing rendered ${state} state`);
+  }
 });
 
 test('H06 affordance discipline — no surface hides its AI button', () => {
-  const protocolsSrc = readSrc('src/pages/TreatmentProtocols.jsx');
-  // Scoped, semantic check: find the disabled= expression that references
-  // !ai.canTrigger and assert isLoading is gated in that SAME expression,
-  // rather than pinning the exact operand order/spacing.
-  const disabledExpr = /disabled=\{([^{}]*!ai\.canTrigger[^{}]*)\}/.exec(protocolsSrc);
-  assert.ok(disabledExpr, 'TreatmentProtocols.jsx must gate its AI action with a disabled= expression referencing !ai.canTrigger');
-  assert.match(disabledExpr[1], /isLoading/, 'the same disabled= expression must also gate on isLoading');
-
   const classB = [
-    'src/components/reports/wizard-steps/SectionEditor.jsx',
     'src/components/client/NutritionPlanCreator.jsx',
     'src/components/calendar/SOAPNoteModal.jsx',
     'src/pages/AssessmentAudit.jsx',
@@ -139,8 +155,6 @@ test('H06 affordance discipline — no surface hides its AI button', () => {
 test('H07 no call against a withdrawn capability', () => {
   for (const file of [
     'src/components/client/MedicationAlerts.jsx',
-    'src/components/client/AssessmentRecommendations.jsx',
-    'src/pages/ClientConditions.jsx',
   ]) {
     // Comments stripped first, so a doc comment mentioning ai.canTrigger (or
     // a useEffect dependency-array entry, which is not a comment but also
@@ -156,10 +170,15 @@ test('H07 no call against a withdrawn capability', () => {
   }
 });
 
-test('H08 ClientConditions never silently empty', () => {
+test('H08 ClientConditions contains CRUD only; canonical suggestions live on ClientProfile', () => {
   const src = readSrc('src/pages/ClientConditions.jsx');
-  assert.match(src, /suggestionState/);
-  assert.doesNotMatch(src, /catch \(error\) \{\s*console\.error\("Error generating suggestions:", error\);\s*\}/);
+  assert.match(src, /ClientCondition\.create/);
+  assert.match(src, /ClientCondition\.update/);
+  assert.match(src, /ClientCondition\.delete/);
+  assert.doesNotMatch(src, /InvokeLLM|useAiCapability|suggestionState|generateAssessmentSuggestions|Assessment Suggestions/);
+
+  const profile = readSrc('src/pages/ClientProfile.jsx');
+  assert.match(profile, /AssessmentRecommendations/);
 });
 
 test('H09 operator panel mounted', () => {

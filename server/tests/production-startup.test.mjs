@@ -7,10 +7,12 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
+  DEFAULT_APP_DB_PATH,
   isDatabaseOverrideAllowed,
   openDatabase,
   PARITY_ASSURANCE_DB_PATH,
 } from '../db.mjs';
+import { CORE_V1_ISOLATED_DATABASE_ACK } from '../core/runtimeGate.mjs';
 import {
   PARITY_ASSURANCE_UPLOADS_DIR,
   PRODUCTION_APP_URL,
@@ -92,9 +94,16 @@ test('production bootstrap is fail-closed and invokes only the catalogue seeder'
   const db = { close: () => calls.push('close') };
   runProductionBootstrap({
     environment: { ...productionAppEnvironment },
-    openDatabaseFn: () => {
+    openDatabaseFn: ({ environment }) => {
+      assert.deepEqual(environment, productionAppEnvironment);
       calls.push('open');
-      return { db, entityNames: new Set(['Assessment']) };
+      return {
+        db,
+        entityNames: new Set(['Assessment']),
+        coreV1SandboxEnabled: false,
+        coreV1Schema: null,
+        coreV1SchemaPresent: false,
+      };
     },
     catalogueSeedFn: (opened) => {
       assert.equal(opened.db, db);
@@ -116,6 +125,38 @@ test('production bootstrap is fail-closed and invokes only the catalogue seeder'
   );
 });
 
+test('production bootstrap requires explicit proof of a Core-schema-neutral open', () => {
+  for (const [label, posture] of [
+    ['enabled', {
+      coreV1SandboxEnabled: true,
+      coreV1Schema: null,
+      coreV1SchemaPresent: false,
+    }],
+    ['schema-present', {
+      coreV1SandboxEnabled: false,
+      coreV1Schema: null,
+      coreV1SchemaPresent: true,
+    }],
+    ['unproved', {}],
+  ]) {
+    const calls = [];
+    assert.throws(
+      () => runProductionBootstrap({
+        environment: { ...productionAppEnvironment },
+        openDatabaseFn: () => ({
+          db: { close: () => calls.push('close') },
+          entityNames: new Set(),
+          ...posture,
+        }),
+        catalogueSeedFn: () => calls.push('catalogue'),
+      }),
+      /Core-schema-neutral/,
+      label,
+    );
+    assert.deepEqual(calls, ['close'], `${label} must close without catalogue writes`);
+  }
+});
+
 test('production parity assurance requires the exact no-egress and isolation posture before database access', () => {
   const safeParityEnvironment = {
     ...productionAppEnvironment,
@@ -123,6 +164,7 @@ test('production parity assurance requires the exact no-egress and isolation pos
     OUTBOUND_EMAIL_ENABLED: '0',
     OUTBOUND_SMS_ENABLED: '0',
     PAYMENTS_ENABLED: '0',
+    CORE_V1_SANDBOX_ENABLED: '0',
     DOCUMENT_EXTRACTION_ENABLED: '1',
     DOCUMENT_EXTRACTION_UNDER_13_ENABLED: '0',
     GENERAL_CLINICAL_LLM_ENABLED: '0',
@@ -140,7 +182,13 @@ test('production parity assurance requires the exact no-egress and isolation pos
     environment: safeParityEnvironment,
     openDatabaseFn: () => {
       successCalls.push('open');
-      return { db: { close: () => successCalls.push('close') }, entityNames: new Set() };
+      return {
+        db: { close: () => successCalls.push('close') },
+        entityNames: new Set(),
+        coreV1SandboxEnabled: false,
+        coreV1Schema: null,
+        coreV1SchemaPresent: false,
+      };
     },
     catalogueSeedFn: () => successCalls.push('catalogue'),
   });
@@ -150,6 +198,7 @@ test('production parity assurance requires the exact no-egress and isolation pos
     OUTBOUND_EMAIL_ENABLED: '1',
     OUTBOUND_SMS_ENABLED: '1',
     PAYMENTS_ENABLED: '1',
+    CORE_V1_SANDBOX_ENABLED: '1',
     DOCUMENT_EXTRACTION_ENABLED: '0',
     DOCUMENT_EXTRACTION_UNDER_13_ENABLED: '1',
     GENERAL_CLINICAL_LLM_ENABLED: '1',
@@ -205,12 +254,17 @@ test('production bootstrap refuses an unproved or stale application origin befor
 });
 
 test('database override policy permits only the existing test harness or exact production parity database', () => {
-  const testPath = 'C:/synthetic/isolated-gate.db';
-  assert.equal(isDatabaseOverrideAllowed({
-    NODE_ENV: 'test',
-    ASSESSSUITE_DB_PATH_ACK: 'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_NON_PRODUCTION_GATE_DATABASE',
-  }, testPath), true);
-  assert.equal(isDatabaseOverrideAllowed({ NODE_ENV: 'test' }, testPath), false);
+  const isolatedTestRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'assesssuite-db-override-'));
+  const testPath = path.join(isolatedTestRoot, 'isolated-gate.db');
+  try {
+    assert.equal(isDatabaseOverrideAllowed({
+      NODE_ENV: 'test',
+      ASSESSSUITE_DB_PATH_ACK: CORE_V1_ISOLATED_DATABASE_ACK,
+    }, testPath), true);
+    assert.equal(isDatabaseOverrideAllowed({ NODE_ENV: 'test' }, testPath), false);
+  } finally {
+    fs.rmSync(isolatedTestRoot, { recursive: true, force: true });
+  }
 
   assert.equal(isDatabaseOverrideAllowed({
     NODE_ENV: 'production',
@@ -242,6 +296,134 @@ test('database override policy permits only the existing test harness or exact p
   } finally {
     restoreEnvironment(previous);
     fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('direct production database startup cannot combine SELFTEST with the parity store', () => {
+  assert.throws(
+    () => openDatabase({
+      environment: {
+        NODE_ENV: 'production',
+        SELFTEST: '1',
+        PARITY_ASSURANCE_MODE: '1',
+        ASSESSSUITE_DB_PATH: PARITY_ASSURANCE_DB_PATH,
+      },
+    }),
+    /SELFTEST is forbidden when NODE_ENV=production/,
+  );
+});
+
+test('ordinary default and production database opens never install Core schema', () => {
+  for (const [label, environment] of [
+    ['test-default', { NODE_ENV: 'test', CORE_V1_SANDBOX_ENABLED: '0' }],
+    ['production-default', { NODE_ENV: 'production', CORE_V1_SANDBOX_ENABLED: '0' }],
+  ]) {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), `assesssuite-${label}-`));
+    let db;
+    try {
+      const opened = openDatabase({ environment, dataDirectory: tempDir });
+      db = opened.db;
+      assert.equal(opened.coreV1SandboxEnabled, false);
+      assert.equal(opened.coreV1Schema, null);
+      assert.equal(opened.coreV1SchemaPresent, false);
+      const coreObjects = db.prepare(`
+        SELECT name
+        FROM sqlite_master
+        WHERE name GLOB 'core_*'
+        ORDER BY name
+      `).all();
+      assert.deepEqual(coreObjects, [], `${label} must remain Core-schema neutral`);
+    } finally {
+      if (db) db.close();
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  }
+});
+
+test('production bootstrap refuses a database carrying a pre-existing Core schema', () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'assesssuite-stale-core-schema-'));
+  const dbPath = path.join(tempDir, 'app.db');
+  let sandboxDb;
+  try {
+    const sandbox = openDatabase({
+      environment: {
+        NODE_ENV: 'test',
+        ASSESSSUITE_DB_PATH: dbPath,
+        ASSESSSUITE_DB_PATH_ACK: CORE_V1_ISOLATED_DATABASE_ACK,
+        ASSESSSUITE_BIND_HOST: '127.0.0.1',
+        ADMIN_EMAIL: 'stale-core-admin@isolated.test',
+        ADMIN_PASSWORD: 'Synthetic-Stale-Core-Password-1!',
+        CORE_V1_SANDBOX_ENABLED: '1',
+      },
+    });
+    sandboxDb = sandbox.db;
+    assert.equal(sandbox.coreV1SchemaPresent, true);
+    sandboxDb.close();
+    sandboxDb = null;
+
+    let catalogueCalled = false;
+    assert.throws(
+      () => runProductionBootstrap({
+        environment: { ...productionAppEnvironment, CORE_V1_SANDBOX_ENABLED: '0' },
+        openDatabaseFn: ({ environment }) => openDatabase({ environment, dataDirectory: tempDir }),
+        catalogueSeedFn: () => { catalogueCalled = true; },
+      }),
+      /Core-schema-neutral/,
+    );
+    assert.equal(catalogueCalled, false);
+  } finally {
+    if (sandboxDb) sandboxDb.close();
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+});
+
+test('SELFTEST cannot delete a default or temporary-prefix-collision database', () => {
+  const beforeDefault = fs.existsSync(DEFAULT_APP_DB_PATH)
+    ? (() => {
+        const stat = fs.statSync(DEFAULT_APP_DB_PATH);
+        return { exists: true, size: stat.size, mtimeMs: stat.mtimeMs };
+      })()
+    : { exists: false };
+
+  const baseEnvironment = {
+    NODE_ENV: 'test',
+    SELFTEST: '1',
+    ASSESSSUITE_DB_PATH_ACK: CORE_V1_ISOLATED_DATABASE_ACK,
+    CORE_V1_SANDBOX_ENABLED: '1',
+  };
+  assert.throws(
+    () => openDatabase({
+      environment: { ...baseEnvironment, ASSESSSUITE_DB_PATH: DEFAULT_APP_DB_PATH },
+    }),
+    /canonical temporary test directory/,
+  );
+  const afterDefault = fs.existsSync(DEFAULT_APP_DB_PATH)
+    ? (() => {
+        const stat = fs.statSync(DEFAULT_APP_DB_PATH);
+        return { exists: true, size: stat.size, mtimeMs: stat.mtimeMs };
+      })()
+    : { exists: false };
+  assert.deepEqual(afterDefault, beforeDefault, 'the default app database must be untouched');
+
+  const fixtureRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'assesssuite-prefix-collision-db-'));
+  const canonicalTemp = path.join(fixtureRoot, 'Temp');
+  const collisionRoot = path.join(fixtureRoot, 'Temp-collision');
+  fs.mkdirSync(canonicalTemp, { recursive: true });
+  fs.mkdirSync(collisionRoot, { recursive: true });
+  const collisionDb = path.join(collisionRoot, 'must-survive.db');
+  const sentinel = Buffer.from('NOT_A_DATABASE_MUST_SURVIVE');
+  fs.writeFileSync(collisionDb, sentinel);
+  try {
+    assert.throws(
+      () => openDatabase({
+        environment: { ...baseEnvironment, ASSESSSUITE_DB_PATH: collisionDb },
+        temporaryDirectory: canonicalTemp,
+      }),
+      /canonical temporary directory/,
+    );
+    assert.deepEqual(fs.readFileSync(collisionDb), sentinel);
+  } finally {
+    fs.rmSync(fixtureRoot, { recursive: true, force: true });
   }
 });
 

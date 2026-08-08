@@ -7,8 +7,18 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
 
+import { installCoreSchema } from './core/schema.mjs';
+import {
+  assertCoreV1SandboxRuntime,
+  isIsolatedTestDatabasePath,
+  resolveIsolatedTestDatabasePath,
+} from './core/runtimeGate.mjs';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const dataDir = path.join(__dirname, 'data');
+
+export const DEFAULT_APP_DB_PATH = path.join(dataDir, 'app.db');
+export const DEFAULT_SELFTEST_DB_PATH = path.join(dataDir, 'selftest.db');
 
 export const PARITY_ASSURANCE_DB_PATH = '/app/server/data/assesssuite-parity.db';
 export const SESSION_ABSOLUTE_TTL_MS = 8 * 60 * 60 * 1000;
@@ -299,10 +309,7 @@ function offsetCalendarDay(day, offset) {
  */
 export function isDatabaseOverrideAllowed(environment = process.env, override = environment.ASSESSSUITE_DB_PATH) {
   if (!override) return true;
-  const isolatedGateHarness =
-    environment.NODE_ENV === 'test' &&
-    environment.ASSESSSUITE_DB_PATH_ACK ===
-      'I_ACKNOWLEDGE_THIS_IS_AN_ISOLATED_NON_PRODUCTION_GATE_DATABASE';
+  const isolatedGateHarness = isIsolatedTestDatabasePath(environment, override);
   const isolatedProductionParity =
     environment.NODE_ENV === 'production' &&
     environment.PARITY_ASSURANCE_MODE === '1' &&
@@ -365,15 +372,34 @@ export function loadOrgScopedEntities() {
  * table required by the contract exists. SELFTEST=1 uses a dedicated,
  * freshly-recreated database file so self-test runs never pollute dev data.
  */
-export function openDatabase() {
-  const isSelftest = process.env.SELFTEST === '1';
-  const override = process.env.ASSESSSUITE_DB_PATH;
-  if (!isDatabaseOverrideAllowed(process.env, override)) {
+export function openDatabase({
+  environment = process.env,
+  dataDirectory = dataDir,
+  temporaryDirectory = undefined,
+} = {}) {
+  const isSelftest = environment.SELFTEST === '1';
+  if (isSelftest && environment.NODE_ENV === 'production') {
+    throw new Error('SELFTEST is forbidden when NODE_ENV=production.');
+  }
+  const override = environment.ASSESSSUITE_DB_PATH;
+  if (!isDatabaseOverrideAllowed(environment, override)) {
     throw new Error(
-      'ASSESSSUITE_DB_PATH is permitted only under the explicit isolated gate harness or exact production parity path',
+      'ASSESSSUITE_DB_PATH is permitted only inside the canonical temporary test directory or at the exact production parity path',
     );
   }
-  const dbFile = override ? path.resolve(override) : path.join(dataDir, isSelftest ? 'selftest.db' : 'app.db');
+  // A requested Core sandbox is an assertion. Refuse a bad posture before
+  // mkdir, SELFTEST cleanup, SQLite open or any legacy/Core migration.
+  const coreV1SandboxEnabled = assertCoreV1SandboxRuntime(
+    environment,
+    temporaryDirectory === undefined ? undefined : { temporaryDirectory },
+  );
+  const resolvedDataDirectory = path.resolve(dataDirectory);
+  const canonicalTestOverride = override
+    ? resolveIsolatedTestDatabasePath(environment, override)
+    : null;
+  const dbFile = override
+    ? (canonicalTestOverride || path.resolve(override))
+    : path.join(resolvedDataDirectory, isSelftest ? 'selftest.db' : 'app.db');
   if (override && path.extname(dbFile).toLowerCase() !== '.db') {
     throw new Error('ASSESSSUITE_DB_PATH must identify an exact .db file');
   }
@@ -620,7 +646,23 @@ export function openDatabase() {
     `);
   }
 
-  return { db, entityNames: new Set(entityNames) };
+  // Core V1 is additive but deliberately absent from every ordinary database.
+  // Installation occurs only after the strict, canonical temporary-database
+  // runtime assertion above has succeeded.
+  const coreV1Schema = coreV1SandboxEnabled ? installCoreSchema(db) : null;
+  const coreV1SchemaPresent = Number(db.prepare(`
+    SELECT COUNT(*) AS count
+    FROM sqlite_master
+    WHERE name GLOB 'core_*'
+  `).get()?.count || 0) > 0;
+
+  return {
+    db,
+    entityNames: new Set(entityNames),
+    coreV1SandboxEnabled,
+    coreV1Schema,
+    coreV1SchemaPresent,
+  };
 }
 
 /**
@@ -631,11 +673,16 @@ export function openDatabase() {
 function rowToRecord(row) {
   const payload = JSON.parse(row.data);
   return {
+    ...payload,
+    // SQLite columns are the authoritative record identity and lineage.
+    // Keeping them last prevents a malformed/imported JSON payload from
+    // shadowing the id or timestamps consumed by tenant and Core provenance
+    // checks. Normal repository writes already strip these keys; this also
+    // hardens older/directly imported rows.
     id: row.id,
     created_date: row.created_date,
     updated_date: row.updated_date,
     created_by: row.created_by,
-    ...payload,
   };
 }
 

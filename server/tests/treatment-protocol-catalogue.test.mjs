@@ -4,6 +4,14 @@ import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import {
+  createOrganizationForUser,
+  loginAdmin,
+  registerUser,
+  requestJson,
+  startTestServer,
+} from './support/server-harness.mjs';
+
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testsDir, '..', '..');
 const pageSource = fs.readFileSync(
@@ -11,52 +19,274 @@ const pageSource = fs.readFileSync(
   'utf8',
 );
 
-test('treatment-protocol search keeps reviewed rows and restores the grounded custom-condition fallback', () => {
+test('protocol assistance is catalogue-only and has no generative or patient-plan fallback', () => {
   assert.match(pageSource, /base44\.entities\.TreatmentProtocol\.list\(\)/);
-  assert.match(pageSource, /No reviewed treatment protocol matches/);
-  assert.match(pageSource, /exactCatalogueCondition/);
-  assert.match(pageSource, /!isCatalogueLoading && !catalogueError && customCondition/);
-  assert.match(pageSource, /Generate AI-assisted protocol for/);
-  assert.match(pageSource, /base44\.functions\.invoke\("searchEvidence"/);
-  assert.match(pageSource, /base44\.integrations\.Core\.InvokeLLM/);
-  assert.match(pageSource, /response_json_schema: PROTOCOL_RESPONSE_SCHEMA/);
-  assert.match(pageSource, /validateReferences\(groundedReferences\)/);
-  assert.ok(
-    pageSource.indexOf('base44.functions.invoke("searchEvidence"')
-      < pageSource.indexOf('base44.integrations.Core.InvokeLLM'),
-    'verified evidence retrieval must precede custom protocol generation',
+  assert.match(pageSource, /searchProtocolCatalogue\(\{/);
+  assert.match(pageSource, /auditProtocolCatalogue\(/);
+  assert.match(pageSource, /isProtocolAvailableTo\(entry, catalogueAccess\.context\)/);
+  assert.match(pageSource, /deriveAuthenticatedProtocolSearchContext\(authenticatedUser\)/);
+  assert.match(pageSource, /normaliseProfession\(user\?\.profession\)/);
+  assert.match(pageSource, /No protocol was generated\./);
+  assert.doesNotMatch(
+    pageSource,
+    /InvokeLLM|searchEvidence|verifyReferences|useAiCapability|ImportToSOAPModal|PROTOCOL_PROVENANCE|buildProtocolPrompt|PROTOCOL_RESPONSE_SCHEMA/,
   );
   assert.doesNotMatch(pageSource, /TreatmentProtocol\.filter/);
 });
 
-test('reviewed catalogue preparation is null-safe, deduplicated and sorted before selection', () => {
-  assert.match(pageSource, /for \(const row of Array\.isArray\(rows\) \? rows : \[\]\)/);
-  assert.match(pageSource, /typeof row\?\.condition_name === "string"/);
-  assert.match(pageSource, /uniqueByName\.has\(key\)/);
-  assert.match(pageSource, /\[\.\.\.uniqueByName\.values\(\)\]\.sort/);
-  assert.match(pageSource, /condition_name\.localeCompare/);
-  assert.match(pageSource, /const reviewedProtocol = condition\?\.protocol/);
-  assert.match(pageSource, /if \(reviewedProtocol\)/);
-  assert.match(pageSource, /onClick=\{\(\) => loadProtocol\(condition\)\}/);
-  // WP3 hardening: a reviewed catalogue row that does not fit the shared
-  // render contract (src/lib/protocolResponse.js) falls back to the raw row
-  // rather than the normalised one, so a malformed reviewed row never
-  // regresses to nothing being shown at all.
-  assert.match(pageSource, /setProtocolData\(reviewed\.ok \? reviewed\.protocol : protocol\)/);
-  assert.match(pageSource, /<AIDisclosureNote \/>/);
-  assert.match(pageSource, /<ImportToSOAPModal/);
+test('catalogue preparation preserves every row for governance audit and sorts before discovery', () => {
+  assert.match(pageSource, /Array\.isArray\(rows\)/);
+  assert.match(pageSource, /Array\.isArray\(rows\) \? \[\.\.\.rows\] : \[\]/);
+  assert.match(pageSource, /\.sort\(\(left, right\) =>/);
+  assert.match(pageSource, /condition_name[\s\S]*localeCompare/);
+  assert.doesNotMatch(pageSource, /uniqueByName|dedup/i);
+  assert.match(pageSource, /blockedCatalogueCount/);
+  assert.match(pageSource, /They remain visible in this count but cannot be searched or rendered\./);
 });
 
-// WP1: what is written into the clinical record must carry the same
-// provenance the clinician was shown. The import provenance is therefore
-// driven by the SAME predicate as the on-screen "AI-assisted draft" badge
-// (`selectedCondition?.protocol`), so the two can never disagree.
-test('protocol import provenance is driven by the same predicate as the on-screen badge', () => {
-  assert.match(pageSource, /import \{ PROTOCOL_PROVENANCE \} from "@\/lib\/clinical\/protocolImport";/);
+test('Enter, submit button and catalogue preset all route through one deterministic handler', () => {
+  assert.match(pageSource, /const runProtocolSearch = \(queryInput\) =>/);
+  assert.match(pageSource, /onKeyDown=[\s\S]*runProtocolSearch\(searchTerm\)/);
+  assert.match(pageSource, /onClick=\{\(\) => runProtocolSearch\(searchTerm\)\}/);
+  assert.match(pageSource, /onClick=\{\(\) => runProtocolSearch\(\{ name: condition\.name \}\)\}/);
+  assert.equal((pageSource.match(/searchProtocolCatalogue\(\{/g) || []).length, 1);
+});
+
+test('every deterministic outcome is rendered explicitly and malformed reviewed content fails closed', () => {
+  for (const state of ['MATCHES', 'NO_MATCH', 'UNSUPPORTED', 'INVALID_QUERY', 'CATALOGUE_BLOCKED']) {
+    assert.match(pageSource, new RegExp('PROTOCOL_SEARCH_STATE\\.' + state));
+  }
+  for (const label of ['Matches.', 'No match.', 'Unsupported.', 'Invalid search.', 'Catalogue blocked.']) {
+    assert.match(pageSource, new RegExp(label.replace('.', '\\.'), 'i'));
+  }
+  assert.match(pageSource, /!reviewed\.ok \|\| reviewed\.degraded/);
+  assert.match(pageSource, /matching_catalogue_entry_failed_render_contract/);
+  assert.doesNotMatch(pageSource, /setProtocolData\([^)]*\?[^)]*:[^)]*protocol/);
+});
+
+test('a displayed card carries its governance, rights and controlled-source record', () => {
+  assert.match(pageSource, /Governed catalogue card/);
+  assert.match(pageSource, /Independent review/);
+  assert.match(pageSource, /Management target:/);
+  assert.match(pageSource, /Controlled sources/);
+  assert.match(pageSource, /selectedCondition\?\.governance\?\.rights/);
+});
+
+async function setUserProfile(server, adminToken, user, overrides = {}) {
+  const result = await requestJson(server, `/api/apps/${server.appId}/entities/User/${user.id}`, {
+    method: 'PUT',
+    token: adminToken,
+    body: {
+      account_status: 'active',
+      country: 'australia',
+      profession: 'Exercise Physiologist',
+      qualifications: 'Synthetic accredited exercise physiology qualification',
+      registration_number: `SYNTH-${user.id}`,
+      ...overrides,
+    },
+  });
+  assert.equal(result.status, 200, result.text);
+}
+
+async function recordCurrentAcceptance(server, user, orgId) {
+  const result = await requestJson(
+    server,
+    `/api/apps/${server.appId}/integration-endpoints/Core/RecordLegalAcceptanceBundle`,
+    {
+      method: 'POST',
+      token: user.token,
+      body: { org_id: orgId, marketing_opt_in: false },
+    },
+  );
+  assert.equal(result.status, 200, result.text);
+}
+
+async function listProtocols(server, token, suffix = '') {
+  return requestJson(
+    server,
+    `/api/apps/${server.appId}/entities/TreatmentProtocol${suffix}`,
+    { token },
+  );
+}
+
+test('TreatmentProtocol reads fail closed for non-AEPs, admins, missing membership and missing legal acceptance', async () => {
+  const server = await startTestServer();
+  try {
+    const adminToken = await loginAdmin(server);
+
+    const adminRead = await listProtocols(server, adminToken);
+    assert.equal(adminRead.status, 403, adminRead.text);
+    assert.match(adminRead.body?.message || '', /credentialed Australian Exercise Physiologist/);
+
+    const nonAep = await registerUser(server, 'synthetic-protocol-non-aep@example.test');
+    await setUserProfile(server, adminToken, nonAep, { profession: 'Gym Management' });
+    const nonAepRead = await listProtocols(server, nonAep.token);
+    assert.equal(nonAepRead.status, 403, nonAepRead.text);
+
+    const noMembership = await registerUser(server, 'synthetic-protocol-no-membership@example.test');
+    await setUserProfile(server, adminToken, noMembership);
+    const noMembershipRead = await listProtocols(server, noMembership.token);
+    assert.equal(noMembershipRead.status, 403, noMembershipRead.text);
+    assert.match(noMembershipRead.body?.message || '', /primary-practice membership/);
+
+    const unaccepted = await registerUser(server, 'synthetic-protocol-unaccepted@example.test');
+    await setUserProfile(server, adminToken, unaccepted);
+    await createOrganizationForUser(server, adminToken, unaccepted);
+    const unacceptedRead = await listProtocols(server, unaccepted.token);
+    assert.equal(unacceptedRead.status, 403, unacceptedRead.text);
+    assert.match(unacceptedRead.body?.message || '', /current legal acceptance/);
+  } finally {
+    await server.stop();
+  }
+});
+
+test('foreign organisation input and another practice acceptance cannot widen protocol access', async () => {
+  const server = await startTestServer();
+  try {
+    const adminToken = await loginAdmin(server);
+    const user = await registerUser(server, 'synthetic-protocol-foreign-context@example.test');
+    await setUserProfile(server, adminToken, user);
+    await createOrganizationForUser(server, adminToken, user);
+
+    const secondaryOrg = await requestJson(server, `/api/apps/${server.appId}/entities/Organization`, {
+      method: 'POST',
+      token: adminToken,
+      body: { name: 'Synthetic secondary protocol practice' },
+    });
+    assert.equal(secondaryOrg.status, 200, secondaryOrg.text);
+    const secondaryMembership = await requestJson(
+      server,
+      `/api/apps/${server.appId}/entities/OrganizationMember`,
+      {
+        method: 'POST',
+        token: adminToken,
+        body: {
+          org_id: secondaryOrg.body.id,
+          user_email: user.email,
+          role: 'clinician',
+          is_primary: false,
+        },
+      },
+    );
+    assert.equal(secondaryMembership.status, 200, secondaryMembership.text);
+    await recordCurrentAcceptance(server, user, secondaryOrg.body.id);
+
+    const otherPracticeCannotSubstitute = await listProtocols(server, user.token);
+    assert.equal(otherPracticeCannotSubstitute.status, 403, otherPracticeCannotSubstitute.text);
+    assert.match(otherPracticeCannotSubstitute.body?.message || '', /current legal acceptance/);
+
+    const forgedQuery = encodeURIComponent(JSON.stringify({ org_id: secondaryOrg.body.id }));
+    const forged = await listProtocols(server, user.token, `?q=${forgedQuery}`);
+    assert.equal(forged.status, 403, forged.text);
+    assert.match(forged.body?.message || '', /server-derived/);
+  } finally {
+    await server.stop();
+  }
+});
+
+test('multi-practice protocol and Core context fail closed without one explicit primary membership', async () => {
+  const adminEmail = 'protocol-core-admin@isolated.test';
+  const adminPassword = 'Synthetic-Protocol-Core-Admin-1!';
+  const server = await startTestServer({
+    CORE_V1_SANDBOX_ENABLED: '1',
+    ADMIN_EMAIL: adminEmail,
+    ADMIN_PASSWORD: adminPassword,
+  });
+  try {
+    const adminLogin = await requestJson(server, `/api/apps/${server.appId}/auth/login`, {
+      method: 'POST',
+      body: { email: adminEmail, password: adminPassword },
+    });
+    assert.equal(adminLogin.status, 200, adminLogin.text);
+    const adminToken = adminLogin.body.access_token;
+    const user = await registerUser(server, 'synthetic-protocol-ambiguous-practice@example.test');
+    await setUserProfile(server, adminToken, user);
+
+    for (const name of ['Synthetic ambiguous practice A', 'Synthetic ambiguous practice B']) {
+      const organization = await requestJson(server, `/api/apps/${server.appId}/entities/Organization`, {
+        method: 'POST',
+        token: adminToken,
+        body: { name },
+      });
+      assert.equal(organization.status, 200, organization.text);
+      const membership = await requestJson(
+        server,
+        `/api/apps/${server.appId}/entities/OrganizationMember`,
+        {
+          method: 'POST',
+          token: adminToken,
+          body: {
+            org_id: organization.body.id,
+            user_email: user.email,
+            role: 'clinician',
+            is_primary: false,
+          },
+        },
+      );
+      assert.equal(membership.status, 200, membership.text);
+      const adminMembership = await requestJson(
+        server,
+        `/api/apps/${server.appId}/entities/OrganizationMember`,
+        {
+          method: 'POST',
+          token: adminToken,
+          body: {
+            org_id: organization.body.id,
+            user_email: adminEmail,
+            role: 'clinician',
+            is_primary: false,
+          },
+        },
+      );
+      assert.equal(adminMembership.status, 200, adminMembership.text);
+    }
+
+    const catalogue = await listProtocols(server, user.token);
+    assert.equal(catalogue.status, 403, catalogue.text);
+    assert.match(catalogue.body?.message || '', /primary-practice membership/);
+
+    const core = await requestJson(
+      server,
+      '/api/core/v1/protocol-assistance/search?q=Synthetic&limit=10',
+      { token: adminToken },
+    );
+    assert.equal(core.status, 403, core.text);
+    assert.equal(core.body?.error?.code, 'CORE_ORG_REQUIRED');
+  } finally {
+    await server.stop();
+  }
+});
+
+test('active credentialed AEP with primary membership and current acceptance can read the governed catalogue', async () => {
+  const server = await startTestServer();
+  try {
+    const adminToken = await loginAdmin(server);
+    const user = await registerUser(server, 'synthetic-protocol-eligible-aep@example.test');
+    await setUserProfile(server, adminToken, user);
+    const organization = await createOrganizationForUser(server, adminToken, user);
+    await recordCurrentAcceptance(server, user, organization.id);
+
+    const result = await listProtocols(server, user.token);
+    assert.equal(result.status, 200, result.text);
+    assert.ok(Array.isArray(result.body));
+  } finally {
+    await server.stop();
+  }
+});
+
+test('protocol UI fails closed with explicit unsupported and unavailable access states', () => {
+  assert.doesNotMatch(pageSource, /const PROTOCOL_SEARCH_CONTEXT/);
+  assert.match(pageSource, /data-protocol-access-state="unsupported"/);
+  assert.match(pageSource, /data-protocol-access-state="unavailable"/);
+  assert.match(pageSource, /Unsupported professional scope\./);
+  assert.match(pageSource, /active credentialed profile, current primary-practice membership and current legal acceptance/);
+  assert.match(pageSource, /Source metadata unavailable/);
   assert.match(
     pageSource,
-    /provenance=\{selectedCondition\?\.protocol \? PROTOCOL_PROVENANCE\.REVIEWED : PROTOCOL_PROVENANCE\.AI\}/,
+    /catalogueAccess\.state === PROTOCOL_CATALOGUE_ACCESS_STATE\.READY && !disclaimerDismissed/,
   );
-  // The badge predicate itself must stay the negation of the same expression.
-  assert.match(pageSource, /\{!selectedCondition\?\.protocol && \(/);
+  assert.match(
+    pageSource,
+    /disabled=\{isCatalogueLoading \|\| catalogueAccess\.state !== PROTOCOL_CATALOGUE_ACCESS_STATE\.READY\}/,
+  );
 });
