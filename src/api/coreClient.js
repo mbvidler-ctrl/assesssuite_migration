@@ -140,8 +140,8 @@ export async function fetchCoreAssurance({ orgId, limit = 25, signal, timeoutMs 
   url.searchParams.set("org_id", orgId.trim());
   url.searchParams.set("limit", String(safeLimit));
 
-  const token = window.localStorage.getItem("base44_access_token");
-  if (!token) {
+  const sessionValue = window.localStorage.getItem("base44_access_token");
+  if (!sessionValue) {
     throw new CoreApiError("Your session is unavailable. Sign in again.", {
       code: "CORE_SESSION_REQUIRED",
       status: 401,
@@ -158,7 +158,7 @@ export async function fetchCoreAssurance({ orgId, limit = 25, signal, timeoutMs 
       method: "GET",
       headers: {
         Accept: "application/json",
-        Authorization: `Bearer ${token}`,
+        Authorization: `Bearer ${sessionValue}`,
         "X-App-Id": appParams.appId,
       },
       credentials: "same-origin",

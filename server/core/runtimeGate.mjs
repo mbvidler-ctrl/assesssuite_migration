@@ -119,13 +119,12 @@ export function isCoreV1SandboxRuntimeEnabled(environment = process.env, options
   const adminPassword = typeof environment.ADMIN_PASSWORD === 'string'
     ? environment.ADMIN_PASSWORD
     : '';
-  const normalizedAdminPassword = adminPassword.trim();
   return capabilityEnabled('CORE_V1_SANDBOX_ENABLED', environment)
     && CORE_V1_LOOPBACK_BIND_HOSTS.includes(environment.ASSESSSUITE_BIND_HOST)
     && adminEmail !== ''
     && adminEmail !== CORE_V1_DEFAULT_ADMIN_EMAIL
-    && normalizedAdminPassword.length >= 16
-    && normalizedAdminPassword !== CORE_V1_DEFAULT_ADMIN_PASSWORD
+    && adminPassword.trim().length >= 16
+    && adminPassword.trim() !== CORE_V1_DEFAULT_ADMIN_PASSWORD
     && isIsolatedTestDatabasePath(
       environment,
       environment.ASSESSSUITE_DB_PATH,

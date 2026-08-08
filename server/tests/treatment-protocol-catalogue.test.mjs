@@ -72,10 +72,10 @@ test('a displayed card carries its governance, rights and controlled-source reco
   assert.match(pageSource, /selectedCondition\?\.governance\?\.rights/);
 });
 
-async function setUserProfile(server, adminToken, user, overrides = {}) {
+async function setUserProfile(server, adminSession, user, overrides = {}) {
   const result = await requestJson(server, `/api/apps/${server.appId}/entities/User/${user.id}`, {
     method: 'PUT',
-    token: adminToken,
+    token: adminSession,
     body: {
       account_status: 'active',
       country: 'australia',
@@ -112,26 +112,26 @@ async function listProtocols(server, token, suffix = '') {
 test('TreatmentProtocol reads fail closed for non-AEPs, admins, missing membership and missing legal acceptance', async () => {
   const server = await startTestServer();
   try {
-    const adminToken = await loginAdmin(server);
+    const adminSession = await loginAdmin(server);
 
-    const adminRead = await listProtocols(server, adminToken);
+    const adminRead = await listProtocols(server, adminSession);
     assert.equal(adminRead.status, 403, adminRead.text);
     assert.match(adminRead.body?.message || '', /credentialed Australian Exercise Physiologist/);
 
     const nonAep = await registerUser(server, 'synthetic-protocol-non-aep@example.test');
-    await setUserProfile(server, adminToken, nonAep, { profession: 'Gym Management' });
+    await setUserProfile(server, adminSession, nonAep, { profession: 'Gym Management' });
     const nonAepRead = await listProtocols(server, nonAep.token);
     assert.equal(nonAepRead.status, 403, nonAepRead.text);
 
     const noMembership = await registerUser(server, 'synthetic-protocol-no-membership@example.test');
-    await setUserProfile(server, adminToken, noMembership);
+    await setUserProfile(server, adminSession, noMembership);
     const noMembershipRead = await listProtocols(server, noMembership.token);
     assert.equal(noMembershipRead.status, 403, noMembershipRead.text);
     assert.match(noMembershipRead.body?.message || '', /primary-practice membership/);
 
     const unaccepted = await registerUser(server, 'synthetic-protocol-unaccepted@example.test');
-    await setUserProfile(server, adminToken, unaccepted);
-    await createOrganizationForUser(server, adminToken, unaccepted);
+    await setUserProfile(server, adminSession, unaccepted);
+    await createOrganizationForUser(server, adminSession, unaccepted);
     const unacceptedRead = await listProtocols(server, unaccepted.token);
     assert.equal(unacceptedRead.status, 403, unacceptedRead.text);
     assert.match(unacceptedRead.body?.message || '', /current legal acceptance/);
@@ -143,14 +143,14 @@ test('TreatmentProtocol reads fail closed for non-AEPs, admins, missing membersh
 test('foreign organisation input and another practice acceptance cannot widen protocol access', async () => {
   const server = await startTestServer();
   try {
-    const adminToken = await loginAdmin(server);
+    const adminSession = await loginAdmin(server);
     const user = await registerUser(server, 'synthetic-protocol-foreign-context@example.test');
-    await setUserProfile(server, adminToken, user);
-    await createOrganizationForUser(server, adminToken, user);
+    await setUserProfile(server, adminSession, user);
+    await createOrganizationForUser(server, adminSession, user);
 
     const secondaryOrg = await requestJson(server, `/api/apps/${server.appId}/entities/Organization`, {
       method: 'POST',
-      token: adminToken,
+      token: adminSession,
       body: { name: 'Synthetic secondary protocol practice' },
     });
     assert.equal(secondaryOrg.status, 200, secondaryOrg.text);
@@ -159,7 +159,7 @@ test('foreign organisation input and another practice acceptance cannot widen pr
       `/api/apps/${server.appId}/entities/OrganizationMember`,
       {
         method: 'POST',
-        token: adminToken,
+        token: adminSession,
         body: {
           org_id: secondaryOrg.body.id,
           user_email: user.email,
@@ -198,14 +198,14 @@ test('multi-practice protocol and Core context fail closed without one explicit 
       body: { email: adminEmail, password: adminPassword },
     });
     assert.equal(adminLogin.status, 200, adminLogin.text);
-    const adminToken = adminLogin.body.access_token;
+    const adminSession = adminLogin.body.access_token;
     const user = await registerUser(server, 'synthetic-protocol-ambiguous-practice@example.test');
-    await setUserProfile(server, adminToken, user);
+    await setUserProfile(server, adminSession, user);
 
     for (const name of ['Synthetic ambiguous practice A', 'Synthetic ambiguous practice B']) {
       const organization = await requestJson(server, `/api/apps/${server.appId}/entities/Organization`, {
         method: 'POST',
-        token: adminToken,
+        token: adminSession,
         body: { name },
       });
       assert.equal(organization.status, 200, organization.text);
@@ -214,7 +214,7 @@ test('multi-practice protocol and Core context fail closed without one explicit 
         `/api/apps/${server.appId}/entities/OrganizationMember`,
         {
           method: 'POST',
-          token: adminToken,
+          token: adminSession,
           body: {
             org_id: organization.body.id,
             user_email: user.email,
@@ -229,7 +229,7 @@ test('multi-practice protocol and Core context fail closed without one explicit 
         `/api/apps/${server.appId}/entities/OrganizationMember`,
         {
           method: 'POST',
-          token: adminToken,
+          token: adminSession,
           body: {
             org_id: organization.body.id,
             user_email: adminEmail,
@@ -248,7 +248,7 @@ test('multi-practice protocol and Core context fail closed without one explicit 
     const core = await requestJson(
       server,
       '/api/core/v1/protocol-assistance/search?q=Synthetic&limit=10',
-      { token: adminToken },
+      { token: adminSession },
     );
     assert.equal(core.status, 403, core.text);
     assert.equal(core.body?.error?.code, 'CORE_ORG_REQUIRED');
@@ -260,10 +260,10 @@ test('multi-practice protocol and Core context fail closed without one explicit 
 test('active credentialed AEP with primary membership and current acceptance can read the governed catalogue', async () => {
   const server = await startTestServer();
   try {
-    const adminToken = await loginAdmin(server);
+    const adminSession = await loginAdmin(server);
     const user = await registerUser(server, 'synthetic-protocol-eligible-aep@example.test');
-    await setUserProfile(server, adminToken, user);
-    const organization = await createOrganizationForUser(server, adminToken, user);
+    await setUserProfile(server, adminSession, user);
+    const organization = await createOrganizationForUser(server, adminSession, user);
     await recordCurrentAcceptance(server, user, organization.id);
 
     const result = await listProtocols(server, user.token);

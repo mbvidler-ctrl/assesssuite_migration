@@ -32,7 +32,7 @@ test("client uses a bounded same-origin-safe GET with token read at call time", 
   assert.match(client, /resolveCoreServerUrl\("\/api\/core\/v1\/admin\/assurance"\)/);
   assert.match(client, /url\.searchParams\.set\("org_id", orgId\.trim\(\)\)/);
   assert.match(client, /window\.localStorage\.getItem\("base44_access_token"\)/);
-  assert.match(client, /Authorization: `Bearer \$\{token\}`/);
+  assert.match(client, /Authorization: `Bearer \$\{sessionValue\}`/);
   assert.match(client, /method: "GET"/);
   assert.match(client, /Accept: "application\/json"/);
   assert.match(client, /setTimeout\(\(\) => controller\.abort\("timeout"\)/);
