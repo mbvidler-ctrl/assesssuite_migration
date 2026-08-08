@@ -162,6 +162,7 @@ export function assertParityWaveEnvironment(environment = process.env) {
   required(environment, 'OUTBOUND_EMAIL_ENABLED', '0');
   required(environment, 'OUTBOUND_SMS_ENABLED', '0');
   required(environment, 'PAYMENTS_ENABLED', '0');
+  required(environment, 'CORE_V1_SANDBOX_ENABLED', '0');
   required(environment, 'DOCUMENT_EXTRACTION_ENABLED', '1');
   required(environment, 'DOCUMENT_EXTRACTION_UNDER_13_ENABLED', '0');
   required(environment, 'OPENAI_HEALTH_DATA_TERMS_CONFIRMED', '1');

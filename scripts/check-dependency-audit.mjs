@@ -11,21 +11,10 @@ import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 
-const ALLOWLISTED_ADVISORIES = new Map([
-  [
-    'GHSA-qwww-vcr4-c8h2',
-    {
-      packages: ['react-router', 'react-router-dom'],
-      reason:
-        'react-router RSC-mode CSRF. The only fixed release (react-router 8.3.0) requires ' +
-        'React >= 19.2.7; this application is a React 18 Vite SPA that does not enable RSC ' +
-        'mode, so the vulnerable surface is not reachable. react-router-dom has no fixed ' +
-        'release. Remove this entry with the React 19 / react-router 8 migration.',
-      authorised:
-        'Maxwell Vidler, 2026-07-28, mission UM-AUTO-20260728-ASSESSSUITE-LANDSCAPE-CTA-LIVE-FIX (option A)',
-    },
-  ],
-]);
+// No advisory is currently excepted. React Router 7.18.2 supplied the 7.x
+// backport for the former RSC-mode exception, so the exception was removed
+// instead of being extended.
+const ALLOWLISTED_ADVISORIES = new Map();
 
 const FAILING_SEVERITIES = new Set(['moderate', 'high', 'critical']);
 const GHSA_PATTERN = /GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}/;

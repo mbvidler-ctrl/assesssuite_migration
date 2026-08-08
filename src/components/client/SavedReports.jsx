@@ -78,6 +78,29 @@ const ALL_REPORT_LABELS = {
   us_prior_auth: "Prior Authorization Request",
 };
 
+/* REPORT_RELEASE_ELIGIBILITY_START */
+const FINAL_REPORT_STATUS = "final";
+
+function normalizedReleaseState(value) {
+  return typeof value === "string" ? value.trim().toLowerCase() : "";
+}
+
+// Printing is an external release action. A schemaless browser record cannot
+// prove that its embedded Core receipt is current: the source artifact may
+// have been superseded or the metadata may have been forged. Core-bearing
+// reports therefore stay locked until a server-owned, current-state print
+// authorisation endpoint is activated. Existing non-Core legacy records remain
+// printable only when they carry the historic explicit-final state.
+export function isReportReleaseEligible(report) {
+  if (!report || typeof report !== "object") return false;
+
+  const reportIsFinal = normalizedReleaseState(report.status) === FINAL_REPORT_STATUS;
+  const hasCoreMetadata = Object.prototype.hasOwnProperty.call(report, "core_metadata")
+    || Object.prototype.hasOwnProperty.call(report, "coreMetadata");
+  return !hasCoreMetadata && reportIsFinal;
+}
+/* REPORT_RELEASE_ELIGIBILITY_END */
+
 export default function SavedReports({ client }) {
   const navigate = useNavigate();
   const [reports, setReports] = useState([]);
@@ -144,6 +167,10 @@ export default function SavedReports({ client }) {
 
   const handlePrintReport = (report, e) => {
     e && e.stopPropagation();
+    if (!isReportReleaseEligible(report)) {
+      toast.error("This report is not approved for release");
+      return;
+    }
     const html = report.report_html || report.html_content;
     if (!html) {
       toast.error("No printable content for this report");
@@ -213,11 +240,13 @@ export default function SavedReports({ client }) {
               <p className="text-center text-slate-500 py-8">Loading reports...</p>
             ) : reports.length > 0 ? (
               <div className="space-y-3">
-                {reports.map((report) => (
-                  <div
-                    key={report.id}
-                    className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
-                  >
+                {reports.map((report) => {
+                  const releaseEligible = isReportReleaseEligible(report);
+                  return (
+                    <div
+                      key={report.id}
+                      className="flex items-center justify-between p-4 bg-slate-50 rounded-lg hover:bg-slate-100 transition-colors"
+                    >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
                         <FileText className="w-5 h-5 text-blue-600" />
@@ -228,6 +257,11 @@ export default function SavedReports({ client }) {
                           <Badge variant="outline" className="text-xs">
                             {getReportLabel(report.report_type)}
                           </Badge>
+                          {!releaseEligible && (
+                            <Badge variant="secondary" className="text-xs">
+                              Not released
+                            </Badge>
+                          )}
                           <span className="text-xs text-slate-500 flex items-center gap-1">
                             <Calendar className="w-3 h-3" />
                             {format(new Date(report.report_date), 'dd MMM yyyy')}
@@ -239,7 +273,13 @@ export default function SavedReports({ client }) {
                       <Button variant="outline" size="sm" onClick={(e) => handleViewReport(report, e)} title="View">
                         <Eye className="w-4 h-4" />
                       </Button>
-                      <Button variant="outline" size="sm" onClick={(e) => handlePrintReport(report, e)} title="Print">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => handlePrintReport(report, e)}
+                        title={releaseEligible ? "Print" : "Print unavailable until this report is approved"}
+                        disabled={!releaseEligible}
+                      >
                         <Printer className="w-4 h-4" />
                       </Button>
                       <Button variant="outline" size="sm" onClick={(e) => handleEditReport(report, e)} title="Edit">
@@ -255,8 +295,9 @@ export default function SavedReports({ client }) {
                         <Trash2 className="w-4 h-4" />
                       </Button>
                     </div>
-                  </div>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             ) : (
               <div className="text-center py-8">
@@ -301,7 +342,13 @@ export default function SavedReports({ client }) {
                 </p>
               </div>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => handlePrintReport(viewingReport)}>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handlePrintReport(viewingReport)}
+                  disabled={!isReportReleaseEligible(viewingReport)}
+                  title={isReportReleaseEligible(viewingReport) ? "Print" : "Print unavailable until this report is approved"}
+                >
                   <Printer className="w-4 h-4 mr-2" />
                   Print
                 </Button>

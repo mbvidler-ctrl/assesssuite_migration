@@ -13,7 +13,6 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
-  buildProtocolViewModel,
   normaliseProtocolResponse,
   renderSafetyViolations,
 } from '../../src/lib/protocolResponse.js';
@@ -117,38 +116,16 @@ test('T16: the first five reviewed catalogue rows normalise losslessly', () => {
   }
 });
 
-// T17 — behavioural handoff proof, not a spanning source regex. The page's
-// InvokeLLM -> page-state path now runs through a real exported function
-// (buildProtocolViewModel), so the mutation that previously survived — the AI
-// branch spreading the raw model result into state and re-opening the A1
-// crash class — is caught here by an exact-literal wiring assertion plus a
-// behaviour test of the handoff itself.
-test('T17: buildProtocolViewModel is the wired, behaviourally-correct handoff from InvokeLLM to page state', () => {
+// T17 — the catalogue match -> page-state handoff must fail closed when the
+// render normaliser drops any field. A degraded catalogue row is governed as
+// blocked; there is no AI branch and no raw/generated fallback.
+test('T17: governed catalogue matches pass through the normaliser and degraded rows are blocked', () => {
   const source = fs.readFileSync(path.join(repoRoot, 'src', 'pages', 'TreatmentProtocols.jsx'), 'utf8');
-  assert.match(source, /import\s*\{[^}]*buildProtocolViewModel[^}]*\}\s*from\s*["']@\/lib\/protocolResponse["']/);
-
-  // Behaviour: the exact A1 hazard (a scalar where a string[] is expected) is
-  // dropped, the surviving sibling is kept, the server-verified references are
-  // attached un-normalised, and the result is render-safe.
-  const view = buildProtocolViewModel(
-    { contraindications: { absolute: 'Uncontrolled hypertension', relative: ['x'] } },
-    [{ citation: 'Example (2024). https://doi.org/10.1000/a', verified: true }],
-  );
-  assert.equal(view.ok, true);
-  assert.equal(Object.hasOwn(view.protocol.contraindications, 'absolute'), false);
-  assert.deepEqual(view.protocol.contraindications.relative, ['x']);
-  assert.deepEqual(view.protocol.references, [{ citation: 'Example (2024). https://doi.org/10.1000/a', verified: true }]);
-  assert.ok(view.dropped.includes('contraindications.absolute'));
-  assert.deepEqual(renderSafetyViolations(view.protocol), []);
-
-  // A non-renderable result short-circuits so the page throws its
-  // invalid-protocol error rather than rendering nothing meaningful.
-  assert.deepEqual(buildProtocolViewModel(null, []), { ok: false, protocol: null, dropped: [] });
-
-  // Wiring (exact literals, not a spanning regex): the AI branch renders the
-  // view-model protocol and never spreads the raw InvokeLLM result into state.
-  assert.match(source, /setProtocolData\(view\.protocol\)/, 'the AI branch must render the view-model protocol');
-  assert.doesNotMatch(source, /setProtocolData\(\{\s*\.\.\.result/, 'the AI branch must never spread the raw InvokeLLM result into page state');
-  assert.doesNotMatch(source, /setProtocolData\(\{\s*\.\.\.normalised\.protocol/, 'the AI branch must route through buildProtocolViewModel, not an inline spread');
-  assert.match(source, /protocolIssues/, 'expected protocolIssues state to be rendered somewhere on the page');
+  assert.match(source, /import\s*\{\s*normaliseProtocolResponse\s*\}\s*from\s*["']@\/lib\/protocolResponse["']/);
+  assert.match(source, /normaliseProtocolResponse\(condition\.protocol\)/);
+  assert.match(source, /if\s*\(\s*!reviewed\.ok\s*\|\|\s*reviewed\.degraded\s*\)/);
+  assert.match(source, /state:\s*PROTOCOL_SEARCH_STATE\.CATALOGUE_BLOCKED/);
+  assert.match(source, /setProtocolData\(reviewed\.protocol\)/);
+  assert.doesNotMatch(source, /setProtocolData\(condition\.protocol\)/);
+  assert.doesNotMatch(source, /InvokeLLM|searchEvidence|buildProtocolViewModel/);
 });

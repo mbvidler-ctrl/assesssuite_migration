@@ -10,6 +10,8 @@ const rawSource = fs.readFileSync(workflowPath, 'utf8');
 const validatorSelfSha256 = createHash('sha256')
   .update(fs.readFileSync(new URL(import.meta.url), 'utf8').replaceAll('\r\n', '\n'))
   .digest('hex');
+const EXACT_LIVE_PRODUCTION_BASE_SHA = '145958d895aef289b9652f850e32e237f2b62f70';
+const RETIRED_PRODUCTION_BASE_SHA = '0d972f4a1dee7b6b64a28743bcd87e29daf3275c';
 const TOML_PROCESS_CONTRACT_MARKERS = [
   'import tomllib',
   'def process_entries(value, path=()):',
@@ -1867,6 +1869,19 @@ function validateParityWorkflow(input) {
     'prodMounts[0]?.encrypted !== true', 'prodMounts[0]?.size_gb !== 3',
   ]) requireText(needle, 'parity production release/Machine binding ' + needle);
   requireText('source = "assesssuite_data_r12"', 'parity active r12 volume mount source');
+  const parityCoreConfigPreflight = '[[ "$(grep -Fxc \'  CORE_V1_SANDBOX_ENABLED = "0"\' fly.production.toml)" -eq 1 ]]';
+  const parityCoreMachineEnvironment = "--env 'CORE_V1_SANDBOX_ENABLED=0'";
+  const parityCoreBrowserEnvironment = '--env CORE_V1_SANDBOX_ENABLED=0';
+  for (const [needle, label] of [
+    [parityCoreConfigPreflight, 'parity Core V1 config preflight'],
+    [parityCoreMachineEnvironment, 'parity Core V1 Machine environment'],
+    [parityCoreBrowserEnvironment, 'parity Core V1 browser environment'],
+  ]) {
+    if (countOf(active, needle) !== 1) fail(`${label} must appear exactly once`);
+  }
+  if (countOf(active, 'CORE_V1_SANDBOX_ENABLED') !== 3) {
+    fail('parity Core V1 sandbox flag must occur only in the three reviewed disabled environments');
+  }
   for (const forbidden of [
     '.find((r) =>',
     '|| releases[0]',
@@ -1978,6 +1993,13 @@ function parityMutationCases(source) {
   replace('screenshot-wide-upload', 'path: ${{ runner.temp }}/bounded-synthetic-screenshots/*.png', 'path: ${{ runner.temp }}/all-files');
   replace('artifact-digest-prefix-removed', 'parity_runner_artifact_digest: sha256:${{ steps.upload_runner.outputs.artifact-digest }}', 'parity_runner_artifact_digest: ${{ steps.upload_runner.outputs.artifact-digest }}');
   replace('campaign-selector-metadata-removed', '--metadata "assesssuite-campaign=$PARITY_NAMESPACE" ', '');
+  replace(
+    'core-v1-config-preflight-enabled',
+    '[[ "$(grep -Fxc \'  CORE_V1_SANDBOX_ENABLED = "0"\' fly.production.toml)" -eq 1 ]]',
+    '[[ "$(grep -Fxc \'  CORE_V1_SANDBOX_ENABLED = "1"\' fly.production.toml)" -eq 1 ]]',
+  );
+  replace('core-v1-machine-environment-enabled', "--env 'CORE_V1_SANDBOX_ENABLED=0'", "--env 'CORE_V1_SANDBOX_ENABLED=1'");
+  replace('core-v1-browser-environment-enabled', '--env CORE_V1_SANDBOX_ENABLED=0', '--env CORE_V1_SANDBOX_ENABLED=1');
   replace(
     'candidate-process-contract-invocation-removed',
     "          python3 -I - fly.production.toml <<'PY'",
@@ -3079,6 +3101,13 @@ function validatePrepareReleaseWorkflow(input) {
   if (countOf(active, 'EXPECTED_APP_URL = "https://app.assesssuite.com"') < 2) fail('prepare-release does not validate both exact app URL configs');
   if (publish.includes('io.assesssuite.rollback-proof') || publish.includes('io.assesssuite.trusted-workflow')) fail('prepare-release incorrectly requires rollback-only labels on the frozen current candidate image');
   requireText('source = "assesssuite_data_r12"', 'prepare-release active r12 volume mount source');
+  const productionBasePin = 'PRODUCTION_BASE_SHA: ' + EXACT_LIVE_PRODUCTION_BASE_SHA;
+  if (countOf(active, productionBasePin) !== 2) {
+    fail('prepare-release must contain exactly two exact-live production-base pins');
+  }
+  if (active.includes(RETIRED_PRODUCTION_BASE_SHA)) {
+    fail('prepare-release contains the retired production-base revision');
+  }
   if (!gates.includes("python3 -I - fly.production.toml <<'PY'")) {
     fail('prepare-release gates do not invoke the isolated semantic Fly process contract');
   }
@@ -4246,6 +4275,16 @@ function prepareReleaseMutationCases(source) {
   replace('prepare-release-env-filename-gate-weakened', '            if [[ "$normalized" =~ (^|/)\\.env($|\\.) \\', '            if [[ "$normalized" =~ (^|/)\\.env$ \\');
   replace('prepare-release-filename-predicate-bypassed', '            if is_prohibited_release_filename "$changed_file"; then', '            if false; then');
   replace('prepare-release-env-example-removed-from-content-scan', '          git diff --binary "$PRODUCTION_BASE_SHA"...HEAD >"$RUNNER_TEMP/release.diff"', '          git diff --binary "$PRODUCTION_BASE_SHA"...HEAD -- . \':!.env.example\' >"$RUNNER_TEMP/release.diff"');
+  cases.push({
+    name: 'prepare-release-production-base-drifted',
+    mutate: (value) => {
+      const from = '          PRODUCTION_BASE_SHA: ' + EXACT_LIVE_PRODUCTION_BASE_SHA;
+      if (countOf(value, from) !== 2) {
+        throw new Error('mutation prepare-release-production-base-drifted expected two targets');
+      }
+      return value.replace(from, '          PRODUCTION_BASE_SHA: ' + RETIRED_PRODUCTION_BASE_SHA);
+    },
+  });
   replace('prepare-release-candidate-expected-app-url-check-removed', '          [[ "$(grep -Fxc \'  EXPECTED_APP_URL = "https://app.assesssuite.com"\' fly.production.toml)" -eq 1 ]]', '          true');
   replace('confirmation-weakened', '          [[ "$CONFIRMATION" == "PREPARE assesssuite-production EXACT SHA" ]]', '          [[ -n "$CONFIRMATION" ]]');
   replace('validator-pin-mutated', '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + '0'.repeat(64));

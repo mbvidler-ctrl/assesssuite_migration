@@ -95,13 +95,15 @@ pinning the exact `run:` line, near the existing gate assertions;
 (c) add a `--selftest` negative mutation proving the validator rejects a
 workflow with the step removed; (d) recompute the validator digest with
 `node scripts/validate-production-deploy-workflow.mjs --print-self-sha`
-and re-pin `EXPECTED_TRUSTED_VALIDATOR_SHA256` in all five workflows per
-the established re-pinning procedure; and (e) not land before
-`production-prepare-rollback-image.yml`'s stale `PRODUCTION_BASE_SHA`
-(currently an unresolvable git object) is repaired by its own,
-separate item — a diff gate anchored to an unresolvable base would exit 2
-on every run.
+and re-pin `EXPECTED_TRUSTED_VALIDATOR_SHA256` in the four active workflow
+consumers per the established re-pinning procedure; and (e) preserve
+`production-prepare-rollback-image.yml` as the exact fail-closed tombstone.
+The retired tombstone has no `PRODUCTION_BASE_SHA`, validator pin, credential,
+build or deployment path. The active prepare-release workflow owns both
+exact-live baseline pins used by its differential typecheck and release-diff
+gates.
 
 Splitting the work this way is deliberate: the registry, the generated
 artefacts and the gate itself land now at near-zero risk to the release
-corridor; mandatory enforcement lands once its prerequisite is fixed.
+corridor; mandatory enforcement remains a separately reviewed corridor
+change.

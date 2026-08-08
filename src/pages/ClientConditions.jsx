@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Client, ClientCondition } from "@/entities/all";
-import { InvokeLLM } from "@/integrations/Core";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,18 +14,12 @@ import {
   Edit2, 
   Trash2, 
   Save,
-  X,
-  Lightbulb,
-  Loader2
+  X
 } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { format } from "date-fns";
-import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
-import { useAiCapability } from "@/hooks/useAiCapability";
-import { AI_COPY } from "@/lib/aiCapabilities";
 
 export default function ClientConditions() {
-  const ai = useAiCapability();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const clientId = searchParams.get("id");
@@ -35,9 +28,6 @@ export default function ClientConditions() {
   const [conditions, setConditions] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editingCondition, setEditingCondition] = useState(null);
-  const [suggestedAssessments, setSuggestedAssessments] = useState([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
-  const [suggestionState, setSuggestionState] = useState('idle'); // idle|loading|ready|empty|unavailable|failed
   const [formData, setFormData] = useState({
     condition_name: "",
     condition_type: "primary",
@@ -66,38 +56,6 @@ export default function ClientConditions() {
     }
   };
 
-  const generateAssessmentSuggestions = async () => {
-    if (conditions.length === 0) return;
-    if (!ai.canTrigger) {
-      setSuggestedAssessments([]);
-      setSuggestionState('unavailable');
-      return;
-    }
-
-    setIsLoadingSuggestions(true);
-    setSuggestionState('loading');
-    try {
-      const conditionsList = conditions.map(c => c.condition_name).join(", ");
-      const prompt = `Based on the following medical conditions: ${conditionsList}, suggest appropriate physical and psychological assessment tests that would be most beneficial for a clinical evaluation. Consider evidence-based practice and focus on assessments that are commonly used in physiotherapy and exercise physiology. Return only the assessment names, one per line.`;
-
-      const response = await InvokeLLM({
-        prompt: prompt
-      });
-
-      const suggestions = response.split('\n').filter(line => line.trim()).map(line => ({
-        name: line.replace(/^\d+\.\s*/, '').replace(/^-\s*/, '').trim(),
-        reason: `Recommended for ${conditionsList}`
-      }));
-
-      setSuggestedAssessments(suggestions);
-      setSuggestionState(suggestions.length ? 'ready' : 'empty');
-    } catch (error) {
-      ai.reportError(error);
-      setSuggestionState('failed');
-    }
-    setIsLoadingSuggestions(false);
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     
@@ -124,11 +82,6 @@ export default function ClientConditions() {
       });
       
       await loadData();
-      
-      // Auto-generate suggestions after adding a condition
-      if (!editingCondition && conditions.length >= 0) {
-        setTimeout(generateAssessmentSuggestions, 1000);
-      }
     } catch (error) {
       console.error("Error saving condition:", error);
     }
@@ -206,66 +159,6 @@ export default function ClientConditions() {
             Add Condition
           </Button>
         </div>
-
-        {/* AI Suggestions */}
-        {conditions.length > 0 && (
-          <Card className="bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-purple-800">
-                <Lightbulb className="w-5 h-5" />
-                Assessment Suggestions
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {suggestedAssessments.length > 0 ? (
-                <div className="space-y-2">
-                  <p className="text-sm text-purple-700 mb-3">
-                    Based on the client's conditions, here are recommended assessments:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {suggestedAssessments.map((suggestion, index) => (
-                      <Badge key={index} variant="outline" className="bg-white/60">
-                        {suggestion.name}
-                      </Badge>
-                    ))}
-                  </div>
-                  {suggestionState === 'ready' && <AIDisclosureNote className="mt-3" />}
-                </div>
-              ) : (
-                <div className="flex items-center gap-3">
-                  <Button
-                    onClick={generateAssessmentSuggestions}
-                    disabled={isLoadingSuggestions || !ai.canTrigger}
-                    title={ai.unavailableMessage || undefined}
-                    variant="outline"
-                    className="bg-white/60"
-                  >
-                    {isLoadingSuggestions ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Generating...
-                      </>
-                    ) : (
-                      <>
-                        <Lightbulb className="w-4 h-4 mr-2" />
-                        Get Assessment Suggestions
-                      </>
-                    )}
-                  </Button>
-                  <p className="text-sm text-purple-600">
-                    {suggestionState === 'unavailable'
-                      ? ai.unavailableMessage
-                      : suggestionState === 'failed'
-                        ? AI_COPY.requestFailed
-                        : suggestionState === 'empty'
-                          ? 'No assessment suggestions were returned for these conditions.'
-                          : 'AI will analyse the conditions and suggest appropriate tests'}
-                  </p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
 
         {/* Add/Edit Form */}
         {showForm && (
@@ -422,7 +315,7 @@ export default function ClientConditions() {
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">No Conditions Added</h3>
                 <p className="text-slate-600 mb-4">
-                  Add the client's medical conditions to get personalized assessment recommendations.
+                  Add the client's medical conditions to maintain an accurate clinical record.
                 </p>
                 <Button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700">
                   <Plus className="w-4 h-4 mr-2" />

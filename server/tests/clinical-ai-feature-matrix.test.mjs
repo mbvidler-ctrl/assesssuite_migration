@@ -1,20 +1,14 @@
 // Feature-matrix coverage for the InvokeLLM ("Core") integration endpoint
-// across the six distinct request shapes used by the 11 clinical-AI call
+// across the five request shapes still used by legacy clinical-AI call
 // sites in src/. Existing coverage (extraction-matrix.test.mjs E37/E37a)
 // only proved the flag-off 503 and the flag-on/LLM_REQUIRED=0 mock branch
-// for a single plain-prompt shape; this suite generalises across all six
+// for a single plain-prompt shape; this suite generalises across all five
 // shapes AND — the highest-value addition — exercises the LLM_REQUIRED=1
 // production posture against a fake real chat/completions provider, a
 // branch no test in this repository previously reached.
 //
-// Known limitation: PROTOCOL_SCHEMA below is a reduced-but-topologically-
-// faithful copy of TreatmentProtocols.jsx's PROTOCOL_RESPONSE_SCHEMA — it
-// keeps all nine top-level keys but simplifies some nested sub-schemas. The
-// drift guards in section "drift guards" below scope their assertions to
-// the actual schema literal in each source file (never the whole file), and
-// for PROTOCOL_RESPONSE_SCHEMA pin the exact top-level key set, so a
-// restructuring that renames, adds, or deletes a top-level key is caught;
-// they do not assert full structural equality of nested sub-schemas.
+// Protocol Assistance is deliberately absent: it no longer calls InvokeLLM
+// and is covered by deterministic catalogue/governance assurance instead.
 
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -56,9 +50,10 @@ async function loginEligibleClinician(server) {
 // reach the server, not shapes invented for convenience.
 // ---------------------------------------------------------------------------
 
-// Shape 1: plain prompt, no schema. Mirrors src/pages/ClientConditions.jsx:73-76.
+// Shape 1: plain prompt, no schema. Structurally mirrors the two remaining
+// SOAPNoteModal assessment/plan drafting calls.
 const PLAIN_PROMPT_BODY = {
-  prompt: 'Suggest appropriate physical and psychological assessment tests for osteoarthritis. Return only the assessment names, one per line.',
+  prompt: 'Write a concise synthetic SOAP assessment from the supplied synthetic observations.',
 };
 
 // Shape 2: medication-alerts-shaped schema. Exact object literal at
@@ -85,35 +80,7 @@ const MEDICATION_ALERTS_BODY = {
   response_json_schema: MEDICATION_ALERTS_SCHEMA,
 };
 
-// Shape 3: protocol schema. Reduced-but-topologically-faithful copy of
-// src/pages/TreatmentProtocols.jsx:76-176 PROTOCOL_RESPONSE_SCHEMA — all
-// nine top-level keys are kept, nested sub-schemas are simplified (see the
-// file-level comment above on the drift-guard limitation this implies).
-// WP2 removed the dead add_context_from_internet field from this call site
-// (it was a client-side no-op) and made the server reject it outright as an
-// unknown parameter (see server/tests/invoke-llm-param-contract.test.mjs),
-// so this fixture no longer sends it — sending it now 400s rather than
-// being silently ignored.
-const PROTOCOL_SCHEMA = {
-  type: 'object',
-  properties: {
-    overview: { type: 'object', properties: { pathophysiology: { type: 'string' }, functional_impact: { type: 'string' }, prevalence: { type: 'string' } } },
-    assessment: { type: 'object', properties: { key_assessments: { type: 'array', items: { type: 'string' } }, evidence_base: { type: 'string' } } },
-    exercise_prescription: { type: 'object', properties: { exercises: { type: 'array', items: { type: 'object', properties: { name: { type: 'string' }, dosage: { type: 'string' } } } }, frequency: { type: 'string' } } },
-    progression: { type: 'object', properties: { phases: { type: 'array', items: { type: 'object', properties: { phase_name: { type: 'string' } } } } } },
-    contraindications: { type: 'object', properties: { absolute: { type: 'array', items: { type: 'string' } }, relative: { type: 'array', items: { type: 'string' } } } },
-    outcomes: { type: 'object', properties: { expected_timeframe: { type: 'string' }, key_outcomes: { type: 'array', items: { type: 'string' } } } },
-    meta_analysis_summary: { type: 'object', properties: { key_findings: { type: 'array', items: { type: 'string' } } } },
-    references: { type: 'array', items: { type: 'object', properties: { citation: { type: 'string' } } } },
-    clinical_note: { type: 'string' },
-  },
-};
-const PROTOCOL_BODY = {
-  prompt: 'Create a comprehensive, evidence-informed exercise rehabilitation protocol for the clinical topic "osteoarthritis".',
-  response_json_schema: PROTOCOL_SCHEMA,
-};
-
-// Shape 4: nutrition/flat-multi-string schema. Exact object literal at
+// Shape 3: nutrition/flat-multi-string schema. Exact object literal at
 // src/components/client/NutritionPlanCreator.jsx:171-178.
 const NUTRITION_SCHEMA = {
   type: 'object',
@@ -128,14 +95,14 @@ const NUTRITION_BODY = {
   response_json_schema: NUTRITION_SCHEMA,
 };
 
-// Shape 5: SOAP-assist schema. src/components/calendar/SOAPNoteModal.jsx:1472-1476.
+// Shape 4: SOAP-assist schema. src/components/calendar/SOAPNoteModal.jsx:1472-1476.
 const SOAP_ASSIST_SCHEMA = { type: 'object', properties: { assessment: { type: 'string' } } };
 const SOAP_ASSIST_BODY = {
   prompt: 'Write a concise clinical assessment that interprets the subjective and objective data.',
   response_json_schema: SOAP_ASSIST_SCHEMA,
 };
 
-// Shape 6: report-section — plain prompt, but characteristically long
+// Shape 5: report-section — plain prompt, but characteristically long
 // (SectionEditor.jsx handleGenerateAll), forcing MODEL_QUALITY via the
 // length branch of pickModel() rather than the width branch.
 const REPORT_SECTION_PROMPT = (
@@ -144,10 +111,9 @@ const REPORT_SECTION_PROMPT = (
 ).repeat(20);
 const REPORT_SECTION_BODY = { prompt: REPORT_SECTION_PROMPT };
 
-const SIX_SHAPES = [
+const REMAINING_SHAPES = [
   { name: 'plain-prompt', body: PLAIN_PROMPT_BODY, hasSchema: false },
   { name: 'medication-alerts', body: MEDICATION_ALERTS_BODY, hasSchema: true },
-  { name: 'protocol', body: PROTOCOL_BODY, hasSchema: true },
   { name: 'nutrition', body: NUTRITION_BODY, hasSchema: true },
   { name: 'soap-assist', body: SOAP_ASSIST_BODY, hasSchema: true },
   { name: 'report-section', body: REPORT_SECTION_BODY, hasSchema: false },
@@ -161,17 +127,14 @@ before(() => {
 });
 
 // ---------------------------------------------------------------------------
-// Drift guards — additive to (not a replacement for)
-// treatment-protocol-catalogue.test.mjs. If a call-site schema is edited in
+// Drift guards for the remaining schema call sites. If a call-site schema is edited in
 // the client without a matching update here, these fail loudly rather than
 // letting the fixtures silently drift out of sync with production shapes.
 //
 // Each guard is scoped to the schema object literal itself (brace-matched),
 // never the whole file — matching a key name in render code, prompt prose or
 // component state (all of which happen to reuse these names) no longer
-// satisfies the guard. The PROTOCOL_RESPONSE_SCHEMA guard additionally pins
-// the exact top-level key SET, so both a deletion and an undocumented
-// addition are caught, not merely a presence check per known key.
+// satisfies the guard.
 // ---------------------------------------------------------------------------
 
 // Brace-matches the object literal that starts at the first `{` following
@@ -196,51 +159,6 @@ function sliceObjectLiteral(source, marker) {
   return source.slice(braceStart, i);
 }
 
-// Returns the keys declared directly inside an object literal block (depth 1
-// relative to the block's own outer braces) — i.e. not keys nested inside a
-// sub-object. `block` must start with the literal's opening `{`.
-function topLevelKeys(block) {
-  const keys = [];
-  let depth = 0;
-  let i = 0;
-  while (i < block.length) {
-    const ch = block[i];
-    if (ch === '{') {
-      depth++;
-      i++;
-      continue;
-    }
-    if (ch === '}') {
-      depth--;
-      i++;
-      continue;
-    }
-    if (depth === 1) {
-      const m = /^\s*(?:"([A-Za-z_$][\w$]*)"|([A-Za-z_$][\w$]*))\s*:/.exec(block.slice(i));
-      if (m) {
-        keys.push(m[1] || m[2]);
-        i += m[0].length;
-        continue;
-      }
-    }
-    i++;
-  }
-  return keys;
-}
-
-test('drift guard: PROTOCOL_SCHEMA top-level key set matches PROTOCOL_RESPONSE_SCHEMA in TreatmentProtocols.jsx', () => {
-  const source = fs.readFileSync(path.join(repoRoot, 'src/pages/TreatmentProtocols.jsx'), 'utf8');
-  const schemaBlock = sliceObjectLiteral(source, 'const PROTOCOL_RESPONSE_SCHEMA');
-  const propertiesBlock = sliceObjectLiteral(schemaBlock, 'properties:');
-  const actualKeys = new Set(topLevelKeys(propertiesBlock));
-  const expectedKeys = new Set(Object.keys(PROTOCOL_SCHEMA.properties));
-  assert.deepEqual(
-    actualKeys,
-    expectedKeys,
-    `PROTOCOL_RESPONSE_SCHEMA top-level keys drifted from the PROTOCOL_SCHEMA fixture (actual: ${[...actualKeys].sort()}, expected: ${[...expectedKeys].sort()})`,
-  );
-});
-
 test('drift guard: MEDICATION_ALERTS_SCHEMA leaf keys still exist in MedicationAlerts.jsx\'s response_json_schema literal', () => {
   const source = fs.readFileSync(path.join(repoRoot, 'src/components/client/MedicationAlerts.jsx'), 'utf8');
   const schemaBlock = sliceObjectLiteral(source, 'const response_json_schema');
@@ -261,11 +179,11 @@ test('drift guard: NUTRITION_SCHEMA leaf keys still exist in NutritionPlanCreato
 // Boot A — flag disabled, LLM_REQUIRED unset. Every shape 503s identically.
 // ---------------------------------------------------------------------------
 
-test('Boot A: GENERAL_CLINICAL_LLM_ENABLED=0 disables all six shapes identically', async () => {
+test('Boot A: GENERAL_CLINICAL_LLM_ENABLED=0 disables all remaining shapes identically', async () => {
   const server = await startTestServer({ GENERAL_CLINICAL_LLM_ENABLED: '0' });
   try {
     const admin = await loginAdmin(server);
-    for (const shape of SIX_SHAPES) {
+    for (const shape of REMAINING_SHAPES) {
       const result = await invokeLlm(server, admin, shape.body);
       assert.equal(result.status, 503, `${shape.name}: ${result.text}`);
       assert.equal(result.body?.error, 'General AI generation is disabled on this server.', shape.name);
@@ -285,7 +203,7 @@ test('Boot B: flag-off 503 is identical even when LLM_REQUIRED=1 (flag gate fire
   const server = await startTestServer({ GENERAL_CLINICAL_LLM_ENABLED: '0', LLM_REQUIRED: '1' });
   try {
     const admin = await loginAdmin(server);
-    for (const shape of SIX_SHAPES) {
+    for (const shape of REMAINING_SHAPES) {
       const result = await invokeLlm(server, admin, shape.body);
       assert.equal(result.status, 503, `${shape.name}: ${result.text}`);
       assert.equal(result.body?.error, 'General AI generation is disabled on this server.', shape.name);
@@ -297,8 +215,8 @@ test('Boot B: flag-off 503 is identical even when LLM_REQUIRED=1 (flag gate fire
 
 // ---------------------------------------------------------------------------
 // Boot C — flag on, LLM_REQUIRED=0, no key at all: pure mock path. This
-// generalises E37a (extraction-matrix.test.mjs) across all six shapes/11
-// surfaces instead of only the plain-prompt case.
+// generalises E37a (extraction-matrix.test.mjs) across all remaining shapes
+// instead of only the plain-prompt case.
 // ---------------------------------------------------------------------------
 
 test('Boot C: flag on + LLM_REQUIRED=0 + no key serves the deterministic mock for every shape', async () => {
@@ -322,11 +240,6 @@ test('Boot C: flag on + LLM_REQUIRED=0 + no key serves the deterministic mock fo
     assert.equal(typeof medicationAlerts.body.alerts[0].medication_name, 'string');
     assert.match(medicationAlerts.body.alerts[0].medication_name, /^Mock /i);
     assert.match(medicationAlerts.body.alerts[0].alert_text, /^Mock /i);
-
-    const protocol = await invokeLlm(server, admin, PROTOCOL_BODY);
-    assert.equal(protocol.status, 200, protocol.text);
-    assert.match(protocol.body.overview.pathophysiology, /^Mock /i);
-    assert.match(protocol.body.clinical_note, /^Mock /i);
 
     const nutrition = await invokeLlm(server, admin, NUTRITION_BODY);
     assert.equal(nutrition.status, 200, nutrition.text);
@@ -389,8 +302,8 @@ test('Boot E: real-provider path under LLM_REQUIRED=1 against the fake chat/comp
   try {
     const admin = await loginEligibleClinician(server);
 
-    await t.test('default mode: all six shapes reach the fake provider and get synthetic content', async () => {
-      for (const shape of SIX_SHAPES) {
+    await t.test('default mode: all remaining shapes reach the fake provider and get synthetic content', async () => {
+      for (const shape of REMAINING_SHAPES) {
         fakeChat.reset();
         const result = await invokeLlm(server, admin, shape.body);
         assert.equal(result.status, 200, `${shape.name}: ${result.text}`);
@@ -406,7 +319,7 @@ test('Boot E: real-provider path under LLM_REQUIRED=1 against the fake chat/comp
     });
 
     await t.test('model selection matches pickModel() for every shape (imported, not hardcoded)', async () => {
-      for (const shape of SIX_SHAPES) {
+      for (const shape of REMAINING_SHAPES) {
         fakeChat.reset();
         const result = await invokeLlm(server, admin, shape.body);
         assert.equal(result.status, 200, `${shape.name}: ${result.text}`);
@@ -417,7 +330,6 @@ test('Boot E: real-provider path under LLM_REQUIRED=1 against the fake chat/comp
       // rest are MODEL_FAST — pinning the concrete expectation, not just
       // "whatever pickModel says", so a change to pickModel's own thresholds
       // is visible here too.
-      assert.equal(pickModel(PROTOCOL_BODY.prompt, PROTOCOL_SCHEMA), MODEL_QUALITY, 'protocol schema is "wide"');
       assert.equal(pickModel(REPORT_SECTION_BODY.prompt, undefined), MODEL_QUALITY, 'report-section prompt is "long"');
       assert.equal(pickModel(MEDICATION_ALERTS_BODY.prompt, MEDICATION_ALERTS_SCHEMA), MODEL_FAST);
       assert.equal(pickModel(NUTRITION_BODY.prompt, NUTRITION_SCHEMA), MODEL_FAST);
@@ -448,7 +360,7 @@ test('Boot E: real-provider path under LLM_REQUIRED=1 against the fake chat/comp
     // fail-closed contract, not a weakened one.
     await t.test('a caller cannot resurrect add_context_from_internet: it 400s before the provider is contacted', async () => {
       fakeChat.reset();
-      const result = await invokeLlm(server, admin, { ...PROTOCOL_BODY, add_context_from_internet: true });
+      const result = await invokeLlm(server, admin, { ...MEDICATION_ALERTS_BODY, add_context_from_internet: true });
       assert.equal(result.status, 400, result.text);
       assert.match(result.body?.error || '', /add_context_from_internet/);
       assert.equal(fakeChat.calls.length, 0, 'the provider must never be contacted for a rejected request');

@@ -189,6 +189,11 @@ export default function AssessmentAudit() {
   };
 
   const generateAllFixes = async () => {
+    if (!ai.canTrigger) {
+      toast.info(ai.unavailableMessage || 'AI drafting is unavailable.');
+      return;
+    }
+
     setGeneratingFixes(true);
     let processed = 0;
     const nonCompliant = auditResults.filter(r => !r.isCompliant);
@@ -800,6 +805,11 @@ export default function AssessmentAudit() {
   };
 
   const applyFix = async (result, fix) => {
+    if (!ai.canTrigger) {
+      toast.info(ai.unavailableMessage || 'AI drafting is unavailable.');
+      return;
+    }
+
     setFixingAssessmentId(result.assessment.id);
     toast.info(`Applying fix for ${result.assessment.name}...`);
 
@@ -898,6 +908,11 @@ export default function AssessmentAudit() {
   };
 
   const generateTestRunnerCode = async (assessment) => {
+    if (!ai.canTrigger) {
+      toast.info(ai.unavailableMessage || 'AI drafting is unavailable.');
+      return null;
+    }
+
     const exampleRunners = `
 // Example 1: Timer-based test (6 Minute Walk)
 - Has pre-test measurements (vitals)
@@ -966,6 +981,11 @@ Based on the assessment instructions and type, determine the appropriate data ca
   };
 
   const generateTextFields = async (assessment) => {
+    if (!ai.canTrigger) {
+      toast.info(ai.unavailableMessage || 'AI drafting is unavailable.');
+      return null;
+    }
+
     const needsInstructions = !assessment.instructions || assessment.instructions.trim() === '';
     const needsReferences = !assessment.references || assessment.references.trim() === '';
     const needsContraindications = !assessment.contraindications || assessment.contraindications.trim() === '';
@@ -1143,7 +1163,7 @@ Return only requested fields as JSON.`;
                   Ready to Audit {assessments.length} Assessments
                 </h3>
                 <p className="text-slate-600 mb-6">
-                  Run AI-powered compliance checks and generate proposed fixes
+                  Run deterministic compliance checks and review any remediation needed
                 </p>
                 <Button onClick={runAudit} disabled={isRunning} size="lg" className="bg-blue-600 hover:bg-blue-700">
                   {isRunning ? (
@@ -1219,6 +1239,8 @@ Return only requested fields as JSON.`;
                     onApproveFix={(fix) => approveFix(result, fix)}
                     onRejectFix={(fix) => rejectFix(result, fix)}
                     isFixing={fixingAssessmentId === result.assessment.id}
+                    aiAvailable={ai.canTrigger}
+                    aiUnavailableMessage={ai.unavailableMessage}
                   />
                 ))}
               </TabsContent>
@@ -1232,6 +1254,8 @@ Return only requested fields as JSON.`;
                     onApproveFix={(fix) => approveFix(result, fix)}
                     onRejectFix={(fix) => rejectFix(result, fix)}
                     isFixing={fixingAssessmentId === result.assessment.id}
+                    aiAvailable={ai.canTrigger}
+                    aiUnavailableMessage={ai.unavailableMessage}
                   />
                 ))}
               </TabsContent>
@@ -1243,7 +1267,15 @@ Return only requested fields as JSON.`;
   );
 }
 
-function AssessmentCard({ result, onApplyFix, onApproveFix, onRejectFix, isFixing }) {
+function AssessmentCard({
+  result,
+  onApplyFix,
+  onApproveFix,
+  onRejectFix,
+  isFixing,
+  aiAvailable,
+  aiUnavailableMessage,
+}) {
   const [expanded, setExpanded] = useState(false);
   const [, setForceUpdate] = useState(0);
 
@@ -1319,7 +1351,8 @@ function AssessmentCard({ result, onApplyFix, onApproveFix, onRejectFix, isFixin
                       <Button 
                         onClick={() => onApplyFix(fix)} 
                         size="sm"
-                        disabled={isFixing}
+                        disabled={isFixing || !aiAvailable}
+                        title={aiUnavailableMessage || undefined}
                         className="bg-blue-600 hover:bg-blue-700"
                       >
                         {isFixing ? (
@@ -1330,10 +1363,13 @@ function AssessmentCard({ result, onApplyFix, onApproveFix, onRejectFix, isFixin
                         ) : (
                           <>
                             <Wrench className="w-4 h-4 mr-1" />
-                            Generate Fix
+                            {aiAvailable ? 'Generate Fix' : 'AI drafting unavailable'}
                           </>
                         )}
                       </Button>
+                    )}
+                    {fix.status === 'pending' && !aiAvailable && (
+                      <p className="text-xs text-slate-600">{aiUnavailableMessage}</p>
                     )}
 
                     {fix.status === 'ready' && fix.code && (

@@ -22,6 +22,7 @@ export function assertParityAssuranceEnvironment(environment = process.env) {
   if (mode !== '1') return;
 
   const required = {
+    CORE_V1_SANDBOX_ENABLED: '0',
     OUTBOUND_EMAIL_ENABLED: '0',
     OUTBOUND_SMS_ENABLED: '0',
     PAYMENTS_ENABLED: '0',
@@ -61,11 +62,18 @@ export function runProductionBootstrap({
   catalogueSeedFn = runCatalogueSeed,
 } = {}) {
   assertProductionBootstrapEnvironment(environment);
-  const opened = openDatabaseFn();
+  const opened = openDatabaseFn({ environment });
   if (!opened?.db || !(opened.entityNames instanceof Set)) {
     throw new Error('The production database bootstrap contract is unavailable.');
   }
   try {
+    if (
+      opened.coreV1SandboxEnabled !== false
+      || opened.coreV1Schema !== null
+      || opened.coreV1SchemaPresent !== false
+    ) {
+      throw new Error('Production bootstrap requires a Core-schema-neutral database open.');
+    }
     catalogueSeedFn({ db: opened.db, entityNames: opened.entityNames });
   } finally {
     opened.db.close();

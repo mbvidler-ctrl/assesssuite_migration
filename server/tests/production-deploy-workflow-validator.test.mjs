@@ -13,10 +13,10 @@ const validator = path.join(repoRoot, 'scripts', 'validate-production-deploy-wor
 
 const GOVERNED_WORKFLOWS = [
   { file: 'production-deploy.yml', mutations: 167, pinsValidator: true },
-  { file: 'production-prepare-release.yml', mutations: 68, pinsValidator: true },
+  { file: 'production-prepare-release.yml', mutations: 69, pinsValidator: true },
   { file: 'production-prepare-rollback-image.yml', mutations: 8, pinsValidator: false },
   { file: 'production-rollback.yml', mutations: 97, pinsValidator: true },
-  { file: 'production-parity-assurance.yml', mutations: 84, pinsValidator: true },
+  { file: 'production-parity-assurance.yml', mutations: 87, pinsValidator: true },
 ];
 
 function workflowPath(file) {
@@ -520,10 +520,11 @@ test('V09 previous-image rollback is dispatch-frozen, ancestrally bound, and ver
   assert.match(prepare, /if \[\[ "\$changed_file" == '\.env\.example' \]\]; then/);
   assert.match(prepare, /"\$normalized" =~ \(\^\|\/\)\\\.env\(\$\|\\\.\)/);
   assert.equal(
-    (prepare.match(/PRODUCTION_BASE_SHA: 0d972f4a1dee7b6b64a28743bcd87e29daf3275c/g) || []).length,
+    (prepare.match(/PRODUCTION_BASE_SHA: 145958d895aef289b9652f850e32e237f2b62f70/g) || []).length,
     2,
-    'release typecheck and content gates must use the exact current production base',
+    'release typecheck and content gates must use the exact live production ancestor',
   );
+  assert.doesNotMatch(prepare, /0d972f4a1dee7b6b64a28743bcd87e29daf3275c/);
   assert.match(
     prepare,
     /git worktree add --detach "\$reference_dir" "\$PRODUCTION_BASE_SHA"/,

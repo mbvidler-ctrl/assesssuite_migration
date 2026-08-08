@@ -135,8 +135,8 @@ test('R00 characterises pre-refactor InvokeLLM and transcription-reporting behav
 });
 
 test('R01 registry shape is complete and internally consistent', () => {
-  assert.equal(CAPABILITY_FLAG_NAMES.length, 10);
-  assert.equal(new Set(CAPABILITY_FLAG_NAMES).size, 10, 'flag names must be unique');
+  assert.equal(CAPABILITY_FLAG_NAMES.length, 11);
+  assert.equal(new Set(CAPABILITY_FLAG_NAMES).size, 11, 'flag names must be unique');
   const mandatoryKeys = [
     'name', 'kind', 'selftest', 'selftestMock', 'forcedOffUnder',
     'noticeRequired', 'capabilityReducing', 'reducesAvailabilityWhen',
@@ -207,6 +207,7 @@ test('R04 the self-test mock carve-out is exact and scoped to GENERAL_CLINICAL_L
 // Change 2 call-site refactor provably safe.
 const PRE_REFACTOR_ENABLED = new Map([
   ['ALLOW_OPEN_REGISTRATION', (e) => e.ALLOW_OPEN_REGISTRATION === '1' || e.SELFTEST === '1'],
+  ['CORE_V1_SANDBOX_ENABLED', (e) => e.CORE_V1_SANDBOX_ENABLED === '1'],
   ['DOCUMENT_EXTRACTION_ENABLED', (e) => e.DOCUMENT_EXTRACTION_ENABLED === '1'],
   ['DOCUMENT_EXTRACTION_UNDER_13_ENABLED', (e) => e.DOCUMENT_EXTRACTION_UNDER_13_ENABLED === '1'],
   ['GENERAL_CLINICAL_LLM_ENABLED', (e) => e.GENERAL_CLINICAL_LLM_ENABLED === '1'],
@@ -220,7 +221,7 @@ const PRE_REFACTOR_ENABLED = new Map([
 const PRE_REFACTOR_CONFIGURED = new Map(CAPABILITY_FLAG_NAMES.map((name) => [name, (e) => e[name] === '1']));
 
 test('R05 equivalence net — capabilityEnabled/capabilityConfigured match the literal pre-refactor expressions', () => {
-  assert.equal(PRE_REFACTOR_ENABLED.size, 10);
+  assert.equal(PRE_REFACTOR_ENABLED.size, 11);
   const cases = [undefined, '', '0', '1', 'true'];
   for (const name of CAPABILITY_FLAG_NAMES) {
     const expectedEnabled = PRE_REFACTOR_ENABLED.get(name);
@@ -320,7 +321,7 @@ test('R08 manifest freshness and determinism', () => {
   assert.equal(renderOperatorManifest(manifest, { repoRoot }), renderOperatorManifest(manifestAgain, { repoRoot }));
 });
 
-test('R09 client surface coverage is exact in both directions, and totals exactly 32 across 15 files', () => {
+test('R09 client surface coverage is exact in both directions, and totals exactly 6 across 4 files', () => {
   const flag = getFlag('GENERAL_CLINICAL_LLM_ENABLED');
   const discovered = discoverSurfaces(flag.clientDetector, repoRoot);
   const discoveredPaths = new Set(discovered.map((surface) => surface.path));
@@ -336,8 +337,27 @@ test('R09 client surface coverage is exact in both directions, and totals exactl
     assert.ok(fs.existsSync(path.join(repoRoot, entry.path)), `excluded path ${entry.path} does not exist`);
   }
 
-  assert.equal(flag.clientSurfaces.length, 15);
-  assert.equal(flag.clientSurfaces.reduce((sum, surface) => sum + surface.callSites, 0), 32);
+  assert.equal(flag.clientSurfaces.length, 4);
+  assert.equal(flag.clientSurfaces.reduce((sum, surface) => sum + surface.callSites, 0), 6);
+});
+
+test('R01b Core V1 sandbox exposure is strict, dormant and not implied by self-test', () => {
+  const flag = getFlag('CORE_V1_SANDBOX_ENABLED');
+  assert.equal(flag.selftest, 'strict');
+  assert.equal(flag.selftestMock, null);
+  assert.equal(flag.forcedOffUnder, null);
+  assert.deepEqual(flag.values, {
+    production: '0',
+    rollback: '0',
+    parity: '0',
+    envExample: '',
+  });
+  assert.equal(capabilityEnabled('CORE_V1_SANDBOX_ENABLED', { SELFTEST: '1' }), false);
+  assert.equal(capabilityEnabled('CORE_V1_SANDBOX_ENABLED', { SELFTEST: '1', CORE_V1_SANDBOX_ENABLED: '1' }), true);
+  assert.equal(flag.clientDetector, null);
+  assert.deepEqual(flag.clientSurfaces, []);
+  assert.match(flag.serverGates[0].route, /\/api\/core\/v1\/\*/);
+  assert.match(flag.serverGates[0].effectWhenOff, /production additionally hard-disables/i);
 });
 
 test('R10 deployment-file cross-check against fly.production.toml, fly.rollback.production.toml and .env.example', () => {
@@ -354,7 +374,7 @@ test('R10 deployment-file cross-check against fly.production.toml, fly.rollback.
   }
 
   // Non-vacuity fixture: prove the comparator can actually fail.
-  const mismatched = parseFlyEnv('[env]\nGENERAL_CLINICAL_LLM_ENABLED = "0"\n');
+  const mismatched = parseFlyEnv('[env]\nGENERAL_CLINICAL_LLM_ENABLED = "1"\n');
   assert.notEqual(getFlag('GENERAL_CLINICAL_LLM_ENABLED').values.production, mismatched.get('GENERAL_CLINICAL_LLM_ENABLED'));
 });
 

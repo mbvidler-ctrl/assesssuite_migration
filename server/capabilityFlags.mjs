@@ -242,6 +242,55 @@ const FLAGS = [
     documentedIn: ['.env.example', 'fly.production.toml', 'fly.rollback.production.toml'],
   },
   {
+    name: 'CORE_V1_SANDBOX_ENABLED',
+    kind: 'capability',
+    selftest: 'strict',
+    selftestMock: null,
+    forcedOffUnder: null,
+    noticeRequired: true,
+    capabilityReducing: true,
+    reducesAvailabilityWhen: '0',
+    owner: 'Maxwell Vidler',
+    ownerName: 'Core V1 isolated sandbox routes',
+    ownerSummary:
+      'Controls explicit exposure of the isolated, admin-only AssessSuite Core V1 sandbox route family. ' +
+      'It does not authorise production activation, provider egress, patient-data testing or live deployment.',
+    whenOff:
+      'The /api/core/v1/* route family is not exposed and returns the ordinary not-found response. ' +
+      'Existing production workflows and user-visible clinical functions are unchanged.',
+    values: {
+      production: '0',
+      rollback: '0',
+      parity: '0',
+      envExample: '',
+    },
+    serverGates: [
+      {
+        file: 'server/index.mjs',
+        symbol: 'Core V1 router bootstrap / sandboxEnabled',
+        route: 'ALL /api/core/v1/*',
+        effectWhenOff:
+          'Core V1 routes remain unmounted or return 404 CORE_NOT_FOUND; production additionally hard-disables ' +
+          'sandbox exposure in server/index.mjs even if another configuration source is malformed.',
+      },
+    ],
+    reportedVia:
+      'Not published to the browser; enforced at server startup and recorded in the generated operator capability manifest.',
+    clientDetector: null,
+    detectorNote:
+      'This is a server route-exposure gate with no direct browser call-site marker; the route family is hidden when off.',
+    clientSurfaces: [],
+    opaqueOverrideForbidden: true,
+    overrideNote:
+      'Present in FORBIDDEN_OPAQUE_OVERRIDES (scripts/check-production-secrets.mjs); an opaque Fly secret cannot ' +
+      'enable the sandbox route family outside the reviewed configuration and server-side production hard-disable.',
+    caveats: [
+      'The flag permits only isolated sandbox route exposure. Core capability-state, tenant, review, source-lineage ' +
+        'and production hard-disable controls remain independently mandatory.',
+    ],
+    documentedIn: ['.env.example', 'fly.production.toml', 'fly.rollback.production.toml'],
+  },
+  {
     name: 'GENERAL_CLINICAL_LLM_ENABLED',
     kind: 'capability',
     selftest: 'strict',
@@ -251,17 +300,17 @@ const FLAGS = [
     capabilityReducing: true,
     reducesAvailabilityWhen: '0',
     owner: 'Maxwell Vidler',
-    ownerName: 'Legacy general clinical AI drafting',
+    ownerName: 'Legacy generic clinical AI drafting',
     ownerSummary:
-      'The single switch behind every non-referral AI-assisted drafting action across the product: SOAP note ' +
-      'assist, treatment protocols, nutrition advice, medication alerts, assessment recommendations, assessment ' +
-      'audit, and the whole report suite (GP summary, DVA, private health, Form 32, custom reports).',
+      'A contained legacy switch behind four remaining non-referral generic AI drafting surfaces: SOAP note assist, ' +
+      'nutrition advice, medication alerts and assessment-audit draft generation. ' +
+      'Core V1 assessment discovery, governed treatment-protocol lookup, and report composition do not use this switch.',
     whenOff:
-      'None of those AI-assisted actions can run; the exact user-visible effect (a disabled and labelled control, ' +
-      'a labelled non-AI fallback, or — on the report surfaces not yet migrated to the capability hook — a plain ' +
-      'error message) differs by surface, see the client-surfaces table.',
+      'The remaining generic AI drafting actions cannot run. Every reachable control is disabled and labelled before ' +
+      'it can invoke the endpoint. Core V1 deterministic assessment discovery, ' +
+      'governed catalogue lookup, and draft-only report composition remain available independently.',
     values: {
-      production: '1',
+      production: '0',
       rollback: '0',
       parity: '0',
       envExample: '',
@@ -293,41 +342,6 @@ const FLAGS = [
     detectorNote: null,
     clientSurfaces: [
       {
-        path: 'src/components/reports/DVAPatientCarePlan.jsx',
-        label: 'DVA patient care plan report',
-        callSites: 4,
-        failureMode: 'hard-error',
-        userVisibleWhenOff: 'Generating any section of the DVA care plan report fails with an error message where the drafted text should appear.',
-      },
-      {
-        path: 'src/components/reports/GPSummary.jsx',
-        label: 'GP summary report',
-        callSites: 4,
-        failureMode: 'hard-error',
-        userVisibleWhenOff: 'Generating any section of the GP summary report fails with an error message where the drafted text should appear.',
-      },
-      {
-        path: 'src/components/reports/PrivateHealthProgressReport.jsx',
-        label: 'Private health progress report',
-        callSites: 4,
-        failureMode: 'hard-error',
-        userVisibleWhenOff: 'Generating any section of the private health progress report fails with an error message where the drafted text should appear.',
-      },
-      {
-        path: 'src/components/reports/PrivateHealthInitialAssessment.jsx',
-        label: 'Private health initial assessment report',
-        callSites: 3,
-        failureMode: 'hard-error',
-        userVisibleWhenOff: 'Generating any section of the private health initial assessment report fails with an error message where the drafted text should appear.',
-      },
-      {
-        path: 'src/components/reports/wizard-steps/SectionEditor.jsx',
-        label: 'Report wizard — Generate / Regenerate / Tidy per section',
-        callSites: 3,
-        failureMode: 'disabled-with-notice',
-        userVisibleWhenOff: 'Generate, Regenerate and Tidy stay visible on every report wizard section but are disabled and labelled as unavailable, rather than failing when pressed.',
-      },
-      {
         path: 'src/components/calendar/SOAPNoteModal.jsx',
         label: 'SOAP note Assessment/Plan drafting assist',
         callSites: 2,
@@ -335,32 +349,11 @@ const FLAGS = [
         userVisibleWhenOff: 'The AI drafting assist inside a SOAP note is disabled and labelled as unavailable; the clinician writes the note unaided and sees no error.',
       },
       {
-        path: 'src/components/reports/CustomReportGenerator.jsx',
-        label: 'Custom report generator',
-        callSites: 2,
-        failureMode: 'hard-error',
-        userVisibleWhenOff: 'Generating a custom report section fails with an error message where the drafted text should appear.',
-      },
-      {
-        path: 'src/components/reports/PDFFormFiller.jsx',
-        label: 'PDF form filler (legacy, unrouted)',
-        callSites: 2,
-        failureMode: 'feature-hidden',
-        userVisibleWhenOff: 'No user-visible effect: this tree is orphaned/unreachable legacy code, flagged in the 21 July 2026 change for a human removal decision that has not yet been made.',
-      },
-      {
         path: 'src/pages/AssessmentAudit.jsx',
         label: 'Assessment audit AI text fields',
         callSites: 2,
         failureMode: 'disabled-with-notice',
         userVisibleWhenOff: 'The controls that draft the AI-authored contraindications, scoring and instructions text are disabled and labelled as unavailable.',
-      },
-      {
-        path: 'src/components/client/AssessmentRecommendations.jsx',
-        label: 'Assessment recommendations',
-        callSites: 1,
-        failureMode: 'labelled-fallback',
-        userVisibleWhenOff: 'The panel falls back to catalogue keyword matching, but it is badged "Rule-based" and carries an explanation, so the substitution is stated rather than silent.',
       },
       {
         path: 'src/components/client/MedicationAlerts.jsx',
@@ -375,27 +368,6 @@ const FLAGS = [
         callSites: 1,
         failureMode: 'disabled-with-notice',
         userVisibleWhenOff: 'The control that drafts nutrition plan advice is disabled and labelled as unavailable; none of the three advice fields populate and no error is shown.',
-      },
-      {
-        path: 'src/components/reports/Form32Generator.jsx',
-        label: 'Form 32 report generator',
-        callSites: 1,
-        failureMode: 'hard-error',
-        userVisibleWhenOff: 'Generating the Form 32 report fails with an error message where the drafted text should appear.',
-      },
-      {
-        path: 'src/pages/ClientConditions.jsx',
-        label: 'Condition-based assessment suggestions',
-        callSites: 1,
-        failureMode: 'disabled-with-notice',
-        userVisibleWhenOff: 'Condition-based assessment suggestions are disabled and labelled as unavailable; a failed attempt reports its error state instead of rendering an empty panel.',
-      },
-      {
-        path: 'src/pages/TreatmentProtocols.jsx',
-        label: 'Treatment protocol generation (custom condition path)',
-        callSites: 1,
-        failureMode: 'disabled-with-notice',
-        userVisibleWhenOff: 'Generating a custom (non-catalogue) treatment protocol is disabled and labelled as unavailable; the reviewed catalogue lookup is unaffected and remains available.',
       },
     ],
     opaqueOverrideForbidden: true,

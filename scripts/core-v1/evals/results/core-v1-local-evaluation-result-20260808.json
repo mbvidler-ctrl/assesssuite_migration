@@ -1,0 +1,113 @@
+{
+  "schema_version": "core-v1.eval.local-result/1",
+  "suite_id": "assesssuite-core-v1-frozen-synthetic-20260808",
+  "freeze_id": "core-v1-eval-freeze-20260808-01",
+  "freeze_manifest_sha256": "fff3a848c761ccacbbf1c506dbb03d7769d366eab8007b2add1c491bdf3b6f02",
+  "evidence_recorded_at": "2026-08-08T11:53:13.1128535+10:00",
+  "repository_head": "e5abba834e4c276554815dcfa8d55f0efcf026c7",
+  "repository_state": "uncommitted candidate at the recorded parent; implementation content is pinned by the digests below",
+  "execution_mode": "offline-local-modules",
+  "adapter": "scripts/core-v1/evals/core-v1-local-adapter.mjs",
+  "verifier": "scripts/core-v1/evals/verify-frozen-evals.mjs",
+  "data_policy": {
+    "patient_data": false,
+    "external_calls": false,
+    "provider_calls": 0,
+    "clinical_validation_claimed": false,
+    "interpretation": "Synthetic software-invariant evidence only"
+  },
+  "implementation_digests": [
+    {
+      "path": "src/lib/clinical/assessmentDiscovery.js",
+      "sha256": "5cf358290027957eaec9fc661a0703dbd5c754552194acf1454748f58e1ca9d1"
+    },
+    {
+      "path": "src/lib/clinical/protocol-assistance/normalise.js",
+      "sha256": "369b1faef3e984f35458c0b2d8b15808e6997d458c481111acedd3440c7c2e0c"
+    },
+    {
+      "path": "src/lib/clinical/protocol-assistance/governance.js",
+      "sha256": "b5a876b3ccfbc455232f44c219f196f5ddfe45215578a240f1e5158bd414f4e4"
+    },
+    {
+      "path": "src/lib/clinical/protocol-assistance/search.js",
+      "sha256": "cfa76c17b5fc5d084477ce25fd375733a1c8aa69b03c0237d64204cee54a67c5"
+    },
+    {
+      "path": "src/lib/reports/core/reportCompositionEngine.js",
+      "sha256": "a734a141f54adb20076330f259ac06209c302ac908a51e098e906b6fd73dd143"
+    },
+    {
+      "path": "src/lib/reports/core/templateRegistry.js",
+      "sha256": "c12e35e4b73907de856844f59257b5d246f4475805f0d9d66d5f6bfeade7fc72"
+    },
+    {
+      "path": "scripts/core-v1/evals/verify-frozen-evals.mjs",
+      "sha256": "7b61735f107420a83d5053f435425166e6f4f8a792c359ea1c18915852b6a2ee"
+    },
+    {
+      "path": "scripts/core-v1/evals/core-v1-local-adapter.mjs",
+      "sha256": "90d166d9122339c63f703baaea7afc08a959c3d65ad4cec7199e4a64827733e4"
+    }
+  ],
+  "runs": [
+    {
+      "run_id": "core-v1-development-20260808-04",
+      "partition": "development",
+      "purpose": "development",
+      "case_count": 3,
+      "invariant_count": 9,
+      "passed": true,
+      "provider_calls": 0,
+      "case_ids": [
+        "assessment-hypertension-cardiorespiratory",
+        "protocol-reviewed-exact-alias",
+        "report-source-cutoff"
+      ]
+    },
+    {
+      "run_id": "core-v1-validation-20260808-04",
+      "partition": "validation",
+      "purpose": "validation",
+      "no_tuning_acknowledged": true,
+      "case_count": 4,
+      "invariant_count": 12,
+      "passed": true,
+      "provider_calls": 0,
+      "case_ids": [
+        "assessment-musculoskeletal-normalisation",
+        "protocol-unsupported-out-of-scope",
+        "report-classification-round-trip",
+        "report-conflicting-facts"
+      ]
+    },
+    {
+      "run_id": "core-v1-locked-test-20260808-04",
+      "partition": "locked-test",
+      "purpose": "locked-test",
+      "no_tuning_acknowledged": true,
+      "locked_test_acknowledged": true,
+      "case_count": 5,
+      "invariant_count": 16,
+      "passed": true,
+      "provider_calls": 0,
+      "case_ids": [
+        "assessment-full-catalogue-growth",
+        "assessment-no-supported-condition",
+        "protocol-missing-governance",
+        "report-draft-review-invariants",
+        "report-missing-source"
+      ]
+    }
+  ],
+  "summary": {
+    "files_hash_verified": 20,
+    "cases_passed": 12,
+    "cases_failed": 0,
+    "invariants_passed": 37,
+    "invariants_failed": 0,
+    "provider_calls": 0,
+    "locked_test_exposed": true,
+    "locked_test_must_not_be_used_for_tuning": true
+  }
+}

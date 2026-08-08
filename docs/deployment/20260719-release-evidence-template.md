@@ -49,7 +49,7 @@ Do not include secret values, production records, referral contents, provider pa
 | `test:rollback-compatibility` result | `NOT RUN` |
 | Adult extraction disabled in compatibility config | `NOT VERIFIED` |
 | Under-age extraction disabled in compatibility config | `NOT VERIFIED` |
-| General clinical AI drafting enabled in candidate config (`GENERAL_CLINICAL_LLM_ENABLED`) | `NOT VERIFIED` |
+| Generic clinical AI drafting disabled in candidate config (`GENERAL_CLINICAL_LLM_ENABLED`) | `NOT VERIFIED` |
 | General clinical AI drafting disabled in compatibility config | `NOT VERIFIED` |
 | Build-only workflow run ID/URL | |
 | Compatibility image tag | |
