@@ -18,6 +18,7 @@
 // own handle so it remains independently usable.
 
 import { openDatabase, createOutboxRepository } from '../db.mjs';
+import { createApiUsageService } from '../apiUsage.mjs';
 import {
   createEntitiesAccessor,
   readRawBody,
@@ -111,9 +112,10 @@ const REQUIRES_SESSION = new Set([
 
 let state = null;
 
-function buildState(db, entityNames) {
+function buildState(db, entityNames, services = {}) {
   return {
     db,
+    apiUsage: services.apiUsage || createApiUsageService(db),
     outboxEmail: createOutboxRepository(db, 'email'),
     outboxSms: createOutboxRepository(db, 'sms'),
     entities: createEntitiesAccessor(db, entityNames),
@@ -126,8 +128,8 @@ function buildState(db, entityNames) {
  * entity-name set so this router never opens a second, independent
  * connection.
  */
-export function init(db, entityNames) {
-  state = buildState(db, entityNames);
+export function init(db, entityNames, services = {}) {
+  state = buildState(db, entityNames, services);
 }
 
 function ensureState() {
@@ -150,7 +152,7 @@ export default async function handleFunction(req, res, { functionName }) {
     return respond(res, 404, { message: 'function not found' });
   }
 
-  const { db, entities, outboxEmail, outboxSms } = ensureState();
+  const { db, entities, outboxEmail, outboxSms, apiUsage } = ensureState();
 
   // The body is read ONCE as raw bytes, then parsed. Both forms go on ctx:
   // stripeWebhook needs the exact raw bytes for Stripe-Signature HMAC
@@ -187,6 +189,7 @@ export default async function handleFunction(req, res, { functionName }) {
     request: req,
     respond: (status, json) => respond(res, status, json),
     updateMe,
+    ...(user ? { apiUsage: apiUsage.bindUser({ userId: user.id }) } : {}),
     ...(functionName === 'syncStripeSubscription'
       ? { updateSubscriptionEntitlement: createSubscriptionEntitlementUpdater(db, sessionUser) }
       : {}),

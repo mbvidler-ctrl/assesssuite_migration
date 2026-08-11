@@ -42,12 +42,14 @@
 import { randomUUID } from 'node:crypto';
 
 import { capabilityEnabled } from './capabilityFlags.mjs';
+import { ApiUsageError } from './apiUsage.mjs';
 
 import {
   assertCanonicalReferralExtractionSchema,
   assertDocumentExtractionEnabled,
   extractDocumentData,
   ExtractionError,
+  resolveDocumentExtractionModel,
 } from './documentExtraction.mjs';
 import {
   APPROVED_UPLOAD_PURPOSES,
@@ -61,7 +63,7 @@ import {
 import { issueFileAccessUrl } from './fileAccess.mjs';
 
 import { instantiateSchema, extractJsonKeysFromPrompt } from './mocks/schema-instantiator.mjs';
-import { invokeLLM as invokeRealLLM, llmEnabled } from './llm.mjs';
+import { invokeLLMWithUsage, llmEnabled, pickModel } from './llm.mjs';
 import { adminNotificationRecipient, sendEmail } from './email.mjs';
 import { createFixedWindowRateLimiter } from './rateLimit.mjs';
 import {
@@ -95,6 +97,17 @@ import {
 // key returns 503, so mock clinical content is never served or persisted in
 // production. Unset in dev/demo and always under SELFTEST (mock-fallback kept).
 const LLM_REQUIRED = capabilityEnabled('LLM_REQUIRED');
+
+function requireApiUsage(context) {
+  if (!context?.apiUsage || typeof context.apiUsage.reserve !== 'function') {
+    throw new ApiUsageError(
+      503,
+      'api_usage_accounting_unavailable',
+      'AI usage accounting is temporarily unavailable. Please try again.',
+    );
+  }
+  return context.apiUsage;
+}
 
 const diagnosticPolicy = (status, stage, message) => Object.freeze({ status, stage, message });
 
@@ -318,6 +331,26 @@ const REFERRAL_ERROR_POLICIES = Object.freeze({
       'extraction_capacity',
       'Document extraction limit reached. Please try again later.',
     ),
+    api_usage_cap_reached: diagnosticPolicy(
+      429,
+      'extraction_capacity',
+      'Daily AI usage limit reached. Please try again after the reset time.',
+    ),
+    api_usage_global_cap_reached: diagnosticPolicy(
+      503,
+      'extraction_capacity',
+      'Document extraction is temporarily unavailable.',
+    ),
+    api_usage_accounting_unavailable: diagnosticPolicy(
+      503,
+      'extraction_capacity',
+      'Document extraction is temporarily unavailable.',
+    ),
+    ai_usage_model_unpriced: diagnosticPolicy(
+      503,
+      'extraction_capacity',
+      'Document extraction is temporarily unavailable.',
+    ),
     upload_integrity_failed: diagnosticPolicy(
       409,
       'document_validation',
@@ -533,7 +566,7 @@ const REFERRAL_ERROR_POLICIES = Object.freeze({
 });
 
 function referralDiagnostic(endpointName, error, reference) {
-  const isControlled = error instanceof UploadError || error instanceof ExtractionError;
+  const isControlled = error instanceof UploadError || error instanceof ExtractionError || error instanceof ApiUsageError;
   const code = isControlled && typeof error.code === 'string' ? error.code : '';
   const endpointPolicies = REFERRAL_ERROR_POLICIES[endpointName];
   const policy = endpointPolicies && Object.hasOwn(endpointPolicies, code)
@@ -781,13 +814,50 @@ async function handleInvokeLLM(body, context) {
     // Any failure falls through to the deterministic mock so the demo never
     // hard-fails on a network/API error.
     if (llmEnabled()) {
+      const apiUsage = requireApiUsage(context);
+      const selectedModel = pickModel(prompt, schemaObj);
+      const usageReservation = apiUsage.reserve({
+        userId: context.sessionUser.id,
+        orgId: null,
+        provider: 'openai',
+        feature: 'invoke_llm',
+        model: selectedModel,
+        estimatedCostMicrousd: apiUsage.estimateChatMicrousd({
+          model: selectedModel,
+          feature: 'invoke_llm',
+        }),
+      });
       try {
-        return await invokeRealLLM({ prompt, schema: schemaObj });
-      } catch {
+        const generated = await invokeLLMWithUsage({ prompt, schema: schemaObj });
+        const actualCostMicrousd = apiUsage.calculateChatCostMicrousd({
+          model: selectedModel,
+          inputTokens: generated.usage?.inputTokens,
+          cachedInputTokens: generated.usage?.cachedInputTokens,
+          outputTokens: generated.usage?.outputTokens,
+        });
+        apiUsage.settle({
+          reservationId: usageReservation.id,
+          status: 'succeeded',
+          actualCostMicrousd,
+          inputTokens: generated.usage?.inputTokens,
+          cachedInputTokens: generated.usage?.cachedInputTokens,
+          outputTokens: generated.usage?.outputTokens,
+          providerRequestId: generated.providerRequestId,
+        });
+        return generated.value;
+      } catch (providerError) {
+        // A provider failure may still be billable and therefore retains the
+        // conservative estimate. Settlement failure is allowed to replace the
+        // provider error so no generated response can escape unaccounted.
+        apiUsage.settle({
+          reservationId: usageReservation.id,
+          status: 'failed',
+        });
         if (LLM_REQUIRED) {
           const e = new Error('AI generation failed.');
           e.httpStatus = 502;
           e.code = CLINICAL_AI_PROVIDER_FAILED_CODE;
+          e.cause = providerError;
           throw e;
         }
         console.log('[llm] real model failed; using the explicit non-production mock fallback');
@@ -868,6 +938,50 @@ function acquireExtractionSlot(userId, orgId) {
     if (orgCount === 0) activeByOrg.delete(orgId);
     else activeByOrg.set(orgId, orgCount);
   };
+}
+
+export function finalizeExtractionAccounting({
+  apiUsage,
+  apiUsageReservation,
+  apiUsageFinalized,
+  providerCallStarted,
+  uploadRegistry,
+  extractionReservation,
+  succeeded,
+  actualCostMicrousd,
+  releaseSlot,
+}) {
+  let finalizationError = null;
+  try {
+    if (apiUsageReservation && !apiUsageFinalized) {
+      if (providerCallStarted) {
+        apiUsage.settle({
+          reservationId: apiUsageReservation.id,
+          status: 'failed',
+        });
+      } else {
+        apiUsage.cancel({ reservationId: apiUsageReservation.id });
+      }
+    }
+  } catch (error) {
+    finalizationError = error;
+  }
+  try {
+    if (extractionReservation) {
+      uploadRegistry.completeExtractionUsage(extractionReservation.id, {
+        succeeded,
+        actualCostMicrousd,
+      });
+    }
+  } catch (error) {
+    finalizationError ||= error;
+  } finally {
+    // Accounting/storage failures must never strand a process-local
+    // extraction slot. A stranded slot would turn a transient SQLite fault
+    // into a permanent user/org/global denial until process restart.
+    releaseSlot();
+  }
+  if (finalizationError) throw finalizationError;
 }
 
 function requireSelectedOrg(body, context) {
@@ -1097,16 +1211,39 @@ async function handleExtractDataFromUploadedFile(body, context) {
     });
   }
 
+  const apiUsage = requireApiUsage(context);
+  const extractionModel = resolveDocumentExtractionModel();
   const releaseSlot = acquireExtractionSlot(context.sessionUser.id, orgId);
-  let reservation = null;
+  let apiUsageReservation = null;
+  let extractionReservation = null;
+  let providerCallStarted = false;
+  let apiUsageFinalized = false;
   let succeeded = false;
   let actualCostMicrousd = null;
   try {
-    reservation = context.uploadRegistry.reserveExtractionUsage({
+    apiUsageReservation = apiUsage.reserve({
       userId: context.sessionUser.id,
       orgId,
-      uploadCount: uploads.length,
+      provider: 'openai',
+      feature: 'document_extraction',
+      model: extractionModel,
+      estimatedCostMicrousd: apiUsage.estimates.documentExtractionMicrousd * uploads.length,
+      requestUnits: uploads.length,
     });
+    try {
+      // Preserve the existing extraction-specific document/rate/cost limits
+      // and audit row. The generic reservation is additional and is cancelled
+      // if that older admission layer refuses before provider contact.
+      extractionReservation = context.uploadRegistry.reserveExtractionUsage({
+        userId: context.sessionUser.id,
+        orgId,
+        uploadCount: uploads.length,
+      });
+    } catch (error) {
+      apiUsage.cancel({ reservationId: apiUsageReservation.id });
+      apiUsageFinalized = true;
+      throw error;
+    }
     const files = uploads.map((upload) => {
       if (upload.state !== 'bound') {
         context.uploadRegistry.transition(upload.id, 'processing', { actorUserId: context.sessionUser.id });
@@ -1114,6 +1251,7 @@ async function handleExtractDataFromUploadedFile(body, context) {
       const filePath = canonicalUploadPath(context.uploadsDir, upload.storedName, { mustExist: true });
       return { upload, buffer: context.readUploadBuffer(filePath, upload.byteSize) };
     });
+    providerCallStarted = true;
     const extracted = await extractDocumentData({
       files,
       schema: body?.json_schema,
@@ -1121,6 +1259,13 @@ async function handleExtractDataFromUploadedFile(body, context) {
       schemaContract: 'referral',
     });
     actualCostMicrousd = extracted.actualCostMicrousd;
+    apiUsage.settle({
+      reservationId: apiUsageReservation.id,
+      status: 'succeeded',
+      actualCostMicrousd,
+      providerRequestIdHash: extracted.providerResponseIdHash,
+    });
+    apiUsageFinalized = true;
     for (const upload of uploads) {
       if (upload.state !== 'bound') {
         context.uploadRegistry.transition(upload.id, 'review-pending', { actorUserId: context.sessionUser.id });
@@ -1134,8 +1279,8 @@ async function handleExtractDataFromUploadedFile(body, context) {
         metadata: {
           file_count: uploads.length,
           schema_hash: extracted.schemaHash,
-          estimated_cost_microusd: reservation.estimatedCostMicrousd,
-          actual_cost_microusd: actualCostMicrousd ?? reservation.estimatedCostMicrousd,
+          estimated_cost_microusd: extractionReservation.estimatedCostMicrousd,
+          actual_cost_microusd: actualCostMicrousd ?? extractionReservation.estimatedCostMicrousd,
           provider_status_class: extracted.providerStatusClass,
           provider_model: extracted.model,
           prompt_version: extracted.promptVersion,
@@ -1224,13 +1369,17 @@ async function handleExtractDataFromUploadedFile(body, context) {
     }
     throw error;
   } finally {
-    if (reservation) {
-      context.uploadRegistry.completeExtractionUsage(reservation.id, {
-        succeeded,
-        actualCostMicrousd,
-      });
-    }
-    releaseSlot();
+    finalizeExtractionAccounting({
+      apiUsage,
+      apiUsageReservation,
+      apiUsageFinalized,
+      providerCallStarted,
+      uploadRegistry: context.uploadRegistry,
+      extractionReservation,
+      succeeded,
+      actualCostMicrousd,
+      releaseSlot,
+    });
   }
 }
 
@@ -2017,7 +2166,14 @@ export async function handleCoreIntegration(req, res, context) {
     if (endpointName === 'ExtractDataFromUploadedFile') {
       return sendJson(res, status, { status: 'error', code, details });
     }
-    return sendJson(res, status, { code, error: details });
+    return sendJson(res, status, {
+      code,
+      error: details,
+      ...(typeof error?.resetsAt === 'string' ? { resets_at: error.resetsAt } : {}),
+      ...(Number.isInteger(error?.retryAfterSeconds)
+        ? { retry_after_seconds: error.retryAfterSeconds }
+        : {}),
+    });
   } finally {
     releaseUploadAdmission?.();
   }

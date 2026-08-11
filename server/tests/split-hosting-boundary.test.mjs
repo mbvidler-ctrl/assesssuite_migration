@@ -225,8 +225,27 @@ test('build and routing configuration preserves the split-hosting boundary', () 
   assert.equal(connectSource, "'self' https://app.assesssuite.com");
   assert.match(contentSecurityPolicy, /(?:^|;\s*)font-src 'self'(?:;|$)/);
   assert.match(splitVerifier, /landingUsageEndpoint = 'https:\/\/app\.assesssuite\.com\/api\/usage\/page-load'/);
+  assert.match(splitVerifier, /artifactText\(landingRoot, javascriptArtifactExtensions\)/);
   assert.match(splitVerifier, /usageEndpointOccurrences !== 1/);
   assert.match(splitVerifier, /landing\.replace\(landingUsageEndpoint, ''\)/);
+  const requiredAnalyticsBlock = splitVerifier.match(
+    /const requiredLandingAnalyticsMarkers = \[([\s\S]*?)\];/,
+  )?.[1];
+  assert.ok(requiredAnalyticsBlock, 'compiled landing analytics guard is missing');
+  for (const marker of ['va.vercel-scripts.com', '/_vercel/insights']) {
+    assert.ok(requiredAnalyticsBlock.includes(marker), `compiled landing analytics guard lost ${marker}`);
+  }
+  assert.match(
+    splitVerifier,
+    /for \(const \[marker, label\] of requiredLandingAnalyticsMarkers\) \{[\s\S]*?landingJavaScript\.includes\(marker\)/,
+  );
+  const bannedPlatformBlock = splitVerifier.match(
+    /const bannedPlatformMarkers = \[([\s\S]*?)\];/,
+  )?.[1];
+  assert.ok(bannedPlatformBlock, 'compiled platform analytics ban is missing');
+  for (const marker of ['va.vercel-scripts.com', '/_vercel/insights']) {
+    assert.ok(bannedPlatformBlock.includes(marker), `compiled platform analytics ban lost ${marker}`);
+  }
   for (const marker of [
     "['/api/'",
     "['/functions/'",

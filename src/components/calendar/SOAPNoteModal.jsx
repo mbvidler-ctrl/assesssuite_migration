@@ -53,7 +53,6 @@ import { todayLocal } from "@/lib/localDate";
 import { recordLegalEvent } from "@/lib/legal/recordAcceptance";
 import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
 import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
-import { useAuth } from "@/lib/AuthContext";
 import { useAiCapability } from "@/hooks/useAiCapability";
 import { normalizeSdkError } from "@/lib/sdkError";
 import {
@@ -61,6 +60,30 @@ import {
   appendAiProvenance,
   markAiAssistedText,
 } from "@/lib/clinical/aiProvenance";
+
+const MAX_TRANSCRIPTION_AUDIO_BYTES = 20 * 1024 * 1024;
+const RECORDER_MIME_CANDIDATES = Object.freeze([
+  'audio/webm;codecs=opus',
+  'audio/mp4;codecs=mp4a.40.2',
+  'audio/mp4',
+  'audio/webm',
+]);
+
+function preferredRecorderMimeType() {
+  if (typeof MediaRecorder === 'undefined' || typeof MediaRecorder.isTypeSupported !== 'function') return null;
+  return RECORDER_MIME_CANDIDATES.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) || null;
+}
+
+function recordingFileFormat(mimeType) {
+  const baseMimeType = String(mimeType || '').split(';', 1)[0].trim().toLowerCase();
+  if (baseMimeType === 'audio/webm' || baseMimeType === 'video/webm') {
+    return { extension: 'webm', mimeType: 'audio/webm' };
+  }
+  if (['audio/mp4', 'audio/x-m4a', 'video/mp4'].includes(baseMimeType)) {
+    return { extension: 'mp4', mimeType: 'audio/mp4' };
+  }
+  return null;
+}
 
 export default function SOAPNoteModal({
   appointment,
@@ -71,10 +94,10 @@ export default function SOAPNoteModal({
   hasNext = false,
   sessionInfo = null
 }) {
-  // Transcription launch switch (public settings, server-enforced too):
-  // recording stays available; Transcribe/Dissect surfaces hide when off.
-  const { appPublicSettings } = useAuth();
-  const transcriptionEnabled = appPublicSettings?.public_settings?.transcription_enabled === true;
+  // Recording stays available; provider-aware Transcribe/Dissect surfaces
+  // follow the server-published capability posture.
+  const transcription = useAiCapability('transcription');
+  const transcriptionEnabled = transcription.canTrigger;
   const ai = useAiCapability();
 
   const [soapNote, setSoapNote] = useState(null);
@@ -494,8 +517,11 @@ export default function SOAPNoteModal({
         } 
       });
       streamRef.current = stream;
-      
-      const mediaRecorder = new MediaRecorder(stream);
+
+      const preferredMimeType = preferredRecorderMimeType();
+      const mediaRecorder = preferredMimeType
+        ? new MediaRecorder(stream, { mimeType: preferredMimeType })
+        : new MediaRecorder(stream);
       mediaRecorderRef.current = mediaRecorder;
       audioChunksRef.current = [];
 
@@ -509,10 +535,18 @@ export default function SOAPNoteModal({
       };
 
       mediaRecorder.onstop = async () => {
-        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
-        await saveRecording(audioBlob);
-        if (streamRef.current) {
-          streamRef.current.getTracks().forEach(track => track.stop());
+        try {
+          const format = recordingFileFormat(mediaRecorder.mimeType || preferredMimeType);
+          if (!format) {
+            toast.error('This browser produced an unsupported recording format. Try a current Chrome, Edge, Firefox or Safari browser.');
+            return;
+          }
+          const audioBlob = new Blob(audioChunksRef.current, { type: format.mimeType });
+          await saveRecording(audioBlob, format);
+        } finally {
+          if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+          }
         }
       };
 
@@ -525,14 +559,28 @@ export default function SOAPNoteModal({
       toast.success('Recording started!');
     } catch (error) {
       console.error('Error starting recording:', error);
+      streamRef.current?.getTracks().forEach(track => track.stop());
       toast.error('Failed to start recording. Check microphone permissions.');
     }
   };
 
-  const saveRecording = async (audioBlob) => {
+  const saveRecording = async (audioBlob, format) => {
+    if (!audioBlob?.size) {
+      toast.error('The recording is empty. Please record the session again.');
+      return;
+    }
+    if (audioBlob.size > MAX_TRANSCRIPTION_AUDIO_BYTES) {
+      toast.error('The recording exceeds the 20 MiB transcription limit. Record a shorter session and try again.');
+      return;
+    }
+
     setIsSavingAudio(true);
     try {
-      const audioFile = new File([audioBlob], `session-${Date.now()}.webm`, { type: 'audio/webm' });
+      const audioFile = new File(
+        [audioBlob],
+        `session-${Date.now()}.${format.extension}`,
+        { type: format.mimeType },
+      );
       const { file_url } = await uploadTenantFile({
         file: audioFile,
         org_id: client.org_id,
@@ -615,7 +663,11 @@ export default function SOAPNoteModal({
       const payload = result?.data ?? result;
       if (payload?.transcript) {
         setSessionTranscript(prev => prev ? prev + '\n\n---\n\n' + payload.transcript : payload.transcript);
-        toast.success('Transcription complete!');
+        if (payload.simulated) {
+          toast.warning('Placeholder transcript loaded. No real audio transcription was performed.');
+        } else {
+          toast.success('Transcription complete!');
+        }
       } else {
         setLastTranscribedUrl(null); // allow retry
         toast.error('Transcription returned empty result.');
@@ -623,7 +675,12 @@ export default function SOAPNoteModal({
     } catch (error) {
       console.error('Transcription error:', error);
       setLastTranscribedUrl(null); // allow retry
-      toast.error('Transcription failed. Please try again.');
+      transcription.reportError(error);
+      const failure = normalizeSdkError(error, {
+        stage: 'session_transcription',
+        fallbackDetails: 'Transcription failed. Please try again.',
+      });
+      toast.error(failure.details);
     } finally {
       setIsTranscribing(false);
     }
@@ -671,7 +728,12 @@ export default function SOAPNoteModal({
       }
     } catch (error) {
       console.error('Dissect error:', error);
-      toast.error('Dissection failed. Please try again.');
+      transcription.reportError(error);
+      const failure = normalizeSdkError(error, {
+        stage: 'soap_dissection',
+        fallbackDetails: 'Dissection failed. Please try again.',
+      });
+      toast.error(failure.details);
     } finally {
       setIsDissecting(false);
     }

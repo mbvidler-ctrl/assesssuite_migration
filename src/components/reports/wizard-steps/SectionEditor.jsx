@@ -13,6 +13,18 @@ import { SecureFileLink } from "@/components/files/SecureFile";
 import { uploadTenantFile } from "@/lib/fileIntegrations";
 import { useAiCapability } from "@/hooks/useAiCapability";
 import { aiErrorMessage } from "@/lib/aiCapabilities";
+import {
+  buildPriorReportContext,
+  buildReportAssessmentSummary,
+  buildReportBatchSchema,
+  buildReportDraftPrompt,
+  buildSoapReportContext,
+  findReportOutcomeSection,
+  getDraftableReportSections,
+  limitReportText,
+  normaliseReportAssessments,
+  validateReportBatchResponse,
+} from "@/lib/reports/reportContentGeneration";
 
 const SECTION_GUIDANCE = {
   "Referral Details": {
@@ -368,33 +380,30 @@ export default function SectionEditor({ sections, content, onChange, client, cli
     onChange({ ...content, [`${activeSection}_attachments`]: attachments.filter((_, i) => i !== index) });
   };
 
-  const buildFullContext = (forSection = null) => {
+  const buildFullContext = () => {
     const allAssessments = clientAssessments || [];
     const assessmentsToUse = selectedAssessmentIds && selectedAssessmentIds.length > 0
       ? allAssessments.filter(ca => selectedAssessmentIds.includes(ca.id))
       : allAssessments;
 
-    const formattedAssessments = assessmentsToUse.map(a => {
-      const additional = a.additional_data || {};
-      return {
-        name: a.name,
-        date: a.assessment_date,
-        result: a.result_value,
-        unit: a.unit_of_measure,
-        notes: a.notes,
-        soap_text: additional.soap_text || null,
-        normative_comparison: additional.normative_comparison || null,
-        interpretation: additional.interpretation || null,
-      };
-    }).sort((a, b) => new Date(b.date) - new Date(a.date));
+    const formattedAssessments = normaliseReportAssessments(assessmentsToUse);
 
     const clientContext = {
       name: client.full_name,
       dob: client.date_of_birth,
       age: client.date_of_birth ? Math.floor((new Date() - new Date(client.date_of_birth)) / 31557600000) : null,
-      conditions: (clientConditions || []).map(c => ({ name: c.condition_name, medication: c.medication, notes: c.notes, pain_level: c.pain_level })),
-      goals: client.client_goals || null,
-      referral: { source: client.referral_source, reason: client.referral_reason, date: client.referral_date },
+      conditions: (clientConditions || []).slice(0, 20).map(c => ({
+        name: limitReportText(c.condition_name, 200),
+        medication: limitReportText(c.medication, 500),
+        notes: limitReportText(c.notes, 750),
+        pain_level: c.pain_level,
+      })),
+      goals: limitReportText(client.client_goals, 1_500),
+      referral: {
+        source: limitReportText(client.referral_source, 200),
+        reason: limitReportText(client.referral_reason, 1_000),
+        date: client.referral_date,
+      },
       funding: client.funding_source,
       assessments: formattedAssessments,
       apss_stage1: client.apss_completed ? {
@@ -412,29 +421,17 @@ export default function SectionEditor({ sections, content, onChange, client, cli
         bmi: client.apss_s2_bmi,
         blood_pressure: `${client.apss_s2_systolic_bp}/${client.apss_s2_diastolic_bp}`,
         smoking: client.apss_s2_smoking,
-        medications: client.apss_s2_prescribed_medications
+        medications: limitReportText(client.apss_s2_prescribed_medications, 1_000)
       } : null,
-      dva_info: client.funding_source === 'dva' ? { card_number: client.dva_card_number, accepted_conditions: client.dva_accepted_conditions } : null,
-      ndis_info: client.funding_source === 'ndis' ? { number: client.ndis_number, goals: client.ndis_goals, functional_impact: client.ndis_functional_impact } : null,
-      workcover_info: client.funding_source === 'workcover_qld' ? { injury_date: client.workcover_date_of_injury, injury_description: client.workcover_injury_description, work_capacity: client.workcover_work_capacity, rtw_planning: client.workcover_rtw_planning } : null,
-      tac_info: client.funding_source === 'tac_maic' ? { claim_number: client.tac_maic_claim_number, injury_description: client.tac_maic_injury_description, functional_limitations: client.tac_maic_functional_limitations } : null,
+      dva_info: client.funding_source === 'dva' ? { card_number: client.dva_card_number, accepted_conditions: limitReportText(client.dva_accepted_conditions, 1_500) } : null,
+      ndis_info: client.funding_source === 'ndis' ? { number: client.ndis_number, goals: limitReportText(client.ndis_goals, 1_500), functional_impact: limitReportText(client.ndis_functional_impact, 2_000) } : null,
+      workcover_info: client.funding_source === 'workcover_qld' ? { injury_date: client.workcover_date_of_injury, injury_description: limitReportText(client.workcover_injury_description, 1_500), work_capacity: limitReportText(client.workcover_work_capacity, 1_000), rtw_planning: limitReportText(client.workcover_rtw_planning, 1_500) } : null,
+      tac_info: client.funding_source === 'tac_maic' ? { claim_number: client.tac_maic_claim_number, injury_description: limitReportText(client.tac_maic_injury_description, 1_500), functional_limitations: limitReportText(client.tac_maic_functional_limitations, 1_500) } : null,
     };
 
-    const priorReportContext = priorReports && priorReports.length > 0
-      ? priorReports.map(r => {
-          const sections = r.section_content ? Object.entries(r.section_content)
-            .filter(([, v]) => v?.trim())
-            .map(([k, v]) => `  ${k}: ${v.substring(0, 300)}`)
-            .join('\n') : 'No section content available.';
-          return `--- ${r.report_name} (${r.report_date}) ---\n${sections}`;
-        }).join('\n\n')
-      : null;
+    const priorReportContext = buildPriorReportContext(priorReports);
 
-    const soapContext = soapNotes && soapNotes.length > 0
-      ? soapNotes.slice(0, 10).map(n =>
-          `[${n.note_date || 'Date unknown'}]\nS: ${n.subjective || ''}\nO: ${n.objective || ''}\nA: ${n.assessment || ''}\nP: ${n.plan || ''}`
-        ).join('\n---\n')
-      : null;
+    const soapContext = buildSoapReportContext(soapNotes);
 
     return { clientContext, priorReportContext, soapContext };
   };
@@ -442,22 +439,20 @@ export default function SectionEditor({ sections, content, onChange, client, cli
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      const { clientContext, priorReportContext, soapContext } = buildFullContext(activeSection);
-      const hasAssessments = clientContext.assessments && clientContext.assessments.length > 0;
-      const assessmentSummary = hasAssessments
-        ? [
-            `Test | Date | Result | Normative Range | Classification`,
-            `-----|------|--------|-----------------|---------------`,
-            ...clientContext.assessments.map(a =>
-              `${a.name} | ${a.date} | ${a.result ? `${a.result} ${a.unit || ''}`.trim() : 'Not recorded'} | ${a.normative_comparison || '—'} | ${a.classification || '—'}`
-            )
-          ].join('\n')
-        : 'No assessment results available.';
+      const { clientContext, priorReportContext, soapContext } = buildFullContext();
+      const assessmentSummary = buildReportAssessmentSummary(clientContext.assessments);
+      const clientDetails = limitReportText(
+        JSON.stringify({ ...clientContext, assessments: undefined }, null, 2),
+        5_000,
+      ) || "{}";
 
       const sectionGuidance = SECTION_GUIDANCE[activeSection];
-      const sectionSpecificInstructions = sectionGuidance
-        ? `\n\nSECTION-SPECIFIC REQUIREMENTS for "${activeSection}":\n${sectionGuidance.prompt}${sectionGuidance.maxWords ? `\n- Write no more than ${sectionGuidance.maxWords} words for this section. Be tight.` : ''}`
+      const outcomeInstruction = activeSection === findReportOutcomeSection(sections)
+        ? '\n- A verified deterministic outcome comparison table is inserted automatically. Interpret it concisely; do not recreate the table or repeat its row values.'
         : '';
+      const sectionSpecificInstructions = sectionGuidance
+        ? `\n\nSECTION-SPECIFIC REQUIREMENTS for "${activeSection}":\n${sectionGuidance.prompt}${sectionGuidance.maxWords ? `\n- Write no more than ${sectionGuidance.maxWords} words for this section. Be tight.` : ''}${outcomeInstruction}`
+        : outcomeInstruction ? `\n\nSECTION-SPECIFIC REQUIREMENTS for "${activeSection}":${outcomeInstruction}` : '';
 
       const metaKey = REPORT_META_TEMPLATE_MAP[reportTypeKey];
       const meta = metaKey ? META_TEMPLATES[metaKey] : null;
@@ -471,10 +466,10 @@ REPORT TYPE: ${reportTitle || reportTypeKey || 'Clinical Report'}
 SECTION BEING WRITTEN: ${activeSection}${metaInstruction}
 
 CLIENT INFORMATION:
-${JSON.stringify(clientContext, null, 2)}
+${clientDetails}
 
 ASSESSMENT RESULTS (IMPORTANT — reference these specifically by name, result, and clinical meaning):
-${assessmentSummary}
+${limitReportText(assessmentSummary, 4_500)}
 
 ${priorReportContext ? `PRIOR REPORTS FOR THIS CLIENT (use to maintain consistency and show progress):
 ${priorReportContext}
@@ -484,6 +479,12 @@ ${soapContext}
 ` : ''}${sectionSpecificInstructions}
 
 CLINICAL WRITING RULES — FOLLOW STRICTLY:
+
+0. SOURCE FIDELITY — the supplied record is the only factual source:
+   - Preserve recorded dates, values and units exactly, including a measured value of 0
+   - Never invent diagnoses, symptoms, normative ranges, referrers, practitioners, attendance, funding codes or clinical events
+   - If required information is unavailable, omit it or state "Not documented in the available record." Do not guess
+   - Distinguish client-reported information from measured, observed and clinician-interpreted information
 
 1. WORD LIMITS — enforce without exception:
    - Referral acceptance / confirmation letters: max 150 words total
@@ -531,7 +532,7 @@ CLINICAL WRITING RULES — FOLLOW STRICTLY:
    - South Africa RAF: road accident functional capacity, impairment rating
 
 6. SIGN-OFF READINESS:
-   - Include practitioner name, qualification, and registration number in the final section ONLY
+   - Do not generate practitioner identity, a signature, or a sign-off; AssessSuite inserts the configured sign-off separately
    - All dates must be explicitly stated — never "recently" or "previously"
    - All numbers must include units (480m, 85kg, 3x/week, 45 min)
 
@@ -586,123 +587,44 @@ ${content[activeSection]}`;
 
   const handleGenerateAll = async () => {
     setIsGeneratingAll(true);
-    const newContent = { ...content };
-    const eligibleSections = sections.filter(s => !s.toLowerCase().includes('signature') && !s.toLowerCase().includes('attachment'));
-    let completed = 0;
+    const eligibleSections = getDraftableReportSections(sections);
     try {
-      const { clientContext, priorReportContext, soapContext } = buildFullContext();
-      for (const section of sections) {
-        if (section.toLowerCase().includes('signature') || section.toLowerCase().includes('attachment')) continue;
-        const hasAssessments = clientContext.assessments && clientContext.assessments.length > 0;
-        const assessmentSummary = hasAssessments
-          ? [
-              `Test | Date | Result | Normative Range | Classification`,
-              `-----|------|--------|-----------------|---------------`,
-              ...clientContext.assessments.map(a =>
-                `${a.name} | ${a.date} | ${a.result ? `${a.result} ${a.unit || ''}`.trim() : 'Not recorded'} | ${a.normative_comparison || '—'} | ${a.classification || '—'}`
-              )
-            ].join('\n')
-          : 'No assessment results available.';
-
-        const sg = SECTION_GUIDANCE[section];
-        const sgInstructions = sg ? `\n\nSECTION-SPECIFIC REQUIREMENTS for "${section}":\n${sg.prompt}${sg.maxWords ? `\n- Write no more than ${sg.maxWords} words for this section. Be tight.` : ''}` : '';
-        const metaKey = REPORT_META_TEMPLATE_MAP[reportTypeKey];
-        const meta = metaKey ? META_TEMPLATES[metaKey] : null;
-        const metaInstruction = meta
-          ? `\n\nREPORT FORMAT GUIDANCE (${meta.label} — target ${meta.recommended_length_pages} page${meta.recommended_length_pages > 1 ? 's' : ''}):\n${meta.ai_instruction}`
-          : '';
-        const prompt = `You are an expert Exercise Physiologist (AEP) writing the "${section}" section of a "${reportTitle || 'clinical'}" report.
-
-REPORT TYPE: ${reportTitle || reportTypeKey || 'Clinical Report'}
-SECTION BEING WRITTEN: ${section}${metaInstruction}
-
-CLIENT INFORMATION:
-${JSON.stringify(clientContext, null, 2)}
-
-ASSESSMENT RESULTS (reference these specifically by name, result, and clinical meaning):
-${assessmentSummary}
-
-${priorReportContext ? `PRIOR REPORTS FOR THIS CLIENT:\n${priorReportContext}\n` : ''}
-${soapContext ? `RECENT SOAP / SESSION NOTES:\n${soapContext}\n` : ''}${sgInstructions}
-
-CLINICAL WRITING RULES — FOLLOW STRICTLY:
-
-1. WORD LIMITS — enforce without exception:
-   - Referral acceptance / confirmation letters: max 150 words total
-   - GP/specialist summary letters: max 300 words total
-   - Individual progress, initial, or discharge report sections: max 200 words per section
-   - FCE / functional capacity sections: max 250 words per section
-   - Treatment plan / care plan sections: max 200 words per section
-   Stop at the limit. Do not pad to fill space.
-
-2. NO REPETITION — each section must contain NEW information only:
-   - Never restate diagnosis, DOB, or background already stated in a prior section
-   - Never repeat assessment result values stated elsewhere in the report
-   - Reference prior sections with "as noted above" — do not restate detail
-
-3. STRUCTURE — use the most scannable format for the content type:
-   - Assessment results: plain text table (Test | Result | Norm | Interpretation)
-   - Goal progress: one line per goal (Goal -> Baseline -> Current -> Rating)
-   - Recommendations: numbered list with frequency/hours on every line
-   - Barriers: plain hyphens as bullet points, one per line
-   - Prose paragraphs: only for narrative sections (background, prognosis, clinical reasoning)
-
-4. GOAL LINKING — every finding must connect to a goal or functional outcome:
-   - Do not state a result without explaining its functional significance
-   - Use language like "limiting [goal]", "supports return to [activity]", "demonstrates readiness for [task]"
-   - Use rating scales for progress: Achieved / Significant Progress / Moderate Progress / Limited Progress / No Progress
-
-5. FUNDER AUDIENCE — adjust tone and terminology to the report type:
-   - NDIS: ICF language, support domains, line item codes where applicable
-   - WorkCover / RTW (all states): work capacity, job demands, RTW timeline, barriers
-   - Medicare / DVA: chronic disease management, functional change, cycle justification
-   - FCE / Legal: consistency of effort, reliability of results, overall work capacity
-   - GP letter: plain clinical English, key message in first two sentences
-   - UK NHS ERS / Cardiac / Pulmonary / Cancer Rehab: programme outcomes, BACPR/BTS guideline language
-   - UK PMI: insurer-focused, concise functional status and treatment justification
-   - Canada WSIB: FAF-relevant functional tolerances (Form 2647A) where applicable
-   - Canada WorkSafeBC / WCB Alberta: FCE findings, RTW classification, functional tolerances
-   - Canada EHB / VAC: private insurer or Veterans Affairs programme language
-   - NZ ACC: ACC32 extension criteria, programme outcome KPIs
-   - NZ Disability Support / Private Insurance: functional independence, support needs
-   - Singapore Healthier SG / CDMP: MOH programme KPIs, chronic disease management language
-   - Singapore WICA: work injury functional tolerances, RTW plan
-   - Ireland HSE / Cardiac Rehab: HSE programme outcomes, PIAB FCE standards
-   - South Africa Medical Aid: scheme-compliant language, ICD-10 codes
-   - South Africa COIDA: functional capacity, RTW classification, compensation board language
-   - South Africa RAF: road accident functional capacity, impairment rating
-
-6. SIGN-OFF READINESS:
-   - Include practitioner name, qualification, and registration number in the final section ONLY
-   - All dates must be explicitly stated — never "recently" or "previously"
-   - All numbers must include units (480m, 85kg, 3x/week, 45 min)
-
-7. EXCLUDE — never include:
-   - Preamble ("This report aims to...", "It is my pleasure to...")
-   - Sign-offs ("Please do not hesitate to contact me...")
-   - Repeated section headers within body text
-   - Speculative language without evidence ("may", "could potentially")
-   - Generic filler ("The client has been working hard toward their goals")
-
-Write ONLY the "${section}" section. Return ONLY plain text — no HTML, no markdown, no bullet symbols except plain hyphens for lists.`;
-        const response = await InvokeLLM({ prompt });
-        newContent[section] = response;
-        newContent[`${section}_ai_drafted`] = true;
-        completed += 1;
+      if (eligibleSections.length === 0) {
+        toast.error("There are no report sections available for AI drafting.");
+        return;
       }
+
+      const { clientContext, priorReportContext, soapContext } = buildFullContext();
+      const metaKey = REPORT_META_TEMPLATE_MAP[reportTypeKey];
+      const meta = metaKey ? META_TEMPLATES[metaKey] : null;
+      const prompt = buildReportDraftPrompt({
+        reportTitle,
+        reportTypeKey,
+        clientContext,
+        assessmentSummary: buildReportAssessmentSummary(clientContext.assessments),
+        priorReportContext,
+        soapContext,
+        sections: eligibleSections,
+        sectionGuidance: SECTION_GUIDANCE,
+        meta,
+        outcomeSection: findReportOutcomeSection(sections),
+      });
+      const response = await InvokeLLM({
+        prompt,
+        response_json_schema: buildReportBatchSchema(eligibleSections),
+      });
+      const generatedSections = validateReportBatchResponse(response, eligibleSections);
+      const newContent = { ...content };
+
+      for (const [section, value] of Object.entries(generatedSections)) {
+        newContent[section] = value;
+        newContent[`${section}_ai_drafted`] = true;
+      }
+
       onChange(newContent);
       toast.success("All sections generated!");
     } catch (error) {
-      const kind = ai.reportError(error);
-      // A partial result silently discarded and reported as a flat failure
-      // is exactly the dishonest degradation this change removes — keep
-      // whatever completed before the failure and say how much.
-      if (completed > 0) onChange(newContent);
-      toast.error(
-        completed > 0
-          ? `Generated ${completed} of ${eligibleSections.length} sections before AI writing assistance stopped responding. ${aiErrorMessage(kind)}`
-          : aiErrorMessage(kind),
-      );
+      toast.error(aiErrorMessage(ai.reportError(error)));
     } finally {
       setIsGeneratingAll(false);
     }

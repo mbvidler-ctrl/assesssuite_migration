@@ -197,6 +197,8 @@ async function assertRealTranscriptionUsesRegisteredStoredName(audio, expectedBy
   const originalEnvironment = Object.fromEntries(environmentKeys.map((key) => [key, process.env[key]]));
   const originalFetch = globalThis.fetch;
   let providerRequest = null;
+  let usageReservation = null;
+  let usageSettlement = null;
   try {
     process.env.OPENAI_API_KEY = 'synthetic-transcription-provider-key';
     delete process.env.SELFTEST;
@@ -205,9 +207,9 @@ async function assertRealTranscriptionUsesRegisteredStoredName(audio, expectedBy
 
     globalThis.fetch = async (url, options = {}) => {
       providerRequest = { url: String(url), options };
-      return new Response(JSON.stringify({ text: 'Synthetic registered audio transcript.' }), {
+      return new Response(JSON.stringify({ text: 'Synthetic registered audio transcript.', duration: 12.5 }), {
         status: 200,
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'x-request-id': 'req_synthetic_transcription' },
       });
     };
 
@@ -224,15 +226,40 @@ async function assertRealTranscriptionUsesRegisteredStoredName(audio, expectedBy
     const result = await transcriptionModule.default({
       body: { action: 'transcribe', audio_url: audio.file_url, org_id: tenantA.id },
       user: { id: userA.id, email: userA.email },
+      apiUsage: {
+        estimates: { transcriptionMicrousd: 500 },
+        reserve: async (request) => {
+          usageReservation = request;
+          return { id: 'usage-reservation-transcription' };
+        },
+        settle: async (settlement) => {
+          usageSettlement = settlement;
+        },
+        calculateTranscriptionCostMicrousd: ({ audioSeconds }) => Math.ceil(audioSeconds * 100),
+      },
       respond: (status, body) => ({ status, body }),
     });
     assert.equal(result.status, 200, JSON.stringify(result.body));
     assert.match(result.body.transcript, /Synthetic registered audio transcript/);
     assert.equal(providerRequest?.url, 'https://api.openai.com/v1/audio/transcriptions');
     assert.equal(providerRequest?.options?.headers?.Authorization, 'Bearer synthetic-transcription-provider-key');
+    assert.equal(providerRequest?.options?.body?.get('model'), 'whisper-1');
+    assert.equal(providerRequest?.options?.body?.get('response_format'), 'verbose_json');
     const submittedFile = providerRequest?.options?.body?.get('file');
     assert.equal(submittedFile?.name, uploadRow.stored_name);
     assert.deepEqual(Buffer.from(await submittedFile.arrayBuffer()), Buffer.from(expectedBytes));
+    assert.deepEqual(usageReservation, {
+      feature: 'transcription',
+      model: 'whisper-1',
+      estimatedCostMicrousd: 500,
+    });
+    assert.deepEqual(usageSettlement, {
+      reservationId: 'usage-reservation-transcription',
+      status: 'succeeded',
+      audioSeconds: 12.5,
+      providerRequestId: 'req_synthetic_transcription',
+      actualCostMicrousd: 1250,
+    });
   } finally {
     globalThis.fetch = originalFetch;
     for (const key of environmentKeys) {
@@ -336,6 +363,21 @@ function latestExtractionUsage(userId) {
   }
 }
 
+function latestApiUsage(userId, feature) {
+  const db = openAssuranceDb();
+  try {
+    return db.prepare(`
+      SELECT feature, model, status, request_units, estimated_cost_microusd, actual_cost_microusd
+      FROM api_usage_reservation
+      WHERE user_id = ? AND feature = ?
+      ORDER BY created_at DESC, id DESC
+      LIMIT 1
+    `).get(userId, feature);
+  } finally {
+    db.close();
+  }
+}
+
 function persistenceSnapshot() {
   const db = openAssuranceDb();
   try {
@@ -398,6 +440,10 @@ before(async () => {
     DOCUMENT_EXTRACTION_ORG_DAILY_COST_USD: '20',
     DOCUMENT_EXTRACTION_MONTHLY_CIRCUIT_USD: '29',
     DOCUMENT_EXTRACTION_ESTIMATED_COST_PER_DOCUMENT_USD: '0.01',
+    AI_USAGE_USER_ROLLING_24H_USD: '50',
+    AI_USAGE_USER_ROLLING_24H_CALLS: '1000',
+    AI_USAGE_GLOBAL_MONTHLY_USD: '1000',
+    AI_USAGE_DOCUMENT_EXTRACTION_ESTIMATE_USD: '0.01',
     UPLOAD_USER_PER_MINUTE: '60',
     UPLOAD_ORG_PER_MINUTE: '240',
     OPENAI_API_KEY: PROVIDER_KEY_CANARY,
@@ -616,6 +662,98 @@ test('E06 multi-file merge is application-owned: primary wins, empty fields fill
   assert.equal(usage?.status, 'succeeded');
   assert.equal(usage?.upload_count, 2);
   assert.equal(usage?.actual_cost_microusd, 176);
+  const genericUsage = latestApiUsage(colleagueA.id, 'document_extraction');
+  assert.equal(genericUsage?.model, 'synthetic-assurance-model');
+  assert.equal(genericUsage?.status, 'succeeded');
+  assert.equal(genericUsage?.request_units, 2);
+  assert.equal(genericUsage?.estimated_cost_microusd, 20_000);
+  assert.equal(genericUsage?.actual_cost_microusd, 176);
+});
+
+test('E06quota durable request-unit denial prevents a second extraction provider call', async () => {
+  fakeProvider.reset();
+  const isolated = await startTestServer({
+    DOCUMENT_EXTRACTION_ENABLED: '1',
+    DOCUMENT_EXTRACTION_TEST_BASE_URL: fakeProvider.baseUrl,
+    OPENAI_API_KEY: PROVIDER_KEY_CANARY,
+    OPENAI_DOCUMENT_EXTRACTION_MODEL: 'synthetic-assurance-model',
+    AI_USAGE_USER_ROLLING_24H_CALLS: '1',
+    AI_USAGE_USER_ROLLING_24H_USD: '5',
+    AI_USAGE_GLOBAL_MONTHLY_USD: '100',
+  });
+  const isolatedRoute = (suffix) => `/api/apps/${isolated.appId}${suffix}`;
+  try {
+    const isolatedAdmin = await loginAdmin(isolated);
+    const isolatedUser = await registerUser(isolated, 'extraction-quota@example.test');
+    await activateUser(isolated, isolatedAdmin, isolatedUser.id);
+    const isolatedOrg = await createOrganizationForUser(isolated, isolatedAdmin, isolatedUser);
+    const acceptance = await requestJson(
+      isolated,
+      isolatedRoute('/integration-endpoints/Core/RecordLegalAcceptanceBundle'),
+      {
+        method: 'POST',
+        token: isolatedUser.token,
+        body: { org_id: isolatedOrg.id, marketing_opt_in: false },
+      },
+    );
+    assert.equal(acceptance.status, 200, acceptance.text);
+
+    async function isolatedUpload(filename) {
+      const form = new FormData();
+      form.set('org_id', isolatedOrg.id);
+      form.set('purpose', 'referral-extraction');
+      form.set('subject_age_confirmation', REFERRAL_SUBJECT_AGE_CONFIRMATION);
+      form.set('subject_age_attestation_version', REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION);
+      form.set('processing_authority_confirmed', 'true');
+      form.set('processing_authority_attestation_version', REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION);
+      form.set('file', new File([pdfFixture()], filename, { type: 'application/pdf' }));
+      const response = await fetch(`${isolated.baseUrl}${isolatedRoute(UPLOAD_ROUTE)}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${isolatedUser.token}`, 'X-App-Id': isolated.appId },
+        body: form,
+      });
+      const text = await response.text();
+      assert.equal(response.status, 200, text);
+      return JSON.parse(text);
+    }
+
+    async function isolatedExtract(uploadId) {
+      return requestJson(isolated, isolatedRoute(EXTRACTION_ROUTE), {
+        method: 'POST',
+        token: isolatedUser.token,
+        body: {
+          upload_id: uploadId,
+          org_id: isolatedOrg.id,
+          json_schema: REFERRAL_SCHEMA,
+          processing_authority_confirmed: true,
+          processing_authority_attestation_version: REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+        },
+      });
+    }
+
+    const firstUpload = await isolatedUpload('quota-first.pdf');
+    const first = await isolatedExtract(firstUpload.upload_id);
+    assert.equal(first.status, 200, first.text);
+
+    const secondUpload = await isolatedUpload('quota-second.pdf');
+    const denied = await isolatedExtract(secondUpload.upload_id);
+    assert.equal(denied.status, 429, denied.text);
+    assert.equal(denied.body?.code, 'api_usage_cap_reached');
+    assert.equal(fakeProvider.calls.length, 1, 'quota rejection must precede extraction provider egress');
+
+    const auditDb = new DatabaseSync(isolated.dbPath, { readOnly: true });
+    try {
+      assert.equal(
+        Number(auditDb.prepare('SELECT COUNT(*) AS count FROM api_usage_reservation').get().count),
+        1,
+      );
+    } finally {
+      auditDb.close();
+    }
+  } finally {
+    fakeProvider.reset();
+    await isolated.stop();
+  }
 });
 
 test('E06a reversing selected documents reverses scalar precedence and preserves ordered array union', async () => {

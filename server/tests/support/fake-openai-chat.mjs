@@ -76,6 +76,7 @@ export async function startFakeOpenAIChat() {
     calls.push({
       model: payload.model,
       temperature: payload.temperature,
+      maxCompletionTokens: payload.max_completion_tokens,
       jsonMode,
       hasTools: Object.hasOwn(payload, 'tools'),
       hasResponseFormat: Object.hasOwn(payload, 'response_format'),
@@ -119,7 +120,12 @@ export async function startFakeOpenAIChat() {
       id: 'chatcmpl_synthetic_assurance',
       object: 'chat.completion',
       choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
-      usage: { prompt_tokens: 100, completion_tokens: 30, total_tokens: 130 },
+      usage: {
+        prompt_tokens: 100,
+        completion_tokens: 30,
+        total_tokens: 130,
+        prompt_tokens_details: { cached_tokens: 20 },
+      },
     }));
   });
   server.on('connection', (socket) => { sockets.add(socket); socket.on('close', () => sockets.delete(socket)); });

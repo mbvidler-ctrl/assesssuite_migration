@@ -17,13 +17,13 @@ R2 has one release unit: application code, policy surfaces, tests, production co
 The candidate runtime derives from `C`. The rollback runtime is the exact immutable image already live immediately before dispatch, built from a strict ancestor `R`:
 
 - the candidate image uses `fly.production.toml` from `C`; and
-- the dispatch-frozen previous image is reverified against `R`, then deployed only with the reviewed `fly.rollback.production.toml` from `C`, which disables adult and under-age document extraction and reverts general clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED`) to its reviewed disabled default.
+- the dispatch-frozen previous image is reverified against `R`, then deployed only with the reviewed `fly.rollback.production.toml` from `C`, which disables adult and under-age document extraction plus transcription while preserving general clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED=1`). Transcription stays off because the retained image predates the durable per-user API usage ledger.
 
 Neither Fly TOML overrides the image startup command. Both must omit a top-level `[processes]` table so the Dockerfile's shell-interpreted `CMD ["sh", "-c", "node server/productionBootstrap.mjs && exec node server/index.mjs"]` remains authoritative. Their `[http_service]` `processes = ["app"]` setting only binds the public service to the implicit `app` process group; it does not define that group's command.
 
 `application_sha` and `trusted_workflow_sha` must equal `C`. `rollback_source_sha` is the independently frozen strict ancestor `R`; the workflows derive the expected rollback `/api/version` value from `R` rather than accepting a second operator-entered SHA. `rollback_image` must equal the exact immutable current image captured before candidate deployment. `source_branch` and `rollback_source_branch` remain `main`.
 
-The reviewed rollback configuration has two deliberate, machine-enforced differences from the candidate configuration: adult/under-age document extraction and general clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED`) are disabled. The exact previous image must pass the current forward/rollback compatibility proof before its digest can enter the deploy bundle.
+The reviewed rollback configuration has two deliberate, machine-enforced capability differences from the candidate configuration: adult/under-age document extraction and transcription are disabled. General clinical AI remains enabled. The exact previous image must pass the current forward/rollback compatibility proof before its digest can enter the deploy bundle.
 
 Production mutations are permitted only through the reviewed workflow definitions on `main`:
 
@@ -400,7 +400,7 @@ gh workflow run production-rollback.yml --ref main `
   -f confirmation='ROLLBACK assesssuite-production COMPATIBILITY IMAGE'
 ```
 
-Require exact current-state and two-volume topology guards, current-main rollback-config provenance, extraction disabled for adult and under-age data and general clinical AI drafting reverted to disabled, immutable digest deployment, unchanged volumes and `R` from both public version endpoints. Do not use `fly releases rollback`: only the exact dispatch-frozen image that passed the preparation receipt chain is authorised.
+Require exact current-state and two-volume topology guards, current-main rollback-config provenance, extraction disabled for adult and under-age data, transcription disabled, general clinical AI preserved at enabled, immutable digest deployment, unchanged volumes and `R` from both public version endpoints. Do not use `fly releases rollback`: only the exact dispatch-frozen image that passed the preparation receipt chain is authorised.
 
 ## 12. Snapshot restore is separate and off-traffic
 

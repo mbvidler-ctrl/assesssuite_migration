@@ -286,7 +286,7 @@ jobs:
           [[ "$(grep -Fxc '  DOCUMENT_EXTRACTION_UNDER_13_ENABLED = "0"' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Fxc '  OPENAI_HEALTH_DATA_TERMS_CONFIRMED = "1"' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Fxc '  GENERAL_CLINICAL_LLM_ENABLED = "1"' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Fxc '  TRANSCRIPTION_ENABLED = "0"' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Fxc '  TRANSCRIPTION_ENABLED = "1"' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^  source = "assesssuite_data_r12"$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^  snapshot_retention = 5$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^  scheduled_snapshots = true$' fly.production.toml)" -eq 1 ]]
@@ -301,7 +301,7 @@ jobs:
       - name: Validate the exact trusted production workflow control
         shell: bash
         env:
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: e23f40c8e74b527a71a125768f88b74814a4178f60a5276b99d4817d766ae314
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 7a17ca9a3def75193cdabbd05c695f5c89367601ce351075b0c2ec63f40d37dd
         run: |
           set -euo pipefail
           cd application

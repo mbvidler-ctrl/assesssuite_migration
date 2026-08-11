@@ -18,6 +18,15 @@ const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 export const MODEL_FAST = process.env.OPENAI_MODEL_FAST || 'gpt-4.1-mini';
 export const MODEL_QUALITY = process.env.OPENAI_MODEL_QUALITY || 'gpt-4.1';
 
+export function resolveMaxCompletionTokens(environment = process.env) {
+  const parsed = Number(environment.GENERAL_CLINICAL_LLM_MAX_OUTPUT_UNITS);
+  if (!Number.isSafeInteger(parsed) || parsed < 128) return 32_768;
+  // Preserve GPT-4.1's pre-cap report capacity. Configuration may lower this
+  // ceiling for an incident response, but cannot exceed the model's reviewed
+  // maximum output window.
+  return Math.min(parsed, 32_768);
+}
+
 // Test-only provider override (mirrors server/documentExtraction.mjs's
 // DOCUMENT_EXTRACTION_TEST_BASE_URL). Honoured ONLY when SELFTEST==='1'
 // (forbidden during production bootstrap — server/productionBootstrap.mjs),
@@ -109,6 +118,7 @@ async function callOpenAI({ messages, model, json }) {
         model,
         messages,
         temperature: 0.4,
+        max_completion_tokens: resolveMaxCompletionTokens(),
         ...(json ? { response_format: { type: 'json_object' } } : {}),
       }),
       signal: controller.signal,
@@ -118,19 +128,39 @@ async function callOpenAI({ messages, model, json }) {
       throw new Error(`OpenAI ${res.status}: ${detail.slice(0, 200)}`);
     }
     const data = await res.json();
-    return data.choices?.[0]?.message?.content ?? '';
+    const inputTokens = (
+      Number.isSafeInteger(data.usage?.prompt_tokens) && data.usage.prompt_tokens >= 0
+        ? data.usage.prompt_tokens
+        : null
+    );
+    return {
+      content: data.choices?.[0]?.message?.content ?? '',
+      model: typeof data.model === 'string' && data.model ? data.model : model,
+      usage: {
+        inputTokens,
+        cachedInputTokens:
+          inputTokens === null
+            ? null
+            : Number.isSafeInteger(data.usage?.prompt_tokens_details?.cached_tokens) &&
+                data.usage.prompt_tokens_details.cached_tokens >= 0
+              ? data.usage.prompt_tokens_details.cached_tokens
+              : 0,
+        outputTokens: Number.isSafeInteger(data.usage?.completion_tokens) && data.usage.completion_tokens >= 0
+          ? data.usage.completion_tokens
+          : null,
+      },
+      providerRequestId: typeof data.id === 'string' && data.id ? data.id : null,
+    };
   } finally {
     clearTimeout(timer);
   }
 }
 
-// Main entry. Returns the value InvokeLLM call sites expect:
-//   - schema present -> a parsed object matching the schema
-//   - otherwise      -> a string; the prompt's own wording drives whether that
-//                       string is prose or JSON (the few call sites that want
-//                       JSON say so in the prompt and JSON.parse the result).
-// Throws on any failure so the caller can fall back to the mock.
-export async function invokeLLM({ prompt, schema }) {
+// Usage-aware provider entry. `value` retains the HTTP InvokeLLM contract:
+// schema requests contain a parsed object; other requests contain a string.
+// The server routes settle the accompanying usage metadata before returning
+// that bare value to the client. Throws on any provider/parse failure.
+export async function invokeLLMWithUsage({ prompt, schema }) {
   const { text: safePrompt } = deidentify(String(prompt ?? ''));
 
   const system = [
@@ -148,7 +178,7 @@ export async function invokeLLM({ prompt, schema }) {
       `clinically appropriate content — never placeholder text):\n${JSON.stringify(schema)}`
     : safePrompt;
 
-  const content = await callOpenAI({
+  const generated = await callOpenAI({
     messages: [
       { role: 'system', content: system },
       { role: 'user', content: userContent },
@@ -157,5 +187,10 @@ export async function invokeLLM({ prompt, schema }) {
     json: Boolean(schema),
   });
 
-  return schema ? JSON.parse(content) : content;
+  return {
+    value: schema ? JSON.parse(generated.content) : generated.content,
+    model: generated.model,
+    usage: generated.usage,
+    providerRequestId: generated.providerRequestId,
+  };
 }

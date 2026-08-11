@@ -13,12 +13,12 @@ This page lists every runtime switch that changes what the AssessSuite productio
 | Self-service sign-up | `ALLOW_OPEN_REGISTRATION` | `1` | `1` | SELFTEST=1 treats it as on | The public sign-up, email-verification and resend-code pages return a plain "self-registration is disabled" error; existing accounts are unaffected. |
 | Referral document extraction | `DOCUMENT_EXTRACTION_ENABLED` | `1` | `0` | none | Referral upload continues to accept and store the file, but automated field extraction refuses with "Document extraction is currently unavailable." — practitioners must key the referral details in by hand. |
 | Under-13 document extraction | `DOCUMENT_EXTRACTION_UNDER_13_ENABLED` | `0` | `0` | none | Extraction of an under-13 (or age-unknown) referral document is refused with a privacy-review message; the practitioner keys the referral details in by hand instead. |
-| Legacy general clinical AI drafting | `GENERAL_CLINICAL_LLM_ENABLED` | `1` | `0` | none | None of those AI-assisted actions can run; the exact user-visible effect (a disabled and labelled control, a labelled non-AI fallback, or — on the report surfaces not yet migrated to the capability hook — a plain error message) differs by surface, see the client-surfaces table. |
+| Legacy general clinical AI drafting | `GENERAL_CLINICAL_LLM_ENABLED` | `1` | `1` | none | None of those AI-assisted actions can run; the exact user-visible effect (a disabled and labelled control, a labelled non-AI fallback, or — on the report surfaces not yet migrated to the capability hook — a plain error message) differs by surface, see the client-surfaces table. |
 | Fail-loud AI provider posture | `LLM_REQUIRED` | `1` | `1` | none | A missing or failing AI provider falls back to the deterministic mock instead of failing loudly. This is a safety posture, not a feature switch: it does not change whether AI drafting is offered, only what happens when the real provider is unavailable. |
 | Real transactional email delivery | `OUTBOUND_EMAIL_ENABLED` | `1` | `1` | SELFTEST/parity assurance force it off | Email is still written to the SQLite outbox (nothing is lost), but no real message is sent — recipients receive nothing, so a real inbox never sees the OTP code or notification. |
 | Real SMS delivery | `OUTBOUND_SMS_ENABLED` | `0` | `0` | SELFTEST/parity assurance force it off | No change: SMS is outbox-only in every posture until a separately reviewed adapter and provider credential are implemented. |
 | Real Stripe billing | `PAYMENTS_ENABLED` | `1` | `1` | SELFTEST/parity assurance force it off | Checkout, the billing portal, webhook handling and subscription sync all run against the deterministic mock instead of real Stripe; no real card charge or subscription can occur. |
-| SOAP note transcription and dissection | `TRANSCRIPTION_ENABLED` | `0` | `0` | SELFTEST=1 treats it as on | The Transcribe/Dissect controls hide in the SOAP note UI, and the server refuses the underlying call with a plain "Transcription is not enabled on this deployment." error if it is somehow reached. |
+| SOAP note transcription and dissection | `TRANSCRIPTION_ENABLED` | `1` | `0` | SELFTEST=1 treats it as on | The Transcribe/Dissect controls hide in the SOAP note UI, and the server refuses the underlying call with 403 transcription_disabled if it is somehow reached. |
 | Upload audit legal hold | `UPLOAD_AUDIT_LEGAL_HOLD` | (absent) | (absent) | none | No change from the normal posture: upload-audit metadata is subject to the ordinary retention-driven cleanup schedule. |
 
 ## What a rollback would change today
@@ -26,7 +26,7 @@ This page lists every runtime switch that changes what the AssessSuite productio
 | Capability | Switch | Production | Rollback |
 |---|---|---|---|
 | Referral document extraction | `DOCUMENT_EXTRACTION_ENABLED` | `1` | `0` |
-| Legacy general clinical AI drafting | `GENERAL_CLINICAL_LLM_ENABLED` | `1` | `0` |
+| SOAP note transcription and dissection | `TRANSCRIPTION_ENABLED` | `1` | `0` |
 
 ## Per-capability detail
 
@@ -180,13 +180,13 @@ _No client-side detector: Payment mode selection is a server-side switch with no
 
 Controls whether a clinician can turn a recorded consult into a draft SOAP note via Whisper transcription and AI dissection. Audio recording itself always stays available; only the Transcribe/Dissect step is gated.
 
-**When off:** The Transcribe/Dissect controls hide in the SOAP note UI, and the server refuses the underlying call with a plain "Transcription is not enabled on this deployment." error if it is somehow reached.
+**When off:** The Transcribe/Dissect controls hide in the SOAP note UI, and the server refuses the underlying call with 403 transcription_disabled if it is somehow reached.
 
 **Server gates:**
 
 | File | Route | Effect when off |
 |---|---|---|
-| `server/functions/transcribeSession.mjs` | POST /functions/transcribeSession | 403 "Transcription is not enabled on this deployment." |
+| `server/functions/transcribeSession.mjs` | POST /functions/transcribeSession | 403 transcription_disabled "Transcription is not enabled on this deployment." |
 | `server/capabilities.mjs` | GET /api/apps/public/prod/public-settings/by-id/:appId (publication of the enforced posture) | public_settings.capabilities.transcription is published as { available: false, reason: "switched_off" }, and the legacy public_settings.transcription_enabled boolean reports false. |
 
 **Client surfaces (1 call site(s) across 1 file(s)):**
@@ -218,5 +218,6 @@ _No client-side detector: This posture governs a scheduled server-side cleanup j
 
 ## Change history
 
+- [`20260812-transcription-enabled.md`](notices/20260812-transcription-enabled.md)
 - [`20260728-general-clinical-llm-restored.md`](notices/20260728-general-clinical-llm-restored.md)
 - [`20260721-general-clinical-llm-disabled.md`](notices/20260721-general-clinical-llm-disabled.md)

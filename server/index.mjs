@@ -30,6 +30,7 @@ import {
   normaliseEmail,
 } from './auth.mjs';
 import { createFounderOrganizationEnsurer, handleCoreIntegration } from './integrations.mjs';
+import { createApiUsageService } from './apiUsage.mjs';
 import { publicCapabilities } from './capabilities.mjs';
 import { capabilityConfigured, capabilityEnabled } from './capabilityFlags.mjs';
 import { initEmail, sendEmail, otpEmail, resetEmail, welcomeEmail, adminNotifyEmail, inviteEmail } from './email.mjs';
@@ -132,6 +133,7 @@ const DEFAULT_APP_ID = process.env.DEFAULT_APP_ID || 'local-assesssuite';
 fs.mkdirSync(uploadsDir, { recursive: true });
 
 const { db, entityNames } = openDatabase();
+const apiUsage = createApiUsageService(db);
 const sessions = createSessionRepository(db);
 const usageAnalytics = createUsageAnalyticsRepository(db);
 const outboxEmail = createOutboxRepository(db, 'email');
@@ -227,7 +229,7 @@ async function loadFunctionsRouter() {
     // already holds open (fails with EPERM on Windows file locking) and
     // (b) open a redundant DatabaseSync connection even outside selftest.
     if (typeof mod.init === 'function') {
-      mod.init(db, entityNames);
+      mod.init(db, entityNames, { apiUsage });
     }
     const transcriptionModule = await import(
       pathToFileURL(path.join(__dirname, 'functions', 'transcribeSession.mjs')).href
@@ -2835,6 +2837,7 @@ async function requestListener(req, res) {
         sessionUser: integrationUser,
         orgIds: orgIdsForUser(integrationUser.email),
         getAssessmentRequest: (id) => repoFor('AssessmentRequest')?.getById(id) || null,
+        apiUsage,
         uploadRegistry,
         uploadsDir,
         hasExtractionAcceptance,

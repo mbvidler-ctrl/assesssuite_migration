@@ -120,10 +120,7 @@ test('dissect_to_soap mock is still labelled outside self-test when no key is co
   );
 });
 
-test('dissect_to_soap serves a labelled mock (never a hard error) when no transcript is supplied, even under LLM_REQUIRED=1', async () => {
-  // Scope boundary, not a regression target (design decision D4): the empty-
-  // transcript case is caller-input, not a provider failure, and this must
-  // stay green both before and after the fix.
+test('dissect_to_soap fails closed when production receives no transcript', async () => {
   await withEnvironment(
     {
       TRANSCRIPTION_ENABLED: '1',
@@ -135,9 +132,9 @@ test('dissect_to_soap serves a labelled mock (never a hard error) when no transc
       const result = await transcribeSession(
         ctx({ action: 'dissect_to_soap', transcript: '' }),
       );
-      assert.equal(result.status, 200, JSON.stringify(result.body));
-      assert.equal(result.body.simulated, true);
-      assert.equal(result.body.success, true);
+      assert.equal(result.status, 400, JSON.stringify(result.body));
+      assert.equal(result.body.code, 'transcript_required');
+      assert.equal(result.body.simulated, undefined);
     },
   );
 });
@@ -148,8 +145,9 @@ test('the real-dissection success response always carries simulated: false (stat
   // exercising the true real-provider-success branch offline is not possible
   // without either a live OpenAI call (forbidden) or a new DI seam (out of
   // scope for this fix). Instead we statically assert the real-result
-  // respond() call always sets simulated: false exactly once.
+  // responses always set simulated: false: one for transcription and one for
+  // SOAP dissection.
   const source = fs.readFileSync(TRANSCRIBE_SESSION_SOURCE, 'utf8');
   const matches = source.match(/simulated: false/g) || [];
-  assert.equal(matches.length, 1, 'expected exactly one "simulated: false" in transcribeSession.mjs');
+  assert.equal(matches.length, 2, 'expected both real provider responses to set simulated: false');
 });

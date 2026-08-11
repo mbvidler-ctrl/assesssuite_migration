@@ -223,7 +223,7 @@ jobs:
             echo 'Rollback configuration must keep adult and under-age document extraction disabled.' >&2
             exit 1
           fi
-          [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' "$config")" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^[[:space:]]*LEGAL_STATUS[[:space:]]*=[[:space:]]*"effective"[[:space:]]*$' "$config")" -eq 1 ]]
           [[ "$(grep -Ec '^[[:space:]]*LEGAL_EFFECTIVE_DATE[[:space:]]*=[[:space:]]*"19 July 2026"[[:space:]]*$' "$config")" -eq 1 ]]
@@ -238,7 +238,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: e23f40c8e74b527a71a125768f88b74814a4178f60a5276b99d4817d766ae314
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 7a17ca9a3def75193cdabbd05c695f5c89367601ce351075b0c2ec63f40d37dd
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"

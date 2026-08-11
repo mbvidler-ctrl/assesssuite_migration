@@ -29,6 +29,10 @@ export const CLINICAL_AI_UNCONFIGURED_CODE = 'ai_provider_unconfigured';
 export const CLINICAL_AI_UNCONFIGURED_MESSAGE = 'AI generation is not configured on this server.'; // byte-identical to today
 export const CLINICAL_AI_PROVIDER_FAILED_CODE = 'ai_provider_failed';
 export const TRANSCRIPTION_DISABLED_CODE = 'transcription_disabled';
+export const TRANSCRIPTION_DISABLED_MESSAGE = 'Transcription is not enabled on this deployment.';
+export const TRANSCRIPTION_UNCONFIGURED_CODE = 'transcription_provider_unconfigured';
+export const TRANSCRIPTION_UNCONFIGURED_MESSAGE = 'Transcription is not configured on this server.';
+export const TRANSCRIPTION_PROVIDER_FAILED_CODE = 'transcription_provider_failed';
 
 const AVAILABLE = Object.freeze({ available: true, reason: 'available' });
 const SWITCHED_OFF = Object.freeze({ available: false, reason: 'switched_off' });
@@ -55,6 +59,19 @@ export function generalClinicalLlmSwitchedOn(environment = process.env) {
  */
 export function transcriptionAvailable(environment = process.env) {
   return capabilityEnabled('TRANSCRIPTION_ENABLED', environment);
+}
+
+/**
+ * Provider-aware posture for transcription. The feature switch remains the
+ * endpoint's first gate; with the switch on, production publishes
+ * `unconfigured` when LLM_REQUIRED is enabled but no provider key is loaded.
+ * Development retains the explicitly labelled deterministic mock when
+ * LLM_REQUIRED is not enabled, while SELFTEST remains offline by design.
+ */
+export function transcriptionPosture(environment = process.env) {
+  if (!transcriptionAvailable(environment)) return SWITCHED_OFF;
+  if (llmEnabled()) return AVAILABLE;
+  return capabilityEnabled('LLM_REQUIRED', environment) ? UNCONFIGURED : AVAILABLE;
 }
 
 /** Server-level switch only; per-user eligibility/acceptance/age gates are separate and authoritative. */
@@ -85,7 +102,7 @@ export function publicCapabilities(environment = process.env) {
   return {
     version: CAPABILITY_CONTRACT_VERSION,
     general_clinical_llm: { ...generalClinicalLlmPosture(environment) },
-    transcription: transcriptionAvailable(environment) ? { ...AVAILABLE } : { ...SWITCHED_OFF },
+    transcription: { ...transcriptionPosture(environment) },
     document_extraction: documentExtractionAvailable(environment) ? { ...AVAILABLE } : { ...SWITCHED_OFF },
   };
 }

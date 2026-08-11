@@ -162,7 +162,7 @@
       "whenOff": "None of those AI-assisted actions can run; the exact user-visible effect (a disabled and labelled control, a labelled non-AI fallback, or — on the report surfaces not yet migrated to the capability hook — a plain error message) differs by surface, see the client-surfaces table.",
       "values": {
         "production": "1",
-        "rollback": "0",
+        "rollback": "1",
         "parity": "0",
         "envExample": ""
       },
@@ -522,9 +522,9 @@
       "owner": "Maxwell Vidler",
       "ownerName": "SOAP note transcription and dissection",
       "ownerSummary": "Controls whether a clinician can turn a recorded consult into a draft SOAP note via Whisper transcription and AI dissection. Audio recording itself always stays available; only the Transcribe/Dissect step is gated.",
-      "whenOff": "The Transcribe/Dissect controls hide in the SOAP note UI, and the server refuses the underlying call with a plain \"Transcription is not enabled on this deployment.\" error if it is somehow reached.",
+      "whenOff": "The Transcribe/Dissect controls hide in the SOAP note UI, and the server refuses the underlying call with 403 transcription_disabled if it is somehow reached.",
       "values": {
-        "production": "0",
+        "production": "1",
         "rollback": "0",
         "parity": "0",
         "envExample": ""
@@ -534,11 +534,11 @@
           "file": "server/functions/transcribeSession.mjs",
           "symbol": "transcribeSession (module default export)",
           "route": "POST /functions/transcribeSession",
-          "effectWhenOff": "403 \"Transcription is not enabled on this deployment.\""
+          "effectWhenOff": "403 transcription_disabled \"Transcription is not enabled on this deployment.\""
         },
         {
           "file": "server/capabilities.mjs",
-          "symbol": "transcriptionAvailable",
+          "symbol": "transcriptionAvailable / transcriptionPosture",
           "route": "GET /api/apps/public/prod/public-settings/by-id/:appId (publication of the enforced posture)",
           "effectWhenOff": "public_settings.capabilities.transcription is published as { available: false, reason: \"switched_off\" }, and the legacy public_settings.transcription_enabled boolean reports false."
         }

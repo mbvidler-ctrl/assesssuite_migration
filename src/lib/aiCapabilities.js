@@ -130,6 +130,9 @@ export function classifyAiError(error) {
   if (code === 'ai_capability_disabled') return 'withdrawn';
   if (code === 'ai_provider_unconfigured') return 'unconfigured';
   if (code === 'ai_provider_failed') return 'provider_failed';
+  if (code === 'transcription_disabled') return 'withdrawn';
+  if (code === 'transcription_provider_unconfigured') return 'unconfigured';
+  if (code === 'transcription_provider_failed') return 'provider_failed';
   // Deterministic per-account authorisation refusal from the WP3 eligibility
   // gate (server/integrations.mjs). This is a permanent 403 for this account,
   // NOT a transient outage — it must never surface as "try again".

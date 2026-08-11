@@ -10,6 +10,7 @@ const rawSource = fs.readFileSync(workflowPath, 'utf8');
 const validatorSelfSha256 = createHash('sha256')
   .update(fs.readFileSync(new URL(import.meta.url), 'utf8').replaceAll('\r\n', '\n'))
   .digest('hex');
+const LIVE_PRODUCTION_BASE_SHA = '145958d895aef289b9652f850e32e237f2b62f70';
 const TOML_PROCESS_CONTRACT_MARKERS = [
   'import tomllib',
   'def process_entries(value, path=()):',
@@ -477,6 +478,16 @@ function validateAuxWorkflow(input, kind) {
       'failed application and workflow SHA identity',
     );
     requireStepText(dispatchStepName, '[[ "$ROLLBACK_SOURCE_SHA" != "$FAILED_APPLICATION_SHA" ]]', 'strict ancestor rollback source distinction');
+    requireStepText(
+      verificationStepName,
+      'GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$\' "$config"',
+      'rollback general clinical AI enabled posture',
+    );
+    requireStepText(
+      verificationStepName,
+      'TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$\' "$config"',
+      'rollback transcription disabled posture',
+    );
   }
 
   const verificationControls = [
@@ -1032,6 +1043,16 @@ function auxMutationCases(source, kind) {
     shadow('shadow-failed-application-workflow-sha-identity', '          [[ "$FAILED_APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]', '          [[ -n "$FAILED_APPLICATION_SHA" ]]');
     shadow('shadow-rollback-source-distinction', '          [[ "$ROLLBACK_SOURCE_SHA" != "$FAILED_APPLICATION_SHA" ]]', '          [[ -n "$ROLLBACK_SOURCE_SHA" ]]');
     shadow('shadow-rollback-job-timeout', '    timeout-minutes: 70', '    timeout-minutes: 25');
+    replace(
+      'rollback-general-clinical-ai-posture-disabled',
+      'GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$\' "$config"',
+      'GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$\' "$config"',
+    );
+    replace(
+      'rollback-transcription-posture-enabled',
+      'TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$\' "$config"',
+      'TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$\' "$config"',
+    );
   }
   replace(
     'seed-denylist-removed',
@@ -1681,6 +1702,14 @@ function validateParityWorkflow(input) {
   requireText('permissions:\n  actions: read\n  contents: read', 'parity read-only permissions');
   requireText('group: assesssuite-production\n  cancel-in-progress: false', 'shared production concurrency');
   requireText('EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, 'exact trusted parity validator digest');
+  requireText(
+    'GENERAL_CLINICAL_LLM_ENABLED = "1"\' fly.production.toml',
+    'parity-reviewed candidate general clinical AI enabled posture',
+  );
+  requireText(
+    'TRANSCRIPTION_ENABLED = "1"\' fly.production.toml',
+    'parity-reviewed candidate transcription enabled posture',
+  );
 
   const jobsSource = source.slice(source.indexOf('\njobs:\n') + 6);
   const jobs = [...jobsSource.matchAll(/^  ([a-z0-9_]+):$/gm)].map((match) => match[1]);
@@ -1904,6 +1933,16 @@ function parityMutationCases(source) {
   replace('trigger-push', 'on:\n  workflow_dispatch:', 'on:\n  push:\n    branches: [main]\n  workflow_dispatch:');
   replace('permissions-write', 'permissions:\n  actions: read\n  contents: read', 'permissions:\n  actions: write\n  contents: write');
   replace('different-concurrency', 'group: assesssuite-production', 'group: assesssuite-production-parity');
+  replace(
+    'candidate-general-clinical-ai-posture-disabled',
+    'GENERAL_CLINICAL_LLM_ENABLED = "1"\' fly.production.toml',
+    'GENERAL_CLINICAL_LLM_ENABLED = "0"\' fly.production.toml',
+  );
+  replace(
+    'candidate-transcription-posture-disabled',
+    'TRANSCRIPTION_ENABLED = "1"\' fly.production.toml',
+    'TRANSCRIPTION_ENABLED = "0"\' fly.production.toml',
+  );
   replace('extra-browser-image-dispatch-input', '      cleanup_chain_ack:\n', '      browser_image:\n        required: true\n        type: string\n      cleanup_chain_ack:\n');
   replace('effect-needs-prepare-removed', '    needs: prepare\n    runs-on: ubuntu-24.04', '    runs-on: ubuntu-24.04');
   replace('jobs-merged', '\n  effect:\n', '\n  effect_merged:\n');
@@ -3051,6 +3090,21 @@ function validatePrepareReleaseWorkflow(input) {
   if (active.includes('permissions:\n  actions:') || active.includes('contents: write')) fail('prepare-release permissions exceed contents read');
   requireText('group: assesssuite-production\n  cancel-in-progress: false', 'shared production concurrency');
   requireText('EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, 'exact prepare-release validator digest');
+  const liveBaseMarker = `PRODUCTION_BASE_SHA: ${LIVE_PRODUCTION_BASE_SHA}`;
+  if (countOf(active, liveBaseMarker) !== 2 || countOf(active, 'PRODUCTION_BASE_SHA: ') !== 2) {
+    fail('prepare-release production-base pins do not both match the exact live production source');
+  }
+  if (countOf(active, 'git merge-base --is-ancestor "$PRODUCTION_BASE_SHA" HEAD') !== 2) {
+    fail('prepare-release does not prove live-base ancestry before both differential gates');
+  }
+  for (const [needle, label] of [
+    ['GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$\' fly.production.toml', 'candidate general clinical AI enabled posture'],
+    ['TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$\' fly.production.toml', 'candidate transcription enabled posture'],
+    ['GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$\' fly.rollback.production.toml', 'rollback general clinical AI enabled posture'],
+    ['TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$\' fly.rollback.production.toml', 'rollback transcription disabled posture'],
+  ]) {
+    if (countOf(active, needle) !== 1) fail('prepare-release does not enforce the exact ' + label);
+  }
   if (JSON.stringify(jobs) !== JSON.stringify(['gates','upload_sentry_source_maps','publish_image','exact_image_compatibility'])) fail('prepare-release job sequence differs: ' + JSON.stringify(jobs));
   if (!sentryUpload.includes('needs: gates') || !publish.includes('needs: [gates, upload_sentry_source_maps]') || !compatibility.includes('needs: [gates, publish_image]')) fail('prepare-release DAG differs');
   if (gates.includes('needs.publish_image') || gates.includes('CANDIDATE_IMAGE_REF:')) fail('gates illegally references downstream publication output');
@@ -4054,6 +4108,37 @@ function prepareReleaseMutationCases(source) {
   });
   replace('trigger-push', 'on:\n  workflow_dispatch:', 'on:\n  push:\n    branches: [main]\n  workflow_dispatch:');
   replace('permissions-write', 'permissions:\n  contents: read', 'permissions:\n  contents: write');
+  replaceEvery(
+    'live-production-base-rebound',
+    `PRODUCTION_BASE_SHA: ${LIVE_PRODUCTION_BASE_SHA}`,
+    'PRODUCTION_BASE_SHA: ' + '0'.repeat(40),
+    2,
+  );
+  replace(
+    'typecheck-live-base-ancestry-bypassed',
+    '          git merge-base --is-ancestor "$PRODUCTION_BASE_SHA" HEAD\n          base_dir=',
+    '          true\n          base_dir=',
+  );
+  replace(
+    'candidate-general-clinical-ai-posture-disabled',
+    'GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$\' fly.production.toml',
+    'GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$\' fly.production.toml',
+  );
+  replace(
+    'candidate-transcription-posture-disabled',
+    'TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$\' fly.production.toml',
+    'TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$\' fly.production.toml',
+  );
+  replace(
+    'rollback-general-clinical-ai-posture-disabled',
+    'GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$\' fly.rollback.production.toml',
+    'GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$\' fly.rollback.production.toml',
+  );
+  replace(
+    'rollback-transcription-posture-enabled',
+    'TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$\' fly.rollback.production.toml',
+    'TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$\' fly.rollback.production.toml',
+  );
   replace('input-interface-expanded', '      confirmation:\n', '      unsafe_override:\n        required: true\n        type: string\n      confirmation:\n');
   replace('sentry-upload-needs-removed', '  upload_sentry_source_maps:\n    name: Upload byte-proven source maps from a fresh data-only runner\n    needs: gates', '  upload_sentry_source_maps:\n    name: Upload byte-proven source maps from a fresh data-only runner');
   replace('publish-sentry-gate-removed', '    needs: [gates, upload_sentry_source_maps]\n    runs-on: ubuntu-24.04', '    needs: gates\n    runs-on: ubuntu-24.04');

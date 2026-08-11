@@ -222,7 +222,9 @@ jobs:
             [[ "$PROVIDER_TERMS_EVIDENCE_ID" == "NOT-APPLICABLE-EXTRACTION-DISABLED" ]]
           fi
           [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
-          [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*GENERAL_CLINICAL_LLM_ENABLED[[:space:]]*=[[:space:]]*"1"[[:space:]]*$' fly.rollback.production.toml)" -eq 1 ]]
+          [[ "$(grep -Ec '^[[:space:]]*TRANSCRIPTION_ENABLED[[:space:]]*=[[:space:]]*"0"[[:space:]]*$' fly.rollback.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^[[:space:]]*LEGAL_STATUS[[:space:]]*=[[:space:]]*"effective"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^[[:space:]]*LEGAL_EFFECTIVE_DATE[[:space:]]*=[[:space:]]*"19 July 2026"[[:space:]]*$' fly.production.toml)" -eq 1 ]]
           [[ "$(grep -Ec '^[[:space:]]*LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS[[:space:]]*=' fly.production.toml || true)" -eq 0 ]]
@@ -321,7 +323,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: e23f40c8e74b527a71a125768f88b74814a4178f60a5276b99d4817d766ae314
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 7a17ca9a3def75193cdabbd05c695f5c89367601ce351075b0c2ec63f40d37dd
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -395,9 +397,10 @@ jobs:
       - name: Typecheck against exact production-base differential
         shell: bash
         env:
-          PRODUCTION_BASE_SHA: 0d972f4a1dee7b6b64a28743bcd87e29daf3275c
+          PRODUCTION_BASE_SHA: 145958d895aef289b9652f850e32e237f2b62f70
         run: |
           set -euo pipefail
+          git merge-base --is-ancestor "$PRODUCTION_BASE_SHA" HEAD
           base_dir="$RUNNER_TEMP/typecheck-base"
           reference_dir="$RUNNER_TEMP/typecheck-reviewed-reference"
           git worktree add --detach "$base_dir" "$PRODUCTION_BASE_SHA"
@@ -519,7 +522,7 @@ jobs:
         shell: bash
 
         env:
-          PRODUCTION_BASE_SHA: 0d972f4a1dee7b6b64a28743bcd87e29daf3275c
+          PRODUCTION_BASE_SHA: 145958d895aef289b9652f850e32e237f2b62f70
           EXPECTED_RELEASE_SCANNER_SHA256: 9cab943c725a8faf159fbeb7ee5c4a020ef1cc4f3e41845f4f6654990bc3775d
         run: |
           set -euo pipefail
