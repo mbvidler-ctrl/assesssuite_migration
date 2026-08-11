@@ -262,7 +262,7 @@ const FLAGS = [
       'error message) differs by surface, see the client-surfaces table.',
     values: {
       production: '1',
-      rollback: '0',
+      rollback: '1',
       parity: '0',
       envExample: '',
     },
@@ -624,9 +624,9 @@ const FLAGS = [
       'gated.',
     whenOff:
       'The Transcribe/Dissect controls hide in the SOAP note UI, and the server refuses the underlying call with ' +
-      'a plain "Transcription is not enabled on this deployment." error if it is somehow reached.',
+      '403 transcription_disabled if it is somehow reached.',
     values: {
-      production: '0',
+      production: '1',
       rollback: '0',
       parity: '0',
       envExample: '',
@@ -636,11 +636,11 @@ const FLAGS = [
         file: 'server/functions/transcribeSession.mjs',
         symbol: 'transcribeSession (module default export)',
         route: 'POST /functions/transcribeSession',
-        effectWhenOff: '403 "Transcription is not enabled on this deployment."',
+        effectWhenOff: '403 transcription_disabled "Transcription is not enabled on this deployment."',
       },
       {
         file: 'server/capabilities.mjs',
-        symbol: 'transcriptionAvailable',
+        symbol: 'transcriptionAvailable / transcriptionPosture',
         route: 'GET /api/apps/public/prod/public-settings/by-id/:appId (publication of the enforced posture)',
         effectWhenOff: 'public_settings.capabilities.transcription is published as { available: false, reason: "switched_off" }, and the legacy public_settings.transcription_enabled boolean reports false.',
       },

@@ -149,7 +149,7 @@ after(async () => {
   if (fakeProvider) await fakeProvider.stop();
 });
 
-test('R00 rollback config is a same-revision, extraction- and general-AI-disabled posture', () => {
+test('R00 rollback preserves general AI while disabling extraction and uncapped transcription', () => {
   const candidateSource = fs.readFileSync(path.join(process.cwd(), 'fly.production.toml'), 'utf8');
   const rollbackSource = fs.readFileSync(
     path.join(process.cwd(), 'fly.rollback.production.toml'),
@@ -182,7 +182,11 @@ test('R00 rollback config is a same-revision, extraction- and general-AI-disable
   assert.equal(candidate.get('env.DOCUMENT_EXTRACTION_ENABLED'), '"1"');
   assert.equal(rollback.get('env.DOCUMENT_EXTRACTION_ENABLED'), '"0"');
   assert.equal(candidate.get('env.GENERAL_CLINICAL_LLM_ENABLED'), '"1"');
-  assert.equal(rollback.get('env.GENERAL_CLINICAL_LLM_ENABLED'), '"0"');
+  assert.equal(rollback.get('env.GENERAL_CLINICAL_LLM_ENABLED'), '"1"');
+  assert.equal(candidate.get('env.TRANSCRIPTION_ENABLED'), '"1"');
+  assert.equal(rollback.get('env.TRANSCRIPTION_ENABLED'), '"0"');
+  assert.equal(candidate.get('env.OPENAI_TRANSCRIBE_MODEL'), '"whisper-1"');
+  assert.equal(rollback.get('env.OPENAI_TRANSCRIBE_MODEL'), '"whisper-1"');
   assert.equal(
     rollback.get('env.LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS'),
     '"RC-2026.07.11,RC-2026.07.19"',
@@ -194,15 +198,12 @@ test('R00 rollback config is a same-revision, extraction- and general-AI-disable
     'env.DOCUMENT_EXTRACTION_ENABLED',
     candidate.get('env.DOCUMENT_EXTRACTION_ENABLED'),
   );
-  rollbackComparable.set(
-    'env.GENERAL_CLINICAL_LLM_ENABLED',
-    candidate.get('env.GENERAL_CLINICAL_LLM_ENABLED'),
-  );
+  rollbackComparable.set('env.TRANSCRIPTION_ENABLED', candidate.get('env.TRANSCRIPTION_ENABLED'));
   rollbackComparable.delete('env.LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS');
   assert.deepEqual(
     [...rollbackComparable.entries()].sort(),
     [...candidate.entries()].sort(),
-    'rollback may differ only by the reviewed extraction and general-AI switches plus legal compatibility allowlist',
+    'rollback may differ only by the reviewed extraction/transcription switches plus legal compatibility allowlist',
   );
 });
 

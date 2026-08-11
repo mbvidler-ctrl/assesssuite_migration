@@ -90,6 +90,18 @@ test('D04 classifyAiError', () => {
     classifyAiError({ response: { status: 503, data: { code: 'ai_provider_unconfigured', error: 'AI generation is not configured on this server.' } } }),
     'unconfigured',
   );
+  assert.equal(
+    classifyAiError({ response: { status: 403, data: { code: 'transcription_disabled' } } }),
+    'withdrawn',
+  );
+  assert.equal(
+    classifyAiError({ response: { status: 503, data: { code: 'transcription_provider_unconfigured' } } }),
+    'unconfigured',
+  );
+  assert.equal(
+    classifyAiError({ response: { status: 502, data: { code: 'transcription_provider_failed' } } }),
+    'provider_failed',
+  );
   assert.equal(classifyAiError({ response: { status: 502, data: {} } }), 'provider_failed');
   // A transport failure must NEVER read as a withdrawal.
   assert.equal(classifyAiError(new Error('Network Error')), 'request_failed');

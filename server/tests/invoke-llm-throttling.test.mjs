@@ -6,6 +6,7 @@
 // (T10-T11).
 
 import assert from 'node:assert/strict';
+import { DatabaseSync } from 'node:sqlite';
 import { test } from 'node:test';
 
 import { activateUser, loginAdmin, registerUser, requestJson, startTestServer } from './support/server-harness.mjs';
@@ -209,4 +210,84 @@ test('T11: boundedSetting falls back on garbage/out-of-range-low and clamps out-
   assert.equal(boundedSetting({ [spec.name]: '999' }, spec.name, spec.fallback, spec.min, spec.max), 10);
   assert.equal(boundedSetting({ [spec.name]: '7' }, spec.name, spec.fallback, spec.min, spec.max), 7);
   assert.equal(boundedSetting({}, spec.name, spec.fallback, spec.min, spec.max), 5);
+});
+
+test('T13: a real InvokeLLM call is durably settled from provider usage without changing its response shape', async () => {
+  const fakeChat = await startFakeOpenAIChat();
+  const server = await startTestServer({
+    GENERAL_CLINICAL_LLM_ENABLED: '1',
+    LLM_REQUIRED: '1',
+    OPENAI_API_KEY: 'synthetic-durable-usage-canary',
+    OPENAI_CHAT_TEST_BASE_URL: fakeChat.baseUrl,
+  });
+  try {
+    const adminToken = await loginAdmin(server);
+    const clinician = await activatedClinician(server, adminToken, 'durable-usage@example.test');
+    const result = await invokeLlm(server, clinician.token, { prompt: 'Return a short clinical summary.' });
+    assert.equal(result.status, 200, result.text);
+    assert.equal(typeof result.body, 'string', 'the public InvokeLLM contract must remain a bare string');
+    assert.equal(fakeChat.calls.length, 1);
+    assert.equal(fakeChat.calls[0].maxCompletionTokens, 32_768);
+
+    const auditDb = new DatabaseSync(server.dbPath, { readOnly: true });
+    try {
+      const row = auditDb.prepare(`
+        SELECT feature, model, status, estimated_cost_microusd, actual_cost_microusd,
+               input_tokens, cached_input_tokens, output_tokens, provider_request_id_hash
+        FROM api_usage_reservation
+      `).get();
+      assert.equal(row.feature, 'invoke_llm');
+      assert.equal(row.model, 'gpt-4.1-mini');
+      assert.equal(row.status, 'succeeded');
+      assert.equal(row.estimated_cost_microusd, 70_000);
+      assert.equal(row.actual_cost_microusd, 82);
+      assert.equal(row.input_tokens, 100);
+      assert.equal(row.cached_input_tokens, 20);
+      assert.equal(row.output_tokens, 30);
+      assert.match(row.provider_request_id_hash, /^[a-f0-9]{64}$/);
+    } finally {
+      auditDb.close();
+    }
+  } finally {
+    await server.stop();
+    await fakeChat.stop();
+  }
+});
+
+test('T14: durable per-user denial occurs before a second provider call', async () => {
+  const fakeChat = await startFakeOpenAIChat();
+  const server = await startTestServer({
+    GENERAL_CLINICAL_LLM_ENABLED: '1',
+    LLM_REQUIRED: '1',
+    OPENAI_API_KEY: 'synthetic-durable-cap-canary',
+    OPENAI_CHAT_TEST_BASE_URL: fakeChat.baseUrl,
+    AI_USAGE_USER_ROLLING_24H_CALLS: '1',
+  });
+  try {
+    const adminToken = await loginAdmin(server);
+    const clinician = await activatedClinician(server, adminToken, 'durable-cap@example.test');
+    const first = await invokeLlm(server, clinician.token, { prompt: 'first paid request' });
+    assert.equal(first.status, 200, first.text);
+
+    const denied = await invokeLlm(server, clinician.token, { prompt: 'must not reach provider' });
+    assert.equal(denied.status, 429, denied.text);
+    assert.equal(denied.body?.code, 'api_usage_cap_reached');
+    assert.equal(typeof denied.body?.resets_at, 'string');
+    assert.equal(Number.isInteger(denied.body?.retry_after_seconds), true);
+    assert.equal(fakeChat.calls.length, 1, 'quota denial must happen before provider egress');
+
+    const auditDb = new DatabaseSync(server.dbPath, { readOnly: true });
+    try {
+      assert.equal(
+        Number(auditDb.prepare('SELECT COUNT(*) AS count FROM api_usage_reservation').get().count),
+        1,
+        'a denied call is not itself a usage reservation',
+      );
+    } finally {
+      auditDb.close();
+    }
+  } finally {
+    await server.stop();
+    await fakeChat.stop();
+  }
 });

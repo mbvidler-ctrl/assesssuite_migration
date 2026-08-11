@@ -12,7 +12,7 @@
 #     hardened OTP flow — random expiring codes, lockout, real email; the
 #     fixed 000000 code is accepted only under SELFTEST).
 #   - Registration/transcription/legal posture comes from reviewed env:
-#     TRANSCRIPTION_ENABLED=0 (off for this bounded release);
+#     TRANSCRIPTION_ENABLED=1 with durable per-user API usage admission;
 #     LEGAL_STATUS and LEGAL_EFFECTIVE_DATE are immutable release metadata.
 #
 # TOPOLOGY CONSTRAINT (do not "fix"): one machine mounts the sole active data
@@ -53,10 +53,22 @@ primary_region = "syd"
   UPLOADS_DIR = "/app/server/data/uploads"
   LLM_REQUIRED = "1"
   # Emergency global clinical-AI restoration authorised by Maxwell Vidler on
-  # 28 July 2026. LLM_REQUIRED remains enabled so provider failures stay loud;
-  # the reviewed rollback configuration remains fail-closed at 0.
+  # 28 July 2026. LLM_REQUIRED remains enabled so provider failures stay loud,
+  # and rollback preserves this live-v31 enabled posture.
   GENERAL_CLINICAL_LLM_ENABLED = "1"
-  TRANSCRIPTION_ENABLED = "0"
+  TRANSCRIPTION_ENABLED = "1"
+  OPENAI_TRANSCRIBE_MODEL = "whisper-1"
+  # Durable per-user/provider-spend policy. These reviewed non-secret values
+  # are forbidden from opaque secret overrides by the production preflight.
+  AI_USAGE_USER_ROLLING_24H_USD = "5"
+  AI_USAGE_USER_ROLLING_24H_CALLS = "100"
+  AI_USAGE_GLOBAL_MONTHLY_USD = "100"
+  AI_USAGE_INVOKE_FAST_ESTIMATE_USD = "0.07"
+  AI_USAGE_INVOKE_QUALITY_ESTIMATE_USD = "0.33"
+  AI_USAGE_TRANSCRIPTION_ESTIMATE_USD = "3.00"
+  AI_USAGE_SOAP_ESTIMATE_USD = "0.33"
+  AI_USAGE_DOCUMENT_EXTRACTION_ESTIMATE_USD = "0.20"
+  GENERAL_CLINICAL_LLM_MAX_OUTPUT_UNITS = "32768"
   DOCUMENT_EXTRACTION_ENABLED = "1"
   OPENAI_HEALTH_DATA_TERMS_CONFIRMED = "1"
   DOCUMENT_EXTRACTION_UNDER_13_ENABLED = "0"

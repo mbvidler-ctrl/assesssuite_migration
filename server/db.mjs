@@ -2,6 +2,8 @@
 // Uses node:sqlite (DatabaseSync) — a Node 24 built-in, zero new dependencies.
 
 import { DatabaseSync } from 'node:sqlite';
+
+import { ensureApiUsageSchema } from './apiUsage.mjs';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -561,6 +563,12 @@ export function openDatabase() {
     CREATE INDEX IF NOT EXISTS idx_referral_commit_receipt_org_created
       ON referral_commit_receipt (org_id, created_at);
   `);
+
+  // Paid-provider usage is deliberately outside the generic entity API. The
+  // additive startup migration is rollback compatible: older application
+  // images ignore this table, while every current startup idempotently
+  // verifies the ledger and its indexes before any provider route is served.
+  ensureApiUsageSchema(db);
 
   // Existing production databases predate the crash-safe `registering`
   // lifecycle. SQLite cannot widen a CHECK constraint in place, so rebuild

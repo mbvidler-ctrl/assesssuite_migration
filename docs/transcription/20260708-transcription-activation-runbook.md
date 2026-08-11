@@ -1,71 +1,70 @@
 # Transcription activation runbook — SOAP-note session audio
 
-Date: 8 July 2026
-Scope: `server/functions/transcribeSession.mjs` (backend), `src/components/calendar/SOAPNoteModal.jsx` (frontend)
+Updated: 12 August 2026
+Scope: `server/functions/transcribeSession.mjs`, `server/apiUsage.mjs`, `src/components/calendar/SOAPNoteModal.jsx`
 
-## 1. What changed
+## 1. Production behaviour
 
-The `transcribeSession` function is no longer a pure mock. It now has a real, env-gated path for both of its actions:
+`TRANSCRIPTION_ENABLED=1` exposes two SOAP-note actions:
 
-- **`transcribe`** — loads the uploaded recording from `server/uploads/` (mapped safely from the `/uploads/<name>` URL, with path-traversal rejected) and posts it to the OpenAI audio transcriptions endpoint (`https://api.openai.com/v1/audio/transcriptions`) using Node 24 built-ins only (`fetch`, `FormData`, `Blob` — no new dependencies). The returned transcript is passed through the de-identification middleware in `server/llm.mjs` before it is returned to the browser.
-- **`dissect_to_soap`** — calls `invokeLLM()` from `server/llm.mjs` with a clinical-scribe prompt and a `{success, subjective, objective, assessment, plan}` JSON schema. De-identification, model selection and JSON handling are supplied by `llm.mjs` as for every other LLM feature.
+- **`transcribe`** resolves the authenticated tenant's registered audio upload and sends it to the OpenAI audio transcription endpoint. The model is pinned to `whisper-1`; the request asks for `verbose_json` so provider-reported duration can settle actual cost. Returned text passes through `deidentify()` before it reaches the browser.
+- **`dissect_to_soap`** uses the existing clinical-scribe prompt and schema through `invokeLLMWithUsage()`. The same de-identification, model selection and JSON parsing used by the general LLM adapter remain in place, while token counts and provider request IDs are returned for settlement.
 
-The frontend defect that produced the original complaint is also fixed: `SOAPNoteModal.jsx` contained complete `transcribeAudio` and `dissectToSOAP` handlers that were never wired to any control. Each saved recording now carries a **Transcribe** button, and a transcript panel with a **Dissect to SOAP** button appears once transcription starts.
+Each real provider call first writes a durable, user-bound usage reservation. A cap refusal, missing ledger, unpriced model or malformed estimate stops the request before provider egress. Successful calls settle actual duration/token cost; failed provider calls settle as failed and retain their conservative reservation so retries cannot bypass the cap.
 
-## 2. Activation — nothing further is required
+## 2. Reviewed release posture
 
-The real path activates automatically wherever `OPENAI_API_KEY` is present in the environment:
+| Environment | General clinical AI | Transcription | Reason |
+|---|---:|---:|---|
+| Production candidate | `1` | `1` | Real, capped transcription enabled. |
+| Compatibility rollback | `1` | `0` | The retained image predates the durable per-user usage ledger. |
+| Hidden parity runtime | `0` | `0` | Deliberately offline synthetic fixture; no provider calls. |
 
-- **Locally** — the key is already set in `.env.local`, which `server/index.mjs` loads on start (set-if-absent, so real environment variables always win).
-- **On Fly** — the key is already set as a Fly secret. Deploying the current code is sufficient.
+Production also requires `LLM_REQUIRED=1`, `OPENAI_API_KEY` as an opaque secret and `OPENAI_TRANSCRIBE_MODEL="whisper-1"` as reviewed configuration. `scripts/check-production-secrets.mjs` forbids an opaque model or feature-switch override.
 
-No new secret, flag or migration is needed.
+## 3. Audio contract
 
-## 3. Model selection
+- Browser recording selects a supported WebM/Opus or MP4 MediaRecorder MIME type and names the uploaded file to match the actual container.
+- Client and server both enforce a maximum of **20 MiB**.
+- The function accepts registered direct-child uploads with WebM, WAV, MP3, MP4/M4A, OGG or FLAC extensions. An unsupported extension returns `415 unsupported_audio_type`; an oversized recording returns `413 audio_too_large` before usage admission or provider egress.
+- Recording remains available when transcription is switched off. Only Transcribe and Dissect-to-SOAP follow the provider-aware capability posture.
 
-| Variable | Default | Notes |
-|---|---|---|
-| `OPENAI_TRANSCRIBE_MODEL` | `whisper-1` | Dedicated audio-transcription model. Set to `gpt-4o-mini-transcribe` for a cheaper alternative; no code change is required. |
+## 4. Cost and cap basis
 
-The `dissect_to_soap` step uses the chat models already configured for the platform (`OPENAI_MODEL_FAST`, default `gpt-4.1-mini`; `OPENAI_MODEL_QUALITY`, default `gpt-4.1`) via `server/llm.mjs`.
+The in-repository price registry uses USD 0.006 per audio minute for `whisper-1`. The default reservation is deliberately conservative at USD 3.00 per transcription and USD 0.33 per SOAP dissection, then successful calls settle to provider-reported duration/token usage, including cached input tokens when reported. The default per-user rolling-24-hour guard is the earlier of USD 5.00 or 100 provider calls; the default project monthly circuit is USD 100.00. Reviewed environment variables in `server/apiUsage.mjs` can lower or raise those bounded values.
 
-## 4. Expected cost
+These are operational estimates and admission settings, not an invoice guarantee. Recheck provider pricing before changing a model or price-registry entry; an unpriced model fails closed.
 
-`whisper-1` is priced at approximately USD 0.006 per minute of audio (about USD 0.36 per hour). A typical two-minute demo recording therefore costs of the order of one cent to transcribe, plus a fraction of a cent for the dissection call. Nothing in the repository documentation records a contrary figure; confirm the current rate on the OpenAI pricing page if precision matters, as prices change.
+## 5. Failure and simulation rules
 
-## 5. Fallback behaviour
+Production never substitutes a mock for a real transcription or SOAP dissection:
 
-The deterministic mock remains in place and is served whenever any of the following holds:
+- switch off: `403 transcription_disabled`;
+- provider key missing: `503 transcription_provider_unconfigured`;
+- accounting unavailable: `503 api_usage_accounting_unavailable` (or `api_usage_unavailable` if the bound service is absent);
+- per-user/project cap reached: `429 api_usage_cap_reached`, including reset metadata;
+- provider failure: `502 transcription_provider_failed`;
+- missing transcript for production SOAP dissection: `400 transcript_required`.
 
-- `OPENAI_API_KEY` is not set;
-- the process is a self-test run (`SELFTEST=1` — the self-test never makes a network call);
-- the `audio_url` does not resolve safely to a file inside `server/uploads/`;
-- the uploaded file is missing;
-- the OpenAI call fails or times out (120 seconds for transcription; 45 seconds for dissection via `llm.mjs`).
-
-The fallback transcript is clearly labelled as placeholder output ("Fallback transcript ... no real audio transcription has occurred"), so a fallback can never be mistaken for a real transcript. Failures are logged to the server console with a `[transcribeSession]` prefix.
+`SELFTEST=1` remains fully offline and may return deterministic content with `simulated: true`. Non-production with `LLM_REQUIRED` unset may also use the same visibly labelled convenience fallback. Production bootstrap forbids `SELFTEST=1`.
 
 ## 6. Browser microphone permission
 
-Recording uses `navigator.mediaDevices.getUserMedia`, which browsers expose only in a **secure context**:
+Media capture requires a secure context (`https://` or localhost). If microphone access was denied, re-enable it in the browser's site permissions. A browser that cannot produce an accepted WebM or MP4 recording receives a format-specific error before upload.
 
-- `https://` origins work — the Fly deployment (`*.fly.dev`) is served over HTTPS and is fine;
-- `http://localhost` is treated as secure by all major browsers, so local development works;
-- any other plain-`http` origin will not offer the microphone at all.
+## 7. Lean verification
 
-The browser prompts for microphone permission on first use per origin. If the demo machine has previously denied permission, re-enable it from the padlock icon in the address bar; the modal shows "Failed to start recording. Check microphone permissions." in that state.
+Run:
 
-## 7. Sixty-second manual test
+```powershell
+node --test server/tests/transcription-provider-contract.test.mjs
+node --test server/tests/soap-dissection-fail-closed.test.mjs
+node --test server/tests/public-capabilities-contract.test.mjs
+node --test server/tests/rollback-compatibility.test.mjs
+```
 
-1. Start the server and open the app (locally: `npm run dev`, or use the Fly URL).
-2. Sign in, open the calendar, and open a session's SOAP note (a seeded appointment is fine).
-3. In **Session Audio Recording**, press **Record**, grant the microphone prompt, and speak for ten to fifteen seconds — for example: "The client reports their knee pain has improved since last week but remains stiff in the mornings. Today we reassessed range of motion at one hundred and ten degrees of flexion and completed three sets of sit-to-stand. The plan is to progress resistance next session."
-4. Press **Stop** and wait for "Recording saved!" (the file uploads to `/uploads/` at this point).
-5. Press **Transcribe** on the saved recording. The transcript panel opens; within roughly ten to thirty seconds the real transcript appears. If the text begins "[Fallback transcript ...]" the real path did not run — check the server log for the `[transcribeSession]` failure reason.
-6. Press **Dissect to SOAP**. The Subjective, Objective, Assessment and Plan fields populate from the transcript content (appended to any existing text).
-7. Save the note.
+For a manual production-candidate check: open an unlocked SOAP note, record a short synthetic session, save it, press **Transcribe**, then **Dissect to SOAP**. Confirm the transcript is real (`simulated: false` in the response), the four drafted fields are visibly marked as AI-assisted, and the API usage ledger contains succeeded `transcription` and `soap_dissection` rows for the authenticated user. Do not use patient data for a synthetic release check.
 
-## 8. Verification notes
+## 8. Assurance ownership
 
-- `SELFTEST=1` exercises only the mock path; the existing self-test (`server/selftest.mjs`) posts `{action: 'transcribe', audio_url: '/uploads/probe.webm'}` and continues to pass without live calls.
-- The path guard rejects traversal (`..`, separators, encoded traversal, absolute paths, NUL) and anything not resolving to a direct child of `server/uploads/`.
+`server/tests/transcription-provider-contract.test.mjs` covers the switch, missing key, labelled self-test, MIME, 20 MiB limit, missing accounting, cap response, model pin, provider failure and both settlement paths. It is registered in `server/tests/run-assurance.mjs`. Hidden parity fixtures stay deliberately off; they are not evidence of a live transcription call.

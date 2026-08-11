@@ -151,6 +151,23 @@ test('C04 transcription and document extraction mirror their switches', async ()
     await inverse.stop();
   }
 
+  const unconfigured = await startTestServer(
+    { TRANSCRIPTION_ENABLED: '1', LLM_REQUIRED: '1', OPENAI_API_KEY: '' },
+    { selftest: false },
+  );
+  try {
+    const { body } = await fetchPublicSettings(unconfigured);
+    assert.deepEqual(body.public_settings.capabilities.transcription, {
+      available: false,
+      reason: 'unconfigured',
+    });
+    // The legacy field remains the raw switch for older bundles; the
+    // provider-aware capability is authoritative for current UI surfaces.
+    assert.equal(body.public_settings.transcription_enabled, true);
+  } finally {
+    await unconfigured.stop();
+  }
+
   // Legacy-mirror lock, scoped to non-SELFTEST because the legacy alias and
   // the capabilities mirror deliberately diverge under SELFTEST (§1).
   const nonSelftest = await startTestServer(
@@ -261,34 +278,47 @@ test('C10 anonymous callers get a coarse general_clinical_llm boolean; authentic
   }
 });
 
-test('C07 config-only rollback pair — the incident-scenario test', async () => {
+test('C07 config-only rollback pair preserves general AI and withdraws transcription', async () => {
   // The exact fly.production vs fly.rollback.production divergence pinned by
   // R00. Proves an already-loaded browser tab can detect a mid-session
   // rollback by re-fetching this one existing endpoint, with no bundle
   // change.
-  const candidate = await startTestServer({ GENERAL_CLINICAL_LLM_ENABLED: '1' });
-  const rollback = await startTestServer({ GENERAL_CLINICAL_LLM_ENABLED: '0' });
+  const shared = {
+    GENERAL_CLINICAL_LLM_ENABLED: '1',
+    LLM_REQUIRED: '0',
+    OPENAI_API_KEY: '',
+  };
+  const candidate = await startTestServer(
+    { ...shared, TRANSCRIPTION_ENABLED: '1' },
+    { selftest: false },
+  );
+  const rollback = await startTestServer(
+    { ...shared, TRANSCRIPTION_ENABLED: '0' },
+    { selftest: false },
+  );
   try {
     const candidateResponse = await fetchPublicSettings(candidate);
     const rollbackResponse = await fetchPublicSettings(rollback);
 
     assert.notEqual(
-      candidateResponse.body.public_settings.capabilities.general_clinical_llm.available,
-      rollbackResponse.body.public_settings.capabilities.general_clinical_llm.available,
+      candidateResponse.body.public_settings.capabilities.transcription.available,
+      rollbackResponse.body.public_settings.capabilities.transcription.available,
     );
+    assert.equal(candidateResponse.body.public_settings.capabilities.general_clinical_llm.available, true);
+    assert.equal(rollbackResponse.body.public_settings.capabilities.general_clinical_llm.available, true);
     assert.equal(
       candidateResponse.body.public_settings.capabilities.version,
       rollbackResponse.body.public_settings.capabilities.version,
     );
 
-    const withoutGeneralClinicalLlm = (publicSettings) => {
-      const { capabilities, ...rest } = publicSettings;
-      const { general_clinical_llm, ...otherCapabilities } = capabilities;
+    const withoutTranscription = (publicSettings) => {
+      const { capabilities, transcription_enabled: _legacyTranscription, ...rest } = publicSettings;
+      const { transcription: _transcription, ...otherCapabilities } = capabilities;
       return { ...rest, capabilities: otherCapabilities };
     };
     assert.deepEqual(
-      withoutGeneralClinicalLlm(candidateResponse.body.public_settings),
-      withoutGeneralClinicalLlm(rollbackResponse.body.public_settings),
+      withoutTranscription(candidateResponse.body.public_settings),
+      withoutTranscription(rollbackResponse.body.public_settings),
     );
   } finally {
     await candidate.stop();

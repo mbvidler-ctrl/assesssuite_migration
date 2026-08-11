@@ -8,6 +8,8 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..'
 const landingRoot = path.join(repoRoot, 'apps', 'landing', 'dist');
 const platformRoot = path.join(repoRoot, 'dist');
 const landingUsageEndpoint = 'https://app.assesssuite.com/api/usage/page-load';
+const textArtifactExtensions = new Set(['.css', '.html', '.js', '.json', '.map', '.mjs', '.txt']);
+const javascriptArtifactExtensions = new Set(['.js', '.mjs']);
 
 const fail = (message) => {
   console.error(`FAIL: ${message}`);
@@ -22,8 +24,7 @@ function assertDirectory(directory, label) {
   return true;
 }
 
-function artifactText(directory) {
-  const extensions = new Set(['.css', '.html', '.js', '.json', '.map', '.mjs', '.txt']);
+function artifactText(directory, extensions = textArtifactExtensions) {
   const contents = [];
   const visit = (candidate) => {
     for (const entry of fs.readdirSync(candidate, { withFileTypes: true })) {
@@ -41,6 +42,18 @@ const platformReady = assertDirectory(platformRoot, 'platform');
 
 if (landingReady) {
   const landing = artifactText(landingRoot);
+  const landingJavaScript = artifactText(landingRoot, javascriptArtifactExtensions);
+  const requiredLandingAnalyticsMarkers = [
+    ['va.vercel-scripts.com', 'Vercel Web Analytics script host'],
+    ['/_vercel/insights', 'Vercel Web Analytics intake path'],
+  ];
+
+  for (const [marker, label] of requiredLandingAnalyticsMarkers) {
+    if (!landingJavaScript.includes(marker)) {
+      fail(`landing JavaScript artifact is missing ${label}: ${marker}`);
+    }
+  }
+
   const usageEndpointOccurrences = landing.split(landingUsageEndpoint).length - 1;
   if (usageEndpointOccurrences !== 1) {
     fail(`landing artifact must contain exactly one approved usage endpoint; found ${usageEndpointOccurrences}`);

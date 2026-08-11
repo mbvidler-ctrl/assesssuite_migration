@@ -2,7 +2,10 @@
 #
 # This file is reviewed and committed beside fly.production.toml in the same
 # immutable default-branch revision. It intentionally runs the exact same code
-# and data migrations while disabling referral/document extraction. The trusted
+# and data migrations while disabling referral/document extraction and the new
+# transcription path. The retained image predates the durable per-user API
+# usage ledger, so enabling transcription during rollback would bypass the cap.
+# General clinical AI remains at the live-v31 enabled posture. The trusted
 # release workflow builds and proves both configurations from that one revision
 # before it changes the live machine.
 
@@ -22,8 +25,21 @@ primary_region = "syd"
   EXPECTED_APP_URL = "https://app.assesssuite.com"
   UPLOADS_DIR = "/app/server/data/uploads"
   LLM_REQUIRED = "1"
-  GENERAL_CLINICAL_LLM_ENABLED = "0"
+  GENERAL_CLINICAL_LLM_ENABLED = "1"
   TRANSCRIPTION_ENABLED = "0"
+  OPENAI_TRANSCRIBE_MODEL = "whisper-1"
+  # Kept byte-for-byte symmetric with the candidate configuration. The
+  # compatibility image ignores ledger-only AI_USAGE_* settings; the output
+  # ceiling remains a harmless bound for its still-enabled general AI path.
+  AI_USAGE_USER_ROLLING_24H_USD = "5"
+  AI_USAGE_USER_ROLLING_24H_CALLS = "100"
+  AI_USAGE_GLOBAL_MONTHLY_USD = "100"
+  AI_USAGE_INVOKE_FAST_ESTIMATE_USD = "0.07"
+  AI_USAGE_INVOKE_QUALITY_ESTIMATE_USD = "0.33"
+  AI_USAGE_TRANSCRIPTION_ESTIMATE_USD = "3.00"
+  AI_USAGE_SOAP_ESTIMATE_USD = "0.33"
+  AI_USAGE_DOCUMENT_EXTRACTION_ESTIMATE_USD = "0.20"
+  GENERAL_CLINICAL_LLM_MAX_OUTPUT_UNITS = "32768"
   DOCUMENT_EXTRACTION_ENABLED = "0"
   DOCUMENT_EXTRACTION_UNDER_13_ENABLED = "0"
   OPENAI_HEALTH_DATA_TERMS_CONFIRMED = "1"

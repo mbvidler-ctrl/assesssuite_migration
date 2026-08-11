@@ -1519,7 +1519,7 @@ ${activeSections.filter(s => !s.toLowerCase().includes('signature') && !s.toLowe
   const tableHtml = section === outcomeSection ? outcomeHtml : '';
   if (!text?.trim() && !tableHtml) return '';
   const aiDrafted = Boolean(content[`${section}_ai_drafted`]);
-  return `<div class="section"><h2>${section}${aiDrafted ? ` <span class="ai-tag">[${AI_SECTION_TAG}]</span>` : ''}</h2>${tableHtml}${text?.trim() ? `<p>${text.trim()}</p>` : ''}</div>`;
+  return `<div class="section"><h2>${section}${aiDrafted ? ` <span class="ai-tag">[${AI_SECTION_TAG}]</span>` : ''}</h2>${tableHtml}${text?.trim() ? renderRichText(text) : ''}</div>`;
 }).join('')}
 ${activeSections.filter(s => s.toLowerCase().includes('signature')).map(section => {
   const text = content[section];
@@ -1848,7 +1848,7 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
           content={sectionContent}
           onChange={setSectionContent}
           client={client}
-          clientAssessments={clientAssessments}
+          clientAssessments={getOutcomeAssessments()}
           clientConditions={clientConditions}
           selectedAssessmentIds={selectedAssessmentIds}
           clinician={clinician}
