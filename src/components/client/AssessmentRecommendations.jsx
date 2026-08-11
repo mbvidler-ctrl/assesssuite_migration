@@ -112,14 +112,18 @@ ${JSON.stringify({ condition_names: conditionNames, selected_candidates: candida
 
         if (cancelled) return;
         const candidateIds = new Set(candidates.map(candidate => candidate.id));
-        const enhancedReasons = new Map(
-          (Array.isArray(response?.recommendations) ? response.recommendations : [])
-            .map(item => [
-              String(item?.assessment_id),
-              String(item?.reason || '').replace(/\s+/g, ' ').trim().slice(0, 400),
-            ])
-            .filter(([id, reason]) => candidateIds.has(id) && reason),
-        );
+        const responseRecommendations = response
+          && typeof response === 'object'
+          && 'recommendations' in response
+          && Array.isArray(response.recommendations)
+          ? response.recommendations
+          : [];
+        const enhancedReasons = new Map();
+        for (const item of responseRecommendations) {
+          const id = String(item?.assessment_id);
+          const reason = String(item?.reason || '').replace(/\s+/g, ' ').trim().slice(0, 400);
+          if (candidateIds.has(id) && reason) enhancedReasons.set(id, reason);
+        }
 
         if (enhancedReasons.size > 0) {
           setRecommendations(discovered.map(assessment => ({
