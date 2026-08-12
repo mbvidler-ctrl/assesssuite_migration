@@ -20,6 +20,7 @@ const suites = [
   'provider-model-contract.test.mjs',
   'provider-probe-contract.test.mjs',
   'production-startup.test.mjs',
+  'sandbox-bootstrap.test.mjs',
   'outbound-capability-gates.test.mjs',
   'billing-portal-authorization.test.mjs',
   'billing-checkout-authorization.test.mjs',
