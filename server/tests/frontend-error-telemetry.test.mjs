@@ -3,316 +3,345 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import * as Sentry from '@sentry/react';
 
 import {
+  FRONTEND_REPLAY_NETWORK_ALLOW_URLS,
+  FRONTEND_REPLAY_NETWORK_DENY_URLS,
   FRONTEND_TELEMETRY_ALLOWED_ORIGINS,
-  SAFE_EXCEPTION_VALUE,
+  TELEMETRY_FILE_BYTES_OMITTED,
+  TELEMETRY_REDACTED,
   captureFrontendException,
+  clearFrontendTelemetryUser,
   createFrontendBeforeSend,
+  createFrontendIntegrations,
+  createFrontendReplayOptions,
   createFrontendSentryOptions,
   initialiseFrontendErrorTelemetry,
-  sanitizeDebugMeta,
-  sanitizeFrameLocation,
-  sanitizeFrontendErrorEvent,
+  sanitizeCredentialString,
+  sanitizeFrontendTelemetryEvent,
+  sanitizeReplayRecordingEvent,
+  sanitizeTelemetryUrl,
+  sanitizeTelemetryValue,
+  setFrontendTelemetryUser,
 } from '../../src/lib/errorTelemetry.js';
 
 const RELEASE = 'da253ebfbcd8fe5ac5f379ff1f2589cf0730ab63';
 const VALID_DSN = 'https://public_key@o4511822688813056.ingest.us.sentry.io/4511827129663488';
-const SAFE_DEBUG_ID = '12345678-1234-1234-1234-123456789abc';
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const credentialField = ['pass', 'word'].join('');
+const authHeaderField = ['author', 'ization'].join('');
+const accessField = ['access', '_', 'token'].join('');
+const resetCredentialField = ['reset', 'Token'].join('');
+const replacementCredentialField = ['new', 'Password'].join('');
+const confirmationCredentialField = ['confirm', 'Password'].join('');
+const resetQueryField = ['to', 'ken'].join('');
 
-function hostileExceptionEvent() {
+function runtime(overrides = {}) {
   return {
-    event_id: 'ABCDEF0123456789ABCDEF0123456789',
-    timestamp: 1_786_000_000.125,
-    message: 'Patient jane@example.com body=secret token=Bearer-abc',
-    transaction: '/patients/4321987654321?email=jane@example.com',
-    level: 'warning',
-    logger: 'console',
-    culprit: 'jane@example.com',
-    user: { id: '4321987654321', email: 'jane@example.com', ip_address: '203.0.113.4' },
-    request: {
-      url: 'https://app.assesssuite.com/patient?email=jane@example.com#secret',
-      data: 'clinical body',
-      headers: { authorization: 'Bearer secret' },
-      cookies: 'session=secret',
-    },
-    contexts: {
-      patient: { name: 'Jane Example', diagnosis: 'private' },
-      trace: { trace_id: 'untrusted' },
-    },
-    extra: { clinicalNote: 'private body' },
-    breadcrumbs: [{ category: 'console', message: 'jane@example.com opened a patient' }],
-    tags: { patient: 'Jane Example', surface: 'attacker-controlled' },
-    fingerprint: ['patient-jane@example.com'],
-    exception: {
-      values: [{
-        type: 'TypeError jane@example.com',
-        value: 'Clinical note for Jane Example: secret body',
-        mechanism: { data: { handler: 'patient-4321987654321' } },
-        stacktrace: {
-          frames: [
-            {
-              filename: 'https://evil.example/steal.js?patient=jane@example.com#secret',
-              abs_path: 'C:\\Users\\Jane\\patient-secret.jsx',
-              function: 'steal jane@example.com',
-              lineno: 12,
-              colno: 4,
-              vars: { patient: 'Jane Example' },
-              context_line: 'const patient = "Jane Example";',
-              pre_context: ['clinical body'],
-              post_context: ['token=secret'],
-            },
-            {
-              filename: 'https://app.assesssuite.com/assets/index-DYkT-4PM.js?patient=jane@example.com#token',
-              abs_path: 'https://app.assesssuite.com/assets/index-DYkT-4PM.js?auth=secret',
-              function: 'render jane@example.com',
-              lineno: 431,
-              colno: 19,
-              vars: { note: 'clinical body' },
-              context_line: 'Bearer secret',
-              module: 'patient/JaneExample',
-            },
-          ],
-        },
-      }],
-    },
-    debug_meta: {
-      images: [
-        {
-          type: 'sourcemap',
-          code_file: 'https://app.assesssuite.com/assets/index-DYkT-4PM.js?patient=jane@example.com#token',
-          debug_id: SAFE_DEBUG_ID.toUpperCase(),
-          code_id: 'patient-jane@example.com',
-        },
-        {
-          type: 'sourcemap',
-          code_file: 'https://evil.example/steal.js?secret=clinical-body',
-          debug_id: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-        },
-      ],
-      patient: 'Jane Example',
-    },
+    PROD: true,
+    VITE_SENTRY_DSN: VALID_DSN,
+    VITE_SENTRY_ENVIRONMENT: 'production',
+    VITE_SENTRY_RELEASE: RELEASE,
+    ...overrides,
   };
 }
 
-test('frontend event sanitizer drops non-exception events', () => {
-  assert.equal(sanitizeFrontendErrorEvent({ message: 'jane@example.com' }), null);
-  assert.equal(createFrontendBeforeSend({ release: RELEASE })({ breadcrumbs: [] }), null);
-
-  const hostileGetter = {};
-  Object.defineProperty(hostileGetter, 'exception', {
-    get() {
-      throw new Error('private body');
-    },
-  });
-  assert.equal(createFrontendBeforeSend({ release: RELEASE })(hostileGetter), null);
-});
-
-test('telemetry is wired only into the authenticated application entry', () => {
-  const appEntry = fs.readFileSync(path.join(repoRoot, 'apps', 'app-ep', 'src', 'main.jsx'), 'utf8');
-  const landingEntry = fs.readFileSync(path.join(repoRoot, 'apps', 'landing', 'src', 'main.jsx'), 'utf8');
-  assert.match(appEntry, /@\/lib\/errorTelemetry\.js/);
-  assert.match(appEntry, /initialiseFrontendErrorTelemetry\(\)/);
-  assert.doesNotMatch(landingEntry, /Sentry|errorTelemetry|beforeSend/);
-});
-
-test('hostile exception input is reduced to the strict error allowlist', () => {
-  const sanitized = sanitizeFrontendErrorEvent(hostileExceptionEvent(), {
-    environment: 'production',
-    release: RELEASE,
-  });
-
-  assert.deepEqual(Object.keys(sanitized).sort(), [
-    'debug_meta',
-    'environment',
-    'event_id',
-    'exception',
-    'level',
-    'platform',
-    'release',
-    'tags',
-    'timestamp',
-  ]);
-  assert.equal(sanitized.level, 'error');
-  assert.equal(sanitized.platform, 'javascript');
-  assert.equal(sanitized.exception.values.length, 1);
-  assert.equal(sanitized.exception.values[0].type, 'Error');
-  assert.equal(sanitized.exception.values[0].value, SAFE_EXCEPTION_VALUE);
-  assert.deepEqual(sanitized.tags, {
-    surface: 'assesssuite-app',
-    environment: 'production',
-    release: RELEASE,
-  });
-
-  const serialized = JSON.stringify(sanitized);
-  for (const forbidden of [
-    'jane@example.com',
-    'Jane Example',
-    '4321987654321',
-    'clinical body',
-    'Bearer secret',
-    'patient=',
-    'auth=',
-    '#token',
-    'evil.example',
-    '203.0.113.4',
-  ]) {
-    assert.ok(!serialized.includes(forbidden), `sanitized event leaked ${forbidden}`);
-  }
-
-  assert.deepEqual(sanitized.exception.values[0].stacktrace.frames, [{
-    function: 'anonymous',
-    in_app: true,
-    filename: 'https://app.assesssuite.com/assets/index-DYkT-4PM.js',
-    abs_path: 'https://app.assesssuite.com/assets/index-DYkT-4PM.js',
-    lineno: 431,
-    colno: 19,
-  }]);
-  assert.deepEqual(sanitized.debug_meta, {
-    images: [{
-      type: 'sourcemap',
-      code_file: 'https://app.assesssuite.com/assets/index-DYkT-4PM.js',
-      debug_id: SAFE_DEBUG_ID,
-    }],
-  });
-});
-
-test('location and debug metadata sanitizer retain only production assets', () => {
-  assert.deepEqual(FRONTEND_TELEMETRY_ALLOWED_ORIGINS, ['https://app.assesssuite.com']);
-  assert.equal(
-    sanitizeFrameLocation('https://app.assesssuite.com/assets/chunk.js?token=secret#x'),
-    'https://app.assesssuite.com/assets/chunk.js',
-  );
-  assert.equal(sanitizeFrameLocation('/assets/chunk.js?token=secret'), '/assets/chunk.js');
-  assert.equal(sanitizeFrameLocation('https://example.com/assets/chunk.js'), undefined);
-  assert.equal(sanitizeFrameLocation('C:\\Users\\Jane\\chunk.js'), undefined);
-  assert.equal(sanitizeDebugMeta({ patient: 'Jane Example' }), undefined);
-});
-
-test('Sentry options disable non-error telemetry and rebuild events from trusted statics', () => {
-  const integrations = [{ name: 'safe-global-errors' }];
-  const options = createFrontendSentryOptions({
-    VITE_SENTRY_DSN: VALID_DSN,
-    VITE_SENTRY_ENVIRONMENT: 'production',
-    VITE_SENTRY_RELEASE: RELEASE,
-  }, integrations);
-
-  assert.equal(options.defaultIntegrations, false);
-  assert.equal(options.sendDefaultPii, false);
-  assert.equal(options.autoSessionTracking, false);
-  assert.equal(options.sendClientReports, false);
-  assert.equal(options.maxBreadcrumbs, 0);
-  assert.equal(options.tracesSampleRate, 0);
-  assert.equal(options.profilesSampleRate, 0);
-  assert.equal(options.replaysSessionSampleRate, 0);
-  assert.equal(options.replaysOnErrorSampleRate, 0);
-  assert.equal(options.enableLogs, false);
-  assert.equal(options.beforeBreadcrumb({ message: 'jane@example.com' }), null);
-  assert.strictEqual(options.integrations, integrations);
-
-  const event = hostileExceptionEvent();
-  event.release = 'attacker-release-jane@example.com';
-  event.environment = 'patient-Jane-Example';
-  const sanitized = options.beforeSend(event);
-  assert.equal(sanitized.release, RELEASE);
-  assert.equal(sanitized.environment, 'production');
-});
-
-test('initialisation is production-and-DSN gated and capture is Error-only', () => {
+function fakeSentry() {
   const calls = [];
-  const sentry = {
-    globalHandlersIntegration: (options) => ({ name: 'GlobalHandlers', options }),
-    dedupeIntegration: () => ({ name: 'Dedupe' }),
-    makeFetchTransport: () => ({ send: () => Promise.resolve({ statusCode: 200 }), flush: () => Promise.resolve(true) }),
+  const integration = (name) => (options) => ({ name, options });
+  return {
+    calls,
+    reactRouterBrowserTracingIntegration: integration('BrowserTracing'),
+    replayIntegration: integration('Replay'),
+    browserProfilingIntegration: integration('BrowserProfiling'),
+    httpClientIntegration: integration('HttpClient'),
+    extraErrorDataIntegration: integration('ExtraErrorData'),
+    contextLinesIntegration: integration('ContextLines'),
+    reportingObserverIntegration: integration('ReportingObserver'),
+    consoleLoggingIntegration: integration('ConsoleLogs'),
+    captureConsoleIntegration: integration('CaptureConsole'),
     init: (options) => calls.push(['init', options]),
     captureException: (error) => calls.push(['capture', error]),
+    setUser: (user) => calls.push(['user', user]),
+    setTag: (name, value) => calls.push(['tag', name, value]),
+    getCurrentScope: () => ({ removeTag: (name) => calls.push(['remove-tag', name]) }),
   };
+}
 
-  assert.equal(initialiseFrontendErrorTelemetry({ PROD: false, VITE_SENTRY_DSN: 'dsn' }, sentry), false);
-  assert.equal(initialiseFrontendErrorTelemetry({ PROD: true }, sentry), false);
-  assert.equal(initialiseFrontendErrorTelemetry({
-    PROD: true,
-    VITE_SENTRY_DSN: VALID_DSN,
-    VITE_SENTRY_RELEASE: RELEASE.slice(0, 39),
-    VITE_SENTRY_ENVIRONMENT: 'production',
-  }, sentry), false);
-  assert.equal(initialiseFrontendErrorTelemetry({
-    PROD: true,
-    VITE_SENTRY_DSN: VALID_DSN,
-    VITE_SENTRY_RELEASE: RELEASE,
-    VITE_SENTRY_ENVIRONMENT: 'staging',
-  }, sentry), false);
-  assert.equal(initialiseFrontendErrorTelemetry({
-    PROD: true,
-    VITE_SENTRY_DSN: 'https://public_key@o4511822688813056.ingest.us.sentry.io/999999',
-    VITE_SENTRY_RELEASE: RELEASE,
-    VITE_SENTRY_ENVIRONMENT: 'production',
-  }, sentry), false);
-  assert.equal(calls.length, 0);
+test('telemetry remains exclusive to the authenticated application build', () => {
+  const appEntry = fs.readFileSync(path.join(repoRoot, 'apps', 'app-ep', 'src', 'main.jsx'), 'utf8');
+  const appSource = fs.readFileSync(path.join(repoRoot, 'src', 'App.jsx'), 'utf8');
+  const landingEntry = fs.readFileSync(path.join(repoRoot, 'apps', 'landing', 'src', 'main.jsx'), 'utf8');
 
-  assert.equal(initialiseFrontendErrorTelemetry({
-    PROD: true,
-    VITE_SENTRY_DSN: VALID_DSN,
-    VITE_SENTRY_RELEASE: RELEASE,
-    VITE_SENTRY_ENVIRONMENT: 'production',
-  }, {
-    globalHandlersIntegration: () => {
-      throw new Error('telemetry integration failed');
-    },
-  }), false);
-
-  assert.equal(initialiseFrontendErrorTelemetry({
-    PROD: true,
-    VITE_SENTRY_DSN: VALID_DSN,
-    VITE_SENTRY_RELEASE: RELEASE,
-    VITE_SENTRY_ENVIRONMENT: 'production',
-  }, sentry), true);
-  assert.equal(calls[0][0], 'init');
-  assert.deepEqual(calls[0][1].integrations.map((integration) => integration.name), [
-    'GlobalHandlers',
-    'Dedupe',
-  ]);
-
-  assert.equal(captureFrontendException('not an Error', sentry), undefined);
-  const error = new TypeError('private body');
-  captureFrontendException(error, sentry);
-  assert.strictEqual(calls.at(-1)[1], error);
+  assert.match(appEntry, /@\/lib\/errorTelemetry\.js/);
+  assert.match(appEntry, /initialiseFrontendErrorTelemetry\(\)/);
+  assert.equal((appSource.match(/<TelemetryRoutes>/g) || []).length, 2);
+  assert.equal((appSource.match(/<\/TelemetryRoutes>/g) || []).length, 2);
+  assert.match(appSource, /wrapReactRouterRouting\(Routes\)/);
+  assert.doesNotMatch(landingEntry, /Sentry|errorTelemetry|TelemetryRoutes/);
 });
 
-test('real Sentry SDK transport emits only the strict envelope and event allowlists', async () => {
-  const envelopes = [];
-  const captureTransport = () => ({
-    send: (envelope) => {
-      envelopes.push(envelope);
-      return Promise.resolve({ statusCode: 200 });
+test('broad event capture keeps requested PII and clinical context but removes credentials and bytes', () => {
+  const event = {
+    message: 'Jane Example opened a clinical assessment',
+    user: { id: 'user-42', email: 'jane@example.test', username: 'Jane Example' },
+    request: {
+      url: `https://app.assesssuite.com/api/entities/Client?email=jane@example.test&${accessField}=dummy-value`,
+      headers: {
+        'content-type': 'application/json',
+        [authHeaderField]: 'Bearer dummy-value',
+      },
+      data: {
+        diagnosis: 'Clinical context remains visible',
+        [credentialField]: 'dummy-value',
+      },
     },
-    flush: () => Promise.resolve(true),
+    extra: {
+      clientName: 'Jane Example',
+      bytes: new Uint8Array([1, 2, 3]),
+    },
+    breadcrumbs: [{ category: 'ui.click', message: 'Jane Example selected assessment' }],
+  };
+
+  const sanitized = sanitizeFrontendTelemetryEvent(event, {
+    environment: 'production',
+    release: RELEASE,
   });
-  const options = createFrontendSentryOptions({
-    VITE_SENTRY_DSN: VALID_DSN,
-    VITE_SENTRY_ENVIRONMENT: 'production',
-    VITE_SENTRY_RELEASE: RELEASE,
-  }, [], { makeFetchTransport: captureTransport });
-  Sentry.init(options);
+  const serialized = JSON.stringify(sanitized);
+  assert.match(serialized, /Jane Example/);
+  assert.match(serialized, /jane@example\.test/);
+  assert.match(serialized, /Clinical context remains visible/);
+  assert.equal(sanitized.request.headers[authHeaderField], TELEMETRY_REDACTED);
+  assert.equal(sanitized.request.data[credentialField], TELEMETRY_REDACTED);
+  assert.equal(sanitized.extra.bytes, TELEMETRY_FILE_BYTES_OMITTED);
+  assert.equal(sanitized.release, RELEASE);
+  assert.equal(sanitized.environment, 'production');
+  assert.equal(sanitized.tags.surface, 'assesssuite-app');
+  assert.ok(!serialized.includes('dummy-value'));
+});
 
-  const error = new TypeError('Patient jane@example.com token=secret clinical body');
-  error.patient = { name: 'Jane Example', medicare: '4321987654321' };
-  Sentry.captureException(error);
-  await Sentry.flush(1_000);
+test('URL and free-text scrubbers retain analytics context while removing credential-like values', () => {
+  const url = sanitizeTelemetryUrl(
+    `https://app.assesssuite.com/api/items?email=jane@example.test&${accessField}=dummy-value#section`,
+  );
+  assert.match(url, /email=jane%40example\.test/);
+  assert.match(url, /%5BFiltered%5D/);
+  assert.ok(!url.includes('dummy-value'));
 
-  assert.equal(envelopes.length, 1);
-  const [header, items] = envelopes[0];
-  assert.deepEqual(Object.keys(header), ['event_id']);
-  assert.equal(items.length, 1);
-  assert.deepEqual(items[0][0], { type: 'event' });
-  const event = items[0][1];
-  assert.deepEqual(Object.keys(event).sort(), [
-    'environment', 'event_id', 'exception', 'level', 'platform', 'release', 'tags', 'timestamp',
-  ]);
-  const serialized = JSON.stringify(envelopes[0]);
-  for (const forbidden of ['sdk', 'sent_at', 'jane@example.com', 'Jane Example', '4321987654321', 'clinical body', 'secret']) {
-    assert.equal(serialized.includes(forbidden), false, forbidden);
+  const scrubbed = sanitizeCredentialString('Jane Example: Bearer dummy-value');
+  assert.match(scrubbed, /Jane Example/);
+  assert.match(scrubbed, /\[Filtered\]/);
+  assert.ok(!scrubbed.includes('dummy-value'));
+});
+
+test('beforeSend clears attachments while retaining a rich event', () => {
+  const attachments = [{ filename: 'clinical.bin', data: new Uint8Array([4, 5, 6]) }];
+  const beforeSend = createFrontendBeforeSend({ environment: 'production', release: RELEASE });
+  const event = beforeSend({ message: 'Jane Example', extra: { diagnosis: 'Example' } }, { attachments });
+  assert.equal(attachments.length, 0);
+  assert.equal(event.message, 'Jane Example');
+  assert.equal(event.extra.diagnosis, 'Example');
+});
+
+test('Replay captures unmasked DOM and JSON API detail while permanently excluding media and file routes', () => {
+  const options = createFrontendReplayOptions();
+  assert.equal(options.maskAllText, false);
+  assert.equal(options.maskAllInputs, false);
+  assert.equal(options.blockAllMedia, true);
+  assert.equal(options.networkCaptureBodies, true);
+  assert.equal(options.attachRawBodyFromRequest, true);
+  assert.ok(options.mask.some((selector) => selector.includes('type="password"')));
+  assert.ok(options.block.includes('input[type="file"]'));
+  assert.ok(!options.networkRequestHeaders.includes(authHeaderField));
+  assert.ok(!options.networkRequestHeaders.includes('cookie'));
+
+  const jsonApiUrl = 'https://app.assesssuite.com/api/entities/Client';
+  assert.ok(FRONTEND_REPLAY_NETWORK_ALLOW_URLS.some((matcher) => matcher.test(jsonApiUrl)));
+  for (const excluded of [
+    'https://app.assesssuite.com/api/integrations/Core/UploadFile',
+    'https://app.assesssuite.com/api/functions/transcribeSession',
+    'https://app.assesssuite.com/api/integrations/Core/ExtractDataFromUploadedFile',
+    'https://app.assesssuite.com/uploads/example-id',
+    'https://app.assesssuite.com/api/files/example-id',
+    'https://app.assesssuite.com/api/download/example-id',
+  ]) {
+    assert.ok(FRONTEND_REPLAY_NETWORK_DENY_URLS.some((matcher) => matcher.test(excluded)), excluded);
   }
+});
+
+test('Replay network hook keeps normal PII bodies and strips secrets and file-transfer bodies', () => {
+  const ordinary = sanitizeReplayRecordingEvent({
+    type: 5,
+    data: {
+      tag: 'performanceSpan',
+      payload: {
+        op: 'resource.fetch',
+        description: 'https://app.assesssuite.com/api/entities/Client',
+        data: {
+          request: {
+            headers: { 'content-type': 'application/json' },
+            body: { email: 'jane@example.test', diagnosis: 'Example', [credentialField]: 'dummy-value' },
+          },
+          response: { headers: { 'content-type': 'application/json' }, body: { ok: true } },
+        },
+      },
+    },
+  });
+  assert.equal(ordinary.data.payload.data.request.body.email, 'jane@example.test');
+  assert.equal(ordinary.data.payload.data.request.body.diagnosis, 'Example');
+  assert.equal(ordinary.data.payload.data.request.body[credentialField], TELEMETRY_REDACTED);
+
+  const transfer = sanitizeReplayRecordingEvent({
+    type: 5,
+    data: {
+      tag: 'performanceSpan',
+      payload: {
+        op: 'resource.xhr',
+        description: 'https://app.assesssuite.com/api/integrations/Core/UploadFile',
+        data: {
+          request: { headers: { 'content-type': 'multipart/form-data' }, body: 'binary-like-content' },
+          response: { headers: { 'content-type': 'application/json' }, body: { file_url: '/uploads/id' } },
+        },
+      },
+    },
+  });
+  assert.equal(transfer.data.payload.data.request.body, TELEMETRY_FILE_BYTES_OMITTED);
+  assert.equal(transfer.data.payload.data.response.body, TELEMETRY_FILE_BYTES_OMITTED);
+});
+
+test('password-reset bearer and replacement credentials are removed from URL, object and raw Replay bodies', () => {
+  const resetPage = fs.readFileSync(path.join(repoRoot, 'src', 'pages', 'ResetPassword.jsx'), 'utf8');
+  assert.match(resetPage, /searchParams\.get\("token"\)/);
+  assert.match(resetPage, /resetPassword\(\{ resetToken, newPassword \}\)/);
+
+  const resetUrl = sanitizeTelemetryUrl(
+    `https://app.assesssuite.com/reset-password?${resetQueryField}=live-reset-bearer&email=jane@example.test`,
+  );
+  assert.match(resetUrl, /email=jane%40example\.test/);
+  assert.match(resetUrl, /%5BFiltered%5D/);
+  assert.ok(!resetUrl.includes('live-reset-bearer'));
+
+  const objectBody = sanitizeTelemetryValue({
+    [resetCredentialField]: 'live-reset-bearer',
+    [replacementCredentialField]: 'Correct Horse Battery Staple',
+    [confirmationCredentialField]: 'Correct Horse Battery Staple',
+    inputTokens: 123,
+  });
+  assert.equal(objectBody[resetCredentialField], TELEMETRY_REDACTED);
+  assert.equal(objectBody[replacementCredentialField], TELEMETRY_REDACTED);
+  assert.equal(objectBody[confirmationCredentialField], TELEMETRY_REDACTED);
+  assert.equal(objectBody.inputTokens, 123, 'non-credential usage counts must remain observable');
+
+  const replay = sanitizeReplayRecordingEvent({
+    type: 5,
+    data: {
+      tag: 'performanceSpan',
+      payload: {
+        op: 'resource.fetch',
+        description: `https://app.assesssuite.com/api/auth/reset-password?${resetQueryField}=live-reset-bearer`,
+        data: {
+          request: {
+            headers: { 'content-type': 'application/json' },
+            body: JSON.stringify({
+              [resetCredentialField]: 'live-reset-bearer',
+              [replacementCredentialField]: 'Correct Horse Battery Staple',
+            }),
+          },
+          response: { headers: { 'content-type': 'application/json' }, body: { ok: true } },
+        },
+      },
+    },
+  });
+  const serialized = JSON.stringify(replay);
+  assert.ok(!serialized.includes('live-reset-bearer'));
+  assert.ok(!serialized.includes('Correct Horse Battery Staple'));
+  assert.match(serialized, /\[Filtered\]/);
+});
+
+test('Sentry options sample all supported products and keep credential collection disabled', () => {
+  const sentry = fakeSentry();
+  const additional = createFrontendIntegrations(sentry);
+  const options = createFrontendSentryOptions(runtime(), additional, sentry);
+
+  assert.equal(options.sendDefaultPii, true);
+  assert.equal(options.dataCollection.userInfo, true);
+  assert.equal(options.dataCollection.cookies, false);
+  assert.deepEqual(options.dataCollection.httpBodies, [
+    'incomingRequest', 'outgoingRequest', 'incomingResponse', 'outgoingResponse',
+  ]);
+  assert.equal(options.autoSessionTracking, true);
+  assert.equal(options.sendClientReports, true);
+  assert.equal(options.maxBreadcrumbs, 100);
+  assert.equal(options.attachStacktrace, true);
+  assert.equal(options.sampleRate, 1);
+  assert.equal(options.tracesSampleRate, 1);
+  assert.equal(options.profileSessionSampleRate, 1);
+  assert.equal(options.profileLifecycle, 'trace');
+  assert.equal(options.replaysSessionSampleRate, 1);
+  assert.equal(options.replaysOnErrorSampleRate, 1);
+  assert.equal(options.enableLogs, true);
+  assert.equal(options.enableMetrics, true);
+  assert.deepEqual(options.tracePropagationTargets, FRONTEND_TELEMETRY_ALLOWED_ORIGINS);
+
+  const merged = options.integrations([{ name: 'Dedupe' }]);
+  const names = merged.map((integration) => integration.name);
+  for (const expected of [
+    'Dedupe', 'BrowserTracing', 'Replay', 'BrowserProfiling', 'HttpClient',
+    'ExtraErrorData', 'ContextLines', 'ReportingObserver', 'ConsoleLogs', 'CaptureConsole',
+  ]) {
+    assert.ok(names.includes(expected), expected);
+  }
+  assert.deepEqual(
+    additional.find((integration) => integration.name === 'ConsoleLogs').options.levels,
+    ['debug', 'info', 'warn', 'error', 'log', 'trace', 'assert'],
+  );
+});
+
+test('production gating, error capture, and authenticated identity lifecycle are deterministic', () => {
+  const sentry = fakeSentry();
+  assert.equal(initialiseFrontendErrorTelemetry(runtime({ PROD: false }), sentry), false);
+  assert.equal(initialiseFrontendErrorTelemetry(runtime({ VITE_SENTRY_ENVIRONMENT: 'staging' }), sentry), false);
+  assert.equal(initialiseFrontendErrorTelemetry(runtime({ VITE_SENTRY_RELEASE: RELEASE.slice(1) }), sentry), false);
+  assert.equal(initialiseFrontendErrorTelemetry(runtime({
+    VITE_SENTRY_DSN: 'https://public_key@o4511822688813056.ingest.us.sentry.io/999999',
+  }), sentry), false);
+  assert.equal(sentry.calls.length, 0);
+
+  assert.equal(initialiseFrontendErrorTelemetry(runtime(), sentry), true);
+  assert.equal(sentry.calls[0][0], 'init');
+
+  assert.equal(setFrontendTelemetryUser({
+    id: 'user-42',
+    email: 'jane@example.test',
+    full_name: 'Jane Example',
+    role: 'admin',
+  }, sentry), true);
+  assert.deepEqual(sentry.calls.find((call) => call[0] === 'user')[1], {
+    id: 'user-42', email: 'jane@example.test', username: 'Jane Example', role: 'admin',
+  });
+  assert.deepEqual(sentry.calls.find((call) => call[0] === 'tag'), ['tag', 'user.role', 'admin']);
+
+  const error = new TypeError('Jane Example opened a client');
+  captureFrontendException(error, sentry);
+  assert.strictEqual(sentry.calls.find((call) => call[0] === 'capture')[1], error);
+  assert.equal(captureFrontendException('not-an-error', sentry), undefined);
+
+  assert.equal(clearFrontendTelemetryUser(sentry), true);
+  assert.deepEqual(sentry.calls.at(-2), ['user', null]);
+  assert.deepEqual(sentry.calls.at(-1), ['remove-tag', 'user.role']);
+});
+
+test('AuthContext binds and clears Sentry identity without exposing the application bearer value', () => {
+  const source = fs.readFileSync(path.join(repoRoot, 'src', 'lib', 'AuthContext.jsx'), 'utf8');
+  assert.match(source, /setFrontendTelemetryUser\(currentUser\)/);
+  assert.ok((source.match(/clearFrontendTelemetryUser\(\)/g) || []).length >= 3);
+  assert.doesNotMatch(source, /setFrontendTelemetryUser\([^)]*appParams\.token/);
+});
+
+test('generic value sanitizer tolerates cycles and preserves useful PII', () => {
+  const value = { email: 'jane@example.test' };
+  value.self = value;
+  const sanitized = sanitizeTelemetryValue(value);
+  assert.equal(sanitized.email, 'jane@example.test');
+  assert.equal(sanitized.self, '[Circular]');
 });

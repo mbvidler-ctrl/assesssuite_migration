@@ -1,114 +1,257 @@
 import * as Sentry from '@sentry/react';
+import { useEffect } from 'react';
+import {
+  createRoutesFromChildren,
+  matchRoutes,
+  useLocation,
+  useNavigationType,
+} from 'react-router-dom';
 
 export const FRONTEND_TELEMETRY_SURFACE = 'assesssuite-app';
 export const FRONTEND_TELEMETRY_ALLOWED_ORIGINS = Object.freeze([
   'https://app.assesssuite.com',
 ]);
-export const SAFE_EXCEPTION_VALUE = 'Application error';
+export const TELEMETRY_REDACTED = '[Filtered]';
+export const TELEMETRY_FILE_BYTES_OMITTED = '[File bytes omitted]';
 
-const MAX_FUNCTION_LENGTH = 80;
-const MAX_STACK_FRAMES = 50;
-const SAFE_ERROR_TYPES = new Set([
-  'AggregateError',
-  'DOMException',
-  'Error',
-  'EvalError',
-  'RangeError',
-  'ReferenceError',
-  'SyntaxError',
-  'TypeError',
-  'URIError',
-]);
-const SAFE_FUNCTION_NAME = /^(?:[A-Za-z_$][A-Za-z0-9_$]*)(?:(?:\.|#)[A-Za-z_$<>][A-Za-z0-9_$<>]*)*$/;
-const SAFE_DEBUG_ID = /^[A-Fa-f0-9-]{8,64}$/;
-const SAFE_EVENT_ID = /^[A-Fa-f0-9]{32}$/;
-const SAFE_ASSET_PATH = /^\/assets\/[A-Za-z0-9._/-]+$/;
 const EXACT_RELEASE = /^[0-9a-f]{40}$/i;
 const APPROVED_SENTRY_HOST = 'o4511822688813056.ingest.us.sentry.io';
 const APPROVED_SENTRY_PROJECT_ID = '4511827129663488';
+const MAX_SANITIZE_DEPTH = 16;
+
+const SENSITIVE_FIELD_NAMES = new Set([
+  'authorization',
+  'proxyauthorization',
+  'cookie',
+  'cookies',
+  'setcookie',
+  'password',
+  'passwd',
+  'pwd',
+  'secret',
+  'clientsecret',
+  'apikey',
+  'xapikey',
+  'accesstoken',
+  'refreshtoken',
+  'idtoken',
+  'authtoken',
+  'sessiontoken',
+  'token',
+  'csrftoken',
+  'xsrf',
+  'otp',
+  'verificationcode',
+  'magiclink',
+  'stripesignature',
+  'cardnumber',
+  'securitycode',
+  'cvc',
+  'cvv',
+  'paymentsecret',
+  'paymentmethod',
+]);
+
+const SENSITIVE_FIELD_SUFFIXES = Object.freeze([
+  'token',
+  'password',
+  'passwd',
+  'secret',
+]);
+
+const AUTH_CALLBACK_FIELD_NAMES = new Set([
+  ...SENSITIVE_FIELD_NAMES,
+  'code',
+  'codeverifier',
+  'state',
+]);
+
+const SAFE_REPLAY_REQUEST_HEADERS = Object.freeze([
+  'accept-language',
+  'baggage',
+  'origin',
+  'referer',
+  'sentry-trace',
+  'x-app-id',
+  'x-org-id',
+  'x-request-id',
+  'x-requested-with',
+]);
+
+const SAFE_REPLAY_RESPONSE_HEADERS = Object.freeze([
+  'cache-control',
+  'content-disposition',
+  'etag',
+  'last-modified',
+  'retry-after',
+  'server-timing',
+  'x-ratelimit-limit',
+  'x-ratelimit-remaining',
+  'x-ratelimit-reset',
+  'x-request-id',
+]);
+
+export const FRONTEND_REPLAY_NETWORK_ALLOW_URLS = Object.freeze([
+  /^https:\/\/app\.assesssuite\.com\/(?:api|entities|functions|integrations)(?:\/|$)/i,
+]);
+
+export const FRONTEND_REPLAY_NETWORK_DENY_URLS = Object.freeze([
+  /(?:\/uploads?\/|\/api\/files?\/|uploadfile|download|extractdatafromuploadedfile|transcribesession|\/audio(?:\/|$)|\/media(?:\/|$)|\/attachments?(?:\/|$))/i,
+]);
+
+export const FRONTEND_REPLAY_MASK_SELECTORS = Object.freeze([
+  '.sentry-mask',
+  '[data-sentry-mask]',
+  'input[type="password"]',
+  'input[autocomplete="current-password"]',
+  'input[autocomplete="new-password"]',
+  'input[autocomplete^="cc-"]',
+  'input[name*="password" i]',
+  'input[name*="secret" i]',
+  'input[name*="token" i]',
+  'input[name*="authorization" i]',
+  'input[name*="card" i]',
+  'input[name*="cvc" i]',
+  'input[name*="cvv" i]',
+]);
+
+export const FRONTEND_REPLAY_BLOCK_SELECTORS = Object.freeze([
+  '.sentry-block',
+  '[data-sentry-block]',
+  'input[type="file"]',
+]);
 
 let telemetryInitialised = false;
 
-function safePositiveInteger(value) {
-  return Number.isSafeInteger(value) && value >= 0 && value <= 10_000_000
-    ? value
-    : undefined;
+function compactFieldName(value) {
+  return String(value || '').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
-export function sanitizeErrorType(value) {
-  return typeof value === 'string' && SAFE_ERROR_TYPES.has(value) ? value : 'Error';
+export function isSensitiveTelemetryField(value) {
+  const compact = compactFieldName(value);
+  return SENSITIVE_FIELD_NAMES.has(compact) ||
+    SENSITIVE_FIELD_SUFFIXES.some((suffix) => compact.endsWith(suffix));
 }
 
-export function sanitizeFunctionName(value) {
-  if (typeof value !== 'string') return 'anonymous';
-  const candidate = value.trim();
-  if (
-    !candidate ||
-    candidate.length > MAX_FUNCTION_LENGTH ||
-    !SAFE_FUNCTION_NAME.test(candidate)
-  ) {
-    return 'anonymous';
-  }
-  return candidate;
+function isBinaryValue(value) {
+  if (!value || typeof value !== 'object') return false;
+  if (typeof Blob !== 'undefined' && value instanceof Blob) return true;
+  if (typeof File !== 'undefined' && value instanceof File) return true;
+  if (typeof ArrayBuffer !== 'undefined' && value instanceof ArrayBuffer) return true;
+  return typeof ArrayBuffer !== 'undefined' && ArrayBuffer.isView(value);
 }
 
-export function sanitizeFrameLocation(value, allowedOrigins = FRONTEND_TELEMETRY_ALLOWED_ORIGINS) {
-  if (typeof value !== 'string' || value.length > 2_048) return undefined;
+function isAuthCallbackPath(pathname) {
+  return /(?:^|\/)(?:auth|login|signin|oauth|callback|reset-password)(?:\/|$)/i.test(pathname || '');
+}
 
-  const withoutQueryOrFragment = value.split(/[?#]/, 1)[0];
-  if (SAFE_ASSET_PATH.test(withoutQueryOrFragment)) return withoutQueryOrFragment;
+function sensitiveQueryField(name, pathname) {
+  const compact = compactFieldName(name);
+  return SENSITIVE_FIELD_NAMES.has(compact) ||
+    (isAuthCallbackPath(pathname) && AUTH_CALLBACK_FIELD_NAMES.has(compact));
+}
 
-  let parsed;
+export function sanitizeTelemetryUrl(value) {
+  if (typeof value !== 'string' || value.length === 0) return value;
+  const absolute = /^https?:\/\//i.test(value);
+  const relative = value.startsWith('/');
+  if (!absolute && !relative) return sanitizeCredentialString(value);
+
   try {
-    parsed = new URL(value);
+    const parsed = new URL(value, 'https://app.assesssuite.com');
+    for (const [name] of parsed.searchParams) {
+      if (sensitiveQueryField(name, parsed.pathname)) {
+        parsed.searchParams.set(name, TELEMETRY_REDACTED);
+      }
+    }
+    if (parsed.hash && /(?:token|secret|password|authorization|session|code)=/i.test(parsed.hash)) {
+      parsed.hash = '#[Filtered]';
+    }
+    return absolute
+      ? parsed.toString()
+      : `${parsed.pathname}${parsed.search}${parsed.hash}`;
   } catch {
-    return undefined;
+    return sanitizeCredentialString(value);
   }
-
-  const allowed = new Set(allowedOrigins.map((origin) => String(origin).toLowerCase()));
-  if (!allowed.has(parsed.origin.toLowerCase()) || !SAFE_ASSET_PATH.test(parsed.pathname)) {
-    return undefined;
-  }
-  return `${parsed.origin}${parsed.pathname}`;
 }
 
-export function sanitizeStackFrame(frame, allowedOrigins = FRONTEND_TELEMETRY_ALLOWED_ORIGINS) {
-  if (!frame || typeof frame !== 'object' || Array.isArray(frame)) return undefined;
+export function sanitizeCredentialString(value) {
+  if (typeof value !== 'string') return value;
+  if (/^data:[^,]*;base64,/i.test(value)) return TELEMETRY_FILE_BYTES_OMITTED;
 
-  const filename = sanitizeFrameLocation(frame.filename, allowedOrigins);
-  const absPath = sanitizeFrameLocation(frame.abs_path, allowedOrigins);
-  if (!filename && !absPath) return undefined;
+  return value
+    .replace(/\bBearer\s+[A-Za-z0-9._~+\/-]+=*/gi, `Bearer ${TELEMETRY_REDACTED}`)
+    .replace(/\bBasic\s+[A-Za-z0-9+/=]+/gi, `Basic ${TELEMETRY_REDACTED}`)
+    .replace(/\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9_-]{8,}\b/gi, TELEMETRY_REDACTED)
+    .replace(/\bwhsec_[A-Za-z0-9_-]{8,}\b/gi, TELEMETRY_REDACTED)
+    .replace(/\bsk-[A-Za-z0-9_-]{12,}\b/g, TELEMETRY_REDACTED)
+    .replace(
+      /\b([a-z0-9_-]*(?:token|password|passwd|secret)|pwd|authorization|cookie|otp|verification[_-]?code|card[_-]?number|cvc|cvv)(["']?\s*[:=]\s*["']?)[^"'&,;\r\n}]+/gi,
+      `$1$2${TELEMETRY_REDACTED}`,
+    );
+}
 
-  const sanitized = {
-    function: sanitizeFunctionName(frame.function),
-    in_app: true,
-  };
-  if (filename) sanitized.filename = filename;
-  if (absPath) sanitized.abs_path = absPath;
+function sanitizeTelemetryValueInternal(value, fieldName, seen, depth) {
+  if (isSensitiveTelemetryField(fieldName)) return TELEMETRY_REDACTED;
+  if (isBinaryValue(value)) return TELEMETRY_FILE_BYTES_OMITTED;
+  if (typeof value === 'string') {
+    const scrubbed = sanitizeCredentialString(value);
+    return /(?:url|uri|href|pathname|transaction|description)$/i.test(fieldName || '')
+      ? sanitizeTelemetryUrl(scrubbed)
+      : scrubbed;
+  }
+  if (value === null || value === undefined || typeof value === 'number' || typeof value === 'boolean') {
+    return value;
+  }
+  if (typeof value === 'bigint') return String(value);
+  if (typeof value !== 'object') return String(value);
+  if (depth >= MAX_SANITIZE_DEPTH) return '[Depth limited]';
+  if (seen.has(value)) return '[Circular]';
 
-  const lineNumber = safePositiveInteger(frame.lineno);
-  const columnNumber = safePositiveInteger(frame.colno);
-  if (lineNumber !== undefined) sanitized.lineno = lineNumber;
-  if (columnNumber !== undefined) sanitized.colno = columnNumber;
+  seen.add(value);
+  if (Array.isArray(value)) {
+    const sanitized = value.map((item) => sanitizeTelemetryValueInternal(item, fieldName, seen, depth + 1));
+    seen.delete(value);
+    return sanitized;
+  }
+
+  const sanitized = {};
+  for (const [key, item] of Object.entries(value)) {
+    sanitized[key] = sanitizeTelemetryValueInternal(item, key, seen, depth + 1);
+  }
+  seen.delete(value);
   return sanitized;
 }
 
-export function sanitizeDebugMeta(debugMeta, allowedOrigins = FRONTEND_TELEMETRY_ALLOWED_ORIGINS) {
-  if (!debugMeta || typeof debugMeta !== 'object' || !Array.isArray(debugMeta.images)) {
-    return undefined;
+export function sanitizeTelemetryValue(value, fieldName = '') {
+  return sanitizeTelemetryValueInternal(value, fieldName, new WeakSet(), 0);
+}
+
+function isFileTransferUrl(value) {
+  return typeof value === 'string' && FRONTEND_REPLAY_NETWORK_DENY_URLS.some((matcher) => matcher.test(value));
+}
+
+export function sanitizeReplayRecordingEvent(event) {
+  const sanitized = sanitizeTelemetryValue(event);
+  const payload = sanitized?.data?.payload;
+  if (!payload || !['resource.fetch', 'resource.xhr'].includes(payload.op)) return sanitized;
+
+  payload.description = sanitizeTelemetryUrl(payload.description);
+  const contentTypes = [
+    payload.data?.request?.headers?.['content-type'],
+    payload.data?.response?.headers?.['content-type'],
+  ].filter(Boolean).join(' ');
+  const containsFileBody = isFileTransferUrl(payload.description) ||
+    /(?:multipart\/|audio\/|video\/|image\/|application\/pdf|application\/octet-stream)/i.test(contentTypes);
+  if (containsFileBody) {
+    if (payload.data?.request && Object.hasOwn(payload.data.request, 'body')) {
+      payload.data.request.body = TELEMETRY_FILE_BYTES_OMITTED;
+    }
+    if (payload.data?.response && Object.hasOwn(payload.data.response, 'body')) {
+      payload.data.response.body = TELEMETRY_FILE_BYTES_OMITTED;
+    }
   }
-
-  const images = debugMeta.images.flatMap((image) => {
-    if (!image || typeof image !== 'object') return [];
-    const codeFile = sanitizeFrameLocation(image.code_file, allowedOrigins);
-    const debugId = typeof image.debug_id === 'string' && SAFE_DEBUG_ID.test(image.debug_id)
-      ? image.debug_id.toLowerCase()
-      : undefined;
-    if (!codeFile || !debugId) return [];
-    return [{ type: 'sourcemap', code_file: codeFile, debug_id: debugId }];
-  });
-
-  return images.length > 0 ? { images } : undefined;
+  return sanitized;
 }
 
 function isApprovedSentryDsn(rawDsn) {
@@ -138,119 +281,154 @@ function sanitizeStaticMetadata(metadata = {}) {
   };
 }
 
-export function sanitizeFrontendErrorEvent(
-  event,
-  metadata = {},
-  allowedOrigins = FRONTEND_TELEMETRY_ALLOWED_ORIGINS,
-) {
-  const exception = event?.exception?.values?.[0];
-  if (!exception || typeof exception !== 'object') return null;
-
-  const frames = Array.isArray(exception.stacktrace?.frames)
-    ? exception.stacktrace.frames
-        .slice(-MAX_STACK_FRAMES)
-        .map((frame) => sanitizeStackFrame(frame, allowedOrigins))
-        .filter(Boolean)
-    : [];
+export function sanitizeFrontendTelemetryEvent(event, metadata = {}) {
   const safeMetadata = sanitizeStaticMetadata(metadata);
-  if (!safeMetadata) return null;
-  const sanitized = {
-    platform: 'javascript',
-    level: 'error',
-    exception: {
-      values: [{
-        type: sanitizeErrorType(exception.type),
-        value: SAFE_EXCEPTION_VALUE,
-        ...(frames.length > 0 ? { stacktrace: { frames } } : {}),
-      }],
-    },
+  if (!safeMetadata || !event || typeof event !== 'object') return null;
+  const sanitized = sanitizeTelemetryValue(event);
+  sanitized.environment = safeMetadata.environment;
+  sanitized.release = safeMetadata.release;
+  sanitized.tags = {
+    ...(sanitized.tags && typeof sanitized.tags === 'object' ? sanitized.tags : {}),
+    surface: safeMetadata.surface,
     environment: safeMetadata.environment,
-    tags: {
-      surface: safeMetadata.surface,
-      environment: safeMetadata.environment,
-      ...(safeMetadata.release ? { release: safeMetadata.release } : {}),
-    },
+    release: safeMetadata.release,
   };
-
-  if (safeMetadata.release) sanitized.release = safeMetadata.release;
-  if (typeof event?.event_id === 'string' && SAFE_EVENT_ID.test(event.event_id)) {
-    sanitized.event_id = event.event_id.toLowerCase();
-  }
-  if (typeof event?.timestamp === 'number' && Number.isFinite(event.timestamp)) {
-    sanitized.timestamp = event.timestamp;
-  }
-
-  const debugMeta = sanitizeDebugMeta(event?.debug_meta, allowedOrigins);
-  if (debugMeta) sanitized.debug_meta = debugMeta;
   return sanitized;
 }
 
 export function createFrontendBeforeSend(metadata = {}) {
   const safeMetadata = sanitizeStaticMetadata(metadata);
-  return (event) => {
+  return (event, hint = {}) => {
     try {
       if (!safeMetadata) return null;
-      return sanitizeFrontendErrorEvent(event, safeMetadata);
+      // AssessSuite does not add attachments. Clearing this hook input ensures an
+      // error object can never smuggle uploaded file bytes into an event.
+      if (Array.isArray(hint.attachments)) hint.attachments.length = 0;
+      return sanitizeFrontendTelemetryEvent(event, safeMetadata);
     } catch {
       return null;
     }
   };
 }
 
-export function createStrictFrontendTransportFactory(metadata, transportFactory) {
-  const safeMetadata = sanitizeStaticMetadata(metadata);
-  if (!safeMetadata || typeof transportFactory !== 'function') return null;
-  return (options) => {
-    const transport = transportFactory(options);
-    return {
-      ...transport,
-      send(envelope) {
-        try {
-          const items = Array.isArray(envelope?.[1]) ? envelope[1] : [];
-          const eventItem = items.find((item) => item?.[0]?.type === 'event');
-          const event = sanitizeFrontendErrorEvent(eventItem?.[1], safeMetadata);
-          if (!event?.event_id) return Promise.resolve({ statusCode: 200 });
-          return transport.send([
-            { event_id: event.event_id },
-            [[{ type: 'event' }, event]],
-          ]);
-        } catch {
-          return Promise.resolve({ statusCode: 200 });
-        }
-      },
-    };
+function createFrontendBeforeSendValue() {
+  return (value) => {
+    try {
+      return sanitizeTelemetryValue(value);
+    } catch {
+      return null;
+    }
   };
 }
 
-export function createFrontendSentryOptions(runtime = {}, integrations = [], sentry = Sentry) {
+export function createFrontendReplayOptions() {
+  return {
+    maskAllText: false,
+    maskAllInputs: false,
+    blockAllMedia: true,
+    maskAttributes: [],
+    mask: [...FRONTEND_REPLAY_MASK_SELECTORS],
+    block: [...FRONTEND_REPLAY_BLOCK_SELECTORS],
+    networkDetailAllowUrls: [...FRONTEND_REPLAY_NETWORK_ALLOW_URLS],
+    networkDetailDenyUrls: [...FRONTEND_REPLAY_NETWORK_DENY_URLS],
+    networkCaptureBodies: true,
+    networkRequestHeaders: [...SAFE_REPLAY_REQUEST_HEADERS],
+    networkResponseHeaders: [...SAFE_REPLAY_RESPONSE_HEADERS],
+    attachRawBodyFromRequest: true,
+    beforeAddRecordingEvent: sanitizeReplayRecordingEvent,
+  };
+}
+
+function mergeIntegrations(defaultIntegrations = [], additionalIntegrations = []) {
+  const byName = new Map();
+  for (const integration of [...defaultIntegrations, ...additionalIntegrations]) {
+    if (integration && typeof integration.name === 'string') byName.set(integration.name, integration);
+  }
+  return [...byName.values()];
+}
+
+export function createFrontendIntegrations(sentry = Sentry) {
+  const integrations = [
+    sentry.reactRouterBrowserTracingIntegration({
+      useEffect,
+      useLocation,
+      useNavigationType,
+      createRoutesFromChildren,
+      matchRoutes,
+      instrumentPageLoad: true,
+      instrumentNavigation: true,
+      enableLongTask: true,
+      enableLongAnimationFrame: true,
+      enableInp: true,
+      traceFetch: true,
+      traceXHR: true,
+      enableHTTPTimings: true,
+      linkPreviousTrace: 'session-storage',
+      consistentTraceSampling: true,
+    }),
+    sentry.replayIntegration(createFrontendReplayOptions()),
+    sentry.browserProfilingIntegration(),
+    sentry.httpClientIntegration(),
+    sentry.extraErrorDataIntegration({ depth: 10 }),
+    sentry.contextLinesIntegration(),
+    sentry.reportingObserverIntegration(),
+    sentry.consoleLoggingIntegration({
+      levels: ['debug', 'info', 'warn', 'error', 'log', 'trace', 'assert'],
+    }),
+    sentry.captureConsoleIntegration({ levels: ['error'], handled: true }),
+  ];
+  return integrations;
+}
+
+export function createFrontendSentryOptions(runtime = {}, additionalIntegrations = []) {
   const metadata = sanitizeStaticMetadata({
     environment: runtime.VITE_SENTRY_ENVIRONMENT,
     release: runtime.VITE_SENTRY_RELEASE,
   });
   if (!metadata || !isApprovedSentryDsn(runtime.VITE_SENTRY_DSN)) return null;
-  const transport = createStrictFrontendTransportFactory(metadata, sentry.makeFetchTransport);
-  if (!transport) return null;
+
+  const beforeSendValue = createFrontendBeforeSendValue();
   return {
     dsn: runtime.VITE_SENTRY_DSN,
     environment: metadata.environment,
-    ...(metadata.release ? { release: metadata.release } : {}),
-    defaultIntegrations: false,
-    integrations,
-    transport,
-    sendDefaultPii: false,
-    autoSessionTracking: false,
-    sendClientReports: false,
-    maxBreadcrumbs: 0,
-    attachStacktrace: false,
+    release: metadata.release,
+    integrations: (defaults) => mergeIntegrations(defaults, additionalIntegrations),
+    sendDefaultPii: true,
+    dataCollection: {
+      userInfo: true,
+      cookies: false,
+      httpHeaders: { request: true, response: true },
+      httpBodies: ['incomingRequest', 'outgoingRequest', 'incomingResponse', 'outgoingResponse'],
+      urlQueryParams: true,
+      graphQL: { document: true, variables: true },
+      genAI: { inputs: true, outputs: true },
+      databaseQueryData: true,
+      stackFrameVariables: true,
+      frameContextLines: 20,
+    },
+    autoSessionTracking: true,
+    sendClientReports: true,
+    maxBreadcrumbs: 100,
+    attachStacktrace: true,
     sampleRate: 1,
-    tracesSampleRate: 0,
-    profilesSampleRate: 0,
-    replaysSessionSampleRate: 0,
-    replaysOnErrorSampleRate: 0,
-    enableLogs: false,
+    tracesSampleRate: 1,
+    profileSessionSampleRate: 1,
+    profileLifecycle: 'trace',
+    replaysSessionSampleRate: 1,
+    replaysOnErrorSampleRate: 1,
+    tracePropagationTargets: FRONTEND_TELEMETRY_ALLOWED_ORIGINS,
+    enableLogs: true,
+    enableMetrics: true,
+    normalizeDepth: 10,
+    normalizeMaxBreadth: 1_000,
+    maxValueLength: 8_192,
     debug: false,
-    beforeBreadcrumb: () => null,
+    beforeBreadcrumb: beforeSendValue,
     beforeSend: createFrontendBeforeSend(metadata),
+    beforeSendTransaction: beforeSendValue,
+    beforeSendSpan: beforeSendValue,
+    beforeSendLog: beforeSendValue,
+    beforeSendMetric: beforeSendValue,
   };
 }
 
@@ -261,11 +439,8 @@ export function initialiseFrontendErrorTelemetry(runtime = import.meta.env, sent
   if (runtime.VITE_SENTRY_ENVIRONMENT !== 'production' || !EXACT_RELEASE.test(runtime.VITE_SENTRY_RELEASE || '')) return false;
 
   try {
-    const integrations = [
-      sentry.globalHandlersIntegration({ onerror: true, onunhandledrejection: true }),
-      sentry.dedupeIntegration(),
-    ];
-    const options = createFrontendSentryOptions(runtime, integrations, sentry);
+    const integrations = createFrontendIntegrations(sentry);
+    const options = createFrontendSentryOptions(runtime, integrations);
     if (!options) return false;
     sentry.init(options);
     telemetryInitialised = true;
@@ -273,6 +448,39 @@ export function initialiseFrontendErrorTelemetry(runtime = import.meta.env, sent
   } catch {
     return false;
   }
+}
+
+function normalizeIdentityValue(value) {
+  if (typeof value !== 'string' && typeof value !== 'number') return undefined;
+  const normalized = sanitizeCredentialString(String(value).trim());
+  return normalized && normalized !== TELEMETRY_REDACTED ? normalized.slice(0, 512) : undefined;
+}
+
+export function setFrontendTelemetryUser(user, sentry = Sentry) {
+  if (!telemetryInitialised || !user || typeof user !== 'object') return false;
+  const id = normalizeIdentityValue(user.id);
+  const email = normalizeIdentityValue(user.email);
+  const username = normalizeIdentityValue(
+    user.full_name || user.name || user.display_name || user.username || user.email,
+  );
+  const role = normalizeIdentityValue(user.role);
+  const identity = {
+    ...(id ? { id } : {}),
+    ...(email ? { email } : {}),
+    ...(username ? { username } : {}),
+    ...(role ? { role } : {}),
+  };
+  if (Object.keys(identity).length === 0) return false;
+  sentry.setUser(identity);
+  if (role) sentry.setTag('user.role', role);
+  return true;
+}
+
+export function clearFrontendTelemetryUser(sentry = Sentry) {
+  if (!telemetryInitialised) return false;
+  sentry.setUser(null);
+  sentry.getCurrentScope?.().removeTag?.('user.role');
+  return true;
 }
 
 export function captureFrontendException(error, sentry = Sentry) {
