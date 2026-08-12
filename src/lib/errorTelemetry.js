@@ -147,7 +147,7 @@ function isAuthCallbackPath(pathname) {
 
 function sensitiveQueryField(name, pathname) {
   const compact = compactFieldName(name);
-  return SENSITIVE_FIELD_NAMES.has(compact) ||
+  return isSensitiveTelemetryField(name) ||
     (isAuthCallbackPath(pathname) && AUTH_CALLBACK_FIELD_NAMES.has(compact));
 }
 

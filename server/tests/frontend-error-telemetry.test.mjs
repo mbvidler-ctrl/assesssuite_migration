@@ -221,6 +221,13 @@ test('password-reset bearer and replacement credentials are removed from URL, ob
   assert.match(resetUrl, /%5BFiltered%5D/);
   assert.ok(!resetUrl.includes('live-reset-bearer'));
 
+  const compoundQuery = sanitizeTelemetryUrl(
+    'https://app.assesssuite.com/invite?inviteToken=live-invite-bearer&newPassword=temporary-value',
+  );
+  assert.ok(!compoundQuery.includes('live-invite-bearer'));
+  assert.ok(!compoundQuery.includes('temporary-value'));
+  assert.equal((compoundQuery.match(/%5BFiltered%5D/g) || []).length, 2);
+
   const objectBody = sanitizeTelemetryValue({
     [resetCredentialField]: 'live-reset-bearer',
     [replacementCredentialField]: 'Correct Horse Battery Staple',
