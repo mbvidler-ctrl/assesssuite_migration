@@ -1,9 +1,15 @@
 // Local Base44 shim server core: node:http, entities CRUD, auth,
 // public-settings, telemetry stubs, and static serving (dist/ + uploads/).
 //
-// Deliberately dependency-free beyond Node built-ins, per the migration
-// contract at docs/shim/20260702-sdk-wire-protocol.md.
+// The application core remains built on Node primitives; the reviewed Sentry
+// bootstrap is the sole runtime instrumentation dependency layered ahead of
+// node:http. The wire contract remains documented at
+// docs/shim/20260702-sdk-wire-protocol.md.
 
+import {
+  browserProfilingDocumentPolicyHeaders,
+  errorTelemetry,
+} from './instrument.mjs';
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -64,7 +70,6 @@ import {
 } from '../src/lib/legal/documentRegistry.js';
 import { effectiveLegalContent } from '../src/lib/legal/effectiveContent.js';
 import { resolveLegalConsentAudiences } from '../src/lib/legal/consentAudience.js';
-import { createErrorTelemetry } from './telemetry.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
@@ -88,11 +93,6 @@ const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
     if (process.env[key] === undefined) process.env[key] = val;
   }
 })();
-
-// Configuration is deliberately lazy inside createErrorTelemetry: importing
-// the module cannot observe credentials, and SENTRY_DSN is first parsed only
-// after environment loading and only if a completed response is a 5xx.
-const errorTelemetry = createErrorTelemetry({ environment: process.env });
 
 const PORT = Number(process.env.PORT) || 8787;
 // Fly requires the production process to accept traffic from its proxy, so the
@@ -251,6 +251,13 @@ await loadFunctionsRouter();
 
 function sendJson(res, status, body) {
   const payload = JSON.stringify(body);
+  // Only bounded, sanitized JSON is attached. Static/file/stream responses do
+  // not pass this helper and their bytes are never added to telemetry.
+  errorTelemetry.observeResponse(res, {
+    status,
+    body,
+    contentType: 'application/json',
+  });
   res.writeHead(status, {
     'Content-Type': 'application/json',
     'Content-Length': Buffer.byteLength(payload),
@@ -2303,7 +2310,13 @@ function serveFile(res, filePath) {
   const ext = path.extname(filePath).toLowerCase();
   const contentType = MIME_TYPES[ext] || 'application/octet-stream';
   const stream = fs.createReadStream(filePath);
-  res.writeHead(200, { 'Content-Type': contentType });
+  res.writeHead(200, {
+    'Content-Type': contentType,
+    // Sentry's browser profiler requires this response policy on the HTML
+    // document. This server is the authenticated platform origin; the public
+    // Vercel landing surface is built and served separately.
+    ...browserProfilingDocumentPolicyHeaders(filePath),
+  });
   stream.pipe(res);
   stream.on('error', () => {
     if (!res.headersSent) sendError(res, 500, 'failed to read file');
@@ -2714,10 +2727,19 @@ function serveDistOrFallback(req, res, pathname) {
 // Main request handler
 // ---------------------------------------------------------------------------
 
-async function requestListener(req, res) {
-  // Observe the final status instead of individual responder calls. This
-  // covers both this core router and the separately mounted functions router.
-  errorTelemetry.observe(req, res);
+async function handleRequest(req, res) {
+  // The SDK's HTTP integration owns trace/request-session isolation. Add the
+  // authenticated AssessSuite identity and tenant memberships to that request
+  // scope without ever exposing the bearer session credential.
+  try {
+    const telemetryUser = resolveSessionUser(req);
+    errorTelemetry.observe(req, res, {
+      user: telemetryUser,
+      orgIds: telemetryUser ? orgIdsForUser(telemetryUser.email) : [],
+    });
+  } catch {
+    // Observability is fail-open and never changes request handling.
+  }
   try {
     const url = parseUrl(req);
     const pathname = url.pathname;
@@ -2882,6 +2904,7 @@ async function requestListener(req, res) {
       if (!res.headersSent) return sendError(res, err.httpStatus || 400, err.publicMessage || 'request rejected');
       return res.end();
     }
+    errorTelemetry.captureException(err, req, { statusCode: 500 });
     console.error('[shim] unhandled error:', err?.code || err?.name || 'internal_error');
     if (!res.headersSent) {
       sendError(res, 500, 'internal server error');
@@ -2889,6 +2912,12 @@ async function requestListener(req, res) {
       res.end();
     }
   }
+}
+
+function requestListener(req, res) {
+  // Explicit isolation prevents identity/context from crossing concurrent raw
+  // node:http requests even if automatic HTTP instrumentation is unavailable.
+  return errorTelemetry.runIsolated(() => handleRequest(req, res));
 }
 
 const server = http.createServer(requestListener);

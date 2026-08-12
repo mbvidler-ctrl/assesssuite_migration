@@ -3,6 +3,10 @@ import { base44 } from '@/api/base44Client';
 import { appParams } from '@/lib/app-params';
 import { createAxiosClient } from '@base44/sdk/dist/utils/axios-client';
 import { mergeCapabilityOverrides, readCapabilities, reconcileOverridesOnRefresh } from '@/lib/aiCapabilities';
+import {
+  clearFrontendTelemetryUser,
+  setFrontendTelemetryUser,
+} from '@/lib/errorTelemetry';
 
 const AuthContext = createContext();
 
@@ -53,6 +57,7 @@ export const AuthProvider = ({ children }) => {
         if (appParams.token) {
           await checkUserAuth();
         } else {
+          clearFrontendTelemetryUser();
           setIsLoadingAuth(false);
           setIsAuthenticated(false);
         }
@@ -159,10 +164,12 @@ export const AuthProvider = ({ children }) => {
       setIsLoadingAuth(true);
       const currentUser = await base44.auth.me();
       setUser(currentUser);
+      setFrontendTelemetryUser(currentUser);
       setIsAuthenticated(true);
       setIsLoadingAuth(false);
     } catch (error) {
       console.error('User auth check failed:', error);
+      clearFrontendTelemetryUser();
       setIsLoadingAuth(false);
       setIsAuthenticated(false);
       
@@ -178,6 +185,7 @@ export const AuthProvider = ({ children }) => {
 
   const logout = (shouldRedirect = true) => {
     setUser(null);
+    clearFrontendTelemetryUser();
     setIsAuthenticated(false);
     
     if (shouldRedirect) {

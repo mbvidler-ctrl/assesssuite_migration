@@ -6,6 +6,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import NavigationTracker from '@/lib/NavigationTracker'
 import { pagesConfig } from './pages.config'
 import { BrowserRouter as Router, Route, Routes, useLocation, useParams, Navigate, Outlet } from 'react-router-dom';
+import { wrapReactRouterRouting } from '@sentry/react';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -28,6 +29,7 @@ const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
 const MARKETING_ORIGIN = (import.meta.env.VITE_MARKETING_ORIGIN || 'https://assesssuite.com').replace(/\/$/, '');
+const TelemetryRoutes = wrapReactRouterRouting(Routes);
 
 const LayoutWrapper = ({ children, currentPageName }) => Layout ?
   <Layout currentPageName={currentPageName}>{children}</Layout>
@@ -77,7 +79,7 @@ const AuthenticatedApp = () => {
 
   // Render the main app with layout
   return (
-    <Routes>
+    <TelemetryRoutes>
       {/* Landing.jsx carries a pre-suite (24 May 2026) embedded Terms modal that
           contradicts the approved legal suite — retired from the live surface by
           redirect to root, not deleted. The file stays on disk. */}
@@ -109,7 +111,7 @@ const AuthenticatedApp = () => {
         </Route>
       </Route>
       <Route path="*" element={<PageNotFound />} />
-    </Routes>
+    </TelemetryRoutes>
   );
 };
 
@@ -123,13 +125,13 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <NavigationTracker />
-          <Routes>
+          <TelemetryRoutes>
             {/* Signup.jsx is an incomplete duplicate of the OTP-based Register.jsx
                 flow (no OTP, dead legal-link stubs) — retired as a live entry
                 point, not deleted. See docs/qa/ session note. */}
             <Route path="/signup" element={<Navigate to="/register" replace />} />
             <Route path="*" element={<AuthenticatedApp />} />
-          </Routes>
+          </TelemetryRoutes>
         </Router>
         <Toaster />
       </QueryClientProvider>

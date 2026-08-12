@@ -51,6 +51,8 @@ const suites = [
   'static-spa-routing.test.mjs',
   'ci-release-gates.test.mjs',
   'root-error-boundary.test.mjs',
+  'frontend-error-telemetry.test.mjs',
+  'error-telemetry.test.mjs',
   'rich-text-editor-security.test.mjs',
   'upload-lifecycle-config.test.mjs',
   'production-parity-contract.test.mjs',
