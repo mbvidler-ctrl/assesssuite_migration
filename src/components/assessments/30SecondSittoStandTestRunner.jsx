@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Pause, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 import {
   Collapsible,
   CollapsibleContent,
@@ -23,6 +24,7 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
   const [preHR, setPreHR] = useState("");
   const [postHR, setPostHR] = useState("");
   const [symptoms, setSymptoms] = useState("");
+  const hasValidPreHeartRate = preHR !== "" && Number.isFinite(Number(preHR)) && Number(preHR) > 0;
 
   useEffect(() => {
     let timer;
@@ -38,7 +40,7 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
   }, [isRunning, timeLeft]);
 
   const handleStart = () => {
-    if (!preHR || isNaN(preHR) || preHR <= 0) {
+    if (!hasValidPreHeartRate) {
       toast.error("Please enter a valid pre-test heart rate.");
       return;
     }
@@ -71,21 +73,14 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
   };
 
   const handleSave = () => {
-    onSave({
-      status: "completed",
-      result_value: standCount,
-      additional_data: {
-        soap_text: `• 30-Second Sit-to-Stand Test\n  Repetitions: ${standCount}\n  Hands Used: ${handsUsed ? 'Yes' : 'No'}\n  Pre HR: ${preHR || 'N/A'} bpm | Post HR: ${postHR || 'N/A'} bpm${symptoms ? `\n  Symptoms: ${symptoms}` : ''}`,
-        measurement_type: "30-second sit-to-stand test",
-        hands_used: handsUsed,
-        pre_heart_rate: preHR,
-        post_heart_rate: postHR,
-        symptoms: symptoms,
-      },
-      notes: notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved successfully.");
+    try {
+      onSave(validateFunctionalOrtho({
+        completed: isTestComplete, standCount, handsUsed, preHR, postHR, symptoms, notes,
+      }, { runnerKey: '30sec_sts', assessmentDate: todayLocal() }));
+      toast.success("Assessment saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   const isTestComplete = timeLeft === 0 && !isRunning;
@@ -132,7 +127,7 @@ export default function ThirtySecondSittoStandTestRunner({ client, onSave, onClo
                     <Button 
                       onClick={handleStart} 
                       className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                      disabled={!preHR || isNaN(preHR) || preHR <= 0}
+                      disabled={!hasValidPreHeartRate}
                     >
                       <Play className="w-4 h-4 mr-2" />
                       Start Test

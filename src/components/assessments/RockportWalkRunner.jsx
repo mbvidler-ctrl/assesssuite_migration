@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Play, Pause, RotateCcw, Info } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreRockportWalk } from "@/lib/clinical/scorers/coreB";
 
 export default function RockportWalkRunner({ client, onSave, onClose }) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
@@ -98,42 +98,15 @@ export default function RockportWalkRunner({ client, onSave, onClose }) {
   const fitnessCategory = estimatedVO2max ? getFitnessCategory(estimatedVO2max) : null;
 
   const handleSave = () => {
-    if (!walkTime || !endHR || !weight) {
-      toast.error("Please enter walk time, end HR, and weight");
-      return;
+    try {
+      const age = client?.date_of_birth
+        ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+        : null;
+      const gender = String(client?.gender || '').toLowerCase();
+      onSave(scoreRockportWalk({ age, gender, walk_time_minutes: walkTime, end_heart_rate: endHR, weight_kg: weight, rpe, symptoms, notes }, { assessmentName: 'Rockport 1-Mile Walk Test', client }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save Rockport assessment.');
     }
-    if (!estimatedVO2max) {
-      toast.error("Unable to calculate VO2max - please check all values");
-      return;
-    }
-
-    const soapText = [
-      `• Rockport 1-Mile Walk Test`,
-      `  Walk Time: ${walkTime} min | Final HR: ${endHR} bpm | Weight: ${weight} kg`,
-      `  Estimated VO2max: ${estimatedVO2max} mL/kg/min`,
-      fitnessCategory ? `  Fitness Category: ${fitnessCategory.category}` : null,
-      rpe ? `  RPE: ${rpe}/20` : null,
-      symptoms ? `  Symptoms: ${symptoms}` : null,
-      notes ? `  Clinical Notes: ${notes}` : null,
-      `  MCID: ~3.5 mL/kg/min VO2max`,
-      `  Reference: Kline et al. (1987). Estimation of VO2max from a one-mile track walk. Med Sci Sports Exerc, 19(3), 253-259.`,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      result_value: parseFloat(estimatedVO2max),
-      additional_data: {
-        soap_text: soapText,
-        walk_time_minutes: parseFloat(walkTime),
-        end_heart_rate: parseFloat(endHR),
-        weight_kg: parseFloat(weight),
-        estimated_vo2max: parseFloat(estimatedVO2max),
-        fitness_category: fitnessCategory?.category,
-        rpe: rpe ? parseFloat(rpe) : null,
-        symptoms: symptoms
-      },
-      notes: notes,
-      assessment_date: todayLocal(),
-    });
   };
 
   return (

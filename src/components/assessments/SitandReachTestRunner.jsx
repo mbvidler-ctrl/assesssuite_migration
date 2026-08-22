@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 // Wells & Dillon (1952) / ACSM norms for standard sit-and-reach (cm, box method)
 const NORMS = {
@@ -46,7 +47,7 @@ export default function SitandReachTestRunner({ client, onSave, onClose }) {
   const [boxOffset, setBoxOffset] = useState("23"); // standard box footline at 23cm
   const [notes, setNotes] = useState("");
 
-  const age = client?.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000)) : null;
+  const age = client?.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000)) : null;
   const gender = client?.gender;
   const best = trials.length > 0 ? Math.max(...trials) : null;
   const cat = best !== null && age && gender ? classify(best, age, gender) : null;
@@ -59,10 +60,12 @@ export default function SitandReachTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (trials.length === 0) { toast.error("Add at least one trial"); return; }
-    const soap = `• Sit and Reach Test (Standard Box Method)\n  Best Score: ${best} cm${cat ? ` — ${cat.label}` : ""}\n  Trials: ${trials.map(t => t + " cm").join(", ")}\n  Box footline position: ${boxOffset} cm\n  Measures lower back and hamstring flexibility${notes ? `\n  Notes: ${notes}` : ""}\n  Reference: ACSM Guidelines for Exercise Testing and Prescription; Wells KF & Dillon EK (1952). The sit and reach: a test of back and leg flexibility. Research Quarterly, 23:115-118.`;
-    onSave({ status: "completed", result_value: best, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "flexibility_cm", best_cm: best, trials, box_offset_cm: parseFloat(boxOffset), classification: cat?.label } });
-    toast.success("Saved.");
+    try {
+      onSave(validateMobilityOrtho({ trials, boxOffset, age, gender, notes }, { runnerKey: 'sit_reach_test', assessmentDate: todayLocal() }));
+      toast.success("Saved.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

@@ -5,37 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_PCL5_PCL5_ITEMS as PCL5_ITEMS, PROM_NEURO_PCL5_RESPONSE_OPTIONS as RESPONSE_OPTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const PCL5_ITEMS = [
-  { id: 1, text: "Repeated, disturbing, and unwanted memories of the stressful experience?" },
-  { id: 2, text: "Repeated, disturbing dreams of the stressful experience?" },
-  { id: 3, text: "Suddenly feeling or acting as if the stressful experience were happening again (as if you were reliving it)?" },
-  { id: 4, text: "Feeling very upset when something reminded you of the stressful experience?" },
-  { id: 5, text: "Having strong physical reactions when something reminded you of the stressful experience (for example, heart pounding, sweating, or trembling)?" },
-  { id: 6, text: "Avoiding memories, thoughts, or feelings related to the stressful experience?" },
-  { id: 7, text: "Avoiding external reminders of the stressful experience (for example, people, places, conversations, activities, objects, or situations)?" },
-  { id: 8, text: "Trouble remembering important parts of the stressful experience?" },
-  { id: 9, text: "Having strong negative beliefs about yourself, other people, or the world (for example, having thoughts such as: I am bad, there is something seriously wrong with me, no one can be trusted, the world is completely dangerous)?" },
-  { id: 10, text: "Blaming yourself or the other person for the stressful experience or what happened after it?" },
-  { id: 11, text: "Having strong negative feelings such as fear, anger, guilt, or shame?" },
-  { id: 12, text: "Loss of interest in activities that you used to enjoy?" },
-  { id: 13, text: "Feeling distant or cut off from other people?" },
-  { id: 14, text: "Trouble experiencing positive emotions (for example, you were unable to feel happiness or have loving feelings for people close to you)?" },
-  { id: 15, text: "Irritable behavior, angry outbursts, or acting aggressively?" },
-  { id: 16, text: "Taking too many risks or doing things that could cause you harm?" },
-  { id: 17, text: "Being \"on guard\" or watchful or suspicious of others around you?" },
-  { id: 18, text: "Trouble concentrating?" },
-  { id: 19, text: "Trouble falling or staying asleep?" },
-  { id: 20, text: "Trouble controlling your temper?" },
-];
 
-const RESPONSE_OPTIONS = [
-  { value: 0, label: "Not at all" },
-  { value: 1, label: "A little bit" },
-  { value: 2, label: "Moderately" },
-  { value: 3, label: "Quite a bit" },
-  { value: 4, label: "Extremely" },
-];
 
 export default function PCL5Runner({ client, onSave, onClose }) {
   const [responses, setResponses] = useState({});

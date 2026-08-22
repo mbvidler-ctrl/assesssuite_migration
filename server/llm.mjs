@@ -14,9 +14,20 @@
 // the de-identification pass is nonetheless a standing control so the same code
 // protects real data if the platform is ever run against it.
 
+import {
+  PHYSIO_MODEL_FAST,
+  PHYSIO_MODEL_QUALITY,
+} from './productionPosture.mjs';
+
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
-export const MODEL_FAST = process.env.OPENAI_MODEL_FAST || 'gpt-4.1-mini';
-export const MODEL_QUALITY = process.env.OPENAI_MODEL_QUALITY || 'gpt-4.1';
+const PHYSIO_PRODUCTION = process.env.NODE_ENV === 'production'
+  && process.env.PROFESSION === 'physio';
+export const MODEL_FAST = PHYSIO_PRODUCTION
+  ? PHYSIO_MODEL_FAST
+  : process.env.OPENAI_MODEL_FAST || 'gpt-4.1-mini';
+export const MODEL_QUALITY = PHYSIO_PRODUCTION
+  ? PHYSIO_MODEL_QUALITY
+  : process.env.OPENAI_MODEL_QUALITY || 'gpt-4.1';
 
 export function resolveMaxCompletionTokens(environment = process.env) {
   const parsed = Number(environment.GENERAL_CLINICAL_LLM_MAX_OUTPUT_UNITS);
@@ -128,6 +139,10 @@ async function callOpenAI({ messages, model, json }) {
       throw new Error(`OpenAI ${res.status}: ${detail.slice(0, 200)}`);
     }
     const data = await res.json();
+    const providerModel = typeof data.model === 'string' && data.model ? data.model : null;
+    if (PHYSIO_PRODUCTION && providerModel !== model) {
+      throw new Error('OpenAI provider model did not match the pinned Physio production snapshot.');
+    }
     const inputTokens = (
       Number.isSafeInteger(data.usage?.prompt_tokens) && data.usage.prompt_tokens >= 0
         ? data.usage.prompt_tokens
@@ -135,7 +150,13 @@ async function callOpenAI({ messages, model, json }) {
     );
     return {
       content: data.choices?.[0]?.message?.content ?? '',
-      model: typeof data.model === 'string' && data.model ? data.model : model,
+      model: providerModel || model,
+      modelFromProvider: Boolean(providerModel),
+      finishReason:
+        typeof data.choices?.[0]?.finish_reason === 'string' && data.choices[0].finish_reason
+          ? data.choices[0].finish_reason
+          : null,
+      providerStatus: res.status,
       usage: {
         inputTokens,
         cachedInputTokens:
@@ -150,6 +171,7 @@ async function callOpenAI({ messages, model, json }) {
           : null,
       },
       providerRequestId: typeof data.id === 'string' && data.id ? data.id : null,
+      providerHttpRequestId: res.headers.get('x-request-id') || null,
     };
   } finally {
     clearTimeout(timer);
@@ -160,15 +182,21 @@ async function callOpenAI({ messages, model, json }) {
 // schema requests contain a parsed object; other requests contain a string.
 // The server routes settle the accompanying usage metadata before returning
 // that bare value to the client. Throws on any provider/parse failure.
-export async function invokeLLMWithUsage({ prompt, schema }) {
+export async function invokeLLMWithUsage({ prompt, schema, systemInstructions = null }) {
   const { text: safePrompt } = deidentify(String(prompt ?? ''));
 
-  const system = [
+  const defaultSystemInstructions = [
     'You are a clinical documentation assistant for an allied-health (exercise physiology) platform used in Australia.',
     'Write in Australian English, in a professional clinical register. Be specific, evidence-informed and concise.',
     'You are a decision-support tool: never diagnose; frame interpretation as clinical decision support.',
     'Only state clinical facts you are confident are correct; do not fabricate citations, DOIs or statistics.',
     'Follow the output format the user asks for exactly. Never emit placeholder text such as "Mock ... value".',
+  ];
+  const selectedSystemInstructions = Array.isArray(systemInstructions) && systemInstructions.length > 0
+    ? systemInstructions
+    : defaultSystemInstructions;
+  const system = [
+    ...selectedSystemInstructions.map((instruction) => String(instruction).trim()).filter(Boolean),
     schema ? 'Respond with a single valid JSON object and nothing else.' : 'Honour the prompt: if it asks for JSON, return only a JSON object; otherwise return prose.',
   ].join(' ');
 
@@ -189,8 +217,13 @@ export async function invokeLLMWithUsage({ prompt, schema }) {
 
   return {
     value: schema ? JSON.parse(generated.content) : generated.content,
+    provider: 'openai',
     model: generated.model,
+    modelFromProvider: generated.modelFromProvider,
+    finishReason: generated.finishReason,
+    providerStatus: generated.providerStatus,
     usage: generated.usage,
     providerRequestId: generated.providerRequestId,
+    providerHttpRequestId: generated.providerHttpRequestId,
   };
 }

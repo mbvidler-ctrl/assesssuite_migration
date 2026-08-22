@@ -1,5 +1,7 @@
 import React from "react";
 import { useAuth } from "@/lib/AuthContext";
+import { assessSuiteHeaderLogo } from "@/brandAssets";
+import { buildTimeProfession } from "@/lib/profession";
 
 export default function AccountSetup() {
   const { navigateToLogin } = useAuth();
@@ -34,8 +36,8 @@ export default function AccountSetup() {
         {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: "32px" }}>
           <img
-            src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/358c0c514_Logo-Transparent1.png"
-            alt="AssessSuite Clinical"
+            src={assessSuiteHeaderLogo}
+            alt={buildTimeProfession.branding.logoAlt}
             style={{ height: "60px", width: "auto" }}
           />
         </div>
@@ -51,10 +53,10 @@ export default function AccountSetup() {
         {/* Card */}
         <div style={{ background: "#fff", borderRadius: "20px", padding: "48px 40px", boxShadow: "0 8px 48px rgba(15,23,42,0.1)" }}>
           <h1 style={{ fontSize: "26px", fontWeight: 800, color: "#0f172a", marginBottom: "8px", letterSpacing: "-0.5px", textAlign: "center" }}>
-            Create Your AssessSuite Clinical Account
+            Create Your {buildTimeProfession.shortName} Account
           </h1>
           <p style={{ fontSize: "15px", color: "#64748b", textAlign: "center", marginBottom: "36px", lineHeight: 1.6 }}>
-            Follow these simple steps to get started with AssessSuite Clinical.
+            Follow these simple steps to get started with {buildTimeProfession.shortName}.
           </p>
 
           {/* Steps */}
@@ -74,12 +76,12 @@ export default function AccountSetup() {
 
           {/* Instructional text */}
           <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "16px 18px", marginBottom: "28px", fontSize: "14px", color: "#475569", lineHeight: 1.7 }}>
-            <p style={{ margin: "0 0 8px 0" }}><strong style={{ color: "#0f172a" }}>New User?</strong> Enter your email address and create a password to set up your AssessSuite Clinical account.</p>
+            <p style={{ margin: "0 0 8px 0" }}><strong style={{ color: "#0f172a" }}>New User?</strong> Enter your email address and create a password to set up your {buildTimeProfession.shortName} account.</p>
             <p style={{ margin: 0 }}><strong style={{ color: "#0f172a" }}>Already Have an Account?</strong> Log in using your existing email and password.</p>
           </div>
 
           <p style={{ fontSize: "13px", color: "#94a3b8", textAlign: "center", marginBottom: "24px" }}>
-            AssessSuite Clinical is a professional assessment and reporting platform for Exercise Physiologists and allied health professionals. Creating an account takes less than a minute.
+            {buildTimeProfession.shortName} is a professional assessment and reporting platform for {buildTimeProfession.practitionerNounPlural.toLowerCase()}. Creating an account takes less than a minute.
           </p>
 
           {/* CTA */}

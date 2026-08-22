@@ -12,7 +12,7 @@ import { renderSafeHtmlDocument } from "@/lib/safeHtml";
 export default function ClientDataExporter({ client, isOpen, onClose }) {
   const [isExporting, setIsExporting] = useState(false);
   const [showSelectMode, setShowSelectMode] = useState(false);
-  const [selectedSections, setSelectedSections] = useState({
+  const [selectedSections, setSelectedSections] = useState(/** @type {Record<string, boolean>} */ ({
     personal: true,
     contact: true,
     referral: true,
@@ -28,7 +28,7 @@ export default function ClientDataExporter({ client, isOpen, onClose }) {
     documents: true,
     nutritionPlans: true,
     onboarding: true,
-  });
+  }));
 
   const sectionLabels = {
     personal: "Personal Information",
@@ -53,6 +53,7 @@ export default function ClientDataExporter({ client, isOpen, onClose }) {
   };
 
   const selectAll = () => {
+    /** @type {Record<string, boolean>} */
     const allSelected = {};
     Object.keys(selectedSections).forEach(key => {
       allSelected[key] = true;
@@ -61,6 +62,7 @@ export default function ClientDataExporter({ client, isOpen, onClose }) {
   };
 
   const deselectAll = () => {
+    /** @type {Record<string, boolean>} */
     const allDeselected = {};
     Object.keys(selectedSections).forEach(key => {
       allDeselected[key] = false;

@@ -122,7 +122,8 @@ export default function FourHundredMeterWalkStandaloneWrapper({
             appointmentId: clientAssessment.appointment_id,
             objectiveText,
             assessmentToUpdateId: clientAssessment.id,
-            updateData
+            updateData,
+            assessment,
           });
         } catch (soapError) {
           console.error("SOAP note error:", soapError);
@@ -172,7 +173,8 @@ export default function FourHundredMeterWalkStandaloneWrapper({
           appointmentId,
           objectiveText,
           assessmentToUpdateId: createdAssessment.id,
-          updateData
+          updateData,
+          assessment,
         });
       } catch (soapError) {
         console.error("SOAP note error:", soapError);

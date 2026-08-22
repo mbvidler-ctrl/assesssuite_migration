@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { X, Save, Info, Target, MessageSquare, Ruler } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
+import { scoreRangeOfMotion } from "@/lib/clinical/scorers/coreA";
 
 // ROM Data for all joints
 const ROM_DATA = {
@@ -893,32 +894,10 @@ export default function ROMAssessmentRunner({ onSave, onClose, initialData }) {
   };
 
   const handleSave = () => {
-    // Build comprehensive SOAP text
-    let soapText = `Range of Motion Assessment - ${jointData?.name}\n\n`;
-    
-    jointData?.movements.forEach(movement => {
-      const m = measurements[movement.name];
-      if (m?.left || m?.right) {
-        soapText += `${movement.name}:\n`;
-        if (m.left) soapText += `  Left: ${m.left}° (Normal: ${movement.normal.combined})\n`;
-        if (m.right) soapText += `  Right: ${m.right}° (Normal: ${movement.normal.combined})\n`;
-        if (comments[movement.name]) soapText += `  Notes: ${comments[movement.name]}\n`;
-        soapText += `\n`;
-      }
-    });
-
-    const data = {
-      joint: selectedJoint,
-      jointName: jointData?.name,
-      measurements,
-      comments,
-      additional_data: {
-        soap_text: soapText,
-        measurement_type: 'rom_assessment'
-      },
-      assessment_date: todayLocal()
-    };
-    if (onSave) onSave(data);
+    if (onSave) onSave(scoreRangeOfMotion(
+      { joint: selectedJoint, measurements, comments },
+      { assessmentName: 'Range of Motion (Goniometry)', assessmentDate: todayLocal(), notes: '' },
+    ));
   };
 
   const generateSOAPObjective = () => {

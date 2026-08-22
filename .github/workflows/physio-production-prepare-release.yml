@@ -1,0 +1,2118 @@
+name: Physio production prepare immutable release
+
+on:
+  workflow_dispatch:
+    inputs:
+      trusted_workflow_sha:
+        description: Exact current main SHA supplying this trusted workflow
+        required: true
+        type: string
+      application_sha:
+        description: Exact current main application SHA to build
+        required: true
+        type: string
+      build_timestamp:
+        description: Frozen UTC build timestamp in YYYY-MM-DDTHH:MM:SSZ form
+        required: true
+        type: string
+      config_sha256:
+        description: Reviewed LF-normalised SHA-256 of fly.physio.production.toml
+        required: true
+        type: string
+      dockerfile_sha256:
+        description: Reviewed LF-normalised SHA-256 of Dockerfile.physio
+        required: true
+        type: string
+      state_snapshot_artifact_id:
+        description: Exact read-only state-snapshot artifact ID
+        required: true
+        type: string
+      state_snapshot_artifact_digest:
+        description: Exact sha256 artifact digest from state snapshot
+        required: true
+        type: string
+      state_snapshot_receipt_sha256:
+        description: Raw-byte SHA-256 of physio-production-state.json
+        required: true
+        type: string
+      sentry_resume_effect_artifact_id:
+        description: Exact prior Sentry STARTED or unresolved effect artifact ID, or 0
+        required: true
+        default: '0'
+        type: string
+      sentry_resume_effect_artifact_digest:
+        description: Exact prior Sentry effect artifact digest, or 0 when absent
+        required: true
+        default: '0'
+        type: string
+      sentry_resume_effect_receipt_sha256:
+        description: Raw-byte SHA-256 of the exact prior Sentry phase or completed receipt, or 0
+        required: true
+        default: '0'
+        type: string
+      capability_intent_id:
+        description: Authorised immutable candidate preparation intent
+        required: true
+        type: string
+      authority_reference:
+        description: Mission or order reference authorising this action
+        required: true
+        type: string
+      confirmation:
+        description: Type PREPARE assesssuite-physio-production EXACT SHA
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: assesssuite-physio-production
+  cancel-in-progress: false
+
+jobs:
+  gates:
+    name: Build one candidate and extract same-build Sentry evidence
+    runs-on: ubuntu-24.04
+    environment: physio-production
+    timeout-minutes: 90
+    outputs:
+      core_artifact_id: ${{ steps.upload_core.outputs.artifact-id }}
+      core_artifact_digest: sha256:${{ steps.upload_core.outputs.artifact-digest }}
+      archive_sha256: ${{ steps.candidate.outputs.archive_sha256 }}
+      oci_archive_sha256: ${{ steps.candidate.outputs.oci_archive_sha256 }}
+      oci_manifest_digest: ${{ steps.candidate.outputs.oci_manifest_digest }}
+      oci_descriptor_manifest_sha256: ${{ steps.candidate.outputs.oci_descriptor_manifest_sha256 }}
+      local_image_id: ${{ steps.candidate.outputs.local_image_id }}
+      source_map_manifest_sha256: ${{ steps.candidate.outputs.source_map_manifest_sha256 }}
+      source_map_archive_sha256: ${{ steps.candidate.outputs.source_map_archive_sha256 }}
+    steps:
+      - name: Validate exact pre-bootstrap dispatch
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          BUILD_TIMESTAMP: ${{ inputs.build_timestamp }}
+          CONFIG_SHA256: ${{ inputs.config_sha256 }}
+          DOCKERFILE_SHA256: ${{ inputs.dockerfile_sha256 }}
+          STATE_SNAPSHOT_ARTIFACT_ID: ${{ inputs.state_snapshot_artifact_id }}
+          STATE_SNAPSHOT_ARTIFACT_DIGEST: ${{ inputs.state_snapshot_artifact_digest }}
+          STATE_SNAPSHOT_RECEIPT_SHA256: ${{ inputs.state_snapshot_receipt_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          SENTRY_RESUME_EFFECT_ARTIFACT_ID: ${{ inputs.sentry_resume_effect_artifact_id }}
+          SENTRY_RESUME_EFFECT_ARTIFACT_DIGEST: ${{ inputs.sentry_resume_effect_artifact_digest }}
+          SENTRY_RESUME_EFFECT_RECEIPT_SHA256: ${{ inputs.sentry_resume_effect_receipt_sha256 }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == 'mbvidler-ctrl/assesssuite_migration' ]]
+          [[ "$ACTOR" == 'mbvidler-ctrl' && "$TRIGGERING_ACTOR" == 'mbvidler-ctrl' ]]
+          [[ "$IS_FORK" == 'false' && "$EVENT_REF" == 'refs/heads/main' ]]
+          [[ "$WORKFLOW_REF" == 'mbvidler-ctrl/assesssuite_migration/.github/workflows/physio-production-prepare-release.yml@refs/heads/main' ]]
+          [[ "$TRUSTED_WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ && "$APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" && "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$BUILD_TIMESTAMP" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]
+          [[ "$CONFIG_SHA256" =~ ^[0-9a-f]{64}$ && "$DOCKERFILE_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$STATE_SNAPSHOT_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$STATE_SNAPSHOT_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$STATE_SNAPSHOT_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          if [[ "$SENTRY_RESUME_EFFECT_ARTIFACT_ID" == '0' ]]; then
+            [[ "$SENTRY_RESUME_EFFECT_ARTIFACT_DIGEST" == '0' && "$SENTRY_RESUME_EFFECT_RECEIPT_SHA256" == '0' ]]
+          else
+            [[ "$SENTRY_RESUME_EFFECT_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+            [[ "$SENTRY_RESUME_EFFECT_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+            [[ "$SENTRY_RESUME_EFFECT_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          fi
+          [[ "$CAPABILITY_INTENT_ID" =~ ^[A-Za-z0-9._:-]{1,160}$ ]]
+          [[ "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
+          [[ "$CONFIRMATION" == 'PREPARE assesssuite-physio-production EXACT SHA' ]]
+
+      - name: Check out exact application SHA
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Resolve and admit exact state-snapshot source run
+        id: artifacts
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          STATE_ID: ${{ inputs.state_snapshot_artifact_id }}
+          STATE_DIGEST: ${{ inputs.state_snapshot_artifact_digest }}
+        run: |
+          set -euo pipefail
+          umask 077
+          spec="$RUNNER_TEMP/state-snapshot-artifact-spec.json"
+          SPEC="$spec" APPLICATION_SHA="$APPLICATION_SHA" STATE_ID="$STATE_ID" STATE_DIGEST="$STATE_DIGEST" \
+          env -u FLY_API_TOKEN -u SENTRY_AUTH_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = { repository: 'mbvidler-ctrl/assesssuite_migration', application_sha: process.env.APPLICATION_SHA,
+            artifacts: [{ key: 'state_snapshot', id: process.env.STATE_ID, expected_digest: process.env.STATE_DIGEST,
+              maximum_bytes: 33554432, name_patterns: [`^physio-production-state-${process.env.APPLICATION_SHA}$`],
+              workflow_path: '.github/workflows/physio-production-state-snapshot.yml', allowed_conclusions: ['success'] }] };
+          fs.writeFileSync(process.env.SPEC, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/github-artifact-admission.mjs --spec "$spec" \
+            --output "$RUNNER_TEMP/state-snapshot-artifact-admission.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Download exact read-only state snapshot
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.state_snapshot_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.artifacts.outputs.state_snapshot_run_id }}
+          path: ${{ runner.temp }}/physio-state-input
+          github-token: ${{ github.token }}
+
+      - name: Admit exact absent-state snapshot and source
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CONFIG_SHA256: ${{ inputs.config_sha256 }}
+          DOCKERFILE_SHA256: ${{ inputs.dockerfile_sha256 }}
+          STATE_SNAPSHOT_RECEIPT_SHA256: ${{ inputs.state_snapshot_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$APPLICATION_SHA" ]]
+          [[ "$(git ls-remote --exit-code https://github.com/mbvidler-ctrl/assesssuite_migration.git refs/heads/main | awk 'NR == 1 { print $1 }')" == "$APPLICATION_SHA" ]]
+          [[ -z "$(git status --porcelain --untracked-files=no)" ]]
+          node scripts/physio-release-contract.mjs validate-source \
+            --config-sha256 "$CONFIG_SHA256" --dockerfile-sha256 "$DOCKERFILE_SHA256"
+          state="$RUNNER_TEMP/physio-state-input/physio-production-state.json"
+          sums="$RUNNER_TEMP/physio-state-input/SHA256SUMS"
+          [[ -f "$state" && ! -L "$state" && -f "$sums" && ! -L "$sums" ]]
+          (cd "$RUNNER_TEMP/physio-state-input" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$state" | awk '{print $1}')" == "$STATE_SNAPSHOT_RECEIPT_SHA256" ]]
+          STATE="$state" APPLICATION_SHA="$APPLICATION_SHA" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const row = JSON.parse(fs.readFileSync(process.env.STATE, 'utf8'));
+          const keys = ['application','authority_reference','capability_intent_id','contract_version','custom_certificate_count','event_sha','expected_state','fly_hostname_precedes_custom_dns','immutable_image','machine_id','observed_at','provider_raw_readback_sha256','provider_state_final_sha256','provider_state_initial_sha256','provider_state_unchanged','result','volume_id'].sort();
+          const packet = path.dirname(process.env.STATE);
+          const initial = path.join(packet, 'provider-state-initial.json');
+          const final = path.join(packet, 'provider-state-final.json');
+          const sha = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const rawKeys = ['apps_final','apps_initial','certificates_final','certificates_initial',
+            'machines_final','machines_initial','volumes_final','volumes_initial'];
+          if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys) ||
+              row.contract_version !== 'assesssuite-physio-state-snapshot/2.0.0' || row.result !== 'PASS' ||
+              row.application !== 'assesssuite-physio-production' || row.event_sha !== process.env.APPLICATION_SHA ||
+              row.expected_state !== 'absent' || row.volume_id !== 'NOT-CREATED' ||
+              row.machine_id !== 'NOT-CREATED' || row.immutable_image !== 'NOT-DEPLOYED' ||
+              row.custom_certificate_count !== 0 || row.fly_hostname_precedes_custom_dns !== true ||
+              row.provider_state_unchanged !== true || !fs.existsSync(initial) || !fs.existsSync(final) ||
+              sha(initial) !== row.provider_state_initial_sha256 || sha(final) !== row.provider_state_final_sha256 ||
+              row.provider_state_initial_sha256 !== row.provider_state_final_sha256 ||
+              JSON.stringify(Object.keys(row.provider_raw_readback_sha256 || {}).sort()) !== JSON.stringify(rawKeys) ||
+              Object.values(row.provider_raw_readback_sha256 || {}).some((value) => !/^[0-9a-f]{64}$/.test(value))) {
+            throw new Error('prepare requires the exact read-only absent-state snapshot');
+          }
+          NODE
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6.0.0
+        with:
+          node-version: 24.11.1
+          cache: npm
+
+      - name: Run locked release gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm run lint
+          npm run typecheck
+          npm run catalogue:physio:check
+          npm run build:platform
+          npm run build:physio
+          npm run test:assurance
+          npm run test:physio
+
+      - name: Install checksum-verified regctl 0.11.5 for canonical OCI sealing
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" && -z "${SENTRY_AUTH_TOKEN:-}" ]]
+          binary="$RUNNER_TEMP/regctl"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \
+            --output "$binary" 'https://github.com/regclient/regclient/releases/download/v0.11.5/regctl-linux-amd64'
+          printf '%s  %s\n' 'c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467' "$binary" | sha256sum --check --strict
+          chmod 0755 "$binary"
+          "$binary" version | grep -F 'v0.11.5'
+
+      - name: Build and seal exact candidate image
+        id: candidate
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          BUILD_TIMESTAMP: ${{ inputs.build_timestamp }}
+          CONFIG_SHA256: ${{ inputs.config_sha256 }}
+          DOCKERFILE_SHA256: ${{ inputs.dockerfile_sha256 }}
+          STATE_SNAPSHOT_ARTIFACT_ID: ${{ inputs.state_snapshot_artifact_id }}
+          STATE_SNAPSHOT_ARTIFACT_DIGEST: ${{ inputs.state_snapshot_artifact_digest }}
+          STATE_SNAPSHOT_RECEIPT_SHA256: ${{ inputs.state_snapshot_receipt_sha256 }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -n "$SENTRY_DSN" && -z "${SENTRY_AUTH_TOKEN:-}" ]]
+          candidate="assesssuite-physio-candidate:$APPLICATION_SHA"
+          packet="$RUNNER_TEMP/physio-candidate-core"
+          source_maps="$RUNNER_TEMP/physio-sourcemap-output"
+          map_archive_root="$RUNNER_TEMP/physio-sourcemap-archive-root"
+          runtime_extract="$RUNNER_TEMP/physio-runtime-extract"
+          oci_layout="$RUNNER_TEMP/physio-candidate-oci"
+          docker_archive="$RUNNER_TEMP/physio-candidate.docker.tar"
+          bake="$RUNNER_TEMP/physio-candidate-bake.hcl"
+          install -d -m 0700 "$packet" "$source_maps" "$map_archive_root" "$runtime_extract" "$oci_layout"
+          install -m 0600 "$RUNNER_TEMP/state-snapshot-artifact-admission.json" "$packet/state-snapshot-artifact-admission.json"
+          cat >"$bake" <<BAKE
+          target "candidate" {
+            context = "."
+            dockerfile = "Dockerfile.physio"
+            target = "runtime"
+            tags = ["$candidate"]
+            args = {
+              RELEASE_SHA = "$APPLICATION_SHA"
+              SOURCE_BRANCH = "main"
+              BUILD_TIMESTAMP = "$BUILD_TIMESTAMP"
+              SENTRY_DSN = "$SENTRY_DSN"
+            }
+            labels = {
+              "org.opencontainers.image.revision" = "$APPLICATION_SHA"
+              "org.opencontainers.image.created" = "$BUILD_TIMESTAMP"
+              "com.assesssuite.profession" = "physio"
+              "com.assesssuite.app-id" = "local-assesssuite-physio"
+            }
+            output = ["type=docker"]
+          }
+          target "sourcemaps" {
+            context = "."
+            dockerfile = "Dockerfile.physio"
+            target = "sourcemap-evidence"
+            args = {
+              RELEASE_SHA = "$APPLICATION_SHA"
+              SOURCE_BRANCH = "main"
+              BUILD_TIMESTAMP = "$BUILD_TIMESTAMP"
+              SENTRY_DSN = "$SENTRY_DSN"
+            }
+            output = ["type=local,dest=$source_maps"]
+          }
+          BAKE
+          docker buildx bake --file "$bake" --pull candidate sourcemaps
+          rm -f "$bake"
+          local_image_id="$(docker image inspect "$candidate" --format '{{.Id}}')"
+          [[ "$local_image_id" =~ ^sha256:[0-9a-f]{64}$ ]]
+          docker image inspect "$candidate" >"$packet/image-inspect.json"
+          [[ "$(docker image inspect "$candidate" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$APPLICATION_SHA" ]]
+          [[ "$(docker image inspect "$candidate" --format '{{ index .Config.Labels "com.assesssuite.profession" }}')" == 'physio' ]]
+          cid="$(docker create "$candidate" true)"
+          trap 'docker rm --force "$cid" >/dev/null 2>&1 || true' EXIT
+          docker cp "$cid:/app/dist" "$runtime_extract/dist"
+          docker rm --force "$cid" >/dev/null
+          trap - EXIT
+          if find "$runtime_extract/dist" -type f -name '*.map' -print -quit | grep -q .; then exit 1; fi
+          MANIFEST="$packet/sentry-source-map-manifest.json" EVIDENCE="$source_maps/dist" \
+          RUNTIME="$runtime_extract/dist" APPLICATION_SHA="$APPLICATION_SHA" BUILD_TIMESTAMP="$BUILD_TIMESTAMP" \
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { sentryReleaseForProfession } from './packages/profession-config/sentry-release.mjs';
+          const hash = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const rows = (root, suffix) => fs.readdirSync(path.join(root, 'assets'))
+            .filter((name) => name.endsWith(suffix)).sort().map((name) => {
+              const file = path.join(root, 'assets', name);
+              return { path: `assets/${name}`, bytes: fs.statSync(file).size, sha256: hash(file) };
+            });
+          const runtime = rows(process.env.RUNTIME, '.js');
+          const evidenceRuntime = rows(process.env.EVIDENCE, '.js');
+          const maps = rows(process.env.EVIDENCE, '.js.map').map((row) => ({
+            path: row.path, runtime_path: row.path.slice(0, -4), bytes: row.bytes, sha256: row.sha256,
+          }));
+          if (!runtime.length || JSON.stringify(runtime) !== JSON.stringify(evidenceRuntime) ||
+              maps.length !== runtime.length || maps.some((row, index) => row.runtime_path !== runtime[index].path)) {
+            throw new Error('same-build source-map/runtime byte relation differs');
+          }
+          const manifest = { contract_version: 'assesssuite-physio-sentry-source-map-manifest/1.0.0',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            build_timestamp: process.env.BUILD_TIMESTAMP, profession_id: 'physio',
+            release_version: sentryReleaseForProfession('physio', process.env.APPLICATION_SHA), sentry_environment: 'physio-production',
+            runtime_js: runtime, source_maps: maps };
+          fs.writeFileSync(process.env.MANIFEST, JSON.stringify(manifest, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/physio-sentry-release-contract.mjs validate-source-map-manifest \
+            --manifest "$packet/sentry-source-map-manifest.json" --application-sha "$APPLICATION_SHA"
+          MANIFEST="$packet/sentry-source-map-manifest.json" EVIDENCE="$source_maps/dist" \
+          ARCHIVE_ROOT="$map_archive_root" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const manifest = JSON.parse(fs.readFileSync(process.env.MANIFEST, 'utf8'));
+          for (const row of [...manifest.runtime_js, ...manifest.source_maps]) {
+            const source = path.resolve(process.env.EVIDENCE, row.path);
+            const target = path.resolve(process.env.ARCHIVE_ROOT, row.path);
+            if (!source.startsWith(`${path.resolve(process.env.EVIDENCE)}${path.sep}`) ||
+                !target.startsWith(`${path.resolve(process.env.ARCHIVE_ROOT)}${path.sep}`)) {
+              throw new Error('source-map archive path escaped');
+            }
+            fs.mkdirSync(path.dirname(target), { recursive: true });
+            fs.copyFileSync(source, target, fs.constants.COPYFILE_EXCL);
+          }
+          NODE
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            -czf "$packet/sentry-source-maps.tar.gz" -C "$map_archive_root" assets
+          docker save "$candidate" | gzip -n >"$packet/candidate-image.tar.gz"
+          archive_sha256="sha256:$(sha256sum "$packet/candidate-image.tar.gz" | awk '{print $1}')"
+          gzip -dc "$packet/candidate-image.tar.gz" >"$docker_archive"
+          "$RUNNER_TEMP/regctl" image import "ocidir://$oci_layout:$APPLICATION_SHA" "$docker_archive" --name "$candidate"
+          rm -f "$docker_archive"
+          "$RUNNER_TEMP/regctl" image mod "ocidir://$oci_layout:$APPLICATION_SHA" --to-oci --replace
+          oci_manifest_digest="$(node scripts/physio-oci-image.mjs write-descriptors \
+            --layout "$oci_layout" --tag "$APPLICATION_SHA" --application-sha "$APPLICATION_SHA" \
+            --local-image-id "$local_image_id" --receipt "$packet/candidate-oci-descriptors.json")"
+          [[ "$oci_manifest_digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          tar --sort=name --mtime='UTC 1970-01-01' --owner=0 --group=0 --numeric-owner \
+            -czf "$packet/candidate-image.oci.tar.gz" -C "$oci_layout" .
+          oci_archive_sha256="sha256:$(sha256sum "$packet/candidate-image.oci.tar.gz" | awk '{print $1}')"
+          oci_descriptor_manifest_sha256="$(sha256sum "$packet/candidate-oci-descriptors.json" | awk '{print $1}')"
+          source_map_manifest_sha256="$(sha256sum "$packet/sentry-source-map-manifest.json" | awk '{print $1}')"
+          source_map_archive_sha256="$(sha256sum "$packet/sentry-source-maps.tar.gz" | awk '{print $1}')"
+          CORE="$packet/candidate-core-receipt.json" APPLICATION_SHA="$APPLICATION_SHA" BUILD_TIMESTAMP="$BUILD_TIMESTAMP" \
+          CONFIG_SHA256="$CONFIG_SHA256" DOCKERFILE_SHA256="$DOCKERFILE_SHA256" LOCAL_IMAGE_ID="$local_image_id" \
+          ARCHIVE_SHA256="$archive_sha256" OCI_ARCHIVE_SHA256="$oci_archive_sha256" OCI_MANIFEST_DIGEST="$oci_manifest_digest" \
+          OCI_DESCRIPTOR_SHA="$oci_descriptor_manifest_sha256" MAP_MANIFEST_SHA="$source_map_manifest_sha256" MAP_ARCHIVE_SHA="$source_map_archive_sha256" \
+          STATE_ID="$STATE_SNAPSHOT_ARTIFACT_ID" STATE_DIGEST="$STATE_SNAPSHOT_ARTIFACT_DIGEST" STATE_SHA="$STATE_SNAPSHOT_RECEIPT_SHA256" \
+          STATE_ARTIFACT_ADMISSION_SHA="$(sha256sum "$packet/state-snapshot-artifact-admission.json" | awk '{print $1}')" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = { contract_version: 'assesssuite-physio-candidate-core/2.0.0', result: 'PASS',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            profession_id: 'physio', build_timestamp: process.env.BUILD_TIMESTAMP, source_branch: 'main',
+            state_snapshot_artifact_id: process.env.STATE_ID, state_snapshot_artifact_digest: process.env.STATE_DIGEST,
+            state_snapshot_receipt_sha256: process.env.STATE_SHA,
+            state_snapshot_artifact_admission_sha256: process.env.STATE_ARTIFACT_ADMISSION_SHA,
+            config_sha256: process.env.CONFIG_SHA256,
+            dockerfile_sha256: process.env.DOCKERFILE_SHA256, local_image_id: process.env.LOCAL_IMAGE_ID,
+            archive_sha256: process.env.ARCHIVE_SHA256, oci_archive_sha256: process.env.OCI_ARCHIVE_SHA256,
+            oci_manifest_digest: process.env.OCI_MANIFEST_DIGEST,
+            oci_descriptor_manifest_sha256: process.env.OCI_DESCRIPTOR_SHA,
+            source_map_manifest_sha256: process.env.MAP_MANIFEST_SHA,
+            source_map_archive_sha256: process.env.MAP_ARCHIVE_SHA, same_build_source_maps_verified: true,
+            fly_resource_count: 0, completed_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.CORE, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | \
+            xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          echo "archive_sha256=$archive_sha256" >> "$GITHUB_OUTPUT"
+          echo "oci_archive_sha256=$oci_archive_sha256" >> "$GITHUB_OUTPUT"
+          echo "oci_manifest_digest=$oci_manifest_digest" >> "$GITHUB_OUTPUT"
+          echo "oci_descriptor_manifest_sha256=$oci_descriptor_manifest_sha256" >> "$GITHUB_OUTPUT"
+          echo "local_image_id=$local_image_id" >> "$GITHUB_OUTPUT"
+          echo "source_map_manifest_sha256=$source_map_manifest_sha256" >> "$GITHUB_OUTPUT"
+          echo "source_map_archive_sha256=$source_map_archive_sha256" >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable candidate core
+        id: upload_core
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-candidate-core-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/physio-candidate-core
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  sentry_start:
+    name: Admit completed evidence or persist an exact Sentry phase before provider access
+    needs: gates
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      phase_artifact_id: ${{ steps.upload_phase.outputs.artifact-id }}
+      phase_artifact_digest: sha256:${{ steps.upload_phase.outputs.artifact-digest }}
+      phase_receipt_sha256: ${{ steps.phase.outputs.phase_receipt_sha256 }}
+      phase: ${{ steps.phase.outputs.phase }}
+      generation: ${{ steps.phase.outputs.generation }}
+      provider_effect_id: ${{ steps.phase.outputs.provider_effect_id }}
+      resume_completed: ${{ steps.phase.outputs.resume_completed }}
+      sentry_resume_effect_run_id: ${{ steps.resume.outputs.sentry_resume_effect_run_id }}
+    steps:
+      - name: Check out exact Sentry phase-contract source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve exact prior Sentry effect when supplied
+        id: resume
+        if: ${{ inputs.sentry_resume_effect_artifact_id != '0' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          RESUME_ID: ${{ inputs.sentry_resume_effect_artifact_id }}
+          RESUME_DIGEST: ${{ inputs.sentry_resume_effect_artifact_digest }}
+        run: |
+          set -euo pipefail
+          umask 077
+          spec="$RUNNER_TEMP/sentry-resume-artifact-spec.json"
+          SPEC="$spec" APPLICATION_SHA="$APPLICATION_SHA" RESUME_ID="$RESUME_ID" RESUME_DIGEST="$RESUME_DIGEST" \
+          env -u SENTRY_AUTH_TOKEN -u SENTRY_DSN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const sha = process.env.APPLICATION_SHA;
+          const row = { repository: 'mbvidler-ctrl/assesssuite_migration', application_sha: sha, artifacts: [
+            { key: 'sentry_resume_effect', id: process.env.RESUME_ID, expected_digest: process.env.RESUME_DIGEST,
+              maximum_bytes: 33554432,
+              name_patterns: [
+                `^physio-sentry-phase-[a-z-]+-${sha}-g[0-9]+$`,
+                `^physio-sentry-release-${sha}$`,
+              ],
+              workflow_path: '.github/workflows/physio-production-prepare-release.yml',
+              allowed_conclusions: ['success','failure','cancelled','timed_out'] },
+          ] };
+          fs.writeFileSync(process.env.SPEC, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/github-artifact-admission.mjs --spec "$spec" \
+            --output "$RUNNER_TEMP/sentry-resume-artifact-admission.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Exhaustively deny unadmitted prior exact-SHA Sentry effects
+        if: ${{ inputs.sentry_resume_effect_artifact_id == '0' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          work="$RUNNER_TEMP/sentry-prior-artifact-inventory-work"
+          install -d -m 0700 "$work"
+          : >"$work/pages.ndjson"
+          expected_total=''; scanned=0; page=1
+          while :; do
+            [[ "$page" -le 100 ]]
+            url="https://api.github.com/repos/$REPOSITORY/actions/artifacts?per_page=100&page=$page"
+            curl --proto '=https' --tlsv1.2 --fail --silent --show-error --max-redirs 0 --max-time 60 \
+              --header "Authorization: Bearer $GH_TOKEN" --header 'Accept: application/vnd.github+json' \
+              --header 'X-GitHub-Api-Version: 2022-11-28' --output "$work/page-$page.json" "$url"
+            PAGE="$work/page-$page.json" PAGE_NUMBER="$page" EXPECTED_TOTAL="$expected_total" \
+              node --input-type=module <<'NODE' >>"$work/pages.ndjson"
+          import fs from 'node:fs';
+          const row=JSON.parse(fs.readFileSync(process.env.PAGE,'utf8'));
+          if(!Number.isSafeInteger(row.total_count)||row.total_count<0||!Array.isArray(row.artifacts)||row.artifacts.length>100)throw new Error('GitHub Sentry artifact inventory page differs');
+          if(process.env.EXPECTED_TOTAL && String(row.total_count)!==process.env.EXPECTED_TOTAL)throw new Error('GitHub Sentry artifact inventory changed while paginating');
+          process.stdout.write(JSON.stringify({page:Number(process.env.PAGE_NUMBER),total_count:row.total_count,artifacts:row.artifacts})+'\n');
+          NODE
+            current_count="$(PAGE="$work/page-$page.json" node --input-type=module -e "import fs from 'node:fs';const r=JSON.parse(fs.readFileSync(process.env.PAGE));process.stdout.write(String(r.artifacts.length))")"
+            page_total="$(PAGE="$work/page-$page.json" node --input-type=module -e "import fs from 'node:fs';const r=JSON.parse(fs.readFileSync(process.env.PAGE));process.stdout.write(String(r.total_count))")"
+            [[ -n "$expected_total" ]] || expected_total="$page_total"
+            scanned=$((scanned + current_count))
+            [[ "$scanned" -le "$expected_total" ]]
+            if [[ "$scanned" == "$expected_total" ]]; then break; fi
+            [[ "$current_count" == '100' ]]
+            page=$((page + 1))
+          done
+          PAGES="$work/pages.ndjson" APPLICATION_SHA="$APPLICATION_SHA" REPOSITORY="$REPOSITORY" \
+            OUT="$RUNNER_TEMP/sentry-prior-artifact-inventory.json" node --input-type=module <<'NODE'
+          import {createHash} from 'node:crypto';import fs from 'node:fs';
+          const pages=fs.readFileSync(process.env.PAGES,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
+          if(pages.length===0||pages.some((row,index)=>row.page!==index+1||row.total_count!==pages[0].total_count))throw new Error('GitHub Sentry artifact inventory pagination differs');
+          const artifacts=pages.flatMap((row)=>row.artifacts);const ids=new Set();for(const row of artifacts){if(!Number.isSafeInteger(row.id)||row.id<1||ids.has(row.id)||typeof row.name!=='string'||typeof row.expired!=='boolean')throw new Error('GitHub Sentry artifact inventory identity differs');ids.add(row.id);}
+          if(artifacts.length!==pages[0].total_count)throw new Error('GitHub Sentry artifact inventory is incomplete');
+          const escaped=process.env.APPLICATION_SHA.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+          const effectName=new RegExp(`^physio-sentry-(?:phase-[a-z-]+-${escaped}-g[0-9]+|reconciliation-${escaped}-g[0-9]+|compensation-effect-${escaped}-g[0-9]+|release-${escaped})$`);
+          const matches=artifacts.filter((row)=>effectName.test(row.name));
+          const receipt={contract_version:'assesssuite-physio-sentry-github-inventory/1.0.0',result:matches.length===0?'EXACT_ABSENCE':'UNADMITTED_EFFECT_FOUND',repository:process.env.REPOSITORY,application_sha:process.env.APPLICATION_SHA,pages_scanned:pages.length,artifacts_scanned:artifacts.length,page_sha256:pages.map((row)=>createHash('sha256').update(JSON.stringify(row)).digest('hex')),matching_artifacts:matches.map((row)=>({id:String(row.id),name:row.name,expired:row.expired})),completed_at:new Date().toISOString()};
+          fs.writeFileSync(process.env.OUT,JSON.stringify(receipt,null,2)+'\n',{flag:'wx',mode:0o600});
+          if(matches.length!==0)throw new Error(`unadmitted prior exact-SHA Sentry effects exist; supply one exact resume artifact ID (${matches.map((row)=>`${row.id}:${row.name}`).join(', ')})`);
+          NODE
+          unset GH_TOKEN
+
+      - name: Download exact same-run candidate core
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.gates.outputs.core_artifact_id }}
+          path: ${{ runner.temp }}/candidate-core
+          github-token: ${{ github.token }}
+
+      - name: Download exact prior Sentry effect
+        if: ${{ inputs.sentry_resume_effect_artifact_id != '0' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.sentry_resume_effect_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.resume.outputs.sentry_resume_effect_run_id }}
+          path: ${{ runner.temp }}/sentry-resume
+          github-token: ${{ github.token }}
+
+      - name: Validate or create exact credential-free Sentry phase
+        id: phase
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          SOURCE_MAP_MANIFEST_SHA256: ${{ needs.gates.outputs.source_map_manifest_sha256 }}
+          SOURCE_MAP_ARCHIVE_SHA256: ${{ needs.gates.outputs.source_map_archive_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          RESUME_ID: ${{ inputs.sentry_resume_effect_artifact_id }}
+          RESUME_DIGEST: ${{ inputs.sentry_resume_effect_artifact_digest }}
+          RESUME_RECEIPT_SHA256: ${{ inputs.sentry_resume_effect_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ -z "${SENTRY_AUTH_TOKEN:-}" && -z "${SENTRY_DSN:-}" && -z "${FLY_API_TOKEN:-}" ]]
+          core="$RUNNER_TEMP/candidate-core"
+          packet="$RUNNER_TEMP/sentry-phase-admitted"
+          install -d -m 0700 "$packet"
+          (cd "$core" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$core/sentry-source-map-manifest.json" | awk '{print $1}')" == "$SOURCE_MAP_MANIFEST_SHA256" ]]
+          [[ "$(sha256sum "$core/sentry-source-maps.tar.gz" | awk '{print $1}')" == "$SOURCE_MAP_ARCHIVE_SHA256" ]]
+          node scripts/physio-sentry-release-contract.mjs validate-source-map-manifest \
+            --manifest "$core/sentry-source-map-manifest.json" --application-sha "$APPLICATION_SHA"
+          if [[ "$RESUME_ID" != '0' ]]; then
+            resume="$RUNNER_TEMP/sentry-resume"
+            (cd "$resume" && sha256sum --check --strict SHA256SUMS)
+            if [[ -f "$resume/physio-sentry-release.json" && ! -L "$resume/physio-sentry-release.json" ]]; then
+              [[ "$(sha256sum "$resume/physio-sentry-release.json" | awk '{print $1}')" == "$RESUME_RECEIPT_SHA256" ]]
+              node scripts/physio-sentry-release-contract.mjs validate-release-packet \
+                --packet "$resume" --application-sha "$APPLICATION_SHA" \
+                --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE" \
+                --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" \
+                --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+              FINAL="$resume/physio-sentry-release.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const receipt = JSON.parse(fs.readFileSync(process.env.FINAL, 'utf8'));
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            `provider_effect_id=${JSON.parse(fs.readFileSync(`${process.env.RUNNER_TEMP}/sentry-resume/sentry-release-effect-reconciliation.json`, 'utf8')).provider_effect_id}\n` +
+            `phase=COMPLETED\ngeneration=0\nphase_receipt_sha256=${receipt.started_effect_receipt_sha256}\nresume_completed=true\n`);
+          NODE
+              exit 0
+            fi
+            [[ -f "$resume/sentry-phase.json" && ! -L "$resume/sentry-phase.json" ]]
+            [[ "$(sha256sum "$resume/sentry-phase.json" | awk '{print $1}')" == "$RESUME_RECEIPT_SHA256" ]]
+            node scripts/physio-sentry-release-contract.mjs validate-phase-packet \
+              --packet "$resume" --application-sha "$APPLICATION_SHA" \
+              --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE" \
+              --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" \
+              --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+            while IFS= read -r file; do
+              [[ "$file" == 'sentry-phase.json' || "$file" =~ ^phase-[0-9]{4}\.json$ ||
+                "$file" =~ ^reconciliation-[0-9]{4}\.json$ ]]
+              install -m 0600 "$resume/$file" "$packet/$file"
+            done < <(find "$resume" -mindepth 1 -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | LC_ALL=C sort)
+          else
+            PHASE="$packet/sentry-phase.json" APPLICATION_SHA="$APPLICATION_SHA" \
+            MAP_MANIFEST_SHA="$SOURCE_MAP_MANIFEST_SHA256" MAP_ARCHIVE_SHA="$SOURCE_MAP_ARCHIVE_SHA256" \
+            CORE_SHA="$(sha256sum "$core/candidate-core-receipt.json" | awk '{print $1}')" \
+            CAPABILITY_INTENT_ID="$CAPABILITY_INTENT_ID" AUTHORITY_REFERENCE="$AUTHORITY_REFERENCE" \
+            node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import { sentryReleaseForProfession } from './packages/profession-config/sentry-release.mjs';
+          const releaseVersion = sentryReleaseForProfession('physio', process.env.APPLICATION_SHA);
+          const identity = { application_sha: process.env.APPLICATION_SHA, release_version: releaseVersion,
+            source_map_manifest_sha256: process.env.MAP_MANIFEST_SHA,
+            source_map_archive_sha256: process.env.MAP_ARCHIVE_SHA,
+            capability_intent_id: process.env.CAPABILITY_INTENT_ID,
+            authority_reference: process.env.AUTHORITY_REFERENCE };
+          const row = { contract_version: 'assesssuite-physio-sentry-release-phase/2.0.0', result: 'STARTED',
+            phase: 'INTENT_STARTED', phase_sequence: 0, generation: 0,
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            profession_id: 'physio', sentry_org: 'unimatter', sentry_project: 'assesssuite-production',
+            sentry_project_id: '4511827129663488', sentry_environment: 'physio-production',
+            release_version: releaseVersion,
+            provider_effect_id: `sha256:${createHash('sha256').update(JSON.stringify(identity)).digest('hex')}`,
+            source_map_manifest_sha256: process.env.MAP_MANIFEST_SHA,
+            source_map_archive_sha256: process.env.MAP_ARCHIVE_SHA,
+            candidate_core_receipt_sha256: process.env.CORE_SHA,
+            capability_intent_id: process.env.CAPABILITY_INTENT_ID,
+            authority_reference: process.env.AUTHORITY_REFERENCE,
+            previous_phase_artifact_id: '0', previous_phase_artifact_digest: '0',
+            previous_phase_receipt_sha256: 'sha256:na', previous_phase: 'NONE',
+            reconciliation_artifact_id: '0', reconciliation_artifact_digest: '0',
+            reconciliation_receipt_sha256: 'sha256:na', reconciliation_result: 'NOT_APPLICABLE',
+            started_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.PHASE, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          fi
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | \
+            xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          node scripts/physio-sentry-release-contract.mjs validate-phase-packet \
+            --packet "$packet" --application-sha "$APPLICATION_SHA" \
+            --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE" \
+            --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" \
+            --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+          PHASE="$packet/sentry-phase.json" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.PHASE, 'utf8'));
+          const sha = createHash('sha256').update(fs.readFileSync(process.env.PHASE)).digest('hex');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            `provider_effect_id=${row.provider_effect_id}\nphase=${row.phase}\ngeneration=${row.generation}\n` +
+            `phase_receipt_sha256=${sha}\nresume_completed=false\n`);
+          NODE
+
+      - name: Upload durable admitted Sentry phase before provider access
+        id: upload_phase
+        if: ${{ steps.phase.outputs.resume_completed != 'true' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-sentry-phase-admitted-${{ inputs.application_sha }}-g${{ steps.phase.outputs.generation }}
+          path: ${{ runner.temp }}/sentry-phase-admitted
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  sentry_reconcile:
+    name: Read and exhaust exact Sentry state before selecting any mutation
+    needs: [gates, sentry_start]
+    if: ${{ needs.sentry_start.outputs.resume_completed != 'true' }}
+    runs-on: ubuntu-24.04
+    environment: physio-production
+    timeout-minutes: 15
+    outputs:
+      route: ${{ steps.reconcile.outputs.route }}
+      artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
+      receipt_sha256: ${{ steps.reconcile.outputs.receipt_sha256 }}
+      region_url: ${{ steps.reconcile.outputs.region_url }}
+    steps:
+      - name: Check out exact reconciliation contract
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact admitted Sentry phase
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.sentry_start.outputs.phase_artifact_id }}
+          path: ${{ runner.temp }}/sentry-phase-input
+          github-token: ${{ github.token }}
+
+      - name: Reconcile exact target-qualified release and fully paginated deploy state
+        id: reconcile
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          SOURCE_MAP_MANIFEST_SHA256: ${{ needs.gates.outputs.source_map_manifest_sha256 }}
+          SOURCE_MAP_ARCHIVE_SHA256: ${{ needs.gates.outputs.source_map_archive_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          PHASE_ARTIFACT_ID: ${{ needs.sentry_start.outputs.phase_artifact_id }}
+          PHASE_ARTIFACT_DIGEST: ${{ needs.sentry_start.outputs.phase_artifact_digest }}
+          PHASE_RECEIPT_SHA256: ${{ needs.sentry_start.outputs.phase_receipt_sha256 }}
+          PROVIDER_EFFECT_ID: ${{ needs.sentry_start.outputs.provider_effect_id }}
+          RESUME_REQUESTED: ${{ inputs.sentry_resume_effect_artifact_id != '0' }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -n "$SENTRY_AUTH_TOKEN" && -z "${SENTRY_DSN:-}" && -z "${FLY_API_TOKEN:-}" ]]
+          phase_packet="$RUNNER_TEMP/sentry-phase-input"
+          work="$RUNNER_TEMP/sentry-reconcile-work"
+          packet="$RUNNER_TEMP/sentry-reconciliation"
+          install -d -m 0700 "$work" "$packet"
+          node scripts/physio-sentry-release-contract.mjs validate-phase-packet \
+            --packet "$phase_packet" --application-sha "$APPLICATION_SHA" \
+            --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE" \
+            --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" \
+            --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+          [[ "$(sha256sum "$phase_packet/sentry-phase.json" | awk '{print $1}')" == "$PHASE_RECEIPT_SHA256" ]]
+          request() {
+            local operation="$1" url="$2"
+            curl --proto '=https' --tlsv1.2 --silent --show-error --max-redirs 0 --max-time 60 \
+              --max-filesize 1048576 --dump-header "$work/$operation.headers" \
+              --header "Authorization: Bearer $SENTRY_AUTH_TOKEN" --output "$work/$operation.body" \
+              --write-out '%{http_code}' "$url" >"$work/$operation.status"
+            [[ "$(wc -l <"$work/$operation.status")" == '1' ]]
+            node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids \
+              --headers "$work/$operation.headers" --label "$operation" --output "$work/proof-$operation.json"
+          }
+          request organization 'https://sentry.io/api/0/organizations/unimatter/?detailed=0'
+          [[ "$(cat "$work/organization.status")" == '200' ]]
+          ORGANIZATION="$work/organization.body" REGION_OUT="$work/region-url" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.ORGANIZATION, 'utf8'));
+          const region = row?.links?.regionUrl;
+          if (row.slug !== 'unimatter' || !['https://us.sentry.io','https://de.sentry.io'].includes(region)) {
+            throw new Error('Sentry organization identity or region differs');
+          }
+          fs.writeFileSync(process.env.REGION_OUT, `${region}\n`, { flag: 'wx', mode: 0o600 });
+          NODE
+          region_url="$(cat "$work/region-url")"
+          request project "$region_url/api/0/projects/unimatter/assesssuite-production/"
+          [[ "$(cat "$work/project.status")" == '200' ]]
+          PROJECT="$work/project.body" REGION_URL="$region_url" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.PROJECT, 'utf8'));
+          if (String(row.id) !== '4511827129663488' || row.slug !== 'assesssuite-production' ||
+              row.organization?.slug !== 'unimatter' || row.organization?.links?.regionUrl !== process.env.REGION_URL) {
+            throw new Error('Sentry project identity differs');
+          }
+          NODE
+          SENTRY_RELEASE_VERSION="physio-production@$APPLICATION_SHA"
+          readonly SENTRY_RELEASE_VERSION
+          release_version="$SENTRY_RELEASE_VERSION"
+          encoded_release="$(RELEASE="$release_version" node --input-type=module -e "process.stdout.write(encodeURIComponent(process.env.RELEASE))")"
+          release_url="$region_url/api/0/organizations/unimatter/releases/$encoded_release/"
+          request release "$release_url"
+          release_http="$(cat "$work/release.status")"
+          printf '%s\n' '{"pages":[]}' >"$packet/provider-deploy-readback.json"
+          if [[ "$release_http" == '404' ]]; then
+            RELEASE="$release_version" OUT="$work/release-readback.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          fs.writeFileSync(process.env.OUT, JSON.stringify({ status: 404, version: process.env.RELEASE }, null, 2) + '\n',
+            { flag: 'wx', mode: 0o600 });
+          NODE
+          elif [[ "$release_http" == '200' ]]; then
+            RELEASE_BODY="$work/release.body" OUT="$work/release-readback.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RELEASE_BODY, 'utf8'));
+          for (const key of ['version','status','deployCount','lastDeploy','firstEvent','lastEvent','projects']) {
+            if (!Object.hasOwn(row, key)) throw new Error(`Sentry release readback omitted ${key}`);
+          }
+          const projects = Array.isArray(row.projects) ? row.projects.map((project) => ({
+            id: String(project.id), slug: project.slug,
+          })) : [];
+          const safe = { version: row.version, status: row.status, deployCount: row.deployCount,
+            lastDeploy: row.lastDeploy ?? null, firstEvent: row.firstEvent ?? null,
+            lastEvent: row.lastEvent ?? null, projects };
+          fs.writeFileSync(process.env.OUT, JSON.stringify(safe, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+            pages="$work/deploy-pages.ndjson"
+            : >"$pages"
+            next_url="${release_url}deploys/"
+            declare -A deploy_urls_seen=()
+            page=0
+            while [[ -n "$next_url" ]]; do
+              [[ "$page" -lt 100 ]]
+              [[ -z "${deploy_urls_seen[$next_url]:-}" ]]; deploy_urls_seen[$next_url]=1
+              operation="deploy-page-$page"
+              request "$operation" "$next_url"
+              [[ "$(cat "$work/$operation.status")" == '200' ]]
+              BODY="$work/$operation.body" HEADERS="$work/$operation.headers" REGION_URL="$region_url" \
+              RELEASE_PATH="/api/0/organizations/unimatter/releases/$encoded_release/deploys/" \
+              PAGE_OUT="$work/page-$page.json" NEXT_OUT="$work/next-$page" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const items = JSON.parse(fs.readFileSync(process.env.BODY, 'utf8'));
+          if (!Array.isArray(items) || items.length !== 0) throw new Error('Sentry release has a deploy association');
+          const lines = fs.readFileSync(process.env.HEADERS, 'utf8').split(/\r?\n/);
+          const statusLines = lines.filter((line) => /^HTTP\/\d(?:\.\d)?\s+\d{3}(?:\s|$)/i.test(line));
+          const linkRows = lines.filter((line) => /^link:/i.test(line));
+          if (statusLines.length !== 1 || linkRows.length !== 1) throw new Error('Sentry deploy pagination response is ambiguous');
+          const segments = linkRows[0].slice(linkRows[0].indexOf(':') + 1).split(',').map((value) => value.trim());
+          const nextSegments = segments.filter((value) => /rel="next"/.test(value));
+          if (nextSegments.length !== 1) throw new Error('Sentry deploy pagination next segment is ambiguous');
+          const result = /results="(true|false)"/.exec(nextSegments[0]);
+          const link = /^<([^>]+)>/.exec(nextSegments[0]);
+          if (!result || !link) throw new Error('Sentry deploy pagination signal is incomplete');
+          let next = '';
+          let cursor = null;
+          if (result[1] === 'true') {
+            const url = new URL(link[1]);
+            if (url.origin !== process.env.REGION_URL || decodeURIComponent(url.pathname) !== decodeURIComponent(process.env.RELEASE_PATH) ||
+                [...url.searchParams.keys()].some((key) => key !== 'cursor') || !url.searchParams.get('cursor')) {
+              throw new Error('Sentry deploy pagination next URL escapes the exact release');
+            }
+            next = url.href;
+            cursor = url.searchParams.get('cursor');
+          }
+          fs.writeFileSync(process.env.PAGE_OUT, JSON.stringify({ items: [], next_cursor: cursor,
+            results: result[1] === 'true' }) + '\n', { flag: 'wx', mode: 0o600 });
+          fs.writeFileSync(process.env.NEXT_OUT, next, { flag: 'wx', mode: 0o600 });
+          NODE
+              cat "$work/page-$page.json" >>"$pages"
+              next_url="$(cat "$work/next-$page")"
+              page=$((page + 1))
+            done
+            PAGES="$pages" OUT="$packet/provider-deploy-readback.json.new" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const rows = fs.readFileSync(process.env.PAGES, 'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
+          fs.writeFileSync(process.env.OUT, JSON.stringify({ pages: rows }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+            mv "$packet/provider-deploy-readback.json.new" "$packet/provider-deploy-readback.json"
+            node scripts/physio-sentry-release-contract.mjs validate-safe-orphan-readback \
+              --release "$work/release-readback.json" \
+              --deploy-pages "$packet/provider-deploy-readback.json" --application-sha "$APPLICATION_SHA"
+          else
+            echo "Sentry release readback is ambiguous (HTTP $release_http)" >&2
+            exit 1
+          fi
+          ORGANIZATION="$work/organization.body" PROJECT="$work/project.body" RELEASE="$work/release-readback.json" \
+          REGION_URL="$region_url" OUT="$packet/provider-release-readback.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const organization = JSON.parse(fs.readFileSync(process.env.ORGANIZATION, 'utf8'));
+          const project = JSON.parse(fs.readFileSync(process.env.PROJECT, 'utf8'));
+          const release = JSON.parse(fs.readFileSync(process.env.RELEASE, 'utf8'));
+          const row = {
+            organization: { slug: organization.slug, region_url: organization.links?.regionUrl },
+            project: { id: String(project.id), slug: project.slug,
+              organization_slug: project.organization?.slug, region_url: project.organization?.links?.regionUrl },
+            release,
+          };
+          if (row.organization.region_url !== process.env.REGION_URL || row.project.region_url !== process.env.REGION_URL) {
+            throw new Error('Sentry target readback region differs');
+          }
+          fs.writeFileSync(process.env.OUT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          PROOF_ROOT="$work" PROOF_OUT="$packet/provider-request-id-hashes.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const names = fs.readdirSync(process.env.PROOF_ROOT).filter((name) => /^proof-[a-z0-9-]+\.json$/.test(name)).sort();
+          const requests = names.map((name) => ({ operation: name.slice(6, -5),
+            ...JSON.parse(fs.readFileSync(path.join(process.env.PROOF_ROOT, name), 'utf8')) }));
+          fs.writeFileSync(process.env.PROOF_OUT, JSON.stringify({ requests }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          PHASE="$phase_packet/sentry-phase.json" RELEASE_HTTP="$release_http" RESUME_REQUESTED="$RESUME_REQUESTED" \
+          ROUTE_OUT="$work/route" RESULT_OUT="$work/result" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const phase = JSON.parse(fs.readFileSync(process.env.PHASE, 'utf8'));
+          const http = Number(process.env.RELEASE_HTTP);
+          let route;
+          let result;
+          if (http === 404) {
+            if (phase.phase === 'COMPENSATION_STARTED') {
+              route = 'COMPENSATION_COMPLETE'; result = 'DELETE_COMPLETED_ABSENT';
+            } else if (phase.phase === 'INTENT_STARTED' || phase.phase === 'COMPENSATION_COMPLETED') {
+              route = 'CREATE'; result = 'EXACT_ABSENCE';
+              } else if (phase.phase === 'CREATE_UPLOAD_FINALIZE_STARTED') {
+                route = 'CREATE_REUSE'; result = 'EXACT_ABSENCE';
+              } else {
+                throw new Error('absent release cannot be reconciled from this admitted phase');
+            }
+          } else if (http === 200) {
+            if (phase.phase === 'INTENT_STARTED' && process.env.RESUME_REQUESTED !== 'true') {
+              throw new Error('qualified Sentry release exists without an exact admitted prior STARTED phase');
+            }
+            if (phase.phase === 'INTENT_STARTED' || phase.phase === 'CREATE_UPLOAD_FINALIZE_STARTED') {
+              route = 'COMPENSATE'; result = 'SAFE_ORPHAN';
+            } else if (phase.phase === 'COMPENSATION_STARTED') {
+              route = 'DELETE'; result = 'SAFE_ORPHAN';
+            } else {
+              throw new Error('completed compensation drifted back to an existing release');
+            }
+          } else {
+            throw new Error('unreachable ambiguous Sentry readback');
+          }
+          fs.writeFileSync(process.env.ROUTE_OUT, route, { flag: 'wx', mode: 0o600 });
+          fs.writeFileSync(process.env.RESULT_OUT, result, { flag: 'wx', mode: 0o600 });
+          NODE
+          result="$(cat "$work/result")"
+          route="$(cat "$work/route")"
+          delete_status=null
+          absence_status=null
+          if [[ "$result" == 'EXACT_ABSENCE' || "$result" == 'DELETE_COMPLETED_ABSENT' ]]; then absence_status=404; fi
+          RECEIPT="$packet/sentry-reconciliation.json" PHASE="$phase_packet/sentry-phase.json" \
+          APPLICATION_SHA="$APPLICATION_SHA" PROVIDER_EFFECT_ID="$PROVIDER_EFFECT_ID" RESULT="$result" \
+          PHASE_ARTIFACT_ID="$PHASE_ARTIFACT_ID" PHASE_ARTIFACT_DIGEST="$PHASE_ARTIFACT_DIGEST" \
+          PHASE_RECEIPT_SHA256="$PHASE_RECEIPT_SHA256" RELEASE_HTTP="$release_http" \
+          DELETE_STATUS="$delete_status" ABSENCE_STATUS="$absence_status" \
+          RELEASE_SHA="$(sha256sum "$packet/provider-release-readback.json" | awk '{print $1}')" \
+          DEPLOY_SHA="$(sha256sum "$packet/provider-deploy-readback.json" | awk '{print $1}')" \
+          REQUEST_SHA="$(sha256sum "$packet/provider-request-id-hashes.json" | awk '{print $1}')" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const phase = JSON.parse(fs.readFileSync(process.env.PHASE, 'utf8'));
+          const nullable = (value) => value === 'null' ? null : Number(value);
+          const row = { contract_version: 'assesssuite-physio-sentry-release-reconciliation/2.0.0',
+            result: process.env.RESULT, application: 'assesssuite-physio-production',
+            application_sha: process.env.APPLICATION_SHA, profession_id: 'physio', sentry_org: 'unimatter',
+            sentry_project: 'assesssuite-production', sentry_project_id: '4511827129663488',
+            sentry_environment: 'physio-production', release_version: phase.release_version,
+            provider_effect_id: process.env.PROVIDER_EFFECT_ID, phase: phase.phase, generation: phase.generation,
+            phase_sequence: phase.phase_sequence, phase_artifact_id: process.env.PHASE_ARTIFACT_ID,
+            phase_artifact_digest: process.env.PHASE_ARTIFACT_DIGEST,
+            phase_receipt_sha256: process.env.PHASE_RECEIPT_SHA256,
+            release_http_status: Number(process.env.RELEASE_HTTP), delete_http_status: nullable(process.env.DELETE_STATUS),
+            absence_http_status: nullable(process.env.ABSENCE_STATUS), release_readback_sha256: process.env.RELEASE_SHA,
+            deploy_readback_sha256: process.env.DEPLOY_SHA,
+            provider_request_id_hashes_sha256: process.env.REQUEST_SHA, completed_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | \
+            xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          node scripts/physio-sentry-release-contract.mjs validate-reconciliation-packet \
+            --packet "$packet" --application-sha "$APPLICATION_SHA" --provider-effect-id "$PROVIDER_EFFECT_ID" \
+            --phase-artifact-id "$PHASE_ARTIFACT_ID" --phase-artifact-digest "$PHASE_ARTIFACT_DIGEST" \
+            --phase-receipt-sha256 "$PHASE_RECEIPT_SHA256"
+          echo "route=$route" >>"$GITHUB_OUTPUT"
+          echo "region_url=$region_url" >>"$GITHUB_OUTPUT"
+          echo "receipt_sha256=$(sha256sum "$packet/sentry-reconciliation.json" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+
+      - name: Upload exact read-only Sentry reconciliation before any mutation
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-sentry-reconciliation-${{ inputs.application_sha }}-g${{ needs.sentry_start.outputs.generation }}
+          path: ${{ runner.temp }}/sentry-reconciliation
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  sentry_release:
+    name: Compensate safely then create one exact target-qualified Sentry release
+    needs: [gates, sentry_start, sentry_reconcile]
+    if: ${{ always() && needs.gates.result == 'success' && needs.sentry_start.result == 'success' && (needs.sentry_start.outputs.resume_completed == 'true' || needs.sentry_reconcile.result == 'success') }}
+    runs-on: ubuntu-24.04
+    environment: physio-production
+    timeout-minutes: 35
+    outputs:
+      artifact_id: ${{ steps.upload_final.outputs.artifact-id }}
+      artifact_digest: sha256:${{ steps.upload_final.outputs.artifact-digest }}
+      receipt_sha256: ${{ steps.reuse.outputs.receipt_sha256 || steps.create.outputs.receipt_sha256 }}
+    steps:
+      - name: Check out exact Sentry release source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact candidate core
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.gates.outputs.core_artifact_id }}
+          path: ${{ runner.temp }}/candidate-core
+          github-token: ${{ github.token }}
+
+      - name: Download exact completed Sentry packet for read-only reuse
+        if: ${{ needs.sentry_start.outputs.resume_completed == 'true' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.sentry_resume_effect_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.sentry_start.outputs.sentry_resume_effect_run_id }}
+          path: ${{ runner.temp }}/sentry-resume-completed
+          github-token: ${{ github.token }}
+
+      - name: Download exact admitted Sentry phase
+        if: ${{ needs.sentry_start.outputs.resume_completed != 'true' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.sentry_start.outputs.phase_artifact_id }}
+          path: ${{ runner.temp }}/sentry-phase-input
+          github-token: ${{ github.token }}
+
+      - name: Download exact read-only Sentry reconciliation
+        if: ${{ needs.sentry_start.outputs.resume_completed != 'true' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.sentry_reconcile.outputs.artifact_id }}
+          path: ${{ runner.temp }}/sentry-reconciliation-input
+          github-token: ${{ github.token }}
+
+      - name: Validate frozen source maps and extract without provider credentials
+        if: ${{ needs.sentry_start.outputs.resume_completed != 'true' }}
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          SOURCE_MAP_MANIFEST_SHA256: ${{ needs.gates.outputs.source_map_manifest_sha256 }}
+          SOURCE_MAP_ARCHIVE_SHA256: ${{ needs.gates.outputs.source_map_archive_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          PHASE_RECEIPT_SHA256: ${{ needs.sentry_start.outputs.phase_receipt_sha256 }}
+          PROVIDER_EFFECT_ID: ${{ needs.sentry_start.outputs.provider_effect_id }}
+          RECONCILIATION_RECEIPT_SHA256: ${{ needs.sentry_reconcile.outputs.receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ -z "${SENTRY_AUTH_TOKEN:-}" && -z "${SENTRY_DSN:-}" && -z "${FLY_API_TOKEN:-}" ]]
+          core="$RUNNER_TEMP/candidate-core"
+          phase="$RUNNER_TEMP/sentry-phase-input"
+          reconciliation="$RUNNER_TEMP/sentry-reconciliation-input"
+          upload="$RUNNER_TEMP/sentry-upload"
+          (cd "$core" && sha256sum --check --strict SHA256SUMS)
+          node scripts/physio-sentry-release-contract.mjs validate-phase-packet \
+            --packet "$phase" --application-sha "$APPLICATION_SHA" \
+            --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE" \
+            --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" \
+            --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+          [[ "$(sha256sum "$phase/sentry-phase.json" | awk '{print $1}')" == "$PHASE_RECEIPT_SHA256" ]]
+          (cd "$reconciliation" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$reconciliation/sentry-reconciliation.json" | awk '{print $1}')" == "$RECONCILIATION_RECEIPT_SHA256" ]]
+          node scripts/physio-sentry-release-contract.mjs validate-reconciliation-packet \
+            --packet "$reconciliation" --application-sha "$APPLICATION_SHA" \
+            --provider-effect-id "$PROVIDER_EFFECT_ID" \
+            --phase-artifact-id '${{ needs.sentry_start.outputs.phase_artifact_id }}' \
+            --phase-artifact-digest '${{ needs.sentry_start.outputs.phase_artifact_digest }}' \
+            --phase-receipt-sha256 "$PHASE_RECEIPT_SHA256"
+          [[ "$(sha256sum "$core/sentry-source-map-manifest.json" | awk '{print $1}')" == "$SOURCE_MAP_MANIFEST_SHA256" ]]
+          [[ "$(sha256sum "$core/sentry-source-maps.tar.gz" | awk '{print $1}')" == "$SOURCE_MAP_ARCHIVE_SHA256" ]]
+          node scripts/physio-sentry-release-contract.mjs validate-source-map-manifest \
+            --manifest "$core/sentry-source-map-manifest.json" --application-sha "$APPLICATION_SHA"
+          install -d -m 0700 "$upload"
+          ARCHIVE="$core/sentry-source-maps.tar.gz" MANIFEST="$core/sentry-source-map-manifest.json" \
+          DESTINATION="$upload" python3 - <<'PY'
+          import hashlib
+          import json
+          import os
+          import pathlib
+          import tarfile
+          archive_path = pathlib.Path(os.environ['ARCHIVE']).resolve()
+          destination = pathlib.Path(os.environ['DESTINATION']).resolve()
+          manifest = json.loads(pathlib.Path(os.environ['MANIFEST']).read_text(encoding='utf-8'))
+          expected = {row['path']: (row['bytes'], row['sha256']) for row in [*manifest['runtime_js'], *manifest['source_maps']]}
+          if len(expected) != len(manifest['runtime_js']) + len(manifest['source_maps']):
+              raise SystemExit('duplicate source-map archive path')
+          seen = set()
+          with tarfile.open(archive_path, mode='r:gz') as archive:
+              for member in archive.getmembers():
+                  if member.name.rstrip('/') == 'assets' and member.isdir():
+                      continue
+                  if not member.isfile() or member.name not in expected:
+                      raise SystemExit('source-map archive member set or type differs')
+                  target = (destination / member.name).resolve()
+                  if os.path.commonpath([str(destination), str(target)]) != str(destination):
+                      raise SystemExit('source-map archive member escapes destination')
+                  expected_size, expected_hash = expected[member.name]
+                  if member.size != expected_size or member.size <= 0 or member.size > 50_000_000:
+                      raise SystemExit('source-map archive member size differs')
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  source = archive.extractfile(member)
+                  if source is None:
+                      raise SystemExit('source-map archive member has no bytes')
+                  digest = hashlib.sha256()
+                  with target.open('xb') as output:
+                      while chunk := source.read(1024 * 1024):
+                          digest.update(chunk); output.write(chunk)
+                  if digest.hexdigest() != expected_hash:
+                      raise SystemExit('source-map archive member hash differs')
+                  seen.add(member.name)
+          if seen != set(expected):
+              raise SystemExit('source-map archive member set differs')
+          PY
+
+      - name: Re-admit completed packet and exact current candidate manifest without provider credentials
+        if: ${{ needs.sentry_start.outputs.resume_completed == 'true' }}
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          SOURCE_MAP_MANIFEST_SHA256: ${{ needs.gates.outputs.source_map_manifest_sha256 }}
+          SOURCE_MAP_ARCHIVE_SHA256: ${{ needs.gates.outputs.source_map_archive_sha256 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ -z "${SENTRY_AUTH_TOKEN:-}" && -z "${SENTRY_DSN:-}" && -z "${FLY_API_TOKEN:-}" ]]
+          core="$RUNNER_TEMP/candidate-core"
+          prior="$RUNNER_TEMP/sentry-resume-completed"
+          (cd "$core" && sha256sum --check --strict SHA256SUMS)
+          (cd "$prior" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$core/sentry-source-map-manifest.json" | awk '{print $1}')" == "$SOURCE_MAP_MANIFEST_SHA256" ]]
+          [[ "$(sha256sum "$core/sentry-source-maps.tar.gz" | awk '{print $1}')" == "$SOURCE_MAP_ARCHIVE_SHA256" ]]
+          cmp --silent "$prior/sentry-source-map-manifest.json" "$core/sentry-source-map-manifest.json"
+          node scripts/physio-sentry-release-contract.mjs validate-source-map-manifest \
+            --manifest "$core/sentry-source-map-manifest.json" --application-sha "$APPLICATION_SHA"
+          node scripts/physio-sentry-release-contract.mjs validate-release-packet \
+            --packet "$prior" --application-sha "$APPLICATION_SHA" \
+            --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE" \
+            --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" \
+            --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+
+      - name: Revalidate completed Sentry release current state with read-only provider calls
+        id: revalidate_completed
+        if: ${{ needs.sentry_start.outputs.resume_completed == 'true' }}
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -n "$SENTRY_AUTH_TOKEN" && -z "${SENTRY_DSN:-}" && -z "${FLY_API_TOKEN:-}" ]]
+          prior="$RUNNER_TEMP/sentry-resume-completed"
+          manifest="$RUNNER_TEMP/candidate-core/sentry-source-map-manifest.json"
+          work="$RUNNER_TEMP/sentry-current-readiness-work"
+          packet="$RUNNER_TEMP/sentry-current-readiness"
+          install -d -m 0700 "$work" "$packet"
+          release_version="physio-production@$APPLICATION_SHA"
+          readonly release_version
+          encoded_release="$(RELEASE="$release_version" node --input-type=module -e "process.stdout.write(encodeURIComponent(process.env.RELEASE))")"
+          request() {
+            local operation="$1" url="$2"
+            curl --proto '=https' --tlsv1.2 --silent --show-error --max-redirs 0 --max-time 120 \
+              --max-filesize 52428800 --request GET --dump-header "$work/$operation.headers" \
+              --header "Authorization: Bearer $SENTRY_AUTH_TOKEN" --output "$work/$operation.body" \
+              --write-out '%{http_code}' "$url" >"$work/$operation.status"
+            [[ "$(wc -l <"$work/$operation.status")" == '1' ]]
+            node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids \
+              --headers "$work/$operation.headers" --label "$operation" --output "$work/proof-$operation.json"
+          }
+          request organization 'https://sentry.io/api/0/organizations/unimatter/?detailed=0'
+          [[ "$(cat "$work/organization.status")" == '200' ]]
+          ORGANIZATION="$work/organization.body" REGION_OUT="$work/region-url" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const r=JSON.parse(fs.readFileSync(process.env.ORGANIZATION,'utf8'));const region=r.links?.regionUrl;
+          if(r.slug!=='unimatter'||!['https://us.sentry.io','https://de.sentry.io'].includes(region))throw new Error('Sentry completed-reuse organization identity differs');
+          fs.writeFileSync(process.env.REGION_OUT,region,{flag:'wx',mode:0o600});
+          NODE
+          region_url="$(cat "$work/region-url")"
+          release_url="$region_url/api/0/organizations/unimatter/releases/$encoded_release/"
+          files_url="$region_url/api/0/projects/unimatter/assesssuite-production/releases/$encoded_release/files/"
+          request project "$region_url/api/0/projects/unimatter/assesssuite-production/"
+          [[ "$(cat "$work/project.status")" == '200' ]]
+          PROJECT="$work/project.body" REGION_URL="$region_url" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const r=JSON.parse(fs.readFileSync(process.env.PROJECT,'utf8'));
+          if(String(r.id)!=='4511827129663488'||r.slug!=='assesssuite-production'||r.organization?.slug!=='unimatter'||r.organization?.links?.regionUrl!==process.env.REGION_URL)throw new Error('Sentry completed-reuse project identity differs');
+          NODE
+          request release "$release_url"
+          [[ "$(cat "$work/release.status")" == '200' ]]
+          RELEASE_BODY="$work/release.body" SAFE="$work/release-safe.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const r=JSON.parse(fs.readFileSync(process.env.RELEASE_BODY,'utf8'));
+          for(const key of ['version','status','dateReleased','deployCount','lastDeploy','firstEvent','lastEvent','projects'])if(!Object.hasOwn(r,key))throw new Error(`completed-reuse Sentry release omitted ${key}`);
+          const safe={version:r.version,status:r.status,deployCount:r.deployCount,lastDeploy:r.lastDeploy??null,firstEvent:r.firstEvent??null,lastEvent:r.lastEvent??null,projects:(r.projects||[]).map((p)=>({id:String(p.id),slug:p.slug}))};
+          fs.writeFileSync(process.env.SAFE,JSON.stringify(safe,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          : >"$work/deploy-pages.ndjson"; next_url="${release_url}deploys/"; page=0; declare -A deploy_urls_seen=()
+          while [[ -n "$next_url" ]]; do
+            [[ -z "${deploy_urls_seen[$next_url]:-}" ]]; deploy_urls_seen[$next_url]=1
+            [[ "$page" -lt 100 ]]; operation="deploy-page-$page"; request "$operation" "$next_url"; [[ "$(cat "$work/$operation.status")" == '200' ]]
+            BODY="$work/$operation.body" HEADERS="$work/$operation.headers" REGION_URL="$region_url" \
+              EXPECTED_PATH="/api/0/organizations/unimatter/releases/$encoded_release/deploys/" \
+              OUT="$work/deploy-page-$page.json" NEXT="$work/deploy-next-$page" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const items=JSON.parse(fs.readFileSync(process.env.BODY,'utf8'));if(!Array.isArray(items)||items.length!==0)throw new Error('completed-reuse Sentry release has a deploy association');
+          const lines=fs.readFileSync(process.env.HEADERS,'utf8').split(/\r?\n/);const statuses=lines.filter((l)=>/^HTTP\/\d(?:\.\d)?\s+\d{3}(?:\s|$)/i.test(l));const links=lines.filter((l)=>/^link:/i.test(l));if(statuses.length!==1||links.length!==1)throw new Error('completed-reuse deploy pagination ambiguous');
+          const rows=links[0].slice(links[0].indexOf(':')+1).split(',').map((v)=>v.trim()).filter((v)=>/rel="next"/.test(v));if(rows.length!==1)throw new Error('completed-reuse deploy next page ambiguous');const result=/results="(true|false)"/.exec(rows[0]);const link=/^<([^>]+)>/.exec(rows[0]);if(!result||!link)throw new Error('completed-reuse deploy pagination incomplete');let next='';let cursor=null;if(result[1]==='true'){const u=new URL(link[1]);if(u.origin!==process.env.REGION_URL||decodeURIComponent(u.pathname)!==decodeURIComponent(process.env.EXPECTED_PATH)||[...u.searchParams.keys()].some((key)=>key!=='cursor')||!u.searchParams.get('cursor'))throw new Error('completed-reuse deploy page escapes release');next=u.href;cursor=u.searchParams.get('cursor');}
+          fs.writeFileSync(process.env.OUT,JSON.stringify({items:[],next_cursor:cursor,results:result[1]==='true'})+'\n',{flag:'wx',mode:0o600});fs.writeFileSync(process.env.NEXT,next,{flag:'wx',mode:0o600});
+          NODE
+            cat "$work/deploy-page-$page.json" >>"$work/deploy-pages.ndjson"
+            next_url="$(cat "$work/deploy-next-$page")"; page=$((page+1))
+          done
+          PAGES="$work/deploy-pages.ndjson" OUT="$work/deploy-pages.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const pages=fs.readFileSync(process.env.PAGES,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);fs.writeFileSync(process.env.OUT,JSON.stringify({pages},null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          node scripts/physio-sentry-release-contract.mjs validate-safe-orphan-readback \
+            --release "$work/release-safe.json" --deploy-pages "$work/deploy-pages.json" --application-sha "$APPLICATION_SHA"
+          : >"$work/files.ndjson"; : >"$work/file-pages.ndjson"; next_url="$files_url"; page=0; declare -A file_urls_seen=()
+          while [[ -n "$next_url" ]]; do
+            [[ -z "${file_urls_seen[$next_url]:-}" ]]; file_urls_seen[$next_url]=1
+            [[ "$page" -lt 100 ]]; operation="files-page-$page"; request "$operation" "$next_url"; [[ "$(cat "$work/$operation.status")" == '200' ]]
+            BODY="$work/$operation.body" HEADERS="$work/$operation.headers" REGION_URL="$region_url" \
+              EXPECTED_PATH="/api/0/projects/unimatter/assesssuite-production/releases/$encoded_release/files/" \
+              OUT="$work/files-page-$page.ndjson" PAGE_OUT="$work/file-page-$page.json" NEXT="$work/files-next-$page" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const items=JSON.parse(fs.readFileSync(process.env.BODY,'utf8'));if(!Array.isArray(items))throw new Error('completed-reuse Sentry file page differs');
+          const lines=fs.readFileSync(process.env.HEADERS,'utf8').split(/\r?\n/);const statuses=lines.filter((l)=>/^HTTP\/\d(?:\.\d)?\s+\d{3}(?:\s|$)/i.test(l));const links=lines.filter((l)=>/^link:/i.test(l));if(statuses.length!==1||links.length!==1)throw new Error('completed-reuse file pagination ambiguous');
+          const rows=links[0].slice(links[0].indexOf(':')+1).split(',').map((v)=>v.trim()).filter((v)=>/rel="next"/.test(v));if(rows.length!==1)throw new Error('completed-reuse file next page ambiguous');const result=/results="(true|false)"/.exec(rows[0]);const link=/^<([^>]+)>/.exec(rows[0]);if(!result||!link)throw new Error('completed-reuse file pagination incomplete');let next='';let cursor=null;if(result[1]==='true'){const u=new URL(link[1]);if(u.origin!==process.env.REGION_URL||decodeURIComponent(u.pathname)!==decodeURIComponent(process.env.EXPECTED_PATH)||[...u.searchParams.keys()].some((key)=>key!=='cursor')||!u.searchParams.get('cursor'))throw new Error('completed-reuse file page escapes release');next=u.href;cursor=u.searchParams.get('cursor');}
+          fs.writeFileSync(process.env.OUT,items.map(JSON.stringify).join('\n')+(items.length?'\n':''),{flag:'wx',mode:0o600});fs.writeFileSync(process.env.PAGE_OUT,JSON.stringify({item_count:items.length,next_cursor:cursor,results:result[1]==='true'})+'\n',{flag:'wx',mode:0o600});fs.writeFileSync(process.env.NEXT,next,{flag:'wx',mode:0o600});
+          NODE
+            cat "$work/files-page-$page.ndjson" >>"$work/files.ndjson"; cat "$work/file-page-$page.json" >>"$work/file-pages.ndjson"
+            next_url="$(cat "$work/files-next-$page")"; page=$((page+1))
+          done
+          MANIFEST="$manifest" FILES="$work/files.ndjson" PLAN="$work/download-plan.tsv" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const m=JSON.parse(fs.readFileSync(process.env.MANIFEST,'utf8'));const expected=new Map([...m.runtime_js,...m.source_maps].map((r)=>[`~/${r.path}`,r]));const rows=fs.readFileSync(process.env.FILES,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);if(rows.length!==expected.size)throw new Error('completed-reuse Sentry provider file count differs');const seen=new Set();const ids=new Set();const plan=[];for(const r of rows){const id=String(r.id||'');if(seen.has(r.name)||!expected.has(r.name)||!/^[1-9][0-9]{0,39}$/.test(id)||ids.has(id))throw new Error('completed-reuse Sentry provider file set differs');seen.add(r.name);ids.add(id);const e=expected.get(r.name);plan.push([id,r.name,e.bytes,e.sha256]);}if(seen.size!==expected.size)throw new Error('completed-reuse Sentry provider file set incomplete');fs.writeFileSync(process.env.PLAN,plan.sort((a,b)=>a[1].localeCompare(b[1])).map((r)=>r.join('\t')).join('\n')+'\n',{flag:'wx',mode:0o600});
+          NODE
+          : >"$work/provider-files.ndjson"; index=0
+          while IFS=$'\t' read -r file_id provider_name expected_bytes expected_sha; do
+            operation="download-$index"; request "$operation" "${files_url}$file_id/?download=1"; [[ "$(cat "$work/$operation.status")" == '200' ]]
+            [[ "$(stat -c %s "$work/$operation.body")" == "$expected_bytes" && "$(sha256sum "$work/$operation.body" | awk '{print $1}')" == "$expected_sha" ]]
+            ID="$file_id" NAME="$provider_name" BYTES="$expected_bytes" SHA="$expected_sha" OUT="$work/provider-files.ndjson" node --input-type=module <<'NODE'
+          import {createHash} from 'node:crypto';import fs from 'node:fs';fs.appendFileSync(process.env.OUT,JSON.stringify({provider_file_id_sha256:createHash('sha256').update(process.env.ID).digest('hex'),name:process.env.NAME,bytes:Number(process.env.BYTES),sha256:process.env.SHA})+'\n');
+          NODE
+            index=$((index+1))
+          done <"$work/download-plan.tsv"
+          ORGANIZATION="$work/organization.body" PROJECT="$work/project.body" RELEASE_BODY="$work/release.body" \
+            DEPLOYS="$work/deploy-pages.json" FILE_PAGES="$work/file-pages.ndjson" FILES="$work/provider-files.ndjson" \
+            OUT="$packet/provider-current-readiness-readback.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const o=JSON.parse(fs.readFileSync(process.env.ORGANIZATION,'utf8'));const p=JSON.parse(fs.readFileSync(process.env.PROJECT,'utf8'));const r=JSON.parse(fs.readFileSync(process.env.RELEASE_BODY,'utf8'));const deploy_pages=JSON.parse(fs.readFileSync(process.env.DEPLOYS,'utf8')).pages;const file_pages=fs.readFileSync(process.env.FILE_PAGES,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);const source_map_files=fs.readFileSync(process.env.FILES,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);const out={organization:{slug:o.slug,region_url:o.links?.regionUrl},project:{id:String(p.id),slug:p.slug,organization_slug:p.organization?.slug,region_url:p.organization?.links?.regionUrl},release:{version:r.version,projects:(r.projects||[]).map((x)=>({id:String(x.id),slug:x.slug})),status:r.status,date_released:r.dateReleased||null,deploy_count:r.deployCount,last_deploy:r.lastDeploy??null,first_event:r.firstEvent??null,last_event:r.lastEvent??null},deploy_pages,file_pages,source_map_files};fs.writeFileSync(process.env.OUT,JSON.stringify(out,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          PROOF_ROOT="$work" RELEASE_RECEIPT_SHA="$(sha256sum "$prior/physio-sentry-release.json" | awk '{print $1}')" \
+            OUT="$packet/provider-current-readiness-request-id-hashes.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';import path from 'node:path';const requests=fs.readdirSync(process.env.PROOF_ROOT).filter((n)=>/^proof-[a-z0-9-]+\.json$/.test(n)).sort().map((n)=>({operation:n.slice(6,-5),...JSON.parse(fs.readFileSync(path.join(process.env.PROOF_ROOT,n),'utf8'))}));fs.writeFileSync(process.env.OUT,JSON.stringify({release_receipt_sha256:process.env.RELEASE_RECEIPT_SHA,requests},null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          PRIOR="$prior/physio-sentry-release.json" READBACK="$packet/provider-current-readiness-readback.json" \
+            REQUESTS="$packet/provider-current-readiness-request-id-hashes.json" OUT="$packet/sentry-current-readiness.json" node --input-type=module <<'NODE'
+          import {createHash} from 'node:crypto';import fs from 'node:fs';const priorBytes=fs.readFileSync(process.env.PRIOR);const prior=JSON.parse(priorBytes);const sha=(file)=>createHash('sha256').update(fs.readFileSync(file)).digest('hex');const row={contract_version:'assesssuite-physio-sentry-current-readiness/1.0.0',result:'PASS',application:prior.application,application_sha:prior.application_sha,profession_id:prior.profession_id,sentry_org:prior.sentry_org,sentry_project:prior.sentry_project,sentry_project_id:prior.sentry_project_id,sentry_environment:prior.sentry_environment,release_version:prior.release_version,source_map_manifest_sha256:prior.source_map_manifest_sha256,release_receipt_sha256:createHash('sha256').update(priorBytes).digest('hex'),provider_readback_sha256:sha(process.env.READBACK),provider_request_id_hashes_sha256:sha(process.env.REQUESTS),completed_at:new Date().toISOString()};fs.writeFileSync(process.env.OUT,JSON.stringify(row,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          unset SENTRY_AUTH_TOKEN
+
+      - name: Reuse exact completed Sentry packet after fresh readback with zero provider mutations
+        id: reuse
+        if: ${{ needs.sentry_start.outputs.resume_completed == 'true' && steps.revalidate_completed.outcome == 'success' }}
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          SOURCE_MAP_MANIFEST_SHA256: ${{ needs.gates.outputs.source_map_manifest_sha256 }}
+          SOURCE_MAP_ARCHIVE_SHA256: ${{ needs.gates.outputs.source_map_archive_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ -z "${SENTRY_AUTH_TOKEN:-}" && -z "${SENTRY_DSN:-}" && -z "${FLY_API_TOKEN:-}" ]]
+          prior="$RUNNER_TEMP/sentry-resume-completed"
+          readiness="$RUNNER_TEMP/sentry-current-readiness"
+          packet="$RUNNER_TEMP/physio-sentry-release"
+          (cd "$prior" && sha256sum --check --strict SHA256SUMS)
+          node scripts/physio-sentry-release-contract.mjs validate-release-packet \
+            --packet "$prior" --application-sha "$APPLICATION_SHA" \
+            --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE" \
+            --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" \
+            --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+          install -d -m 0700 "$packet"
+          while IFS= read -r relative; do
+            if [[ "$relative" == 'SHA256SUMS' || "$relative" == 'provider-current-readiness-readback.json' || \
+              "$relative" == 'provider-current-readiness-request-id-hashes.json' || "$relative" == 'sentry-current-readiness.json' ]]; then
+              continue
+            fi
+            install -d -m 0700 "$packet/$(dirname "$relative")"
+            install -m 0600 "$prior/$relative" "$packet/$relative"
+          done < <(find "$prior" -type f -printf '%P\n' | LC_ALL=C sort)
+          for file in provider-current-readiness-readback.json provider-current-readiness-request-id-hashes.json sentry-current-readiness.json; do
+            install -m 0600 "$readiness/$file" "$packet/$file"
+          done
+          (cd "$packet" && LC_ALL=C find . -type f ! -path './SHA256SUMS' -printf '%P\n' | sort | \
+            xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          node scripts/physio-sentry-release-contract.mjs validate-release-packet \
+            --packet "$packet" --application-sha "$APPLICATION_SHA" \
+            --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE" \
+            --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" \
+            --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+          echo "receipt_sha256=$(sha256sum "$packet/physio-sentry-release.json" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+
+      - name: Persist COMPENSATION_STARTED before any exact release DELETE
+        id: compensation_start
+        if: ${{ needs.sentry_reconcile.outputs.route == 'COMPENSATE' }}
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          SOURCE_MAP_MANIFEST_SHA256: ${{ needs.gates.outputs.source_map_manifest_sha256 }}
+          SOURCE_MAP_ARCHIVE_SHA256: ${{ needs.gates.outputs.source_map_archive_sha256 }}
+          PREVIOUS_ARTIFACT_ID: ${{ needs.sentry_start.outputs.phase_artifact_id }}
+          PREVIOUS_ARTIFACT_DIGEST: ${{ needs.sentry_start.outputs.phase_artifact_digest }}
+          PREVIOUS_RECEIPT_SHA256: ${{ needs.sentry_start.outputs.phase_receipt_sha256 }}
+          RECONCILIATION_ARTIFACT_ID: ${{ needs.sentry_reconcile.outputs.artifact_id }}
+          RECONCILIATION_ARTIFACT_DIGEST: ${{ needs.sentry_reconcile.outputs.artifact_digest }}
+          RECONCILIATION_RECEIPT_SHA256: ${{ needs.sentry_reconcile.outputs.receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          [[ -z "${SENTRY_AUTH_TOKEN:-}" && -z "${SENTRY_DSN:-}" && -z "${FLY_API_TOKEN:-}" ]]
+          previous="$RUNNER_TEMP/sentry-phase-input/sentry-phase.json"
+          previous_packet="$RUNNER_TEMP/sentry-phase-input"
+          reconciliation="$RUNNER_TEMP/sentry-reconciliation-input/sentry-reconciliation.json"
+          packet="$RUNNER_TEMP/sentry-compensation-started"
+          install -d -m 0700 "$packet"
+          while IFS= read -r file; do install -m 0600 "$previous_packet/$file" "$packet/$file"; done \
+            < <(find "$previous_packet" -maxdepth 1 -type f \( -name 'phase-????.json' -o -name 'reconciliation-????.json' \) -printf '%f\n' | LC_ALL=C sort)
+          previous_sequence="$(PREVIOUS="$previous" node --input-type=module -e \
+            "import fs from 'node:fs';process.stdout.write(String(JSON.parse(fs.readFileSync(process.env.PREVIOUS)).phase_sequence))")"
+          next_sequence=$((previous_sequence + 1))
+          printf -v previous_name 'phase-%04d.json' "$previous_sequence"
+          printf -v reconciliation_name 'reconciliation-%04d.json' "$next_sequence"
+          install -m 0600 "$previous" "$packet/$previous_name"
+          install -m 0600 "$reconciliation" "$packet/$reconciliation_name"
+          PHASE="$packet/sentry-phase.json" PREVIOUS="$previous" RECONCILIATION="$reconciliation" \
+          APPLICATION_SHA="$APPLICATION_SHA" CAPABILITY_INTENT_ID="$CAPABILITY_INTENT_ID" \
+          AUTHORITY_REFERENCE="$AUTHORITY_REFERENCE" PREVIOUS_ARTIFACT_ID="$PREVIOUS_ARTIFACT_ID" \
+          PREVIOUS_ARTIFACT_DIGEST="$PREVIOUS_ARTIFACT_DIGEST" PREVIOUS_RECEIPT_SHA256="$PREVIOUS_RECEIPT_SHA256" \
+          RECONCILIATION_ARTIFACT_ID="$RECONCILIATION_ARTIFACT_ID" \
+          RECONCILIATION_ARTIFACT_DIGEST="$RECONCILIATION_ARTIFACT_DIGEST" \
+          RECONCILIATION_RECEIPT_SHA256="$RECONCILIATION_RECEIPT_SHA256" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const previous = JSON.parse(fs.readFileSync(process.env.PREVIOUS, 'utf8'));
+          const reconciliation = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          if (reconciliation.result !== 'SAFE_ORPHAN') throw new Error('compensation lacks exact SAFE_ORPHAN reconciliation');
+          const row = { ...previous, result: 'STARTED', phase: 'COMPENSATION_STARTED',
+            phase_sequence: previous.phase_sequence + 1, generation: previous.generation,
+            previous_phase: previous.phase, reconciliation_result: reconciliation.result,
+            previous_phase_artifact_id: process.env.PREVIOUS_ARTIFACT_ID,
+            previous_phase_artifact_digest: process.env.PREVIOUS_ARTIFACT_DIGEST,
+            previous_phase_receipt_sha256: process.env.PREVIOUS_RECEIPT_SHA256,
+            reconciliation_artifact_id: process.env.RECONCILIATION_ARTIFACT_ID,
+            reconciliation_artifact_digest: process.env.RECONCILIATION_ARTIFACT_DIGEST,
+            reconciliation_receipt_sha256: process.env.RECONCILIATION_RECEIPT_SHA256,
+            started_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.PHASE, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS)
+          node scripts/physio-sentry-release-contract.mjs validate-phase-packet \
+            --packet "$packet" --application-sha "$APPLICATION_SHA" \
+            --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE" \
+            --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" \
+            --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+          PHASE="$packet/sentry-phase.json" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto'; import fs from 'node:fs';
+          const bytes=fs.readFileSync(process.env.PHASE); const row=JSON.parse(bytes);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            `receipt_sha256=${createHash('sha256').update(bytes).digest('hex')}\ngeneration=${row.generation}\n`);
+          NODE
+
+      - name: Upload durable COMPENSATION_STARTED before DELETE
+        id: upload_compensation_start
+        if: ${{ steps.compensation_start.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-sentry-phase-compensation-started-${{ inputs.application_sha }}-g${{ steps.compensation_start.outputs.generation }}
+          path: ${{ runner.temp }}/sentry-compensation-started
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Execute exact compensation DELETE and exhaustive 404 readback
+        id: compensate
+        if: ${{ needs.sentry_reconcile.outputs.route == 'DELETE' || steps.upload_compensation_start.outcome == 'success' }}
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          REGION_URL: ${{ needs.sentry_reconcile.outputs.region_url }}
+          PROVIDER_EFFECT_ID: ${{ needs.sentry_start.outputs.provider_effect_id }}
+          ROUTE: ${{ needs.sentry_reconcile.outputs.route }}
+          ORIGINAL_PHASE_ARTIFACT_ID: ${{ needs.sentry_start.outputs.phase_artifact_id }}
+          ORIGINAL_PHASE_ARTIFACT_DIGEST: ${{ needs.sentry_start.outputs.phase_artifact_digest }}
+          ORIGINAL_PHASE_RECEIPT_SHA256: ${{ needs.sentry_start.outputs.phase_receipt_sha256 }}
+          NEW_PHASE_ARTIFACT_ID: ${{ steps.upload_compensation_start.outputs.artifact-id }}
+          NEW_PHASE_ARTIFACT_DIGEST: sha256:${{ steps.upload_compensation_start.outputs.artifact-digest }}
+          NEW_PHASE_RECEIPT_SHA256: ${{ steps.compensation_start.outputs.receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -n "$SENTRY_AUTH_TOKEN" && -z "${SENTRY_DSN:-}" && -z "${FLY_API_TOKEN:-}" ]]
+          work="$RUNNER_TEMP/sentry-compensation-work"
+          packet="$RUNNER_TEMP/sentry-compensation-effect"
+          if [[ "$ROUTE" == 'DELETE' ]]; then
+            phase="$RUNNER_TEMP/sentry-phase-input/sentry-phase.json"
+            PHASE_ARTIFACT_ID="$ORIGINAL_PHASE_ARTIFACT_ID"
+            PHASE_ARTIFACT_DIGEST="$ORIGINAL_PHASE_ARTIFACT_DIGEST"
+            PHASE_RECEIPT_SHA256="$ORIGINAL_PHASE_RECEIPT_SHA256"
+          else
+            phase="$RUNNER_TEMP/sentry-compensation-started/sentry-phase.json"
+            PHASE_ARTIFACT_ID="$NEW_PHASE_ARTIFACT_ID"
+            PHASE_ARTIFACT_DIGEST="$NEW_PHASE_ARTIFACT_DIGEST"
+            PHASE_RECEIPT_SHA256="$NEW_PHASE_RECEIPT_SHA256"
+          fi
+          export PHASE_ARTIFACT_ID PHASE_ARTIFACT_DIGEST PHASE_RECEIPT_SHA256
+          install -d -m 0700 "$work" "$packet"
+          SENTRY_RELEASE_VERSION="physio-production@$APPLICATION_SHA"
+          readonly SENTRY_RELEASE_VERSION
+          release_version="$SENTRY_RELEASE_VERSION"
+          encoded_release="$(RELEASE="$release_version" node --input-type=module -e "process.stdout.write(encodeURIComponent(process.env.RELEASE))")"
+          release_url="$REGION_URL/api/0/organizations/unimatter/releases/$encoded_release/"
+          request() {
+            local operation="$1" method="$2" url="$3"
+            curl --proto '=https' --tlsv1.2 --silent --show-error --max-redirs 0 --max-time 60 --max-filesize 1048576 \
+              --request "$method" --dump-header "$work/$operation.headers" \
+              --header "Authorization: Bearer $SENTRY_AUTH_TOKEN" --output "$work/$operation.body" \
+              --write-out '%{http_code}' "$url" >"$work/$operation.status"
+            node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids \
+              --headers "$work/$operation.headers" --label "$operation" --output "$work/proof-$operation.json"
+          }
+          request organization GET 'https://sentry.io/api/0/organizations/unimatter/?detailed=0'
+          [[ "$(cat "$work/organization.status")" == '200' ]]
+          ORGANIZATION="$work/organization.body" REGION_URL="$REGION_URL" node --input-type=module <<'NODE'
+          import fs from 'node:fs'; const row=JSON.parse(fs.readFileSync(process.env.ORGANIZATION,'utf8'));
+          if(row.slug!=='unimatter'||row.links?.regionUrl!==process.env.REGION_URL) throw new Error('Sentry organization changed before compensation');
+          NODE
+          request project GET "$REGION_URL/api/0/projects/unimatter/assesssuite-production/"
+          [[ "$(cat "$work/project.status")" == '200' ]]
+          PROJECT="$work/project.body" REGION_URL="$REGION_URL" node --input-type=module <<'NODE'
+          import fs from 'node:fs'; const row=JSON.parse(fs.readFileSync(process.env.PROJECT,'utf8'));
+          if(String(row.id)!=='4511827129663488'||row.slug!=='assesssuite-production'||
+            row.organization?.slug!=='unimatter'||row.organization?.links?.regionUrl!==process.env.REGION_URL)
+            throw new Error('Sentry project changed before compensation');
+          NODE
+          request predelete GET "$release_url"
+          predelete_http="$(cat "$work/predelete.status")"
+          printf '%s\n' '{"pages":[]}' >"$packet/provider-deploy-readback.json"
+          delete_http=null
+          if [[ "$predelete_http" == '200' ]]; then
+            RELEASE_BODY="$work/predelete.body" OUT="$work/release-readback.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RELEASE_BODY, 'utf8'));
+          for (const key of ['version','status','deployCount','lastDeploy','firstEvent','lastEvent','projects']) {
+            if (!Object.hasOwn(row, key)) throw new Error(`Sentry compensation readback omitted ${key}`);
+          }
+          fs.writeFileSync(process.env.OUT, JSON.stringify({ version: row.version, status: row.status,
+            deployCount: row.deployCount, lastDeploy: row.lastDeploy ?? null, firstEvent: row.firstEvent ?? null,
+            lastEvent: row.lastEvent ?? null, projects: (row.projects || []).map((p) => ({ id: String(p.id), slug: p.slug })) },
+          null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+            pages="$work/deploy-pages.ndjson"; : >"$pages"; next_url="${release_url}deploys/"; page=0
+            declare -A deploy_urls_seen=()
+            while [[ -n "$next_url" ]]; do
+              [[ "$page" -lt 100 ]]
+              [[ -z "${deploy_urls_seen[$next_url]:-}" ]]; deploy_urls_seen[$next_url]=1
+              operation="deploy-page-$page"
+              request "$operation" GET "$next_url"
+              [[ "$(cat "$work/$operation.status")" == '200' ]]
+              BODY="$work/$operation.body" HEADERS="$work/$operation.headers" REGION_URL="$REGION_URL" \
+              RELEASE_PATH="/api/0/organizations/unimatter/releases/$encoded_release/deploys/" \
+              PAGE_OUT="$work/page-$page.json" NEXT_OUT="$work/next-$page" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const items = JSON.parse(fs.readFileSync(process.env.BODY, 'utf8'));
+          if (!Array.isArray(items) || items.length !== 0) throw new Error('compensation release has a deploy association');
+          const lines = fs.readFileSync(process.env.HEADERS, 'utf8').split(/\r?\n/);
+          const statuses = lines.filter((line) => /^HTTP\/\d(?:\.\d)?\s+\d{3}(?:\s|$)/i.test(line));
+          const links = lines.filter((line) => /^link:/i.test(line));
+          if (statuses.length !== 1 || links.length !== 1) throw new Error('compensation deploy pagination is ambiguous');
+          const nextSegments = links[0].slice(links[0].indexOf(':') + 1).split(',').map((v) => v.trim()).filter((v) => /rel="next"/.test(v));
+          if (nextSegments.length !== 1) throw new Error('compensation deploy next page is ambiguous');
+          const result = /results="(true|false)"/.exec(nextSegments[0]); const link = /^<([^>]+)>/.exec(nextSegments[0]);
+          if (!result || !link) throw new Error('compensation deploy pagination signal is incomplete');
+          let next = ''; let cursor = null;
+          if (result[1] === 'true') { const url = new URL(link[1]);
+            if (url.origin !== process.env.REGION_URL || decodeURIComponent(url.pathname) !== decodeURIComponent(process.env.RELEASE_PATH) ||
+                [...url.searchParams.keys()].some((key) => key !== 'cursor') || !url.searchParams.get('cursor'))
+              throw new Error('compensation deploy next URL escapes exact release');
+            next = url.href; cursor = url.searchParams.get('cursor'); }
+          fs.writeFileSync(process.env.PAGE_OUT, JSON.stringify({ items: [], next_cursor: cursor, results: result[1] === 'true' }) + '\n', { flag: 'wx', mode: 0o600 });
+          fs.writeFileSync(process.env.NEXT_OUT, next, { flag: 'wx', mode: 0o600 });
+          NODE
+              cat "$work/page-$page.json" >>"$pages"; next_url="$(cat "$work/next-$page")"; page=$((page + 1))
+            done
+            PAGES="$pages" OUT="$packet/provider-deploy-readback.json.new" node --input-type=module <<'NODE'
+          import fs from 'node:fs'; const rows=fs.readFileSync(process.env.PAGES,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
+          fs.writeFileSync(process.env.OUT, JSON.stringify({pages:rows},null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+            mv "$packet/provider-deploy-readback.json.new" "$packet/provider-deploy-readback.json"
+            node scripts/physio-sentry-release-contract.mjs validate-safe-orphan-readback \
+              --release "$work/release-readback.json" --deploy-pages "$packet/provider-deploy-readback.json" \
+              --application-sha "$APPLICATION_SHA"
+            request delete DELETE "$release_url"
+            delete_http="$(cat "$work/delete.status")"
+            [[ "$delete_http" == '204' ]]
+          elif [[ "$predelete_http" == '404' ]]; then
+            RELEASE="$release_version" OUT="$work/release-readback.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs'; fs.writeFileSync(process.env.OUT,JSON.stringify({status:404,version:process.env.RELEASE},null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          else
+            echo "compensation predelete state is ambiguous (HTTP $predelete_http)" >&2; exit 1
+          fi
+          request absence GET "$release_url"
+          [[ "$(cat "$work/absence.status")" == '404' ]]
+          ORGANIZATION="$work/organization.body" PROJECT="$work/project.body" RELEASE="$work/release-readback.json" \
+          REGION_URL="$REGION_URL" OUT="$packet/provider-release-readback.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const organization=JSON.parse(fs.readFileSync(process.env.ORGANIZATION,'utf8'));
+          const project=JSON.parse(fs.readFileSync(process.env.PROJECT,'utf8'));
+          const release=JSON.parse(fs.readFileSync(process.env.RELEASE,'utf8'));
+          const row={organization:{slug:organization.slug,region_url:organization.links?.regionUrl},
+            project:{id:String(project.id),slug:project.slug,organization_slug:project.organization?.slug,
+              region_url:project.organization?.links?.regionUrl},release};
+          if(row.organization.region_url!==process.env.REGION_URL||row.project.region_url!==process.env.REGION_URL)
+            throw new Error('Sentry compensation target readback region differs');
+          fs.writeFileSync(process.env.OUT,JSON.stringify(row,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          PROOF_ROOT="$work" PROOF_OUT="$packet/provider-request-id-hashes.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs'; import path from 'node:path';
+          const requests=fs.readdirSync(process.env.PROOF_ROOT).filter((n)=>/^proof-[a-z0-9-]+\.json$/.test(n)).sort().map((n)=>({operation:n.slice(6,-5),...JSON.parse(fs.readFileSync(path.join(process.env.PROOF_ROOT,n),'utf8'))}));
+          fs.writeFileSync(process.env.PROOF_OUT,JSON.stringify({requests},null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          RECEIPT="$packet/sentry-reconciliation.json" PHASE="$phase" APPLICATION_SHA="$APPLICATION_SHA" \
+          PROVIDER_EFFECT_ID="$PROVIDER_EFFECT_ID" PHASE_ARTIFACT_ID="$PHASE_ARTIFACT_ID" \
+          PHASE_ARTIFACT_DIGEST="$PHASE_ARTIFACT_DIGEST" PHASE_RECEIPT_SHA256="$PHASE_RECEIPT_SHA256" \
+          RELEASE_HTTP="$predelete_http" DELETE_HTTP="$delete_http" \
+          RELEASE_SHA="$(sha256sum "$packet/provider-release-readback.json"|awk '{print $1}')" \
+          DEPLOY_SHA="$(sha256sum "$packet/provider-deploy-readback.json"|awk '{print $1}')" \
+          REQUEST_SHA="$(sha256sum "$packet/provider-request-id-hashes.json"|awk '{print $1}')" node --input-type=module <<'NODE'
+          import fs from 'node:fs'; const phase=JSON.parse(fs.readFileSync(process.env.PHASE,'utf8'));
+          const row={contract_version:'assesssuite-physio-sentry-release-reconciliation/2.0.0',result:'DELETE_COMPLETED_ABSENT',
+            application:'assesssuite-physio-production',application_sha:process.env.APPLICATION_SHA,profession_id:'physio',
+            sentry_org:'unimatter',sentry_project:'assesssuite-production',sentry_project_id:'4511827129663488',
+            sentry_environment:'physio-production',release_version:phase.release_version,provider_effect_id:process.env.PROVIDER_EFFECT_ID,
+            phase:phase.phase,generation:phase.generation,phase_sequence:phase.phase_sequence,
+            phase_artifact_id:process.env.PHASE_ARTIFACT_ID,phase_artifact_digest:process.env.PHASE_ARTIFACT_DIGEST,
+            phase_receipt_sha256:process.env.PHASE_RECEIPT_SHA256,release_http_status:Number(process.env.RELEASE_HTTP),
+            delete_http_status:process.env.DELETE_HTTP==='null'?null:Number(process.env.DELETE_HTTP),absence_http_status:404,
+            release_readback_sha256:process.env.RELEASE_SHA,deploy_readback_sha256:process.env.DEPLOY_SHA,
+            provider_request_id_hashes_sha256:process.env.REQUEST_SHA,completed_at:new Date().toISOString()};
+          fs.writeFileSync(process.env.RECEIPT,JSON.stringify(row,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n'|sort|xargs sha256sum >SHA256SUMS)
+          node scripts/physio-sentry-release-contract.mjs validate-reconciliation-packet --packet "$packet" \
+            --application-sha "$APPLICATION_SHA" --provider-effect-id "$PROVIDER_EFFECT_ID" \
+            --phase-artifact-id "$PHASE_ARTIFACT_ID" --phase-artifact-digest "$PHASE_ARTIFACT_DIGEST" \
+            --phase-receipt-sha256 "$PHASE_RECEIPT_SHA256"
+          echo 'completed=true' >>"$GITHUB_OUTPUT"
+          echo "receipt_sha256=$(sha256sum "$packet/sentry-reconciliation.json"|awk '{print $1}')" >>"$GITHUB_OUTPUT"
+          PHASE="$phase" node --input-type=module <<'NODE'
+          import fs from 'node:fs'; const row=JSON.parse(fs.readFileSync(process.env.PHASE,'utf8'));
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,`generation=${row.generation}\n`);
+          NODE
+
+      - name: Upload compensation provider result and exhaustive absence readback
+        id: upload_compensation_effect
+        if: ${{ always() && steps.compensate.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-sentry-reconciliation-compensation-${{ inputs.application_sha }}-g${{ steps.compensate.outputs.generation }}
+          path: ${{ runner.temp }}/sentry-compensation-effect
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Persist COMPENSATION_COMPLETED before creating a new generation
+        id: compensation_complete
+        if: ${{ needs.sentry_reconcile.outputs.route == 'COMPENSATION_COMPLETE' || steps.upload_compensation_effect.outcome == 'success' }}
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          SOURCE_MAP_MANIFEST_SHA256: ${{ needs.gates.outputs.source_map_manifest_sha256 }}
+          SOURCE_MAP_ARCHIVE_SHA256: ${{ needs.gates.outputs.source_map_archive_sha256 }}
+          ROUTE: ${{ needs.sentry_reconcile.outputs.route }}
+        run: |
+          set -euo pipefail; umask 077
+          if [[ "$ROUTE" == 'COMPENSATION_COMPLETE' ]]; then
+            previous_packet="$RUNNER_TEMP/sentry-phase-input"
+            previous="$previous_packet/sentry-phase.json"
+            reconciliation="$RUNNER_TEMP/sentry-reconciliation-input/sentry-reconciliation.json"
+            previous_id='${{ needs.sentry_start.outputs.phase_artifact_id }}'
+            previous_digest='${{ needs.sentry_start.outputs.phase_artifact_digest }}'
+            previous_sha='${{ needs.sentry_start.outputs.phase_receipt_sha256 }}'
+            recon_id='${{ needs.sentry_reconcile.outputs.artifact_id }}'
+            recon_digest='${{ needs.sentry_reconcile.outputs.artifact_digest }}'
+            recon_sha='${{ needs.sentry_reconcile.outputs.receipt_sha256 }}'
+          else
+            reconciliation="$RUNNER_TEMP/sentry-compensation-effect/sentry-reconciliation.json"
+            recon_id='${{ steps.upload_compensation_effect.outputs.artifact-id }}'
+            recon_digest='sha256:${{ steps.upload_compensation_effect.outputs.artifact-digest }}'
+            recon_sha='${{ steps.compensate.outputs.receipt_sha256 }}'
+            if [[ "$ROUTE" == 'DELETE' ]]; then
+              previous_packet="$RUNNER_TEMP/sentry-phase-input"
+              previous="$previous_packet/sentry-phase.json"
+              previous_id='${{ needs.sentry_start.outputs.phase_artifact_id }}'
+              previous_digest='${{ needs.sentry_start.outputs.phase_artifact_digest }}'
+              previous_sha='${{ needs.sentry_start.outputs.phase_receipt_sha256 }}'
+            else
+              previous_packet="$RUNNER_TEMP/sentry-compensation-started"
+              previous="$previous_packet/sentry-phase.json"
+              previous_id='${{ steps.upload_compensation_start.outputs.artifact-id }}'
+              previous_digest='sha256:${{ steps.upload_compensation_start.outputs.artifact-digest }}'
+              previous_sha='${{ steps.compensation_start.outputs.receipt_sha256 }}'
+            fi
+          fi
+          packet="$RUNNER_TEMP/sentry-compensation-completed"; install -d -m 0700 "$packet"
+          while IFS= read -r file; do install -m 0600 "$previous_packet/$file" "$packet/$file"; done \
+            < <(find "$previous_packet" -maxdepth 1 -type f \( -name 'phase-????.json' -o -name 'reconciliation-????.json' \) -printf '%f\n' | LC_ALL=C sort)
+          previous_sequence="$(PREVIOUS="$previous" node --input-type=module -e \
+            "import fs from 'node:fs';process.stdout.write(String(JSON.parse(fs.readFileSync(process.env.PREVIOUS)).phase_sequence))")"
+          next_sequence=$((previous_sequence + 1)); printf -v previous_name 'phase-%04d.json' "$previous_sequence"
+          printf -v reconciliation_name 'reconciliation-%04d.json' "$next_sequence"
+          install -m 0600 "$previous" "$packet/$previous_name"; install -m 0600 "$reconciliation" "$packet/$reconciliation_name"
+          PHASE="$packet/sentry-phase.json" PREVIOUS="$previous" RECONCILIATION="$reconciliation" \
+          PREVIOUS_ID="$previous_id" PREVIOUS_DIGEST="$previous_digest" PREVIOUS_SHA="$previous_sha" \
+          RECON_ID="$recon_id" RECON_DIGEST="$recon_digest" RECON_SHA="$recon_sha" node --input-type=module <<'NODE'
+          import fs from 'node:fs'; const previous=JSON.parse(fs.readFileSync(process.env.PREVIOUS,'utf8')); const recon=JSON.parse(fs.readFileSync(process.env.RECONCILIATION,'utf8'));
+          const row={...previous,result:'COMPLETED',phase:'COMPENSATION_COMPLETED',phase_sequence:previous.phase_sequence+1,
+            previous_phase:previous.phase,reconciliation_result:recon.result,previous_phase_artifact_id:process.env.PREVIOUS_ID,
+            previous_phase_artifact_digest:process.env.PREVIOUS_DIGEST,previous_phase_receipt_sha256:process.env.PREVIOUS_SHA,
+            reconciliation_artifact_id:process.env.RECON_ID,reconciliation_artifact_digest:process.env.RECON_DIGEST,
+            reconciliation_receipt_sha256:process.env.RECON_SHA,started_at:new Date().toISOString()};
+          fs.writeFileSync(process.env.PHASE,JSON.stringify(row,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n'|sort|xargs sha256sum >SHA256SUMS)
+          node scripts/physio-sentry-release-contract.mjs validate-phase-packet --packet "$packet" --application-sha "$APPLICATION_SHA" \
+            --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE" \
+            --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+          PHASE="$packet/sentry-phase.json" node --input-type=module <<'NODE'
+          import {createHash} from 'node:crypto';import fs from 'node:fs';const bytes=fs.readFileSync(process.env.PHASE);const row=JSON.parse(bytes);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,`receipt_sha256=${createHash('sha256').update(bytes).digest('hex')}\ngeneration=${row.generation}\n`);
+          NODE
+
+      - name: Upload durable COMPENSATION_COMPLETED
+        id: upload_compensation_complete
+        if: ${{ steps.compensation_complete.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-sentry-phase-compensation-completed-${{ inputs.application_sha }}-g${{ steps.compensation_complete.outputs.generation }}
+          path: ${{ runner.temp }}/sentry-compensation-completed
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Persist new generation-bound CREATE_UPLOAD_FINALIZE_STARTED
+        id: generation_start
+        if: ${{ needs.sentry_reconcile.outputs.route == 'CREATE' || steps.upload_compensation_complete.outcome == 'success' }}
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          SOURCE_MAP_MANIFEST_SHA256: ${{ needs.gates.outputs.source_map_manifest_sha256 }}
+          SOURCE_MAP_ARCHIVE_SHA256: ${{ needs.gates.outputs.source_map_archive_sha256 }}
+          ROUTE: ${{ needs.sentry_reconcile.outputs.route }}
+        run: |
+          set -euo pipefail; umask 077
+          if [[ '${{ steps.upload_compensation_complete.outcome }}' == 'success' ]]; then
+            previous_packet="$RUNNER_TEMP/sentry-compensation-completed"
+            previous="$previous_packet/sentry-phase.json"
+            previous_id='${{ steps.upload_compensation_complete.outputs.artifact-id }}'
+            previous_digest='sha256:${{ steps.upload_compensation_complete.outputs.artifact-digest }}'
+            previous_sha='${{ steps.compensation_complete.outputs.receipt_sha256 }}'
+            if [[ "$ROUTE" == 'COMPENSATION_COMPLETE' ]]; then
+              reconciliation="$RUNNER_TEMP/sentry-reconciliation-input/sentry-reconciliation.json"
+              recon_id='${{ needs.sentry_reconcile.outputs.artifact_id }}'
+              recon_digest='${{ needs.sentry_reconcile.outputs.artifact_digest }}'
+              recon_sha='${{ needs.sentry_reconcile.outputs.receipt_sha256 }}'
+            else
+              reconciliation="$RUNNER_TEMP/sentry-compensation-effect/sentry-reconciliation.json"
+              recon_id='${{ steps.upload_compensation_effect.outputs.artifact-id }}'
+              recon_digest='sha256:${{ steps.upload_compensation_effect.outputs.artifact-digest }}'
+              recon_sha='${{ steps.compensate.outputs.receipt_sha256 }}'
+            fi
+          else
+            previous_packet="$RUNNER_TEMP/sentry-phase-input"
+            previous="$previous_packet/sentry-phase.json"
+            reconciliation="$RUNNER_TEMP/sentry-reconciliation-input/sentry-reconciliation.json"
+            previous_id='${{ needs.sentry_start.outputs.phase_artifact_id }}'
+            previous_digest='${{ needs.sentry_start.outputs.phase_artifact_digest }}'
+            previous_sha='${{ needs.sentry_start.outputs.phase_receipt_sha256 }}'
+            recon_id='${{ needs.sentry_reconcile.outputs.artifact_id }}'
+            recon_digest='${{ needs.sentry_reconcile.outputs.artifact_digest }}'
+            recon_sha='${{ needs.sentry_reconcile.outputs.receipt_sha256 }}'
+          fi
+          packet="$RUNNER_TEMP/sentry-generation-started"; install -d -m 0700 "$packet"
+          while IFS= read -r file; do install -m 0600 "$previous_packet/$file" "$packet/$file"; done \
+            < <(find "$previous_packet" -maxdepth 1 -type f \( -name 'phase-????.json' -o -name 'reconciliation-????.json' \) -printf '%f\n' | LC_ALL=C sort)
+          previous_sequence="$(PREVIOUS="$previous" node --input-type=module -e \
+            "import fs from 'node:fs';process.stdout.write(String(JSON.parse(fs.readFileSync(process.env.PREVIOUS)).phase_sequence))")"
+          next_sequence=$((previous_sequence + 1)); printf -v previous_name 'phase-%04d.json' "$previous_sequence"
+          printf -v reconciliation_name 'reconciliation-%04d.json' "$next_sequence"
+          install -m 0600 "$previous" "$packet/$previous_name"; install -m 0600 "$reconciliation" "$packet/$reconciliation_name"
+          PHASE="$packet/sentry-phase.json" PREVIOUS="$previous" RECONCILIATION="$reconciliation" \
+          PREVIOUS_ID="$previous_id" PREVIOUS_DIGEST="$previous_digest" PREVIOUS_SHA="$previous_sha" \
+          RECON_ID="$recon_id" RECON_DIGEST="$recon_digest" RECON_SHA="$recon_sha" node --input-type=module <<'NODE'
+          import fs from 'node:fs'; const previous=JSON.parse(fs.readFileSync(process.env.PREVIOUS,'utf8')); const recon=JSON.parse(fs.readFileSync(process.env.RECONCILIATION,'utf8'));
+          const row={...previous,result:'STARTED',phase:'CREATE_UPLOAD_FINALIZE_STARTED',phase_sequence:previous.phase_sequence+1,
+            generation:previous.generation+1,previous_phase:previous.phase,reconciliation_result:recon.result,
+            previous_phase_artifact_id:process.env.PREVIOUS_ID,previous_phase_artifact_digest:process.env.PREVIOUS_DIGEST,
+            previous_phase_receipt_sha256:process.env.PREVIOUS_SHA,reconciliation_artifact_id:process.env.RECON_ID,
+            reconciliation_artifact_digest:process.env.RECON_DIGEST,reconciliation_receipt_sha256:process.env.RECON_SHA,
+            started_at:new Date().toISOString()};
+          fs.writeFileSync(process.env.PHASE,JSON.stringify(row,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n'|sort|xargs sha256sum >SHA256SUMS)
+          node scripts/physio-sentry-release-contract.mjs validate-phase-packet --packet "$packet" --application-sha "$APPLICATION_SHA" \
+            --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE" \
+            --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+          PHASE="$packet/sentry-phase.json" node --input-type=module <<'NODE'
+          import {createHash} from 'node:crypto';import fs from 'node:fs';const bytes=fs.readFileSync(process.env.PHASE);const row=JSON.parse(bytes);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,`receipt_sha256=${createHash('sha256').update(bytes).digest('hex')}\ngeneration=${row.generation}\n`);
+          NODE
+
+      - name: Upload durable CREATE_UPLOAD_FINALIZE_STARTED before provider creation
+        id: upload_generation_start
+        if: ${{ steps.generation_start.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-sentry-phase-create-upload-finalize-started-${{ inputs.application_sha }}-g${{ steps.generation_start.outputs.generation }}
+          path: ${{ runner.temp }}/sentry-generation-started
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Reconcile or upload and finalize exact Sentry release
+        id: create
+        if: ${{ needs.sentry_reconcile.outputs.route == 'CREATE_REUSE' || steps.upload_generation_start.outcome == 'success' }}
+        shell: bash
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          BUILD_TIMESTAMP: ${{ inputs.build_timestamp }}
+          REGION_URL: ${{ needs.sentry_reconcile.outputs.region_url }}
+          SOURCE_MAP_MANIFEST_SHA256: ${{ needs.gates.outputs.source_map_manifest_sha256 }}
+          SOURCE_MAP_ARCHIVE_SHA256: ${{ needs.gates.outputs.source_map_archive_sha256 }}
+          ROUTE: ${{ needs.sentry_reconcile.outputs.route }}
+          ORIGINAL_PHASE_ARTIFACT_ID: ${{ needs.sentry_start.outputs.phase_artifact_id }}
+          ORIGINAL_PHASE_ARTIFACT_DIGEST: ${{ needs.sentry_start.outputs.phase_artifact_digest }}
+          ORIGINAL_PHASE_RECEIPT_SHA256: ${{ needs.sentry_start.outputs.phase_receipt_sha256 }}
+          NEW_PHASE_ARTIFACT_ID: ${{ steps.upload_generation_start.outputs.artifact-id }}
+          NEW_PHASE_ARTIFACT_DIGEST: sha256:${{ steps.upload_generation_start.outputs.artifact-digest }}
+          NEW_PHASE_RECEIPT_SHA256: ${{ steps.generation_start.outputs.receipt_sha256 }}
+          PROVIDER_EFFECT_ID: ${{ needs.sentry_start.outputs.provider_effect_id }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -n "$SENTRY_AUTH_TOKEN" && -z "${SENTRY_DSN:-}" && -z "${FLY_API_TOKEN:-}" ]]
+          upload="$RUNNER_TEMP/sentry-upload"; manifest="$RUNNER_TEMP/candidate-core/sentry-source-map-manifest.json"
+          if [[ "$ROUTE" == 'CREATE_REUSE' ]]; then
+            phase_packet="$RUNNER_TEMP/sentry-phase-input"
+            PHASE_ARTIFACT_ID="$ORIGINAL_PHASE_ARTIFACT_ID"
+            PHASE_ARTIFACT_DIGEST="$ORIGINAL_PHASE_ARTIFACT_DIGEST"
+            PHASE_RECEIPT_SHA256="$ORIGINAL_PHASE_RECEIPT_SHA256"
+          else
+            phase_packet="$RUNNER_TEMP/sentry-generation-started"
+            PHASE_ARTIFACT_ID="$NEW_PHASE_ARTIFACT_ID"
+            PHASE_ARTIFACT_DIGEST="$NEW_PHASE_ARTIFACT_DIGEST"
+            PHASE_RECEIPT_SHA256="$NEW_PHASE_RECEIPT_SHA256"
+          fi
+          export PHASE_ARTIFACT_ID PHASE_ARTIFACT_DIGEST PHASE_RECEIPT_SHA256
+          phase="$phase_packet/sentry-phase.json"
+          node scripts/physio-sentry-release-contract.mjs validate-phase-packet --packet "$phase_packet" \
+            --application-sha "$APPLICATION_SHA" --capability-intent-id '${{ inputs.capability_intent_id }}' \
+            --authority-reference '${{ inputs.authority_reference }}' \
+            --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" \
+            --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+          [[ "$(sha256sum "$phase"|awk '{print $1}')" == "$PHASE_RECEIPT_SHA256" ]]
+          work="$RUNNER_TEMP/sentry-create-work"; packet="$RUNNER_TEMP/physio-sentry-release"
+          install -d -m 0700 "$work" "$packet"
+          SENTRY_RELEASE_VERSION="physio-production@$APPLICATION_SHA"; readonly SENTRY_RELEASE_VERSION
+          release_version="$SENTRY_RELEASE_VERSION"; encoded_release="$(RELEASE="$SENTRY_RELEASE_VERSION" node --input-type=module -e "process.stdout.write(encodeURIComponent(process.env.RELEASE))")"
+          release_url="$REGION_URL/api/0/organizations/unimatter/releases/$encoded_release/"
+          files_url="$REGION_URL/api/0/projects/unimatter/assesssuite-production/releases/$encoded_release/files/"
+          request() {
+            local operation="$1" method="$2" url="$3"; shift 3
+            curl --proto '=https' --tlsv1.2 --silent --show-error --max-redirs 0 --max-time 120 --max-filesize 52428800 \
+              --request "$method" --dump-header "$work/$operation.headers" --header "Authorization: Bearer $SENTRY_AUTH_TOKEN" \
+              "$@" --output "$work/$operation.body" --write-out '%{http_code}' "$url" >"$work/$operation.status"
+            node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids --headers "$work/$operation.headers" \
+              --label "$operation" --output "$work/proof-$operation.json"
+          }
+          request organization GET 'https://sentry.io/api/0/organizations/unimatter/?detailed=0'; [[ "$(cat "$work/organization.status")" == '200' ]]
+          ORGANIZATION="$work/organization.body" REGION_URL="$REGION_URL" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const r=JSON.parse(fs.readFileSync(process.env.ORGANIZATION,'utf8'));if(r.slug!=='unimatter'||r.links?.regionUrl!==process.env.REGION_URL)throw new Error('Sentry organization changed before create');
+          NODE
+          request project GET "$REGION_URL/api/0/projects/unimatter/assesssuite-production/"; [[ "$(cat "$work/project.status")" == '200' ]]
+          PROJECT="$work/project.body" REGION_URL="$REGION_URL" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const r=JSON.parse(fs.readFileSync(process.env.PROJECT,'utf8'));if(String(r.id)!=='4511827129663488'||r.slug!=='assesssuite-production'||r.organization?.slug!=='unimatter'||r.organization?.links?.regionUrl!==process.env.REGION_URL)throw new Error('Sentry project changed before create');
+          NODE
+          request precreate GET "$release_url"; [[ "$(cat "$work/precreate.status")" == '404' ]]
+          CREATE_PAYLOAD="$work/create.json" RELEASE="$release_version" node --input-type=module <<'NODE'
+          import fs from 'node:fs';fs.writeFileSync(process.env.CREATE_PAYLOAD,JSON.stringify({version:process.env.RELEASE,projects:['assesssuite-production'],status:'open'})+'\n',{flag:'wx',mode:0o600});
+          NODE
+          request create POST "$REGION_URL/api/0/organizations/unimatter/releases/" --header 'Content-Type: application/json' --data-binary "@$work/create.json"
+          [[ "$(cat "$work/create.status")" == '201' ]]
+          CREATE="$work/create.body" RELEASE="$release_version" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const r=JSON.parse(fs.readFileSync(process.env.CREATE,'utf8'));if(r.version!==process.env.RELEASE||r.status!=='open'||(r.projects||[]).length!==1||String(r.projects[0].id)!=='4511827129663488'||r.projects[0].slug!=='assesssuite-production')throw new Error('created Sentry release identity differs');
+          NODE
+          MANIFEST="$manifest" PLAN="$work/upload-plan.tsv" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const m=JSON.parse(fs.readFileSync(process.env.MANIFEST,'utf8'));const rows=[...m.runtime_js,...m.source_maps].sort((a,b)=>a.path.localeCompare(b.path));
+          if(rows.some((r)=>!/^[A-Za-z0-9._/-]+$/.test(r.path)))throw new Error('unsafe source-map path');
+          fs.writeFileSync(process.env.PLAN,rows.map((r,i)=>[i,r.path,`~/${r.path}`,r.bytes,r.sha256].join('\t')).join('\n')+'\n',{flag:'wx',mode:0o600});
+          NODE
+          : >"$work/source-map-upload.stdout"; : >"$work/source-map-upload.stderr"
+          while IFS=$'\t' read -r index relative provider_name expected_bytes expected_sha; do
+            local_file="$upload/$relative"; [[ -f "$local_file" && ! -L "$local_file" ]]
+            [[ "$(stat -c %s "$local_file")" == "$expected_bytes" && "$(sha256sum "$local_file"|awk '{print $1}')" == "$expected_sha" ]]
+            mime='application/javascript'; [[ "$relative" == *.map ]] && mime='application/json'
+            operation="upload-$index"
+            request "$operation" POST "$files_url" --form "file=@$local_file;type=$mime" --form-string "name=$provider_name"
+            [[ "$(cat "$work/$operation.status")" == '201' ]]
+            BODY="$work/$operation.body" NAME="$provider_name" node --input-type=module <<'NODE' >>"$work/source-map-upload.stdout" 2>>"$work/source-map-upload.stderr"
+          import fs from 'node:fs';const r=JSON.parse(fs.readFileSync(process.env.BODY,'utf8'));if(!/^[1-9][0-9]{0,39}$/.test(String(r.id||''))||r.name!==process.env.NAME)throw new Error('Sentry source-map upload receipt differs');process.stdout.write(`${r.name}\n`);
+          NODE
+          done <"$work/upload-plan.tsv"
+          FINALIZE_PAYLOAD="$work/finalize.json" BUILD_TIMESTAMP="$BUILD_TIMESTAMP" node --input-type=module <<'NODE'
+          import fs from 'node:fs';fs.writeFileSync(process.env.FINALIZE_PAYLOAD,JSON.stringify({dateReleased:process.env.BUILD_TIMESTAMP})+'\n',{flag:'wx',mode:0o600});
+          NODE
+          request finalize PUT "$release_url" --header 'Content-Type: application/json' --data-binary "@$work/finalize.json"; [[ "$(cat "$work/finalize.status")" == '200' ]]
+          request final GET "$release_url"; [[ "$(cat "$work/final.status")" == '200' ]]
+          RELEASE_BODY="$work/final.body" OUT="$work/final-release-safe.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const row=JSON.parse(fs.readFileSync(process.env.RELEASE_BODY,'utf8'));
+          for(const key of ['version','status','dateReleased','deployCount','lastDeploy','firstEvent','lastEvent','projects'])if(!Object.hasOwn(row,key))throw new Error(`final Sentry release omitted ${key}`);
+          const safe={version:row.version,status:row.status,deployCount:row.deployCount,lastDeploy:row.lastDeploy??null,
+            firstEvent:row.firstEvent??null,lastEvent:row.lastEvent??null,
+            projects:(row.projects||[]).map((project)=>({id:String(project.id),slug:project.slug}))};
+          fs.writeFileSync(process.env.OUT,JSON.stringify(safe,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          : >"$work/final-deploy-pages.ndjson"; next_url="${release_url}deploys/"; page=0; declare -A deploy_urls_seen=()
+          while [[ -n "$next_url" ]]; do
+            [[ -z "${deploy_urls_seen[$next_url]:-}" ]]; deploy_urls_seen[$next_url]=1
+            [[ "$page" -lt 100 ]]; operation="deploy-page-$page"; request "$operation" GET "$next_url"; [[ "$(cat "$work/$operation.status")" == '200' ]]
+            BODY="$work/$operation.body" HEADERS="$work/$operation.headers" REGION_URL="$REGION_URL" \
+            DEPLOYS_PATH="/api/0/organizations/unimatter/releases/$encoded_release/deploys/" \
+            OUT="$work/deploy-page-$page.json" NEXT="$work/deploy-next-$page" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const items=JSON.parse(fs.readFileSync(process.env.BODY,'utf8'));
+          if(!Array.isArray(items)||items.length!==0)throw new Error('final Sentry release has a deploy association');
+          const lines=fs.readFileSync(process.env.HEADERS,'utf8').split(/\r?\n/);const statuses=lines.filter((line)=>/^HTTP\/\d(?:\.\d)?\s+\d{3}(?:\s|$)/i.test(line));
+          const links=lines.filter((line)=>/^link:/i.test(line));if(statuses.length!==1||links.length!==1)throw new Error('final deploy pagination is ambiguous');
+          const nextRows=links[0].slice(links[0].indexOf(':')+1).split(',').map((value)=>value.trim()).filter((value)=>/rel="next"/.test(value));
+          if(nextRows.length!==1)throw new Error('final deploy next page is ambiguous');const result=/results="(true|false)"/.exec(nextRows[0]);const link=/^<([^>]+)>/.exec(nextRows[0]);
+          if(!result||!link)throw new Error('final deploy pagination is incomplete');let next='';let cursor=null;if(result[1]==='true'){const url=new URL(link[1]);
+            if(url.origin!==process.env.REGION_URL||decodeURIComponent(url.pathname)!==decodeURIComponent(process.env.DEPLOYS_PATH)||
+              [...url.searchParams.keys()].some((key)=>key!=='cursor')||!url.searchParams.get('cursor'))throw new Error('final deploy page escapes release');
+            next=url.href;cursor=url.searchParams.get('cursor');}
+          fs.writeFileSync(process.env.OUT,JSON.stringify({items:[],next_cursor:cursor,results:result[1]==='true'})+'\n',{flag:'wx',mode:0o600});
+          fs.writeFileSync(process.env.NEXT,next,{flag:'wx',mode:0o600});
+          NODE
+            cat "$work/deploy-page-$page.json" >>"$work/final-deploy-pages.ndjson"; next_url="$(cat "$work/deploy-next-$page")"; page=$((page+1))
+          done
+          PAGES="$work/final-deploy-pages.ndjson" OUT="$work/final-deploy-pages.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const pages=fs.readFileSync(process.env.PAGES,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
+          fs.writeFileSync(process.env.OUT,JSON.stringify({pages},null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          node scripts/physio-sentry-release-contract.mjs validate-safe-orphan-readback \
+            --release "$work/final-release-safe.json" --deploy-pages "$work/final-deploy-pages.json" \
+            --application-sha "$APPLICATION_SHA"
+          # Fully paginate release files, then download and hash every provider object.
+          : >"$work/files.ndjson"; : >"$work/file-pages-proof.ndjson"; next_url="$files_url"; page=0; declare -A file_urls_seen=()
+          while [[ -n "$next_url" ]]; do
+            [[ -z "${file_urls_seen[$next_url]:-}" ]]; file_urls_seen[$next_url]=1
+            [[ "$page" -lt 100 ]]; operation="files-page-$page"; request "$operation" GET "$next_url"; [[ "$(cat "$work/$operation.status")" == '200' ]]
+            BODY="$work/$operation.body" HEADERS="$work/$operation.headers" REGION_URL="$REGION_URL" \
+            FILES_PATH="/api/0/projects/unimatter/assesssuite-production/releases/$encoded_release/files/" OUT="$work/files-page-$page.json" \
+            PAGE_PROOF="$work/files-proof-$page.json" NEXT="$work/files-next-$page" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const items=JSON.parse(fs.readFileSync(process.env.BODY,'utf8'));if(!Array.isArray(items))throw new Error('Sentry file page differs');
+          const lines=fs.readFileSync(process.env.HEADERS,'utf8').split(/\r?\n/);const statuses=lines.filter((l)=>/^HTTP\/\d(?:\.\d)?\s+\d{3}(?:\s|$)/i.test(l));const links=lines.filter((l)=>/^link:/i.test(l));if(statuses.length!==1||links.length!==1)throw new Error('Sentry file pagination ambiguous');
+          const ns=links[0].slice(links[0].indexOf(':')+1).split(',').map((v)=>v.trim()).filter((v)=>/rel="next"/.test(v));if(ns.length!==1)throw new Error('Sentry file next page ambiguous');const result=/results="(true|false)"/.exec(ns[0]);const link=/^<([^>]+)>/.exec(ns[0]);if(!result||!link)throw new Error('Sentry file pagination incomplete');let next='';let cursor=null;if(result[1]==='true'){const u=new URL(link[1]);if(u.origin!==process.env.REGION_URL||decodeURIComponent(u.pathname)!==decodeURIComponent(process.env.FILES_PATH)||[...u.searchParams.keys()].some((key)=>key!=='cursor')||!u.searchParams.get('cursor'))throw new Error('Sentry file page escapes release');next=u.href;cursor=u.searchParams.get('cursor');}
+          fs.writeFileSync(process.env.OUT,items.map((r)=>JSON.stringify(r)).join('\n')+(items.length?'\n':''),{flag:'wx',mode:0o600});
+          fs.writeFileSync(process.env.PAGE_PROOF,JSON.stringify({item_count:items.length,next_cursor:cursor,results:result[1]==='true'})+'\n',{flag:'wx',mode:0o600});
+          fs.writeFileSync(process.env.NEXT,next,{flag:'wx',mode:0o600});
+          NODE
+            cat "$work/files-page-$page.json" >>"$work/files.ndjson"; cat "$work/files-proof-$page.json" >>"$work/file-pages-proof.ndjson"
+            next_url="$(cat "$work/files-next-$page")"; page=$((page+1))
+          done
+          MANIFEST="$manifest" FILES="$work/files.ndjson" PLAN="$work/download-plan.tsv" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const m=JSON.parse(fs.readFileSync(process.env.MANIFEST,'utf8'));const expected=new Map([...m.runtime_js,...m.source_maps].map((r)=>[`~/${r.path}`,r]));const rows=fs.readFileSync(process.env.FILES,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);if(rows.length!==expected.size)throw new Error('Sentry provider file count differs');const seen=new Set();const ids=new Set();const plan=[];for(const r of rows){const id=String(r.id||'');if(seen.has(r.name)||!expected.has(r.name)||!/^[1-9][0-9]{0,39}$/.test(id)||ids.has(id))throw new Error('Sentry provider file set differs');seen.add(r.name);ids.add(id);const e=expected.get(r.name);plan.push([id,r.name,e.bytes,e.sha256]);}if(seen.size!==expected.size)throw new Error('Sentry provider file set incomplete');fs.writeFileSync(process.env.PLAN,plan.sort((a,b)=>a[1].localeCompare(b[1])).map((r)=>r.join('\t')).join('\n')+'\n',{flag:'wx',mode:0o600});
+          NODE
+          : >"$work/provider-files.ndjson"; index=0
+          while IFS=$'\t' read -r file_id provider_name expected_bytes expected_sha; do
+            operation="download-$index"; request "$operation" GET "${files_url}$file_id/?download=1"; [[ "$(cat "$work/$operation.status")" == '200' ]]
+            [[ "$(stat -c %s "$work/$operation.body")" == "$expected_bytes" && "$(sha256sum "$work/$operation.body"|awk '{print $1}')" == "$expected_sha" ]]
+            ID="$file_id" NAME="$provider_name" BYTES="$expected_bytes" SHA="$expected_sha" OUT="$work/provider-files.ndjson" node --input-type=module <<'NODE'
+          import {createHash} from 'node:crypto';import fs from 'node:fs';fs.appendFileSync(process.env.OUT,JSON.stringify({provider_file_id_sha256:createHash('sha256').update(process.env.ID).digest('hex'),name:process.env.NAME,bytes:Number(process.env.BYTES),sha256:process.env.SHA})+'\n');
+          NODE
+            index=$((index+1))
+          done <"$work/download-plan.tsv"
+          ORGANIZATION="$work/organization.body" PROJECT="$work/project.body" RELEASE_BODY="$work/final.body" \
+          DEPLOYS="$work/final-deploy-pages.json" FILE_PAGES="$work/file-pages-proof.ndjson" FILES="$work/provider-files.ndjson" \
+          OUT="$packet/provider-release-readback.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const organization=JSON.parse(fs.readFileSync(process.env.ORGANIZATION,'utf8'));
+          const project=JSON.parse(fs.readFileSync(process.env.PROJECT,'utf8'));const r=JSON.parse(fs.readFileSync(process.env.RELEASE_BODY,'utf8'));
+          const deploys=JSON.parse(fs.readFileSync(process.env.DEPLOYS,'utf8')).pages;
+          const filePages=fs.readFileSync(process.env.FILE_PAGES,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
+          const files=fs.readFileSync(process.env.FILES,'utf8').trim().split('\n').filter(Boolean).map(JSON.parse);
+          const out={organization:{slug:organization.slug,region_url:organization.links?.regionUrl},
+            project:{id:String(project.id),slug:project.slug,organization_slug:project.organization?.slug,
+              region_url:project.organization?.links?.regionUrl},
+            release:{version:r.version,projects:(r.projects||[]).map((p)=>({id:String(p.id),slug:p.slug})),status:r.status,
+              date_released:r.dateReleased||null,deploy_count:r.deployCount,last_deploy:r.lastDeploy??null,
+              first_event:r.firstEvent??null,last_event:r.lastEvent??null},deploy_pages:deploys,file_pages:filePages,
+            source_map_files:files};
+          fs.writeFileSync(process.env.OUT,JSON.stringify(out,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          PROOF_ROOT="$work" PHASE_ARTIFACT_ID="$PHASE_ARTIFACT_ID" PHASE_ARTIFACT_DIGEST="$PHASE_ARTIFACT_DIGEST" \
+          PHASE_RECEIPT_SHA256="$PHASE_RECEIPT_SHA256" OUT="$packet/provider-request-id-hashes.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';import path from 'node:path';const requests=fs.readdirSync(process.env.PROOF_ROOT).filter((n)=>/^proof-[a-z0-9-]+\.json$/.test(n)).sort().map((n)=>({operation:n.slice(6,-5),...JSON.parse(fs.readFileSync(path.join(process.env.PROOF_ROOT,n),'utf8'))}));const row={phase_artifact_id:process.env.PHASE_ARTIFACT_ID,phase_artifact_digest:process.env.PHASE_ARTIFACT_DIGEST,phase_receipt_sha256:process.env.PHASE_RECEIPT_SHA256,requests};fs.writeFileSync(process.env.OUT,JSON.stringify(row,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          install -m 0600 "$phase" "$packet/sentry-started-effect.json"
+          install -m 0600 "$manifest" "$packet/sentry-source-map-manifest.json"
+          install -d -m 0700 "$packet/sentry-phase-packet"
+          while IFS= read -r phase_file; do
+            install -m 0600 "$phase_packet/$phase_file" "$packet/sentry-phase-packet/$phase_file"
+          done < <(find "$phase_packet" -mindepth 1 -maxdepth 1 -type f -printf '%f\n' | LC_ALL=C sort)
+          map_count="$(node --input-type=module -e "import fs from 'node:fs';const m=JSON.parse(fs.readFileSync('$manifest','utf8'));process.stdout.write(String(m.source_maps.length))")"
+          EFFECT="$packet/sentry-release-effect-reconciliation.json" PHASE="$phase" APPLICATION_SHA="$APPLICATION_SHA" \
+          PROVIDER_EFFECT_ID="$PROVIDER_EFFECT_ID" READBACK_SHA="$(sha256sum "$packet/provider-release-readback.json"|awk '{print $1}')" \
+          REQUEST_SHA="$(sha256sum "$packet/provider-request-id-hashes.json"|awk '{print $1}')" MAP_MANIFEST_SHA="$SOURCE_MAP_MANIFEST_SHA256" \
+          MAP_ARCHIVE_SHA="$SOURCE_MAP_ARCHIVE_SHA256" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const phase=JSON.parse(fs.readFileSync(process.env.PHASE,'utf8'));const row={contract_version:'assesssuite-physio-sentry-release-effect/2.0.0',result:'COMPLETED',application:'assesssuite-physio-production',application_sha:process.env.APPLICATION_SHA,profession_id:'physio',sentry_org:'unimatter',sentry_project:'assesssuite-production',sentry_project_id:'4511827129663488',sentry_environment:'physio-production',release_version:phase.release_version,provider_effect_id:process.env.PROVIDER_EFFECT_ID,generation:phase.generation,phase_sequence:phase.phase_sequence,build_timestamp:process.env.BUILD_TIMESTAMP,started_effect_artifact_id:process.env.PHASE_ARTIFACT_ID,started_effect_artifact_digest:process.env.PHASE_ARTIFACT_DIGEST,started_effect_receipt_sha256:process.env.PHASE_RECEIPT_SHA256,prestate_http_status:404,mutation_started:true,release_new_exit_code:0,source_map_upload_exit_code:0,release_finalize_exit_code:0,source_map_manifest_sha256:process.env.MAP_MANIFEST_SHA,source_map_archive_sha256:process.env.MAP_ARCHIVE_SHA,provider_release_readback_sha256:process.env.READBACK_SHA,provider_request_id_hashes_sha256:process.env.REQUEST_SHA,completed_at:new Date().toISOString()};fs.writeFileSync(process.env.EFFECT,JSON.stringify(row,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          RECEIPT="$packet/physio-sentry-release.json" PHASE="$phase" APPLICATION_SHA="$APPLICATION_SHA" MAP_COUNT="$map_count" \
+          STARTED_ID="$PHASE_ARTIFACT_ID" STARTED_DIGEST="$PHASE_ARTIFACT_DIGEST" STARTED_SHA="$PHASE_RECEIPT_SHA256" \
+          MAP_MANIFEST_SHA="$SOURCE_MAP_MANIFEST_SHA256" MAP_ARCHIVE_SHA="$SOURCE_MAP_ARCHIVE_SHA256" \
+          STDOUT_SHA="$(sha256sum "$work/source-map-upload.stdout"|awk '{print $1}')" STDERR_SHA="$(sha256sum "$work/source-map-upload.stderr"|awk '{print $1}')" \
+          READBACK_SHA="$(sha256sum "$packet/provider-release-readback.json"|awk '{print $1}')" EFFECT_SHA="$(sha256sum "$packet/sentry-release-effect-reconciliation.json"|awk '{print $1}')" \
+          REQUEST_SHA="$(sha256sum "$packet/provider-request-id-hashes.json"|awk '{print $1}')" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const phase=JSON.parse(fs.readFileSync(process.env.PHASE,'utf8'));const row={contract_version:'assesssuite-physio-sentry-release/1.0.0',result:'PASS',application:'assesssuite-physio-production',application_sha:process.env.APPLICATION_SHA,profession_id:'physio',sentry_org:'unimatter',sentry_project:'assesssuite-production',sentry_project_id:'4511827129663488',sentry_environment:'physio-production',release_version:phase.release_version,source_map_manifest_sha256:process.env.MAP_MANIFEST_SHA,source_map_archive_sha256:process.env.MAP_ARCHIVE_SHA,source_map_runtime_count:Number(process.env.MAP_COUNT),source_map_count:Number(process.env.MAP_COUNT),source_maps_uploaded:true,release_finalized:true,source_map_upload_stdout_sha256:process.env.STDOUT_SHA,source_map_upload_stderr_sha256:process.env.STDERR_SHA,provider_release_readback_sha256:process.env.READBACK_SHA,credential_scope:['SENTRY_AUTH_TOKEN'],provider_request_id_hashes_sha256:process.env.REQUEST_SHA,started_effect_artifact_id:process.env.STARTED_ID,started_effect_artifact_digest:process.env.STARTED_DIGEST,started_effect_receipt_sha256:process.env.STARTED_SHA,effect_reconciliation_receipt_sha256:process.env.EFFECT_SHA,fly_credential_absent:true,sentry_dsn_absent:true,completed_at:new Date().toISOString()};fs.writeFileSync(process.env.RECEIPT,JSON.stringify(row,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          (cd "$packet" && LC_ALL=C find . -type f ! -path './SHA256SUMS' -printf '%P\n' | sort | \
+            xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          node scripts/physio-sentry-release-contract.mjs validate-release-packet --packet "$packet" --application-sha "$APPLICATION_SHA" \
+            --capability-intent-id '${{ inputs.capability_intent_id }}' --authority-reference '${{ inputs.authority_reference }}' \
+            --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+          echo "receipt_sha256=$(sha256sum "$packet/physio-sentry-release.json"|awk '{print $1}')" >>"$GITHUB_OUTPUT"
+
+      - name: Upload bounded Sentry release effect evidence
+        id: upload_final
+        if: ${{ always() && (steps.reuse.outcome == 'success' || steps.create.outcome == 'success') }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-sentry-release-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/physio-sentry-release
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Fail closed after unresolved Sentry compensation or creation
+        if: ${{ always() && steps.reuse.outcome != 'success' && steps.create.outcome != 'success' }}
+        shell: bash
+        run: exit 1
+
+  seal:
+    name: Seal candidate and Sentry release into one handoff packet
+    needs: [gates, sentry_release]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      candidate_artifact_id: ${{ steps.upload_candidate.outputs.artifact-id }}
+      candidate_artifact_digest: sha256:${{ steps.upload_candidate.outputs.artifact-digest }}
+      candidate_receipt_sha256: ${{ steps.seal.outputs.candidate_receipt_sha256 }}
+      archive_sha256: ${{ needs.gates.outputs.archive_sha256 }}
+      oci_archive_sha256: ${{ needs.gates.outputs.oci_archive_sha256 }}
+      oci_manifest_digest: ${{ needs.gates.outputs.oci_manifest_digest }}
+      oci_descriptor_manifest_sha256: ${{ needs.gates.outputs.oci_descriptor_manifest_sha256 }}
+      local_image_id: ${{ needs.gates.outputs.local_image_id }}
+      sentry_release_artifact_id: ${{ needs.sentry_release.outputs.artifact_id }}
+      sentry_release_artifact_digest: ${{ needs.sentry_release.outputs.artifact_digest }}
+      sentry_release_receipt_sha256: ${{ needs.sentry_release.outputs.receipt_sha256 }}
+    steps:
+      - name: Download exact candidate core
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.gates.outputs.core_artifact_id }}
+          path: ${{ runner.temp }}/seal-input/core
+          github-token: ${{ github.token }}
+
+      - name: Download exact Sentry release evidence
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.sentry_release.outputs.artifact_id }}
+          path: ${{ runner.temp }}/seal-input/sentry
+          github-token: ${{ github.token }}
+
+      - name: Seal exact candidate release handoff
+        id: seal
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          BUILD_TIMESTAMP: ${{ inputs.build_timestamp }}
+          CORE_ARTIFACT_ID: ${{ needs.gates.outputs.core_artifact_id }}
+          CORE_ARTIFACT_DIGEST: ${{ needs.gates.outputs.core_artifact_digest }}
+          ARCHIVE_SHA256: ${{ needs.gates.outputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA256: ${{ needs.gates.outputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ needs.gates.outputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_MANIFEST_SHA256: ${{ needs.gates.outputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ needs.gates.outputs.local_image_id }}
+          SOURCE_MAP_MANIFEST_SHA256: ${{ needs.gates.outputs.source_map_manifest_sha256 }}
+          SOURCE_MAP_ARCHIVE_SHA256: ${{ needs.gates.outputs.source_map_archive_sha256 }}
+          SENTRY_RELEASE_ARTIFACT_ID: ${{ needs.sentry_release.outputs.artifact_id }}
+          SENTRY_RELEASE_ARTIFACT_DIGEST: ${{ needs.sentry_release.outputs.artifact_digest }}
+          SENTRY_RELEASE_RECEIPT_SHA256: ${{ needs.sentry_release.outputs.receipt_sha256 }}
+          STATE_SNAPSHOT_ARTIFACT_ID: ${{ inputs.state_snapshot_artifact_id }}
+          STATE_SNAPSHOT_ARTIFACT_DIGEST: ${{ inputs.state_snapshot_artifact_digest }}
+          STATE_SNAPSHOT_RECEIPT_SHA256: ${{ inputs.state_snapshot_receipt_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+        run: |
+          set -euo pipefail
+          umask 077
+          core="$RUNNER_TEMP/seal-input/core"
+          sentry="$RUNNER_TEMP/seal-input/sentry"
+          packet="$RUNNER_TEMP/physio-candidate"
+          install -d -m 0700 "$packet"
+          core_expected=$'SHA256SUMS\ncandidate-core-receipt.json\ncandidate-image.oci.tar.gz\ncandidate-image.tar.gz\ncandidate-oci-descriptors.json\nimage-inspect.json\nsentry-source-map-manifest.json\nsentry-source-maps.tar.gz\nstate-snapshot-artifact-admission.json'
+          sentry_expected=$'SHA256SUMS\nphysio-sentry-release.json\nprovider-release-readback.json\nprovider-request-id-hashes.json\nsentry-phase-packet\nsentry-release-effect-reconciliation.json\nsentry-source-map-manifest.json\nsentry-started-effect.json'
+          sentry_revalidated_expected=$'SHA256SUMS\nphysio-sentry-release.json\nprovider-current-readiness-readback.json\nprovider-current-readiness-request-id-hashes.json\nprovider-release-readback.json\nprovider-request-id-hashes.json\nsentry-current-readiness.json\nsentry-phase-packet\nsentry-release-effect-reconciliation.json\nsentry-source-map-manifest.json\nsentry-started-effect.json'
+          [[ "$(find "$core" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" == "$core_expected" ]]
+          sentry_actual="$(find "$sentry" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)"
+          [[ "$sentry_actual" == "$sentry_expected" || "$sentry_actual" == "$sentry_revalidated_expected" ]]
+          (cd "$core" && sha256sum --check --strict SHA256SUMS)
+          (cd "$sentry" && sha256sum --check --strict SHA256SUMS)
+          node scripts/physio-sentry-release-contract.mjs validate-release-packet \
+            --packet "$sentry" --application-sha "$APPLICATION_SHA" \
+            --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE" \
+            --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" \
+            --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+          cmp --silent "$sentry/sentry-source-map-manifest.json" "$core/sentry-source-map-manifest.json"
+          core_receipt_sha="$(sha256sum "$core/candidate-core-receipt.json" | awk '{print $1}')"
+          for file in candidate-core-receipt.json candidate-image.tar.gz candidate-image.oci.tar.gz candidate-oci-descriptors.json image-inspect.json sentry-source-map-manifest.json state-snapshot-artifact-admission.json; do
+            [[ -f "$core/$file" && ! -L "$core/$file" ]]
+            install -m 0600 "$core/$file" "$packet/$file"
+          done
+          for file in physio-sentry-release.json provider-release-readback.json provider-request-id-hashes.json \
+            sentry-release-effect-reconciliation.json sentry-started-effect.json; do
+            [[ -f "$sentry/$file" && ! -L "$sentry/$file" ]]
+            install -m 0600 "$sentry/$file" "$packet/$file"
+          done
+          [[ "sha256:$(sha256sum "$packet/candidate-image.tar.gz" | awk '{print $1}')" == "$ARCHIVE_SHA256" ]]
+          [[ "sha256:$(sha256sum "$packet/candidate-image.oci.tar.gz" | awk '{print $1}')" == "$OCI_ARCHIVE_SHA256" ]]
+          [[ "$(sha256sum "$packet/candidate-oci-descriptors.json" | awk '{print $1}')" == "$OCI_DESCRIPTOR_MANIFEST_SHA256" ]]
+          [[ "$(sha256sum "$packet/sentry-source-map-manifest.json" | awk '{print $1}')" == "$SOURCE_MAP_MANIFEST_SHA256" ]]
+          [[ "$(sha256sum "$packet/physio-sentry-release.json" | awk '{print $1}')" == "$SENTRY_RELEASE_RECEIPT_SHA256" ]]
+          CORE="$core/candidate-core-receipt.json" APPLICATION_SHA="$APPLICATION_SHA" BUILD_TIMESTAMP="$BUILD_TIMESTAMP" \
+          ARCHIVE_SHA="$ARCHIVE_SHA256" OCI_ARCHIVE_SHA="$OCI_ARCHIVE_SHA256" OCI_MANIFEST_DIGEST="$OCI_MANIFEST_DIGEST" \
+          OCI_DESCRIPTOR_SHA="$OCI_DESCRIPTOR_MANIFEST_SHA256" IMAGE_ID="$LOCAL_IMAGE_ID" MAP_MANIFEST_SHA="$SOURCE_MAP_MANIFEST_SHA256" \
+          MAP_ARCHIVE_SHA="$SOURCE_MAP_ARCHIVE_SHA256" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.CORE, 'utf8'));
+          const keys = ['application','application_sha','archive_sha256','build_timestamp','completed_at','config_sha256',
+            'contract_version','dockerfile_sha256','fly_resource_count','local_image_id','profession_id',
+            'oci_archive_sha256','oci_descriptor_manifest_sha256','oci_manifest_digest',
+            'same_build_source_maps_verified','source_branch','source_map_archive_sha256',
+            'source_map_manifest_sha256','state_snapshot_artifact_digest','state_snapshot_artifact_id',
+            'state_snapshot_artifact_admission_sha256','state_snapshot_receipt_sha256','result'].sort();
+          if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys) ||
+              row.contract_version !== 'assesssuite-physio-candidate-core/2.0.0' || row.result !== 'PASS' ||
+              row.application !== 'assesssuite-physio-production' || row.application_sha !== process.env.APPLICATION_SHA ||
+              row.profession_id !== 'physio' || row.build_timestamp !== process.env.BUILD_TIMESTAMP ||
+              row.archive_sha256 !== process.env.ARCHIVE_SHA || row.local_image_id !== process.env.IMAGE_ID ||
+              row.oci_archive_sha256 !== process.env.OCI_ARCHIVE_SHA ||
+              row.oci_manifest_digest !== process.env.OCI_MANIFEST_DIGEST ||
+              row.oci_descriptor_manifest_sha256 !== process.env.OCI_DESCRIPTOR_SHA ||
+              row.source_map_manifest_sha256 !== process.env.MAP_MANIFEST_SHA ||
+              row.source_map_archive_sha256 !== process.env.MAP_ARCHIVE_SHA ||
+              !/^[0-9a-f]{64}$/.test(row.state_snapshot_artifact_admission_sha256 || '') ||
+              row.same_build_source_maps_verified !== true || row.fly_resource_count !== 0) {
+            throw new Error('candidate-core-receipt.json identity or content differs');
+          }
+          NODE
+          node scripts/physio-sentry-release-contract.mjs validate-release \
+            --receipt "$packet/physio-sentry-release.json" --application-sha "$APPLICATION_SHA" \
+            --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" \
+            --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
+          RECEIPT="$packet/candidate-build-receipt.json" APPLICATION_SHA="$APPLICATION_SHA" BUILD_TIMESTAMP="$BUILD_TIMESTAMP" \
+          CORE_ID="$CORE_ARTIFACT_ID" CORE_DIGEST="$CORE_ARTIFACT_DIGEST" CORE_RECEIPT_SHA="$core_receipt_sha" \
+          ARCHIVE_SHA="$ARCHIVE_SHA256" OCI_ARCHIVE_SHA="$OCI_ARCHIVE_SHA256" OCI_MANIFEST_DIGEST="$OCI_MANIFEST_DIGEST" \
+          OCI_DESCRIPTOR_SHA="$OCI_DESCRIPTOR_MANIFEST_SHA256" IMAGE_ID="$LOCAL_IMAGE_ID" \
+          STATE_ID="$STATE_SNAPSHOT_ARTIFACT_ID" STATE_DIGEST="$STATE_SNAPSHOT_ARTIFACT_DIGEST" STATE_SHA="$STATE_SNAPSHOT_RECEIPT_SHA256" \
+          STATE_ARTIFACT_ADMISSION_SHA="$(sha256sum "$packet/state-snapshot-artifact-admission.json" | awk '{print $1}')" \
+          SENTRY_ID="$SENTRY_RELEASE_ARTIFACT_ID" SENTRY_DIGEST="$SENTRY_RELEASE_ARTIFACT_DIGEST" SENTRY_SHA="$SENTRY_RELEASE_RECEIPT_SHA256" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = { contract_version: 'assesssuite-physio-candidate-build/3.0.0', result: 'PASS',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            profession_id: 'physio', build_timestamp: process.env.BUILD_TIMESTAMP, source_branch: 'main',
+            state_snapshot: { artifact_id: process.env.STATE_ID, artifact_digest: process.env.STATE_DIGEST,
+              receipt_sha256: process.env.STATE_SHA,
+              artifact_admission_sha256: process.env.STATE_ARTIFACT_ADMISSION_SHA },
+            candidate_core: { artifact_id: process.env.CORE_ID, artifact_digest: process.env.CORE_DIGEST,
+              receipt_sha256: process.env.CORE_RECEIPT_SHA },
+            candidate_core_receipt_sha256: process.env.CORE_RECEIPT_SHA,
+            archive_sha256: process.env.ARCHIVE_SHA, oci_archive_sha256: process.env.OCI_ARCHIVE_SHA,
+            oci_manifest_digest: process.env.OCI_MANIFEST_DIGEST,
+            oci_descriptor_manifest_sha256: process.env.OCI_DESCRIPTOR_SHA,
+            local_image_id: process.env.IMAGE_ID,
+            sentry_release: { contract_version: 'assesssuite-physio-sentry-release/1.0.0',
+              artifact_id: process.env.SENTRY_ID, artifact_digest: process.env.SENTRY_DIGEST,
+              receipt_sha256: process.env.SENTRY_SHA },
+            no_fly_resource_created: true, completed_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | \
+            xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          echo "candidate_receipt_sha256=$(sha256sum "$packet/candidate-build-receipt.json" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Upload immutable candidate archive
+        id: upload_candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-candidate-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/physio-candidate
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

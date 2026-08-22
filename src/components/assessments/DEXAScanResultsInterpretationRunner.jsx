@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreDexa } from "@/lib/clinical/scorers/coreB";
 
 const DEXA_SITES = [
   { key: "lumbarSpine", label: "Lumbar Spine (L1-L4)", unit: "g/cm²" },
@@ -50,46 +50,12 @@ export default function DEXAScanResultsInterpretationRunner({ client, onSave, on
   };
 
   const handleSave = () => {
-    const anyTScoreEntered = Object.values(tScores).some(val => val !== "");
-
-    if (!anyTScoreEntered) {
-      toast.error("Please enter at least one T-Score.");
-      return;
+    try {
+      onSave(scoreDexa({ t_scores: tScores, bmd_values: bmd, body_fat_percentage: bodyFatPercentage, visceral_adipose_tissue: visceralAdiposeTissue, lean_mass_kg: leanMass, notes }, { assessmentName: 'DEXA Scan Results Interpretation', client }));
+      toast.success("DEXA scan results saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save DEXA results.');
     }
-
-    // Find the worst T-score for the result value
-    const validTScores = Object.values(tScores).filter(val => val !== "").map(val => parseFloat(val));
-    const worstTScore = Math.min(...validTScores);
-
-    let soapText = `• DEXA Scan Results: Worst T-Score ${worstTScore}\n\n  Bone Mineral Density (T-Scores):\n`;
-    DEXA_SITES.forEach(site => {
-      if (tScores[site.key]) {
-        const interp = getTScoreInterpretation(tScores[site.key]);
-        soapText += `  - ${site.label}: T-Score ${tScores[site.key]}${bmd[site.key] ? `, BMD ${bmd[site.key]} g/cm²` : ''} (${interp.label})\n`;
-      }
-    });
-    if (bodyFatPercentage) soapText += `\n  Body Fat: ${bodyFatPercentage}%`;
-    if (visceralAdiposeTissue) soapText += `\n  Visceral Adipose Tissue: ${visceralAdiposeTissue} cm²`;
-    if (leanMass) soapText += `\n  Lean Mass: ${leanMass} kg`;
-
-    const additionalData = {
-      measurement_type: "dexa",
-      soap_text: soapText,
-      t_scores: tScores,
-      bmd_values: bmd,
-      body_fat_percentage: bodyFatPercentage,
-      visceral_adipose_tissue: visceralAdiposeTissue,
-      lean_mass: leanMass,
-    };
-
-    onSave({
-      status: "completed",
-      result_value: worstTScore,
-      additional_data: additionalData,
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("DEXA scan results saved.");
   };
 
   return (

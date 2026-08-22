@@ -6,18 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Save, X, AlertTriangle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_GAD7_QUESTIONS as QUESTIONS, PROM_NEURO_GAD7_OPTIONS as OPTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const QUESTIONS = [
-  "Feeling nervous, anxious, or on edge",
-  "Not being able to stop or control worrying",
-  "Worrying too much about different things",
-  "Trouble relaxing",
-  "Being so restless that it's hard to sit still",
-  "Becoming easily annoyed or irritable",
-  "Feeling afraid, as if something awful might happen",
-];
 
-const OPTIONS = ["Not at all", "Several days", "More than half the days", "Nearly every day"];
 
 function getInterpretation(score) {
   if (score <= 4) return { label: "Minimal Anxiety", color: "bg-green-100 text-green-800 border-green-300", action: "No specific treatment usually needed" };

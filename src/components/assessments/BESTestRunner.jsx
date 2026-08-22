@@ -7,68 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_BESTEST_BESTEST_SECTIONS as BESTEST_SECTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const BESTEST_SECTIONS = [
-  {
-    name: "Biomechanical Constraints",
-    items: [
-      "Base of support",
-      "COM alignment",
-      "Ankle strength & ROM",
-      "Hip/trunk lateral strength",
-      "Sit on floor & stand up"
-    ]
-  },
-  {
-    name: "Stability Limits/Verticality",
-    items: [
-      "Functional reach forward",
-      "Functional reach lateral",
-      "Lean to limits"
-    ]
-  },
-  {
-    name: "Anticipatory Postural Adjustments",
-    items: [
-      "Sit to stand",
-      "Rise to toes",
-      "Stand on one leg",
-      "Alternate stair touching",
-      "Standing arm raise"
-    ]
-  },
-  {
-    name: "Postural Responses",
-    items: [
-      "In-place response forward",
-      "In-place response backward",
-      "Compensatory step correction forward",
-      "Compensatory step correction backward",
-      "Compensatory step correction lateral"
-    ]
-  },
-  {
-    name: "Sensory Orientation",
-    items: [
-      "Stance eyes open firm surface",
-      "Stance eyes closed foam surface",
-      "Incline eyes closed",
-      "Stance eyes open turning head horizontal",
-      "Stance eyes open turning head vertical"
-    ]
-  },
-  {
-    name: "Stability in Gait",
-    items: [
-      "Gait level surface",
-      "Change in gait speed",
-      "Walk with head turns horizontal",
-      "Walk with pivot turns",
-      "Step over obstacles",
-      "TUG with dual task"
-    ]
-  }
-];
 
 export default function BESTestRunner({ onSave, onClose }) {
   const [scores, setScores] = useState({});
@@ -111,10 +51,12 @@ export default function BESTestRunner({ onSave, onClose }) {
   const total = calculateGrandTotal();
   const percentage = parseFloat(calculatePercentage());
   const interpretation = getInterpretation(percentage);
+  const totalItems = BESTEST_SECTIONS.reduce((sum, section) => sum + section.items.length, 0);
+  const allItemsScored = Object.keys(scores).length === totalItems;
 
   const handleSave = () => {
-    if (Object.keys(scores).length === 0) {
-      toast.error("Please score at least one item");
+    if (!allItemsScored) {
+      toast.error(`Please score all ${totalItems} BESTest items (${Object.keys(scores).length}/${totalItems} completed).`);
       return;
     }
 
@@ -326,7 +268,7 @@ export default function BESTestRunner({ onSave, onClose }) {
           <Button variant="outline" onClick={onClose}>Cancel</Button>
           <Button 
             onClick={handleSave}
-            disabled={Object.keys(scores).length === 0}
+            disabled={!allItemsScored}
             className="bg-violet-600 hover:bg-violet-700"
           >
             <Save className="w-4 h-4 mr-2" />

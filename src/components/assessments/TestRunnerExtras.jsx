@@ -7,6 +7,24 @@ import { Play, Save, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { saveAssessmentToSOAP } from './TestRunnerSOAPHelper';
+import { hasPromNeuroScorer, validateAndScore as validateAndScorePromNeuro } from '@/lib/clinical/scorers/extrasPromNeuro';
+
+const SPO2_PROTOCOL_BY_CANONICAL_ID = Object.freeze({
+  'assessment:ep-import:6876d96437f326610e5253c6': 'spo2-exercise',
+  'assessment:ep-import:6933ca483ef96a9f8b810bba': 'spo2-resting',
+});
+
+function resolveSpo2RunnerKey(assessment, requestedRunnerKey) {
+  if (requestedRunnerKey === 'spo2-exercise' || requestedRunnerKey === 'spo2-resting') {
+    return requestedRunnerKey;
+  }
+  const canonicalId = assessment?.canonical_id || assessment?.canonicalId || assessment?.id;
+  const resolved = SPO2_PROTOCOL_BY_CANONICAL_ID[canonicalId];
+  if (!resolved) {
+    throw new Error(`Unsupported SpO2 assessment route: ${canonicalId || 'missing canonical ID'}`);
+  }
+  return resolved;
+}
 
 // Specific runners
 import QuestionnaireRunner from './QuestionnaireRunner';
@@ -19,6 +37,7 @@ import FigureofEightWalkTestRunner from './FigureofEightWalkTestRunner';
 import FallsEfficacyScaleInternationalFESIRunner from './FallsEfficacyScaleInternationalFESIRunner';
 import BruininksOseretskyTestofMotorProficiencyBOT2Runner from './BruininksOseretskyTestofMotorProficiencyBOT2Runner';
 import BioelectricalImpedanceAnalysisBIARunner from './BioelectricalImpedanceAnalysisBIARunner';
+import TampaScaleKinesiophobiaTSK17Runner from './TampaScaleKinesiophobiaTSK17Runner';
 import BarthelIndexRunner from './BarthelIndexRunner';
 import HydrostaticWeighingRunner from './HydrostaticWeighingRunner';
 import FastingBloodGlucoseRunner from './FastingBloodGlucoseRunner';
@@ -79,7 +98,6 @@ import BoxandBlockTestRunner from './BoxandBlockTestRunner';
 import ReactiveStrengthIndexRSIRunner from './ReactiveStrengthIndexRSIRunner';
 import TriLevelArmErgometerTestRunner from './TriLevelArmErgometerTestRunner';
 import BruceProtocolRunner from './BruceProtocolRunner';
-import OneRMRunner from './OneRMRunner';
 import { todayLocal } from "@/lib/localDate";
 import ActivitiesspecificBalanceConfidenceABCScaleRunner from './ActivitiesspecificBalanceConfidenceABCScaleRunner';
 import AQoLRunner from './AQoLRunner';
@@ -110,6 +128,7 @@ import SPADIRunner from './SPADIRunner';
 import TenSecondRepeatedJumpTestRunner from './10SecondRepeatedJumpTestRunner';
 import TwelveMinuteWalkRunTestCooperRunner from './12MinuteWalkRunTestCooperRunner';
 import OneRMTestingRunner from './1RepetitionMaximum1RMTestingRunner';
+import TenRepetitionMaximum10RMRunner from './TenRepetitionMaximum10RMRunner';
 import TwentyMeterShuttleRunRunner from './20MeterShuttleRunBeepTestRunner';
 import TwoMinuteWalkTest2MWTRunner from './2MinuteWalkTest2MWTRunner';
 import ThreeOFifteenIntermittentFitnessTestRunner from './3015IntermittentFitnessTestRunner';
@@ -197,6 +216,7 @@ import WeightRunner from './WeightRunner';
 import WingateAnaerobicTestRunner from './WingateAnaerobicTestRunner';
 import YMCA3MinuteStepTestRunner from './YMCA3MinuteStepTestRunner';
 import YMCACycleErgometerProtocolRunner from './YMCACycleErgometerProtocolRunner';
+import TUDSRunner from './TUDSRunner';
 import YoYoIntermittentRecoveryTestsRunner from './YoYoIntermittentRecoveryTestsRunner';
 import ArmCurlRunner from './ArmCurlRunner';
 import ChalderFatigueScaleRunner from './ChalderFatigueScaleRunner';
@@ -211,228 +231,10 @@ import SARCFQuestionnaireRunner from './SARCFQuestionnaireRunner';
 import StandingLongJumpRunner from './StandingLongJumpRunner';
 
 
-// Thin adapters
-function BruceProtocolRunnerAdapter({ client, onSave, onClose, testName }) {
-  return <BruceProtocolRunner client={client} onSave={onSave} onClose={onClose} isModified={testName?.includes('Balke')} />;
-}
+// Runner selection is supplied by the exhaustive canonical registry. Unknown or
+// missing keys are rejected; this host performs no name inference.
 
-function OneRMAdapterRunner({ client, onSave, onClose, label }) {
-  return <OneRMRunner client={client} onSave={onSave} onClose={onClose} />;
-}
-
-// Detection helpers
-function detect(name) {
-  const n = name.toLowerCase();
-  if (n.includes('barthel index') || n.includes('barthel')) return 'barthel';
-  if (n.includes('five times sit') || n.includes('5x sit') || n.includes('5xsts') || (n.includes('5 times sit') && n.includes('stand'))) return '5xsts';
-  if (n.includes('faam') || n.includes('foot and ankle ability measure')) return 'faam';
-  if (n.includes('fugl-meyer') || n.includes('fugl meyer') || n.includes('fma') && n.includes('assessment')) return 'fma';
-  if (n.includes('illinois agility')) return 'illinois';
-  if (n.includes('t-test agility') || n === 't test agility') return 't_test';
-  if (n.includes('505 agility') || n.includes('five-oh-five')) return '505';
-  if (n.includes('hexagon agility')) return 'hexagon';
-  if (n.includes('l test') && n.includes('mobility')) return 'l_test';
-  if (n.includes('figure') && n.includes('eight') && n.includes('walk')) return 'figure8';
-  if (n.includes('falls efficacy scale-international') || n.includes('fes-i')) return 'fesi';
-  if (n.includes('falls efficacy scale') && !n.includes('international')) return 'fes';
-  if (n.includes('bruininks') || n.includes('bot-2') || n.includes('bot2')) return 'bot2';
-  if (n.includes('bioelectrical impedance') || (n.includes('bia') && !n.includes('scale'))) return 'bia';
-  if (n.includes('tampa scale') || n.includes('kinesiophobia') || n.includes('tsk')) return 'tsk';
-  if (n.includes('hydrostatic weighing') || n.includes('underwater weighing')) return 'hydrostatic';
-  if (n.includes('fasting blood glucose')) return 'fasting_glucose';
-  if (n.includes('oral glucose tolerance') || n.includes('ogtt')) return 'ogtt';
-  if (n.includes('resting metabolic rate') || n.includes('rmr testing')) return 'rmr';
-  if (n.includes('beighton') || n.includes('hypermobility score')) return 'beighton';
-  if (n.includes('chester step')) return 'chester';
-  if (n.includes('lefs') || n.includes('lower extremity functional scale')) return 'lefs';
-  if (n.includes('edmonton frail') || n.includes('efs')) return 'efs';
-  if (n.includes('endurance shuttle walk') || n.includes('eswt')) return 'eswt';
-  if (n.includes('fatigue severity scale') || n.includes('fss')) return 'fss';
-  if (n.includes('fibromyalgia impact') || n.includes('fiqr')) return 'fiqr';
-  if (n.includes('forced vital capacity') || n.includes('fvc') || n.includes('spirometry')) return 'fvc';
-  if (n.includes('functional ambulation') || n.includes('fac')) return 'fac';
-  if (n.includes('functional gait assessment') || n.includes('fga')) return 'fga';
-  if (n.includes('maximal push') || n.includes('maximum push')) return 'max_push';
-  if (n.includes('mcgill core') || n.includes('biering-sorensen') || (n.includes('core endurance') && n.includes('battery'))) return 'mcgill';
-  if (n.includes('modified ashworth') || (n.includes('mas') && n.includes('spasticity'))) return 'mas';
-  if (n.includes('modified rankin')) return 'modified_rankin';
-  if (n.includes('nine hole peg') || n.includes('nine-hole peg') || n.includes('9-hole peg') || n.includes('9 hole peg')) return 'nine_peg';
-  if (n.includes('patient-specific functional') || n.includes('patient specific functional') || n.includes('psfs')) return 'psfs';
-  if (n.includes('physical activity scale for the elderly') || n.includes('pase')) return 'pase';
-  if (n.includes('pain catastrophizing') || n.includes('pcs')) return 'pcs';
-  if (n.includes('peak expiratory flow') || n.includes('pefr') || n.includes('peak flow')) return 'pefr';
-  if (n.includes('plank hold') || n.includes('plank test')) return 'plank';
-  if (n.includes('timed push') || n.includes('press up test') || n.includes('press-up test')) return 'timed_push_up';
-  if (n.includes('push up test') && !n.includes('timed')) return 'push_up';
-  if (n.includes('sebt') || n.includes('star excursion')) return 'sebt';
-  if (n.includes('sf-36') || n.includes('sf 36') || n.includes('36-item short form')) return 'sf36';
-  if (n.includes('short physical performance battery') || n.includes('sppb')) return 'sppb';
-  if (n.includes('static squat') || n.includes('wall squat')) return 'static_squat';
-  if (n.includes('squat test') || n.includes('dynamic squat') || n.includes('overhead squat')) return 'squat';
-  if (n.includes('stair climb')) return 'stair_climb';
-  if (n.includes('static back extension') || (n.includes('biering') && n.includes('sorensen'))) return 'static_back';
-  if (n.includes('stroop test') || n.includes('stroop color')) return 'stroop';
-  if (n.includes('tandem stand balance') && !n.includes('semi')) return 'tandem_stand';
-  if (n.includes('trendelenburg')) return 'trendelenburg';
-  if (n.includes('triple hop')) return 'triple_hop';
-  if (n.includes('womac')) return 'womac';
-  if (n.includes('widespread pain index') || n.includes('wpi') || n.includes('symptom severity scale')) return 'wpi';
-  if (n.includes('ipaq') || n.includes('international physical activity questionnaire')) return 'ipaq';
-  if (n.includes('goal attainment scaling') || n.includes('gas scale')) return 'gas';
-  if (n.includes('digit span')) return 'digit_span';
-  if (n.includes('dual task gait') || n.includes('dual-task gait')) return 'dual_task_gait';
-  if (n.includes('bilateral flexibility') || n.includes('passive hip')) return 'bilateral_flex';
-  if (n.includes('motor assessment scale') && n.includes('stroke')) return 'mas_stroke';
-  if (n.includes('tardieu') || n.includes('modified tardieu')) return 'tardieu';
-  if (n.includes('par-q') || n.includes('parq') || n.includes('physical activity readiness')) return 'parq';
-  if (n.includes('edss') || n.includes('expanded disability status')) return 'edss';
-  if (n.includes('step tap test') || (n.includes('step tap') && n.includes('15'))) return 'step_tap';
-  if (n.includes('home step test') || n.includes('two-minute home step')) return 'home_step';
-  if (n.includes('tecumseh') || n.includes('3-minute step')) return 'tecumseh';
-  if (n.includes('ymca bench press')) return 'ymca_bench';
-  if (n.includes('medicine ball throw') || n.includes('seated medicine ball')) return 'med_ball';
-  if (n.includes('grooved pegboard')) return 'grooved_peg';
-  if (n.includes('grocery shelving') || n.includes('gst')) return 'gst';
-  if (n.includes('purdue pegboard')) return 'purdue_peg';
-  if (n.includes('box and block') && n.includes('test')) return 'box_block_test';
-  if (n.includes('reactive strength index')) return 'rsi';
-  if (n.includes('tri-level arm ergometer') || n.includes('tri level arm ergometer') || (n.includes('tri') && n.includes('arm ergometer'))) return 'tri_arm';
-  if (n.includes('balke-ware') || n.includes('balke ware') || (n.includes('balke') && n.includes('treadmill'))) return 'balke';
-  if (n.includes('ten repetition maximum') || n.includes('10rm') || n.includes('10 rm')) return '10rm';
-  if (n.includes('abc scale') || (n.includes('activities-specific') && n.includes('balance confidence'))) return 'abc_scale';
-  if (n.includes('aqol') || (n.includes('assessment of quality of life') && !n.includes('sf'))) return 'aqol';
-  if (n.includes('breq') || n.includes('behavioural regulation in exercise') || n.includes('behavioral regulation in exercise')) return 'breq';
-  if (n.includes('chronic respiratory disease') || n.includes('crdq')) return 'crdq';
-  if ((n.includes('dash') && n.includes('full')) || (n.includes('disabilities of the arm') && !n.includes('quick'))) return 'dash';
-  if (n.includes('copd assessment test') || (n.includes('cat') && n.includes('copd')) || n.trim() === 'cat') return 'cat';
-  if (n.includes('10 second repeated jump') || n.includes('10-second repeated jump')) return '10sec_jump';
-  if (n.includes('12-minute walk') || n.includes('12 minute walk') || (n.includes('cooper') && n.includes('walk'))) return '12min_walk';
-  if (n.includes('1-repetition maximum') || n.includes('1 repetition maximum') || (n.includes('1rm') && n.includes('testing'))) return '1rm_testing';
-  if (n.includes('20 meter shuttle') || n.includes('20-meter shuttle') || n.includes('20m shuttle')) return '20m_shuttle';
-  if (n.includes('2-minute walk') || n.includes('2 minute walk') || n.includes('2mwt')) return '2min_walk';
-  if (n.includes('30-15 intermittent') || n.includes('30/15 intermittent') || n.includes('3015')) return '3015_ift';
-  if ((n.includes('30-second') || n.includes('30 second')) && n.includes('sit') && n.includes('stand') && !n.includes('chair stand')) return '30sec_sts';
-  if (n.includes('400 meter walk') || n.includes('400-meter walk') || n.includes('400m walk')) return '400m_walk';
-  if ((n.includes('60-second') || n.includes('60 second')) && n.includes('sit') && n.includes('stand')) return '60sec_sts';
-  if (n.includes('6-meter walk') || n.includes('6 meter walk') || n.includes('6m walk') || n.includes('six meter walk')) return '6m_walk_simple';
-  if (n.includes('8-foot up') || n.includes('8 foot up') || n.includes('8-ft up') || (n.includes('up and go') && n.includes('8'))) return '8ft_upgo';
-  if (n.includes('air displacement plethysmography') || n.includes('bod pod')) return 'bod_pod';
-  if (n.includes('anterior drawer') && n.includes('knee')) return 'anterior_drawer_knee';
-  if (n.includes("apley") && n.includes('compression')) return 'apleys_compression';
-  if (n.includes('astrand') && n.includes('6') && n.includes('cycle')) return 'astrand_6_cycle';
-  if (n.includes('astrand') && n.includes('rhyming') && n.includes('step')) return 'astrand_rhyming_step';
-  if (n.includes('astrand') && n.includes('rhyming')) return 'astrand_rhyming_cycle';
-  if (n.includes('balance error scoring') || n.includes('bess') && n.includes('balance')) return 'bess';
-  if (n.includes('back scratch test')) return 'back_scratch_test';
-  if (n.includes('balance evaluation systems test') || (n.includes('bestest') && !n.includes('mini'))) return 'bestest_full';
-  if (n.includes('body fat') && n.includes('skinfold')) return 'body_fat_skinfold';
-  if (n.includes('body mass index') || n === 'bmi') return 'bmi_full';
-  if (n.includes('bruce treadmill') && !n.includes('modified')) return 'bruce_treadmill';
-  if (n.includes('chair sit and reach') || (n.includes('chair') && n.includes('sit') && n.includes('reach'))) return 'chair_sit_reach';
-  if (n.includes('closed kinetic chain upper') || n.includes('ckcuest')) return 'ckcuest_full';
-  if (n.includes('community balance') || n.includes('cb&m') || n.includes('cbm') && n.includes('mobility scale')) return 'cbm_full';
-  if (n.includes('dynamic gait index') || n.includes('dgi') && n.includes('gait')) return 'dgi_full';
-  if (n.includes('elderly mobility scale') || n.includes('ems') && n.includes('elderly')) return 'ems_full';
-  if (n.includes("ely") && n.includes('rectus')) return 'elys_test';
-  if (n.includes('functional movement screen') || n === 'fms') return 'fms_full';
-  if ((n.includes('four-stage balance') || n.includes('four stage balance')) && !n.includes('four square')) return 'four_stage_balance_test';
-  if (n.includes('functional reach test')) return 'functional_reach_test';
-  if (n.includes('gad-7') || n.includes('gad7') || n.includes('generalized anxiety disorder 7') || (n.includes('anxiety disorder') && n.includes('7'))) return 'gad7_full';
-  if (n === 'height' || n.includes('height measurement')) return 'height_measurement';
-  if (n.includes('high-level mobility assessment') || n.includes('himat') && n.includes('high')) return 'himat_full';
-  if (n.includes('hip outcome score') || n.includes('hoos') && n.includes('hip')) return 'hoos_full';
-  if (n.includes('hospital anxiety and depression') || n.includes('hads') && n.includes('hospital')) return 'hads_full';
-  if (n.includes('incremental shuttle walk') || n.includes('iswt') && n.includes('incremental')) return 'iswt_full';
-  if (n.includes('isokinetic dynamometry')) return 'isokinetic_dyn';
-  if (n.includes('job task analysis') && n.includes('icare')) return 'jta_icare';
-  if (n.includes('job task analysis') && !n.includes('icare')) return 'jta_full';
-  if (n.includes('kessler') || (n.includes('k10') && n.includes('distress'))) return 'k10_full';
-  if (n.includes('knee injury') && n.includes('osteoarthritis') && n.includes('outcome') || n.includes('koos') && n.includes('knee injury')) return 'koos_full';
-  if (n.includes('lachman test')) return 'lachman_test';
-  if (n.includes("mcmurray") || n.includes("mcmurrays")) return 'mcmurrays_test';
-  if (n.includes('metabolic equivalent') && n.includes('met') && n.includes('calculation')) return 'met_calc_full';
-  if (n.includes('modified bruce')) return 'modified_bruce';
-  if (n.includes('noble compression')) return 'noble_compression';
-  if (n.includes("ober") && n.includes('itb')) return 'obers_test';
-  if (n.includes('phq-9') || n.includes('phq9') || (n.includes('patient health questionnaire') && n.includes('9'))) return 'phq9_full';
-  if (n.includes('promis fatigue') || n.includes('promis') && n.includes('fatigue')) return 'promis_fatigue';
-  if (n.includes('perceived stress scale') && !n.includes('pss-10') && n.includes('pss') || n === 'pss-10' || n.includes('pss-10')) return 'pss10_full';
-  if (n.includes('patient-specific functional scale') || n.includes('patient specific functional scale') && !n.includes('psfs')) return 'psfs_full';
-  if (n.includes('pediatric balance scale') || n.includes('paediatric balance scale')) return 'pediatric_balance';
-  if (n.includes('physical performance test') && n.includes('ppt')) return 'ppt_full';
-  if (n.includes('pivot shift')) return 'pivot_shift';
-  if (n.includes('quebec back pain') || n.includes('qbpds')) return 'qbpds';
-  if (n.includes('roland-morris') || n.includes('roland morris') || n.includes('rdq')) return 'roland';
-  if (n.includes('rivermead mobility index') || n.includes('rivermead mobility') || n.includes('rmi') && n.includes('rivermead')) return 'rivermead_mobility';
-  if (n.includes('repeated sprint') && n.includes('10') && n.includes('20')) return 'rsa_10x20';
-  if (n.includes('repeated sprint') && n.includes('6') && n.includes('30')) return 'rsa_6x30';
-  if (n.includes('repeated sprint') && n.includes('7') && n.includes('35')) return 'rsa_7x35';
-  if (n.includes('repeated sprint') && n.includes('shuttle') && (n.includes('15') || n.includes('15+15'))) return 'rsa_shuttle';
-  if (n.includes('repeated sprint') || n.includes('rsa') && n.includes('sprint')) return 'rsa_generic';
-  if (n.includes('rockport') && n.includes('1') && n.includes('mile')) return 'rockport_1mile';
-  if (n.includes("romberg") && n.includes('standing balance')) return 'rombergs_standing';
-  if (n.includes('shoulder tug test') || n.includes("pastor") && n.includes('test')) return 'shoulder_tug';
-  if (n.includes('single-leg stance test') || n.includes('single leg stance test')) return 'single_leg_stance_test';
-  if (n.includes('sit and reach test') && !n.includes('chair')) return 'sit_reach_test';
-  if (n.includes('6-minute step') || n.includes('6 minute step') || n.includes('six minute step')) return 'six_min_step_test';
-  if (n.includes('slump test')) return 'slump_test';
-  if (n.includes('standing stork test')) return 'standing_stork';
-  if (n.includes('step tap test') && n.includes('15')) return 'step_tap_15';
-  if (n.includes('step test') && n.includes('aerobic')) return 'aerobic_step';
-  if (n.includes('straight leg raise') || n.includes('slr') && n.includes('straight')) return 'slr_test';
-  if (n.includes('10-metre walk') || n.includes('10 metre walk') || n.includes('10mwt') || (n.includes('10m walk') && !n.includes('6'))) return 'ten_metre_walk';
-  if (n.includes('thessaly test')) return 'thessaly_test';
-  if ((n.includes('30-second chair') || n.includes('30 second chair')) && n.includes('stand')) return 'thirty_sec_chair';
-  if (n.includes('thomas test') && n.includes('hip')) return 'thomas_test';
-  if (n.includes('timed push-up') || n.includes('timed push up') || n.includes('press-up test') || n.includes('press up test')) return 'timed_push_up';
-  if (n.includes('timed up and go') && !n.includes('dual')) return 'tug_full';
-  if (n.includes('two-minute step') || n.includes('2-minute step') || n.includes('two minute step') || n.includes('2 minute step')) return 'two_min_step';
-  if (n.includes('vo2max') && n.includes('graded exercise') || n.includes('maximal graded exercise') || n.includes('gxt') && n.includes('vo2')) return 'vo2max_gxt_full';
-  if (n.includes('vertical jump') && n.includes('sargent')) return 'sargent_jump';
-
-  if (n.includes('waist circumference') && !n.includes('hip')) return 'waist_circ';
-  if ((n.includes('waist') && n.includes('hip ratio')) || n.includes('whr') && n.includes('waist')) return 'whr_full';
-  if (n === 'weight' || n.includes('weight assessment') || n.includes('weight measurement')) return 'weight_measure';
-  if (n.includes('wingate anaerobic') || n.includes('wingate test')) return 'wingate';
-  if (n.includes('ymca') && n.includes('3') && n.includes('minute') && n.includes('step')) return 'ymca_3min_step';
-  if (n.includes('ymca') && n.includes('cycle ergometer')) return 'ymca_cycle';
-  if (n.includes('yo-yo intermittent') || n.includes('yoyo intermittent') || n.includes('yo yo intermittent')) return 'yoyo_intermittent';
-  if (n.includes('y-balance') || n.includes('y balance') || n.includes('ybts') || n.includes('y balance test')) return null; // Y-Balance Test removed
-  if (n.includes('standing long jump') || n.includes('broad jump') || n.includes('standing broad jump')) return 'standing_long_jump';
-  if (n.includes('depaul') || n.includes('dsq-2') || n.includes('dsq2') || (n.includes('symptom questionnaire') && n.includes('dsq'))) return 'dsq2';
-  if (n.includes('clinical copd questionnaire') || n.includes('ccq')) return 'ccq';
-  if (n.includes('leicester cough') || n.includes('lcq')) return 'lcq';
-  if (n.includes('distress thermometer') || n.includes('distress thermometre')) return 'distress_thermometer';
-  if (n.includes('impact of event') || n.includes('ies-r') || n.includes('iesr')) return 'iesr';
-  if (n.includes('insomnia severity') || n.includes('isi')) return 'isi';
-  if (n.includes('international knee') || n.includes('ikdc') || n.includes('knee documentation')) return 'ikdc';
-  if (n.includes('girth measurement') || n.includes('girth measures') || n.includes('circumference measurement')) return 'girth';
-  if (n.includes('hba1c') || n.includes('hb a1c') || n.includes('glycated hemoglobin') || n.includes('glycated haemoglobin')) return 'hba1c';
-  if (n.includes('isometric strength testing') || (n.includes('isometric') && n.includes('strength') && n.includes('testing'))) return 'isometric_testing';
-  if (n.includes('isometric strength') && !n.includes('testing')) return 'isometric_strength';
-  if (n.includes('neck disability index') || n.includes('ndi') && n.includes('neck')) return 'ndi';
-  if (n.includes('oswestry') || (n.includes('odi') && !n.includes('modified'))) return 'odi';
-  if (n.includes('spadi') || n.includes('shoulder pain and disability index')) return 'spadi';
-  if (n.includes('blood pressure') || n.includes('bp')) return 'blood_pressure';
-  if (n.includes('heart rate') && (n.includes('pre') || n.includes('post') || n.includes('exercise') || n.includes('recovery'))) return 'heart_rate';
-  if (n.includes('oxygen saturation') || n.includes('spo2') || n.includes('sp o2')) return 'spo2';
-  if (n.includes('vital sign')) return 'vital_signs';
-  if (n.includes('conley') || (n.includes('conley') && n.includes('scale'))) return 'conley_scale';
-  if (n.includes('arm curl') || n.includes('bicep curl') || n.includes('30-second arm') || n.includes('30 second arm') || n.includes('30s arm') || n.includes('30s bicep')) return 'arm_curl';
-  if (n.includes('chalder fatigue') || n.includes('chalder') && n.includes('fatigue')) return 'chalder_fatigue';
-  if (n.includes('visual rom') || n.includes('visual range of motion')) return 'visual_rom';
-  if (n.includes('quickdash') || n.includes('quick dash') || (n.includes('quick') && n.includes('dash'))) return 'quick_dash';
-  if (n.includes('pcl-5') || n.includes('pcl5') || n.includes('ptsd checklist')) return 'pcl5';
-  if (n.includes('pittsburgh sleep') || n.includes('psqi')) return 'psqi';
-  if (n.includes('sarc-f') || n.includes('sarcf') || (n.includes('sarc') && n.includes('questionnaire'))) return 'sarc_f';
-  return null;
-  }
-
-export function canHandleAssessment(assessmentName) {
-  return detect(assessmentName) !== null;
-}
-
-export default function TestRunnerExtras({ client, assessment, clientAssessment, onClose, onComplete, isStandaloneMode = false, clinicianNotes }) {
+export default function TestRunnerExtras({ client, assessment, clientAssessment, onClose, onComplete, isStandaloneMode = false, clinicianNotes, runnerKey = null }) {
   const appointmentId = new URLSearchParams(window.location.search).get('appointmentId');
   const [runnerData, setRunnerData] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -462,8 +264,25 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
     }
   }, [isStandaloneMode]);
 
-  const handleRunnerSave = async (data) => {
-    if (!data) { toast.error("No data to save"); return; }
+  const handleRunnerSave = async (submittedData) => {
+    if (!submittedData) { toast.error("No data to save"); return; }
+
+    let data = submittedData;
+    if (hasPromNeuroScorer(runnerKey)) {
+      try {
+        data = validateAndScorePromNeuro(submittedData, {
+          runnerKey,
+          assessmentName: assessment?.name,
+          assessmentDate: submittedData.assessment_date,
+          notes: submittedData.notes,
+          client: selectedClient || client,
+        });
+      } catch (error) {
+        console.error("PROM/neuro scorer rejected runner data:", error?.message || error);
+        toast.error(error?.message || "Assessment responses are incomplete or invalid.");
+        return;
+      }
+    }
     
     setRunnerData(data);
     if (data.notes) setNotes(data.notes);
@@ -471,7 +290,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
 
     // Runners that have their own complete UI (like PPT) should auto-submit without showing the confirmation step
     const autoSubmitTypes = ['ppt_full', 'psqi', 'standing_long_jump', 'standing_stork', 'stroop', 'trendelenburg', '2min_walk', 'rivermead_mobility'];
-    const currentTestType = detect(assessment.name);
+    const currentTestType = runnerKey;
     if (autoSubmitTypes.includes(currentTestType)) {
       // Auto-submit directly
       const clientToUse = selectedClient || client;
@@ -514,7 +333,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
         if (clinicianNotes && clinicianNotes.trim()) { objectiveText += `\n\nClinician Notes (recorded during assessment):\n${clinicianNotes.trim()}`; }
         
         try {
-          await saveAssessmentToSOAP({ clientToUse, appointmentId: appointmentId || assessmentToUpdate?.appointment_id, objectiveText, assessmentToUpdateId: assessmentToUpdate.id, updateData });
+          await saveAssessmentToSOAP({ clientToUse, appointmentId: appointmentId || assessmentToUpdate?.appointment_id, objectiveText, assessmentToUpdateId: assessmentToUpdate.id, updateData, assessment });
         } catch (soapError) { console.error("SOAP note error:", soapError); }
         
         toast.success("Assessment saved successfully!");
@@ -687,7 +506,8 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
           appointmentId: appointmentId || assessmentToUpdate?.appointment_id,
           objectiveText,
           assessmentToUpdateId: assessmentToUpdate.id,
-          updateData
+          updateData,
+          assessment,
         });
       } catch (soapError) {
         console.error("SOAP note error:", soapError);
@@ -706,7 +526,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
       }
   };
 
-  const testType = detect(assessment.name);
+  const testType = runnerKey;
 
   const renderRunner = () => {
     const props = { client: selectedClient || client, onSave: handleRunnerSave, onClose };
@@ -729,7 +549,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
       case 'beighton': return <BeightonHypermobilityScoreRunner {...props} />;
       case 'chester': return <ChesterStepTestRunner {...props} />;
       case 'efs': return <EdmontonFrailScaleEFSRunner {...props} />;
-      case 'eswt': return <EnduranceShuttleWalkTestESWTRunner {...props} assessment={assessment} />;
+      case 'eswt': return <EnduranceShuttleWalkTestESWTRunner {...props} />;
       case 'fss': return <FatigueSeverityScaleFSSRunner {...props} />;
       case 'fiqr': return <FibromyalgiaImpactQuestionnaireRevisedFIQRRunner {...props} />;
       case 'fvc': return <ForcedVitalCapacityFVCSpirometryRunner {...props} />;
@@ -763,10 +583,11 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
       case 'gas': return <GoalAttainmentScalingGASRunner {...props} />;
       case 'digit_span': return <DigitSpanTestRunner {...props} />;
       case 'dual_task_gait': return <DualTaskGaitAssessmentRunner {...props} />;
-      case 'bilateral_flex': return <BilateralFlexibilityRunner {...props} />;
+      case 'bilateral_flex': return <BilateralFlexibilityRunner {...props} testName={assessment?.name || 'Bilateral Flexibility'} initialData={clientAssessment?.additional_data} />;
       case 'mas_stroke': return <MotorAssessmentScaleMASStrokeRunner {...props} />;
       case 'tardieu': return <TardieuScaleRunner {...props} />;
-      case 'tsk': return <QuestionnaireRunner {...props} assessment={assessment} />;
+      case 'tsk': return <TampaScaleKinesiophobiaTSK17Runner {...props} />;
+      case 'tuds': return <TUDSRunner {...props} />;
       case 'parq': return <PARQRunner {...props} />;
       case 'edss': return <EDSSRunner {...props} />;
       case 'step_tap': return <StepTapTestRunner {...props} />;
@@ -781,12 +602,12 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
       case 'box_block_test': return <BoxandBlockTestRunner {...props} assessment={assessment} />;
       case 'rsi': return <ReactiveStrengthIndexRSIRunner {...props} />;
       case 'tri_arm': return <TriLevelArmErgometerTestRunner {...props} />;
-      case '10rm': return <OneRMTestingRunner {...props} />;
-      case 'abc_scale': return <ActivitiesspecificBalanceConfidenceABCScaleRunner {...props} />;
+      case '10rm': return <TenRepetitionMaximum10RMRunner {...props} />;
+      case 'abc_scale': return <ActivitiesspecificBalanceConfidenceABCScaleRunner {...props} isStandaloneMode={isStandaloneMode} />;
       case 'aqol': return <AQoLRunner {...props} />;
       case 'balke': return <BalkeWareTreadmillTestRunner {...props} />;
       case 'breq': return <BREQRunner {...props} />;
-      case 'crdq': return <QuestionnaireRunner {...props} assessment={assessment} />;
+      case 'crdq': return <QuestionnaireRunner {...props} assessment={assessment} scoringKey="crdq" />;
       case 'dash': return <DASHRunner {...props} />;
       case 'dsq2': return <DePaulSymptomQuestionnaireDSQ2Runner {...props} />;
       case 'cat': return <COPDAssessmentTestCATRunner {...props} />;
@@ -796,7 +617,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
       case '5xsts': return <FiveTimesSittoStandTest5xSTSRunner {...props} />;
       case 'faam': return <FootandAnkleAbilityMeasureFAAMRunner {...props} />;
       case 'fma': return <FuglMeyerAssessmentFMARunner {...props} />;
-      case 'girth': return <GirthMeasurementsRunner {...props} />;
+      case 'girth': return <GirthMeasurementsRunner {...props} initialData={clientAssessment?.additional_data} />;
       case 'hba1c': return <HbA1cRunner {...props} />;
       case 'iesr': return <IESRRunner {...props} />;
       case 'isi': return <InsomniaSeverityIndexISIRunner {...props} />;
@@ -806,10 +627,12 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
       case 'ndi': return <NeckDisabilityIndexNDIRunner {...props} />;
       case 'odi': return <ODIRunner {...props} onSave={handleRunnerSave} onClose={onClose} />;
       case 'spadi': return <SPADIRunner {...props} />;
-      case 'vital_signs':
+      case 'vital_signs': return <VitalSignsRunner {...props} assessment={assessment} assessmentName={assessment.name} />;
       case 'blood_pressure':
-      case 'heart_rate':
-      case 'spo2': return <VitalSignsRunner {...props} assessment={assessment} assessmentName={assessment.name} />;
+      case 'heart_rate': return <VitalSignsRunner {...props} assessment={assessment} assessmentName={assessment.name} runnerKey={testType} />;
+      case 'spo2':
+      case 'spo2-exercise':
+      case 'spo2-resting': return <VitalSignsRunner {...props} assessment={assessment} assessmentName={assessment.name} runnerKey={resolveSpo2RunnerKey(assessment, testType)} />;
       case '10sec_jump': return <TenSecondRepeatedJumpTestRunner {...props} />;
       case '12min_walk': return <TwelveMinuteWalkRunTestCooperRunner {...props} />;
       case '1rm_testing': return <OneRMTestingRunner {...props} />;
@@ -817,7 +640,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
       case '2min_walk': return <TwoMinuteWalkTest2MWTRunner {...props} />;
       case '3015_ift': return <ThreeOFifteenIntermittentFitnessTestRunner {...props} />;
       case '30sec_sts': return <ThirtySecondSittoStandTestRunner {...props} />;
-      case '400m_walk': return <FourHundredMeterWalkRunner {...props} />;
+      case '400m_walk': return <FourHundredMeterWalkRunner {...props} assessment={assessment} />;
       case '60sec_sts': return <SixtySecondSittoStandTestRunner {...props} />;
       case '6m_walk_simple': return <SixMeterWalkTestSimpleRunner {...props} />;
       case '8ft_upgo': return <EightFootUpandGoTestRunner {...props} />;
@@ -826,7 +649,7 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
       case 'apleys_compression': return <ApleysCompressionTestRunner {...props} />;
       case 'astrand_6_cycle': return <Astrand6MinuteCycleTestRunner {...props} />;
       case 'astrand_rhyming_step': return <AstrandRhymingStepTestRunner {...props} />;
-      case 'astrand_rhyming_cycle': return <AstrandTestRunner {...props} />;
+      case 'astrand_rhyming_cycle': return <AstrandTestRunner {...props} initialData={clientAssessment?.additional_data} />;
       case 'bess': return <BESSRunner {...props} />;
       case 'back_scratch_test': return <BackScratchTestRunner {...props} />;
       case 'bestest_full': return <BalanceEvaluationSystemsTestBESTestRunner {...props} />;
@@ -868,13 +691,13 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
       case 'ppt_full': return <PhysicalPerformanceTestPPTRunner {...props} />;
       case 'pivot_shift': return <PivotShiftTestRunner {...props} />;
       case 'qbpds': return <QuebecBackPainDisabilityScaleQBPDSRunner {...props} />;
-      case 'roland': return <RolandMorrisDisabilityQuestionnaireRunner {...props} assessment={assessment} />;
+      case 'roland': return <RolandMorrisDisabilityQuestionnaireRunner {...props} />;
       case 'rivermead_mobility': return <RivermadMobilityIndexRunner {...props} />;
-      case 'rsa_10x20': return <RSARunner {...props} assessment={assessment} initialProtocolKey="rsa_10x20" />;
-      case 'rsa_6x30': return <RSARunner {...props} assessment={assessment} initialProtocolKey="rsa_6x30" />;
-      case 'rsa_7x35': return <RSARunner {...props} assessment={assessment} initialProtocolKey="rsa_7x35" />;
-      case 'rsa_shuttle': return <RSARunner {...props} assessment={assessment} initialProtocolKey="rsa_shuttle" />;
-      case 'rsa_generic': return <RSARunner {...props} assessment={assessment} />;
+      case 'rsa_10x20': return <RSARunner {...props} testName={assessment?.name || "Repeated Sprint Ability Test"} assessment={assessment} initialProtocolKey="rsa_10x20" />;
+      case 'rsa_6x30': return <RSARunner {...props} testName={assessment?.name || "Repeated Sprint Ability Test"} assessment={assessment} initialProtocolKey="rsa_6x30" />;
+      case 'rsa_7x35': return <RSARunner {...props} testName={assessment?.name || "Repeated Sprint Ability Test"} assessment={assessment} initialProtocolKey="rsa_7x35" />;
+      case 'rsa_shuttle': return <RSARunner {...props} testName={assessment?.name || "Repeated Sprint Ability Test"} assessment={assessment} initialProtocolKey="rsa_shuttle" />;
+      case 'rsa_generic': return <RSARunner {...props} testName={assessment?.name || "Repeated Sprint Ability Test"} assessment={assessment} initialProtocolKey="rsa_generic" />;
       case 'rockport_1mile': return <Rockport1MileWalkTestRunner {...props} />;
       case 'rombergs_standing': return <RombergsTestofStandingBalanceRunner {...props} />;
       case 'shoulder_tug': return <ShoulderTugTestPastorsTestRunner {...props} />;
@@ -912,13 +735,19 @@ export default function TestRunnerExtras({ client, assessment, clientAssessment,
       case 'standing_long_jump': return <StandingLongJumpRunner {...props} />;
 
       default:
-         return assessment?.is_questionnaire ? <QuestionnaireRunner {...props} assessment={assessment} /> : null;
+        return (
+          <div className="p-6 space-y-3">
+            <h3 className="font-semibold text-red-800">Unregistered assessment runner key</h3>
+            <p className="text-sm text-slate-600">No Extras runner is registered for “{String(testType)}”.</p>
+            <Button type="button" variant="outline" onClick={onClose}>Close</Button>
+          </div>
+        );
     }
   };
 
   // Runners that manage their own modal UI — render without wrapper
   const selfModalTypes = ['psqi', 'ppt_full', 'sppb', 'stroop', 'static_back', 'standing_stork',
-    'slump_test', 'sebt', 'single_leg_stance_test', 'five_xsts', 'fes', 'fesi', 'bia',
+    'slump_test', 'sebt', 'single_leg_stance_test', 'five_xsts', 'fes', 'fesi', 'bia', 'tsk', '10rm',
     'pcl5', 'roland', 'sarc_f', 'rivermead_mobility', '2min_walk', 'standing_long_jump'];
 
   // Show the runner wrapped in a modal overlay

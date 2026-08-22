@@ -7,74 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Save, X, ChevronDown, ChevronUp, BookOpen, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_CBM_TASKS as TASKS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const TASKS = [
-  {
-    name: "Unilateral Stance",
-    description: "Stand on one leg on a foam surface. Eyes open. Score based on duration and quality.",
-    scoring: "0=Unable, 1=<5s, 2=5–10s, 3=10–20s, 4=20–30s with difficulty, 5=30s stable",
-  },
-  {
-    name: "Tandem Walking",
-    description: "Walk heel-to-toe along a 3m line. 10 steps total.",
-    scoring: "0=Unable, 1=≥4 steps off, 2=2–3 steps off, 3=1 step off, 4=Completed with arm raise, 5=Perfect",
-  },
-  {
-    name: "180° Tandem Pivot",
-    description: "Turn 180° using small steps while maintaining tandem stance.",
-    scoring: "0=Unable, 1=Major difficulty, 2=Loses tandem 2+, 3=Loses tandem once, 4=Completed slowly, 5=Smooth and controlled",
-  },
-  {
-    name: "Lateral Foot Scooting",
-    description: "Sidestep 3m to the right, then 3m to left as fast as possible without crossing feet.",
-    scoring: "0=Unable, 2=Crosses feet or uses support, 3=Slow/hesitant, 4=Adequate speed with minor error, 5=Fast and controlled",
-  },
-  {
-    name: "Hopping Forward",
-    description: "Hop forward on one foot for 2m. Repeated on other foot.",
-    scoring: "0=Unable, 1=1–2 hops only, 2=<1m, 3=1–2m with difficulty, 4=2m with arm use, 5=2m controlled",
-  },
-  {
-    name: "Crouch and Walk",
-    description: "Walk 3m in a crouched position (knees bent ~45°), return to start.",
-    scoring: "0=Unable, 1=Falls or uses support, 2=Cannot maintain crouch, 3=Crouch inconsistent, 4=Completed slowly, 5=Fluid and controlled",
-  },
-  {
-    name: "Lateral Dodging",
-    description: "Walk forward, dodge around 3 cones placed 1m apart.",
-    scoring: "0=Unable, 1=Hits ≥2 cones, 2=Hits 1 cone, 3=Avoids but slow, 4=Adequate with minor imbalance, 5=Smooth and fast",
-  },
-  {
-    name: "Walking and Looking",
-    description: "Walk 6m while turning head left/right every 2 steps.",
-    scoring: "0=Unable, 2=Stops or grabs support, 3=Veers or slows significantly, 4=Minor deviation, 5=Smooth gaze with stable gait",
-  },
-  {
-    name: "Running with Controlled Stop",
-    description: "Run 6m and stop within 1m of a marked line on command.",
-    scoring: "0=Unable/refuses, 1=Cannot run, 2=Overshoots >1m, 3=Overshoots slightly, 4=Stops within 1m awkwardly, 5=Controlled stop",
-  },
-  {
-    name: "Forward to Backward Walking",
-    description: "Walk forward 3m, then backward 3m on command.",
-    scoring: "0=Unable, 1=Cannot walk backward, 2=Loses balance, 3=Very slow, 4=Adequate with hesitation, 5=Smooth transition",
-  },
-  {
-    name: "Walk, Look, and Carry",
-    description: "Walk 6m while carrying a tray with cups and looking at the cups.",
-    scoring: "0=Unable, 1=Drops tray/cups, 2=Spills or veers significantly, 3=Spills minor amount, 4=Slow and careful, 5=Controlled and efficient",
-  },
-  {
-    name: "Descending Stairs",
-    description: "Descend a full flight of stairs without rail if possible. Score for safety and efficiency.",
-    scoring: "0=Unable, 1=Requires physical assist, 2=Requires rail both directions, 3=Requires rail one direction, 4=Slow without rail, 5=Normal speed without rail",
-  },
-  {
-    name: "Step-Ups",
-    description: "Step up and down from a 20cm step as fast as possible 5 times each leg.",
-    scoring: "0=Unable, 1=Requires support, 2=Very slow or unstable, 3=Slow but independent, 4=Adequate speed with minor difficulty, 5=Fast and controlled",
-  },
-];
 
 function getInterpretation(score) {
   if (score >= 55) return { label: "Community Ambulatory — High Level", color: "text-green-700", bg: "bg-green-50 border-green-200" };

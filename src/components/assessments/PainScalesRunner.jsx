@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { todayLocal } from "@/lib/localDate";
+import { scorePainScales } from "@/lib/clinical/scorers/coreA";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,47 +34,15 @@ export default function PainScalesRunner({ onSave, onClose }) {
       return;
     }
 
-    const averagePain = bestPain !== null && worstPain !== null 
-      ? ((parseInt(currentPain) + parseInt(bestPain) + parseInt(worstPain)) / 3).toFixed(1)
-      : currentPain;
-
-    // Format location safely (handle both string and object types)
-    const formatLocation = (loc) => {
-      if (!loc) return null;
-      if (typeof loc === 'string') return loc;
-      if (typeof loc === 'object') {
-        // If it's an array or has string representation
-        if (Array.isArray(loc)) return loc.join(', ');
-        return JSON.stringify(loc);
-      }
-      return loc;
-    };
-
-    const soapText = [
-      `• Pain Rating Scales`,
-      `  Current Pain: ${currentPain}/10 — ${currentInterp?.level || ''}`,
-      bestPain !== null ? `  Best Pain (24h): ${bestPain}/10` : null,
-      worstPain !== null ? `  Worst Pain (24h): ${worstPain}/10` : null,
-      location ? `  Location: ${formatLocation(location)}` : null,
-      notes ? `  Notes: ${notes}` : null,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      result_value: parseFloat(averagePain),
-      additional_data: {
-        soap_text: soapText,
-        scale_type: scale,
-        current_pain: parseInt(currentPain),
-        best_pain: bestPain !== null ? parseInt(bestPain) : null,
-        worst_pain: worstPain !== null ? parseInt(worstPain) : null,
-        average_pain: parseFloat(averagePain),
-        pain_location: typeof location === 'string' ? location : formatLocation(location),
-        interpretation: currentInterp?.level
-      },
-      notes: notes,
-      unit_of_measure: "/10",
-      assessment_date: todayLocal()
-    });
+    const formattedLocation = Array.isArray(location)
+      ? location.join(', ')
+      : typeof location === 'object' && location !== null
+        ? JSON.stringify(location)
+        : location || '';
+    onSave(scorePainScales(
+      { scale_type: scale, current_pain: currentPain, best_pain: bestPain, worst_pain: worstPain, pain_location: formattedLocation, notes },
+      { assessmentName: 'Pain Rating Scales', assessmentDate: todayLocal(), notes },
+    ));
   };
 
   return (

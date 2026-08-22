@@ -115,10 +115,14 @@ export async function startFakeOpenAIChat() {
       const promptTail = String(userMessage?.content || '').slice(-60).replace(/\s+/g, ' ');
       content = `SYNTHETIC_CHAT_PROVIDER_RESPONSE for: "${promptTail}"`;
     }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'x-request-id': 'req_synthetic_assurance',
+    });
     res.end(JSON.stringify({
       id: 'chatcmpl_synthetic_assurance',
       object: 'chat.completion',
+      model: payload.model,
       choices: [{ index: 0, message: { role: 'assistant', content }, finish_reason: 'stop' }],
       usage: {
         prompt_tokens: 100,

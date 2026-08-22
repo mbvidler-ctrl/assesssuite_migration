@@ -7,64 +7,14 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Save, X, Info, ChevronDown, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_LCQ_LCQ_DOMAINS as LCQ_DOMAINS, PROM_NEURO_LCQ_SCALE as SCALE, PROM_NEURO_LCQ_DOMAINCOLORMAP as domainColorMap } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 // Official LCQ — 19 items, 7-point Likert (1=Always/Severely, 7=Never/Not at all)
 // Higher score = better cough-related QoL
-const LCQ_DOMAINS = [
-  {
-    key: "physical",
-    label: "Physical Domain",
-    color: "red",
-    items: [
-      { id: "P1", text: "I have been coughing a lot." },
-      { id: "P2", text: "I have been bothered by coughing when I exercise." },
-      { id: "P3", text: "I have had chest or stomach pains due to coughing." },
-      { id: "P4", text: "I have been tired because of my cough." },
-      { id: "P5", text: "My cough has made me hoarse." },
-      { id: "P6", text: "My cough has made me feel short of breath." },
-      { id: "P7", text: "I have been incontinent due to coughing." },
-    ],
-  },
-  {
-    key: "psychological",
-    label: "Psychological Domain",
-    color: "purple",
-    items: [
-      { id: "Ps1", text: "I have been embarrassed by my coughing." },
-      { id: "Ps2", text: "My cough has made me feel anxious." },
-      { id: "Ps3", text: "My cough has made me feel frustrated." },
-      { id: "Ps4", text: "I have felt fed up with my cough." },
-      { id: "Ps5", text: "I have been bothered by coughing when talking to people." },
-      { id: "Ps6", text: "I have felt in control of my cough." },
-    ],
-  },
-  {
-    key: "social",
-    label: "Social Domain",
-    color: "blue",
-    items: [
-      { id: "S1", text: "My cough has interfered with my job or other daily tasks." },
-      { id: "S2", text: "My cough has disturbed my sleep." },
-      { id: "S3", text: "My cough has caused problems with family, friends or other people." },
-      { id: "S4", text: "My cough has affected my social life." },
-      { id: "S5", text: "My cough has affected my enjoyment of social activities." },
-      { id: "S6", text: "My cough has made me feel I am a burden to others." },
-    ],
-  },
-];
 
 const ALL_ITEMS = LCQ_DOMAINS.flatMap(d => d.items);
 const TOTAL_ITEMS = ALL_ITEMS.length; // 19
 
-const SCALE = [
-  { value: 7, label: "Always" },
-  { value: 6, label: "Most of the time" },
-  { value: 5, label: "A good bit of the time" },
-  { value: 4, label: "Some of the time" },
-  { value: 3, label: "A little of the time" },
-  { value: 2, label: "Hardly any of the time" },
-  { value: 1, label: "None of the time" },
-];
 
 // Domain score = mean of items (range 1–7). Total = mean of all 19 items (1–7). Higher = better.
 function calcDomainScore(domainItems, responses) {
@@ -89,11 +39,6 @@ function ScoreInterpretation({ score }) {
   return <Badge className={`text-xs ${color}`}>{label}</Badge>;
 }
 
-const domainColorMap = {
-  red: { bg: "bg-red-50", border: "border-red-200", text: "text-red-800", badge: "bg-red-100 text-red-700" },
-  purple: { bg: "bg-purple-50", border: "border-purple-200", text: "text-purple-800", badge: "bg-purple-100 text-purple-700" },
-  blue: { bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-800", badge: "bg-blue-100 text-blue-700" },
-};
 
 export default function LeicesterCoughQuestionnaireLCQRunner({ client, onSave, onClose }) {
   const [responses, setResponses] = useState({});

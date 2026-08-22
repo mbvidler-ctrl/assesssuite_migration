@@ -30,9 +30,10 @@ export default function PatientSpecificFunctionalScalePSFSRunner({ client, onSav
   };
 
   const handleSave = () => {
-    const invalidActivity = activities.find(
-      (activity) => !activity.name || activity.score === "" || isNaN(activity.score) || activity.score < 0 || activity.score > 10
-    );
+    const invalidActivity = activities.find((activity) => {
+      const numericScore = Number(activity.score);
+      return !activity.name || activity.score === "" || !Number.isFinite(numericScore) || numericScore < 0 || numericScore > 10;
+    });
 
     if (invalidActivity) {
       toast.error("Please ensure all activities have a valid name and score between 0 and 10.");

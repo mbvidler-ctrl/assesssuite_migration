@@ -14,6 +14,7 @@ import {
   sanitizeTelemetryValue,
   shouldExcludeIncomingRequestBody,
 } from '../telemetry.mjs';
+import { sentryReleaseForProfession } from '../../packages/profession-config/sentry-release.mjs';
 
 const VALID_DSN = 'https://public_key@o4511822688813056.ingest.us.sentry.io/4511827129663488';
 const RELEASE = 'da253ebfbcd8fe5ac5f379ff1f2589cf0730ab63';
@@ -500,6 +501,40 @@ test('invalid configuration and SDK failures remain application-open with zero t
   assert.doesNotThrow(() => telemetry.observe({ url: '/api/version' }, response));
   assert.equal(response.listenerCount('finish'), 0);
   assert.equal(telemetry.captureStatus(500, 'service'), false);
+});
+
+test('the same source SHA has distinct EP and Physio Sentry release identities', () => {
+  assert.equal(sentryReleaseForProfession('exercise-physiology', RELEASE), RELEASE);
+  assert.equal(sentryReleaseForProfession('physio', RELEASE), `physio-production@${RELEASE}`);
+  assert.notEqual(
+    sentryReleaseForProfession('exercise-physiology', RELEASE),
+    sentryReleaseForProfession('physio', RELEASE),
+  );
+  assert.equal(sentryReleaseForProfession('physio', RELEASE.toUpperCase()), null);
+  assert.equal(sentryReleaseForProfession('unknown', RELEASE), null);
+});
+
+test('server telemetry uses a distinct Physio production environment and rejects cross-target labels', () => {
+  const physioEnvironment = validEnvironment({
+    PROFESSION: 'physio',
+    DEFAULT_APP_ID: 'local-assesssuite-physio',
+    SENTRY_ENVIRONMENT: 'physio-production',
+    SENTRY_RELEASE: `physio-production@${RELEASE}`,
+  });
+  const physioSdk = fakeSdk();
+  const enabled = createErrorTelemetry({ environment: physioEnvironment, sdk: physioSdk });
+  assert.equal(enabled.enabled, true);
+  assert.equal(physioSdk.calls.init[0].environment, 'physio-production');
+  assert.equal(physioSdk.calls.init[0].release, `physio-production@${RELEASE}`);
+
+  for (const environment of [
+    { ...physioEnvironment, SENTRY_ENVIRONMENT: 'production' },
+    { ...physioEnvironment, SENTRY_RELEASE: RELEASE },
+    validEnvironment({ SENTRY_ENVIRONMENT: 'physio-production' }),
+  ]) {
+    const telemetry = createErrorTelemetry({ environment, sdk: fakeSdk() });
+    assert.equal(telemetry.enabled, false);
+  }
 });
 
 test('browser profiling policy applies only to platform HTML documents', () => {

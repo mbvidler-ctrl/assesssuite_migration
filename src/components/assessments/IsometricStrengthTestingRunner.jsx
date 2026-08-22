@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Plus, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 const MUSCLE_GROUPS = [
   { label: "Grip Strength - Right", value: "grip_right", side: "right" },
@@ -83,48 +84,12 @@ export default function IsometricStrengthTestingRunner({ client, onSave, onClose
   };
 
   const handleSave = () => {
-    // Calculate bilateral symmetry indices where applicable
-    const symmetryAnalysis = {};
-    const rightTests = tests.filter(t => MUSCLE_GROUPS.find(m => m.value === t.muscle)?.side === "right");
-    const leftTests = tests.filter(t => MUSCLE_GROUPS.find(m => m.value === t.muscle)?.side === "left");
-
-    rightTests.forEach(rTest => {
-      const muscleBase = rTest.muscle.replace("_right", "").replace("_left", "");
-      const lTest = leftTests.find(t => t.muscle.replace("_left", "").replace("_right", "") === muscleBase);
-      if (lTest) {
-        const ratio = (lTest.best / rTest.best) * 100;
-        symmetryAnalysis[muscleBase] = {
-          right: rTest.best,
-          left: lTest.best,
-          ratio: parseFloat(ratio.toFixed(1)),
-          symmetrical: ratio >= 90 && ratio <= 110,
-        };
-      }
-    });
-
-    // Generate SOAP text
-    const testSummaries = tests.map(t => 
-      `${t.muscleLabel}: Trial 1=${t.trial1}N${t.trial2 ? `, Trial 2=${t.trial2}N` : ""}${t.trial3 ? `, Trial 3=${t.trial3}N` : ""}, Best=${t.best}N, Average=${t.average}N`
-    );
-
-    const symmetrySummary = Object.entries(symmetryAnalysis).map(([muscle, data]) =>
-      `${muscle}: L/R Symmetry ${data.ratio}% (${data.symmetrical ? "symmetrical" : "asymmetrical"})`
-    );
-
-    const soapText = `Isometric Strength Testing:\n${testSummaries.join("\n")}${symmetrySummary.length > 0 ? `\n\nBilateral Symmetry Analysis:\n${symmetrySummary.join("\n")}` : ""}${notes ? `\n\nClinical Notes: ${notes}` : ""}`;
-
-    onSave({
-      result_value: tests.length > 0 ? tests[0].best : 0,
-      additional_data: {
-        soap_text: soapText,
-        tests: tests,
-        symmetry_analysis: symmetryAnalysis,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-
-    toast.success("Isometric strength testing saved successfully.");
+    try {
+      onSave(validateMobilityOrtho({ tests, notes }, { runnerKey: 'isometric_testing', assessmentDate: todayLocal() }));
+      toast.success("Isometric strength testing saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

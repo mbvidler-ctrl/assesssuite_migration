@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { todayLocal } from "@/lib/localDate";
+import { scoreHeartRateRecovery } from "@/lib/clinical/scorers/coreB";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -91,24 +91,11 @@ export default function HRRRunner({ onSave, onClose }) {
   };
 
   const handleSave = () => {
-    onSave({
-      result_value: hrr1,
-      additional_data: {
-        soap_text: buildSOAPText(),
-        peak_heart_rate: parseInt(peakHR),
-        hr_1_minute: parseInt(hr1Min),
-        hr_2_minute: hr2Min ? parseInt(hr2Min) : null,
-        hrr_1_minute: hrr1,
-        hrr_2_minute: hrr2,
-        additional_measurements: additionalMeasures.filter(m => m.hr),
-        recovery_mode: recoveryMode,
-        preceding_test: precedingTest,
-        symptoms: symptoms,
-        interpretation: interpretation?.text,
-      },
-      notes: notes,
-      assessment_date: todayLocal()
-    });
+    try {
+      onSave(scoreHeartRateRecovery({ peak_heart_rate: peakHR, hr_1_minute: hr1Min, hr_2_minute: hr2Min, additional_measurements: additionalMeasures.filter((measurement) => measurement.hr), recovery_mode: recoveryMode, preceding_test: precedingTest, symptoms, notes }, { assessmentName: 'Heart Rate Recovery (HRR)' }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save heart-rate recovery assessment.');
+    }
   };
 
   return (

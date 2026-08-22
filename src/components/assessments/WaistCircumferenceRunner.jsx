@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreWaistCircumference } from "@/lib/clinical/scorers/extrasPhysiological";
 
 export default function WaistCircumferenceRunner({ client, onSave, onClose }) {
   const [waistCircumference, setWaistCircumference] = useState("");
@@ -15,22 +16,15 @@ export default function WaistCircumferenceRunner({ client, onSave, onClose }) {
 
 
   const handleSave = () => {
-    if (!waistCircumference) { toast.error("Please enter a waist circumference value."); return; }
-    const resultValue = parseFloat(waistCircumference);
-    const riskLevel = calculateRisk();
-    onSave({
-      status: "completed",
-      result_value: resultValue,
-      additional_data: {
-        soap_text: `• Waist Circumference Measurement\n  Result: ${resultValue} cm\n  Risk Category: ${riskLevel}`,
-        measurement_type: "waist_circumference",
-        waist_circumference: resultValue,
-        notes,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Measurement saved successfully.");
+    try {
+      onSave(scoreWaistCircumference(
+        { waist_circumference_cm: waistCircumference, sex: client?.gender, notes },
+        { assessmentDate: todayLocal(), assessmentName: 'Waist Circumference', client },
+      ));
+      toast.success("Measurement saved successfully.");
+    } catch (error) {
+      toast.error(error?.message || "Waist circumference could not be scored.");
+    }
   };
 
   const handleWaistCircumferenceChange = (e) => {

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle, ChevronDown, ChevronUp, BookOpen, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 export default function TimedPushUpTestPressUpTestRunner({ client, onSave, onClose }) {
   const [showInstructions, setShowInstructions] = useState(false);
@@ -67,28 +68,16 @@ export default function TimedPushUpTestPressUpTestRunner({ client, onSave, onClo
   };
 
   const handleSave = () => {
-    if (!postHR || !postBP || !postSPO2) {
-      toast.error("Please record all post-test vitals.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho({
+        completed: phase === 'completed', pushUpCount, durationSeconds: 60 - timeLeft,
+        preTest: { hr: restingHR, bp: restingBP, spo2: restingSPO2 },
+        postTest: { hr: postHR, bp: postBP, spo2: postSPO2 }, qualityNotes, notes,
+      }, { runnerKey: 'timed_push_up', assessmentDate: todayLocal() }));
+      toast.success("Results saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const result_value = pushUpCount;
-    const additional_data = {
-      measurement_type: "Timed Push-Up Test",
-      duration_seconds: 60 - timeLeft,
-      pre_test: { restingHR, restingBP, restingSPO2 },
-      post_test: { postHR, postBP, postSPO2 },
-      quality_observations: qualityNotes,
-    };
-
-    onSave({
-      status: "completed",
-      result_value,
-      additional_data,
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Results saved successfully.");
   };
 
   return (

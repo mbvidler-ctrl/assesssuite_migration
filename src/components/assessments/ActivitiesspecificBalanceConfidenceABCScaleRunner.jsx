@@ -9,25 +9,8 @@ import { Save, X, Users } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_ABC_ACTIVITIES as activities } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const activities = [
-  "Walk around the house",
-  "Walk up or down stairs",
-  "Bend over and pick up a slipper",
-  "Reach for small can at eye level",
-  "Stand on tiptoes and reach",
-  "Stand on chair and reach",
-  "Sweep the floor",
-  "Walk to car in driveway",
-  "Get into or out of car",
-  "Walk across parking lot",
-  "Walk up or down ramp",
-  "Walk in crowded mall",
-  "Bumped into by people",
-  "Step onto escalator (with railing)",
-  "Step onto escalator (with parcels)",
-  "Walk on icy sidewalks"
-];
 
 export default function ActivitiesspecificBalanceConfidenceABCScaleRunner({ client, onSave, onClose, isStandaloneMode }) {
   const [responses, setResponses] = useState(Array(16).fill(""));

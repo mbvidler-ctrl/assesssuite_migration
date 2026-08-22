@@ -7,43 +7,9 @@ import { Label } from "@/components/ui/label";
 import { Save, X, AlertCircle, ExternalLink, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_PROMIS_FATIGUE_SCORING_TABLE as SCORING_TABLE } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 // PROMIS Fatigue SF8a raw-to-T-score conversion table
-const SCORING_TABLE = [
-  { rawScore: 8, tScore: 33.1 },
-  { rawScore: 9, tScore: 38.5 },
-  { rawScore: 10, tScore: 41.0 },
-  { rawScore: 11, tScore: 42.8 },
-  { rawScore: 12, tScore: 44.3 },
-  { rawScore: 13, tScore: 45.6 },
-  { rawScore: 14, tScore: 46.9 },
-  { rawScore: 15, tScore: 48.1 },
-  { rawScore: 16, tScore: 49.2 },
-  { rawScore: 17, tScore: 50.4 },
-  { rawScore: 18, tScore: 51.5 },
-  { rawScore: 19, tScore: 52.5 },
-  { rawScore: 20, tScore: 53.6 },
-  { rawScore: 21, tScore: 54.6 },
-  { rawScore: 22, tScore: 55.6 },
-  { rawScore: 23, tScore: 56.6 },
-  { rawScore: 24, tScore: 57.5 },
-  { rawScore: 25, tScore: 58.5 },
-  { rawScore: 26, tScore: 59.4 },
-  { rawScore: 27, tScore: 60.4 },
-  { rawScore: 28, tScore: 61.3 },
-  { rawScore: 29, tScore: 62.3 },
-  { rawScore: 30, tScore: 63.3 },
-  { rawScore: 31, tScore: 64.3 },
-  { rawScore: 32, tScore: 65.3 },
-  { rawScore: 33, tScore: 66.4 },
-  { rawScore: 34, tScore: 67.5 },
-  { rawScore: 35, tScore: 68.6 },
-  { rawScore: 36, tScore: 69.8 },
-  { rawScore: 37, tScore: 71.0 },
-  { rawScore: 38, tScore: 72.4 },
-  { rawScore: 39, tScore: 74.2 },
-  { rawScore: 40, tScore: 77.8 }
-];
 
 export default function PROMISFatigueScaleShortForm8aRunner({ client, onSave, onClose }) {
   const [state, setState] = useState("setup"); // setup, questionnaire, complete
@@ -86,7 +52,17 @@ export default function PROMISFatigueScaleShortForm8aRunner({ client, onSave, on
     setTScore(e.target.value);
   };
 
-  const isFormValid = tScore && parseFloat(tScore) > 0;
+  const parsedRawScore = rawScore === "" ? null : Number(rawScore);
+  const parsedTScore = Number(tScore);
+  const isFormValid = Number.isFinite(parsedTScore)
+    && parsedTScore >= 20
+    && parsedTScore <= 90
+    && (parsedRawScore === null || (
+      Number.isInteger(parsedRawScore)
+      && parsedRawScore >= 8
+      && parsedRawScore <= 40
+      && getTScoreFromRaw(parsedRawScore) === Math.round(parsedTScore * 10) / 10
+    ));
   const finalTScore = parseFloat(tScore);
   const interpretation = isFormValid ? getInterpretation(finalTScore) : null;
 
@@ -125,6 +101,7 @@ export default function PROMISFatigueScaleShortForm8aRunner({ client, onSave, on
       result_value: finalTScore,
       additional_data: {
         measurement_type: "questionnaire_external",
+        assessor_name: assessorName,
         raw_score: rawScore ? parseInt(rawScore) : null,
         t_score: finalTScore,
         interpretation: interpretation.level,
@@ -283,8 +260,8 @@ export default function PROMISFatigueScaleShortForm8aRunner({ client, onSave, on
                       <Input
                         id="t-score"
                         type="number"
-                        min="0"
-                        max="100"
+                        min="20"
+                        max="90"
                         step="0.1"
                         value={tScore}
                         onChange={handleTScoreChange}

@@ -12,7 +12,7 @@ import EditQualityChecksModal from "./EditQualityChecksModal";
 import AssessmentTestRunnerRouter from "./AssessmentTestRunnerRouter";
 import { base44 } from "@/api/base44Client";
 import { renderSafeHtmlDocument } from "@/lib/safeHtml";
-export default function AssessmentModal({ assessment, onClose, onAddToClient, clientId, onRunTest }) {
+export default function AssessmentModal({ assessment, onClose, onAddToClient = null, clientId = null, onRunTest = null }) {
   const [showTestRunner, setShowTestRunner] = useState(false);
   const [tempClientAssessment, setTempClientAssessment] = useState(null);
   const [showQuestionnaireRunner, setShowQuestionnaireRunner] = useState(false);

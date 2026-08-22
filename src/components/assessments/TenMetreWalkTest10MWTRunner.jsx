@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Play, Square, RotateCcw, ChevronDown, ChevronUp } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 const MAX_TRIALS = 4;
 
@@ -87,33 +88,11 @@ export default function TenMetreWalkTest10MWTRunner({ client, onSave, onClose })
   const pctOfNorm = normSpeed && avgSpeed ? Math.round((parseFloat(avgSpeed) / normSpeed) * 100) : null;
 
   const handleSave = () => {
-    if (trials.length === 0) return;
-    const trialLines = trials.map((t, i) => `    Trial ${i + 1}: ${t.time}s — ${t.speed} m/s`).join("\n");
-    const soapText = [
-      `• 10-Metre Walk Test (10MWT)`,
-      `  Pace: ${pace === "maximal" ? "Maximal" : "Comfortable"}`,
-      `  Average Time: ${avgTime}s | Average Gait Speed: ${avgSpeed} m/s`,
-      cat ? `  Classification: ${cat.label}` : "",
-      ageGroup && gender && pctOfNorm ? `  vs. Normative (${ageGroup} ${gender}): ${pctOfNorm}% of expected gait speed (${normSpeed} m/s)` : "",
-      trialLines,
-      `  MCID: 0.10 m/s | MDC: 0.13 m/s`,
-      notes ? `  Notes: ${notes}` : "",
-    ].filter(Boolean).join("\n");
-
-    onSave({
-      result_value: parseFloat(avgSpeed),
-      notes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: soapText,
-        trials,
-        avg_time: avgTime,
-        avg_speed: avgSpeed,
-        pace,
-        classification: cat?.label || null,
-        pct_of_normative: pctOfNorm,
-      }
-    });
+    try {
+      onSave(validateMobilityOrtho({ trials, pace, ageGroup, gender, notes }, { runnerKey: 'ten_metre_walk', assessmentDate: todayLocal() }));
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
 
   return (

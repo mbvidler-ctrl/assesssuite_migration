@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreDropVerticalJump } from "@/lib/clinical/scorers/coreB";
 
 export default function DropVerticalJumpRunner({ client, onSave, onClose }) {
   const [jumpHeight, setJumpHeight] = useState("");
@@ -15,27 +15,12 @@ export default function DropVerticalJumpRunner({ client, onSave, onClose }) {
   const [notes, setNotes] = useState("");
 
   const handleSave = () => {
-    if (!jumpHeight || !kneeAngle || !kneeValgus) {
-      toast.error("Please complete all measurements.");
-      return;
+    try {
+      onSave(scoreDropVerticalJump({ jump_height_cm: jumpHeight, knee_angle_degrees: kneeAngle, knee_valgus_degrees: kneeValgus, notes }, { assessmentName: 'Drop Vertical Jump', client }));
+      toast.success("Assessment saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save Drop Vertical Jump.');
     }
-
-    const resultValue = parseFloat(jumpHeight);
-    const additionalData = {
-      soap_text: `• Drop Vertical Jump\n  Jump Height: ${jumpHeight} cm\n  Knee Angle at Landing: ${kneeAngle}°\n  Knee Valgus: ${kneeValgus}°${notes ? `\n  Notes: ${notes}` : ''}`,
-      measurement_type: "drop_vertical_jump",
-      knee_angle: parseFloat(kneeAngle),
-      knee_valgus: parseFloat(kneeValgus),
-    };
-
-    onSave({
-      status: "completed",
-      result_value: resultValue,
-      additional_data: additionalData,
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved.");
   };
 
   return (

@@ -5,27 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
-
-const PROBLEM_LIST = {
-  "Practical Problems": [
-    "Child care", "Housing", "Insurance/financial", "Transportation", "Work/school"
-  ],
-  "Family Problems": [
-    "Dealing with children", "Dealing with partner", "Ability to have children", "Family health issues"
-  ],
-  "Emotional Problems": [
-    "Depression", "Fears", "Nervousness", "Sadness", "Worry", "Loss of interest in usual activities"
-  ],
-  "Spiritual/Religious Concerns": [
-    "Relating to God", "Loss of faith", "Spiritual/religious concerns"
-  ],
-  "Physical Problems": [
-    "Appearance", "Bathing/dressing", "Breathing", "Changes in urination", "Constipation",
-    "Diarrhoea", "Eating", "Fatigue", "Feeling swollen", "Fevers", "Getting around",
-    "Indigestion", "Memory/concentration", "Mouth sores", "Nausea", "Nose dry/congested",
-    "Pain", "Sexual", "Skin dry/itchy", "Sleep", "Tingling in hands/feet"
-  ]
-};
+import {
+  DISTRESS_PROBLEM_LIST,
+  validateAndScore as validateFunctionalOrtho,
+} from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 function getInterpretation(score) {
   if (score <= 3) return { label: "Mild / No clinical concern", color: "text-green-700", bg: "bg-green-50 border-green-200", flag: false };
@@ -42,49 +25,15 @@ export default function DistressThermometerRunner({ client, onSave, onClose }) {
     setCheckedProblems(prev => ({ ...prev, [problem]: !prev[problem] }));
   };
 
-  const selectedProblems = Object.entries(checkedProblems).filter(([, v]) => v).map(([k]) => k);
-
   const handleSave = () => {
-    if (score === null) {
-      toast.error("Please select a distress score (0–10).");
-      return;
+    try {
+      onSave(validateFunctionalOrtho({ score, checkedProblems, notes }, {
+        runnerKey: 'distress_thermometer', assessmentDate: todayLocal(),
+      }));
+      toast.success("Distress Thermometer saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const interp = getInterpretation(score);
-
-    const problemsByCategory = Object.entries(PROBLEM_LIST).reduce((acc, [cat, items]) => {
-      const checked = items.filter(i => checkedProblems[i]);
-      if (checked.length > 0) acc[cat] = checked;
-      return acc;
-    }, {});
-
-    let soapText = `• Distress Thermometer (NCCN):\n`;
-    soapText += `  Score: ${score}/10 — ${interp.label}\n`;
-    if (selectedProblems.length > 0) {
-      soapText += `  Reported problems:\n`;
-      Object.entries(problemsByCategory).forEach(([cat, items]) => {
-        soapText += `    ${cat}: ${items.join(", ")}\n`;
-      });
-    } else {
-      soapText += `  No specific problems endorsed.\n`;
-    }
-
-    onSave({
-      status: "completed",
-      result_value: score,
-      additional_data: {
-        measurement_type: "distress_thermometer",
-        score,
-        interpretation: interp.label,
-        flagged: interp.flag,
-        problems_by_category: problemsByCategory,
-        selected_problems: selectedProblems,
-        soap_text: soapText,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Distress Thermometer saved.");
   };
 
   const interp = score !== null ? getInterpretation(score) : null;
@@ -149,7 +98,7 @@ export default function DistressThermometerRunner({ client, onSave, onClose }) {
           <div>
             <Label className="text-sm font-semibold mb-2 block">Problem List (tick all that apply):</Label>
             <div className="space-y-3">
-              {Object.entries(PROBLEM_LIST).map(([category, problems]) => (
+              {Object.entries(DISTRESS_PROBLEM_LIST).map(([category, problems]) => (
                 <div key={category}>
                   <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1">{category}</p>
                   <div className="flex flex-wrap gap-2">

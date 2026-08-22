@@ -1,6 +1,38 @@
 const isNode = typeof window === 'undefined';
-const windowObj = isNode ? { localStorage: new Map() } : window;
-const storage = windowObj.localStorage;
+
+/**
+ * Provide the same string-only contract as browser Web Storage when this
+ * module is evaluated outside a browser. A raw Map is not a Storage object:
+ * it has neither getItem/setItem semantics nor string coercion.
+ *
+ * @returns {Storage}
+ */
+const createMemoryStorage = () => {
+	/** @type {Map<string, string>} */
+	const values = new Map();
+	return {
+		get length() {
+			return values.size;
+		},
+		clear() {
+			values.clear();
+		},
+		getItem(key) {
+			return values.has(key) ? values.get(key) ?? null : null;
+		},
+		key(index) {
+			return [...values.keys()][index] ?? null;
+		},
+		removeItem(key) {
+			values.delete(key);
+		},
+		setItem(key, value) {
+			values.set(String(key), String(value));
+		},
+	};
+};
+
+const storage = isNode ? createMemoryStorage() : window.localStorage;
 
 const toSnakeCase = (str) => {
 	return str.replace(/([A-Z])/g, '_$1').toLowerCase();

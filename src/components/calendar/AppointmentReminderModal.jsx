@@ -45,7 +45,7 @@ export default function AppointmentReminderModal({
 
       const completedAppointments = appointments.filter(apt => 
         apt.status === 'completed' || apt.status === 'scheduled'
-      ).sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+      ).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
       const completedSessions = soapNotes.length;
       const lastSession = completedAppointments[completedAppointments.length - 1];

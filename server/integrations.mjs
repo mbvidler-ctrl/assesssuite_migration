@@ -62,7 +62,6 @@ import {
 } from './uploadRegistry.mjs';
 import { issueFileAccessUrl } from './fileAccess.mjs';
 
-import { instantiateSchema, extractJsonKeysFromPrompt } from './mocks/schema-instantiator.mjs';
 import { invokeLLMWithUsage, llmEnabled, pickModel } from './llm.mjs';
 import { adminNotificationRecipient, sendEmail } from './email.mjs';
 import { createFixedWindowRateLimiter } from './rateLimit.mjs';
@@ -92,10 +91,9 @@ import {
 // path — here (write), server/index.mjs (serve), transcribeSession.mjs
 // (read) — resolve the SAME env-driven location. Default unchanged for dev.
 
-// Production posture: when LLM_REQUIRED=1, InvokeLLM never silently falls back
-// to the deterministic mock — a real-model failure returns 502 and a missing
-// key returns 503, so mock clinical content is never served or persisted in
-// production. Unset in dev/demo and always under SELFTEST (mock-fallback kept).
+// Production never contains or selects a generated-content fallback. The
+// isolated self-test entry may inject a deterministic function from a module
+// omitted from the production image; every ordinary runtime fails loud.
 const LLM_REQUIRED = capabilityEnabled('LLM_REQUIRED');
 
 function requireApiUsage(context) {
@@ -754,6 +752,18 @@ function assertKnownInvokeLLMParams(rawBody) {
 
 async function handleInvokeLLM(body, context) {
   assertKnownInvokeLLMParams(body);
+  // The Physio target exposes only its six versioned, schema-bound tasks via
+  // server/functions/physioAiTask.mjs. Even if a deployment flag is
+  // accidentally enabled, a Physio session cannot reach the legacy free-form
+  // Core.InvokeLLM surface. EP remains explicitly opted in through its
+  // validated profession manifest.
+  if (context?.generalClinicalLlmAllowed !== true) {
+    throw new LlmAccessError(
+      403,
+      'profession_ai_surface_unavailable',
+      'General AI generation is not available for this application.',
+    );
+  }
   // generalClinicalLlmSwitchedOn() is the published predicate; it resolves
   // GENERAL_CLINICAL_LLM_ENABLED (and its self-test mock carve-out) through
   // the capability-flag registry, so this gate and /public-settings cannot
@@ -793,7 +803,10 @@ async function handleInvokeLLM(body, context) {
   }
   const { prompt, response_json_schema: schema } = body || {};
   const schemaObj = schema && typeof schema === 'object' ? { ...schema, type: schema.type || 'object' } : null;
-  const jsonKeys = schemaObj ? null : extractJsonKeysFromPrompt(prompt);
+  const testFallback = context.invokeLlmFallback || null;
+  if (testFallback && (process.env.NODE_ENV !== 'test' || process.env.SELFTEST !== '1')) {
+    throw new Error('injected InvokeLLM responses are forbidden outside self-test');
+  }
 
   // Size ceiling before the rate limiter so a junk-sized prompt is rejected
   // without burning the caller's window, then the concurrency slot, then the
@@ -811,8 +824,6 @@ async function handleInvokeLLM(body, context) {
     // Real model path (engagement election E6). De-identification is applied
     // inside invokeRealLLM before any egress. The prompt's own wording drives
     // prose-vs-JSON for the no-schema case, so the heuristic is not needed here.
-    // Any failure falls through to the deterministic mock so the demo never
-    // hard-fails on a network/API error.
     if (llmEnabled()) {
       const apiUsage = requireApiUsage(context);
       const selectedModel = pickModel(prompt, schemaObj);
@@ -853,46 +864,23 @@ async function handleInvokeLLM(body, context) {
           reservationId: usageReservation.id,
           status: 'failed',
         });
-        if (LLM_REQUIRED) {
-          const e = new Error('AI generation failed.');
-          e.httpStatus = 502;
-          e.code = CLINICAL_AI_PROVIDER_FAILED_CODE;
-          e.cause = providerError;
-          throw e;
+        if (testFallback && !LLM_REQUIRED) {
+          console.log('[llm] provider failed; using injected test-only fallback');
+          return testFallback({ prompt, schema: schemaObj, reason: 'provider_failed' });
         }
-        console.log('[llm] real model failed; using the explicit non-production mock fallback');
+        const e = new Error('AI generation failed.');
+        e.httpStatus = 502;
+        e.code = CLINICAL_AI_PROVIDER_FAILED_CODE;
+        e.cause = providerError;
+        throw e;
       }
-    } else if (LLM_REQUIRED) {
-      // Production: never silently serve mock clinical content when no key is set.
+    } else if (!testFallback || LLM_REQUIRED) {
       const e = new Error(CLINICAL_AI_UNCONFIGURED_MESSAGE);
       e.httpStatus = 503;
       e.code = CLINICAL_AI_UNCONFIGURED_CODE;
       throw e;
     }
-
-    if (schemaObj) {
-      return instantiateSchema(schemaObj, 'response');
-    }
-
-    // No schema: check whether the prompt itself asks for a JSON-shaped
-    // response by embedding an example object literal (PrivateHealthInitial
-    // Assessment.jsx pattern) — if so, return a JSON string so the caller's
-    // own JSON.parse succeeds; otherwise return placeholder prose.
-    if (jsonKeys && jsonKeys.length > 0) {
-      const obj = {};
-      for (const key of jsonKeys) {
-        obj[key] = `Mock generated content for "${key}". Placeholder clinical narrative produced by the local InvokeLLM mock — not real AI output.`;
-      }
-      return JSON.stringify(obj);
-    }
-
-    const topic = typeof prompt === 'string' && prompt.trim() ? prompt.trim().slice(0, 80).replace(/\s+/g, ' ') : 'the requested topic';
-    return (
-      `This is placeholder narrative content generated by the local InvokeLLM mock in place of ` +
-      `a real language model call. It stands in for a response to a prompt beginning: "${topic}". ` +
-      `The mock produces deterministic, non-clinical filler prose of sufficient length to exercise ` +
-      `downstream formatting, word-count, and editing logic without contacting any external service.`
-    );
+    return testFallback({ prompt, schema: schemaObj, reason: 'provider_unconfigured' });
   } finally {
     releaseGeneralLlmSlot();
   }
@@ -1259,6 +1247,21 @@ async function handleExtractDataFromUploadedFile(body, context) {
       schemaContract: 'referral',
     });
     actualCostMicrousd = extracted.actualCostMicrousd;
+    if (
+      extracted.providerStatusClass !== '2xx'
+      || !/^[0-9a-f]{64}$/.test(extracted.providerResponseIdHash || '')
+      || !/^[0-9a-f]{64}$/.test(extracted.schemaHash || '')
+      || typeof extracted.model !== 'string'
+      || !extracted.model
+      || !Number.isSafeInteger(actualCostMicrousd)
+      || actualCostMicrousd < 0
+    ) {
+      throw new ExtractionError(
+        502,
+        'provider_receipt_incomplete',
+        'The document could not be extracted reliably.',
+      );
+    }
     apiUsage.settle({
       reservationId: apiUsageReservation.id,
       status: 'succeeded',
@@ -1297,7 +1300,23 @@ async function handleExtractDataFromUploadedFile(body, context) {
       });
     }
     succeeded = true;
-    return { status: 'success', output: extracted.output };
+    return {
+      status: 'success',
+      output: extracted.output,
+      provider_receipt: {
+        contract_version: 'assesssuite-provider-call-receipt/1.0.0',
+        feature: 'extraction',
+        provider: 'openai',
+        model: extracted.model,
+        provider_status: extracted.providerStatusClass,
+        provider_request_id_hash: extracted.providerResponseIdHash,
+        schema_receipt_sha256: extracted.schemaHash,
+        usage: {
+          request_units: uploads.length,
+          actual_cost_microusd: actualCostMicrousd,
+        },
+      },
+    };
   } catch (error) {
     const diagnostic = referralDiagnostic(
       'ExtractDataFromUploadedFile',
@@ -2071,6 +2090,9 @@ const HANDLERS = new Set([
 export async function handleCoreIntegration(req, res, context) {
   const { endpointName, outboxEmail, outboxSms } = context;
   if (!HANDLERS.has(endpointName)) {
+    return sendJson(res, 404, { message: `integration endpoint ${endpointName} not found` });
+  }
+  if (context.disabledCoreIntegrationIds?.includes(endpointName)) {
     return sendJson(res, 404, { message: `integration endpoint ${endpointName} not found` });
   }
 

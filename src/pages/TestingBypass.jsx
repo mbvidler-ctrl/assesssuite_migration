@@ -8,6 +8,8 @@ import { base44 } from "@/api/base44Client";
 // throwaway seed accounts on synthetic data; there is no real client information
 // in this environment. This page must never ship to a production tenant with
 // real users.
+const seededDemoPassword = import.meta.env.VITE_SEED_PASSWORD;
+
 const ROLES = [
   {
     key: "admin",
@@ -23,7 +25,7 @@ const ROLES = [
     label: "Simulate Clinician Access",
     blurb: "Exercise physiologist — clients, assessments, SOAP notes and reports.",
     email: "clinician@org-alpha.seed.test",
-    password: "SeedDemo!2026",
+    password: seededDemoPassword,
     landing: "/Dashboard",
     accent: "#2563eb",
   },
@@ -32,7 +34,7 @@ const ROLES = [
     label: "Simulate User Access",
     blurb: "Practice owner (standard non-admin user) — the org owner's view.",
     email: "owner@org-alpha.seed.test",
-    password: "SeedDemo!2026",
+    password: seededDemoPassword,
     landing: "/Dashboard",
     accent: "#0d9488",
   },
@@ -45,10 +47,14 @@ export default function TestingBypass() {
 
   const enterAs = async (role) => {
     setError("");
+    if (!role.password) {
+      setError("This local demo requires VITE_SEED_PASSWORD to match the synthetic seed.");
+      return;
+    }
     setBusy(role.key);
     try {
       const res = await base44.auth.loginViaEmailPassword(role.email, role.password);
-      const token = res && (res.access_token || res.token);
+      const token = res?.access_token;
       if (token) localStorage.setItem("base44_access_token", token);
       window.location.href = role.landing || "/Dashboard";
     } catch (err) {

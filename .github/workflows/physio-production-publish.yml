@@ -1,0 +1,1237 @@
+name: Physio production publish exact canary-proven bytes
+
+on:
+  workflow_dispatch:
+    inputs:
+      trusted_workflow_sha:
+        description: Exact current main SHA supplying this trusted workflow
+        required: true
+        type: string
+      application_sha:
+        description: Exact canary-proven application SHA
+        required: true
+        type: string
+      candidate_artifact_id:
+        description: Exact immutable candidate artifact ID
+        required: true
+        type: string
+      candidate_artifact_digest:
+        description: Exact immutable candidate artifact digest
+        required: true
+        type: string
+      candidate_receipt_sha256:
+        description: Raw-byte SHA-256 of candidate-build-receipt.json
+        required: true
+        type: string
+      archive_sha256:
+        description: Exact sha256-prefixed candidate archive digest
+        required: true
+        type: string
+      oci_archive_sha256:
+        description: Exact sha256-prefixed canonical OCI archive digest
+        required: true
+        type: string
+      oci_manifest_digest:
+        description: Exact sha256-prefixed canonical OCI manifest digest
+        required: true
+        type: string
+      oci_descriptor_manifest_sha256:
+        description: Raw-byte SHA-256 of candidate-oci-descriptors.json
+        required: true
+        type: string
+      local_image_id:
+        description: Exact local image config ID proven by the canary
+        required: true
+        type: string
+      canary_artifact_id:
+        description: Exact local-canary receipt artifact ID
+        required: true
+        type: string
+      canary_artifact_digest:
+        description: Exact local-canary artifact digest
+        required: true
+        type: string
+      canary_receipt_sha256:
+        description: Raw-byte SHA-256 of physio-exact-image-canary.json
+        required: true
+        type: string
+      canary_capability_binding_sha256:
+        description: Raw SHA-256 of the exact canary child capability and authority binding
+        required: true
+        type: string
+      bootstrap_artifact_id:
+        description: Exact pre-webhook Fly bootstrap artifact ID
+        required: true
+        type: string
+      bootstrap_artifact_digest:
+        description: Exact pre-webhook Fly bootstrap artifact digest
+        required: true
+        type: string
+      bootstrap_receipt_sha256:
+        description: Raw-byte SHA-256 of physio-production-bootstrap.json
+        required: true
+        type: string
+      stripe_webhook_archive_artifact_id:
+        description: Exact protected Stripe webhook archive transport artifact ID
+        required: true
+        type: string
+      stripe_webhook_archive_artifact_digest:
+        description: Exact protected Stripe webhook archive transport artifact digest
+        required: true
+        type: string
+      stripe_webhook_archive_receipt_sha256:
+        description: Raw-byte SHA-256 of physio-webhook-archive-receipt.json
+        required: true
+        type: string
+      capability_intent_id:
+        description: Exact immutable registry publication capability intent
+        required: true
+        type: string
+      authority_reference:
+        description: Mission or order reference authorising this action
+        required: true
+        type: string
+      resume_started_effect_artifact_id:
+        description: Prior unresolved publication effect artifact ID, or 0 for fresh
+        required: true
+        default: '0'
+        type: string
+      resume_started_effect_receipt_sha256:
+        description: Prior publication reconciliation raw SHA-256, or 64 zeros for fresh
+        required: true
+        default: '0000000000000000000000000000000000000000000000000000000000000000'
+        type: string
+      confirmation:
+        description: Type PUBLISH PHYSIO EXACT CANARY BYTES
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: assesssuite-physio-production
+  cancel-in-progress: false
+
+jobs:
+  admit:
+    name: Admit complete candidate canary bootstrap and webhook chain
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      admission_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      started_receipt_sha256: ${{ steps.admit.outputs.started_receipt_sha256 }}
+      candidate_run_id: ${{ steps.artifacts.outputs.candidate_run_id }}
+      canary_run_id: ${{ steps.artifacts.outputs.canary_run_id }}
+      canary_capability_intent_id: ${{ steps.admit.outputs.canary_capability_intent_id }}
+      canary_authority_reference: ${{ steps.admit.outputs.canary_authority_reference }}
+      bootstrap_run_id: ${{ steps.artifacts.outputs.bootstrap_run_id }}
+      stripe_webhook_archive_run_id: ${{ steps.artifacts.outputs.stripe_webhook_archive_run_id }}
+      resume_started_effect_run_id: ${{ steps.artifacts.outputs.resume_started_effect_run_id }}
+    steps:
+      - name: Validate exact trusted publication dispatch
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANDIDATE_SHA: ${{ inputs.candidate_receipt_sha256 }}
+          ARCHIVE_SHA: ${{ inputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA: ${{ inputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ inputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_SHA: ${{ inputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          CANARY_ID: ${{ inputs.canary_artifact_id }}
+          CANARY_DIGEST: ${{ inputs.canary_artifact_digest }}
+          CANARY_SHA: ${{ inputs.canary_receipt_sha256 }}
+          CANARY_CAPABILITY_BINDING_SHA: ${{ inputs.canary_capability_binding_sha256 }}
+          BOOTSTRAP_ID: ${{ inputs.bootstrap_artifact_id }}
+          BOOTSTRAP_DIGEST: ${{ inputs.bootstrap_artifact_digest }}
+          BOOTSTRAP_SHA: ${{ inputs.bootstrap_receipt_sha256 }}
+          WEBHOOK_ID: ${{ inputs.stripe_webhook_archive_artifact_id }}
+          WEBHOOK_DIGEST: ${{ inputs.stripe_webhook_archive_artifact_digest }}
+          WEBHOOK_ARCHIVE_SHA: ${{ inputs.stripe_webhook_archive_receipt_sha256 }}
+          INTENT: ${{ inputs.capability_intent_id }}
+          AUTHORITY: ${{ inputs.authority_reference }}
+          RESUME_ID: ${{ inputs.resume_started_effect_artifact_id }}
+          RESUME_SHA: ${{ inputs.resume_started_effect_receipt_sha256 }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == 'mbvidler-ctrl/assesssuite_migration' && "$ACTOR" == 'mbvidler-ctrl' && "$TRIGGERING_ACTOR" == 'mbvidler-ctrl' ]]
+          [[ "$IS_FORK" == 'false' && "$EVENT_REF" == 'refs/heads/main' ]]
+          [[ "$WORKFLOW_REF" == 'mbvidler-ctrl/assesssuite_migration/.github/workflows/physio-production-publish.yml@refs/heads/main' ]]
+          [[ "$TRUSTED_WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ && "$APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" && "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          for id in "$CANDIDATE_ID" "$CANARY_ID" "$BOOTSTRAP_ID" "$WEBHOOK_ID"; do [[ "$id" =~ ^[1-9][0-9]*$ ]]; done
+          for digest in "$CANDIDATE_DIGEST" "$ARCHIVE_SHA" "$OCI_ARCHIVE_SHA" "$OCI_MANIFEST_DIGEST" "$LOCAL_IMAGE_ID" "$CANARY_DIGEST" "$BOOTSTRAP_DIGEST" "$WEBHOOK_DIGEST"; do
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          done
+          for sha in "$CANDIDATE_SHA" "$OCI_DESCRIPTOR_SHA" "$CANARY_SHA" "$CANARY_CAPABILITY_BINDING_SHA" "$BOOTSTRAP_SHA" "$WEBHOOK_ARCHIVE_SHA" "$RESUME_SHA"; do [[ "$sha" =~ ^[0-9a-f]{64}$ ]]; done
+          [[ "$INTENT" =~ ^[A-Za-z0-9._:-]{1,160}$ && "$AUTHORITY" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
+          if [[ "$RESUME_ID" == '0' ]]; then
+            [[ "$RESUME_SHA" == '0000000000000000000000000000000000000000000000000000000000000000' ]]
+          else
+            [[ "$RESUME_ID" =~ ^[1-9][0-9]*$ && "$RESUME_SHA" != '0000000000000000000000000000000000000000000000000000000000000000' ]]
+          fi
+          [[ "$CONFIRMATION" == 'PUBLISH PHYSIO EXACT CANARY BYTES' ]]
+
+      - name: Check out exact publication validators
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve and admit exact publication predecessor source runs
+        id: artifacts
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANARY_ID: ${{ inputs.canary_artifact_id }}
+          CANARY_DIGEST: ${{ inputs.canary_artifact_digest }}
+          BOOTSTRAP_ID: ${{ inputs.bootstrap_artifact_id }}
+          BOOTSTRAP_DIGEST: ${{ inputs.bootstrap_artifact_digest }}
+          WEBHOOK_ID: ${{ inputs.stripe_webhook_archive_artifact_id }}
+          WEBHOOK_DIGEST: ${{ inputs.stripe_webhook_archive_artifact_digest }}
+          RESUME_ID: ${{ inputs.resume_started_effect_artifact_id }}
+        run: |
+          set -euo pipefail
+          umask 077
+          spec="$RUNNER_TEMP/publication-predecessor-artifact-spec.json"
+          SPEC="$spec" APPLICATION_SHA="$APPLICATION_SHA" CANDIDATE_ID="$CANDIDATE_ID" CANDIDATE_DIGEST="$CANDIDATE_DIGEST" \
+          CANARY_ID="$CANARY_ID" CANARY_DIGEST="$CANARY_DIGEST" BOOTSTRAP_ID="$BOOTSTRAP_ID" BOOTSTRAP_DIGEST="$BOOTSTRAP_DIGEST" \
+          WEBHOOK_ID="$WEBHOOK_ID" WEBHOOK_DIGEST="$WEBHOOK_DIGEST" RESUME_ID="$RESUME_ID" \
+          env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const sha = process.env.APPLICATION_SHA;
+          const row = { repository: 'mbvidler-ctrl/assesssuite_migration', application_sha: sha, artifacts: [
+            { key: 'candidate', id: process.env.CANDIDATE_ID, expected_digest: process.env.CANDIDATE_DIGEST,
+              maximum_bytes: 1073741824, name_patterns: [`^physio-candidate-${sha}$`],
+              workflow_path: '.github/workflows/physio-production-prepare-release.yml', allowed_conclusions: ['success'] },
+            { key: 'canary', id: process.env.CANARY_ID, expected_digest: process.env.CANARY_DIGEST,
+              maximum_bytes: 33554432, name_patterns: [`^physio-exact-image-canary-${sha}$`],
+              workflow_path: '.github/workflows/physio-production-exact-image-canary.yml', allowed_conclusions: ['success'] },
+            { key: 'bootstrap', id: process.env.BOOTSTRAP_ID, expected_digest: process.env.BOOTSTRAP_DIGEST,
+              maximum_bytes: 33554432, name_patterns: [`^physio-production-bootstrap-${sha}$`],
+              workflow_path: '.github/workflows/physio-production-bootstrap.yml', allowed_conclusions: ['success'] },
+            { key: 'stripe_webhook_archive', id: process.env.WEBHOOK_ID, expected_digest: process.env.WEBHOOK_DIGEST,
+              maximum_bytes: 67108864, name_patterns: [`^physio-webhook-archive-${sha}$`],
+              workflow_path: '.github/workflows/physio-production-webhook-archive.yml', allowed_conclusions: ['success'] },
+          ] };
+          if (process.env.RESUME_ID !== '0') row.artifacts.push({ key: 'resume_started_effect', id: process.env.RESUME_ID,
+            expected_digest: null, maximum_bytes: 33554432,
+            name_patterns: [`^physio-publication-started-${sha}$`, `^physio-production-publication-${sha}$`],
+            workflow_path: '.github/workflows/physio-production-publish.yml',
+            allowed_conclusions: ['success','failure','cancelled','timed_out'] });
+          fs.writeFileSync(process.env.SPEC, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/github-artifact-admission.mjs --spec "$spec" \
+            --output "$RUNNER_TEMP/publication-predecessor-artifact-admission.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Download exact candidate
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.candidate_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.artifacts.outputs.candidate_run_id }}
+          path: ${{ runner.temp }}/candidate
+          github-token: ${{ github.token }}
+
+      - name: Download exact local canary
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.canary_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.artifacts.outputs.canary_run_id }}
+          path: ${{ runner.temp }}/canary
+          github-token: ${{ github.token }}
+
+      - name: Download exact pre-webhook bootstrap
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.bootstrap_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.artifacts.outputs.bootstrap_run_id }}
+          path: ${{ runner.temp }}/bootstrap
+          github-token: ${{ github.token }}
+
+      - name: Download exact protected webhook archive transport
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.stripe_webhook_archive_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.artifacts.outputs.stripe_webhook_archive_run_id }}
+          path: ${{ runner.temp }}/webhook
+          github-token: ${{ github.token }}
+
+      - name: Download prior unresolved publication effect for resume
+        if: ${{ inputs.resume_started_effect_artifact_id != '0' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.resume_started_effect_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.artifacts.outputs.resume_started_effect_run_id }}
+          path: ${{ runner.temp }}/resume
+          github-token: ${{ github.token }}
+
+      - name: Validate chain and persist publication STARTED receipt
+        id: admit
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANDIDATE_SHA: ${{ inputs.candidate_receipt_sha256 }}
+          ARCHIVE_SHA: ${{ inputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA: ${{ inputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ inputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_SHA: ${{ inputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          CANARY_ID: ${{ inputs.canary_artifact_id }}
+          CANARY_DIGEST: ${{ inputs.canary_artifact_digest }}
+          CANARY_SHA: ${{ inputs.canary_receipt_sha256 }}
+          CANARY_CAPABILITY_BINDING_SHA: ${{ inputs.canary_capability_binding_sha256 }}
+          BOOTSTRAP_ID: ${{ inputs.bootstrap_artifact_id }}
+          BOOTSTRAP_DIGEST: ${{ inputs.bootstrap_artifact_digest }}
+          BOOTSTRAP_SHA: ${{ inputs.bootstrap_receipt_sha256 }}
+          WEBHOOK_ARCHIVE_SHA: ${{ inputs.stripe_webhook_archive_receipt_sha256 }}
+          WEBHOOK_ID: ${{ inputs.stripe_webhook_archive_artifact_id }}
+          WEBHOOK_DIGEST: ${{ inputs.stripe_webhook_archive_artifact_digest }}
+          INTENT: ${{ inputs.capability_intent_id }}
+          AUTHORITY: ${{ inputs.authority_reference }}
+          RESUME_ID: ${{ inputs.resume_started_effect_artifact_id }}
+          RESUME_SHA: ${{ inputs.resume_started_effect_receipt_sha256 }}
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          for packet in candidate canary bootstrap; do
+            [[ -f "$RUNNER_TEMP/$packet/SHA256SUMS" && ! -L "$RUNNER_TEMP/$packet/SHA256SUMS" ]]
+            if find "$RUNNER_TEMP/$packet" -type l -print -quit | grep -q .; then exit 1; fi
+            (cd "$RUNNER_TEMP/$packet" && sha256sum --check --strict SHA256SUMS)
+          done
+          candidate="$RUNNER_TEMP/candidate"
+          [[ "$(sha256sum "$candidate/candidate-build-receipt.json" | awk '{print $1}')" == "$CANDIDATE_SHA" ]]
+          [[ "sha256:$(sha256sum "$candidate/candidate-image.tar.gz" | awk '{print $1}')" == "$ARCHIVE_SHA" ]]
+          [[ "sha256:$(sha256sum "$candidate/candidate-image.oci.tar.gz" | awk '{print $1}')" == "$OCI_ARCHIVE_SHA" ]]
+          [[ "$(sha256sum "$candidate/candidate-oci-descriptors.json" | awk '{print $1}')" == "$OCI_DESCRIPTOR_SHA" ]]
+          CANDIDATE="$candidate/candidate-build-receipt.json" APPLICATION_SHA="$APPLICATION_SHA" ARCHIVE_SHA="$ARCHIVE_SHA" \
+          OCI_ARCHIVE_SHA="$OCI_ARCHIVE_SHA" OCI_MANIFEST_DIGEST="$OCI_MANIFEST_DIGEST" OCI_DESCRIPTOR_SHA="$OCI_DESCRIPTOR_SHA" \
+          LOCAL_IMAGE_ID="$LOCAL_IMAGE_ID" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.CANDIDATE, 'utf8'));
+          if (row.contract_version !== 'assesssuite-physio-candidate-build/3.0.0' || row.result !== 'PASS' ||
+              row.application_sha !== process.env.APPLICATION_SHA || row.profession_id !== 'physio' ||
+              row.archive_sha256 !== process.env.ARCHIVE_SHA || row.local_image_id !== process.env.LOCAL_IMAGE_ID ||
+              row.oci_archive_sha256 !== process.env.OCI_ARCHIVE_SHA ||
+              row.oci_manifest_digest !== process.env.OCI_MANIFEST_DIGEST ||
+              row.oci_descriptor_manifest_sha256 !== process.env.OCI_DESCRIPTOR_SHA ||
+              row.sentry_release?.contract_version !== 'assesssuite-physio-sentry-release/1.0.0' ||
+              !/^[1-9][0-9]*$/.test(row.sentry_release?.artifact_id || '') ||
+              !/^sha256:[0-9a-f]{64}$/.test(row.sentry_release?.artifact_digest || '') ||
+              !/^[0-9a-f]{64}$/.test(row.sentry_release?.receipt_sha256 || '') ||
+              row.no_fly_resource_created !== true) throw new Error('candidate publication binding differs');
+          NODE
+          node scripts/physio-exact-image-canary-contract.mjs validate-success-packet \
+            --packet "$RUNNER_TEMP/canary" \
+            --application-sha "$APPLICATION_SHA" \
+            --immutable-image "$LOCAL_IMAGE_ID" \
+            --candidate-archive-sha256 "$ARCHIVE_SHA" \
+            --canary-receipt-sha256 "$CANARY_SHA" \
+            --candidate-artifact-id "$CANDIDATE_ID" \
+            --candidate-artifact-digest "$CANDIDATE_DIGEST" \
+            --candidate-receipt-sha256 "$CANDIDATE_SHA" \
+            --capability-binding-sha256 "$CANARY_CAPABILITY_BINDING_SHA" \
+            --maximum-cost-microusd 5000000
+          IFS=$'\t' read -r canary_capability_intent_id canary_authority_reference < <(
+            CANARY_ADMISSION="$RUNNER_TEMP/canary/provider-canary-admission.json" \
+            EXPECTED_BINDING_SHA="$CANARY_CAPABILITY_BINDING_SHA" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { derivePhysioCanaryCapabilityBindingSha256 } from './scripts/physio-exact-image-canary-success-contract.mjs';
+          const admission = JSON.parse(fs.readFileSync(process.env.CANARY_ADMISSION, 'utf8'));
+          if (derivePhysioCanaryCapabilityBindingSha256(admission) !== process.env.EXPECTED_BINDING_SHA ||
+              !/^[A-Za-z0-9._:-]{1,160}$/.test(admission.capability_intent_id || '') ||
+              !/^[A-Za-z0-9._:/-]{1,240}$/.test(admission.authority_reference || '') ||
+              /[\t\r\n]/.test(admission.capability_intent_id) || /[\t\r\n]/.test(admission.authority_reference)) {
+            throw new Error('canary child capability binding differs');
+          }
+          process.stdout.write(`${admission.capability_intent_id}\t${admission.authority_reference}`);
+          NODE
+          )
+          echo "canary_capability_intent_id=$canary_capability_intent_id" >>"$GITHUB_OUTPUT"
+          echo "canary_authority_reference=$canary_authority_reference" >>"$GITHUB_OUTPUT"
+          bootstrap="$RUNNER_TEMP/bootstrap/physio-production-bootstrap.json"
+          webhook_archive="$RUNNER_TEMP/webhook/physio-webhook-archive-receipt.json"
+          webhook_packet="$RUNNER_TEMP/webhook/packet"
+          webhook="$webhook_packet/physio-production-stripe-webhook.json"
+          [[ "$(sha256sum "$bootstrap" | awk '{print $1}')" == "$BOOTSTRAP_SHA" ]]
+          [[ "$(sha256sum "$webhook_archive" | awk '{print $1}')" == "$WEBHOOK_ARCHIVE_SHA" ]]
+          [[ -f "$webhook_packet/SHA256SUMS" && ! -L "$webhook_packet/SHA256SUMS" ]]
+          if find "$RUNNER_TEMP/webhook" -type l -print -quit | grep -q .; then exit 1; fi
+          (cd "$webhook_packet" && sha256sum --check --strict SHA256SUMS)
+          WEBHOOK_SHA="$(WEBHOOK_ARCHIVE="$webhook_archive" node -e \
+            "const r=require(process.env.WEBHOOK_ARCHIVE);process.stdout.write(r.source_artifact_receipt_sha256)")"
+          [[ "$WEBHOOK_SHA" =~ ^[0-9a-f]{64}$ && "$(sha256sum "$webhook" | awk '{print $1}')" == "$WEBHOOK_SHA" ]]
+          BOOTSTRAP="$bootstrap" WEBHOOK="$webhook" WEBHOOK_PACKET="$webhook_packet" \
+          WEBHOOK_ARCHIVE="$webhook_archive" WEBHOOK_ARCHIVE_SHA="$WEBHOOK_ARCHIVE_SHA" \
+          ARTIFACT_ADMISSION="$RUNNER_TEMP/publication-predecessor-artifact-admission.json" \
+          GITHUB_TOKEN="$GITHUB_TOKEN" REPOSITORY="$REPOSITORY" APPLICATION_SHA="$APPLICATION_SHA" CANARY_SHA="$CANARY_SHA" \
+          BOOTSTRAP_SHA="$BOOTSTRAP_SHA" WEBHOOK_ID="$WEBHOOK_ID" WEBHOOK_DIGEST="$WEBHOOK_DIGEST" \
+          CANARY_INTENT="$canary_capability_intent_id" CANARY_AUTHORITY="$canary_authority_reference" \
+          INTENT="$INTENT" AUTHORITY="$AUTHORITY" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import {
+            sanitizeStripeWebhookEndpoint,
+            validateCompletedStripeWebhookPacket,
+          } from './scripts/physio-stripe-webhook-evidence.mjs';
+          import {
+            createWebhookLedgerGitHubClient,
+            materializeWebhookPacketFromLedger,
+            validateWebhookArchiveReceipt,
+          } from './scripts/physio-webhook-ledger.mjs';
+          const sha = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const bootstrap = JSON.parse(fs.readFileSync(process.env.BOOTSTRAP, 'utf8'));
+          const webhook = JSON.parse(fs.readFileSync(process.env.WEBHOOK, 'utf8'));
+          const archiveReceipt = JSON.parse(fs.readFileSync(process.env.WEBHOOK_ARCHIVE, 'utf8'));
+          const artifactAdmission = JSON.parse(fs.readFileSync(process.env.ARTIFACT_ADMISSION, 'utf8'));
+          const archiveArtifact = artifactAdmission.artifacts?.stripe_webhook_archive;
+          validateWebhookArchiveReceipt(archiveReceipt, {
+            repository: process.env.REPOSITORY,
+            applicationSha: process.env.APPLICATION_SHA,
+            archiveArtifactId: Number(process.env.WEBHOOK_ID),
+            archiveArtifactDigest: process.env.WEBHOOK_DIGEST,
+            archiveArtifactName: `physio-webhook-archive-${process.env.APPLICATION_SHA}`,
+            archiveReceiptSha256: process.env.WEBHOOK_ARCHIVE_SHA,
+          });
+          if (!archiveArtifact || archiveArtifact.id !== Number(process.env.WEBHOOK_ID) ||
+              archiveArtifact.digest !== process.env.WEBHOOK_DIGEST ||
+              archiveArtifact.workflow_run_path !== '.github/workflows/physio-production-webhook-archive.yml' ||
+              archiveReceipt.source_artifact_receipt_sha256 !== sha(process.env.WEBHOOK)) {
+            throw new Error('protected webhook archive transport admission differs');
+          }
+          if (!/^[A-Za-z0-9._:-]{1,160}$/.test(process.env.CANARY_INTENT || '') ||
+              !/^[A-Za-z0-9._:/-]{1,240}$/.test(process.env.CANARY_AUTHORITY || '') ||
+              process.env.CANARY_INTENT === process.env.INTENT) {
+            throw new Error('canary publication child capability differs');
+          }
+          if (bootstrap.contract_version !== 'assesssuite-physio-bootstrap/3.0.0' || bootstrap.result !== 'PASS' ||
+              bootstrap.application_sha !== process.env.APPLICATION_SHA || bootstrap.machine_count !== 0 ||
+              bootstrap.production_ready !== false || bootstrap.webhook_secret_pending !== true ||
+              bootstrap.exact_image_canary_receipt_sha256 !== process.env.CANARY_SHA ||
+              !/^[A-Za-z0-9._:-]{1,160}$/.test(bootstrap.capability_intent_id || '') ||
+              !/^[A-Za-z0-9._:/-]{1,240}$/.test(bootstrap.authority_reference || '') ||
+              bootstrap.capability_intent_id === process.env.INTENT ||
+              bootstrap.capability_intent_id === process.env.CANARY_INTENT) throw new Error('bootstrap publication binding differs');
+          if (webhook.contract_version !== 'assesssuite-physio-stripe-webhook-bootstrap/1.0.0' || webhook.result !== 'PASS' ||
+              webhook.application_sha !== process.env.APPLICATION_SHA || webhook.bootstrap_receipt_sha256 !== process.env.BOOTSTRAP_SHA ||
+              webhook.exact_image_canary_receipt_sha256 !== process.env.CANARY_SHA ||
+              webhook.stripe_api_version !== '2026-07-29.dahlia' ||
+              !['restricted_live','secret_live'].includes(webhook.stripe_credential_mode) ||
+              webhook.stripe_webhook_endpoint !== 'https://assesssuite-physio-production.fly.dev/api/apps/local-assesssuite-physio/functions/stripeWebhook' ||
+              JSON.stringify(webhook.enabled_events) !== JSON.stringify(['checkout.session.completed','customer.subscription.deleted','customer.subscription.paused','invoice.payment_failed']) ||
+               webhook.stripe_webhook_secret_staged !== true || webhook.provider_endpoint_count !== 1 ||
+               !/^[0-9a-f]{64}$/.test(webhook.started_effect_receipt_sha256 || '') ||
+               !/^[0-9a-f]{64}$/.test(webhook.effect_identity_receipt_sha256 || '') ||
+               !/^[0-9a-f]{64}$/.test(webhook.request_sha256 || '') ||
+               !Number.isSafeInteger(webhook.effect_generation) || webhook.effect_generation < 0 ||
+              !/^[0-9a-f]{64}$/.test(webhook.stripe_signing_secret_sha256 || '') ||
+              !/^[0-9a-f]{16,64}$/.test(webhook.fly_webhook_secret_digest || '') ||
+              !/^[0-9a-f]{64}$/.test(webhook.provider_request_id_hashes_sha256 || '') ||
+              !/^[A-Za-z0-9._:-]{1,160}$/.test(webhook.capability_intent_id || '') ||
+              !/^[A-Za-z0-9._:/-]{1,240}$/.test(webhook.authority_reference || '') ||
+              webhook.capability_intent_id === process.env.INTENT ||
+              webhook.capability_intent_id === process.env.CANARY_INTENT ||
+              webhook.capability_intent_id === bootstrap.capability_intent_id ||
+              webhook.production_ready_for_publication !== true) throw new Error('webhook publication binding differs');
+          validateCompletedStripeWebhookPacket(process.env.WEBHOOK_PACKET, {
+            applicationSha: process.env.APPLICATION_SHA,
+            authorityReference: webhook.authority_reference,
+            bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+            canaryReceiptSha256: process.env.CANARY_SHA,
+            capabilityIntentId: webhook.capability_intent_id,
+            effectReceiptSha256: webhook.effect_reconciliation_receipt_sha256,
+          });
+          const rehydrated = `${process.env.RUNNER_TEMP}/webhook-ledger-publication-readback`;
+          await materializeWebhookPacketFromLedger({
+            client: createWebhookLedgerGitHubClient({ repository: process.env.REPOSITORY,
+              token: process.env.GITHUB_TOKEN }),
+            repository: process.env.REPOSITORY,
+            applicationSha: process.env.APPLICATION_SHA,
+            archiveReceipt,
+            outputDirectory: rehydrated,
+            expectation: {
+              applicationSha: process.env.APPLICATION_SHA,
+              authorityReference: webhook.authority_reference,
+              bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+              canaryReceiptSha256: process.env.CANARY_SHA,
+              capabilityIntentId: webhook.capability_intent_id,
+              effectReceiptSha256: webhook.effect_reconciliation_receipt_sha256,
+            },
+          });
+          const packetNames = fs.readdirSync(process.env.WEBHOOK_PACKET).sort();
+          if (JSON.stringify(packetNames) !== JSON.stringify(fs.readdirSync(rehydrated).sort()) ||
+              packetNames.some((name) => sha(path.join(process.env.WEBHOOK_PACKET, name)) !==
+                sha(path.join(rehydrated, name)))) {
+            throw new Error('protected ledger materialization differs from archive transport packet');
+          }
+          const endpointFile = path.join(process.env.WEBHOOK_PACKET, 'stripe-endpoint-readback.json');
+          const requestIdsFile = path.join(process.env.WEBHOOK_PACKET, 'provider-request-id-hashes.json');
+          const endpoint = JSON.parse(fs.readFileSync(endpointFile, 'utf8'));
+          const expectedMetadata = {
+            appId: 'local-assesssuite-physio',
+            applicationSha: process.env.APPLICATION_SHA,
+             bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+             capabilityIntentId: webhook.capability_intent_id,
+             effectGeneration: String(webhook.effect_generation),
+             professionId: 'physio',
+             requestSha256: webhook.request_sha256,
+             startedEffectReceiptSha256: webhook.effect_identity_receipt_sha256,
+          };
+          const sanitizedEndpoint = sanitizeStripeWebhookEndpoint(endpoint, expectedMetadata);
+          if (sha(endpointFile) !== webhook.provider_endpoint_readback_sha256 ||
+              sha(requestIdsFile) !== webhook.provider_request_id_hashes_sha256 ||
+              sanitizedEndpoint.id !== webhook.stripe_webhook_endpoint_id ||
+              sanitizedEndpoint.url !== webhook.stripe_webhook_endpoint ||
+              sanitizedEndpoint.status !== 'enabled' || sanitizedEndpoint.api_version !== webhook.stripe_api_version ||
+              JSON.stringify(sanitizedEndpoint.enabled_events) !== JSON.stringify(webhook.enabled_events)) {
+            throw new Error('sanitized webhook endpoint evidence differs');
+          }
+          NODE
+          publication_payload_sha256="$(APPLICATION_SHA="$APPLICATION_SHA" CANDIDATE_ID="$CANDIDATE_ID" \
+            CANDIDATE_DIGEST="$CANDIDATE_DIGEST" CANDIDATE_SHA="$CANDIDATE_SHA" ARCHIVE_SHA="$ARCHIVE_SHA" \
+            OCI_ARCHIVE_SHA="$OCI_ARCHIVE_SHA" OCI_MANIFEST_DIGEST="$OCI_MANIFEST_DIGEST" \
+            OCI_DESCRIPTOR_SHA="$OCI_DESCRIPTOR_SHA" LOCAL_IMAGE_ID="$LOCAL_IMAGE_ID" CANARY_ID="$CANARY_ID" \
+            CANARY_DIGEST="$CANARY_DIGEST" CANARY_SHA="$CANARY_SHA" \
+            CANARY_CAPABILITY_BINDING_SHA="$CANARY_CAPABILITY_BINDING_SHA" \
+            CANARY_INTENT="$canary_capability_intent_id" CANARY_AUTHORITY="$canary_authority_reference" \
+            BOOTSTRAP_ID="$BOOTSTRAP_ID" \
+            BOOTSTRAP_DIGEST="$BOOTSTRAP_DIGEST" BOOTSTRAP_SHA="$BOOTSTRAP_SHA" WEBHOOK_ID="$WEBHOOK_ID" \
+            WEBHOOK_DIGEST="$WEBHOOK_DIGEST" WEBHOOK_SHA="$WEBHOOK_SHA" WEBHOOK_ARCHIVE_SHA="$WEBHOOK_ARCHIVE_SHA" \
+            INTENT="$INTENT" AUTHORITY="$AUTHORITY" \
+            node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          const request = {
+            action: 'publish-byte-identical-candidate-to-immutable-registry',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            archive_sha256: process.env.ARCHIVE_SHA, authority_reference: process.env.AUTHORITY,
+            bootstrap_artifact_digest: process.env.BOOTSTRAP_DIGEST,
+            bootstrap_artifact_id: process.env.BOOTSTRAP_ID,
+            bootstrap_receipt_sha256: process.env.BOOTSTRAP_SHA,
+            canary_artifact_digest: process.env.CANARY_DIGEST, canary_artifact_id: process.env.CANARY_ID,
+            canary_authority_reference: process.env.CANARY_AUTHORITY,
+            canary_capability_binding_sha256: process.env.CANARY_CAPABILITY_BINDING_SHA,
+            canary_capability_intent_id: process.env.CANARY_INTENT,
+            canary_receipt_sha256: process.env.CANARY_SHA, candidate_artifact_digest: process.env.CANDIDATE_DIGEST,
+            candidate_artifact_id: process.env.CANDIDATE_ID, candidate_receipt_sha256: process.env.CANDIDATE_SHA,
+            capability_intent_id: process.env.INTENT, local_image_id: process.env.LOCAL_IMAGE_ID,
+            oci_archive_sha256: process.env.OCI_ARCHIVE_SHA,
+            oci_descriptor_manifest_sha256: process.env.OCI_DESCRIPTOR_SHA,
+            oci_manifest_digest: process.env.OCI_MANIFEST_DIGEST,
+            registry_tag: `registry.fly.io/assesssuite-physio-production:physio-${process.env.APPLICATION_SHA}`,
+            stripe_webhook_archive_artifact_digest: process.env.WEBHOOK_DIGEST,
+            stripe_webhook_archive_artifact_id: process.env.WEBHOOK_ID,
+            stripe_webhook_archive_receipt_sha256: process.env.WEBHOOK_ARCHIVE_SHA,
+            stripe_webhook_receipt_sha256: process.env.WEBHOOK_SHA,
+          };
+          process.stdout.write(createHash('sha256').update(JSON.stringify(request)).digest('hex'));
+          NODE
+          )"
+          [[ "$publication_payload_sha256" =~ ^[0-9a-f]{64}$ ]]
+          resume_result='FRESH'
+          effect_generation=0
+          if [[ "$RESUME_ID" == '0' ]]; then
+            outstanding="$RUNNER_TEMP/publication-outstanding-artifacts.json"
+            artifact_name="physio-publication-started-$APPLICATION_SHA"
+            curl --proto '=https' --tlsv1.2 --fail-with-body --silent --show-error --max-time 60 --max-redirs 0 \
+              -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' \
+              -H 'X-GitHub-Api-Version: 2022-11-28' \
+              "https://api.github.com/repos/$REPOSITORY/actions/artifacts?name=$artifact_name&per_page=100" >"$outstanding"
+            OUTSTANDING="$outstanding" EXPECTED_NAME="$artifact_name" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const value = JSON.parse(fs.readFileSync(process.env.OUTSTANDING, 'utf8'));
+          if (!Number.isSafeInteger(value?.total_count) || !Array.isArray(value?.artifacts) ||
+              value.total_count !== value.artifacts.length ||
+              value.artifacts.some((row) => row?.name !== process.env.EXPECTED_NAME)) {
+            throw new Error('publication outstanding-effect inventory differs or is incomplete');
+          }
+          if (value.total_count !== 0) {
+            throw new Error('publication has an outstanding STARTED artifact; explicit exact resume is required');
+          }
+          NODE
+            rm -f "$outstanding"
+          fi
+          if [[ "$RESUME_ID" != '0' ]]; then
+            prior="$RUNNER_TEMP/resume/publication-effect-reconciliation.json"
+            sums="$RUNNER_TEMP/resume/SHA256SUMS"
+            [[ -f "$prior" && ! -L "$prior" && -f "$sums" && ! -L "$sums" && "$(wc -c <"$prior")" -le 16384 ]]
+            if find "$RUNNER_TEMP/resume" -type l -print -quit | grep -q .; then exit 1; fi
+            (cd "$RUNNER_TEMP/resume" && sha256sum --check --strict SHA256SUMS)
+            [[ "$(sha256sum "$prior" | awk '{print $1}')" == "$RESUME_SHA" ]]
+            IFS=$'\t' read -r resume_result effect_generation < <(PRIOR="$prior" APPLICATION_SHA="$APPLICATION_SHA" CANDIDATE_SHA="$CANDIDATE_SHA" CANARY_SHA="$CANARY_SHA" \
+            BOOTSTRAP_SHA="$BOOTSTRAP_SHA" WEBHOOK_SHA="$WEBHOOK_SHA" WEBHOOK_ARCHIVE_SHA="$WEBHOOK_ARCHIVE_SHA" \
+            INTENT="$INTENT" AUTHORITY="$AUTHORITY" \
+            PAYLOAD_SHA="$publication_payload_sha256" ARCHIVE_SHA="$ARCHIVE_SHA" OCI_ARCHIVE_SHA="$OCI_ARCHIVE_SHA" \
+            OCI_MANIFEST_DIGEST="$OCI_MANIFEST_DIGEST" OCI_DESCRIPTOR_SHA="$OCI_DESCRIPTOR_SHA" \
+            LOCAL_IMAGE_ID="$LOCAL_IMAGE_ID" WEBHOOK_ID="$WEBHOOK_ID" WEBHOOK_DIGEST="$WEBHOOK_DIGEST" \
+            CANARY_INTENT="$canary_capability_intent_id" CANARY_AUTHORITY="$canary_authority_reference" \
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.PRIOR, 'utf8'));
+          if (row.contract_version !== 'assesssuite-physio-publication-effect-reconciliation/1.0.0' ||
+              !['STARTED','STARTED_UNRESOLVED','COMPLETED'].includes(row.result) || row.application_sha !== process.env.APPLICATION_SHA ||
+              row.candidate_receipt_sha256 !== process.env.CANDIDATE_SHA || row.canary_receipt_sha256 !== process.env.CANARY_SHA ||
+              row.bootstrap_receipt_sha256 !== process.env.BOOTSTRAP_SHA || row.stripe_webhook_receipt_sha256 !== process.env.WEBHOOK_SHA ||
+              row.stripe_webhook_archive_receipt_sha256 !== process.env.WEBHOOK_ARCHIVE_SHA ||
+              row.canary_capability_intent_id !== process.env.CANARY_INTENT ||
+              row.canary_authority_reference !== process.env.CANARY_AUTHORITY ||
+              row.capability_intent_id !== process.env.INTENT || row.authority_reference !== process.env.AUTHORITY ||
+              row.publication_payload_sha256 !== process.env.PAYLOAD_SHA || row.archive_sha256 !== process.env.ARCHIVE_SHA ||
+              row.oci_archive_sha256 !== process.env.OCI_ARCHIVE_SHA ||
+              row.oci_manifest_digest !== process.env.OCI_MANIFEST_DIGEST ||
+              row.oci_descriptor_manifest_sha256 !== process.env.OCI_DESCRIPTOR_SHA ||
+              row.local_image_id !== process.env.LOCAL_IMAGE_ID ||
+              row.stripe_webhook_archive_artifact_id !== process.env.WEBHOOK_ID ||
+              row.stripe_webhook_archive_artifact_digest !== process.env.WEBHOOK_DIGEST ||
+              !Number.isSafeInteger(row.effect_generation) || row.effect_generation < 0) {
+            throw new Error('publication resume binding differs');
+          }
+          process.stdout.write(`${row.result}\t${row.effect_generation + 1}`);
+          NODE
+            )
+          fi
+          [[ "$effect_generation" =~ ^[0-9]+$ ]]
+          publication_request_sha256="$(PAYLOAD_SHA="$publication_payload_sha256" INTENT="$INTENT" AUTHORITY="$AUTHORITY" \
+            GENERATION="$effect_generation" PRIOR_EFFECT_SHA="$RESUME_SHA" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          const request = {
+            authority_reference: process.env.AUTHORITY,
+            capability_intent_id: process.env.INTENT,
+            effect_generation: Number(process.env.GENERATION),
+            prior_effect_receipt_sha256: process.env.PRIOR_EFFECT_SHA,
+            publication_payload_sha256: process.env.PAYLOAD_SHA,
+          };
+          process.stdout.write(createHash('sha256').update(JSON.stringify(request)).digest('hex'));
+          NODE
+          )"
+          [[ "$publication_request_sha256" =~ ^[0-9a-f]{64}$ ]]
+          packet="$RUNNER_TEMP/publication-admission"
+          install -d -m 0700 "$packet"
+          install -m 0600 "$RUNNER_TEMP/publication-predecessor-artifact-admission.json" "$packet/publication-predecessor-artifact-admission.json"
+          RECEIPT="$packet/publication-effect-reconciliation.json" APPLICATION_SHA="$APPLICATION_SHA" \
+          CANDIDATE_ID="$CANDIDATE_ID" CANDIDATE_DIGEST="$CANDIDATE_DIGEST" CANDIDATE_SHA="$CANDIDATE_SHA" \
+          ARCHIVE_SHA="$ARCHIVE_SHA" OCI_ARCHIVE_SHA="$OCI_ARCHIVE_SHA" OCI_MANIFEST_DIGEST="$OCI_MANIFEST_DIGEST" OCI_DESCRIPTOR_SHA="$OCI_DESCRIPTOR_SHA" \
+          LOCAL_IMAGE_ID="$LOCAL_IMAGE_ID" CANARY_ID="$CANARY_ID" CANARY_DIGEST="$CANARY_DIGEST" \
+          CANARY_SHA="$CANARY_SHA" CANARY_CAPABILITY_BINDING_SHA="$CANARY_CAPABILITY_BINDING_SHA" \
+          CANARY_INTENT="$canary_capability_intent_id" CANARY_AUTHORITY="$canary_authority_reference" \
+          BOOTSTRAP_ID="$BOOTSTRAP_ID" BOOTSTRAP_DIGEST="$BOOTSTRAP_DIGEST" \
+          BOOTSTRAP_SHA="$BOOTSTRAP_SHA" \
+          WEBHOOK_SHA="$WEBHOOK_SHA" WEBHOOK_ARCHIVE_SHA="$WEBHOOK_ARCHIVE_SHA" WEBHOOK_ID="$WEBHOOK_ID" WEBHOOK_DIGEST="$WEBHOOK_DIGEST" \
+          WEBHOOK_RECEIPT="$webhook" WEBHOOK_ARCHIVE_RECEIPT="$webhook_archive" \
+          BOOTSTRAP_RECEIPT="$bootstrap" PUBLICATION_PAYLOAD_SHA="$publication_payload_sha256" \
+          PUBLICATION_REQUEST_SHA="$publication_request_sha256" EFFECT_GENERATION="$effect_generation" \
+          ARTIFACT_ADMISSION_SHA="$(sha256sum "$packet/publication-predecessor-artifact-admission.json" | awk '{print $1}')" \
+          INTENT="$INTENT" AUTHORITY="$AUTHORITY" RESUME_SHA="$RESUME_SHA" RESUME_RESULT="$resume_result" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { createHash } from 'node:crypto';
+          const sha = (value) => createHash('sha256').update(JSON.stringify(value)).digest('hex');
+          const webhook = JSON.parse(fs.readFileSync(process.env.WEBHOOK_RECEIPT, 'utf8'));
+          const webhookArchive = JSON.parse(fs.readFileSync(process.env.WEBHOOK_ARCHIVE_RECEIPT, 'utf8'));
+          const bootstrap = JSON.parse(fs.readFileSync(process.env.BOOTSTRAP_RECEIPT, 'utf8'));
+          const bootstrapCapability = {
+            authority_reference: bootstrap.authority_reference,
+            capability_intent_id: bootstrap.capability_intent_id,
+            receipt_sha256: process.env.BOOTSTRAP_SHA,
+            scope: 'fly-bootstrap',
+          };
+          const webhookCapability = {
+            authority_reference: webhook.authority_reference,
+            capability_intent_id: webhook.capability_intent_id,
+            effect_receipt_sha256: webhook.effect_reconciliation_receipt_sha256,
+            receipt_sha256: process.env.WEBHOOK_SHA,
+            scope: 'stripe-webhook',
+          };
+          const row = { contract_version: 'assesssuite-physio-publication-effect-reconciliation/1.0.0', result: 'STARTED',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            candidate_artifact_id: process.env.CANDIDATE_ID,
+            candidate_artifact_digest: process.env.CANDIDATE_DIGEST,
+            candidate_receipt_sha256: process.env.CANDIDATE_SHA, archive_sha256: process.env.ARCHIVE_SHA,
+            oci_archive_sha256: process.env.OCI_ARCHIVE_SHA, oci_manifest_digest: process.env.OCI_MANIFEST_DIGEST,
+            oci_descriptor_manifest_sha256: process.env.OCI_DESCRIPTOR_SHA,
+            local_image_id: process.env.LOCAL_IMAGE_ID, canary_artifact_id: process.env.CANARY_ID,
+            canary_artifact_digest: process.env.CANARY_DIGEST, canary_receipt_sha256: process.env.CANARY_SHA,
+            bootstrap_artifact_id: process.env.BOOTSTRAP_ID,
+            bootstrap_artifact_digest: process.env.BOOTSTRAP_DIGEST,
+            bootstrap_receipt_sha256: process.env.BOOTSTRAP_SHA,
+            stripe_webhook_archive_artifact_id: process.env.WEBHOOK_ID,
+            stripe_webhook_archive_artifact_digest: process.env.WEBHOOK_DIGEST,
+            stripe_webhook_archive_receipt_sha256: process.env.WEBHOOK_ARCHIVE_SHA,
+            stripe_webhook_receipt_sha256: process.env.WEBHOOK_SHA,
+            stripe_webhook_source_artifact_id: webhookArchive.source_artifact_id,
+            stripe_webhook_source_artifact_digest: webhookArchive.source_artifact_digest,
+            stripe_webhook_ledger_commit_sha: webhookArchive.ledger_commit_sha,
+            stripe_webhook_ledger_record_sha256: webhookArchive.ledger_record_sha256,
+            stripe_webhook_ledger_packet_manifest_sha256: webhookArchive.ledger_packet_manifest_sha256,
+            stripe_webhook_endpoint: webhook.stripe_webhook_endpoint, stripe_webhook_endpoint_id: webhook.stripe_webhook_endpoint_id,
+            stripe_api_version: webhook.stripe_api_version, enabled_events: webhook.enabled_events,
+            stripe_signing_secret_sha256: webhook.stripe_signing_secret_sha256,
+            fly_webhook_secret_digest: webhook.fly_webhook_secret_digest,
+             webhook_provider_request_id_hashes_sha256: webhook.provider_request_id_hashes_sha256,
+             canary_capability_intent_id: process.env.CANARY_INTENT,
+             canary_authority_reference: process.env.CANARY_AUTHORITY,
+             canary_capability_binding_sha256: process.env.CANARY_CAPABILITY_BINDING_SHA,
+             bootstrap_capability_intent_id: bootstrap.capability_intent_id,
+             bootstrap_authority_reference: bootstrap.authority_reference,
+             bootstrap_capability_binding_sha256: sha(bootstrapCapability),
+             stripe_webhook_capability_intent_id: webhook.capability_intent_id,
+             stripe_webhook_authority_reference: webhook.authority_reference,
+             stripe_webhook_capability_binding_sha256: sha(webhookCapability),
+             github_artifact_admission_sha256: process.env.ARTIFACT_ADMISSION_SHA,
+             capability_intent_id: process.env.INTENT, authority_reference: process.env.AUTHORITY,
+             effect_generation: Number(process.env.EFFECT_GENERATION),
+             prior_effect_receipt_sha256: process.env.RESUME_SHA,
+             prior_effect_resolution: process.env.RESUME_SHA === '0'.repeat(64) ? 'NOT_APPLICABLE' : 'PENDING',
+             prior_effect_readback_sha256: null,
+             publication_payload_sha256: process.env.PUBLICATION_PAYLOAD_SHA,
+             publication_request_sha256: process.env.PUBLICATION_REQUEST_SHA,
+            resume_started_effect_receipt_sha256: process.env.RESUME_SHA,
+            resume_started_effect_result: process.env.RESUME_RESULT, registry_prestate_sha256: null,
+            push_exit_code: null, registry_readback_sha256: null, started_at: new Date().toISOString(), completed_at: null };
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          echo "started_receipt_sha256=$(sha256sum "$packet/publication-effect-reconciliation.json" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+
+      - name: Upload durable publication STARTED effect
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-publication-started-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/publication-admission
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  publish:
+    name: Publish byte-identical candidate and read exact registry digest
+    needs: admit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: physio-production
+    outputs:
+      publication_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      publication_artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
+      publication_receipt_sha256: ${{ steps.publish.outputs.publication_receipt_sha256 }}
+      immutable_image: ${{ steps.publish.outputs.immutable_image }}
+    steps:
+      - name: Check out exact receipt source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact candidate bytes
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.candidate_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.admit.outputs.candidate_run_id }}
+          path: ${{ runner.temp }}/candidate
+          github-token: ${{ github.token }}
+
+      - name: Download durable publication STARTED effect
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.admit.outputs.admission_artifact_id }}
+          path: ${{ runner.temp }}/started
+          github-token: ${{ github.token }}
+
+      - name: Install checksum-verified regctl 0.11.5 without provider credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          binary="$RUNNER_TEMP/regctl"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --max-time 120 \
+            --output "$binary" 'https://github.com/regclient/regclient/releases/download/v0.11.5/regctl-linux-amd64'
+          printf '%s  %s\n' 'c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467' "$binary" | sha256sum --check --strict
+          chmod 0755 "$binary"
+          [[ "$("$binary" version --format '{{.VCSTag}}')" == 'v0.11.5' ]]
+
+      - name: Load exact archive and re-admit durable effect without credentials
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_SHA: ${{ inputs.candidate_receipt_sha256 }}
+          ARCHIVE_SHA: ${{ inputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA: ${{ inputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ inputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_SHA: ${{ inputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          STARTED_SHA: ${{ needs.admit.outputs.started_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          candidate="$RUNNER_TEMP/candidate"
+          started="$RUNNER_TEMP/started"
+          (cd "$candidate" && sha256sum --check --strict SHA256SUMS)
+          (cd "$started" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$candidate/candidate-build-receipt.json" | awk '{print $1}')" == "$CANDIDATE_SHA" ]]
+          [[ "sha256:$(sha256sum "$candidate/candidate-image.tar.gz" | awk '{print $1}')" == "$ARCHIVE_SHA" ]]
+          [[ "sha256:$(sha256sum "$candidate/candidate-image.oci.tar.gz" | awk '{print $1}')" == "$OCI_ARCHIVE_SHA" ]]
+          [[ "$(sha256sum "$candidate/candidate-oci-descriptors.json" | awk '{print $1}')" == "$OCI_DESCRIPTOR_SHA" ]]
+          [[ "$(sha256sum "$started/publication-effect-reconciliation.json" | awk '{print $1}')" == "$STARTED_SHA" ]]
+          gzip -dc "$candidate/candidate-image.tar.gz" | docker load >"$RUNNER_TEMP/docker-load.stdout"
+          [[ "$(docker image inspect "assesssuite-physio-candidate:$APPLICATION_SHA" --format '{{.Id}}')" == "$LOCAL_IMAGE_ID" ]]
+          [[ "$(docker image inspect "$LOCAL_IMAGE_ID" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$APPLICATION_SHA" ]]
+          oci="$RUNNER_TEMP/candidate-oci"
+          install -d -m 0700 "$oci"
+          ARCHIVE="$candidate/candidate-image.oci.tar.gz" DESTINATION="$oci" DESCRIPTORS="$candidate/candidate-oci-descriptors.json" \
+          python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+          import tarfile
+
+          archive_path = pathlib.Path(os.environ['ARCHIVE']).resolve()
+          destination = pathlib.Path(os.environ['DESTINATION']).resolve()
+          descriptor = json.loads(pathlib.Path(os.environ['DESCRIPTORS']).read_text(encoding='utf-8'))
+          digests = {descriptor['manifest_digest'][7:], descriptor['config']['digest'][7:]}
+          digests.update(row['digest'][7:] for row in descriptor['layers'])
+          expected_files = {'oci-layout', 'index.json', *(f'blobs/sha256/{digest}' for digest in digests)}
+          seen = set()
+          total = 0
+          with tarfile.open(archive_path, mode='r:gz') as archive:
+              for member in archive.getmembers():
+                  name = member.name.removeprefix('./').rstrip('/')
+                  if not name:
+                      continue
+                  if member.isdir() and name in {'blobs', 'blobs/sha256'}:
+                      continue
+                  if not member.isfile() or name not in expected_files or name in seen:
+                      raise SystemExit('OCI archive member set, type, or uniqueness differs')
+                  if member.size <= 0 or member.size > 2_000_000_000:
+                      raise SystemExit('OCI archive member size differs')
+                  total += member.size
+                  if total > 4_000_000_000:
+                      raise SystemExit('OCI archive total size differs')
+                  target = (destination / name).resolve()
+                  if os.path.commonpath([str(destination), str(target)]) != str(destination):
+                      raise SystemExit('OCI archive member escapes destination')
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  source = archive.extractfile(member)
+                  if source is None:
+                      raise SystemExit('OCI archive member has no bytes')
+                  with target.open('xb') as output:
+                      while chunk := source.read(1024 * 1024):
+                          output.write(chunk)
+                  seen.add(name)
+          if seen != expected_files:
+              raise SystemExit('OCI archive exact file set differs')
+          PY
+          [[ "$(node scripts/physio-oci-image.mjs verify-descriptors --layout "$oci" --tag "$APPLICATION_SHA" \
+            --application-sha "$APPLICATION_SHA" --local-image-id "$LOCAL_IMAGE_ID" \
+            --receipt "$candidate/candidate-oci-descriptors.json")" == "$OCI_MANIFEST_DIGEST" ]]
+
+      - name: Publish exact archive bytes and prove immutable registry digest
+        id: publish
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANDIDATE_SHA: ${{ inputs.candidate_receipt_sha256 }}
+          ARCHIVE_SHA: ${{ inputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA: ${{ inputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ inputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_SHA: ${{ inputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          CANARY_SHA: ${{ inputs.canary_receipt_sha256 }}
+          CANARY_CAPABILITY_BINDING_SHA: ${{ inputs.canary_capability_binding_sha256 }}
+          CANARY_CAPABILITY_INTENT_ID: ${{ needs.admit.outputs.canary_capability_intent_id }}
+          CANARY_AUTHORITY_REFERENCE: ${{ needs.admit.outputs.canary_authority_reference }}
+          BOOTSTRAP_SHA: ${{ inputs.bootstrap_receipt_sha256 }}
+          WEBHOOK_ARCHIVE_SHA: ${{ inputs.stripe_webhook_archive_receipt_sha256 }}
+          WEBHOOK_ID: ${{ inputs.stripe_webhook_archive_artifact_id }}
+          WEBHOOK_DIGEST: ${{ inputs.stripe_webhook_archive_artifact_digest }}
+          STARTED_SHA: ${{ needs.admit.outputs.started_receipt_sha256 }}
+          INTENT: ${{ inputs.capability_intent_id }}
+          AUTHORITY: ${{ inputs.authority_reference }}
+          RESUME_ID: ${{ inputs.resume_started_effect_artifact_id }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -n "$FLY_API_TOKEN" ]]
+          packet="$RUNNER_TEMP/publication-receipt"
+          work="$RUNNER_TEMP/publication-work"
+          install -d -m 0700 "$packet" "$work"
+          reconciliation="$packet/publication-effect-reconciliation.json"
+          install -m 0600 "$RUNNER_TEMP/started/publication-effect-reconciliation.json" "$reconciliation"
+          WEBHOOK_SHA="$(RECONCILIATION="$reconciliation" node -e \
+            "const r=require(process.env.RECONCILIATION);process.stdout.write(r.stripe_webhook_receipt_sha256)")"
+          [[ "$WEBHOOK_SHA" =~ ^[0-9a-f]{64}$ && "$WEBHOOK_ARCHIVE_SHA" =~ ^[0-9a-f]{64}$ ]]
+          install -m 0600 "$RUNNER_TEMP/started/publication-predecessor-artifact-admission.json" "$packet/publication-predecessor-artifact-admission.json"
+          STARTED="$reconciliation" STARTED_SHA="$STARTED_SHA" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.STARTED, 'utf8'));
+          if (row.result !== 'STARTED') throw new Error('publication STARTED receipt differs');
+          row.started_effect_receipt_sha256 = process.env.STARTED_SHA;
+          fs.writeFileSync(process.env.STARTED, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+          preserve_publication_evidence() {
+            local status=$?
+            trap - EXIT
+            if [[ "$status" -ne 0 && ! -f "$work/provider-effect-completed" ]]; then
+              rm -f "$packet/physio-production-publication.json" "$packet/registry-descriptor-readback.json" "$packet/registry-provider-result.json" "$packet/SHA256SUMS"
+              RECONCILIATION="$reconciliation" WORK="$work" STATUS="$status" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          const hashes = {};
+          for (const name of ['registry-prestate-head.headers','registry-prestate-head.stderr','registry-prestate-get.headers',
+            'registry-prestate-get.body','registry-prestate-get.stderr','registry-copy.stdout','registry-copy.stderr',
+            'registry-final-head.headers','registry-final-head.stderr','registry-final-get.headers','registry-final-get.stderr',
+            'registry-manifest.raw']) {
+            const file = path.join(process.env.WORK, name);
+            if (fs.existsSync(file) && fs.statSync(file).isFile()) hashes[name] = createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          }
+          row.result = fs.existsSync(path.join(process.env.WORK, 'registry-mutation-started')) ? 'STARTED_UNRESOLVED' : 'FAILED';
+          row.process_exit_code = Number(process.env.STATUS); row.provider_result_sha256 = hashes;
+          row.failed_at = new Date().toISOString();
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+              (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+            elif [[ "$status" -ne 0 ]]; then
+              rm -f "$packet/physio-production-publication.json" "$packet/registry-provider-result.json" "$packet/SHA256SUMS"
+              (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+            fi
+            "$RUNNER_TEMP/regctl" registry logout registry.fly.io >/dev/null 2>&1 || true
+            rm -f "$work/regctl-config.json" "$work/curl-auth.cfg"
+            unset FLY_API_TOKEN
+            exit "$status"
+          }
+          trap preserve_publication_evidence EXIT
+          registry_tag="registry.fly.io/assesssuite-physio-production:physio-$APPLICATION_SHA"
+          registry_repo='registry.fly.io/assesssuite-physio-production'
+          local_ref="ocidir://$RUNNER_TEMP/candidate-oci:$APPLICATION_SHA"
+          export REGCTL_CONFIG="$work/regctl-config.json"
+          printf '%s' "$FLY_API_TOKEN" | "$RUNNER_TEMP/regctl" registry login registry.fly.io -u x --pass-stdin \
+            >"$work/registry-login.stdout" 2>"$work/registry-login.stderr"
+          CURL_AUTH="$work/curl-auth.cfg" FLY_TOKEN="$FLY_API_TOKEN" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          if (!process.env.FLY_TOKEN || /["\\\r\n]/.test(process.env.FLY_TOKEN)) throw new Error('Fly registry credential shape differs');
+          fs.writeFileSync(process.env.CURL_AUTH, `user = "x:${process.env.FLY_TOKEN}"\n`, { flag: 'wx', mode: 0o600 });
+          NODE
+          manifest_url="https://registry.fly.io/v2/assesssuite-physio-production/manifests/physio-$APPLICATION_SHA"
+          accept='Accept: application/vnd.oci.image.manifest.v1+json, application/vnd.docker.distribution.manifest.v2+json'
+          set +e
+          head_status="$(curl --config "$work/curl-auth.cfg" --proto '=https' --tlsv1.2 --silent --show-error --max-time 60 --max-redirs 0 \
+            --head --header "$accept" --dump-header "$work/registry-prestate-head.headers" --output /dev/null \
+            --write-out '%{http_code}' "$manifest_url" 2>"$work/registry-prestate-head.stderr")"
+          head_exit=$?
+          get_status="$(curl --config "$work/curl-auth.cfg" --proto '=https' --tlsv1.2 --silent --show-error --max-time 60 --max-redirs 0 \
+            --max-filesize 4194304 \
+            --header "$accept" --dump-header "$work/registry-prestate-get.headers" --output "$work/registry-prestate-get.body" \
+            --write-out '%{http_code}' "$manifest_url" 2>"$work/registry-prestate-get.stderr")"
+          get_exit=$?
+          set -e
+          [[ "$head_exit" -eq 0 && "$get_exit" -eq 0 && "$head_status" =~ ^[0-9]{3}$ && "$get_status" =~ ^[0-9]{3}$ ]]
+          if [[ "$head_status" == '200' && "$get_status" == '200' ]]; then
+            node scripts/physio-oci-image.mjs verify-registry-readback \
+              --head-headers "$work/registry-prestate-head.headers" --head-status "$head_status" \
+              --get-headers "$work/registry-prestate-get.headers" --get-status "$get_status" \
+              --body "$work/registry-prestate-get.body" --descriptors "$RUNNER_TEMP/candidate/candidate-oci-descriptors.json" \
+              --receipt "$packet/registry-prestate.json" --mode present
+            [[ "$RESUME_ID" != '0' ]]
+            resume_result="$(STARTED="$reconciliation" env -u FLY_API_TOKEN node --input-type=module -e \
+              "import fs from 'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.env.STARTED,'utf8')).resume_started_effect_result)")"
+            [[ "$resume_result" == 'STARTED' || "$resume_result" == 'STARTED_UNRESOLVED' || "$resume_result" == 'COMPLETED' ]]
+            RECONCILIATION="$reconciliation" PRESTATE_SHA="$(sha256sum "$packet/registry-prestate.json" | awk '{print $1}')" \
+              env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          row.prior_effect_resolution = 'COMMITTED_EXACT';
+          row.prior_effect_readback_sha256 = process.env.PRESTATE_SHA;
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+            : >"$work/registry-copy.stdout"; : >"$work/registry-copy.stderr"
+            copy_exit_code=0
+          elif [[ "$head_status" == '404' && "$get_status" == '404' ]]; then
+            node scripts/physio-oci-image.mjs verify-registry-readback \
+              --head-headers "$work/registry-prestate-head.headers" --head-status "$head_status" \
+              --get-headers "$work/registry-prestate-get.headers" --get-status "$get_status" \
+              --body "$work/registry-prestate-get.body" --descriptors "$RUNNER_TEMP/candidate/candidate-oci-descriptors.json" \
+              --receipt "$packet/registry-prestate.json" --mode absent
+            if [[ "$RESUME_ID" != '0' ]]; then
+              RECONCILIATION="$reconciliation" PRESTATE_SHA="$(sha256sum "$packet/registry-prestate.json" | awk '{print $1}')" \
+                env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          if (!Number.isSafeInteger(row.effect_generation) || row.effect_generation < 1 ||
+              !/^[0-9a-f]{64}$/.test(row.prior_effect_receipt_sha256 || '')) {
+            throw new Error('publication predecessor generation differs');
+          }
+          row.prior_effect_resolution = 'NOT_COMMITTED_BY_AUTHORITATIVE_ABSENCE';
+          row.prior_effect_readback_sha256 = process.env.PRESTATE_SHA;
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+            fi
+            : >"$work/registry-mutation-started"
+            set +e
+            "$RUNNER_TEMP/regctl" image copy --force-recursive "$local_ref" "$registry_tag" \
+              >"$work/registry-copy.stdout" 2>"$work/registry-copy.stderr"
+            copy_exit_code=$?
+            set -e
+          else
+            echo 'Registry prestate is mixed, redirected, unauthorised, throttled, or unavailable.' >&2
+            exit 1
+          fi
+          set +e
+          final_head_status="$(curl --config "$work/curl-auth.cfg" --proto '=https' --tlsv1.2 --silent --show-error --max-time 60 --max-redirs 0 \
+            --head --header "$accept" --dump-header "$work/registry-final-head.headers" --output /dev/null \
+            --write-out '%{http_code}' "$manifest_url" 2>"$work/registry-final-head.stderr")"
+          final_head_exit=$?
+          final_get_status="$(curl --config "$work/curl-auth.cfg" --proto '=https' --tlsv1.2 --silent --show-error --max-time 60 --max-redirs 0 \
+            --max-filesize 4194304 \
+            --header "$accept" --dump-header "$work/registry-final-get.headers" --output "$work/registry-manifest.raw" \
+            --write-out '%{http_code}' "$manifest_url" 2>"$work/registry-final-get.stderr")"
+          final_get_exit=$?
+          set -e
+          [[ "$final_head_exit" -eq 0 && "$final_get_exit" -eq 0 && "$final_head_status" == '200' && "$final_get_status" == '200' ]]
+          node scripts/physio-oci-image.mjs verify-registry-readback \
+            --head-headers "$work/registry-final-head.headers" --head-status "$final_head_status" \
+            --get-headers "$work/registry-final-get.headers" --get-status "$final_get_status" \
+            --body "$work/registry-manifest.raw" --descriptors "$RUNNER_TEMP/candidate/candidate-oci-descriptors.json" \
+            --receipt "$packet/registry-protocol-final.json" --mode present
+          image_digest="$OCI_MANIFEST_DIGEST"
+          local_manifest="$RUNNER_TEMP/candidate-oci/blobs/sha256/${OCI_MANIFEST_DIGEST#sha256:}"
+          cmp --silent "$local_manifest" "$work/registry-manifest.raw"
+          descriptors="$RUNNER_TEMP/candidate/candidate-oci-descriptors.json"
+          install -d -m 0700 "$work/registry-blobs"
+          DESCRIPTORS="$descriptors" node --input-type=module <<'NODE' >"$work/descriptor-list.tsv"
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.DESCRIPTORS, 'utf8'));
+          for (const item of [row.config, ...row.layers]) console.log(`${item.digest}\t${item.size}`);
+          NODE
+          while IFS=$'\t' read -r digest size; do
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ && "$size" =~ ^[1-9][0-9]*$ ]]
+            blob="$work/registry-blobs/${digest#sha256:}"
+            "$RUNNER_TEMP/regctl" blob get "$registry_repo" "$digest" >"$blob"
+            [[ "sha256:$(sha256sum "$blob" | awk '{print $1}')" == "$digest" && "$(wc -c <"$blob")" == "$size" ]]
+          done <"$work/descriptor-list.tsv"
+          immutable_image="registry.fly.io/assesssuite-physio-production@$image_digest"
+          DESCRIPTORS="$descriptors" RECEIPT="$packet/registry-descriptor-readback.json" IMMUTABLE_IMAGE="$immutable_image" \
+          MANIFEST_SHA="$(sha256sum "$work/registry-manifest.raw" | awk '{print $1}')" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source = JSON.parse(fs.readFileSync(process.env.DESCRIPTORS, 'utf8'));
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify({
+            contract_version: 'assesssuite-registry-descriptor-readback/1.0.0', result: 'PASS',
+            immutable_image: process.env.IMMUTABLE_IMAGE, manifest_digest: source.manifest_digest,
+            manifest_raw_sha256: process.env.MANIFEST_SHA, config: source.config, layers: source.layers,
+            exact_manifest_and_all_blobs_verified: true,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          rm -f "$work/regctl-config.json" "$work/curl-auth.cfg"
+          unset FLY_API_TOKEN
+          RECONCILIATION="$reconciliation" PRESTATE_SHA="$(sha256sum "$packet/registry-prestate.json" | awk '{print $1}')" \
+          COPY_EXIT="$copy_exit_code" READBACK_SHA="$(sha256sum "$packet/registry-descriptor-readback.json" | awk '{print $1}')" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          row.result = 'COMPLETED'; row.registry_prestate_sha256 = process.env.PRESTATE_SHA;
+          row.copy_exit_code = Number(process.env.COPY_EXIT); row.registry_readback_sha256 = process.env.READBACK_SHA;
+          row.completed_at = new Date().toISOString();
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+          : >"$work/provider-effect-completed"
+          reconciliation_sha="$(sha256sum "$reconciliation" | awk '{print $1}')"
+          RECEIPT="$packet/physio-production-publication.json" APPLICATION_SHA="$APPLICATION_SHA" CANDIDATE_ID="$CANDIDATE_ID" \
+          CANDIDATE_DIGEST="$CANDIDATE_DIGEST" CANDIDATE_SHA="$CANDIDATE_SHA" ARCHIVE_SHA="$ARCHIVE_SHA" \
+          OCI_ARCHIVE_SHA="$OCI_ARCHIVE_SHA" OCI_MANIFEST_DIGEST="$OCI_MANIFEST_DIGEST" OCI_DESCRIPTOR_SHA="$OCI_DESCRIPTOR_SHA" \
+          LOCAL_IMAGE_ID="$LOCAL_IMAGE_ID" CANARY_SHA="$CANARY_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_SHA" \
+          WEBHOOK_SHA="$WEBHOOK_SHA" WEBHOOK_ARCHIVE_SHA="$WEBHOOK_ARCHIVE_SHA" \
+          CANARY_CAPABILITY_BINDING_SHA="$CANARY_CAPABILITY_BINDING_SHA" \
+          CANARY_INTENT="$CANARY_CAPABILITY_INTENT_ID" CANARY_AUTHORITY="$CANARY_AUTHORITY_REFERENCE" \
+          WEBHOOK_ID="$WEBHOOK_ID" WEBHOOK_DIGEST="$WEBHOOK_DIGEST" RECONCILIATION="$reconciliation" \
+          STARTED_SHA="$STARTED_SHA" RECONCILIATION_SHA="$reconciliation_sha" IMMUTABLE_IMAGE="$immutable_image" IMAGE_DIGEST="$image_digest" \
+          REGISTRY_TAG="$registry_tag" READBACK_SHA="$(sha256sum "$packet/registry-descriptor-readback.json" | awk '{print $1}')" \
+          PROTOCOL_SHA="$(sha256sum "$packet/registry-protocol-final.json" | awk '{print $1}')" \
+          CANDIDATE_RECEIPT="$RUNNER_TEMP/candidate/candidate-build-receipt.json" \
+          INTENT="$INTENT" AUTHORITY="$AUTHORITY" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const sha = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const effect = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          const candidate = JSON.parse(fs.readFileSync(process.env.CANDIDATE_RECEIPT, 'utf8'));
+          const row = { contract_version: 'assesssuite-physio-image-publication/3.0.0', result: 'PASS',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA, profession_id: 'physio',
+            candidate_artifact_id: process.env.CANDIDATE_ID, candidate_artifact_digest: process.env.CANDIDATE_DIGEST,
+            candidate_receipt_sha256: process.env.CANDIDATE_SHA, archive_sha256: process.env.ARCHIVE_SHA,
+            oci_archive_sha256: process.env.OCI_ARCHIVE_SHA, oci_manifest_digest: process.env.OCI_MANIFEST_DIGEST,
+            oci_descriptor_manifest_sha256: process.env.OCI_DESCRIPTOR_SHA,
+            local_image_id: process.env.LOCAL_IMAGE_ID, canary_receipt_sha256: process.env.CANARY_SHA,
+            canary_artifact_id: effect.canary_artifact_id,
+            canary_artifact_digest: effect.canary_artifact_digest,
+            canary_capability_intent_id: process.env.CANARY_INTENT,
+            canary_authority_reference: process.env.CANARY_AUTHORITY,
+            canary_capability_binding_sha256: process.env.CANARY_CAPABILITY_BINDING_SHA,
+            bootstrap_artifact_id: effect.bootstrap_artifact_id,
+            bootstrap_artifact_digest: effect.bootstrap_artifact_digest,
+            bootstrap_receipt_sha256: process.env.BOOTSTRAP_SHA,
+            bootstrap_capability_intent_id: effect.bootstrap_capability_intent_id,
+            bootstrap_authority_reference: effect.bootstrap_authority_reference,
+            bootstrap_capability_binding_sha256: effect.bootstrap_capability_binding_sha256,
+            sentry_release_artifact_id: candidate.sentry_release.artifact_id,
+            sentry_release_artifact_digest: candidate.sentry_release.artifact_digest,
+            sentry_release_receipt_sha256: candidate.sentry_release.receipt_sha256,
+            stripe_webhook_archive_artifact_id: process.env.WEBHOOK_ID,
+            stripe_webhook_archive_artifact_digest: process.env.WEBHOOK_DIGEST,
+            stripe_webhook_archive_receipt_sha256: process.env.WEBHOOK_ARCHIVE_SHA,
+            stripe_webhook_receipt_sha256: process.env.WEBHOOK_SHA,
+            stripe_webhook_source_artifact_id: effect.stripe_webhook_source_artifact_id,
+            stripe_webhook_source_artifact_digest: effect.stripe_webhook_source_artifact_digest,
+            stripe_webhook_ledger_commit_sha: effect.stripe_webhook_ledger_commit_sha,
+            stripe_webhook_ledger_record_sha256: effect.stripe_webhook_ledger_record_sha256,
+            stripe_webhook_ledger_packet_manifest_sha256: effect.stripe_webhook_ledger_packet_manifest_sha256,
+            stripe_webhook_capability_intent_id: effect.stripe_webhook_capability_intent_id,
+            stripe_webhook_authority_reference: effect.stripe_webhook_authority_reference,
+            stripe_webhook_capability_binding_sha256: effect.stripe_webhook_capability_binding_sha256,
+            stripe_webhook_endpoint: effect.stripe_webhook_endpoint, stripe_webhook_endpoint_id: effect.stripe_webhook_endpoint_id,
+            stripe_api_version: effect.stripe_api_version, stripe_webhook_enabled_events: effect.enabled_events,
+            stripe_signing_secret_sha256: effect.stripe_signing_secret_sha256,
+            fly_webhook_secret_digest: effect.fly_webhook_secret_digest,
+            webhook_provider_request_id_hashes_sha256: effect.webhook_provider_request_id_hashes_sha256,
+            stripe_webhook_secret_staged: true, started_effect_receipt_sha256: process.env.STARTED_SHA,
+            effect_reconciliation_receipt_sha256: process.env.RECONCILIATION_SHA,
+            github_artifact_admission_sha256: effect.github_artifact_admission_sha256,
+            registry_tag: process.env.REGISTRY_TAG, immutable_image: process.env.IMMUTABLE_IMAGE,
+            image_digest: process.env.IMAGE_DIGEST, registry_readback_sha256: process.env.READBACK_SHA,
+            registry_protocol_final_sha256: process.env.PROTOCOL_SHA,
+            byte_identical_candidate_verified: true, canonical_oci_manifest_and_blobs_verified: true,
+            publisher_tool: { name: 'regctl', version: 'v0.11.5', sha256: 'c93aa7638749f5aaac1a8e01787321889c78f0101809bb2880343478d0ba0467' },
+            machine_count: 0, custom_certificate_count: 0,
+            fly_hostname_precedes_custom_dns: true, capability_intent_id: process.env.INTENT,
+            authority_reference: process.env.AUTHORITY,
+            effect_generation: effect.effect_generation,
+            prior_effect_receipt_sha256: effect.prior_effect_receipt_sha256,
+            prior_effect_resolution: effect.prior_effect_resolution,
+            prior_effect_readback_sha256: effect.prior_effect_readback_sha256,
+            publication_payload_sha256: effect.publication_payload_sha256,
+            publication_request_sha256: effect.publication_request_sha256,
+            release_execution_source_sha256: {
+              live_qa_contract: sha('e2e/physio-live/live-qa-contract.mjs'),
+              live_qa_spec: sha('e2e/physio-live/physio-live.spec.mjs'),
+              live_qa_journey_manifest: sha('e2e/physio-live/qa-journey-manifest.json'),
+              expected_capabilities_manifest: sha('e2e/physio-live/expected-capabilities-manifest.json'),
+              live_qa_playwright_config: sha('e2e/physio-live/playwright.config.mjs'),
+              live_qa_global_setup: sha('e2e/physio-live/global-setup.mjs'),
+              live_qa_global_teardown: sha('e2e/physio-live/global-teardown.mjs'),
+              exact_image_canary_fixture: sha('scripts/physio-exact-image-canary-fixture.mjs'),
+              exact_image_canary_runner: sha('scripts/physio-exact-image-canary.mjs'),
+              exact_image_canary_contract: sha('scripts/physio-exact-image-canary-contract.mjs'),
+              exact_image_canary_success_contract: sha('scripts/physio-exact-image-canary-success-contract.mjs'),
+              exact_image_canary_workflow: sha('.github/workflows/physio-production-exact-image-canary.yml'),
+              exact_image_canary_contract_test: sha('server/tests/physio-exact-image-canary.test.mjs'),
+              exact_image_canary_success_contract_test: sha('server/tests/physio-exact-image-canary-success-contract.test.mjs'),
+              exact_image_canary_workflow_test: sha('server/tests/physio-exact-image-canary-workflow.test.mjs'),
+              oci_image_contract: sha('scripts/physio-oci-image.mjs'),
+              deploy_admission: sha('scripts/physio-deploy-admission.mjs'),
+              github_artifact_admission: sha('scripts/github-artifact-admission.mjs'),
+              stripe_webhook_evidence: sha('scripts/physio-stripe-webhook-evidence.mjs'),
+              stripe_webhook_ledger: sha('scripts/physio-webhook-ledger.mjs'),
+              stripe_webhook_archive_workflow: sha('.github/workflows/physio-production-webhook-archive.yml'),
+              stripe_webhook_ledger_test: sha('server/tests/physio-webhook-ledger.test.mjs'),
+              exact_image_canary_audio: sha('server/tests/fixtures/physio-exact-image-canary/synthetic-physio-canary.wav'),
+              upload_registry: sha('server/uploadRegistry.mjs'),
+              synthetic_fixtures: sha('server/tests/support/synthetic-fixtures.mjs'),
+              referral_extraction_schema: sha('src/lib/referralExtractionSchema.js'),
+              referral_workflow: sha('src/lib/referralWorkflow.js'),
+              live_qa_contract_test: sha('server/tests/physio-live-qa-contract.test.mjs'),
+              self_service_contract: sha('e2e/physio-live-self-service/self-service-contract.mjs'),
+              self_service_provision: sha('e2e/physio-live-self-service/provision.spec.mjs'),
+              trusted_browser_checkout: sha('e2e/physio-live-self-service/trusted-browser-checkout.mjs'),
+              stripe_live_readback: sha('e2e/physio-live-self-service/stripe-live-readback.mjs'),
+              stripe_live_payment_validation: sha('e2e/physio-live-self-service/stripe-live-payment-validation.mjs'),
+              validate_payment: sha('e2e/physio-live-self-service/validate-payment.mjs'),
+              self_service_finalize: sha('e2e/physio-live-self-service/finalize.spec.mjs'),
+              self_service_resume_cleanup: sha('e2e/physio-live-self-service/resume-cleanup.mjs'),
+              email_provider_readback: sha('e2e/physio-live-self-service/email-provider-readback.mjs'),
+              journey_support: sha('e2e/physio-live-self-service/journey-support.mjs'),
+              self_service_global_setup: sha('e2e/physio-live-self-service/global-setup.mjs'),
+              self_service_global_teardown: sha('e2e/physio-live-self-service/global-teardown.mjs'),
+              self_service_playwright_config: sha('e2e/physio-live-self-service/playwright.config.mjs'),
+              self_service_journey_manifest: sha('e2e/physio-live-self-service/journey-manifest.json'),
+              stripe_gateway: sha('server/stripeGateway.mjs'),
+              create_checkout_session: sha('server/functions/createCheckoutSession.mjs'),
+              package_json: sha('package.json'),
+              package_lock: sha('package-lock.json'),
+              self_service_wrapper: sha('scripts/run-physio-live-self-service.mjs'),
+              self_service_contract_test: sha('server/tests/physio-live-self-service-contract.test.mjs'),
+              live_payment_validation_contract_test: sha('server/tests/physio-live-payment-validation-contract.test.mjs'),
+              server_harness: sha('server/tests/support/server-harness.mjs'),
+              offline_runtime_fixture: sha('e2e/physio-offline-journey/runtime-fixture.mjs'),
+              offline_vite_child: sha('e2e/physio-offline-journey/vite-child.mjs'),
+              offline_journey_spec: sha('e2e/physio-offline-journey/physio-offline-journey.spec.mjs'),
+              physio_vite_config: sha('apps/app-physio/vite.config.js'),
+              shared_app_config: sha('apps/_shared/makeAppConfig.mjs'),
+              root_vite_config: sha('vite.config.js'),
+              route_utils: sha('src/utils/index.ts'),
+              calendar_page: sha('src/pages/Calendar.jsx'),
+              test_runner_page: sha('src/pages/TestRunner.jsx'),
+              assessment_runner_router: sha('src/components/assessments/AssessmentTestRunnerRouter.jsx'),
+              assessment_return_routing_contract_test: sha('server/tests/assessment-return-routing-contract.test.mjs'),
+            },
+            completed_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          COPY_STDOUT_SHA="$(sha256sum "$work/registry-copy.stdout" | awk '{print $1}')" \
+          COPY_STDERR_SHA="$(sha256sum "$work/registry-copy.stderr" | awk '{print $1}')" \
+          PRESTATE_HEAD_SHA="$(sha256sum "$work/registry-prestate-head.headers" | awk '{print $1}')" \
+          PRESTATE_GET_SHA="$(sha256sum "$work/registry-prestate-get.headers" | awk '{print $1}')" \
+          FINAL_HEAD_SHA="$(sha256sum "$work/registry-final-head.headers" | awk '{print $1}')" \
+          FINAL_GET_SHA="$(sha256sum "$work/registry-final-get.headers" | awk '{print $1}')" \
+          RESULT="$packet/registry-provider-result.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          fs.writeFileSync(process.env.RESULT, JSON.stringify({
+            contract_version: 'assesssuite-registry-provider-result/2.0.0',
+            copy_stdout_sha256: process.env.COPY_STDOUT_SHA, copy_stderr_sha256: process.env.COPY_STDERR_SHA,
+            prestate_head_headers_sha256: process.env.PRESTATE_HEAD_SHA,
+            prestate_get_headers_sha256: process.env.PRESTATE_GET_SHA,
+            final_head_headers_sha256: process.env.FINAL_HEAD_SHA,
+            final_get_headers_sha256: process.env.FINAL_GET_SHA,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          : >"$work/finalization-complete"
+          echo "publication_receipt_sha256=$(sha256sum "$packet/physio-production-publication.json" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+          echo "immutable_image=$immutable_image" >>"$GITHUB_OUTPUT"
+
+      - if: ${{ always() }}
+        name: Upload exact publication provider effect evidence
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-production-publication-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/publication-receipt
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

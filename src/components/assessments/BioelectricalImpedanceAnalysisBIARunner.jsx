@@ -7,6 +7,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import {
+  BIA_NUMERIC_CONSTRAINTS,
+  BIA_RUNNER_SPEC,
+  validateAndScoreBia,
+} from "@/lib/clinical/scorers/classDRepairs";
 
 export default function BioelectricalImpedanceAnalysisBIARunner({ client, onSave, onClose }) {
   const [height, setHeight] = useState("");
@@ -28,47 +33,8 @@ export default function BioelectricalImpedanceAnalysisBIARunner({ client, onSave
   const [notes, setNotes] = useState("");
 
   const handleSave = () => {
-    if (!height || !weight || !age || !gender) {
-      toast.error("Please fill in height, weight, age and gender.");
-      return;
-    }
-    if (!bodyFatPct && !resistance) {
-      toast.error("Please enter at least the body fat % or resistance/reactance from the BIA machine.");
-      return;
-    }
-
-    const resultValue = bodyFatPct ? parseFloat(bodyFatPct) : null;
-
-    const hydrationLabels = { euhydrated: "Euhydrated", dehydrated: "Dehydrated", overhydrated: "Overhydrated" };
-    const placementLabels = { handFoot: "Hand and Foot", footFoot: "Foot and Foot" };
-
-    const soap_text =
-      `Bioelectrical Impedance Analysis (BIA)\n\n` +
-      `--- Client Parameters ---\n` +
-      `  Height: ${height} cm\n` +
-      `  Weight: ${weight} kg\n` +
-      `  Age: ${age} years\n` +
-      `  Gender: ${gender.charAt(0).toUpperCase() + gender.slice(1)}\n` +
-      `  Hydration Status: ${hydrationLabels[hydrationStatus] || hydrationStatus || 'Not recorded'}\n` +
-      `  Electrode Placement: ${placementLabels[electrodePlacement] || electrodePlacement || 'Not recorded'}\n` +
-      `\n--- BIA Machine Output ---\n` +
-      (bodyFatPct    ? `  Body Fat %:           ${bodyFatPct}%\n` : '') +
-      (fatFreeMass   ? `  Fat-Free Mass:        ${fatFreeMass} kg\n` : '') +
-      (totalBodyWater? `  Total Body Water:     ${totalBodyWater} L\n` : '') +
-      (skeletalMuscleMass ? `  Skeletal Muscle Mass: ${skeletalMuscleMass} kg\n` : '') +
-      (visceralFatLevel   ? `  Visceral Fat Level:   ${visceralFatLevel}\n` : '') +
-      (bmi           ? `  BMI (device):         ${bmi} kg/m²\n` : '') +
-      (basalMetabolicRate ? `  Basal Metabolic Rate: ${basalMetabolicRate} kcal/day\n` : '') +
-      `\n--- Raw Impedance Values ---\n` +
-      (resistance ? `  Resistance:  ${resistance} Ω\n` : '  Resistance:  Not recorded\n') +
-      (reactance  ? `  Reactance:   ${reactance} Ω\n` : '  Reactance:   Not recorded\n') +
-      (notes ? `\nClinical Notes: ${notes}` : '');
-
-    onSave({
-      result_value: resultValue,
-      additional_data: {
-        measurement_type: "BIA",
-        soap_text,
+    try {
+      const payload = validateAndScoreBia({
         height,
         weight,
         age,
@@ -84,10 +50,13 @@ export default function BioelectricalImpedanceAnalysisBIARunner({ client, onSave
         visceral_fat_level: visceralFatLevel,
         bmi,
         basal_metabolic_rate: basalMetabolicRate,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
+        notes,
+      }, { assessmentDate: todayLocal() });
+      onSave(payload);
+      toast.success("BIA result validated and ready to save.");
+    } catch (error) {
+      toast.error(error?.message || "Unable to validate the BIA result.");
+    }
   };
 
   return (
@@ -144,15 +113,15 @@ export default function BioelectricalImpedanceAnalysisBIARunner({ client, onSave
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Height (cm) *</Label>
-                <Input type="number" value={height} onChange={e => setHeight(e.target.value)} className="mt-1" placeholder="e.g. 170" />
+                <Input type="number" min={BIA_NUMERIC_CONSTRAINTS.height.min} max={BIA_NUMERIC_CONSTRAINTS.height.max} step={BIA_NUMERIC_CONSTRAINTS.height.step} value={height} onChange={e => setHeight(e.target.value)} className="mt-1" placeholder="e.g. 170" />
               </div>
               <div>
                 <Label>Weight (kg) *</Label>
-                <Input type="number" value={weight} onChange={e => setWeight(e.target.value)} className="mt-1" placeholder="e.g. 70" />
+                <Input type="number" min={BIA_NUMERIC_CONSTRAINTS.weight.min} max={BIA_NUMERIC_CONSTRAINTS.weight.max} step={BIA_NUMERIC_CONSTRAINTS.weight.step} value={weight} onChange={e => setWeight(e.target.value)} className="mt-1" placeholder="e.g. 70" />
               </div>
               <div>
                 <Label>Age (years) *</Label>
-                <Input type="number" value={age} onChange={e => setAge(e.target.value)} className="mt-1" placeholder="e.g. 45" />
+                <Input type="number" min={BIA_NUMERIC_CONSTRAINTS.age.min} max={BIA_NUMERIC_CONSTRAINTS.age.max} step={BIA_NUMERIC_CONSTRAINTS.age.step} value={age} onChange={e => setAge(e.target.value)} className="mt-1" placeholder="e.g. 45" />
               </div>
               <div>
                 <Label>Gender *</Label>
@@ -191,35 +160,35 @@ export default function BioelectricalImpedanceAnalysisBIARunner({ client, onSave
           {/* BIA machine output */}
           <div>
             <h3 className="text-sm font-semibold text-slate-700 uppercase tracking-wide mb-1">BIA Machine Output</h3>
-            <p className="text-xs text-slate-500 mb-3">Enter all values displayed by the BIA machine. Leave blank if not provided.</p>
+            <p className="text-xs text-slate-500 mb-3">Body fat percentage is the required primary device result. Enter other displayed values where available.</p>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Body Fat % *</Label>
-                <Input type="number" step="0.1" value={bodyFatPct} onChange={e => setBodyFatPct(e.target.value)} className="mt-1" placeholder="e.g. 22.5" />
+                <Input type="number" min={BIA_NUMERIC_CONSTRAINTS.body_fat_pct.min} max={BIA_NUMERIC_CONSTRAINTS.body_fat_pct.max} step={BIA_NUMERIC_CONSTRAINTS.body_fat_pct.step} value={bodyFatPct} onChange={e => setBodyFatPct(e.target.value)} className="mt-1" placeholder="e.g. 22.5" />
               </div>
               <div>
                 <Label>Fat-Free Mass (kg)</Label>
-                <Input type="number" step="0.1" value={fatFreeMass} onChange={e => setFatFreeMass(e.target.value)} className="mt-1" placeholder="e.g. 54.5" />
+                <Input type="number" min={BIA_NUMERIC_CONSTRAINTS.fat_free_mass.min} max={BIA_NUMERIC_CONSTRAINTS.fat_free_mass.max} step={BIA_NUMERIC_CONSTRAINTS.fat_free_mass.step} value={fatFreeMass} onChange={e => setFatFreeMass(e.target.value)} className="mt-1" placeholder="e.g. 54.5" />
               </div>
               <div>
                 <Label>Total Body Water (L)</Label>
-                <Input type="number" step="0.1" value={totalBodyWater} onChange={e => setTotalBodyWater(e.target.value)} className="mt-1" placeholder="e.g. 38.0" />
+                <Input type="number" min={BIA_NUMERIC_CONSTRAINTS.total_body_water.min} max={BIA_NUMERIC_CONSTRAINTS.total_body_water.max} step={BIA_NUMERIC_CONSTRAINTS.total_body_water.step} value={totalBodyWater} onChange={e => setTotalBodyWater(e.target.value)} className="mt-1" placeholder="e.g. 38.0" />
               </div>
               <div>
                 <Label>Skeletal Muscle Mass (kg)</Label>
-                <Input type="number" step="0.1" value={skeletalMuscleMass} onChange={e => setSkeletalMuscleMass(e.target.value)} className="mt-1" placeholder="e.g. 28.0" />
+                <Input type="number" min={BIA_NUMERIC_CONSTRAINTS.skeletal_muscle_mass.min} max={BIA_NUMERIC_CONSTRAINTS.skeletal_muscle_mass.max} step={BIA_NUMERIC_CONSTRAINTS.skeletal_muscle_mass.step} value={skeletalMuscleMass} onChange={e => setSkeletalMuscleMass(e.target.value)} className="mt-1" placeholder="e.g. 28.0" />
               </div>
               <div>
                 <Label>Visceral Fat Level</Label>
-                <Input type="number" step="1" value={visceralFatLevel} onChange={e => setVisceralFatLevel(e.target.value)} className="mt-1" placeholder="e.g. 8" />
+                <Input type="number" min={BIA_NUMERIC_CONSTRAINTS.visceral_fat_level.min} max={BIA_NUMERIC_CONSTRAINTS.visceral_fat_level.max} step={BIA_NUMERIC_CONSTRAINTS.visceral_fat_level.step} value={visceralFatLevel} onChange={e => setVisceralFatLevel(e.target.value)} className="mt-1" placeholder="e.g. 8" />
               </div>
               <div>
                 <Label>BMI (device) (kg/m²)</Label>
-                <Input type="number" step="0.1" value={bmi} onChange={e => setBmi(e.target.value)} className="mt-1" placeholder="e.g. 24.2" />
+                <Input type="number" min={BIA_NUMERIC_CONSTRAINTS.bmi.min} max={BIA_NUMERIC_CONSTRAINTS.bmi.max} step={BIA_NUMERIC_CONSTRAINTS.bmi.step} value={bmi} onChange={e => setBmi(e.target.value)} className="mt-1" placeholder="e.g. 24.2" />
               </div>
               <div>
                 <Label>Basal Metabolic Rate (kcal/day)</Label>
-                <Input type="number" value={basalMetabolicRate} onChange={e => setBasalMetabolicRate(e.target.value)} className="mt-1" placeholder="e.g. 1650" />
+                <Input type="number" min={BIA_NUMERIC_CONSTRAINTS.basal_metabolic_rate.min} max={BIA_NUMERIC_CONSTRAINTS.basal_metabolic_rate.max} step={BIA_NUMERIC_CONSTRAINTS.basal_metabolic_rate.step} value={basalMetabolicRate} onChange={e => setBasalMetabolicRate(e.target.value)} className="mt-1" placeholder="e.g. 1650" />
               </div>
             </div>
           </div>
@@ -230,11 +199,11 @@ export default function BioelectricalImpedanceAnalysisBIARunner({ client, onSave
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <Label>Resistance (Ω)</Label>
-                <Input type="number" value={resistance} onChange={e => setResistance(e.target.value)} className="mt-1" placeholder="e.g. 520" />
+                <Input type="number" min={BIA_NUMERIC_CONSTRAINTS.resistance.min} max={BIA_NUMERIC_CONSTRAINTS.resistance.max} step={BIA_NUMERIC_CONSTRAINTS.resistance.step} value={resistance} onChange={e => setResistance(e.target.value)} className="mt-1" placeholder="e.g. 520" />
               </div>
               <div>
                 <Label>Reactance (Ω)</Label>
-                <Input type="number" value={reactance} onChange={e => setReactance(e.target.value)} className="mt-1" placeholder="e.g. 65" />
+                <Input type="number" min={BIA_NUMERIC_CONSTRAINTS.reactance.min} max={BIA_NUMERIC_CONSTRAINTS.reactance.max} step={BIA_NUMERIC_CONSTRAINTS.reactance.step} value={reactance} onChange={e => setReactance(e.target.value)} className="mt-1" placeholder="e.g. 65" />
               </div>
             </div>
           </div>
@@ -242,7 +211,7 @@ export default function BioelectricalImpedanceAnalysisBIARunner({ client, onSave
           {/* Notes */}
           <div>
             <Label>Clinical Notes</Label>
-            <Textarea value={notes} onChange={e => setNotes(e.target.value)} rows={2} placeholder="Additional observations..." className="mt-1" />
+            <Textarea value={notes} onChange={e => setNotes(e.target.value)} maxLength={4000} rows={2} placeholder="Additional observations..." className="mt-1" />
           </div>
         </div>
 

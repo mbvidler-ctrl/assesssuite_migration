@@ -19,11 +19,11 @@ export default defineConfig({
     proxy: {
       '/api': {
         target: 'http://localhost:8787',
-        changeOrigin: true,
+        changeOrigin: false,
       },
       '/functions': {
         target: 'http://localhost:8787',
-        changeOrigin: true,
+        changeOrigin: false,
         rewrite: (path) => path.replace(/^\/functions\/(.*)/, '/api/apps/local-assesssuite/functions/$1'),
       },
     },

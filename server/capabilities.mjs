@@ -98,11 +98,45 @@ export function generalClinicalLlmPosture(environment = process.env) {
   return capabilityEnabled('LLM_REQUIRED', environment) ? UNCONFIGURED : AVAILABLE;
 }
 
-export function publicCapabilities(environment = process.env) {
-  return {
+/**
+ * The versioned Physio task gateway is part of the Physio application target,
+ * not the legacy free-form AI switch. It never has a mock fallback: when the
+ * target is active but the provider is absent, publish `unconfigured`.
+ */
+export function physioAiTasksAvailable(
+  environment = process.env,
+  professionId = environment.PROFESSION,
+) {
+  return professionId === 'physio';
+}
+
+export function physioAiTasksPosture(
+  environment = process.env,
+  professionId = environment.PROFESSION,
+) {
+  if (!physioAiTasksAvailable(environment, professionId)) return SWITCHED_OFF;
+  return llmEnabled() ? AVAILABLE : UNCONFIGURED;
+}
+
+export function publicCapabilities(
+  environment = process.env,
+  {
+    professionId = environment.PROFESSION || 'exercise-physiology',
+    legacyGeneralClinicalLlmAllowed = professionId !== 'physio',
+  } = {},
+) {
+  const capabilities = {
     version: CAPABILITY_CONTRACT_VERSION,
-    general_clinical_llm: { ...generalClinicalLlmPosture(environment) },
+    general_clinical_llm: {
+      ...(legacyGeneralClinicalLlmAllowed
+        ? generalClinicalLlmPosture(environment)
+        : SWITCHED_OFF),
+    },
     transcription: { ...transcriptionPosture(environment) },
     document_extraction: documentExtractionAvailable(environment) ? { ...AVAILABLE } : { ...SWITCHED_OFF },
   };
+  if (professionId === 'physio') {
+    capabilities.physio_ai_tasks = { ...physioAiTasksPosture(environment, professionId) };
+  }
+  return capabilities;
 }

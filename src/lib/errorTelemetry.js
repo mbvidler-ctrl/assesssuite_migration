@@ -6,15 +6,19 @@ import {
   useLocation,
   useNavigationType,
 } from 'react-router-dom';
+import { normalizeSentryReleaseForEnvironment } from '../../packages/profession-config/sentry-release.mjs';
 
 export const FRONTEND_TELEMETRY_SURFACE = 'assesssuite-app';
 export const FRONTEND_TELEMETRY_ALLOWED_ORIGINS = Object.freeze([
-  'https://app.assesssuite.com',
+  /^https:\/\/app\.assesssuite\.com(?:\/|$)/i,
+]);
+export const PHYSIO_FRONTEND_TELEMETRY_ALLOWED_ORIGINS = Object.freeze([
+  /^https:\/\/physio\.app\.assesssuite\.com(?:\/|$)/i,
+  /^https:\/\/assesssuite-physio-production\.fly\.dev(?:\/|$)/i,
 ]);
 export const TELEMETRY_REDACTED = '[Filtered]';
 export const TELEMETRY_FILE_BYTES_OMITTED = '[File bytes omitted]';
 
-const EXACT_RELEASE = /^[0-9a-f]{40}$/i;
 const APPROVED_SENTRY_HOST = 'o4511822688813056.ingest.us.sentry.io';
 const APPROVED_SENTRY_PROJECT_ID = '4511827129663488';
 const MAX_SANITIZE_DEPTH = 16;
@@ -94,6 +98,10 @@ const SAFE_REPLAY_RESPONSE_HEADERS = Object.freeze([
 export const FRONTEND_REPLAY_NETWORK_ALLOW_URLS = Object.freeze([
   /^https:\/\/app\.assesssuite\.com\/(?:api|entities|functions|integrations)(?:\/|$)/i,
 ]);
+export const PHYSIO_FRONTEND_REPLAY_NETWORK_ALLOW_URLS = Object.freeze([
+  /^https:\/\/physio\.app\.assesssuite\.com\/(?:api|entities|functions|integrations)(?:\/|$)/i,
+  /^https:\/\/assesssuite-physio-production\.fly\.dev\/(?:api|entities|functions|integrations)(?:\/|$)/i,
+]);
 
 export const FRONTEND_REPLAY_NETWORK_DENY_URLS = Object.freeze([
   /(?:\/uploads?\/|\/api\/files?\/|uploadfile|download|extractdatafromuploadedfile|transcribesession|\/audio(?:\/|$)|\/media(?:\/|$)|\/attachments?(?:\/|$))/i,
@@ -159,7 +167,9 @@ export function sanitizeTelemetryUrl(value) {
 
   try {
     const parsed = new URL(value, 'https://app.assesssuite.com');
-    for (const [name] of parsed.searchParams) {
+    const queryFieldNames = [];
+    parsed.searchParams.forEach((_value, name) => queryFieldNames.push(name));
+    for (const name of queryFieldNames) {
       if (sensitiveQueryField(name, parsed.pathname)) {
         parsed.searchParams.set(name, TELEMETRY_REDACTED);
       }
@@ -269,13 +279,11 @@ function isApprovedSentryDsn(rawDsn) {
 }
 
 function sanitizeStaticMetadata(metadata = {}) {
-  if (metadata.environment !== 'production') return null;
-  const release = typeof metadata.release === 'string' && EXACT_RELEASE.test(metadata.release)
-    ? metadata.release.toLowerCase()
-    : null;
+  if (!['production', 'physio-production'].includes(metadata.environment)) return null;
+  const release = normalizeSentryReleaseForEnvironment(metadata.environment, metadata.release);
   if (!release) return null;
   return {
-    environment: 'production',
+    environment: metadata.environment,
     release,
     surface: FRONTEND_TELEMETRY_SURFACE,
   };
@@ -321,7 +329,19 @@ function createFrontendBeforeSendValue() {
   };
 }
 
-export function createFrontendReplayOptions() {
+function telemetryOrigins(environment) {
+  return environment === 'physio-production'
+    ? PHYSIO_FRONTEND_TELEMETRY_ALLOWED_ORIGINS
+    : FRONTEND_TELEMETRY_ALLOWED_ORIGINS;
+}
+
+function replayNetworkAllowUrls(environment) {
+  return environment === 'physio-production'
+    ? PHYSIO_FRONTEND_REPLAY_NETWORK_ALLOW_URLS
+    : FRONTEND_REPLAY_NETWORK_ALLOW_URLS;
+}
+
+export function createFrontendReplayOptions(environment = 'production') {
   return {
     maskAllText: false,
     maskAllInputs: false,
@@ -329,7 +349,7 @@ export function createFrontendReplayOptions() {
     maskAttributes: [],
     mask: [...FRONTEND_REPLAY_MASK_SELECTORS],
     block: [...FRONTEND_REPLAY_BLOCK_SELECTORS],
-    networkDetailAllowUrls: [...FRONTEND_REPLAY_NETWORK_ALLOW_URLS],
+    networkDetailAllowUrls: [...replayNetworkAllowUrls(environment)],
     networkDetailDenyUrls: [...FRONTEND_REPLAY_NETWORK_DENY_URLS],
     networkCaptureBodies: true,
     networkRequestHeaders: [...SAFE_REPLAY_REQUEST_HEADERS],
@@ -347,7 +367,7 @@ function mergeIntegrations(defaultIntegrations = [], additionalIntegrations = []
   return [...byName.values()];
 }
 
-export function createFrontendIntegrations(sentry = Sentry) {
+export function createFrontendIntegrations(sentry = Sentry, environment = 'production') {
   const integrations = [
     sentry.reactRouterBrowserTracingIntegration({
       useEffect,
@@ -366,7 +386,7 @@ export function createFrontendIntegrations(sentry = Sentry) {
       linkPreviousTrace: 'session-storage',
       consistentTraceSampling: true,
     }),
-    sentry.replayIntegration(createFrontendReplayOptions()),
+    sentry.replayIntegration(createFrontendReplayOptions(environment)),
     sentry.browserProfilingIntegration(),
     sentry.httpClientIntegration(),
     sentry.extraErrorDataIntegration({ depth: 10 }),
@@ -388,7 +408,8 @@ export function createFrontendSentryOptions(runtime = {}, additionalIntegrations
   if (!metadata || !isApprovedSentryDsn(runtime.VITE_SENTRY_DSN)) return null;
 
   const beforeSendValue = createFrontendBeforeSendValue();
-  return {
+  /** @type {import('@sentry/react').BrowserOptions & { autoSessionTracking: boolean }} */
+  const options = {
     dsn: runtime.VITE_SENTRY_DSN,
     environment: metadata.environment,
     release: metadata.release,
@@ -398,7 +419,12 @@ export function createFrontendSentryOptions(runtime = {}, additionalIntegrations
       userInfo: true,
       cookies: false,
       httpHeaders: { request: true, response: true },
-      httpBodies: ['incomingRequest', 'outgoingRequest', 'incomingResponse', 'outgoingResponse'],
+      httpBodies: /** @type {Array<'incomingRequest' | 'outgoingRequest' | 'incomingResponse' | 'outgoingResponse'>} */ ([
+        'incomingRequest',
+        'outgoingRequest',
+        'incomingResponse',
+        'outgoingResponse',
+      ]),
       urlQueryParams: true,
       graphQL: { document: true, variables: true },
       genAI: { inputs: true, outputs: true },
@@ -416,7 +442,7 @@ export function createFrontendSentryOptions(runtime = {}, additionalIntegrations
     profileLifecycle: 'trace',
     replaysSessionSampleRate: 1,
     replaysOnErrorSampleRate: 1,
-    tracePropagationTargets: FRONTEND_TELEMETRY_ALLOWED_ORIGINS,
+    tracePropagationTargets: [...telemetryOrigins(metadata.environment)],
     enableLogs: true,
     enableMetrics: true,
     normalizeDepth: 10,
@@ -430,16 +456,23 @@ export function createFrontendSentryOptions(runtime = {}, additionalIntegrations
     beforeSendLog: beforeSendValue,
     beforeSendMetric: beforeSendValue,
   };
+  return options;
 }
 
 export function initialiseFrontendErrorTelemetry(runtime = import.meta.env, sentry = Sentry) {
   telemetryInitialised = false;
   if (runtime?.PROD !== true || typeof runtime?.VITE_SENTRY_DSN !== 'string') return false;
   if (!isApprovedSentryDsn(runtime.VITE_SENTRY_DSN)) return false;
-  if (runtime.VITE_SENTRY_ENVIRONMENT !== 'production' || !EXACT_RELEASE.test(runtime.VITE_SENTRY_RELEASE || '')) return false;
+  const expectedEnvironment = runtime.VITE_PROFESSION === 'physio'
+    ? 'physio-production'
+    : 'production';
+  if (
+    runtime.VITE_SENTRY_ENVIRONMENT !== expectedEnvironment
+    || !normalizeSentryReleaseForEnvironment(expectedEnvironment, runtime.VITE_SENTRY_RELEASE)
+  ) return false;
 
   try {
-    const integrations = createFrontendIntegrations(sentry);
+    const integrations = createFrontendIntegrations(sentry, expectedEnvironment);
     const options = createFrontendSentryOptions(runtime, integrations);
     if (!options) return false;
     sentry.init(options);
@@ -479,7 +512,13 @@ export function setFrontendTelemetryUser(user, sentry = Sentry) {
 export function clearFrontendTelemetryUser(sentry = Sentry) {
   if (!telemetryInitialised) return false;
   sentry.setUser(null);
-  sentry.getCurrentScope?.().removeTag?.('user.role');
+  const scope = sentry.getCurrentScope?.();
+  const removeTag = scope && /** @type {{ removeTag?: (key: string) => void }} */ (scope).removeTag;
+  if (typeof removeTag === 'function') {
+    removeTag.call(scope, 'user.role');
+  } else {
+    scope?.setTag?.('user.role', undefined);
+  }
   return true;
 }
 

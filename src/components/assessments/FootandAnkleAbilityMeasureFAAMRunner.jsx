@@ -6,49 +6,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Save, X, Info, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_FAAM_ADL_ITEMS as ADL_ITEMS, PROM_NEURO_FAAM_SPORTS_ITEMS as SPORTS_ITEMS, PROM_NEURO_FAAM_SCORE_OPTIONS as SCORE_OPTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const ADL_ITEMS = [
-  "Standing",
-  "Walking on even ground",
-  "Walking on even ground without shoes",
-  "Walking up hills",
-  "Walking down hills",
-  "Going up stairs",
-  "Going down stairs",
-  "Walking on uneven ground",
-  "Stepping up and down curbs",
-  "Squatting",
-  "Coming up on your toes",
-  "Walking initially",
-  "Walking 5 minutes or less",
-  "Walking 10 minutes",
-  "Walking 15 minutes or greater",
-  "Home responsibilities",
-  "Activities of daily living",
-  "Personal care",
-  "Light to moderate work (standing, walking)",
-  "Heavy work (push/pulling, climbing, carrying)",
-  "Recreational activities",
-];
 
-const SPORTS_ITEMS = [
-  "Running",
-  "Jumping",
-  "Landing",
-  "Starting and stopping quickly",
-  "Cutting/lateral movements",
-  "Low impact activities",
-  "Ability to perform activity with normal technique",
-  "Ability to participate in desired sport as long as you would like",
-];
 
-const SCORE_OPTIONS = [
-  { value: 4, label: "4 – No difficulty" },
-  { value: 3, label: "3 – Slight difficulty" },
-  { value: 2, label: "2 – Moderate difficulty" },
-  { value: 1, label: "1 – Extreme difficulty" },
-  { value: 0, label: "0 – Unable to do" },
-];
 
 function ItemRow({ label, value, onChange }) {
   return (
@@ -79,7 +40,7 @@ export default function FootandAnkleAbilityMeasureFAAMRunner({ client, onSave, o
   const calcScore = (responses) => {
     const valid = responses.filter((r) => r !== null);
     if (valid.length === 0) return null;
-    return ((valid.reduce((s, r) => s + r, 0) / (valid.length * 4)) * 100).toFixed(1);
+    return Number(((valid.reduce((s, r) => s + r, 0) / (valid.length * 4)) * 100).toFixed(1));
   };
 
   const handleSave = () => {
@@ -102,12 +63,14 @@ export default function FootandAnkleAbilityMeasureFAAMRunner({ client, onSave, o
 
     onSave({
       status: "completed",
-      result_value: parseFloat(adlScore || 0),
+      result_value: adlScore ?? 0,
       notes,
       assessment_date: todayLocal(),
       additional_data: {
         measurement_type: "questionnaire",
         soap_text,
+        adl_responses: adls,
+        sports_responses: sports,
         adl_score: adlScore,
         sports_score: sportsScore,
       },
@@ -304,9 +267,9 @@ export default function FootandAnkleAbilityMeasureFAAMRunner({ client, onSave, o
                       ADL Score: <span className="text-lg text-blue-700">{calcScore(adls)}%</span>
                     </p>
                     <p className="text-xs mt-1">
-                      {calcScore(adls) >= 80
+                      {(calcScore(adls) ?? 0) >= 80
                         ? "Minimal functional limitation"
-                        : calcScore(adls) >= 60
+                        : (calcScore(adls) ?? 0) >= 60
                         ? "Mild to moderate functional limitation"
                         : "Significant functional limitation"}
                     </p>
@@ -360,9 +323,9 @@ export default function FootandAnkleAbilityMeasureFAAMRunner({ client, onSave, o
                       Sports Score: <span className="text-lg text-green-700">{calcScore(sports)}%</span>
                     </p>
                     <p className="text-xs mt-1">
-                      {calcScore(sports) >= 80
+                      {(calcScore(sports) ?? 0) >= 80
                         ? "Ready for sport return"
-                        : calcScore(sports) >= 60
+                        : (calcScore(sports) ?? 0) >= 60
                         ? "Moderate difficulty with sport activities"
                         : "Unable to participate in sport at full capacity"}
                     </p>

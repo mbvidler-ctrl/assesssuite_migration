@@ -17,3 +17,13 @@ test('cross-port backend configuration is confined to localhost development', ()
   assert.match(source, /isLocalhostOrigin\(origin\)\s*&&\s*isLocalhostOrigin\(configured\)/);
   assert.doesNotMatch(source, /return\s+configured;\s*\n\s*}\s*\n\s*const getAppParams/);
 });
+
+test('non-browser parameter storage implements the Web Storage contract rather than using a raw Map', () => {
+  assert.match(source, /const createMemoryStorage = \(\) =>/);
+  assert.match(source, /@returns \{Storage\}/);
+  assert.match(source, /getItem\(key\)/);
+  assert.match(source, /setItem\(key, value\)/);
+  assert.match(source, /removeItem\(key\)/);
+  assert.match(source, /const storage = isNode \? createMemoryStorage\(\) : window\.localStorage/);
+  assert.doesNotMatch(source, /localStorage:\s*new Map\(/);
+});

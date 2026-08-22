@@ -9,6 +9,8 @@ import {
   Play, Pause, Square, RotateCcw, Activity, TrendingUp, FileText,
   BookOpen, Shield, User, Target, BarChart3, Flag, Info, ChevronDown
 } from "lucide-react";
+import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 const NORMATIVE_DATA = [
   { ageMin: 18, ageMax: 39, label: "18–39 yrs", eyesOpen: { excellent: 45, good: 30, fair: 15, poor: 5 }, eyesClosed: { excellent: 25, good: 15, fair: 8, poor: 3 } },
@@ -212,7 +214,7 @@ export default function StandingStorkTestRunner({ client, onSave, onClose }) {
     return NORMATIVE_DATA.find(d => n >= d.ageMin && n <= d.ageMax) || NORMATIVE_DATA[NORMATIVE_DATA.length - 1];
   };
 
-  const clientAge = client?.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000)) : null;
+  const clientAge = client?.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000)) : null;
   const normGroup = getAgeGroup(clientAge);
   const normKey = setup.eyes === "open" ? "eyesOpen" : "eyesClosed";
   const norms = normGroup[normKey];
@@ -240,18 +242,11 @@ export default function StandingStorkTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    onSave({
-      result_value: Math.max(leftBest, rightBest),
-      notes: clinicalNotes,
-      additional_data: {
-        soap_text: generateSOAP(),
-        left_time: leftBest,
-        right_time: rightBest,
-        asymmetry: asymmetry,
-        left_classification: classifyTime(leftBest).label,
-        right_classification: classifyTime(rightBest).label,
-      }
-    });
+    try {
+      onSave(validateMobilityOrtho({ leftData, rightData, setup, clientAge, safety, notes: clinicalNotes }, { runnerKey: 'standing_stork', assessmentDate: todayLocal() }));
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
 
   const renderStep = () => {

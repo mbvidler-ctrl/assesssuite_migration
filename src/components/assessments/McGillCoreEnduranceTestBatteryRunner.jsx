@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Play, Square, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 // McGill norms: Flexor:Extensor <1.0, Side:Extensor 0.55-1.0 (each side)
 // Reference: McGill SM et al. (1999). Endurance times for low back stabilization exercises.
@@ -79,18 +80,14 @@ export default function McGillCoreEnduranceTestBatteryRunner({ client, onSave, o
   };
 
   const handleSave = () => {
-    const anyTime = Object.values(times).some(v => v && !isNaN(parseFloat(v)));
-    if (!anyTime) { toast.error("Record at least one hold time"); return; }
-    const lines = TESTS.filter(t => times[t.id] && !isNaN(parseFloat(times[t.id]))).map(t => `  ${t.label}: ${times[t.id]}s`).join("\n");
-    const ratioLines = [
-      ratios.flexExt ? `  Flexor:Extensor: ${ratios.flexExt} (target <1.0)` : null,
-      ratios.rightExt ? `  Right Side:Extensor: ${ratios.rightExt} (target 0.55–1.0)` : null,
-      ratios.leftExt ? `  Left Side:Extensor: ${ratios.leftExt} (target 0.55–1.0)` : null,
-      ratios.sideSym ? `  Side Bridge Symmetry: ${ratios.sideSym} (target >0.95)` : null,
-    ].filter(Boolean).join("\n");
-    const soap = `• McGill Core Endurance Test Battery\n\n  Hold Times:\n${lines}${ratioLines ? `\n\n  Ratios:\n${ratioLines}` : ""}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Normal: Flexor:Extensor <1.0 | Side:Extensor 0.55–1.0 each side\n  Reference: McGill SM et al. (1999). Endurance times for low back stabilization exercises. Arch Phys Med Rehabil, 80(10):1157-62.`;
-    onSave({ status: "completed", result_value: ext || null, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "endurance_hold_battery", times: { extensor: ext || null, flexor: flex || null, right_side: rSide || null, left_side: lSide || null }, ratios: { flexor_extensor: ratios.flexExt ? parseFloat(ratios.flexExt) : null, right_side_extensor: ratios.rightExt ? parseFloat(ratios.rightExt) : null, left_side_extensor: ratios.leftExt ? parseFloat(ratios.leftExt) : null, side_symmetry: ratios.sideSym ? parseFloat(ratios.sideSym) : null } } });
-    toast.success("McGill Test Battery saved.");
+    try {
+      onSave(validateFunctionalOrtho({ times, notes }, {
+        runnerKey: 'mcgill', assessmentDate: todayLocal(),
+      }));
+      toast.success("McGill Test Battery saved.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

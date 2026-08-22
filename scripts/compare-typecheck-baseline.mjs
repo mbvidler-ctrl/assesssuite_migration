@@ -36,8 +36,12 @@ function errorMultiset(text) {
   for (const line of text.split(/\r?\n/)) {
     const match = /^(?:(.*?)(?:\(\d+,\d+\))?: )?error (TS\d+): (.*)$/.exec(line.trim());
     if (!match) continue;
-    const source = match[1]
-      ? match[1].replaceAll('\\', '/').replace(/^.*?\/(src|server|scripts)\//, '$1/')
+    const normalized = match[1]
+      ? match[1].replaceAll('\\', '/').replace(/^file:\/\//, '').replace(/^\.\//, '')
+      : '';
+    const repositoryPath = normalized.match(/(?:^|\/)(apps|e2e|packages|scripts|server|src)\/(.+)$/);
+    const source = normalized
+      ? (repositoryPath ? `${repositoryPath[1]}/${repositoryPath[2]}` : normalized)
       : '<global>';
     const fingerprint = `${source}|${match[2]}|${match[3]}`;
     errors.set(fingerprint, (errors.get(fingerprint) || 0) + 1);
@@ -63,14 +67,32 @@ const baseline = errorMultiset(baseResult.text);
 const candidate = errorMultiset(candidateResult.text);
 const referenceResult = args['reference-dir'] ? runTypecheck(args['reference-dir']) : baseResult;
 const reference = errorMultiset(referenceResult.text);
+for (const [outputPath, result] of [
+  [args['base-output'], baseResult],
+  [args['candidate-output'], candidateResult],
+  [args['reference-output'], referenceResult],
+]) {
+  if (!outputPath) continue;
+  const resolvedOutput = path.resolve(outputPath);
+  fs.mkdirSync(path.dirname(resolvedOutput), { recursive: true });
+  fs.writeFileSync(resolvedOutput, result.text, 'utf8');
+}
 const introduced = [];
 for (const [fingerprint, occurrences] of candidate) {
   const excess = occurrences - (reference.get(fingerprint) || 0);
   if (excess > 0) introduced.push({ fingerprint, excess });
 }
+if (args['introduced-output']) {
+  const resolvedOutput = path.resolve(args['introduced-output']);
+  fs.mkdirSync(path.dirname(resolvedOutput), { recursive: true });
+  fs.writeFileSync(resolvedOutput, `${JSON.stringify(introduced, null, 2)}\n`, 'utf8');
+}
 
 const baseCount = count(baseline);
 const candidateCount = count(candidate);
+if (baseResult.status !== null && baseResult.status !== 0 && baseCount === 0) {
+  throw new Error(`Base typecheck failed without parseable TypeScript diagnostics (exit ${baseResult.status}).`);
+}
 if (baseCount === 0) throw new Error('The recorded production base unexpectedly has no TypeScript errors.');
 if (candidateResult.status !== null && candidateResult.status !== 0 && candidateCount === 0) {
   throw new Error(`Candidate typecheck failed without parseable TypeScript diagnostics (exit ${candidateResult.status}).`);
@@ -81,6 +103,7 @@ if (candidateCount > baseCount || introduced.length > 0) {
     baseCount,
     referenceCount: count(reference),
     candidateCount,
+    introducedCount: introduced.reduce((total, item) => total + item.excess, 0),
     introduced: introduced.slice(0, 50),
   }, null, 2));
   process.exit(1);

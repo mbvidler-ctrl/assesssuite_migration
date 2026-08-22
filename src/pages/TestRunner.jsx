@@ -6,14 +6,16 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { Toaster, toast } from "sonner";
+import { buildTimeProfession } from "@/lib/profession";
 
-import TestRunner from "../components/assessments/TestRunner";
+import AssessmentTestRunnerRouter from "../components/assessments/AssessmentTestRunnerRouter";
 
 export default function TestRunnerPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const clientAssessmentId = searchParams.get('clientAssessmentId');
   const appointmentId = searchParams.get('appointmentId');
+  const careEpisodeId = searchParams.get('careEpisodeId') || searchParams.get('episode_id');
   const returnTo = searchParams.get("returnTo");
   
   const [clientAssessment, setClientAssessment] = useState(null);
@@ -38,6 +40,19 @@ export default function TestRunnerPage() {
         }
 
         const ca = clientAssessmentData[0];
+        if (buildTimeProfession.id === 'physio' && (
+          !careEpisodeId || ca.physio_care_episode_id !== careEpisodeId
+        )) {
+          toast.error('Open this assessment from its selected Physio care episode.');
+          const episodeQuery = ca.physio_care_episode_id
+            ? `&episode_id=${encodeURIComponent(ca.physio_care_episode_id)}`
+            : '';
+          navigate(createPageUrl(`PhysioEpisodes?client_id=${encodeURIComponent(ca.client_id)}${episodeQuery}`));
+          return;
+        }
+        if (careEpisodeId && ca.physio_care_episode_id !== careEpisodeId) {
+          throw new Error('Assessment does not belong to the selected care episode');
+        }
         setClientAssessment(ca);
 
         const [allAssessmentsData, allClientsData] = await Promise.all([
@@ -60,10 +75,12 @@ export default function TestRunnerPage() {
     };
 
     loadData();
-  }, [clientAssessmentId, navigate]);
+  }, [careEpisodeId, clientAssessmentId, navigate]);
 
   const handleClose = () => {
-    if (appointmentId) {
+    if (careEpisodeId && client) {
+      navigate(createPageUrl(`PhysioEpisodes?client_id=${client.id}&episode_id=${careEpisodeId}`));
+    } else if (appointmentId) {
       navigate(createPageUrl("Calendar"));
     } else {
       if (client) {
@@ -93,7 +110,9 @@ export default function TestRunnerPage() {
           navigate(decodedUrl);
         }
       } else {
-        navigate(createPageUrl(`ClientProfile?clientId=${clientAssessment.client_id}`));
+        navigate(careEpisodeId
+          ? createPageUrl(`PhysioEpisodes?client_id=${clientAssessment.client_id}&episode_id=${careEpisodeId}`)
+          : createPageUrl(`ClientProfile?id=${clientAssessment.client_id}`));
       }
 
     } catch (error) {
@@ -136,12 +155,13 @@ export default function TestRunnerPage() {
     <>
       <Toaster position="top-center" richColors />
       <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30">
-        <TestRunner
+        <AssessmentTestRunnerRouter
           client={client}
           assessment={assessment}
           clientAssessment={clientAssessment}
           onClose={handleClose}
           onComplete={handleSaveAndExit}
+          isStandaloneMode={false}
         />
       </div>
     </>

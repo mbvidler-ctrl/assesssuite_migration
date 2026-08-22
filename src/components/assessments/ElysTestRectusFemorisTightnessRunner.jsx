@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 export default function ElysTestRectusFemorisTightnessRunner({ client, onSave, onClose }) {
   const [kneeFlexionAngle, setKneeFlexionAngle] = useState("");
@@ -30,34 +31,15 @@ export default function ElysTestRectusFemorisTightnessRunner({ client, onSave, o
   };
 
   const handleSave = () => {
-    if (!kneeFlexionAngle || hipFlexionObserved === null) {
-      toast.error("Please record the knee flexion angle and hip flexion observation.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho(
+        { kneeFlexionAngle, hipFlexionObserved, notes },
+        { runnerKey: "elys_test", assessmentDate: todayLocal() },
+      ));
+      toast.success("Ely's Test assessment saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const angle = parseFloat(kneeFlexionAngle);
-    const isPositive = hipFlexionObserved;
-    const interpretation = angle < 120 || isPositive ? "Positive (Rectus femoris tightness)" : "Negative (Normal flexibility)";
-
-    const soapText = `• Ely's Test (Rectus Femoris Tightness)\n  Knee Flexion Angle: ${angle}°\n  Hip Flexion Observed: ${isPositive ? "Yes (Positive)" : "No (Negative)"}\n  Interpretation: ${interpretation}\n  Normal: >120° knee flexion without hip flexion (buttock lifts from table)\n  Clinical Significance: Positive test suggests rectus femoris shortness/tightness`;
-
-    const additional_data = {
-      soap_text: soapText,
-      measurement_type: "angle",
-      knee_flexion_angle: angle,
-      hip_flexion_observed: isPositive,
-      interpretation,
-    };
-
-    onSave({
-      status: "completed",
-      result_value: angle,
-      additional_data,
-      notes,
-      assessment_date: todayLocal(),
-    });
-
-    toast.success("Ely's Test assessment saved successfully.");
   };
 
   return (

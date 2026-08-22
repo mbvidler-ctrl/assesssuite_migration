@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Save, X, Play, Square, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 const MAX_SECONDS = 30;
 
@@ -269,61 +270,17 @@ export default function RombergsTestofStandingBalanceRunner({ client, onSave, on
   });
 
   const handleSave = () => {
-    if (eoTime === null && ecTime === null) {
-      toast.error("Please record at least one test result.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho({
+        surfaceType, footPosition, footwear, assistanceLevel,
+        eyesOpenTime: eoTime, eoSwayObserved, eoSwaySeverity, eoSwayDirection,
+        eyesClosedTime: ecTime, ecSwayObserved, ecSwaySeverity, ecSwayDirection,
+        completedFull, lossOfBalance, stepTaken, requiresAssistance, stopReason, notes,
+      }, { runnerKey: 'rombergs_standing', assessmentDate: todayLocal() }));
+      toast.success("Romberg's test results saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const result = interp || {};
-    const soapLines = [
-      `• Romberg's Test of Standing Balance`,
-      surfaceType ? `  Surface: ${surfaceType}` : null,
-      footPosition ? `  Foot Position: ${footPosition}` : null,
-      footwear ? `  Footwear: ${footwear}` : null,
-      assistanceLevel ? `  Assistance Level: ${assistanceLevel}` : null,
-      eoTime !== null ? `  Eyes Open: ${eoTime}s${eoSwaySeverity ? ` — sway: ${eoSwaySeverity}` : ''}${eoSwayDirection ? ` (${eoSwayDirection})` : ''}` : null,
-      ecTime !== null ? `  Eyes Closed: ${ecTime}s${ecSwaySeverity ? ` — sway: ${ecSwaySeverity}` : ''}${ecSwayDirection ? ` (${ecSwayDirection})` : ''}` : null,
-      lossOfBalance === "Yes" ? `  Loss of Balance: Yes` : null,
-      stepTaken === "Yes" ? `  Step Response: Yes` : null,
-      requiresAssistance === "Yes" ? `  Required Assistance: Yes` : null,
-      stopReason ? `  Reason Stopped: ${stopReason}` : null,
-      result.rombergResult ? `  Result: ${result.rombergResult}` : null,
-      result.fallsRisk ? `  ⚠ Increased Falls Risk Identified` : null,
-      result.summary ? `\n  Interpretation: ${result.summary}` : null,
-      notes ? `  Clinical Notes: ${notes}` : null,
-      `  Reference: Romberg MH (1853). Manual of Nervous Diseases of Man. The Sydenham Society, London.`,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      result_value: ecTime !== null ? ecTime : eoTime,
-      notes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: soapLines,
-        measurement_type: "Romberg's Test",
-        surface_type: surfaceType,
-        foot_position: footPosition,
-        footwear,
-        assistance_level: assistanceLevel,
-        eyes_open_time: eoTime,
-        eyes_open_sway_observed: eoSwayObserved,
-        eyes_open_sway_severity: eoSwaySeverity,
-        eyes_open_sway_direction: eoSwayDirection,
-        eyes_closed_time: ecTime,
-        eyes_closed_sway_observed: ecSwayObserved,
-        eyes_closed_sway_severity: ecSwaySeverity,
-        eyes_closed_sway_direction: ecSwayDirection,
-        completed_full_duration: completedFull,
-        loss_of_balance: lossOfBalance,
-        step_taken: stepTaken,
-        requires_assistance: requiresAssistance,
-        stop_reason: stopReason,
-        romberg_result: result.rombergResult,
-        falls_risk: result.fallsRisk,
-        interpretation: result.summary,
-      },
-    });
-    toast.success("Romberg's test results saved.");
   };
 
   return (

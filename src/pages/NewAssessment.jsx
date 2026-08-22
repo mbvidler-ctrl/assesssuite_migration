@@ -11,12 +11,17 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Search, User as UserIcon, CheckCircle, ClipboardPlus, ArrowRight, Loader2, X } from "lucide-react";
 import { Toaster, toast } from "sonner";
-import { useNavigate } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { todayLocal } from "@/lib/localDate";
+import { searchAssessments } from "@/lib/clinical/assessmentDiscovery";
+import { buildTimeProfession } from "@/lib/profession";
 
 export default function NewAssessment() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const preselectedClientId = searchParams.get('clientId') || searchParams.get('client_id');
+  const careEpisodeId = searchParams.get('careEpisodeId') || searchParams.get('episode_id');
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
   const [clientSearchTerm, setClientSearchTerm] = useState("");
@@ -30,6 +35,7 @@ export default function NewAssessment() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAssigning, setIsAssigning] = useState(false);
   const [showRecentClients, setShowRecentClients] = useState(true);
+  const [orgId, setOrgId] = useState('');
 
   useEffect(() => {
     async function loadData() {
@@ -46,6 +52,7 @@ export default function NewAssessment() {
           Assessment.list()
         ]);
         setClients(clientData);
+        setOrgId(primaryOrgId || '');
         setAssessments(assessmentData);
         setFilteredAssessments(assessmentData);
       } catch (error) {
@@ -56,6 +63,13 @@ export default function NewAssessment() {
     }
     loadData();
   }, []);
+
+  useEffect(() => {
+    if (preselectedClientId && clients.some((client) => client.id === preselectedClientId)) {
+      setSelectedClientId(preselectedClientId);
+      setShowRecentClients(false);
+    }
+  }, [clients, preselectedClientId]);
 
   useEffect(() => {
     if (clientSearchTerm) {
@@ -75,10 +89,12 @@ export default function NewAssessment() {
   useEffect(() => {
     let filtered = assessments;
     if (assessmentSearchTerm) {
-      filtered = assessments.filter(assessment => 
-        assessment.name.toLowerCase().includes(assessmentSearchTerm.toLowerCase()) ||
-        (assessment.search_tags && assessment.search_tags.some(tag => tag.toLowerCase().includes(assessmentSearchTerm.toLowerCase())))
-      );
+      filtered = buildTimeProfession.id === 'physio'
+        ? searchAssessments({ assessments, query: assessmentSearchTerm })
+        : assessments.filter(assessment =>
+          assessment.name.toLowerCase().includes(assessmentSearchTerm.toLowerCase()) ||
+          (assessment.search_tags && assessment.search_tags.some(tag => tag.toLowerCase().includes(assessmentSearchTerm.toLowerCase())))
+        );
     }
     setFilteredAssessments(filtered);
   }, [assessmentSearchTerm, assessments]);
@@ -97,7 +113,9 @@ export default function NewAssessment() {
     setIsAssigning(true);
     try {
       const assessmentsToCreate = selectedAssessments.map(assessmentId => ({
+        org_id: orgId,
         client_id: selectedClientId,
+        ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
         assessment_id: assessmentId,
         status: 'pending',
         assessment_date: todayLocal()
@@ -106,7 +124,9 @@ export default function NewAssessment() {
       await ClientAssessment.bulkCreate(assessmentsToCreate);
 
       toast.success(`${selectedAssessments.length} assessment(s) assigned successfully!`);
-      navigate(createPageUrl(`ClientProfile?id=${selectedClientId}`));
+      navigate(careEpisodeId
+        ? createPageUrl(`PhysioEpisodes?client_id=${selectedClientId}&episode_id=${careEpisodeId}`)
+        : createPageUrl(`ClientProfile?id=${selectedClientId}`));
     } catch (error) {
       console.error("Failed to assign assessments:", error);
       toast.error("An error occurred while assigning assessments.");
@@ -124,8 +144,14 @@ export default function NewAssessment() {
   const selectedClient = clients.find(c => c.id === selectedClientId);
 
   const recentClients = clients
-    .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
+    .sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime())
     .slice(0, 10);
+
+  if (buildTimeProfession.id === 'physio' && !careEpisodeId) {
+    return <Navigate to={createPageUrl(
+      preselectedClientId ? `PhysioEpisodes?client_id=${preselectedClientId}` : 'PhysioEpisodes',
+    )} replace />;
+  }
 
   return (
     <>
@@ -138,7 +164,11 @@ export default function NewAssessment() {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-slate-900">New Client Assessment</h1>
-              <p className="text-slate-600">Assign one or more assessments to a client.</p>
+              <p className="text-slate-600">
+                {careEpisodeId
+                  ? 'Assign one or more assessments to the selected care episode.'
+                  : 'Assign one or more assessments to a client.'}
+              </p>
             </div>
           </div>
 
@@ -155,12 +185,14 @@ export default function NewAssessment() {
               ) : selectedClient ? (
                 <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <p className="font-semibold text-blue-800">{selectedClient.full_name}</p>
-                  <Button variant="ghost" size="icon" onClick={() => {
-                    setSelectedClientId(null);
-                    setShowRecentClients(true);
-                  }}>
-                    <X className="w-4 h-4" />
-                  </Button>
+                  {!careEpisodeId && (
+                    <Button variant="ghost" size="icon" onClick={() => {
+                      setSelectedClientId(null);
+                      setShowRecentClients(true);
+                    }}>
+                      <X className="w-4 h-4" />
+                    </Button>
+                  )}
                 </div>
               ) : (
                 <div className="space-y-4">

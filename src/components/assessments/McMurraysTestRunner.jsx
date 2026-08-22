@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle, ChevronDown, ChevronUp, ExternalLink, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 export default function McMurraysTestRunner({ client, onSave, onClose }) {
   const [preTestVitals, setPreTestVitals] = useState({ systolic: "", diastolic: "", heartRate: "" });
@@ -54,35 +55,12 @@ export default function McMurraysTestRunner({ client, onSave, onClose }) {
   };
 
   const handleFinalSave = () => {
-    if (!postTestVitals.systolic || !postTestVitals.diastolic || !postTestVitals.heartRate) {
-      toast.error("Please enter post-test vital signs.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({ medialResults, lateralResults, preTestVitals, postTestVitals, notes }, { runnerKey: 'mcmurrays_test', assessmentDate: todayLocal() }));
+      toast.success("McMurray's Test completed and saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const medialPositive = medialResults.filter(r => r === "positive").length;
-    const lateralPositive = lateralResults.filter(r => r === "positive").length;
-    const totalPositive = medialPositive + lateralPositive;
-
-    const soapText = `• McMurray's Test\n  Medial Meniscus: ${medialPositive}/${medialResults.length} positive\n  Lateral Meniscus: ${lateralPositive}/${lateralResults.length} positive\n  Total Positive: ${totalPositive}/${medialResults.length + lateralResults.length}`;
-
-    const additionalData = {
-      soap_text: soapText,
-      measurement_type: "McMurray's Test",
-      medial_results: medialResults,
-      lateral_results: lateralResults,
-      medial_positive: medialPositive,
-      lateral_positive: lateralPositive,
-      total_positive: totalPositive,
-    };
-
-    onSave({
-      status: "completed",
-      result_value: totalPositive,
-      additional_data: additionalData,
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("McMurray's Test completed and saved.");
   };
 
   const handleVitalsChange = (e, type, isPreTest) => {

@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { X } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
+import { toast } from "sonner";
+import { scoreWeight } from "@/lib/clinical/scorers/extrasPhysiological";
 
 export default function WeightRunner({ client, onSave, onClose }) {
   const [weight, setWeight] = useState("");
@@ -12,32 +14,18 @@ export default function WeightRunner({ client, onSave, onClose }) {
   const [notes, setNotes] = useState("");
 
   const adjustedWeight = weight && !isNaN(parseFloat(weight))
-    ? (parseFloat(weight) - parseFloat(clothingAdjustment || 0)).toFixed(1)
+    ? (parseFloat(weight) - parseFloat(clothingAdjustment || "0")).toFixed(1)
     : null;
 
   const handleSave = () => {
-    if (!weight) return;
-    const w = parseFloat(adjustedWeight || weight);
-    const soapLines = [
-      `• Body Weight Measurement`,
-      `  Measured Weight: ${weight} kg`,
-      clothingAdjustment && parseFloat(clothingAdjustment) > 0 ? `  Clothing Deduction: ${clothingAdjustment} kg` : "",
-      `  Adjusted Weight: ${w} kg`,
-      notes ? `  Notes: ${notes}` : "",
-      `  Protocol: Calibrated digital scale, light clothing, no shoes, post-void`,
-    ].filter(Boolean).join("\n");
-
-    onSave({
-      result_value: w,
-      notes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: soapLines,
-        weight_kg: w,
-        measured_kg: parseFloat(weight),
-        clothing_adjustment_kg: parseFloat(clothingAdjustment) || 0,
-      }
-    });
+    try {
+      onSave(scoreWeight(
+        { measured_kg: weight, clothing_adjustment_kg: clothingAdjustment, notes },
+        { assessmentDate: todayLocal(), assessmentName: 'Weight', client },
+      ));
+    } catch (error) {
+      toast.error(error?.message || "Weight could not be scored.");
+    }
   };
 
   return (

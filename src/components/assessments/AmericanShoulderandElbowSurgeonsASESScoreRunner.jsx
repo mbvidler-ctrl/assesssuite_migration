@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, ChevronDown, ChevronUp, BookOpen } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreAses } from "@/lib/clinical/scorers/coreB";
 
 const ADL_ACTIVITIES = [
   { label: "Put on a coat", description: "0=Unable, 1=Very difficult, 2=Somewhat difficult, 3=Not difficult" },
@@ -38,36 +38,11 @@ export default function AmericanShoulderandElbowSurgeonsASESScoreRunner({ client
   };
 
   const handleSave = () => {
-    const totalAdlScore = adlScores.reduce((acc, score) => acc + score, 0);
-    const resultValue = Math.round(((10 - painScore) * 5) + ((totalAdlScore / 30) * 50));
-
-    const difficultyLabel = (v) => ['Unable', 'Very difficult', 'Somewhat difficult', 'Not difficult'][v] || v;
-
-    let soapText = `• American Shoulder and Elbow Surgeons (ASES) Score:\n`;
-    soapText += `  Total Score: ${resultValue}/100\n`;
-    soapText += `\n  Pain Section:\n`;
-    soapText += `    Pain Score (VAS): ${painScore}/10\n`;
-    soapText += `    Pain Subscore: ${(10 - painScore) * 5}/50\n`;
-    soapText += `\n  Activities of Daily Living (ADL) Section:\n`;
-    ADL_ACTIVITIES.forEach((activity, index) => {
-      soapText += `    ${activity.label}: ${adlScores[index]} (${difficultyLabel(adlScores[index])})\n`;
-    });
-    soapText += `    ADL Total: ${totalAdlScore}/30 → ADL Subscore: ${Math.round((totalAdlScore / 30) * 50)}/50\n`;
-    if (notes && notes.trim()) soapText += `\n  Clinical Notes: ${notes}\n`;
-
-    onSave({
-      result_value: resultValue,
-      additional_data: {
-        soap_text: soapText,
-        pain_score: painScore,
-        adl_scores: adlScores,
-        total_adl_score: totalAdlScore,
-        measurement_type: "ases"
-      },
-      notes,
-      assessment_date: todayLocal(),
-      objectiveText: soapText
-    });
+    try {
+      onSave(scoreAses({ pain_score: painScore, adl_scores: adlScores, notes }, { assessmentName: 'American Shoulder and Elbow Surgeons (ASES) Score', client }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save ASES assessment.');
+    }
   };
 
   return (

@@ -7,6 +7,9 @@ import {
   AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight,
   Play, Square, RotateCcw, Shield, Activity, Flag, FileText, Timer
 } from "lucide-react";
+import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 // ─── Steps ───────────────────────────────────────────────────────────────────
 const STEPS = [
@@ -31,8 +34,8 @@ const NORMATIVE_DATA = [
 ];
 
 function getNormGroup(age) {
-  if (!age) return NORMATIVE_DATA[0];
-  return NORMATIVE_DATA.find(d => age >= d.ageMin && age <= d.ageMax) || NORMATIVE_DATA[NORMATIVE_DATA.length - 1];
+  if (!Number.isFinite(age)) return null;
+  return NORMATIVE_DATA.find(d => age >= d.ageMin && age <= d.ageMax) || null;
 }
 
 function classifyTime(t, norms) {
@@ -115,19 +118,20 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
 
   // ── Normatives ──────────────────────────────────────────────────────────────
   const clientAge = client?.date_of_birth
-    ? Math.floor((Date.now() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000))
+    ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000))
     : null;
-  const clientGender = client?.gender === "male" ? "male" : "female";
+  const recordedGender = String(client?.gender || "").toLowerCase();
+  const clientGender = recordedGender === "male" || recordedGender === "female" ? recordedGender : null;
   const normGroup = getNormGroup(clientAge);
-  const norms     = normGroup[clientGender] || normGroup.male;
-  const cls       = finished ? classifyTime(elapsed, norms) : null;
+  const norms     = normGroup && clientGender ? normGroup[clientGender] : null;
+  const cls       = finished && norms ? classifyTime(elapsed, norms) : null;
 
   const safetyAll = Object.values(safety).every(Boolean);
 
   // ── Clinical Flags ──────────────────────────────────────────────────────────
   const flags = [];
   if (finished) {
-    if (elapsed < norms.poor) flags.push({ text: "Hold time below age/gender threshold — lower limb endurance deficit suspected", color: "bg-red-100 text-red-700 border-red-300" });
+    if (norms && elapsed < norms.poor) flags.push({ text: "Hold time below age/gender threshold — lower limb endurance deficit suspected", color: "bg-red-100 text-red-700 border-red-300" });
     if (observations.knee_valgus) flags.push({ text: "Knee valgus observed — potential hip abductor weakness or neuromuscular control deficit", color: "bg-orange-100 text-orange-700 border-orange-300" });
     if (observations.pain_provoked) flags.push({ text: "Pain provoked during testing — review loading tolerance before progressing", color: "bg-red-100 text-red-700 border-red-300" });
     if (observations.required_guarding) flags.push({ text: "Guarding required — significant safety concern, reassess readiness", color: "bg-red-100 text-red-700 border-red-300" });
@@ -137,7 +141,7 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
 
   // ── Interpretation ──────────────────────────────────────────────────────────
   const generateInterpretation = () => {
-    if (!finished) return "";
+    if (!finished || !norms || !cls || !normGroup || !clientGender) return "Age and sex are required to generate the normative interpretation.";
     const parts = [];
     parts.push(`Static Wall Squat Test completed at ${setup.knee_angle}° knee flexion on a ${setup.surface === "wall" ? "wall" : "freestanding"} surface.`);
     parts.push(`Hold time: ${elapsed}s (${formatTime(elapsed)}) — classified as ${cls.label} relative to ${normGroup.label} ${clientGender} normative data.`);
@@ -165,26 +169,14 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
   };
 
   const handleSave = () => {
-    onSave({
-      result_value: elapsed,
-      notes: clinicalNotes,
-      additional_data: {
-        soap_text: generateSOAP(),
-        knee_angle: setup.knee_angle,
-        footwear: setup.footwear,
-        surface: setup.surface,
-        stop_reason: stopReason,
-        observations,
-        pain_pre: setup.pain_pre,
-        pain_post: painPost,
-        fatigue_pre: setup.fatigue_pre,
-        fatigue_post: fatiguePost,
-        classification: cls?.label,
-        normative_group: normGroup.label,
-        flags: flags.map(f => f.text),
-        interpretation: generateInterpretation(),
-      },
-    });
+    try {
+      onSave(validateFunctionalOrtho({
+        completed: finished, elapsed, age: clientAge, gender: clientGender, stopReason,
+        setup, painPost, fatiguePost, observations, notes: clinicalNotes,
+      }, { runnerKey: 'static_squat', assessmentDate: todayLocal() }));
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   const canSave = finished;
@@ -486,15 +478,15 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
           ) : (
             <>
               {/* Score */}
-              <div className={`rounded-xl border-2 p-6 text-center ${cls?.bg}`}>
+              <div className={`rounded-xl border-2 p-6 text-center ${cls?.bg || "bg-slate-50 border-slate-200"}`}>
                 <p className="text-xs font-semibold text-slate-500 uppercase mb-1">Hold Time</p>
                 <p className="text-5xl font-bold text-slate-900">{elapsed}<span className="text-2xl font-normal text-slate-500">s</span></p>
-                <p className={`text-lg font-semibold mt-1 ${cls?.color}`}>{cls?.label}</p>
-                <p className="text-xs text-slate-500 mt-1">{normGroup.label} — {clientGender}</p>
+                <p className={`text-lg font-semibold mt-1 ${cls?.color || "text-slate-600"}`}>{cls?.label || "Norm unavailable"}</p>
+                <p className="text-xs text-slate-500 mt-1">{normGroup?.label || "Age unavailable"} — {clientGender || "sex unavailable"}</p>
               </div>
 
               {/* Normative table */}
-              {clientAge && (
+              {clientAge && clientGender && normGroup && norms ? (
                 <div className="bg-violet-50 border border-violet-200 rounded-xl p-4">
                   <p className="text-xs font-semibold text-violet-700 uppercase tracking-wider mb-2">Normative Reference — {normGroup.label} ({clientGender})</p>
                   <div className="grid grid-cols-4 gap-2">
@@ -511,6 +503,10 @@ export default function StaticSquatTestWallSquatRunner({ client, onSave, onClose
                     ))}
                   </div>
                   <p className="text-xs text-violet-600 mt-2">Reference: Bohannon RW, Perez AJ, Kim SH et al.</p>
+                </div>
+              ) : (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+                  Record a valid date of birth and male/female sex before saving so the age/sex normative result can be calculated.
                 </div>
               )}
 

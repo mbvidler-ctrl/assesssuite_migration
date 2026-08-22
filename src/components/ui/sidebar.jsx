@@ -61,14 +61,22 @@ function SidebarProviderInner(allProps, ref) {
     return { state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar }
   }, [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar])
 
+  const sidebarStyle = Object.assign(
+    /** @type {React.CSSProperties} */ ({
+      "--sidebar-width": SIDEBAR_WIDTH,
+      "--sidebar-width-icon": SIDEBAR_WIDTH_ICON,
+    }),
+    style
+  )
+
+  const sidebarBody = React.createElement("div", Object.assign({
+    style: sidebarStyle,
+    className: cn("group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-sidebar", className),
+    ref: ref
+  }, props), children)
+
   return React.createElement(SidebarContext.Provider, { value: contextValue },
-    React.createElement(TooltipProvider, { delayDuration: 0 },
-      React.createElement("div", Object.assign({
-        style: Object.assign({ "--sidebar-width": SIDEBAR_WIDTH, "--sidebar-width-icon": SIDEBAR_WIDTH_ICON }, style),
-        className: cn("group/sidebar-wrapper flex min-h-svh w-full has-[[data-variant=inset]]:bg-sidebar", className),
-        ref: ref
-      }, props), children)
-    )
+    React.createElement(TooltipProvider, { delayDuration: 0, children: sidebarBody })
   )
 }
 const SidebarProvider = React.forwardRef(SidebarProviderInner)
@@ -94,7 +102,7 @@ function SidebarInner(allProps, ref) {
           data-sidebar="sidebar"
           data-mobile="true"
           className="w-[--sidebar-width] bg-sidebar p-0 text-sidebar-foreground [&>button]:hidden"
-          style={{ "--sidebar-width": SIDEBAR_WIDTH_MOBILE }}
+          style={/** @type {React.CSSProperties} */ ({ "--sidebar-width": SIDEBAR_WIDTH_MOBILE })}
           side={side}
         >
           <div className="flex h-full w-full flex-col">{children}</div>

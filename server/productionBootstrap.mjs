@@ -5,14 +5,30 @@
 // application. It must never create demo organisations, accounts, legal
 // receipts, clients or clinical records.
 
+import { createHash } from 'node:crypto';
+import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { openDatabase, PARITY_ASSURANCE_DB_PATH } from './db.mjs';
-import { runCatalogueSeed } from './seed.mjs';
+import { runProductionCatalogueSeed } from './productionCatalogue.mjs';
+import { resolveActiveProfessionContract } from '../packages/profession-config/runtime.mjs';
+import {
+  assertPhysioProductionPosture,
+  PHYSIO_EXACT_IMAGE_CANARY_MODE,
+  PHYSIO_PRODUCTION_DATA_FILE,
+  PHYSIO_PRODUCTION_UPLOADS_DIR,
+} from './productionPosture.mjs';
 
 export const PARITY_ASSURANCE_UPLOADS_DIR = '/app/server/data/assesssuite-parity-uploads';
 export const PRODUCTION_APP_URL = 'https://app.assesssuite.com';
+export const PHYSIO_CANARY_BOOTSTRAP_RECEIPT_CONTRACT_VERSION =
+  'assesssuite-physio-exact-image-canary-bootstrap/1.0.0';
+
+export function productionAppUrlFor(environment = process.env) {
+  const { profession } = resolveActiveProfessionContract(environment);
+  return `https://${profession.deployment.intendedAppHost}`;
+}
 
 export function assertParityAssuranceEnvironment(environment = process.env) {
   const mode = environment.PARITY_ASSURANCE_MODE;
@@ -46,30 +62,75 @@ export function assertProductionBootstrapEnvironment(environment = process.env) 
   if (environment.SELFTEST === '1') {
     throw new Error('SELFTEST is forbidden during production bootstrap.');
   }
-  if (environment.EXPECTED_APP_URL !== PRODUCTION_APP_URL) {
-    throw new Error(`Production bootstrap requires EXPECTED_APP_URL=${PRODUCTION_APP_URL}.`);
+  const expectedProductionAppUrl = productionAppUrlFor(environment);
+  if (environment.EXPECTED_APP_URL !== expectedProductionAppUrl) {
+    throw new Error(`Production bootstrap requires EXPECTED_APP_URL=${expectedProductionAppUrl}.`);
   }
   if (environment.APP_URL !== environment.EXPECTED_APP_URL) {
     throw new Error('Production bootstrap requires APP_URL to match EXPECTED_APP_URL.');
   }
+  const physioPosture = assertPhysioProductionPosture(environment);
   assertParityAssuranceEnvironment(environment);
+  return physioPosture;
+}
+
+function sha256(value) {
+  return createHash('sha256').update(String(value)).digest('hex');
+}
+
+function writePhysioCanaryBootstrapReceipt(
+  environment,
+  posture,
+  writeFileFn = fs.writeFileSync,
+) {
+  if (environment[PHYSIO_EXACT_IMAGE_CANARY_MODE] !== '1') return null;
+  const activeContract = resolveActiveProfessionContract(environment);
+  const output = environment.PHYSIO_EXACT_IMAGE_CANARY_BOOTSTRAP_RECEIPT;
+  const receipt = {
+    contract_version: PHYSIO_CANARY_BOOTSTRAP_RECEIPT_CONTRACT_VERSION,
+    result: 'PASS',
+    mode: 'exact-image-canary',
+    node_env: environment.NODE_ENV,
+    profession_id: activeContract.professionId,
+    app_id: activeContract.appId,
+    application_sha: environment.RELEASE_SHA,
+    build_timestamp: environment.BUILD_TIMESTAMP,
+    database_path_sha256: sha256(PHYSIO_PRODUCTION_DATA_FILE),
+    uploads_path_sha256: sha256(PHYSIO_PRODUCTION_UPLOADS_DIR),
+    production_posture_contract_version: posture.contract_version,
+    production_posture_sha256: posture.posture_sha256,
+    catalogue_bootstrap_completed: true,
+    completed_at: new Date().toISOString(),
+  };
+  writeFileFn(output, `${JSON.stringify(receipt, null, 2)}\n`, {
+    encoding: 'utf8',
+    flag: 'wx',
+    mode: 0o600,
+  });
+  return Object.freeze(receipt);
 }
 
 export function runProductionBootstrap({
   environment = process.env,
   openDatabaseFn = openDatabase,
-  catalogueSeedFn = runCatalogueSeed,
+  catalogueSeedFn = runProductionCatalogueSeed,
+  writeFileFn = fs.writeFileSync,
 } = {}) {
-  assertProductionBootstrapEnvironment(environment);
+  const physioPosture = assertProductionBootstrapEnvironment(environment);
   const opened = openDatabaseFn();
   if (!opened?.db || !(opened.entityNames instanceof Set)) {
     throw new Error('The production database bootstrap contract is unavailable.');
   }
   try {
-    catalogueSeedFn({ db: opened.db, entityNames: opened.entityNames });
+    catalogueSeedFn({
+      db: opened.db,
+      entityNames: opened.entityNames,
+      environment,
+    });
   } finally {
     opened.db.close();
   }
+  return writePhysioCanaryBootstrapReceipt(environment, physioPosture, writeFileFn);
 }
 
 function isMainModule() {

@@ -68,7 +68,7 @@ const REVIEWED_DIGESTS = new Map([
   ['scripts/referral-production-canary.mjs', '96c8ecb24cd67df81127923c33ecaea232fe3d8dbbec52006bc7fa7ecfa7a3ae'],
   ['scripts/referral-production-canary-contract.mjs', 'e244e9b332b31a14f4ca14d19fc0b7129e045674542cbb5540af3a613f68eb94'],
   ['scripts/validate-referral-production-canary-output.mjs', '55b257d0e732f83f4146b1c0dc836d4bfce730cdf81f935d696bc12adea57ab1'],
-  ['scripts/scan-release-diff.mjs', '9cab943c725a8faf159fbeb7ee5c4a020ef1cc4f3e41845f4f6654990bc3775d'],
+  ['scripts/scan-release-diff.mjs', '8eed6357833ba8430786192e2d6be1a2bbedab3153dfef684729549e307fad80'],
 ]);
 
 function normalized(value) {
@@ -687,7 +687,7 @@ function validateAuxWorkflow(input, kind) {
     requireText('PRODUCTION_BASE_SHA: 6a8ec8d70d87d7b17bcb89e03a9fea4e2871b6d5', 'exact production-base revision');
     requireCount('PRODUCTION_BASE_SHA: 6a8ec8d70d87d7b17bcb89e03a9fea4e2871b6d5', 3, 'production-base revision uses');
     requireCount('node scripts/check-dependency-audit.mjs', 1, 'fail-closed dependency vulnerability audit');
-    requireText('EXPECTED_RELEASE_SCANNER_SHA256: 9cab943c725a8faf159fbeb7ee5c4a020ef1cc4f3e41845f4f6654990bc3775d', 'trusted release-scanner digest');
+    requireText('EXPECTED_RELEASE_SCANNER_SHA256: 8eed6357833ba8430786192e2d6be1a2bbedab3153dfef684729549e307fad80', 'trusted release-scanner digest');
     requireStepText('Build, typecheck differential, selftest, and rollback proof', 'node --test server/tests/production-startup.test.mjs', 'production-startup negative test');
     requireStepText('Build, typecheck differential, selftest, and rollback proof', 'npm run test:rollback-compatibility', 'rollback disabled-runtime compatibility proof execution');
     requireStepText('Build, typecheck differential, selftest, and rollback proof', 'npm run test:forward-rollback-compatibility >"$rollback_log"', 'forward/rollback shared-store proof execution');
@@ -1313,7 +1313,7 @@ function auxMutationCases(source, kind) {
     );
     replace(
       'scanner-pin-mutated',
-      '          EXPECTED_RELEASE_SCANNER_SHA256: 9cab943c725a8faf159fbeb7ee5c4a020ef1cc4f3e41845f4f6654990bc3775d',
+      '          EXPECTED_RELEASE_SCANNER_SHA256: 8eed6357833ba8430786192e2d6be1a2bbedab3153dfef684729549e307fad80',
       `          EXPECTED_RELEASE_SCANNER_SHA256: ${'0'.repeat(64)}`,
     );
     replace(

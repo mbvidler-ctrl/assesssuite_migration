@@ -7,44 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_ISI_QUESTIONS as questions } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const questions = [
-  {
-    number: 1,
-    text: "Difficulty falling asleep",
-    subscale: "Initiation"
-  },
-  {
-    number: 2,
-    text: "Difficulty staying asleep (frequent awakenings or long periods awake)",
-    subscale: "Maintenance"
-  },
-  {
-    number: 3,
-    text: "Problem waking up too early in the morning",
-    subscale: "Maintenance"
-  },
-  {
-    number: 4,
-    text: "Satisfaction with current sleep pattern",
-    subscale: "Satisfaction (Reverse)"
-  },
-  {
-    number: 5,
-    text: "Noticeability of impairment in daytime functioning due to sleep problem",
-    subscale: "Daytime Impairment"
-  },
-  {
-    number: 6,
-    text: "Worry or distress caused by the sleep problem",
-    subscale: "Concern"
-  },
-  {
-    number: 7,
-    text: "Interference with quality of life caused by the sleep problem",
-    subscale: "Daytime Impairment"
-  }
-];
 
 export default function InsomniaSeverityIndexISIRunner({ client, onSave, onClose }) {
   const [responses, setResponses] = useState({

@@ -99,7 +99,7 @@ export default function AssessmentAudit() {
       let page = 0;
       const pageSize = 100;
       while (true) {
-        const batch = await base44.entities.Assessment.list({ limit: pageSize, skip: page * pageSize });
+        const batch = await base44.entities.Assessment.list(undefined, pageSize, page * pageSize);
         allAssessments = allAssessments.concat(batch);
         if (batch.length < pageSize) break;
         page++;

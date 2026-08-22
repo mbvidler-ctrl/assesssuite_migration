@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, ChevronDown, ChevronUp, AlertTriangle, Info, ExternalLink, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreModifiedBruce } from "@/lib/clinical/scorers/extrasPhysiological";
 
 export default function ModifiedBruceProtocolRunner({ client, onSave, onClose }) {
   const [preTestVitals, setPreTestVitals] = useState({
@@ -62,7 +63,9 @@ export default function ModifiedBruceProtocolRunner({ client, onSave, onClose })
 
   const handleAddStageData = () => {
     const stage = stages[currentStage];
-    const hrInput = document.getElementById(`stageHR_${currentStage}`)?.value;
+    const hrInput = /** @type {HTMLInputElement | null} */ (
+      document.getElementById(`stageHR_${currentStage}`)
+    )?.value;
     
     if (!hrInput) {
       toast.error("Please enter heart rate for this stage.");
@@ -75,7 +78,9 @@ export default function ModifiedBruceProtocolRunner({ client, onSave, onClose })
       grade: stage.grade,
       duration: stageTime,
       heartRate: parseInt(hrInput),
-      rpe: document.getElementById(`stageRPE_${currentStage}`)?.value || "-",
+      rpe: /** @type {HTMLInputElement | null} */ (
+        document.getElementById(`stageRPE_${currentStage}`)
+      )?.value || "-",
     };
 
     setStageData(prev => [...prev, newStageData]);
@@ -96,70 +101,19 @@ export default function ModifiedBruceProtocolRunner({ client, onSave, onClose })
   };
 
   const handleSave = () => {
-    if (!postTestVitals.heartRate || !postTestVitals.bloodPressure) {
-      toast.error("Please enter post-test vitals.");
-      return;
-    }
-    if (stageData.length === 0) {
-      toast.error("Please complete at least one stage.");
-      return;
-    }
-
-    const totalTime = stageData.reduce((acc, s) => acc + s.duration, 0);
-    const maxStage = stageData[stageData.length - 1].stage;
-    const finalHR = stageData[stageData.length - 1].heartRate;
-    
-    const stageDetails = stageData.map(s => 
-      `  Stage ${s.stage}: ${s.speed} mph @ ${s.grade}% — HR: ${s.heartRate} bpm, Time: ${s.duration}s, RPE: ${s.rpe}`
-    ).join("\n");
-
     const stopReason = isRunning ? "Patient-initiated stop" : (postTestVitals.reasonForStop || "Completed all stages");
-
-    const soapText = `• Modified Bruce Protocol Test
-  Total Duration: ${totalTime} seconds (${(totalTime / 60).toFixed(1)} minutes)
-  Stages Completed: ${maxStage} of 9
-  Stop Reason: ${stopReason}
-
-Pre-Test Vitals:
-  Heart Rate: ${preTestVitals.heartRate} bpm
-  Blood Pressure: ${preTestVitals.bloodPressure} mmHg
-  Weight: ${preTestVitals.weight ? preTestVitals.weight + ' kg' : 'Not recorded'}
-  Height: ${preTestVitals.height ? preTestVitals.height + ' cm' : 'Not recorded'}
-
-Stage Data:
-${stageDetails}
-
-Post-Test Vitals:
-  Heart Rate: ${postTestVitals.heartRate} bpm
-  Blood Pressure: ${postTestVitals.bloodPressure} mmHg
-  Heart Rate Recovery: ${Math.max(0, finalHR - parseInt(postTestVitals.heartRate))} bpm
-
-Interpretation:
-  • Modified Bruce test suitable for deconditioned/elderly populations
-  • Patient tolerated ${maxStage}/9 stages before ${stopReason.toLowerCase()}
-  • ${maxStage >= 5 ? "Good exercise tolerance achieved" : maxStage >= 3 ? "Moderate exercise tolerance" : "Limited exercise tolerance"}
-  • HR response: ${finalHR <= 85 ? 'Normal' : 'Elevated'}, Recovery: ${postTestVitals.heartRate < finalHR ? 'Normal' : 'Delayed'}${notes ? `
-
-Additional Notes:
-  ${notes}` : ''}
-
-Reference: Bruce RA (1973); ACSM Guidelines for Exercise Testing and Prescription (11th ed., 2022)`;
-
-    onSave({
-      status: "completed",
-      result_value: maxStage,
-      additional_data: {
-        soap_text: soapText,
-        stageData,
-        preTestVitals,
-        postTestVitals,
-        totalTime,
-        maxStage,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Test data saved to SOAP notes.");
+    try {
+      onSave(scoreModifiedBruce({
+        stage_data: stageData,
+        pre_test_vitals: preTestVitals,
+        post_test_vitals: postTestVitals,
+        stop_reason: stopReason,
+        notes,
+      }, { assessmentDate: todayLocal(), assessmentName: 'Modified Bruce Protocol', client }));
+      toast.success("Test data saved to SOAP notes.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save Modified Bruce test.");
+    }
   };
 
   const formatTime = (seconds) => {

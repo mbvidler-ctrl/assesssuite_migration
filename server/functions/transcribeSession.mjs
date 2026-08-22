@@ -1,6 +1,7 @@
 // transcribeSession — feature-gated real transcription and SOAP dissection.
-// Production is fail-closed; deterministic mocks exist only for SELFTEST or
-// non-production environments where LLM_REQUIRED is not enabled.
+// Production is fail-closed. Isolated tests may inject a labelled response
+// function through the explicit test-provider seam; this runnable module
+// contains no fabricated transcript or SOAP implementation.
 //
 // SOAPNoteModal invokes this module through `base44.functions.invoke`. That
 // SDK returns the raw response envelope, so the client reads `result?.data ??
@@ -13,20 +14,21 @@
 // provider egress they reserve bounded usage against the authenticated user;
 // a missing ledger, cap refusal or unpriced model fails before the provider
 // call. Successful transcription settles against verbose-json audio duration;
-// SOAP dissection settles against provider token counts.
+// SOAP dissection settles against provider token counts. It is retained only
+// for the EP target; Physio rejects it and uses physio.soap_note.v1 instead.
 //
 // `transcribe` resolves only a tenant-authorised direct child of UPLOADS_DIR,
 // validates the supported container and 20 MiB limit, then calls OpenAI using
 // the release-pinned `whisper-1` model. Returned text passes through
 // deidentify() before it reaches the browser. Provider failure returns 502;
-// missing production configuration returns 503; neither becomes a mock.
+// missing production configuration returns 503.
 //
 // `dissect_to_soap` uses invokeLLMWithUsage(), retaining the shared
 // de-identification, model-selection and JSON-schema behaviour. Production
-// rejects an empty transcript and never fabricates a SOAP note. A permitted
-// SELFTEST/non-production mock always sets `simulated: true` and prefixes the
-// simulation notice to every persisted SOAP field.
+// rejects an empty transcript and never fabricates a SOAP note. The omitted
+// test adapter labels every injected response and each persisted SOAP field.
 
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -39,7 +41,7 @@ import {
   TRANSCRIPTION_UNCONFIGURED_MESSAGE,
   transcriptionAvailable,
 } from '../capabilities.mjs';
-import { capabilityEnabled } from '../capabilityFlags.mjs';
+import { resolveActiveProfessionContract } from '../../packages/profession-config/runtime.mjs';
 import {
   deidentify,
   invokeLLMWithUsage,
@@ -66,6 +68,7 @@ const TRANSCRIBE_URL = 'https://api.openai.com/v1/audio/transcriptions';
 // Pinned so admission estimates and actual-cost settlement use one reviewed
 // price-registry entry. The Fly configs repeat this value for operator clarity.
 const TRANSCRIBE_MODEL = 'whisper-1';
+const PROVIDER_CALL_RECEIPT_CONTRACT_VERSION = 'assesssuite-provider-call-receipt/1.0.0';
 const MAX_AUDIO_BYTES = 20 * 1024 * 1024;
 
 // MIME type by stored extension. SOAPNoteModal selects WebM/Opus or MP4 from
@@ -86,6 +89,18 @@ const MIME_BY_EXT = {
 
 function realPathEnabled() {
   return Boolean(process.env.OPENAI_API_KEY) && process.env.SELFTEST !== '1';
+}
+
+function resolveTranscriptionFallback(ctx, environment = process.env) {
+  const injected = ctx?.transcriptionFallback || null;
+  if (!injected) return null;
+  if (environment.NODE_ENV !== 'test' || environment.SELFTEST !== '1') {
+    throw new Error('injected transcription responses are forbidden outside self-test');
+  }
+  if (typeof injected !== 'function') {
+    throw new TypeError('injected transcription response service must be a function');
+  }
+  return injected;
 }
 
 /**
@@ -142,6 +157,7 @@ async function transcribeWithOpenAI(filePath) {
       text,
       audioSeconds: Number.isFinite(duration) && duration >= 0 ? duration : null,
       providerRequestId: res.headers.get('x-request-id') || null,
+      providerStatus: res.status,
     };
   } finally {
     clearTimeout(timer);
@@ -202,44 +218,6 @@ async function markApiUsageFailed(ctx, reservationId) {
   }
 }
 
-function mockTranscript(audioUrl) {
-  const label =
-    typeof audioUrl === 'string' && audioUrl ? audioUrl.split('/').pop() : 'session recording';
-  return (
-    `[Fallback transcript for ${label}]\n\n` +
-    `Clinician: How has your pain been since the last session?\n` +
-    `Client: A little better, still stiff in the mornings.\n` +
-    `Clinician: Let's run through today's exercises and reassess your range of motion.\n\n` +
-    `(This is placeholder text produced by the local transcribeSession fallback — no real ` +
-    `audio transcription has occurred. Real transcription runs when OPENAI_API_KEY is set; ` +
-    `this fallback is served when the key is absent, the run is a self-test, or the ` +
-    `transcription call fails.)`
-  );
-}
-
-function mockSoap(hasTranscript) {
-  const notice =
-    '[Simulated SOAP note — placeholder content, not generated from AI analysis of the transcript.] ';
-  return {
-    success: true,
-    simulated: true,
-    // The notice is prefixed onto every field, not just subjective. Each of
-    // these four strings is what gets persisted into SOAPNote.subjective/
-    // objective/assessment/plan (see SOAPNoteModal.jsx dissectToSOAP), so the
-    // marker must be durable in the free text of every field it labels — a
-    // notice on subjective alone would leave objective/assessment/plan
-    // reading as unlabelled fabricated clinical content once persisted.
-    subjective:
-      notice +
-      (hasTranscript
-        ? 'Client reports improved pain levels since last session, with residual morning stiffness.'
-        : 'Client reports as discussed during the session.'),
-    objective: notice + 'Range of motion and exercise tolerance reassessed during today\'s session.',
-    assessment: notice + 'Client demonstrates continued progress consistent with the current treatment plan.',
-    plan: notice + 'Continue current exercise programme; reassess at next scheduled session.',
-  };
-}
-
 const SOAP_SCHEMA = {
   type: 'object',
   properties: {
@@ -278,6 +256,26 @@ function buildSoapPrompt(transcript) {
 export default async function transcribeSession(ctx) {
   const { body, respond } = ctx;
   const { action } = body || {};
+  let testFallback;
+  try {
+    testFallback = resolveTranscriptionFallback(ctx, process.env);
+  } catch (error) {
+    return respond(500, { code: 'test_provider_injection_rejected', error: error.message });
+  }
+
+  // Physio has one versioned SOAP generation surface:
+  // physio.soap_note.v1. Keep real audio transcription available, but never
+  // expose this legacy generic transcript-to-SOAP model call in the Physio
+  // runtime, even if a caller bypasses the browser control.
+  if (
+    action === 'dissect_to_soap'
+    && resolveActiveProfessionContract(process.env).professionId === 'physio'
+  ) {
+    return respond(403, {
+      code: 'profession_ai_surface_unavailable',
+      error: 'Use the versioned physiotherapy SOAP-note workflow for AI drafting.',
+    });
+  }
 
   // Launch posture: transcription is disabled for users unless expressly
   // enabled (TRANSCRIPTION_ENABLED=1). The code path is kept intact — this
@@ -294,7 +292,37 @@ export default async function transcribeSession(ctx) {
   }
 
   if (action === 'transcribe') {
-    const { audio_url, org_id: orgId } = body || {};
+    const {
+      audio_url,
+      org_id: orgId,
+      care_episode_id: careEpisodeId,
+      client_id: clientId,
+    } = body || {};
+    const requiresCareEpisode = resolveActiveProfessionContract(process.env).professionId === 'physio';
+    if (requiresCareEpisode || careEpisodeId !== undefined) {
+      if (
+        typeof careEpisodeId !== 'string' || !careEpisodeId.trim() || careEpisodeId !== careEpisodeId.trim()
+        || typeof clientId !== 'string' || !clientId.trim() || clientId !== clientId.trim()
+      ) {
+        return respond(400, {
+          code: 'care_episode_required',
+          error: 'A valid saved care episode and patient are required for episode transcription.',
+        });
+      }
+      const episodes = await ctx.entities.PhysioCareEpisode.filter({ id: careEpisodeId, org_id: orgId });
+      if (!Array.isArray(episodes) || episodes.length !== 1) {
+        return respond(404, {
+          code: 'care_episode_not_found',
+          error: 'The care episode was not found in this organisation.',
+        });
+      }
+      if (episodes[0].client_id !== clientId) {
+        return respond(409, {
+          code: 'care_episode_patient_mismatch',
+          error: 'The care episode and patient do not match.',
+        });
+      }
+    }
     const filePath = resolveUploadPath(audio_url, { user: ctx.user, orgId });
     if (!filePath) {
       return respond(404, { code: 'audio_not_found', error: 'Audio file not found.' });
@@ -350,6 +378,21 @@ export default async function transcribeSession(ctx) {
         });
       }
 
+      if (
+        !(providerResult.audioSeconds > 0)
+        || typeof providerResult.providerRequestId !== 'string'
+        || !providerResult.providerRequestId.trim()
+        || !Number.isInteger(providerResult.providerStatus)
+        || providerResult.providerStatus < 200
+        || providerResult.providerStatus >= 300
+      ) {
+        await markApiUsageFailed(ctx, reservation.id);
+        return respond(502, {
+          code: TRANSCRIPTION_PROVIDER_FAILED_CODE,
+          error: 'Audio transcription is temporarily unavailable.',
+        });
+      }
+
       // Defence in depth: the transcript is user-visible and is sent back
       // out to the model by dissect_to_soap.
       const { text: safeText } = deidentify(providerResult.text);
@@ -369,37 +412,58 @@ export default async function transcribeSession(ctx) {
             audioSeconds: providerResult.audioSeconds,
           });
         }
+        if (!Number.isSafeInteger(settlement.actualCostMicrousd) || settlement.actualCostMicrousd < 0) {
+          await markApiUsageFailed(ctx, reservation.id);
+          return respond(503, {
+            code: 'api_usage_accounting_unavailable',
+            error: 'AI usage controls are temporarily unavailable.',
+          });
+        }
         await settleApiUsage(ctx, settlement);
       } catch (error) {
         const failure = apiUsageFailure(error);
         return respond(failure.status, failure.body);
       }
-      return respond(200, { transcript: safeText, simulated: false });
-    }
-
-    if (process.env.SELFTEST !== '1' && capabilityEnabled('LLM_REQUIRED')) {
-      return respond(503, {
-        code: TRANSCRIPTION_UNCONFIGURED_CODE,
-        error: TRANSCRIPTION_UNCONFIGURED_MESSAGE,
+      return respond(200, {
+        transcript: safeText,
+        simulated: false,
+        provider_receipt: {
+          contract_version: PROVIDER_CALL_RECEIPT_CONTRACT_VERSION,
+          feature: 'transcription',
+          provider: 'openai',
+          model: TRANSCRIBE_MODEL,
+          provider_status: providerResult.providerStatus,
+          provider_request_id_hash: createHash('sha256')
+            .update(providerResult.providerRequestId)
+            .digest('hex'),
+          usage: {
+            audio_seconds: providerResult.audioSeconds,
+            actual_cost_microusd: settlement.actualCostMicrousd,
+          },
+        },
       });
     }
 
-    return respond(200, { transcript: mockTranscript(audio_url), simulated: true });
+    if (testFallback) {
+      return respond(200, await testFallback({ action: 'transcribe', audioUrl: audio_url }));
+    }
+    return respond(503, {
+      code: TRANSCRIPTION_UNCONFIGURED_CODE,
+      error: TRANSCRIPTION_UNCONFIGURED_MESSAGE,
+    });
   }
 
   if (action === 'dissect_to_soap') {
     const { transcript } = body || {};
     const hasTranscript = typeof transcript === 'string' && transcript.trim().length > 0;
-    const selftest = process.env.SELFTEST === '1';
-
-    if (!hasTranscript && !selftest && capabilityEnabled('LLM_REQUIRED')) {
+    if (!hasTranscript && !testFallback) {
       return respond(400, {
         code: 'transcript_required',
         error: 'A transcript is required before SOAP dissection can run.',
       });
     }
 
-    if (hasTranscript && !selftest) {
+    if (hasTranscript && !testFallback) {
       if (llmEnabled()) {
         const prompt = buildSoapPrompt(transcript);
         const model = pickModel(prompt, SOAP_SCHEMA);
@@ -453,20 +517,12 @@ export default async function transcribeSession(ctx) {
           }
           await markApiUsageFailed(ctx, reservation.id);
           console.log('[transcribeSession] real dissection failed:', err.message);
-          if (capabilityEnabled('LLM_REQUIRED')) {
-            // Production posture: a real call was attempted and failed —
-            // never silently degrade to fabricated clinical content.
-            return respond(502, {
-              code: TRANSCRIPTION_PROVIDER_FAILED_CODE,
-              error: 'SOAP dissection is temporarily unavailable.',
-            });
-          }
-          // Non-production convenience: fall through to the labelled mock below.
+          return respond(502, {
+            code: TRANSCRIPTION_PROVIDER_FAILED_CODE,
+            error: 'SOAP dissection is temporarily unavailable.',
+          });
         }
-      } else if (capabilityEnabled('LLM_REQUIRED')) {
-        // Production posture: no provider configured at all — never
-        // silently serve a fabricated SOAP note when a real transcript
-        // was supplied and a real dissection was expected.
+      } else {
         return respond(503, {
           code: TRANSCRIPTION_UNCONFIGURED_CODE,
           error: 'SOAP dissection is not configured on this server.',
@@ -474,7 +530,13 @@ export default async function transcribeSession(ctx) {
       }
     }
 
-    return respond(200, mockSoap(hasTranscript));
+    if (testFallback) {
+      return respond(200, await testFallback({ action: 'dissect_to_soap', hasTranscript }));
+    }
+    return respond(503, {
+      code: TRANSCRIPTION_UNCONFIGURED_CODE,
+      error: 'SOAP dissection is not configured on this server.',
+    });
   }
 
   return respond(400, { error: `Unknown action: ${action}` });

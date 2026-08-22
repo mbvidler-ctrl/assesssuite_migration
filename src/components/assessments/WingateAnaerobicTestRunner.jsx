@@ -11,7 +11,7 @@ import {
 } from "recharts";
 import { Save, X, Play, Square, RotateCcw, Zap, Activity, TrendingDown, Award, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreWingate } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 // ─── NORMS ─────────────────────────────────────────────────────────────────────
 const PEAK_POWER_NORMS = {
@@ -195,37 +195,26 @@ export default function WingateAnaerobicTestRunner({ client, onSave, onClose, pr
   };
 
   const handleSave = () => {
-    if (!peakW) { toast.error("Peak power is required."); return; }
-    onSave({
-      status: "completed",
-      result_value: peakW ? parseFloat(peakW.toFixed(1)) : null,
-      notes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: buildSOAP(),
-        measurement_type: "anaerobic_power",
-        peak_power_w: peakW ? Math.round(peakW) : null,
-        peak_power_w_per_kg: peakWkg ? parseFloat(peakWkg.toFixed(3)) : null,
-        mean_power_w: meanW ? Math.round(meanW) : null,
-        mean_power_w_per_kg: meanWkg ? parseFloat(meanWkg.toFixed(3)) : null,
-        min_power_w: minW ? Math.round(minW) : null,
-        total_work_j: totalWork ? Math.round(totalWork) : null,
-        fatigue_index_pct: fatigueIndex ? parseFloat(fatigueIndex.toFixed(1)) : null,
-        body_mass_kg: mass,
-        resistance_kp: res,
-        sport_profile: sport,
-        classification_peak: peakCat?.label,
-        classification_mean: meanCat?.label,
-        fatigue_classification: fatigueCat?.label,
-        validity_score: validity?.score,
-        recovery_hr_1min: recHR1 ? parseInt(recHR1) : null,
-        recovery_hr_2min: recHR2 ? parseInt(recHR2) : null,
-        recovery_hr_3min: recHR3 ? parseInt(recHR3) : null,
-        rpe: rpe ? parseInt(rpe) : null,
-        interval_powers: intervalPowers,
-      },
-    });
-    toast.success("Wingate Test saved.");
+    try {
+      onSave(scoreWingate({
+        body_mass_kg: bodyMass,
+        resistance_kp: resistance,
+        sport,
+        gender,
+        interval_revolutions: intervals,
+        manual_peak_power_w: peakPowerManual,
+        manual_mean_power_w: meanPowerManual,
+        manual_min_power_w: minPowerManual,
+        recovery_hr_1min: recHR1,
+        recovery_hr_2min: recHR2,
+        recovery_hr_3min: recHR3,
+        rpe,
+        notes,
+      }, { assessmentName: "Wingate Anaerobic Test", client }));
+      toast.success("Wingate Test saved.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   // ─── RENDER ─────────────────────────────────────────────────────────────────

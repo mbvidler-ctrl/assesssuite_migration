@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Play, Square, RotateCcw, ExternalLink, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 const MAX_TIME = 300; // 5 minutes
 
@@ -106,42 +107,23 @@ export default function GroovedPegboardTestRunner({ client, onSave, onClose }) {
     const domSec = results.dominant.time ?? (results.dominant.manual ? parseFloat(results.dominant.manual) : null);
     const nonDomSec = results.non_dominant.time ?? (results.non_dominant.manual ? parseFloat(results.non_dominant.manual) : null);
     const assemblyPieces = results.assembly.pieces ? parseInt(results.assembly.pieces) : null;
-
-    if (!domSec && !nonDomSec) {
-      toast.error("Please complete at least the peg subtests before saving.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho(
+        {
+          dominantTime: domSec,
+          nonDominantTime: nonDomSec,
+          assemblyPieces,
+          dominantDrops: results.dominant.drops,
+          nonDominantDrops: results.non_dominant.drops,
+          dominantHand,
+          notes,
+        },
+        { runnerKey: "grooved_peg", assessmentDate },
+      ));
+      toast.success("Assessment saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const domLabel = dominantHand === "right" ? "Right" : "Left";
-    const nonDomLabel = dominantHand === "right" ? "Left" : "Right";
-
-    const lines = [
-      `Grooved Pegboard Test`,
-      ``,
-      `Peg Only — Dominant Hand (${domLabel}): ${domSec ? formatTime(Math.round(domSec)) + (domSec >= MAX_TIME ? " (DNF)" : "") + (results.dominant.drops > 0 ? ` | Drops: ${results.dominant.drops}` : "") : "Not completed"}`,
-      `Peg Only — Non-Dominant Hand (${nonDomLabel}): ${nonDomSec ? formatTime(Math.round(nonDomSec)) + (nonDomSec >= MAX_TIME ? " (DNF)" : "") + (results.non_dominant.drops > 0 ? ` | Drops: ${results.non_dominant.drops}` : "") : "Not completed"}`,
-      assemblyPieces != null ? `Assembly (Peg + Washer + Nut, 30s): ${assemblyPieces} pieces` : `Assembly: Not completed`,
-      notes ? `\nNotes: ${notes}` : "",
-    ].filter(Boolean).join("\n");
-
-    onSave({
-      status: "completed",
-      result_value: domSec ? Math.round(domSec) : 0,
-      additional_data: {
-        measurement_type: "grooved_pegboard_test",
-        soap_text: lines,
-        dominant_hand: dominantHand,
-        dominant_hand_time_seconds: domSec ? Math.round(domSec) : null,
-        non_dominant_hand_time_seconds: nonDomSec ? Math.round(nonDomSec) : null,
-        dominant_drops: results.dominant.drops,
-        non_dominant_drops: results.non_dominant.drops,
-        assembly_pieces: assemblyPieces,
-      },
-      notes,
-      assessment_date: assessmentDate,
-    });
-
-    toast.success("Assessment saved successfully.");
   };
 
   const phaseIndex = PHASES.indexOf(phase);

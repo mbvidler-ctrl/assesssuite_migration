@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Play, Pause, AlertTriangle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 // Normative data based on McGill Core Endurance Test (Plank variant)
 // Age groups and sex-based reference values in seconds
@@ -45,7 +46,7 @@ export default function PlankHoldTestRunner({ client, onSave, onClose }) {
 
   // Auto-populate from client data
   const clientAge = client?.date_of_birth
-    ? Math.floor((new Date() - new Date(client.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
+    ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
     : null;
   const clientSex = client?.gender || null;
 
@@ -101,53 +102,12 @@ export default function PlankHoldTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    const bestAttempt = testAttempts.length > 0 ? Math.max(...testAttempts) : 0;
-    const normativeData = getNormativeComparison(clientAge, clientSex, bestAttempt);
-
-    const soapLines = [
-      `• Plank Hold Test (Core Endurance)`,
-      `  Client Age: ${clientAge} years`,
-      `  Client Sex: ${clientSex}`,
-      `  Assessment Date: ${assessmentDate}`,
-      ``,
-      `  Test Results:`,
-      `    Number of Attempts: ${testAttempts.length}`,
-      `    Best Time: ${formatDuration(bestAttempt)}`,
-      `    All Attempts: ${testAttempts.map(t => formatDuration(t)).join(', ')}`,
-      ``,
-      normativeData ? `  Normative Comparison (Age ${getAgeGroup(clientAge)}, ${clientSex}):` : null,
-      normativeData ? `    Performance Level: ${normativeData.level}` : null,
-      normativeData ? `    Interpretation: ${bestAttempt}s - ${normativeData.level} performance for this age and sex.` : null,
-      ``,
-      `  Clinical Observations:`,
-      `    - Maintained neutral spine position`,
-      `    - Form quality observed during hold`,
-      notes ? `    - ${notes.replace(/\n/g, '\n    - ')}` : null,
-      ``,
-      `  Evidence Base:`,
-      `    The plank hold test assesses anterior and lateral core stability,`,
-      `    essential for spinal protection and functional movement patterns.`,
-      `    References: McGill et al., Journal of Strength and Conditioning Research.`,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      status: "completed",
-      result_value: bestAttempt,
-      additional_data: {
-        measurement_type: "plank_hold_test",
-        client_age: clientAge,
-        client_sex: clientSex,
-        all_attempts: testAttempts,
-        best_attempt: bestAttempt,
-        normative_comparison: normativeData,
-        age_group: getAgeGroup(clientAge),
-        soap_text: soapLines,
-      },
-      notes,
-      assessment_date: assessmentDate,
-    });
-
-    toast.success("Plank Hold Test saved successfully.");
+    try {
+      onSave(validateMobilityOrtho({ testAttempts, clientAge, clientSex, notes }, { runnerKey: 'plank', assessmentDate }));
+      toast.success("Plank Hold Test saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, RotateCcw, Info, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreThirtyFifteenIft } from "@/lib/clinical/scorers/extrasPhysiological";
 
 // 30-15 IFT stage speeds: starts at 8 km/h, +0.5 every 45s (30s run + 15s walk)
 function buildStages() {
@@ -109,43 +110,20 @@ export default function ThreeZeroOneFiveIntermittentFitnessTestRunner({ client, 
     }
 
     const stages = parseInt(finalStagesManual) || totalStages;
-    const interp = getInterpretation(vift);
-
-    const soapLines = [
-      `• 30-15 Intermittent Fitness Test (30-15IFT)`,
-      `  V̇IFT (Final Speed): ${vift.toFixed(1)} km/h — ${interp.label}`,
-      stages ? `  Total Stages Completed: ${stages}` : null,
-      `  Training Prescription: ${(vift * 1.0).toFixed(1)}–${(vift * 1.3).toFixed(1)} km/h interval target`,
-      hrPre ? `  Pre-Test HR: ${hrPre} bpm` : null,
-      bpPre ? `  Pre-Test BP: ${bpPre} mmHg` : null,
-      hrPost ? `  Post-Test HR: ${hrPost} bpm` : null,
-      rpe ? `  RPE (6–20): ${rpe}` : null,
-      notes ? `  Notes: ${notes}` : null,
-    ].filter(Boolean).join("\n");
-
-    onSave({
-      status: "completed",
-      result_value: vift,
-      vift_kmh: vift,
-      total_stages: stages,
-      rpe: rpe ? parseInt(rpe) : null,
-      notes,
-      assessment_date: assessmentDate,
-      additional_data: {
-        soap_text: soapLines,
-        measurement_type: "thirty_fifteen_ift",
-        vift_kmh: vift,
+    try {
+      onSave(scoreThirtyFifteenIft({
+        vift_kmh: viftManual,
         total_stages: stages,
-        hr_pre: hrPre || null,
-        bp_pre: bpPre || null,
-        hr_post: hrPost || null,
-        rpe: rpe ? parseInt(rpe) : null,
-        interpretation: interp.label,
-        training_min_kmh: parseFloat((vift * 1.0).toFixed(1)),
-        training_max_kmh: parseFloat((vift * 1.3).toFixed(1)),
-      },
-    });
-    toast.success("Test results saved.");
+        hr_pre: hrPre,
+        bp_pre: bpPre,
+        hr_post: hrPost,
+        rpe,
+        notes,
+      }, { assessmentDate, assessmentName: '30-15 Intermittent Fitness Test', client }));
+      toast.success("Test results saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save 30-15 IFT.");
+    }
   };
 
   const currentSpeed = STAGES[stageIndex];

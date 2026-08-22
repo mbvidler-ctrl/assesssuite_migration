@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, ChevronDown, ChevronUp, ExternalLink, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 const GRADES = [
   {
@@ -48,27 +49,12 @@ export default function PivotShiftTestRunner({ client, onSave, onClose }) {
   const canSave = leftGrade !== null && rightGrade !== null;
 
   const handleSave = () => {
-    if (!canSave) {
-      toast.error("Please grade both left and right sides before saving.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({ leftGrade, rightGrade, notes }, { runnerKey: 'pivot_shift', assessmentDate: todayLocal() }));
+      toast.success("Pivot Shift Test results saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-    const worstGrade = Math.max(leftGrade, rightGrade);
-    const gradeLabel = GRADES[worstGrade].label;
-    const soapText = `• Pivot Shift Test\n  Left: ${GRADES[leftGrade].label}\n  Right: ${GRADES[rightGrade].label}\n  Overall: ${gradeLabel}`;
-
-    onSave({
-      status: "completed",
-      result_value: worstGrade,
-      notes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: soapText,
-        measurement_type: "pivot_shift_test",
-        left_grade: leftGrade,
-        right_grade: rightGrade,
-      },
-    });
-    toast.success("Pivot Shift Test results saved.");
   };
 
   return (

@@ -26,7 +26,7 @@ export default function CreateAssessmentModal({ onClose, onAssessmentCreated }) 
     references: "",
   });
 
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}));
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newCondition, setNewCondition] = useState("");
   const [newTag, setNewTag] = useState("");
@@ -131,6 +131,7 @@ export default function CreateAssessmentModal({ onClose, onAssessmentCreated }) 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    /** @type {Record<string, string>} */
     const newErrors = {};
     if (!formData.name.trim()) newErrors.name = "Assessment name is required";
     if (!formData.category) newErrors.category = "Category is required";

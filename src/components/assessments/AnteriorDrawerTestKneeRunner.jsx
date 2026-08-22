@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Save, X, AlertTriangle, ChevronDown, ChevronUp, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 const SIDE_OPTIONS = ["Left", "Right", "Bilateral"];
 const END_FEEL_OPTIONS = [
@@ -42,57 +43,25 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
     setExpandedSection(expandedSection === section ? null : section);
 
   const handleSave = () => {
-    if (!translationGrade && !anteriorTranslation) {
-      toast.error("Please enter anterior translation measurement or laxity grade.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho(
+        {
+          side,
+          anteriorTranslation,
+          translationGrade,
+          endFeel,
+          painOnTest,
+          painLocation,
+          comparedToContralateral,
+          suspectedACLTear,
+          additionalFindings,
+          notes,
+        },
+        { runnerKey: "anterior_drawer_knee", assessmentDate: todayLocal() },
+      ));
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const isPositive =
-      translationGrade === "2+" ||
-      translationGrade === "3+" ||
-      (anteriorTranslation !== "" && parseFloat(anteriorTranslation) > 5);
-    const overallResult = isPositive ? "Positive" : "Negative";
-
-    const gradeLabel = TRANSLATION_GRADE.find((g) => g.value === translationGrade);
-
-    const soapLines = [
-      `• Anterior Drawer Test (Knee) — ${side} Side`,
-      `  Overall Result: ${overallResult}`,
-      anteriorTranslation ? `  Anterior Translation: ${anteriorTranslation} mm` : null,
-      translationGrade ? `  Laxity Grade: ${gradeLabel ? gradeLabel.label : translationGrade}` : null,
-      endFeel ? `  End Feel: ${endFeel}` : null,
-      painOnTest ? `  Pain on Test: ${painOnTest}` : null,
-      painLocation ? `  Pain Location: ${painLocation}` : null,
-      comparedToContralateral ? `  Contralateral Comparison: ${comparedToContralateral}` : null,
-      suspectedACLTear ? `  Clinical Impression: ${suspectedACLTear}` : null,
-      additionalFindings ? `  Additional Findings: ${additionalFindings}` : null,
-      notes ? `  Clinical Notes: ${notes}` : null,
-      `  Diagnostic accuracy: Sensitivity ~41%, Specificity ~95% for acute ACL tears (Benjaminse et al., 2006).`,
-      `  Best combined with Lachman Test and Pivot Shift Test for ACL evaluation.`,
-    ]
-      .filter(Boolean)
-      .join("\n");
-
-    onSave({
-      status: "completed",
-      result_value: isPositive ? 1 : 0,
-      additional_data: {
-        measurement_type: "anterior_drawer_knee",
-        soap_text: soapLines,
-        side,
-        anterior_translation_mm: anteriorTranslation ? parseFloat(anteriorTranslation) : null,
-        translation_grade: translationGrade,
-        end_feel: endFeel,
-        pain_on_test: painOnTest,
-        pain_location: painLocation,
-        compared_to_contralateral: comparedToContralateral,
-        suspected_acl_tear: suspectedACLTear,
-        additional_findings: additionalFindings,
-        overall_result: isPositive ? "Positive" : "Negative",
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
   };
 
   return (
@@ -115,8 +84,8 @@ export default function AnteriorDrawerTestKneeRunner({ client, onSave, onClose }
            src="https://images.unsplash.com/photo-1576091160550-2173f7f869?w=800&q=80"
            alt="Anterior Drawer Test positioning"
            className="w-full h-48 object-cover object-center"
-           onError={(e) => {
-             e.target.style.display = "none";
+           onError={(event) => {
+             event.currentTarget.style.display = "none";
            }}
          />
          <div className="px-4 py-2 bg-slate-100 text-xs text-slate-500 text-center">

@@ -9,8 +9,17 @@ import { base44 } from '@/api/base44Client';
 import { toast } from 'sonner';
 import { saveAssessmentToSOAP } from './TestRunnerSOAPHelper';
 import { todayLocal } from "@/lib/localDate";
+import { scoreQuestionnaireAssessment } from '@/lib/clinical/assessmentScoring';
+import { resolveRegisteredAssessmentScorer } from '@/lib/clinical/assessmentScorerRegistry';
 
-export default function QuestionnaireRunner({ assessment, onSave, onClose, initialResponses = {}, isStandaloneMode = false, client }) {
+// Explicit scorer-module declarations are consumed by the catalogue binding
+// audit. The runner still resolves the frozen scorer through the production
+// registry, so the UI and manifest cannot silently drift to separate logic.
+export const QUESTIONNAIRE_REGISTERED_SCORER_MODULES = Object.freeze([
+  '@/lib/clinical/scorers/residualAssessments',
+]);
+
+export default function QuestionnaireRunner({ assessment, onSave, onClose, initialResponses = {}, isStandaloneMode = false, client = null, clientAssessment = null, scoringKey = 'questionnaire-sum', clinicianNotes = '' }) {
   const [responses, setResponses] = useState(initialResponses);
   // Selection is tracked by OPTION INDEX (unique per question), not by value:
   // instruments like VISA-A/P repeat point values across options (Q8's A/B/C
@@ -22,6 +31,16 @@ export default function QuestionnaireRunner({ assessment, onSave, onClose, initi
   const [selectedClient, setSelectedClient] = useState(client);
   const [allClients, setAllClients] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const registeredScorer = resolveRegisteredAssessmentScorer(scoringKey);
+  const questions = Array.isArray(assessment.questions) && assessment.questions.length > 0
+    ? assessment.questions
+    : registeredScorer?.runnerSpec?.kind === 'questionnaire'
+      ? registeredScorer.runnerSpec.items.map((item) => ({
+        question_text: item.prompt,
+        question_type: item.type || 'single_choice',
+        options: item.options,
+      }))
+      : [];
 
   useEffect(() => {
     if (isStandaloneMode && !client) {
@@ -52,7 +71,7 @@ export default function QuestionnaireRunner({ assessment, onSave, onClose, initi
 
   const getMaxPossibleScore = () => {
     let max = 0;
-    assessment.questions.forEach(q => {
+    questions.forEach(q => {
       if (q.options && q.options.length > 0) {
         max += Math.max(...q.options.map(o => o.value || 0));
       } else if (q.question_type === 'yes_no') {
@@ -60,26 +79,6 @@ export default function QuestionnaireRunner({ assessment, onSave, onClose, initi
       }
     });
     return max;
-  };
-
-  const buildSoapText = (totalScore) => {
-    const maxScore = getMaxPossibleScore();
-    let soapText = `• ${assessment.name}: ${totalScore}/${maxScore}\n\n  Individual Question Responses:\n`;
-    assessment.questions.forEach((q, i) => {
-      const resp = responses[i];
-      let label = resp;
-      if (q.question_type === 'yes_no') label = resp === 1 ? 'Yes' : 'No';
-      else if (q.options) {
-        // Prefer the actually-selected option (index-tracked); fall back to
-        // a value lookup only for externally-hydrated responses.
-        const opt = selectedOptions[i] !== undefined
-          ? q.options[selectedOptions[i]]
-          : q.options.find(o => o.value === parseFloat(resp));
-        label = opt ? opt.label : resp;
-      }
-      soapText += `  Q${i+1}. ${q.question_text}\n      Answer: ${label}\n`;
-    });
-    return soapText;
   };
 
   const handleSave = async () => {
@@ -90,49 +89,53 @@ export default function QuestionnaireRunner({ assessment, onSave, onClose, initi
 
     setIsSubmitting(true);
     try {
-      const totalScore = calculateTotalScore();
       const assessmentDate = todayLocal();
-      const soapText = buildSoapText(totalScore);
-
-      const additionalData = {
-        responses,
-        measurement_type: 'questionnaire',
-        soap_text: soapText
-      };
-
-      if (isStandaloneMode && selectedClient) {
-        const updateData = {
-          status: 'completed',
-          result_value: totalScore,
-          assessment_date: assessmentDate,
-          additional_data: additionalData,
-          notes: soapText
-        };
-
-        const created = await base44.entities.ClientAssessment.create({
-          org_id: selectedClient.org_id,
-          client_id: selectedClient.id,
-          assessment_id: assessment.id,
-          ...updateData
+      const scored = registeredScorer
+        ? registeredScorer.validateAndScore({ responses, selectedOptions }, {
+          assessmentName: assessment.name,
+          assessmentDate,
+          notes: clinicianNotes,
+          client: selectedClient || client,
+        })
+        : scoreQuestionnaireAssessment(assessment, responses, {
+          scoringKey,
+          selectedOptions,
+          notes: clinicianNotes,
+          assessmentDate,
         });
+      const soapText = scored.additional_data.soap_text;
+
+      const clientToUse = selectedClient || client;
+      if (clientToUse) {
+        const updateData = scored;
+
+        const recordPayload = {
+          org_id: clientToUse.org_id,
+          client_id: clientToUse.id,
+          assessment_id: assessment.id,
+          ...(clientAssessment?.physio_care_episode_id
+            ? { physio_care_episode_id: clientAssessment.physio_care_episode_id }
+            : {}),
+          ...updateData,
+        };
+        const persisted = clientAssessment?.id
+          ? await base44.entities.ClientAssessment.update(clientAssessment.id, recordPayload)
+          : await base44.entities.ClientAssessment.create(recordPayload);
 
         await saveAssessmentToSOAP({
-          clientToUse: selectedClient,
-          appointmentId: null,
+          clientToUse,
+          appointmentId: clientAssessment?.appointment_id || null,
           objectiveText: soapText,
-          assessmentToUpdateId: created.id,
-          updateData
+          assessmentToUpdateId: persisted.id,
+          updateData,
+          assessment,
+          careEpisodeId: persisted.physio_care_episode_id || null,
         });
 
         toast.success("Assessment completed and saved to client!");
       }
       
-      onSave({
-        result_value: totalScore,
-        additional_data: additionalData,
-        assessment_date: assessmentDate,
-        notes: soapText
-      });
+      onSave(scored);
     } catch (error) {
       console.error("Error saving assessment:", error);
       toast.error("Failed to save assessment");
@@ -141,7 +144,7 @@ export default function QuestionnaireRunner({ assessment, onSave, onClose, initi
     }
   };
 
-  const allAnswered = assessment.questions.every((q, index) => 
+  const allAnswered = questions.length > 0 && questions.every((q, index) =>
     responses[index] !== undefined && responses[index] !== null
   );
 
@@ -200,7 +203,7 @@ export default function QuestionnaireRunner({ assessment, onSave, onClose, initi
           )}
 
           {/* Questions */}
-          {assessment.questions.map((question, index) => (
+          {questions.map((question, index) => (
             <div key={index} className="p-4 bg-slate-50 rounded-lg border border-slate-200">
               <Label className="text-base font-medium mb-3 block">
                 {index + 1}. {question.question_text}
@@ -208,7 +211,7 @@ export default function QuestionnaireRunner({ assessment, onSave, onClose, initi
 
               {question.question_type === 'yes_no' ? (
                 <RadioGroup
-                  value={responses[index]?.toString()}
+                  value={responses[index] === undefined || responses[index] === null ? '' : String(responses[index])}
                   onValueChange={(value) => setResponses({...responses, [index]: parseFloat(value)})}
                 >
                   <div className="flex gap-4">
@@ -224,7 +227,7 @@ export default function QuestionnaireRunner({ assessment, onSave, onClose, initi
                 </RadioGroup>
               ) : question.options && question.options.length > 0 ? (
                 <RadioGroup
-                  value={selectedOptions[index]?.toString()}
+                  value={selectedOptions[index] === undefined || selectedOptions[index] === null ? '' : String(selectedOptions[index])}
                   onValueChange={(value) => {
                     const optIdx = parseInt(value, 10);
                     setSelectedOptions({ ...selectedOptions, [index]: optIdx });
@@ -259,7 +262,7 @@ export default function QuestionnaireRunner({ assessment, onSave, onClose, initi
                 <div>
                   <p className="text-sm text-slate-600">Progress</p>
                   <p className="text-lg font-semibold">
-                    {Object.keys(responses).length} / {assessment.questions.length} answered
+                    {Object.keys(responses).length} / {questions.length} answered
                   </p>
                 </div>
               </div>

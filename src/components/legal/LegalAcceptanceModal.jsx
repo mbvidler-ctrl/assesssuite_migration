@@ -3,6 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Sparkles, Stethoscope, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import { assessSuiteHeaderLogo } from "@/brandAssets";
+import { buildTimeProfession } from "@/lib/profession";
 
 export default function LegalAcceptanceModal({ isOpen, onAccept, user }) {
   const [isSaving, setIsSaving] = useState(false);
@@ -48,8 +50,8 @@ export default function LegalAcceptanceModal({ isOpen, onAccept, user }) {
         {/* Logo / Header */}
         <div className="flex items-center justify-center mb-6">
           <img
-            src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/4c24cafdd_Logo-Transparent1.png"
-            alt="AssessSuite Clinical"
+            src={assessSuiteHeaderLogo}
+            alt={buildTimeProfession.branding.logoAlt}
             className="h-12 w-auto"
           />
         </div>

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreRmr } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 export default function RestingMetabolicRateRMRTestingRunner({ client, onSave, onClose }) {
   const [weight, setWeight] = useState("");
@@ -18,50 +18,22 @@ export default function RestingMetabolicRateRMRTestingRunner({ client, onSave, o
   const [notes, setNotes] = useState("");
 
   const handleCalculateBMR = () => {
-    if (!weight || !height || !age) {
-      toast.error("Please enter all required fields.");
-      return;
+    try {
+      const payload = scoreRmr({ weight_kg: weight, height_cm: height, age, sex, notes }, { assessmentName: "Resting Metabolic Rate (RMR) Testing", client });
+      setBmr(payload.result_value);
+      toast.success("BMR calculated successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const weightNum = parseFloat(weight);
-    const heightNum = parseFloat(height);
-    const ageNum = parseInt(age, 10);
-
-    let calculatedBMR;
-
-    if (sex === "male") {
-      calculatedBMR = 10 * weightNum + 6.25 * heightNum - 5 * ageNum + 5;
-    } else {
-      calculatedBMR = 10 * weightNum + 6.25 * heightNum - 5 * ageNum - 161;
-    }
-
-    setBmr(calculatedBMR);
-    toast.success("BMR calculated successfully.");
   };
 
   const handleSave = () => {
-    if (!bmr) {
-      toast.error("Please calculate BMR before saving.");
-      return;
+    try {
+      onSave(scoreRmr({ weight_kg: weight, height_cm: height, age, sex, notes }, { assessmentName: "Resting Metabolic Rate (RMR) Testing", client }));
+      toast.success("Assessment saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const additionalData = {
-      soap_text: `• Resting Metabolic Rate (RMR) Testing\n  Estimated BMR: ${bmr.toFixed(2)} kcal/day\n  Height: ${height}cm | Weight: ${weight}kg | Age: ${age}yrs | Sex: ${sex}`,
-      measurement_type: "RMR",
-      weight,
-      height,
-      age,
-      sex,
-    };
-
-    onSave({
-      status: "completed",
-      result_value: bmr,
-      additional_data: additionalData,
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved.");
   };
 
   return (

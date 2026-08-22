@@ -5,62 +5,16 @@ import { Textarea } from "@/components/ui/textarea";
 import { X, Save, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_PASE_LEISURE_ITEMS as LEISURE_ITEMS, PROM_NEURO_PASE_LEISURE_HOURS as LEISURE_HOURS, PROM_NEURO_PASE_LEISURE_WEIGHTS as LEISURE_WEIGHTS, PROM_NEURO_PASE_HOUSEHOLD_ITEMS as HOUSEHOLD_ITEMS, PROM_NEURO_PASE_HOUSEHOLD_WEIGHTS as HOUSEHOLD_WEIGHTS, PROM_NEURO_PASE_WORK_ITEM as WORK_ITEM, PROM_NEURO_PASE_WORK_HOURS as WORK_HOURS, PROM_NEURO_PASE_YES_NO_OPTIONS as YES_NO_OPTIONS, PROM_NEURO_PASE_WORK_TYPE_OPTIONS as WORK_TYPE_OPTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 // PASE weights per the Washburn et al. 1993 scoring algorithm
-const LEISURE_ITEMS = [
-  { id: "walking", label: "Walking for exercise" },
-  { id: "light_sport", label: "Light sport / recreation (e.g. bowling, golf)" },
-  { id: "moderate_sport", label: "Moderate sport / recreation (e.g. doubles tennis, ballroom dancing)" },
-  { id: "strenuous_sport", label: "Strenuous sport / recreation (e.g. swimming, singles tennis, aerobics)" },
-  { id: "muscle_exercise", label: "Muscle strengthening exercises (e.g. weights, resistance bands)" },
-];
 
-const LEISURE_HOURS = [
-  { value: 1, label: "< 1 hr/week" },
-  { value: 2, label: "1–2 hrs/week" },
-  { value: 3, label: "2–4 hrs/week" },
-  { value: 4, label: "> 4 hrs/week" },
-];
 
 // Leisure weights mapped to hours option value (Washburn 1993)
-const LEISURE_WEIGHTS = {
-  walking: [0.11, 0.32, 0.64, 1.07],
-  light_sport: [0.13, 0.38, 0.76, 1.27],
-  moderate_sport: [0.25, 0.75, 1.50, 2.50],
-  strenuous_sport: [0.38, 1.13, 2.26, 3.77],
-  muscle_exercise: [0.19, 0.57, 1.14, 1.90],
-};
 
-const HOUSEHOLD_ITEMS = [
-  { id: "light_housework", label: "Light housework (e.g. dusting, washing dishes)" },
-  { id: "heavy_housework", label: "Heavy housework (e.g. vacuuming, scrubbing floors)" },
-  { id: "home_repairs", label: "Home repairs (e.g. painting, carpentry)" },
-  { id: "lawn_garden", label: "Lawn work or gardening" },
-  { id: "outdoor_tasks", label: "Outdoor work or yardwork (e.g. mowing, raking, watering)" },
-  { id: "caregiving", label: "Caring for another person (e.g. child, elderly)" },
-];
 
-const HOUSEHOLD_WEIGHTS = {
-  light_housework: 0.25,
-  heavy_housework: 0.50,
-  home_repairs: 0.50,
-  lawn_garden: 0.50,
-  outdoor_tasks: 0.50,
-  caregiving: 0.35,
-};
 
-const WORK_ITEM = {
-  id: "work",
-  label: "Worked for pay or as a volunteer",
-};
 
-const WORK_HOURS = [
-  { value: 1, label: "< 10 hrs/week" },
-  { value: 2, label: "10–19 hrs/week" },
-  { value: 3, label: "20–29 hrs/week" },
-  { value: 4, label: "30–39 hrs/week" },
-  { value: 5, label: "≥ 40 hrs/week" },
-];
 
 const WORK_WEIGHTS = [10, 20, 30, 40, 50]; // approximate composite contribution
 
@@ -241,7 +195,7 @@ export default function PhysicalActivityScalefortheElderlyPASERunner({ onSave, o
                 <div key={item.id} className="flex items-center justify-between gap-4">
                   <span className="text-sm text-slate-800">{item.label}</span>
                   <div className="flex gap-2">
-                    {["Yes", "No"].map(opt => (
+                    {YES_NO_OPTIONS.map(opt => (
                       <button
                         key={opt}
                         onClick={() => setHouseholdResponses(p => ({ ...p, [item.id]: opt === "Yes" }))}
@@ -268,7 +222,7 @@ export default function PhysicalActivityScalefortheElderlyPASERunner({ onSave, o
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex gap-3">
-                {["Yes", "No"].map(opt => (
+                {YES_NO_OPTIONS.map(opt => (
                   <button
                     key={opt}
                     onClick={() => setWorkDone(opt === "Yes")}
@@ -297,7 +251,7 @@ export default function PhysicalActivityScalefortheElderlyPASERunner({ onSave, o
                   <div>
                     <p className="text-sm font-medium text-slate-700 mb-2">Type of work (optional)</p>
                     <div className="flex flex-wrap gap-2">
-                      {["Mostly sitting", "Mostly standing/walking", "Physical labour"].map(opt => (
+                      {WORK_TYPE_OPTIONS.map(opt => (
                         <button
                           key={opt}
                           onClick={() => setWorkType(opt)}

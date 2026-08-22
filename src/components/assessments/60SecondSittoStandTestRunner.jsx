@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, RotateCcw, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 const NORMS = [
   { ageMin: 60, ageMax: 69, male: [29, 37], female: [24, 33] },
@@ -38,9 +39,9 @@ export default function SixtySecondSittoStandTestRunner({ client, onSave, onClos
   const intervalRef = useRef(null);
 
   const clientAge = client?.date_of_birth
-    ? Math.floor((new Date() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000))
+    ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000))
     : null;
-  const clientGender = client?.gender === "female" ? "female" : "male";
+  const clientGender = client?.gender === "female" || client?.gender === "male" ? client.gender : null;
 
   useEffect(() => {
     if (phase === "running") {
@@ -85,46 +86,19 @@ export default function SixtySecondSittoStandTestRunner({ client, onSave, onClos
   };
 
   const handleSave = () => {
-    if (reps === 0 && phase === "idle") {
-      toast.error("Please complete the test or enter a rep count before saving.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho({
+        completed: phase === 'done', reps, handsUsed, age: clientAge, gender: clientGender,
+        hrPre, bpPre, hrPost, bpPost, notes,
+      }, { runnerKey: '60sec_sts', assessmentDate }));
+      toast.success("Assessment saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const interpretation = clientAge ? getInterpretation(reps, clientAge, clientGender) : null;
-
-    const soapLines = [
-      `• 60-Second Sit-to-Stand Test`,
-      `  Repetitions: ${reps}${handsUsed ? " (hands used for support)" : ""}`,
-      interpretation ? `  Performance: ${interpretation.label}` : null,
-      (hrPre || bpPre) ? `  Pre-Test: HR ${hrPre || "N/A"} bpm | BP ${bpPre || "N/A"} mmHg` : null,
-      (hrPost || bpPost) ? `  Post-Test: HR ${hrPost || "N/A"} bpm | BP ${bpPost || "N/A"} mmHg` : null,
-      notes ? `  Clinical Notes: ${notes}` : null,
-    ].filter(Boolean).join("\n");
-
-    onSave({
-      status: "completed",
-      result_value: reps,
-      assessment_date: assessmentDate,
-      notes,
-      additional_data: {
-        soap_text: soapLines,
-        measurement_type: "sixty_sec_sts",
-        repetitions: reps,
-        hands_used: handsUsed,
-        hr_pre: hrPre || null,
-        bp_pre: bpPre || null,
-        hr_post: hrPost || null,
-        bp_post: bpPost || null,
-        interpretation: interpretation?.label || null,
-        client_age_at_test: clientAge,
-        client_gender: clientGender,
-      },
-    });
-    toast.success("Assessment saved.");
   };
 
   const progressPct = ((60 - timeLeft) / 60) * 100;
-  const interpretation = clientAge && reps > 0 ? getInterpretation(reps, clientAge, clientGender) : null;
+  const interpretation = clientAge && clientGender && reps > 0 ? getInterpretation(reps, clientAge, clientGender) : null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 overflow-y-auto">

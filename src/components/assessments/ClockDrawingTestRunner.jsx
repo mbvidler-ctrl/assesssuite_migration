@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Plus, Trash2, ChevronDown, ChevronUp, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreClockDrawing } from "@/lib/clinical/scorers/coreA";
 
 const SIMPLE_SCORE_CRITERIA = [
   { score: 5, label: "Perfect clock: correct circle, numbers in correct order and placement, correct time shown" },
@@ -206,6 +207,19 @@ export default function ClockDrawingTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
+    const scoredPayload = scoreClockDrawing(
+      {
+        attempts: attempts.map((attempt) => ({
+          scoring_method: attempt.scoringMethod,
+          simple_score: attempt.simpleScore,
+          ten_point_items: attempt.tenPointItems,
+          abnormal_patterns: attempt.abnormalPatterns,
+          notes: attempt.notes,
+        })),
+        global_notes: globalNotes,
+      },
+      { assessmentName: 'Clock Drawing Test', assessmentDate: todayLocal(), notes: globalNotes, client },
+    );
     const attemptSummaries = attempts.map((attempt, i) => {
       const tenScore = TEN_POINT_ITEMS.reduce((sum, item) =>
         attempt.tenPointItems[item.key] ? sum + item.points : sum, 0);
@@ -228,15 +242,7 @@ export default function ClockDrawingTestRunner({ client, onSave, onClose }) {
       last.tenPointItems[item.key] ? sum + item.points : sum, 0);
     const resultValue = last.scoringMethod === "simple" ? (last.simpleScore ?? 0) : lastTenScore;
 
-    onSave({
-      result_value: resultValue,
-      additional_data: {
-        soap_text: soapText,
-        attempts,
-      },
-      notes: globalNotes,
-      assessment_date: todayLocal(),
-    });
+    onSave(scoredPayload);
     toast.success("Assessment saved.");
   };
 

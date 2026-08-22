@@ -9,6 +9,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Save, X, Play } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
+import { scoreOneMinuteSitToStand } from "@/lib/clinical/scorers/coreA";
 
 export default function OneMinuteSitToStandTestRunner({ client, onSave, onClose }) {
   const [isOpen, setIsOpen] = useState(true);
@@ -68,6 +70,18 @@ export default function OneMinuteSitToStandTestRunner({ client, onSave, onClose 
   };
 
   const handleSave = () => {
+    const scoredPayload = scoreOneMinuteSitToStand(
+      {
+        repetitions,
+        chair_height_cm: chairHeightCm,
+        arm_position: armPosition,
+        assistive_device: assistiveDevice,
+        pre_test_vitals: { heart_rate: preTestVitals.heartRate, oxygen_saturation: preTestVitals.oxygenSaturation },
+        post_test_vitals: { heart_rate: postTestVitals.heartRate, oxygen_saturation: postTestVitals.oxygenSaturation, rpe: postTestVitals.rpe, breathlessness: postTestVitals.breathlessness, pain: postTestVitals.pain },
+        notes,
+      },
+      { assessmentName: '1-Minute Sit-to-Stand Test', assessmentDate: todayLocal(), notes, client },
+    );
     const resultValue = repetitions;
     const additionalData = {
       measurement_type: "1_minute_sit_to_stand",
@@ -120,17 +134,7 @@ export default function OneMinuteSitToStandTestRunner({ client, onSave, onClose 
 
     const soapText = `• 1-Minute Sit-to-Stand Test (1MSTS)\n\n  Repetitions: ${repetitions} in 60 seconds — ${interpretation}\n\n  Normative Values (healthy adults 60-69): ~35-45 reps\n  Healthy adults 70-79: ~28-38 reps | 80+: ~20-30 reps\n  Strongly correlated with VO2max and 6MWT in COPD/cardiac populations\n  MCID: 3-4 repetitions\n\n  Reference: Crook et al. (2017). Validity of the 1 minute sit-to-stand test in patients with COPD. Journal of Cardiopulmonary Rehabilitation, 37(4), 278-282.`;
 
-    onSave({
-      repetitions,
-      interpretation,
-      result_value: resultValue,
-      additional_data: {
-        ...additionalData,
-        measurement_type: '1_minute_sit_to_stand',
-        soap_text: soapText,
-      },
-      notes: soapNotes
-    });
+    onSave(scoredPayload);
     handleClose();
   };
 
@@ -185,7 +189,7 @@ export default function OneMinuteSitToStandTestRunner({ client, onSave, onClose 
               <Checkbox
                 id="assistiveDevice"
                 checked={assistiveDevice}
-                onCheckedChange={setAssistiveDevice}
+                onCheckedChange={(checked) => setAssistiveDevice(checked === true)}
                 disabled={isTestRunning}
               />
               <Label htmlFor="assistiveDevice" className="cursor-pointer">Assistive device used</Label>

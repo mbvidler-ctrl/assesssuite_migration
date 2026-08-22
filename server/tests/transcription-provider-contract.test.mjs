@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testsDir, '..', '..');
 const MAX_AUDIO_BYTES = 20 * 1024 * 1024;
+const { transcriptionFallback } = await import('./support/provider-services.mjs');
 
 async function withEnvironment(overrides, operation) {
   const previous = Object.fromEntries(
@@ -68,10 +69,11 @@ test('transcription provider, admission and browser-source contracts', async (t)
     fs.rmSync(tempDir, { recursive: true, force: true });
   });
 
-  const invoke = (body, apiUsage) => transcriptionModule.default({
+  const invoke = (body, apiUsage, testFallback = null) => transcriptionModule.default({
     body: { org_id: 'org-1', ...body },
     user: { id: 'user-1', email: 'clinician@example.test' },
     ...(apiUsage ? { apiUsage } : {}),
+    ...(testFallback ? { transcriptionFallback: testFallback } : {}),
     respond: (status, responseBody) => ({ status, body: responseBody }),
   });
 
@@ -105,10 +107,14 @@ test('transcription provider, admission and browser-source contracts', async (t)
 
   await t.test('SELFTEST stays offline and labels its transcript', async () => {
     await withEnvironment(
-      { TRANSCRIPTION_ENABLED: undefined, SELFTEST: '1', LLM_REQUIRED: '1', OPENAI_API_KEY: 'synthetic-key' },
+      { NODE_ENV: 'test', TRANSCRIPTION_ENABLED: undefined, SELFTEST: '1', LLM_REQUIRED: '1', OPENAI_API_KEY: 'synthetic-key' },
       async () => {
         resolvedFile = goodWav;
-        const result = await invoke({ action: 'transcribe', audio_url: '/uploads/recording.wav' });
+        const result = await invoke(
+          { action: 'transcribe', audio_url: '/uploads/recording.wav' },
+          null,
+          transcriptionFallback,
+        );
         assert.equal(result.status, 200);
         assert.equal(result.body.simulated, true);
         assert.match(result.body.transcript, /fallback transcript/i);
@@ -221,6 +227,18 @@ test('transcription provider, admission and browser-source contracts', async (t)
         assert.equal(result.status, 200, JSON.stringify(result.body));
         assert.equal(result.body.simulated, false);
         assert.match(result.body.transcript, /\[REDACTED_EMAIL\]/);
+        assert.deepEqual(result.body.provider_receipt, {
+          contract_version: 'assesssuite-provider-call-receipt/1.0.0',
+          feature: 'transcription',
+          provider: 'openai',
+          model: 'whisper-1',
+          provider_status: 200,
+          provider_request_id_hash: 'cef1746a1a90f4ea9013c95e75b367048e4911b73d46cd89b0f751bb48985c5a',
+          usage: {
+            audio_seconds: 37.5,
+            actual_cost_microusd: 777,
+          },
+        });
         assert.equal(providerRequest.url, 'https://api.openai.com/v1/audio/transcriptions');
         assert.equal(providerRequest.options.body.get('model'), 'whisper-1');
         assert.equal(providerRequest.options.body.get('response_format'), 'verbose_json');

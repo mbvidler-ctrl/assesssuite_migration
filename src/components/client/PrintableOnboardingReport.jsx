@@ -7,7 +7,12 @@ import { useSecureFileUrl } from "@/components/files/SecureFile";
 import { renderSafeHtmlDocument } from "@/lib/safeHtml";
 
 
-const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
+const PrintableOnboardingReport = forwardRef(
+  /**
+   * @param {{client: any, onClose: () => void}} props
+   * @param {React.ForwardedRef<HTMLDivElement>} ref
+   */
+  ({ client, onClose }, ref) => {
   const localRef = useRef(null);
   const printRef = ref || localRef;
   const [medicalConditions, setMedicalConditions] = useState([]);
@@ -1361,7 +1366,8 @@ const PrintableOnboardingReport = forwardRef(({ client, onClose }, ref) => {
 
     </div>
   );
-});
+  }
+);
 
 PrintableOnboardingReport.displayName = "PrintableOnboardingReport";
 

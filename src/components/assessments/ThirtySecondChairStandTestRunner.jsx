@@ -38,7 +38,7 @@ export default function ThirtySecondChairStandTestRunner({ client, onSave, onClo
   const [notes, setNotes] = useState("");
   const [age, setAge] = useState(
     client?.date_of_birth
-      ? String(Math.floor((Date.now() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000)))
+      ? String(Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000)))
       : ""
   );
   const [gender, setGender] = useState(client?.gender === "male" || client?.gender === "female" ? client.gender : "");

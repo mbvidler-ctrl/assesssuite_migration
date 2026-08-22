@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Info, ChevronDown, ChevronUp, AlertCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 // Frequency options
 const FREQUENCY_OPTIONS = [
@@ -107,56 +108,15 @@ export default function JobTaskAnalysisiCareforWorkCoverRunner({ client, onSave,
   };
 
   const handleSave = () => {
-    if (!role.trim()) {
-      toast.error("Please enter the role.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({
+        jobDate, role, roleDescription, hoursInShift, nightshift, rosterType, daysPerWeek,
+        environment, movementsRequired, hazards, equipmentNeeded, basicNotes, topTasks,
+        physicalFrequencies, hazardFrequencies, clinicalObservations, otherComments,
+      }, { runnerKey: 'jta_icare', assessmentDate: jobDate }));
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const completedTopTasks = topTasks.filter(t => t.task.trim()).length;
-    const physicalDemandsSummary = Object.entries(physicalFrequencies)
-      .filter(([_, freq]) => freq)
-      .map(([demandId, freq]) => {
-        const demand = PHYSICAL_DEMANDS.find(d => d.id === demandId);
-        return `${demand.label}: ${freq}`;
-      })
-      .join("\n");
-
-    const hazardsSummary = Object.entries(hazardFrequencies)
-      .filter(([_, freq]) => freq)
-      .map(([hazardId, freq]) => {
-        const hazard = ENVIRONMENTAL_HAZARDS.find(h => h.id === hazardId);
-        return `${hazard.label}: ${freq}`;
-      })
-      .join("\n");
-
-    const soap = `• Job Task Analysis (JTA)\n  Role: ${role}\n  Date: ${jobDate}\n  Hours/Week: ${hoursInShift} hours × ${daysPerWeek} days\n\n  Role Description:\n    ${roleDescription || "Not specified"}\n\n  Environment & Movements:\n    Environment: ${environment || "Not specified"}\n    Movements: ${movementsRequired || "Not specified"}\n    Hazards: ${hazards || "Not specified"}\n    Equipment: ${equipmentNeeded || "Not specified"}\n\n  Top 3 Physically Demanding Tasks:\n${topTasks.filter(t => t.task.trim()).map((t, i) => `    ${i + 1}. ${t.task} (${t.duration || "duration not specified"})\n       Requirement: ${t.requirement}\n       Suitable duties support: ${t.supportAvailable}`).join("\n")}\n\n  Physical Demands (Frequency):\n${physicalDemandsSummary || "None recorded"}\n\n  Environmental Hazards (Frequency):\n${hazardsSummary || "None recorded"}\n\n  Clinical Observations:\n    ${clinicalObservations || "None recorded"}\n\n  Additional Comments:\n    ${otherComments || "None recorded"}\n\n  Assessment Reference: Based on Job Task Analysis standardized protocol. See https://www.icare.nsw.gov.au/employers/forms-and-resources/working-with-a-treating-doctor`;
-
-    onSave({
-      result_value: completedTopTasks,
-      assessment_date: jobDate,
-      additional_data: {
-        soap_text: soap,
-        measurement_type: "job_task_analysis",
-        job_info: {
-          role,
-          date: jobDate,
-          roleDescription,
-          hoursInShift,
-          nightshift,
-          rosterType,
-          daysPerWeek,
-          environment,
-          movementsRequired,
-          hazards,
-          equipmentNeeded
-        },
-        topTasks: topTasks.filter(t => t.task.trim()),
-        physicalFrequencies,
-        hazardFrequencies,
-        clinicalObservations,
-        otherComments
-      }
-    });
   };
 
   return (

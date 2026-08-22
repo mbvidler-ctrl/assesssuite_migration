@@ -6,7 +6,7 @@ import {
 
 export const COLORS = ["#3b82f6", "#10b981", "#a855f7", "#f59e0b", "#ef4444", "#06b6d4", "#ec4899", "#84cc16", "#f97316", "#6366f1"];
 
-export function SimpleBarChart({ data, height = 240, color }) {
+export function SimpleBarChart({ data, height = 240, color = null }) {
   if (!data || !data.length) return <p className="text-slate-400 text-sm py-6 text-center">No data recorded yet</p>;
   return (
     <ResponsiveContainer width="100%" height={height}>

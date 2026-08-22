@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Info, ClipboardList, BarChart2 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 const NORMS = [
   { gender: "Male", age: "17–19", excellent: "≥ 251", good: "221–250", average: "191–220", belowAvg: "161–190", poor: "< 161" },
@@ -49,7 +50,7 @@ function getClassification(bestJump, gender, age) {
 export default function StandingLongJumpRunner({ client, onSave, onClose }) {
   const [trials, setTrials] = useState(["", "", ""]);
   const [gender, setGender] = useState(client?.gender === "female" ? "Female" : client?.gender === "male" ? "Male" : "");
-  const [age, setAge] = useState(client?.date_of_birth ? String(Math.floor((new Date() - new Date(client.date_of_birth)) / 31557600000)) : "");
+  const [age, setAge] = useState(client?.date_of_birth ? String(Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / 31557600000)) : "");
   const [notes, setNotes] = useState("");
 
   const handleTrialChange = (index, value) => {
@@ -63,39 +64,12 @@ export default function StandingLongJumpRunner({ client, onSave, onClose }) {
   const classification = bestJump !== null ? getClassification(bestJump, gender, age) : null;
 
   const handleSave = () => {
-    if (validTrials.length === 0) {
-      toast.error("Please enter at least one jump distance.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({ trials: validTrials, gender, age, notes }, { runnerKey: 'standing_long_jump', assessmentDate: todayLocal() }));
+      toast.success("Standing Long Jump saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const soapText = `Standing Long Jump Assessment
-Client: ${client?.full_name || ""}
-Date: ${new Date().toLocaleDateString("en-AU")}
-
-Trials:
-${trials.map((t, i) => t !== "" ? `  Trial ${i + 1}: ${t} cm` : null).filter(Boolean).join("\n")}
-
-Best Result: ${bestJump} cm
-Classification: ${classification?.label || "N/A"} (${gender || "gender not recorded"}, age ${age || "not recorded"})
-
-Notes: ${notes || "None"}`;
-
-    onSave({
-      status: "completed",
-      result_value: bestJump,
-      additional_data: {
-        soap_text: soapText,
-        measurement_type: "standing_long_jump",
-        trials: validTrials,
-        best_jump_cm: bestJump,
-        classification: classification?.label || null,
-        gender,
-        age,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Standing Long Jump saved.");
   };
 
   return (

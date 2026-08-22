@@ -6,7 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, Save, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { todayLocal } from "@/lib/localDate";
+import { toast } from 'sonner';
+import { scoreAstrand } from '@/lib/clinical/scorers/coreB';
 
 // Age correction factors per Åstrand protocol
 function getAgeCorrectionFactor(age) {
@@ -118,44 +119,11 @@ export default function AstrandTestRunner({ onSave, onClose, initialData, client
   }, [data]);
 
   const handleSave = () => {
-    if (!calc.valid) return;
-
-    const soapLines = [
-      `• Åstrand-Rhyming Cycle Ergometer Test`,
-      `  Sex: ${data.sex} | Age: ${data.age} yrs | Body mass: ${data.body_mass_kg} kg`,
-      `  Workload: ${data.workload_watts} W (${calc.kgmMin} kgm/min)`,
-      `  HR: Min 5 = ${data.hr_minute5} bpm | Min 6 = ${data.hr_minute6} bpm${data.hr_minute4 ? ` | Min 4 = ${data.hr_minute4} bpm` : ''}`,
-      `  Steady-state HR: ${calc.steadyStateHR} bpm | Predicted HRmax: ${calc.predictedHRmax} bpm`,
-      `  VO2submax: ${calc.vo2Submax} ml/kg/min | Age-correction factor: ${calc.ageFactor}`,
-      `  Estimated VO2max: ${calc.vo2Final} ml/kg/min (${calc.category})`,
-    ];
-    if (calc.warnings.length > 0) soapLines.push(`  Flags: ${calc.warnings.join('; ')}`);
-    if (data.observations) soapLines.push(`  Observations: ${data.observations}`);
-
-    onSave({
-      result_value: parseFloat(calc.vo2Final),
-      additional_data: {
-        measurement_type: 'astrand',
-        soap_text: soapLines.join('\n'),
-        sex: data.sex,
-        age: parseFloat(data.age),
-        body_mass_kg: parseFloat(data.body_mass_kg),
-        workload_watts: parseFloat(data.workload_watts),
-        hr_minute4: parseFloat(data.hr_minute4) || null,
-        hr_minute5: parseFloat(data.hr_minute5),
-        hr_minute6: parseFloat(data.hr_minute6),
-        steady_state_hr: parseFloat(calc.steadyStateHR),
-        predicted_hrmax: calc.predictedHRmax,
-        age_correction_factor: calc.ageFactor,
-        vo2_submax: parseFloat(calc.vo2Submax),
-        vo2_uncorrected: parseFloat(calc.vo2Uncorrected),
-        estimated_vo2max: parseFloat(calc.vo2Final),
-        category: calc.category,
-        warnings: calc.warnings,
-        observations: data.observations,
-      },
-      assessment_date: todayLocal()
-    });
+    try {
+      onSave(scoreAstrand(data, { assessmentName: 'Åstrand-Rhyming Cycle Ergometer Test' }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save Åstrand assessment.');
+    }
   };
 
   const set = (field) => (e) => setData(prev => ({ ...prev, [field]: e.target.value }));

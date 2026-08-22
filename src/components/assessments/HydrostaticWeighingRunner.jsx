@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreHydrostatic } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 export default function HydrostaticWeighingRunner({ client, onSave, onClose }) {
   const [landWeight, setLandWeight] = useState("");
@@ -33,62 +33,12 @@ export default function HydrostaticWeighingRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (!landWeight || underwaterWeights.some((w) => !w)) {
-      toast.error("Please enter all required fields.");
-      return;
+    try {
+      onSave(scoreHydrostatic({ land_weight_kg: landWeight, underwater_weights_kg: underwaterWeights, notes }, { assessmentName: "Hydrostatic Weighing", client }));
+      toast.success("Assessment saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const validWeights = underwaterWeights.filter((w) => w);
-    if (validWeights.length < 3) {
-      toast.error("At least 3 underwater weights are required.");
-      return;
-    }
-
-    const averageUnderwaterWeight = validWeights.reduce((sum, w) => sum + parseFloat(w), 0) / validWeights.length;
-    const bodyDensity = calculateBodyDensity(parseFloat(landWeight), averageUnderwaterWeight);
-    const bodyFatPercentage = calculateBodyFatPercentage(bodyDensity);
-
-    const resultValue = bodyFatPercentage.toFixed(2);
-
-    // Generate comprehensive SOAP text with all measurements
-    let soapText = `Hydrostatic Weighing Assessment:\n\n`;
-    soapText += `Measurements:\n`;
-    soapText += `  • Land Weight: ${parseFloat(landWeight).toFixed(2)} kg\n`;
-    soapText += `\nUnderwater Weights (${validWeights.length} trials):\n`;
-    validWeights.forEach((weight, idx) => {
-      soapText += `  • Trial ${idx + 1}: ${parseFloat(weight).toFixed(2)} kg\n`;
-    });
-    soapText += `  • Average Underwater Weight: ${averageUnderwaterWeight.toFixed(2)} kg\n`;
-    soapText += `\nCalculated Results:\n`;
-    soapText += `  • Body Density: ${bodyDensity.toFixed(4)} g/cm³\n`;
-    soapText += `  • Body Fat Percentage: ${bodyFatPercentage.toFixed(2)}%\n`;
-    if (notes && notes.trim()) {
-      soapText += `\nClinical Notes: ${notes}\n`;
-    }
-
-    const additionalData = {
-      measurement_type: "hydrostatic_weighing",
-      landWeight: parseFloat(landWeight),
-      underwaterWeights: validWeights.map((w) => parseFloat(w)),
-      bodyDensity,
-      bodyFatPercentage,
-      soap_text: soapText
-    };
-
-    onSave({ status: "completed", result_value: resultValue, additional_data: additionalData, notes, assessment_date: todayLocal() });
-    toast.success("Assessment saved successfully.");
-  };
-
-  const calculateBodyDensity = (landWeight, averageUnderwaterWeight) => {
-    const waterDensity = 0.9982;
-    const residualVolume = 0.1;
-    const bodyVolume = (landWeight - averageUnderwaterWeight) / waterDensity;
-    const bodyDensity = landWeight / (bodyVolume - residualVolume);
-    return bodyDensity;
-  };
-
-  const calculateBodyFatPercentage = (bodyDensity) => {
-    return (495 / bodyDensity) - 450;
   };
 
   return (

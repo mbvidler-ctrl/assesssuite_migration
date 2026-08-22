@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 const PAIN_TYPES = ["Sharp", "Burning", "Aching", "Stabbing", "Pressure", "Tingling", "None"];
 const PAIN_LOCATIONS = ["Lateral femoral condyle", "Distal ITB", "Gerdy's tubercle", "Along ITB tract", "Other"];
@@ -21,41 +22,14 @@ export default function NobleCompressionTestRunner({ client, onSave, onClose }) 
   const [notes, setNotes] = useState("");
 
   const handleSave = () => {
-    if (isPositive === null) {
-      toast.error("Please indicate whether the test result is Positive or Negative.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho(
+        { isPositive, side, kneeAngle, reproduced, painLevel, painType, painLocation, notes },
+        { runnerKey: "noble_compression", assessmentDate: todayLocal() },
+      ));
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const resultLabel = isPositive ? "Positive" : "Negative";
-
-    const soapLines = [
-      `• Noble Compression Test: ${resultLabel}`,
-      `  Side Tested: ${side.charAt(0).toUpperCase() + side.slice(1)}`,
-      `  Knee Flexion Angle at Compression: ${kneeAngle ? kneeAngle + '°' : 'Not recorded'}`,
-      reproduced !== null ? `  Pain Reproduced at 30° Flexion: ${reproduced ? 'Yes' : 'No'}` : null,
-      painLevel !== "" ? `  Pain Intensity (NRS): ${painLevel}/10` : null,
-      painType ? `  Pain Quality/Type: ${painType}` : null,
-      painLocation ? `  Pain Location: ${painLocation}` : null,
-      notes ? `  Additional Notes: ${notes}` : null,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      status: "completed",
-      result_value: isPositive ? 1 : 0,
-      additional_data: {
-        measurement_type: "Noble Compression Test",
-        result: resultLabel,
-        side,
-        knee_angle_degrees: kneeAngle,
-        pain_reproduced_at_30deg: reproduced,
-        pain_level: painLevel !== "" ? Number(painLevel) : null,
-        pain_type: painType,
-        pain_location: painLocation,
-        soap_text: soapLines,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
   };
 
   return (

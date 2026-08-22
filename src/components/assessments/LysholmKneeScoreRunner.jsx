@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, BookOpen, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreLysholm } from "@/lib/clinical/scorers/coreB";
 
 const LYSHOLM_ITEMS = [
   { 
@@ -116,35 +116,12 @@ export default function LysholmKneeScoreRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (Object.keys(responses).length < LYSHOLM_ITEMS.length) {
-      toast.error("Please answer all questions.");
-      return;
+    try {
+      onSave(scoreLysholm({ responses, notes }, { assessmentName: 'Lysholm Knee Score', client }));
+      toast.success("Assessment saved successfully.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save Lysholm assessment.');
     }
-
-    const totalScore = getTotalScore();
-    const grade = totalScore >= 95 ? 'Excellent' : totalScore >= 84 ? 'Good' : totalScore >= 65 ? 'Fair' : 'Poor';
-
-    let soapText = `• Lysholm Knee Score: ${totalScore}/100 (${grade})\n\n  Item Scores:\n`;
-    LYSHOLM_ITEMS.forEach(item => {
-      const selectedOption = item.options.find(o => o.value === responses[item.id]);
-      soapText += `  - ${item.label}: ${responses[item.id]} pts${selectedOption ? ` (${selectedOption.label.split(' (')[0]})` : ''}\n`;
-    });
-
-    onSave({
-      status: "completed",
-      result_value: totalScore,
-      additional_data: {
-        measurement_type: "lysholm",
-        soap_text: soapText,
-        lysholm_data: {
-          result_value: totalScore,
-          responses,
-        }
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved successfully.");
   };
 
   return (

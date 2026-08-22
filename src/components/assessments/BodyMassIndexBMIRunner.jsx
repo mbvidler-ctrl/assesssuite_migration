@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreBmi } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 const BMI_CATEGORIES = [
   { max: 18.5, label: "Underweight",       risk: "Increased",    color: "bg-yellow-100 text-yellow-800 border-yellow-300" },
@@ -42,27 +42,11 @@ export default function BodyMassIndexBMIRunner({ client, onSave, onClose }) {
   }, [heightCm, weight]);
 
   const handleSave = () => {
-    if (!bmi) {
-      toast.error("Please enter valid height and weight first.");
-      return;
+    try {
+      onSave(scoreBmi({ height_cm: heightCm, weight_kg: weight, notes }, { assessmentName: "Body Mass Index (BMI)", client }));
+    } catch (error) {
+      toast.error(error.message);
     }
-    const hM = parseFloat(heightCm) / 100;
-    onSave({
-      status: "completed",
-      result_value: parseFloat(bmi.toFixed(2)),
-      assessment_date: todayLocal(),
-      notes,
-      additional_data: {
-        soap_text: `• Body Mass Index (BMI) Assessment\n  Height: ${heightCm} cm | Weight: ${weight} kg\n  BMI: ${bmi.toFixed(2)} kg/m²\n  Classification: ${category.label} (Health Risk: ${category.risk})${notes ? `\n  Notes: ${notes}` : ""}`,
-        measurement_type: "BMI",
-        height_cm: heightCm,
-        height_m: hM.toFixed(3),
-        weight_kg: weight,
-        bmi: bmi.toFixed(2),
-        bmi_category: category.label,
-        health_risk: category.risk,
-      },
-    });
   };
 
   return (

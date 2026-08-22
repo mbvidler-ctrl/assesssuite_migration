@@ -5,6 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Save, X, Play, Square, ChevronDown, ChevronUp } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
+import { toast } from "sonner";
 
 const SIGNS = [
   { key: "hip_drop", label: "Contralateral Hip Drop", description: "Pelvis on the non-standing side drops below horizontal — positive Trendelenburg sign, indicates ipsilateral gluteus medius/minimus weakness." },
@@ -126,33 +128,14 @@ export default function TrendelenburgTestRunner({ client, onSave, onClose }) {
   const canSave = left.result || right.result;
 
   const handleSave = () => {
-    const leftSigns = SIGNS.filter(s => left.signs?.[s.key]).map(s => s.label);
-    const rightSigns = SIGNS.filter(s => right.signs?.[s.key]).map(s => s.label);
-
-    const overallResult = (left.result === "Positive" || right.result === "Positive") ? "Positive" : "Negative";
-
-    let soap = `• Trendelenburg Test\n`;
-    soap += `  Left: ${left.result || "Not recorded"}${leftSigns.length ? ` — Signs: ${leftSigns.join(", ")}` : ""}\n`;
-    soap += `  Right: ${right.result || "Not recorded"}${rightSigns.length ? ` — Signs: ${rightSigns.join(", ")}` : ""}\n`;
-    soap += `  Overall: ${overallResult}\n`;
-    if (notes) soap += `  Notes: ${notes}\n`;
-
-    onSave({
-      status: "completed",
-      result_value: overallResult === "Positive" ? 1 : 0,
-      notes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        measurement_type: "Trendelenburg_Test",
-        left_result: left.result,
-        right_result: right.result,
-        left_signs: leftSigns,
-        right_signs: rightSigns,
-        overall_result: overallResult,
-        soap_text: soap,
-      },
-    });
-    onClose();
+    try {
+      onSave(validateFunctionalOrtho({ left, right, notes }, {
+        runnerKey: 'trendelenburg', assessmentDate: todayLocal(),
+      }));
+      onClose();
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

@@ -7,75 +7,14 @@ import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { saveAssessmentToSOAP } from "./TestRunnerSOAPHelper";
 import { todayLocal } from "@/lib/localDate";
+import {
+  FIM_ITEMS,
+  FIM_SCORE_LEVELS,
+  FIM_SECTIONS,
+  validateAndScoreFim,
+} from "@/lib/clinical/scorers/standaloneAndFim";
 
-const SCORE_LEVELS = [
-  { value: 7, label: "7 – Complete Independence", description: "Activity performed safely, without modification, equipment, or assistance, within reasonable time." },
-  { value: 6, label: "6 – Modified Independence", description: "Requires an assistive device, takes more than reasonable time, or there are safety considerations." },
-  { value: 5, label: "5 – Supervision/Setup", description: "Requires only standby supervision, cueing, or coaxing. No hands-on assistance. Helper sets up objects." },
-  { value: 4, label: "4 – Minimal Assistance", description: "Helper provides hands-on assistance only (touching); person performs ≥75% of task effort." },
-  { value: 3, label: "3 – Moderate Assistance", description: "Person performs 50–74% of task effort." },
-  { value: 2, label: "2 – Maximal Assistance", description: "Person performs 25–49% of task effort." },
-  { value: 1, label: "1 – Total Assistance", description: "Person performs <25% of task effort or activity cannot be done." },
-];
-
-const FIM_SECTIONS = [
-  {
-    category: "Self-Care",
-    subscale: "motor",
-    items: [
-      { id: 0, label: "Eating", description: "Use of suitable utensils to bring food to mouth, chewing and swallowing." },
-      { id: 1, label: "Grooming", description: "Oral care, hair combing, washing hands/face, shaving or makeup." },
-      { id: 2, label: "Bathing", description: "Washing, rinsing, and drying the body from the neck down (excluding back)." },
-      { id: 3, label: "Dressing – Upper Body", description: "Dressing and undressing above the waist, including prostheses or orthoses." },
-      { id: 4, label: "Dressing – Lower Body", description: "Dressing and undressing below the waist, including prostheses or orthoses." },
-      { id: 5, label: "Toileting", description: "Maintaining perineal hygiene and adjusting clothing before/after using toilet." },
-    ],
-  },
-  {
-    category: "Sphincter Control",
-    subscale: "motor",
-    items: [
-      { id: 6, label: "Bladder Management", description: "Level of assistance needed to manage bladder safely; frequency of accidents." },
-      { id: 7, label: "Bowel Management", description: "Level of assistance needed to manage bowel safely; frequency of accidents." },
-    ],
-  },
-  {
-    category: "Transfers",
-    subscale: "motor",
-    items: [
-      { id: 8, label: "Transfer: Bed/Chair/Wheelchair", description: "Transferring to/from bed, chair, and wheelchair." },
-      { id: 9, label: "Transfer: Toilet", description: "Getting on and off a toilet or commode." },
-      { id: 10, label: "Transfer: Tub/Shower", description: "Getting into and out of a bathtub or shower." },
-    ],
-  },
-  {
-    category: "Locomotion",
-    subscale: "motor",
-    items: [
-      { id: 11, label: "Walk / Wheelchair", description: "Walking on level surfaces, or propelling a wheelchair indoors for at least 50m." },
-      { id: 12, label: "Stairs", description: "Going up and down 12–14 stairs." },
-    ],
-  },
-  {
-    category: "Communication",
-    subscale: "cognitive",
-    items: [
-      { id: 13, label: "Comprehension", description: "Understanding verbal or non-verbal communication." },
-      { id: 14, label: "Expression", description: "Expressing verbal or non-verbal language; clear meaningful communication." },
-    ],
-  },
-  {
-    category: "Social Cognition",
-    subscale: "cognitive",
-    items: [
-      { id: 15, label: "Social Interaction", description: "Skills related to getting along and participating with others in therapeutic and social situations." },
-      { id: 16, label: "Problem Solving", description: "Skills related to solving problems of daily living including safety and financial decisions." },
-      { id: 17, label: "Memory", description: "Skills related to recognising people frequently encountered, remembering daily routines, and executing requests without reminders." },
-    ],
-  },
-];
-
-const ALL_ITEMS = FIM_SECTIONS.flatMap(s => s.items);
+const ALL_ITEMS = FIM_ITEMS;
 
 export default function FunctionalIndependenceMeasureFIMRunner({ client, assessment, clientAssessment, onSave, onClose }) {
   const [scores, setScores] = useState(Array(18).fill(null));
@@ -112,37 +51,11 @@ export default function FunctionalIndependenceMeasureFIMRunner({ client, assessm
     }
     setIsSaving(true);
     try {
-      // Build detailed SOAP text with full item labels and score descriptions
-      const sectionLines = FIM_SECTIONS.map(section => {
-        const lines = section.items.map(item => {
-          const score = scores[item.id];
-          const levelLabel = SCORE_LEVELS.find(l => l.value === score)?.label || `${score}/7`;
-          return `    ${item.label}: ${levelLabel}`;
-        }).join('\n');
-        return `  ${section.category} (${section.subscale}):\n${lines}`;
-      }).join('\n\n');
-
-      const soap_text = `Functional Independence Measure (FIM)\n\nTotal Score: ${totalScore}/126\nMotor Subscale: ${motorScore}/91\nCognitive Subscale: ${cogScore}/35\n\nIndividual Item Scores:\n${sectionLines}${notes ? `\n\nClinical Notes: ${notes}` : ''}`;
-
       const assessmentDate = todayLocal();
-      const updateData = {
-        status: "completed",
-        result_value: totalScore,
-        notes,
-        assessment_date: assessmentDate,
-        additional_data: {
-          measurement_type: "fim",
-          soap_text,
-          motor_score: motorScore,
-          cognitive_score: cogScore,
-          total_score: totalScore,
-          sections: FIM_SECTIONS.map(s => ({
-            category: s.category,
-            subscale: s.subscale,
-            items: s.items.map(item => ({ name: item.label, score: scores[item.id] })),
-          })),
-        },
-      };
+      const updateData = validateAndScoreFim({ scores, notes }, {
+        assessmentName: assessment?.name || 'Functional Independence Measure (FIM)',
+        assessmentDate,
+      });
 
       // Save to ClientAssessment if we have one, or create new
       let savedAssessmentId = clientAssessment?.id;
@@ -160,13 +73,14 @@ export default function FunctionalIndependenceMeasureFIMRunner({ client, assessm
 
       // Save to SOAP note
       if (client) {
-        const objectiveText = `Assessment completed on ${new Date().toLocaleDateString('en-AU')}:\n\n${soap_text}`;
+        const objectiveText = `Assessment completed on ${new Date().toLocaleDateString('en-AU')}:\n\n${updateData.additional_data.soap_text}`;
         await saveAssessmentToSOAP({
           clientToUse: client,
           appointmentId: clientAssessment?.appointment_id || null,
           objectiveText,
           assessmentToUpdateId: savedAssessmentId,
           updateData,
+          assessment,
         });
       }
 
@@ -175,7 +89,7 @@ export default function FunctionalIndependenceMeasureFIMRunner({ client, assessm
       onClose();
     } catch (err) {
       console.error("FIM save error:", err);
-      toast.error("Failed to save assessment.");
+      toast.error(err instanceof Error ? err.message : "Failed to save assessment.");
     } finally {
       setIsSaving(false);
     }
@@ -319,7 +233,7 @@ export default function FunctionalIndependenceMeasureFIMRunner({ client, assessm
                         <div className="px-4 pb-4 pt-3 space-y-3">
                           <div className="bg-slate-50 rounded p-3 text-sm text-slate-600 italic">{item.description}</div>
                           <div className="space-y-2">
-                            {SCORE_LEVELS.map(level => (
+                            {FIM_SCORE_LEVELS.map(level => (
                               <button
                                 key={level.value}
                                 onClick={() => handleScore(item.id, level.value)}

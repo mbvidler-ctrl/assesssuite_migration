@@ -13,13 +13,24 @@
 // recoverable via resend.
 
 import { capabilityEnabled } from './capabilityFlags.mjs';
+import { resolveActiveProfessionContract } from '../packages/profession-config/runtime.mjs';
 
 const RESEND_URL = 'https://api.resend.com/emails';
 const SEND_TIMEOUT_MS = 15000;
 
 // Use a stable, replyable sender by default. Operators can still override it
 // after verifying the corresponding sending identity with the provider.
-const EMAIL_FROM = () => process.env.EMAIL_FROM || 'AssessSuite Clinical <verification@assesssuite.com>';
+function productIdentity(environment = process.env) {
+  const { profession } = resolveActiveProfessionContract(environment);
+  return {
+    productName: profession.productName,
+    shortName: profession.shortName,
+    applicationHost: profession.deployment.intendedAppHost,
+  };
+}
+
+const EMAIL_FROM = () => process.env.EMAIL_FROM
+  || `${productIdentity().productName} <verification@assesssuite.com>`;
 const EMAIL_REPLY_TO = () => process.env.EMAIL_REPLY_TO || 'admin@assesssuite.com';
 
 export function adminNotificationRecipient(environment = process.env) {
@@ -67,7 +78,18 @@ export function smsEnabled(environment = process.env) {
  * Returns a delivery outcome and never throws. Confirmed sends include the
  * provider message id; failures include only safe, structured diagnostics.
  */
-export async function sendEmail({ to, subject, text, html }) {
+export async function sendEmail({ to, subject, text, html, idempotencyKey = null }) {
+  if (
+    idempotencyKey !== null
+    && (
+      typeof idempotencyKey !== 'string'
+      || idempotencyKey.length < 1
+      || idempotencyKey.length > 256
+      || /[\r\n]/.test(idempotencyKey)
+    )
+  ) {
+    throw new TypeError('Email idempotency key is invalid');
+  }
   let recorded = false;
   try {
     // Retain delivery metadata only. Transactional message bodies can contain
@@ -90,6 +112,7 @@ export async function sendEmail({ to, subject, text, html }) {
         headers: {
           Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
           'Content-Type': 'application/json',
+          ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
         },
         body: JSON.stringify({
           from: EMAIL_FROM(),
@@ -146,37 +169,40 @@ export async function sendEmail({ to, subject, text, html }) {
 // ---------------------------------------------------------------------------
 
 function htmlWrap(title, bodyHtml, preheader = title) {
+  const identity = productIdentity();
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><title>${escapeHtml(title)}</title></head><body style="font-family:Arial,Helvetica,sans-serif;color:#1f2937;max-width:520px;margin:0 auto;padding:24px">
 <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;mso-hide:all">${escapeHtml(preheader)}&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;</div>
 <h2 style="color:#0f172a;font-size:18px">${escapeHtml(title)}</h2>
 ${bodyHtml}
-<p style="color:#94a3b8;font-size:12px;margin-top:28px">AssessSuite Clinical — a product of Assess Suite Pty Ltd (ABN 53 694 044 481). This is an automated message; replies reach ${escapeHtml(EMAIL_REPLY_TO())}.</p>
+<p style="color:#94a3b8;font-size:12px;margin-top:28px">${escapeHtml(identity.productName)} — a product of Assess Suite Pty Ltd (ABN 53 694 044 481). This is an automated message; replies reach ${escapeHtml(EMAIL_REPLY_TO())}.</p>
 </body></html>`;
 }
 
 export function otpEmail(code) {
   const safeCode = escapeHtml(code);
   const supportAddress = EMAIL_REPLY_TO();
-  const safetyText = `You requested this code from AssessSuite at assesssuite.com. Do not share this code with anyone, including AssessSuite support. AssessSuite will never ask you for it. If you did not request this code, ignore this email and contact ${supportAddress}.`;
+  const identity = productIdentity();
+  const safetyText = `You requested this code from ${identity.shortName} at ${identity.applicationHost}. Do not share this code with anyone, including ${identity.shortName} support. ${identity.shortName} will never ask you for it. If you did not request this code, ignore this email and contact ${supportAddress}.`;
   return {
-    subject: 'Your AssessSuite verification code',
-    text: `Your AssessSuite verification code is: ${code}\n\nThe code expires in 10 minutes.\n\n${safetyText}`,
+    subject: `Your ${identity.shortName} verification code`,
+    text: `Your ${identity.shortName} verification code is: ${code}\n\nThe code expires in 10 minutes.\n\n${safetyText}`,
     html: htmlWrap(
       'Verify your email',
-      `<p>Your AssessSuite verification code is:</p><p style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#0f172a">${safeCode}</p><p>The code expires in 10 minutes.</p><p>${escapeHtml(safetyText)}</p>`,
-      'Your AssessSuite verification code expires in 10 minutes.',
+      `<p>Your ${escapeHtml(identity.shortName)} verification code is:</p><p style="font-size:28px;font-weight:bold;letter-spacing:6px;color:#0f172a">${safeCode}</p><p>The code expires in 10 minutes.</p><p>${escapeHtml(safetyText)}</p>`,
+      `Your ${identity.shortName} verification code expires in 10 minutes.`,
     ),
   };
 }
 
 export function resetEmail(link) {
   const safeLink = escapeHtml(link);
+  const identity = productIdentity();
   return {
-    subject: 'Reset your AssessSuite password',
-    text: `A password reset was requested for your AssessSuite account.\n\nReset your password here (link expires in 60 minutes):\n${link}\n\nIf you did not request this, you can ignore this email — your password is unchanged.`,
+    subject: `Reset your ${identity.shortName} password`,
+    text: `A password reset was requested for your ${identity.shortName} account.\n\nReset your password here (link expires in 60 minutes):\n${link}\n\nIf you did not request this, you can ignore this email — your password is unchanged.`,
     html: htmlWrap(
       'Reset your password',
-      `<p>A password reset was requested for your AssessSuite account.</p><p><a href="${safeLink}" style="background:#2563eb;color:#ffffff;padding:10px 22px;border-radius:8px;text-decoration:none;display:inline-block">Reset password</a></p><p>The link expires in 60 minutes. If you did not request this, you can ignore this email — your password is unchanged.</p>`,
+      `<p>A password reset was requested for your ${escapeHtml(identity.shortName)} account.</p><p><a href="${safeLink}" style="background:#2563eb;color:#ffffff;padding:10px 22px;border-radius:8px;text-decoration:none;display:inline-block">Reset password</a></p><p>The link expires in 60 minutes. If you did not request this, you can ignore this email — your password is unchanged.</p>`,
     ),
   };
 }
@@ -184,37 +210,40 @@ export function resetEmail(link) {
 export function welcomeEmail(name) {
   const who = name ? ` ${name}` : '';
   const htmlWho = name ? ` ${escapeHtml(name)}` : '';
+  const identity = productIdentity();
   return {
-    subject: 'Your AssessSuite account is active',
-    text: `Welcome${who},\n\nYour AssessSuite account is now active. You can sign in and begin using the platform.\n\nSupport: ${EMAIL_REPLY_TO()} | 1800 317 553 (Mon–Thu, 10 am–2 pm AEST)`,
+    subject: `Your ${identity.shortName} account is active`,
+    text: `Welcome${who},\n\nYour ${identity.shortName} account is now active. You can sign in and begin using the platform.\n\nSupport: ${EMAIL_REPLY_TO()} | 1800 317 553 (Mon–Thu, 10 am–2 pm AEST)`,
     html: htmlWrap(
       'Your account is active',
-      `<p>Welcome${htmlWho},</p><p>Your AssessSuite account is now active. You can sign in and begin using the platform.</p><p>Support: ${escapeHtml(EMAIL_REPLY_TO())} | 1800 317 553 (Mon–Thu, 10 am–2 pm AEST)</p>`,
+      `<p>Welcome${htmlWho},</p><p>Your ${escapeHtml(identity.shortName)} account is now active. You can sign in and begin using the platform.</p><p>Support: ${escapeHtml(EMAIL_REPLY_TO())} | 1800 317 553 (Mon–Thu, 10 am–2 pm AEST)</p>`,
     ),
   };
 }
 
 export function adminNotifyEmail(newUserEmail) {
   const safeEmail = escapeHtml(newUserEmail);
+  const identity = productIdentity();
   return {
     to: ADMIN_NOTIFY_TO(),
-    subject: 'AssessSuite: new registration',
-    text: `A new account has registered on AssessSuite: ${newUserEmail}\n\nThe account is pending; it activates automatically on successful subscription payment.`,
+    subject: `${identity.shortName}: new registration`,
+    text: `A new account has registered on ${identity.shortName}: ${newUserEmail}\n\nThe account is pending; it activates automatically on successful subscription payment or verified trial start.`,
     html: htmlWrap(
       'New registration',
-      `<p>A new account has registered on AssessSuite: <strong>${safeEmail}</strong></p><p>The account is pending; it activates automatically on successful subscription payment.</p>`,
+      `<p>A new account has registered on ${escapeHtml(identity.shortName)}: <strong>${safeEmail}</strong></p><p>The account is pending; it activates automatically on successful subscription payment or verified trial start.</p>`,
     ),
   };
 }
 
 export function inviteEmail(role) {
   const safeRole = escapeHtml(role);
+  const identity = productIdentity();
   return {
-    subject: 'You have been invited to AssessSuite',
-    text: `You have been invited to AssessSuite (role: ${role}).\n\nCreate your login at the AssessSuite site using this email address.`,
+    subject: `You have been invited to ${identity.shortName}`,
+    text: `You have been invited to ${identity.shortName} (role: ${role}).\n\nCreate your login at the ${identity.shortName} site using this email address.`,
     html: htmlWrap(
       'You have been invited',
-      `<p>You have been invited to AssessSuite (role: <strong>${safeRole}</strong>).</p><p>Create your login at the AssessSuite site using this email address.</p>`,
+      `<p>You have been invited to ${escapeHtml(identity.shortName)} (role: <strong>${safeRole}</strong>).</p><p>Create your login at the ${escapeHtml(identity.shortName)} site using this email address.</p>`,
     ),
   };
 }

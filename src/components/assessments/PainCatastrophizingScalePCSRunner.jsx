@@ -6,28 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_PCS_PCS_ITEMS as PCS_ITEMS, PROM_NEURO_PCS_SCORE_LABELS as SCORE_LABELS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 // Subscale groupings (0-indexed)
 // Rumination: items 8,9,10,11 (0-indexed: 7,8,9,10)
 // Magnification: items 6,7,13 (0-indexed: 5,6,12)
 // Helplessness: items 1,2,3,4,5,12 (0-indexed: 0,1,2,3,4,11)
-const PCS_ITEMS = [
-  { text: "I worry all the time about whether the pain will end.", subscale: "Helplessness" },
-  { text: "I feel I can't go on.", subscale: "Helplessness" },
-  { text: "It's terrible and I think it's never going to get any better.", subscale: "Helplessness" },
-  { text: "It's awful and I feel that it overwhelms me.", subscale: "Helplessness" },
-  { text: "I feel I can't stand it anymore.", subscale: "Helplessness" },
-  { text: "I become afraid that the pain will get worse.", subscale: "Magnification" },
-  { text: "I keep thinking of other painful events.", subscale: "Magnification" },
-  { text: "I anxiously want the pain to go away.", subscale: "Rumination" },
-  { text: "I can't seem to keep it out of my mind.", subscale: "Rumination" },
-  { text: "I keep thinking about how much it hurts.", subscale: "Rumination" },
-  { text: "I keep thinking about how badly I want the pain to stop.", subscale: "Rumination" },
-  { text: "There's nothing I can do to reduce the intensity of the pain.", subscale: "Helplessness" },
-  { text: "I wonder whether something serious may happen.", subscale: "Magnification" },
-];
 
-const SCORE_LABELS = ["0 – Not at all", "1 – Slight", "2 – Moderate", "3 – Great degree", "4 – All the time"];
 
 function getInterpretation(total) {
   if (total <= 20) return { level: "Low Catastrophizing", color: "text-green-700", bg: "bg-green-50 border-green-300", desc: "Scores ≤20 suggest minimal pain catastrophizing. Client is unlikely to have significant psychological barriers to recovery." };

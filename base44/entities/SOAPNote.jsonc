@@ -10,6 +10,10 @@
       "type": "string",
       "description": "Reference to the client"
     },
+    "physio_care_episode_id": {
+      "type": "string",
+      "description": "Canonical Physio care episode owning this note, its attachments, audio and transcript. Older unassigned notes omit this field until explicitly assigned."
+    },
     "appointment_id": {
       "type": "string",
       "description": "Reference to the appointment (optional if SOAP note created independently)"
@@ -179,6 +183,36 @@
         }
       },
       "description": "A log of changes made to the note"
+    },
+    "ai_generation": {
+      "type": "object",
+      "description": "Server-owned immutable binding to the durable Physio AI generation reviewed into this note.",
+      "properties": {
+        "generation_id": { "type": "string" },
+        "task_type": { "type": "string", "const": "physio.soap_note.v1" },
+        "source_output_state": { "type": "string", "const": "ai_draft_unreviewed" },
+        "care_episode_id": { "type": "string" },
+        "source_output_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "provenance_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "provenance": { "type": "object" },
+        "reviewed_by": { "type": "string" },
+        "reviewed_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["generation_id", "task_type", "source_output_state", "care_episode_id", "source_output_sha256", "provenance_sha256", "provenance", "reviewed_by", "reviewed_at"]
+    },
+    "ai_edit_revision_history": {
+      "type": "array",
+      "description": "Server-owned immutable snapshots of superseded clinician-edited AI note content.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "superseded_at": { "type": "string", "format": "date-time" },
+          "actor_user_id": { "type": "string" },
+          "actor_email": { "type": "string" },
+          "prior_content": { "type": "object" }
+        },
+        "required": ["superseded_at", "actor_user_id", "actor_email", "prior_content"]
+      }
     }
   },
   "required": [

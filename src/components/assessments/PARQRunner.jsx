@@ -6,16 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_PARQ_PARQ_QUESTIONS as PARQ_QUESTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const PARQ_QUESTIONS = [
-  "Has your doctor ever said that you have a heart condition and that you should only do physical activity recommended by a doctor?",
-  "Do you feel pain in your chest when you do physical activity?",
-  "In the past month, have you had chest pain when you were not doing physical activity?",
-  "Do you lose your balance because of dizziness or do you ever lose consciousness?",
-  "Do you have a bone or joint problem (for example, back, knee or hip) that could be made worse by a change in your physical activity?",
-  "Is your doctor currently prescribing drugs (for example, water pills) for your blood pressure or heart condition?",
-  "Do you know of any other reason why you should not do physical activity?"
-];
 
 export default function PARQRunner({ onSave, onClose }) {
   const [answers, setAnswers] = useState({});

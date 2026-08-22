@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle, Info, Zap, Heart, Trash2, Clock, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreChester } from "@/lib/clinical/scorers/extrasPhysiological";
 
 function InlineTimer({ stageNumber, onDone }) {
   const [seconds, setSeconds] = useState(180);
@@ -60,7 +61,7 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
   const targetHRRange = predictedMaxHR ? [Math.round(predictedMaxHR * 0.7), Math.round(predictedMaxHR * 0.8)] : null;
 
   const handleStartTest = () => {
-    if (!age || isNaN(age) || age <= 0) {
+    if (!age || Number.isNaN(Number(age)) || Number(age) <= 0) {
       toast.error("Please enter a valid age.");
       return;
     }
@@ -135,34 +136,14 @@ export default function ChesterStepTestRunner({ client, onSave, onClose }) {
 
   const handleSave = () => {
     const completedStages = stages.filter(s => s.hr && s.rpe);
-    if (completedStages.length === 0) {
-      toast.error("Please complete at least one stage with HR and RPE.");
-      return;
+    try {
+      onSave(scoreChester({ age, step_height_cm: stepHeight, stages: completedStages, notes }, {
+        assessmentDate: todayLocal(),
+        assessmentName: 'Chester Step Test',
+      }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save Chester Step Test.");
     }
-
-    // Use final HR for result_value (must be a number)
-    const finalStage = completedStages[completedStages.length - 1];
-    const resultValue = finalStage.hr ? parseFloat(finalStage.hr) : 0;
-
-    // Format stages data
-    const stagesText = completedStages.map(s => 
-      `  Stage ${s.stage}: HR ${s.hr} bpm, RPE ${s.rpe}`
-    ).join('\n');
-
-    const additionalData = {
-      soap_text: `• Chester Step Test (Step Height: ${stepHeight} cm):\n${stagesText}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`,
-      stages: completedStages,
-      stepHeight,
-      predictedMaxHR,
-      stagesCompleted: completedStages.length
-    };
-
-    onSave({
-      result_value: resultValue,
-      additional_data: additionalData,
-      notes,
-      assessment_date: todayLocal(),
-    });
   };
 
   return (

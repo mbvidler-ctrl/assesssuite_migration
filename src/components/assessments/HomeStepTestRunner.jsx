@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, AlertTriangle, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreHomeStep } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 export default function HomeStepTestRunner({ client, onSave, onClose }) {
   const [age, setAge] = useState("");
@@ -56,56 +56,12 @@ export default function HomeStepTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (!postTestHR || !postTestRPE) {
-      toast.error("Please enter all post-test information.");
-      return;
+    try {
+      onSave(scoreHomeStep({ age, pre_hr: preTestHR, pre_rpe: preTestRPE, post_hr: postTestHR, post_rpe: postTestRPE, notes }, { assessmentName: "Home Step Test", client }));
+      toast.success("Test data saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-    const resultValue = calculateResultValue();
-    
-    const soapText = buildSOAPText();
-    
-    const additionalData = {
-      measurement_type: "HomeStepTest",
-      pre_test: { HR: parseInt(preTestHR), RPE: parseInt(preTestRPE) },
-      post_test: { HR: parseInt(postTestHR), RPE: parseInt(postTestRPE) },
-      recovery_rate: parseInt(preTestHR) - parseInt(postTestHR),
-      result_percentage: resultValue.toFixed(2),
-      soap_text: soapText,
-    };
-    onSave({
-      status: "completed",
-      result_value: resultValue,
-      additional_data: additionalData,
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Test data saved successfully.");
-  };
-
-  const buildSOAPText = () => {
-    const recoveryRate = parseInt(preTestHR) - parseInt(postTestHR);
-    const resultPercentage = calculateResultValue().toFixed(2);
-    
-    let text = `Home Step Test:\n`;
-    text += `Age: ${age} years\n\n`;
-    text += `Pre-Test:\n`;
-    text += `• Heart Rate: ${preTestHR} bpm\n`;
-    text += `• RPE: ${preTestRPE}/10\n\n`;
-    text += `Post-Test:\n`;
-    text += `• Heart Rate: ${postTestHR} bpm\n`;
-    text += `• RPE: ${postTestRPE}/10\n\n`;
-    text += `Results:\n`;
-    text += `• Heart Rate Recovery: ${recoveryRate} bpm\n`;
-    text += `• Result (%): ${resultPercentage}%\n`;
-    if (notes && notes.trim()) text += `\nNotes: ${notes}\n`;
-    
-    return text;
-  };
-
-  const calculateResultValue = () => {
-    const ageBasedHR = 220 - age;
-    const recoveryRate = preTestHR - postTestHR;
-    return (recoveryRate / ageBasedHR) * 100;
   };
 
   return (

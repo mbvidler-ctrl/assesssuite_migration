@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreWhr } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 const getRisk = (ratio, gender) => {
   if (!ratio || isNaN(ratio)) return null;
@@ -28,33 +28,18 @@ export default function WaisttoHipRatioWHRRunner({ client, onSave, onClose }) {
   const [gender, setGender] = useState(client?.gender === "female" ? "female" : "male");
   const [notes, setNotes] = useState("");
 
-  const ratio = waist && hip && !isNaN(waist) && !isNaN(hip) && parseFloat(hip) > 0
+  const ratio = waist && hip && !Number.isNaN(Number(waist)) && !Number.isNaN(Number(hip)) && parseFloat(hip) > 0
     ? (parseFloat(waist) / parseFloat(hip))
     : null;
   const risk = ratio !== null ? getRisk(ratio, gender) : null;
 
   const handleSave = () => {
-    if (!waist || !hip) { toast.error("Please enter both waist and hip measurements."); return; }
-    if (!ratio || !risk) { toast.error("Invalid measurements."); return; }
-
-    const soapText = `• Waist-to-Hip Ratio (WHR)\n  WHR: ${ratio.toFixed(3)} — ${risk.label}\n  Waist: ${waist} cm | Hip: ${hip} cm\n  WHO Thresholds (Males): Low <0.90 | Moderate 0.90–0.99 | High ≥1.0\n  WHO Thresholds (Females): Low <0.80 | Moderate 0.80–0.84 | High ≥0.85\n  Elevated WHR indicates increased risk of CVD, T2DM, and metabolic syndrome.\n  MCID: ~0.02 with lifestyle intervention.\n  Reference: WHO (2008). Waist Circumference and Waist-Hip Ratio. ISBN: 9789241501491.`;
-
-    onSave({
-      status: "completed",
-      result_value: parseFloat(ratio.toFixed(3)),
-      additional_data: {
-        soap_text: soapText,
-        measurement_type: "whr",
-        waist_cm: parseFloat(waist),
-        hip_cm: parseFloat(hip),
-        gender,
-        whr: ratio.toFixed(3),
-        risk: risk.label,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved successfully.");
+    try {
+      onSave(scoreWhr({ waist_cm: waist, hip_cm: hip, gender, notes }, { assessmentName: "Waist-to-Hip Ratio (WHR)", client }));
+      toast.success("Assessment saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

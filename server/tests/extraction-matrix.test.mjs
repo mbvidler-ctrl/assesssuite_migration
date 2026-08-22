@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { startFakeOpenAI } from './support/fake-openai.mjs';
 import { resolveDocumentExtractionModel, validateExtractionOutput } from '../documentExtraction.mjs';
+import { RUNTIME_STATUS_CONTRACT_VERSION } from '../runtimeStatus.mjs';
 import {
   REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_SOURCE,
   REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
@@ -184,9 +185,37 @@ async function uploadReferral(user, orgId, bytes, filename, mediaType) {
 
 function assertSuccess(result, expected) {
   assert.equal(result.status, 200, result.text);
-  assert.deepEqual(Object.keys(result.body).sort(), ['output', 'status']);
+  assert.deepEqual(Object.keys(result.body).sort(), ['output', 'provider_receipt', 'status']);
   assert.equal(result.body.status, 'success');
   assert.deepEqual(result.body.output, expected);
+  assert.deepEqual(Object.keys(result.body.provider_receipt).sort(), [
+    'contract_version',
+    'feature',
+    'model',
+    'provider',
+    'provider_request_id_hash',
+    'provider_status',
+    'schema_receipt_sha256',
+    'usage',
+  ]);
+  assert.equal(
+    result.body.provider_receipt.contract_version,
+    'assesssuite-provider-call-receipt/1.0.0',
+  );
+  assert.equal(result.body.provider_receipt.feature, 'extraction');
+  assert.equal(result.body.provider_receipt.provider, 'openai');
+  assert.equal(typeof result.body.provider_receipt.model, 'string');
+  assert.equal(result.body.provider_receipt.provider_status, '2xx');
+  assert.match(result.body.provider_receipt.provider_request_id_hash, /^[0-9a-f]{64}$/);
+  assert.match(result.body.provider_receipt.schema_receipt_sha256, /^[0-9a-f]{64}$/);
+  assert.deepEqual(Object.keys(result.body.provider_receipt.usage).sort(), [
+    'actual_cost_microusd',
+    'request_units',
+  ]);
+  assert.equal(Number.isSafeInteger(result.body.provider_receipt.usage.request_units), true);
+  assert.equal(result.body.provider_receipt.usage.request_units > 0, true);
+  assert.equal(Number.isSafeInteger(result.body.provider_receipt.usage.actual_cost_microusd), true);
+  assert.equal(result.body.provider_receipt.usage.actual_cost_microusd >= 0, true);
 }
 
 async function assertRealTranscriptionUsesRegisteredStoredName(audio, expectedBytes) {
@@ -1013,8 +1042,14 @@ test('E15 oversized request/file is rejected while the server remains responsive
     bytes: Buffer.alloc(11 * 1024 * 1024, 65), filename: 'oversized.pdf', mediaType: 'application/pdf',
   });
   assert.equal(result.status, 413, result.text);
-  const health = await fetch(`${server.baseUrl}/api/apps/public/prod/public-settings/by-id/post-oversize`);
+  const health = await fetch(`${server.baseUrl}/api/health/live`);
   assert.equal(health.status, 200);
+  assert.deepEqual(await health.json(), {
+    contract_version: RUNTIME_STATUS_CONTRACT_VERSION,
+    status: 'live',
+    profession_id: 'exercise-physiology',
+    app_id: server.appId,
+  });
   assert.equal(fs.readdirSync(server.uploadsDir).length, priorFiles);
 });
 
@@ -1209,7 +1244,7 @@ test('E27 logs and errors contain no file content, patient data, token, API key,
   assert.doesNotMatch(observable, /input_file|file_data|base64,/i);
 });
 
-test('E28 success retains the exact {status, output} contract', async () => {
+test('E28 success retains the exact content-free provider receipt contract', async () => {
   fakeProvider.reset();
   const uploadRef = await uploadReferral(userA, tenantA.id, pdfFixture(), 'success-contract.pdf', 'application/pdf');
   const result = await extract(userA, { upload_id: uploadRef.upload_id, org_id: tenantA.id, json_schema: REFERRAL_SCHEMA });

@@ -181,11 +181,26 @@ CRITICAL: This is EDUCATION not prescription. Frame as "example of how to meet d
         }
       });
 
+      const advice = (
+        typeof result === 'object'
+        && result !== null
+        && 'general_advice' in result
+        && 'sample_meal_plan' in result
+        && 'behavioral_strategies' in result
+      ) ? {
+        generalAdvice: String(result.general_advice || ''),
+        sampleMealPlan: String(result.sample_meal_plan || ''),
+        behavioralStrategies: String(result.behavioral_strategies || ''),
+      } : null;
+      if (!advice || Object.values(advice).some((value) => !value.trim())) {
+        throw new Error('AI nutrition response was missing one or more required sections');
+      }
+
       setFormData(prev => ({
         ...prev,
-        general_advice_given: result.general_advice,
-        sample_meal_plan: result.sample_meal_plan,
-        behavioral_strategies: result.behavioral_strategies
+        general_advice_given: advice.generalAdvice,
+        sample_meal_plan: advice.sampleMealPlan,
+        behavioral_strategies: advice.behavioralStrategies
       }));
       
       toast.success("AI advice generated!");
@@ -249,23 +264,11 @@ CRITICAL: This is EDUCATION not prescription. Frame as "example of how to meet d
 
   const convertToKj = (cal) => Math.round(cal * 4.184);
 
-  const handleFoodDiaryCopy = (text) => {
-    setFormData(prev => ({
-      ...prev,
-      current_eating_patterns: prev.current_eating_patterns 
-        ? prev.current_eating_patterns + '\n\n' + text 
-        : text
-    }));
-    setShowFoodDiary(false);
-    toast.success('Food diary added to eating patterns!');
-  };
-
   return (
     <>
       <FoodDiaryTemplate
         isOpen={showFoodDiary}
         onClose={() => setShowFoodDiary(false)}
-        onCopy={handleFoodDiaryCopy}
       />
 
       <Dialog open={isOpen} onOpenChange={onClose}>

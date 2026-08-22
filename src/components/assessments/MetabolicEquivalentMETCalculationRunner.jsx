@@ -7,14 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreMet } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 export default function MetabolicEquivalentMETCalculationRunner({ client, onSave, onClose }) {
   const [preTestVitals, setPreTestVitals] = useState({ heartRate: "", bloodPressure: "" });
   const [postTestVitals, setPostTestVitals] = useState({ heartRate: "", bloodPressure: "" });
   const [exerciseData, setExerciseData] = useState({ speed: "", grade: "", workload: "" });
   const [resultValue, setResultValue] = useState(null);
-  const [additionalData, setAdditionalData] = useState({});
   const [notes, setNotes] = useState("");
 
   const handlePreTestVitalsChange = (e) => {
@@ -37,36 +36,22 @@ export default function MetabolicEquivalentMETCalculationRunner({ client, onSave
   };
 
   const calculateMETs = () => {
-    const { speed, grade, workload } = exerciseData;
-    let vo2;
-
-    if (speed && grade) {
-      const speedInMps = parseFloat(speed) * 0.44704;
-      const gradeDecimal = parseFloat(grade) / 100;
-      vo2 = (0.2 * speedInMps) + (0.9 * speedInMps * gradeDecimal) + 3.5;
-    } else if (workload) {
-      const workloadInWatts = parseFloat(workload);
-      vo2 = (workloadInWatts * 6.12) + 3.5;
-    } else {
-      toast.error("Please enter either treadmill data (speed and grade) or cycle ergometer data (workload).");
-      return;
+    try {
+      const payload = scoreMet({ speed_mph: exerciseData.speed, grade_pct: exerciseData.grade, workload_watts: exerciseData.workload, pre_test_vitals: preTestVitals, post_test_vitals: postTestVitals, notes }, { assessmentName: "Metabolic Equivalent (MET) Calculation", client });
+      setResultValue(payload.result_value);
+      toast.success("METs calculated successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const mets = vo2 / 3.5;
-    setResultValue(mets);
-    setAdditionalData({ vo2, mets });
-    toast.success("METs calculated successfully.");
   };
 
   const handleSave = () => {
-    onSave({
-      status: "completed",
-      result_value: resultValue,
-      additional_data: additionalData,
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved successfully.");
+    try {
+      onSave(scoreMet({ speed_mph: exerciseData.speed, grade_pct: exerciseData.grade, workload_watts: exerciseData.workload, pre_test_vitals: preTestVitals, post_test_vitals: postTestVitals, notes }, { assessmentName: "Metabolic Equivalent (MET) Calculation", client }));
+      toast.success("Assessment saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

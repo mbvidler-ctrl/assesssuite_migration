@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, ChevronDown, ChevronUp, CheckCircle2, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 export default function LachmanTestRunner({ client, onSave, onClose }) {
   const [kneeFlexion, setKneeFlexion] = useState("25");
@@ -26,30 +27,12 @@ export default function LachmanTestRunner({ client, onSave, onClose }) {
   const isTestComplete = laxityGrade && endFeel;
 
   const handleSave = () => {
-    if (!isTestComplete) {
-      toast.error("Please complete the assessment before saving.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({ kneeFlexion, laxityGrade, endFeel, notes }, { runnerKey: 'lachman_test', assessmentDate: todayLocal() }));
+      toast.success("Lachman Test results saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const gradeValues = { 1: 0, 2: 5, 3: 10 };
-    const resultValue = (gradeValues[parseInt(laxityGrade)] || 0) + (endFeel === "soft" ? 1 : 0);
-
-    const additionalData = {
-      soap_text: `• Lachman Test:\n  Laxity Grade: ${laxityGrade} (${["0-5mm", "5-10mm", ">10mm"][parseInt(laxityGrade)-1]}) | End-Feel: ${endFeel === "firm" ? "Firm (ACL intact)" : "Soft (ACL likely ruptured)"} | Knee Flexion: ${kneeFlexion}°${notes ? `\n  Notes: ${notes}` : ""}`,
-      measurement_type: "LachmanTest",
-      kneeFlexion,
-      endFeel,
-    };
-
-    onSave({
-      status: "completed",
-      result_value: resultValue,
-      additional_data: additionalData,
-      notes,
-      assessment_date: todayLocal(),
-    });
-
-    toast.success("Lachman Test results saved.");
   };
 
   return (

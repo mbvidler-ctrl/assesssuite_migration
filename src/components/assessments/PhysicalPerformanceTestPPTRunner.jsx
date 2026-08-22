@@ -8,38 +8,9 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Save, X, AlertTriangle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_PPT_TASKS as TASKS, PROM_NEURO_PPT_SAFETY_CONCERNS as SAFETY_CONCERNS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const TASKS = {
-  "7-item": [
-    { id: "task_1_sentence", name: "Writing a sentence", number: 1 },
-    { id: "task_2_eating", name: "Simulated eating", number: 2 },
-    { id: "task_3_book_lift", name: "Lifting a book overhead", number: 3 },
-    { id: "task_4_jacket", name: "Putting on and removing a jacket", number: 4 },
-    { id: "task_5_pickup", name: "Picking up a small object from the floor", number: 5 },
-    { id: "task_6_turn", name: "Turning 360 degrees", number: 6 },
-    { id: "task_7_walk", name: "50-foot (15 m) walk test", number: 7 },
-  ],
-  "9-item": [
-    { id: "task_1_sentence", name: "Writing a sentence", number: 1 },
-    { id: "task_2_eating", name: "Simulated eating", number: 2 },
-    { id: "task_3_book_lift", name: "Lifting a book overhead", number: 3 },
-    { id: "task_4_jacket", name: "Putting on and removing a jacket", number: 4 },
-    { id: "task_5_pickup", name: "Picking up a small object from the floor", number: 5 },
-    { id: "task_6_turn", name: "Turning 360 degrees", number: 6 },
-    { id: "task_7_walk", name: "50-foot (15 m) walk test", number: 7 },
-    { id: "task_8_stairs", name: "Stair task", number: 8 },
-    { id: "task_9_progressive_romberg", name: "Progressive standing balance task", number: 9 },
-  ],
-};
 
-const SAFETY_CONCERNS = [
-  { label: "Falls risk", value: "falls_risk" },
-  { label: "Pain", value: "pain" },
-  { label: "Dizziness", value: "dizziness" },
-  { label: "Breathlessness", value: "breathlessness" },
-  { label: "Fatigue", value: "fatigue" },
-  { label: "Cardiac symptoms", value: "cardiac_symptoms" },
-];
 
 export default function PhysicalPerformanceTestPPTRunner({ client, onSave, onClose }) {
   const [state, setState] = useState("setup"); // setup, safety, tasks, complete
@@ -106,8 +77,8 @@ export default function PhysicalPerformanceTestPPTRunner({ client, onSave, onClo
   };
 
   const handleSave = () => {
-    if (Object.keys(taskScores).length === 0) {
-      toast.error("Please score at least one task before saving.");
+    if (!safeToProc || !allTasksScored) {
+      toast.error(`Please confirm safety and score all ${tasks.length} tasks before saving.`);
       return;
     }
 
@@ -150,7 +121,9 @@ export default function PhysicalPerformanceTestPPTRunner({ client, onSave, onClo
         version,
         total_score: totalScore,
         max_score: maxScore,
+        assessor_name: assessorName,
         gait_aid_used: usedGaitAid,
+        safe_to_proceed: safeToProc,
         supervision_level: supervisionLevel,
         taskScores,
         taskTimes,
@@ -280,7 +253,7 @@ export default function PhysicalPerformanceTestPPTRunner({ client, onSave, onClo
                     </div>
                     <div>
                       <Label className="flex items-center gap-2 cursor-pointer pt-6">
-                        <Checkbox checked={usedGaitAid} onCheckedChange={setUsedGaitAid} />
+                        <Checkbox checked={usedGaitAid} onCheckedChange={(checked) => setUsedGaitAid(checked === true)} />
                         <span className="text-xs">Gait aid used</span>
                       </Label>
                     </div>
@@ -302,7 +275,7 @@ export default function PhysicalPerformanceTestPPTRunner({ client, onSave, onClo
               <CardContent className="space-y-4">
                 <div>
                   <Label className="flex items-center gap-2 cursor-pointer mb-4">
-                    <Checkbox checked={safeToProc} onCheckedChange={setSafeToProc} />
+                    <Checkbox checked={safeToProc} onCheckedChange={(checked) => setSafeToProc(checked === true)} />
                     <span className="font-medium">Clinician judges client safe to proceed *</span>
                   </Label>
                 </div>
@@ -480,7 +453,7 @@ export default function PhysicalPerformanceTestPPTRunner({ client, onSave, onClo
           )}
 
           {state === "complete" && (
-            <Button onClick={handleSave} disabled={Object.keys(taskScores).length === 0} className="bg-blue-600 hover:bg-blue-700">
+            <Button onClick={handleSave} disabled={!safeToProc || !allTasksScored} className="bg-blue-600 hover:bg-blue-700">
               <Save className="w-4 h-4 mr-2" />
               Save Assessment
             </Button>

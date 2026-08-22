@@ -123,6 +123,21 @@ const BODY_REGION_ALIASES = Object.freeze([
   { key: 'wrist', aliases: ['wrist'] },
 ]);
 
+const ASSESSMENT_SEARCH_FIELDS = Object.freeze([
+  'canonical_id',
+  'id',
+  'name',
+  'aliases',
+  'search_tags',
+  'source_variants',
+  'description',
+  'category',
+  'instructions',
+  'conditions_indicated',
+  'target_conditions',
+  'indications',
+]);
+
 export function normalizeClinicalText(value) {
   return String(value ?? '')
     .normalize('NFKD')
@@ -133,6 +148,30 @@ export function normalizeClinicalText(value) {
     .replace(/[^a-z0-9]+/g, ' ')
     .trim()
     .replace(/\s+/g, ' ');
+}
+
+function searchableValues(value, depth = 0) {
+  if (depth > 3 || value === null || value === undefined) return [];
+  if (typeof value === 'string' || typeof value === 'number') return [String(value)];
+  if (Array.isArray(value)) return value.flatMap((entry) => searchableValues(entry, depth + 1));
+  if (typeof value !== 'object') return [];
+  return Object.values(value).flatMap((entry) => searchableValues(entry, depth + 1));
+}
+
+/**
+ * Searches the complete canonical catalogue through one deterministic
+ * production path. Record order is preserved; identity/deduplication remains
+ * the registry's responsibility rather than a UI-side name heuristic.
+ */
+export function searchAssessments({ assessments = [], query = '' } = {}) {
+  if (!Array.isArray(assessments)) return [];
+  const normalizedQuery = normalizeClinicalText(query);
+  if (!normalizedQuery) return [...assessments];
+  return assessments.filter((assessment) => ASSESSMENT_SEARCH_FIELDS.some((field) => (
+    searchableValues(assessment?.[field]).some((value) => (
+      normalizeClinicalText(value).includes(normalizedQuery)
+    ))
+  )));
 }
 
 function containsPhrase(normalizedText, normalizedPhrase) {
@@ -339,7 +378,12 @@ function matchAssessment(assessment, conditions, index) {
           condition,
           comparison,
           field,
-          score: field.weight + comparison.quality,
+          // An exact canonical assessment-name query is an identity lookup,
+          // not merely another clinical-text signal. Keep it ahead of broad
+          // indication/tag matches when ranking the full catalogue.
+          score: field.weight
+            + comparison.quality
+            + (field.key === 'name' && comparison.quality === 120 ? 1000 : 0),
         });
       }
     }

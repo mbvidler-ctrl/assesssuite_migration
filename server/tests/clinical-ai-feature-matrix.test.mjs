@@ -512,7 +512,7 @@ test('Boot G: real-provider failure with LLM_REQUIRED=0 silently falls back to t
     assert.match(result.body.alerts[0].alert_text, /^Mock /i);
     assert.match(
       server.getOutput(),
-      /\[llm\] real model failed; using the explicit non-production mock fallback/,
+      /\[llm\] provider failed; using injected test-only fallback/,
     );
   } finally {
     await server.stop();

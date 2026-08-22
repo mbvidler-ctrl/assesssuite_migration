@@ -1,0 +1,33 @@
+name: Upload one Physio deploy transition packet
+description: Uploads one immutable transport; a separate no-provider reusable job performs the protected-ledger append.
+
+inputs:
+  name:
+    required: true
+  path:
+    required: true
+  if-no-files-found:
+    required: true
+  retention-days:
+    required: true
+  compression-level:
+    required: true
+
+outputs:
+  artifact-id:
+    value: ${{ steps.upload.outputs.artifact-id }}
+  artifact-digest:
+    value: ${{ steps.upload.outputs.artifact-digest }}
+
+runs:
+  using: composite
+  steps:
+    - name: Upload exact immutable packet transport
+      id: upload
+      uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+      with:
+        name: ${{ inputs.name }}
+        path: ${{ inputs.path }}
+        if-no-files-found: ${{ inputs.if-no-files-found }}
+        retention-days: ${{ inputs.retention-days }}
+        compression-level: ${{ inputs.compression-level }}

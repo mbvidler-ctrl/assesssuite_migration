@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreTwoMinuteWalk } from "@/lib/clinical/scorers/extrasPhysiological";
 
 export default function TwoMinuteWalkTest2MWTRunner({ client, onSave, onClose }) {
   const [isTestRunning, setIsTestRunning] = useState(false);
@@ -44,36 +45,20 @@ export default function TwoMinuteWalkTest2MWTRunner({ client, onSave, onClose })
   };
 
   const handleSave = () => {
-    if (!distanceWalked || !postTestHR || !postTestBP) {
-      toast.error("Please complete distance and post-test vital signs.");
-      return;
-    }
-
-    const distance = parseFloat(distanceWalked);
-    if (isNaN(distance)) {
-      toast.error("Distance must be a valid number.");
-      return;
-    }
-
-    const soapText = `• 2-Minute Walk Test (2MWT)\n  Distance: ${distance}m\n  Pre-Test: HR ${preTestHR} bpm, BP ${preTestBP} mmHg\n  Post-Test: HR ${postTestHR} bpm, BP ${postTestBP} mmHg`;
-
-    onSave({
-      status: "completed",
-      result_value: distance,
-      notes: notes || "",
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: soapText,
-        distance_metres: distance,
+    try {
+      onSave(scoreTwoMinuteWalk({
+        distance_metres: distanceWalked,
         pre_test_hr: preTestHR,
         pre_test_bp: preTestBP,
         post_test_hr: postTestHR,
         post_test_bp: postTestBP,
-      },
-    });
-
-    toast.success("Assessment saved successfully.");
-    onClose();
+        notes,
+      }, { assessmentDate: todayLocal(), assessmentName: '2-Minute Walk Test (2MWT)', client }));
+      toast.success("Assessment saved successfully.");
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save 2-Minute Walk Test.");
+    }
   };
 
   const formatTime = () => {

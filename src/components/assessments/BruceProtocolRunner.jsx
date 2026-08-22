@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Save, Info, Play, Pause, StopCircle, BookOpen, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreBruceTreadmill } from "@/lib/clinical/scorers/extrasPhysiological";
 
 const BRUCE_STAGES = [
   { stage: 1, speed: 1.7, grade: 10, mets: 4.6 },
@@ -97,36 +98,20 @@ export default function BruceProtocolRunner({ isModified, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (!terminationReason) {
-      toast.error("Please select termination reason");
-      return;
-    }
-
-    const peakHR = Math.max(...stageData.map(s => s.heartRate || 0), parseInt(heartRate) || 0);
-    const peakBP = Math.max(...stageData.map(s => s.systolic || 0), parseInt(bloodPressureSystolic) || 0);
-
-    const stageLines = stageData.map(s =>
-      `  Stage ${s.stage} (${s.time} min): HR ${s.heartRate} bpm${s.systolic ? `, BP ${s.systolic}/${s.diastolic} mmHg` : ''}${s.rpe ? `, RPE ${s.rpe}` : ''}`
-    ).join('\n');
-
-    const soapText = `• ${isModified ? 'Modified ' : ''}Bruce Protocol Treadmill Test:\n  Total Time: ${Math.floor(totalTime / 60)}:${(totalTime % 60).toString().padStart(2, '0')} (${totalTime}s)\n  Estimated VO₂max: ${calculateVO2Max()} mL/kg/min\n  Stages Completed: ${currentStage + 1}\n  Peak HR: ${peakHR} bpm | Peak BP: ${peakBP} mmHg\n  Termination: ${terminationReason}${symptoms ? `\n  Symptoms: ${symptoms}` : ''}${stageLines ? `\n  Stage Data:\n${stageLines}` : ''}${notes ? `\n  Notes: ${notes}` : ''}`;
-
-    onSave({
-      result_value: totalTime,
-      additional_data: {
-        soap_text: soapText,
-        protocol: isModified ? 'Modified Bruce' : 'Bruce',
+    try {
+      onSave(scoreBruceTreadmill({
         total_time_seconds: totalTime,
-        stages_completed: currentStage + 1,
         stage_data: stageData,
-        peak_heart_rate: peakHR,
-        peak_systolic_bp: peakBP,
-        estimated_vo2max: calculateVO2Max(),
+        current_stage_index: currentStage,
+        current_heart_rate: heartRate,
+        current_systolic: bloodPressureSystolic,
         termination_reason: terminationReason,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
+        symptoms,
+        notes,
+      }, { assessmentDate: todayLocal(), assessmentName: 'Bruce Treadmill Protocol' }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save Bruce protocol.");
+    }
   };
 
   const stages = isModified ? [

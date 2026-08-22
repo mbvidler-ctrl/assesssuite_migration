@@ -11,9 +11,13 @@ export const INITIAL_RELEASE_PROFESSIONS = new Set([
  * release. Keeping one predicate prevents the browser from admitting an
  * incomplete legacy profile that the authoritative upload gate rejects.
  */
-export function isInitialClinicalReleaseEligible(user) {
+export function isInitialClinicalReleaseEligible(
+  user,
+  allowedProfessions = INITIAL_RELEASE_PROFESSIONS,
+) {
   return (
     user?.country === INITIAL_RELEASE_COUNTRY
-    && INITIAL_RELEASE_PROFESSIONS.has(user?.profession)
+    && typeof allowedProfessions?.has === 'function'
+    && allowedProfessions.has(user?.profession)
   );
 }

@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 const LEVELS = [
   { score: 0, label: "Non-functional", desc: "Cannot ambulate, or requires assistance of 2 or more people.", color: "bg-red-100 text-red-800 border-red-300" },
@@ -22,10 +23,15 @@ export default function FunctionalAmbulationCategoriesFACRunner({ client, onSave
   const level = selected !== null ? LEVELS[selected] : null;
 
   const handleSave = () => {
-    if (selected === null) { toast.error("Select an ambulation level"); return; }
-    const soap = `• Functional Ambulation Categories (FAC)\n  Score: ${level.score}/5 — ${level.label}\n  Description: ${level.desc}${notes ? `\n  Notes: ${notes}` : ""}\n  FAC measures functional walking ability and dependence level.\n  Scores 0-2 = dependent; 3 = supervised; 4-5 = independent\n  MCID: 1 category point\n  Reference: Holden MK et al. (1984). Clinical gait assessment in the neurologically impaired. Phys Ther, 64(1):35-40.`;
-    onSave({ status: "completed", result_value: level.score, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "ordinal_scale", score: level.score, label: level.label } });
-    toast.success("FAC saved.");
+    try {
+      onSave(validateFunctionalOrtho(
+        { score: selected, notes },
+        { runnerKey: "fac", assessmentDate: todayLocal() },
+      ));
+      toast.success("FAC saved.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Save, X, Plus, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreVerticalJump } from "@/lib/clinical/scorers/coreB";
 
 const NORMS_CM = {
   male: [
@@ -46,7 +46,7 @@ export default function VerticalJumpTestRunner({ client, onSave, onClose }) {
   const [jumpReach, setJumpReach] = useState("");
   const [notes, setNotes] = useState("");
 
-  const age = client?.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000)) : null;
+  const age = client?.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000)) : null;
   const gender = client?.gender;
 
   const directHeight = method === "sargent" && standingReach && jumpReach
@@ -56,19 +56,26 @@ export default function VerticalJumpTestRunner({ client, onSave, onClose }) {
   const addTrial = () => {
     const v = directHeight ? parseFloat(directHeight) : parseFloat(input);
     if (isNaN(v) || v <= 0) { toast.error("Enter a valid jump height"); return; }
-    setTrials([...trials, v]);
+    setTrials([...trials, {
+      height_cm: v,
+      method,
+      standing_reach_cm: method === 'sargent' ? parseFloat(standingReach) : null,
+      jump_reach_cm: method === 'sargent' ? parseFloat(jumpReach) : null,
+    }]);
     setInput("");
     if (directHeight) { setStandingReach(""); setJumpReach(""); }
   };
 
-  const best = trials.length > 0 ? Math.max(...trials) : null;
+  const best = trials.length > 0 ? Math.max(...trials.map((trial) => trial.height_cm)) : null;
   const cat = best && age && gender ? classify(best, age, gender) : null;
 
   const handleSave = () => {
-    if (trials.length === 0) { toast.error("Record at least one trial"); return; }
-    const soap = `• Vertical Jump Test\n  Best Height: ${best} cm${cat ? ` — ${cat.label}` : ""}\n  Method: ${method === "jump_mat" ? "Jump mat/force plate" : method === "sargent" ? "Sargent (reach) method" : "Other"}\n  Trials: ${trials.map(t => `${t} cm`).join(", ")}${notes ? `\n  Notes: ${notes}` : ""}\n  Measures lower-body explosive power (anaerobic power/force production)\n  Reference: ACSM; Harman et al. (1991). Estimation of human power output from maximal vertical jump. J Strength Cond Res.`;
-    onSave({ status: "completed", result_value: best, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "vertical_jump", best_cm: best, trials, method, classification: cat?.label } });
-    toast.success("Saved.");
+    try {
+      onSave(scoreVerticalJump({ method, trials, age, gender, notes }, { assessmentName: 'Vertical Jump Test', client }));
+      toast.success("Saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save Vertical Jump Test.');
+    }
   };
 
   return (
@@ -140,9 +147,9 @@ export default function VerticalJumpTestRunner({ client, onSave, onClose }) {
             <Card>
               <CardHeader><CardTitle className="text-base">Trials</CardTitle></CardHeader>
               <CardContent className="space-y-2">
-                {trials.map((v, i) => (
+                {trials.map((trial, i) => (
                   <div key={i} className="flex justify-between items-center bg-emerald-50 px-3 py-2 rounded-lg">
-                    <span>Trial {i + 1}: <span className={`font-bold ${v === best ? "text-emerald-600" : "text-slate-700"}`}>{v} cm{v === best ? " ★" : ""}</span></span>
+                    <span>Trial {i + 1}: <span className={`font-bold ${trial.height_cm === best ? "text-emerald-600" : "text-slate-700"}`}>{trial.height_cm} cm{trial.height_cm === best ? " ★" : ""}</span></span>
                     <Button variant="ghost" size="icon" onClick={() => setTrials(trials.filter((_, x) => x !== i))}><Trash2 className="w-3.5 h-3.5 text-red-500" /></Button>
                   </div>
                 ))}

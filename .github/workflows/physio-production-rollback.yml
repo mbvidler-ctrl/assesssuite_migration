@@ -1,0 +1,2684 @@
+name: Physio production rollback - exact digest or first-release stop
+run-name: Physio rollback ${{ inputs.failed_application_sha }} after ${{ inputs.resume_rollback_effect_receipt_sha256 }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      trusted_workflow_sha:
+        description: Exact current main SHA supplying this trusted rollback workflow
+        required: true
+        type: string
+      failed_application_sha:
+        description: Exact SHA currently served by the failed release
+        required: true
+        type: string
+      current_immutable_image:
+        description: Exact currently deployed Physio digest used for automatic recovery if rollback fails
+        required: true
+        type: string
+      rollback_mode:
+        description: Revert to a proven digest, or stop an unsuccessful first release
+        required: true
+        default: exact-image
+        type: choice
+        options:
+          - exact-image
+          - stop-first-release
+      rollback_release_sha:
+        description: Exact SHA encoded by rollback image, or NOT-AVAILABLE for first-release stop
+        required: true
+        type: string
+      rollback_immutable_image:
+        description: Exact rollback digest reference, or NOT-AVAILABLE for first-release stop
+        required: true
+        type: string
+      rollback_target_artifact_id:
+        description: Exact prior successful deploy artifact that binds the rollback SHA image and recorded config
+        required: true
+        type: string
+      rollback_target_artifact_digest:
+        description: Exact GitHub digest of the prior successful rollback target artifact
+        required: true
+        type: string
+      rollback_target_receipt_sha256:
+        description: Raw SHA-256 of the prior successful deploy receipt inside the target artifact
+        required: true
+        type: string
+      resume_rollback_effect_artifact_id:
+        description: Exact prior rollback phase artifact ID, or 0 for a fresh rollback
+        required: true
+        default: '0'
+        type: string
+      resume_rollback_effect_artifact_digest:
+        description: Exact prior rollback phase artifact digest, or 0 for a fresh rollback
+        required: true
+        default: '0'
+        type: string
+      resume_rollback_effect_receipt_sha256:
+        description: Raw SHA-256 of the prior rollback phase receipt, or 64 zeroes for a fresh rollback
+        required: true
+        default: '0000000000000000000000000000000000000000000000000000000000000000'
+        type: string
+      expected_machine_id:
+        description: Exact sole current Physio machine ID
+        required: true
+        type: string
+      expected_volume_id:
+        description: Exact isolated Physio volume ID
+        required: true
+        type: string
+      config_sha256:
+        description: Exact SHA-256 of the recorded rollback-target config bytes (current config for first-release stop)
+        required: true
+        type: string
+      capability_intent_id:
+        description: Authorised exact Physio rollback capability intent
+        required: true
+        type: string
+      authority_reference:
+        description: Mission/order reference authorising this action
+        required: true
+        type: string
+      confirmation:
+        description: Type ROLLBACK assesssuite-physio-production EXACT TARGETS
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: assesssuite-physio-production
+  cancel-in-progress: false
+
+jobs:
+  rollback_start:
+    name: Admit rollback target and persist durable STARTED phase
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    outputs:
+      started_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      started_artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
+      started_receipt_sha256: ${{ steps.seal.outputs.started_receipt_sha256 }}
+      resume_completed: ${{ steps.seal.outputs.resume_completed }}
+      resume_phase: ${{ steps.seal.outputs.resume_phase }}
+      rollback_target_run_id: ${{ steps.target_artifact.outputs.rollback_target_run_id }}
+      resume_rollback_effect_run_id: ${{ steps.resume_artifact.outputs.resume_rollback_effect_run_id }}
+    steps:
+      - name: Validate exact credential-free rollback dispatch before checkout
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          FAILED_APPLICATION_SHA: ${{ inputs.failed_application_sha }}
+          CURRENT_IMMUTABLE_IMAGE: ${{ inputs.current_immutable_image }}
+          ROLLBACK_MODE: ${{ inputs.rollback_mode }}
+          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+          ROLLBACK_IMMUTABLE_IMAGE: ${{ inputs.rollback_immutable_image }}
+          ROLLBACK_TARGET_ARTIFACT_ID: ${{ inputs.rollback_target_artifact_id }}
+          ROLLBACK_TARGET_ARTIFACT_DIGEST: ${{ inputs.rollback_target_artifact_digest }}
+          ROLLBACK_TARGET_RECEIPT_SHA256: ${{ inputs.rollback_target_receipt_sha256 }}
+          RESUME_ARTIFACT_ID: ${{ inputs.resume_rollback_effect_artifact_id }}
+          RESUME_ARTIFACT_DIGEST: ${{ inputs.resume_rollback_effect_artifact_digest }}
+          RESUME_RECEIPT_SHA256: ${{ inputs.resume_rollback_effect_receipt_sha256 }}
+          EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          CONFIG_SHA256: ${{ inputs.config_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          [[ "$REPOSITORY" == 'mbvidler-ctrl/assesssuite_migration' ]]
+          [[ "$ACTOR" == 'mbvidler-ctrl' && "$TRIGGERING_ACTOR" == 'mbvidler-ctrl' ]]
+          [[ "$IS_FORK" == 'false' && "$EVENT_REF" == 'refs/heads/main' ]]
+          [[ "$WORKFLOW_REF" == 'mbvidler-ctrl/assesssuite_migration/.github/workflows/physio-production-rollback.yml@refs/heads/main' ]]
+          [[ "$TRUSTED_WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ && "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" && "$FAILED_APPLICATION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CURRENT_IMMUTABLE_IMAGE" =~ ^registry\.fly\.io/assesssuite-physio-production@sha256:[0-9a-f]{64}$ ]]
+          [[ "$EXPECTED_MACHINE_ID" =~ ^[0-9a-f]{14,32}$ && "$EXPECTED_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]
+          [[ "$CONFIG_SHA256" =~ ^[0-9a-f]{64}$ && "$CAPABILITY_INTENT_ID" =~ ^[A-Za-z0-9._:-]{1,160}$ ]]
+          [[ "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
+          [[ "$CONFIRMATION" == 'ROLLBACK assesssuite-physio-production EXACT TARGETS' ]]
+          zero='0000000000000000000000000000000000000000000000000000000000000000'
+          if [[ "$ROLLBACK_MODE" == 'exact-image' ]]; then
+            [[ "$ROLLBACK_RELEASE_SHA" =~ ^[0-9a-f]{40}$ && "$ROLLBACK_RELEASE_SHA" != "$FAILED_APPLICATION_SHA" ]]
+            [[ "$ROLLBACK_IMMUTABLE_IMAGE" =~ ^registry\.fly\.io/assesssuite-physio-production@sha256:[0-9a-f]{64}$ ]]
+            [[ "$ROLLBACK_IMMUTABLE_IMAGE" != "$CURRENT_IMMUTABLE_IMAGE" ]]
+            [[ "$ROLLBACK_TARGET_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+            [[ "$ROLLBACK_TARGET_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+            [[ "$ROLLBACK_TARGET_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          else
+            [[ "$ROLLBACK_MODE" == 'stop-first-release' ]]
+            [[ "$ROLLBACK_RELEASE_SHA" == 'NOT-AVAILABLE' && "$ROLLBACK_IMMUTABLE_IMAGE" == 'NOT-AVAILABLE' ]]
+            [[ "$ROLLBACK_TARGET_ARTIFACT_ID" == '0' && "$ROLLBACK_TARGET_ARTIFACT_DIGEST" == '0' ]]
+            [[ "$ROLLBACK_TARGET_RECEIPT_SHA256" == "$zero" ]]
+          fi
+          if [[ "$RESUME_ARTIFACT_ID" == '0' ]]; then
+            [[ "$RESUME_ARTIFACT_DIGEST" == '0' && "$RESUME_RECEIPT_SHA256" == "$zero" ]]
+          else
+            [[ "$RESUME_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+            [[ "$RESUME_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+            [[ "$RESUME_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ && "$RESUME_RECEIPT_SHA256" != "$zero" ]]
+          fi
+
+      - name: Check out exact rollback packet validators
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.trusted_workflow_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve exact prior successful deploy target
+        id: target_artifact
+        if: ${{ inputs.rollback_mode == 'exact-image' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+          ROLLBACK_TARGET_ARTIFACT_ID: ${{ inputs.rollback_target_artifact_id }}
+          ROLLBACK_TARGET_ARTIFACT_DIGEST: ${{ inputs.rollback_target_artifact_digest }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          umask 077
+          spec="$RUNNER_TEMP/rollback-target-artifact-spec.json"
+          SPEC="$spec" SHA="$ROLLBACK_RELEASE_SHA" ARTIFACT_ID="$ROLLBACK_TARGET_ARTIFACT_ID" \
+          ARTIFACT_DIGEST="$ROLLBACK_TARGET_ARTIFACT_DIGEST" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const sha = process.env.SHA;
+          const row = { repository: 'mbvidler-ctrl/assesssuite_migration', application_sha: sha,
+            artifacts: [{ key: 'rollback_target', id: process.env.ARTIFACT_ID,
+              expected_digest: process.env.ARTIFACT_DIGEST, maximum_bytes: 67108864,
+              name_patterns: [`^physio-deploy-${sha}-[1-9][0-9]*$`],
+              workflow_path: '.github/workflows/physio-production-deploy.yml',
+              allowed_conclusions: ['success'] }] };
+          fs.writeFileSync(process.env.SPEC, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/github-artifact-admission.mjs --spec "$spec" \
+            --output "$RUNNER_TEMP/rollback-target-artifact-admission.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Download exact prior successful deploy target
+        if: ${{ inputs.rollback_mode == 'exact-image' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.rollback_target_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.target_artifact.outputs.rollback_target_run_id }}
+          path: ${{ runner.temp }}/rollback-target
+          github-token: ${{ github.token }}
+
+      - name: Resolve exact prior rollback phase for deliberate resume
+        id: resume_artifact
+        if: ${{ inputs.resume_rollback_effect_artifact_id != '0' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          FAILED_APPLICATION_SHA: ${{ inputs.failed_application_sha }}
+          RESUME_ARTIFACT_ID: ${{ inputs.resume_rollback_effect_artifact_id }}
+          RESUME_ARTIFACT_DIGEST: ${{ inputs.resume_rollback_effect_artifact_digest }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          umask 077
+          spec="$RUNNER_TEMP/rollback-resume-artifact-spec.json"
+          SPEC="$spec" SHA="$TRUSTED_WORKFLOW_SHA" FAILED_SHA="$FAILED_APPLICATION_SHA" \
+          ARTIFACT_ID="$RESUME_ARTIFACT_ID" ARTIFACT_DIGEST="$RESUME_ARTIFACT_DIGEST" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const failed = process.env.FAILED_SHA;
+          const row = { repository: 'mbvidler-ctrl/assesssuite_migration', application_sha: process.env.SHA,
+            artifacts: [{ key: 'resume_rollback_effect', id: process.env.ARTIFACT_ID,
+              expected_digest: process.env.ARTIFACT_DIGEST, maximum_bytes: 33554432,
+              name_patterns: [`^physio-rollback-(?:started|phase|terminal|completed-reuse)-${failed}-[A-Za-z0-9_-]+$`],
+              workflow_path: '.github/workflows/physio-production-rollback.yml',
+              allowed_conclusions: ['success','failure','cancelled','timed_out'] }] };
+          fs.writeFileSync(process.env.SPEC, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/github-artifact-admission.mjs --spec "$spec" \
+            --output "$RUNNER_TEMP/rollback-resume-artifact-admission.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Download exact prior rollback phase
+        if: ${{ inputs.resume_rollback_effect_artifact_id != '0' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.resume_rollback_effect_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.resume_artifact.outputs.resume_rollback_effect_run_id }}
+          path: ${{ runner.temp }}/rollback-resume
+          github-token: ${{ github.token }}
+
+      - name: Admit target bytes and seal rollback phase packet
+        id: seal
+        shell: bash
+        env:
+          FAILED_APPLICATION_SHA: ${{ inputs.failed_application_sha }}
+          CURRENT_IMMUTABLE_IMAGE: ${{ inputs.current_immutable_image }}
+          ROLLBACK_MODE: ${{ inputs.rollback_mode }}
+          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+          ROLLBACK_IMMUTABLE_IMAGE: ${{ inputs.rollback_immutable_image }}
+          ROLLBACK_TARGET_ARTIFACT_ID: ${{ inputs.rollback_target_artifact_id }}
+          ROLLBACK_TARGET_ARTIFACT_DIGEST: ${{ inputs.rollback_target_artifact_digest }}
+          ROLLBACK_TARGET_RECEIPT_SHA256: ${{ inputs.rollback_target_receipt_sha256 }}
+          RESUME_ARTIFACT_ID: ${{ inputs.resume_rollback_effect_artifact_id }}
+          RESUME_RECEIPT_SHA256: ${{ inputs.resume_rollback_effect_receipt_sha256 }}
+          EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          CONFIG_SHA256: ${{ inputs.config_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          umask 077
+          packet="$RUNNER_TEMP/rollback-effect-started"
+          install -d -m 0700 "$packet"
+          zero='0000000000000000000000000000000000000000000000000000000000000000'
+          if [[ "$RESUME_ARTIFACT_ID" != '0' ]]; then
+            [[ -f "$RUNNER_TEMP/rollback-resume/rollback-effect-reconciliation.json" ]]
+            [[ "$(sha256sum "$RUNNER_TEMP/rollback-resume/rollback-effect-reconciliation.json" | awk '{print $1}')" == "$RESUME_RECEIPT_SHA256" ]]
+            validation="$(node scripts/physio-release-contract.mjs validate-rollback-resume-packet \
+              --packet "$RUNNER_TEMP/rollback-resume" --failed-application-sha "$FAILED_APPLICATION_SHA" \
+              --current-immutable-image "$CURRENT_IMMUTABLE_IMAGE" --rollback-mode "$ROLLBACK_MODE" \
+              --rollback-release-sha "$ROLLBACK_RELEASE_SHA" --rollback-immutable-image "$ROLLBACK_IMMUTABLE_IMAGE" \
+              --rollback-target-artifact-id "$ROLLBACK_TARGET_ARTIFACT_ID" \
+              --rollback-target-artifact-digest "$ROLLBACK_TARGET_ARTIFACT_DIGEST" \
+              --rollback-target-receipt-sha256 "$ROLLBACK_TARGET_RECEIPT_SHA256" \
+              --expected-machine-id "$EXPECTED_MACHINE_ID" --expected-volume-id "$EXPECTED_VOLUME_ID" \
+              --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE")"
+            resume_completed="$(VALIDATION="$validation" node --input-type=module -e \
+              "const row=JSON.parse(process.env.VALIDATION);process.stdout.write(row.resumeCompleted?'true':'false')")"
+            resume_phase="$(VALIDATION="$validation" node --input-type=module -e \
+              "const row=JSON.parse(process.env.VALIDATION);process.stdout.write(row.phase)")"
+            cp "$RUNNER_TEMP/rollback-resume/"* "$packet/"
+            echo "resume_completed=$resume_completed" >>"$GITHUB_OUTPUT"
+            echo "resume_phase=$resume_phase" >>"$GITHUB_OUTPUT"
+            echo "started_receipt_sha256=$RESUME_RECEIPT_SHA256" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          if [[ "$ROLLBACK_MODE" == 'exact-image' ]]; then
+            target="$RUNNER_TEMP/rollback-target"
+            [[ -f "$target/SHA256SUMS" && ! -L "$target/SHA256SUMS" ]]
+            (cd "$target" && sha256sum --check --strict SHA256SUMS)
+            receipt="$target/physio-production-deploy.json"
+            target_config="$target/rollback-target-config.toml"
+            target_machine_config="$target/rollback-target-machine-config.json"
+            for file in "$receipt" "$target_config" "$target_machine_config"; do
+              [[ -f "$file" && ! -L "$file" ]]
+            done
+            [[ "$(sha256sum "$receipt" | awk '{print $1}')" == "$ROLLBACK_TARGET_RECEIPT_SHA256" ]]
+            RECEIPT="$receipt" CONFIG="$target_config" MACHINE_CONFIG="$target_machine_config" \
+            SHA="$ROLLBACK_RELEASE_SHA" IMAGE="$ROLLBACK_IMMUTABLE_IMAGE" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import { canonicalizePhysioFlyImageReference } from './scripts/physio-release-contract.mjs';
+          const sha = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const receipt = JSON.parse(fs.readFileSync(process.env.RECEIPT, 'utf8'));
+          const config = JSON.parse(fs.readFileSync(process.env.MACHINE_CONFIG, 'utf8'));
+          if (receipt.contract_version !== 'assesssuite-physio-deploy/3.0.0' || receipt.result !== 'PASS' ||
+              receipt.application !== 'assesssuite-physio-production' || receipt.application_sha !== process.env.SHA ||
+              receipt.immutable_image !== process.env.IMAGE ||
+              receipt.rollback_target_config_sha256 !== sha(process.env.CONFIG) ||
+              receipt.rollback_target_machine_config_sha256 !== sha(process.env.MACHINE_CONFIG) ||
+              canonicalizePhysioFlyImageReference(config.image ?? config.image_ref ?? config.imageRef) !== process.env.IMAGE) {
+            throw new Error('prior deploy does not bind the exact rollback SHA image and machine config bytes');
+          }
+          NODE
+            install -m 0600 "$target_config" "$packet/rollback-target-config.toml"
+            install -m 0600 "$target_machine_config" "$packet/rollback-target-machine-config.json"
+            install -m 0600 "$RUNNER_TEMP/rollback-target-artifact-admission.json" \
+              "$packet/rollback-target-github-artifact-admission.json"
+            install -m 0600 "$receipt" "$packet/rollback-target-source-deploy-receipt.json"
+            source_contract='assesssuite-physio-deploy/3.0.0'
+            source_head_sha="$ROLLBACK_RELEASE_SHA"
+            source_run_id='${{ steps.target_artifact.outputs.rollback_target_run_id }}'
+            github_admission_sha="$(sha256sum "$packet/rollback-target-github-artifact-admission.json" | awk '{print $1}')"
+            source_deploy_receipt_file_sha="$(sha256sum "$packet/rollback-target-source-deploy-receipt.json" | awk '{print $1}')"
+          else
+            install -m 0600 fly.physio.production.toml "$packet/rollback-target-config.toml"
+            MACHINE_CONFIG="$packet/rollback-target-machine-config.json" IMAGE="$CURRENT_IMMUTABLE_IMAGE" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          fs.writeFileSync(process.env.MACHINE_CONFIG, JSON.stringify({ image: process.env.IMAGE }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+            for sentinel in rollback-target-github-artifact-admission.json rollback-target-source-deploy-receipt.json; do
+              SENTINEL="$packet/$sentinel" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          fs.writeFileSync(process.env.SENTINEL, JSON.stringify({
+            contract_version: 'assesssuite-physio-not-applicable/1.0.0',
+            result: 'NOT_APPLICABLE',
+            reason: 'stop-first-release',
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+            done
+            source_contract='NOT-AVAILABLE'
+            source_head_sha='NOT-AVAILABLE'
+            source_run_id=0
+            github_admission_sha="$(sha256sum "$packet/rollback-target-github-artifact-admission.json" | awk '{print $1}')"
+            source_deploy_receipt_file_sha="$(sha256sum "$packet/rollback-target-source-deploy-receipt.json" | awk '{print $1}')"
+          fi
+          target_config_sha="$(sha256sum "$packet/rollback-target-config.toml" | awk '{print $1}')"
+          [[ "$target_config_sha" == "$CONFIG_SHA256" ]]
+          target_machine_config_sha="$(sha256sum "$packet/rollback-target-machine-config.json" | awk '{print $1}')"
+          TARGET_ADMISSION="$packet/rollback-target-admission.json" APPLICATION_SHA="$ROLLBACK_RELEASE_SHA" \
+          IMAGE="$ROLLBACK_IMMUTABLE_IMAGE" TARGET_ID="$ROLLBACK_TARGET_ARTIFACT_ID" \
+          TARGET_DIGEST="$ROLLBACK_TARGET_ARTIFACT_DIGEST" TARGET_RECEIPT_SHA="$ROLLBACK_TARGET_RECEIPT_SHA256" \
+          CONFIG_SHA="$target_config_sha" MACHINE_CONFIG_SHA="$target_machine_config_sha" SOURCE_CONTRACT="$source_contract" \
+          SOURCE_HEAD_SHA="$source_head_sha" SOURCE_RUN_ID="$source_run_id" GITHUB_ADMISSION_SHA="$github_admission_sha" \
+          SOURCE_DEPLOY_RECEIPT_FILE_SHA="$source_deploy_receipt_file_sha" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = { contract_version: 'assesssuite-physio-rollback-target-admission/1.0.0', result: 'PASS',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            immutable_image: process.env.IMAGE, rollback_target_artifact_id: process.env.TARGET_ID,
+            rollback_target_artifact_digest: process.env.TARGET_DIGEST,
+            rollback_target_receipt_sha256: process.env.TARGET_RECEIPT_SHA,
+            rollback_target_config_sha256: process.env.CONFIG_SHA,
+            rollback_target_machine_config_sha256: process.env.MACHINE_CONFIG_SHA,
+            source_receipt_contract_version: process.env.SOURCE_CONTRACT,
+            source_workflow_path: '.github/workflows/physio-production-deploy.yml',
+            source_workflow_run_id: Number(process.env.SOURCE_RUN_ID), source_workflow_head_sha: process.env.SOURCE_HEAD_SHA,
+            github_artifact_admission_sha256: process.env.GITHUB_ADMISSION_SHA,
+            source_deploy_receipt_file_sha256: process.env.SOURCE_DEPLOY_RECEIPT_FILE_SHA,
+            admitted_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.TARGET_ADMISSION, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          PROVIDER="$packet/rollback-provider-readback.json" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto'; import fs from 'node:fs';
+          const zero = createHash('sha256').update('').digest('hex');
+          const row = { contract_version: 'assesssuite-physio-rollback-provider-readback/1.0.0', result: 'NOT_OBSERVED',
+            application: 'assesssuite-physio-production', phase: 'STARTED', machines_sha256: zero, volumes_sha256: zero,
+            snapshots_sha256: zero, observed_config_sha256: zero, machine_count: 0, volume_count: 0, snapshot_count: 0,
+            machine_config_operation_receipt_sha256s: [], machine_config_recovery_prestate_sha256s: [],
+            machine_config_recovery_receipt_sha256s: [], restore_volume_cleanup_receipt_sha256s: [],
+            observed_machine_id: null, observed_machine_state: null, observed_image: null,
+            observed_volume_id: null, observed_restore_volume_id: null, observed_verifier_machine_id: null,
+            observed_snapshot_id: null, readback_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.PROVIDER, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          target_admission_sha="$(sha256sum "$packet/rollback-target-admission.json" | awk '{print $1}')"
+          provider_sha="$(sha256sum "$packet/rollback-provider-readback.json" | awk '{print $1}')"
+          EFFECT="$packet/rollback-effect-reconciliation.json" FAILED_SHA="$FAILED_APPLICATION_SHA" \
+          CURRENT_IMAGE="$CURRENT_IMMUTABLE_IMAGE" MODE="$ROLLBACK_MODE" TARGET_SHA="$ROLLBACK_RELEASE_SHA" \
+          TARGET_IMAGE="$ROLLBACK_IMMUTABLE_IMAGE" TARGET_ID="$ROLLBACK_TARGET_ARTIFACT_ID" \
+          TARGET_DIGEST="$ROLLBACK_TARGET_ARTIFACT_DIGEST" TARGET_RECEIPT_SHA="$ROLLBACK_TARGET_RECEIPT_SHA256" \
+          CONFIG_SHA="$target_config_sha" MACHINE_CONFIG_SHA="$target_machine_config_sha" TARGET_ADMISSION_SHA="$target_admission_sha" \
+          PROVIDER_SHA="$provider_sha" MACHINE="$EXPECTED_MACHINE_ID" VOLUME="$EXPECTED_VOLUME_ID" \
+          INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" GITHUB_RUN_ID="${{ github.run_id }}" \
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto'; import fs from 'node:fs';
+          const zero = '0'.repeat(64);
+          const effectId = `rollback:${process.env.GITHUB_RUN_ID}:${process.env.FAILED_SHA}:0`;
+          const row = { contract_version: 'assesssuite-physio-rollback-effect-reconciliation/1.0.0', result: 'STARTED',
+            phase: 'STARTED', phase_ordinal: 0, application: 'assesssuite-physio-production',
+            failed_application_sha: process.env.FAILED_SHA, current_immutable_image: process.env.CURRENT_IMAGE,
+            rollback_mode: process.env.MODE, rollback_release_sha: process.env.TARGET_SHA,
+            rollback_immutable_image: process.env.TARGET_IMAGE, rollback_target_artifact_id: process.env.TARGET_ID,
+            rollback_target_artifact_digest: process.env.TARGET_DIGEST,
+            rollback_target_receipt_sha256: process.env.TARGET_RECEIPT_SHA,
+            rollback_target_config_sha256: process.env.CONFIG_SHA,
+            rollback_target_machine_config_sha256: process.env.MACHINE_CONFIG_SHA,
+            rollback_target_admission_sha256: process.env.TARGET_ADMISSION_SHA,
+            expected_machine_id: process.env.MACHINE, expected_volume_id: process.env.VOLUME,
+            capability_intent_id: process.env.INTENT, authority_reference: process.env.AUTHORITY,
+            provider_effect_id: effectId, predecessor_phase_receipt_sha256: zero,
+            provider_readback_sha256: process.env.PROVIDER_SHA, provider_operation: 'PLAN_ADMITTED',
+            provider_operation_id_sha256: createHash('sha256').update(`${effectId}:STARTED:PLAN_ADMITTED`).digest('hex'),
+            provider_calls_executed: 0, initial_machine_state: 'unknown', snapshot_id: null,
+            restore_volume_id: null, verifier_machine_id: null, result_machine_id: null, result_volume_id: null,
+            observed_image: null, started_at: new Date().toISOString(), completed_at: null };
+          fs.writeFileSync(process.env.EFFECT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          install -m 0600 "$packet/rollback-effect-reconciliation.json" "$packet/rollback-phase-00-STARTED.json"
+          install -m 0600 "$packet/rollback-provider-readback.json" "$packet/rollback-readback-00-STARTED.json"
+          (cd "$packet" && sha256sum rollback-effect-reconciliation.json rollback-provider-readback.json \
+            rollback-phase-00-STARTED.json rollback-readback-00-STARTED.json rollback-target-admission.json \
+            rollback-target-config.toml rollback-target-machine-config.json \
+            rollback-target-github-artifact-admission.json rollback-target-source-deploy-receipt.json \
+            | LC_ALL=C sort -k2,2 >SHA256SUMS && \
+            sha256sum --check --strict SHA256SUMS)
+          started_sha="$(sha256sum "$packet/rollback-effect-reconciliation.json" | awk '{print $1}')"
+          echo "resume_completed=false" >>"$GITHUB_OUTPUT"
+          echo "resume_phase=STARTED" >>"$GITHUB_OUTPUT"
+          echo "started_receipt_sha256=$started_sha" >>"$GITHUB_OUTPUT"
+
+      - name: Upload durable rollback STARTED or completed-reuse packet
+        id: upload
+        if: ${{ always() && steps.seal.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-started-${{ inputs.failed_application_sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-effect-started
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  rollback_phases:
+    name: Execute durable append-only Physio rollback phases
+    needs: rollback_start
+    if: ${{ needs.rollback_start.outputs.resume_completed != 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    environment: physio-production
+    outputs:
+      continuation_required: ${{ steps.transition_artifact.outputs.continuation_required }}
+      continuation_artifact_id: ${{ steps.transition_artifact.outputs.artifact_id }}
+      continuation_artifact_digest: ${{ steps.transition_artifact.outputs.artifact_digest }}
+      continuation_receipt_sha256: ${{ steps.transition_artifact.outputs.receipt_sha256 }}
+    env:
+      TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+      FAILED_APPLICATION_SHA: ${{ inputs.failed_application_sha }}
+      CURRENT_IMMUTABLE_IMAGE: ${{ inputs.current_immutable_image }}
+      ROLLBACK_MODE: ${{ inputs.rollback_mode }}
+      ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+      ROLLBACK_IMMUTABLE_IMAGE: ${{ inputs.rollback_immutable_image }}
+      ROLLBACK_TARGET_ARTIFACT_ID: ${{ inputs.rollback_target_artifact_id }}
+      ROLLBACK_TARGET_ARTIFACT_DIGEST: ${{ inputs.rollback_target_artifact_digest }}
+      ROLLBACK_TARGET_RECEIPT_SHA256: ${{ inputs.rollback_target_receipt_sha256 }}
+      EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+      EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+      CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+      AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+      PHYSIO_FLY_APP: assesssuite-physio-production
+      PHYSIO_FLY_ORIGIN: https://assesssuite-physio-production.fly.dev
+    steps:
+      - name: Validate trusted rollback dispatch for provider phases
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          FAILED_APPLICATION_SHA: ${{ inputs.failed_application_sha }}
+          CURRENT_IMMUTABLE_IMAGE: ${{ inputs.current_immutable_image }}
+          ROLLBACK_MODE: ${{ inputs.rollback_mode }}
+          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+          ROLLBACK_IMMUTABLE_IMAGE: ${{ inputs.rollback_immutable_image }}
+          EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          CONFIG_SHA256: ${{ inputs.config_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == 'mbvidler-ctrl/assesssuite_migration' ]]
+          [[ "$ACTOR" == 'mbvidler-ctrl' && "$TRIGGERING_ACTOR" == 'mbvidler-ctrl' ]]
+          [[ "$IS_FORK" == 'false' && "$EVENT_REF" == 'refs/heads/main' ]]
+          [[ "$WORKFLOW_REF" == 'mbvidler-ctrl/assesssuite_migration/.github/workflows/physio-production-rollback.yml@refs/heads/main' ]]
+          [[ "$TRUSTED_WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ && "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$FAILED_APPLICATION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CURRENT_IMMUTABLE_IMAGE" =~ ^registry\.fly\.io/assesssuite-physio-production@sha256:[0-9a-f]{64}$ ]]
+          [[ "$EXPECTED_MACHINE_ID" =~ ^[0-9a-f]{14,32}$ && "$EXPECTED_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]
+          [[ "$CONFIG_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$CAPABILITY_INTENT_ID" =~ ^[A-Za-z0-9._:-]{1,160}$ ]]
+          [[ "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
+          [[ "$CONFIRMATION" == 'ROLLBACK assesssuite-physio-production EXACT TARGETS' ]]
+          if [[ "$ROLLBACK_MODE" == 'exact-image' ]]; then
+            [[ "$ROLLBACK_RELEASE_SHA" =~ ^[0-9a-f]{40}$ ]]
+            [[ "$ROLLBACK_IMMUTABLE_IMAGE" =~ ^registry\.fly\.io/assesssuite-physio-production@sha256:[0-9a-f]{64}$ ]]
+            [[ "$ROLLBACK_RELEASE_SHA" != "$FAILED_APPLICATION_SHA" ]]
+            [[ "$ROLLBACK_IMMUTABLE_IMAGE" != "$CURRENT_IMMUTABLE_IMAGE" ]]
+          else
+            [[ "$ROLLBACK_MODE" == 'stop-first-release' ]]
+            [[ "$ROLLBACK_RELEASE_SHA" == 'NOT-AVAILABLE' && "$ROLLBACK_IMMUTABLE_IMAGE" == 'NOT-AVAILABLE' ]]
+          fi
+
+      - name: Check out exact trusted rollback phase controls
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.trusted_workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Download exact durable rollback STARTED or resume packet
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.rollback_start.outputs.started_artifact_id }}
+          path: ${{ runner.temp }}/rollback-phase-input
+          github-token: ${{ github.token }}
+
+      - name: Re-admit raw target provenance and exact phase chain before credentials
+        shell: bash
+        env:
+          FAILED_APPLICATION_SHA: ${{ inputs.failed_application_sha }}
+          CURRENT_IMMUTABLE_IMAGE: ${{ inputs.current_immutable_image }}
+          ROLLBACK_MODE: ${{ inputs.rollback_mode }}
+          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+          ROLLBACK_IMMUTABLE_IMAGE: ${{ inputs.rollback_immutable_image }}
+          ROLLBACK_TARGET_ARTIFACT_ID: ${{ inputs.rollback_target_artifact_id }}
+          ROLLBACK_TARGET_ARTIFACT_DIGEST: ${{ inputs.rollback_target_artifact_digest }}
+          ROLLBACK_TARGET_RECEIPT_SHA256: ${{ inputs.rollback_target_receipt_sha256 }}
+          EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          STARTED_RECEIPT_SHA256: ${{ needs.rollback_start.outputs.started_receipt_sha256 }}
+          CONFIG_SHA256: ${{ inputs.config_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          packet="$RUNNER_TEMP/rollback-phase-input"
+          [[ "$(sha256sum "$packet/rollback-effect-reconciliation.json" | awk '{print $1}')" == "$STARTED_RECEIPT_SHA256" ]]
+          node scripts/physio-release-contract.mjs validate-rollback-resume-packet \
+            --packet "$packet" --failed-application-sha "$FAILED_APPLICATION_SHA" \
+            --current-immutable-image "$CURRENT_IMMUTABLE_IMAGE" --rollback-mode "$ROLLBACK_MODE" \
+            --rollback-release-sha "$ROLLBACK_RELEASE_SHA" --rollback-immutable-image "$ROLLBACK_IMMUTABLE_IMAGE" \
+            --rollback-target-artifact-id "$ROLLBACK_TARGET_ARTIFACT_ID" \
+            --rollback-target-artifact-digest "$ROLLBACK_TARGET_ARTIFACT_DIGEST" \
+            --rollback-target-receipt-sha256 "$ROLLBACK_TARGET_RECEIPT_SHA256" \
+            --expected-machine-id "$EXPECTED_MACHINE_ID" --expected-volume-id "$EXPECTED_VOLUME_ID" \
+            --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE"
+          [[ "$(git rev-parse --verify 'HEAD^{commit}')" == '${{ inputs.trusted_workflow_sha }}' ]]
+          [[ "$(git ls-remote --exit-code https://github.com/mbvidler-ctrl/assesssuite_migration.git refs/heads/main | awk 'NR == 1 { print $1 }')" == '${{ inputs.trusted_workflow_sha }}' ]]
+          [[ -z "$(git status --porcelain --untracked-files=no)" ]]
+          node scripts/physio-release-contract.mjs validate-source
+          node scripts/physio-release-contract.mjs write-catalogue-environment --github-env "$GITHUB_ENV"
+          if [[ "$ROLLBACK_MODE" == 'exact-image' ]]; then
+            [[ "$(sha256sum "$packet/rollback-target-config.toml" | awk '{print $1}')" == "$CONFIG_SHA256" ]]
+            echo 'rollback-target-recorded-config-admitted=true' >>"$GITHUB_STEP_SUMMARY"
+            git cat-file -e "$ROLLBACK_RELEASE_SHA^{commit}"
+            git merge-base --is-ancestor "$ROLLBACK_RELEASE_SHA" "$TRUSTED_WORKFLOW_SHA"
+          else
+            cmp --silent "$packet/rollback-target-config.toml" fly.physio.production.toml
+            [[ "$(sha256sum fly.physio.production.toml | awk '{print $1}')" == "$CONFIG_SHA256" ]]
+          fi
+
+      - name: Install checksum-verified flyctl 0.4.71
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          bin_dir="$RUNNER_TEMP/flyctl-bin"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+            --output "$archive" \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'
+          printf '%s  %s\n' 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2' "$archive" | sha256sum --check --strict
+          mkdir -p "$bin_dir"
+          tar -xzf "$archive" -C "$bin_dir" flyctl
+          install -m 0755 "$bin_dir/flyctl" "$bin_dir/fly"
+          echo "$bin_dir" >>"$GITHUB_PATH"
+          "$bin_dir/fly" version | grep -F '0.4.71'
+
+      - name: Install exact credential-free rollback phase packet helper
+        shell: bash
+        env:
+          FAILED_APPLICATION_SHA: ${{ inputs.failed_application_sha }}
+          CURRENT_IMMUTABLE_IMAGE: ${{ inputs.current_immutable_image }}
+          ROLLBACK_MODE: ${{ inputs.rollback_mode }}
+          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+          ROLLBACK_IMMUTABLE_IMAGE: ${{ inputs.rollback_immutable_image }}
+          ROLLBACK_TARGET_ARTIFACT_ID: ${{ inputs.rollback_target_artifact_id }}
+          ROLLBACK_TARGET_ARTIFACT_DIGEST: ${{ inputs.rollback_target_artifact_digest }}
+          ROLLBACK_TARGET_RECEIPT_SHA256: ${{ inputs.rollback_target_receipt_sha256 }}
+          EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          helper="$RUNNER_TEMP/rollback-phase-helper.mjs"
+          install -m 0600 /dev/null "$helper"
+          cat >"$helper" <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { pathToFileURL } from 'node:url';
+
+          const contract = await import(pathToFileURL(path.join(
+            process.env.GITHUB_WORKSPACE,
+            'scripts/physio-release-contract.mjs',
+          )).href);
+          const phases = contract.PHYSIO_ROLLBACK_PHASES;
+          const operations = Object.freeze({
+            STARTED: 'PLAN_ADMITTED',
+            SNAPSHOT_COMPLETED: 'SAFETY_SNAPSHOT',
+            RESTORE_VERIFIED: 'RESTORE_VERIFY',
+            TARGET_VERIFIED: 'TARGET_VERIFY',
+            LIVE_MUTATION_STARTED: 'LIVE_IMAGE_CONFIG_RESTORE',
+            POST_RESTART_VERIFIED: 'EXACT_CONFIG_READINESS',
+            RESTORE_VOLUME_CLEANUP: 'RESTORE_VOLUME_CLEANUP',
+            COMPLETED: 'FINALIZE',
+          });
+          const sha = (value) => createHash('sha256').update(value).digest('hex');
+          const json = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+          const option = (name) => {
+            const index = process.argv.indexOf(name);
+            if (index < 0 || !process.argv[index + 1] || process.argv[index + 1].startsWith('--')) {
+              throw new Error(`missing ${name}`);
+            }
+            return process.argv[index + 1];
+          };
+          const options = Object.freeze({
+            failedApplicationSha: process.env.FAILED_APPLICATION_SHA,
+            currentImmutableImage: process.env.CURRENT_IMMUTABLE_IMAGE,
+            rollbackMode: process.env.ROLLBACK_MODE,
+            rollbackReleaseSha: process.env.ROLLBACK_RELEASE_SHA,
+            rollbackImmutableImage: process.env.ROLLBACK_IMMUTABLE_IMAGE,
+            rollbackTargetArtifactId: process.env.ROLLBACK_TARGET_ARTIFACT_ID,
+            rollbackTargetArtifactDigest: process.env.ROLLBACK_TARGET_ARTIFACT_DIGEST,
+            rollbackTargetReceiptSha256: process.env.ROLLBACK_TARGET_RECEIPT_SHA256,
+            expectedMachineId: process.env.EXPECTED_MACHINE_ID,
+            expectedVolumeId: process.env.EXPECTED_VOLUME_ID,
+            capabilityIntentId: process.env.CAPABILITY_INTENT_ID,
+            authorityReference: process.env.AUTHORITY_REFERENCE,
+          });
+          const validate = (root) => contract.readAndValidatePhysioRollbackResumePacket(root, options);
+          function copyPacket(input, output) {
+            fs.mkdirSync(output, { recursive: false, mode: 0o700 });
+            const entries = fs.readdirSync(input, { withFileTypes: true });
+            if (entries.some((entry) => !entry.isFile() || entry.isSymbolicLink())) {
+              throw new Error('rollback input packet is not a flat regular-file set');
+            }
+            for (const entry of entries) {
+              fs.copyFileSync(path.join(input, entry.name), path.join(output, entry.name), fs.constants.COPYFILE_EXCL);
+              fs.chmodSync(path.join(output, entry.name), 0o600);
+            }
+          }
+          function writeJson(file, value) {
+            fs.writeFileSync(file, `${JSON.stringify(value, null, 2)}\n`, { mode: 0o600 });
+          }
+          function rewriteSums(root) {
+            const names = fs.readdirSync(root).filter((name) => name !== 'SHA256SUMS').sort();
+            const rows = names.map((name) => `${sha(fs.readFileSync(path.join(root, name)))}  ${name}`);
+            fs.writeFileSync(path.join(root, 'SHA256SUMS'), `${rows.join('\n')}\n`, { mode: 0o600 });
+          }
+          function emit(values) {
+            if (!process.env.GITHUB_OUTPUT) return;
+            fs.appendFileSync(process.env.GITHUB_OUTPUT,
+              Object.entries(values).map(([key, value]) => `${key}=${value}\n`).join(''));
+          }
+          function emptyProvider(phase, initialState = null) {
+            const empty = sha(Buffer.alloc(0));
+            return {
+              contract_version: 'assesssuite-physio-rollback-provider-readback/1.0.0',
+              result: 'NOT_OBSERVED', application: 'assesssuite-physio-production', phase,
+               machines_sha256: empty, volumes_sha256: empty, snapshots_sha256: empty,
+               observed_config_sha256: empty, machine_count: 0, volume_count: 0, snapshot_count: 0,
+               machine_config_operation_receipt_sha256s: [],
+               machine_config_recovery_prestate_sha256s: [],
+               machine_config_recovery_receipt_sha256s: [],
+               restore_volume_cleanup_receipt_sha256s: [],
+              observed_machine_id: null, observed_machine_state: initialState,
+              observed_image: null, observed_volume_id: null, observed_restore_volume_id: null,
+              observed_verifier_machine_id: null, observed_snapshot_id: null,
+              readback_at: new Date().toISOString(),
+            };
+          }
+          function writeCurrent(root, effect, provider) {
+            const ordinal = effect.phase_ordinal;
+            const phaseFile = `rollback-phase-${String(ordinal).padStart(2, '0')}-${effect.phase}.json`;
+            const readbackFile = `rollback-readback-${String(ordinal).padStart(2, '0')}-${effect.phase}.json`;
+            writeJson(path.join(root, 'rollback-provider-readback.json'), provider);
+            effect.provider_readback_sha256 = sha(fs.readFileSync(path.join(root, 'rollback-provider-readback.json')));
+            writeJson(path.join(root, 'rollback-effect-reconciliation.json'), effect);
+            fs.copyFileSync(path.join(root, 'rollback-provider-readback.json'), path.join(root, readbackFile));
+            fs.copyFileSync(path.join(root, 'rollback-effect-reconciliation.json'), path.join(root, phaseFile));
+            rewriteSums(root);
+            return sha(fs.readFileSync(path.join(root, 'rollback-effect-reconciliation.json')));
+          }
+          function rows(file, keys) {
+            if (!file || !fs.existsSync(file)) return [];
+            const value = json(file);
+            if (Array.isArray(value)) return value;
+            for (const key of keys) if (Array.isArray(value?.[key])) return value[key];
+            return [];
+          }
+
+          const command = process.argv[2];
+          if (command === 'state') {
+            const proof = validate(option('--packet'));
+            process.stdout.write(`${JSON.stringify(proof)}\n`);
+          } else if (command === 'advance') {
+            const input = option('--input');
+            const output = option('--output');
+            const targetPhase = option('--phase');
+            const targetOrdinal = phases.indexOf(targetPhase);
+            if (targetOrdinal < 1) throw new Error('advance target phase differs');
+            const proof = validate(input);
+            copyPacket(input, output);
+            let execute = false;
+            if (proof.phaseOrdinal > targetOrdinal ||
+                (proof.phaseOrdinal === targetOrdinal && proof.result === 'COMPLETED')) {
+              execute = false;
+            } else if (proof.phaseOrdinal === targetOrdinal &&
+                ['STARTED', 'STARTED_UNRESOLVED'].includes(proof.result)) {
+              execute = true;
+            } else if (proof.phaseOrdinal === targetOrdinal - 1 && proof.result === 'COMPLETED') {
+              const previousEffect = json(path.join(output, 'rollback-effect-reconciliation.json'));
+              const previousProvider = json(path.join(output, 'rollback-provider-readback.json'));
+              const provider = emptyProvider(targetPhase,
+                ['started', 'stopped'].includes(previousProvider.observed_machine_state)
+                  ? previousProvider.observed_machine_state
+                  : previousEffect.initial_machine_state === 'started' ? 'started' : 'stopped');
+              const targetAdmissionSha = sha(fs.readFileSync(path.join(output, 'rollback-target-admission.json')));
+              const effectId = `rollback:${options.failedApplicationSha}:${targetOrdinal}:${sha(
+                `${options.capabilityIntentId}|${options.authorityReference}|${targetAdmissionSha}|${targetPhase}`,
+              ).slice(0, 32)}`;
+               const effect = {
+                ...previousEffect,
+                result: 'STARTED', phase: targetPhase, phase_ordinal: targetOrdinal,
+                provider_effect_id: effectId,
+                predecessor_phase_receipt_sha256: proof.effectReceiptSha256,
+                provider_operation: operations[targetPhase],
+                provider_operation_id_sha256: sha(`${effectId}:${targetPhase}:${operations[targetPhase]}`),
+                provider_calls_executed: 0,
+                initial_machine_state: provider.observed_machine_state,
+                snapshot_id: null, restore_volume_id: null, verifier_machine_id: null,
+                result_machine_id: null, result_volume_id: null, observed_image: null,
+                 started_at: new Date().toISOString(), completed_at: null,
+               };
+               if (targetPhase === 'LIVE_MUTATION_STARTED') {
+                 for (const [environmentName, basename] of [
+                   ['LIVE_MUTATION_PRESTATE', 'rollback-live-mutation-prestate.json'],
+                   ['LIVE_MUTATION_CURRENT_CONFIG', 'rollback-current-machine-config.json'],
+                   ['LIVE_MUTATION_PRESTATE_RECEIPT', 'rollback-live-mutation-prestate-receipt.json'],
+                 ]) {
+                   const source = process.env[environmentName];
+                   if (!source || !fs.existsSync(source) || fs.lstatSync(source).isSymbolicLink() ||
+                       !fs.lstatSync(source).isFile()) {
+                     throw new Error(`rollback live mutation durable prestate ${basename} is absent`);
+                   }
+                   fs.copyFileSync(source, path.join(output, basename), fs.constants.COPYFILE_EXCL);
+                   fs.chmodSync(path.join(output, basename), 0o600);
+                 }
+               }
+               writeCurrent(output, effect, provider);
+              execute = true;
+            } else {
+              throw new Error(`rollback phase ${proof.phase}/${proof.result} cannot advance to ${targetPhase}`);
+            }
+            const result = validate(output);
+            emit({ execute, packet_receipt_sha256: result.effectReceiptSha256, packet_phase: result.phase });
+          } else if (command === 'readback') {
+            const phase = option('--phase');
+            const result = option('--result');
+            const output = option('--output');
+            const machineRows = rows(process.env.MACHINES_FILE, ['machines', 'data']);
+            const volumeRows = rows(process.env.VOLUMES_FILE, ['volumes', 'data']);
+            const snapshotRows = rows(process.env.SNAPSHOTS_FILE, ['snapshots', 'data']);
+            const bytesSha = (file) => file && fs.existsSync(file) ? sha(fs.readFileSync(file)) : sha(Buffer.alloc(0));
+            const operationHashes = (prefix, additional) => {
+              const root = process.env.ROLLBACK_PACKET_INPUT;
+              const names = root && fs.existsSync(root) ? fs.readdirSync(root)
+                .filter((name) => new RegExp(`^${prefix}-[0-9]{4}\\.json$`).test(name)).sort() : [];
+              const values = names.map((name) => bytesSha(path.join(root, name)));
+              if (additional) values.push(bytesSha(additional));
+              return values;
+            };
+            const value = {
+              contract_version: 'assesssuite-physio-rollback-provider-readback/1.0.0',
+              result, application: 'assesssuite-physio-production', phase,
+              machines_sha256: bytesSha(process.env.MACHINES_FILE),
+              volumes_sha256: bytesSha(process.env.VOLUMES_FILE),
+              snapshots_sha256: bytesSha(process.env.SNAPSHOTS_FILE),
+              observed_config_sha256: process.env.OBSERVED_CONFIG_SHA256 || sha(Buffer.alloc(0)),
+              machine_count: machineRows.length, volume_count: volumeRows.length, snapshot_count: snapshotRows.length,
+              observed_machine_id: process.env.OBSERVED_MACHINE_ID || null,
+              observed_machine_state: process.env.OBSERVED_MACHINE_STATE || null,
+              observed_image: process.env.OBSERVED_IMAGE || null,
+              observed_volume_id: process.env.OBSERVED_VOLUME_ID || null,
+              observed_restore_volume_id: process.env.OBSERVED_RESTORE_VOLUME_ID || null,
+               observed_verifier_machine_id: process.env.OBSERVED_VERIFIER_MACHINE_ID || null,
+               observed_snapshot_id: process.env.OBSERVED_SNAPSHOT_ID || null,
+               machine_config_operation_receipt_sha256s: operationHashes(
+                 'rollback-machine-config-transition-operation', process.env.MACHINE_CONFIG_OPERATION_RECEIPT),
+               machine_config_recovery_prestate_sha256s: operationHashes(
+                 'rollback-machine-config-recovery-prestate', process.env.MACHINE_CONFIG_RECOVERY_PRESTATE),
+               machine_config_recovery_receipt_sha256s: operationHashes(
+                 'rollback-machine-config-recovery-operation', process.env.MACHINE_CONFIG_RECOVERY_RECEIPT),
+               restore_volume_cleanup_receipt_sha256s: operationHashes(
+                 'rollback-restore-volume-cleanup-operation', process.env.RESTORE_VOLUME_CLEANUP_RECEIPT),
+               readback_at: new Date().toISOString(),
+            };
+            writeJson(output, value);
+          } else if (command === 'seal') {
+            const input = option('--input');
+            const output = option('--output');
+            const phase = option('--phase');
+            const result = option('--result');
+            const providerCalls = Number(option('--provider-calls'));
+            const proof = validate(input);
+            if (proof.phase !== phase || !['STARTED', 'STARTED_UNRESOLVED'].includes(proof.result) ||
+                !['COMPLETED', 'STARTED_UNRESOLVED'].includes(result) || ![0, 1].includes(providerCalls)) {
+              throw new Error('rollback phase seal transition differs');
+            }
+            const provider = json(option('--readback'));
+            if (provider.phase !== phase || provider.result !== (result === 'COMPLETED' ? 'PASS' : 'STARTED_UNRESOLVED')) {
+              throw new Error('rollback phase provider result differs');
+            }
+             copyPacket(input, output);
+             for (const [environmentName, prefix] of [
+               ['MACHINE_CONFIG_OPERATION_RECEIPT', 'rollback-machine-config-transition-operation'],
+               ['MACHINE_CONFIG_RECOVERY_PRESTATE', 'rollback-machine-config-recovery-prestate'],
+               ['MACHINE_CONFIG_RECOVERY_RECEIPT', 'rollback-machine-config-recovery-operation'],
+               ['RESTORE_VOLUME_CLEANUP_RECEIPT', 'rollback-restore-volume-cleanup-operation'],
+             ]) {
+               const source = process.env[environmentName];
+               if (!source) continue;
+               if (!fs.existsSync(source) || fs.lstatSync(source).isSymbolicLink() ||
+                   !fs.lstatSync(source).isFile()) throw new Error(`rollback operation evidence ${prefix} differs`);
+               const existing = fs.readdirSync(output)
+                 .filter((name) => new RegExp(`^${prefix}-[0-9]{4}\\.json$`).test(name));
+               const basename = `${prefix}-${String(existing.length + 1).padStart(4, '0')}.json`;
+               const destination = path.join(output, basename);
+               fs.copyFileSync(source, destination, fs.constants.COPYFILE_EXCL);
+               fs.chmodSync(destination, 0o600);
+             }
+             const effect = json(path.join(output, 'rollback-effect-reconciliation.json'));
+            effect.result = result;
+            effect.provider_calls_executed = providerCalls;
+            effect.observed_image = provider.observed_image;
+            effect.snapshot_id = provider.observed_snapshot_id;
+            effect.restore_volume_id = provider.observed_restore_volume_id;
+            effect.verifier_machine_id = provider.observed_verifier_machine_id;
+            effect.result_machine_id = process.env.RESULT_MACHINE_ID || null;
+            effect.result_volume_id = process.env.RESULT_VOLUME_ID || null;
+            effect.completed_at = new Date().toISOString();
+            const receipt = writeCurrent(output, effect, provider);
+            validate(output);
+            emit({ phase_receipt_sha256: receipt, phase_result: result });
+          } else {
+            throw new Error(`unsupported rollback phase helper command ${command}`);
+          }
+          NODE
+          node --check "$helper"
+
+      - name: Complete rollback STARTED provider admission
+        id: started_effect
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          FAILED_APPLICATION_SHA: ${{ inputs.failed_application_sha }}
+          CURRENT_IMMUTABLE_IMAGE: ${{ inputs.current_immutable_image }}
+          ROLLBACK_MODE: ${{ inputs.rollback_mode }}
+          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+          ROLLBACK_IMMUTABLE_IMAGE: ${{ inputs.rollback_immutable_image }}
+          ROLLBACK_TARGET_ARTIFACT_ID: ${{ inputs.rollback_target_artifact_id }}
+          ROLLBACK_TARGET_ARTIFACT_DIGEST: ${{ inputs.rollback_target_artifact_digest }}
+          ROLLBACK_TARGET_RECEIPT_SHA256: ${{ inputs.rollback_target_receipt_sha256 }}
+          EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          input="$RUNNER_TEMP/rollback-phase-input"
+          output="$RUNNER_TEMP/rollback-phase-00-result"
+          state="$(node "$RUNNER_TEMP/rollback-phase-helper.mjs" state --packet "$input")"
+          ordinal="$(STATE="$state" node --input-type=module -e "process.stdout.write(String(JSON.parse(process.env.STATE).phaseOrdinal))")"
+          if [[ "$ordinal" -gt 0 ]] || STATE="$state" node --input-type=module -e \
+            "const x=JSON.parse(process.env.STATE);process.exit(x.phase==='STARTED'&&x.result==='COMPLETED'?0:1)"; then
+            cp -R "$input" "$output"
+            exit 0
+          fi
+          work="$RUNNER_TEMP/rollback-started-provider"
+          install -d -m 0700 "$work"
+          fly machines list --app assesssuite-physio-production --json >"$work/machines.json"
+          fly volumes list --app assesssuite-physio-production --json >"$work/volumes.json"
+          fly volumes snapshots list "$EXPECTED_VOLUME_ID" --app assesssuite-physio-production --json >"$work/snapshots.json"
+          topology="$(env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+            --machines "$work/machines.json" --volumes "$work/volumes.json" --mode recovery-admission \
+            --volume-id "$EXPECTED_VOLUME_ID" --machine-id "$EXPECTED_MACHINE_ID" --image "$CURRENT_IMMUTABLE_IMAGE")"
+          machine_state="$(TOPOLOGY="$topology" node --input-type=module -e \
+            "process.stdout.write(JSON.parse(process.env.TOPOLOGY).machineState)")"
+          config_sha="$(MACHINES="$work/machines.json" MACHINE="$EXPECTED_MACHINE_ID" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto'; import fs from 'node:fs';
+          const value=JSON.parse(fs.readFileSync(process.env.MACHINES,'utf8'));
+          const rows=Array.isArray(value)?value:value.machines||value.data||[];
+          const row=rows.find((item)=>item?.id===process.env.MACHINE);
+          if(!row) throw new Error('rollback STARTED exact Machine missing');
+          process.stdout.write(createHash('sha256').update(JSON.stringify(row.config??row.Config)).digest('hex'));
+          NODE
+          )"
+          MACHINES_FILE="$work/machines.json" VOLUMES_FILE="$work/volumes.json" SNAPSHOTS_FILE="$work/snapshots.json" \
+          OBSERVED_CONFIG_SHA256="$config_sha" OBSERVED_MACHINE_ID="$EXPECTED_MACHINE_ID" \
+          OBSERVED_MACHINE_STATE="$machine_state" OBSERVED_IMAGE="$CURRENT_IMMUTABLE_IMAGE" \
+          OBSERVED_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" readback --phase STARTED --result PASS \
+            --output "$work/readback.json"
+          RESULT_MACHINE_ID="$EXPECTED_MACHINE_ID" RESULT_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" seal --input "$input" --output "$output" \
+            --phase STARTED --result COMPLETED --provider-calls 0 --readback "$work/readback.json"
+
+      - name: Upload rollback STARTED receipt before snapshot phase
+        if: ${{ always() && steps.started_effect.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-phase-${{ inputs.failed_application_sha }}-STARTED-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-00-result
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Prepare rollback SNAPSHOT_COMPLETED phase intent
+        id: prepare_snapshot
+        shell: bash
+        env:
+          FAILED_APPLICATION_SHA: ${{ inputs.failed_application_sha }}
+          CURRENT_IMMUTABLE_IMAGE: ${{ inputs.current_immutable_image }}
+          ROLLBACK_MODE: ${{ inputs.rollback_mode }}
+          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+          ROLLBACK_IMMUTABLE_IMAGE: ${{ inputs.rollback_immutable_image }}
+          ROLLBACK_TARGET_ARTIFACT_ID: ${{ inputs.rollback_target_artifact_id }}
+          ROLLBACK_TARGET_ARTIFACT_DIGEST: ${{ inputs.rollback_target_artifact_digest }}
+          ROLLBACK_TARGET_RECEIPT_SHA256: ${{ inputs.rollback_target_receipt_sha256 }}
+          EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" advance \
+            --input "$RUNNER_TEMP/rollback-phase-00-result" \
+            --output "$RUNNER_TEMP/rollback-phase-01-started" --phase SNAPSHOT_COMPLETED
+
+      - name: Upload rollback SNAPSHOT_COMPLETED STARTED effect before provider mutation
+        if: ${{ always() && steps.prepare_snapshot.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-phase-${{ inputs.failed_application_sha }}-SNAPSHOT-COMPLETED-started-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-01-started
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Execute rollback SNAPSHOT_COMPLETED bounded provider phase
+        id: snapshot_effect
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          EXECUTE_PHASE: ${{ steps.prepare_snapshot.outputs.execute }}
+          FAILED_APPLICATION_SHA: ${{ inputs.failed_application_sha }}
+          CURRENT_IMMUTABLE_IMAGE: ${{ inputs.current_immutable_image }}
+          ROLLBACK_MODE: ${{ inputs.rollback_mode }}
+          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+          ROLLBACK_IMMUTABLE_IMAGE: ${{ inputs.rollback_immutable_image }}
+          ROLLBACK_TARGET_ARTIFACT_ID: ${{ inputs.rollback_target_artifact_id }}
+          ROLLBACK_TARGET_ARTIFACT_DIGEST: ${{ inputs.rollback_target_artifact_digest }}
+          ROLLBACK_TARGET_RECEIPT_SHA256: ${{ inputs.rollback_target_receipt_sha256 }}
+          EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          input="$RUNNER_TEMP/rollback-phase-01-started"
+          output="$RUNNER_TEMP/rollback-phase-01-result"
+          if [[ "$EXECUTE_PHASE" != 'true' ]]; then cp -R "$input" "$output"; exit 0; fi
+          work="$RUNNER_TEMP/rollback-snapshot-phase"
+          install -d -m 0700 "$work"
+          snapshot_sentinel="$(printf '%s' "$FAILED_APPLICATION_SHA|$CAPABILITY_INTENT_ID|rollback-snapshot" | sha256sum | awk '{print $1}')"
+          source_machine_stopped_for_snapshot=0
+          rollback_snapshot_id=''
+          seal_unresolved() {
+            local status=$?
+            set +e
+            fly machines list --app assesssuite-physio-production --json >"$work/machines-final.json" 2>/dev/null || printf '[]\n' >"$work/machines-final.json"
+            fly volumes list --app assesssuite-physio-production --json >"$work/volumes-final.json" 2>/dev/null || printf '[]\n' >"$work/volumes-final.json"
+            fly volumes snapshots list "$EXPECTED_VOLUME_ID" --app assesssuite-physio-production --json >"$work/snapshots-final.json" 2>/dev/null || printf '[]\n' >"$work/snapshots-final.json"
+            MACHINES_FILE="$work/machines-final.json" VOLUMES_FILE="$work/volumes-final.json" SNAPSHOTS_FILE="$work/snapshots-final.json" \
+            OBSERVED_MACHINE_ID="$EXPECTED_MACHINE_ID" OBSERVED_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+            OBSERVED_SNAPSHOT_ID="$rollback_snapshot_id" \
+            node "$RUNNER_TEMP/rollback-phase-helper.mjs" readback --phase SNAPSHOT_COMPLETED \
+              --result STARTED_UNRESOLVED --output "$work/unresolved-readback.json"
+            node "$RUNNER_TEMP/rollback-phase-helper.mjs" seal --input "$input" --output "$output" \
+              --phase SNAPSHOT_COMPLETED --result STARTED_UNRESOLVED --provider-calls 1 \
+              --readback "$work/unresolved-readback.json"
+            exit "$status"
+          }
+          trap seal_unresolved EXIT
+          fly machines list --app assesssuite-physio-production --json >"$work/machines-before.json"
+          fly volumes list --app assesssuite-physio-production --json >"$work/volumes-before.json"
+          topology="$(env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+            --machines "$work/machines-before.json" --volumes "$work/volumes-before.json" \
+            --mode recovery-admission --volume-id "$EXPECTED_VOLUME_ID" --machine-id "$EXPECTED_MACHINE_ID" \
+            --image "$CURRENT_IMMUTABLE_IMAGE")"
+          source_machine_state="$(TOPOLOGY="$topology" node --input-type=module -e \
+            "process.stdout.write(JSON.parse(process.env.TOPOLOGY).machineState)")"
+          if [[ "$source_machine_state" == 'stopped' ]]; then
+            fly machine start "$EXPECTED_MACHINE_ID" --app assesssuite-physio-production
+          fi
+          manifest="$work/physio-rollback-presnapshot-manifest.json"
+          fly machine exec "$EXPECTED_MACHINE_ID" \
+            "env -u ADMIN_PASSWORD -u OPENAI_API_KEY -u RESEND_API_KEY -u SENTRY_DSN -u STRIPE_SECRET_KEY -u STRIPE_WEBHOOK_SECRET -u STRIPE_PRICE_ID_MONTHLY -u STRIPE_PRICE_ID_ANNUAL LLM_REQUIRED=0 GENERAL_CLINICAL_LLM_ENABLED=0 TRANSCRIPTION_ENABLED=0 DOCUMENT_EXTRACTION_ENABLED=0 DOCUMENT_EXTRACTION_UNDER_13_ENABLED=0 DOCUMENT_EXTRACTION_PROVIDER_PROBE=0 OUTBOUND_EMAIL_ENABLED=0 OUTBOUND_SMS_ENABLED=0 PAYMENTS_ENABLED=0 SELFTEST=0 PARITY_ASSURANCE_MODE=0 ALLOW_PAID_PROVIDER_PROBE=0 node /app/scripts/physio-restore-verify.mjs manifest --database /app/server/data/physio.db --snapshot-sentinel '$snapshot_sentinel'" \
+            --app assesssuite-physio-production --timeout 180 >"$manifest"
+          node scripts/physio-release-contract.mjs validate-presnapshot-manifest \
+            --manifest "$manifest" --snapshot-sentinel "$snapshot_sentinel" >"$work/manifest-admission.json"
+          expected_data_manifest_sha256="$(MANIFEST="$manifest" node --input-type=module -e \
+            "import fs from'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.env.MANIFEST,'utf8')).data_manifest_sha256)")"
+          presnapshot_manifest_receipt_sha256="$(sha256sum "$manifest" | awk '{print $1}')"
+          fly machine stop "$EXPECTED_MACHINE_ID" --app assesssuite-physio-production --wait-timeout 90s
+          source_machine_stopped_for_snapshot=1
+          fly volumes snapshots list "$EXPECTED_VOLUME_ID" --app assesssuite-physio-production --json >"$work/snapshots-before.json"
+          phase_started_at="$(PHASE="$input/rollback-effect-reconciliation.json" node --input-type=module -e \
+            "import fs from'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.env.PHASE,'utf8')).started_at)")"
+          rollback_snapshot_id="$(SNAPSHOTS="$work/snapshots-before.json" STARTED="$phase_started_at" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const value=JSON.parse(fs.readFileSync(process.env.SNAPSHOTS,'utf8'));
+          const rows=Array.isArray(value)?value:value.snapshots||value.data||[];
+          const toMillis=(value)=>{const numeric=typeof value==='number'?value:
+            typeof value==='string'&&/^\d+(?:\.\d+)?$/.test(value.trim())?Number(value):NaN;
+            return Number.isFinite(numeric)?(numeric>=1e12?numeric:numeric*1000):Date.parse(value);};
+          const started=toMillis(process.env.STARTED);
+          if(!Number.isFinite(started))throw new Error('snapshot phase start timestamp differs');
+          const candidates=rows.filter((row)=>{
+            const created=toMillis(row?.created_at??row?.createdAt??row?.created);
+            const id=row?.id??row?.snapshot_id??row?.snapshotId;
+            return /^[A-Za-z0-9_-]{6,160}$/.test(id||'')&&Number.isFinite(created)&&created>=started;
+          });
+          if(candidates.length>1) throw new Error('ambiguous snapshots exist after durable phase start');
+          if(candidates.length===1) process.stdout.write(candidates[0].id??candidates[0].snapshot_id??candidates[0].snapshotId);
+          NODE
+          )"
+          if [[ -z "$rollback_snapshot_id" ]]; then
+            fly volumes snapshots create "$EXPECTED_VOLUME_ID" --app assesssuite-physio-production --json >"$work/rollback-snapshot-create.json"
+            rollback_snapshot_id="$(PAYLOAD="$work/rollback-snapshot-create.json" node --input-type=module -e \
+              "import fs from'node:fs';const p=JSON.parse(fs.readFileSync(process.env.PAYLOAD,'utf8'));const r=Array.isArray(p)?p[0]:p;const id=r?.id??r?.snapshot_id??r?.snapshotId;if(!/^[A-Za-z0-9_-]{6,160}$/.test(id||''))throw Error('snapshot ID differs');process.stdout.write(id)")"
+          fi
+          fly volumes snapshots list "$EXPECTED_VOLUME_ID" --app assesssuite-physio-production --json >"$work/snapshots-final.json"
+          node scripts/physio-release-contract.mjs inspect-snapshot --snapshots "$work/snapshots-final.json" \
+            --snapshot-id "$rollback_snapshot_id"
+          fly machines list --app assesssuite-physio-production --json >"$work/machines-final.json"
+          fly volumes list --app assesssuite-physio-production --json >"$work/volumes-final.json"
+          config_sha="${expected_data_manifest_sha256#sha256:}"
+          MACHINES_FILE="$work/machines-final.json" VOLUMES_FILE="$work/volumes-final.json" SNAPSHOTS_FILE="$work/snapshots-final.json" \
+          OBSERVED_CONFIG_SHA256="$config_sha" OBSERVED_MACHINE_ID="$EXPECTED_MACHINE_ID" \
+          OBSERVED_MACHINE_STATE=stopped OBSERVED_IMAGE="$CURRENT_IMMUTABLE_IMAGE" \
+          OBSERVED_VOLUME_ID="$EXPECTED_VOLUME_ID" OBSERVED_SNAPSHOT_ID="$rollback_snapshot_id" \
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" readback --phase SNAPSHOT_COMPLETED --result PASS \
+            --output "$work/readback.json"
+          RESULT_MACHINE_ID="$EXPECTED_MACHINE_ID" RESULT_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" seal --input "$input" --output "$output" \
+            --phase SNAPSHOT_COMPLETED --result COMPLETED --provider-calls 1 --readback "$work/readback.json"
+          trap - EXIT
+
+      - name: Upload rollback SNAPSHOT_COMPLETED receipt before restore phase
+        if: ${{ always() && steps.snapshot_effect.outcome != 'skipped' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-phase-${{ inputs.failed_application_sha }}-SNAPSHOT-COMPLETED-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-01-result
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Prepare rollback RESTORE_VERIFIED phase intent
+        id: prepare_restore
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" advance \
+            --input "$RUNNER_TEMP/rollback-phase-01-result" \
+            --output "$RUNNER_TEMP/rollback-phase-02-started" --phase RESTORE_VERIFIED
+
+      - name: Upload rollback RESTORE_VERIFIED STARTED effect before provider mutation
+        if: ${{ always() && steps.prepare_restore.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-phase-${{ inputs.failed_application_sha }}-RESTORE-VERIFIED-started-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-02-started
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Execute rollback RESTORE_VERIFIED bounded provider phase
+        id: restore_effect
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          EXECUTE_PHASE: ${{ steps.prepare_restore.outputs.execute }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          input="$RUNNER_TEMP/rollback-phase-02-started"
+          output="$RUNNER_TEMP/rollback-phase-02-result"
+          if [[ "$EXECUTE_PHASE" != 'true' ]]; then cp -R "$input" "$output"; exit 0; fi
+          app="$PHYSIO_FLY_APP"
+          work="$RUNNER_TEMP/rollback-restore-phase"
+          install -d -m 0700 "$work"
+          phase_effect_id="$(PHASE="$input/rollback-effect-reconciliation.json" node --input-type=module -e \
+            "import fs from'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.env.PHASE,'utf8')).provider_effect_id)")"
+          phase_started_at="$(PHASE="$input/rollback-effect-reconciliation.json" node --input-type=module -e \
+            "import fs from'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.env.PHASE,'utf8')).started_at)")"
+          restore_name=assesssuite_physio_data
+          restore_machine_name="assesssuite-physio-rollback-restore-${FAILED_APPLICATION_SHA:0:12}"
+          snapshot_sentinel="$(printf '%s' "$FAILED_APPLICATION_SHA|$CAPABILITY_INTENT_ID|rollback-snapshot" | sha256sum | awk '{print $1}')"
+          rollback_snapshot_id="$(SNAPSHOT="$input/rollback-readback-01-SNAPSHOT_COMPLETED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.SNAPSHOT,'utf8'));if(!/^[A-Za-z0-9_-]{6,160}$/.test(r.observed_snapshot_id||''))throw Error('snapshot lineage differs');process.stdout.write(r.observed_snapshot_id)")"
+          expected_data_manifest_sha256="$(SNAPSHOT="$input/rollback-readback-01-SNAPSHOT_COMPLETED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.SNAPSHOT,'utf8'));if(!/^[0-9a-f]{64}$/.test(r.observed_config_sha256||''))throw Error('manifest lineage differs');process.stdout.write('sha256:'+r.observed_config_sha256)")"
+          restore_volume_id="$(CURRENT="$input/rollback-provider-readback.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.CURRENT,'utf8'));process.stdout.write(r.observed_restore_volume_id||'')")"
+          restore_machine_id="$(CURRENT="$input/rollback-provider-readback.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.CURRENT,'utf8'));process.stdout.write(r.observed_verifier_machine_id||'')")"
+          destroy_restore_machine_exactly() {
+            [[ "$restore_machine_id" =~ ^[0-9a-f]{14,32}$ ]]
+            timeout --signal=TERM --kill-after=10s 90s fly machine stop "$restore_machine_id" --app "$app" --wait-timeout 60s || true
+            timeout --signal=TERM --kill-after=10s 90s fly machine destroy "$restore_machine_id" --app "$app"
+            for attempt in 1 2 3 4 5 6; do
+              timeout --signal=TERM --kill-after=10s 60s fly machines list --app "$app" --json >"$work/machines-after-verifier-destroy.json"
+              if MACHINES="$work/machines-after-verifier-destroy.json" MACHINE="$restore_machine_id" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const p=JSON.parse(fs.readFileSync(process.env.MACHINES,'utf8'));
+          const rows=Array.isArray(p)?p:p.machines||p.data||[];
+          if(rows.some((row)=>row?.id===process.env.MACHINE))process.exit(1);
+          NODE
+              then return 0; fi
+              sleep 3
+            done
+            return 1
+          }
+          seal_restore_unresolved() {
+            local status=$?
+            set +e
+            fly machines list --app "$app" --json >"$work/machines-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/machines-unresolved.json"
+            fly volumes list --app "$app" --json >"$work/volumes-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/volumes-unresolved.json"
+            fly volumes snapshots list "$EXPECTED_VOLUME_ID" --app "$app" --json >"$work/snapshots-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/snapshots-unresolved.json"
+            MACHINES_FILE="$work/machines-unresolved.json" VOLUMES_FILE="$work/volumes-unresolved.json" \
+            SNAPSHOTS_FILE="$work/snapshots-unresolved.json" OBSERVED_CONFIG_SHA256="${expected_data_manifest_sha256#sha256:}" \
+            ROLLBACK_PACKET_INPUT="$input" \
+            OBSERVED_MACHINE_ID="$EXPECTED_MACHINE_ID" OBSERVED_MACHINE_STATE=stopped \
+            OBSERVED_IMAGE="$CURRENT_IMMUTABLE_IMAGE" OBSERVED_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+            OBSERVED_RESTORE_VOLUME_ID="$restore_volume_id" OBSERVED_VERIFIER_MACHINE_ID="$restore_machine_id" \
+            OBSERVED_SNAPSHOT_ID="$rollback_snapshot_id" node "$RUNNER_TEMP/rollback-phase-helper.mjs" readback \
+              --phase RESTORE_VERIFIED --result STARTED_UNRESOLVED --output "$work/unresolved-readback.json"
+            RESULT_MACHINE_ID="$EXPECTED_MACHINE_ID" RESULT_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+            node "$RUNNER_TEMP/rollback-phase-helper.mjs" seal --input "$input" --output "$output" \
+              --phase RESTORE_VERIFIED --result STARTED_UNRESOLVED --provider-calls 1 \
+              --readback "$work/unresolved-readback.json"
+            exit "$status"
+          }
+          trap seal_restore_unresolved EXIT
+
+          fly volumes list --app "$app" --json >"$work/volumes-before-restore.json"
+          observed_restore_id="$(VOLUMES="$work/volumes-before-restore.json" PRIMARY="$EXPECTED_VOLUME_ID" NAME="$restore_name" STARTED="$phase_started_at" \
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const p=JSON.parse(fs.readFileSync(process.env.VOLUMES,'utf8'));
+          const rows=Array.isArray(p)?p:p.volumes||p.data||[];
+          const matches=rows.filter((row)=>row?.id!==process.env.PRIMARY&&(row?.name??row?.Name)===process.env.NAME);
+          if(matches.length>1)throw Error('ambiguous rollback restore volumes');
+          const toMillis=(value)=>{const numeric=typeof value==='number'?value:
+            typeof value==='string'&&/^\d+(?:\.\d+)?$/.test(value.trim())?Number(value):NaN;
+            return Number.isFinite(numeric)?(numeric>=1e12?numeric:numeric*1000):Date.parse(value);};
+          const started=toMillis(process.env.STARTED);if(!Number.isFinite(started))throw Error('restore phase start timestamp differs');
+          if(matches.length===1){const r=matches[0];const id=r?.id??r?.ID;const created=toMillis(r?.created_at??r?.createdAt??r?.created);
+            if(!/^vol_[A-Za-z0-9]+$/.test(id||'')||!Number.isFinite(created)||created<started||
+            (r?.region??r?.Region)!=='syd'||r?.encrypted!==true||r?.attached_machine_id!==null)throw Error('restore volume ownership differs');
+            process.stdout.write(id);}
+          NODE
+          )"
+          if [[ -n "$restore_volume_id" && -n "$observed_restore_id" && "$restore_volume_id" != "$observed_restore_id" ]]; then
+            echo 'durable restore volume identity differs from provider readback' >&2
+            exit 1
+          fi
+          restore_volume_id="${restore_volume_id:-$observed_restore_id}"
+          if [[ -z "$restore_volume_id" ]]; then
+            timeout --signal=TERM --kill-after=10s 180s fly volumes create "$restore_name" --app "$app" \
+              --region syd --size 3 --snapshot-id "$rollback_snapshot_id" --snapshot-retention 5 \
+              --scheduled-snapshots --json --yes >"$work/rollback-restore-create.json"
+            restore_volume_id="$(PAYLOAD="$work/rollback-restore-create.json" NAME="$restore_name" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const p=JSON.parse(fs.readFileSync(process.env.PAYLOAD,'utf8'));const r=Array.isArray(p)?p[0]:p;
+          const id=r?.id??r?.ID;if((r?.name??r?.Name)!==process.env.NAME||(r?.region??r?.Region)!=='syd'||
+            r?.encrypted!==true||!/^vol_[A-Za-z0-9]+$/.test(id||''))throw Error('restore volume create response differs');process.stdout.write(id);
+          NODE
+            )"
+          fi
+          fly volumes list --app "$app" --json >"$work/volumes-with-restore.json"
+          VOLUMES="$work/volumes-with-restore.json" PRIMARY="$EXPECTED_VOLUME_ID" RESTORE="$restore_volume_id" \
+          STARTED="$phase_started_at" \
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';const p=JSON.parse(fs.readFileSync(process.env.VOLUMES,'utf8'));
+          const rows=Array.isArray(p)?p:p.volumes||p.data||[];const primary=rows.find((r)=>r?.id===process.env.PRIMARY);
+          const restore=rows.find((r)=>r?.id===process.env.RESTORE);
+          const toMillis=(value)=>{const numeric=typeof value==='number'?value:
+            typeof value==='string'&&/^\d+(?:\.\d+)?$/.test(value.trim())?Number(value):NaN;
+            return Number.isFinite(numeric)?(numeric>=1e12?numeric:numeric*1000):Date.parse(value);};
+          const started=toMillis(process.env.STARTED),created=toMillis(restore?.created_at??restore?.createdAt??restore?.created);
+          if(rows.length!==2||!primary||!restore||restore.attached_machine_id!==null||restore.name!=='assesssuite_physio_data'||
+            restore.region!=='syd'||restore.encrypted!==true||!Number.isFinite(started)||!Number.isFinite(created)||
+            created<started)throw Error('restore reserve topology differs');
+          NODE
+
+          verifier_context="$RUNNER_TEMP/empty-physio-rollback-verifier-context"
+          install -d -m 0700 "$verifier_context"
+          printf 'FROM scratch\n' >"$verifier_context/Dockerfile"
+          fly machines list --app "$app" --json >"$work/machines-before-verifier.json"
+          observed_verifier_id="$(MACHINES="$work/machines-before-verifier.json" NAME="$restore_machine_name" SHA="$FAILED_APPLICATION_SHA" \
+            EFFECT="$phase_effect_id" STARTED="$phase_started_at" \
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';const p=JSON.parse(fs.readFileSync(process.env.MACHINES,'utf8'));
+          const rows=Array.isArray(p)?p:p.machines||p.data||[];const m=rows.filter((r)=>r?.name===process.env.NAME);
+          if(m.length>1)throw Error('ambiguous restore verifier');if(m.length===1){const r=m[0],md=r.config?.metadata||r.Config?.metadata||{};
+            const tm=(v)=>{const n=typeof v==='number'?v:typeof v==='string'&&/^\d+(?:\.\d+)?$/.test(v.trim())?Number(v):NaN;return Number.isFinite(n)?(n>=1e12?n:n*1000):Date.parse(v)};
+            const created=tm(r?.created_at??r?.createdAt??r?.created),started=tm(process.env.STARTED);
+            if(!/^[0-9a-f]{14,32}$/i.test(r.id||'')||md['assesssuite-restore-role']!=='physio-rollback-verifier'||
+              md['assesssuite-release-sha']!==process.env.SHA||md['assesssuite-provider-effect-id']!==process.env.EFFECT||
+              !Number.isFinite(created)||!Number.isFinite(started)||created<started)
+              throw Error('restore verifier ownership differs');process.stdout.write(r.id);}
+          NODE
+          )"
+          if [[ -n "$observed_verifier_id" ]]; then restore_machine_id="$observed_verifier_id"; fi
+          if [[ -z "$restore_machine_id" || -z "$observed_verifier_id" ]]; then
+            restore_machine_id=''
+            (cd "$verifier_context" && timeout --signal=TERM --kill-after=10s 240s fly machine run "$CURRENT_IMMUTABLE_IMAGE" \
+              --app "$app" --name "$restore_machine_name" --region syd --volume "$restore_volume_id:/app/server/data" \
+              --metadata 'assesssuite-restore-role=physio-rollback-verifier' \
+              --metadata "assesssuite-release-sha=$FAILED_APPLICATION_SHA" \
+              --metadata "assesssuite-provider-effect-id=$phase_effect_id" \
+              --env 'NODE_ENV=production' --env 'PROFESSION=physio' --env 'DEFAULT_APP_ID=local-assesssuite-physio' \
+              --env 'LLM_REQUIRED=0' --env 'GENERAL_CLINICAL_LLM_ENABLED=0' --env 'TRANSCRIPTION_ENABLED=0' \
+              --env 'DOCUMENT_EXTRACTION_ENABLED=0' --env 'DOCUMENT_EXTRACTION_UNDER_13_ENABLED=0' \
+              --env 'DOCUMENT_EXTRACTION_PROVIDER_PROBE=0' --env 'OUTBOUND_EMAIL_ENABLED=0' \
+              --env 'OUTBOUND_SMS_ENABLED=0' --env 'PAYMENTS_ENABLED=0' --env 'SELFTEST=0' \
+              --env 'PARITY_ASSURANCE_MODE=0' --env 'ALLOW_PAID_PROVIDER_PROBE=0' \
+              --restart no --autostart=false --autostop=off --skip-dns-registration \
+              --vm-cpu-kind shared --vm-cpus 1 --vm-memory 512 --detach -- sleep 1800 \
+              >"$work/restore-verifier-create.stdout" 2>"$work/restore-verifier-create.stderr")
+          fi
+          restore_machine_ready=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            fly machines list --app "$app" --json >"$work/machines-with-verifier.json"
+            fly volumes list --app "$app" --json >"$work/volumes-with-verifier.json"
+            if topology="$(env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-restore-verifier \
+              --machines "$work/machines-with-verifier.json" --volumes "$work/volumes-with-verifier.json" \
+              --production-machine-id "$EXPECTED_MACHINE_ID" --primary-volume-id "$EXPECTED_VOLUME_ID" \
+              --restore-volume-id "$restore_volume_id" --verifier-machine-name "$restore_machine_name" \
+              --verifier-role physio-rollback-verifier --image "$CURRENT_IMMUTABLE_IMAGE" \
+              --sha "$FAILED_APPLICATION_SHA" --production-state stopped)"; then
+              restore_machine_id="$(TOPOLOGY="$topology" node --input-type=module -e \
+                "process.stdout.write(JSON.parse(process.env.TOPOLOGY).verifierMachineId)")"
+              MACHINES="$work/machines-with-verifier.json" MACHINE="$restore_machine_id" EFFECT="$phase_effect_id" \
+              SHA="$FAILED_APPLICATION_SHA" STARTED="$phase_started_at" node --input-type=module <<'NODE'
+          import fs from'node:fs';const p=JSON.parse(fs.readFileSync(process.env.MACHINES,'utf8'));
+          const rows=Array.isArray(p)?p:p.machines||p.data||[];const matches=rows.filter((row)=>row?.id===process.env.MACHINE);
+          if(matches.length!==1)throw Error('restore verifier exact identity differs');const row=matches[0];
+          const metadata=row.config?.metadata||row.Config?.metadata||{};
+          const tm=(v)=>{const n=typeof v==='number'?v:typeof v==='string'&&/^\d+(?:\.\d+)?$/.test(v.trim())?Number(v):NaN;return Number.isFinite(n)?(n>=1e12?n:n*1000):Date.parse(v)};
+          const created=tm(row?.created_at??row?.createdAt??row?.created),started=tm(process.env.STARTED);
+          if(metadata['assesssuite-restore-role']!=='physio-rollback-verifier'||
+            metadata['assesssuite-release-sha']!==process.env.SHA||
+            metadata['assesssuite-provider-effect-id']!==process.env.EFFECT||!Number.isFinite(created)||
+            !Number.isFinite(started)||created<started)throw Error('restore verifier effect ownership differs');
+          NODE
+              printf '%s\n' "$topology" >"$work/rollback-restore-verifier-provider-readback.json"
+              restore_machine_ready=1
+              break
+            fi
+            sleep 5
+          done
+          [[ "$restore_machine_ready" == '1' && "$restore_machine_id" =~ ^[0-9a-f]{14,32}$ ]]
+          restore_verification_receipt="$work/physio-rollback-restore-verification.json"
+          timeout --signal=TERM --kill-after=10s 240s fly machine exec "$restore_machine_id" \
+            "env -u ADMIN_PASSWORD -u OPENAI_API_KEY -u RESEND_API_KEY -u SENTRY_DSN -u STRIPE_SECRET_KEY -u STRIPE_WEBHOOK_SECRET -u STRIPE_PRICE_ID_MONTHLY -u STRIPE_PRICE_ID_ANNUAL -u OPENAI_CHAT_TEST_BASE_URL -u OPENAI_CHAT_TEST_TIMEOUT_MS -u DOCUMENT_EXTRACTION_TEST_BASE_URL -u DOCUMENT_EXTRACTION_PROVIDER_PROBE_ACK -u RUN_DOCUMENT_EXTRACTION_PROVIDER_PROBE -u RUN_PHYSIO_EXACT_IMAGE_CANARY LLM_REQUIRED=0 GENERAL_CLINICAL_LLM_ENABLED=0 TRANSCRIPTION_ENABLED=0 DOCUMENT_EXTRACTION_ENABLED=0 DOCUMENT_EXTRACTION_UNDER_13_ENABLED=0 DOCUMENT_EXTRACTION_PROVIDER_PROBE=0 OUTBOUND_EMAIL_ENABLED=0 OUTBOUND_SMS_ENABLED=0 PAYMENTS_ENABLED=0 SELFTEST=0 PARITY_ASSURANCE_MODE=0 ALLOW_PAID_PROVIDER_PROBE=0 node /app/scripts/physio-restore-verify.mjs verify --database /app/server/data/physio.db --application-sha '$FAILED_APPLICATION_SHA' --immutable-image '$CURRENT_IMMUTABLE_IMAGE' --volume-id '$restore_volume_id' --snapshot-id '$rollback_snapshot_id' --machine-id '$restore_machine_id' --snapshot-sentinel '$snapshot_sentinel' --expected-data-manifest-sha256 '$expected_data_manifest_sha256'" \
+            --app "$app" --timeout 180 >"$restore_verification_receipt"
+          RECEIPT="$restore_verification_receipt" APPLICATION_SHA="$FAILED_APPLICATION_SHA" \
+          IMAGE="$CURRENT_IMMUTABLE_IMAGE" VOLUME="$restore_volume_id" SNAPSHOT="$rollback_snapshot_id" \
+          MACHINE="$restore_machine_id" EXPECTED_MANIFEST="$expected_data_manifest_sha256" \
+          SENTINEL="$snapshot_sentinel" node --input-type=module <<'NODE'
+          import{createHash}from'node:crypto';import fs from'node:fs';const row=JSON.parse(fs.readFileSync(process.env.RECEIPT,'utf8'));
+          const h=(v)=>createHash('sha256').update(v).digest('hex');
+          if (row.contract_version !== 'assesssuite-physio-restore-verification/2.0.0' || row.result !== 'PASS' ||
+            row.application !== 'assesssuite-physio-production' || row.application_sha !== process.env.APPLICATION_SHA ||
+            row.immutable_image !== process.env.IMAGE || row.source_snapshot_id !== process.env.SNAPSHOT ||
+            row.restored_volume_id !== process.env.VOLUME || row.verifier_machine_id_sha256 !== h(process.env.MACHINE) ||
+            row.database_path_sha256 !== h('/app/server/data/physio.db') || row.database_read_only !== true ||
+            row.provider_switches_disabled !== true || row.provider_credentials_absent !== true ||
+            row.test_provider_settings_absent !== true || row.sqlite_integrity !== 'ok' ||
+            row.schema_digest !== 'sha256:0b67a8b1556b9adff373477f089497a10681e035a3ae523006bc50290a990428' ||
+            row.schema_object_count !== 106 || row.schema_table_count !== 36 || row.sqlite_user_version !== 0 ||
+            row.data_manifest_sha256 !== process.env.EXPECTED_MANIFEST || row.data_manifest_table_count !== 36 ||
+            !Array.isArray(row.data_manifest_tables) || row.data_manifest_tables.length !== 36 ||
+            row.snapshot_sentinel_sha256 !== h(process.env.SENTINEL) ||
+            row.catalogue_count !== Number(process.env.PHYSIO_EXPECTED_CATALOGUE_COUNT) ||
+            row.catalogue_checksum !== process.env.PHYSIO_EXPECTED_CATALOGUE_CHECKSUM ||
+            !Number.isFinite(Date.parse(row.verified_at || ''))) throw Error('rollback restore verification receipt differs');
+          NODE
+          restore_verification_receipt_sha256="$(sha256sum "$restore_verification_receipt" | awk '{print $1}')"
+          destroy_restore_machine_exactly
+          fly machines list --app "$app" --json >"$work/machines-final.json"
+          fly volumes list --app "$app" --json >"$work/volumes-final.json"
+          fly volumes snapshots list "$EXPECTED_VOLUME_ID" --app "$app" --json >"$work/snapshots-final.json"
+          MACHINES_FILE="$work/machines-final.json" VOLUMES_FILE="$work/volumes-final.json" \
+          SNAPSHOTS_FILE="$work/snapshots-final.json" OBSERVED_CONFIG_SHA256="${expected_data_manifest_sha256#sha256:}" \
+          ROLLBACK_PACKET_INPUT="$input" \
+          OBSERVED_MACHINE_ID="$EXPECTED_MACHINE_ID" OBSERVED_MACHINE_STATE=stopped \
+          OBSERVED_IMAGE="$CURRENT_IMMUTABLE_IMAGE" OBSERVED_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+          OBSERVED_RESTORE_VOLUME_ID="$restore_volume_id" OBSERVED_VERIFIER_MACHINE_ID="$restore_machine_id" \
+          OBSERVED_SNAPSHOT_ID="$rollback_snapshot_id" node "$RUNNER_TEMP/rollback-phase-helper.mjs" readback \
+            --phase RESTORE_VERIFIED --result PASS --output "$work/readback.json"
+          RESULT_MACHINE_ID="$EXPECTED_MACHINE_ID" RESULT_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" seal --input "$input" --output "$output" \
+            --phase RESTORE_VERIFIED --result COMPLETED --provider-calls 1 --readback "$work/readback.json"
+          trap - EXIT
+
+      - name: Upload rollback RESTORE_VERIFIED receipt before target verification phase
+        if: ${{ always() && steps.restore_effect.outcome != 'skipped' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-phase-${{ inputs.failed_application_sha }}-RESTORE-VERIFIED-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-02-result
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Prepare rollback TARGET_VERIFIED phase intent
+        id: prepare_target
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" advance \
+            --input "$RUNNER_TEMP/rollback-phase-02-result" \
+            --output "$RUNNER_TEMP/rollback-phase-03-started" --phase TARGET_VERIFIED
+
+      - name: Upload rollback TARGET_VERIFIED STARTED effect before provider mutation
+        if: ${{ always() && steps.prepare_target.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-phase-${{ inputs.failed_application_sha }}-TARGET-VERIFIED-started-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-03-started
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Execute rollback TARGET_VERIFIED bounded provider phase
+        id: target_effect
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          EXECUTE_PHASE: ${{ steps.prepare_target.outputs.execute }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          input="$RUNNER_TEMP/rollback-phase-03-started"
+          output="$RUNNER_TEMP/rollback-phase-03-result"
+          if [[ "$EXECUTE_PHASE" != 'true' ]]; then cp -R "$input" "$output"; exit 0; fi
+          app="$PHYSIO_FLY_APP"
+          work="$RUNNER_TEMP/rollback-target-phase"
+          install -d -m 0700 "$work"
+          phase_effect_id="$(PHASE="$input/rollback-effect-reconciliation.json" node --input-type=module -e \
+            "import fs from'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.env.PHASE,'utf8')).provider_effect_id)")"
+          phase_started_at="$(PHASE="$input/rollback-effect-reconciliation.json" node --input-type=module -e \
+            "import fs from'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.env.PHASE,'utf8')).started_at)")"
+          rollback_snapshot_id="$(RESTORE="$input/rollback-readback-02-RESTORE_VERIFIED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.RESTORE,'utf8'));process.stdout.write(r.observed_snapshot_id||'')")"
+          restore_volume_id="$(RESTORE="$input/rollback-readback-02-RESTORE_VERIFIED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.RESTORE,'utf8'));process.stdout.write(r.observed_restore_volume_id||'')")"
+          expected_data_manifest_sha256="$(RESTORE="$input/rollback-readback-02-RESTORE_VERIFIED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.RESTORE,'utf8'));process.stdout.write('sha256:'+r.observed_config_sha256)")"
+          snapshot_sentinel="$(printf '%s' "$FAILED_APPLICATION_SHA|$CAPABILITY_INTENT_ID|rollback-snapshot" | sha256sum | awk '{print $1}')"
+          [[ "$rollback_snapshot_id" =~ ^[A-Za-z0-9_-]{6,160}$ && "$restore_volume_id" =~ ^vol_[A-Za-z0-9]+$ ]]
+          target_machine_id="$(CURRENT="$input/rollback-provider-readback.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.CURRENT,'utf8'));process.stdout.write(r.observed_verifier_machine_id||'')")"
+          target_image="$CURRENT_IMMUTABLE_IMAGE"
+          target_provider_calls=0
+          destroy_target_machine_exactly() {
+            [[ "$target_machine_id" =~ ^[0-9a-f]{14,32}$ ]]
+            timeout --signal=TERM --kill-after=10s 90s fly machine stop "$target_machine_id" --app "$app" --wait-timeout 60s || true
+            timeout --signal=TERM --kill-after=10s 90s fly machine destroy "$target_machine_id" --app "$app"
+            for attempt in 1 2 3 4 5 6; do
+              fly machines list --app "$app" --json >"$work/machines-after-target-destroy.json"
+              if MACHINES="$work/machines-after-target-destroy.json" MACHINE="$target_machine_id" node --input-type=module <<'NODE'
+          import fs from'node:fs';const p=JSON.parse(fs.readFileSync(process.env.MACHINES,'utf8'));
+          const rows=Array.isArray(p)?p:p.machines||p.data||[];if(rows.some((r)=>r?.id===process.env.MACHINE))process.exit(1);
+          NODE
+              then return 0; fi
+              sleep 3
+            done
+            return 1
+          }
+          seal_target_unresolved() {
+            local status=$?
+            set +e
+            fly machines list --app "$app" --json >"$work/machines-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/machines-unresolved.json"
+            fly volumes list --app "$app" --json >"$work/volumes-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/volumes-unresolved.json"
+            fly volumes snapshots list "$EXPECTED_VOLUME_ID" --app "$app" --json >"$work/snapshots-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/snapshots-unresolved.json"
+            MACHINES_FILE="$work/machines-unresolved.json" VOLUMES_FILE="$work/volumes-unresolved.json" \
+            SNAPSHOTS_FILE="$work/snapshots-unresolved.json" OBSERVED_CONFIG_SHA256="${expected_data_manifest_sha256#sha256:}" \
+            OBSERVED_MACHINE_ID="$EXPECTED_MACHINE_ID" OBSERVED_MACHINE_STATE=stopped OBSERVED_IMAGE="$target_image" \
+            OBSERVED_VOLUME_ID="$EXPECTED_VOLUME_ID" OBSERVED_RESTORE_VOLUME_ID="$restore_volume_id" \
+            OBSERVED_VERIFIER_MACHINE_ID="$target_machine_id" OBSERVED_SNAPSHOT_ID="$rollback_snapshot_id" \
+            node "$RUNNER_TEMP/rollback-phase-helper.mjs" readback --phase TARGET_VERIFIED \
+              --result STARTED_UNRESOLVED --output "$work/unresolved-readback.json"
+            RESULT_MACHINE_ID="$EXPECTED_MACHINE_ID" RESULT_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+            node "$RUNNER_TEMP/rollback-phase-helper.mjs" seal --input "$input" --output "$output" \
+              --phase TARGET_VERIFIED --result STARTED_UNRESOLVED --provider-calls "$target_provider_calls" \
+              --readback "$work/unresolved-readback.json"
+            exit "$status"
+          }
+          trap seal_target_unresolved EXIT
+          if [[ "$ROLLBACK_MODE" == 'exact-image' ]]; then
+            target_provider_calls=1
+            target_image="$ROLLBACK_IMMUTABLE_IMAGE"
+            target_machine_name="assesssuite-physio-rollback-target-${ROLLBACK_RELEASE_SHA:0:12}"
+            verifier_context="$RUNNER_TEMP/empty-physio-rollback-target-context"
+            install -d -m 0700 "$verifier_context"
+            printf 'FROM scratch\n' >"$verifier_context/Dockerfile"
+            fly machines list --app "$app" --json >"$work/machines-before-target.json"
+            observed_target_id="$(MACHINES="$work/machines-before-target.json" NAME="$target_machine_name" SHA="$ROLLBACK_RELEASE_SHA" \
+              EFFECT="$phase_effect_id" STARTED="$phase_started_at" \
+              node --input-type=module <<'NODE'
+          import fs from'node:fs';const p=JSON.parse(fs.readFileSync(process.env.MACHINES,'utf8'));
+          const rows=Array.isArray(p)?p:p.machines||p.data||[];const m=rows.filter((r)=>r?.name===process.env.NAME);
+          if(m.length>1)throw Error('ambiguous rollback target verifier');if(m.length===1){const r=m[0],md=r.config?.metadata||r.Config?.metadata||{};
+            const tm=(v)=>{const n=typeof v==='number'?v:typeof v==='string'&&/^\d+(?:\.\d+)?$/.test(v.trim())?Number(v):NaN;return Number.isFinite(n)?(n>=1e12?n:n*1000):Date.parse(v)};
+            const created=tm(r?.created_at??r?.createdAt??r?.created),started=tm(process.env.STARTED);
+            if(!/^[0-9a-f]{14,32}$/i.test(r.id||'')||md['assesssuite-restore-role']!=='physio-rollback-target-verifier'||
+              md['assesssuite-release-sha']!==process.env.SHA||md['assesssuite-provider-effect-id']!==process.env.EFFECT||
+              !Number.isFinite(created)||!Number.isFinite(started)||created<started)
+              throw Error('target verifier ownership differs');process.stdout.write(r.id);}
+          NODE
+            )"
+            if [[ -n "$observed_target_id" ]]; then target_machine_id="$observed_target_id"; else
+              target_machine_id=''
+              (cd "$verifier_context" && timeout --signal=TERM --kill-after=10s 240s fly machine run "$ROLLBACK_IMMUTABLE_IMAGE" \
+                --app "$app" --name "$target_machine_name" --region syd --volume "$restore_volume_id:/app/server/data" \
+                --metadata 'assesssuite-restore-role=physio-rollback-target-verifier' \
+                --metadata "assesssuite-release-sha=$ROLLBACK_RELEASE_SHA" \
+                --metadata "assesssuite-provider-effect-id=$phase_effect_id" \
+                --env 'NODE_ENV=production' --env 'PROFESSION=physio' --env 'DEFAULT_APP_ID=local-assesssuite-physio' \
+                --env 'LLM_REQUIRED=0' --env 'GENERAL_CLINICAL_LLM_ENABLED=0' --env 'TRANSCRIPTION_ENABLED=0' \
+                --env 'DOCUMENT_EXTRACTION_ENABLED=0' --env 'DOCUMENT_EXTRACTION_UNDER_13_ENABLED=0' \
+                --env 'DOCUMENT_EXTRACTION_PROVIDER_PROBE=0' --env 'OUTBOUND_EMAIL_ENABLED=0' \
+                --env 'OUTBOUND_SMS_ENABLED=0' --env 'PAYMENTS_ENABLED=0' --env 'SELFTEST=0' \
+                --env 'PARITY_ASSURANCE_MODE=0' --env 'ALLOW_PAID_PROVIDER_PROBE=0' \
+                --restart no --autostart=false --autostop=off --skip-dns-registration \
+                --vm-cpu-kind shared --vm-cpus 1 --vm-memory 512 --detach -- sleep 1800 \
+                >"$work/target-verifier-create.stdout" 2>"$work/target-verifier-create.stderr")
+            fi
+            target_ready=0
+            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+              fly machines list --app "$app" --json >"$work/machines-with-target-verifier.json"
+              fly volumes list --app "$app" --json >"$work/volumes-with-target-verifier.json"
+              if topology="$(env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-restore-verifier \
+                --machines "$work/machines-with-target-verifier.json" --volumes "$work/volumes-with-target-verifier.json" \
+                --production-machine-id "$EXPECTED_MACHINE_ID" --primary-volume-id "$EXPECTED_VOLUME_ID" \
+                --restore-volume-id "$restore_volume_id" --verifier-machine-name "$target_machine_name" \
+                --verifier-role physio-rollback-target-verifier --image "$ROLLBACK_IMMUTABLE_IMAGE" \
+                --sha "$ROLLBACK_RELEASE_SHA" --production-state stopped)"; then
+                target_machine_id="$(TOPOLOGY="$topology" node --input-type=module -e \
+                  "process.stdout.write(JSON.parse(process.env.TOPOLOGY).verifierMachineId)")"
+                MACHINES="$work/machines-with-target-verifier.json" MACHINE="$target_machine_id" EFFECT="$phase_effect_id" \
+                SHA="$ROLLBACK_RELEASE_SHA" STARTED="$phase_started_at" node --input-type=module <<'NODE'
+          import fs from'node:fs';const p=JSON.parse(fs.readFileSync(process.env.MACHINES,'utf8'));
+          const rows=Array.isArray(p)?p:p.machines||p.data||[];const matches=rows.filter((row)=>row?.id===process.env.MACHINE);
+          if(matches.length!==1)throw Error('target verifier exact identity differs');const row=matches[0];
+          const metadata=row.config?.metadata||row.Config?.metadata||{};
+          const tm=(v)=>{const n=typeof v==='number'?v:typeof v==='string'&&/^\d+(?:\.\d+)?$/.test(v.trim())?Number(v):NaN;return Number.isFinite(n)?(n>=1e12?n:n*1000):Date.parse(v)};
+          const created=tm(row?.created_at??row?.createdAt??row?.created),started=tm(process.env.STARTED);
+          if(metadata['assesssuite-restore-role']!=='physio-rollback-target-verifier'||
+            metadata['assesssuite-release-sha']!==process.env.SHA||
+            metadata['assesssuite-provider-effect-id']!==process.env.EFFECT||!Number.isFinite(created)||
+            !Number.isFinite(started)||created<started)throw Error('target verifier effect ownership differs');
+          NODE
+                printf '%s\n' "$topology" >"$work/rollback-target-verifier-provider-readback.json"
+                target_ready=1
+                break
+              fi
+              sleep 5
+            done
+            [[ "$target_ready" == '1' && "$target_machine_id" =~ ^[0-9a-f]{14,32}$ ]]
+            target_verification_receipt="$work/physio-rollback-target-verification.json"
+            fly machine exec "$target_machine_id" \
+              "env -u ADMIN_PASSWORD -u OPENAI_API_KEY -u RESEND_API_KEY -u SENTRY_DSN -u STRIPE_SECRET_KEY -u STRIPE_WEBHOOK_SECRET -u STRIPE_PRICE_ID_MONTHLY -u STRIPE_PRICE_ID_ANNUAL -u OPENAI_CHAT_TEST_BASE_URL -u OPENAI_CHAT_TEST_TIMEOUT_MS -u DOCUMENT_EXTRACTION_TEST_BASE_URL -u DOCUMENT_EXTRACTION_PROVIDER_PROBE_ACK -u RUN_DOCUMENT_EXTRACTION_PROVIDER_PROBE -u RUN_PHYSIO_EXACT_IMAGE_CANARY LLM_REQUIRED=0 GENERAL_CLINICAL_LLM_ENABLED=0 TRANSCRIPTION_ENABLED=0 DOCUMENT_EXTRACTION_ENABLED=0 DOCUMENT_EXTRACTION_UNDER_13_ENABLED=0 DOCUMENT_EXTRACTION_PROVIDER_PROBE=0 OUTBOUND_EMAIL_ENABLED=0 OUTBOUND_SMS_ENABLED=0 PAYMENTS_ENABLED=0 SELFTEST=0 PARITY_ASSURANCE_MODE=0 ALLOW_PAID_PROVIDER_PROBE=0 node /app/scripts/physio-restore-verify.mjs verify --database /app/server/data/physio.db --application-sha '$ROLLBACK_RELEASE_SHA' --immutable-image '$ROLLBACK_IMMUTABLE_IMAGE' --volume-id '$restore_volume_id' --snapshot-id '$rollback_snapshot_id' --machine-id '$target_machine_id' --snapshot-sentinel '$snapshot_sentinel' --expected-data-manifest-sha256 '$expected_data_manifest_sha256'" \
+              --app "$app" --timeout 180 >"$target_verification_receipt"
+            TARGET="$target_verification_receipt" SHA="$ROLLBACK_RELEASE_SHA" IMAGE="$ROLLBACK_IMMUTABLE_IMAGE" \
+            VOLUME="$restore_volume_id" SNAPSHOT="$rollback_snapshot_id" MACHINE="$target_machine_id" \
+            MANIFEST="$expected_data_manifest_sha256" SENTINEL="$snapshot_sentinel" node --input-type=module <<'NODE'
+          import{createHash}from'node:crypto';import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.TARGET,'utf8'));
+          const h=(v)=>createHash('sha256').update(v).digest('hex');if(r.contract_version!=='assesssuite-physio-restore-verification/2.0.0'||
+            r.result!=='PASS'||r.application_sha!==process.env.SHA||r.immutable_image!==process.env.IMAGE||
+            r.restored_volume_id!==process.env.VOLUME||r.source_snapshot_id!==process.env.SNAPSHOT||
+            r.verifier_machine_id_sha256!==h(process.env.MACHINE)||r.data_manifest_sha256!==process.env.MANIFEST||
+            r.snapshot_sentinel_sha256!==h(process.env.SENTINEL)||r.provider_switches_disabled!==true||
+            r.provider_credentials_absent!==true||r.test_provider_settings_absent!==true||r.database_read_only!==true)throw Error('target verification differs');
+          NODE
+            target_verification_receipt_sha256="$(sha256sum "$target_verification_receipt" | awk '{print $1}')"
+            destroy_target_machine_exactly
+            rollback_target_clone_validated=1
+          else
+            target_machine_id=''
+            rollback_target_clone_validated=1
+          fi
+          fly machines list --app "$app" --json >"$work/machines-final.json"
+          fly volumes list --app "$app" --json >"$work/volumes-final.json"
+          fly volumes snapshots list "$EXPECTED_VOLUME_ID" --app "$app" --json >"$work/snapshots-final.json"
+          MACHINES_FILE="$work/machines-final.json" VOLUMES_FILE="$work/volumes-final.json" \
+          SNAPSHOTS_FILE="$work/snapshots-final.json" OBSERVED_CONFIG_SHA256="${expected_data_manifest_sha256#sha256:}" \
+          OBSERVED_MACHINE_ID="$EXPECTED_MACHINE_ID" OBSERVED_MACHINE_STATE=stopped OBSERVED_IMAGE="$target_image" \
+          OBSERVED_VOLUME_ID="$EXPECTED_VOLUME_ID" OBSERVED_RESTORE_VOLUME_ID="$restore_volume_id" \
+          OBSERVED_VERIFIER_MACHINE_ID="$target_machine_id" OBSERVED_SNAPSHOT_ID="$rollback_snapshot_id" \
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" readback --phase TARGET_VERIFIED \
+            --result PASS --output "$work/readback.json"
+          RESULT_MACHINE_ID="$EXPECTED_MACHINE_ID" RESULT_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" seal --input "$input" --output "$output" \
+            --phase TARGET_VERIFIED --result COMPLETED --provider-calls "$target_provider_calls" --readback "$work/readback.json"
+          trap - EXIT
+
+      - name: Upload rollback TARGET_VERIFIED receipt before live mutation phase
+        if: ${{ always() && steps.target_effect.outcome != 'skipped' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-phase-${{ inputs.failed_application_sha }}-TARGET-VERIFIED-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-03-result
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Capture exact current full config and prepare rollback LIVE_MUTATION_STARTED phase intent
+        id: prepare_live_mutation
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -n "$FLY_API_TOKEN" && -z "${SENTRY_AUTH_TOKEN:-}" ]]
+          input="$RUNNER_TEMP/rollback-phase-03-result"
+          ROLLBACK_TARGET_CONFIG="$RUNNER_TEMP/rollback-phase-03-result/rollback-target-config.toml"
+          [[ -f "$ROLLBACK_TARGET_CONFIG" && ! -L "$ROLLBACK_TARGET_CONFIG" ]]
+          [[ "$(sha256sum "$ROLLBACK_TARGET_CONFIG" | awk '{print $1}')" == '${{ inputs.config_sha256 }}' ]]
+          state="$(node "$RUNNER_TEMP/rollback-phase-helper.mjs" state --packet "$input")"
+          IFS=$'\t' read -r phase result < <(STATE="$state" env -u FLY_API_TOKEN node -e \
+            "const r=JSON.parse(process.env.STATE);process.stdout.write([r.phase,r.result].join('\\t'))")
+          prestate="$input/rollback-live-mutation-prestate.json"
+          current_config="$input/rollback-current-machine-config.json"
+          prestate_receipt="$input/rollback-live-mutation-prestate-receipt.json"
+          if [[ "$phase" == TARGET_VERIFIED && "$result" == COMPLETED ]]; then
+            prestate="$RUNNER_TEMP/rollback-live-mutation-prestate.json"
+            current_config="$RUNNER_TEMP/rollback-current-machine-config.json"
+            prestate_receipt="$RUNNER_TEMP/rollback-live-mutation-prestate-receipt.json"
+            URL="https://api.machines.dev/v1/apps/$PHYSIO_FLY_APP/machines/$EXPECTED_MACHINE_ID" \
+            PRESTATE="$prestate" CONFIG="$current_config" RECEIPT="$prestate_receipt" \
+              env -u SENTRY_AUTH_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import { validateMachineForConfigTransition } from './scripts/physio-fly-machine-config-transition.mjs';
+          const sha=(value)=>createHash('sha256').update(value).digest('hex');
+          const response=await fetch(process.env.URL,{method:'GET',redirect:'error',signal:AbortSignal.timeout(60_000),
+            headers:{Authorization:`Bearer ${process.env.FLY_API_TOKEN}`,Accept:'application/json'}});
+          const text=await response.text();
+          if(response.status!==200||Buffer.byteLength(text)>1_048_576)throw Error('rollback prestate Machines response differs');
+          const machine=JSON.parse(text);const sourceImage=machine?.config?.image;
+          const allowed=process.env.ROLLBACK_MODE==='exact-image'
+            ?[process.env.CURRENT_IMMUTABLE_IMAGE,process.env.ROLLBACK_IMMUTABLE_IMAGE]
+            :[process.env.CURRENT_IMMUTABLE_IMAGE];
+          if(!allowed.includes(sourceImage))throw Error('rollback prestate image left authorised lineage');
+          validateMachineForConfigTransition(machine,{machineId:process.env.EXPECTED_MACHINE_ID,
+            immutableImage:sourceImage,expectedVolumeId:process.env.EXPECTED_VOLUME_ID,expectedState:'started'});
+          const prestateBytes=Buffer.from(`${JSON.stringify(machine,null,2)}\n`);
+          const configBytes=Buffer.from(`${JSON.stringify(machine.config,null,2)}\n`);
+          fs.writeFileSync(process.env.PRESTATE,prestateBytes,{flag:'wx',mode:0o600});
+          fs.writeFileSync(process.env.CONFIG,configBytes,{flag:'wx',mode:0o600});
+          const headers=[...response.headers.entries()].map(([name,value])=>[name.toLowerCase(),value])
+            .sort(([left],[right])=>left.localeCompare(right));
+          const receipt={contract_version:'assesssuite-physio-rollback-live-mutation-prestate/1.0.0',result:'PASS',
+            request_url:process.env.URL,http_status:response.status,machine_id:machine.id,
+            provider_readback_sha256:sha(prestateBytes),machine_config_sha256:sha(configBytes),
+            response_headers_sha256:sha(JSON.stringify(headers)),captured_at:new Date().toISOString()};
+          fs.writeFileSync(process.env.RECEIPT,`${JSON.stringify(receipt,null,2)}\n`,{flag:'wx',mode:0o600});
+          NODE
+          else
+            [[ "$phase" == LIVE_MUTATION_STARTED && "$result" =~ ^(STARTED|STARTED_UNRESOLVED)$ ]]
+            for file in "$prestate" "$current_config" "$prestate_receipt"; do
+              [[ -f "$file" && ! -L "$file" ]]
+            done
+          fi
+          LIVE_MUTATION_PRESTATE="$prestate" LIVE_MUTATION_CURRENT_CONFIG="$current_config" \
+          LIVE_MUTATION_PRESTATE_RECEIPT="$prestate_receipt" env -u FLY_API_TOKEN \
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" advance \
+            --input "$input" \
+            --output "$RUNNER_TEMP/rollback-phase-04-started" --phase LIVE_MUTATION_STARTED
+
+      - name: Upload rollback LIVE_MUTATION_STARTED STARTED effect before provider mutation
+        if: ${{ always() && steps.prepare_live_mutation.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-phase-${{ inputs.failed_application_sha }}-LIVE-MUTATION-STARTED-started-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-04-started
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Execute rollback LIVE_MUTATION_STARTED exact image and config phase
+        id: live_mutation_effect
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          EXECUTE_PHASE: ${{ steps.prepare_live_mutation.outputs.execute }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          input="$RUNNER_TEMP/rollback-phase-04-started"
+          output="$RUNNER_TEMP/rollback-phase-04-result"
+          if [[ "$EXECUTE_PHASE" != 'true' ]]; then cp -R "$input" "$output"; exit 0; fi
+          app="$PHYSIO_FLY_APP"
+          work="$RUNNER_TEMP/rollback-live-mutation-phase"
+          install -d -m 0700 "$work"
+          ROLLBACK_TARGET_CONFIG="$input/rollback-target-config.toml"
+          ROLLBACK_TARGET_MACHINE_CONFIG="$input/rollback-target-machine-config.json"
+          CURRENT_MACHINE_CONFIG="$input/rollback-current-machine-config.json"
+          LIVE_MUTATION_PRESTATE="$input/rollback-live-mutation-prestate.json"
+          for file in "$ROLLBACK_TARGET_MACHINE_CONFIG" "$CURRENT_MACHINE_CONFIG" "$LIVE_MUTATION_PRESTATE"; do
+            [[ -f "$file" && ! -L "$file" ]]
+          done
+          [[ "$(sha256sum "$ROLLBACK_TARGET_CONFIG" | awk '{print $1}')" == '${{ inputs.config_sha256 }}' ]]
+          rollback_snapshot_id="$(TARGET="$input/rollback-readback-03-TARGET_VERIFIED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.TARGET,'utf8'));process.stdout.write(r.observed_snapshot_id||'')")"
+          restore_volume_id="$(TARGET="$input/rollback-readback-03-TARGET_VERIFIED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.TARGET,'utf8'));process.stdout.write(r.observed_restore_volume_id||'')")"
+          expected_data_manifest_sha256="$(TARGET="$input/rollback-readback-03-TARGET_VERIFIED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.TARGET,'utf8'));process.stdout.write('sha256:'+r.observed_config_sha256)")"
+          [[ "$rollback_snapshot_id" =~ ^[A-Za-z0-9_-]{6,160}$ && "$restore_volume_id" =~ ^vol_[A-Za-z0-9]+$ ]]
+          mutation_started=0
+          recovery_attempted=0
+          recovery_succeeded=0
+          provider_calls=0
+          recovery_machine_id="$EXPECTED_MACHINE_ID"
+          capture_exact_machine() {
+            local output="$1"
+            OUTPUT="$output" URL="https://api.machines.dev/v1/apps/$app/machines/$EXPECTED_MACHINE_ID" \
+              env -u SENTRY_AUTH_TOKEN node --input-type=module <<'NODE'
+          import fs from'node:fs';
+          const response=await fetch(process.env.URL,{method:'GET',redirect:'error',signal:AbortSignal.timeout(60_000),
+            headers:{Authorization:`Bearer ${process.env.FLY_API_TOKEN}`,Accept:'application/json'}});
+          const text=await response.text();if(response.status!==200||Buffer.byteLength(text)>1_048_576)
+            throw Error('exact machine readback failed');const machine=JSON.parse(text);
+          fs.writeFileSync(process.env.OUTPUT,`${JSON.stringify(machine,null,2)}\n`,{flag:'wx',mode:0o600});
+          NODE
+          }
+          execute_config_transition() {
+            local prestate="$1" target_config="$2" source_image="$3" target_image="$4" output="$5"
+            PRESTATE="$prestate" TARGET_CONFIG="$target_config" SOURCE_IMAGE="$source_image" \
+            TARGET_IMAGE="$target_image" OUTPUT="$output" API_BASE="https://api.machines.dev/v1/apps/$app" \
+              env -u SENTRY_AUTH_TOKEN node --input-type=module <<'NODE'
+          import fs from'node:fs';import{executeFullMachineConfigTransition}from'./scripts/physio-fly-machine-config-transition.mjs';
+          const preMachine=JSON.parse(fs.readFileSync(process.env.PRESTATE,'utf8'));
+          const targetConfig=JSON.parse(fs.readFileSync(process.env.TARGET_CONFIG,'utf8'));
+          const receipt=await executeFullMachineConfigTransition({apiBase:process.env.API_BASE,
+            token:process.env.FLY_API_TOKEN,preMachine,targetConfig,machineId:process.env.EXPECTED_MACHINE_ID,
+            sourceImage:process.env.SOURCE_IMAGE,targetImage:process.env.TARGET_IMAGE,
+            expectedVolumeId:process.env.EXPECTED_VOLUME_ID});
+          fs.writeFileSync(process.env.OUTPUT,`${JSON.stringify(receipt,null,2)}\n`,{flag:'wx',mode:0o600});
+          if(receipt.result!=='PASS'||receipt.disposition!=='APPLIED')process.exitCode=124;
+          NODE
+          }
+          recover_current_image() (
+            set -euo pipefail
+            recovery_prestate="$work/recovery-machine-prestate.json"
+            recovery_operation="$work/recovery-machine-config-operation.json"
+            capture_exact_machine "$recovery_prestate"
+            execute_config_transition "$recovery_prestate" "$CURRENT_MACHINE_CONFIG" \
+              "$ROLLBACK_IMMUTABLE_IMAGE" "$CURRENT_IMMUTABLE_IMAGE" "$recovery_operation"
+            OPERATION="$recovery_operation" node -e \
+              "const r=require(process.env.OPERATION);if(r.provider_mutation_calls_attempted!==1||r.provider_mutation_calls_confirmed!==1)throw Error('rollback recovery counters differ')"
+            fly machines list --app "$app" --json >"$work/recovery-machines.json"
+            fly volumes list --app "$app" --json >"$work/recovery-volumes.json"
+            env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+              --machines "$work/recovery-machines.json" --volumes "$work/recovery-volumes.json" \
+              --mode recovery-admission --volume-id "$EXPECTED_VOLUME_ID" --machine-id "$recovery_machine_id" \
+              --image "$CURRENT_IMMUTABLE_IMAGE" | grep -F '"machineState":"started"'
+            recovery_runtime_ready=0
+            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+              if env -u FLY_API_TOKEN curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+                --max-time 20 --max-filesize 65536 "$PHYSIO_FLY_ORIGIN/api/health/live" >"$work/recovery-live.json" \
+                && env -u FLY_API_TOKEN curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+                --max-time 20 --max-filesize 65536 "$PHYSIO_FLY_ORIGIN/api/health/ready" >"$work/recovery-ready.json" \
+                && env -u FLY_API_TOKEN curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+                --max-time 20 --max-filesize 65536 "$PHYSIO_FLY_ORIGIN/api/version" >"$work/recovery-version.json" \
+                && env -u FLY_API_TOKEN curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+                --max-time 20 --max-filesize 65536 "$PHYSIO_FLY_ORIGIN/api/capabilities" >"$work/recovery-capabilities.json" \
+                && env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs validate-runtime \
+                --live "$work/recovery-live.json" --ready "$work/recovery-ready.json" \
+                --version "$work/recovery-version.json" --capabilities "$work/recovery-capabilities.json" \
+                --sha "$FAILED_APPLICATION_SHA"; then recovery_runtime_ready=1; break; fi
+              sleep 5
+            done
+            [[ "$recovery_runtime_ready" == '1' ]]
+            recovery_final_exact="$work/recovery-machine-final-exact.json"
+            capture_exact_machine "$recovery_final_exact"
+            MACHINE="$recovery_final_exact" EXPECTED_CONFIG="$CURRENT_MACHINE_CONFIG" \
+              env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from'node:fs';import{machineConfigSha256,validateMachineForConfigTransition}from'./scripts/physio-fly-machine-config-transition.mjs';
+          const machine=JSON.parse(fs.readFileSync(process.env.MACHINE,'utf8'));
+          const expected=JSON.parse(fs.readFileSync(process.env.EXPECTED_CONFIG,'utf8'));
+          validateMachineForConfigTransition(machine,{machineId:process.env.EXPECTED_MACHINE_ID,
+            immutableImage:process.env.CURRENT_IMMUTABLE_IMAGE,expectedVolumeId:process.env.EXPECTED_VOLUME_ID,
+            expectedState:'started'});
+          if(machineConfigSha256(machine.config)!==machineConfigSha256(expected))
+            throw Error('rollback recovery final exact config differs');
+          NODE
+            RECOVERY="$work/physio-rollback-recovery.json" MACHINE="$recovery_machine_id" \
+            IMAGE="$CURRENT_IMMUTABLE_IMAGE" SHA="$FAILED_APPLICATION_SHA" VOLUME="$EXPECTED_VOLUME_ID" \
+            OPERATION="$recovery_operation" EXACT_MACHINE="$recovery_final_exact" CONFIG="$CURRENT_MACHINE_CONFIG" \
+            node --input-type=module <<'NODE'
+          import{createHash}from'node:crypto';import fs from'node:fs';const h=(file)=>createHash('sha256').update(fs.readFileSync(file)).digest('hex');fs.writeFileSync(process.env.RECOVERY,JSON.stringify({
+            contract_version: 'assesssuite-physio-rollback-recovery/1.0.0', result: 'PASS',
+            recovery_status:'RECOVERED',restored_current_image:process.env.IMAGE,
+            restored_application_sha:process.env.SHA,replacement_machine_id:process.env.MACHINE,
+            promoted_recovery_volume_id:process.env.VOLUME,runtime_readiness_verified:true,
+            runtime_identity_verified:true,exact_topology_verified:true,
+            machine_config_operation_receipt_sha256:h(process.env.OPERATION),
+            final_exact_machine_readback_sha256:h(process.env.EXACT_MACHINE),
+            restored_machine_config_sha256:h(process.env.CONFIG),verified_at:new Date().toISOString(),
+          },null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          )
+          read_live_identity() {
+            MACHINES="$1" MACHINE="$EXPECTED_MACHINE_ID" CURRENT="$CURRENT_IMMUTABLE_IMAGE" TARGET="$ROLLBACK_IMMUTABLE_IMAGE" \
+              MODE="$ROLLBACK_MODE" node --input-type=module <<'NODE'
+          import fs from'node:fs';import{canonicalizePhysioFlyImageReference}from'./scripts/physio-release-contract.mjs';
+          const p=JSON.parse(fs.readFileSync(process.env.MACHINES,'utf8'));const rows=Array.isArray(p)?p:p.machines||p.data||[];
+          const r=rows.find((x)=>x?.id===process.env.MACHINE);if(!r||!['started','stopped'].includes(r.state))throw Error('live machine identity differs');
+          const image=canonicalizePhysioFlyImageReference(r.image_ref??r.imageRef??r.config?.image??r.Config?.image);
+          const allowed=process.env.MODE==='exact-image'?[process.env.CURRENT,process.env.TARGET]:[process.env.CURRENT];
+          if(!allowed.includes(image))throw Error('live machine image outside rollback lineage');process.stdout.write(`${image}|${r.state}`);
+          NODE
+          }
+          seal_live_unresolved() {
+            local status=$?
+            set +e
+            fly machines list --app "$app" --json >"$work/machines-unresolved-before-recovery.json" 2>/dev/null || printf '[]\n' >"$work/machines-unresolved-before-recovery.json"
+            current_identity="$(read_live_identity "$work/machines-unresolved-before-recovery.json" 2>/dev/null || true)"
+            current_image="${current_identity%%|*}"
+            if capture_exact_machine "$work/machine-unresolved-before-recovery-exact.json" 2>/dev/null; then
+              current_image="$(MACHINE="$work/machine-unresolved-before-recovery-exact.json" node -e \
+                "const r=require(process.env.MACHINE);process.stdout.write(r?.config?.image||'')" 2>/dev/null || true)"
+            fi
+            recovery_status=NOT_ATTEMPTED
+            if [[ "$ROLLBACK_MODE" == 'exact-image' && "$mutation_started" == '1' && "$current_image" == "$ROLLBACK_IMMUTABLE_IMAGE" ]]; then
+              recovery_attempted=1
+              printf 'attempted\n' >"$work/recovery-attempted"
+              if recover_current_image; then
+                recovery_succeeded=1
+                recovery_status=RECOVERED
+              else
+                recovery_status=RECOVERY_FAILED
+              fi
+            fi
+            fly machines list --app "$app" --json >"$work/machines-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/machines-unresolved.json"
+            fly volumes list --app "$app" --json >"$work/volumes-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/volumes-unresolved.json"
+            fly volumes snapshots list "$EXPECTED_VOLUME_ID" --app "$app" --json >"$work/snapshots-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/snapshots-unresolved.json"
+            final_identity="$(read_live_identity "$work/machines-unresolved.json" 2>/dev/null || true)"
+            final_image="${final_identity%%|*}"; final_state="${final_identity#*|}"
+            if [[ -z "$final_identity" || "$final_identity" != *'|'* ]]; then final_image=''; final_state=''; fi
+            MACHINES_FILE="$work/machines-unresolved.json" VOLUMES_FILE="$work/volumes-unresolved.json" \
+            SNAPSHOTS_FILE="$work/snapshots-unresolved.json" OBSERVED_CONFIG_SHA256="${expected_data_manifest_sha256#sha256:}" \
+            MACHINE_CONFIG_OPERATION_RECEIPT="${transition_operation:-}" \
+            MACHINE_CONFIG_RECOVERY_PRESTATE="$([[ -f "$work/recovery-machine-prestate.json" ]] && printf '%s' "$work/recovery-machine-prestate.json" || true)" \
+            MACHINE_CONFIG_RECOVERY_RECEIPT="$([[ -f "$work/recovery-machine-config-operation.json" ]] && printf '%s' "$work/recovery-machine-config-operation.json" || true)" \
+            OBSERVED_MACHINE_ID="$EXPECTED_MACHINE_ID" OBSERVED_MACHINE_STATE="$final_state" OBSERVED_IMAGE="$final_image" \
+            OBSERVED_VOLUME_ID="$EXPECTED_VOLUME_ID" OBSERVED_RESTORE_VOLUME_ID="$restore_volume_id" \
+            OBSERVED_SNAPSHOT_ID="$rollback_snapshot_id" node "$RUNNER_TEMP/rollback-phase-helper.mjs" readback \
+              --phase LIVE_MUTATION_STARTED --result STARTED_UNRESOLVED --output "$work/unresolved-readback.json"
+            RESULT_MACHINE_ID="$EXPECTED_MACHINE_ID" RESULT_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+            MACHINE_CONFIG_OPERATION_RECEIPT="${transition_operation:-}" \
+            MACHINE_CONFIG_RECOVERY_PRESTATE="$([[ -f "$work/recovery-machine-prestate.json" ]] && printf '%s' "$work/recovery-machine-prestate.json" || true)" \
+            MACHINE_CONFIG_RECOVERY_RECEIPT="$([[ -f "$work/recovery-machine-config-operation.json" ]] && printf '%s' "$work/recovery-machine-config-operation.json" || true)" \
+            node "$RUNNER_TEMP/rollback-phase-helper.mjs" seal --input "$input" --output "$output" \
+              --phase LIVE_MUTATION_STARTED --result STARTED_UNRESOLVED --provider-calls "${provider_calls:-0}" \
+              --readback "$work/unresolved-readback.json"
+            exit "$status"
+          }
+          trap seal_live_unresolved EXIT
+
+          fly machines list --app "$app" --json >"$work/machines-before.json"
+          fly volumes list --app "$app" --json >"$work/volumes-before.json"
+          identity="$(read_live_identity "$work/machines-before.json")"
+          observed_image="${identity%%|*}"; observed_state="${identity#*|}"
+          elapsed_seconds=$SECONDS
+          workflow_budget_seconds=5400
+          recovery_reserved_seconds=900
+          remaining_seconds=$((workflow_budget_seconds - elapsed_seconds))
+          [[ "$remaining_seconds" -ge "$recovery_reserved_seconds" ]]
+          mutation_started=1
+          if [[ "$ROLLBACK_MODE" == 'stop-first-release' ]]; then
+            if [[ "$observed_state" == 'started' ]]; then
+              provider_calls=1
+              timeout --signal=TERM --kill-after=10s 120s fly machine stop "$EXPECTED_MACHINE_ID" \
+                --app "$app" --wait-timeout 90s
+            fi
+            result_image="$CURRENT_IMMUTABLE_IMAGE"
+            result_state=stopped
+          else
+            [[ "$observed_state" == 'started' ]]
+            prestate_source_image="$(PRESTATE="$LIVE_MUTATION_PRESTATE" node -e \
+              "const r=require(process.env.PRESTATE);process.stdout.write(r.config.image)")"
+            [[ "$prestate_source_image" == "$CURRENT_IMMUTABLE_IMAGE" || "$prestate_source_image" == "$ROLLBACK_IMMUTABLE_IMAGE" ]]
+            transition_operation="$work/rollback-machine-config-transition-operation.json"
+            set +e
+            execute_config_transition "$LIVE_MUTATION_PRESTATE" "$ROLLBACK_TARGET_MACHINE_CONFIG" \
+              "$prestate_source_image" "$ROLLBACK_IMMUTABLE_IMAGE" "$transition_operation"
+            transition_status=$?
+            set -e
+            provider_calls="$(OPERATION="$transition_operation" node -e \
+              "const r=require(process.env.OPERATION);process.stdout.write(String(r.provider_mutation_calls_attempted))")"
+            [[ "$provider_calls" == 0 || "$provider_calls" == 1 ]]
+            [[ "$transition_status" == 0 ]]
+            OPERATION="$transition_operation" node -e \
+              "const r=require(process.env.OPERATION);if(r.result!=='PASS'||r.disposition!=='APPLIED'||r.provider_mutation_calls_confirmed>r.provider_mutation_calls_attempted||r.provider_inventory_calls_confirmed!==r.provider_inventory_calls_attempted)throw Error('rollback exact config transition differs')"
+            result_image="$ROLLBACK_IMMUTABLE_IMAGE"
+            result_state=started
+          fi
+          rolled_back=0
+          for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+            fly machines list --app "$app" --json >"$work/machines-final.json"
+            fly volumes list --app "$app" --json >"$work/volumes-final.json"
+            if LIVE_IDENTITY="$(read_live_identity "$work/machines-final.json")" \
+              EXPECTED_IMAGE="$result_image" EXPECTED_STATE="$result_state" VOLUMES="$work/volumes-final.json" \
+              PRIMARY="$EXPECTED_VOLUME_ID" RESERVE="$restore_volume_id" node --input-type=module <<'NODE'
+          import fs from'node:fs';if(process.env.LIVE_IDENTITY!==`${process.env.EXPECTED_IMAGE}|${process.env.EXPECTED_STATE}`)throw Error('live mutation readback differs');
+          const p=JSON.parse(fs.readFileSync(process.env.VOLUMES,'utf8'));const rows=Array.isArray(p)?p:p.volumes||p.data||[];
+          const primary=rows.find((r)=>r?.id===process.env.PRIMARY),reserve=rows.find((r)=>r?.id===process.env.RESERVE);
+          if(rows.length!==2||!primary||!reserve||reserve.attached_machine_id!==null)throw Error('rollback reserve drifted during live mutation');
+          NODE
+            then rolled_back=1; break; fi
+            sleep 5
+          done
+          [[ "$rolled_back" == '1' ]]
+          capture_exact_machine "$work/machine-final-exact.json"
+          EXPECTED_CONFIG="$([[ "$ROLLBACK_MODE" == 'exact-image' ]] && printf '%s' "$ROLLBACK_TARGET_MACHINE_CONFIG" || printf '%s' "$CURRENT_MACHINE_CONFIG")" \
+          MACHINE="$work/machine-final-exact.json" IMAGE="$result_image" STATE="$result_state" \
+            env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from'node:fs';import{machineConfigSha256,validateMachineForConfigTransition}from'./scripts/physio-fly-machine-config-transition.mjs';
+          const machine=JSON.parse(fs.readFileSync(process.env.MACHINE,'utf8'));
+          const expected=JSON.parse(fs.readFileSync(process.env.EXPECTED_CONFIG,'utf8'));
+          validateMachineForConfigTransition(machine,{machineId:process.env.EXPECTED_MACHINE_ID,
+            immutableImage:process.env.IMAGE,expectedVolumeId:process.env.EXPECTED_VOLUME_ID,
+            expectedState:process.env.STATE});
+          if(machineConfigSha256(machine.config)!==machineConfigSha256(expected))
+            throw Error('rollback live mutation exact full config readback differs');
+          NODE
+          fly volumes snapshots list "$EXPECTED_VOLUME_ID" --app "$app" --json >"$work/snapshots-final.json"
+          MACHINES_FILE="$work/machines-final.json" VOLUMES_FILE="$work/volumes-final.json" \
+          SNAPSHOTS_FILE="$work/snapshots-final.json" OBSERVED_CONFIG_SHA256="${expected_data_manifest_sha256#sha256:}" \
+          MACHINE_CONFIG_OPERATION_RECEIPT="${transition_operation:-}" \
+          OBSERVED_MACHINE_ID="$EXPECTED_MACHINE_ID" OBSERVED_MACHINE_STATE="$result_state" OBSERVED_IMAGE="$result_image" \
+          OBSERVED_VOLUME_ID="$EXPECTED_VOLUME_ID" OBSERVED_RESTORE_VOLUME_ID="$restore_volume_id" \
+          OBSERVED_SNAPSHOT_ID="$rollback_snapshot_id" node "$RUNNER_TEMP/rollback-phase-helper.mjs" readback \
+            --phase LIVE_MUTATION_STARTED --result PASS --output "$work/readback.json"
+          RESULT_MACHINE_ID="$EXPECTED_MACHINE_ID" RESULT_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+          MACHINE_CONFIG_OPERATION_RECEIPT="${transition_operation:-}" \
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" seal --input "$input" --output "$output" \
+            --phase LIVE_MUTATION_STARTED --result COMPLETED --provider-calls "$provider_calls" --readback "$work/readback.json"
+          trap - EXIT
+
+      - name: Upload rollback LIVE_MUTATION_STARTED receipt before restart verification phase
+        if: ${{ always() && steps.live_mutation_effect.outcome != 'skipped' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-phase-${{ inputs.failed_application_sha }}-LIVE-MUTATION-STARTED-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-04-result
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Prepare rollback POST_RESTART_VERIFIED phase intent
+        id: prepare_post_restart
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" advance \
+            --input "$RUNNER_TEMP/rollback-phase-04-result" \
+            --output "$RUNNER_TEMP/rollback-phase-05-started" --phase POST_RESTART_VERIFIED
+
+      - name: Upload rollback POST_RESTART_VERIFIED STARTED effect before read-only verification
+        if: ${{ always() && steps.prepare_post_restart.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-phase-${{ inputs.failed_application_sha }}-POST-RESTART-VERIFIED-started-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-05-started
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Execute rollback POST_RESTART_VERIFIED read-only exact-config persistence phase
+        id: post_restart_effect
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          EXECUTE_PHASE: ${{ steps.prepare_post_restart.outputs.execute }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          input="$RUNNER_TEMP/rollback-phase-05-started"
+          output="$RUNNER_TEMP/rollback-phase-05-result"
+          if [[ "$EXECUTE_PHASE" != 'true' ]]; then cp -R "$input" "$output"; exit 0; fi
+          app="$PHYSIO_FLY_APP"
+          fly_base="$PHYSIO_FLY_ORIGIN"
+          work="$RUNNER_TEMP/rollback-post-restart-phase"
+          install -d -m 0700 "$work"
+          result_machine_id="$EXPECTED_MACHINE_ID"
+          result_volume_id="$EXPECTED_VOLUME_ID"
+          ROLLBACK_TARGET_MACHINE_CONFIG="$input/rollback-target-machine-config.json"
+          CURRENT_MACHINE_CONFIG="$input/rollback-current-machine-config.json"
+          rollback_snapshot_id="$(LIVE="$input/rollback-readback-04-LIVE_MUTATION_STARTED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.LIVE,'utf8'));process.stdout.write(r.observed_snapshot_id||'')")"
+          restore_volume_id="$(LIVE="$input/rollback-readback-04-LIVE_MUTATION_STARTED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.LIVE,'utf8'));process.stdout.write(r.observed_restore_volume_id||'')")"
+          expected_data_manifest_sha256="$(LIVE="$input/rollback-readback-04-LIVE_MUTATION_STARTED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.LIVE,'utf8'));process.stdout.write('sha256:'+r.observed_config_sha256)")"
+          snapshot_sentinel="$(printf '%s' "$FAILED_APPLICATION_SHA|$CAPABILITY_INTENT_ID|rollback-snapshot" | sha256sum | awk '{print $1}')"
+          [[ "$rollback_snapshot_id" =~ ^[A-Za-z0-9_-]{6,160}$ && "$restore_volume_id" =~ ^vol_[A-Za-z0-9]+$ ]]
+          result_image="$CURRENT_IMMUTABLE_IMAGE"
+          result_sha=NOT-AVAILABLE
+          expected_state=stopped
+          if [[ "$ROLLBACK_MODE" == 'exact-image' ]]; then
+            result_image="$ROLLBACK_IMMUTABLE_IMAGE"
+            result_sha="$ROLLBACK_RELEASE_SHA"
+            expected_state=started
+          fi
+          read_post_identity() {
+            MACHINES="$1" MACHINE="$EXPECTED_MACHINE_ID" node --input-type=module <<'NODE'
+          import fs from'node:fs';import{canonicalizePhysioFlyImageReference}from'./scripts/physio-release-contract.mjs';
+          const p=JSON.parse(fs.readFileSync(process.env.MACHINES,'utf8'));const rows=Array.isArray(p)?p:p.machines||p.data||[];
+          const r=rows.find((x)=>x?.id===process.env.MACHINE);if(!r||!['started','stopped'].includes(r.state))process.exit(1);
+          const image=canonicalizePhysioFlyImageReference(r.image_ref??r.imageRef??r.config?.image??r.Config?.image);
+          process.stdout.write(`${image}|${r.state}`);
+          NODE
+          }
+          seal_post_unresolved() {
+            local status=$?
+            set +e
+            fly machines list --app "$app" --json >"$work/machines-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/machines-unresolved.json"
+            fly volumes list --app "$app" --json >"$work/volumes-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/volumes-unresolved.json"
+            fly volumes snapshots list "$EXPECTED_VOLUME_ID" --app "$app" --json >"$work/snapshots-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/snapshots-unresolved.json"
+            unresolved_identity="$(read_post_identity "$work/machines-unresolved.json" 2>/dev/null || true)"
+            unresolved_image="${unresolved_identity%%|*}"; unresolved_state="${unresolved_identity#*|}"
+            if [[ -z "$unresolved_identity" || "$unresolved_identity" != *'|'* ]]; then unresolved_image=''; unresolved_state=''; fi
+            MACHINES_FILE="$work/machines-unresolved.json" VOLUMES_FILE="$work/volumes-unresolved.json" \
+            SNAPSHOTS_FILE="$work/snapshots-unresolved.json" OBSERVED_CONFIG_SHA256="${expected_data_manifest_sha256#sha256:}" \
+            OBSERVED_MACHINE_ID="$EXPECTED_MACHINE_ID" OBSERVED_MACHINE_STATE="$unresolved_state" OBSERVED_IMAGE="$unresolved_image" \
+            OBSERVED_VOLUME_ID="$EXPECTED_VOLUME_ID" OBSERVED_RESTORE_VOLUME_ID="$restore_volume_id" \
+            OBSERVED_SNAPSHOT_ID="$rollback_snapshot_id" node "$RUNNER_TEMP/rollback-phase-helper.mjs" readback \
+              --phase POST_RESTART_VERIFIED --result STARTED_UNRESOLVED --output "$work/unresolved-readback.json"
+            RESULT_MACHINE_ID="$EXPECTED_MACHINE_ID" RESULT_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+            node "$RUNNER_TEMP/rollback-phase-helper.mjs" seal --input "$input" --output "$output" \
+              --phase POST_RESTART_VERIFIED --result STARTED_UNRESOLVED --provider-calls 0 \
+              --readback "$work/unresolved-readback.json"
+            exit "$status"
+          }
+          trap seal_post_unresolved EXIT
+
+          fly machines list --app "$app" --json >"$work/machines-before-readiness.json"
+          fly volumes list --app "$app" --json >"$work/volumes-before-readiness.json"
+          exact_machine="$work/machine-before-readiness-exact.json"
+          URL="https://api.machines.dev/v1/apps/$app/machines/$result_machine_id" OUTPUT="$exact_machine" \
+            env -u SENTRY_AUTH_TOKEN node --input-type=module <<'NODE'
+          import fs from'node:fs';const response=await fetch(process.env.URL,{method:'GET',redirect:'error',
+            signal:AbortSignal.timeout(60_000),headers:{Authorization:`Bearer ${process.env.FLY_API_TOKEN}`,Accept:'application/json'}});
+          const text=await response.text();if(response.status!==200||Buffer.byteLength(text)>1_048_576)
+            throw Error('rollback post-transition exact machine readback failed');
+          fs.writeFileSync(process.env.OUTPUT,`${JSON.stringify(JSON.parse(text),null,2)}\n`,{flag:'wx',mode:0o600});
+          NODE
+          EXPECTED_CONFIG="$([[ "$ROLLBACK_MODE" == 'exact-image' ]] && printf '%s' "$ROLLBACK_TARGET_MACHINE_CONFIG" || printf '%s' "$CURRENT_MACHINE_CONFIG")" \
+          MACHINE="$exact_machine" IMAGE="$result_image" STATE="$expected_state" \
+            env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from'node:fs';import{machineConfigSha256,validateMachineForConfigTransition}from'./scripts/physio-fly-machine-config-transition.mjs';
+          const machine=JSON.parse(fs.readFileSync(process.env.MACHINE,'utf8'));
+          const expected=JSON.parse(fs.readFileSync(process.env.EXPECTED_CONFIG,'utf8'));
+          validateMachineForConfigTransition(machine,{machineId:process.env.EXPECTED_MACHINE_ID,
+            immutableImage:process.env.IMAGE,expectedVolumeId:process.env.EXPECTED_VOLUME_ID,
+            expectedState:process.env.STATE});
+          if(machineConfigSha256(machine.config)!==machineConfigSha256(expected))
+            throw Error('rollback post-transition exact config or marker differs');
+          NODE
+          if [[ "$ROLLBACK_MODE" == 'exact-image' ]]; then
+            post_restart_ready=0
+            for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
+              if env -u FLY_API_TOKEN curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+                --max-time 20 --max-filesize 65536 "$fly_base/api/health/live" >"$work/live-post-restart.json" \
+                && env -u FLY_API_TOKEN curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+                --max-time 20 --max-filesize 65536 "$fly_base/api/health/ready" >"$work/ready-post-restart.json" \
+                && env -u FLY_API_TOKEN curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+                --max-time 20 --max-filesize 65536 "$fly_base/api/version" >"$work/version-post-restart.json" \
+                && env -u FLY_API_TOKEN curl --proto '=https' --tlsv1.2 --fail --silent --show-error \
+                --max-time 20 --max-filesize 65536 "$fly_base/api/capabilities" >"$work/capabilities-post-restart.json" \
+                && env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs validate-runtime \
+                --live "$work/live-post-restart.json" --ready "$work/ready-post-restart.json" \
+                --version "$work/version-post-restart.json" --capabilities "$work/capabilities-post-restart.json" \
+                --sha "$ROLLBACK_RELEASE_SHA"; then post_restart_ready=1; break; fi
+              sleep 5
+            done
+            [[ "$post_restart_ready" == '1' ]]
+            post_restart_database="$work/physio-rollback-post-restart-database.json"
+            fly machine exec "$result_machine_id" \
+              "env -u ADMIN_PASSWORD -u OPENAI_API_KEY -u RESEND_API_KEY -u SENTRY_DSN -u STRIPE_SECRET_KEY -u STRIPE_WEBHOOK_SECRET -u STRIPE_PRICE_ID_MONTHLY -u STRIPE_PRICE_ID_ANNUAL -u OPENAI_CHAT_TEST_BASE_URL -u OPENAI_CHAT_TEST_TIMEOUT_MS -u DOCUMENT_EXTRACTION_TEST_BASE_URL -u DOCUMENT_EXTRACTION_PROVIDER_PROBE_ACK -u RUN_DOCUMENT_EXTRACTION_PROVIDER_PROBE -u RUN_PHYSIO_EXACT_IMAGE_CANARY LLM_REQUIRED=0 GENERAL_CLINICAL_LLM_ENABLED=0 TRANSCRIPTION_ENABLED=0 DOCUMENT_EXTRACTION_ENABLED=0 DOCUMENT_EXTRACTION_UNDER_13_ENABLED=0 DOCUMENT_EXTRACTION_PROVIDER_PROBE=0 OUTBOUND_EMAIL_ENABLED=0 OUTBOUND_SMS_ENABLED=0 PAYMENTS_ENABLED=0 SELFTEST=0 PARITY_ASSURANCE_MODE=0 ALLOW_PAID_PROVIDER_PROBE=0 node /app/scripts/physio-restore-verify.mjs verify --database /app/server/data/physio.db --application-sha '$ROLLBACK_RELEASE_SHA' --immutable-image '$ROLLBACK_IMMUTABLE_IMAGE' --volume-id '$EXPECTED_VOLUME_ID' --snapshot-id '$rollback_snapshot_id' --machine-id '$result_machine_id' --snapshot-sentinel '$snapshot_sentinel' --expected-data-manifest-sha256 '$expected_data_manifest_sha256'" \
+              --app "$app" --timeout 180 >"$post_restart_database"
+            POST_DB="$post_restart_database" MANIFEST="$expected_data_manifest_sha256" node --input-type=module <<'NODE'
+          import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.POST_DB,'utf8'));
+          if(r.contract_version!=='assesssuite-physio-restore-verification/2.0.0'||r.result!=='PASS'||
+            r.data_manifest_sha256!==process.env.MANIFEST||r.database_read_only!==true||r.provider_switches_disabled!==true||
+            r.provider_credentials_absent!==true||r.test_provider_settings_absent!==true)throw Error('post-restart database persistence differs');
+          NODE
+          fi
+          fly machines list --app "$app" --json >"$work/machines-post-restart.json"
+          fly volumes list --app "$app" --json >"$work/volumes-post-restart.json"
+          VOLUMES="$work/volumes-post-restart.json" PRIMARY="$EXPECTED_VOLUME_ID" RECOVERY="$restore_volume_id" \
+          OUT="$work/volumes-post-restart-primary.json" node --input-type=module <<'NODE'
+          import fs from'node:fs';const p=JSON.parse(fs.readFileSync(process.env.VOLUMES,'utf8'));const rows=Array.isArray(p)?p:p.volumes||p.data||[];
+          const primary=rows.find((r)=>r?.id===process.env.PRIMARY),recovery=rows.find((r)=>r?.id===process.env.RECOVERY);
+          if(!primary||rows.some((r)=>![process.env.PRIMARY,process.env.RECOVERY].includes(r?.id))||
+            !recovery||recovery.attached_machine_id!==null||rows.length!==2)
+            throw Error('post-restart reserve topology differs');
+          fs.writeFileSync(process.env.OUT,JSON.stringify([primary])+'\n');
+          NODE
+          env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+            --machines "$work/machines-post-restart.json" --volumes "$work/volumes-post-restart-primary.json" \
+            --mode recovery-admission --volume-id "$EXPECTED_VOLUME_ID" --machine-id "$result_machine_id" \
+            --image "$result_image" | grep -F "\"machineState\":\"$expected_state\""
+          final_exact_machine="$work/machine-post-restart-final-exact.json"
+          URL="https://api.machines.dev/v1/apps/$app/machines/$result_machine_id" OUTPUT="$final_exact_machine" \
+            env -u SENTRY_AUTH_TOKEN node --input-type=module <<'NODE'
+          import fs from'node:fs';const response=await fetch(process.env.URL,{method:'GET',redirect:'error',
+            signal:AbortSignal.timeout(60_000),headers:{Authorization:`Bearer ${process.env.FLY_API_TOKEN}`,Accept:'application/json'}});
+          const text=await response.text();if(response.status!==200||Buffer.byteLength(text)>1_048_576)
+            throw Error('rollback final exact machine readback failed');
+          fs.writeFileSync(process.env.OUTPUT,`${JSON.stringify(JSON.parse(text),null,2)}\n`,{flag:'wx',mode:0o600});
+          NODE
+          EXPECTED_CONFIG="$([[ "$ROLLBACK_MODE" == 'exact-image' ]] && printf '%s' "$ROLLBACK_TARGET_MACHINE_CONFIG" || printf '%s' "$CURRENT_MACHINE_CONFIG")" \
+          MACHINE="$final_exact_machine" IMAGE="$result_image" STATE="$expected_state" \
+            env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from'node:fs';import{machineConfigSha256,validateMachineForConfigTransition}from'./scripts/physio-fly-machine-config-transition.mjs';
+          const machine=JSON.parse(fs.readFileSync(process.env.MACHINE,'utf8'));
+          const expected=JSON.parse(fs.readFileSync(process.env.EXPECTED_CONFIG,'utf8'));
+          validateMachineForConfigTransition(machine,{machineId:process.env.EXPECTED_MACHINE_ID,
+            immutableImage:process.env.IMAGE,expectedVolumeId:process.env.EXPECTED_VOLUME_ID,
+            expectedState:process.env.STATE});
+          if(machineConfigSha256(machine.config)!==machineConfigSha256(expected))
+            throw Error('rollback final exact config or marker differs');
+          NODE
+          post_restart_proof="$work/physio-rollback-post-restart-proof.json"
+          PROOF="$post_restart_proof" MODE="$ROLLBACK_MODE" FAILED_SHA="$FAILED_APPLICATION_SHA" RESULT_SHA="$result_sha" \
+            IMAGE="$result_image" VOLUME="$EXPECTED_VOLUME_ID" MACHINE="$result_machine_id" \
+            MACHINES="$work/machines-post-restart.json" VOLUMES="$work/volumes-post-restart.json" \
+            EXACT_MACHINE="$final_exact_machine" EXPECTED_CONFIG="$EXPECTED_CONFIG" \
+          LIVE="$work/live-post-restart.json" READY="$work/ready-post-restart.json" \
+          VERSION="$work/version-post-restart.json" CAPABILITIES="$work/capabilities-post-restart.json" node --input-type=module <<'NODE'
+          import{createHash}from'node:crypto';import fs from'node:fs';const h=(f)=>f&&fs.existsSync(f)?createHash('sha256').update(fs.readFileSync(f)).digest('hex'):null;
+          const row={contract_version: 'assesssuite-physio-rollback-post-restart/2.0.0', result: 'PASS',application:'assesssuite-physio-production',
+            mode:process.env.MODE,previous_failed_application_sha:process.env.FAILED_SHA,resulting_release_sha:process.env.RESULT_SHA,
+            resulting_image:process.env.IMAGE,volume_id:process.env.VOLUME,machine_id:process.env.MACHINE,
+            runtime_live_sha256:h(process.env.LIVE),runtime_ready_sha256:h(process.env.READY),runtime_version_sha256:h(process.env.VERSION),
+            runtime_capabilities_sha256:h(process.env.CAPABILITIES),machines_readback_sha256:h(process.env.MACHINES),
+            volumes_readback_sha256:h(process.env.VOLUMES),exact_machine_readback_sha256:h(process.env.EXACT_MACHINE),
+            expected_machine_config_sha256:h(process.env.EXPECTED_CONFIG),runtime_readiness_verified:process.env.MODE==='exact-image',
+            runtime_identity_verified:process.env.MODE==='exact-image',topology_verified:true,durable_raw_evidence_preserved:true,
+            verified_at:new Date().toISOString()};fs.writeFileSync(process.env.PROOF,JSON.stringify(row,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          post_restart_proof_sha256="$(sha256sum "$post_restart_proof" | awk '{print $1}')"
+          fly volumes snapshots list "$EXPECTED_VOLUME_ID" --app "$app" --json >"$work/snapshots-final.json"
+          MACHINES_FILE="$work/machines-post-restart.json" VOLUMES_FILE="$work/volumes-post-restart.json" \
+          SNAPSHOTS_FILE="$work/snapshots-final.json" OBSERVED_CONFIG_SHA256="${expected_data_manifest_sha256#sha256:}" \
+          OBSERVED_MACHINE_ID="$EXPECTED_MACHINE_ID" OBSERVED_MACHINE_STATE="$expected_state" OBSERVED_IMAGE="$result_image" \
+          OBSERVED_VOLUME_ID="$EXPECTED_VOLUME_ID" OBSERVED_RESTORE_VOLUME_ID="$restore_volume_id" \
+          OBSERVED_SNAPSHOT_ID="$rollback_snapshot_id" node "$RUNNER_TEMP/rollback-phase-helper.mjs" readback \
+            --phase POST_RESTART_VERIFIED --result PASS --output "$work/readback.json"
+          RESULT_MACHINE_ID="$EXPECTED_MACHINE_ID" RESULT_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" seal --input "$input" --output "$output" \
+            --phase POST_RESTART_VERIFIED --result COMPLETED --provider-calls 0 --readback "$work/readback.json"
+          trap - EXIT
+
+      - name: Upload rollback POST_RESTART_VERIFIED receipt before terminal finalization
+        id: upload_post_restart
+        if: ${{ always() && steps.post_restart_effect.outcome != 'skipped' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-phase-${{ inputs.failed_application_sha }}-POST-RESTART-VERIFIED-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-05-result
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Prepare rollback RESTORE_VOLUME_CLEANUP phase intent
+        id: prepare_restore_volume_cleanup
+        if: ${{ needs.rollback_start.outputs.resume_phase == 'POST_RESTART_VERIFIED' || needs.rollback_start.outputs.resume_phase == 'RESTORE_VOLUME_CLEANUP' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" advance \
+            --input "$RUNNER_TEMP/rollback-phase-05-result" \
+            --output "$RUNNER_TEMP/rollback-phase-06-started" --phase RESTORE_VOLUME_CLEANUP
+
+      - name: Upload rollback RESTORE_VOLUME_CLEANUP STARTED effect before provider mutation
+        if: ${{ always() && steps.prepare_restore_volume_cleanup.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-phase-${{ inputs.failed_application_sha }}-RESTORE-VOLUME-CLEANUP-started-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-06-started
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Execute isolated rollback RESTORE_VOLUME_CLEANUP transition
+        id: restore_volume_cleanup_effect
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          EXECUTE_PHASE: ${{ steps.prepare_restore_volume_cleanup.outputs.execute }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          input="$RUNNER_TEMP/rollback-phase-06-started"
+          output="$RUNNER_TEMP/rollback-phase-06-result"
+          if [[ "$EXECUTE_PHASE" != 'true' ]]; then cp -R "$input" "$output"; exit 0; fi
+          app="$PHYSIO_FLY_APP"
+          work="$RUNNER_TEMP/rollback-restore-volume-cleanup-phase"
+          install -d -m 0700 "$work"
+          cleanup_receipt="$work/rollback-restore-volume-cleanup-operation.json"
+          post="$input/rollback-readback-05-POST_RESTART_VERIFIED.json"
+          rollback_snapshot_id="$(POST="$post" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.POST,'utf8'));process.stdout.write(r.observed_snapshot_id||'')")"
+          restore_volume_id="$(POST="$post" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.POST,'utf8'));process.stdout.write(r.observed_restore_volume_id||'')")"
+          manifest_sha="$(POST="$post" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.POST,'utf8'));process.stdout.write(r.observed_config_sha256||'')")"
+          [[ "$rollback_snapshot_id" =~ ^[A-Za-z0-9_-]{6,160}$ && "$restore_volume_id" =~ ^vol_[A-Za-z0-9]+$ ]]
+          result_image="$CURRENT_IMMUTABLE_IMAGE"; expected_state=stopped
+          if [[ "$ROLLBACK_MODE" == 'exact-image' ]]; then result_image="$ROLLBACK_IMMUTABLE_IMAGE"; expected_state=started; fi
+          resume_result="$(PHASE="$input/rollback-effect-reconciliation.json" node --input-type=module -e \
+            "import fs from'node:fs';process.stdout.write(JSON.parse(fs.readFileSync(process.env.PHASE,'utf8')).result)")"
+          prior_calls="$(PHASE="$input/rollback-effect-reconciliation.json" node --input-type=module -e \
+            "import fs from'node:fs';const n=JSON.parse(fs.readFileSync(process.env.PHASE,'utf8')).provider_calls_executed;if(![0,1].includes(n))throw Error('cleanup prior calls differ');process.stdout.write(String(n))")"
+          cleanup_provider_calls="$prior_calls"
+
+          write_cleanup_receipt() {
+            local disposition="$1" calls="$2" response_received="$3" status="$4" body_sha="$5" headers_sha="$6" error_sha="$7" post_volumes="$8"
+            RECEIPT="$cleanup_receipt" DISPOSITION="$disposition" CALLS="$calls" RESPONSE_RECEIVED="$response_received" \
+            HTTP_STATUS="$status" BODY_SHA="$body_sha" HEADERS_SHA="$headers_sha" ERROR_SHA="$error_sha" \
+            RESTORE_VOLUME_ID="$restore_volume_id" PRE_VOLUMES="$work/volumes-before.json" POST_VOLUMES="$post_volumes" \
+            node --input-type=module <<'NODE'
+          import{createHash}from'node:crypto';import fs from'node:fs';const nullable=(value)=>value===''?null:value;
+          const hash=(file)=>file&&fs.existsSync(file)?createHash('sha256').update(fs.readFileSync(file)).digest('hex'):null;
+          const payload=process.env.POST_VOLUMES&&fs.existsSync(process.env.POST_VOLUMES)?JSON.parse(fs.readFileSync(process.env.POST_VOLUMES,'utf8')):[];
+          const rows=Array.isArray(payload)?payload:payload.volumes||payload.data||[];
+          const row={contract_version:'assesssuite-physio-rollback-volume-cleanup/1.0.0',
+            application:'assesssuite-physio-production',disposition:process.env.DISPOSITION,
+            restore_volume_id:process.env.RESTORE_VOLUME_ID,request_method:'DELETE',
+            request_url:`https://api.machines.dev/v1/apps/assesssuite-physio-production/volumes/${process.env.RESTORE_VOLUME_ID}?force=false`,
+            force:false,provider_mutation_calls_attempted:Number(process.env.CALLS),
+            response_received:process.env.RESPONSE_RECEIVED==='true',
+            http_status:process.env.HTTP_STATUS===''?null:Number(process.env.HTTP_STATUS),
+            pre_volumes_sha256:hash(process.env.PRE_VOLUMES),post_volumes_sha256:hash(process.env.POST_VOLUMES),
+            restore_volume_absent:!rows.some((item)=>item?.id===process.env.RESTORE_VOLUME_ID),
+            response_body_sha256:nullable(process.env.BODY_SHA),response_headers_sha256:nullable(process.env.HEADERS_SHA),
+            error_sha256:nullable(process.env.ERROR_SHA),attempted_at:new Date().toISOString()};
+          fs.writeFileSync(process.env.RECEIPT,JSON.stringify(row,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          }
+          seal_cleanup_unresolved() {
+            local status=$?
+            set +e
+            fly machines list --app "$app" --json >"$work/machines-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/machines-unresolved.json"
+            fly volumes list --app "$app" --json >"$work/volumes-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/volumes-unresolved.json"
+            fly volumes snapshots list "$EXPECTED_VOLUME_ID" --app "$app" --json >"$work/snapshots-unresolved.json" 2>/dev/null || printf '[]\n' >"$work/snapshots-unresolved.json"
+            if [[ ! -f "$cleanup_receipt" ]]; then
+              error_sha="$(printf '%s' 'cleanup failed before authoritative completion' | sha256sum | awk '{print $1}')"
+              write_cleanup_receipt AMBIGUOUS 0 false '' '' '' "$error_sha" "$work/volumes-unresolved.json"
+            fi
+            MACHINES_FILE="$work/machines-unresolved.json" VOLUMES_FILE="$work/volumes-unresolved.json" \
+            SNAPSHOTS_FILE="$work/snapshots-unresolved.json" OBSERVED_CONFIG_SHA256="$manifest_sha" \
+            OBSERVED_MACHINE_ID="$EXPECTED_MACHINE_ID" OBSERVED_MACHINE_STATE="$expected_state" OBSERVED_IMAGE="$result_image" \
+            OBSERVED_VOLUME_ID="$EXPECTED_VOLUME_ID" OBSERVED_RESTORE_VOLUME_ID="$restore_volume_id" \
+            OBSERVED_SNAPSHOT_ID="$rollback_snapshot_id" ROLLBACK_PACKET_INPUT="$input" \
+            RESTORE_VOLUME_CLEANUP_RECEIPT="$cleanup_receipt" node "$RUNNER_TEMP/rollback-phase-helper.mjs" readback \
+              --phase RESTORE_VOLUME_CLEANUP --result STARTED_UNRESOLVED --output "$work/unresolved-readback.json"
+            RESULT_MACHINE_ID="$EXPECTED_MACHINE_ID" RESULT_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+            RESTORE_VOLUME_CLEANUP_RECEIPT="$cleanup_receipt" node "$RUNNER_TEMP/rollback-phase-helper.mjs" seal \
+              --input "$input" --output "$output" --phase RESTORE_VOLUME_CLEANUP --result STARTED_UNRESOLVED \
+              --provider-calls "$cleanup_provider_calls" --readback "$work/unresolved-readback.json"
+            exit "$status"
+          }
+          trap seal_cleanup_unresolved EXIT
+
+          fly machines list --app "$app" --json >"$work/machines-before.json"
+          fly volumes list --app "$app" --json >"$work/volumes-before.json"
+          VOLUMES="$work/volumes-before.json" PRIMARY="$EXPECTED_VOLUME_ID" RESTORE="$restore_volume_id" \
+          RESUME_RESULT="$resume_result" PRIOR_CALLS="$prior_calls" OUT="$work/primary-before.json" node --input-type=module <<'NODE'
+          import fs from'node:fs';const p=JSON.parse(fs.readFileSync(process.env.VOLUMES,'utf8'));const rows=Array.isArray(p)?p:p.volumes||p.data||[];
+          if(rows.some((r)=>![process.env.PRIMARY,process.env.RESTORE].includes(r?.id)))throw Error('cleanup volume topology drift');
+          const primary=rows.find((r)=>r?.id===process.env.PRIMARY),restore=rows.find((r)=>r?.id===process.env.RESTORE);
+          if(!primary||rows.length<1||rows.length>2||(restore&&restore.attached_machine_id!==null))throw Error('cleanup volume binding differs');
+          if(!restore&&(process.env.RESUME_RESULT!=='STARTED_UNRESOLVED'||process.env.PRIOR_CALLS!=='1'||rows.length!==1))
+            throw Error('fresh cleanup cannot adopt an absent restore volume');
+          fs.writeFileSync(process.env.OUT,JSON.stringify([primary])+'\n');
+          NODE
+          env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+            --machines "$work/machines-before.json" --volumes "$work/primary-before.json" \
+            --mode recovery-admission --volume-id "$EXPECTED_VOLUME_ID" --machine-id "$EXPECTED_MACHINE_ID" \
+            --image "$result_image" | grep -F "\"machineState\":\"$expected_state\""
+          restore_exists="$(VOLUMES="$work/volumes-before.json" RESTORE="$restore_volume_id" node --input-type=module -e \
+            "import fs from'node:fs';const p=JSON.parse(fs.readFileSync(process.env.VOLUMES,'utf8'));const r=Array.isArray(p)?p:p.volumes||p.data||[];process.stdout.write(r.some(x=>x?.id===process.env.RESTORE)?'true':'false')")"
+          disposition=APPLIED
+          if [[ "$restore_exists" == 'true' ]]; then
+            cleanup_provider_calls=1
+            REQUEST_URL="https://api.machines.dev/v1/apps/$app/volumes/$restore_volume_id?force=false" \
+            RAW="$work/mutation-raw.json" node --input-type=module <<'NODE'
+          import{createHash}from'node:crypto';import fs from'node:fs';const h=(v)=>createHash('sha256').update(v).digest('hex');
+          const row={response_received:false,http_status:null,response_body_sha256:null,response_headers_sha256:null,error_sha256:null};
+          try{const response=await fetch(process.env.REQUEST_URL,{method:'DELETE',redirect:'error',signal:AbortSignal.timeout(90_000),
+            headers:{Authorization:`Bearer ${process.env.FLY_API_TOKEN}`,Accept:'application/json'}});
+            const body=await response.text();if(Buffer.byteLength(body)>1_048_576)throw Error('cleanup response exceeds bound');
+            row.response_received=true;row.http_status=response.status;row.response_body_sha256=h(body);
+            row.response_headers_sha256=h(JSON.stringify([...response.headers.entries()].sort()));
+          }catch(error){row.error_sha256=h(String(error?.message||error));}
+          fs.writeFileSync(process.env.RAW,JSON.stringify(row,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          else
+            RAW="$work/mutation-raw.json" node --input-type=module <<'NODE'
+          import fs from'node:fs';fs.writeFileSync(process.env.RAW,JSON.stringify({response_received:false,http_status:null,
+            response_body_sha256:null,response_headers_sha256:null,error_sha256:null},null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          fi
+          cleanup_applied=0
+          for attempt in 1 2 3 4 5 6; do
+            fly volumes list --app "$app" --json >"$work/volumes-after.json"
+            if VOLUMES="$work/volumes-after.json" RESTORE="$restore_volume_id" node --input-type=module <<'NODE'
+          import fs from'node:fs';const p=JSON.parse(fs.readFileSync(process.env.VOLUMES,'utf8'));const rows=Array.isArray(p)?p:p.volumes||p.data||[];
+          if(rows.some((r)=>r?.id===process.env.RESTORE))process.exit(1);
+          NODE
+            then cleanup_applied=1; break; fi
+            sleep 3
+          done
+          if [[ ! -f "$cleanup_receipt" ]]; then
+            readarray -t mutation_fields < <(RAW="$work/mutation-raw.json" node --input-type=module <<'NODE'
+          import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.RAW,'utf8'));
+          for(const v of [r.response_received?'true':'false',r.http_status??'',r.response_body_sha256??'',r.response_headers_sha256??'',r.error_sha256??''])console.log(v);
+          NODE
+            )
+            response_received="${mutation_fields[0]}"; http_status="${mutation_fields[1]}"
+            accepted=false; [[ "$http_status" =~ ^(200|202|204)$ ]] && accepted=true
+            if [[ "$cleanup_applied" == '1' && ( "$response_received" == 'false' || "$accepted" == 'true' ) ]]; then
+              disposition=APPLIED
+            elif [[ "$cleanup_applied" == '0' && ( "$response_received" == 'false' || "$accepted" == 'false' ) ]]; then
+              disposition=NOT_APPLIED
+            else
+              disposition=AMBIGUOUS
+            fi
+            current_calls=1; [[ "$restore_exists" == 'false' ]] && current_calls=0
+            write_cleanup_receipt "$disposition" "$current_calls" "${mutation_fields[0]}" "${mutation_fields[1]}" \
+              "${mutation_fields[2]}" "${mutation_fields[3]}" "${mutation_fields[4]}" "$work/volumes-after.json"
+          fi
+          [[ "$disposition" == 'APPLIED' ]]
+          fly machines list --app "$app" --json >"$work/machines-after.json"
+          fly volumes list --app "$app" --json >"$work/volumes-after-final.json"
+          fly volumes snapshots list "$EXPECTED_VOLUME_ID" --app "$app" --json >"$work/snapshots-after.json"
+          env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+            --machines "$work/machines-after.json" --volumes "$work/volumes-after-final.json" \
+            --mode recovery-admission --volume-id "$EXPECTED_VOLUME_ID" --machine-id "$EXPECTED_MACHINE_ID" \
+            --image "$result_image" | grep -F "\"machineState\":\"$expected_state\""
+          MACHINES_FILE="$work/machines-after.json" VOLUMES_FILE="$work/volumes-after-final.json" \
+          SNAPSHOTS_FILE="$work/snapshots-after.json" OBSERVED_CONFIG_SHA256="$manifest_sha" \
+          OBSERVED_MACHINE_ID="$EXPECTED_MACHINE_ID" OBSERVED_MACHINE_STATE="$expected_state" OBSERVED_IMAGE="$result_image" \
+          OBSERVED_VOLUME_ID="$EXPECTED_VOLUME_ID" OBSERVED_RESTORE_VOLUME_ID="$restore_volume_id" \
+          OBSERVED_SNAPSHOT_ID="$rollback_snapshot_id" ROLLBACK_PACKET_INPUT="$input" \
+          RESTORE_VOLUME_CLEANUP_RECEIPT="$cleanup_receipt" node "$RUNNER_TEMP/rollback-phase-helper.mjs" readback \
+            --phase RESTORE_VOLUME_CLEANUP --result PASS --output "$work/readback.json"
+          RESULT_MACHINE_ID="$EXPECTED_MACHINE_ID" RESULT_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+          RESTORE_VOLUME_CLEANUP_RECEIPT="$cleanup_receipt" node "$RUNNER_TEMP/rollback-phase-helper.mjs" seal \
+            --input "$input" --output "$output" --phase RESTORE_VOLUME_CLEANUP --result COMPLETED \
+            --provider-calls 1 --readback "$work/readback.json"
+          trap - EXIT
+
+      - name: Upload rollback RESTORE_VOLUME_CLEANUP receipt before terminal finalization
+        id: upload_restore_volume_cleanup
+        if: ${{ always() && steps.restore_volume_cleanup_effect.outcome != 'skipped' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-phase-${{ inputs.failed_application_sha }}-RESTORE-VOLUME-CLEANUP-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-06-result
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Prepare rollback COMPLETED terminal intent
+        id: prepare_completed
+        if: ${{ steps.restore_volume_cleanup_effect.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" advance \
+            --input "$RUNNER_TEMP/rollback-phase-06-result" \
+            --output "$RUNNER_TEMP/rollback-phase-07-started" --phase COMPLETED
+
+      - name: Upload rollback COMPLETED STARTED terminal effect before finalization
+        if: ${{ always() && steps.prepare_completed.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-phase-${{ inputs.failed_application_sha }}-COMPLETED-started-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-07-started
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Finalize rollback COMPLETED as a credential-free read-only phase
+        id: completed_effect
+        shell: bash
+        env:
+          EXECUTE_PHASE: ${{ steps.prepare_completed.outputs.execute }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          input="$RUNNER_TEMP/rollback-phase-07-started"
+          output="$RUNNER_TEMP/rollback-phase-07-result"
+          receipt_dir="$RUNNER_TEMP/rollback-final-receipt"
+          install -d -m 0700 "$receipt_dir"
+          if [[ "$EXECUTE_PHASE" != 'true' ]]; then cp -R "$input" "$output"; exit 0; fi
+          rollback_snapshot_id="$(POST="$input/rollback-readback-05-POST_RESTART_VERIFIED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.POST,'utf8'));process.stdout.write(r.observed_snapshot_id||'')")"
+          restore_volume_id="$(POST="$input/rollback-readback-05-POST_RESTART_VERIFIED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.POST,'utf8'));process.stdout.write(r.observed_restore_volume_id||'')")"
+          manifest_sha="$(POST="$input/rollback-readback-05-POST_RESTART_VERIFIED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.POST,'utf8'));process.stdout.write(r.observed_config_sha256)")"
+          expected_state=stopped
+          result_image="$CURRENT_IMMUTABLE_IMAGE"
+          result_sha=NOT-AVAILABLE
+          if [[ "$ROLLBACK_MODE" == 'exact-image' ]]; then
+            expected_state=started
+            result_image="$ROLLBACK_IMMUTABLE_IMAGE"
+            result_sha="$ROLLBACK_RELEASE_SHA"
+          fi
+          OBSERVED_CONFIG_SHA256="$manifest_sha" OBSERVED_MACHINE_ID="$EXPECTED_MACHINE_ID" \
+          OBSERVED_MACHINE_STATE="$expected_state" OBSERVED_IMAGE="$result_image" \
+          OBSERVED_VOLUME_ID="$EXPECTED_VOLUME_ID" OBSERVED_RESTORE_VOLUME_ID="$restore_volume_id" \
+          OBSERVED_SNAPSHOT_ID="$rollback_snapshot_id" node "$RUNNER_TEMP/rollback-phase-helper.mjs" readback \
+            --phase COMPLETED --result PASS --output "$RUNNER_TEMP/rollback-completed-readback.json"
+          RESULT_MACHINE_ID="$EXPECTED_MACHINE_ID" RESULT_VOLUME_ID="$EXPECTED_VOLUME_ID" \
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" seal --input "$input" --output "$output" \
+            --phase COMPLETED --result COMPLETED --provider-calls 0 \
+            --readback "$RUNNER_TEMP/rollback-completed-readback.json"
+          node "$RUNNER_TEMP/rollback-phase-helper.mjs" state --packet "$output" >"$receipt_dir/rollback-phase-ledger-admission.json"
+
+          install -m 0600 "$output/rollback-readback-01-SNAPSHOT_COMPLETED.json" \
+            "$receipt_dir/physio-rollback-presnapshot-manifest.json"
+          install -m 0600 "$output/rollback-readback-02-RESTORE_VERIFIED.json" \
+            "$receipt_dir/physio-rollback-restore-verification.json"
+          install -m 0600 "$output/rollback-readback-02-RESTORE_VERIFIED.json" \
+            "$receipt_dir/rollback-restore-verifier-provider-readback.json"
+          receipt_files=(physio-rollback-presnapshot-manifest.json physio-rollback-restore-verification.json rollback-restore-verifier-provider-readback.json)
+          if [[ "$ROLLBACK_MODE" == 'exact-image' ]]; then
+            install -m 0600 "$output/rollback-readback-03-TARGET_VERIFIED.json" \
+              "$receipt_dir/physio-rollback-target-verification.json"
+            install -m 0600 "$output/rollback-readback-03-TARGET_VERIFIED.json" \
+              "$receipt_dir/rollback-target-verifier-provider-readback.json"
+            install -m 0600 "$output/rollback-readback-05-POST_RESTART_VERIFIED.json" \
+              "$receipt_dir/physio-rollback-post-restart-proof.json"
+            for name in live ready version capabilities; do
+              install -m 0600 "$output/rollback-readback-05-POST_RESTART_VERIFIED.json" \
+                "$receipt_dir/runtime-$name-post-restart.json"
+            done
+            install -m 0600 "$output/rollback-readback-05-POST_RESTART_VERIFIED.json" \
+              "$receipt_dir/provider-machines-post-restart.json"
+            install -m 0600 "$output/rollback-readback-05-POST_RESTART_VERIFIED.json" \
+              "$receipt_dir/provider-volumes-post-restart.json"
+            receipt_files+=(physio-rollback-target-verification.json rollback-target-verifier-provider-readback.json \
+              physio-rollback-post-restart-proof.json runtime-live-post-restart.json runtime-ready-post-restart.json \
+              runtime-version-post-restart.json runtime-capabilities-post-restart.json \
+              provider-machines-post-restart.json provider-volumes-post-restart.json)
+          fi
+          snapshot_phase_sha="$(sha256sum "$output/rollback-phase-01-SNAPSHOT_COMPLETED.json" | awk '{print $1}')"
+          restore_phase_sha="$(sha256sum "$output/rollback-phase-02-RESTORE_VERIFIED.json" | awk '{print $1}')"
+          target_phase_sha="$(sha256sum "$output/rollback-phase-03-TARGET_VERIFIED.json" | awk '{print $1}')"
+          post_phase_sha="$(sha256sum "$output/rollback-phase-05-POST_RESTART_VERIFIED.json" | awk '{print $1}')"
+          cleanup_phase_sha="$(sha256sum "$output/rollback-phase-06-RESTORE_VOLUME_CLEANUP.json" | awk '{print $1}')"
+          final_phase_sha="$(sha256sum "$output/rollback-phase-07-COMPLETED.json" | awk '{print $1}')"
+          source_machine_initial_state="$(PHASE="$output/rollback-phase-01-SNAPSHOT_COMPLETED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.PHASE,'utf8'));if(!['started','stopped'].includes(r.initial_machine_state))throw Error('source initial state differs');process.stdout.write(r.initial_machine_state)")"
+          restore_verifier_machine_id="$(PHASE="$output/rollback-phase-02-RESTORE_VERIFIED.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.PHASE,'utf8'));if(!/^[0-9a-f]{14,32}$/i.test(r.verifier_machine_id||''))throw Error('restore verifier lineage differs');process.stdout.write(r.verifier_machine_id)")"
+          restore_verifier_machine_id_sha="$(printf '%s' "$restore_verifier_machine_id" | sha256sum | awk '{print $1}')"
+          target_verifier_machine_id_sha=''
+          if [[ "$ROLLBACK_MODE" == 'exact-image' ]]; then
+            target_verifier_machine_id="$(PHASE="$output/rollback-phase-03-TARGET_VERIFIED.json" node --input-type=module -e \
+              "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.PHASE,'utf8'));if(!/^[0-9a-f]{14,32}$/i.test(r.verifier_machine_id||''))throw Error('target verifier lineage differs');process.stdout.write(r.verifier_machine_id)")"
+            target_verifier_machine_id_sha="$(printf '%s' "$target_verifier_machine_id" | sha256sum | awk '{print $1}')"
+          fi
+          snapshot_sentinel="$(printf '%s' "$FAILED_APPLICATION_SHA|$CAPABILITY_INTENT_ID|rollback-snapshot" | sha256sum | awk '{print $1}')"
+          snapshot_sentinel_sha="$(printf '%s' "$snapshot_sentinel" | sha256sum | awk '{print $1}')"
+          RECEIPT="$receipt_dir/physio-production-rollback.json" MODE="$ROLLBACK_MODE" FAILED_SHA="$FAILED_APPLICATION_SHA" \
+          CURRENT_IMAGE="$CURRENT_IMMUTABLE_IMAGE" RESULT_SHA="$result_sha" RESULT_IMAGE="$result_image" \
+          VOLUME="$EXPECTED_VOLUME_ID" MACHINE="$EXPECTED_MACHINE_ID" SNAPSHOT="$rollback_snapshot_id" \
+          SERVICE_STATE="$expected_state" MANIFEST_SHA="$manifest_sha" SNAPSHOT_PHASE_SHA="$snapshot_phase_sha" \
+          RESTORE_PHASE_SHA="$restore_phase_sha" TARGET_PHASE_SHA="$target_phase_sha" POST_PHASE_SHA="$post_phase_sha" \
+          CLEANUP_PHASE_SHA="$cleanup_phase_sha" \
+          SOURCE_INITIAL_STATE="$source_machine_initial_state" SNAPSHOT_SENTINEL_SHA="$snapshot_sentinel_sha" \
+          RESTORE_VERIFIER_MACHINE_SHA="$restore_verifier_machine_id_sha" TARGET_VERIFIER_MACHINE_SHA="$target_verifier_machine_id_sha" \
+          POST_RESTART_PROOF_SHA="$post_phase_sha" \
+          FINAL_PHASE_SHA="$final_phase_sha" INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" \
+          node --input-type=module <<'NODE'
+          import fs from'node:fs';const exactImageMode=process.env.MODE==='exact-image';
+          const row={contract_version: 'assesssuite-physio-rollback/3.0.0', result: 'PASS',mode:process.env.MODE,
+            application:'assesssuite-physio-production',failed_application_sha:process.env.FAILED_SHA,
+            failed_image:process.env.CURRENT_IMAGE,resulting_release_sha:process.env.RESULT_SHA,
+            resulting_image:process.env.RESULT_IMAGE,service_state:process.env.SERVICE_STATE,
+            volume_id:process.env.VOLUME,machine_id:process.env.MACHINE,recovery_snapshot_id:process.env.SNAPSHOT,
+            source_machine_initial_state:process.env.SOURCE_INITIAL_STATE,source_http_identity_verified:false,provider_identity_admission_verified:true,
+            production_machine_stopped_before_snapshot:true,presnapshot_manifest_contract_version:'assesssuite-physio-presnapshot-manifest/1.0.0',
+            presnapshot_manifest_receipt_sha256:process.env.SNAPSHOT_PHASE_SHA,
+            logical_data_manifest_contract_version:'assesssuite-physio-logical-data-manifest/1.0.0',
+            logical_data_manifest_sha256:`sha256:${process.env.MANIFEST_SHA}`,logical_data_table_count:36,
+            snapshot_sentinel_sha256:process.env.SNAPSHOT_SENTINEL_SHA,sqlite_schema_contract_version:'assesssuite-physio-sqlite-schema/1.0.0',
+            sqlite_schema_digest:'phase-ledger-bound',sqlite_schema_object_count:106,sqlite_schema_table_count:36,sqlite_user_version:0,
+            restore_clone_created:true,restore_clone_mounted:true,restore_database_verified:true,
+            restore_verifier_machine_destroyed:true,restore_clone_destroyed:true,
+            restore_volume_cleanup_phase_sha256:process.env.CLEANUP_PHASE_SHA,
+            primary_topology_and_recovery_reserve_verified_before_rollback:true,
+            restore_verification_contract_version:'assesssuite-physio-restore-verification/2.0.0',
+            restore_verification_receipt_sha256:process.env.RESTORE_PHASE_SHA,
+            restore_verifier_machine_id_sha256:process.env.RESTORE_VERIFIER_MACHINE_SHA,
+            rollback_target_clone_preflight_verified:exactImageMode,
+            rollback_target_verification_receipt_sha256:exactImageMode?process.env.TARGET_PHASE_SHA:null,
+            rollback_target_verifier_machine_id_sha256:exactImageMode?process.env.TARGET_VERIFIER_MACHINE_SHA:null,
+            recovery_reserve_seconds:900,failed_rollback_recovery_path_armed:exactImageMode,
+            post_restart_runtime_verified: exactImageMode,post_restart_identity_verified: exactImageMode,
+            post_restart_topology_verified:true,post_restart_proof_contract_version:exactImageMode?'assesssuite-physio-rollback-post-restart/2.0.0':null,
+            post_restart_proof_sha256: exactImageMode ? process.env.POST_RESTART_PROOF_SHA : null,
+            durable_post_restart_evidence_preserved:true,phase_ledger_terminal_sha256:process.env.FINAL_PHASE_SHA,
+            data_action: 'preserved-isolated-volume',fly_hostname_is_verification_route:true,
+            dns_action: 'separate-capability-not-performed',capability_intent_id:process.env.INTENT,
+            authority_reference:process.env.AUTHORITY,completed_at:new Date().toISOString()};
+          fs.writeFileSync(process.env.RECEIPT,JSON.stringify(row,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          receipt_files+=(physio-production-rollback.json rollback-phase-ledger-admission.json)
+          (cd "$receipt_dir" && sha256sum "${receipt_files[@]}" | LC_ALL=C sort -k2,2 >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+
+      - if: ${{ always() && steps.completed_effect.outcome != 'skipped' }}
+        name: Upload rollback COMPLETED terminal effect and final receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-terminal-${{ inputs.failed_application_sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-phase-07-result
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Upload rollback final human-readable evidence
+        if: ${{ success() && steps.completed_effect.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-final-evidence-${{ inputs.failed_application_sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-final-receipt
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Seal and upload rollback failure diagnostics
+        if: ${{ failure() && steps.restore_volume_cleanup_effect.outcome != 'failure' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          failure_dir="$RUNNER_TEMP/rollback-failure-receipt"
+          install -d -m 0700 "$failure_dir"
+          latest_readback=''
+          for candidate in "$RUNNER_TEMP"/rollback-phase-??-result/rollback-provider-readback.json; do
+            if [[ -f "$candidate" && ! -L "$candidate" ]]; then latest_readback="$candidate"; fi
+          done
+          provider_readback_complete=false
+          service_stopped=false
+          if [[ -n "$latest_readback" ]]; then
+            provider_readback_complete=true
+            service_stopped="$(READBACK="$latest_readback" node --input-type=module -e \
+              "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.READBACK,'utf8'));process.stdout.write(r.observed_machine_state==='stopped'?'true':'false')")"
+            install -m 0600 "$latest_readback" "$failure_dir/rollback-failure-provider-readback.json"
+          fi
+          recovery_status=NOT_ATTEMPTED
+          recovery_proof_sha256=''
+          if [[ -f "$RUNNER_TEMP/rollback-live-mutation-phase/physio-rollback-recovery.json" ]]; then
+            recovery_status=RECOVERED
+            install -m 0600 "$RUNNER_TEMP/rollback-live-mutation-phase/physio-rollback-recovery.json" \
+              "$failure_dir/physio-rollback-recovery.json"
+            recovery_proof_sha256="$(sha256sum "$failure_dir/physio-rollback-recovery.json" | awk '{print $1}')"
+          elif [[ -f "$RUNNER_TEMP/rollback-live-mutation-phase/recovery-attempted" ]]; then
+            recovery_status=RECOVERY_FAILED
+          fi
+          RECEIPT="$failure_dir/physio-production-rollback.json" MODE="$ROLLBACK_MODE" FAILED_SHA="$FAILED_APPLICATION_SHA" \
+          CURRENT_IMAGE="$CURRENT_IMMUTABLE_IMAGE" VOLUME="$EXPECTED_VOLUME_ID" \
+          SERVICE_STOPPED="$service_stopped" PROVIDER_COMPLETE="$provider_readback_complete" \
+          RECOVERY_STATUS="$recovery_status" RECOVERY_PROOF_SHA="$recovery_proof_sha256" node --input-type=module <<'NODE'
+          import fs from'node:fs';const serviceStopped=process.env.SERVICE_STOPPED==='true';
+          const providerReadbackComplete=process.env.PROVIDER_COMPLETE==='true';
+          const row={contract_version: 'assesssuite-physio-rollback/3.0.0', result: 'FAILED',mode:process.env.MODE,
+            failed_application_sha:process.env.FAILED_SHA,automatic_current_image_recovery_attempted:process.env.RECOVERY_STATUS!=='NOT_ATTEMPTED',
+            recovery_status:process.env.RECOVERY_STATUS,recovery_proof_sha256:process.env.RECOVERY_PROOF_SHA||null,
+            current_image:process.env.CURRENT_IMAGE,original_volume_id:process.env.VOLUME,
+            service_stopped: serviceStopped, provider_readback_complete: providerReadbackComplete,
+            failed_at:new Date().toISOString()};fs.writeFileSync(process.env.RECEIPT,JSON.stringify(row,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+          mapfile -t failure_receipts < <(find "$failure_dir" -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort)
+          (cd "$failure_dir" && sha256sum "${failure_receipts[@]}" | LC_ALL=C sort -k2,2 >SHA256SUMS)
+
+      - name: Upload rollback failure receipt
+        if: ${{ failure() && steps.restore_volume_cleanup_effect.outcome != 'failure' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-failure-${{ inputs.failed_application_sha }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/rollback-failure-receipt
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - if: ${{ always() }}
+        name: Upload guard for rollback terminal or unresolved effect receipt
+        shell: bash
+        env:
+          DURABLE_STARTED_ARTIFACT_ID: ${{ needs.rollback_start.outputs.started_artifact_id }}
+          DURABLE_STARTED_ARTIFACT_DIGEST: ${{ needs.rollback_start.outputs.started_artifact_digest }}
+        run: |
+          set -euo pipefail
+          [[ "$DURABLE_STARTED_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$DURABLE_STARTED_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+
+      - name: Select exact append-only rollback transition for automatic continuation
+        id: transition_artifact
+        if: ${{ always() }}
+        shell: bash
+        env:
+          POST_ARTIFACT_ID: ${{ steps.upload_post_restart.outputs.artifact-id }}
+          POST_ARTIFACT_DIGEST: ${{ steps.upload_post_restart.outputs.artifact-digest }}
+          CLEANUP_ARTIFACT_ID: ${{ steps.upload_restore_volume_cleanup.outputs.artifact-id }}
+          CLEANUP_ARTIFACT_DIGEST: ${{ steps.upload_restore_volume_cleanup.outputs.artifact-digest }}
+          COMPLETED_OUTCOME: ${{ steps.completed_effect.outcome }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          if [[ "$COMPLETED_OUTCOME" == 'success' ]]; then
+            printf '%s\n' 'continuation_required=false' >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          packet="$RUNNER_TEMP/rollback-phase-05-result"
+          artifact_id="$POST_ARTIFACT_ID"; artifact_digest="$POST_ARTIFACT_DIGEST"
+          if [[ -d "$RUNNER_TEMP/rollback-phase-06-result" && -n "$CLEANUP_ARTIFACT_ID" ]]; then
+            packet="$RUNNER_TEMP/rollback-phase-06-result"
+            artifact_id="$CLEANUP_ARTIFACT_ID"; artifact_digest="$CLEANUP_ARTIFACT_DIGEST"
+          fi
+          [[ "$artifact_id" =~ ^[1-9][0-9]*$ && "$artifact_digest" =~ ^[0-9a-f]{64}$ ]]
+          receipt_sha="$(sha256sum "$packet/rollback-effect-reconciliation.json" | awk '{print $1}')"
+          phase="$(PHASE="$packet/rollback-effect-reconciliation.json" node --input-type=module -e \
+            "import fs from'node:fs';const r=JSON.parse(fs.readFileSync(process.env.PHASE,'utf8'));if(!['POST_RESTART_VERIFIED','RESTORE_VOLUME_CLEANUP'].includes(r.phase))throw Error('continuation phase differs');if(r.phase==='RESTORE_VOLUME_CLEANUP'){const p=JSON.parse(fs.readFileSync(process.env.PHASE.replace('rollback-effect-reconciliation.json','rollback-provider-readback.json'),'utf8'));if(r.result!=='STARTED_UNRESOLVED'||!Array.isArray(p.restore_volume_cleanup_receipt_sha256s)||p.restore_volume_cleanup_receipt_sha256s.length>=3)throw Error('bounded cleanup continuation exhausted');}process.stdout.write(r.phase)")"
+          {
+            echo 'continuation_required=true'
+            echo "artifact_id=$artifact_id"
+            echo "artifact_digest=sha256:$artifact_digest"
+            echo "receipt_sha256=$receipt_sha"
+            echo "phase=$phase"
+          } >>"$GITHUB_OUTPUT"
+
+      - name: Emit rollback result
+        if: ${{ success() && steps.completed_effect.outcome == 'success' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo '## Physio production rollback'
+            echo '- Result: PASS'
+            echo "- Mode: $ROLLBACK_MODE"
+            echo "- Service state: $(if [[ "$ROLLBACK_MODE" == 'exact-image' ]]; then echo started; else echo stopped; fi)"
+            echo "- Machine: $EXPECTED_MACHINE_ID"
+            echo '- Every provider phase is bound to an uploaded append-only receipt'
+            echo '- Isolated data volume preserved; DNS is a separately controlled action'
+          } >>"$GITHUB_STEP_SUMMARY"
+
+  rollback_continue:
+    name: Dispatch exact provider-free rollback continuation
+    needs: [rollback_start, rollback_phases]
+    if: ${{ always() && needs.rollback_phases.outputs.continuation_required == 'true' }}
+    permissions:
+      contents: read
+      actions: write
+    uses: ./.github/workflows/physio-rollback-continuation.yml
+    with:
+      trusted_workflow_sha: ${{ inputs.trusted_workflow_sha }}
+      failed_application_sha: ${{ inputs.failed_application_sha }}
+      current_immutable_image: ${{ inputs.current_immutable_image }}
+      rollback_mode: ${{ inputs.rollback_mode }}
+      rollback_release_sha: ${{ inputs.rollback_release_sha }}
+      rollback_immutable_image: ${{ inputs.rollback_immutable_image }}
+      rollback_target_artifact_id: ${{ inputs.rollback_target_artifact_id }}
+      rollback_target_artifact_digest: ${{ inputs.rollback_target_artifact_digest }}
+      rollback_target_receipt_sha256: ${{ inputs.rollback_target_receipt_sha256 }}
+      resume_rollback_effect_artifact_id: ${{ needs.rollback_phases.outputs.continuation_artifact_id }}
+      resume_rollback_effect_artifact_digest: ${{ needs.rollback_phases.outputs.continuation_artifact_digest }}
+      resume_rollback_effect_receipt_sha256: ${{ needs.rollback_phases.outputs.continuation_receipt_sha256 }}
+      expected_machine_id: ${{ inputs.expected_machine_id }}
+      expected_volume_id: ${{ inputs.expected_volume_id }}
+      config_sha256: ${{ inputs.config_sha256 }}
+      capability_intent_id: ${{ inputs.capability_intent_id }}
+      authority_reference: ${{ inputs.authority_reference }}
+      confirmation: ${{ inputs.confirmation }}

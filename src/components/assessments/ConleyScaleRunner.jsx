@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info, ChevronDown, ChevronUp, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreConley } from "@/lib/clinical/scorers/coreB";
 
 const CONLEY_SECTIONS = [
   {
@@ -72,59 +72,12 @@ export default function ConleyScaleRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    const totalScore = getTotalScore();
-    const classification = getClassification();
-    const positiveFindings = getPositiveFindings();
-
-    let soapText = `Conley Scale Assessment:\n`;
-    soapText += `• Total Score: ${totalScore}/7\n`;
-    soapText += `• Falls Risk Classification: ${classification}\n`;
-    
-    if (positiveFindings) {
-      soapText += `• Positive Findings: ${positiveFindings}\n`;
+    try {
+      onSave(scoreConley({ scores, notes }, { assessmentName: 'Conley Scale (Falls Risk)', client }));
+      toast.success("Conley Scale assessment saved successfully.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save Conley assessment.');
     }
-    
-    soapText += `\nIndividual Items:\n`;
-    CONLEY_SECTIONS.forEach(section => {
-      soapText += `\n${section.section}:\n`;
-      section.items.forEach(item => {
-        soapText += `  - ${item.label}: ${scores[item.id] ? 'Yes' : 'No'}\n`;
-      });
-    });
-
-    let planText = "";
-    if (scores.impaired_mobility) {
-      planText += "• Initiate lower limb strengthening, balance, and gait stability program\n";
-    }
-    if (scores.confusion || scores.poor_judgment) {
-      planText += "• Implement supervision strategies and simplified instructions during exercise\n";
-    }
-    if (scores.dizziness) {
-      planText += "• Screen for vestibular dysfunction and monitor orthostatic tolerance\n";
-    }
-    if (scores.altered_elimination) {
-      planText += "• Incorporate toileting schedule and environmental safety modifications\n";
-    }
-
-    const assessmentText = `${soapText}\n${planText}`;
-
-    onSave({
-      status: "completed",
-      result_value: totalScore,
-      additional_data: {
-        measurement_type: "conley_scale",
-        soap_text: assessmentText,
-        conley_data: {
-          total_score: totalScore,
-          classification: classification,
-          positive_findings: positiveFindings,
-          ...scores,
-        }
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Conley Scale assessment saved successfully.");
   };
 
   return (

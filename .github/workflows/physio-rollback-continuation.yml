@@ -1,0 +1,158 @@
+name: Physio rollback exact artifact continuation
+
+on:
+  workflow_call:
+    inputs:
+      trusted_workflow_sha: { required: true, type: string }
+      failed_application_sha: { required: true, type: string }
+      current_immutable_image: { required: true, type: string }
+      rollback_mode: { required: true, type: string }
+      rollback_release_sha: { required: true, type: string }
+      rollback_immutable_image: { required: true, type: string }
+      rollback_target_artifact_id: { required: true, type: string }
+      rollback_target_artifact_digest: { required: true, type: string }
+      rollback_target_receipt_sha256: { required: true, type: string }
+      resume_rollback_effect_artifact_id: { required: true, type: string }
+      resume_rollback_effect_artifact_digest: { required: true, type: string }
+      resume_rollback_effect_receipt_sha256: { required: true, type: string }
+      expected_machine_id: { required: true, type: string }
+      expected_volume_id: { required: true, type: string }
+      config_sha256: { required: true, type: string }
+      capability_intent_id: { required: true, type: string }
+      authority_reference: { required: true, type: string }
+      confirmation: { required: true, type: string }
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  continue:
+    name: Reconcile or dispatch one exact rollback continuation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - name: Build the one closed rollback continuation request
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          FAILED_APPLICATION_SHA: ${{ inputs.failed_application_sha }}
+          CURRENT_IMMUTABLE_IMAGE: ${{ inputs.current_immutable_image }}
+          ROLLBACK_MODE: ${{ inputs.rollback_mode }}
+          ROLLBACK_RELEASE_SHA: ${{ inputs.rollback_release_sha }}
+          ROLLBACK_IMMUTABLE_IMAGE: ${{ inputs.rollback_immutable_image }}
+          ROLLBACK_TARGET_ARTIFACT_ID: ${{ inputs.rollback_target_artifact_id }}
+          ROLLBACK_TARGET_ARTIFACT_DIGEST: ${{ inputs.rollback_target_artifact_digest }}
+          ROLLBACK_TARGET_RECEIPT_SHA256: ${{ inputs.rollback_target_receipt_sha256 }}
+          RESUME_ROLLBACK_EFFECT_ARTIFACT_ID: ${{ inputs.resume_rollback_effect_artifact_id }}
+          RESUME_ROLLBACK_EFFECT_ARTIFACT_DIGEST: ${{ inputs.resume_rollback_effect_artifact_digest }}
+          RESUME_ROLLBACK_EFFECT_RECEIPT_SHA256: ${{ inputs.resume_rollback_effect_receipt_sha256 }}
+          EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          CONFIG_SHA256: ${{ inputs.config_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          REPOSITORY: ${{ github.repository }}
+          EVENT_SHA: ${{ github.sha }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" && -z "${SENTRY_AUTH_TOKEN:-}" && -z "${STRIPE_SECRET_KEY:-}" ]]
+          [[ "$REPOSITORY" == 'mbvidler-ctrl/assesssuite_migration' ]]
+          [[ "$ACTOR" == 'mbvidler-ctrl' && "$TRIGGERING_ACTOR" == 'mbvidler-ctrl' ]]
+          [[ "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          REQUEST="$RUNNER_TEMP/physio-rollback-continuation-request.json" node --input-type=module <<'NODE'
+          import fs from'node:fs';
+          const names=['trusted_workflow_sha','failed_application_sha','current_immutable_image','rollback_mode',
+            'rollback_release_sha','rollback_immutable_image','rollback_target_artifact_id','rollback_target_artifact_digest',
+            'rollback_target_receipt_sha256','resume_rollback_effect_artifact_id','resume_rollback_effect_artifact_digest',
+            'resume_rollback_effect_receipt_sha256','expected_machine_id','expected_volume_id','config_sha256',
+            'capability_intent_id','authority_reference','confirmation'];
+          const inputs=Object.fromEntries(names.map((name)=>[name,process.env[name.toUpperCase()]]));
+          if(!Object.values(inputs).every((value)=>typeof value==='string'&&value.length>0&&value.length<=1024&&!/[\r\n\0]/.test(value))||
+            !/^[0-9a-f]{40}$/.test(inputs.trusted_workflow_sha)||!/^[0-9a-f]{40}$/.test(inputs.failed_application_sha)||
+            !/^registry\.fly\.io\/assesssuite-physio-production@sha256:[0-9a-f]{64}$/.test(inputs.current_immutable_image)||
+            !/^[1-9][0-9]*$/.test(inputs.resume_rollback_effect_artifact_id)||
+            !/^sha256:[0-9a-f]{64}$/.test(inputs.resume_rollback_effect_artifact_digest)||
+            !/^[0-9a-f]{64}$/.test(inputs.resume_rollback_effect_receipt_sha256)||
+            !/^[0-9a-f]{14,32}$/i.test(inputs.expected_machine_id)||!/^vol_[A-Za-z0-9]+$/.test(inputs.expected_volume_id)||
+            !/^[0-9a-f]{64}$/.test(inputs.config_sha256)||inputs.confirmation!=='ROLLBACK assesssuite-physio-production EXACT TARGETS')
+            throw Error('closed rollback continuation identity differs');
+          if(inputs.rollback_mode==='exact-image'){
+            if(!/^[0-9a-f]{40}$/.test(inputs.rollback_release_sha)||
+              !/^registry\.fly\.io\/assesssuite-physio-production@sha256:[0-9a-f]{64}$/.test(inputs.rollback_immutable_image)||
+              !/^[1-9][0-9]*$/.test(inputs.rollback_target_artifact_id)||
+              !/^sha256:[0-9a-f]{64}$/.test(inputs.rollback_target_artifact_digest)||
+              !/^[0-9a-f]{64}$/.test(inputs.rollback_target_receipt_sha256))throw Error('rollback target differs');
+          }else if(inputs.rollback_mode!=='stop-first-release'||inputs.rollback_release_sha!=='NOT-AVAILABLE'||
+            inputs.rollback_immutable_image!=='NOT-AVAILABLE'||inputs.rollback_target_artifact_id!=='0'||
+            inputs.rollback_target_artifact_digest!=='0'||inputs.rollback_target_receipt_sha256!=='0'.repeat(64))
+            throw Error('first release rollback continuation differs');
+          fs.writeFileSync(process.env.REQUEST,JSON.stringify({ref:'main',inputs},null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+
+      - name: Reconcile response loss and dispatch at most once
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          FAILED_APPLICATION_SHA: ${{ inputs.failed_application_sha }}
+          RESUME_RECEIPT_SHA256: ${{ inputs.resume_rollback_effect_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          REQUEST="$RUNNER_TEMP/physio-rollback-continuation-request.json" \
+          RECEIPT="$RUNNER_TEMP/physio-rollback-continuation.json" node --input-type=module <<'NODE'
+          import fs from'node:fs';import{createHash}from'node:crypto';const h=(v)=>createHash('sha256').update(v).digest('hex');
+          const base=`https://api.github.com/repos/${process.env.REPOSITORY}`;
+          const headers={accept:'application/vnd.github+json',authorization:`Bearer ${process.env.GITHUB_TOKEN}`,
+            'x-github-api-version':'2022-11-28'};
+          const request=JSON.parse(fs.readFileSync(process.env.REQUEST,'utf8'));
+          const title=`Physio rollback ${process.env.FAILED_APPLICATION_SHA} after ${process.env.RESUME_RECEIPT_SHA256}`;
+          const exact=(run)=>Number.isSafeInteger(run?.id)&&run.id>0&&
+            run.name==='Physio production rollback - exact digest or first-release stop'&&run.display_title===title&&
+            run.event==='workflow_dispatch'&&run.head_branch==='main'&&run.head_sha===process.env.TRUSTED_WORKFLOW_SHA&&
+            run.path==='.github/workflows/physio-production-rollback.yml'&&run.repository?.full_name===process.env.REPOSITORY&&
+            run.head_repository?.full_name===process.env.REPOSITORY&&
+            ['queued','in_progress','completed','requested','waiting','pending'].includes(run.status);
+          async function list(){const matches=[],seen=new Set();let total=null,observed=0;
+            for(let page=1;page<=100;page+=1){const url=new URL(`${base}/actions/workflows/physio-production-rollback.yml/runs`);
+              for(const [key,value] of Object.entries({branch:'main',event:'workflow_dispatch',per_page:'100',page:String(page)}))url.searchParams.set(key,value);
+              const response=await fetch(url,{headers,redirect:'error',signal:AbortSignal.timeout(30_000)});const body=await response.text();
+              if(response.status!==200||Buffer.byteLength(body)>2_097_152)throw Error(`rollback continuation inventory ${response.status}`);
+              const row=JSON.parse(body);if(!Number.isSafeInteger(row.total_count)||row.total_count<0||row.total_count>10_000||
+                !Array.isArray(row.workflow_runs)||row.workflow_runs.length>100)throw Error('rollback continuation inventory schema differs');
+              if(total===null)total=row.total_count;if(row.total_count!==total)throw Error('rollback continuation total changed');
+              for(const run of row.workflow_runs){if(!Number.isSafeInteger(run?.id)||run.id<=0||seen.has(run.id))throw Error('rollback continuation run identity differs');seen.add(run.id);if(exact(run))matches.push(run);}
+              observed+=row.workflow_runs.length;if(observed>total)throw Error('rollback continuation inventory exceeds total');
+              if(observed===total)break;if(row.workflow_runs.length<100)throw Error('rollback continuation inventory terminated early');
+              if(page===100)throw Error('rollback continuation inventory exceeds bound');}
+            if(observed!==total)throw Error('rollback continuation inventory incomplete');
+            if(matches.length>1)throw Error('duplicate exact rollback continuations');return matches;}
+          let matches=await list(),attempted=0,confirmed=0,dispatchStatus=null,dispatchError=null;
+          if(matches.length===0){attempted=1;try{const response=await fetch(`${base}/actions/workflows/physio-production-rollback.yml/dispatches`,
+              {method:'POST',headers:{...headers,'content-type':'application/json'},body:JSON.stringify(request),redirect:'error',signal:AbortSignal.timeout(30_000)});
+              dispatchStatus=response.status;await response.text();confirmed=response.status===204?1:0;}catch(error){dispatchError=h(String(error?.message||error));}
+            for(let attempt=0;attempt<20&&matches.length===0;attempt+=1){if(attempt>0)await new Promise((resolve)=>setTimeout(resolve,3000));matches=await list();}}
+          if(matches.length!==1)throw Error(confirmed?'rollback continuation dispatch unobserved':'rollback continuation dispatch ambiguous');
+          const row={contract_version:'assesssuite-physio-rollback-continuation/1.0.0',result:'PASS',disposition:'APPLIED',
+            workflow:'.github/workflows/physio-production-rollback.yml',ref:'main',trusted_workflow_sha:process.env.TRUSTED_WORKFLOW_SHA,
+            failed_application_sha:process.env.FAILED_APPLICATION_SHA,resume_receipt_sha256:process.env.RESUME_RECEIPT_SHA256,
+            dispatch_calls_attempted:attempted,dispatch_responses_confirmed:confirmed,dispatch_http_status:dispatchStatus,
+            dispatch_error_sha256:dispatchError,selected_run_id:matches[0].id,reconciled_at:new Date().toISOString()};
+          fs.writeFileSync(process.env.RECEIPT,JSON.stringify(row,null,2)+'\n',{flag:'wx',mode:0o600});
+          NODE
+
+      - name: Upload content-minimized rollback continuation receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-rollback-continuation-${{ inputs.failed_application_sha }}-${{ inputs.resume_rollback_effect_receipt_sha256 }}
+          path: ${{ runner.temp }}/physio-rollback-continuation.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

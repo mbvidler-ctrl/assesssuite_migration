@@ -13,10 +13,11 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 // ─── Helper Components ────────────────────────────────────────────────────────
 
-function SectionHeader({ icon: Icon, title, color = "slate", subtitle }) {
+function SectionHeader({ icon: Icon, title, color = "slate", subtitle = null }) {
   const bg = {
     slate: "bg-slate-700", blue: "bg-blue-700", green: "bg-green-700",
     purple: "bg-purple-700", amber: "bg-amber-600", red: "bg-red-600",
@@ -388,32 +389,15 @@ export default function SlumpTestRunner({ client, onSave, onClose }) {
   // ── Save ──────────────────────────────────────────────────────────────────
 
   const handleSave = () => {
-    if (!limbsComplete) {
-      toast.error("Complete bilateral limb findings before saving.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({
+        leftData, rightData, symptomaticSide, baselinePain, irritability, diffModifiers,
+        stageCompleted, stageSymptoms, setup: { surface, safetyDone, safetyChecks }, notes,
+      }, { runnerKey: 'slump_test', assessmentDate: todayLocal() }));
+      toast.success("Slump Test saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-    onSave({
-      status: "completed",
-      result_value: (leftPositive ? 1 : 0) + (rightPositive ? 1 : 0),
-      additional_data: {
-        measurement_type: "slump_test",
-        left: { ...leftData, positive: leftPositive },
-        right: { ...rightData, positive: rightPositive },
-        left_positive: leftPositive,
-        right_positive: rightPositive,
-        symptomatic_side: symptomaticSide,
-        baseline_pain: baselinePain,
-        irritability,
-        differentiation_modifiers: diffModifiers,
-        interpretation: interpretation?.level,
-        interpretation_narrative: interpretation?.narrative,
-        clinical_flags: flags,
-        soap_text: buildSOAP(),
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Slump Test saved.");
   };
 
   const handleReset = () => {

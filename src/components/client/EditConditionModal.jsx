@@ -21,7 +21,7 @@ export default function EditConditionModal({ clientId, condition, onClose, onSuc
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}));
   // Debounced ICD-10-CM code suggestions for the condition (decision-support).
   const [icdSuggestions, setIcdSuggestions] = useState([]);
   const [selectedIcd, setSelectedIcd] = useState(
@@ -60,7 +60,7 @@ export default function EditConditionModal({ clientId, condition, onClose, onSuc
   }, [clientId]);
 
   const validate = () => {
-    const newErrors = {};
+    const newErrors = /** @type {Record<string, string>} */ ({});
     if (!formData.condition_name.trim()) {
       newErrors.condition_name = 'Condition name is required';
     }

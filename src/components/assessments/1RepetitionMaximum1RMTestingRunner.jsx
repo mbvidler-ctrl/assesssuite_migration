@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Plus, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreOneRm } from "@/lib/clinical/scorers/extrasPhysiological";
 
 const SUGGESTED_EXERCISES = [
   "Leg Press (Machine)",
@@ -181,44 +182,29 @@ export default function OneRepetitionMaximum1RMTestingRunner({ client, onSave, o
       return;
     }
 
-    const relativeStrength = calculateRelativeStrength();
-    const normativeLabel = getNormativeLabel();
-    const interpretation = getInterpretation();
-
-    const additionalData = {
-      measurement_type: '1rm_testing',
-      exercise_tested: exercise,
-      equipment_type: equipmentType,
-      units: units,
-      body_mass: bodyMass ? parseFloat(bodyMass) : null,
-      body_mass_units: bodyMassUnits,
-      assistive_considerations: assistiveConsiderations,
-      attempts: attempts,
-      one_rm_load: parseFloat(oneRmLoad),
-      relative_strength: relativeStrength,
-      normative_label: normativeLabel,
-      rom_standard_used: romStandard,
-      machine_settings: machineSettings,
-      spotter_used: spotterUsed,
-      rpe_post: rpePost ? parseFloat(rpePost) : null,
-      pain_post: painPost ? parseFloat(painPost) : null,
-      clinician_notes: clinicianNotes,
-      interpretation_summary: interpretation,
-      soap_text: `• 1RM Testing — ${exercise} (${equipmentType})\n  1RM: ${oneRmLoad} ${units}${relativeStrength ? ` | Relative strength: ${relativeStrength.toFixed(2)} × BM | Classification: ${normativeLabel}` : ` | ${normativeLabel}`}${romStandard ? `\n  ROM Standard: ${romStandard}` : ''}${machineSettings ? `\n  Machine Settings: ${machineSettings}` : ''}${spotterUsed ? '\n  Spotter used' : ''}${rpePost ? ` | RPE: ${rpePost}/10` : ''}${painPost ? ` | Pain: ${painPost}/10` : ''}${assistiveConsiderations ? `\n  Considerations: ${assistiveConsiderations}` : ''}${clinicianNotes ? `\n  Notes: ${clinicianNotes}` : ''}\n  Training Load Guide: 60–70% = ${(parseFloat(oneRmLoad)*0.65).toFixed(1)} ${units} | 70–85% = ${(parseFloat(oneRmLoad)*0.775).toFixed(1)} ${units} | 85–95% = ${(parseFloat(oneRmLoad)*0.9).toFixed(1)} ${units}`,
-      soap_objective: `1RM Testing - ${exercise}: ${oneRmLoad} ${units}. ${relativeStrength ? `Relative strength: ${relativeStrength.toFixed(2)} x body mass.` : ''} ${normativeLabel}.`,
-      soap_assessment: interpretation,
-      soap_plan: `Use ~60–80% of 1RM (${(parseFloat(oneRmLoad) * 0.6).toFixed(1)}-${(parseFloat(oneRmLoad) * 0.8).toFixed(1)} ${units}) for general strength development with appropriate technique and progression; re-test in 4–8 weeks or as clinically indicated.`
-    };
-
-    onSave({
-      status: 'completed',
-      result_value: parseFloat(oneRmLoad),
-      additional_data: additionalData,
-      notes: clinicianNotes,
-      assessment_date: todayLocal()
-    });
-
-    toast.success("1RM test saved successfully!");
+    const clientSex = String(client?.gender || '').toLowerCase();
+    try {
+      await onSave(scoreOneRm({
+        exercise_tested: exercise,
+        equipment_type: equipmentType,
+        units,
+        one_rm_load: oneRmLoad,
+        body_mass: bodyMass,
+        body_mass_units: bodyMassUnits,
+        sex: ['male', 'female'].includes(clientSex) ? clientSex : undefined,
+        attempts,
+        assistive_considerations: assistiveConsiderations,
+        rom_standard_used: romStandard,
+        machine_settings: machineSettings,
+        spotter_used: spotterUsed,
+        rpe_post: rpePost,
+        pain_post: painPost,
+        notes: clinicianNotes,
+      }, { assessmentDate: todayLocal(), assessmentName: '1-Repetition Maximum (1RM) Testing', client }));
+      toast.success("1RM test saved successfully!");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save 1RM test.");
+    }
   };
 
   return (
@@ -430,7 +416,7 @@ export default function OneRepetitionMaximum1RMTestingRunner({ client, onSave, o
                       <Checkbox
                         id="success"
                         checked={currentAttempt.success}
-                        onCheckedChange={(checked) => setCurrentAttempt({...currentAttempt, success: checked})}
+                        onCheckedChange={(checked) => setCurrentAttempt({...currentAttempt, success: checked === true})}
                       />
                       <Label htmlFor="success" className="cursor-pointer">Successful rep</Label>
                     </div>
@@ -438,7 +424,7 @@ export default function OneRepetitionMaximum1RMTestingRunner({ client, onSave, o
                       <Checkbox
                         id="technique"
                         checked={currentAttempt.techniqueOk}
-                        onCheckedChange={(checked) => setCurrentAttempt({...currentAttempt, techniqueOk: checked})}
+                        onCheckedChange={(checked) => setCurrentAttempt({...currentAttempt, techniqueOk: checked === true})}
                       />
                       <Label htmlFor="technique" className="cursor-pointer">Technique OK</Label>
                     </div>
@@ -494,7 +480,7 @@ export default function OneRepetitionMaximum1RMTestingRunner({ client, onSave, o
                   <Checkbox
                     id="spotter"
                     checked={spotterUsed}
-                    onCheckedChange={setSpotterUsed}
+                    onCheckedChange={(checked) => setSpotterUsed(checked === true)}
                   />
                   <Label htmlFor="spotter" className="cursor-pointer">Spotter Used</Label>
                 </div>

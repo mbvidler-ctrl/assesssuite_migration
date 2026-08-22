@@ -44,6 +44,7 @@ import { buildProtocolViewModel, normaliseProtocolResponse, PROTOCOL_SECTION_LAB
 // "AI-assisted draft" badge, so the label the clinician sees and the label
 // that reaches the clinical record can never disagree.
 import { PROTOCOL_PROVENANCE } from "@/lib/clinical/protocolImport";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
 
 // The shared JavaScript UI wrappers accept the rendered props below, while
 // checkJs infers ref-only signatures from forwardRef. These source-local
@@ -81,6 +82,7 @@ const PROTOCOL_CATEGORY_ICONS = Object.freeze({
 });
 
 const CUSTOM_CONDITION_MAX_LENGTH = 120;
+const legacyProtocolAiAllowed = activeProfession.features.legacyGeneralClinicalLlm === true;
 
 const PROTOCOL_RESPONSE_SCHEMA = {
   type: "object",
@@ -245,7 +247,7 @@ export default function TreatmentProtocols() {
   const exactCatalogueCondition = normalizedSearchTerm
     ? catalogueConditions.find((condition) => condition.name.toLocaleLowerCase() === normalizedSearchTerm)
     : null;
-  const customCondition = normalizedSearchTerm && !exactCatalogueCondition
+  const customCondition = legacyProtocolAiAllowed && normalizedSearchTerm && !exactCatalogueCondition
     ? {
         name: customConditionName,
         category: "general",
@@ -346,6 +348,10 @@ export default function TreatmentProtocols() {
       : "";
     if (!conditionName) {
       toast.error("Enter a condition before loading a treatment protocol.");
+      return;
+    }
+    if (!reviewedProtocol && !legacyProtocolAiAllowed) {
+      toast.error("Only reviewed management protocols are available in this application.");
       return;
     }
     // Covers both the button and the Enter-key path (:516-528 legacy line
@@ -479,8 +485,8 @@ export default function TreatmentProtocols() {
               <BookOpen className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-slate-900">Treatment Protocols</h1>
-              <p className="text-slate-600">Evidence-based exercise rehabilitation protocols</p>
+              <h1 className="text-3xl font-bold text-slate-900">{activeProfession.lexicon.protocolLibrary}</h1>
+              <p className="text-slate-600">Evidence-informed {activeProfession.lexicon.protocol.toLowerCase()} reference frameworks</p>
             </div>
           </div>
 
@@ -557,8 +563,12 @@ export default function TreatmentProtocols() {
                     <div className="relative">
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                       <Input
-                        aria-label="Search reviewed protocols or enter a condition to generate"
-                        placeholder="Search or enter a condition..."
+                        aria-label={legacyProtocolAiAllowed
+                          ? "Search reviewed protocols or enter a condition to generate"
+                          : "Search reviewed management protocols"}
+                        placeholder={legacyProtocolAiAllowed
+                          ? "Search or enter a condition..."
+                          : "Search reviewed protocols..."}
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
                         onKeyDown={(e) => {
@@ -634,7 +644,9 @@ export default function TreatmentProtocols() {
                     ) : filteredConditions.length === 0 ? (
                       <p role="status" className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-sm text-slate-600">
                         {normalizedSearchTerm
-                          ? `No reviewed treatment protocol matches "${customConditionName}". ${ai.canTrigger ? "Generate an AI-assisted draft or try another search." : "AI-assisted drafting is currently unavailable — please try another search."}`
+                          ? legacyProtocolAiAllowed
+                            ? `No reviewed treatment protocol matches "${customConditionName}". ${ai.canTrigger ? "Generate an AI-assisted draft or try another search." : "AI-assisted drafting is currently unavailable — please try another search."}`
+                            : `No reviewed management protocol matches "${customConditionName}". Try another search.`
                           : "No reviewed treatment protocols are available in this category."}
                       </p>
                     ) : filteredConditions.map((condition) => (
@@ -724,13 +736,15 @@ export default function TreatmentProtocols() {
                              )}
                            </div>
                         </div>
-                        <Button
-                          onClick={() => setShowImportModal(true)}
-                          className="bg-blue-600 hover:bg-blue-700 shrink-0"
-                        >
-                          <FileText className="w-4 h-4 mr-2" />
-                          Add to Client Plan
-                        </Button>
+                        {activeProfession.features.careEpisodes !== true && (
+                          <Button
+                            onClick={() => setShowImportModal(true)}
+                            className="bg-blue-600 hover:bg-blue-700 shrink-0"
+                          >
+                            <FileText className="w-4 h-4 mr-2" />
+                            Add to Client Plan
+                          </Button>
+                        )}
                       </div>
                     </CardHeader>
                   </Card>
@@ -1196,14 +1210,16 @@ export default function TreatmentProtocols() {
         </div>
       </div>
 
-      <ImportToSOAPModal
-        isOpen={showImportModal}
-        onClose={() => setShowImportModal(false)}
-        protocolData={protocolData}
-        conditionName={selectedCondition?.name}
-        provenance={selectedCondition?.protocol ? PROTOCOL_PROVENANCE.REVIEWED : PROTOCOL_PROVENANCE.AI}
-        droppedPaths={protocolIssues}
-      />
+      {activeProfession.features.careEpisodes !== true && (
+        <ImportToSOAPModal
+          isOpen={showImportModal}
+          onClose={() => setShowImportModal(false)}
+          protocolData={protocolData}
+          conditionName={selectedCondition?.name}
+          provenance={selectedCondition?.protocol ? PROTOCOL_PROVENANCE.REVIEWED : PROTOCOL_PROVENANCE.AI}
+          droppedPaths={protocolIssues}
+        />
+      )}
 </>
   );
 }

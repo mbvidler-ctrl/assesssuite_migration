@@ -8,81 +8,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Save, X, Info, ChevronDown, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_KOOS_SECTIONS as SECTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const SECTIONS = {
-  symptoms: {
-    name: "Symptoms",
-    instruction: "What symptoms have you had in your knee the last week?",
-    questions: [
-      { id: "Sy1", text: "Do you have swelling in your knee?", options: ["Never", "Rarely", "Sometimes", "Often", "Always"] },
-      { id: "Sy2", text: "Do you feel grinding, hear clicking or any other type of noise when your knee moves?", options: ["Never", "Rarely", "Sometimes", "Often", "Always"] },
-      { id: "Sy3", text: "Does your knee catch or hang up when moving?", options: ["Never", "Rarely", "Sometimes", "Often", "Always"] },
-      { id: "Sy4", text: "Can you straighten your knee fully?", options: ["Always", "Often", "Sometimes", "Rarely", "Never"] },
-      { id: "Sy5", text: "Can you bend your knee fully?", options: ["Always", "Often", "Sometimes", "Rarely", "Never"] },
-      { id: "Sy6", text: "How severe is your knee stiffness after first wakening in the morning?", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "Sy7", text: "How severe is your knee stiffness after sitting, lying or resting later in the day?", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-    ]
-  },
-  pain: {
-    name: "Pain",
-    instruction: "What degree of pain have you experienced the last week when performing the following activities?",
-    questions: [
-      { id: "P1", text: "How often do you experience knee pain?", options: ["Never", "Monthly", "Weekly", "Daily", "Always"] },
-      { id: "P2", text: "Twisting/pivoting on your knee", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "P3", text: "Straightening knee fully", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "P4", text: "Bending knee fully", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "P5", text: "Walking on flat surface", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "P6", text: "Going up or down stairs", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "P7", text: "At night while in bed", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "P8", text: "Sitting or lying", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "P9", text: "Standing upright", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-    ]
-  },
-  adl: {
-    name: "Daily Living",
-    instruction: "What difficulty have you experienced the last week doing the following activities of daily living?",
-    questions: [
-      { id: "A1", text: "Descending stairs", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A2", text: "Ascending stairs", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A3", text: "Rising from sitting", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A4", text: "Standing", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A5", text: "Bending to floor/picking up an object", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A6", text: "Walking on flat surface", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A7", text: "Getting in/out of car", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A8", text: "Going shopping", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A9", text: "Putting on socks/stockings", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A10", text: "Rising from bed", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A11", text: "Taking off socks/stockings", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A12", text: "Lying in bed (turning over, maintaining knee position)", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A13", text: "Getting in/out of bath", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A14", text: "Sitting", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A15", text: "Getting on/off toilet", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A16", text: "Heavy domestic duties (shovelling, scrubbing floors, etc.)", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "A17", text: "Light domestic duties (cooking, dusting, etc.)", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-    ]
-  },
-  sport: {
-    name: "Sport & Recreation",
-    instruction: "What difficulty have you experienced the last week during the following activities?",
-    questions: [
-      { id: "Sp1", text: "Squatting", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "Sp2", text: "Running", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "Sp3", text: "Jumping", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "Sp4", text: "Turning/twisting on your injured knee", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-      { id: "Sp5", text: "Kneeling", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-    ]
-  },
-  qol: {
-    name: "Quality of Life",
-    instruction: "The following questions are related to your quality of life.",
-    questions: [
-      { id: "Q1", text: "How often are you aware of your knee problem?", options: ["Never", "Monthly", "Weekly", "Daily", "Always"] },
-      { id: "Q2", text: "Have you modified your lifestyle to avoid potentially damaging activities to your knee?", options: ["Not at all", "Mildly", "Moderately", "Severely", "Totally"] },
-      { id: "Q3", text: "How much are you troubled with lack of confidence in your knee?", options: ["Not at all", "Mildly", "Moderately", "Severely", "Extremely"] },
-      { id: "Q4", text: "In general, how much difficulty do you have with your knee?", options: ["None", "Mild", "Moderate", "Severe", "Extreme"] },
-    ]
-  },
-};
 
 const SECTION_KEYS = Object.keys(SECTIONS);
 const TOTAL_QUESTIONS = SECTION_KEYS.reduce((sum, k) => sum + SECTIONS[k].questions.length, 0);

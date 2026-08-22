@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreCooper12Minute } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 const VO2_CATEGORIES = {
   male: [
@@ -52,9 +53,9 @@ export default function TwelveMinuteWalkRunTestCooperRunner({ client, onSave, on
   const timerRef = useRef(null);
 
   const clientAge = client?.date_of_birth
-    ? Math.floor((new Date() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000))
-    : 30;
-  const clientGender = (client?.gender === "female" || client?.gender === "other") ? "female" : "male";
+    ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000))
+    : null;
+  const clientGender = client?.gender === "male" || client?.gender === "female" ? client.gender : null;
 
   useEffect(() => {
     if (isRunning) {
@@ -87,42 +88,20 @@ export default function TwelveMinuteWalkRunTestCooperRunner({ client, onSave, on
   };
 
   const handleSave = () => {
-    if (!distance) {
-      toast.error("Please enter the distance covered.");
-      return;
+    try {
+      onSave(scoreCooper12Minute({ distance_m: distance, age: clientAge, gender: clientGender, notes }, { assessmentName: "12-Minute Walk/Run Test (Cooper)", assessmentDate, client }));
+      toast.success("Test results saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-    const distanceInMeters = parseFloat(distance);
-    if (isNaN(distanceInMeters) || distanceInMeters <= 0) {
-      toast.error("Please enter a valid distance.");
-      return;
-    }
-    const vo2Max = (distanceInMeters - 504.9) / 44.73;
-    const category = getVO2Category(vo2Max, clientGender, clientAge);
-
-    const soapText = `• 12-Minute Walk/Run Test (Cooper)\n  Distance: ${distanceInMeters} m\n  Estimated VO2max: ${vo2Max.toFixed(1)} ml/kg/min\n  Fitness Category: ${category.label} (${clientGender}, age ${clientAge})`;
-
-    onSave({
-      status: "completed",
-      result_value: parseFloat(vo2Max.toFixed(1)),
-      additional_data: {
-        soap_text: soapText,
-        measurement_type: "12_minute_walk_run_test",
-        distance_covered_m: distanceInMeters,
-        vo2_max: parseFloat(vo2Max.toFixed(1)),
-        fitness_category: category.label,
-        client_age_at_test: clientAge,
-        client_gender: clientGender,
-      },
-      notes,
-      assessment_date: assessmentDate,
-    });
-    toast.success("Test results saved.");
   };
 
   const vo2Preview = distance && !isNaN(parseFloat(distance)) && parseFloat(distance) > 0
     ? ((parseFloat(distance) - 504.9) / 44.73)
     : null;
-  const categoryPreview = vo2Preview !== null ? getVO2Category(vo2Preview, clientGender, clientAge) : null;
+  const categoryPreview = vo2Preview !== null && clientGender && Number.isInteger(clientAge)
+    ? getVO2Category(vo2Preview, clientGender, clientAge)
+    : null;
 
   const minutes = Math.floor(timeLeft / 60);
   const seconds = String(timeLeft % 60).padStart(2, "0");

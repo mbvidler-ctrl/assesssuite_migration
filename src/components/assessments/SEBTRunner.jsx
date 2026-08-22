@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 const SEBT_DIRECTIONS = [
   "Anterior", "Anterolateral", "Lateral", "Posterolateral",
@@ -17,7 +18,7 @@ const SEBT_DIRECTIONS = [
 export default function SEBTRunner({ onSave, onClose }) {
   const [legTested, setLegTested] = useState("right");
   const [legLength, setLegLength] = useState("");
-  const [reaches, setReaches] = useState({});
+  const [reaches, setReaches] = useState(/** @type {Record<string, number>} */ ({}));
   const [notes, setNotes] = useState("");
 
   const handleReachChange = (direction, value) => {
@@ -27,6 +28,7 @@ export default function SEBTRunner({ onSave, onClose }) {
   const calculateNormalizedReaches = () => {
     if (!legLength) return {};
     const length = parseFloat(legLength);
+    /** @type {Record<string, string>} */
     const normalized = {};
     Object.keys(reaches).forEach(dir => {
       normalized[dir] = ((reaches[dir] / length) * 100).toFixed(1);
@@ -48,23 +50,11 @@ export default function SEBTRunner({ onSave, onClose }) {
   const compositeScore = getCompositeScore();
 
   const handleSave = () => {
-    const reachLines = SEBT_DIRECTIONS.map(d => reaches[d] ? `  ${d}: ${reaches[d]}cm (${normalizedReaches[d]}%)` : null).filter(Boolean).join('\n');
-    const soapText = `• Star Excursion Balance Test (SEBT)\n  Leg: ${legTested} | Leg Length: ${legLength}cm\n  Composite Score: ${compositeScore}%\n${reachLines}${notes ? `\n  Notes: ${notes}` : ''}`;
-
-    onSave({
-      result_value: parseFloat(compositeScore) || 0,
-      additional_data: {
-        soap_text: soapText,
-        leg_tested: legTested,
-        leg_length_cm: parseFloat(legLength),
-        reach_distances: reaches,
-        normalized_reaches: normalizedReaches,
-        composite_score: parseFloat(compositeScore),
-        y_balance_composite: compositeScore
-      },
-      notes: notes,
-      assessment_date: todayLocal()
-    });
+    try {
+      onSave(validateMobilityOrtho({ legTested, legLength, reaches, notes }, { runnerKey: 'sebt', assessmentDate: todayLocal() }));
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

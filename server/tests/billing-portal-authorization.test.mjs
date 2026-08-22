@@ -34,7 +34,11 @@ test('billing portal refuses caller-supplied customer identifiers when the sessi
 test('billing portal uses only authenticated-user identifiers and an allowlisted flow', async () => {
   const originalFetch = globalThis.fetch;
   const originalEnvironment = {
+    NODE_ENV: process.env.NODE_ENV,
+    PROFESSION: process.env.PROFESSION,
+    DEFAULT_APP_ID: process.env.DEFAULT_APP_ID,
     APP_URL: process.env.APP_URL,
+    EXPECTED_APP_URL: process.env.EXPECTED_APP_URL,
     PAYMENTS_ENABLED: process.env.PAYMENTS_ENABLED,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     SELFTEST: process.env.SELFTEST,
@@ -42,9 +46,13 @@ test('billing portal uses only authenticated-user identifiers and an allowlisted
   };
   const requests = [];
 
+  process.env.NODE_ENV = 'production';
+  process.env.PROFESSION = 'exercise-physiology';
+  process.env.DEFAULT_APP_ID = 'local-assesssuite';
   process.env.PAYMENTS_ENABLED = '1';
   process.env.STRIPE_SECRET_KEY = 'synthetic_test_key';
-  process.env.APP_URL = 'https://app.assesssuite.com/';
+  process.env.APP_URL = 'https://app.assesssuite.com';
+  process.env.EXPECTED_APP_URL = 'https://app.assesssuite.com';
   delete process.env.SELFTEST;
   delete process.env.PARITY_ASSURANCE_MODE;
   globalThis.fetch = async (url, options) => {
@@ -69,6 +77,15 @@ test('billing portal uses only authenticated-user identifiers and an allowlisted
         subscriptionId: 'sub_victim',
         flow: 'subscription_update',
       },
+      request: {
+        headers: {
+          host: 'app.assesssuite.com',
+          'x-forwarded-host': 'app.assesssuite.com',
+          'x-forwarded-proto': 'https',
+          'fly-forwarded-proto': 'https',
+          origin: 'https://app.assesssuite.com',
+        },
+      },
       respond: responder(),
     });
 
@@ -85,6 +102,15 @@ test('billing portal uses only authenticated-user identifiers and an allowlisted
     await createPortalSession({
       user: { id: 'user-a', stripe_customer_id: 'cus_owned' },
       body: { flow: 'attacker_chosen_flow' },
+      request: {
+        headers: {
+          host: 'app.assesssuite.com',
+          'x-forwarded-host': 'app.assesssuite.com',
+          'x-forwarded-proto': 'https',
+          'fly-forwarded-proto': 'https',
+          origin: 'https://app.assesssuite.com',
+        },
+      },
       respond: responder(),
     });
     const rejectedFlowForm = new URLSearchParams(requests[0].options.body);

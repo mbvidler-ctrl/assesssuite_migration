@@ -7,40 +7,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
-
-const EDSS_SCORES = [
-  { score: 0, label: "Normal neurological exam" },
-  { score: 1.0, label: "No disability, minimal signs in one FS" },
-  { score: 1.5, label: "No disability, minimal signs in more than one FS" },
-  { score: 2.0, label: "Minimal disability in one FS" },
-  { score: 2.5, label: "Mild disability in one FS or minimal disability in two FS" },
-  { score: 3.0, label: "Moderate disability in one FS, or mild disability in three or four FS. Fully ambulatory" },
-  { score: 3.5, label: "Fully ambulatory but with moderate disability in one FS and more than minimal disability in several others" },
-  { score: 4.0, label: "Fully ambulatory without aid, self-sufficient, able to walk ~500m" },
-  { score: 4.5, label: "Fully ambulatory without aid, able to walk ~300m" },
-  { score: 5.0, label: "Ambulatory without aid ~200m; disability impairs full daily activities" },
-  { score: 5.5, label: "Ambulatory without aid ~100m; disability precludes full daily activities" },
-  { score: 6.0, label: "Intermittent or unilateral constant assistance (cane, crutch, brace) required to walk ~100m" },
-  { score: 6.5, label: "Constant bilateral assistance (canes, crutches, braces) required to walk ~20m" },
-  { score: 7.0, label: "Unable to walk beyond ~5m even with aid; essentially restricted to wheelchair" },
-  { score: 7.5, label: "Unable to take more than a few steps; restricted to wheelchair" },
-  { score: 8.0, label: "Essentially restricted to bed or chair; retains effective use of arms" },
-  { score: 8.5, label: "Essentially restricted to bed much of day; some effective use of arms" },
-  { score: 9.0, label: "Confined to bed; can still communicate and eat" },
-  { score: 9.5, label: "Totally helpless bed patient; unable to communicate effectively or eat/swallow" },
-  { score: 10, label: "Death due to MS" }
-];
-
-const FUNCTIONAL_SYSTEMS = [
-  "Pyramidal (motor)",
-  "Cerebellar",
-  "Brainstem",
-  "Sensory",
-  "Bowel & Bladder",
-  "Visual",
-  "Cerebral (mental)",
-  "Ambulation"
-];
+import {
+  EDSS_FUNCTIONAL_SYSTEMS,
+  EDSS_SCORE_OPTIONS,
+  getEdssInterpretation,
+  validateAndScoreEdss,
+} from "@/lib/clinical/scorers/maintainedPhysioAdditions";
 
 export default function EDSSRunner({ onSave, onClose }) {
   const [edssScore, setEdssScore] = useState("");
@@ -51,36 +23,24 @@ export default function EDSSRunner({ onSave, onClose }) {
     setFunctionalSystems({ ...functionalSystems, [system]: value });
   };
 
-  const getInterpretation = () => {
-    const score = parseFloat(edssScore);
-    if (score === 0) return { level: 'Normal', color: 'text-green-600', bg: 'bg-green-50' };
-    if (score <= 3.5) return { level: 'Minimal to moderate disability, fully ambulatory', color: 'text-blue-600', bg: 'bg-blue-50' };
-    if (score <= 5.5) return { level: 'Moderate disability, ambulatory without aid', color: 'text-yellow-600', bg: 'bg-yellow-50' };
-    if (score <= 6.5) return { level: 'Significant disability, requires walking aids', color: 'text-orange-600', bg: 'bg-orange-50' };
-    if (score <= 7.5) return { level: 'Severe disability, wheelchair dependent', color: 'text-red-600', bg: 'bg-red-50' };
-    return { level: 'Very severe disability, bed bound', color: 'text-red-800', bg: 'bg-red-100' };
-  };
-
-  const interpretation = edssScore ? getInterpretation() : null;
+  const hasScore = edssScore !== "";
+  const numericScore = hasScore ? Number(edssScore) : null;
+  const interpretation = hasScore ? getEdssInterpretation(numericScore) : null;
+  const descriptor = hasScore
+    ? EDSS_SCORE_OPTIONS.find(({ score }) => score === numericScore)?.label
+    : null;
 
   const handleSave = () => {
-    if (!edssScore) {
-      toast.error("Please select an EDSS score");
-      return;
+    try {
+      const payload = validateAndScoreEdss(
+        { edss_score: edssScore, functional_systems: functionalSystems, notes },
+        { assessmentName: "Expanded Disability Status Scale (EDSS)", assessmentDate: todayLocal() },
+      );
+      onSave(payload);
+      toast.success("EDSS saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to record EDSS score");
     }
-
-    const soapText = `• Expanded Disability Status Scale (EDSS)\n  Score: ${edssScore} — ${interpretation?.level}\n  ${EDSS_SCORES.find(s => s.score === parseFloat(edssScore))?.label || ''}${notes ? `\n  Notes: ${notes}` : ''}`;
-    onSave({
-      result_value: parseFloat(edssScore),
-      additional_data: {
-        soap_text: soapText,
-        edss_score: parseFloat(edssScore),
-        functional_systems: functionalSystems,
-        interpretation: interpretation?.level
-      },
-      notes: notes,
-      assessment_date: todayLocal()
-    });
   };
 
   return (
@@ -118,12 +78,12 @@ export default function EDSSRunner({ onSave, onClose }) {
                 <CardTitle>Functional Systems (Optional)</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {FUNCTIONAL_SYSTEMS.map((system) => (
-                  <div key={system}>
-                    <Label className="text-sm mb-1 block">{system}</Label>
+                {EDSS_FUNCTIONAL_SYSTEMS.map((system) => (
+                  <div key={system.key}>
+                    <Label className="text-sm mb-1 block">{system.label}</Label>
                     <Select
-                      value={functionalSystems[system] || ""}
-                      onValueChange={(value) => handleFSChange(system, value)}
+                      value={functionalSystems[system.key] ?? ""}
+                      onValueChange={(value) => handleFSChange(system.key, value)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select grade (0-6)" />
@@ -153,7 +113,7 @@ export default function EDSSRunner({ onSave, onClose }) {
                     <SelectValue placeholder="Select EDSS score" />
                   </SelectTrigger>
                   <SelectContent className="max-h-80">
-                    {EDSS_SCORES.map((item) => (
+                    {EDSS_SCORE_OPTIONS.map((item) => (
                       <SelectItem key={item.score} value={item.score.toString()}>
                         <div className="flex flex-col">
                           <span className="font-semibold">{item.score}</span>
@@ -167,16 +127,16 @@ export default function EDSSRunner({ onSave, onClose }) {
             </Card>
 
             {interpretation && (
-              <Card className={`${interpretation.bg} border-2`}>
+              <Card className="bg-blue-50 border-2 border-blue-200">
                 <CardHeader>
-                  <CardTitle className={`text-xl ${interpretation.color}`}>
-                    {interpretation.level}
+                  <CardTitle className="text-xl text-blue-800">
+                    {interpretation}
                   </CardTitle>
                 </CardHeader>
-                <CardContent className={interpretation.color}>
+                <CardContent className="text-blue-800">
                   <p className="font-semibold text-2xl">EDSS: {edssScore}</p>
                   <p className="text-sm mt-2">
-                    {EDSS_SCORES.find(s => s.score === parseFloat(edssScore))?.label}
+                    {descriptor}
                   </p>
                 </CardContent>
               </Card>
@@ -200,7 +160,7 @@ export default function EDSSRunner({ onSave, onClose }) {
 
         <div className="p-4 border-t bg-slate-50 flex justify-between">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={!edssScore} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleSave} disabled={!hasScore} className="bg-blue-600 hover:bg-blue-700">
             <Save className="w-4 h-4 mr-2" />
             Save EDSS
           </Button>

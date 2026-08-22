@@ -7,17 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_CAT_QUESTIONS as questions } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const questions = [
-  { key: "cough", text: "Cough", anchorLeft: "I never cough", anchorRight: "I cough all the time" },
-  { key: "phlegm", text: "Phlegm", anchorLeft: "I have no phlegm (mucus) in my chest at all", anchorRight: "My chest is completely full of phlegm (mucus)" },
-  { key: "chestTightness", text: "Chest tightness", anchorLeft: "My chest does not feel tight at all", anchorRight: "My chest feels very tight" },
-  { key: "breathlessness", text: "Breathlessness", anchorLeft: "When I walk up a hill or one flight of stairs I am not breathless", anchorRight: "When I walk up a hill or one flight of stairs I am very breathless" },
-  { key: "activities", text: "Activity limitation", anchorLeft: "I am not limited doing any activities at home", anchorRight: "I am very limited doing activities at home" },
-  { key: "confidence", text: "Confidence leaving home", anchorLeft: "I am confident leaving my home despite my lung condition", anchorRight: "I am not at all confident leaving my home because of my lung condition" },
-  { key: "sleep", text: "Sleep", anchorLeft: "I sleep soundly", anchorRight: "I don't sleep soundly because of my lung condition" },
-  { key: "energy", text: "Energy", anchorLeft: "I have lots of energy", anchorRight: "I have no energy at all" },
-];
 
 export default function COPDAssessmentTestCATRunner({ client, onSave, onClose }) {
   const [responses, setResponses] = useState({

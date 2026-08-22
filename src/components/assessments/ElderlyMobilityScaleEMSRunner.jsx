@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle, Info, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_EMS_EMS_LABELS as EMS_LABELS, PROM_NEURO_EMS_EMS_SCORING as EMS_SCORING } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 export default function ElderlyMobilityScaleEMSRunner({ client, onSave, onClose }) {
   const [preVitals, setPreVitals] = useState({ heartRate: "", bloodPressure: "" });
@@ -25,25 +26,7 @@ export default function ElderlyMobilityScaleEMSRunner({ client, onSave, onClose 
   const [isRunning, setIsRunning] = useState(false);
   const [expandedTask, setExpandedTask] = useState(null);
 
-  const EMS_LABELS = {
-    lyingToSitting: "Lying to Sitting",
-    sittingToLying: "Sitting to Lying",
-    sitToStand: "Sit to Stand",
-    standing: "Standing",
-    gait: "Gait",
-    timedWalk: "Timed Walk (6 meters)",
-    functionalReach: "Functional Reach",
-  };
 
-  const EMS_SCORING = {
-    lyingToSitting: "0=Unable without assistance, 1=Able with assistance, 2=Able with difficulty, 3=Able normally",
-    sittingToLying: "0=Unable without assistance, 1=Able with assistance, 2=Able with difficulty, 3=Able normally",
-    sitToStand: "0=Unable without assistance, 1=Able with assistance, 2=Able with difficulty, 3=Able normally",
-    standing: "0=Unable, 1=Able with assistance, 2=Able with aid, 3=Able without aid",
-    gait: "0=Unable/unsafe, 1=Assisted, 2=With difficulty, 3=Normal",
-    timedWalk: "0=Unable, 1=>14 seconds, 2=10-14 seconds, 3=&lt;10 seconds",
-    functionalReach: "0=Unable, 1=&lt;6 inches, 2=6-10 inches, 3=&gt;10 inches",
-  };
 
   const handleScoreChange = (task, value) => {
     setScores((prevScores) => ({ ...prevScores, [task]: value }));

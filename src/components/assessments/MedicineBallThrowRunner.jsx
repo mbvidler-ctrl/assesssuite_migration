@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { X, Save, Trash2, Plus, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 export default function MedicineBallThrowRunner({ client, onSave, onClose }) {
   const [trials, setTrials] = useState([]);
@@ -33,34 +34,11 @@ export default function MedicineBallThrowRunner({ client, onSave, onClose }) {
   const avgTrial = trials.length > 0 ? (trials.reduce((a, b) => a + b, 0) / trials.length).toFixed(2) : null;
 
   const handleSave = () => {
-    if (trials.length === 0) {
-      toast.error("Please add at least one trial distance");
-      return;
+    try {
+      onSave(validateMobilityOrtho({ trials, preTestVitals, postTestVitals, notes }, { runnerKey: 'med_ball', assessmentDate: todayLocal() }));
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    let vitalsSummary = "";
-    if (preTestVitals.systolic || preTestVitals.diastolic || preTestVitals.heartRate) {
-      vitalsSummary += `\n  Pre-Test Vitals:${preTestVitals.systolic ? ` BP ${preTestVitals.systolic}/${preTestVitals.diastolic}` : ""}${preTestVitals.heartRate ? ` HR ${preTestVitals.heartRate}bpm` : ""}`;
-    }
-    if (postTestVitals.systolic || postTestVitals.diastolic || postTestVitals.heartRate) {
-      vitalsSummary += `\n  Post-Test Vitals:${postTestVitals.systolic ? ` BP ${postTestVitals.systolic}/${postTestVitals.diastolic}` : ""}${postTestVitals.heartRate ? ` HR ${postTestVitals.heartRate}bpm` : ""}`;
-    }
-
-    const soapText = `• Medicine Ball Throw Assessment:\n  Trials: ${trials.map(t => `${t}m`).join(", ")}\n  Best Trial: ${bestTrial}m\n  Average: ${avgTrial}m${vitalsSummary}${notes ? `\n  Notes: ${notes}` : ""}`;
-
-    onSave({
-      result_value: bestTrial,
-      additional_data: {
-        soap_text: soapText,
-        trials,
-        best_trial: bestTrial,
-        average_trial: parseFloat(avgTrial),
-        pre_test_vitals: preTestVitals,
-        post_test_vitals: postTestVitals,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
   };
 
   return (

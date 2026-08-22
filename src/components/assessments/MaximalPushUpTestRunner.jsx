@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreMaxPush } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 export default function MaximalPushUpTestRunner({ client, onSave, onClose }) {
   const [trials, setTrials] = useState([]);
@@ -46,26 +46,12 @@ export default function MaximalPushUpTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    const bestResult = trials.length > 0 ? Math.max(...trials.map((t) => t.reps)) : 0;
-    let soapText = `• Maximal Push-Up Test: ${bestResult} repetitions (best of ${trials.length} trial${trials.length > 1 ? 's' : ''})\n`;
-    trials.forEach((trial, i) => {
-      soapText += `  Trial ${i + 1}: ${trial.reps} reps\n`;
-    });
-    if (notes.trim()) soapText += `  Clinical Notes: ${notes}\n`;
-
-    onSave({
-      status: "completed",
-      result_value: bestResult,
-      additional_data: {
-        measurement_type: "maximal_push_up",
-        trials: trials,
-        best_result: bestResult,
-        soap_text: soapText
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved successfully.");
+    try {
+      onSave(scoreMaxPush({ trials, notes }, { assessmentName: "Maximal Push-Up Test", client }));
+      toast.success("Assessment saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowRight, Plus, Sparkles, FileText } from 'lucide-react';
 import { hasInteractiveRunner } from './assessmentRunnerUtils';
 
-export default function AssessmentCard({ assessment, onClick, onSelect, showSelectButton, selectButtonText = "Add to Client" }) {
+export default function AssessmentCard({ assessment, onClick, onSelect = null, showSelectButton = false, selectButtonText = "Add to Client" }) {
   const getCategoryColor = (category) => {
     const colors = {
       musculoskeletal: 'bg-blue-100 text-blue-800',

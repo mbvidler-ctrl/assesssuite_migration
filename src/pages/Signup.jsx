@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Loader2, CheckCircle } from "lucide-react";
+import { assessSuiteHeaderLogo } from "@/brandAssets";
 
 export default function Signup() {
   const navigate = useNavigate();
@@ -38,7 +39,7 @@ export default function Signup() {
       <div className="hidden md:flex md:w-5/12 bg-gradient-to-br from-blue-600 to-blue-800 flex-col justify-between p-12 text-white">
         <div className="flex items-center gap-3 mb-3">
           <img
-            src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/358c0c514_Logo-Transparent1.png"
+            src={assessSuiteHeaderLogo}
             alt="AssessSuite Clinical"
             className="h-40 brightness-0 invert"
           />
@@ -65,7 +66,7 @@ export default function Signup() {
           {/* Mobile logo */}
           <div className="md:hidden flex justify-center">
             <img
-              src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/358c0c514_Logo-Transparent1.png"
+              src={assessSuiteHeaderLogo}
               alt="AssessSuite Clinical"
               className="h-10"
             />

@@ -5,27 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
+import { PROM_NEURO_FESI_FESI_ACTIVITIES as FESI_ACTIVITIES, PROM_NEURO_FESI_CONCERN_LABELS as CONCERN_LABELS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const FESI_ACTIVITIES = [
-  "Cleaning the house",
-  "Getting dressed or undressed",
-  "Preparing simple meals",
-  "Taking a bath or shower",
-  "Going to the shop",
-  "Getting in or out of a chair",
-  "Going up or down stairs",
-  "Walking around in the neighborhood",
-  "Reaching for something above your head or on the ground",
-  "Going to answer the telephone before it stops ringing",
-  "Walking on a slippery surface",
-  "Visiting a friend or relative",
-  "Walking in a place with crowds",
-  "Walking on an uneven surface",
-  "Walking up or down a slope",
-  "Going out to a social event",
-];
 
-const CONCERN_LABELS = { 1: "Not at all concerned", 2: "Somewhat concerned", 3: "Fairly concerned", 4: "Very concerned" };
 
 export default function FallsEfficacyScaleInternationalFESIRunner({ client, onSave, onClose }) {
   const [responses, setResponses] = useState(Array(16).fill(null));

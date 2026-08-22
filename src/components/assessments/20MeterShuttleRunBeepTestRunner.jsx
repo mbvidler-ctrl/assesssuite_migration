@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { AlertTriangle, Save, X, ChevronDown, ChevronUp, Music, BookOpen, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreTwentyMetreShuttle } from "@/lib/clinical/scorers/extrasPhysiological";
 
 const LEVEL_VO2 = [
   { level: 1, vo2: 26.8 }, { level: 2, vo2: 30.2 }, { level: 3, vo2: 32.9 },
@@ -41,37 +42,26 @@ export default function TwentyMeterShuttleRunBeepTestRunner({ client, onSave, on
 
     setSaving(true);
     try {
-      const level = parseInt(finalLevel);
-      const shuttle = parseInt(finalShuttle);
-      const estimatedVO2 = level > 0
-        ? (3.46 * (level + (shuttle > 0 ? shuttle / 10 : 0)) + 12.2).toFixed(1)
-        : null;
-
-      const msftResultString = `Level ${finalLevel} Shuttle ${finalShuttle}`;
-
-      const soapText = `• 20m Multi-Stage Shuttle Run (Beep Test)\n\n  Final Level: ${level} | Shuttle: ${shuttle}\n  Estimated VO2max: ${estimatedVO2 || 'N/A'} mL/kg/min (Ramsbottom formula)\n\n  VO2max Norms (Males 20-29): Excellent ≥55 | Good 49-54 | Average 40-48 | Poor <35 mL/kg/min\n  Level 5 ~33 | Level 8 ~42 | Level 11 ~51 | Level 13 ~57 mL/kg/min\n  MCID: ~3.5 mL/kg/min VO2max\n\n  Reference: Ramsbottom et al. (1988). A progressive shuttle run test to estimate maximal oxygen uptake. British Journal of Sports Medicine, 22(4), 141-144. https://doi.org/10.1136/bjsm.22.4.141`;
-
-      await onSave({
-        status: "completed",
-        result_value: level,
-        assessment_date: todayLocal(),
-        additional_data: {
-          soap_text: soapText,
-          final_level: level,
-          final_shuttle: shuttle,
-          estimated_vo2max: estimatedVO2 ? parseFloat(estimatedVO2) : null,
-          total_shuttles_completed: totalShuttles ? parseInt(totalShuttles) : null,
-          rpe_6_20: parseInt(rpe),
-          termination_reason: terminationReason,
-          symptoms_reported: symptomsReported || null,
-          peak_hr_bpm: peakHr ? parseInt(peakHr) : null,
-          notes_deviation: notes || null,
-          msft_result_string: msftResultString,
-          pre_test_hr: preTestHr ? parseInt(preTestHr) : null,
-          pre_test_bp: preTestBp || null,
-        },
-        normative_comparison: getNormativeComparison(level, client),
-      });
+      const birthDate = client?.date_of_birth ? new Date(client.date_of_birth) : null;
+      const derivedAge = birthDate && Number.isFinite(birthDate.getTime())
+        ? Math.floor((Date.now() - birthDate.getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+        : undefined;
+      const age = derivedAge !== undefined && derivedAge >= 14 && derivedAge <= 85 ? derivedAge : undefined;
+      const clientSex = String(client?.gender || '').toLowerCase();
+      await onSave(scoreTwentyMetreShuttle({
+        final_level: finalLevel,
+        final_shuttle: finalShuttle,
+        total_shuttles_completed: totalShuttles,
+        rpe,
+        termination_reason: terminationReason,
+        symptoms: symptomsReported,
+        peak_hr: peakHr,
+        pre_test_hr: preTestHr,
+        pre_test_bp: preTestBp,
+        age,
+        sex: age !== undefined && ['male', 'female'].includes(clientSex) ? clientSex : undefined,
+        notes,
+      }, { assessmentDate: todayLocal(), assessmentName: '20-Meter Shuttle Run (Beep Test)', client }));
 
       toast.success("20m Shuttle Run results saved successfully");
     } catch (error) {
@@ -80,52 +70,6 @@ export default function TwentyMeterShuttleRunBeepTestRunner({ client, onSave, on
     } finally {
       setSaving(false);
     }
-  };
-
-  const getNormativeComparison = (level, client) => {
-    if (!client || !client.date_of_birth) return null;
-
-    const age = new Date().getFullYear() - new Date(client.date_of_birth).getFullYear();
-    const gender = client.gender === "male" ? "male" : "female";
-
-    const normatives = {
-      "14-16-male": { mean: 12.7, std_dev: 1.5 },
-      "14-16-female": { mean: 10.9, std_dev: 1.2 },
-      "17-20-male": { mean: 12.12, std_dev: 1.3 },
-      "17-20-female": { mean: 10.8, std_dev: 1.1 },
-      "21-30-male": { mean: 12.5, std_dev: 1.4 },
-      "21-30-female": { mean: 10.5, std_dev: 1.2 },
-      "31-40-male": { mean: 11.8, std_dev: 1.5 },
-      "31-40-female": { mean: 9.8, std_dev: 1.3 },
-      "41-50-male": { mean: 11.2, std_dev: 1.6 },
-      "41-50-female": { mean: 9.2, std_dev: 1.4 },
-      "51-60-male": { mean: 10.4, std_dev: 1.7 },
-      "51-60-female": { mean: 8.5, std_dev: 1.5 },
-      "61-70-male": { mean: 9.5, std_dev: 1.8 },
-      "61-70-female": { mean: 7.8, std_dev: 1.6 },
-      "71-85-male": { mean: 8.6, std_dev: 1.9 },
-      "71-85-female": { mean: 6.9, std_dev: 1.7 },
-    };
-
-    let ageGroup = "21-30";
-    if (age >= 14 && age <= 16) ageGroup = "14-16";
-    else if (age >= 17 && age <= 20) ageGroup = "17-20";
-    else if (age >= 31 && age <= 40) ageGroup = "31-40";
-    else if (age >= 41 && age <= 50) ageGroup = "41-50";
-    else if (age >= 51 && age <= 60) ageGroup = "51-60";
-    else if (age >= 61 && age <= 70) ageGroup = "61-70";
-    else if (age >= 71) ageGroup = "71-85";
-
-    const key = `${ageGroup}-${gender}`;
-    const norm = normatives[key];
-    if (!norm) return "average";
-
-    const zscore = (level - norm.mean) / norm.std_dev;
-    if (zscore >= 1.5) return "well_above_average";
-    if (zscore >= 0.5) return "above_average";
-    if (zscore >= -0.5) return "average";
-    if (zscore >= -1.5) return "below_average";
-    return "well_below_average";
   };
 
   return (

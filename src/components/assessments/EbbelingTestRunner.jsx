@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { X, Save, Play, Pause, RotateCcw, ChevronRight, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { differenceInYears } from "date-fns";
+import { toast } from "sonner";
+import { scoreEbbeling } from "@/lib/clinical/scorers/coreB";
 
 export default function EbbelingTestRunner({ client, onSave, onClose }) {
   // Client demographics
@@ -112,55 +114,19 @@ export default function EbbelingTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    const interpretation = getVO2maxInterpretation(calculatedVO2max, age, gender);
-
-    let soapText = `• Ebbeling Single-Stage Treadmill Test:\n`;
-    soapText += `  Result: ${calculatedVO2max} ml/kg/min (estimated VO2max)`;
-    if (interpretation) soapText += ` — ${interpretation.label}`;
-    soapText += `\n`;
-    soapText += `  Age: ${age} | Gender: ${gender}\n`;
-    if (restingHR) soapText += `  Resting HR: ${restingHR} bpm\n`;
-    soapText += `  HR Max: ${hrMax} bpm | Target Zone: ${hrTarget50}–${hrTarget70} bpm\n`;
-    soapText += `  Walking Speed: ${warmupSpeed} ${warmupSpeedUnit} @ 5% grade\n`;
-    soapText += `  Minute-by-Minute HR & RPE:\n`;
-    ['min1', 'min2', 'min3', 'min4'].forEach((key, i) => {
-      const reading = testHRReadings[key];
-      const hrStr = reading.hr ? `HR: ${reading.hr} bpm` : 'HR: —';
-      const rpeStr = reading.rpe ? `RPE: ${reading.rpe}` : 'RPE: —';
-      soapText += `    Min ${i + 1}: ${hrStr}, ${rpeStr}\n`;
-    });
-    soapText += `  Steady-State HR (avg Min 3 & 4): ${steadyStateHR} bpm\n`;
-    soapText += `  Calculated VO2max: ${calculatedVO2max} ml/kg/min\n`;
-    if (notes) soapText += `  Notes: ${notes}\n`;
-
-    const data = {
-      result_value: calculatedVO2max,
-      additional_data: {
-        soap_text: soapText,
-        measurement_type: 'ebbeling_sst',
-        age: parseInt(age),
+    try {
+      onSave(scoreEbbeling({
+        age,
         gender,
-        resting_hr: parseFloat(restingHR) || null,
-        hr_max: hrMax,
-        hr_target_50: hrTarget50,
-        hr_target_70: hrTarget70,
-        warmup_speed: parseFloat(warmupSpeed),
+        resting_hr: restingHR,
+        warmup_speed: warmupSpeed,
         warmup_speed_unit: warmupSpeedUnit,
-        speed_mph: warmupSpeedUnit === 'kph' 
-          ? parseFloat(warmupSpeed) * 0.621371 
-          : parseFloat(warmupSpeed),
-        test_hr_readings: {
-          min1: { hr: testHRReadings.min1.hr, rpe: testHRReadings.min1.rpe },
-          min2: { hr: testHRReadings.min2.hr, rpe: testHRReadings.min2.rpe },
-          min3: { hr: testHRReadings.min3.hr, rpe: testHRReadings.min3.rpe },
-          min4: { hr: testHRReadings.min4.hr, rpe: testHRReadings.min4.rpe },
-        },
-        steady_state_hr: parseFloat(steadyStateHR),
-        calculated_vo2max: calculatedVO2max
-      },
-      notes
-    };
-    onSave(data);
+        test_hr_readings: testHRReadings,
+        notes,
+      }, { assessmentName: 'Ebbeling Single-Stage Treadmill Test', client }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save Ebbeling assessment.');
+    }
   };
 
   const updateHRReading = (minute, field, value) => {

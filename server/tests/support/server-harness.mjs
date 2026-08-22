@@ -6,10 +6,12 @@ import net from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { resolveActiveProfessionContract } from '../../../packages/profession-config/index.mjs';
 
 const supportDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(supportDir, '..', '..', '..');
 const serverEntry = path.join(repoRoot, 'server', 'index.mjs');
+const selftestEntry = path.join(repoRoot, 'server', 'tests', 'support', 'selftest-entry.mjs');
 const IMAGE_DIGEST_RE = /^[^\s@]+@sha256:[0-9a-f]{64}$/i;
 
 export function assertImmutableImageReference(image, label = 'compatibility image') {
@@ -53,12 +55,12 @@ async function getFreePort() {
   });
 }
 
-async function waitForServer(baseUrl, timeoutMs = 15_000, signal = null) {
+async function waitForServer(baseUrl, appId, timeoutMs = 15_000, signal = null) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline && !signal?.aborted) {
     try {
       const response = await fetch(
-        `${baseUrl}/api/apps/public/prod/public-settings/by-id/assurance-probe`,
+        `${baseUrl}/api/apps/public/prod/public-settings/by-id/${encodeURIComponent(appId)}`,
         { signal },
       );
       if (response.status === 200) return;
@@ -121,7 +123,14 @@ async function terminateContainer(child, { cli, name }) {
  * on 127.0.0.1.
  */
 export async function startTestServer(extraEnv = {}, options = {}) {
-  const port = await getFreePort();
+  const requestedPort = options.port;
+  if (
+    requestedPort !== undefined
+    && (!Number.isInteger(requestedPort) || requestedPort < 1 || requestedPort > 65_535)
+  ) {
+    throw new TypeError('startTestServer options.port must be an integer from 1 to 65535');
+  }
+  const port = requestedPort ?? await getFreePort();
   const baseUrl = `http://127.0.0.1:${port}`;
   const suppliedStore = options.store || null;
   const store = suppliedStore || createTestStore('assesssuite-assurance-');
@@ -144,6 +153,8 @@ export async function startTestServer(extraEnv = {}, options = {}) {
     ASSESSSUITE_BIND_HOST: '127.0.0.1',
     ASSESSSUITE_DB_PATH: dbPath,
   };
+  const target = resolveActiveProfessionContract({ ...process.env, ...controlledEnvironment });
+  const appId = target.appId;
 
   let child;
   let container = null;
@@ -175,7 +186,7 @@ export async function startTestServer(extraEnv = {}, options = {}) {
     });
     container = { cli, name };
   } else {
-    child = spawn(process.execPath, [serverEntry], {
+    child = spawn(process.execPath, [selftest ? selftestEntry : serverEntry], {
       cwd: repoRoot,
       env: { ...process.env, ...controlledEnvironment },
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -200,7 +211,7 @@ export async function startTestServer(extraEnv = {}, options = {}) {
     });
     try {
       await Promise.race([
-        waitForServer(baseUrl, options.startupTimeoutMs || 15_000, readinessAbort.signal),
+        waitForServer(baseUrl, appId, options.startupTimeoutMs || 15_000, readinessAbort.signal),
         earlyExit,
         earlyError,
       ]);
@@ -222,7 +233,7 @@ export async function startTestServer(extraEnv = {}, options = {}) {
   }
 
   return {
-    appId: 'assurance-app',
+    appId,
     baseUrl,
     child,
     getOutput: () => output,

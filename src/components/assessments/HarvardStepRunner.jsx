@@ -5,7 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, Save, Play, Pause, RotateCcw, Info, ChevronDown, ChevronUp, ExternalLink, AlertTriangle } from 'lucide-react';
-import { todayLocal } from "@/lib/localDate";
+import { toast } from 'sonner';
+import { scoreHarvardStep } from '@/lib/clinical/scorers/coreB';
 
 export default function HarvardStepRunner({ onSave, onClose, initialData }) {
   const [showInfo, setShowInfo] = useState(false);
@@ -50,42 +51,11 @@ export default function HarvardStepRunner({ onSave, onClose, initialData }) {
   };
 
   const handleSave = () => {
-    const fitnessIndex = calculateFitnessIndex();
-    let interpretation = '';
-    if (fitnessIndex) {
-      const fi = parseFloat(fitnessIndex);
-      if (fi >= 90) interpretation = 'Excellent';
-      else if (fi >= 80) interpretation = 'Good';
-      else if (fi >= 65) interpretation = 'Average';
-      else if (fi >= 55) interpretation = 'Below Average';
-      else interpretation = 'Poor';
+    try {
+      onSave(scoreHarvardStep(data, { assessmentName: 'Harvard Step Test' }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save Harvard Step Test.');
     }
-
-    const soapText = [
-      `• Harvard Step Test`,
-      `  Duration: ${data.duration_completed}s`,
-      data.hr_1min ? `  HR 1-2 min: ${data.hr_1min} bpm` : null,
-      data.hr_2min ? `  HR 2-3 min: ${data.hr_2min} bpm` : null,
-      data.hr_3min ? `  HR 3-4 min: ${data.hr_3min} bpm` : null,
-      fitnessIndex ? `  Fitness Index: ${fitnessIndex} — ${interpretation}` : null,
-      data.reason_stopped ? `  Stopped: ${data.reason_stopped}` : null,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      result_value: fitnessIndex ? parseFloat(fitnessIndex) : null,
-      additional_data: {
-        soap_text: soapText,
-        duration_completed: parseFloat(data.duration_completed) || null,
-        hr_1min: parseFloat(data.hr_1min) || null,
-        hr_2min: parseFloat(data.hr_2min) || null,
-        hr_3min: parseFloat(data.hr_3min) || null,
-        fitness_index: fitnessIndex ? parseFloat(fitnessIndex) : null,
-        interpretation,
-        reason_stopped: data.reason_stopped,
-      },
-      notes: data.observations,
-      assessment_date: todayLocal()
-    });
   };
 
   return (

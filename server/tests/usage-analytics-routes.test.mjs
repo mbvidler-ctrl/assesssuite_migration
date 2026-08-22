@@ -153,7 +153,7 @@ test('authentication and AppOpen counters include only completed, valid mileston
     });
     assert.equal(duplicateVerification.status, 200, duplicateVerification.text);
 
-    const appOpenRoute = `/api/app-logs/patient@example.test/log-user-in-app/AppOpen`;
+    const appOpenRoute = `/api/app-logs/${server.appId}/log-user-in-app/AppOpen`;
     const anonymous = await requestJson(server, appOpenRoute, {
       method: 'POST',
       body: { email: 'patient@example.test', path: '/private/client/123' },

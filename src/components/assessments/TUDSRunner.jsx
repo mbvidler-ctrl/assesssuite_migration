@@ -8,13 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Save, Play, Pause, RotateCcw, Info, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScoreTuds } from "@/lib/clinical/tuds";
 
 export default function TUDSRunner({ onSave, onClose }) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
   const [trials, setTrials] = useState([]);
   const [currentTrialTime, setCurrentTrialTime] = useState("");
-  const [numStairs, setNumStairs] = useState("12");
+  const [numStairs, setNumStairs] = useState("14");
   const [stairHeight, setStairHeight] = useState("18");
   const [handrail, setHandrail] = useState("none");
   const [assistiveDevice, setAssistiveDevice] = useState("none");
@@ -25,7 +26,7 @@ export default function TUDSRunner({ onSave, onClose }) {
     let interval;
     if (isRunning) {
       interval = setInterval(() => {
-        setElapsedSeconds(prev => prev + 1);
+        setElapsedSeconds(prev => Math.round((prev + 0.1) * 10) / 10);
       }, 1000);
     }
     return () => clearInterval(interval);
@@ -38,7 +39,7 @@ export default function TUDSRunner({ onSave, onClose }) {
   };
 
   const handleAddTrial = () => {
-    const time = currentTrialTime || (elapsedSeconds / 10).toFixed(2);
+    const time = currentTrialTime || elapsedSeconds.toFixed(2);
     if (!time || parseFloat(time) <= 0) {
       toast.error("Please enter a valid trial time");
       return;
@@ -73,53 +74,28 @@ export default function TUDSRunner({ onSave, onClose }) {
     return Math.min(...trials.map(t => t.time)).toFixed(2);
   };
 
-  const getInterpretation = () => {
-    const avgTime = parseFloat(calculateAverage());
-    if (!avgTime) return null;
-
-    if (avgTime < 8) {
-      return { level: 'Excellent functional mobility', color: 'text-green-600', bg: 'bg-green-50' };
-    } else if (avgTime < 12) {
-      return { level: 'Good functional mobility', color: 'text-blue-600', bg: 'bg-blue-50' };
-    } else if (avgTime < 15) {
-      return { level: 'Moderate functional mobility', color: 'text-yellow-600', bg: 'bg-yellow-50' };
-    } else {
-      return { level: 'Limited functional mobility - consider fall risk', color: 'text-red-600', bg: 'bg-red-50' };
-    }
-  };
-
-  const interpretation = getInterpretation();
-
   const handleSave = () => {
     if (trials.length === 0) {
       toast.error("Please record at least one trial");
       return;
     }
 
-    const soapText = [
-      `• Timed Up and Down Stairs (TUDS)`,
-      `  Average Time: ${calculateAverage()}s | Best Time: ${getBestTime()}s — ${interpretation?.level}`,
-      `  Stairs: ${numStairs} (${stairHeight}cm high) | Handrail: ${handrail} | Device: ${assistiveDevice}`,
-      safetyObservations ? `  Safety: ${safetyObservations}` : null,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      result_value: parseFloat(calculateAverage()),
-      additional_data: {
-        soap_text: soapText,
-        trials: trials,
-        average_time: parseFloat(calculateAverage()),
-        best_time: parseFloat(getBestTime()),
-        num_stairs: parseInt(numStairs),
-        stair_height_cm: parseFloat(stairHeight),
+    try {
+      onSave(validateAndScoreTuds({
+        trials,
+        num_stairs: numStairs,
+        stair_height_cm: stairHeight,
         handrail_use: handrail,
         assistive_device: assistiveDevice,
         safety_observations: safetyObservations,
-        interpretation: interpretation?.level
-      },
-      notes: notes,
-      assessment_date: todayLocal()
-    });
+        notes,
+      }, {
+        assessmentName: 'Timed Up and Down Stairs (TUDS)',
+        assessmentDate: todayLocal(),
+      }));
+    } catch (error) {
+      toast.error(error.message || 'Unable to save TUDS assessment');
+    }
   };
 
   return (
@@ -304,19 +280,6 @@ export default function TUDSRunner({ onSave, onClose }) {
                       <p className="font-semibold">Best Time: {getBestTime()} seconds</p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {interpretation && (
-              <Card className={`${interpretation.bg} border-2`}>
-                <CardHeader>
-                  <CardTitle className={`text-xl ${interpretation.color}`}>
-                    {interpretation.level}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className={interpretation.color}>
-                  <p>Average time: {calculateAverage()} seconds over {trials.length} trial(s)</p>
                 </CardContent>
               </Card>
             )}

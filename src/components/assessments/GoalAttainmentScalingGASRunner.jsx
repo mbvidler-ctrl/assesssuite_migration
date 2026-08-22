@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_GAS_ATTAINMENT_OPTIONS as GAS_ATTAINMENT_OPTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 const emptyGoal = () => ({ goal: "", importance: 0, difficulty: 0, attainmentLevel: null });
 
@@ -18,7 +19,13 @@ export default function GoalAttainmentScalingGASRunner({ client, onSave, onClose
     setGoals(prev => prev.map((g, i) => i === index ? { ...g, [field]: value } : g));
   };
 
-  const addGoal = () => setGoals(prev => [...prev, emptyGoal()]);
+  const addGoal = () => {
+    if (goals.length >= 20) {
+      toast.error("Maximum 20 goals");
+      return;
+    }
+    setGoals(prev => [...prev, emptyGoal()]);
+  };
 
   const removeGoal = (index) => setGoals(prev => prev.filter((_, i) => i !== index));
 
@@ -118,13 +125,7 @@ export default function GoalAttainmentScalingGASRunner({ client, onSave, onClose
                   <div>
                     <Label>Attainment Level</Label>
                     <div className="grid grid-cols-5 gap-2 mt-1">
-                      {[
-                        { value: -2, label: "Much less than expected" },
-                        { value: -1, label: "Somewhat less than expected" },
-                        { value: 0,  label: "Expected outcome" },
-                        { value: 1,  label: "Somewhat more than expected" },
-                        { value: 2,  label: "Much more than expected" },
-                      ].map(({ value, label }) => (
+                      {GAS_ATTAINMENT_OPTIONS.map(({ value, label }) => (
                         <button
                           key={value}
                           type="button"
@@ -143,7 +144,7 @@ export default function GoalAttainmentScalingGASRunner({ client, onSave, onClose
                 </div>
               ))}
 
-              <Button variant="outline" onClick={addGoal} className="w-full border-dashed">
+              <Button variant="outline" onClick={addGoal} disabled={goals.length >= 20} className="w-full border-dashed">
                 <Plus className="w-4 h-4 mr-2" />
                 Add Another Goal
               </Button>

@@ -1,0 +1,102 @@
+{
+  "contract_version": "assesssuite-physio-live-self-service-journey/4.0.0",
+  "application": "assesssuite-physio-production",
+  "app_id": "local-assesssuite-physio",
+  "profession_id": "physio",
+  "catalogue_count": 236,
+  "browser_project": "chromium-desktop",
+  "phase_origins": {
+    "provision": [
+      "https://assesssuite-physio-production.fly.dev"
+    ],
+    "validate-payment": [
+      "https://assesssuite-physio-production.fly.dev"
+    ],
+    "finalize": [
+      "https://physio.app.assesssuite.com"
+    ],
+    "resume-cleanup": [
+      "https://assesssuite-physio-production.fly.dev",
+      "https://physio.app.assesssuite.com"
+    ]
+  },
+  "production_phases": {
+    "provision": [
+      "registration-started-ledger",
+      "public-registration-ui",
+      "direct-gmail-dkim-otp-readback",
+      "persisted-content-free-gmail-dkim-readback",
+      "normal-otp-verification-ui",
+      "live-stripe-checkout-session-ui",
+      "trusted-browser-autofill-checkout-completion",
+      "content-free-trusted-browser-admission",
+      "provider-gated-checkout-return-entitlement",
+      "exact-stripe-object-binding",
+      "clinician-practice-onboarding-ui",
+      "logout-login-ui",
+      "post-provision-email-configuration-receipt"
+    ],
+    "finalize": [
+      "provision-and-functional-qa-binding",
+      "forgot-password-ui",
+      "direct-gmail-dkim-reset-readback",
+      "password-reset-ui",
+      "pre-mutation-stripe-binding-readback",
+      "subscription-cancellation-account-deactivation-ui",
+      "persisted-deactivation-login-denial-readback",
+      "bounded-stripe-refund-reconciliation",
+      "terminal-provider-readback"
+    ]
+  },
+  "resume_command_replays_registration_or_checkout": false,
+  "normal_ui_registration_only": true,
+  "test_otp_or_reset_backdoor_allowed": false,
+  "email_readback_provider": "gmail-api",
+  "dkim_domain": "assesssuite.com",
+  "email_configuration_contract_version": "assesssuite-physio-email-configuration/1.0.0",
+  "email_configuration_is_post_provision": true,
+  "stripe_mode": "live",
+  "stripe_api_version": "2026-07-29.dahlia",
+  "stripe_currency": "aud",
+  "stripe_integration_identifier_pattern": "^assesssuite_physio_[a-z]{8}$",
+  "stripe_product_lookup_key": "assesssuite_physio",
+  "stripe_monthly_lookup_key": "assesssuite_physio_monthly_aud_5500",
+  "stripe_annual_lookup_key": "assesssuite_physio_annual_aud_54000",
+  "dynamic_payment_methods_required": true,
+  "card_entry_mechanism": "trusted-browser-autofill",
+  "trusted_browser_profile": "maxwell-existing-trusted-chrome-profile",
+  "raw_pan_or_cvc_received_by_runner": false,
+  "direct_payment_method_injection_allowed": false,
+  "protected_runner_ephemeral_secret_enabled": false,
+  "checkout_url_retained_in_evidence": false,
+  "trial_days": 30,
+  "expected_due_today_aud_cents": 0,
+  "checkout_immediate_stripe_charge_allowed": false,
+  "live_payment_validation": {
+    "action": "validate_payment",
+    "contract_version": "assesssuite-stripe-live-payment-validation/2.0.0",
+    "amount_aud_cents": 100,
+    "maximum_authorised_aud_cents": 2000,
+    "create_api": "payment_intents",
+    "direct_charges_api_create_allowed": false,
+    "invoice_reconciliation_allowed": false,
+    "full_refund_required": true,
+    "email_configuration_receipt_hash_required": true
+  },
+  "unexpected_charge_requires_refund_and_failed_acceptance": true,
+  "maximum_refundable_charge_aud_cents": 2000,
+  "cancellation_during_trial_required": true,
+  "monthly_price_aud_cents": 5500,
+  "monthly_interval": "month",
+  "annual_price_aud_cents": 54000,
+  "annual_interval": "year",
+  "required_stripe_metadata": {
+    "appId": "local-assesssuite-physio",
+    "professionId": "physio",
+    "productLookupKey": "assesssuite_physio",
+    "qaSequence": "server-derived-from-authenticated-sequence-email"
+  },
+  "traces_screenshots_video_allowed": false,
+  "skips_fixmes_mocks_or_provider_substitution_allowed": false,
+  "one_synthetic_account_only": true
+}

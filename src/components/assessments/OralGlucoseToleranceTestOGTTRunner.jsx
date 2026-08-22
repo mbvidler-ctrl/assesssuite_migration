@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreOgtt } from "@/lib/clinical/scorers/extrasPhysiological";
 
 const INTERPRETATIONS = [
   {
@@ -47,38 +48,15 @@ export default function OralGlucoseToleranceTestOGTTRunner({ client, onSave, onC
   const interp = twoHourVal !== null && !isNaN(twoHourVal) ? getInterpretation(twoHourVal) : null;
 
   const handleSave = () => {
-    if (!twoHourGlucose) {
-      toast.error("Please enter the 2-hour blood glucose result.");
-      return;
+    try {
+      onSave(scoreOgtt(
+        { fasting_glucose_mmol_l: fastingGlucose, two_hour_glucose_mmol_l: twoHourGlucose, notes },
+        { assessmentDate: todayLocal(), assessmentName: 'Oral Glucose Tolerance Test (OGTT)', client },
+      ));
+      toast.success("OGTT results saved.");
+    } catch (error) {
+      toast.error(error?.message || "OGTT results could not be scored.");
     }
-
-    const soapLines = [
-      `• Oral Glucose Tolerance Test (OGTT)`,
-      `  Source: External pathology / medical practitioner result`,
-      fastingGlucose ? `  Fasting Blood Glucose: ${fastingGlucose} mmol/L` : null,
-      `  2-Hour Blood Glucose: ${twoHourGlucose} mmol/L`,
-      interp ? `  Classification: ${interp.classification}` : null,
-      interp ? `  Clinical Meaning: ${interp.clinical_meaning}` : null,
-      interp ? `  Exercise Considerations: ${interp.exercise_considerations}` : null,
-      notes ? `  Notes: ${notes}` : null,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      status: "completed",
-      result_value: parseFloat(twoHourGlucose),
-      additional_data: {
-        measurement_type: "OGTT",
-        fasting_glucose: fastingGlucose ? parseFloat(fastingGlucose) : null,
-        two_hour_glucose: parseFloat(twoHourGlucose),
-        classification: interp?.classification || null,
-        clinical_meaning: interp?.clinical_meaning || null,
-        exercise_considerations: interp?.exercise_considerations || null,
-        soap_text: soapLines,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("OGTT results saved.");
   };
 
   return (

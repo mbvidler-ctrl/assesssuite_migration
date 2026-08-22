@@ -4,6 +4,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { X, Play, Square, RotateCcw } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 function getSPPBScore(seconds) {
   if (seconds >= 10) return 4;
@@ -77,19 +78,11 @@ export default function TandemStandBalanceTestRunner({ client, onSave, onClose }
   const timerColor = elapsed >= 10 ? "text-green-600" : timerRunning ? "text-blue-600" : "text-slate-800";
 
   const handleSave = () => {
-    if (trials.length === 0) return;
-    const soapText = `• Tandem Stand Balance Test\n  Best Hold Time: ${bestTime?.toFixed(2)}s | SPPB Score: ${score}/4\n  Interpretation: ${interp?.text}\n  All Trials: ${trials.map((t, i) => `Trial ${i + 1}: ${t === 0 ? 'Unable' : t.toFixed(2) + 's'}`).join(', ')}${notes ? `\n  Notes: ${notes}` : ''}`;
-    onSave({
-      result_value: score,
-      notes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: soapText,
-        best_time: bestTime,
-        trials,
-        interpretation: interp?.text,
-      }
-    });
+    try {
+      onSave(validateMobilityOrtho({ trials, notes }, { runnerKey: 'tandem_stand', assessmentDate: todayLocal() }));
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
 
   return (

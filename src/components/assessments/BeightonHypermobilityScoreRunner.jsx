@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 const BILATERAL_ITEMS = [
   {
@@ -30,7 +31,7 @@ const BILATERAL_ITEMS = [
   },
 ];
 
-function ScoreToggle({ checked, onChange, label }) {
+function ScoreToggle({ checked, onChange }) {
   return (
     <button
       type="button"
@@ -73,34 +74,12 @@ export default function BeightonHypermobilityScoreRunner({ client, onSave, onClo
   const classification = getClassification(total);
 
   const handleSave = () => {
-    const positiveItems = Object.entries(scores)
-      .filter(([, v]) => v)
-      .map(([k]) => k.replace(/([A-Z])/g, ' $1').trim());
-
-    let soapText = `• Beighton Hypermobility Score: ${total}/9 — ${classification.label}\n`;
-    soapText += `  Bilateral items:\n`;
-    BILATERAL_ITEMS.forEach(item => {
-      const left = scores[`left${item.key.charAt(0).toUpperCase() + item.key.slice(1)}`];
-      const right = scores[`right${item.key.charAt(0).toUpperCase() + item.key.slice(1)}`];
-      soapText += `    ${item.label}: L ${left ? "+" : "−"} | R ${right ? "+" : "−"}\n`;
-    });
-    soapText += `  Trunk flexion (palms flat, knees straight): ${scores.trunkFlexion ? "+" : "−"}\n`;
-    if (positiveItems.length === 0) soapText += `  No positive items\n`;
-    if (notes) soapText += `  Notes: ${notes}\n`;
-
-    onSave({
-      status: "completed",
-      result_value: total,
-      additional_data: {
-        soap_text: soapText,
-        measurement_type: "beighton_hypermobility",
-        scores,
-        classification: classification.label,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved.");
+    try {
+      onSave(validateMobilityOrtho({ scores, notes }, { runnerKey: 'beighton', assessmentDate: todayLocal() }));
+      toast.success("Assessment saved.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

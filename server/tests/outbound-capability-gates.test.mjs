@@ -11,13 +11,34 @@ import {
   smsEnabled,
 } from '../email.mjs';
 import createCheckoutSessionFunction from '../functions/createCheckoutSession.mjs';
+import { testStripeProvider } from './support/provider-services.mjs';
+import { createCheckoutIntentTestStore } from './support/stripe-checkout-test-helpers.mjs';
 import {
+  checkoutIdempotencyKeyFor,
   createCheckoutSession as createRealCheckoutSession,
   stripeEnabled,
 } from '../stripeGateway.mjs';
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testsDir, '..', '..');
+const DIRECT_CHECKOUT_INTENT_ID = '12345678-1234-4234-9234-123456789abc';
+
+function directCheckoutArguments() {
+  const binding = {
+    priceId: 'price_synthetic',
+    userId: 'synthetic-user',
+    userEmail: 'synthetic-user@example.invalid',
+    successUrl: 'https://example.invalid/success',
+    cancelUrl: 'https://example.invalid/cancel',
+    appId: 'local-assesssuite-physio',
+    professionId: 'physio',
+    checkoutIntentId: DIRECT_CHECKOUT_INTENT_ID,
+  };
+  return {
+    ...binding,
+    idempotencyKey: checkoutIdempotencyKeyFor(binding),
+  };
+}
 
 async function withEnvironment(overrides, operation) {
   const previous = Object.fromEntries(
@@ -146,11 +167,14 @@ test('payment gate is enforced at both the caller branch and direct network sink
   };
   try {
     await withEnvironment({
-      SELFTEST: undefined,
-      PARITY_ASSURANCE_MODE: '1',
+      NODE_ENV: 'test',
+      SELFTEST: '1',
+      PARITY_ASSURANCE_MODE: undefined,
       PAYMENTS_ENABLED: '1',
       STRIPE_SECRET_KEY: 'sk_test_synthetic_inherited_secret',
+      APP_URL: 'http://localhost:5173',
     }, async () => {
+      const store = createCheckoutIntentTestStore();
       const response = await createCheckoutSessionFunction({
         user: { id: 'synthetic-user', email: 'synthetic-user@example.invalid' },
         body: {
@@ -158,19 +182,16 @@ test('payment gate is enforced at both the caller branch and direct network sink
           userId: 'synthetic-user',
           userEmail: 'synthetic-user@example.invalid',
         },
+        stripeProvider: testStripeProvider,
+        checkoutIntents: store.checkoutIntents,
         respond: (status, body) => ({ status, body }),
       });
+      store.close();
       assert.equal(response.status, 200);
       assert.match(response.body.url, /mock-stripe\/checkout/);
 
       await assert.rejects(
-        createRealCheckoutSession({
-          priceId: 'price_synthetic',
-          userId: 'synthetic-user',
-          userEmail: 'synthetic-user@example.invalid',
-          successUrl: 'https://example.invalid/success',
-          cancelUrl: 'https://example.invalid/cancel',
-        }),
+        createRealCheckoutSession(directCheckoutArguments()),
         (error) => error?.code === 'payments_disabled',
       );
     });
@@ -187,6 +208,12 @@ test('affirmative payment gate plus secret preserves the real adapter path', { c
     fetchCalls += 1;
     assert.equal(url, 'https://api.stripe.com/v1/checkout/sessions');
     assert.equal(options.method, 'POST');
+    assert.equal(options.headers['Stripe-Version'], '2026-07-29.dahlia');
+    assert.equal(options.headers['Idempotency-Key'], directCheckoutArguments().idempotencyKey);
+    const form = new URLSearchParams(options.body);
+    assert.match(form.get('integration_identifier'), /^assesssuite_physio_[a-z]{8}$/);
+    assert.equal(form.get('payment_method_collection'), 'always');
+    assert.equal(form.has('payment_method_types[0]'), false);
     return {
       ok: true,
       json: async () => ({ id: 'cs_test_synthetic', url: 'https://checkout.stripe.test/synthetic' }),
@@ -199,13 +226,7 @@ test('affirmative payment gate plus secret preserves the real adapter path', { c
       PARITY_ASSURANCE_MODE: undefined,
       PAYMENTS_ENABLED: '1',
       STRIPE_SECRET_KEY: 'sk_test_synthetic_secret',
-    }, () => createRealCheckoutSession({
-      priceId: 'price_synthetic',
-      userId: 'synthetic-user',
-      userEmail: 'synthetic-user@example.invalid',
-      successUrl: 'https://example.invalid/success',
-      cancelUrl: 'https://example.invalid/cancel',
-    }));
+    }, () => createRealCheckoutSession(directCheckoutArguments()));
     assert.equal(session.id, 'cs_test_synthetic');
     assert.equal(fetchCalls, 1);
   } finally {

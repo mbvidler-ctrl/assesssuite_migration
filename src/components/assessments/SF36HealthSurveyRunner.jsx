@@ -9,109 +9,9 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_SF36_SF36_QUESTIONS as SF36_QUESTIONS, PROM_NEURO_SF36_SCALE_OPTIONS as SCALE_OPTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const SF36_QUESTIONS = [
-  // Physical Functioning (PF) - Questions 3a-3j
-  { id: 1, domain: "PF", text: "Vigorous activities (e.g., running, lifting heavy objects, participating in strenuous sports)", scale: "extent" },
-  { id: 2, domain: "PF", text: "Moderate activities (e.g., moving a table, pushing a vacuum cleaner, bowling, or playing golf)", scale: "extent" },
-  { id: 3, domain: "PF", text: "Lifting or carrying groceries", scale: "extent" },
-  { id: 4, domain: "PF", text: "Climbing several flights of stairs", scale: "extent" },
-  { id: 5, domain: "PF", text: "Climbing one flight of stairs", scale: "extent" },
-  { id: 6, domain: "PF", text: "Bending, kneeling, or stooping", scale: "extent" },
-  { id: 7, domain: "PF", text: "Walking more than a mile", scale: "extent" },
-  { id: 8, domain: "PF", text: "Walking several blocks", scale: "extent" },
-  { id: 9, domain: "PF", text: "Walking one block", scale: "extent" },
-  { id: 10, domain: "PF", text: "Bathing or dressing yourself", scale: "extent" },
 
-  // Role-Physical (RP) - Questions 4a-4d
-  { id: 11, domain: "RP", text: "Accomplished less due to physical health problems", scale: "yesno" },
-  { id: 12, domain: "RP", text: "Limitations in type of work or other activities due to physical health", scale: "yesno" },
-  { id: 13, domain: "RP", text: "Difficulty with work or other activities (due to physical health)", scale: "yesno" },
-  { id: 14, domain: "RP", text: "Pain interfered with work or other activities", scale: "yesno" },
-
-  // Bodily Pain (BP) - Questions 7-8
-  { id: 15, domain: "BP", text: "Bodily pain in past 4 weeks", scale: "pain" },
-  { id: 16, domain: "BP", text: "Pain interfered with normal work (including work outside home)", scale: "interference" },
-
-  // General Health (GH) - Questions 1, 11a-11d
-  { id: 17, domain: "GH", text: "In general, would you say your health is...", scale: "health" },
-  { id: 18, domain: "GH", text: "I seem to get sick a little easier than other people", scale: "agreement" },
-  { id: 19, domain: "GH", text: "I am as healthy as anybody I know", scale: "agreement" },
-  { id: 20, domain: "GH", text: "I expect my health to get worse", scale: "agreement" },
-  { id: 21, domain: "GH", text: "My health is excellent", scale: "agreement" },
-
-  // Vitality (VT) - Questions 9d, 9e, 9g, 9i
-  { id: 22, domain: "VT", text: "Feel full of pep (energy)", scale: "frequency" },
-  { id: 23, domain: "VT", text: "Have a lot of energy", scale: "frequency" },
-  { id: 24, domain: "VT", text: "Feel worn out", scale: "frequency" },
-  { id: 25, domain: "VT", text: "Feel tired", scale: "frequency" },
-
-  // Social Functioning (SF) - Questions 6, 10
-  { id: 26, domain: "SF", text: "Physical health or emotional problems interfered with social activities", scale: "extent" },
-  { id: 27, domain: "SF", text: "Extent health problems limited social activities", scale: "extent" },
-
-  // Role-Emotional (RE) - Questions 5a-5c
-  { id: 28, domain: "RE", text: "Accomplished less due to emotional problems", scale: "yesno" },
-  { id: 29, domain: "RE", text: "Did not work as carefully (due to emotional problems)", scale: "yesno" },
-  { id: 30, domain: "RE", text: "Emotional problems limited work or other activities", scale: "yesno" },
-
-  // Mental Health (MH) - Questions 9b, 9c, 9f, 9h, 9a
-  { id: 31, domain: "MH", text: "Feel calm and peaceful", scale: "frequency" },
-  { id: 32, domain: "MH", text: "Felt down-hearted and blue", scale: "frequency" },
-  { id: 33, domain: "MH", text: "Feel very nervous", scale: "frequency" },
-  { id: 34, domain: "MH", text: "Feel downhearted and depressed", scale: "frequency" },
-  { id: 35, domain: "MH", text: "Feel happy", scale: "frequency" },
-  { id: 36, domain: "MH", text: "Felt so down that nothing could cheer you up", scale: "frequency" },
-];
-
-const SCALE_OPTIONS = {
-  extent: [
-    { value: "3", label: "Yes, limited a lot" },
-    { value: "2", label: "Yes, limited a little" },
-    { value: "1", label: "No, not limited at all" }
-  ],
-  yesno: [
-    { value: "2", label: "Yes" },
-    { value: "1", label: "No" }
-  ],
-  pain: [
-    { value: "6", label: "None" },
-    { value: "5", label: "Very mild" },
-    { value: "4", label: "Mild" },
-    { value: "3", label: "Moderate" },
-    { value: "2", label: "Severe" },
-    { value: "1", label: "Very severe" }
-  ],
-  interference: [
-    { value: "1", label: "Not at all" },
-    { value: "2", label: "A little bit" },
-    { value: "3", label: "Moderately" },
-    { value: "4", label: "Quite a bit" },
-    { value: "5", label: "Extremely" }
-  ],
-  health: [
-    { value: "5", label: "Excellent" },
-    { value: "4", label: "Very good" },
-    { value: "3", label: "Good" },
-    { value: "2", label: "Fair" },
-    { value: "1", label: "Poor" }
-  ],
-  agreement: [
-    { value: "5", label: "Strongly agree" },
-    { value: "4", label: "Agree" },
-    { value: "3", label: "Unsure" },
-    { value: "2", label: "Disagree" },
-    { value: "1", label: "Strongly disagree" }
-  ],
-  frequency: [
-    { value: "6", label: "All of the time" },
-    { value: "5", label: "Most of the time" },
-    { value: "4", label: "A good bit of the time" },
-    { value: "3", label: "Some of the time" },
-    { value: "2", label: "A little of the time" },
-    { value: "1", label: "None of the time" }
-  ]
-};
 
 export default function SF36HealthSurveyRunner({ client, onSave, onClose }) {
   const [responses, setResponses] = useState({});
@@ -182,6 +82,7 @@ export default function SF36HealthSurveyRunner({ client, onSave, onClose }) {
       result_value: pcs,
       additional_data: {
         measurement_type: "sf36_survey",
+        responses,
         pcs,
         mcs,
         domain_scores: {

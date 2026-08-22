@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Pause, RotateCcw, AlertTriangle, Flag } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScoreFourHundredMetreWalk } from "@/lib/clinical/scorers/standaloneAndFim";
 
 // 400m = 10 laps of a 40m course (standard protocol)
 const LAP_DISTANCE_M = 40;
@@ -82,54 +83,34 @@ export default function FourHundredMeterWalkTestRunner({ client, assessment, onS
   };
 
   const handleSave = () => {
-    const totalTime = testComplete ? (laps.length > 0 ? laps[laps.length - 1].cumulative : timerSeconds) : parseFloat(manualTotalTime) || timerSeconds;
+    const totalTime = stoppedEarly
+      ? timerSeconds
+      : testComplete && laps.length > 0
+        ? laps[laps.length - 1].cumulative
+        : parseFloat(manualTotalTime) || timerSeconds;
     const distanceCovered = stoppedEarly ? laps.length * LAP_DISTANCE_M : 400;
-
-    // Build detailed SOAP text including all lap splits
-    const lapLines = laps.length > 0
-      ? laps.map(l => `    Lap ${l.lap} (${l.lap * LAP_DISTANCE_M}m): split ${formatTime(l.split)} | cumulative ${formatTime(l.cumulative)}`).join('\n')
-      : null;
-
-    const restLines = restBreaks.length > 0
-      ? restBreaks.map((r, i) => `    Break ${i + 1}: at ${r.at_metres}m (${formatTime(r.at_time)})`).join('\n')
-      : null;
-
-    const soapLines = [
-      `• 400-Metre Walk Test`,
-      `  Total Time: ${formatTime(totalTime)} (${totalTime.toFixed(1)}s)`,
-      `  Distance Covered: ${distanceCovered}m`,
-      `  Test Completed: ${!stoppedEarly ? 'Yes' : `No — ${stopsReason || 'stopped early'}`}`,
-      lapLines ? `  Lap Splits (${laps.length} laps):\n${lapLines}` : null,
-      restBreaks.length > 0 ? `  Rest Breaks: ${restBreaks.length}\n${restLines}` : `  Rest Breaks: 0`,
-      (preHR || preBP || preSpO2) ? `  Pre-Test: HR ${preHR || 'N/A'} bpm | BP ${preBP || 'N/A'} | SpO2 ${preSpO2 || 'N/A'}%` : null,
-      (postHR || postBP || postSpO2) ? `  Post-Test: HR ${postHR || 'N/A'} bpm | BP ${postBP || 'N/A'} | SpO2 ${postSpO2 || 'N/A'}%` : null,
-      gaitObservations ? `  Gait Observations: ${gaitObservations}` : null,
-      symptomsObserved ? `  Symptoms: ${symptomsObserved}` : null,
-      clinicianNotes ? `  Clinical Notes: ${clinicianNotes}` : null,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      status: "completed",
-      result_value: parseFloat(totalTime.toFixed(1)),
-      assessment_date: todayLocal(),
-      notes: clinicianNotes,
-      additional_data: {
-        soap_text: soapLines,
-        measurement_type: '400_meter_walk_test',
+    try {
+      const payload = validateAndScoreFourHundredMetreWalk({
         total_time_seconds: totalTime,
         distance_covered_m: distanceCovered,
         completed: !stoppedEarly,
         laps,
         rest_breaks: restBreaks,
-        number_of_rests: restBreaks.length,
-        stopped_early: stoppedEarly,
         early_stop_reason: stopsReason,
         pre_test: { heart_rate: preHR, blood_pressure: preBP, spo2: preSpO2 },
         post_test: { heart_rate: postHR, blood_pressure: postBP, spo2: postSpO2 },
         gait_observations: gaitObservations,
         symptoms_observed: symptomsObserved,
-      }
-    });
+        notes: clinicianNotes,
+      }, {
+        assessmentName: '400-Metre Walk Test',
+        assessmentDate: todayLocal(),
+      });
+      onSave(payload);
+      toast.success("Assessment scored and ready to save.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to score this assessment.");
+    }
   };
 
   return (
@@ -161,8 +142,8 @@ export default function FourHundredMeterWalkTestRunner({ client, assessment, onS
                 <thead className="bg-slate-200"><tr><th className="p-2 text-left">Performance</th><th className="p-2 text-left">Time (seconds)</th><th className="p-2 text-left">Clinical Significance</th></tr></thead>
                 <tbody>
                   <tr className="border-t border-slate-200"><td className="p-2">Excellent (older adults)</td><td className="p-2">&lt;287 s (&lt;4:47)</td><td className="p-2 text-green-600">Low disability/mortality risk</td></tr>
-                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">Average</td><td className="p-2">287–400 s</td><td className="p-2 text-yellow-600">Moderate functional limitation</td></tr>
-                  <tr className="border-t border-slate-200"><td className="p-2">Slow (mobility limitation)</td><td className="p-2">&gt;400 s (&gt;6:40)</td><td className="p-2 text-red-600">High disability/mortality risk</td></tr>
+                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">Source reference range</td><td className="p-2">287–420 s</td><td className="p-2 text-yellow-600">Interpret with matched population data</td></tr>
+                  <tr className="border-t border-slate-200"><td className="p-2">Mobility-limitation reference</td><td className="p-2">&gt;420 s (&gt;7:00)</td><td className="p-2 text-red-600">Above source reference point</td></tr>
                   <tr className="border-t border-slate-200 bg-white"><td className="p-2">Unable to complete</td><td className="p-2">Did not complete</td><td className="p-2 text-red-700">Very high risk — clinical referral</td></tr>
                 </tbody>
               </table>

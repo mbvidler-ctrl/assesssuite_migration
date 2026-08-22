@@ -5,151 +5,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, ChevronLeft, ChevronRight, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_DSQ2_SYMPTOM_DOMAINS as SYMPTOM_DOMAINS, PROM_NEURO_DSQ2_FREQ_OPTIONS as FREQ_OPTIONS, PROM_NEURO_DSQ2_SEV_OPTIONS as SEV_OPTIONS, PROM_NEURO_DSQ2_PEM_TRIGGERS as PEM_TRIGGERS, PROM_NEURO_DSQ2_RECOVERY_OPTIONS as RECOVERY_OPTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 // DSQ-2 symptom items — rated for Frequency (0-4) and Severity (0-4)
-const SYMPTOM_DOMAINS = [
-  {
-    domain: "Post-Exertional Malaise (PEM)",
-    items: [
-      "Next-day soreness or fatigue after non-strenuous, every-day activities",
-      "Mentally tired after the slightest effort",
-      "Minimum exercise makes you physically tired",
-      "Physically drained or sick after mild activity",
-      "Dead, heavy feeling after starting to exercise",
-    ],
-  },
-  {
-    domain: "Sleep Problems",
-    items: [
-      "Unrefreshing sleep or waking up feeling tired",
-      "Need to nap daily",
-      "Difficulty falling asleep",
-      "Difficulty staying asleep",
-      "Sleeping too much (hypersomnia)",
-    ],
-  },
-  {
-    domain: "Pain",
-    items: [
-      "Muscle pain",
-      "Joint pain without swelling or redness",
-      "Eye pain",
-      "Chest pain",
-      "Headaches",
-    ],
-  },
-  {
-    domain: "Neurocognitive Symptoms",
-    items: [
-      "Difficulty paying attention for a long period of time",
-      "Problems remembering things",
-      "Difficulty finding the right word",
-      "Difficulty understanding things",
-      "Only able to focus on one thing at a time",
-      "Slowness of thought",
-      "Absent-mindedness or forgetfulness",
-    ],
-  },
-  {
-    domain: "Autonomic Manifestations",
-    items: [
-      "Feeling unsteady on your feet",
-      "Shortness of breath or difficulty breathing",
-      "Dizziness or fainting",
-      "Irregular heartbeat",
-      "Nausea",
-      "Bladder problems",
-      "Irritable bowel symptoms",
-    ],
-  },
-  {
-    domain: "Neuroendocrine Manifestations",
-    items: [
-      "Feeling cold when others are not",
-      "Hot or cold spells",
-      "Chills or shivers",
-      "Night sweats",
-      "Feeling feverish",
-      "Intolerance of extreme temperatures",
-      "Marked weight change (unexplained)",
-      "Loss of appetite or increased appetite",
-    ],
-  },
-  {
-    domain: "Immune Manifestations",
-    items: [
-      "Recurrent flu-like symptoms",
-      "Sore throat",
-      "Tender lymph nodes",
-      "New or increased sensitivity to food",
-      "New or increased sensitivity to medication",
-      "New or increased sensitivity to chemicals",
-      "New or increased sensitivity to noise",
-      "New or increased sensitivity to light",
-    ],
-  },
-  {
-    domain: "Additional Symptoms",
-    items: [
-      "Muscle weakness",
-      "Feeling tired throughout the day",
-      "Difficulty with everyday activities due to fatigue",
-      "Sensitivity to vibrations",
-      "Sensitivity to odours",
-      "Difficulty tolerating upright position",
-      "Anxiety",
-      "Depression",
-      "Irritability",
-      "Mood swings",
-      "Feeling overwhelmed by stress",
-    ],
-  },
-];
 
 const ALL_ITEMS = SYMPTOM_DOMAINS.flatMap(d => d.items.map(item => ({ item, domain: d.domain })));
 
-const FREQ_OPTIONS = [
-  { value: 0, label: "Never" },
-  { value: 1, label: "Sometimes\n(<half the time)" },
-  { value: 2, label: "About half\nthe time" },
-  { value: 3, label: "Most of\nthe time" },
-  { value: 4, label: "Always" },
-];
 
-const SEV_OPTIONS = [
-  { value: 0, label: "Symptom\nnot present" },
-  { value: 1, label: "Mild" },
-  { value: 2, label: "Moderate" },
-  { value: 3, label: "Severe" },
-  { value: 4, label: "Very severe" },
-];
 
 // PEM-specific questions
-const PEM_TRIGGERS = [
-  "Minimal physical exertion",
-  "Basic activities of daily living",
-  "Positional changes",
-  "Emotional stress",
-  "Chemicals/fragrances",
-  "Foods",
-  "Light",
-  "Heat",
-  "Cold",
-  "Noise",
-  "Visual overload",
-  "Sensory overload",
-  "Watching movement",
-  "Mold/environmental",
-];
 
-const RECOVERY_OPTIONS = [
-  "Less than 1 hour",
-  "Several hours",
-  "1 day",
-  "2–3 days",
-  "4–7 days",
-  "More than 1 week",
-];
 
 const ITEMS_PER_PAGE = 8;
 

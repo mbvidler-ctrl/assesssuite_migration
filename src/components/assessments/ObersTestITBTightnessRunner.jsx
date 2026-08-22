@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 export default function ObersTestITBTightnessRunner({ client, onSave, onClose }) {
   const [testingStage, setTestingStage] = useState("vitals"); // "vitals" | "test" | "complete"
@@ -40,34 +41,12 @@ export default function ObersTestITBTightnessRunner({ client, onSave, onClose })
   };
 
   const handleFinalSave = () => {
-    if (!postTestVitals.systolic || !postTestVitals.diastolic || !postTestVitals.heartRate) {
-      toast.error("Please enter post-test vital signs.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({ bilateralResults, preTestVitals, postTestVitals, notes }, { runnerKey: 'obers_test', assessmentDate: todayLocal() }));
+      toast.success("Ober's Test results saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const positiveCount = (bilateralResults.left === "positive" ? 1 : 0) + (bilateralResults.right === "positive" ? 1 : 0);
-    const soapText = `• Ober's Test (ITB Tightness)\n  Left: ${bilateralResults.left}\n  Right: ${bilateralResults.right}\n  Interpretation: ${
-      positiveCount === 2 ? "Bilateral ITB tightness" :
-      positiveCount === 1 ? "Unilateral ITB tightness" :
-      "No ITB tightness detected"
-    }`;
-
-    const additionalData = {
-      soap_text: soapText,
-      measurement_type: "obers_test",
-      left_result: bilateralResults.left,
-      right_result: bilateralResults.right,
-      positive_count: positiveCount,
-    };
-
-    onSave({
-      status: "completed",
-      result_value: positiveCount,
-      additional_data: additionalData,
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Ober's Test results saved successfully.");
   };
 
   const handleVitalsChange = (e, type, isPreTest) => {

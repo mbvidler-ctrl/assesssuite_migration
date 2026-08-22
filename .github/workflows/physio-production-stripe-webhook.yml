@@ -1,0 +1,2618 @@
+name: Physio production Stripe webhook bootstrap
+
+on:
+  workflow_dispatch:
+    inputs:
+      trusted_workflow_sha:
+        description: Exact current main SHA supplying this trusted workflow
+        required: true
+        type: string
+      application_sha:
+        description: Exact canary-proven application SHA
+        required: true
+        type: string
+      bootstrap_artifact_id:
+        description: Exact pre-webhook Fly bootstrap artifact ID
+        required: true
+        type: string
+      bootstrap_artifact_digest:
+        description: Exact pre-webhook Fly bootstrap artifact digest
+        required: true
+        type: string
+      bootstrap_receipt_sha256:
+        description: Raw-byte SHA-256 of physio-production-bootstrap.json
+        required: true
+        type: string
+      exact_image_canary_receipt_sha256:
+        description: Raw-byte SHA-256 of the admitted local-canary receipt
+        required: true
+        type: string
+      capability_intent_id:
+        description: Exact Stripe endpoint and staged-secret capability intent
+        required: true
+        type: string
+      authority_reference:
+        description: Mission or order reference authorising this action
+        required: true
+        type: string
+      resume_started_effect_artifact_id:
+        description: Exact prior STARTED, plan, compensation-phase, or completed artifact ID; 0 only for a fresh action
+        required: true
+        default: '0'
+        type: string
+      resume_started_effect_receipt_sha256:
+        description: Artifact control receipt SHA-256 (latest compensation phase when present), or 64 zeros for fresh
+        required: true
+        default: '0000000000000000000000000000000000000000000000000000000000000000'
+        type: string
+      confirmation:
+        description: Type CREATE PHYSIO STRIPE WEBHOOK AND STAGE SECRET
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: assesssuite-physio-production
+  cancel-in-progress: false
+
+jobs:
+  admit:
+    name: Admit exact pre-webhook bootstrap without provider credentials
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      admission_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      admission_receipt_sha256: ${{ steps.admit.outputs.admission_receipt_sha256 }}
+      bootstrap_run_id: ${{ steps.artifacts.outputs.bootstrap_run_id }}
+    steps:
+      - name: Validate trusted webhook dispatch
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          BOOTSTRAP_ARTIFACT_ID: ${{ inputs.bootstrap_artifact_id }}
+          BOOTSTRAP_ARTIFACT_DIGEST: ${{ inputs.bootstrap_artifact_digest }}
+          BOOTSTRAP_RECEIPT_SHA256: ${{ inputs.bootstrap_receipt_sha256 }}
+          CANARY_RECEIPT_SHA256: ${{ inputs.exact_image_canary_receipt_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          RESUME_ARTIFACT_ID: ${{ inputs.resume_started_effect_artifact_id }}
+          RESUME_RECEIPT_SHA256: ${{ inputs.resume_started_effect_receipt_sha256 }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == 'mbvidler-ctrl/assesssuite_migration' ]]
+          [[ "$ACTOR" == 'mbvidler-ctrl' && "$TRIGGERING_ACTOR" == 'mbvidler-ctrl' && "$IS_FORK" == 'false' ]]
+          [[ "$EVENT_REF" == 'refs/heads/main' ]]
+          [[ "$WORKFLOW_REF" == 'mbvidler-ctrl/assesssuite_migration/.github/workflows/physio-production-stripe-webhook.yml@refs/heads/main' ]]
+          [[ "$TRUSTED_WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ && "$APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" && "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$BOOTSTRAP_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$BOOTSTRAP_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$BOOTSTRAP_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ && "$CANARY_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$CAPABILITY_INTENT_ID" =~ ^[A-Za-z0-9._:-]{1,160}$ && "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
+          [[ "$RESUME_ARTIFACT_ID" =~ ^[0-9]+$ && "$RESUME_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          if [[ "$RESUME_ARTIFACT_ID" == '0' ]]; then
+            [[ "$RESUME_RECEIPT_SHA256" == '0000000000000000000000000000000000000000000000000000000000000000' ]]
+          else
+            [[ "$RESUME_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$RESUME_RECEIPT_SHA256" != '0000000000000000000000000000000000000000000000000000000000000000' ]]
+          fi
+          [[ "$CONFIRMATION" == 'CREATE PHYSIO STRIPE WEBHOOK AND STAGE SECRET' ]]
+
+      - name: Check out exact validator source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve and admit exact bootstrap source run
+        id: artifacts
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          BOOTSTRAP_ID: ${{ inputs.bootstrap_artifact_id }}
+          BOOTSTRAP_DIGEST: ${{ inputs.bootstrap_artifact_digest }}
+        run: |
+          set -euo pipefail
+          umask 077
+          spec="$RUNNER_TEMP/bootstrap-artifact-spec.json"
+          SPEC="$spec" APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_ID="$BOOTSTRAP_ID" BOOTSTRAP_DIGEST="$BOOTSTRAP_DIGEST" \
+          env -u FLY_API_TOKEN -u STRIPE_SECRET_KEY node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = { repository: 'mbvidler-ctrl/assesssuite_migration', application_sha: process.env.APPLICATION_SHA,
+            artifacts: [{ key: 'bootstrap', id: process.env.BOOTSTRAP_ID, expected_digest: process.env.BOOTSTRAP_DIGEST,
+              maximum_bytes: 33554432,
+              name_patterns: [`^physio-production-bootstrap-${process.env.APPLICATION_SHA}$`],
+              workflow_path: '.github/workflows/physio-production-bootstrap.yml', allowed_conclusions: ['success'] }] };
+          fs.writeFileSync(process.env.SPEC, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/github-artifact-admission.mjs --spec "$spec" \
+            --output "$RUNNER_TEMP/bootstrap-artifact-admission.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Download exact pre-webhook bootstrap
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.bootstrap_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.artifacts.outputs.bootstrap_run_id }}
+          path: ${{ runner.temp }}/bootstrap
+          github-token: ${{ github.token }}
+
+      - name: Validate exact pre-webhook bootstrap packet
+        id: admit
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          BOOTSTRAP_ARTIFACT_ID: ${{ inputs.bootstrap_artifact_id }}
+          BOOTSTRAP_ARTIFACT_DIGEST: ${{ inputs.bootstrap_artifact_digest }}
+          BOOTSTRAP_RECEIPT_SHA256: ${{ inputs.bootstrap_receipt_sha256 }}
+          CANARY_RECEIPT_SHA256: ${{ inputs.exact_image_canary_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" && -z "${STRIPE_SECRET_KEY:-}" ]]
+          packet="$RUNNER_TEMP/bootstrap"
+          receipt="$packet/physio-production-bootstrap.json"
+          [[ -f "$receipt" && ! -L "$receipt" && "$(wc -c <"$receipt")" -le 16384 ]]
+          [[ -f "$packet/SHA256SUMS" && ! -L "$packet/SHA256SUMS" ]]
+          (cd "$packet" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$receipt" | awk '{print $1}')" == "$BOOTSTRAP_RECEIPT_SHA256" ]]
+          RECEIPT="$receipt" APPLICATION_SHA="$APPLICATION_SHA" CANARY_SHA="$CANARY_RECEIPT_SHA256" \
+          env -u FLY_API_TOKEN -u STRIPE_SECRET_KEY node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECEIPT, 'utf8'));
+          const expectedNames = ['ADMIN_PASSWORD','APP_URL','EXPECTED_APP_URL','OPENAI_API_KEY','RESEND_API_KEY','SENTRY_DSN',
+            'STRIPE_PRICE_ID_ANNUAL','STRIPE_PRICE_ID_MONTHLY','STRIPE_SECRET_KEY'].sort();
+          if (row.contract_version !== 'assesssuite-physio-bootstrap/3.0.0' || row.result !== 'PASS' ||
+              row.application !== 'assesssuite-physio-production' || row.application_sha !== process.env.APPLICATION_SHA ||
+              row.profession_id !== 'physio' || row.region !== 'syd' || row.machine_count !== 0 ||
+              row.custom_certificate_count !== 0 || row.production_ready !== false || row.webhook_secret_pending !== true ||
+              row.exact_image_canary_receipt_sha256 !== process.env.CANARY_SHA ||
+              row.app_url_equals_expected_app_url !== true ||
+              JSON.stringify(row.staged_secret_names) !== JSON.stringify(expectedNames) ||
+              JSON.stringify(row.observed_secret_names) !== JSON.stringify(expectedNames) ||
+              !/^sha256:[0-9a-f]{64}$/.test(row.secret_bundle_fingerprint_sha256 || '') ||
+              !/^vol_[A-Za-z0-9]+$/.test(row.volume_id || '')) {
+            throw new Error('pre-webhook bootstrap receipt differs');
+          }
+          NODE
+          out="$RUNNER_TEMP/webhook-admission"
+          install -d -m 0700 "$out"
+          install -m 0600 "$RUNNER_TEMP/bootstrap-artifact-admission.json" "$out/bootstrap-artifact-admission.json"
+          RECEIPT="$out/physio-stripe-webhook-admission.json" APPLICATION_SHA="$APPLICATION_SHA" \
+          BOOTSTRAP_ID="$BOOTSTRAP_ARTIFACT_ID" BOOTSTRAP_DIGEST="$BOOTSTRAP_ARTIFACT_DIGEST" \
+          BOOTSTRAP_SHA="$BOOTSTRAP_RECEIPT_SHA256" CANARY_SHA="$CANARY_RECEIPT_SHA256" \
+          ARTIFACT_ADMISSION_SHA="$(sha256sum "$out/bootstrap-artifact-admission.json" | awk '{print $1}')" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = { contract_version: 'assesssuite-physio-stripe-webhook-admission/1.0.0', result: 'PASS',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            bootstrap_artifact_id: process.env.BOOTSTRAP_ID, bootstrap_artifact_digest: process.env.BOOTSTRAP_DIGEST,
+            bootstrap_receipt_sha256: process.env.BOOTSTRAP_SHA,
+            exact_image_canary_receipt_sha256: process.env.CANARY_SHA,
+            github_artifact_admission_sha256: process.env.ARTIFACT_ADMISSION_SHA,
+            provider_credentials_absent: true, admitted_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$out" && sha256sum physio-stripe-webhook-admission.json >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          echo "admission_receipt_sha256=$(sha256sum "$out/physio-stripe-webhook-admission.json" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+
+      - name: Scan bounded credential-free webhook admission
+        id: packet_scan
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/physio-stripe-webhook-evidence.mjs scan --root "$RUNNER_TEMP/webhook-admission"
+
+      - name: Upload credential-free webhook admission
+        id: upload
+        if: ${{ always() && steps.packet_scan.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-stripe-webhook-admission-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/webhook-admission
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  start:
+    name: Persist exact webhook STARTED effect before provider mutation
+    needs: admit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    outputs:
+      started_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      started_receipt_sha256: ${{ steps.start.outputs.started_receipt_sha256 }}
+      request_sha256: ${{ steps.start.outputs.request_sha256 }}
+      effect_identity_receipt_sha256: ${{ steps.start.outputs.effect_identity_receipt_sha256 }}
+      resume_completed: ${{ steps.start.outputs.resume_completed }}
+      completed_receipt_sha256: ${{ steps.start.outputs.completed_receipt_sha256 }}
+      completed_artifact_id: ${{ steps.upload_completed.outputs.artifact-id }}
+      resume_started_effect_run_id: ${{ steps.resume_artifacts.outputs.resume_started_effect_run_id }}
+      compensation_resume: ${{ steps.start.outputs.compensation_resume }}
+      compensation_control_receipt_sha256: ${{ steps.start.outputs.compensation_control_receipt_sha256 }}
+    steps:
+      - name: Check out exact resume validator source
+        if: ${{ inputs.resume_started_effect_artifact_id != '0' }}
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve and admit exact prior webhook effect source run
+        id: resume_artifacts
+        if: ${{ inputs.resume_started_effect_artifact_id != '0' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          RESUME_ID: ${{ inputs.resume_started_effect_artifact_id }}
+        run: |
+          set -euo pipefail
+          umask 077
+          spec="$RUNNER_TEMP/webhook-resume-artifact-spec.json"
+          SPEC="$spec" APPLICATION_SHA="$APPLICATION_SHA" RESUME_ID="$RESUME_ID" \
+          env -u FLY_API_TOKEN -u STRIPE_SECRET_KEY node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const sha = process.env.APPLICATION_SHA;
+          const row = { repository: 'mbvidler-ctrl/assesssuite_migration', application_sha: sha,
+            artifacts: [{ key: 'resume_started_effect', id: process.env.RESUME_ID, expected_digest: null,
+              maximum_bytes: 33554432,
+              name_patterns: [`^physio-stripe-webhook-started-${sha}$`,
+                `^physio-stripe-webhook-plan-${sha}(?:-[1-9][0-9]*)?$`,
+                `^physio-stripe-webhook-compensation-phase-${sha}-[0-9]+-[0-9]+$`,
+                `^physio-production-stripe-webhook-${sha}$`],
+              workflow_path: '.github/workflows/physio-production-stripe-webhook.yml',
+              allowed_conclusions: ['success','failure','cancelled','timed_out'] }] };
+          fs.writeFileSync(process.env.SPEC, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/github-artifact-admission.mjs --spec "$spec" \
+            --output "$RUNNER_TEMP/webhook-resume-artifact-admission.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Download prior unresolved effect for explicit resume binding
+        if: ${{ inputs.resume_started_effect_artifact_id != '0' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.resume_started_effect_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.resume_artifacts.outputs.resume_started_effect_run_id }}
+          path: ${{ runner.temp }}/resume
+          github-token: ${{ github.token }}
+
+      - name: Seal content-free STARTED effect packet
+        id: start
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          BOOTSTRAP_SHA: ${{ inputs.bootstrap_receipt_sha256 }}
+          CANARY_SHA: ${{ inputs.exact_image_canary_receipt_sha256 }}
+          ADMISSION_SHA: ${{ needs.admit.outputs.admission_receipt_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          RESUME_ARTIFACT_ID: ${{ inputs.resume_started_effect_artifact_id }}
+          RESUME_RECEIPT_SHA256: ${{ inputs.resume_started_effect_receipt_sha256 }}
+          RESUME_RUN_ID: ${{ steps.resume_artifacts.outputs.resume_started_effect_run_id }}
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          [[ -z "${STRIPE_SECRET_KEY:-}" && -z "${FLY_API_TOKEN:-}" ]]
+          umask 077
+          packet="$RUNNER_TEMP/webhook-effect-started"
+          install -d -m 0700 "$packet"
+          resume_artifact_admission="$packet/resume-artifact-admission.json"
+          endpoint='https://assesssuite-physio-production.fly.dev/api/apps/local-assesssuite-physio/functions/stripeWebhook'
+          prior_request_sha='0000000000000000000000000000000000000000000000000000000000000000'
+          prior_idempotency_key_sha256='0000000000000000000000000000000000000000000000000000000000000000'
+          prior_effect_receipt_sha='0000000000000000000000000000000000000000000000000000000000000000'
+          predecessor_control_receipt_sha='0000000000000000000000000000000000000000000000000000000000000000'
+          predecessor_control_kind='NOT_APPLICABLE'
+          effect_generation=0
+          if [[ "$RESUME_ARTIFACT_ID" == '0' ]]; then
+            [[ "$RESUME_RECEIPT_SHA256" == '0000000000000000000000000000000000000000000000000000000000000000' ]]
+            inventory_pages="$RUNNER_TEMP/webhook-artifact-inventory-pages"
+            install -d -m 0700 "$inventory_pages"
+            page=1
+            while :; do
+              page_file="$inventory_pages/page-$(printf '%06d' "$page").json"
+              curl --proto '=https' --tlsv1.2 --fail-with-body --silent --show-error --max-time 60 --max-redirs 0 \
+                -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' \
+                -H 'X-GitHub-Api-Version: 2022-11-28' \
+                "https://api.github.com/repos/$REPOSITORY/actions/artifacts?per_page=100&page=$page" >"$page_file"
+              page_count="$(PAGE="$page_file" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const value = JSON.parse(fs.readFileSync(process.env.PAGE, 'utf8'));
+          if (!Number.isSafeInteger(value?.total_count) || value.total_count < 0 ||
+              !Array.isArray(value?.artifacts) || value.artifacts.length > 100 ||
+              value.artifacts.some((row) => !Number.isSafeInteger(row?.id) || typeof row?.name !== 'string' ||
+                typeof row?.expired !== 'boolean')) throw new Error('webhook artifact inventory page differs');
+          process.stdout.write(String(value.artifacts.length));
+          NODE
+              )"
+              [[ "$page_count" =~ ^[0-9]+$ ]]
+              [[ "$page_count" -eq 100 ]] || break
+              page=$((page + 1))
+              [[ "$page" -le 1000 ]]
+            done
+            PAGES="$inventory_pages" RECEIPT="$packet/outstanding-effect-inventory.json" \
+              APPLICATION_SHA="$APPLICATION_SHA" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const pages = fs.readdirSync(process.env.PAGES).sort().map((name) =>
+            JSON.parse(fs.readFileSync(path.join(process.env.PAGES, name), 'utf8')));
+          const rows = pages.flatMap((value) => value.artifacts);
+          const ids = rows.map((row) => row.id);
+          if (new Set(ids).size !== ids.length || pages.some((value) => value.total_count !== pages[0].total_count) ||
+              rows.length !== pages[0].total_count) {
+            throw new Error('webhook artifact inventory pagination is incomplete or unstable');
+          }
+          const escaped = process.env.APPLICATION_SHA.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const historical = rows.filter((row) => [
+            new RegExp(`^physio-stripe-webhook-started-${escaped}$`),
+            new RegExp(`^physio-stripe-webhook-plan-${escaped}(?:-[1-9][0-9]*)?$`),
+            new RegExp(`^physio-stripe-webhook-compensation-phase-${escaped}-[0-9]+-[0-9]+$`),
+            new RegExp(`^physio-production-stripe-webhook-${escaped}$`),
+          ].some((pattern) => pattern.test(row.name)));
+          if (historical.length !== 0) {
+            throw new Error('webhook has historical STARTED, provider-plan, compensation-phase, effect, or completed evidence; explicit exact resume is required');
+          }
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify({
+            contract_version: 'assesssuite-outstanding-effect-inventory/2.0.0', result: 'PASS',
+            application_sha: process.env.APPLICATION_SHA, historical_artifact_count: 0,
+            historical_artifact_classes: ['STARTED','PROVIDER_PLAN','COMPENSATION_PHASE','EFFECT','COMPLETED'],
+            expired_metadata_included: true, pages_scanned: pages.length,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+            rm -rf "$inventory_pages"
+            RECEIPT="$packet/resume-sibling-inventory.json" APPLICATION_SHA="$APPLICATION_SHA" \
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify({
+            contract_version: 'assesssuite-webhook-resume-sibling-inventory/1.0.0',
+            result: 'NOT_APPLICABLE', application_sha: process.env.APPLICATION_SHA,
+            source_run_id: null, selected_artifact_id: null, selected_artifact_name: null,
+            selected_lifecycle_kind: null, selected_is_latest: true,
+            eligible_artifacts: [], inventoried_at: null,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+            RECEIPT="$resume_artifact_admission" APPLICATION_SHA="$APPLICATION_SHA" \
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify({
+            contract_version: 'assesssuite-github-artifact-admission/1.0.0', result: 'NOT_APPLICABLE',
+            repository: 'mbvidler-ctrl/assesssuite_migration', application_sha: process.env.APPLICATION_SHA,
+            artifacts: {}, admitted_at: null,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          else
+            RECEIPT="$packet/outstanding-effect-inventory.json" APPLICATION_SHA="$APPLICATION_SHA" \
+              node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify({
+             contract_version: 'assesssuite-outstanding-effect-inventory/2.0.0', result: 'NOT_APPLICABLE',
+             application_sha: process.env.APPLICATION_SHA, historical_artifact_count: null,
+             historical_artifact_classes: ['STARTED','PROVIDER_PLAN','COMPENSATION_PHASE','EFFECT','COMPLETED'],
+             expired_metadata_included: true, pages_scanned: null,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+            install -m 0600 "$RUNNER_TEMP/webhook-resume-artifact-admission.json" "$resume_artifact_admission"
+            [[ "$RESUME_RUN_ID" =~ ^[1-9][0-9]*$ ]]
+            sibling_pages="$RUNNER_TEMP/webhook-resume-sibling-pages"
+            install -d -m 0700 "$sibling_pages"
+            page=1
+            while :; do
+              page_file="$sibling_pages/page-$(printf '%06d' "$page").json"
+              curl --proto '=https' --tlsv1.2 --fail-with-body --silent --show-error --max-time 60 --max-redirs 0 \
+                -H "Authorization: Bearer $GITHUB_TOKEN" -H 'Accept: application/vnd.github+json' \
+                -H 'X-GitHub-Api-Version: 2022-11-28' \
+                "https://api.github.com/repos/$REPOSITORY/actions/runs/$RESUME_RUN_ID/artifacts?per_page=100&page=$page" \
+                >"$page_file"
+              page_count="$(PAGE="$page_file" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const value = JSON.parse(fs.readFileSync(process.env.PAGE, 'utf8'));
+          if (!Number.isSafeInteger(value?.total_count) || value.total_count < 0 ||
+              !Array.isArray(value?.artifacts) || value.artifacts.length > 100) {
+            throw new Error('webhook resume sibling inventory page differs');
+          }
+          process.stdout.write(String(value.artifacts.length));
+          NODE
+              )"
+              [[ "$page_count" =~ ^[0-9]+$ ]]
+              [[ "$page_count" -eq 100 ]] || break
+              page=$((page + 1))
+              [[ "$page" -le 1000 ]]
+            done
+            PAGES="$sibling_pages" RECEIPT="$packet/resume-sibling-inventory.json" \
+              ADMISSION="$resume_artifact_admission" APPLICATION_SHA="$APPLICATION_SHA" \
+              SOURCE_RUN_ID="$RESUME_RUN_ID" SELECTED_ID="$RESUME_ARTIFACT_ID" \
+              node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const pages = fs.readdirSync(process.env.PAGES).sort().map((name) =>
+            JSON.parse(fs.readFileSync(path.join(process.env.PAGES, name), 'utf8')));
+          const rows = pages.flatMap((value) => value.artifacts);
+          const ids = rows.map((row) => row?.id);
+          if (pages.length < 1 || pages.some((value) => value.total_count !== pages[0].total_count) ||
+              rows.length !== pages[0].total_count || ids.some((id) => !Number.isSafeInteger(id) || id < 1) ||
+              new Set(ids).size !== ids.length) {
+            throw new Error('webhook resume sibling inventory pagination is incomplete or unstable');
+          }
+          const escaped = process.env.APPLICATION_SHA.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+          const patterns = {
+            STARTED: new RegExp(`^physio-stripe-webhook-started-${escaped}$`),
+            PROVIDER_PLAN: new RegExp(`^physio-stripe-webhook-plan-${escaped}(?:-[1-9][0-9]*)?$`),
+            COMPENSATION_PHASE: new RegExp(
+              `^physio-stripe-webhook-compensation-phase-${escaped}-([0-9]+)-([0-9]+)$`),
+            EFFECT_OR_COMPLETED: new RegExp(`^physio-production-stripe-webhook-${escaped}$`),
+          };
+          const classify = (name) => {
+            if (patterns.STARTED.test(name)) return { lifecycle_kind: 'STARTED', rank: 1, generation: null, revision: null };
+            if (patterns.PROVIDER_PLAN.test(name)) return { lifecycle_kind: 'PROVIDER_PLAN', rank: 2, generation: null, revision: null };
+            const compensation = name.match(patterns.COMPENSATION_PHASE);
+            if (compensation) return { lifecycle_kind: 'COMPENSATION_PHASE', rank: 3,
+              generation: Number(compensation[1]), revision: Number(compensation[2]) };
+            if (patterns.EFFECT_OR_COMPLETED.test(name)) return { lifecycle_kind: 'EFFECT_OR_COMPLETED', rank: 4,
+              generation: null, revision: null };
+            return null;
+          };
+          const eligible = rows.filter((row) => classify(row?.name || '') !== null).map((row) => {
+            const lifecycle = classify(row.name);
+            if (row.expired !== false || !/^sha256:[0-9a-f]{64}$/.test(row.digest || '') ||
+                !Number.isSafeInteger(row.size_in_bytes) || row.size_in_bytes < 1 || row.size_in_bytes > 33554432 ||
+                (row.workflow_run?.id !== undefined && Number(row.workflow_run.id) !== Number(process.env.SOURCE_RUN_ID)) ||
+                !Number.isSafeInteger(lifecycle.generation ?? 0) || !Number.isSafeInteger(lifecycle.revision ?? 0)) {
+              throw new Error('webhook resume sibling artifact metadata differs');
+            }
+            return { id: row.id, name: row.name, digest: row.digest, expired: false,
+              size_in_bytes: row.size_in_bytes, lifecycle_kind: lifecycle.lifecycle_kind,
+              generation: lifecycle.generation, revision: lifecycle.revision, rank: lifecycle.rank };
+          }).sort((a, b) => a.id - b.id);
+          const counts = new Map();
+          const coordinates = new Set();
+          const compensationGenerations = new Set();
+          let latest = null;
+          for (const row of eligible) {
+            counts.set(row.lifecycle_kind, (counts.get(row.lifecycle_kind) || 0) + 1);
+            const coordinate = row.lifecycle_kind === 'COMPENSATION_PHASE' ? `${row.generation}:${row.revision}` : row.lifecycle_kind;
+            if (coordinates.has(coordinate)) throw new Error('webhook resume sibling lifecycle is duplicated');
+            coordinates.add(coordinate);
+            if (row.lifecycle_kind === 'COMPENSATION_PHASE') {
+              compensationGenerations.add(row.generation);
+            }
+            const order = row.lifecycle_kind === 'COMPENSATION_PHASE' ? row.revision : 0;
+            if (!latest || row.rank > latest.rank || (row.rank === latest.rank && order > latest.order)) {
+              latest = { id: row.id, name: row.name, rank: row.rank, order };
+            } else if (row.rank === latest.rank && order === latest.order) {
+              throw new Error('webhook resume sibling lifecycle is ambiguous');
+            }
+          }
+          for (const kind of ['STARTED','PROVIDER_PLAN','EFFECT_OR_COMPLETED']) {
+            if ((counts.get(kind) || 0) > 1) throw new Error(`webhook resume sibling ${kind} is duplicated`);
+          }
+          if (compensationGenerations.size > 1) {
+            throw new Error('webhook resume sibling compensation artifacts span effect generations');
+          }
+          const selectedId = Number(process.env.SELECTED_ID);
+          const selected = eligible.find((row) => row.id === selectedId);
+          const admission = JSON.parse(fs.readFileSync(process.env.ADMISSION, 'utf8'));
+          const admitted = admission?.artifacts?.resume_started_effect;
+          if (!selected || latest?.id !== selectedId || admitted?.id !== selectedId ||
+              admitted?.name !== selected.name || admitted?.digest !== selected.digest ||
+              admitted?.size_in_bytes !== selected.size_in_bytes ||
+              admitted?.workflow_run_id !== Number(process.env.SOURCE_RUN_ID)) {
+            throw new Error('selected webhook resume artifact is not the exact latest source-run lifecycle control');
+          }
+          const sanitized = eligible.map((row) => ({
+            digest: row.digest, expired: row.expired, generation: row.generation, id: row.id,
+            lifecycle_kind: row.lifecycle_kind, name: row.name, revision: row.revision,
+            size_in_bytes: row.size_in_bytes,
+          }));
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify({
+            contract_version: 'assesssuite-webhook-resume-sibling-inventory/1.0.0', result: 'PASS',
+            application_sha: process.env.APPLICATION_SHA, source_run_id: Number(process.env.SOURCE_RUN_ID),
+            selected_artifact_id: selectedId, selected_artifact_name: selected.name,
+            selected_lifecycle_kind: selected.lifecycle_kind, selected_is_latest: true,
+            eligible_artifacts: sanitized, inventoried_at: new Date().toISOString(),
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+            rm -rf "$sibling_pages"
+            prior="$RUNNER_TEMP/resume/stripe-webhook-effect-reconciliation.json"
+            prior_request="$RUNNER_TEMP/resume/stripe-webhook-request-manifest.json"
+            prior_identity="$RUNNER_TEMP/resume/stripe-webhook-effect-identity.json"
+            prior_sums="$RUNNER_TEMP/resume/SHA256SUMS"
+            [[ -f "$prior" && ! -L "$prior" && -f "$prior_request" && ! -L "$prior_request" && \
+              -f "$prior_identity" && ! -L "$prior_identity" && \
+              -f "$prior_sums" && ! -L "$prior_sums" && "$(wc -c <"$prior")" -le 16384 ]]
+            if find "$RUNNER_TEMP/resume" -type l -print -quit | grep -q .; then exit 1; fi
+            (cd "$RUNNER_TEMP/resume" && sha256sum --check --strict SHA256SUMS)
+            latest_compensation_phase="$(find "$RUNNER_TEMP/resume" -mindepth 1 -maxdepth 1 -type f \
+              -name 'stripe-webhook-compensation-phase-[0-9][0-9][0-9].json' -printf '%f\n' | LC_ALL=C sort | tail -n 1)"
+            terminal_compensation_boundary=false
+            if [[ -n "$latest_compensation_phase" ]]; then
+              IFS=$'\t' read -r compensation_generation compensation_request_sha compensation_started_sha \
+                compensation_identity_sha compensation_control_sha compensation_completed < <(
+                PACKET="$RUNNER_TEMP/resume" APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_SHA" \
+                INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" CONTROL_SHA="$RESUME_RECEIPT_SHA256" \
+                env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { validateStripeWebhookCompensationPacket } from './scripts/physio-stripe-webhook-evidence.mjs';
+          const proof = validateStripeWebhookCompensationPacket(process.env.PACKET, {
+            applicationSha: process.env.APPLICATION_SHA,
+            authorityReference: process.env.AUTHORITY,
+            bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+            capabilityIntentId: process.env.INTENT,
+            controlReceiptSha256: process.env.CONTROL_SHA,
+            requireCompleted: false,
+          });
+          process.stdout.write([proof.effect_generation, proof.request_sha256,
+            proof.started_effect_receipt_sha256, proof.effect_identity_receipt_sha256,
+            proof.latest_phase_receipt_sha256, proof.compensation_completed].join('\t'));
+          NODE
+              )
+              if [[ "$compensation_completed" == 'true' ]]; then
+                terminal_compensation_boundary=true
+                prior_effect_receipt_sha="$compensation_started_sha"
+                predecessor_control_receipt_sha="$compensation_control_sha"
+                predecessor_control_kind='TERMINAL_COMPENSATION'
+              else
+                install -m 0600 "$packet/resume-sibling-inventory.json" \
+                  "$packet/compensation-resume-sibling-inventory.json"
+                original_admission="$packet/resume-artifact-admission.json"
+                rm -f "$original_admission"
+                for name in outstanding-effect-inventory.json resume-artifact-admission.json \
+                  resume-sibling-inventory.json stripe-webhook-effect-identity.json \
+                  stripe-webhook-effect-reconciliation.json stripe-webhook-request-manifest.json; do
+                  install -m 0600 "$RUNNER_TEMP/resume/$name" "$packet/$name"
+                done
+                install -m 0600 "$RUNNER_TEMP/webhook-resume-artifact-admission.json" \
+                  "$packet/compensation-resume-artifact-admission.json"
+                (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+                echo "started_receipt_sha256=$compensation_started_sha" >>"$GITHUB_OUTPUT"
+                echo "request_sha256=$compensation_request_sha" >>"$GITHUB_OUTPUT"
+                echo "effect_identity_receipt_sha256=$compensation_identity_sha" >>"$GITHUB_OUTPUT"
+                echo "compensation_control_receipt_sha256=$compensation_control_sha" >>"$GITHUB_OUTPUT"
+                echo 'compensation_resume=true' >>"$GITHUB_OUTPUT"
+                echo 'resume_completed=false' >>"$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+            if [[ "$terminal_compensation_boundary" != 'true' && -f "$RUNNER_TEMP/resume/stripe-provider-plan.json" ]]; then
+              IFS=$'\t' read -r plan_generation plan_request_sha plan_started_sha plan_identity_sha plan_control_sha < <(
+                PACKET="$RUNNER_TEMP/resume" APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_SHA" \
+                INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" CONTROL_SHA="$RESUME_RECEIPT_SHA256" \
+                env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { sanitizeStripeWebhookEndpoint } from './scripts/physio-stripe-webhook-evidence.mjs';
+          const sha = (value) => createHash('sha256').update(value).digest('hex');
+          const shaFile = (name) => sha(fs.readFileSync(path.join(process.env.PACKET, name)));
+          const plan = JSON.parse(fs.readFileSync(path.join(process.env.PACKET, 'stripe-provider-plan.json'), 'utf8'));
+          const started = JSON.parse(fs.readFileSync(path.join(process.env.PACKET,
+            'stripe-webhook-effect-reconciliation.json'), 'utf8'));
+          const request = JSON.parse(fs.readFileSync(path.join(process.env.PACKET,
+            'stripe-webhook-request-manifest.json'), 'utf8'));
+          const probe = JSON.parse(fs.readFileSync(path.join(process.env.PACKET,
+            'stripe-provider-probe.json'), 'utf8'));
+          const requestIds = JSON.parse(fs.readFileSync(path.join(process.env.PACKET,
+            'provider-probe-request-id-hashes.json'), 'utf8'));
+          const identitySha = shaFile('stripe-webhook-effect-identity.json');
+          const startedSha = shaFile('stripe-webhook-effect-reconciliation.json');
+          const planSha = shaFile('stripe-provider-plan.json');
+          const commonFiles = ['SHA256SUMS','outstanding-effect-inventory.json','provider-probe-request-id-hashes.json',
+            'resume-artifact-admission.json','resume-sibling-inventory.json','stripe-provider-plan.json',
+            'stripe-provider-probe.json','stripe-webhook-effect-identity.json',
+            'stripe-webhook-effect-reconciliation.json','stripe-webhook-request-manifest.json'];
+          const priorFiles = ['prior-stripe-webhook-effect-identity.json',
+            'prior-stripe-webhook-effect-reconciliation.json','prior-stripe-webhook-request-manifest.json'];
+          const actualFiles = fs.readdirSync(process.env.PACKET).sort();
+          const expectedFiles = [...commonFiles, ...(plan.provider_state === 'EXACT' ? priorFiles : [])].sort();
+          if (JSON.stringify(actualFiles) !== JSON.stringify(expectedFiles) || process.env.CONTROL_SHA !== planSha ||
+              plan.application_sha !== process.env.APPLICATION_SHA ||
+              plan.bootstrap_receipt_sha256 !== process.env.BOOTSTRAP_SHA ||
+              plan.capability_intent_id !== process.env.INTENT || plan.authority_reference !== process.env.AUTHORITY ||
+              started.result !== 'STARTED' || plan.started_effect_receipt_sha256 !== startedSha ||
+              plan.request_sha256 !== request.request_sha256 || started.request_sha256 !== request.request_sha256 ||
+              plan.effect_generation !== request.effect_generation || started.effect_generation !== request.effect_generation ||
+              plan.current_effect_identity_receipt_sha256 !== identitySha ||
+              request.metadata?.startedEffectReceiptSha256 !== identitySha ||
+              requestIds.contract_version !== 'assesssuite-provider-request-id-hashes/1.0.0' ||
+              requestIds.provider !== 'stripe' ||
+              !/^[0-9a-f]{64}$/.test(requestIds.hashes?.provider_probe || '') ||
+              plan.provider_probe_readback_sha256 !== shaFile('stripe-provider-probe.json') ||
+              plan.provider_probe_request_id_hashes_sha256 !== shaFile('provider-probe-request-id-hashes.json')) {
+            throw new Error('latest STARTED plus provider-plan common intent differs');
+          }
+          if (plan.provider_state === 'EXACT') {
+            const priorEffect = JSON.parse(fs.readFileSync(path.join(process.env.PACKET,
+              'prior-stripe-webhook-effect-reconciliation.json'), 'utf8'));
+            const priorRequest = JSON.parse(fs.readFileSync(path.join(process.env.PACKET,
+              'prior-stripe-webhook-request-manifest.json'), 'utf8'));
+            const priorIdentitySha = shaFile('prior-stripe-webhook-effect-identity.json');
+            if (plan.endpoint_lineage !== 'PRIOR' || plan.observed_endpoint_lineage !== 'PRIOR' ||
+                plan.planned_action !== 'RECONCILE_OR_COMPENSATE_EXACT' ||
+                request.prior_effect_receipt_sha256 !== shaFile('prior-stripe-webhook-effect-reconciliation.json') ||
+                request.prior_request_sha256 !== priorRequest.request_sha256 ||
+                priorEffect.effect_generation + 1 !== request.effect_generation ||
+                priorEffect.request_sha256 !== plan.endpoint_request_sha256 ||
+                priorIdentitySha !== plan.endpoint_started_effect_receipt_sha256 ||
+                sanitizeStripeWebhookEndpoint(probe.exact_endpoint, priorRequest.metadata).id !== plan.exact_endpoint_id) {
+              throw new Error('latest exact provider-plan compensation intent differs');
+            }
+          } else if (plan.provider_state === 'ABSENT') {
+            if (plan.endpoint_lineage !== 'NONE' || plan.observed_endpoint_lineage !== 'NONE' ||
+                plan.planned_action !== 'CREATE_FROM_PROVEN_ABSENCE' ||
+                !['NOT_APPLICABLE','NOT_APPLIED_BY_AUTHORITATIVE_ABSENCE'].includes(plan.prior_effect_resolution) ||
+                plan.exact_endpoint_id !== null || plan.exact_endpoint_id_sha256 !== null ||
+                plan.endpoint_effect_generation !== null || plan.endpoint_request_sha256 !== null ||
+                plan.endpoint_started_effect_receipt_sha256 !== null ||
+                plan.observed_endpoint_effect_generation !== null || plan.observed_endpoint_request_sha256 !== null ||
+                plan.observed_endpoint_started_effect_receipt_sha256 !== null ||
+                probe.has_more !== false || probe.exact_url_count !== 0 ||
+                probe.physio_metadata_bound_count !== 0 || probe.exact_endpoint !== null) {
+              throw new Error('latest absent provider-plan intent differs');
+            }
+          } else {
+            throw new Error('latest provider-plan state differs');
+          }
+          process.stdout.write([request.effect_generation, request.request_sha256, startedSha,
+            identitySha, planSha].join('\t'));
+          NODE
+              )
+              rm -f "$packet/resume-artifact-admission.json"
+              install -m 0600 "$packet/resume-sibling-inventory.json" \
+                "$packet/compensation-resume-sibling-inventory.json"
+              for name in outstanding-effect-inventory.json resume-artifact-admission.json resume-sibling-inventory.json \
+                stripe-webhook-effect-identity.json stripe-webhook-effect-reconciliation.json \
+                stripe-webhook-request-manifest.json; do
+                install -m 0600 "$RUNNER_TEMP/resume/$name" "$packet/$name"
+              done
+              install -m 0600 "$RUNNER_TEMP/webhook-resume-artifact-admission.json" \
+                "$packet/compensation-resume-artifact-admission.json"
+              (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+              echo "started_receipt_sha256=$plan_started_sha" >>"$GITHUB_OUTPUT"
+              echo "request_sha256=$plan_request_sha" >>"$GITHUB_OUTPUT"
+              echo "effect_identity_receipt_sha256=$plan_identity_sha" >>"$GITHUB_OUTPUT"
+              echo "compensation_control_receipt_sha256=$plan_control_sha" >>"$GITHUB_OUTPUT"
+              echo 'compensation_resume=true' >>"$GITHUB_OUTPUT"
+              echo 'resume_completed=false' >>"$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [[ -f "$RUNNER_TEMP/resume/physio-production-stripe-webhook.json" ]]; then
+              IFS=$'\t' read -r completed_receipt_sha prior_request_sha original_started_sha < <(
+                PACKET="$RUNNER_TEMP/resume" APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_SHA" \
+                CANARY_SHA="$CANARY_SHA" INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" \
+                EFFECT_SHA="$RESUME_RECEIPT_SHA256" env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { validateCompletedStripeWebhookPacket } from './scripts/physio-stripe-webhook-evidence.mjs';
+          const proof = validateCompletedStripeWebhookPacket(process.env.PACKET, {
+            applicationSha: process.env.APPLICATION_SHA,
+            authorityReference: process.env.AUTHORITY,
+            bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+            canaryReceiptSha256: process.env.CANARY_SHA,
+            capabilityIntentId: process.env.INTENT,
+            effectReceiptSha256: process.env.EFFECT_SHA,
+          });
+          process.stdout.write([proof.final_receipt_sha256, proof.request_sha256,
+            proof.started_effect_receipt_sha256].join('\t'));
+          NODE
+              )
+              reuse="$RUNNER_TEMP/webhook-completed-reuse"
+              install -d -m 0700 "$reuse"
+              while IFS= read -r -d '' file; do
+                install -m 0600 "$file" "$reuse/$(basename "$file")"
+              done < <(find "$RUNNER_TEMP/resume" -mindepth 1 -maxdepth 1 -type f -print0)
+              echo 'resume_completed=true' >>"$GITHUB_OUTPUT"
+              echo "completed_receipt_sha256=$completed_receipt_sha" >>"$GITHUB_OUTPUT"
+              echo "started_receipt_sha256=$original_started_sha" >>"$GITHUB_OUTPUT"
+              echo "request_sha256=$prior_request_sha" >>"$GITHUB_OUTPUT"
+              echo 'compensation_resume=false' >>"$GITHUB_OUTPUT"
+              echo 'compensation_control_receipt_sha256=0000000000000000000000000000000000000000000000000000000000000000' >>"$GITHUB_OUTPUT"
+              exit 0
+            fi
+            if [[ "$terminal_compensation_boundary" != 'true' ]]; then
+              prior_effect_receipt_sha="$RESUME_RECEIPT_SHA256"
+              predecessor_control_receipt_sha="$RESUME_RECEIPT_SHA256"
+              predecessor_control_kind='EFFECT_RECONCILIATION'
+            fi
+            [[ "$(sha256sum "$prior" | awk '{print $1}')" == "$prior_effect_receipt_sha" ]]
+            IFS=$'\t' read -r prior_generation prior_request_sha prior_idempotency_key_sha256 < <(PRIOR="$prior" PRIOR_REQUEST="$prior_request" \
+              PRIOR_IDENTITY="$prior_identity" \
+              APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_SHA" CANARY_SHA="$CANARY_SHA" \
+              INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" ENDPOINT="$endpoint" \
+              node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.PRIOR, 'utf8'));
+          const request = JSON.parse(fs.readFileSync(process.env.PRIOR_REQUEST, 'utf8'));
+          const identity = JSON.parse(fs.readFileSync(process.env.PRIOR_IDENTITY, 'utf8'));
+          const identitySha = createHash('sha256').update(fs.readFileSync(process.env.PRIOR_IDENTITY)).digest('hex');
+          const storedRequestSha = request.request_sha256;
+          const requestForHash = { ...request, metadata: { ...request.metadata } };
+          delete requestForHash.request_sha256;
+          delete requestForHash.metadata.requestSha256;
+          const calculatedRequestSha = createHash('sha256').update(JSON.stringify(requestForHash)).digest('hex');
+          if (row.contract_version !== 'assesssuite-physio-stripe-webhook-effect-reconciliation/1.0.0' ||
+              !['STARTED','STARTED_UNRESOLVED'].includes(row.result) || row.application_sha !== process.env.APPLICATION_SHA ||
+              row.bootstrap_receipt_sha256 !== process.env.BOOTSTRAP_SHA ||
+              row.exact_image_canary_receipt_sha256 !== process.env.CANARY_SHA ||
+              row.capability_intent_id !== process.env.INTENT || row.authority_reference !== process.env.AUTHORITY ||
+              row.request_sha256 !== storedRequestSha ||
+              row.effect_identity_receipt_sha256 !== identitySha ||
+              calculatedRequestSha !== storedRequestSha || !Number.isSafeInteger(row.effect_generation) || row.effect_generation < 0 ||
+              request.effect_generation !== row.effect_generation || request.endpoint !== process.env.ENDPOINT ||
+              request.capability_intent_id !== process.env.INTENT || request.authority_reference !== process.env.AUTHORITY ||
+              request.metadata?.applicationSha !== process.env.APPLICATION_SHA ||
+              request.metadata?.bootstrapReceiptSha256 !== process.env.BOOTSTRAP_SHA ||
+              request.metadata?.effectGeneration !== String(row.effect_generation) ||
+              request.metadata?.requestSha256 !== storedRequestSha ||
+              request.metadata?.startedEffectReceiptSha256 !== identitySha ||
+              identity.contract_version !== 'assesssuite-physio-stripe-webhook-effect-identity/1.0.0' ||
+              identity.result !== 'STARTED' || identity.application_sha !== row.application_sha ||
+              identity.bootstrap_receipt_sha256 !== row.bootstrap_receipt_sha256 ||
+              identity.exact_image_canary_receipt_sha256 !== row.exact_image_canary_receipt_sha256 ||
+              identity.capability_intent_id !== row.capability_intent_id ||
+              identity.authority_reference !== process.env.AUTHORITY ||
+              identity.effect_generation !== row.effect_generation ||
+              identity.prior_effect_receipt_sha256 !== row.resume_started_effect_receipt_sha256 ||
+              identity.prior_request_sha256 !== row.prior_request_sha256 ||
+              identity.prior_artifact_admission_sha256 !== row.prior_artifact_admission_sha256 ||
+               identity.predecessor_control_kind !== row.predecessor_control_kind ||
+               identity.predecessor_control_receipt_sha256 !== row.predecessor_control_receipt_sha256 ||
+               identity.idempotency_key_sha256 !== row.idempotency_key_sha256 ||
+               identity.prior_idempotency_key_sha256 !== row.prior_idempotency_key_sha256 ||
+               request.idempotency_key_sha256 !== row.idempotency_key_sha256 ||
+               request.prior_idempotency_key_sha256 !== row.prior_idempotency_key_sha256 ||
+               !/^[0-9a-f]{64}$/.test(row.idempotency_key_sha256 || '')) {
+             throw new Error('webhook_endpoint_create_response_unknown prior generation binding differs');
+           }
+           process.stdout.write(`${row.effect_generation}\t${storedRequestSha}\t${row.idempotency_key_sha256}`);
+          NODE
+            )
+            [[ "$prior_generation" =~ ^[0-9]+$ && "$prior_request_sha" =~ ^[0-9a-f]{64}$ ]]
+            effect_generation=$((prior_generation + 1))
+          fi
+          resume_artifact_admission_sha="$(sha256sum "$resume_artifact_admission" | awk '{print $1}')"
+          # Every deliberate resume gets a new deterministic Stripe key while
+          # retries inside one run retain the exact same key. This prevents an
+          # expired original idempotency cache from resurrecting a compensated
+          # (deleted) endpoint after a hard runner loss.
+          idempotency_key="physio-webhook-$(printf '%s' "$APPLICATION_SHA|$BOOTSTRAP_SHA|$CAPABILITY_INTENT_ID|$effect_generation|$prior_effect_receipt_sha" | sha256sum | cut -c1-40)"
+          idempotency_key_sha256="$(printf '%s' "$idempotency_key" | sha256sum | awk '{print $1}')"
+          if [[ "$RESUME_ARTIFACT_ID" != '0' && "$idempotency_key_sha256" == "$prior_idempotency_key_sha256" ]]; then
+            echo 'resumed generation would reuse prior_idempotency_key_sha256' >&2
+            exit 1
+          fi
+          IDENTITY="$packet/stripe-webhook-effect-identity.json" APPLICATION_SHA="$APPLICATION_SHA" \
+          BOOTSTRAP_SHA="$BOOTSTRAP_SHA" CANARY_SHA="$CANARY_SHA" INTENT="$CAPABILITY_INTENT_ID" \
+          AUTHORITY="$AUTHORITY_REFERENCE" GENERATION="$effect_generation" \
+          PRIOR_EFFECT_SHA="$prior_effect_receipt_sha" PRIOR_REQUEST_SHA="$prior_request_sha" \
+          PRIOR_ARTIFACT_ADMISSION_SHA="$resume_artifact_admission_sha" \
+          PREDECESSOR_CONTROL_SHA="$predecessor_control_receipt_sha" \
+          PREDECESSOR_CONTROL_KIND="$predecessor_control_kind" \
+          IDEMPOTENCY_SHA="$idempotency_key_sha256" PRIOR_IDEMPOTENCY_SHA="$prior_idempotency_key_sha256" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = {
+            contract_version: 'assesssuite-physio-stripe-webhook-effect-identity/1.0.0',
+            result: 'STARTED', application: 'assesssuite-physio-production',
+            application_sha: process.env.APPLICATION_SHA,
+            bootstrap_receipt_sha256: process.env.BOOTSTRAP_SHA,
+            exact_image_canary_receipt_sha256: process.env.CANARY_SHA,
+            capability_intent_id: process.env.INTENT,
+            authority_reference: process.env.AUTHORITY,
+            effect_generation: Number(process.env.GENERATION),
+            prior_effect_receipt_sha256: process.env.PRIOR_EFFECT_SHA,
+            predecessor_control_receipt_sha256: process.env.PREDECESSOR_CONTROL_SHA,
+            predecessor_control_kind: process.env.PREDECESSOR_CONTROL_KIND,
+            prior_request_sha256: process.env.PRIOR_REQUEST_SHA,
+            prior_artifact_admission_sha256: process.env.PRIOR_ARTIFACT_ADMISSION_SHA,
+            idempotency_key_sha256: process.env.IDEMPOTENCY_SHA,
+            prior_idempotency_key_sha256: process.env.PRIOR_IDEMPOTENCY_SHA,
+          };
+          fs.writeFileSync(process.env.IDENTITY, JSON.stringify(row, null, 2) + '\n', {
+            flag: 'wx', mode: 0o600,
+          });
+          NODE
+          effect_identity_sha="$(sha256sum "$packet/stripe-webhook-effect-identity.json" | awk '{print $1}')"
+          REQUEST="$packet/stripe-webhook-request-manifest.json" ENDPOINT="$endpoint" APPLICATION_SHA="$APPLICATION_SHA" \
+          BOOTSTRAP_SHA="$BOOTSTRAP_SHA" INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" \
+          GENERATION="$effect_generation" \
+          PRIOR_EFFECT_SHA="$prior_effect_receipt_sha" PRIOR_REQUEST_SHA="$prior_request_sha" \
+          PRIOR_ARTIFACT_ADMISSION_SHA="$resume_artifact_admission_sha" \
+          PREDECESSOR_CONTROL_SHA="$predecessor_control_receipt_sha" \
+          PREDECESSOR_CONTROL_KIND="$predecessor_control_kind" \
+          EFFECT_IDENTITY_SHA="$effect_identity_sha" \
+          IDEMPOTENCY_SHA="$idempotency_key_sha256" PRIOR_IDEMPOTENCY_SHA="$prior_idempotency_key_sha256" \
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const events = ['checkout.session.completed','customer.subscription.deleted','customer.subscription.paused','invoice.payment_failed'];
+          const metadata = { appId: 'local-assesssuite-physio', applicationSha: process.env.APPLICATION_SHA,
+            bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA, capabilityIntentId: process.env.INTENT,
+            effectGeneration: process.env.GENERATION, professionId: 'physio',
+            startedEffectReceiptSha256: process.env.EFFECT_IDENTITY_SHA };
+          const request = { endpoint: process.env.ENDPOINT, api_version: '2026-07-29.dahlia', enabled_events: events,
+            metadata,
+            capability_intent_id: process.env.INTENT, authority_reference: process.env.AUTHORITY,
+            effect_generation: Number(process.env.GENERATION),
+            prior_effect_receipt_sha256: process.env.PRIOR_EFFECT_SHA,
+            predecessor_control_receipt_sha256: process.env.PREDECESSOR_CONTROL_SHA,
+            predecessor_control_kind: process.env.PREDECESSOR_CONTROL_KIND,
+            prior_request_sha256: process.env.PRIOR_REQUEST_SHA,
+            prior_artifact_admission_sha256: process.env.PRIOR_ARTIFACT_ADMISSION_SHA,
+            idempotency_key_sha256: process.env.IDEMPOTENCY_SHA,
+            prior_idempotency_key_sha256: process.env.PRIOR_IDEMPOTENCY_SHA };
+          request.request_sha256 = createHash('sha256').update(JSON.stringify(request)).digest('hex');
+          request.metadata.requestSha256 = request.request_sha256;
+          fs.writeFileSync(process.env.REQUEST, JSON.stringify(request, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          request_sha="$(REQUEST="$packet/stripe-webhook-request-manifest.json" node --input-type=module -e \
+            "import fs from 'node:fs'; process.stdout.write(JSON.parse(fs.readFileSync(process.env.REQUEST,'utf8')).request_sha256)")"
+          RECONCILIATION="$packet/stripe-webhook-effect-reconciliation.json" APPLICATION_SHA="$APPLICATION_SHA" \
+          BOOTSTRAP_SHA="$BOOTSTRAP_SHA" CANARY_SHA="$CANARY_SHA" ADMISSION_SHA="$ADMISSION_SHA" \
+          INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" RESUME_SHA="$prior_effect_receipt_sha" \
+          REQUEST_SHA="$request_sha" IDEMPOTENCY_SHA="$idempotency_key_sha256" \
+          PRIOR_IDEMPOTENCY_SHA="$prior_idempotency_key_sha256" \
+          EFFECT_IDENTITY_SHA="$effect_identity_sha" \
+          GENERATION="$effect_generation" PRIOR_REQUEST_SHA="$prior_request_sha" \
+          PRIOR_ARTIFACT_ADMISSION_SHA="$resume_artifact_admission_sha" \
+          PREDECESSOR_CONTROL_SHA="$predecessor_control_receipt_sha" \
+          PREDECESSOR_CONTROL_KIND="$predecessor_control_kind" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = { contract_version: 'assesssuite-physio-stripe-webhook-effect-reconciliation/1.0.0', result: 'STARTED',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            bootstrap_receipt_sha256: process.env.BOOTSTRAP_SHA,
+            exact_image_canary_receipt_sha256: process.env.CANARY_SHA,
+            admission_receipt_sha256: process.env.ADMISSION_SHA, capability_intent_id: process.env.INTENT,
+            authority_reference: process.env.AUTHORITY, resume_started_effect_receipt_sha256: process.env.RESUME_SHA,
+            predecessor_control_receipt_sha256: process.env.PREDECESSOR_CONTROL_SHA,
+            predecessor_control_kind: process.env.PREDECESSOR_CONTROL_KIND,
+            prior_request_sha256: process.env.PRIOR_REQUEST_SHA, effect_generation: Number(process.env.GENERATION),
+            prior_artifact_admission_sha256: process.env.PRIOR_ARTIFACT_ADMISSION_SHA,
+            effect_identity_receipt_sha256: process.env.EFFECT_IDENTITY_SHA,
+            request_sha256: process.env.REQUEST_SHA, idempotency_key_sha256: process.env.IDEMPOTENCY_SHA,
+            prior_idempotency_key_sha256: process.env.PRIOR_IDEMPOTENCY_SHA,
+            prior_effect_resolution: process.env.RESUME_SHA === '0'.repeat(64) ? 'NOT_APPLICABLE' : 'PENDING',
+            prior_effect_readback_sha256: null,
+            orphan_compensation_contract_version: 'assesssuite-physio-stripe-webhook-orphan-compensation/1.0.0',
+            orphan_compensation_policy: 'delete-exact-metadata-bound-endpoint-prove-absence-then-recreate',
+            orphan_compensation_authorized: true, orphan_endpoint_compensated: false,
+            orphan_endpoint_id_sha256: null, compensation_delete_request_id_sha256: null,
+            compensation_absence_readback_sha256: null,
+            provider_list_before_sha256: null, provider_create_exit_code: null, provider_create_http_status: null,
+            provider_endpoint_readback_sha256: null, fly_secret_prestate: null, fly_secret_import_exit_code: null,
+            fly_secret_readback_sha256: null, started_at: new Date().toISOString(), completed_at: null };
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          echo "started_receipt_sha256=$(sha256sum "$packet/stripe-webhook-effect-reconciliation.json" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+          echo "request_sha256=$request_sha" >>"$GITHUB_OUTPUT"
+          echo "effect_identity_receipt_sha256=$effect_identity_sha" >>"$GITHUB_OUTPUT"
+          echo 'compensation_resume=false' >>"$GITHUB_OUTPUT"
+          echo 'compensation_control_receipt_sha256=0000000000000000000000000000000000000000000000000000000000000000' >>"$GITHUB_OUTPUT"
+          echo 'resume_completed=false' >>"$GITHUB_OUTPUT"
+
+      - name: Scan bounded durable webhook STARTED effect
+        id: packet_scan
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ '${{ steps.start.outputs.resume_completed }}' == 'true' ]]; then
+            node scripts/physio-stripe-webhook-evidence.mjs scan --root "$RUNNER_TEMP/webhook-completed-reuse"
+          else
+            node scripts/physio-stripe-webhook-evidence.mjs scan --root "$RUNNER_TEMP/webhook-effect-started"
+          fi
+
+      - name: Upload durable webhook STARTED effect
+        id: upload
+        if: ${{ always() && steps.start.outputs.resume_completed != 'true' && steps.packet_scan.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-stripe-webhook-started-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/webhook-effect-started
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Scan exact completed webhook packet for read-only reuse
+        id: packet_scan_completed
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ '${{ steps.start.outputs.resume_completed }}' == 'true' ]]; then
+            node scripts/physio-stripe-webhook-evidence.mjs scan --root "$RUNNER_TEMP/webhook-completed-reuse"
+          else
+            node scripts/physio-stripe-webhook-evidence.mjs scan --root "$RUNNER_TEMP/webhook-effect-started"
+          fi
+
+      - name: Upload exact read-only reused webhook completion
+        id: upload_completed
+        if: ${{ always() && steps.start.outputs.resume_completed == 'true' && steps.packet_scan_completed.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-production-stripe-webhook-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/webhook-completed-reuse
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  probe:
+    name: Freeze exact Stripe endpoint prestate before any mutation
+    needs: [admit, start]
+    if: ${{ needs.start.outputs.resume_completed != 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: physio-production
+    outputs:
+      provider_plan_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      provider_plan_artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
+      provider_plan_receipt_sha256: ${{ steps.probe.outputs.provider_plan_receipt_sha256 || steps.reuse_plan.outputs.provider_plan_receipt_sha256 }}
+    steps:
+      - name: Checkout exact merged-main application SHA
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download durable webhook STARTED effect
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.start.outputs.started_artifact_id }}
+          path: ${{ runner.temp }}/started
+          github-token: ${{ github.token }}
+
+      - name: Download exact admitted prior webhook effect lineage
+        if: ${{ inputs.resume_started_effect_artifact_id != '0' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.resume_started_effect_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.start.outputs.resume_started_effect_run_id }}
+          path: ${{ runner.temp }}/resume
+          github-token: ${{ github.token }}
+
+      - name: Read and freeze exact provider prestate
+        id: probe
+        if: ${{ needs.start.outputs.compensation_resume != 'true' }}
+        shell: bash
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          BOOTSTRAP_RECEIPT_SHA256: ${{ inputs.bootstrap_receipt_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          RESUME_ARTIFACT_ID: ${{ inputs.resume_started_effect_artifact_id }}
+          RESUME_RECEIPT_SHA256: ${{ inputs.resume_started_effect_receipt_sha256 }}
+          STARTED_RECEIPT_SHA256: ${{ needs.start.outputs.started_receipt_sha256 }}
+          REQUEST_SHA256: ${{ needs.start.outputs.request_sha256 }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -z "${FLY_API_TOKEN:-}" && "$STRIPE_SECRET_KEY" == rk_live_* || -z "${FLY_API_TOKEN:-}" && "$STRIPE_SECRET_KEY" == sk_live_* ]]
+          started="$RUNNER_TEMP/started"
+          expected=$'SHA256SUMS\noutstanding-effect-inventory.json\nresume-artifact-admission.json\nresume-sibling-inventory.json\nstripe-webhook-effect-identity.json\nstripe-webhook-effect-reconciliation.json\nstripe-webhook-request-manifest.json'
+          expected_compensation=$'SHA256SUMS\ncompensation-resume-artifact-admission.json\ncompensation-resume-sibling-inventory.json\noutstanding-effect-inventory.json\nresume-artifact-admission.json\nresume-sibling-inventory.json\nstripe-webhook-effect-identity.json\nstripe-webhook-effect-reconciliation.json\nstripe-webhook-request-manifest.json'
+          started_files="$(find "$started" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)"
+          [[ "$started_files" == "$expected" || "$started_files" == "$expected_compensation" ]]
+          if find "$started" -type l -print -quit | grep -q .; then exit 1; fi
+          (cd "$started" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$started/stripe-webhook-effect-reconciliation.json" | awk '{print $1}')" == "$STARTED_RECEIPT_SHA256" ]]
+          [[ "$(REQUEST="$started/stripe-webhook-request-manifest.json" node --input-type=module -e \
+            "import fs from 'node:fs'; process.stdout.write(JSON.parse(fs.readFileSync(process.env.REQUEST,'utf8')).request_sha256)")" == "$REQUEST_SHA256" ]]
+          if [[ "$RESUME_ARTIFACT_ID" != '0' ]]; then
+            prior="$RUNNER_TEMP/resume"
+            [[ -f "$prior/SHA256SUMS" && ! -L "$prior/SHA256SUMS" ]]
+            if find "$prior" -type l -print -quit | grep -q .; then exit 1; fi
+            (cd "$prior" && sha256sum --check --strict SHA256SUMS)
+          fi
+          work="$RUNNER_TEMP/webhook-provider-probe-work"
+          packet="$RUNNER_TEMP/webhook-provider-plan"
+          install -d -m 0700 "$work" "$packet"
+          endpoint='https://assesssuite-physio-production.fly.dev/api/apps/local-assesssuite-physio/functions/stripeWebhook'
+          stripe_version='2026-07-29.dahlia'
+          curl --proto '=https' --tlsv1.2 --fail-with-body --silent --show-error --max-time 60 --max-redirs 0 \
+            --max-filesize 4194304 --dump-header "$work/stripe-probe.headers" \
+            -H "Authorization: Bearer $STRIPE_SECRET_KEY" -H "Stripe-Version: $stripe_version" \
+            'https://api.stripe.com/v1/webhook_endpoints?limit=100' >"$work/stripe-probe.raw.json"
+          PROBE="$work/stripe-probe.raw.json" HEADERS="$work/stripe-probe.headers" \
+          SANITIZED="$packet/stripe-provider-probe.json" REQUEST_IDS="$packet/provider-probe-request-id-hashes.json" \
+          PLAN="$packet/stripe-provider-plan.json" STARTED="$started/stripe-webhook-effect-reconciliation.json" \
+          REQUEST="$started/stripe-webhook-request-manifest.json" ENDPOINT="$endpoint" APPLICATION_SHA="$APPLICATION_SHA" \
+          BOOTSTRAP_SHA="$BOOTSTRAP_RECEIPT_SHA256" INTENT="$CAPABILITY_INTENT_ID" RESUME_ID="$RESUME_ARTIFACT_ID" \
+          RESUME_SHA="$RESUME_RECEIPT_SHA256" PRIOR_PACKET="$RUNNER_TEMP/resume" \
+          STARTED_SHA="$STARTED_RECEIPT_SHA256" REQUEST_SHA="$REQUEST_SHA256" AUTHORITY="$AUTHORITY_REFERENCE" \
+          env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import { classifyStripeWebhookEndpointLineage } from './scripts/physio-stripe-webhook-evidence.mjs';
+          const sha = (value) => createHash('sha256').update(value).digest('hex');
+          const shaFile = (file) => sha(fs.readFileSync(file));
+          const value = JSON.parse(fs.readFileSync(process.env.PROBE, 'utf8'));
+          const started = JSON.parse(fs.readFileSync(process.env.STARTED, 'utf8'));
+          const request = JSON.parse(fs.readFileSync(process.env.REQUEST, 'utf8'));
+          const identityFile = process.env.REQUEST.replace('stripe-webhook-request-manifest.json',
+            'stripe-webhook-effect-identity.json');
+          const identitySha = shaFile(identityFile);
+          const requestCopy = { ...request, metadata: { ...request.metadata } };
+          delete requestCopy.request_sha256;
+          delete requestCopy.metadata.requestSha256;
+          const requestCalculated = sha(JSON.stringify(requestCopy));
+          if (value?.has_more !== false || !Array.isArray(value?.data) ||
+              started.result !== 'STARTED' || started.request_sha256 !== process.env.REQUEST_SHA ||
+              started.authority_reference !== process.env.AUTHORITY || request.authority_reference !== process.env.AUTHORITY ||
+              request.request_sha256 !== process.env.REQUEST_SHA || requestCalculated !== process.env.REQUEST_SHA ||
+              started.effect_generation !== request.effect_generation || request.endpoint !== process.env.ENDPOINT ||
+              started.effect_identity_receipt_sha256 !== identitySha ||
+              request.metadata?.effectGeneration !== String(request.effect_generation) ||
+              request.metadata?.requestSha256 !== request.request_sha256 ||
+              request.metadata?.startedEffectReceiptSha256 !== identitySha) {
+            throw new Error('webhook provider probe inputs differ');
+          }
+          const expectedEvents = ['checkout.session.completed','customer.subscription.deleted','customer.subscription.paused','invoice.payment_failed'].sort();
+          const bound = value.data.filter((row) => row?.metadata?.appId === 'local-assesssuite-physio' ||
+            row?.metadata?.professionId === 'physio');
+          const atUrl = value.data.filter((row) => row?.url === process.env.ENDPOINT);
+          if (bound.length > 1 || atUrl.length > 1 || (bound.length === 1 && bound[0]?.url !== process.env.ENDPOINT)) {
+            throw new Error('duplicate or alternate-URL Physio endpoint exists at provider probe');
+          }
+          let exact = null;
+          let endpointLineage = 'NONE';
+          let endpointGeneration = null;
+          let endpointRequestSha = null;
+          let endpointStartedIdentitySha = null;
+          let priorMetadata = null;
+          if (process.env.RESUME_ID !== '0') {
+            const priorEffectFile = `${process.env.PRIOR_PACKET}/stripe-webhook-effect-reconciliation.json`;
+            const priorRequestFile = `${process.env.PRIOR_PACKET}/stripe-webhook-request-manifest.json`;
+            const priorIdentityFile = `${process.env.PRIOR_PACKET}/stripe-webhook-effect-identity.json`;
+            const priorEffect = JSON.parse(fs.readFileSync(priorEffectFile, 'utf8'));
+            const priorRequest = JSON.parse(fs.readFileSync(priorRequestFile, 'utf8'));
+            const priorIdentitySha = shaFile(priorIdentityFile);
+            const priorRequestCopy = { ...priorRequest, metadata: { ...priorRequest.metadata } };
+            delete priorRequestCopy.request_sha256;
+            delete priorRequestCopy.metadata.requestSha256;
+            if (shaFile(priorEffectFile) !== request.prior_effect_receipt_sha256 ||
+                request.predecessor_control_receipt_sha256 !== process.env.RESUME_SHA ||
+                !['EFFECT_RECONCILIATION','TERMINAL_COMPENSATION'].includes(request.predecessor_control_kind) ||
+                priorEffect.effect_generation + 1 !== request.effect_generation ||
+                priorEffect.request_sha256 !== priorRequest.request_sha256 ||
+                sha(JSON.stringify(priorRequestCopy)) !== priorRequest.request_sha256 ||
+                priorEffect.effect_identity_receipt_sha256 !== priorIdentitySha ||
+                request.prior_request_sha256 !== priorRequest.request_sha256 ||
+                request.prior_idempotency_key_sha256 !== priorEffect.idempotency_key_sha256 ||
+                request.idempotency_key_sha256 === priorEffect.idempotency_key_sha256 ||
+                priorRequest.metadata?.effectGeneration !== String(priorEffect.effect_generation) ||
+                priorRequest.metadata?.requestSha256 !== priorRequest.request_sha256 ||
+                priorRequest.metadata?.startedEffectReceiptSha256 !== priorIdentitySha) {
+              throw new Error('admitted prior webhook lineage differs');
+            }
+            priorMetadata = priorRequest.metadata;
+          }
+          if (atUrl.length === 1) {
+            const row = atUrl[0];
+            const classification = classifyStripeWebhookEndpointLineage(row, {
+              currentMetadata: request.metadata,
+              priorMetadata,
+            });
+            exact = classification.endpoint;
+            endpointLineage = classification.lineage;
+            if (endpointLineage === 'CURRENT') {
+              throw new Error('current-generation endpoint requires the exact completed or unresolved effect artifact; fresh replay is denied');
+            }
+            endpointGeneration = Number(exact.metadata.effectGeneration);
+            endpointRequestSha = exact.metadata.requestSha256;
+            endpointStartedIdentitySha = exact.metadata.startedEffectReceiptSha256;
+          }
+          const headerLines = fs.readFileSync(process.env.HEADERS, 'utf8').replaceAll('\r\n', '\n').split('\n');
+          const requestIds = headerLines.filter((line) => /^request-id:/i.test(line)).map((line) => line.slice(line.indexOf(':') + 1).trim());
+          const requestId = requestIds.at(-1);
+          if (requestIds.length !== 1 || !/^req_[A-Za-z0-9]+$/.test(requestId || '')) throw new Error('provider probe request ID differs');
+          const sanitized = { has_more: false, exact_url_count: exact ? 1 : 0,
+            physio_metadata_bound_count: exact ? 1 : 0, exact_endpoint: exact };
+          fs.writeFileSync(process.env.SANITIZED, JSON.stringify(sanitized, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          const requestIdsReceipt = { contract_version: 'assesssuite-provider-request-id-hashes/1.0.0', provider: 'stripe',
+            hashes: { provider_probe: sha(requestId) } };
+          fs.writeFileSync(process.env.REQUEST_IDS, JSON.stringify(requestIdsReceipt, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          const priorEffectResolution = process.env.RESUME_ID === '0' ? 'NOT_APPLICABLE' :
+            (exact ? 'COMMIT_PRESENT_REQUIRES_COMPENSATION' : 'NOT_APPLIED_BY_AUTHORITATIVE_ABSENCE');
+          const plan = {
+            contract_version: 'assesssuite-physio-stripe-webhook-effect-plan/1.0.0', result: 'PASS',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            bootstrap_receipt_sha256: process.env.BOOTSTRAP_SHA, capability_intent_id: process.env.INTENT,
+            authority_reference: process.env.AUTHORITY,
+            started_effect_receipt_sha256: process.env.STARTED_SHA, request_sha256: process.env.REQUEST_SHA,
+            effect_generation: request.effect_generation, prior_effect_receipt_sha256: request.prior_effect_receipt_sha256,
+            prior_effect_resolution: priorEffectResolution,
+            prior_effect_readback_sha256: shaFile(process.env.SANITIZED),
+            provider_state: exact ? 'EXACT' : 'ABSENT',
+            planned_action: exact ? 'RECONCILE_OR_COMPENSATE_EXACT' : 'CREATE_FROM_PROVEN_ABSENCE',
+            exact_endpoint_id: exact?.id || null, exact_endpoint_id_sha256: exact ? sha(exact.id) : null,
+            endpoint_lineage: endpointLineage, endpoint_effect_generation: endpointGeneration,
+            endpoint_request_sha256: endpointRequestSha,
+            endpoint_started_effect_receipt_sha256: endpointStartedIdentitySha,
+            observed_endpoint_lineage: endpointLineage,
+            observed_endpoint_effect_generation: endpointGeneration,
+            observed_endpoint_request_sha256: endpointRequestSha,
+            observed_endpoint_started_effect_receipt_sha256: endpointStartedIdentitySha,
+            current_effect_identity_receipt_sha256: identitySha,
+            provider_probe_readback_sha256: shaFile(process.env.SANITIZED),
+            provider_probe_request_id_hashes_sha256: shaFile(process.env.REQUEST_IDS),
+            provider_mutation_absent: true, probed_at: new Date().toISOString(),
+          };
+          fs.writeFileSync(process.env.PLAN, JSON.stringify(plan, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          install -m 0600 "$started/stripe-webhook-effect-reconciliation.json" "$packet/stripe-webhook-effect-reconciliation.json"
+          install -m 0600 "$started/stripe-webhook-effect-identity.json" "$packet/stripe-webhook-effect-identity.json"
+          install -m 0600 "$started/stripe-webhook-request-manifest.json" "$packet/stripe-webhook-request-manifest.json"
+          install -m 0600 "$started/resume-artifact-admission.json" "$packet/resume-artifact-admission.json"
+          install -m 0600 "$started/outstanding-effect-inventory.json" "$packet/outstanding-effect-inventory.json"
+          install -m 0600 "$started/resume-sibling-inventory.json" "$packet/resume-sibling-inventory.json"
+          if PLAN="$packet/stripe-provider-plan.json" node --input-type=module -e \
+            "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync(process.env.PLAN,'utf8')); process.exit(p.provider_state==='EXACT'&&p.endpoint_lineage==='PRIOR'?0:1)"; then
+            [[ "$RESUME_ARTIFACT_ID" != '0' ]]
+            install -m 0600 "$RUNNER_TEMP/resume/stripe-webhook-effect-reconciliation.json" \
+              "$packet/prior-stripe-webhook-effect-reconciliation.json"
+            install -m 0600 "$RUNNER_TEMP/resume/stripe-webhook-request-manifest.json" \
+              "$packet/prior-stripe-webhook-request-manifest.json"
+            install -m 0600 "$RUNNER_TEMP/resume/stripe-webhook-effect-identity.json" \
+              "$packet/prior-stripe-webhook-effect-identity.json"
+          fi
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          echo "provider_plan_receipt_sha256=$(sha256sum "$packet/stripe-provider-plan.json" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+          rm -f "$work/stripe-probe.raw.json" "$work/stripe-probe.headers"
+
+      - name: Reuse exact admitted compensation provider plan bytes
+        id: reuse_plan
+        if: ${{ needs.start.outputs.compensation_resume == 'true' }}
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          BOOTSTRAP_RECEIPT_SHA256: ${{ inputs.bootstrap_receipt_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          CONTROL_RECEIPT_SHA256: ${{ needs.start.outputs.compensation_control_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ -z "${STRIPE_SECRET_KEY:-}" && -z "${FLY_API_TOKEN:-}" ]]
+          packet="$RUNNER_TEMP/webhook-provider-plan"
+          install -d -m 0700 "$packet"
+          if find "$RUNNER_TEMP/resume" -mindepth 1 -maxdepth 1 -type f \
+              -name 'stripe-webhook-compensation-phase-[0-9][0-9][0-9].json' -print -quit | grep -q .; then
+            PACKET="$RUNNER_TEMP/resume" APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_RECEIPT_SHA256" \
+              INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" CONTROL_SHA="$CONTROL_RECEIPT_SHA256" \
+              env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { validateStripeWebhookCompensationPacket } from './scripts/physio-stripe-webhook-evidence.mjs';
+          validateStripeWebhookCompensationPacket(process.env.PACKET, {
+            applicationSha: process.env.APPLICATION_SHA,
+            authorityReference: process.env.AUTHORITY,
+            bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+            capabilityIntentId: process.env.INTENT,
+            controlReceiptSha256: process.env.CONTROL_SHA,
+            requireCompleted: false,
+          });
+          NODE
+          else
+            [[ "$(sha256sum "$RUNNER_TEMP/resume/stripe-provider-plan.json" | awk '{print $1}')" == "$CONTROL_RECEIPT_SHA256" ]]
+            [[ "$(sha256sum "$RUNNER_TEMP/resume/stripe-webhook-effect-reconciliation.json" | awk '{print $1}')" == '${{ needs.start.outputs.started_receipt_sha256 }}' ]]
+            [[ "$(REQUEST="$RUNNER_TEMP/resume/stripe-webhook-request-manifest.json" node --input-type=module -e \
+              "import fs from 'node:fs'; process.stdout.write(JSON.parse(fs.readFileSync(process.env.REQUEST,'utf8')).request_sha256)")" == '${{ needs.start.outputs.request_sha256 }}' ]]
+          fi
+          for name in stripe-provider-plan.json stripe-provider-probe.json provider-probe-request-id-hashes.json \
+            stripe-webhook-effect-reconciliation.json stripe-webhook-effect-identity.json \
+            stripe-webhook-request-manifest.json resume-artifact-admission.json resume-sibling-inventory.json \
+            outstanding-effect-inventory.json; do
+            install -m 0600 "$RUNNER_TEMP/resume/$name" "$packet/$name"
+          done
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          echo "provider_plan_receipt_sha256=$(sha256sum "$packet/stripe-provider-plan.json" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+
+      - name: Scan bounded exact provider plan
+        id: packet_scan
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/physio-stripe-webhook-evidence.mjs scan --root "$RUNNER_TEMP/webhook-provider-plan"
+
+      - name: Upload durable exact provider plan
+        id: upload
+        if: ${{ always() && steps.packet_scan.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-stripe-webhook-plan-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/webhook-provider-plan
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  compensate:
+    name: Resolve durable Stripe webhook compensation before CREATE
+    needs: [start, probe]
+    if: ${{ needs.start.outputs.resume_completed != 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: physio-production
+    outputs:
+      compensation_artifact_id: ${{ steps.upload_completed.outputs.artifact-id }}
+      compensation_artifact_digest: sha256:${{ steps.upload_completed.outputs.artifact-digest }}
+      compensation_control_receipt_sha256: ${{ steps.finalize.outputs.compensation_control_receipt_sha256 }}
+      compensation_effect_identity_sha256: ${{ steps.finalize.outputs.compensation_effect_identity_sha256 }}
+      orphan_endpoint_compensated: ${{ steps.finalize.outputs.orphan_endpoint_compensated }}
+    steps:
+      - name: Check out exact compensation validator source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download immutable current STARTED effect
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.start.outputs.started_artifact_id }}
+          path: ${{ runner.temp }}/started
+          github-token: ${{ github.token }}
+
+      - name: Download immutable exact provider plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.probe.outputs.provider_plan_artifact_id }}
+          path: ${{ runner.temp }}/provider-plan
+          github-token: ${{ github.token }}
+
+      - name: Download exact admitted prior control artifact
+        if: ${{ inputs.resume_started_effect_artifact_id != '0' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.resume_started_effect_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.start.outputs.resume_started_effect_run_id }}
+          path: ${{ runner.temp }}/resume
+          github-token: ${{ github.token }}
+
+      - name: Build immutable compensation intent packet
+        id: prepare
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          BOOTSTRAP_RECEIPT_SHA256: ${{ inputs.bootstrap_receipt_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          COMPENSATION_RESUME: ${{ needs.start.outputs.compensation_resume }}
+          PRIOR_CONTROL_SHA: ${{ needs.start.outputs.compensation_control_receipt_sha256 }}
+          STARTED_SHA: ${{ needs.start.outputs.started_receipt_sha256 }}
+          REQUEST_SHA: ${{ needs.start.outputs.request_sha256 }}
+          PROVIDER_PLAN_SHA: ${{ needs.probe.outputs.provider_plan_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ -z "${STRIPE_SECRET_KEY:-}" && -z "${FLY_API_TOKEN:-}" ]]
+          umask 077
+          packet="$RUNNER_TEMP/webhook-compensation"
+          install -d -m 0700 "$packet"
+          phase_resume=false
+          if [[ "$COMPENSATION_RESUME" == 'true' ]]; then
+            if find "$RUNNER_TEMP/resume" -mindepth 1 -maxdepth 1 -type f \
+                -name 'stripe-webhook-compensation-phase-[0-9][0-9][0-9].json' -print -quit | grep -q .; then
+              phase_resume=true
+              PACKET="$RUNNER_TEMP/resume" APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_RECEIPT_SHA256" \
+                INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" CONTROL_SHA="$PRIOR_CONTROL_SHA" \
+                env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { validateStripeWebhookCompensationPacket } from './scripts/physio-stripe-webhook-evidence.mjs';
+          validateStripeWebhookCompensationPacket(process.env.PACKET, {
+            applicationSha: process.env.APPLICATION_SHA,
+            authorityReference: process.env.AUTHORITY,
+            bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+            capabilityIntentId: process.env.INTENT,
+            controlReceiptSha256: process.env.CONTROL_SHA,
+            requireCompleted: false,
+          });
+          NODE
+            else
+              [[ "$(sha256sum "$RUNNER_TEMP/resume/stripe-provider-plan.json" | awk '{print $1}')" == "$PRIOR_CONTROL_SHA" ]]
+            fi
+            while IFS= read -r -d '' file; do
+              install -m 0600 "$file" "$packet/$(basename "$file")"
+            done < <(find "$RUNNER_TEMP/resume" -mindepth 1 -maxdepth 1 -type f -print0)
+            rm -f "$packet/SHA256SUMS"
+            revision_count="$(find "$packet" -mindepth 1 -maxdepth 1 -type f \
+              -name 'stripe-webhook-compensation-phase-[0-9][0-9][0-9].json' | wc -l)"
+            admission_revision="$(printf '%03d' "$revision_count")"
+            install -m 0600 "$RUNNER_TEMP/started/compensation-resume-artifact-admission.json" \
+              "$packet/compensation-resume-artifact-admission-$admission_revision.json"
+            install -m 0600 "$RUNNER_TEMP/started/compensation-resume-sibling-inventory.json" \
+              "$packet/compensation-resume-sibling-inventory-$admission_revision.json"
+          else
+            for name in outstanding-effect-inventory.json resume-artifact-admission.json resume-sibling-inventory.json \
+              stripe-webhook-effect-identity.json stripe-webhook-effect-reconciliation.json \
+              stripe-webhook-request-manifest.json; do
+              install -m 0600 "$RUNNER_TEMP/started/$name" "$packet/$name"
+            done
+            for name in stripe-provider-plan.json stripe-provider-probe.json provider-probe-request-id-hashes.json; do
+              install -m 0600 "$RUNNER_TEMP/provider-plan/$name" "$packet/$name"
+            done
+            revision_count=0
+          fi
+          [[ "$(sha256sum "$packet/stripe-webhook-effect-reconciliation.json" | awk '{print $1}')" == "$STARTED_SHA" ]]
+          [[ "$(sha256sum "$packet/stripe-provider-plan.json" | awk '{print $1}')" == "$PROVIDER_PLAN_SHA" ]]
+          PLAN="$packet/stripe-provider-plan.json" REQUEST="$packet/stripe-webhook-request-manifest.json" \
+            IDENTITY="$packet/stripe-webhook-effect-identity.json" RESUME="$RUNNER_TEMP/resume" \
+            PACKET="$packet" PHASE_RESUME="$phase_resume" REVISION_COUNT="$revision_count" \
+            APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_RECEIPT_SHA256" \
+            INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" STARTED_SHA="$STARTED_SHA" \
+            REQUEST_SHA="$REQUEST_SHA" PROVIDER_PLAN_SHA="$PROVIDER_PLAN_SHA" \
+            env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const sha = (value) => createHash('sha256').update(value).digest('hex');
+          const shaFile = (file) => sha(fs.readFileSync(file));
+          const plan = JSON.parse(fs.readFileSync(process.env.PLAN, 'utf8'));
+          const request = JSON.parse(fs.readFileSync(process.env.REQUEST, 'utf8'));
+          const identitySha = shaFile(process.env.IDENTITY);
+          const revision = Number(process.env.REVISION_COUNT);
+          if (!Number.isSafeInteger(revision) || revision < 0 ||
+              plan.request_sha256 !== process.env.REQUEST_SHA || request.request_sha256 !== process.env.REQUEST_SHA ||
+              plan.started_effect_receipt_sha256 !== process.env.STARTED_SHA ||
+              plan.current_effect_identity_receipt_sha256 !== identitySha ||
+              plan.effect_generation !== request.effect_generation) {
+            throw new Error('compensation STARTED and provider-plan bytes differ');
+          }
+          if (process.env.PHASE_RESUME === 'true') process.exit(0);
+          let target = { id: null, idSha: null, generation: null, requestSha: null,
+            identitySha: null, metadata: null, lineageSha: '0'.repeat(64) };
+          if (plan.provider_state === 'EXACT') {
+            if (plan.endpoint_lineage !== 'PRIOR') throw new Error('compensation target is not the exact predecessor');
+            const selfContained = fs.existsSync(path.join(process.env.PACKET,
+              'prior-stripe-webhook-effect-reconciliation.json'));
+            const sources = selfContained ? {
+              effect: path.join(process.env.PACKET, 'prior-stripe-webhook-effect-reconciliation.json'),
+              request: path.join(process.env.PACKET, 'prior-stripe-webhook-request-manifest.json'),
+              identity: path.join(process.env.PACKET, 'prior-stripe-webhook-effect-identity.json'),
+            } : {
+              effect: path.join(process.env.RESUME, 'stripe-webhook-effect-reconciliation.json'),
+              request: path.join(process.env.RESUME, 'stripe-webhook-request-manifest.json'),
+              identity: path.join(process.env.RESUME, 'stripe-webhook-effect-identity.json'),
+            };
+            for (const [key, source] of Object.entries(sources)) {
+              const destination = path.join(process.env.PACKET, `prior-stripe-webhook-${key === 'effect' ? 'effect-reconciliation' : key === 'request' ? 'request-manifest' : 'effect-identity'}.json`);
+              if (!selfContained) fs.copyFileSync(source, destination, fs.constants.COPYFILE_EXCL);
+            }
+            const priorEffect = JSON.parse(fs.readFileSync(sources.effect, 'utf8'));
+            const priorRequest = JSON.parse(fs.readFileSync(sources.request, 'utf8'));
+            const priorIdentitySha = shaFile(sources.identity);
+            if (shaFile(sources.effect) !== request.prior_effect_receipt_sha256 ||
+                priorRequest.request_sha256 !== request.prior_request_sha256 ||
+                priorEffect.effect_generation + 1 !== request.effect_generation ||
+                priorEffect.request_sha256 !== plan.endpoint_request_sha256 ||
+                priorIdentitySha !== plan.endpoint_started_effect_receipt_sha256 ||
+                plan.exact_endpoint_id_sha256 !== sha(plan.exact_endpoint_id)) {
+              throw new Error('compensation prior-effect lineage differs');
+            }
+            target = { id: plan.exact_endpoint_id, idSha: plan.exact_endpoint_id_sha256,
+              generation: priorEffect.effect_generation, requestSha: priorRequest.request_sha256,
+              identitySha: priorIdentitySha, metadata: priorRequest.metadata,
+              lineageSha: sha([shaFile(sources.effect), shaFile(sources.request), priorIdentitySha].join('|')) };
+          } else if (plan.provider_state !== 'ABSENT') {
+            throw new Error('compensation provider plan state differs');
+          }
+          const effectIdentity = sha(JSON.stringify({ operation: 'DELETE', effect_generation: request.effect_generation,
+            request_sha256: request.request_sha256, provider_plan_receipt_sha256: process.env.PROVIDER_PLAN_SHA,
+            target_endpoint_id_sha256: target.idSha, target_request_sha256: target.requestSha,
+            target_effect_identity_receipt_sha256: target.identitySha }));
+          const compensationAdmissions = fs.readdirSync(process.env.PACKET)
+            .filter((name) => /^compensation-resume-artifact-admission-[0-9]{3}\.json$/.test(name)).sort();
+          const artifactAdmissionSha = compensationAdmissions.length === 0
+            ? shaFile(path.join(process.env.PACKET, 'resume-artifact-admission.json'))
+            : shaFile(path.join(process.env.PACKET, compensationAdmissions.at(-1)));
+          const phase = {
+            contract_version: 'assesssuite-physio-stripe-webhook-compensation-phase/2.0.0',
+            result: plan.provider_state === 'ABSENT' ? 'PASS' : 'STARTED',
+            phase: plan.provider_state === 'ABSENT' ? 'NOT_APPLICABLE' : 'DELETE_INTENT', operation: 'DELETE',
+            revision: 0, application_sha: process.env.APPLICATION_SHA,
+            bootstrap_receipt_sha256: process.env.BOOTSTRAP_SHA, capability_intent_id: process.env.INTENT,
+            authority_reference: process.env.AUTHORITY, effect_generation: request.effect_generation,
+            request_sha256: request.request_sha256, started_effect_receipt_sha256: process.env.STARTED_SHA,
+            effect_identity_receipt_sha256: identitySha, idempotency_key_sha256: request.idempotency_key_sha256,
+            provider_plan_receipt_sha256: process.env.PROVIDER_PLAN_SHA,
+            target_endpoint_id: target.id, target_endpoint_id_sha256: target.idSha,
+            target_effect_generation: target.generation, target_request_sha256: target.requestSha,
+            target_effect_identity_receipt_sha256: target.identitySha, target_metadata: target.metadata,
+            prior_effect_receipt_sha256: request.prior_effect_receipt_sha256,
+            prior_effect_lineage_sha256: target.lineageSha,
+            compensation_effect_identity_sha256: effectIdentity,
+            artifact_admission_sha256: artifactAdmissionSha,
+            previous_phase_receipt_sha256: '0'.repeat(64), readback_sha256: null,
+            readback_request_id_hashes_sha256: null, delete_response_sha256: null,
+            delete_request_id_sha256: null, created_at: new Date().toISOString(),
+            completed_at: plan.provider_state === 'ABSENT' ? new Date().toISOString() : null,
+          };
+          fs.writeFileSync(path.join(process.env.PACKET, 'stripe-webhook-compensation-phase-000.json'),
+            JSON.stringify(phase, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          latest_phase="$(find "$packet" -mindepth 1 -maxdepth 1 -type f \
+            -name 'stripe-webhook-compensation-phase-[0-9][0-9][0-9].json' -printf '%f\n' | LC_ALL=C sort | tail -n 1)"
+          IFS=$'\t' read -r generation revision result phase < <(
+            PHASE="$packet/$latest_phase" node --input-type=module -e \
+              "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync(process.env.PHASE,'utf8')); process.stdout.write([p.effect_generation,p.revision,p.result,p.phase].join('\t'))")
+          echo "effect_generation=$generation" >>"$GITHUB_OUTPUT"
+          echo "latest_revision=$revision" >>"$GITHUB_OUTPUT"
+          echo "phase_result=$result" >>"$GITHUB_OUTPUT"
+          echo "phase=$phase" >>"$GITHUB_OUTPUT"
+
+      - name: Fresh exhaustive compensation provider readback
+        id: readback
+        if: ${{ steps.prepare.outputs.phase != 'NOT_APPLICABLE' }}
+        shell: bash
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -z "${FLY_API_TOKEN:-}" && "$STRIPE_SECRET_KEY" == rk_live_* || -z "${FLY_API_TOKEN:-}" && "$STRIPE_SECRET_KEY" == sk_live_* ]]
+          packet="$RUNNER_TEMP/webhook-compensation"
+          work="$RUNNER_TEMP/webhook-compensation-readback"
+          install -d -m 0700 "$work"
+          latest_phase="$(find "$packet" -mindepth 1 -maxdepth 1 -type f \
+            -name 'stripe-webhook-compensation-phase-[0-9][0-9][0-9].json' -printf '%f\n' | LC_ALL=C sort | tail -n 1)"
+          current_revision="$(PHASE="$packet/$latest_phase" node --input-type=module -e \
+            "import fs from 'node:fs'; process.stdout.write(String(JSON.parse(fs.readFileSync(process.env.PHASE,'utf8')).revision))")"
+          next_revision=$((current_revision + 1))
+          suffix="$(printf '%03d' "$next_revision")"
+          curl --proto '=https' --tlsv1.2 --fail-with-body --silent --show-error --max-time 60 --max-redirs 0 \
+            --max-filesize 4194304 --dump-header "$work/list.headers" \
+            -H "Authorization: Bearer $STRIPE_SECRET_KEY" -H 'Stripe-Version: 2026-07-29.dahlia' \
+            'https://api.stripe.com/v1/webhook_endpoints?limit=100' >"$work/list.raw.json"
+          RAW="$work/list.raw.json" HEADERS="$work/list.headers" PREVIOUS="$packet/$latest_phase" PACKET="$packet" \
+            READBACK="$packet/stripe-webhook-compensation-readback-$suffix.json" \
+            REQUEST_IDS="$packet/stripe-webhook-compensation-request-id-hashes-$suffix.json" \
+            PHASE="$packet/stripe-webhook-compensation-phase-$suffix.json" REVISION="$next_revision" \
+            env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import { classifyStripeWebhookCompensationProviderList } from './scripts/physio-stripe-webhook-evidence.mjs';
+          const sha = (value) => createHash('sha256').update(value).digest('hex');
+          const shaFile = (file) => sha(fs.readFileSync(file));
+          const value = JSON.parse(fs.readFileSync(process.env.RAW, 'utf8'));
+          const previous = JSON.parse(fs.readFileSync(process.env.PREVIOUS, 'utf8'));
+          const sanitizedReadback = classifyStripeWebhookCompensationProviderList(value, {
+            capabilityIntentId: previous.capability_intent_id,
+            endpointUrl: 'https://assesssuite-physio-production.fly.dev/api/apps/local-assesssuite-physio/functions/stripeWebhook',
+            targetEndpointId: previous.target_endpoint_id,
+            targetMetadata: previous.target_metadata,
+          });
+          const endpoint = sanitizedReadback.exact_endpoint;
+          const requestIds = fs.readFileSync(process.env.HEADERS, 'utf8').replaceAll('\r\n', '\n').split('\n')
+            .filter((line) => /^request-id:/i.test(line)).map((line) => line.slice(line.indexOf(':') + 1).trim());
+          const requestId = requestIds.at(-1);
+          if (requestIds.length !== 1 || !/^req_[A-Za-z0-9]+$/.test(requestId || '')) {
+            throw new Error('compensation provider readback request ID differs');
+          }
+          fs.writeFileSync(process.env.READBACK, JSON.stringify(sanitizedReadback, null, 2) + '\n',
+            { flag: 'wx', mode: 0o600 });
+          fs.writeFileSync(process.env.REQUEST_IDS, JSON.stringify({
+            contract_version: 'assesssuite-provider-request-id-hash/2.0.0', provider: 'stripe',
+            operation: 'LIST', request_id_sha256: sha(requestId),
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          const admissions = fs.readdirSync(process.env.PACKET)
+            .filter((name) => /^compensation-resume-artifact-admission-[0-9]{3}\.json$/.test(name)).sort();
+          const admissionSha = admissions.length === 0 ? previous.artifact_admission_sha256 :
+            shaFile(`${process.env.PACKET}/${admissions.at(-1)}`);
+          const phase = { ...previous, revision: Number(process.env.REVISION),
+            result: endpoint ? 'STARTED' : 'PASS',
+            phase: endpoint ? 'RECONCILED_STILL_APPLIED' : 'COMPENSATION_COMPLETED',
+            previous_phase_receipt_sha256: shaFile(process.env.PREVIOUS),
+            readback_sha256: shaFile(process.env.READBACK),
+            readback_request_id_hashes_sha256: shaFile(process.env.REQUEST_IDS),
+            delete_response_sha256: null, delete_request_id_sha256: null,
+            artifact_admission_sha256: admissionSha,
+            created_at: new Date().toISOString(), completed_at: endpoint ? null : new Date().toISOString() };
+          fs.writeFileSync(process.env.PHASE, JSON.stringify(phase, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          phase_result="$(PHASE="$packet/stripe-webhook-compensation-phase-$suffix.json" node --input-type=module -e \
+            "import fs from 'node:fs'; process.stdout.write(JSON.parse(fs.readFileSync(process.env.PHASE,'utf8')).result)")"
+          echo "delete_required=$([[ "$phase_result" == 'STARTED' ]] && echo true || echo false)" >>"$GITHUB_OUTPUT"
+          echo "latest_revision=$next_revision" >>"$GITHUB_OUTPUT"
+
+      - name: Scan bounded compensation retry barrier
+        id: packet_scan
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/physio-stripe-webhook-evidence.mjs scan --root "$RUNNER_TEMP/webhook-compensation"
+
+      - name: Upload durable RECONCILED_STILL_APPLIED and DELETE_RETRY_STARTED barrier
+        id: upload_retry
+        if: ${{ always() && steps.readback.outputs.delete_required == 'true' && steps.packet_scan.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-stripe-webhook-compensation-phase-${{ inputs.application_sha }}-${{ steps.prepare.outputs.effect_generation }}-${{ steps.readback.outputs.latest_revision }}
+          path: ${{ runner.temp }}/webhook-compensation
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Bounded same-ID DELETE retry and authoritative absence proof
+        id: delete
+        if: ${{ steps.readback.outputs.delete_required == 'true' }}
+        shell: bash
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          RETRY_BARRIER_ARTIFACT_ID: ${{ steps.upload_retry.outputs.artifact-id }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ "$RETRY_BARRIER_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          packet="$RUNNER_TEMP/webhook-compensation"
+          work="$RUNNER_TEMP/webhook-compensation-delete"
+          install -d -m 0700 "$work"
+          latest_phase="$(find "$packet" -mindepth 1 -maxdepth 1 -type f \
+            -name 'stripe-webhook-compensation-phase-[0-9][0-9][0-9].json' -printf '%f\n' | LC_ALL=C sort | tail -n 1)"
+          IFS=$'\t' read -r target_id current_revision < <(PHASE="$packet/$latest_phase" node --input-type=module -e \
+            "import fs from 'node:fs'; const p=JSON.parse(fs.readFileSync(process.env.PHASE,'utf8')); if(p.phase!=='RECONCILED_STILL_APPLIED'||p.result!=='STARTED')process.exit(2); process.stdout.write([p.target_endpoint_id,p.revision].join('\t'))")
+          [[ "$target_id" =~ ^we_[A-Za-z0-9]+$ && "$current_revision" =~ ^[0-9]+$ ]]
+          set +e
+          delete_status="$(curl --proto '=https' --tlsv1.2 --silent --show-error --max-time 60 --max-redirs 0 \
+            --output "$work/delete.raw.json" --write-out '%{http_code}' --dump-header "$work/delete.headers" \
+            -X DELETE -H "Authorization: Bearer $STRIPE_SECRET_KEY" -H 'Stripe-Version: 2026-07-29.dahlia' \
+            "https://api.stripe.com/v1/webhook_endpoints/$target_id" 2>"$work/delete.stderr")"
+          delete_exit=$?
+          set -e
+          [[ "$delete_exit" -eq 0 && "$delete_status" == '200' ]]
+          curl --proto '=https' --tlsv1.2 --fail-with-body --silent --show-error --max-time 60 --max-redirs 0 \
+            --max-filesize 4194304 --dump-header "$work/absence.headers" \
+            -H "Authorization: Bearer $STRIPE_SECRET_KEY" -H 'Stripe-Version: 2026-07-29.dahlia' \
+            'https://api.stripe.com/v1/webhook_endpoints?limit=100' >"$work/absence.raw.json"
+          next_revision=$((current_revision + 1))
+          suffix="$(printf '%03d' "$next_revision")"
+          DELETE="$work/delete.raw.json" DELETE_HEADERS="$work/delete.headers" LIST="$work/absence.raw.json" \
+            LIST_HEADERS="$work/absence.headers" PREVIOUS="$packet/$latest_phase" TARGET_ID="$target_id" \
+            READBACK="$packet/stripe-webhook-compensation-readback-$suffix.json" \
+            REQUEST_IDS="$packet/stripe-webhook-compensation-request-id-hashes-$suffix.json" \
+            DELETE_SANITIZED="$packet/stripe-webhook-compensation-delete-response-$suffix.json" \
+            PHASE="$packet/stripe-webhook-compensation-phase-$suffix.json" REVISION="$next_revision" \
+            env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const sha = (value) => createHash('sha256').update(value).digest('hex');
+          const shaFile = (file) => sha(fs.readFileSync(file));
+          const previous = JSON.parse(fs.readFileSync(process.env.PREVIOUS, 'utf8'));
+          const deleted = JSON.parse(fs.readFileSync(process.env.DELETE, 'utf8'));
+          const list = JSON.parse(fs.readFileSync(process.env.LIST, 'utf8'));
+          const rows = Array.isArray(list?.data) ? list.data : [];
+          const bound = rows.filter((row) => row?.url ===
+            'https://assesssuite-physio-production.fly.dev/api/apps/local-assesssuite-physio/functions/stripeWebhook' ||
+            row?.metadata?.appId === 'local-assesssuite-physio' || row?.metadata?.professionId === 'physio' ||
+            row?.metadata?.capabilityIntentId === previous.capability_intent_id);
+          if (deleted?.id !== process.env.TARGET_ID || deleted?.deleted !== true ||
+              list?.has_more !== false || bound.length !== 0) {
+            throw new Error('DELETE did not produce authoritative exhaustive target absence');
+          }
+          const requestId = (file) => {
+            const values = fs.readFileSync(file, 'utf8').replaceAll('\r\n', '\n').split('\n')
+              .filter((line) => /^request-id:/i.test(line)).map((line) => line.slice(line.indexOf(':') + 1).trim());
+            if (values.length !== 1 || !/^req_[A-Za-z0-9]+$/.test(values[0] || '')) throw new Error('Stripe request ID differs');
+            return values[0];
+          };
+          const deleteRequestId = requestId(process.env.DELETE_HEADERS);
+          const absenceRequestId = requestId(process.env.LIST_HEADERS);
+          fs.writeFileSync(process.env.DELETE_SANITIZED, JSON.stringify({ id: deleted.id, deleted: true }, null, 2) + '\n',
+            { flag: 'wx', mode: 0o600 });
+          fs.writeFileSync(process.env.READBACK, JSON.stringify({ has_more: false, exact_url_count: 0,
+            physio_metadata_bound_count: 0, exact_endpoint: null }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          fs.writeFileSync(process.env.REQUEST_IDS, JSON.stringify({
+            contract_version: 'assesssuite-provider-request-id-hash/2.0.0', provider: 'stripe',
+            operation: 'LIST', request_id_sha256: sha(absenceRequestId),
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          const phase = { ...previous, revision: Number(process.env.REVISION), result: 'PASS',
+            phase: 'COMPENSATION_COMPLETED', previous_phase_receipt_sha256: shaFile(process.env.PREVIOUS),
+            readback_sha256: shaFile(process.env.READBACK),
+            readback_request_id_hashes_sha256: shaFile(process.env.REQUEST_IDS),
+            delete_response_sha256: shaFile(process.env.DELETE_SANITIZED),
+            delete_request_id_sha256: sha(deleteRequestId), created_at: new Date().toISOString(),
+            completed_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.PHASE, JSON.stringify(phase, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+
+      - name: Validate terminal compensation chain
+        id: finalize
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          BOOTSTRAP_RECEIPT_SHA256: ${{ inputs.bootstrap_receipt_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+        run: |
+          set -euo pipefail
+          packet="$RUNNER_TEMP/webhook-compensation"
+          latest_phase="$(find "$packet" -mindepth 1 -maxdepth 1 -type f \
+            -name 'stripe-webhook-compensation-phase-[0-9][0-9][0-9].json' -printf '%f\n' | LC_ALL=C sort | tail -n 1)"
+          control_sha="$(sha256sum "$packet/$latest_phase" | awk '{print $1}')"
+          IFS=$'\t' read -r generation revision effect_identity compensated < <(
+            PACKET="$packet" APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_RECEIPT_SHA256" \
+              INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" CONTROL_SHA="$control_sha" \
+              env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { validateStripeWebhookCompensationPacket } from './scripts/physio-stripe-webhook-evidence.mjs';
+          const proof = validateStripeWebhookCompensationPacket(process.env.PACKET, {
+            applicationSha: process.env.APPLICATION_SHA,
+            authorityReference: process.env.AUTHORITY,
+            bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+            capabilityIntentId: process.env.INTENT,
+            controlReceiptSha256: process.env.CONTROL_SHA,
+            requireCompleted: true,
+          });
+          process.stdout.write([proof.effect_generation, proof.latest_revision,
+            proof.compensation_effect_identity_sha256, proof.orphan_endpoint_compensated].join('\t'));
+          NODE
+          )
+          echo "effect_generation=$generation" >>"$GITHUB_OUTPUT"
+          echo "latest_revision=$revision" >>"$GITHUB_OUTPUT"
+          echo "compensation_control_receipt_sha256=$control_sha" >>"$GITHUB_OUTPUT"
+          echo "compensation_effect_identity_sha256=$effect_identity" >>"$GITHUB_OUTPUT"
+          echo "orphan_endpoint_compensated=$compensated" >>"$GITHUB_OUTPUT"
+
+      - name: Scan bounded terminal compensation chain
+        id: packet_scan_completed
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/physio-stripe-webhook-evidence.mjs scan --root "$RUNNER_TEMP/webhook-compensation"
+
+      - name: Upload durable COMPENSATION_COMPLETED PASS
+        id: upload_completed
+        if: ${{ always() && steps.finalize.outcome == 'success' && steps.packet_scan_completed.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-stripe-webhook-compensation-phase-${{ inputs.application_sha }}-${{ steps.finalize.outputs.effect_generation }}-${{ steps.finalize.outputs.latest_revision }}
+          path: ${{ runner.temp }}/webhook-compensation
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  effect:
+    name: Create exact Stripe endpoint and stage its signing secret
+    needs: [admit, start, probe, compensate]
+    if: ${{ needs.start.outputs.resume_completed != 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: physio-production
+    outputs:
+      stripe_webhook_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      stripe_webhook_artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
+      stripe_webhook_receipt_sha256: ${{ steps.effect.outputs.stripe_webhook_receipt_sha256 }}
+    steps:
+      - name: Check out exact effect source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact credential-free admission
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.admit.outputs.admission_artifact_id }}
+          path: ${{ runner.temp }}/admission
+          github-token: ${{ github.token }}
+
+      - name: Download durable webhook STARTED effect
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.start.outputs.started_artifact_id }}
+          path: ${{ runner.temp }}/started
+          github-token: ${{ github.token }}
+
+      - name: Download durable exact provider plan
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.probe.outputs.provider_plan_artifact_id }}
+          path: ${{ runner.temp }}/provider-plan
+          github-token: ${{ github.token }}
+
+      - name: Download terminal durable compensation phase chain
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.compensate.outputs.compensation_artifact_id }}
+          path: ${{ runner.temp }}/compensation
+          github-token: ${{ github.token }}
+
+      - name: Download exact pre-webhook bootstrap for replay binding
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.bootstrap_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.admit.outputs.bootstrap_run_id }}
+          path: ${{ runner.temp }}/bootstrap
+          github-token: ${{ github.token }}
+
+      - name: Download exact unresolved effect for deliberate resume
+        if: ${{ inputs.resume_started_effect_artifact_id != '0' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.resume_started_effect_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.start.outputs.resume_started_effect_run_id }}
+          path: ${{ runner.temp }}/resume
+          github-token: ${{ github.token }}
+
+      - name: Re-admit exact handoff before provider credentials
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          ADMISSION_SHA: ${{ needs.admit.outputs.admission_receipt_sha256 }}
+          BOOTSTRAP_SHA: ${{ inputs.bootstrap_receipt_sha256 }}
+          CANARY_SHA: ${{ inputs.exact_image_canary_receipt_sha256 }}
+          PROVIDER_PLAN_SHA: ${{ needs.probe.outputs.provider_plan_receipt_sha256 }}
+          STARTED_SHA: ${{ needs.start.outputs.started_receipt_sha256 }}
+          REQUEST_SHA: ${{ needs.start.outputs.request_sha256 }}
+          EFFECT_IDENTITY_SHA: ${{ needs.start.outputs.effect_identity_receipt_sha256 }}
+          COMPENSATION_CONTROL_SHA: ${{ needs.compensate.outputs.compensation_control_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" && -z "${STRIPE_SECRET_KEY:-}" ]]
+          packet="$RUNNER_TEMP/admission"
+          (cd "$packet" && sha256sum --check --strict SHA256SUMS)
+          receipt="$packet/physio-stripe-webhook-admission.json"
+          [[ "$(sha256sum "$receipt" | awk '{print $1}')" == "$ADMISSION_SHA" ]]
+          RECEIPT="$receipt" APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_SHA" CANARY_SHA="$CANARY_SHA" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECEIPT, 'utf8'));
+          if (row.contract_version !== 'assesssuite-physio-stripe-webhook-admission/1.0.0' || row.result !== 'PASS' ||
+              row.application_sha !== process.env.APPLICATION_SHA || row.bootstrap_receipt_sha256 !== process.env.BOOTSTRAP_SHA ||
+              row.exact_image_canary_receipt_sha256 !== process.env.CANARY_SHA || row.provider_credentials_absent !== true) {
+            throw new Error('webhook admission replay differs');
+          }
+          NODE
+          PACKET="$RUNNER_TEMP/compensation" APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_SHA" \
+            INTENT='${{ inputs.capability_intent_id }}' AUTHORITY='${{ inputs.authority_reference }}' \
+            CONTROL_SHA="$COMPENSATION_CONTROL_SHA" env -u FLY_API_TOKEN -u STRIPE_SECRET_KEY \
+            node --input-type=module <<'NODE'
+          import { validateStripeWebhookCompensationPacket } from './scripts/physio-stripe-webhook-evidence.mjs';
+          validateStripeWebhookCompensationPacket(process.env.PACKET, {
+            applicationSha: process.env.APPLICATION_SHA,
+            authorityReference: process.env.AUTHORITY,
+            bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+            capabilityIntentId: process.env.INTENT,
+            controlReceiptSha256: process.env.CONTROL_SHA,
+            requireCompleted: true,
+          });
+          NODE
+          plan_packet="$RUNNER_TEMP/provider-plan"
+          plan="$plan_packet/stripe-provider-plan.json"
+          [[ -f "$plan" && ! -L "$plan" && "$(wc -c <"$plan")" -le 16384 ]]
+          if find "$plan_packet" -type l -print -quit | grep -q .; then exit 1; fi
+          (cd "$plan_packet" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$plan" | awk '{print $1}')" == "$PROVIDER_PLAN_SHA" ]]
+          PLAN="$plan" PLAN_PACKET="$plan_packet" APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_SHA" \
+          INTENT='${{ inputs.capability_intent_id }}' STARTED_SHA="$STARTED_SHA" REQUEST_SHA="$REQUEST_SHA" \
+          EFFECT_IDENTITY_SHA="$EFFECT_IDENTITY_SHA" AUTHORITY='${{ inputs.authority_reference }}' \
+          env -u FLY_API_TOKEN -u STRIPE_SECRET_KEY node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const row = JSON.parse(fs.readFileSync(process.env.PLAN, 'utf8'));
+          const shaFile = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const probeFile = path.join(process.env.PLAN_PACKET, 'stripe-provider-probe.json');
+          const requestIdsFile = path.join(process.env.PLAN_PACKET, 'provider-probe-request-id-hashes.json');
+          const requestIds = JSON.parse(fs.readFileSync(requestIdsFile, 'utf8'));
+          if (row.contract_version !== 'assesssuite-physio-stripe-webhook-effect-plan/1.0.0' || row.result !== 'PASS' ||
+              row.application !== 'assesssuite-physio-production' || row.application_sha !== process.env.APPLICATION_SHA ||
+              row.bootstrap_receipt_sha256 !== process.env.BOOTSTRAP_SHA || row.capability_intent_id !== process.env.INTENT ||
+              row.authority_reference !== process.env.AUTHORITY ||
+              row.started_effect_receipt_sha256 !== process.env.STARTED_SHA || row.request_sha256 !== process.env.REQUEST_SHA ||
+              row.provider_mutation_absent !== true || !Number.isSafeInteger(row.effect_generation) || row.effect_generation < 0 ||
+              row.current_effect_identity_receipt_sha256 !== process.env.EFFECT_IDENTITY_SHA ||
+              !['EXACT','ABSENT'].includes(row.provider_state) ||
+              !['RECONCILE_OR_COMPENSATE_EXACT','CREATE_FROM_PROVEN_ABSENCE'].includes(row.planned_action) ||
+              (row.provider_state === 'EXACT' && (!/^we_[A-Za-z0-9]+$/.test(row.exact_endpoint_id || '') ||
+                !/^[0-9a-f]{64}$/.test(row.exact_endpoint_id_sha256 || ''))) ||
+              row.provider_probe_readback_sha256 !== shaFile(probeFile) ||
+              row.provider_probe_request_id_hashes_sha256 !== shaFile(requestIdsFile) ||
+              JSON.stringify(Object.keys(requestIds).sort()) !== JSON.stringify(['contract_version','hashes','provider']) ||
+              requestIds.contract_version !== 'assesssuite-provider-request-id-hashes/1.0.0' ||
+              requestIds.provider !== 'stripe' ||
+              JSON.stringify(Object.keys(requestIds.hashes || {})) !== JSON.stringify(['provider_probe']) ||
+              !/^[0-9a-f]{64}$/.test(requestIds.hashes.provider_probe || '') ||
+              (row.provider_state === 'EXACT' && (!['CURRENT','PRIOR'].includes(row.observed_endpoint_lineage) ||
+                row.endpoint_lineage !== row.observed_endpoint_lineage ||
+                row.endpoint_effect_generation !== row.observed_endpoint_effect_generation ||
+                row.endpoint_request_sha256 !== row.observed_endpoint_request_sha256 ||
+                row.endpoint_started_effect_receipt_sha256 !== row.observed_endpoint_started_effect_receipt_sha256 ||
+                (row.observed_endpoint_lineage === 'CURRENT' &&
+                  (row.observed_endpoint_effect_generation !== row.effect_generation ||
+                   row.observed_endpoint_request_sha256 !== row.request_sha256 ||
+                   row.observed_endpoint_started_effect_receipt_sha256 !== row.current_effect_identity_receipt_sha256)) ||
+                (row.observed_endpoint_lineage === 'PRIOR' &&
+                  row.observed_endpoint_effect_generation !== row.effect_generation - 1) ||
+                !/^[0-9a-f]{64}$/.test(row.observed_endpoint_request_sha256 || '') ||
+                !/^[0-9a-f]{64}$/.test(row.observed_endpoint_started_effect_receipt_sha256 || ''))) ||
+              (row.provider_state === 'ABSENT' && (row.exact_endpoint_id !== null || row.exact_endpoint_id_sha256 !== null ||
+                row.endpoint_lineage !== 'NONE' || row.endpoint_effect_generation !== null ||
+                row.endpoint_request_sha256 !== null || row.endpoint_started_effect_receipt_sha256 !== null ||
+                row.observed_endpoint_lineage !== 'NONE' || row.observed_endpoint_effect_generation !== null ||
+                row.observed_endpoint_request_sha256 !== null ||
+                row.observed_endpoint_started_effect_receipt_sha256 !== null))) {
+            throw new Error('durable webhook provider plan differs');
+          }
+          NODE
+
+      - name: Install checksum-verified flyctl 0.4.71
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          bin="$RUNNER_TEMP/flyctl-bin"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --output "$archive" \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'
+          printf '%s  %s\n' 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2' "$archive" | sha256sum --check --strict
+          mkdir -p "$bin"; tar -xzf "$archive" -C "$bin" flyctl; install -m 0755 "$bin/flyctl" "$bin/fly"
+          echo "$bin" >>"$GITHUB_PATH"; "$bin/fly" version | grep -F '0.4.71'
+
+      - name: Execute exact Stripe endpoint effect and Fly staged-secret readback
+        id: effect
+        shell: bash
+        env:
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          BOOTSTRAP_RECEIPT_SHA256: ${{ inputs.bootstrap_receipt_sha256 }}
+          CANARY_RECEIPT_SHA256: ${{ inputs.exact_image_canary_receipt_sha256 }}
+          ADMISSION_RECEIPT_SHA256: ${{ needs.admit.outputs.admission_receipt_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          RESUME_ARTIFACT_ID: ${{ inputs.resume_started_effect_artifact_id }}
+          RESUME_RECEIPT_SHA256: ${{ inputs.resume_started_effect_receipt_sha256 }}
+          PROVIDER_PLAN_ARTIFACT_ID: ${{ needs.probe.outputs.provider_plan_artifact_id }}
+          PROVIDER_PLAN_ARTIFACT_DIGEST: ${{ needs.probe.outputs.provider_plan_artifact_digest }}
+          PROVIDER_PLAN_RECEIPT_SHA256: ${{ needs.probe.outputs.provider_plan_receipt_sha256 }}
+          COMPENSATION_ARTIFACT_ID: ${{ needs.compensate.outputs.compensation_artifact_id }}
+          COMPENSATION_ARTIFACT_DIGEST: ${{ needs.compensate.outputs.compensation_artifact_digest }}
+          COMPENSATION_CONTROL_RECEIPT_SHA256: ${{ needs.compensate.outputs.compensation_control_receipt_sha256 }}
+          COMPENSATION_EFFECT_IDENTITY_SHA256: ${{ needs.compensate.outputs.compensation_effect_identity_sha256 }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          app=assesssuite-physio-production
+          endpoint='https://assesssuite-physio-production.fly.dev/api/apps/local-assesssuite-physio/functions/stripeWebhook'
+          stripe_api='https://api.stripe.com'
+          stripe_version='2026-07-29.dahlia'
+          packet="$RUNNER_TEMP/physio-stripe-webhook"
+          work="$RUNNER_TEMP/physio-stripe-webhook-work"
+          install -d -m 0700 "$packet" "$work"
+          reconciliation="$packet/stripe-webhook-effect-reconciliation.json"
+          request_manifest="$packet/stripe-webhook-request-manifest.json"
+          provider_plan_packet="$RUNNER_TEMP/provider-plan"
+          provider_plan="$provider_plan_packet/stripe-provider-plan.json"
+          [[ "$STRIPE_SECRET_KEY" == rk_live_* || "$STRIPE_SECRET_KEY" == sk_live_* ]]
+          stripe_credential_mode="$([[ "$STRIPE_SECRET_KEY" == rk_live_* ]] && echo restricted_live || echo secret_live)"
+          idempotency_header_name='Idempotency-Key'
+          started="$RUNNER_TEMP/started"
+          expected=$'SHA256SUMS\noutstanding-effect-inventory.json\nresume-artifact-admission.json\nresume-sibling-inventory.json\nstripe-webhook-effect-identity.json\nstripe-webhook-effect-reconciliation.json\nstripe-webhook-request-manifest.json'
+          expected_compensation=$'SHA256SUMS\ncompensation-resume-artifact-admission.json\ncompensation-resume-sibling-inventory.json\noutstanding-effect-inventory.json\nresume-artifact-admission.json\nresume-sibling-inventory.json\nstripe-webhook-effect-identity.json\nstripe-webhook-effect-reconciliation.json\nstripe-webhook-request-manifest.json'
+          started_files="$(find "$started" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)"
+          [[ "$started_files" == "$expected" || "$started_files" == "$expected_compensation" ]]
+          if find "$started" -type l -print -quit | grep -q .; then exit 1; fi
+          (cd "$started" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$started/stripe-webhook-effect-reconciliation.json" | awk '{print $1}')" == '${{ needs.start.outputs.started_receipt_sha256 }}' ]]
+          install -m 0600 "$started/stripe-webhook-effect-reconciliation.json" "$reconciliation"
+          install -m 0600 "$started/stripe-webhook-effect-identity.json" "$packet/stripe-webhook-effect-identity.json"
+          install -m 0600 "$started/stripe-webhook-request-manifest.json" "$request_manifest"
+          install -m 0600 "$started/resume-artifact-admission.json" "$packet/resume-artifact-admission.json"
+          install -m 0600 "$started/outstanding-effect-inventory.json" "$packet/outstanding-effect-inventory.json"
+          install -m 0600 "$started/resume-sibling-inventory.json" "$packet/resume-sibling-inventory.json"
+          effect_identity_receipt_sha256="$(sha256sum "$packet/stripe-webhook-effect-identity.json" | awk '{print $1}')"
+          prior_artifact_admission_sha256="$(sha256sum "$packet/resume-artifact-admission.json" | awk '{print $1}')"
+          IFS=$'\t' read -r request_sha256 effect_generation prior_request_sha256 prior_effect_receipt_sha256 \
+            request_prior_artifact_admission_sha256 expected_idempotency_sha256 prior_idempotency_key_sha256 \
+            predecessor_control_receipt_sha256 predecessor_control_kind < <( \
+            REQUEST="$request_manifest" AUTHORITY="$AUTHORITY_REFERENCE" \
+            env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const request = JSON.parse(fs.readFileSync(process.env.REQUEST, 'utf8'));
+          const stored = request.request_sha256;
+          const requestForHash = { ...request, metadata: { ...request.metadata } };
+          delete requestForHash.request_sha256;
+          delete requestForHash.metadata.requestSha256;
+          const calculated = createHash('sha256').update(JSON.stringify(requestForHash)).digest('hex');
+          if (!/^[0-9a-f]{64}$/.test(stored || '') || stored !== calculated ||
+               !Number.isSafeInteger(request.effect_generation) || request.effect_generation < 0 ||
+               request.authority_reference !== process.env.AUTHORITY ||
+              !/^[0-9a-f]{64}$/.test(request.prior_request_sha256 || '') ||
+              !/^[0-9a-f]{64}$/.test(request.prior_effect_receipt_sha256 || '') ||
+              !/^[0-9a-f]{64}$/.test(request.prior_artifact_admission_sha256 || '') ||
+               !/^[0-9a-f]{64}$/.test(request.predecessor_control_receipt_sha256 || '') ||
+               !['NOT_APPLICABLE','EFFECT_RECONCILIATION','TERMINAL_COMPENSATION'].includes(
+                 request.predecessor_control_kind) ||
+               !/^[0-9a-f]{64}$/.test(request.idempotency_key_sha256 || '') ||
+               !/^[0-9a-f]{64}$/.test(request.prior_idempotency_key_sha256 || '') ||
+               request.metadata?.effectGeneration !== String(request.effect_generation) ||
+               request.metadata?.requestSha256 !== stored ||
+               !/^[0-9a-f]{64}$/.test(request.metadata?.startedEffectReceiptSha256 || '') ||
+               (request.effect_generation > 0 &&
+                 request.idempotency_key_sha256 === request.prior_idempotency_key_sha256)) {
+             throw new Error('durable webhook request generation binding differs');
+           }
+           process.stdout.write([stored, request.effect_generation, request.prior_request_sha256,
+             request.prior_effect_receipt_sha256, request.prior_artifact_admission_sha256,
+             request.idempotency_key_sha256, request.prior_idempotency_key_sha256,
+             request.predecessor_control_receipt_sha256, request.predecessor_control_kind].join('\t'));
+          NODE
+          )
+          [[ "$effect_generation" =~ ^[0-9]+$ ]]
+          [[ "$request_prior_artifact_admission_sha256" == "$prior_artifact_admission_sha256" ]]
+          idempotency_key="physio-webhook-$(printf '%s' "$APPLICATION_SHA|$BOOTSTRAP_RECEIPT_SHA256|$CAPABILITY_INTENT_ID|$effect_generation|$prior_effect_receipt_sha256" | sha256sum | cut -c1-40)"
+          [[ "$(printf '%s' "$idempotency_key" | sha256sum | awk '{print $1}')" == "$expected_idempotency_sha256" ]]
+          if [[ "$effect_generation" -gt 0 && "$expected_idempotency_sha256" == "$prior_idempotency_key_sha256" ]]; then
+            echo 'current idempotency_key_sha256 equals prior_idempotency_key_sha256' >&2
+            exit 1
+          fi
+          [[ "$request_sha256" == '${{ needs.start.outputs.request_sha256 }}' ]]
+          [[ "$PROVIDER_PLAN_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$PROVIDER_PLAN_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$(sha256sum "$provider_plan" | awk '{print $1}')" == "$PROVIDER_PLAN_RECEIPT_SHA256" ]]
+          RECONCILIATION="$reconciliation" APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_RECEIPT_SHA256" \
+          CANARY_SHA="$CANARY_RECEIPT_SHA256" INTENT="$CAPABILITY_INTENT_ID" REQUEST_SHA="$request_sha256" \
+          AUTHORITY="$AUTHORITY_REFERENCE" \
+          GENERATION="$effect_generation" PRIOR_REQUEST_SHA="$prior_request_sha256" PRIOR_EFFECT_SHA="$prior_effect_receipt_sha256" \
+          RESUME_SHA="$prior_effect_receipt_sha256" IDEMPOTENCY_SHA="$expected_idempotency_sha256" \
+          PRIOR_IDEMPOTENCY_SHA="$prior_idempotency_key_sha256" \
+          EFFECT_IDENTITY_SHA="$effect_identity_receipt_sha256" \
+          PRIOR_ARTIFACT_ADMISSION_SHA="$prior_artifact_admission_sha256" \
+          PREDECESSOR_CONTROL_SHA="$predecessor_control_receipt_sha256" \
+          PREDECESSOR_CONTROL_KIND="$predecessor_control_kind" \
+          STARTED_RECEIPT_SHA='${{ needs.start.outputs.started_receipt_sha256 }}' \
+          env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          if (row.contract_version !== 'assesssuite-physio-stripe-webhook-effect-reconciliation/1.0.0' || row.result !== 'STARTED' ||
+               row.application_sha !== process.env.APPLICATION_SHA || row.bootstrap_receipt_sha256 !== process.env.BOOTSTRAP_SHA ||
+               row.exact_image_canary_receipt_sha256 !== process.env.CANARY_SHA || row.capability_intent_id !== process.env.INTENT ||
+               row.authority_reference !== process.env.AUTHORITY ||
+              row.request_sha256 !== process.env.REQUEST_SHA || row.effect_generation !== Number(process.env.GENERATION) ||
+              row.prior_request_sha256 !== process.env.PRIOR_REQUEST_SHA ||
+              row.prior_artifact_admission_sha256 !== process.env.PRIOR_ARTIFACT_ADMISSION_SHA ||
+               row.predecessor_control_receipt_sha256 !== process.env.PREDECESSOR_CONTROL_SHA ||
+               row.predecessor_control_kind !== process.env.PREDECESSOR_CONTROL_KIND ||
+               row.resume_started_effect_receipt_sha256 !== process.env.RESUME_SHA ||
+               row.resume_started_effect_receipt_sha256 !== process.env.PRIOR_EFFECT_SHA ||
+               row.effect_identity_receipt_sha256 !== process.env.EFFECT_IDENTITY_SHA ||
+               row.idempotency_key_sha256 !== process.env.IDEMPOTENCY_SHA ||
+               row.prior_idempotency_key_sha256 !== process.env.PRIOR_IDEMPOTENCY_SHA ||
+               row.orphan_compensation_authorized !== true ||
+              row.orphan_compensation_contract_version !== 'assesssuite-physio-stripe-webhook-orphan-compensation/1.0.0' ||
+              row.orphan_compensation_policy !== 'delete-exact-metadata-bound-endpoint-prove-absence-then-recreate') {
+            throw new Error('durable STARTED webhook packet differs');
+          }
+          row.started_effect_receipt_sha256 = process.env.STARTED_RECEIPT_SHA;
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+          RECONCILIATION="$reconciliation" PLAN="$provider_plan" PLAN_ARTIFACT_ID="$PROVIDER_PLAN_ARTIFACT_ID" \
+          PLAN_ARTIFACT_DIGEST="$PROVIDER_PLAN_ARTIFACT_DIGEST" PLAN_SHA="$PROVIDER_PLAN_RECEIPT_SHA256" \
+          env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          const plan = JSON.parse(fs.readFileSync(process.env.PLAN, 'utf8'));
+          if (plan.started_effect_receipt_sha256 !== row.started_effect_receipt_sha256 ||
+              plan.request_sha256 !== row.request_sha256 || plan.effect_generation !== row.effect_generation) {
+            throw new Error('provider plan does not bind the current durable STARTED generation');
+          }
+          row.provider_plan_artifact_id = process.env.PLAN_ARTIFACT_ID;
+          row.provider_plan_artifact_digest = process.env.PLAN_ARTIFACT_DIGEST;
+          row.provider_plan_receipt_sha256 = process.env.PLAN_SHA;
+          row.provider_plan_state = plan.provider_state;
+          row.provider_plan_endpoint_id_sha256 = plan.exact_endpoint_id_sha256;
+          row.prior_effect_resolution = plan.prior_effect_resolution;
+          row.prior_effect_readback_sha256 = plan.prior_effect_readback_sha256;
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+          install -m 0600 "$provider_plan_packet/stripe-provider-plan.json" "$packet/provider-plan.json"
+          install -m 0600 "$provider_plan_packet/stripe-provider-probe.json" "$packet/provider-plan-probe-readback.json"
+          install -m 0600 "$provider_plan_packet/provider-probe-request-id-hashes.json" "$packet/provider-plan-request-id-hashes.json"
+          [[ "$COMPENSATION_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$COMPENSATION_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          while IFS= read -r -d '' file; do
+            install -m 0600 "$file" "$packet/compensation-packet--$(basename "$file")"
+          done < <(find "$RUNNER_TEMP/compensation" -mindepth 1 -maxdepth 1 -type f -print0)
+          COMPENSATION="$RUNNER_TEMP/compensation" RECONCILIATION="$reconciliation" \
+            APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_RECEIPT_SHA256" \
+            INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" \
+            CONTROL_SHA="$COMPENSATION_CONTROL_RECEIPT_SHA256" EFFECT_IDENTITY="$COMPENSATION_EFFECT_IDENTITY_SHA256" \
+            ARTIFACT_ID="$COMPENSATION_ARTIFACT_ID" ARTIFACT_DIGEST="$COMPENSATION_ARTIFACT_DIGEST" \
+            env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          import { validateStripeWebhookCompensationPacket } from './scripts/physio-stripe-webhook-evidence.mjs';
+          const proof = validateStripeWebhookCompensationPacket(process.env.COMPENSATION, {
+            applicationSha: process.env.APPLICATION_SHA,
+            authorityReference: process.env.AUTHORITY,
+            bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+            capabilityIntentId: process.env.INTENT,
+            controlReceiptSha256: process.env.CONTROL_SHA,
+            requireCompleted: true,
+          });
+          if (proof.compensation_effect_identity_sha256 !== process.env.EFFECT_IDENTITY) {
+            throw new Error('terminal compensation effect identity differs');
+          }
+          const latest = JSON.parse(fs.readFileSync(path.join(process.env.COMPENSATION,
+            `stripe-webhook-compensation-phase-${String(proof.latest_revision).padStart(3, '0')}.json`), 'utf8'));
+          const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          row.compensation_phase_artifact_id = process.env.ARTIFACT_ID;
+          row.compensation_phase_artifact_digest = process.env.ARTIFACT_DIGEST;
+          row.compensation_phase_receipt_sha256 = proof.latest_phase_receipt_sha256;
+          row.compensation_effect_identity_sha256 = proof.compensation_effect_identity_sha256;
+          row.orphan_endpoint_compensated = proof.orphan_endpoint_compensated;
+          row.orphan_endpoint_id_sha256 = proof.target_endpoint_id_sha256;
+          row.compensation_delete_request_id_sha256 = latest.delete_request_id_sha256;
+          row.compensation_absence_readback_sha256 = latest.readback_sha256;
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+          preserve_webhook_effect_evidence() {
+            local status=$?
+            trap - EXIT
+            if [[ "$status" -ne 0 ]]; then
+              RECONCILIATION="$reconciliation" WORK="$work" PACKET="$packet" STATUS="$status" \
+              env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          const finalizationComplete = fs.existsSync(path.join(process.env.WORK, 'finalization-complete'));
+          if (row.result === 'COMPLETED' && finalizationComplete) process.exit(0);
+          if (row.result === 'COMPLETED') {
+            const passReceipt = path.join(process.env.PACKET, 'physio-production-stripe-webhook.json');
+            if (fs.existsSync(passReceipt)) fs.unlinkSync(passReceipt);
+            row.result = 'STARTED_UNRESOLVED';
+            row.completed_at = null;
+          }
+          const hashes = {};
+          for (const name of ['stripe-create-response.raw','stripe-create.stderr','fly-secret-import.stdout','fly-secret-import.stderr']) {
+            const file = path.join(process.env.WORK, name);
+            if (fs.existsSync(file) && fs.statSync(file).isFile()) {
+              hashes[name] = createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+            }
+          }
+          if (row.result !== 'STARTED_UNRESOLVED') {
+            row.result = fs.existsSync(path.join(process.env.WORK, 'provider-mutation-started'))
+              ? 'STARTED_UNRESOLVED' : 'FAILED';
+          }
+          row.process_exit_code = Number(process.env.STATUS);
+          row.provider_result_sha256 = hashes; row.failed_at = new Date().toISOString();
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+              (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+            fi
+            rm -f "$work/signing-secret"
+            exit "$status"
+          }
+          trap preserve_webhook_effect_evidence EXIT
+
+          # GET /v1/webhook_endpoints?limit=100 is the authoritative pre-effect provider readback.
+          curl --proto '=https' --tlsv1.2 --fail-with-body --silent --show-error --max-time 60 --max-redirs 0 \
+            --max-filesize 4194304 \
+            --dump-header "$work/stripe-list-before.headers" \
+            -H "Authorization: Bearer $STRIPE_SECRET_KEY" -H "Stripe-Version: $stripe_version" \
+            "$stripe_api/v1/webhook_endpoints?limit=100" >"$work/stripe-endpoints-before.raw.json"
+          IFS=$'\t' read -r prior_endpoint_id observed_endpoint_lineage < <(LIST="$work/stripe-endpoints-before.raw.json" \
+            SANITIZED="$packet/stripe-endpoints-before.json" ENDPOINT="$endpoint" REQUEST="$request_manifest" \
+            PLAN="$provider_plan" RESUME_ID="$RESUME_ARTIFACT_ID" PRIOR_PACKET="$RUNNER_TEMP/resume" \
+            COMPENSATED='${{ needs.compensate.outputs.orphan_endpoint_compensated }}' \
+            env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { classifyStripeWebhookEndpointLineage } from './scripts/physio-stripe-webhook-evidence.mjs';
+          const value = JSON.parse(fs.readFileSync(process.env.LIST, 'utf8'));
+          const request = JSON.parse(fs.readFileSync(process.env.REQUEST, 'utf8'));
+          const plan = JSON.parse(fs.readFileSync(process.env.PLAN, 'utf8'));
+          if (value?.has_more !== false || !Array.isArray(value?.data)) {
+            throw new Error('Stripe endpoint inventory is paginated or incomplete');
+          }
+          const rows = Array.isArray(value?.data) ? value.data : [];
+          const physioBound = rows.filter((row) => row?.metadata?.appId === 'local-assesssuite-physio' ||
+            row?.metadata?.professionId === 'physio');
+          const atUrl = rows.filter((row) => row?.url === process.env.ENDPOINT);
+          if (atUrl.length > 1 || physioBound.length > 1 ||
+              (physioBound.length === 1 && physioBound[0]?.url !== process.env.ENDPOINT)) {
+            throw new Error('duplicate or alternate-URL Physio endpoint exists');
+          }
+          if (atUrl.length === 0) {
+            const compensatedPrior = process.env.COMPENSATED === 'true' &&
+              plan.provider_state === 'EXACT' && plan.observed_endpoint_lineage === 'PRIOR';
+            const originallyAbsent = plan.provider_state === 'ABSENT' && plan.observed_endpoint_lineage === 'NONE';
+            if (!compensatedPrior && !originallyAbsent) {
+              throw new Error('provider absence differs from durable plan or terminal compensation chain');
+            }
+            fs.writeFileSync(process.env.SANITIZED, JSON.stringify({ has_more: false, exact_url_count: 0,
+              observed_endpoint_lineage: 'NONE', exact_endpoint: null }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+            process.stdout.write('ABSENT\tNONE');
+            process.exit(0);
+          }
+          if (process.env.COMPENSATED === 'true') {
+            throw new Error('endpoint reappeared after terminal compensation; CREATE is denied');
+          }
+          const priorMetadata = process.env.RESUME_ID === '0' ? null :
+            JSON.parse(fs.readFileSync(`${process.env.PRIOR_PACKET}/stripe-webhook-request-manifest.json`, 'utf8')).metadata;
+          const classification = classifyStripeWebhookEndpointLineage(atUrl[0], {
+            currentMetadata: request.metadata,
+            priorMetadata,
+          });
+          const sanitized = classification.endpoint;
+          if (plan.provider_state !== 'EXACT' || classification.lineage !== plan.observed_endpoint_lineage ||
+              Number(sanitized.metadata.effectGeneration) !== plan.observed_endpoint_effect_generation ||
+              sanitized.metadata.requestSha256 !== plan.observed_endpoint_request_sha256 ||
+              sanitized.metadata.startedEffectReceiptSha256 !== plan.observed_endpoint_started_effect_receipt_sha256) {
+            throw new Error('observed endpoint lineage changed after durable provider plan');
+          }
+          fs.writeFileSync(process.env.SANITIZED, JSON.stringify({ has_more: false, exact_url_count: 1,
+            observed_endpoint_lineage: classification.lineage, exact_endpoint: sanitized }, null, 2) + '\n',
+          { flag: 'wx', mode: 0o600 });
+          process.stdout.write(`${sanitized.id}\t${classification.lineage}`);
+          NODE
+          )
+          PLAN="$provider_plan" OBSERVED_ID="$prior_endpoint_id" OBSERVED_LINEAGE="$observed_endpoint_lineage" \
+          COMPENSATED='${{ needs.compensate.outputs.orphan_endpoint_compensated }}' \
+          env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const plan = JSON.parse(fs.readFileSync(process.env.PLAN, 'utf8'));
+          if (process.env.OBSERVED_ID === 'ABSENT' && process.env.OBSERVED_LINEAGE === 'NONE') {
+            const originallyAbsent = plan.provider_state === 'ABSENT' && plan.observed_endpoint_lineage === 'NONE' &&
+              plan.planned_action === 'CREATE_FROM_PROVEN_ABSENCE';
+            const compensatedPrior = process.env.COMPENSATED === 'true' && plan.provider_state === 'EXACT' &&
+              plan.observed_endpoint_lineage === 'PRIOR' && plan.planned_action === 'RECONCILE_OR_COMPENSATE_EXACT';
+            if (!originallyAbsent && !compensatedPrior) {
+              throw new Error('provider authoritative absence lacks exact plan or compensation authority');
+            }
+          } else if (plan.provider_state === 'ABSENT') {
+            if (process.env.OBSERVED_ID !== 'ABSENT' || process.env.OBSERVED_LINEAGE !== 'NONE' ||
+                plan.observed_endpoint_lineage !== 'NONE' || plan.planned_action !== 'CREATE_FROM_PROVEN_ABSENCE') {
+              throw new Error('provider state changed after durable absence plan');
+            }
+          } else {
+            const observedHash = createHash('sha256').update(process.env.OBSERVED_ID).digest('hex');
+            if (process.env.OBSERVED_ID !== plan.exact_endpoint_id || observedHash !== plan.exact_endpoint_id_sha256 ||
+                process.env.OBSERVED_LINEAGE !== plan.observed_endpoint_lineage ||
+                !['CURRENT','PRIOR'].includes(plan.observed_endpoint_lineage) ||
+                plan.endpoint_lineage !== plan.observed_endpoint_lineage ||
+                plan.endpoint_effect_generation !== plan.observed_endpoint_effect_generation ||
+                plan.endpoint_request_sha256 !== plan.observed_endpoint_request_sha256 ||
+                plan.endpoint_started_effect_receipt_sha256 !== plan.observed_endpoint_started_effect_receipt_sha256 ||
+                plan.planned_action !== 'RECONCILE_OR_COMPENSATE_EXACT') {
+              throw new Error('provider exact endpoint changed after durable plan');
+            }
+          }
+          NODE
+          reconciled_existing=false
+          orphan_endpoint_compensated='${{ needs.compensate.outputs.orphan_endpoint_compensated }}'
+          [[ "$observed_endpoint_lineage" == 'NONE' && "$prior_endpoint_id" == 'ABSENT' ]]
+
+          if [[ "$reconciled_existing" == 'false' ]]; then
+            create_exit_code=1
+            create_http_status=000
+            for attempt in 1 2; do
+            # POST /v1/webhook_endpoints uses one deterministic idempotency key for response-loss recovery.
+            : >"$work/provider-mutation-started"
+            set +e
+            curl --proto '=https' --tlsv1.2 --silent --show-error --max-time 60 --max-redirs 0 \
+              --max-filesize 4194304 \
+              --output "$work/stripe-create-response.raw" --write-out '%{http_code}' \
+              --dump-header "$work/stripe-create.headers" \
+              -X POST "$stripe_api/v1/webhook_endpoints" \
+              -H "Authorization: Bearer $STRIPE_SECRET_KEY" -H "Stripe-Version: $stripe_version" \
+              -H "$idempotency_header_name: $idempotency_key" \
+              --data-urlencode "url=$endpoint" --data-urlencode "api_version=$stripe_version" \
+              --data-urlencode 'enabled_events[]=checkout.session.completed' \
+              --data-urlencode 'enabled_events[]=customer.subscription.deleted' \
+              --data-urlencode 'enabled_events[]=customer.subscription.paused' \
+              --data-urlencode 'enabled_events[]=invoice.payment_failed' \
+              --data-urlencode 'metadata[appId]=local-assesssuite-physio' \
+              --data-urlencode 'metadata[professionId]=physio' \
+               --data-urlencode "metadata[bootstrapReceiptSha256]=$BOOTSTRAP_RECEIPT_SHA256" \
+               --data-urlencode "metadata[applicationSha]=$APPLICATION_SHA" \
+               --data-urlencode "metadata[capabilityIntentId]=$CAPABILITY_INTENT_ID" \
+               --data-urlencode "metadata[effectGeneration]=$effect_generation" \
+               --data-urlencode "metadata[requestSha256]=$request_sha256" \
+               --data-urlencode "metadata[startedEffectReceiptSha256]=$effect_identity_receipt_sha256" \
+               >"$work/stripe-create-http-status" 2>"$work/stripe-create.stderr"
+            create_exit_code=$?
+            set -e
+            create_http_status="$(cat "$work/stripe-create-http-status" 2>/dev/null || printf '000')"
+            if [[ "$create_exit_code" -eq 0 && "$create_http_status" == '200' ]]; then
+              set +e
+              RAW="$work/stripe-create-response.raw" SANITIZED="$packet/stripe-create-response-sanitized.json" \
+               SECRET="$work/signing-secret" ENDPOINT="$endpoint" BOOTSTRAP_SHA="$BOOTSTRAP_RECEIPT_SHA256" \
+               APPLICATION_SHA="$APPLICATION_SHA" INTENT="$CAPABILITY_INTENT_ID" RECONCILIATION="$reconciliation" \
+               GENERATION="$effect_generation" REQUEST_SHA="$request_sha256" \
+               EFFECT_IDENTITY_SHA="$effect_identity_receipt_sha256" \
+          env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import { sanitizeStripeWebhookEndpoint } from './scripts/physio-stripe-webhook-evidence.mjs';
+          const row = JSON.parse(fs.readFileSync(process.env.RAW, 'utf8'));
+          if (!/^whsec_[A-Za-z0-9]+$/.test(row.secret || '')) process.exit(2);
+           const expectedMetadata = { appId: 'local-assesssuite-physio', applicationSha: process.env.APPLICATION_SHA,
+             bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA, capabilityIntentId: process.env.INTENT,
+             effectGeneration: process.env.GENERATION, professionId: 'physio',
+             requestSha256: process.env.REQUEST_SHA,
+             startedEffectReceiptSha256: process.env.EFFECT_IDENTITY_SHA };
+          const sanitized = sanitizeStripeWebhookEndpoint(row, expectedMetadata);
+          fs.writeFileSync(process.env.SECRET, row.secret, { flag: 'wx', mode: 0o600 });
+          fs.writeFileSync(process.env.SANITIZED, JSON.stringify(sanitized, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          const reconciliation = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          reconciliation.stripe_signing_secret_sha256 = createHash('sha256').update(row.secret).digest('hex');
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(reconciliation, null, 2) + '\n', { mode: 0o600 });
+          NODE
+              validation_exit=$?
+              set -e
+              if [[ "$validation_exit" -eq 0 ]]; then break; fi
+            fi
+            rm -f "$packet/stripe-create-response-sanitized.json" "$work/signing-secret"
+            [[ "$attempt" -eq 1 ]] || { echo 'webhook_endpoint_create_response_unknown' >&2; exit 1; }
+            done
+            endpoint_id="$(SANITIZED="$packet/stripe-create-response-sanitized.json" node --input-type=module -e \
+              "import fs from 'node:fs'; process.stdout.write(JSON.parse(fs.readFileSync(process.env.SANITIZED,'utf8')).id)")"
+          fi
+          curl --proto '=https' --tlsv1.2 --fail-with-body --silent --show-error --max-time 60 --max-redirs 0 \
+            --max-filesize 4194304 \
+            --dump-header "$work/stripe-endpoint-readback.headers" \
+            -H "Authorization: Bearer $STRIPE_SECRET_KEY" -H "Stripe-Version: $stripe_version" \
+            "$stripe_api/v1/webhook_endpoints/$endpoint_id" >"$work/stripe-endpoint-readback.raw.json"
+          curl --proto '=https' --tlsv1.2 --fail-with-body --silent --show-error --max-time 60 --max-redirs 0 \
+            --max-filesize 4194304 \
+            --dump-header "$work/stripe-list-after.headers" \
+            -H "Authorization: Bearer $STRIPE_SECRET_KEY" -H "Stripe-Version: $stripe_version" \
+            "$stripe_api/v1/webhook_endpoints?limit=100" >"$work/stripe-endpoints-after.raw.json"
+          READBACK="$work/stripe-endpoint-readback.raw.json" LIST="$work/stripe-endpoints-after.raw.json" \
+          READBACK_SANITIZED="$packet/stripe-endpoint-readback.json" SANITIZED="$packet/stripe-endpoints-after.json" ID="$endpoint_id" \
+           ENDPOINT="$endpoint" BOOTSTRAP_SHA="$BOOTSTRAP_RECEIPT_SHA256" APPLICATION_SHA="$APPLICATION_SHA" \
+           INTENT="$CAPABILITY_INTENT_ID" GENERATION="$effect_generation" REQUEST_SHA="$request_sha256" \
+           EFFECT_IDENTITY_SHA="$effect_identity_receipt_sha256" env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import { sanitizeStripeWebhookEndpoint } from './scripts/physio-stripe-webhook-evidence.mjs';
+          const row = JSON.parse(fs.readFileSync(process.env.READBACK, 'utf8'));
+          const list = JSON.parse(fs.readFileSync(process.env.LIST, 'utf8'));
+           const expectedMetadata = { appId: 'local-assesssuite-physio', applicationSha: process.env.APPLICATION_SHA,
+             bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA, capabilityIntentId: process.env.INTENT,
+             effectGeneration: process.env.GENERATION, professionId: 'physio',
+             requestSha256: process.env.REQUEST_SHA,
+             startedEffectReceiptSha256: process.env.EFFECT_IDENTITY_SHA };
+          const sanitize = (value) => sanitizeStripeWebhookEndpoint(value, expectedMetadata);
+          const valid = (value) => { try { return value?.id === process.env.ID && Boolean(sanitize(value)); } catch { return false; } };
+          const missionBound = Array.isArray(list?.data) ? list.data.filter((value) => value?.metadata &&
+            Object.entries(expectedMetadata).some(([key, expected]) => value.metadata[key] === expected)) : [];
+          if (list?.has_more !== false || !valid(row) || !Array.isArray(list?.data) || list.data.filter(valid).length !== 1 ||
+              list.data.filter((value) => value?.url === process.env.ENDPOINT).length !== 1 ||
+              missionBound.length !== 1 || missionBound[0]?.id !== process.env.ID) {
+            throw new Error('Stripe endpoint authoritative readback differs');
+          }
+          const sanitized = sanitize(row);
+          fs.writeFileSync(process.env.READBACK_SANITIZED, JSON.stringify(sanitized, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          fs.writeFileSync(process.env.SANITIZED, JSON.stringify({ has_more: false, exact_url_count: 1, exact_endpoint: sanitized }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+
+          REQUEST_IDS="$packet/provider-request-id-hashes.json" \
+          LIST_BEFORE_HEADERS="$work/stripe-list-before.headers" CREATE_HEADERS="$work/stripe-create.headers" \
+          READBACK_HEADERS="$work/stripe-endpoint-readback.headers" LIST_AFTER_HEADERS="$work/stripe-list-after.headers" \
+          COMPENSATED=false DELETE_HEADERS="$work/stripe-orphan-delete.headers" \
+          ABSENCE_HEADERS="$work/stripe-orphan-absence.headers" \
+          RECONCILED_EXISTING="$reconciled_existing" PRIOR_REQUEST_IDS="$RUNNER_TEMP/resume/provider-request-id-hashes.json" \
+          env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const sources = { list_before: process.env.LIST_BEFORE_HEADERS,
+            endpoint_readback: process.env.READBACK_HEADERS, list_after: process.env.LIST_AFTER_HEADERS };
+          const hashes = {};
+          for (const [name, file] of Object.entries(sources)) {
+            const lines = fs.readFileSync(file, 'utf8').replaceAll('\r\n', '\n').split('\n');
+            const values = lines.filter((line) => /^request-id:/i.test(line)).map((line) => line.slice(line.indexOf(':') + 1).trim());
+            const value = values.at(-1);
+            if (!/^req_[A-Za-z0-9]+$/.test(value || '')) throw new Error(`Stripe ${name} request ID is missing`);
+            hashes[name] = createHash('sha256').update(value).digest('hex');
+          }
+          if (process.env.COMPENSATED === 'true') {
+            for (const [name, file] of [['compensation_delete', process.env.DELETE_HEADERS],
+              ['compensation_absence_list', process.env.ABSENCE_HEADERS]]) {
+              const values = fs.readFileSync(file, 'utf8').replaceAll('\r\n', '\n').split('\n')
+                .filter((line) => /^request-id:/i.test(line)).map((line) => line.slice(line.indexOf(':') + 1).trim());
+              const value = values.at(-1);
+              if (!/^req_[A-Za-z0-9]+$/.test(value || '')) throw new Error(`Stripe ${name} request ID is missing`);
+              hashes[name] = createHash('sha256').update(value).digest('hex');
+            }
+          }
+          let createReconciledFromPrior = false;
+          if (process.env.RECONCILED_EXISTING === 'true') {
+            const prior = JSON.parse(fs.readFileSync(process.env.PRIOR_REQUEST_IDS, 'utf8'));
+            if (prior.contract_version !== 'assesssuite-provider-request-id-hashes/1.0.0' ||
+                !/^[0-9a-f]{64}$/.test(prior.hashes?.create || '')) throw new Error('prior Stripe create request ID hash differs');
+            hashes.create = prior.hashes.create;
+            createReconciledFromPrior = true;
+          } else {
+            const lines = fs.readFileSync(process.env.CREATE_HEADERS, 'utf8').replaceAll('\r\n', '\n').split('\n');
+            const values = lines.filter((line) => /^request-id:/i.test(line)).map((line) => line.slice(line.indexOf(':') + 1).trim());
+            const value = values.at(-1);
+            if (!/^req_[A-Za-z0-9]+$/.test(value || '')) throw new Error('Stripe create request ID is missing');
+            hashes.create = createHash('sha256').update(value).digest('hex');
+          }
+          fs.writeFileSync(process.env.REQUEST_IDS, JSON.stringify({
+            contract_version: 'assesssuite-provider-request-id-hashes/1.0.0', provider: 'stripe', hashes,
+            create_reconciled_from_prior: createReconciledFromPrior,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+
+          fly secrets list --app "$app" --json >"$work/fly-secrets-before.raw.json"
+          fly_secret_prestate="$(SECRETS="$work/fly-secrets-before.raw.json" SANITIZED="$packet/fly-secrets-before.json" \
+            env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN \
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const value = JSON.parse(fs.readFileSync(process.env.SECRETS, 'utf8'));
+          const rows = Array.isArray(value) ? value : value.secrets || value.data || [];
+          const pre = ['ADMIN_PASSWORD','APP_URL','EXPECTED_APP_URL','OPENAI_API_KEY','RESEND_API_KEY','SENTRY_DSN',
+            'STRIPE_PRICE_ID_ANNUAL','STRIPE_PRICE_ID_MONTHLY','STRIPE_SECRET_KEY'].sort();
+          const complete = [...pre, 'STRIPE_WEBHOOK_SECRET'].sort();
+          const sanitized = rows.map((row) => {
+            if (!row || typeof row !== 'object' || Array.isArray(row) ||
+                Object.keys(row).some((key) => /(?:^|_)(?:value|raw_value|secret_value)(?:$|_)/i.test(key))) {
+              throw new Error('Fly secret metadata is malformed or value-bearing');
+            }
+            const name = row.Name ?? row.name;
+            const digest = row.Digest ?? row.digest;
+            const status = row.Status ?? row.status;
+            if (typeof name !== 'string' || !/^[0-9a-f]{16,64}$/i.test(digest || '') || status !== 'Staged') {
+              throw new Error('Fly secret metadata lacks exact name, digest, or Staged status');
+            }
+            return { name, digest: digest.toLowerCase(), status };
+          }).sort((a, b) => a.name.localeCompare(b.name));
+          const names = sanitized.map(({ name }) => name);
+          if (new Set(names).size !== names.length) throw new Error('Fly secret metadata contains duplicate names');
+          fs.writeFileSync(process.env.SANITIZED, JSON.stringify({
+            contract_version: 'assesssuite-fly-secret-metadata/1.0.0', secrets: sanitized,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          if (JSON.stringify(names) === JSON.stringify(pre)) process.stdout.write('ABSENT');
+          else if (JSON.stringify(names) === JSON.stringify(complete)) {
+            process.stdout.write('COMPLETE');
+          }
+          else throw new Error('Fly webhook secret prestate is partial or ambiguous');
+          NODE
+          )"
+          fly_secret_import_exit_code=1
+          fly_secret_import_attempts=0
+          for fly_secret_import_attempt in 1 2; do
+            fly_secret_import_attempts="$fly_secret_import_attempt"
+            set +e
+            python3 - "$work/signing-secret" <<'PY' | \
+              fly secrets import --app "$app" --stage --dns-checks=false \
+                >"$work/fly-secret-import.stdout" 2>"$work/fly-secret-import.stderr"
+          import pathlib
+          import sys
+          value = pathlib.Path(sys.argv[1]).read_text(encoding='utf-8')
+          if not value.startswith('whsec_') or '\n' in value or '\r' in value:
+              raise SystemExit(2)
+          sys.stdout.write('STRIPE_WEBHOOK_SECRET=' + value + '\n')
+          PY
+            fly_secret_import_exit_code=$?
+            set -e
+            if [[ "$fly_secret_import_exit_code" -eq 0 ]]; then break; fi
+            [[ "$fly_secret_import_attempt" -eq 1 ]] || {
+              echo 'Exact Stripe signing-secret stage did not return success after bounded same-value retry.' >&2
+              exit 1
+            }
+          done
+          [[ "$fly_secret_import_exit_code" -eq 0 && "$fly_secret_import_attempts" -ge 1 && "$fly_secret_import_attempts" -le 2 ]]
+          fly secrets list --app "$app" --json >"$work/fly-secrets-after.raw.json"
+          SECRETS="$work/fly-secrets-after.raw.json" SANITIZED="$packet/fly-secrets-after.json" \
+          env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const value = JSON.parse(fs.readFileSync(process.env.SECRETS, 'utf8'));
+          const rows = Array.isArray(value) ? value : value.secrets || value.data || [];
+          const expected = ['ADMIN_PASSWORD','APP_URL','EXPECTED_APP_URL','OPENAI_API_KEY','RESEND_API_KEY','SENTRY_DSN',
+            'STRIPE_PRICE_ID_ANNUAL','STRIPE_PRICE_ID_MONTHLY','STRIPE_SECRET_KEY','STRIPE_WEBHOOK_SECRET'].sort();
+          const sanitized = rows.map((row) => {
+            if (!row || typeof row !== 'object' || Array.isArray(row) ||
+                Object.keys(row).some((key) => /(?:^|_)(?:value|raw_value|secret_value)(?:$|_)/i.test(key))) {
+              throw new Error('Fly secret metadata is malformed or value-bearing');
+            }
+            const name = row.Name ?? row.name;
+            const digest = row?.Digest ?? row?.digest;
+            const status = row?.Status ?? row?.status;
+            if (typeof name !== 'string' || !/^[0-9a-f]{16,64}$/i.test(digest || '') || status !== 'Staged') {
+              throw new Error('Fly staged secret lacks exact name, digest, and Staged status');
+            }
+            return { name, digest: digest.toLowerCase(), status };
+          }).sort((a, b) => a.name.localeCompare(b.name));
+          const names = sanitized.map(({ name }) => name);
+          if (new Set(names).size !== names.length || JSON.stringify(names) !== JSON.stringify(expected)) {
+            throw new Error('Fly staged webhook secret readback differs');
+          }
+          fs.writeFileSync(process.env.SANITIZED, JSON.stringify({
+            contract_version: 'assesssuite-fly-secret-metadata/1.0.0', secrets: sanitized,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          webhook_fly_digest="$(SECRETS="$packet/fly-secrets-after.json" env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN \
+            node --input-type=module -e "import fs from 'node:fs'; const rows=JSON.parse(fs.readFileSync(process.env.SECRETS,'utf8')).secrets; const row=rows.find((v)=>v.name==='STRIPE_WEBHOOK_SECRET'); process.stdout.write(row.digest)")"
+          [[ "$webhook_fly_digest" =~ ^[0-9a-f]{16,64}$ ]]
+          rm -f "$work/signing-secret" "$work/stripe-create-response.raw"
+
+          RECONCILIATION="$reconciliation" CREATE_EXIT="$create_exit_code" CREATE_HTTP="$create_http_status" \
+          LIST_BEFORE_SHA="$(sha256sum "$packet/stripe-endpoints-before.json" | awk '{print $1}')" \
+          ENDPOINT_SHA="$(sha256sum "$packet/stripe-endpoint-readback.json" | awk '{print $1}')" \
+          FLY_PRESTATE="$fly_secret_prestate" FLY_IMPORT_EXIT="$fly_secret_import_exit_code" \
+          FLY_IMPORT_ATTEMPTS="$fly_secret_import_attempts" \
+          FLY_SHA="$(sha256sum "$packet/fly-secrets-after.json" | awk '{print $1}')" \
+          WEBHOOK_FLY_DIGEST="$webhook_fly_digest" \
+          ENDPOINT_ID="$endpoint_id" RECONCILED_EXISTING="$reconciled_existing" \
+          REQUEST_IDS_SHA="$(sha256sum "$packet/provider-request-id-hashes.json" | awk '{print $1}')" \
+          env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          row.result = 'COMPLETED'; row.provider_list_before_sha256 = process.env.LIST_BEFORE_SHA;
+          row.provider_create_exit_code = Number(process.env.CREATE_EXIT); row.provider_create_http_status = process.env.CREATE_HTTP;
+          row.provider_endpoint_readback_sha256 = process.env.ENDPOINT_SHA; row.fly_secret_prestate = process.env.FLY_PRESTATE;
+          row.stripe_webhook_endpoint_id = process.env.ENDPOINT_ID;
+          row.existing_endpoint_reconciled = process.env.RECONCILED_EXISTING === 'true';
+          row.fly_secret_import_exit_code = Number(process.env.FLY_IMPORT_EXIT);
+          row.fly_secret_import_attempts = Number(process.env.FLY_IMPORT_ATTEMPTS);
+          row.fly_secret_readback_sha256 = process.env.FLY_SHA;
+          row.fly_webhook_secret_digest = process.env.WEBHOOK_FLY_DIGEST;
+          row.provider_request_id_hashes_sha256 = process.env.REQUEST_IDS_SHA;
+          row.completed_at = new Date().toISOString();
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+          reconciliation_sha="$(sha256sum "$reconciliation" | awk '{print $1}')"
+          RECEIPT="$packet/physio-production-stripe-webhook.json" APPLICATION_SHA="$APPLICATION_SHA" \
+          BOOTSTRAP_SHA="$BOOTSTRAP_RECEIPT_SHA256" CANARY_SHA="$CANARY_RECEIPT_SHA256" ADMISSION_SHA="$ADMISSION_RECEIPT_SHA256" \
+          REQUEST_SHA="$request_sha256" RECONCILIATION_SHA="$reconciliation_sha" ID="$endpoint_id" ENDPOINT="$endpoint" \
+          STRIPE_MODE="$stripe_credential_mode" INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" \
+          ENDPOINT_SHA="$(sha256sum "$packet/stripe-endpoint-readback.json" | awk '{print $1}')" \
+          FLY_SHA="$(sha256sum "$packet/fly-secrets-after.json" | awk '{print $1}')" \
+          WEBHOOK_FLY_DIGEST="$webhook_fly_digest" \
+          REQUEST_IDS_SHA="$(sha256sum "$packet/provider-request-id-hashes.json" | awk '{print $1}')" \
+          PROVIDER_PLAN_ARTIFACT_ID="$PROVIDER_PLAN_ARTIFACT_ID" PROVIDER_PLAN_ARTIFACT_DIGEST="$PROVIDER_PLAN_ARTIFACT_DIGEST" \
+          PROVIDER_PLAN_SHA="$PROVIDER_PLAN_RECEIPT_SHA256" \
+          PROVIDER_PLAN_PROBE_SHA="$(sha256sum "$packet/provider-plan-probe-readback.json" | awk '{print $1}')" \
+          PROVIDER_PLAN_REQUEST_IDS_SHA="$(sha256sum "$packet/provider-plan-request-id-hashes.json" | awk '{print $1}')" \
+          RECONCILIATION="$reconciliation" \
+          env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const effect = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          if (!/^[0-9a-f]{64}$/.test(effect.stripe_signing_secret_sha256 || '')) {
+            throw new Error('signing-secret payload fingerprint is missing');
+          }
+          const row = { contract_version: 'assesssuite-physio-stripe-webhook-bootstrap/1.0.0', result: 'PASS',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA, profession_id: 'physio',
+            bootstrap_receipt_sha256: process.env.BOOTSTRAP_SHA,
+            exact_image_canary_receipt_sha256: process.env.CANARY_SHA,
+             admission_receipt_sha256: process.env.ADMISSION_SHA, request_sha256: process.env.REQUEST_SHA,
+             started_effect_receipt_sha256: effect.started_effect_receipt_sha256,
+             effect_identity_receipt_sha256: effect.effect_identity_receipt_sha256,
+             effect_generation: effect.effect_generation,
+            prior_effect_receipt_sha256: effect.resume_started_effect_receipt_sha256,
+            predecessor_control_receipt_sha256: effect.predecessor_control_receipt_sha256,
+            predecessor_control_kind: effect.predecessor_control_kind,
+            prior_request_sha256: effect.prior_request_sha256,
+            prior_effect_resolution: effect.prior_effect_resolution,
+            prior_effect_readback_sha256: effect.prior_effect_readback_sha256,
+            provider_plan_artifact_id: process.env.PROVIDER_PLAN_ARTIFACT_ID,
+            provider_plan_artifact_digest: process.env.PROVIDER_PLAN_ARTIFACT_DIGEST,
+            provider_plan_receipt_sha256: process.env.PROVIDER_PLAN_SHA,
+            provider_plan_probe_readback_sha256: process.env.PROVIDER_PLAN_PROBE_SHA,
+            provider_plan_request_id_hashes_sha256: process.env.PROVIDER_PLAN_REQUEST_IDS_SHA,
+            effect_reconciliation_receipt_sha256: process.env.RECONCILIATION_SHA,
+            stripe_api_version: '2026-07-29.dahlia', stripe_credential_mode: process.env.STRIPE_MODE,
+            stripe_webhook_endpoint: process.env.ENDPOINT, stripe_webhook_endpoint_id: process.env.ID,
+            enabled_events: ['checkout.session.completed','customer.subscription.deleted','customer.subscription.paused','invoice.payment_failed'],
+            provider_endpoint_count: 1, provider_endpoint_readback_sha256: process.env.ENDPOINT_SHA,
+            stripe_webhook_secret_staged: true, fly_secret_names_readback_sha256: process.env.FLY_SHA,
+            stripe_signing_secret_sha256: effect.stripe_signing_secret_sha256,
+            fly_webhook_secret_digest: process.env.WEBHOOK_FLY_DIGEST,
+            existing_endpoint_reconciled: effect.existing_endpoint_reconciled === true,
+             orphan_compensation_contract_version: effect.orphan_compensation_contract_version,
+             compensation_phase_artifact_id: effect.compensation_phase_artifact_id,
+             compensation_phase_artifact_digest: effect.compensation_phase_artifact_digest,
+             compensation_phase_receipt_sha256: effect.compensation_phase_receipt_sha256,
+             compensation_effect_identity_sha256: effect.compensation_effect_identity_sha256,
+             orphan_endpoint_compensated: effect.orphan_endpoint_compensated === true,
+            orphan_endpoint_id_sha256: effect.orphan_endpoint_id_sha256,
+            compensation_delete_request_id_sha256: effect.compensation_delete_request_id_sha256,
+            compensation_absence_readback_sha256: effect.compensation_absence_readback_sha256,
+            provider_request_id_hashes_sha256: process.env.REQUEST_IDS_SHA,
+            production_ready_for_publication: true, capability_intent_id: process.env.INTENT,
+            authority_reference: process.env.AUTHORITY, completed_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          PACKET="$packet" STRIPE_KEY="$STRIPE_SECRET_KEY" FLY_KEY="$FLY_API_TOKEN" \
+          env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const allowedSecretKeys = new Set([
+            'stripe_webhook_secret_staged',
+            'stripe_signing_secret_sha256',
+            'fly_secret_names_readback_sha256',
+            'fly_webhook_secret_digest',
+            'secret_bundle_fingerprint_sha256',
+            'fly_secret_prestate',
+            'fly_secret_import_exit_code',
+            'fly_secret_readback_sha256',
+            'reconciled_prior_fly_webhook_secret_digest',
+          ]);
+          const forbiddenKey = /(?:^|_)(?:pan|cvc|cvv|card_number|secret)(?:_|$)/i;
+          const visit = (value) => {
+            if (Array.isArray(value)) return value.forEach(visit);
+            if (!value || typeof value !== 'object') return;
+            for (const [key, child] of Object.entries(value)) {
+              if (forbiddenKey.test(key) && !allowedSecretKeys.has(key)) {
+                throw new Error(`forbidden secret or payment-data key in webhook packet: ${key}`);
+              }
+              visit(child);
+            }
+          };
+          const secretValues = [process.env.STRIPE_KEY, process.env.FLY_KEY].filter(Boolean);
+          for (const name of fs.readdirSync(process.env.PACKET)) {
+            const file = path.join(process.env.PACKET, name);
+            if (!fs.statSync(file).isFile()) continue;
+            const bytes = fs.readFileSync(file);
+            const text = bytes.toString('utf8');
+            if (/whsec_[A-Za-z0-9]+/.test(text) || secretValues.some((value) => text.includes(value))) {
+              throw new Error(`raw provider credential found in webhook packet: ${name}`);
+            }
+            if (name.endsWith('.json')) visit(JSON.parse(text));
+          }
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          PACKET="$packet" APPLICATION_SHA="$APPLICATION_SHA" AUTHORITY="$AUTHORITY_REFERENCE" \
+          BOOTSTRAP_SHA="$BOOTSTRAP_RECEIPT_SHA256" CANARY_SHA="$CANARY_RECEIPT_SHA256" \
+          INTENT="$CAPABILITY_INTENT_ID" EFFECT_SHA="$(sha256sum "$reconciliation" | awk '{print $1}')" \
+          env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { validateCompletedStripeWebhookPacket } from './scripts/physio-stripe-webhook-evidence.mjs';
+          validateCompletedStripeWebhookPacket(process.env.PACKET, {
+            applicationSha: process.env.APPLICATION_SHA,
+            authorityReference: process.env.AUTHORITY,
+            bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+            canaryReceiptSha256: process.env.CANARY_SHA,
+            capabilityIntentId: process.env.INTENT,
+            effectReceiptSha256: process.env.EFFECT_SHA,
+          });
+          NODE
+          : >"$work/finalization-complete"
+          echo "stripe_webhook_receipt_sha256=$(sha256sum "$packet/physio-production-stripe-webhook.json" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+
+      - name: Scan bounded webhook provider effect evidence
+        id: packet_scan
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/physio-stripe-webhook-evidence.mjs scan --root "$RUNNER_TEMP/physio-stripe-webhook"
+
+      - name: Upload exact webhook provider effect evidence
+        id: upload
+        if: ${{ always() && steps.packet_scan.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-production-stripe-webhook-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/physio-stripe-webhook
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

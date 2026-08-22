@@ -16,6 +16,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import transcribeSession from '../functions/transcribeSession.mjs';
+import { transcriptionFallback } from './support/provider-services.mjs';
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(testsDir, '..', '..');
@@ -41,11 +42,12 @@ async function withEnvironment(overrides, operation) {
   }
 }
 
-function ctx(body) {
+function ctx(body, { withTestProvider = false } = {}) {
   return {
     body,
     user: { id: 'u1', email: 'clinician@example.test' },
     respond: (status, respBody) => ({ status, body: respBody }),
+    ...(withTestProvider ? { transcriptionFallback } : {}),
   };
 }
 
@@ -77,11 +79,15 @@ test('dissect_to_soap fails loud (503) when LLM_REQUIRED=1 and no provider key i
 test('dissect_to_soap labels its mock output as simulated when the mock path is legitimately used under self-test', async () => {
   await withEnvironment(
     {
+      NODE_ENV: 'test',
       SELFTEST: '1',
     },
     async () => {
       const result = await transcribeSession(
-        ctx({ action: 'dissect_to_soap', transcript: SAMPLE_TRANSCRIPT }),
+        ctx(
+          { action: 'dissect_to_soap', transcript: SAMPLE_TRANSCRIPT },
+          { withTestProvider: true },
+        ),
       );
       assert.equal(result.status, 200, JSON.stringify(result.body));
       assert.equal(result.body.success, true);
@@ -98,7 +104,7 @@ test('dissect_to_soap labels its mock output as simulated when the mock path is 
   );
 });
 
-test('dissect_to_soap mock is still labelled outside self-test when no key is configured and LLM_REQUIRED is unset (dev/staging convenience path)', async () => {
+test('dissect_to_soap fails loud outside self-test when no key is configured', async () => {
   await withEnvironment(
     {
       TRANSCRIPTION_ENABLED: '1',
@@ -110,12 +116,9 @@ test('dissect_to_soap mock is still labelled outside self-test when no key is co
       const result = await transcribeSession(
         ctx({ action: 'dissect_to_soap', transcript: SAMPLE_TRANSCRIPT }),
       );
-      assert.equal(result.status, 200, JSON.stringify(result.body));
-      assert.equal(result.body.simulated, true);
-      assert.match(result.body.subjective, /simulat/i);
-      assert.match(result.body.objective, /simulat/i);
-      assert.match(result.body.assessment, /simulat/i);
-      assert.match(result.body.plan, /simulat/i);
+      assert.equal(result.status, 503, JSON.stringify(result.body));
+      assert.equal(result.body.code, 'transcription_provider_unconfigured');
+      assert.equal(result.body.simulated, undefined);
     },
   );
 });

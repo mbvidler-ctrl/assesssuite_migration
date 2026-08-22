@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, Save, Play, Pause, RotateCcw } from 'lucide-react';
 import { todayLocal } from "@/lib/localDate";
+import { scoreCtsib } from "@/lib/clinical/scorers/coreA";
 
 const CONDITIONS = [
   { id: 'firm_eyes_open', name: 'Firm Surface, Eyes Open', surface: 'firm', vision: 'open' },
@@ -36,30 +37,10 @@ export default function CTSIBRunner({ onSave, onClose, initialData }) {
   };
 
   const handleSave = () => {
-    const completed = Object.keys(scores).length;
-
-    const scoresText = CONDITIONS.map(condition => {
-      const score = scores[condition.id];
-      return score ? `  - ${condition.name}: ${score}s` : `  - ${condition.name}: Not tested`;
-    }).join('\n');
-
-    const soapText = `• Clinical Test of Sensory Interaction in Balance (CTSIB):\n${scoresText}${observations ? `\n\n  Observations: ${observations}` : ''}`;
-
-    // Use the shortest recorded time as result_value for display
-    const times = Object.values(scores).map(Number);
-    const resultValue = times.length > 0 ? Math.min(...times) : 0;
-
-    onSave({
-      result_value: resultValue,
-      additional_data: {
-        soap_text: soapText,
-        scores,
-        conditions_completed: completed,
-        interpretation: completed === 4 ? 'All 4 conditions completed' : `${completed}/4 conditions completed`,
-      },
-      notes: observations,
-      assessment_date: todayLocal(),
-    });
+    onSave(scoreCtsib(
+      { scores, observations },
+      { assessmentName: 'Clinical Test of Sensory Interaction in Balance', assessmentDate: todayLocal(), notes: observations },
+    ));
   };
 
   return (

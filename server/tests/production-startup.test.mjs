@@ -14,6 +14,7 @@ import {
 import {
   PARITY_ASSURANCE_UPLOADS_DIR,
   PRODUCTION_APP_URL,
+  productionAppUrlFor,
   runProductionBootstrap,
 } from '../productionBootstrap.mjs';
 import { runCatalogueSeed, runSeed } from '../seed.mjs';
@@ -24,6 +25,47 @@ const productionAppEnvironment = Object.freeze({
   NODE_ENV: 'production',
   EXPECTED_APP_URL: PRODUCTION_APP_URL,
   APP_URL: PRODUCTION_APP_URL,
+});
+const physioReleaseSha = '0123456789abcdef0123456789abcdef01234567';
+const physiotherapyEnvironment = Object.freeze({
+  NODE_ENV: 'production',
+  PROFESSION: 'physio',
+  DEFAULT_APP_ID: 'local-assesssuite-physio',
+  EXPECTED_APP_URL: 'https://physio.app.assesssuite.com',
+  APP_URL: 'https://physio.app.assesssuite.com',
+  SELFTEST: '0',
+  PARITY_ASSURANCE_MODE: '0',
+  ALLOW_OPEN_REGISTRATION: '1',
+  OUTBOUND_EMAIL_ENABLED: '1',
+  OUTBOUND_SMS_ENABLED: '0',
+  PAYMENTS_ENABLED: '1',
+  GENERAL_CLINICAL_LLM_ENABLED: '0',
+  LLM_REQUIRED: '1',
+  TRANSCRIPTION_ENABLED: '1',
+  DOCUMENT_EXTRACTION_ENABLED: '1',
+  DOCUMENT_EXTRACTION_UNDER_13_ENABLED: '0',
+  OPENAI_HEALTH_DATA_TERMS_CONFIRMED: '1',
+  OPENAI_MODEL_FAST: 'gpt-4.1-mini-2025-04-14',
+  OPENAI_MODEL_QUALITY: 'gpt-4.1-2025-04-14',
+  OPENAI_TRANSCRIBE_MODEL: 'whisper-1',
+  OPENAI_API_KEY: 'contract-fixture-openai-provider-key',
+  UPLOADS_DIR: '/app/server/data/physio-uploads',
+  RELEASE_SHA: physioReleaseSha,
+  BUILD_TIMESTAMP: '2026-08-22T00:00:00.000Z',
+  ALLOW_PAID_PROVIDER_PROBE: '0',
+  EMAIL_FROM: 'AssessSuite Physiotherapy <verification@assesssuite.com>',
+  EMAIL_REPLY_TO: 'admin@assesssuite.com',
+  EMAIL_DOMAIN: 'assesssuite.com',
+  ADMIN_PASSWORD: 'contract-fixture-admin-password',
+  RESEND_API_KEY: 'contract-fixture-resend-key',
+  STRIPE_SECRET_KEY: 'rk_live_contract_fixture_stripe_key',
+  STRIPE_WEBHOOK_SECRET: 'contract-fixture-webhook-secret',
+  STRIPE_PRICE_ID_MONTHLY: 'price_contract_monthly',
+  STRIPE_PRICE_ID_ANNUAL: 'price_contract_annual',
+  STRIPE_TRIAL_PERIOD_DAYS: '30',
+  SENTRY_DSN: 'https://contractPublicKey@o4511822688813056.ingest.us.sentry.io/4511827129663488',
+  SENTRY_ENVIRONMENT: 'physio-production',
+  SENTRY_RELEASE: `physio-production@${physioReleaseSha}`,
 });
 
 function restoreEnvironment(previous) {
@@ -114,6 +156,45 @@ test('production bootstrap is fail-closed and invokes only the catalogue seeder'
     () => runProductionBootstrap({ environment: { NODE_ENV: 'test' } }),
     /requires NODE_ENV=production/,
   );
+});
+
+test('production bootstrap binds each profession to its own exact public origin', () => {
+  assert.equal(
+    productionAppUrlFor(physiotherapyEnvironment),
+    'https://physio.app.assesssuite.com',
+  );
+
+  const calls = [];
+  runProductionBootstrap({
+    environment: physiotherapyEnvironment,
+    openDatabaseFn: () => ({
+      db: { close: () => calls.push('close') },
+      entityNames: new Set(['Assessment']),
+    }),
+    catalogueSeedFn: () => calls.push('catalogue'),
+  });
+  assert.deepEqual(calls, ['catalogue', 'close']);
+
+  for (const environment of [
+    { ...physiotherapyEnvironment, EXPECTED_APP_URL: PRODUCTION_APP_URL },
+    { ...physiotherapyEnvironment, APP_URL: PRODUCTION_APP_URL },
+    { ...physiotherapyEnvironment, DEFAULT_APP_ID: 'local-assesssuite' },
+    {
+      ...productionAppEnvironment,
+      PROFESSION: 'exercise-physiology',
+      DEFAULT_APP_ID: 'local-assesssuite-physio',
+    },
+  ]) {
+    let databaseOpened = false;
+    assert.throws(() => runProductionBootstrap({
+      environment,
+      openDatabaseFn: () => {
+        databaseOpened = true;
+        throw new Error('database was opened');
+      },
+    }));
+    assert.equal(databaseOpened, false);
+  }
 });
 
 test('production parity assurance requires the exact no-egress and isolation posture before database access', () => {

@@ -84,6 +84,9 @@ export default function ClientConditions() {
         prompt: prompt
       });
 
+      if (typeof response !== 'string') {
+        throw new Error('Assessment suggestion provider returned a non-text response.');
+      }
       const suggestions = response.split('\n').filter(line => line.trim()).map(line => ({
         name: line.replace(/^\d+\.\s*/, '').replace(/^-\s*/, '').trim(),
         reason: `Recommended for ${conditionsList}`

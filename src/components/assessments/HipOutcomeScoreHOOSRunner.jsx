@@ -5,45 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_HOOS_HOOS_SUBSCALES as HOOS_SUBSCALES, PROM_NEURO_HOOS_QUESTIONS as questions, PROM_NEURO_HOOS_SCORELABELS as scoreLabels } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const HOOS_SUBSCALES = [
-  { name: "Symptoms", label: "Symptoms", items: ["S1", "S2", "S3", "S4", "S5"] },
-  { name: "Pain", label: "Pain", items: ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10"] },
-  { name: "ActivitiesOfDailyLiving", label: "Activities of Daily Living", items: ["A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8", "A9", "A10", "A11", "A12", "A13", "A14", "A15", "A16", "A17"] },
-  { name: "SportAndRecreation", label: "Sport & Recreation", items: ["SP1", "SP2", "SP3", "SP4"] },
-  { name: "QualityOfLife", label: "Quality of Life", items: ["Q1", "Q2", "Q3", "Q4"] },
-];
 
-const questions = {
-  S1: "Do you feel grinding, hear clicking or any other type of noise when your hip moves?",
-  S2: "Difficulties spreading legs wide apart",
-  S3: "Difficulties striding out when walking",
-  S4: "In the morning: How severe is your hip stiffness?",
-  S5: "After sitting, lying: How severe is your hip stiffness?",
-  P1: "How often do you experience hip pain?",
-  P2: "Straightening hip fully",
-  P3: "Bending hip fully",
-  P4: "Walking on flat surface",
-  P5: "Going up or down stairs",
-  P6: "At night while in bed",
-  P7: "Sitting or lying",
-  P8: "Standing upright",
-  P9: "Walking on hard surface",
-  P10: "Getting in/out of car or getting in/out of bath",
-  A1: "Descending stairs", A2: "Ascending stairs", A3: "Rising from sitting",
-  A4: "Standing", A5: "Bending to floor/pick up an object", A6: "Walking on flat surface",
-  A7: "Getting in/out of car", A8: "Going shopping", A9: "Putting on socks/stockings",
-  A10: "Rising from bed", A11: "Taking off socks/stockings", A12: "Lying in bed",
-  A13: "Getting in/out of bath", A14: "Sitting", A15: "Getting on/off toilet",
-  A16: "Heavy domestic duties", A17: "Light domestic duties",
-  SP1: "Squatting", SP2: "Running", SP3: "Twisting/pivoting on your injured hip", SP4: "Walking on uneven surface",
-  Q1: "How often are you aware of your hip problem?",
-  Q2: "Have you modified your life style to avoid activities potentially damaging to your hip?",
-  Q3: "How much are you troubled with lack of confidence in your hip?",
-  Q4: "In general, how much difficulty do you have with your hip?"
-};
 
-const scoreLabels = ["None", "Mild", "Moderate", "Severe", "Extreme"];
 
 export default function HipOutcomeScoreHOOSRunner({ client, onSave, onClose }) {
   const [responses, setResponses] = useState({});
@@ -58,8 +23,8 @@ export default function HipOutcomeScoreHOOSRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (totalAnswered === 0) {
-      toast.error("Please answer at least one question before saving.");
+    if (totalAnswered !== totalQuestions) {
+      toast.error(`Please answer all ${totalQuestions} questions (${totalAnswered}/${totalQuestions} completed).`);
       return;
     }
 
@@ -218,7 +183,7 @@ export default function HipOutcomeScoreHOOSRunner({ client, onSave, onClose }) {
         {/* Footer */}
         <div className="border-t p-4 bg-slate-50 flex justify-between shrink-0">
           <Button variant="outline" onClick={onClose}><X className="w-4 h-4 mr-2" />Cancel</Button>
-          <Button onClick={handleSave} disabled={totalAnswered === 0} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleSave} disabled={totalAnswered !== totalQuestions} className="bg-blue-600 hover:bg-blue-700">
             <Save className="w-4 h-4 mr-2" />Save HOOS
           </Button>
         </div>

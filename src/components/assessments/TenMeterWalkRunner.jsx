@@ -69,17 +69,17 @@ export default function TenMeterWalkRunner({ onSave, onClose }) {
     if (trials.length === 0) return 0;
     const speeds = trials.map(trial => 10 / parseFloat(trial.time));
     const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
-    return avgSpeed.toFixed(2);
+    return Number(avgSpeed.toFixed(2));
   };
 
   const calculateAverageTime = () => {
     if (trials.length === 0) return 0;
     const sum = trials.reduce((acc, trial) => acc + parseFloat(trial.time), 0);
-    return (sum / trials.length).toFixed(2);
+    return Number((sum / trials.length).toFixed(2));
   };
 
   const getSpeedInterpretation = (speed) => {
-    const s = parseFloat(speed);
+    const s = Number(speed);
     // Based on community ambulation speed thresholds
     if (s >= 1.2) return { text: 'Community Ambulator', color: 'text-green-600' };
     if (s >= 0.8) return { text: 'Limited Community Ambulator', color: 'text-blue-600' };
@@ -105,12 +105,12 @@ export default function TenMeterWalkRunner({ onSave, onClose }) {
     ].filter(Boolean).join('\n');
 
     onSave({
-      result_value: parseFloat(avgSpeed),
+      result_value: avgSpeed,
       additional_data: {
         soap_text: soapText,
         trials,
-        average_time: parseFloat(avgTime),
-        average_speed: parseFloat(avgSpeed),
+        average_time: avgTime,
+        average_speed: avgSpeed,
         walking_speed_type: walkingSpeed,
         assistive_device: assistiveDevice,
         interpretation: interpretation.text,

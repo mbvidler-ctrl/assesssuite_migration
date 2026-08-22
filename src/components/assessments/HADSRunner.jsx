@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { todayLocal } from "@/lib/localDate";
+import { scoreHads } from "@/lib/clinical/scorers/coreB";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,45 +52,11 @@ export default function HADSRunner({ onSave, onClose }) {
   const depressionInterp = getInterpretation(depression, "depression");
 
   const handleSave = () => {
-    if (Object.keys(scores).length < 14) {
-      toast.error("Please complete all 14 items");
-      return;
+    try {
+      onSave(scoreHads({ scores, notes }, { assessmentName: 'Hospital Anxiety and Depression Scale (HADS)' }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save HADS assessment.");
     }
-
-    // Generate comprehensive SOAP text with all Q&A
-    let soapText = `Hospital Anxiety and Depression Scale (HADS) Assessment:\n\n`;
-    soapText += `Individual Question Responses:\n`;
-    
-    HADS_ITEMS.forEach((item) => {
-      const score = parseInt(scores[item.id]);
-      const optionIndex = item.scores.indexOf(score);
-      const selectedOption = item.options[optionIndex];
-      soapText += `\nQ${item.id}. ${item.text} [${item.subscale}]\n`;
-      soapText += `    Answer: ${selectedOption} (Score: ${score})\n`;
-    });
-
-    soapText += `\nSubscale Scores:\n`;
-    soapText += `  • Anxiety: ${anxiety}/21 - ${anxietyInterp.level}\n`;
-    soapText += `  • Depression: ${depression}/21 - ${depressionInterp.level}\n`;
-    soapText += `  • Total HADS Score: ${anxiety + depression}/42\n`;
-
-    if (notes && notes.trim()) {
-      soapText += `\nClinical Notes: ${notes}\n`;
-    }
-
-    onSave({
-      result_value: anxiety + depression,
-      additional_data: {
-        anxiety_score: anxiety,
-        depression_score: depression,
-        anxiety_interpretation: anxietyInterp.level,
-        depression_interpretation: depressionInterp.level,
-        item_scores: scores,
-        soap_text: soapText
-      },
-      notes: notes,
-      assessment_date: todayLocal()
-    });
   };
 
   return (

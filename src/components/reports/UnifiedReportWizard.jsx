@@ -20,6 +20,11 @@ import {
   AI_SECTION_TAG,
 } from "@/lib/clinical/aiProvenance";
 import { renderSafeHtmlDocument } from "@/lib/safeHtml";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
+
+const allReportTemplatesAllowed = activeProfession.reports.allowedTypeIds.includes('*');
+const allowedReportTemplateKeys = new Set(activeProfession.reports.allowedTypeIds);
+const isReportTemplateAllowed = (key) => allReportTemplatesAllowed || allowedReportTemplateKeys.has(key);
 
 // --- Meta-template definitions (controls length & AI tone) ---
 export const META_TEMPLATES = {
@@ -49,6 +54,10 @@ export const META_TEMPLATES = {
 // --- Map each report type key to its meta-template ---
 export const REPORT_META_TEMPLATE_MAP = {
   // Australia General
+  physio_initial_assessment: "comprehensive_progress_report",
+  physio_progress_report: "comprehensive_progress_report",
+  physio_referrer_update: "short_referral_letter",
+  physio_discharge_summary: "short_referral_letter",
   gp_summary: "short_referral_letter",
   custom_report: "comprehensive_progress_report",
   progress_note: "comprehensive_progress_report",
@@ -252,6 +261,58 @@ const PRIOR_REPORT_DEPS = {
 
 // Each report has mandatory sections (always included) and optional extras the clinician can add
 const REPORT_TEMPLATES = {
+  physio_initial_assessment: {
+    id: "PHYSIO_INITIAL_ASSESSMENT", title: "Physiotherapy Initial Assessment", funder: "PHYSIOTHERAPY",
+    mandatory: [
+      "Reason for Referral & Presenting Problem",
+      "Relevant History & Patient Priorities",
+      "Red Flag and Safety Screen",
+      "Subjective Examination",
+      "Objective Examination Findings",
+      "Baseline Outcome Measures",
+      "Physiotherapy Clinical Impression",
+      "Goals & Initial Management Plan"
+    ],
+    optional: ["Precautions", "Coordination / Referral", "Attachments", "Provider Signature"]
+  },
+  physio_progress_report: {
+    id: "PHYSIO_PROGRESS_REPORT", title: "Physiotherapy Progress Report", funder: "PHYSIOTHERAPY",
+    mandatory: [
+      "Reason for Report",
+      "Management Delivered to Date",
+      "Baseline vs Current Outcome Measures",
+      "Functional and Participation Change",
+      "Goal Progress",
+      "Barriers, Precautions & Unresolved Issues",
+      "Current Plan & Reassessment"
+    ],
+    optional: ["Questions for Referrer", "Attachments", "Provider Signature"]
+  },
+  physio_referrer_update: {
+    id: "PHYSIO_REFERRER_UPDATE", title: "Physiotherapy Referrer Update", funder: "PHYSIOTHERAPY",
+    mandatory: [
+      "Reason for Referral",
+      "Clinical and Functional Update",
+      "Objective Progress",
+      "Management to Date",
+      "Current Plan",
+      "Questions / Escalation for Referrer"
+    ],
+    optional: ["Limitations & Uncertainties", "Attachments", "Provider Signature"]
+  },
+  physio_discharge_summary: {
+    id: "PHYSIO_DISCHARGE_SUMMARY", title: "Physiotherapy Discharge Summary", funder: "PHYSIOTHERAPY",
+    mandatory: [
+      "Episode Summary",
+      "Management Delivered",
+      "Goal Outcomes",
+      "Outcome Measure Change",
+      "Current Function",
+      "Ongoing Self-management",
+      "Follow-up & Unresolved Issues"
+    ],
+    optional: ["Coordination / Referrals", "Attachments", "Provider Signature"]
+  },
   gp_summary: {
     id: "GP_SUMMARY_LETTER", title: "GP Summary Letter", funder: "GP",
     mandatory: [
@@ -1301,6 +1362,7 @@ const REPORT_TEMPLATES = {
 
 // Groups for display in step 0
 const FUNDER_GROUPS = [
+  { key: "PHYSIOTHERAPY", label: "Physiotherapy", color: "bg-teal-50 border-teal-300 text-teal-800", badge: "bg-teal-100 text-teal-800" },
   { key: "DVA", label: "DVA (Department of Veterans' Affairs)", color: "bg-yellow-50 border-yellow-300 text-yellow-800", badge: "bg-yellow-100 text-yellow-800" },
   { key: "MEDICARE", label: "Medicare / CDSM", color: "bg-green-50 border-green-300 text-green-800", badge: "bg-green-100 text-green-800" },
   { key: "WORKCOVER", label: "WorkCover", color: "bg-orange-50 border-orange-300 text-orange-800", badge: "bg-orange-100 text-orange-800" },
@@ -1411,7 +1473,7 @@ function findOutcomeSection(activeSections) {
 function buildGpLetterHtml(template, activeSections, content, client, clinician, outcomeAssessments) {
   const today = format(new Date(), "dd MMMM yyyy");
   const clientDOB = client.date_of_birth ? format(new Date(client.date_of_birth), "dd/MM/yyyy") : "N/A";
-  const age = client.date_of_birth ? Math.floor((new Date() - new Date(client.date_of_birth)) / 31557600000) : null;
+  const age = client.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / 31557600000) : null;
   const gpName = client.gp_name || client.primary_gp_name || "";
   const gpClinic = client.gp_clinic || client.primary_gp_clinic_name || "";
   const gpAddress = client.gp_address || client.primary_gp_address || "";
@@ -1475,7 +1537,7 @@ function buildReportHtml(template, activeSections, content, client, clinician, d
   const anyAi = (activeSections || []).some((s) => content[`${s}_ai_drafted`]);
   const today = format(new Date(), "dd MMMM yyyy");
   const clientDOB = client.date_of_birth ? format(new Date(client.date_of_birth), "dd/MM/yyyy") : "N/A";
-  const age = client.date_of_birth ? Math.floor((new Date() - new Date(client.date_of_birth)) / 31557600000) : null;
+  const age = client.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / 31557600000) : null;
   const rangeStr = dateRange?.start && dateRange?.end
     ? `${format(new Date(dateRange.start), "dd/MM/yyyy")} – ${format(new Date(dateRange.end), "dd/MM/yyyy")}`
     : today;
@@ -1548,7 +1610,9 @@ function ReportTypeSelector({ client, value, onChange }) {
         {clientFunder && <span className="ml-1 text-blue-600 font-medium">Client's funding: {clientFunder}</span>}
       </p>
       {FUNDER_GROUPS.map(group => {
-        const groupTemplates = Object.entries(REPORT_TEMPLATES).filter(([, t]) => t.funder === group.key);
+        const groupTemplates = Object.entries(REPORT_TEMPLATES).filter(([key, t]) => (
+          t.funder === group.key && isReportTemplateAllowed(key)
+        ));
         if (groupTemplates.length === 0) return null;
         const isClientFunder = group.key === clientFunder;
         const isExpanded = expandedGroups[group.key];
@@ -1587,7 +1651,15 @@ function ReportTypeSelector({ client, value, onChange }) {
   );
 }
 
-export default function UnifiedReportWizard({ isOpen, onClose, client, clientData, clinician, existingReport, reportType: preselectedReportType }) {
+export default function UnifiedReportWizard({
+  isOpen,
+  onClose,
+  client,
+  clinician = null,
+  existingReport = null,
+  reportType: preselectedReportType = null,
+  careEpisodeId = null,
+}) {
   const [step, setStep] = useState(0);
   const [reportTypeKey, setReportTypeKey] = useState("");
   const [dateRange, setDateRange] = useState({ start: null, end: null });
@@ -1615,7 +1687,13 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
   useEffect(() => {
     if (!isOpen) return;
     if (isEditing && existingReport) {
-      const key = Object.entries(REPORT_TEMPLATES).find(([, t]) => t.id === existingReport.report_type)?.[0] || "custom_report";
+      const matchedKey = Object.entries(REPORT_TEMPLATES).find(([, t]) => t.id === existingReport.report_type)?.[0];
+      const key = matchedKey || "custom_report";
+      if (!isReportTemplateAllowed(key) || (!matchedKey && !allReportTemplatesAllowed)) {
+        toast.error(`That report template is not available in ${activeProfession.shortName}.`);
+        onClose();
+        return;
+      }
       setReportTypeKey(key);
       const saved = existingReport.section_content || {};
       setSectionContent(saved);
@@ -1624,6 +1702,11 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
       setSelectedAssessmentIds(existingReport.assessment_ids || []);
       setStep(0);
     } else if (preselectedReportType) {
+      if (!isReportTemplateAllowed(preselectedReportType)) {
+        toast.error(`That report template is not available in ${activeProfession.shortName}.`);
+        onClose();
+        return;
+      }
       setReportTypeKey(preselectedReportType);
       setDateRange({ start: null, end: null });
       setSelectedAssessmentIds([]);
@@ -1676,12 +1759,16 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
       setLoadingAssessments(true);
       try {
         const [results, conditions, assessmentLibrary] = await Promise.all([
-          base44.entities.ClientAssessment.filter({ client_id: client.id }),
+          base44.entities.ClientAssessment.filter({
+            client_id: client.id,
+            ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
+          }),
           base44.entities.ClientCondition.filter({ client_id: client.id }),
           base44.entities.Assessment.list(),
         ]);
         const libraryMap = {};
         (assessmentLibrary || []).forEach(a => { libraryMap[a.id] = a; });
+        /** @type {Array<Record<string, any>>} */
         const enriched = results.map(ca => {
           const lib = libraryMap[ca.assessment_id];
           return {
@@ -1698,7 +1785,7 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
           (a.result_value !== null && a.result_value !== undefined) ||
           (a.additional_data && a.additional_data.soap_text)
         );
-        completed.sort((a, b) => new Date(b.assessment_date || b.created_date) - new Date(a.assessment_date || a.created_date));
+        completed.sort((a, b) => new Date(b.assessment_date || b.created_date).getTime() - new Date(a.assessment_date || a.created_date).getTime());
         setClientAssessments(completed);
         setClientConditions(conditions || []);
       } catch (e) {
@@ -1709,7 +1796,7 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
       }
     };
     fetchAssessments();
-  }, [client?.id, isOpen]);
+  }, [careEpisodeId, client?.id, isOpen]);
 
   useEffect(() => {
     if (!client?.id || !reportTypeKey) return;
@@ -1719,19 +1806,25 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
         const depKeys = PRIOR_REPORT_DEPS[reportTypeKey] || [];
         const depTypeIds = depKeys.map(k => REPORT_TEMPLATES[k]?.id).filter(Boolean);
         const [allReports, allSoap] = await Promise.all([
-          base44.entities.SavedReport.filter({ client_id: client.id }),
-          base44.entities.SOAPNote.filter({ client_id: client.id }),
+          base44.entities.SavedReport.filter({
+            client_id: client.id,
+            ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
+          }),
+          base44.entities.SOAPNote.filter({
+            client_id: client.id,
+            ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
+          }),
         ]);
         const relevant = depTypeIds.length > 0
           ? allReports.filter(r => depTypeIds.includes(r.report_type) && r.id !== existingReport?.id)
           : reportTypeKey === "progress_note" ? allReports : [];
-        setPriorReports(relevant.sort((a, b) => new Date(b.report_date) - new Date(a.report_date)));
-        setSoapNotes(allSoap.sort((a, b) => new Date(b.note_date) - new Date(a.note_date)));
+        setPriorReports(relevant.sort((a, b) => new Date(b.report_date).getTime() - new Date(a.report_date).getTime()));
+        setSoapNotes(allSoap.sort((a, b) => new Date(b.note_date).getTime() - new Date(a.note_date).getTime()));
       } catch (e) { console.error("Failed to load context", e); }
       finally { setLoadingContext(false); }
     };
     loadContext();
-  }, [client?.id, reportTypeKey]);
+  }, [careEpisodeId, client?.id, reportTypeKey]);
 
   const handleAddSection = (sectionName) => {
     if (activeSections.includes(sectionName)) return;
@@ -1789,6 +1882,7 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
       const payload = {
         client_id: client.id,
         org_id: client.org_id,
+        ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
         report_type: reportTemplate.id,
         report_name: reportTemplate.title,
         report_date: format(new Date(), "yyyy-MM-dd"),
@@ -1805,7 +1899,10 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
         status: "final",
       };
       if (isEditing && existingReport?.id) {
-        await base44.entities.SavedReport.update(existingReport.id, payload);
+        await base44.entities.SavedReport.update(existingReport.id, {
+          ...payload,
+          ...(careEpisodeId ? { expected_updated_date: existingReport.updated_date } : {}),
+        });
         toast.success("Report updated!");
       } else {
         await base44.entities.SavedReport.create(payload);
@@ -1858,6 +1955,7 @@ export default function UnifiedReportWizard({ isOpen, onClose, client, clientDat
           onRemoveSection={handleRemoveSection}
           reportTypeKey={reportTypeKey}
           reportTitle={reportTemplate?.title}
+          careEpisodeId={careEpisodeId}
         />
       </div>
     );

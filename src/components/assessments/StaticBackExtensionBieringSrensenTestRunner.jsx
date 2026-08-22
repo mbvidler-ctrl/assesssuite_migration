@@ -11,6 +11,7 @@ import {
 import { toast } from "sonner";
 import BieringSorensenDiagrams from "./BieringSorensenDiagrams";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 // ─── Normative Data (Biering-Sørensen 1984 + subsequent studies) ───────────────
 const NORMS = {
@@ -31,8 +32,8 @@ const NORMS = {
 };
 
 function getNormativeRow(age, gender) {
-  const rows = NORMS[gender === "male" ? "male" : "female"];
-  if (!rows || !age) return null;
+  if (!age || (gender !== "male" && gender !== "female")) return null;
+  const rows = NORMS[gender];
   return rows.find(r => age >= r.ageMin && age <= r.ageMax) || null;
 }
 
@@ -189,7 +190,7 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
 
   // Client info
   const age = client?.date_of_birth
-    ? Math.floor((Date.now() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000))
+    ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000))
     : null;
   const normRow = finalTime && age && client?.gender ? getNormativeRow(age, client.gender) : null;
   const classification = finalTime && age && client?.gender ? classifyResult(finalTime, age, client.gender) : null;
@@ -238,9 +239,11 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
     const modText = setupData.testModified ? " Note: Test was performed in a modified position; interpret results with caution." : "";
     const flagText = finalTime < 60
       ? " Hold time below 60 seconds may indicate significant impairment in lumbar extensor endurance."
-      : finalTime < (normRow?.mean ?? 160)
-      ? " Hold time is below the normative mean for this age and sex group, suggesting reduced lumbar extensor endurance."
-      : " Hold time is within or above the normative range for this age and sex group.";
+      : !normRow
+        ? " No age/sex normative comparison was generated because matching demographics were unavailable."
+        : finalTime < normRow.mean
+          ? " Hold time is below the normative mean for this age and sex group, suggesting reduced lumbar extensor endurance."
+          : " Hold time is within or above the normative range for this age and sex group.";
 
     return `Biering-Sørensen Back Extension Test completed with a hold time of ${timeLabel} (${finalTime}s)${classLabel}${normText}. Test was stopped due to ${stoppedBy}.${qualText}${painText}${neuroText}${flagText}${modText} Findings may inform progressive trunk endurance rehabilitation and should be interpreted alongside clinical presentation and functional goals.`;
   };
@@ -294,34 +297,17 @@ export default function StaticBackExtensionBieringSrensenTestRunner({ client, on
 
   // ── Save ────────────────────────────────────────────────────────────────────
   const handleSave = () => {
-    if (!canSave()) {
-      toast.error("Complete all required fields: hold time, stop reason, pain score, and technique quality.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho({
+        finalTime, stopReason, otherStopReason, reachedMaxDuration, setup: setupData,
+        technique, symptoms, age,
+        gender: client?.gender === "male" || client?.gender === "female" ? client.gender : null,
+        notes: clinicalNotes,
+      }, { runnerKey: 'static_back', assessmentDate: todayLocal() }));
+      toast.success("Biering-Sørensen Test saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-    const soap = generateSoapText();
-    onSave({
-      status: "completed",
-      result_value: finalTime,
-      notes: clinicalNotes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: soap,
-        measurement_type: "endurance_hold",
-        hold_time_seconds: finalTime,
-        hold_time_formatted: formatTimeLabel(finalTime),
-        stop_reason: stopReason === "Other" ? (otherStopReason || "Other") : stopReason,
-        reached_max_duration: reachedMaxDuration,
-        classification: classification?.label,
-        normative_mean: normRow?.mean,
-        normative_sd: normRow?.sd,
-        setup: setupData,
-        technique,
-        symptoms,
-        flags: generateFlags().map(f => f.label),
-        interpretation: generateInterpretation(),
-      },
-    });
-    toast.success("Biering-Sørensen Test saved successfully.");
   };
 
   const steps = [

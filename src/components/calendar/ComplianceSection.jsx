@@ -83,6 +83,13 @@ const FREQUENCIES = [
   "1x/week",
 ];
 
+/**
+ * @param {{
+ *   value?: Record<string, any>,
+ *   onChange: (value: Record<string, any>) => void,
+ *   disabled?: boolean
+ * }} props
+ */
 export default function ComplianceSection({ value = {}, onChange, disabled = false }) {
   const status = value.status || null;
 

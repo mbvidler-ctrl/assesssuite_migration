@@ -4,12 +4,16 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Save, X, Play, Square, RotateCcw, Info, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Save, X, Play, Square, RotateCcw, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import {
+  interpretSixMetreWalk,
+  SIX_METRE_WALK_TIMED_DISTANCE_M,
+  validateAndScoreSixMetreWalk,
+} from "@/lib/clinical/scorers/standaloneAndFim";
 
-// 6MWT: 6-metre instrumented corridor, 3 trials, middle 2m timed (acceleration/deceleration excluded)
+// Source protocol: 6-metre course, time the middle 4m, three recorded trials.
 const TRIALS_TARGET = 3;
 
 export default function SixMeterWalkTestRunner({ client, onSave, onClose }) {
@@ -41,21 +45,27 @@ export default function SixMeterWalkTestRunner({ client, onSave, onClose }) {
   const handleStartStop = () => {
     if (isRunning) {
       const timeS = parseFloat((timerMs / 1000).toFixed(2));
-      const speedMs = parseFloat((6 / timeS).toFixed(3));
+      if (timeS <= 0) { toast.error("Trial time must be greater than zero."); return; }
+      const speedMs = parseFloat((SIX_METRE_WALK_TIMED_DISTANCE_M / timeS).toFixed(3));
       setTrials(prev => [...prev, { time_s: timeS, speed_ms: speedMs }]);
       toast.success(`Trial ${trials.length + 1}: ${timeS}s — ${speedMs} m/s`);
       setIsRunning(false);
       setTimerMs(0);
     } else {
+      if (trials.length >= TRIALS_TARGET) {
+        toast.error("All three required trials are already recorded. Remove a trial to repeat it.");
+        return;
+      }
       setTimerMs(0);
       setIsRunning(true);
     }
   };
 
   const handleAddManual = () => {
+    if (trials.length >= TRIALS_TARGET) { toast.error("All three required trials are already recorded."); return; }
     const t = parseFloat(manualTime);
     if (!t || t <= 0) { toast.error("Enter a valid time in seconds"); return; }
-    const speedMs = parseFloat((6 / t).toFixed(3));
+    const speedMs = parseFloat((SIX_METRE_WALK_TIMED_DISTANCE_M / t).toFixed(3));
     setTrials(prev => [...prev, { time_s: t, speed_ms: speedMs }]);
     setManualTime('');
     toast.success(`Manual trial added: ${t}s — ${speedMs} m/s`);
@@ -66,36 +76,27 @@ export default function SixMeterWalkTestRunner({ client, onSave, onClose }) {
   const bestTrial = trials.length > 0 ? trials.reduce((best, t) => t.speed_ms > best.speed_ms ? t : best) : null;
   const avgSpeed = trials.length > 0 ? parseFloat((trials.reduce((s, t) => s + t.speed_ms, 0) / trials.length).toFixed(3)) : null;
 
-  const getInterpretation = (speedMs) => {
-    if (speedMs >= 1.2) return { label: 'Community ambulation (fast)', color: 'bg-green-100 text-green-800' };
-    if (speedMs >= 0.8) return { label: 'Community ambulation', color: 'bg-green-100 text-green-800' };
-    if (speedMs >= 0.6) return { label: 'Limited community ambulation', color: 'bg-yellow-100 text-yellow-800' };
-    return { label: 'Household/limited ambulation — increased risk', color: 'bg-red-100 text-red-800' };
-  };
-
   const handleSave = () => {
-    if (trials.length === 0) { toast.error("Complete at least one trial."); return; }
-    onSave({
-      result_value: bestTrial?.speed_ms,
-      assessment_date: todayLocal(),
-      notes,
-      additional_data: {
-        soap_text: `• 6-Metre Walk Test\n  Best Speed: ${bestTrial?.speed_ms} m/s (${bestTrial?.time_s?.toFixed(2)}s)\n  Average Speed: ${avgSpeed} m/s\n  Condition: ${testCondition === 'self_selected' ? 'Self-Selected' : 'Fast Speed'}\n  Interpretation: ${bestTrial ? getInterpretation(bestTrial.speed_ms).label : 'N/A'}${gaitAids ? `\n  Gait Aid: ${gaitAids}` : ''}`,
-        measurement_type: '6_meter_walk_test',
+    if (trials.length !== TRIALS_TARGET) { toast.error("Complete all three required trials."); return; }
+    try {
+      const payload = validateAndScoreSixMetreWalk({
         test_condition: testCondition,
         trials,
-        best_speed_ms: bestTrial?.speed_ms,
-        best_time_s: bestTrial?.time_s,
-        average_speed_ms: avgSpeed,
         gait_aids: gaitAids,
         footwear,
-        interpretation: bestTrial ? getInterpretation(bestTrial.speed_ms).label : null,
-      }
-    });
-    toast.success("Assessment saved.");
+        notes,
+      }, {
+        assessmentName: '6-Metre Walk Test',
+        assessmentDate: todayLocal(),
+      });
+      onSave(payload);
+      toast.success("Assessment saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to score this assessment.");
+    }
   };
 
-  const interp = bestTrial ? getInterpretation(bestTrial.speed_ms) : null;
+  const interp = bestTrial ? interpretSixMetreWalk(bestTrial.speed_ms) : null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -113,10 +114,10 @@ export default function SixMeterWalkTestRunner({ client, onSave, onClose }) {
           <Card className="bg-blue-50 border-blue-200">
             <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2 text-blue-800"><Info className="w-4 h-4" />Protocol</CardTitle></CardHeader>
             <CardContent className="text-xs text-blue-800 space-y-1">
-              <p>• Mark a 10m walkway with start and finish lines. The client walks at their usual pace (self-selected) or as fast as safely possible (fast speed).</p>
-              <p>• Time only the middle 6m (allow 2m acceleration and 2m deceleration zones) to minimise acceleration effects.</p>
+              <p>• Mark a 6m walkway with start and finish lines. The client walks at their usual pace (self-selected) or as fast as safely possible (fast speed).</p>
+              <p>• Time only the middle 4m, allowing 1m acceleration and 1m deceleration zones.</p>
               <p>• Conduct 3 trials. Allow at least 1 minute rest between trials.</p>
-              <p>• Record time in seconds over 6m. Speed (m/s) = 6 ÷ time.</p>
+              <p>• Record time in seconds over the middle 4m. Speed (m/s) = 4 ÷ time.</p>
               <p className="italic mt-1">References: Bohannon RW (1997). Comfortable and maximum walking speed of adults aged 20–79 years. Age Ageing. Graham JE et al. (2008). Walking speed threshold for classifying walking independence. Phys Ther.</p>
             </CardContent>
           </Card>
@@ -187,7 +188,7 @@ export default function SixMeterWalkTestRunner({ client, onSave, onClose }) {
                       <span className="font-bold text-violet-700 text-lg">{bestTrial.speed_ms} m/s</span>
                     </div>
                     {avgSpeed && <div className="flex justify-between text-sm"><span className="text-slate-500">Average Speed:</span><span className="font-semibold">{avgSpeed} m/s</span></div>}
-                    {interp && <div className={`rounded px-3 py-2 text-xs font-medium ${interp.color}`}>{interp.label}</div>}
+                    {interp && <div className="rounded px-3 py-2 text-xs font-medium bg-blue-50 text-blue-800">{interp}</div>}
                   </div>
                 )}
               </CardContent>
@@ -203,7 +204,7 @@ export default function SixMeterWalkTestRunner({ client, onSave, onClose }) {
 
         <div className="p-4 border-t bg-slate-50 flex justify-between">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={trials.length === 0} className="bg-violet-600 hover:bg-violet-700">
+          <Button onClick={handleSave} disabled={trials.length !== TRIALS_TARGET} className="bg-violet-600 hover:bg-violet-700">
             <Save className="w-4 h-4 mr-2" />Save Results
           </Button>
         </div>

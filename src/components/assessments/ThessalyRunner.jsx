@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -33,38 +34,15 @@ export default function ThessalyRunner({ onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (!leftData.joint_line_pain && !rightData.joint_line_pain) {
-      toast.error("Please test at least one side");
-      return;
+    try {
+      onSave(validateMobilityOrtho({
+        leftData: leftData.joint_line_pain ? leftData : null,
+        rightData: rightData.joint_line_pain ? rightData : null,
+        notes,
+      }, { runnerKey: 'thessaly_test', assessmentDate: todayLocal() }));
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const leftInterp = getInterpretation(leftData);
-    const rightInterp = getInterpretation(rightData);
-
-    const isPositive = (leftData.joint_line_pain && leftData.joint_line_pain !== 'none') ||
-                       (rightData.joint_line_pain && rightData.joint_line_pain !== 'none');
-
-    const soapText = [
-      `• Thessaly Test`,
-      leftData.joint_line_pain ? `  Left: ${leftData.joint_line_pain} pain — ${leftInterp?.text || ''}` : null,
-      rightData.joint_line_pain ? `  Right: ${rightData.joint_line_pain} pain — ${rightInterp?.text || ''}` : null,
-      notes ? `  Notes: ${notes}` : null,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      result_value: isPositive ? 1 : 0,
-      additional_data: { soap_text: soapText },
-      left_data: leftData.joint_line_pain ? {
-        ...leftData,
-        interpretation: leftInterp?.text
-      } : null,
-      right_data: rightData.joint_line_pain ? {
-        ...rightData,
-        interpretation: rightInterp?.text
-      } : null,
-      notes: notes,
-      assessment_date: todayLocal()
-    });
   };
 
   const leftInterp = getInterpretation(leftData);

@@ -7,33 +7,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_ROLAND_STATEMENTS as STATEMENTS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const STATEMENTS = [
-  "Because of my back (or leg) pain, I am unable to care for myself without my partner's help.",
-  "Because of my back (or leg) pain, I am limited in my work or other regular daily activities.",
-  "Because of my back (or leg) pain, I try to handle my back (leg) pain by treating it myself, without seeing a doctor.",
-  "Because of my back (or leg) pain, I get less sleep than usual.",
-  "Because of my back (or leg) pain, I rest more often during the day than usual.",
-  "Because of my back (or leg) pain, some of my home responsibilities are not being done.",
-  "Because of my back (or leg) pain, I am more irritable and bad tempered with people than usual.",
-  "Because of my back (or leg) pain, I find it difficult to get into or out of bed.",
-  "Because of my back (or leg) pain, I walk more slowly than usual.",
-  "Because of my back (or leg) pain, I do not do any of the jobs that I usually do around the house.",
-  "Because of my back (or leg) pain, I am more confined to my chair.",
-  "Because of my back (or leg) pain, I only stand for short periods of time.",
-  "Because of my back (or leg) pain, I try not to bend or kneel down.",
-  "Because of my back (or leg) pain, I find it difficult to get out of a chair.",
-  "Because of my back (or leg) pain, my appetite is not very good.",
-  "Because of my back (or leg) pain, I have trouble putting on my shoes or socks.",
-  "Because of my back (or leg) pain, I only walk short distances.",
-  "Because of my back (or leg) pain, I sleep in a different room than usual.",
-  "Because of my back (or leg) pain, most of the time my back is painful.",
-  "Because of my back (or leg) pain, I change position frequently to try to get my back comfortable.",
-  "Because of my back (or leg) pain, I am afraid that I might fall in the bathroom.",
-  "Because of my back (or leg) pain, I use a handrail to get upstairs.",
-  "Because of my back (or leg) pain, I hold on to something to get off a toilet.",
-  "Because of my back (or leg) pain, I am afraid I might fall at home, even if I try to be careful.",
-];
 
 export default function RolandMorrisDisabilityQuestionnaireRunner({ client, onSave, onClose }) {
   const [checked, setChecked] = useState(Array(24).fill(false));

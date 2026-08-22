@@ -12,7 +12,12 @@ async function ensureSoapText(assessmentToUpdateId) {
   return;
 }
 
-export async function saveAssessmentToSOAP({ clientToUse, appointmentId, objectiveText, assessmentToUpdateId, updateData, assessment }) {
+export async function saveAssessmentToSOAP({ clientToUse, appointmentId, objectiveText, assessmentToUpdateId, updateData, assessment, careEpisodeId = null }) {
+  let linkedCareEpisodeId = careEpisodeId;
+  if (!linkedCareEpisodeId && assessmentToUpdateId) {
+    const linkedAssessments = await base44.entities.ClientAssessment.filter({ id: assessmentToUpdateId });
+    linkedCareEpisodeId = linkedAssessments[0]?.physio_care_episode_id || null;
+  }
   if (!objectiveText && updateData?.additional_data?.soap_text) {
     const rawDs = (updateData.assessment_date || '').length === 10 ? updateData.assessment_date : todayLocal();
     const [y2, m2, d2] = rawDs.split('-').map(Number);
@@ -73,7 +78,10 @@ export async function saveAssessmentToSOAP({ clientToUse, appointmentId, objecti
 
   if (!finalAppointmentId) return;
 
-  const existingSOAPNotes = await base44.entities.SOAPNote.filter({ appointment_id: finalAppointmentId });
+  const existingSOAPNotes = await base44.entities.SOAPNote.filter({
+    appointment_id: finalAppointmentId,
+    ...(linkedCareEpisodeId ? { physio_care_episode_id: linkedCareEpisodeId } : {}),
+  });
   const fields = Object.assign({}, clientToUse);
 
   // A published note is a finalised clinical record and the server refuses
@@ -82,6 +90,7 @@ export async function saveAssessmentToSOAP({ clientToUse, appointmentId, objecti
   await appendObjectiveToSoapNote(base44.entities.SOAPNote, existingSOAPNotes, objectiveText, {
     org_id: fields.org_id,
     client_id: fields.id,
+    ...(linkedCareEpisodeId ? { physio_care_episode_id: linkedCareEpisodeId } : {}),
     appointment_id: finalAppointmentId,
     note_date: new Date().toISOString(),
     subjective: '',

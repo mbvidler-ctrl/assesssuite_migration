@@ -10,7 +10,12 @@
 // importing ../../src/lib/sdkError.js from server/tests/).
 import { normalizeSdkError } from './sdkError.js';
 
-export const CAPABILITY_KEYS = Object.freeze(['general_clinical_llm', 'transcription', 'document_extraction']);
+export const CAPABILITY_KEYS = Object.freeze([
+  'general_clinical_llm',
+  'physio_ai_tasks',
+  'transcription',
+  'document_extraction',
+]);
 
 const ALLOWED_REASONS = new Set(['available', 'switched_off', 'unconfigured']);
 

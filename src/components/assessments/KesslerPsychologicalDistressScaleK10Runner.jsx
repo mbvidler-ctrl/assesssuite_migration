@@ -6,27 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_K10_QUESTIONS as QUESTIONS, PROM_NEURO_K10_OPTIONS as OPTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const QUESTIONS = [
-  "Tired out for no good reason",
-  "Nervous",
-  "So nervous that nothing could calm you down",
-  "Hopeless",
-  "Restless or fidgety",
-  "So restless that you could not sit still",
-  "Depressed",
-  "That everything was an effort",
-  "So sad that nothing could cheer you up",
-  "Worthless",
-];
 
-const OPTIONS = [
-  { label: "None of the time", value: 1 },
-  { label: "A little of the time", value: 2 },
-  { label: "Some of the time", value: 3 },
-  { label: "Most of the time", value: 4 },
-  { label: "All of the time", value: 5 },
-];
 
 function getInterpretation(score) {
   if (score <= 19) return { label: "Likely Well", color: "bg-green-100 text-green-800 border-green-300", action: "No specific action — monitor" };

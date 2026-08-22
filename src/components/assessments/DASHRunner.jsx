@@ -5,79 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, ChevronLeft, ChevronRight, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_DASH_DASH_QUESTIONS as DASH_QUESTIONS, PROM_NEURO_DASH_OPTION_SETS as OPTION_SETS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const DASH_QUESTIONS = [
-  // Section A: Physical Function (items 1-21)
-  { text: "Open a tight or new jar", section: "A" },
-  { text: "Write", section: "A" },
-  { text: "Turn a key", section: "A" },
-  { text: "Prepare a meal", section: "A" },
-  { text: "Push open a heavy door", section: "A" },
-  { text: "Place an object on a shelf above your head", section: "A" },
-  { text: "Do heavy household chores (e.g., wash walls, wash floors)", section: "A" },
-  { text: "Garden or do yard work", section: "A" },
-  { text: "Make a bed", section: "A" },
-  { text: "Carry a shopping bag or briefcase", section: "A" },
-  { text: "Carry a heavy object (over 5 lbs)", section: "A" },
-  { text: "Change a lightbulb overhead", section: "A" },
-  { text: "Wash or blow dry your hair", section: "A" },
-  { text: "Wash your back", section: "A" },
-  { text: "Put on a pullover sweater", section: "A" },
-  { text: "Use a knife to cut food", section: "A" },
-  { text: "Recreational activities which require little effort (e.g., cardplaying, knitting)", section: "A" },
-  { text: "Recreational activities in which you take some force or impact through your arm, shoulder or hand (e.g., golf, hammering, tennis)", section: "A" },
-  { text: "Recreational activities in which you move your arm freely (e.g., playing frisbee, badminton)", section: "A" },
-  { text: "Manage transportation needs (getting from one place to another)", section: "A" },
-  { text: "Sexual activities", section: "A" },
-  // Section B: Symptoms (items 22-30)
-  { text: "During the past week, to what extent has your arm, shoulder or hand problem interfered with your normal social activities with family, friends, neighbours or groups?", section: "B" },
-  { text: "During the past week, were you limited in your work or other regular daily activities as a result of your arm, shoulder or hand problem?", section: "B" },
-  { text: "Arm, shoulder or hand pain", section: "B_symptom" },
-  { text: "Arm, shoulder or hand pain when you performed any specific activity", section: "B_symptom" },
-  { text: "Tingling (pins and needles) in your arm, shoulder or hand", section: "B_symptom" },
-  { text: "Weakness in your arm, shoulder or hand", section: "B_symptom" },
-  { text: "Stiffness in your arm, shoulder or hand", section: "B_symptom" },
-  { text: "During the past week, how much difficulty have you had sleeping due to the pain in your arm, shoulder or hand?", section: "B_sleep" },
-  { text: "I feel less capable, less confident or less useful because of my arm, shoulder or hand problem", section: "B_psych" },
-];
 
-const OPTION_SETS = {
-  A: [
-    { label: "No difficulty", value: 1 },
-    { label: "Mild difficulty", value: 2 },
-    { label: "Moderate difficulty", value: 3 },
-    { label: "Severe difficulty", value: 4 },
-    { label: "Unable", value: 5 },
-  ],
-  B: [
-    { label: "Not at all", value: 1 },
-    { label: "Slightly", value: 2 },
-    { label: "Moderately", value: 3 },
-    { label: "Quite a bit", value: 4 },
-    { label: "Extremely", value: 5 },
-  ],
-  B_symptom: [
-    { label: "None", value: 1 },
-    { label: "Mild", value: 2 },
-    { label: "Moderate", value: 3 },
-    { label: "Severe", value: 4 },
-    { label: "Extreme", value: 5 },
-  ],
-  B_sleep: [
-    { label: "No difficulty", value: 1 },
-    { label: "Mild difficulty", value: 2 },
-    { label: "Moderate difficulty", value: 3 },
-    { label: "Severe difficulty", value: 4 },
-    { label: "So much difficulty it prevented sleep", value: 5 },
-  ],
-  B_psych: [
-    { label: "Strongly disagree", value: 1 },
-    { label: "Disagree", value: 2 },
-    { label: "Neither agree nor disagree", value: 3 },
-    { label: "Agree", value: 4 },
-    { label: "Strongly agree", value: 5 },
-  ],
-};
 
 const ITEMS_PER_PAGE = 10;
 const INSTRUCTION_PAGE = 0; // page 0 = instructions, pages 1-3 = questions

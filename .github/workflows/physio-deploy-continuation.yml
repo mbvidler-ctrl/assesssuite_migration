@@ -1,0 +1,221 @@
+name: Physio deploy exact protected-tip continuation
+
+on:
+  workflow_call:
+    inputs:
+      application_sha: { required: true, type: string }
+      immutable_image: { required: true, type: string }
+      publication_artifact_id: { required: true, type: string }
+      publication_artifact_digest: { required: true, type: string }
+      publication_receipt_sha256: { required: true, type: string }
+      canary_artifact_id: { required: true, type: string }
+      canary_artifact_digest: { required: true, type: string }
+      canary_receipt_sha256: { required: true, type: string }
+      production_bootstrap_artifact_id: { required: true, type: string }
+      production_bootstrap_artifact_digest: { required: true, type: string }
+      production_bootstrap_receipt_sha256: { required: true, type: string }
+      stripe_webhook_archive_artifact_id: { required: true, type: string }
+      stripe_webhook_archive_artifact_digest: { required: true, type: string }
+      stripe_webhook_archive_receipt_sha256: { required: true, type: string }
+      sentry_release_artifact_id: { required: true, type: string }
+      sentry_release_artifact_digest: { required: true, type: string }
+      sentry_release_receipt_sha256: { required: true, type: string }
+      expected_volume_id: { required: true, type: string }
+      config_sha256: { required: true, type: string }
+      capability_intent_id: { required: true, type: string }
+      authority_reference: { required: true, type: string }
+      continuation_ledger_commit_sha: { required: true, type: string }
+      continuation_ledger_record_sha256: { required: true, type: string }
+      confirmation: { required: true, type: string }
+    outputs:
+      disposition:
+        value: ${{ jobs.continue.outputs.disposition }}
+      selected_run_id:
+        value: ${{ jobs.continue.outputs.selected_run_id }}
+      receipt_artifact_id:
+        value: ${{ jobs.continue.outputs.receipt_artifact_id }}
+      receipt_artifact_digest:
+        value: ${{ jobs.continue.outputs.receipt_artifact_digest }}
+
+permissions:
+  contents: read
+  actions: write
+
+jobs:
+  continue:
+    name: Reconcile or dispatch the one fixed exact-tip continuation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      actions: write
+    outputs:
+      disposition: ${{ steps.dispatch.outputs.disposition }}
+      selected_run_id: ${{ steps.dispatch.outputs.selected_run_id }}
+      receipt_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      receipt_artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
+    steps:
+      - name: Build one closed fixed-workflow dispatch request
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          IMMUTABLE_IMAGE: ${{ inputs.immutable_image }}
+          PUBLICATION_ARTIFACT_ID: ${{ inputs.publication_artifact_id }}
+          PUBLICATION_ARTIFACT_DIGEST: ${{ inputs.publication_artifact_digest }}
+          PUBLICATION_RECEIPT_SHA256: ${{ inputs.publication_receipt_sha256 }}
+          CANARY_ARTIFACT_ID: ${{ inputs.canary_artifact_id }}
+          CANARY_ARTIFACT_DIGEST: ${{ inputs.canary_artifact_digest }}
+          CANARY_RECEIPT_SHA256: ${{ inputs.canary_receipt_sha256 }}
+          PRODUCTION_BOOTSTRAP_ARTIFACT_ID: ${{ inputs.production_bootstrap_artifact_id }}
+          PRODUCTION_BOOTSTRAP_ARTIFACT_DIGEST: ${{ inputs.production_bootstrap_artifact_digest }}
+          PRODUCTION_BOOTSTRAP_RECEIPT_SHA256: ${{ inputs.production_bootstrap_receipt_sha256 }}
+          STRIPE_WEBHOOK_ARCHIVE_ARTIFACT_ID: ${{ inputs.stripe_webhook_archive_artifact_id }}
+          STRIPE_WEBHOOK_ARCHIVE_ARTIFACT_DIGEST: ${{ inputs.stripe_webhook_archive_artifact_digest }}
+          STRIPE_WEBHOOK_ARCHIVE_RECEIPT_SHA256: ${{ inputs.stripe_webhook_archive_receipt_sha256 }}
+          SENTRY_RELEASE_ARTIFACT_ID: ${{ inputs.sentry_release_artifact_id }}
+          SENTRY_RELEASE_ARTIFACT_DIGEST: ${{ inputs.sentry_release_artifact_digest }}
+          SENTRY_RELEASE_RECEIPT_SHA256: ${{ inputs.sentry_release_receipt_sha256 }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          CONFIG_SHA256: ${{ inputs.config_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          CONTINUATION_LEDGER_COMMIT_SHA: ${{ inputs.continuation_ledger_commit_sha }}
+          CONTINUATION_LEDGER_RECORD_SHA256: ${{ inputs.continuation_ledger_record_sha256 }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          REPOSITORY: ${{ github.repository }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == 'mbvidler-ctrl/assesssuite_migration' ]]
+          [[ "$ACTOR" == 'mbvidler-ctrl' && "$TRIGGERING_ACTOR" == 'mbvidler-ctrl' ]]
+          [[ "$EVENT_REF" == 'refs/heads/main' && "$EVENT_SHA" == "$APPLICATION_SHA" ]]
+          [[ "$WORKFLOW_SHA" == "$APPLICATION_SHA" ]]
+          [[ "$WORKFLOW_REF" == 'mbvidler-ctrl/assesssuite_migration/.github/workflows/physio-production-deploy.yml@refs/heads/main' ]]
+          [[ -z "${FLY_API_TOKEN:-}" && -z "${SENTRY_AUTH_TOKEN:-}" && -z "${SENTRY_DSN:-}" ]]
+          REQUEST="$RUNNER_TEMP/physio-deploy-continuation-request.json" env -u GITHUB_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const names = ['application_sha','immutable_image','publication_artifact_id','publication_artifact_digest',
+            'publication_receipt_sha256','canary_artifact_id','canary_artifact_digest','canary_receipt_sha256',
+            'production_bootstrap_artifact_id','production_bootstrap_artifact_digest','production_bootstrap_receipt_sha256',
+            'stripe_webhook_archive_artifact_id','stripe_webhook_archive_artifact_digest','stripe_webhook_archive_receipt_sha256',
+            'sentry_release_artifact_id','sentry_release_artifact_digest','sentry_release_receipt_sha256','expected_volume_id',
+            'config_sha256','capability_intent_id','authority_reference','continuation_ledger_commit_sha',
+            'continuation_ledger_record_sha256','confirmation'];
+          const inputs = Object.fromEntries(names.map((name) => [name, process.env[name.toUpperCase()]]));
+          const allClean = Object.values(inputs).every((value) => typeof value === 'string' && value.length > 0 &&
+            value.length <= 1024 && !/[\r\n\0]/.test(value));
+          if (!allClean || !/^[0-9a-f]{40}$/.test(inputs.application_sha) ||
+              !/^[0-9a-f]{40}$/.test(inputs.continuation_ledger_commit_sha) ||
+              !/^[0-9a-f]{64}$/.test(inputs.continuation_ledger_record_sha256) ||
+              inputs.confirmation !== 'DEPLOY assesssuite-physio-production FIRST RELEASE EXACT DIGEST') {
+            throw new Error('closed continuation input identity differs');
+          }
+          fs.writeFileSync(process.env.REQUEST, JSON.stringify({ ref: 'main', inputs }, null, 2) + '\n',
+            { flag: 'wx', mode: 0o600 });
+          NODE
+
+      - name: Reconcile dispatch response loss and dispatch at most once
+        id: dispatch
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          LEDGER_COMMIT_SHA: ${{ inputs.continuation_ledger_commit_sha }}
+          LEDGER_RECORD_SHA256: ${{ inputs.continuation_ledger_record_sha256 }}
+          REPOSITORY: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          RECEIPT="$RUNNER_TEMP/physio-deploy-continuation.json" REQUEST="$RUNNER_TEMP/physio-deploy-continuation-request.json" \
+            OUTPUT="$GITHUB_OUTPUT" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const base = `https://api.github.com/repos/${process.env.REPOSITORY}`;
+          const headers = { accept: 'application/vnd.github+json', authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+            'x-github-api-version': '2022-11-28' };
+          const request = JSON.parse(fs.readFileSync(process.env.REQUEST, 'utf8'));
+          const title = `Physio deploy ${process.env.APPLICATION_SHA} after ${process.env.LEDGER_RECORD_SHA256}`;
+          const exact = (run) => Number.isSafeInteger(run?.id) && run.id > 0 &&
+            run.name === 'Physio production deploy - exact digest first release' && run.display_title === title &&
+            run.event === 'workflow_dispatch' && run.head_branch === 'main' && run.head_sha === process.env.APPLICATION_SHA &&
+            run.path === '.github/workflows/physio-production-deploy.yml' &&
+            run.repository?.full_name === process.env.REPOSITORY && run.head_repository?.full_name === process.env.REPOSITORY &&
+            ['queued','in_progress','completed','requested','waiting','pending'].includes(run.status);
+          async function list() {
+            const matches = [];
+            const seenRunIds = new Set();
+            let expectedTotalCount = null;
+            let observedCount = 0;
+            for (let page = 1; page <= 100; page += 1) {
+              const url = new URL(`${base}/actions/workflows/physio-production-deploy.yml/runs`);
+              for (const [key, value] of Object.entries({ branch: 'main', event: 'workflow_dispatch', per_page: '100', page: String(page) }))
+                url.searchParams.set(key, value);
+              const response = await fetch(url, { headers, redirect: 'error', signal: AbortSignal.timeout(30000) });
+              const body = await response.text();
+              if (response.status !== 200 || body.length > 2097152) throw new Error(`continuation inventory ${response.status}`);
+              const row = JSON.parse(body);
+              if (!Number.isSafeInteger(row.total_count) || row.total_count < 0 || row.total_count > 10000 ||
+                  !Array.isArray(row.workflow_runs) || row.workflow_runs.length > 100)
+                throw new Error('continuation inventory schema differs');
+              if (expectedTotalCount === null) expectedTotalCount = row.total_count;
+              if (row.total_count !== expectedTotalCount)
+                throw new Error('continuation inventory total changed');
+              for (const run of row.workflow_runs) {
+                if (!Number.isSafeInteger(run?.id) || run.id <= 0 || seenRunIds.has(run.id))
+                  throw new Error('continuation inventory run identity differs');
+                seenRunIds.add(run.id);
+                if (exact(run)) matches.push(run);
+              }
+              observedCount += row.workflow_runs.length;
+              if (observedCount > expectedTotalCount)
+                throw new Error('continuation inventory exceeds total');
+              if (observedCount === expectedTotalCount) break;
+              if (row.workflow_runs.length < 100)
+                throw new Error('continuation inventory terminated before total');
+              if (page === 100) throw new Error('continuation inventory exceeds bound');
+            }
+            if (observedCount !== expectedTotalCount)
+              throw new Error('continuation inventory is incomplete');
+            return matches.sort((left, right) => left.id - right.id);
+          }
+          let matches = await list();
+          let attempted = 0;
+          let confirmed = 0;
+          if (matches.length === 0) {
+            attempted = 1;
+            try {
+              const response = await fetch(`${base}/actions/workflows/physio-production-deploy.yml/dispatches`, {
+                method: 'POST', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(request),
+                redirect: 'error', signal: AbortSignal.timeout(30000),
+              });
+              await response.text();
+              confirmed = response.status === 204 ? 1 : 0;
+            } catch {}
+            for (let attempt = 0; attempt < 20 && matches.length === 0; attempt += 1) {
+              if (attempt > 0) await new Promise((resolve) => setTimeout(resolve, 3000));
+              matches = await list();
+            }
+          }
+          if (matches.length === 0) throw new Error('continuation dispatch remains ambiguous without an exact run');
+          const row = { contract_version: 'assesssuite-physio-deploy-continuation/1.0.0', result: 'PASS',
+            disposition: 'APPLIED', workflow: '.github/workflows/physio-production-deploy.yml', ref: 'main',
+            application_sha: process.env.APPLICATION_SHA, ledger_commit_sha: process.env.LEDGER_COMMIT_SHA,
+            ledger_record_sha256: process.env.LEDGER_RECORD_SHA256, dispatch_calls_attempted: attempted,
+            dispatch_responses_confirmed: confirmed, exact_matching_run_ids: matches.map((run) => run.id),
+            selected_run_id: matches[0].id, reconciled_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          fs.appendFileSync(process.env.OUTPUT, `disposition=${row.disposition}\nselected_run_id=${row.selected_run_id}\n`);
+          NODE
+
+      - name: Upload exact continuation reconciliation receipt
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-deploy-continuation-${{ inputs.application_sha }}-${{ inputs.continuation_ledger_record_sha256 }}
+          path: ${{ runner.temp }}/physio-deploy-continuation.json
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, RotateCcw, Plus, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 const NORMS = [
   { ageMin: 60, ageMax: 64, male: [87, 115], female: [75, 107] },
@@ -43,9 +44,9 @@ export default function TwoMinuteStepTestRunner({ client, onSave, onClose }) {
   const intervalRef = useRef(null);
 
   const clientAge = client?.date_of_birth
-    ? Math.floor((new Date() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000))
+    ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000))
     : null;
-  const clientGender = client?.gender === "female" ? "female" : "male";
+  const clientGender = client?.gender === "female" || client?.gender === "male" ? client.gender : null;
 
   useEffect(() => {
     if (isRunning) {
@@ -88,51 +89,21 @@ export default function TwoMinuteStepTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (steps === 0 && !testDone) {
-      toast.error("Please complete the test and enter a step count before saving.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho({
+        completed: testDone, steps, age: clientAge, gender: clientGender,
+        hrPre, hrPost, bpPre, bpPost, symptoms, notes,
+      }, { runnerKey: 'two_min_step', assessmentDate }));
+      toast.success("Test results saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const interpretation = clientAge ? getInterpretation(steps, clientAge, clientGender) : null;
-
-    const soapLines = [
-      `• 2-Minute Step Test`,
-      `  Right Knee Steps: ${steps}`,
-      interpretation ? `  Performance: ${interpretation.label}` : null,
-      hrPre ? `  Pre-Test HR: ${hrPre} bpm` : null,
-      bpPre ? `  Pre-Test BP: ${bpPre} mmHg` : null,
-      hrPost ? `  Post-Test HR: ${hrPost} bpm` : null,
-      bpPost ? `  Post-Test BP: ${bpPost} mmHg` : null,
-      symptoms ? `  Symptoms: ${symptoms}` : null,
-      notes ? `  Notes: ${notes}` : null,
-    ].filter(Boolean).join("\n");
-
-    onSave({
-      status: "completed",
-      result_value: steps,
-      additional_data: {
-        soap_text: soapLines,
-        measurement_type: "two_min_step",
-        steps_right_knee: steps,
-        hr_pre: hrPre || null,
-        hr_post: hrPost || null,
-        bp_pre: bpPre || null,
-        bp_post: bpPost || null,
-        symptoms: symptoms || null,
-        client_age_at_test: clientAge,
-        client_gender: clientGender,
-        interpretation: interpretation?.label || null,
-      },
-      notes,
-      assessment_date: assessmentDate,
-    });
-    toast.success("Test results saved.");
   };
 
   const progressPct = ((120 - timeLeft) / 120) * 100;
   const mins = Math.floor(timeLeft / 60);
   const secs = String(timeLeft % 60).padStart(2, "0");
-  const interpretation = clientAge && steps > 0 ? getInterpretation(steps, clientAge, clientGender) : null;
+  const interpretation = clientAge && clientGender && steps > 0 ? getInterpretation(steps, clientAge, clientGender) : null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 p-4 overflow-y-auto">

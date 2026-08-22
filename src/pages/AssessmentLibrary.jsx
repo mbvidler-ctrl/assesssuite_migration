@@ -16,6 +16,8 @@ import AddToClientModal from "../components/client/AddToClientModal";
 import CreateAssessmentModal from "../components/assessments/CreateAssessmentModal";
 import FeedbackModal from "../components/assessments/FeedbackModal";
 import { todayLocal } from "@/lib/localDate";
+import { searchAssessments } from "@/lib/clinical/assessmentDiscovery";
+import { buildTimeProfession } from "@/lib/profession";
 
 export default function AssessmentLibrary() {
   const [assessments, setAssessments] = useState([]);
@@ -32,6 +34,7 @@ export default function AssessmentLibrary() {
   const [searchParams] = useSearchParams();
   const preSelectedClientId = searchParams.get('clientId');
   const appointmentId = searchParams.get('appointmentId');
+  const careEpisodeId = searchParams.get('careEpisodeId') || searchParams.get('episode_id');
   const mode = searchParams.get('mode'); // 'run' mode means we're running assessments for an appointment
   const returnTo = searchParams.get('returnTo'); // Get the return URL
 
@@ -47,9 +50,17 @@ export default function AssessmentLibrary() {
     setIsLoading(true);
     try {
       const data = await base44.entities.Assessment.list();
-      
-      // Filter out deleted assessments and YMCA assessments
-      const activeAssessments = data.filter(a => !a.is_deleted && !a.name?.toLowerCase().includes('ymca'));
+      const active = data.filter((assessment) => !assessment.is_deleted);
+      if (buildTimeProfession.id === 'physio') {
+        // Physio catalogue identity is generated and pinned centrally. Never
+        // mutate or collapse canonical rows while rendering the library.
+        setAssessments(active);
+        setIsLoading(false);
+        return;
+      }
+
+      // Preserve the existing EP library behaviour outside the Physio target.
+      const activeAssessments = active.filter(a => !a.name?.toLowerCase().includes('ymca'));
       
       // Remove duplicates and keep the most complete version
       const uniqueAssessmentsMap = new Map();
@@ -141,17 +152,21 @@ export default function AssessmentLibrary() {
     let filtered = [...assessments];
 
     if (searchTerm) {
-      const lowercasedTerm = searchTerm.toLowerCase();
-      filtered = filtered.filter(assessment =>
-        assessment.name.toLowerCase().includes(lowercasedTerm) ||
-        assessment.description.toLowerCase().includes(lowercasedTerm) ||
-        (assessment.search_tags && assessment.search_tags.some(tag => 
-          tag.toLowerCase().includes(lowercasedTerm)
-        )) ||
-        (assessment.conditions_indicated && assessment.conditions_indicated.some(condition =>
-          condition.toLowerCase().includes(lowercasedTerm)
-        ))
-      );
+      if (buildTimeProfession.id === 'physio') {
+        filtered = searchAssessments({ assessments: filtered, query: searchTerm });
+      } else {
+        const lowercasedTerm = searchTerm.toLowerCase();
+        filtered = filtered.filter(assessment =>
+          assessment.name.toLowerCase().includes(lowercasedTerm) ||
+          assessment.description.toLowerCase().includes(lowercasedTerm) ||
+          (assessment.search_tags && assessment.search_tags.some(tag =>
+            tag.toLowerCase().includes(lowercasedTerm)
+          )) ||
+          (assessment.conditions_indicated && assessment.conditions_indicated.some(condition =>
+            condition.toLowerCase().includes(lowercasedTerm)
+          ))
+        );
+      }
     }
 
     if (categoryFilter !== "all") {
@@ -170,6 +185,13 @@ export default function AssessmentLibrary() {
 
   const handleAddToClient = () => {
     if (!selectedAssessment) return;
+    if (buildTimeProfession.id === 'physio' && !careEpisodeId) {
+      toast.error('Choose a saved Physio care episode before assigning an assessment.');
+      window.location.href = createPageUrl(
+        preSelectedClientId ? `PhysioEpisodes?client_id=${preSelectedClientId}` : 'PhysioEpisodes',
+      );
+      return;
+    }
     setShowAddToClientModal(true);
   };
 
@@ -180,14 +202,18 @@ export default function AssessmentLibrary() {
       setIsLoading(true);
       
       // Validate required data
-      if (!preSelectedClientId || !assessment?.id || !appointmentId) {
-        throw new Error("Missing required data: client ID, assessment ID, or appointment ID");
+      if (buildTimeProfession.id === 'physio' && !careEpisodeId) {
+        throw new Error('A saved Physio care episode is required');
+      }
+      if (!preSelectedClientId || !assessment?.id || (!appointmentId && !careEpisodeId)) {
+        throw new Error("Missing required data: client ID, assessment ID, and clinical context");
       }
 
       console.log("Creating client assessment with data:", {
         client_id: preSelectedClientId,
         assessment_id: assessment.id,
-        appointment_id: appointmentId
+        appointment_id: appointmentId,
+        physio_care_episode_id: careEpisodeId,
       });
 
       // Create the client assessment with retry logic
@@ -209,7 +235,8 @@ export default function AssessmentLibrary() {
             assessment_id: assessment.id,
             status: 'pending',
             assessment_date: todayLocal(),
-            appointment_id: appointmentId
+            ...(appointmentId ? { appointment_id: appointmentId } : {}),
+            ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
           });
           break; // Success, exit retry loop
         } catch (createError) {
@@ -232,7 +259,10 @@ export default function AssessmentLibrary() {
       console.log("Successfully created client assessment:", clientAssessment);
 
       // Navigate to TestRunner, passing the returnTo parameter along
-      let url = createPageUrl(`TestRunner?clientAssessmentId=${clientAssessment.id}&appointmentId=${appointmentId}`);
+      const runnerParams = new URLSearchParams({ clientAssessmentId: clientAssessment.id });
+      if (appointmentId) runnerParams.set('appointmentId', appointmentId);
+      if (careEpisodeId) runnerParams.set('careEpisodeId', careEpisodeId);
+      let url = createPageUrl(`TestRunner?${runnerParams.toString()}`);
       if (returnTo) {
         url += `&returnTo=${encodeURIComponent(returnTo)}`;
       }
@@ -434,13 +464,17 @@ export default function AssessmentLibrary() {
         <AssessmentModal
           assessment={selectedAssessment}
           onClose={() => setSelectedAssessment(null)}
-          onAddToClient={handleAddToClient}
+          onAddToClient={mode === 'run'
+            ? () => handleDirectRunAssessment(selectedAssessment)
+            : handleAddToClient}
         />
       )}
 
       {showAddToClientModal && selectedAssessment && (
         <AddToClientModal
           assessment={selectedAssessment}
+          careEpisodeId={careEpisodeId}
+          clientId={preSelectedClientId}
           onClose={() => {
             setShowAddToClientModal(false);
             setSelectedAssessment(null);

@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Play, Square, Trash2, Info, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 // Hexagon Agility Test norms (seconds for 3 circuits)
 const NORMS = {
@@ -60,10 +61,12 @@ export default function HexagonAgilityTestRunner({ client, onSave, onClose }) {
   const cat = best && client?.gender ? classify(best, client.gender) : null;
 
   const handleSave = () => {
-    if (trials.length === 0) { toast.error("Record at least one trial"); return; }
-    const soap = `• Hexagon Agility Test\n  Best Time: ${best}s (3 circuits, ~${(best * 100 / 30.48).toFixed(0)}cm sides)${cat ? ` — ${cat.level}` : ""}\n  All Trials: ${trials.map(t => t + "s").join(", ")}${notes ? `\n  Notes: ${notes}` : ""}\n  Assesses agility, speed, and lower limb coordination.\n  Reference: Johnson BL & Nelson JK (1979). Practical Measurements for Evaluation in Physical Education. NSCA Performance Testing.`;
-    onSave({ status: "completed", result_value: best, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "agility_timed", best_time_s: best, trials, classification: cat?.level } });
-    toast.success("Hexagon Test saved.");
+    try {
+      onSave(validateMobilityOrtho({ trials, gender: client?.gender, notes }, { runnerKey: 'hexagon', assessmentDate: todayLocal() }));
+      toast.success("Hexagon Test saved.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (
@@ -93,7 +96,7 @@ export default function HexagonAgilityTestRunner({ client, onSave, onClose }) {
                     src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5e/Hexagon_test.svg/400px-Hexagon_test.svg.png"
                     alt="Hexagon Agility Test diagram"
                     className="max-w-[220px] rounded-lg border border-slate-200 shadow-sm"
-                    onError={e => { e.target.style.display = 'none'; }}
+                    onError={e => { e.currentTarget.style.display = 'none'; }}
                   />
                 </div>
 

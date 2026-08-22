@@ -55,6 +55,7 @@ import { EVENT_TYPES } from "@/lib/legal/documentRegistry";
 import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 import { useAiCapability } from "@/hooks/useAiCapability";
 import { normalizeSdkError } from "@/lib/sdkError";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
 import {
   aiProvenanceEntry,
   appendAiProvenance,
@@ -92,13 +93,18 @@ export default function SOAPNoteModal({
   onNavigate,
   hasPrev = false,
   hasNext = false,
-  sessionInfo = null
+  sessionInfo = null,
+  careEpisodeId = null,
 }) {
-  // Recording stays available; provider-aware Transcribe/Dissect surfaces
-  // follow the server-published capability posture.
+  // Recording and provider-backed transcription remain available in both
+  // clinical targets. The legacy transcript-dissection action is EP-only;
+  // Physio SOAP drafting is served by the versioned physio.soap_note.v1
+  // workspace and the server independently rejects this legacy action.
   const transcription = useAiCapability('transcription');
   const transcriptionEnabled = transcription.canTrigger;
   const ai = useAiCapability();
+  const legacySectionAiAllowed = activeProfession.id === 'exercise-physiology';
+  const legacyTranscriptDissectionAllowed = activeProfession.id === 'exercise-physiology';
 
   const [soapNote, setSoapNote] = useState(null);
   const [originalSoapNote, setOriginalSoapNote] = useState(null);
@@ -119,7 +125,7 @@ export default function SOAPNoteModal({
   });
   const [noteName, setNoteName] = useState('');
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const printRef = useRef();
+  const printRef = useRef(/** @type {HTMLDivElement | null} */ (null));
 
   // New state for user's locations
   const [locations, setLocations] = useState([]);
@@ -207,7 +213,8 @@ export default function SOAPNoteModal({
       const [pending, allAssessments] = await Promise.all([
         ClientAssessment.filter({ 
           client_id: client.id, 
-          status: 'pending' 
+          status: 'pending',
+          ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
         }),
         Assessment.list()
       ]);
@@ -261,7 +268,7 @@ export default function SOAPNoteModal({
     } catch (error) {
       console.error('Error loading assessments sidebar:', error);
     }
-  }, [client.id]);
+  }, [careEpisodeId, client.id]);
 
   const loadSOAPNoteAndAssessments = useCallback(async () => {
     setIsLoading(true);
@@ -273,10 +280,16 @@ export default function SOAPNoteModal({
       // Try to find existing SOAP note
       if (appointment.id && !appointment.isVirtual) {
         // For real appointments, search by appointment_id
-        existingNotes = await SOAPNote.filter({ appointment_id: appointment.id });
+        existingNotes = await SOAPNote.filter({
+          appointment_id: appointment.id,
+          ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
+        });
       } else if (appointment.isVirtual) {
         // For virtual appointments, search by client_id and date
-        const allClientNotes = await SOAPNote.filter({ client_id: client.id });
+        const allClientNotes = await SOAPNote.filter({
+          client_id: client.id,
+          ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
+        });
         const appointmentDate = format(new Date(appointment.start_time || appointment.start), 'yyyy-MM-dd');
         
         // Find notes from the same day that don't have an appointment_id (indicating a virtual/unlinked note)
@@ -295,6 +308,7 @@ export default function SOAPNoteModal({
         const noteDate = new Date(noteToSet.note_date);
         let initialLocationId = noteToSet.location_id || ''; // Get location_id from note (new field)
         let initialLocationName = noteToSet.session_location || ''; // Fallback to old string name if ID is missing
+        let initialCustomLocation = '';
 
         // If we have an ID and locations are loaded, find the actual name
         if (initialLocationId && locations.length > 0) {
@@ -307,6 +321,9 @@ export default function SOAPNoteModal({
             const foundLocation = locations.find(loc => loc.clinic_name === noteToSet.session_location);
             if (foundLocation) {
                 initialLocationId = foundLocation.id;
+            } else {
+                initialLocationId = 'other';
+                initialCustomLocation = noteToSet.session_location;
             }
         }
         
@@ -314,7 +331,8 @@ export default function SOAPNoteModal({
           date: format(noteDate, 'yyyy-MM-dd'),
           time: format(noteDate, 'HH:mm'),
           location_id: initialLocationId,
-          location_name: initialLocationName
+          location_name: initialLocationName,
+          custom_location: initialCustomLocation
         });
         setNoteName(noteToSet.note_name || '');
       } else { // New Note
@@ -343,11 +361,13 @@ export default function SOAPNoteModal({
           date: format(startDate, 'yyyy-MM-dd'),
           time: format(startDate, 'HH:mm'),
           location_id: defaultLocationId,
-          location_name: defaultLocationName
+          location_name: defaultLocationName,
+          custom_location: ''
         });
         
         noteToSet = {
           client_id: client.id,
+          ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
           appointment_id: appointment.isVirtual ? null : appointment.id,
           note_date: noteDate,
           location_id: defaultLocationId, // Store ID
@@ -367,11 +387,17 @@ export default function SOAPNoteModal({
       let clientAssessments = [];
       
       if (appointment.id && !appointment.isVirtual) {
-        clientAssessments = await ClientAssessment.filter({ appointment_id: appointment.id });
+        clientAssessments = await ClientAssessment.filter({
+          appointment_id: appointment.id,
+          ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
+        });
       }
       
       if (clientAssessments.length === 0) {
-        const allClientAssessments = await ClientAssessment.filter({ client_id: client.id });
+        const allClientAssessments = await ClientAssessment.filter({
+          client_id: client.id,
+          ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
+        });
         const appointmentDate = format(new Date(appointment.start_time || appointment.start), 'yyyy-MM-dd');
         
         clientAssessments = allClientAssessments.filter(ca => {
@@ -411,7 +437,7 @@ export default function SOAPNoteModal({
     } finally {
       setIsLoading(false);
     }
-  }, [appointment, client, generateObjectiveFromAssessments, currentUser, locations]);
+  }, [appointment, careEpisodeId, client, generateObjectiveFromAssessments, currentUser, locations]);
 
 
   useEffect(() => {
@@ -420,7 +446,7 @@ export default function SOAPNoteModal({
       setIsAmending(false);
       loadSOAPNoteAndAssessments();
     }
-  }, [appointment?.id, client?.id, currentUser?.email, locationsLoaded, loadSOAPNoteAndAssessments]);
+  }, [appointment?.id, careEpisodeId, client?.id, currentUser?.email, locationsLoaded, loadSOAPNoteAndAssessments]);
 
   // Check for imported protocol plan from sessionStorage
   useEffect(() => {
@@ -616,10 +642,12 @@ export default function SOAPNoteModal({
 
       // Save to database immediately if note exists
       if (soapNote?.id) {
-        await SOAPNote.update(soapNote.id, { 
+        const savedNote = await SOAPNote.update(soapNote.id, {
           session_audio_urls: updatedUrls,
-          session_audio_url: file_url
+          session_audio_url: file_url,
+          ...(soapNote.ai_generation ? { expected_updated_date: soapNote.updated_date } : {}),
         });
+        setSoapNote((current) => ({ ...current, ...savedNote }));
       }
 
       toast.success('Recording saved!');
@@ -657,6 +685,7 @@ export default function SOAPNoteModal({
         action: 'transcribe',
         audio_url: audioUrl,
         org_id: client.org_id,
+        ...(careEpisodeId ? { care_episode_id: careEpisodeId, client_id: client.id } : {}),
       });
       // functions.invoke returns the raw response envelope; the body is under
       // .data (matching the response.data || response convention used elsewhere).
@@ -756,6 +785,7 @@ export default function SOAPNoteModal({
       const documentData = {
         org_id: client.org_id,
         client_id: client.id,
+        ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
         document_type: 'report',
         file_url: file_url,
         file_name: file.name,
@@ -781,9 +811,11 @@ export default function SOAPNoteModal({
 
       // Save to database immediately if note exists
       if (soapNote?.id) {
-        await base44.entities.SOAPNote.update(soapNote.id, { 
-          plan_attachments: updatedAttachments
+        const savedNote = await base44.entities.SOAPNote.update(soapNote.id, {
+          plan_attachments: updatedAttachments,
+          ...(soapNote.ai_generation ? { expected_updated_date: soapNote.updated_date } : {}),
         });
+        setSoapNote((current) => ({ ...current, ...savedNote }));
       }
 
       toast.success(`${file.name} attached to plan`);
@@ -809,9 +841,11 @@ export default function SOAPNoteModal({
 
       // Save to database if note exists
       if (soapNote?.id) {
-        await base44.entities.SOAPNote.update(soapNote.id, { 
-          plan_attachments: updatedAttachments
+        const savedNote = await base44.entities.SOAPNote.update(soapNote.id, {
+          plan_attachments: updatedAttachments,
+          ...(soapNote.ai_generation ? { expected_updated_date: soapNote.updated_date } : {}),
         });
+        setSoapNote((current) => ({ ...current, ...savedNote }));
       }
 
       toast.success('Attachment removed');
@@ -866,6 +900,7 @@ export default function SOAPNoteModal({
       const dataToSave = {
         org_id: client.org_id,
         client_id: soapNote.client_id,
+        ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
         appointment_id: appointment.isVirtual ? undefined : (soapNote.appointment_id || appointment.id || undefined),
         note_date: combinedDateTime,
         location_id: sessionDetails.location_id === 'other' ? null : sessionDetails.location_id,
@@ -887,7 +922,8 @@ export default function SOAPNoteModal({
         // Additive metadata half of the AI label. The durable half already
         // lives inside the free-text fields above, so a rollback that ignores
         // this key still shows the clinician the content was AI-drafted.
-        ai_provenance: soapNote.ai_provenance || []
+        ai_provenance: soapNote.ai_provenance || [],
+        ...(soapNote.ai_generation ? { expected_updated_date: soapNote.updated_date } : {}),
       };
 
       // Remove appointment_id entirely if undefined
@@ -910,8 +946,9 @@ export default function SOAPNoteModal({
       setSessionDetails({
         date: format(savedDate, 'yyyy-MM-dd'),
         time: format(savedDate, 'HH:mm'),
-        location_id: updatedNote.location_id || '',
-        location_name: updatedNote.session_location || ''
+        location_id: updatedNote.location_id || (updatedNote.session_location ? 'other' : ''),
+        location_name: updatedNote.session_location || '',
+        custom_location: updatedNote.location_id ? '' : (updatedNote.session_location || '')
       });
 
       if (actionType === 'draft') {
@@ -939,7 +976,7 @@ export default function SOAPNoteModal({
     } finally {
       setIsSaving(false);
     }
-  }, [appointment, client, currentUser, sessionDetails, soapNote, originalSoapNote]);
+  }, [appointment, careEpisodeId, client, currentUser, sessionDetails, soapNote, originalSoapNote]);
 
 
   const handleAmendClick = () => {
@@ -955,8 +992,9 @@ export default function SOAPNoteModal({
       setSessionDetails({
         date: format(noteDate, 'yyyy-MM-dd'),
         time: format(noteDate, 'HH:mm'),
-        location_id: originalSoapNote.location_id || '',
-        location_name: originalSoapNote.session_location || ''
+        location_id: originalSoapNote.location_id || (originalSoapNote.session_location ? 'other' : ''),
+        location_name: originalSoapNote.session_location || '',
+        custom_location: originalSoapNote.location_id ? '' : (originalSoapNote.session_location || '')
       });
     }
     setIsAmending(false);
@@ -1127,12 +1165,12 @@ export default function SOAPNoteModal({
                 clinician={currentUser}
             />
         </div>
-        <DialogContent className="max-w-6xl h-[95vh] flex flex-col overflow-hidden">
-          <div className="flex flex-1 min-h-0 gap-4">
+        <DialogContent className="flex h-[95dvh] w-[calc(100vw-1rem)] max-w-6xl flex-col overflow-hidden p-3 sm:p-6">
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto lg:flex-row lg:overflow-hidden">
             {/* Main SOAP Note Content */}
-            <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
-          <DialogHeader className="flex flex-row items-center justify-between pr-6 pb-4">
-            <div className="flex items-center gap-4">
+            <div className="flex min-w-0 flex-col lg:min-h-0 lg:flex-1 lg:overflow-y-auto">
+          <DialogHeader className="flex flex-col gap-3 pr-8 pb-4 sm:flex-row sm:items-center sm:justify-between sm:pr-6">
+            <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
               {onNavigate && (
                 <Button
                   variant="ghost"
@@ -1145,8 +1183,8 @@ export default function SOAPNoteModal({
                 </Button>
               )}
 
-              <div>
-                <DialogTitle className="text-xl font-bold">
+              <div className="min-w-0">
+                <DialogTitle className="break-words text-xl font-bold">
                   {noteName || `SOAP Note - ${client.full_name}`}
                 </DialogTitle>
                 <p className="text-sm text-slate-500 mt-1">
@@ -1190,8 +1228,8 @@ export default function SOAPNoteModal({
           {/* Session Details Section */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 mb-4">
             {!isEditingSessionDetails ? (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-6">
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-6">
                   <div className="flex items-center gap-2 text-sm">
                     <Calendar className="w-4 h-4 text-slate-600" />
                     <span className="font-medium">{sessionDetails.date ? format(new Date(sessionDetails.date), 'PPP') : 'No date set'}</span>
@@ -1214,6 +1252,7 @@ export default function SOAPNoteModal({
                   size="sm"
                   onClick={() => setIsEditingSessionDetails(true)}
                   disabled={isLocked}
+                  className="w-full sm:w-auto"
                 >
                   <Edit className="w-4 h-4 mr-2" />
                   Edit Session Details
@@ -1300,16 +1339,18 @@ export default function SOAPNoteModal({
                         setSessionDetails({
                           date: format(noteDate, 'yyyy-MM-dd'),
                           time: format(noteDate, 'HH:mm'),
-                          location_id: originalSoapNote.location_id || '',
-                          location_name: originalSoapNote.session_location || ''
+                          location_id: originalSoapNote.location_id || (originalSoapNote.session_location ? 'other' : ''),
+                          location_name: originalSoapNote.session_location || '',
+                          custom_location: originalSoapNote.location_id ? '' : (originalSoapNote.session_location || '')
                         });
                       } else if (soapNote) { // Fallback if originalSoapNote is not yet set (e.g. new note being edited for the first time)
                         const noteDate = new Date(soapNote.note_date);
                         setSessionDetails({
                           date: format(noteDate, 'yyyy-MM-dd'),
                           time: format(noteDate, 'HH:mm'),
-                          location_id: soapNote.location_id || '',
-                          location_name: soapNote.session_location || ''
+                          location_id: soapNote.location_id || (soapNote.session_location ? 'other' : ''),
+                          location_name: soapNote.session_location || '',
+                          custom_location: soapNote.location_id ? '' : (soapNote.session_location || '')
                         });
                       }
                       setIsEditingSessionDetails(false);
@@ -1460,7 +1501,7 @@ export default function SOAPNoteModal({
                   placeholder="Transcript will appear here once transcription completes."
                   className="text-sm"
                 />
-                {!isLocked && (
+                {!isLocked && legacyTranscriptDissectionAllowed && (
                   <div className="flex justify-end mt-2">
                     <Button
                       size="sm"
@@ -1549,7 +1590,7 @@ export default function SOAPNoteModal({
                   <div className="flex items-center justify-between mb-2">
                     <Label htmlFor="assessment" className="text-lg font-semibold">Assessment</Label>
                     <div className="flex gap-2">
-                      {!isLocked && (
+                      {!isLocked && legacySectionAiAllowed && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1561,7 +1602,7 @@ export default function SOAPNoteModal({
                               const conditionsList = conditions.map(c => `${c.condition_name}${c.medication ? ` (on ${c.medication})` : ''}`).join(', ');
 
                               const result = await base44.integrations.Core.InvokeLLM({
-                                prompt: `You are a clinical exercise physiologist writing a SOAP note assessment section. Based on the following information, write a professional clinical assessment.
+                                 prompt: `You are the treating ${activeProfession.clinicalPromptRole} writing a SOAP note assessment section. Based on the following information, write a professional clinical assessment.
 
                       CLIENT BACKGROUND:
                       - Name: ${client.full_name}
@@ -1581,10 +1622,18 @@ export default function SOAPNoteModal({
                                   }
                                 }
                               });
+                              const assessmentDraft = (
+                                typeof result === 'object'
+                                && result !== null
+                                && 'assessment' in result
+                              ) ? String(result.assessment || '') : '';
+                              if (!assessmentDraft.trim()) {
+                                throw new Error('AI assessment response was missing the required assessment field');
+                              }
                               const dateLabel = moment().format('DD/MM/YYYY');
                               setSoapNote(prev => ({
                                 ...prev,
-                                assessment: markAiAssistedText(result.assessment, {
+                                assessment: markAiAssistedText(assessmentDraft, {
                                   dateLabel,
                                   detail: 'Drafted from the note context.',
                                 }),
@@ -1663,10 +1712,11 @@ export default function SOAPNoteModal({
                             )}
                             Attach Document
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={async () => {
+                          {legacySectionAiAllowed && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={async () => {
                               setIsGeneratingPlan(true);
                               try {
                                 // Fetch client conditions for context
@@ -1674,7 +1724,7 @@ export default function SOAPNoteModal({
                                 const conditionsList = conditions.map(c => `${c.condition_name}${c.medication ? ` (on ${c.medication})` : ''}`).join(', ');
 
                                 const result = await base44.integrations.Core.InvokeLLM({
-                                  prompt: `You are a clinical exercise physiologist writing a SOAP note plan section. Based on the following information, write a professional treatment plan.
+                                   prompt: `You are the treating ${activeProfession.clinicalPromptRole} writing a SOAP note plan section. Based on the following information, write a professional treatment plan.
 
                         CLIENT BACKGROUND:
                         - Name: ${client.full_name}
@@ -1696,10 +1746,18 @@ export default function SOAPNoteModal({
                                     }
                                   }
                                 });
+                                const planDraft = (
+                                  typeof result === 'object'
+                                  && result !== null
+                                  && 'plan' in result
+                                ) ? String(result.plan || '') : '';
+                                if (!planDraft.trim()) {
+                                  throw new Error('AI plan response was missing the required plan field');
+                                }
                                 const dateLabel = moment().format('DD/MM/YYYY');
                                 setSoapNote(prev => ({
                                   ...prev,
-                                  plan: markAiAssistedText(result.plan, {
+                                  plan: markAiAssistedText(planDraft, {
                                     dateLabel,
                                     detail: 'Drafted from the note context.',
                                   }),
@@ -1716,17 +1774,18 @@ export default function SOAPNoteModal({
                               } finally {
                                 setIsGeneratingPlan(false);
                               }
-                            }}
-                            disabled={isGeneratingPlan || !ai.canTrigger}
-                            title={!ai.canTrigger ? ai.unavailableMessage : undefined}
-                          >
-                            {isGeneratingPlan ? (
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            ) : (
-                              <Sparkles className="w-4 h-4 mr-2" />
-                            )}
-                            AI Help
-                          </Button>
+                              }}
+                              disabled={isGeneratingPlan || !ai.canTrigger}
+                              title={!ai.canTrigger ? ai.unavailableMessage : undefined}
+                            >
+                              {isGeneratingPlan ? (
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                              ) : (
+                                <Sparkles className="w-4 h-4 mr-2" />
+                              )}
+                              AI Help
+                            </Button>
+                          )}
                         </>
                       )}
                     </div>
@@ -1856,9 +1915,9 @@ export default function SOAPNoteModal({
                               )}
           </div>
 
-          <DialogFooter className="pt-4 border-t flex-shrink-0 mt-auto bg-white">
-            <div className="flex justify-between w-full items-center gap-2">
-              <div className="flex gap-2">
+          <DialogFooter className="mt-auto flex-shrink-0 border-t bg-white pt-4">
+            <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex flex-wrap gap-2">
                   <Button variant="outline" onClick={handlePrint} disabled={!isPublished}>
                       <Printer className="w-4 h-4 mr-2" />
                       Print
@@ -1904,7 +1963,7 @@ export default function SOAPNoteModal({
                   )}
               </div>
 
-              <div className="flex gap-2">
+              <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap">
                 {!isPublished && (
                   <>
                     <Button variant="outline" onClick={() => handleSave('draft')} disabled={isSaving}>
@@ -1924,7 +1983,7 @@ export default function SOAPNoteModal({
           </div>
 
             {/* Right Sidebar - Assessments */}
-            <div className="w-80 border-l border-slate-200 pl-4 flex-shrink-0 overflow-y-auto">
+            <div className="w-full flex-shrink-0 border-t border-slate-200 pt-4 lg:w-80 lg:overflow-y-auto lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0">
               <div className="space-y-4 sticky top-0">
                 {/* Pending Assessments */}
                 <div>
@@ -1988,6 +2047,7 @@ export default function SOAPNoteModal({
                                 const newCA = await ClientAssessment.create({
                                   org_id: client.org_id,
                                   client_id: client.id,
+                                  ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
                                   assessment_id: assessment.id,
                                   appointment_id: appointment.id,
                                   status: 'pending',

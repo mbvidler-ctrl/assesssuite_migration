@@ -17,7 +17,13 @@
 // the case in the shipped server/index.mjs), it falls back to opening its
 // own handle so it remains independently usable.
 
-import { openDatabase, createOutboxRepository } from '../db.mjs';
+import {
+  openDatabase,
+  createOutboxRepository,
+  createPhysioAiGenerationRepository,
+  createStripeCheckoutIntentRepository,
+  createStripeWebhookEventRepository,
+} from '../db.mjs';
 import { createApiUsageService } from '../apiUsage.mjs';
 import {
   createEntitiesAccessor,
@@ -29,23 +35,16 @@ import {
   createSubscriptionEntitlementUpdater,
 } from './_shared.mjs';
 import { stripAuthFields } from './_auth-bridge.mjs';
-import { isInitialClinicalReleaseEligible } from '../clinicalRelease.mjs';
+import {
+  isInitialClinicalReleaseEligible,
+  resolveClinicalReleasePolicy,
+} from '../clinicalRelease.mjs';
 
-import assignOrganizations from './assignOrganizations.mjs';
-import auditAssessmentIssues from './auditAssessmentIssues.mjs';
 import createCheckoutSession from './createCheckoutSession.mjs';
-import createMissingAssessments from './createMissingAssessments.mjs';
 import createPortalSession from './createPortalSession.mjs';
-import createTestClientWithAssessments from './createTestClientWithAssessments.mjs';
-import enableMissingTestRunners from './enableMissingTestRunners.mjs';
-import fixHasTestRunnerFlags from './fixHasTestRunnerFlags.mjs';
-import fixMissingOrgIds from './fixMissingOrgIds.mjs';
-import fixUserOrganizations from './fixUserOrganizations.mjs';
 import getComorbidityReport from './getComorbidityReport.mjs';
-import getMissingTestRunners from './getMissingTestRunners.mjs';
 import stripeWebhook from './stripeWebhook.mjs';
 import syncStripeSubscription from './syncStripeSubscription.mjs';
-import verifyTestAssessmentData from './verifyTestAssessmentData.mjs';
 import verifyReferences from './verifyReferences.mjs';
 import searchEvidence from './searchEvidence.mjs';
 import medicalLookup from './medicalLookup.mjs';
@@ -53,23 +52,15 @@ import transcribeSession from './transcribeSession.mjs';
 import deactivateAccount from './deactivateAccount.mjs';
 import cancelSubscriptionAndDeactivate from './cancelSubscriptionAndDeactivate.mjs';
 import managePromotions from './managePromotions.mjs';
+import physioAiTask from './physioAiTask.mjs';
+import savePhysioAiGeneration from './savePhysioAiGeneration.mjs';
 
 const REGISTRY = {
-  assignOrganizations,
-  auditAssessmentIssues,
   createCheckoutSession,
-  createMissingAssessments,
   createPortalSession,
-  createTestClientWithAssessments,
-  enableMissingTestRunners,
-  fixHasTestRunnerFlags,
-  fixMissingOrgIds,
-  fixUserOrganizations,
   getComorbidityReport,
-  getMissingTestRunners,
   stripeWebhook,
   syncStripeSubscription,
-  verifyTestAssessmentData,
   verifyReferences,
   searchEvidence,
   medicalLookup,
@@ -77,7 +68,17 @@ const REGISTRY = {
   deactivateAccount,
   cancelSubscriptionAndDeactivate,
   managePromotions,
+  physioAiTask,
+  savePhysioAiGeneration,
 };
+
+// The legacy EP maintenance/debug functions are not part of the public
+// Physio production application and their module is omitted from its runtime
+// dependency tree. Existing EP and isolated test behaviour remains available.
+if (process.env.NODE_ENV !== 'production' || process.env.PROFESSION !== 'physio') {
+  const maintenanceUrl = new URL('./epMaintenanceRegistry.mjs', import.meta.url);
+  Object.assign(REGISTRY, (await import(maintenanceUrl.href)).default);
+}
 
 // Functions that read or produce clinical content: require a session AND an
 // approved (active) account for non-admins — mirroring the entities router's
@@ -91,6 +92,8 @@ const REQUIRES_ACTIVE_ACCOUNT = new Set([
   'searchEvidence',
   'medicalLookup',
   'transcribeSession',
+  'physioAiTask',
+  'savePhysioAiGeneration',
 ]);
 
 // Functions that require a session but not approval — billing actions a
@@ -116,9 +119,15 @@ function buildState(db, entityNames, services = {}) {
   return {
     db,
     apiUsage: services.apiUsage || createApiUsageService(db),
+    clinicalReleasePolicy: services.clinicalReleasePolicy || resolveClinicalReleasePolicy(process.env),
     outboxEmail: createOutboxRepository(db, 'email'),
     outboxSms: createOutboxRepository(db, 'sms'),
+    stripeCheckoutIntents: createStripeCheckoutIntentRepository(db),
+    stripeWebhookEvents: createStripeWebhookEventRepository(db),
+    physioAiGenerations: createPhysioAiGenerationRepository(db),
     entities: createEntitiesAccessor(db, entityNames),
+    stripeProvider: services.stripeProvider || null,
+    transcriptionFallback: services.transcriptionFallback || null,
   };
 }
 
@@ -152,7 +161,25 @@ export default async function handleFunction(req, res, { functionName }) {
     return respond(res, 404, { message: 'function not found' });
   }
 
-  const { db, entities, outboxEmail, outboxSms, apiUsage } = ensureState();
+  const {
+    db,
+    entities,
+    outboxEmail,
+    outboxSms,
+    apiUsage,
+    clinicalReleasePolicy,
+    physioAiGenerations,
+    stripeCheckoutIntents,
+    stripeWebhookEvents,
+    stripeProvider,
+    transcriptionFallback,
+  } = ensureState();
+  if (
+    ['physioAiTask', 'savePhysioAiGeneration'].includes(functionName)
+    && clinicalReleasePolicy.professionId !== 'physio'
+  ) {
+    return respond(res, 404, { message: 'function not found' });
+  }
 
   // The body is read ONCE as raw bytes, then parsed. Both forms go on ctx:
   // stripeWebhook needs the exact raw bytes for Stripe-Signature HMAC
@@ -172,7 +199,7 @@ export default async function handleFunction(req, res, { functionName }) {
     if (user.role !== 'admin' && user.account_status !== 'active') {
       return respond(res, 403, { error: 'account pending approval' });
     }
-    if (user.role !== 'admin' && !isInitialClinicalReleaseEligible(user)) {
+    if (user.role !== 'admin' && !isInitialClinicalReleaseEligible(user, clinicalReleasePolicy)) {
       return respond(res, 403, { error: 'clinical access is not approved for this account profile' });
     }
   } else if (REQUIRES_SESSION.has(functionName)) {
@@ -193,8 +220,21 @@ export default async function handleFunction(req, res, { functionName }) {
     ...(functionName === 'syncStripeSubscription'
       ? { updateSubscriptionEntitlement: createSubscriptionEntitlementUpdater(db, sessionUser) }
       : {}),
+    ...(functionName === 'createCheckoutSession'
+      ? { checkoutIntents: stripeCheckoutIntents }
+      : {}),
+    ...(functionName === 'stripeWebhook'
+      ? { webhookEvents: stripeWebhookEvents }
+      : {}),
+    ...(['physioAiTask', 'savePhysioAiGeneration'].includes(functionName)
+      ? { physioAiGenerations, db }
+      : {}),
     outboxEmail,
     outboxSms,
+    ...(stripeProvider ? { stripeProvider } : {}),
+    ...(functionName === 'transcribeSession' && transcriptionFallback
+      ? { transcriptionFallback }
+      : {}),
   };
 
   try {

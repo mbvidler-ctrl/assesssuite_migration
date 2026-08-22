@@ -7,64 +7,45 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
-
-const BESS_CONDITIONS = [
-  { id: 1, name: "Double leg stance on firm surface", surface: "firm" },
-  { id: 2, name: "Single leg stance on firm surface (non-dominant foot)", surface: "firm" },
-  { id: 3, name: "Tandem stance on firm surface (non-dominant foot back)", surface: "firm" },
-  { id: 4, name: "Double leg stance on foam surface", surface: "foam" },
-  { id: 5, name: "Single leg stance on foam surface (non-dominant foot)", surface: "foam" },
-  { id: 6, name: "Tandem stance on foam surface (non-dominant foot back)", surface: "foam" }
-];
+import {
+  BESS_CONDITIONS,
+  validateAndScoreBess,
+} from "@/lib/clinical/scorers/maintainedPhysioAdditions";
 
 export default function BESSRunner({ onSave, onClose }) {
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState(() => Object.fromEntries(
+    BESS_CONDITIONS.map(({ key }) => [key, ""]),
+  ));
   const [notes, setNotes] = useState("");
 
-  const handleErrorChange = (conditionId, value) => {
-    const numValue = parseInt(value) || 0;
-    setErrors({ ...errors, [conditionId]: Math.min(Math.max(numValue, 0), 10) });
-  };
-
-  const calculateTotal = () => {
-    return Object.values(errors).reduce((sum, err) => sum + (err || 0), 0);
-  };
-
-  const total = calculateTotal();
-
-  const getInterpretation = () => {
-    if (total <= 3) return { level: 'Normal balance', color: 'text-green-600', bg: 'bg-green-50' };
-    if (total <= 6) return { level: 'Mild balance impairment', color: 'text-yellow-600', bg: 'bg-yellow-50' };
-    if (total <= 12) return { level: 'Moderate balance impairment', color: 'text-orange-600', bg: 'bg-orange-50' };
-    return { level: 'Severe balance impairment', color: 'text-red-600', bg: 'bg-red-50' };
-  };
-
-  const interpretation = Object.keys(errors).length === 6 ? getInterpretation() : null;
-
-  const handleSave = () => {
-    if (Object.keys(errors).length === 0) {
-      toast.error("Please score at least one condition before saving.");
+  const handleErrorChange = (conditionKey, value) => {
+    if (value === "") {
+      setErrors((current) => ({ ...current, [conditionKey]: "" }));
       return;
     }
+    const numValue = Number(value);
+    setErrors((current) => ({
+      ...current,
+      [conditionKey]: Number.isFinite(numValue) ? Math.min(Math.max(numValue, 0), 10) : value,
+    }));
+  };
 
-    const conditionLines = BESS_CONDITIONS.map(c => {
-      const errs = errors[c.id] ?? 0;
-      return `  ${c.name}: ${errs} error${errs !== 1 ? 's' : ''}`;
-    }).join('\n');
+  const allConditionsScored = BESS_CONDITIONS.every(({ key }) => errors[key] !== "");
+  const total = allConditionsScored
+    ? BESS_CONDITIONS.reduce((sum, { key }) => sum + Number(errors[key]), 0)
+    : null;
 
-    const soapText = `• Balance Error Scoring System (BESS)\n  Total Errors: ${total}/60\n  Interpretation: ${interpretation?.level ?? 'N/A'}\n\n  Condition Breakdown:\n${conditionLines}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`;
-
-    onSave({
-      result_value: total,
-      additional_data: {
-        soap_text: soapText,
-        total_errors: total,
-        condition_errors: errors,
-        interpretation: interpretation?.level
-      },
-      notes: notes,
-      assessment_date: todayLocal()
-    });
+  const handleSave = () => {
+    try {
+      const payload = validateAndScoreBess(
+        { ...errors, notes },
+        { assessmentName: "Balance Error Scoring System (BESS)", assessmentDate: todayLocal() },
+      );
+      onSave(payload);
+      toast.success("BESS saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to score BESS");
+    }
   };
 
   return (
@@ -114,23 +95,6 @@ export default function BESSRunner({ onSave, onClose }) {
               <p>Guskiewicz KM et al. (2001). Postural stability and neuropsychological deficits after concussion. <em>Journal of Athletic Training, 36</em>(3), 263–273.</p>
             </div>
 
-            {/* Norms */}
-            <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-              <p className="font-semibold text-slate-700">📊 Norms & Interpretation (Total Errors / 60)</p>
-              <div className="overflow-x-auto">
-                <table className="w-full text-xs border border-slate-300 rounded">
-                  <thead className="bg-slate-200"><tr><th className="p-2 text-left">Errors</th><th className="p-2 text-left">Interpretation</th></tr></thead>
-                  <tbody>
-                    <tr className="border-t"><td className="p-2">0–3</td><td className="p-2 text-green-700">Normal balance</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">4–6</td><td className="p-2 text-yellow-700">Mild impairment</td></tr>
-                    <tr className="border-t"><td className="p-2">7–12</td><td className="p-2 text-orange-700">Moderate impairment</td></tr>
-                    <tr className="border-t bg-white"><td className="p-2">≥13</td><td className="p-2 text-red-700">Severe impairment / significant concussion indicator</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <p className="text-xs text-slate-500">MCID: ~7 errors post-concussion vs. baseline. A score ≥3 errors above individual baseline is clinically meaningful. Source: Guskiewicz et al. (2001).</p>
-            </div>
-
             <Card className="bg-amber-50 border-amber-200">
               <CardHeader>
                 <CardTitle className="text-sm text-amber-800">⚠ Contraindications</CardTitle>
@@ -145,10 +109,10 @@ export default function BESSRunner({ onSave, onClose }) {
                 <CardTitle className="text-lg">BESS Conditions</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {BESS_CONDITIONS.map((condition) => (
-                  <div key={condition.id} className="p-4 border rounded bg-slate-50">
+                {BESS_CONDITIONS.map((condition, index) => (
+                  <div key={condition.key} className="p-4 border rounded bg-slate-50">
                     <Label className="text-base font-semibold mb-2 block">
-                      {condition.id}. {condition.name}
+                      {index + 1}. {condition.label}
                     </Label>
                     <div className="flex items-center gap-4 mt-2">
                       <Label className="text-sm">Errors (0-10):</Label>
@@ -156,8 +120,9 @@ export default function BESSRunner({ onSave, onClose }) {
                         type="number"
                         min="0"
                         max="10"
-                        value={errors[condition.id] || ""}
-                        onChange={(e) => handleErrorChange(condition.id, e.target.value)}
+                        step="1"
+                        value={errors[condition.key] ?? ""}
+                        onChange={(e) => handleErrorChange(condition.key, e.target.value)}
                         className="w-24"
                         placeholder="0"
                       />
@@ -167,21 +132,12 @@ export default function BESSRunner({ onSave, onClose }) {
               </CardContent>
             </Card>
 
-            {interpretation && (
-              <Card className={`${interpretation.bg} border-2`}>
-                <CardHeader>
-                  <CardTitle className={`text-xl ${interpretation.color}`}>
-                    {interpretation.level}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className={interpretation.color}>
+            {allConditionsScored && (
+              <Card className="bg-emerald-50 border-2 border-emerald-200">
+                <CardHeader><CardTitle className="text-xl text-emerald-800">Six conditions complete</CardTitle></CardHeader>
+                <CardContent className="text-emerald-800">
                   <p className="font-semibold">Total Errors: {total} / 60</p>
-                  <p className="text-sm mt-2">Lower scores indicate better balance control.</p>
-                  {total > 12 && (
-                    <p className="text-sm mt-3 p-3 bg-white/50 rounded">
-                      <strong>Note:</strong> High error count may indicate concussion, vestibular dysfunction, or significant balance impairment. Consider further assessment.
-                    </p>
-                  )}
+                  <p className="text-sm mt-2">Lower scores indicate better balance control. Interpret against the applicable baseline and population context.</p>
                 </CardContent>
               </Card>
             )}
@@ -204,7 +160,7 @@ export default function BESSRunner({ onSave, onClose }) {
 
         <div className="p-4 border-t bg-slate-50 flex justify-between">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} className="bg-green-600 hover:bg-green-700">
+          <Button onClick={handleSave} disabled={!allConditionsScored} className="bg-green-600 hover:bg-green-700">
             <Save className="w-4 h-4 mr-2" />
             Save BESS
           </Button>

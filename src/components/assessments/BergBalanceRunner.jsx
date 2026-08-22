@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, Save } from 'lucide-react';
 import { todayLocal } from "@/lib/localDate";
+import { scoreBergBalance } from "@/lib/clinical/scorers/coreA";
 
 const BERG_ITEMS = [
   { id: 1, name: 'Sitting to Standing', description: 'Stand up from sitting without using hands' },
@@ -42,30 +43,10 @@ export default function BergBalanceRunner({ onSave, onClose, initialData }) {
   };
 
   const handleSave = () => {
-    const total = calculateTotal();
-    const interpretation = total >= 45 ? 'Low fall risk' : total >= 21 ? 'Medium fall risk' : 'High fall risk';
-    
-    // Build comprehensive SOAP text
-    let soapText = `• Berg Balance Scale: ${total}/56 → ${interpretation}\n\n  Individual Item Scores:\n`;
-    BERG_ITEMS.forEach(item => {
-      const score = scores[item.id];
-      if (score !== undefined && score !== null) {
-        const scoreLabel = SCORING_OPTIONS.find(opt => opt.value === score)?.label || score;
-        soapText += `  ${item.id}. ${item.name}: ${score}/4 (${scoreLabel})\n`;
-      }
-    });
-    
-    onSave({
-      result_value: total,
-      additional_data: {
-        soap_text: soapText,
-        scores,
-        total,
-        interpretation,
-        measurement_type: 'berg_balance'
-      },
-      assessment_date: todayLocal()
-    });
+    onSave(scoreBergBalance(
+      { scores },
+      { assessmentName: 'Berg Balance Scale', assessmentDate: todayLocal(), notes: '' },
+    ));
   };
 
   return (

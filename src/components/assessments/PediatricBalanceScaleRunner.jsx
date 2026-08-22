@@ -8,11 +8,12 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_PEDIATRIC_BALANCE_ITEMS as PEDIATRIC_BALANCE_ITEMS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 export default function PediatricBalanceScaleRunner({ client, onSave, onClose }) {
   const [preVitals, setPreVitals] = useState({ heartRate: "", bloodPressure: "" });
   const [postVitals, setPostVitals] = useState({ heartRate: "", bloodPressure: "" });
-  const [scores, setScores] = useState(Array(14).fill(0));
+  const [scores, setScores] = useState(Array(PEDIATRIC_BALANCE_ITEMS.length).fill(null));
   const [notes, setNotes] = useState("");
   const [assessmentDate] = useState(todayLocal());
   const [showClinicianInfo, setShowClinicianInfo] = useState(false);
@@ -24,6 +25,10 @@ export default function PediatricBalanceScaleRunner({ client, onSave, onClose })
   };
 
   const handleSave = () => {
+    if (!scores.every((score) => Number.isInteger(score) && score >= 0 && score <= 4)) {
+      toast.error(`Please score all ${PEDIATRIC_BALANCE_ITEMS.length} balance items before saving.`);
+      return;
+    }
     const totalScore = scores.reduce((acc, score) => acc + score, 0);
     const additionalData = {
       soap_text: `• Pediatric Balance Scale\n  Total Score: ${totalScore}/56`,
@@ -217,78 +222,7 @@ export default function PediatricBalanceScaleRunner({ client, onSave, onClose })
               <strong>Scoring:</strong> 4 = Independent &amp; safe · 3 = Mild difficulty · 2 = Moderate/needs support · 1 = Maximal assist · 0 = Unable
             </div>
             <div className="space-y-3">
-              {[
-                {
-                  label: "Sitting to standing",
-                  instructions: "Ask child to stand from a standard chair. Observe whether they use hands for support.",
-                  criteria: ["4 – Stands without using hands, stabilises independently", "3 – Stands using hands, stabilises independently", "2 – Stands using hands after several attempts", "1 – Needs minimal assistance to stand or stabilise", "0 – Needs moderate/maximal assistance to stand"]
-                },
-                {
-                  label: "Standing to sitting",
-                  instructions: "Ask child to sit down in the chair. Observe control of the lowering movement.",
-                  criteria: ["4 – Sits safely with minimal use of hands", "3 – Controls descent using hands", "2 – Uses back of legs against chair to control descent", "1 – Sits independently but uncontrolled descent", "0 – Needs assistance to sit"]
-                },
-                {
-                  label: "Transfers",
-                  instructions: "Place two chairs side-by-side (or chair + treatment table). Ask child to move from one to the other in both directions.",
-                  criteria: ["4 – Transfers safely with minor hand use", "3 – Transfers safely but requires hands", "2 – Transfers with verbal cueing and/or supervision", "1 – Needs one person assistance", "0 – Needs two people to assist/supervise"]
-                },
-                {
-                  label: "Standing unsupported",
-                  instructions: "Ask child to stand still without holding anything for 1 minute (30 sec for age <5). Stand close for safety.",
-                  criteria: ["4 – Stands safely for 1 minute", "3 – Stands 1 minute with supervision", "2 – Stands 30 seconds unsupported", "1 – Needs several attempts; stands 15 seconds", "0 – Unable to stand 10 seconds without support"]
-                },
-                {
-                  label: "Sitting unsupported",
-                  instructions: "Ask child to sit on chair (no back support, feet on floor) with arms folded for 1 minute.",
-                  criteria: ["4 – Sits safely and securely for 1 minute", "3 – Sits 1 minute with supervision", "2 – Sits 30 seconds", "1 – Sits 10 seconds", "0 – Unable to sit without support for 10 seconds"]
-                },
-                {
-                  label: "Standing with eyes closed",
-                  instructions: "Ask child to close eyes and stand still for 10 seconds. Stand nearby for safety.",
-                  criteria: ["4 – Stands 10 seconds safely", "3 – Stands 10 seconds with supervision", "2 – Stands 3 seconds", "1 – Unable to keep eyes closed 3 seconds but stays stable", "0 – Needs help to prevent falling"]
-                },
-                {
-                  label: "Standing with feet together",
-                  instructions: "Ask child to place feet together and stand without holding onto anything for 1 minute.",
-                  criteria: ["4 – Places feet together independently and holds 1 minute", "3 – Places feet together and holds 1 minute with supervision", "2 – Places feet together and holds 30 seconds", "1 – Needs help to attain position but holds 15 seconds", "0 – Needs help to attain position and unable to hold for 15 seconds"]
-                },
-                {
-                  label: "Standing with one foot in front",
-                  instructions: "Demonstrate tandem stance (heel-to-toe). Ask child to place one foot directly in front of the other and hold for 30 seconds.",
-                  criteria: ["4 – Places foot independently (tandem) and holds 30 seconds", "3 – Places foot independently and holds 15 seconds", "2 – Takes small step independently and holds 30 seconds", "1 – Needs help to step but holds 15 seconds", "0 – Loses balance while stepping or standing"]
-                },
-                {
-                  label: "Standing on one foot",
-                  instructions: "Ask child to lift one foot off the ground without holding onto anything and hold for as long as possible (max 10 seconds). Test each side.",
-                  criteria: ["4 – Lifts leg independently and holds ≥10 seconds", "3 – Lifts leg independently and holds 5–9 seconds", "2 – Lifts leg independently and holds ≥3 seconds", "1 – Attempts to lift leg but cannot hold 3 seconds; remains standing", "0 – Unable to attempt or needs support to prevent falling"]
-                },
-                {
-                  label: "Turning 360 degrees",
-                  instructions: "Ask child to turn all the way around in a full circle, pause, then turn in the other direction.",
-                  criteria: ["4 – Turns 360° safely within 4 seconds each side", "3 – Turns 360° safely one side only within 4 seconds", "2 – Turns 360° safely but slowly (>4 seconds)", "1 – Needs close supervision or verbal cueing", "0 – Needs assistance while turning"]
-                },
-                {
-                  label: "Turning to look behind",
-                  instructions: "Ask child to look behind over each shoulder by turning their head/trunk. Place an object or person behind them to encourage full rotation.",
-                  criteria: ["4 – Looks behind from both sides; weight shifts well", "3 – Looks behind from one side only; less weight shift", "2 – Turns sideways only but maintains balance", "1 – Needs supervision when turning", "0 – Needs assistance to prevent loss of balance or falling"]
-                },
-                {
-                  label: "Retrieving object from floor",
-                  instructions: "Place a small object (e.g., shoe, beanbag) on the floor in front of the child's feet. Ask them to pick it up.",
-                  criteria: ["4 – Retrieves object safely and easily", "3 – Retrieves object but needs supervision", "2 – Unable to retrieve but reaches 2–5 cm from object and keeps balance", "1 – Unable to retrieve; needs supervision while trying", "0 – Unable to attempt or needs assistance to prevent falling"]
-                },
-                {
-                  label: "Placing alternate foot on stool",
-                  instructions: "Ask child to place each foot alternately on a step stool (8 inches high). Complete 8 total touches (4 each foot). Time the task.",
-                  criteria: ["4 – Stands independently and completes 8 steps within 20 seconds", "3 – Stands independently and completes 8 steps in >20 seconds", "2 – Completes 4 steps without aids with supervision", "1 – Completes >2 steps; needs minimal assistance", "0 – Needs assistance to prevent falling or unable to try"]
-                },
-                {
-                  label: "Reaching forward with outstretched arm",
-                  instructions: "Ask child to raise arm to 90° and reach forward as far as possible without stepping. Measure distance from fingertip at start vs end.",
-                  criteria: ["4 – Reaches forward confidently >25 cm", "3 – Reaches >12 cm safely", "2 – Reaches >5 cm safely", "1 – Reaches forward but needs supervision", "0 – Loses balance or requires external support"]
-                },
-              ].map((item, index) => (
+              {PEDIATRIC_BALANCE_ITEMS.map((item, index) => (
                 <div key={index} className="border border-slate-200 rounded-lg p-3 bg-white">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex-1">
@@ -316,9 +250,10 @@ export default function PediatricBalanceScaleRunner({ client, onSave, onClose })
                         scores[index] === 3 ? "bg-lime-100 border-lime-400 text-lime-700" :
                         scores[index] === 2 ? "bg-yellow-100 border-yellow-400 text-yellow-700" :
                         scores[index] === 1 ? "bg-orange-100 border-orange-400 text-orange-700" :
-                        "bg-red-100 border-red-400 text-red-700"
+                        scores[index] === 0 ? "bg-red-100 border-red-400 text-red-700" :
+                        "bg-slate-100 border-slate-300 text-slate-400"
                       }`}>
-                        {scores[index]}
+                        {scores[index] ?? "—"}
                       </div>
                       <span className="text-xs text-slate-400 mt-1">/ 4</span>
                     </div>
@@ -348,9 +283,9 @@ export default function PediatricBalanceScaleRunner({ client, onSave, onClose })
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
             <div className="space-y-2">
-              <p className="font-semibold text-slate-900">Total Score: <span className="text-2xl font-bold text-purple-600">{scores.reduce((a, b) => a + b, 0)}/56</span></p>
+              <p className="font-semibold text-slate-900">Total Score: <span className="text-2xl font-bold text-purple-600">{scores.reduce((a, b) => a + (b ?? 0), 0)}/56</span></p>
               {(() => {
-                const total = scores.reduce((a, b) => a + b, 0);
+                const total = scores.reduce((a, b) => a + (b ?? 0), 0);
                 if (total >= 46) return (
                   <div className="p-3 rounded-lg bg-green-100 border border-green-300">
                     <p className="text-green-800 font-semibold">✓ Low Fall Risk</p>
@@ -383,7 +318,11 @@ export default function PediatricBalanceScaleRunner({ client, onSave, onClose })
            <span>Close</span>
           </Button>
           <div className="flex space-x-2">
-           <Button onClick={handleSave} className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700">
+           <Button
+             onClick={handleSave}
+             disabled={!scores.every((score) => Number.isInteger(score))}
+             className="flex items-center space-x-2 bg-purple-600 hover:bg-purple-700"
+           >
              <Save size={16} />
              <span>Save Assessment</span>
            </Button>

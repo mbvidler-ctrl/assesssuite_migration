@@ -1,10 +1,16 @@
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
+import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 
 import stripeWebhook from '../functions/stripeWebhook.mjs';
+import { createStripeWebhookEventRepository } from '../db.mjs';
 
 const APPROVED_PRICE = 'price_synthetic_approved';
+const APPLICATION_METADATA = Object.freeze({
+  appId: 'local-assesssuite',
+  professionId: 'exercise-physiology',
+});
 
 async function withEnvironment(overrides, operation) {
   const previous = Object.fromEntries(Object.keys(overrides).map((name) => [name, process.env[name]]));
@@ -23,6 +29,7 @@ async function withEnvironment(overrides, operation) {
 }
 
 function signedContext({ event, subscriptionPriceId, updates, accountStatus = 'pending' }) {
+  const eventDb = new DatabaseSync(':memory:');
   const rawBody = Buffer.from(JSON.stringify(event));
   const timestamp = Math.floor(Date.now() / 1000);
   const signature = createHmac('sha256', 'whsec_synthetic')
@@ -46,12 +53,16 @@ function signedContext({ event, subscriptionPriceId, updates, accountStatus = 'p
       },
     },
     respond: (status, body) => ({ status, body }),
+    webhookEvents: createStripeWebhookEventRepository(eventDb),
     subscriptionPriceId,
   };
 }
 
 function checkoutEvent() {
   return {
+    id: 'evt_syntheticcheckoutcompleted',
+    created: 1_800_000_000,
+    livemode: false,
     type: 'checkout.session.completed',
     data: {
       object: {
@@ -61,7 +72,7 @@ function checkoutEvent() {
         subscription: 'sub_synthetic',
         client_reference_id: 'synthetic-user',
         customer_email: 'synthetic-user@example.test',
-        metadata: { userId: 'synthetic-user', priceId: APPROVED_PRICE },
+        metadata: { userId: 'synthetic-user', priceId: APPROVED_PRICE, ...APPLICATION_METADATA },
       },
     },
   };
@@ -78,7 +89,7 @@ test('real Stripe webhook corroborates the approved recurring price before entit
         id: 'sub_synthetic',
         customer: 'cus_synthetic',
         status: 'active',
-        metadata: { userId: 'synthetic-user', priceId: APPROVED_PRICE },
+        metadata: { userId: 'synthetic-user', priceId: APPROVED_PRICE, ...APPLICATION_METADATA },
         items: { data: [{ price: { id: actualSubscriptionPrice } }] },
       }),
       headers: { get: () => null },
@@ -134,7 +145,7 @@ test('late paid checkout for a terminal account is cancelled and durably linked 
           id: 'sub_synthetic',
           customer: 'cus_synthetic',
           status: 'active',
-          metadata: { userId: 'synthetic-user', priceId: APPROVED_PRICE },
+          metadata: { userId: 'synthetic-user', priceId: APPROVED_PRICE, ...APPLICATION_METADATA },
           items: { data: [{ price: { id: APPROVED_PRICE } }] },
         }),
         headers: { get: () => null },
@@ -194,7 +205,7 @@ test('failed terminal-account cancellation persists linkage and returns a retrya
           id: 'sub_synthetic',
           customer: 'cus_synthetic',
           status: 'active',
-          metadata: { userId: 'synthetic-user', priceId: APPROVED_PRICE },
+          metadata: { userId: 'synthetic-user', priceId: APPROVED_PRICE, ...APPLICATION_METADATA },
           items: { data: [{ price: { id: APPROVED_PRICE } }] },
         }),
         headers: { get: () => null },
@@ -253,7 +264,7 @@ test('terminal-account webhook retry converges when Stripe already shows the sub
         id: 'sub_synthetic',
         customer: 'cus_synthetic',
         status: 'canceled',
-        metadata: { userId: 'synthetic-user', priceId: APPROVED_PRICE },
+        metadata: { userId: 'synthetic-user', priceId: APPROVED_PRICE, ...APPLICATION_METADATA },
         items: { data: [{ price: { id: APPROVED_PRICE } }] },
       }),
       headers: { get: () => null },

@@ -8,6 +8,8 @@ import {
   FRONTEND_REPLAY_NETWORK_ALLOW_URLS,
   FRONTEND_REPLAY_NETWORK_DENY_URLS,
   FRONTEND_TELEMETRY_ALLOWED_ORIGINS,
+  PHYSIO_FRONTEND_REPLAY_NETWORK_ALLOW_URLS,
+  PHYSIO_FRONTEND_TELEMETRY_ALLOWED_ORIGINS,
   TELEMETRY_FILE_BYTES_OMITTED,
   TELEMETRY_REDACTED,
   captureFrontendException,
@@ -336,6 +338,55 @@ test('production gating, error capture, and authenticated identity lifecycle are
   assert.equal(clearFrontendTelemetryUser(sentry), true);
   assert.deepEqual(sentry.calls.at(-2), ['user', null]);
   assert.deepEqual(sentry.calls.at(-1), ['remove-tag', 'user.role']);
+});
+
+test('browser telemetry binds the Physio bundle to physio-production', () => {
+  const sentry = fakeSentry();
+  assert.equal(initialiseFrontendErrorTelemetry(runtime({
+    VITE_PROFESSION: 'physio',
+    VITE_SENTRY_ENVIRONMENT: 'physio-production',
+    VITE_SENTRY_RELEASE: `physio-production@${RELEASE}`,
+  }), sentry), true);
+  assert.equal(sentry.calls[0][1].environment, 'physio-production');
+  assert.equal(sentry.calls[0][1].release, `physio-production@${RELEASE}`);
+  assert.deepEqual(
+    sentry.calls[0][1].tracePropagationTargets,
+    PHYSIO_FRONTEND_TELEMETRY_ALLOWED_ORIGINS,
+  );
+  const replay = sentry.calls[0][1].integrations([])
+    .find((integration) => integration.name === 'Replay');
+  assert.deepEqual(replay.options.networkDetailAllowUrls, PHYSIO_FRONTEND_REPLAY_NETWORK_ALLOW_URLS);
+  for (const origin of [
+    'https://physio.app.assesssuite.com',
+    'https://assesssuite-physio-production.fly.dev',
+  ]) {
+    const absolute = `${origin}/api/apps/local-assesssuite-physio/entities/Client`;
+    const relative = new URL('/api/apps/local-assesssuite-physio/entities/Client', origin).href;
+    assert.ok(PHYSIO_FRONTEND_TELEMETRY_ALLOWED_ORIGINS.some((matcher) => matcher.test(absolute)));
+    assert.ok(PHYSIO_FRONTEND_TELEMETRY_ALLOWED_ORIGINS.some((matcher) => matcher.test(relative)));
+    assert.ok(PHYSIO_FRONTEND_REPLAY_NETWORK_ALLOW_URLS.some((matcher) => matcher.test(absolute)));
+  }
+  assert.equal(
+    PHYSIO_FRONTEND_TELEMETRY_ALLOWED_ORIGINS
+      .some((matcher) => matcher.test('https://app.assesssuite.com/api/apps/local-assesssuite/entities/Client')),
+    false,
+  );
+
+  assert.equal(initialiseFrontendErrorTelemetry(runtime({
+    VITE_PROFESSION: 'physio',
+    VITE_SENTRY_ENVIRONMENT: 'physio-production',
+    VITE_SENTRY_RELEASE: RELEASE,
+  }), fakeSentry()), false);
+
+  assert.equal(initialiseFrontendErrorTelemetry(runtime({
+    VITE_PROFESSION: 'physio',
+    VITE_SENTRY_ENVIRONMENT: 'production',
+  }), fakeSentry()), false);
+  assert.equal(initialiseFrontendErrorTelemetry(runtime({
+    VITE_PROFESSION: 'exercise-physiology',
+    VITE_SENTRY_ENVIRONMENT: 'physio-production',
+    VITE_SENTRY_RELEASE: `physio-production@${RELEASE}`,
+  }), fakeSentry()), false);
 });
 
 test('AuthContext binds and clears Sentry identity without exposing the application bearer value', () => {

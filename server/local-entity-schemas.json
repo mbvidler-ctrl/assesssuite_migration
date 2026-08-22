@@ -47,6 +47,31 @@
           "ip_address": { "type": "string", "description": "Best-effort; 'not-collected-local-shim' where the local dev backend cannot observe a real client IP" }
         }
       }
+    },
+    {
+      "entity_name": "PhysioCareEpisode",
+      "source": "local-addition 2026-08-21 (AssessSuite Physio MVP)",
+      "reason": "Provides a durable, organisation-scoped episode-of-care record for the physiotherapy vertical. The canonical nested schema is base44/entities/PhysioCareEpisode.jsonc; this registration creates the shim table and places all CRUD behind the existing fail-closed org boundary.",
+      "entity_schema": {
+        "properties": {
+          "schema_version": { "type": "number", "default": 2 },
+          "org_id": { "type": "string", "description": "Owning organisation (org scoping)" },
+          "client_id": { "type": "string", "description": "Client receiving care" },
+          "episode_number": { "type": "number" },
+          "status": { "type": "string", "enum": ["draft", "active", "on_hold", "discharged", "cancelled"] },
+          "episode_start_date": { "type": "string", "format": "date" },
+          "referral": { "type": "object" },
+          "red_flag_screen": { "type": "object" },
+          "subjective_examination": { "type": "object" },
+          "objective_examination": { "type": "object" },
+          "initial_findings": { "type": "object" },
+          "goals": { "type": "array" },
+          "outcome_measures": { "type": "array" },
+          "encounters": { "type": "array" },
+          "home_programs": { "type": "array" },
+          "reporting": { "type": "object" }
+        }
+      }
     }
   ]
 }

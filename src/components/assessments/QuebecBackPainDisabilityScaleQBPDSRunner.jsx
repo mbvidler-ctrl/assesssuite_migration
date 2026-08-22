@@ -62,6 +62,7 @@ export default function QuebecBackPainDisabilityScaleQBPDSRunner({ client, onSav
       result_value: score,
       additional_data: {
         measurement_type: "questionnaire_external",
+        assessor_name: assessorName,
         total_score: score,
         interpretation: interpretation.level,
         soap_text: soapLines,

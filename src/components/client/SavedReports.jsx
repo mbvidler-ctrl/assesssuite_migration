@@ -78,7 +78,7 @@ const ALL_REPORT_LABELS = {
   us_prior_auth: "Prior Authorization Request",
 };
 
-export default function SavedReports({ client }) {
+export default function SavedReports({ client, careEpisodeId = null }) {
   const navigate = useNavigate();
   const [reports, setReports] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -92,7 +92,7 @@ export default function SavedReports({ client }) {
     if (client && client.id) {
       loadReports();
     }
-  }, [client?.id]);
+  }, [careEpisodeId, client?.id]);
 
   const loadReports = async () => {
     if (!client || !client.id) return;
@@ -102,11 +102,17 @@ export default function SavedReports({ client }) {
       // report wizard) or the legacy ClientReport entity (older generators);
       // surface both so no generated report is invisible in the client profile.
       const [savedReports, clientReports] = await Promise.all([
-        base44.entities.SavedReport.filter({ client_id: client.id }).catch(() => []),
-        base44.entities.ClientReport.filter({ client_id: client.id }).catch(() => []),
+        base44.entities.SavedReport.filter({
+          client_id: client.id,
+          ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
+        }).catch(() => []),
+        base44.entities.ClientReport.filter({
+          client_id: client.id,
+          ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
+        }).catch(() => []),
       ]);
       const combined = [...(savedReports || []), ...(clientReports || [])];
-      combined.sort((a, b) => new Date(b.report_date || b.created_date || 0) - new Date(a.report_date || a.created_date || 0));
+      combined.sort((a, b) => new Date(b.report_date || b.created_date || 0).getTime() - new Date(a.report_date || a.created_date || 0).getTime());
       setReports(combined);
     } catch (error) {
       console.error("Error loading reports:", error);
@@ -194,7 +200,9 @@ export default function SavedReports({ client }) {
               <Button
                 onClick={(e) => {
                   e.stopPropagation();
-                  navigate(createPageUrl("Reports") + `?clientId=${client.id}`);
+                  const params = new URLSearchParams({ clientId: client.id });
+                  if (careEpisodeId) params.set('careEpisodeId', careEpisodeId);
+                  navigate(createPageUrl("Reports") + `?${params.toString()}`);
                 }}
                 className="bg-blue-600 hover:bg-blue-700"
                 size="sm"
@@ -265,7 +273,9 @@ export default function SavedReports({ client }) {
                 <Button
                   onClick={(e) => {
                     e.stopPropagation();
-                    navigate(createPageUrl("Reports") + `?clientId=${client.id}`);
+                    const params = new URLSearchParams({ clientId: client.id });
+                    if (careEpisodeId) params.set('careEpisodeId', careEpisodeId);
+                    navigate(createPageUrl("Reports") + `?${params.toString()}`);
                   }}
                   variant="outline"
                   className="mt-4"
@@ -286,6 +296,8 @@ export default function SavedReports({ client }) {
           onClose={handleWizardClose}
           client={client}
           existingReport={editingReport}
+          reportType={wizardReportType}
+          careEpisodeId={careEpisodeId}
         />
       )}
 

@@ -5,36 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_FIQR_FUNCTION_ITEMS as FUNCTION_ITEMS, PROM_NEURO_FIQR_OVERALL_ITEMS as OVERALL_ITEMS, PROM_NEURO_FIQR_SYMPTOM_ITEMS as SYMPTOM_ITEMS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const FUNCTION_ITEMS = [
-  "Brush or comb your hair",
-  "Walk continuously for 20 minutes",
-  "Prepare a homemade meal",
-  "Vacuum, scrub or sweep floors",
-  "Lift and carry a bag full of groceries",
-  "Climb one flight of stairs",
-  "Change bed sheets",
-  "Sit in a chair for 45 minutes",
-  "Go shopping for groceries",
-];
 
-const OVERALL_ITEMS = [
-  "Fibromyalgia prevented me from accomplishing goals for the week",
-  "I was completely overwhelmed by my fibromyalgia symptoms",
-];
 
-const SYMPTOM_ITEMS = [
-  "Pain",
-  "Energy",
-  "Stiffness",
-  "Sleep quality",
-  "Depression",
-  "Anxiety",
-  "Memory problems",
-  "Tenderness",
-  "Balance problems",
-  "Environmental sensitivity (light, noise, cold, heat)",
-];
 
 function RatingRow({ label, value, onChange, minLabel, maxLabel }) {
   return (

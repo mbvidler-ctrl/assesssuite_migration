@@ -73,7 +73,7 @@ export default function FundingInfo({ data, onNext, onBack, canGoBack, onSaveAnd
     gp_provider_number: data.gp_provider_number || ""
   });
 
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}));
 
   // Auto-populate GP fields when checkbox is checked
   useEffect(() => {
@@ -89,6 +89,7 @@ export default function FundingInfo({ data, onNext, onBack, canGoBack, onSaveAnd
   const handleSubmit = (e) => {
     e.preventDefault();
     
+    /** @type {Record<string, string>} */
     const newErrors = {};
     if (!formData.funding_source) newErrors.funding_source = "Funding source is required";
 

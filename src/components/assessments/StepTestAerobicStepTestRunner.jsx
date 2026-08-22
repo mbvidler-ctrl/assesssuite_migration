@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 import CadencePlayerModal from "./CadencePlayerModal";
 import { todayLocal } from "@/lib/localDate";
+import { scoreAerobicStep } from "@/lib/clinical/scorers/extrasPhysiological";
 
 // ─── PROTOCOLS ────────────────────────────────────────────────────────────────
 const PROTOCOLS = {
@@ -275,7 +276,7 @@ function Section({ title, icon: Icon, children, defaultOpen = false, accent = "b
   );
 }
 
-function NumInput({ label, value, onChange, placeholder, unit, min = 0, max = 300, required }) {
+function NumInput({ label, value, onChange, placeholder = "", unit = "", min = 0, max = 300, required = false }) {
   return (
     <div>
       <Label className="text-sm font-medium text-slate-700">{label}{required && <span className="text-red-500 ml-0.5">*</span>}</Label>
@@ -313,7 +314,7 @@ function ImageCard({ url, caption }) {
   const [ex, setEx] = useState(false);
   return (
     <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
-      <img src={url} alt={caption} className={`w-full object-cover cursor-pointer transition-all ${ex ? "max-h-96" : "max-h-36"}`} onClick={() => setEx(e => !e)} onError={e => { e.target.style.display = "none"; }} />
+      <img src={url} alt={caption} className={`w-full object-cover cursor-pointer transition-all ${ex ? "max-h-96" : "max-h-36"}`} onClick={() => setEx(e => !e)} onError={e => { e.currentTarget.style.display = "none"; }} />
       <p className="text-xs text-slate-500 text-center p-2">{caption} <span className="text-blue-500 cursor-pointer" onClick={() => setEx(e => !e)}>{ex ? "(collapse)" : "(expand)"}</span></p>
     </div>
   );
@@ -403,7 +404,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
 
   // Age
   const age = client?.date_of_birth
-    ? Math.floor((Date.now() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000))
+    ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000))
     : null;
 
   // Timer controls
@@ -567,35 +568,27 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
       toast.error("Complete required fields: protocol, post-test HR, recovery HR, and stop reason.");
       return;
     }
-    onSave({
-      status: "completed",
-      result_value: Number(recovery.hr1) || Number(postVitals.hr),
-      notes: clinicalNotes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: generateSoap(),
-        measurement_type: "step_test",
-        protocol: protocol?.name,
+    try {
+      onSave(scoreAerobicStep({
         protocol_key: protocolKey,
-        duration_completed: Math.floor(elapsed),
+        duration_seconds: Math.floor(elapsed),
         completed_full_protocol: completedFull,
-        stop_reason: stopReason === "Other" ? (otherStopReason || "Other") : stopReason,
+        stop_reason: stopReason === "Other" ? otherStopReason : stopReason,
         step_height_cm: setup.stepHeight || protocol?.stepHeight,
         cadence_steps_per_min: cadence,
+        age,
+        sex: genderKey,
         pre_vitals: preVitals,
         post_vitals: postVitals,
         recovery,
-        hr_recovery_bpm: hrRecovery,
         during_symptoms: duringSymptoms,
         setup,
-        classification: ymcaClass?.label,
-        vo2max_estimated: vo2max,
-        harvard_index: harvardIdx,
-        flags: generateFlags().map(f => f.label),
-        interpretation: generateInterpretation(),
-      },
-    });
-    toast.success("Step Test saved successfully.");
+        notes: clinicalNotes,
+      }, { assessmentDate: todayLocal(), assessmentName: 'Step Test (Aerobic Step Test)' }));
+      toast.success("Step Test saved successfully.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save step test.");
+    }
   };
 
   const STEPS = [
@@ -844,7 +837,7 @@ export default function StepTestAerobicStepTestRunner({ client, onSave, onClose 
               </div>
               <div className="space-y-3">
                 {Object.values(PROTOCOLS).map(p => (
-                  <button key={p.id} onClick={() => { setProtocolKey(p.id); if (p.id !== "custom") { setSetup(prev => ({ ...prev, stepHeight: p.stepHeight, cadence: typeof p.cadence === "object" ? (client?.gender === "female" ? p.cadence.female : p.cadence.male) : p.cadence })); } }}
+                  <button key={p.id} onClick={() => { setProtocolKey(p.id); if (p.id !== "custom") { setSetup(prev => ({ ...prev, stepHeight: String(p.stepHeight), cadence: String(typeof p.cadence === "object" ? (client?.gender === "female" ? p.cadence.female : p.cadence.male) : p.cadence) })); } }}
                     className={`w-full text-left p-4 rounded-xl border-2 transition-colors ${protocolKey === p.id ? "border-sky-500 bg-sky-50" : "border-slate-200 bg-white hover:border-sky-300"}`}>
                     <div className="flex items-start justify-between">
                       <div>

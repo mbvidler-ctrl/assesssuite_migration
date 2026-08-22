@@ -2,6 +2,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import createCheckoutSession from '../functions/createCheckoutSession.mjs';
+import {
+  boundCheckoutSession,
+  createCheckoutIntentTestStore,
+} from './support/stripe-checkout-test-helpers.mjs';
 
 function responder() {
   return (status, body) => ({ status, body });
@@ -70,13 +74,16 @@ test('checkout refuses a second subscription for a linked or live account', asyn
 test('checkout uses only server-owned price, authenticated identity and application return URLs', { concurrency: false }, async () => {
   const originalFetch = globalThis.fetch;
   const requests = [];
+  const store = createCheckoutIntentTestStore();
   globalThis.fetch = async (url, options) => {
     requests.push({ url, options });
     return {
       ok: true,
       status: 200,
       headers: { get: () => null },
-      json: async () => ({ url: 'https://checkout.example.test/session' }),
+      json: async () => boundCheckoutSession(options, {
+        url: 'https://checkout.example.test/session',
+      }),
     };
   };
 
@@ -97,7 +104,9 @@ test('checkout uses only server-owned price, authenticated identity and applicat
         userEmail: 'victim@example.invalid',
         successUrl: 'https://attacker.invalid/success',
         cancelUrl: 'https://attacker.invalid/cancel',
+        qaSequence: 'assesssuite-physio-self-service-123456abcdef',
       },
+      checkoutIntents: store.checkoutIntents,
       respond: responder(),
     }));
 
@@ -107,11 +116,16 @@ test('checkout uses only server-owned price, authenticated identity and applicat
     assert.equal(form.get('line_items[0][price]'), 'price_owned');
     assert.equal(form.get('client_reference_id'), 'user-owned');
     assert.equal(form.get('customer_email'), 'owned@example.invalid');
-    assert.equal(form.get('success_url'), 'https://assesssuite.example.test/Dashboard');
+    assert.equal(form.get('success_url'), 'https://assesssuite.example.test/PaymentRequired?checkout_return=1');
     assert.equal(form.get('cancel_url'), 'https://assesssuite.example.test/PaymentRequired');
     assert.equal(form.get('allow_promotion_codes'), 'true');
+    assert.match(requests[0].options.headers['Idempotency-Key'], /^assesssuite_checkout_v1_[0-9a-f]{64}$/);
+    assert.match(form.get('metadata[checkoutIntentId]'), /^[0-9a-f-]{36}$/);
+    assert.equal(form.has('metadata[qaSequence]'), false);
+    assert.equal(form.has('subscription_data[metadata][qaSequence]'), false);
     assert.equal([...form.values()].some((value) => value.includes('attacker.invalid') || value.includes('victim')), false);
   } finally {
     globalThis.fetch = originalFetch;
+    store.close();
   }
 });

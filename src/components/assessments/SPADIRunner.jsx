@@ -4,25 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Save, X, Info, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_SPADI_PAIN_ITEMS as PAIN_ITEMS, PROM_NEURO_SPADI_DISABILITY_ITEMS as DISABILITY_ITEMS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const PAIN_ITEMS = [
-  "At its worst?",
-  "When lying on the involved side?",
-  "Reaching for something on a high shelf?",
-  "Touching the back of your neck?",
-  "Pushing with the involved arm?",
-];
 
-const DISABILITY_ITEMS = [
-  "Washing your hair?",
-  "Washing your back?",
-  "Putting on an undershirt or pullover sweater?",
-  "Putting on a shirt that buttons down the front?",
-  "Putting on your pants?",
-  "Placing an object on a high shelf?",
-  "Carrying a heavy object of 10 pounds (4.5 kg)?",
-  "Removing something from your back pocket?",
-];
 
 function ScaleInput({ label, index, value, onChange }) {
   return (
@@ -112,6 +96,8 @@ export default function SPADIRunner({ client, onSave, onClose }) {
       notes,
       assessment_date: assessmentDate,
       additional_data: {
+        pain_scores: painScores,
+        disability_scores: disabilityScores,
         pain_subscale: parseFloat(painSubscale?.toFixed(1)),
         disability_subscale: parseFloat(disabilitySubscale?.toFixed(1)),
         total_score: totalScore,

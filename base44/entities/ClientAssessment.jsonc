@@ -10,6 +10,10 @@
       "type": "string",
       "description": "Reference to client"
     },
+    "physio_care_episode_id": {
+      "type": "string",
+      "description": "Canonical Physio care episode owning this assessment result. Older unassigned records omit this field until explicitly assigned."
+    },
     "assessment_id": {
       "type": "string",
       "description": "Reference to assessment"

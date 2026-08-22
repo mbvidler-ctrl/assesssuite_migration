@@ -8,8 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { X, Save, AlertTriangle, CheckCircle, XCircle, Activity } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
 import { sanitizeHtml } from "@/lib/safeHtml";
+import { scoreVo2Gxt } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 // ─── ACSM VO₂ FORMULAS ─────────────────────────────────────────────────────
 // Treadmill: VO₂ (ml/kg/min) = (speed × 0.1) + (speed × grade × 1.8) + 3.5
@@ -229,74 +229,55 @@ export default function VO2maxGXTRunner({ client, onSave, onClose }) {
     return generateInterpretation({
       modality, protocol, vo2Rel: peakVO2Rel, vo2Abs: peakVO2Abs, category: vo2Category,
       hrPct, rer: peakRER, rpe: peakRPE, criteria: maximalCriteria, bodyMass,
+      peakWorkload: modality === "treadmill" ? peakSpeedKmh : peakWatts,
+      rer_at_vt: rerAtVT,
       ventilatory_threshold: ventilatoryThreshold, termination: terminationReason,
       peakSBP, flags: riskFlags, recovHR1, recovHR2,
+      economy: null,
     });
   }, [peakVO2Rel, peakVO2Abs, vo2Category, hrPct, peakRER, peakRPE, maximalCriteria, bodyMass, ventilatoryThreshold, terminationReason, peakSBP, riskFlags, recovHR1, recovHR2, modality, protocol]);
 
   // ─── SAVE ─────────────────────────────────────────────────────────────────
   const handleSave = () => {
-    if (!peakVO2Rel) { toast.error("Please enter peak workload data to calculate VO₂, or use manual override."); return; }
-    const criteriaNames = maximalCriteria.filter(c => c.met === true).map(c => c.label).join("; ") || "None met";
-
-    const soapText = [
-      `• CPET / VO₂max GXT (${modality === "treadmill" ? "Treadmill" : "Cycle Ergometer"}, ${protocol || "Protocol not specified"})`,
-      `  Result Type: ${isMaximal ? "Maximal VO₂max" : "Peak VO₂ (sub-maximal criteria)"}`,
-      `  Peak VO₂: ${peakVO2Rel.toFixed(1)} ml/kg/min${peakVO2Abs ? ` (${peakVO2Abs.toFixed(2)} L/min)` : ""}`,
-      vo2Category ? `  Normative Category: ${vo2Category} (ACSM, ${clientSex}, age ${clientAge})` : null,
-      peakHR ? `  Peak HR: ${peakHR} bpm${hrPct ? ` (${hrPct.toFixed(0)}% age-predicted max)` : ""}` : null,
-      peakRER ? `  Peak RER: ${peakRER}` : null,
-      peakRPE ? `  Peak RPE: ${peakRPE}/20` : null,
-      oxygenPulse ? `  O₂ Pulse: ${oxygenPulse} mL/beat` : null,
-      ventilatoryThreshold ? `  Ventilatory Threshold: ${ventilatoryThreshold} ml/kg/min` : null,
-      peakVEVCO2 ? `  VE/VCO₂ slope: ${peakVEVCO2}` : null,
-      recovHR1 ? `  HRR 1 min: ${recovHR1} bpm` : null,
-      recovHR2 ? `  HRR 2 min: ${recovHR2} bpm` : null,
-      terminationReason ? `  Test Termination: ${terminationReason}` : null,
-      ecgFindings !== "normal" ? `  ECG: ${ecgFindings}` : null,
-      riskFlags.length > 0 ? `  Risk Flags: ${riskFlags.map(f => f.label).join(", ")}` : null,
-      `  Maximal Criteria Met: ${criteriaMetCount}/4 (${criteriaNames})`,
-      notes ? `  Notes: ${notes}` : null,
-    ].filter(Boolean).join("\n");
-
-    onSave({
-      result_value: parseFloat(peakVO2Rel.toFixed(1)),
-      additional_data: {
-        soap_text: soapText,
-        measurement_type: "vo2max_gxt_cpet",
-        is_maximal: isMaximal,
-        modality, protocol, test_indication: testIndication,
-        body_mass_kg: bodyMass ? parseFloat(bodyMass) : null,
-        client_age: clientAge ? parseInt(clientAge) : null,
+    try {
+      onSave(scoreVo2Gxt({
+        modality,
+        protocol,
+        test_indication: testIndication,
+        test_duration_min: testDuration,
+        body_mass_kg: bodyMass,
+        client_age: clientAge,
         client_sex: clientSex,
-        vo2_formula_used: computedVO2 ? (modality === "treadmill" ? "ACSM Treadmill" : "ACSM Cycle") : "Manual",
-        peak_vo2_relative: parseFloat(peakVO2Rel.toFixed(1)),
-        peak_vo2_absolute: peakVO2Abs ? parseFloat(peakVO2Abs.toFixed(3)) : null,
-        normative_category: vo2Category || null,
-        peak_hr: peakHR ? parseInt(peakHR) : null,
-        hr_pct_age_predicted: hrPct ? parseFloat(hrPct.toFixed(1)) : null,
-        peak_sbp: peakSBP ? parseInt(peakSBP) : null,
-        peak_dbp: peakDBP ? parseInt(peakDBP) : null,
-        peak_rer: peakRER ? parseFloat(peakRER) : null,
-        peak_rpe: peakRPE ? parseInt(peakRPE) : null,
-        peak_ve: peakVE ? parseFloat(peakVE) : null,
-        ve_vco2: peakVEVCO2 ? parseFloat(peakVEVCO2) : null,
-        oxygen_pulse_ml_beat: oxygenPulse ? parseFloat(oxygenPulse) : null,
-        ventilatory_threshold: ventilatoryThreshold ? parseFloat(ventilatoryThreshold) : null,
-        recovery_hr_1min: recovHR1 ? parseInt(recovHR1) : null,
-        recovery_hr_2min: recovHR2 ? parseInt(recovHR2) : null,
-        recovery_sbp: recovSBP || null,
-        maximal_criteria_met: criteriaMetCount,
-        risk_flags: riskFlags.map(f => f.label),
-        ecg_findings: ecgFindings,
+        baseline_hr: baselineHR,
+        baseline_sbp: baselineSBP,
+        baseline_dbp: baselineDBP,
+        peak_speed_kmh: peakSpeedKmh,
+        peak_grade_pct: peakGradePct,
+        peak_watts: peakWatts,
+        peak_hr: peakHR,
+        peak_sbp: peakSBP,
+        peak_dbp: peakDBP,
+        peak_rer: peakRER,
+        peak_rpe: peakRPE,
+        peak_ve: peakVE,
+        peak_ve_vco2: peakVEVCO2,
+        manual_vo2_override: manualVO2Override,
+        vo2_plateau: vo2Plateau,
+        ventilatory_threshold: ventilatoryThreshold,
+        rer_at_vt: rerAtVT,
+        recovery_hr_1min: recovHR1,
+        recovery_hr_2min: recovHR2,
+        recovery_sbp: recovSBP,
+        recovery_symptoms: recovSymptoms,
         termination_reason: terminationReason,
+        ecg_findings: ecgFindings,
         adverse_events: adverseEvents,
-        interpretation: interpretationPara ? interpretationPara.replace(/<[^>]+>/g, "") : null,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("CPET / VO₂max GXT results saved.");
+        notes,
+      }, { assessmentName: "VO₂max Testing — Maximal GXT / CPET", client }));
+      toast.success("CPET / VO₂max GXT results saved.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   // ─── UI HELPERS ───────────────────────────────────────────────────────────

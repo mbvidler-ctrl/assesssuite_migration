@@ -323,7 +323,7 @@ jobs:
         shell: bash
         env:
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 7a17ca9a3def75193cdabbd05c695f5c89367601ce351075b0c2ec63f40d37dd
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 72ec047e340dc3ad0af288c9487dbccf2f73183e6853e88b6f4746800ab1be96
         run: |
           set -euo pipefail
           trusted_dir="$RUNNER_TEMP/trusted-production-control"
@@ -357,7 +357,7 @@ jobs:
           echo '96c8ecb24cd67df81127923c33ecaea232fe3d8dbbec52006bc7fa7ecfa7a3ae  scripts/referral-production-canary.mjs' | sha256sum --check --strict
           echo 'e244e9b332b31a14f4ca14d19fc0b7129e045674542cbb5540af3a613f68eb94  scripts/referral-production-canary-contract.mjs' | sha256sum --check --strict
           echo '55b257d0e732f83f4146b1c0dc836d4bfce730cdf81f935d696bc12adea57ab1  scripts/validate-referral-production-canary-output.mjs' | sha256sum --check --strict
-          echo '9cab943c725a8faf159fbeb7ee5c4a020ef1cc4f3e41845f4f6654990bc3775d  scripts/scan-release-diff.mjs' | sha256sum --check --strict
+          echo '8eed6357833ba8430786192e2d6be1a2bbedab3153dfef684729549e307fad80  scripts/scan-release-diff.mjs' | sha256sum --check --strict
           # REVIEWED-CANDIDATE-CANARY-SHA256-END
           node --input-type=module <<'NODE'
           import fs from 'node:fs';
@@ -523,7 +523,7 @@ jobs:
 
         env:
           PRODUCTION_BASE_SHA: 145958d895aef289b9652f850e32e237f2b62f70
-          EXPECTED_RELEASE_SCANNER_SHA256: 9cab943c725a8faf159fbeb7ee5c4a020ef1cc4f3e41845f4f6654990bc3775d
+          EXPECTED_RELEASE_SCANNER_SHA256: 8eed6357833ba8430786192e2d6be1a2bbedab3153dfef684729549e307fad80
         run: |
           set -euo pipefail
           git merge-base --is-ancestor "$PRODUCTION_BASE_SHA" HEAD
