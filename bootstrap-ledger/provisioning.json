@@ -1,0 +1,48 @@
+{
+  "contract_version": "assesssuite-physio-bootstrap-ledger-provisioning-receipt/1.0.0",
+  "result": "PASS",
+  "repository": "mbvidler-ctrl/assesssuite_migration",
+  "ledger_branch": "assesssuite-physio-bootstrap-ledger",
+  "exact_ref": "refs/heads/assesssuite-physio-bootstrap-ledger",
+  "authority": "EXTERNAL_L5_REPOSITORY_ADMINISTRATION_ONLY",
+  "ruleset_first_precondition_verified": true,
+  "no_bypass_verified_by_external_l5": true,
+  "bypass_actors": [],
+  "visible_ruleset": {
+    "id": 21218033,
+    "name": "assesssuite-physio-bootstrap-ledger",
+    "enforcement": "active",
+    "target": "branch",
+    "conditions": {
+      "ref_name": {
+        "exclude": [],
+        "include": [
+          "refs/heads/assesssuite-physio-bootstrap-ledger"
+        ]
+      }
+    },
+    "rules": [
+      {
+        "type": "deletion"
+      },
+      {
+        "type": "non_fast_forward"
+      },
+      {
+        "type": "required_linear_history"
+      }
+    ],
+    "updated_at": "2026-08-23T11:14:29.191+10:00"
+  },
+  "visible_ruleset_sha256": "de81cf321db75e06bd0cb6e38c276888e0305b286ea2a67256dbd8d77522032e",
+  "full_no_bypass_ruleset_sha256": "9daca377802d2df0287fb028cdf7706f03d0d2f9732215fe4c866da50c1b4159",
+  "genesis_blob_path": "bootstrap-ledger/genesis.json",
+  "genesis_blob_sha": "a9be77f61162402b0d775b2fa3e91e4fe9dc5f07",
+  "genesis_blob_sha256": "4d0835f07eda8917b54eb376f84bd705437de8ca5879d268be7d603afbe0bb93",
+  "genesis_commit_message": "Initialize protected AssessSuite Physio bootstrap ledger",
+  "genesis_commit_sha": "6b93508784833931ad838be57011cceaefb812c7",
+  "genesis_parent_count": 0,
+  "genesis_ref_readback_sha": "6b93508784833931ad838be57011cceaefb812c7",
+  "genesis_tree_sha": "015c86b2a431da1915e7dfd01e62465fcb4c8035",
+  "provisioned_at": "2026-08-23T02:33:20.335Z"
+}
