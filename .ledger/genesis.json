@@ -1,0 +1,6 @@
+{
+  "contract_version": "assesssuite-physio-webhook-ledger-genesis/2.0.0",
+  "ledger_branch": "assesssuite-physio-webhook-ledger",
+  "purpose": "protected append-only AssessSuite Physio Stripe webhook lifecycle archive",
+  "repository": "mbvidler-ctrl/assesssuite_migration"
+}
