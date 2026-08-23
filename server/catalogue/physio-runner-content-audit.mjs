@@ -12,6 +12,7 @@ import {
   resolveRegisteredAssessmentScorer,
 } from '../../src/lib/clinical/assessmentScorerRegistry.js';
 import { buildPhysioCatalogueManifest } from './physio-catalogue.mjs';
+import { normalisedFileSha256 } from './normalised-source-hash.mjs';
 
 const OUTPUT_PATH = fileURLToPath(
   new URL('./physio-runner-content-audit.json', import.meta.url),
@@ -78,7 +79,7 @@ function sha256(value) {
 
 function currentFileSha256(relativePath) {
   try {
-    return sha256(fs.readFileSync(path.join(REPOSITORY_ROOT, relativePath)));
+    return normalisedFileSha256(path.join(REPOSITORY_ROOT, relativePath));
   } catch {
     return null;
   }

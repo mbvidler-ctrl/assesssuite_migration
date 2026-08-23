@@ -150,7 +150,7 @@ export const PHYSIO_RELEASE_TARGET = Object.freeze({
   flyHostname: 'https://assesssuite-physio-production.fly.dev',
   publicHostname: 'https://physio.app.assesssuite.com',
   catalogueCount: 236,
-  catalogueChecksum: '7a5a001d0f41806187d9438b74efd50a0604d95436cff0de595d97e212a42493',
+  catalogueChecksum: 'c39fd9e75054857d7f642c8fc2210446781d247e44c751b04499db749bfaa56f',
   sqliteUserVersion: 0,
   sqliteSchemaDigest: 'sha256:0b67a8b1556b9adff373477f089497a10681e035a3ae523006bc50290a990428',
   sqliteSchemaObjectCount: 106,

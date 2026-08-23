@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import path from 'node:path';
 import test from 'node:test';
 
 import {
@@ -10,6 +11,10 @@ import {
   PHYSIO_CATALOGUE_MANIFEST_PATH,
   PHYSIO_CATALOGUE_SEED_PATH,
 } from '../catalogue/physio-catalogue.mjs';
+import {
+  normalisedFileSha256,
+  normalisedSourceSha256,
+} from '../catalogue/normalised-source-hash.mjs';
 import {
   checkPhysioCatalogueArtifacts,
   validatePhysioCatalogueManifest,
@@ -170,6 +175,36 @@ test('six maintained-component additions are explicit new sources with complete 
         assert.deepEqual(question.options, item.options);
       }
     }
+  }
+});
+
+test('implementation checksums are invariant to checkout line endings and match every bound source file', () => {
+  const lf = 'export const assessment = true;\n';
+  const crlf = '\uFEFFexport const assessment = true;\r\n';
+  assert.equal(normalisedSourceSha256(lf), normalisedSourceSha256(crlf));
+
+  const manifest = buildPhysioCatalogueManifest();
+  for (const source of manifest.sources.filter(({ sourceSet }) => sourceSet === 'physio-maintained-component')) {
+    assert.equal(
+      source.implementationSha256,
+      normalisedFileSha256(path.resolve(source.implementationFile)),
+      source.sourceRef,
+    );
+  }
+
+  for (const canonical of manifest.canonicalAssessments) {
+    const implementation = canonical.content.runner_spec?.implementation;
+    assert.ok(implementation, canonical.canonicalId);
+    assert.equal(
+      implementation.component_sha256,
+      normalisedFileSha256(path.resolve(implementation.component_file)),
+      `${canonical.canonicalId} component`,
+    );
+    assert.equal(
+      implementation.scorer_sha256,
+      normalisedFileSha256(path.resolve(implementation.scorer_file)),
+      `${canonical.canonicalId} scorer`,
+    );
   }
 });
 

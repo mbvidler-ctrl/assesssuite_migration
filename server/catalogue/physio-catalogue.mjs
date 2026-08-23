@@ -22,6 +22,7 @@ import {
   CANONICAL_DRIVEN_QUESTIONNAIRE_ROUTES,
   PHYSIO_RUNTIME_SPEC_OVERLAYS,
 } from './physio-runtime-spec-overlays.mjs';
+import { normalisedFileSha256 } from './normalised-source-hash.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const serverDirectory = path.resolve(__dirname, '..');
@@ -65,9 +66,9 @@ export const PHYSIO_CATALOGUE_IDENTITY_PINS = Object.freeze({
   originalDeduplicationMapSha256: 'fe48e7ab5d5e0306e85bb60559350dec4e998a3419d611a8923ccf79eac4855a',
   deduplicationMapSha256: '94701ecc576b42d31e69586e271a48532bee981073b0a25be1f14022ad5adabf',
   originalSourceContentSha256: 'bdc2b49a58c38fec41d7542de38dff022c3c912b3e6781c78a370b9ef9e691d0',
-  sourceContentSha256: 'f76be7ef5f4b63fbc9b204e607362bb834542aa0b39c979382892567011ef1c7',
-  componentImplementationSha256: '5134d48d1d4f86532d3c016e702be4576362dca1a0791a71a69c720203c764c8',
-  canonicalContentSha256: '41643f0e183a7e3cdd1ab45603d05f27b45953ba5fe0574d1715b415230248f7',
+  sourceContentSha256: '047eb670ad7958a8259e8fc0adacefe5e906a8f17f527cb7456befb777e39132',
+  componentImplementationSha256: '4a3d14747559acb24af6c7ea2d62bc0b241bb7ade22e580cbb634bc2cd7e1918',
+  canonicalContentSha256: '950d3f4cdf372a486dd15d1efceb9bbef9afeea81c713a50bb5ff68bc0fd91c9',
 });
 
 function invariant(condition, message) {
@@ -186,7 +187,6 @@ function componentSourceRecord(definition) {
   invariant(definition?.content?.name, `${definition.sourceRef} has no assessment name`);
   const componentPath = path.resolve(__dirname, '..', '..', definition.componentFile);
   invariant(fs.existsSync(componentPath), `${definition.sourceRef} component is missing: ${definition.componentFile}`);
-  const componentBytes = fs.readFileSync(componentPath);
   return {
     sourceRef: definition.sourceRef,
     sourceSet: 'physio-maintained-component',
@@ -194,7 +194,7 @@ function componentSourceRecord(definition) {
     sourceName: definition.content.name,
     sourceFile: 'server/catalogue/physio-additive-sources.mjs',
     implementationFile: definition.componentFile,
-    implementationSha256: crypto.createHash('sha256').update(componentBytes).digest('hex'),
+    implementationSha256: normalisedFileSha256(componentPath),
     canonicalId: `assessment:${definition.sourceRef}`,
     relationship: 'physio-component-addition',
     runnerKey: definition.runnerKey,

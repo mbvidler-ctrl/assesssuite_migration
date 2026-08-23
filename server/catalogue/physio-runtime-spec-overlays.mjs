@@ -37,15 +37,17 @@ import {
 import { TUDS_RUNNER_SPEC } from '../../src/lib/clinical/tuds.js';
 import { RUNNER_SPECS as CORE_B_RUNNER_SPECS } from '../../src/lib/clinical/scorers/coreB.js';
 import { RUNNER_SPECS as CORE_A_RUNNER_SPECS } from '../../src/lib/clinical/scorers/coreA.js';
+import { normalisedFileSha256 } from './normalised-source-hash.mjs';
 import { PHYSIO_ROUTE_ASSIGNMENTS } from './physio-route-assignments.mjs';
 
 const REPOSITORY_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 function fileSha256(relativePath) {
-  return crypto
-    .createHash('sha256')
-    .update(fs.readFileSync(path.join(REPOSITORY_ROOT, relativePath)))
-    .digest('hex');
+  return normalisedFileSha256(path.join(REPOSITORY_ROOT, relativePath));
+}
+
+function sha256(value) {
+  return crypto.createHash('sha256').update(value).digest('hex');
 }
 
 function scorerModuleMarker(scorerFile) {
@@ -59,13 +61,13 @@ function implementationBindingSha256({
   scorerSha256,
   bindingMarker,
 }) {
-  return crypto.createHash('sha256').update([
+  return sha256([
     componentFile,
     componentSha256,
     scorerFile,
     scorerSha256,
     bindingMarker,
-  ].join('\n')).digest('hex');
+  ].join('\n'));
 }
 
 function withImplementation(runnerSpec, componentFile, scorerFile) {
