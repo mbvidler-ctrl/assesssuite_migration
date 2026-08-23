@@ -1,0 +1,33 @@
+{
+  "contract_version": "assesssuite-physio-webhook-ledger-ruleset-provisioning/2.0.0",
+  "result": "PASS",
+  "repository": "mbvidler-ctrl/assesssuite_migration",
+  "provider_api_version": "2022-11-28",
+  "observed_at": "2026-08-23T02:34:40.208Z",
+  "ruleset_id": 21220681,
+  "ruleset_node_id": "RRS_lACqUmVwb3NpdG9yec5Mt-0HzgFDzUk",
+  "ruleset_name": "Protect AssessSuite Physio webhook ledger",
+  "ruleset_target": "branch",
+  "enforcement": "active",
+  "provider_updated_at": "2026-08-23T12:34:31.188+10:00",
+  "bypass_actor_count": 0,
+  "include_refs": [
+    "refs/heads/assesssuite-physio-webhook-ledger"
+  ],
+  "exclude_refs": [],
+  "rule_types": [
+    "deletion",
+    "non_fast_forward",
+    "required_linear_history"
+  ],
+  "visible_object_sha256": "5822aca162ea495cca1f7db8cb46e48ed46a363adc54a80196cbf16869b16ecb",
+  "full_object_sha256": "d5ee7fd906af379572b78388ef6db2d62911eeca44368348de40945bb2bdcd0f",
+  "genesis_blob_path": ".ledger/genesis.json",
+  "genesis_blob_sha": "a03cd86911ebdf8f97d9ff65fd13a9bcc0101019",
+  "genesis_blob_sha256": "9fafefdda7b1673ded5d371089b2433cdeef609a5b5335a83349b246f35ca9a6",
+  "genesis_commit_message": "AssessSuite Physio webhook ledger genesis",
+  "genesis_commit_sha": "1778bef45607b575801310919a428bf65a4f2138",
+  "genesis_parent_count": 0,
+  "genesis_ref_readback_sha": "1778bef45607b575801310919a428bf65a4f2138",
+  "genesis_tree_sha": "c6cdc5616b35523192841cb2d45f7b6364c20d55"
+}
