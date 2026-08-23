@@ -1,0 +1,6 @@
+{
+  "contract_version": "assesssuite-physio-bootstrap-ledger-genesis/1.0.0",
+  "repository": "mbvidler-ctrl/assesssuite_migration",
+  "ledger_branch": "assesssuite-physio-bootstrap-ledger",
+  "purpose": "protected append-only AssessSuite Physio bootstrap effect ledger"
+}
