@@ -1,0 +1,6 @@
+{
+  "contract_version": "assesssuite-physio-deploy-ledger-genesis/1.0.0",
+  "repository": "mbvidler-ctrl/assesssuite_migration",
+  "ledger_branch": "assesssuite-physio-deploy-ledger",
+  "purpose": "protected append-only AssessSuite Physio deploy and Sentry effect ledger"
+}
