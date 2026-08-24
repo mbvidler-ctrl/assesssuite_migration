@@ -599,7 +599,9 @@ test('V10 the release filename preflight allows only root .env.example and scans
     assert.equal(result.status, 0, `${filename} should be prohibited: ${result.stderr}`);
   }
 
-  const base = '6a8ec8d70d87d7b17bcb89e03a9fea4e2871b6d5';
+  const productionBaseMatch = prepare.match(/PRODUCTION_BASE_SHA: ([0-9a-f]{40})/);
+  assert.ok(productionBaseMatch, 'release workflow must pin an exact production base SHA');
+  const base = productionBaseMatch[1];
   const names = spawnSync('git', ['diff', '--name-only', '-z', `${base}...HEAD`], {
     cwd: repoRoot,
     encoding: 'utf8',
