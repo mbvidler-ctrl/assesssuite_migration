@@ -32,6 +32,18 @@ async function expectPath(page, pathname) {
 async function activateReachableControl(page, control) {
   await expect(control).toBeVisible();
   await control.scrollIntoViewIfNeeded();
+  // Chromium can decide that a control inside the long assessment library is
+  // visible to its scroll container while it remains below the mobile visual
+  // viewport. Centre it explicitly before proving pointer reachability.
+  await control.evaluate((element) => element.scrollIntoView({
+    behavior: 'auto',
+    block: 'center',
+    inline: 'nearest',
+  }));
+  await expect.poll(() => control.evaluate((element) => {
+    const rect = element.getBoundingClientRect();
+    return rect.top >= 0 && rect.bottom <= window.innerHeight;
+  })).toBe(true);
   const reachability = await control.evaluate((element) => {
     const rect = element.getBoundingClientRect();
     const centreX = rect.left + (rect.width / 2);
@@ -74,7 +86,10 @@ async function activateReachableControl(page, control) {
 }
 
 async function activateAndOnboardPractitioner(page, runtime, identity) {
-  await page.goto(`${runtime.frontendBaseUrl}/register`, { waitUntil: 'domcontentloaded' });
+  await page.goto(`${runtime.frontendBaseUrl}/register`, {
+    waitUntil: 'domcontentloaded',
+    timeout: 90_000,
+  });
   // The monolithic legacy App graph can take materially longer on a cold,
   // cache-empty Windows worker; this is the one deliberately long bootstrap
   // wait. Subsequent route assertions retain the normal suite timeout.
