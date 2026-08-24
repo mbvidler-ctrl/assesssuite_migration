@@ -1743,6 +1743,8 @@ jobs:
           NEW_PHASE_ARTIFACT_DIGEST: sha256:${{ steps.upload_generation_start.outputs.artifact-digest }}
           NEW_PHASE_RECEIPT_SHA256: ${{ steps.generation_start.outputs.receipt_sha256 }}
           PROVIDER_EFFECT_ID: ${{ needs.sentry_start.outputs.provider_effect_id }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
         run: |
           set -euo pipefail
           set +x
@@ -1763,8 +1765,8 @@ jobs:
           export PHASE_ARTIFACT_ID PHASE_ARTIFACT_DIGEST PHASE_RECEIPT_SHA256
           phase="$phase_packet/sentry-phase.json"
           node scripts/physio-sentry-release-contract.mjs validate-phase-packet --packet "$phase_packet" \
-            --application-sha "$APPLICATION_SHA" --capability-intent-id '${{ inputs.capability_intent_id }}' \
-            --authority-reference '${{ inputs.authority_reference }}' \
+            --application-sha "$APPLICATION_SHA" --capability-intent-id "$CAPABILITY_INTENT_ID" \
+            --authority-reference "$AUTHORITY_REFERENCE" \
             --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" \
             --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
           [[ "$(sha256sum "$phase"|awk '{print $1}')" == "$PHASE_RECEIPT_SHA256" ]]
@@ -1933,7 +1935,7 @@ jobs:
           (cd "$packet" && LC_ALL=C find . -type f ! -path './SHA256SUMS' -printf '%P\n' | sort | \
             xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
           node scripts/physio-sentry-release-contract.mjs validate-release-packet --packet "$packet" --application-sha "$APPLICATION_SHA" \
-            --capability-intent-id '${{ inputs.capability_intent_id }}' --authority-reference '${{ inputs.authority_reference }}' \
+            --capability-intent-id "$CAPABILITY_INTENT_ID" --authority-reference "$AUTHORITY_REFERENCE" \
             --source-map-manifest-sha256 "$SOURCE_MAP_MANIFEST_SHA256" --source-map-archive-sha256 "$SOURCE_MAP_ARCHIVE_SHA256"
           echo "receipt_sha256=$(sha256sum "$packet/physio-sentry-release.json"|awk '{print $1}')" >>"$GITHUB_OUTPUT"
 

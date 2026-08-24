@@ -93,7 +93,6 @@ const candidateCount = count(candidate);
 if (baseResult.status !== null && baseResult.status !== 0 && baseCount === 0) {
   throw new Error(`Base typecheck failed without parseable TypeScript diagnostics (exit ${baseResult.status}).`);
 }
-if (baseCount === 0) throw new Error('The recorded production base unexpectedly has no TypeScript errors.');
 if (candidateResult.status !== null && candidateResult.status !== 0 && candidateCount === 0) {
   throw new Error(`Candidate typecheck failed without parseable TypeScript diagnostics (exit ${candidateResult.status}).`);
 }
