@@ -73,7 +73,12 @@ export default function PhysioPublicLanding() {
           </Link>
           <nav className="flex items-center gap-2" aria-label="Account">
             <Button asChild variant="ghost"><Link to="/login">Sign in</Link></Button>
-            <Button asChild className="bg-teal-800 hover:bg-teal-900"><Link to="/register">Start free trial</Link></Button>
+            <Button asChild className="bg-teal-800 hover:bg-teal-900">
+              <Link to="/register">
+                <span className="sm:hidden">Start</span>
+                <span className="hidden sm:inline">Start free trial</span>
+              </Link>
+            </Button>
           </nav>
         </div>
       </header>
