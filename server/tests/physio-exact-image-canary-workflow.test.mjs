@@ -154,8 +154,8 @@ function assertSameRunArtifactProvenance(source) {
     assert.match(download[0], /run-id:/,
       'every cross-job or cross-run artifact download needs an exact source run');
     assert.match(download[0], /github-token: \$\{\{ github\.token \}\}/);
-    assert.doesNotMatch(download[0], /merge-multiple:\s*true/,
-      'sealed evidence artifacts may not be merged');
+    assert.match(download[0], /merge-multiple:\s*true/,
+      'single-ID evidence downloads must extract into the exact declared path');
   }
 }
 

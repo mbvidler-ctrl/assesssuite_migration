@@ -148,6 +148,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.artifacts.outputs.bootstrap_run_id }}
           path: ${{ runner.temp }}/bootstrap
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Validate exact pre-webhook bootstrap packet
@@ -290,6 +291,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.resume_artifacts.outputs.resume_started_effect_run_id }}
           path: ${{ runner.temp }}/resume
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Seal content-free STARTED effect packet
@@ -975,6 +977,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.start.outputs.started_artifact_id }}
           path: ${{ runner.temp }}/started
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact admitted prior webhook effect lineage
@@ -985,6 +988,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ needs.start.outputs.resume_started_effect_run_id }}
           path: ${{ runner.temp }}/resume
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Read and freeze exact provider prestate
@@ -1268,6 +1272,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.start.outputs.started_artifact_id }}
           path: ${{ runner.temp }}/started
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download immutable exact provider plan
@@ -1275,6 +1280,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.probe.outputs.provider_plan_artifact_id }}
           path: ${{ runner.temp }}/provider-plan
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact admitted prior control artifact
@@ -1285,6 +1291,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ needs.start.outputs.resume_started_effect_run_id }}
           path: ${{ runner.temp }}/resume
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Build immutable compensation intent packet
@@ -1716,6 +1723,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.admit.outputs.admission_artifact_id }}
           path: ${{ runner.temp }}/admission
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download durable webhook STARTED effect
@@ -1723,6 +1731,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.start.outputs.started_artifact_id }}
           path: ${{ runner.temp }}/started
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download durable exact provider plan
@@ -1730,6 +1739,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.probe.outputs.provider_plan_artifact_id }}
           path: ${{ runner.temp }}/provider-plan
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download terminal durable compensation phase chain
@@ -1737,6 +1747,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.compensate.outputs.compensation_artifact_id }}
           path: ${{ runner.temp }}/compensation
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact pre-webhook bootstrap for replay binding
@@ -1746,6 +1757,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ needs.admit.outputs.bootstrap_run_id }}
           path: ${{ runner.temp }}/bootstrap
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact unresolved effect for deliberate resume
@@ -1756,6 +1768,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ needs.start.outputs.resume_started_effect_run_id }}
           path: ${{ runner.temp }}/resume
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Re-admit exact handoff before provider credentials

@@ -222,6 +222,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.artifacts.outputs.candidate_run_id }}
           path: ${{ runner.temp }}/candidate
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact local-canary receipt
@@ -231,6 +232,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.artifacts.outputs.canary_run_id }}
           path: ${{ runner.temp }}/canary
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Validate both content-free receipts before first Fly credential
@@ -557,6 +559,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.resume_artifacts.outputs.resume_action_run_id }}
           path: ${{ runner.temp }}/resume-bootstrap
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Materialize exact resume packet from protected ledger when artifact transport is gone
@@ -889,6 +892,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.start.outputs.started_artifact_id }}
           path: ${{ runner.temp }}/ledger-started-packet
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Append immutable STARTED record only for a new generation
@@ -984,6 +988,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.admit.outputs.admission_artifact_id }}
           path: ${{ runner.temp }}/admission
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download durable bootstrap STARTED effect
@@ -992,6 +997,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.start.outputs.started_artifact_id }}
           path: ${{ runner.temp }}/bootstrap-started
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Materialize same-generation STARTED handoff from protected ledger
@@ -1020,6 +1026,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ needs.start.outputs.resume_action_run_id }}
           path: ${{ runner.temp }}/bootstrap-prior
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Materialize exact prior packet from protected ledger for provider reconciliation
@@ -1757,6 +1764,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.provider.outputs.provider_handoff_artifact_id }}
           path: ${{ runner.temp }}/bootstrap-provider-ledger-packet
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Persist immutable provider-admission record in protected bootstrap ledger
@@ -1859,6 +1867,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.provider.outputs.provider_handoff_artifact_id }}
           path: ${{ runner.temp }}/bootstrap-provider-admission
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Re-admit exact provider ledger handoff before any effect
@@ -2686,6 +2695,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.bootstrap.outputs.bootstrap_artifact_id }}
           path: ${{ runner.temp }}/physio-bootstrap-receipt
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Persist immutable terminal or reuse record in protected bootstrap ledger

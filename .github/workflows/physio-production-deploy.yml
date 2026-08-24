@@ -290,6 +290,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.artifacts.outputs.publication_run_id }}
           path: ${{ runner.temp }}/physio-publication-input
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact immutable-image provider canary receipt
@@ -299,6 +300,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.artifacts.outputs.canary_run_id }}
           path: ${{ runner.temp }}/physio-canary-input
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact production-ready bootstrap receipt
@@ -308,6 +310,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.artifacts.outputs.production_bootstrap_run_id }}
           path: ${{ runner.temp }}/physio-production-bootstrap-input
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact protected Stripe webhook archive transport
@@ -317,6 +320,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.artifacts.outputs.stripe_webhook_archive_run_id }}
           path: ${{ runner.temp }}/physio-stripe-webhook-archive-input
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact prepared Sentry release receipt
@@ -326,6 +330,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.artifacts.outputs.sentry_release_run_id }}
           path: ${{ runner.temp }}/physio-sentry-release-input
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Re-admit protected webhook archive and materialize exact original packet from ledger
@@ -2811,6 +2816,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.deploy.outputs.deploy_artifact_id }}
           path: ${{ runner.temp }}/deploy-result
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact same-run deploy phase handoff
@@ -2818,6 +2824,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.deploy.outputs.deploy_phase_artifact_id }}
           path: ${{ runner.temp }}/deploy-phase-handoff
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact prepared Sentry release packet
@@ -2827,6 +2834,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ needs.deploy.outputs.sentry_release_run_id }}
           path: ${{ runner.temp }}/sentry-release-v2
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Admit exact deploy PASS phase and build credential-free Sentry phase runtime
