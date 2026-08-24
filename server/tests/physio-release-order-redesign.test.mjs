@@ -1338,6 +1338,8 @@ test('registry protocol validator distinguishes exact absence and compares the c
     "raw.length !== source.manifest_size",
     "sha256:${sha256(raw)}",
     "manifest.config?.digest !== source.config.digest",
+    "application/vnd.oci.image.index.v1+json",
+    "['schemaVersion', 'mediaType', 'manifests']",
     "source.layers",
     "ABSENT_EXACT_HEAD_GET_404",
     "PRESENT_EXACT_DESCRIPTOR",
