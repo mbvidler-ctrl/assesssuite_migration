@@ -2080,6 +2080,13 @@ jobs:
       sentry_release_artifact_digest: ${{ needs.sentry_release.outputs.artifact_digest }}
       sentry_release_receipt_sha256: ${{ needs.sentry_release.outputs.receipt_sha256 }}
     steps:
+      - name: Check out exact handoff contract source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
       - name: Download exact candidate core
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
