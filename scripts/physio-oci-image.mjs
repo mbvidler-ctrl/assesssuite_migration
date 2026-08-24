@@ -10,6 +10,10 @@ const fail = (message) => {
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
+const OCI_LAYER_MEDIA_TYPES = new Set([
+  'application/vnd.oci.image.layer.v1.tar+gzip',
+  'application/vnd.oci.image.layer.v1.tar',
+]);
 
 function option(name) {
   const index = process.argv.indexOf(`--${name}`);
@@ -87,7 +91,7 @@ function inspectLayout({ layout, tag, applicationSha, localImageId }) {
     fail('OCI config identity, platform, or layer relation differs');
   }
   const layers = manifest.layers.map((descriptor, indexValue) => {
-    if (descriptor.mediaType !== 'application/vnd.oci.image.layer.v1.tar+gzip') {
+    if (!OCI_LAYER_MEDIA_TYPES.has(descriptor.mediaType)) {
       fail(`layer ${indexValue} media type differs`);
     }
     digestBlob(root, descriptor, `layer ${indexValue}`);
