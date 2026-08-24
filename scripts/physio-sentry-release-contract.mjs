@@ -234,23 +234,7 @@ function validateProviderRequestProof(proof, label, { receipt, deployPages } = {
   const expected = new Map([
     ['project', 200],
   ]);
-  const hasGlobalOrganizationRead = rows.has('organization-global');
-  const hasRegionalOrganizationRead = rows.has('organization-region');
-  if (hasGlobalOrganizationRead || hasRegionalOrganizationRead) {
-    const globalStatus = rows.get('organization-global')?.http_status;
-    const directGlobalRead = hasGlobalOrganizationRead && !hasRegionalOrganizationRead &&
-      !rows.has('organization') && globalStatus === 200;
-    const redirectedGlobalRead = hasGlobalOrganizationRead && hasRegionalOrganizationRead &&
-      !rows.has('organization') && [301, 302, 307, 308].includes(globalStatus) &&
-      rows.get('organization-region')?.http_status === 200;
-    if (!directGlobalRead && !redirectedGlobalRead) {
-      fail(`${label} organization redirect proof differs`);
-    }
-    expected.set('organization-global', globalStatus);
-    if (redirectedGlobalRead) expected.set('organization-region', 200);
-  } else {
-    expected.set('organization', 200);
-  }
+  addExpectedOrganizationProof(expected, rows, label);
   if (receipt.result === 'EXACT_ABSENCE') {
     expected.set('release', 404);
   } else if (receipt.result === 'SAFE_ORPHAN') {
@@ -270,6 +254,26 @@ function validateProviderRequestProof(proof, label, { receipt, deployPages } = {
   if (rows.size !== expected.size || [...expected].some(([operation, status]) =>
     rows.get(operation)?.http_status !== status)) {
     fail(`${label} operation or HTTP-status set differs`);
+  }
+}
+
+function addExpectedOrganizationProof(expected, rows, label) {
+  const hasGlobalOrganizationRead = rows.has('organization-global');
+  const hasRegionalOrganizationRead = rows.has('organization-region');
+  if (hasGlobalOrganizationRead || hasRegionalOrganizationRead) {
+    const globalStatus = rows.get('organization-global')?.http_status;
+    const directGlobalRead = hasGlobalOrganizationRead && !hasRegionalOrganizationRead &&
+      !rows.has('organization') && globalStatus === 200;
+    const redirectedGlobalRead = hasGlobalOrganizationRead && hasRegionalOrganizationRead &&
+      !rows.has('organization') && [301, 302, 307, 308].includes(globalStatus) &&
+      rows.get('organization-region')?.http_status === 200;
+    if (!directGlobalRead && !redirectedGlobalRead) {
+      fail(`${label} organization redirect proof differs`);
+    }
+    expected.set('organization-global', globalStatus);
+    if (redirectedGlobalRead) expected.set('organization-region', 200);
+  } else {
+    expected.set('organization', 200);
   }
 }
 
@@ -891,9 +895,12 @@ function validatePhysioSentryReleasePacketV2({
   const deployPages = providerReadback.deploy_pages;
   const rows = new Map(requestProof.requests.map((row) => [row.operation, row.http_status]));
   const expectedOperations = new Map([
-    ['organization', 200], ['project', 200], ['precreate', 404], ['create', 201],
+    ['project', 200], ['precreate', 404], ['create', 201],
     ['finalize', 200], ['final', 200],
   ]);
+  addExpectedOrganizationProof(expectedOperations,
+    new Map(requestProof.requests.map((row) => [row.operation, row])),
+    'release provider request proof');
   for (let index = 0; index < expectedFileCount; index += 1) {
     expectedOperations.set(`upload-${index}`, 201);
     expectedOperations.set(`download-${index}`, 200);
@@ -996,8 +1003,11 @@ function validatePhysioSentryCurrentReadiness({
     'Sentry current-readiness provider proof');
   const rows = new Map(requestProof.value.requests.map((row) => [row.operation, row.http_status]));
   const expectedOperations = new Map([
-    ['organization', 200], ['project', 200], ['release', 200],
+    ['project', 200], ['release', 200],
   ]);
+  addExpectedOrganizationProof(expectedOperations,
+    new Map(requestProof.value.requests.map((row) => [row.operation, row])),
+    'Sentry current-readiness provider proof');
   for (const index of providerReadback.deploy_pages.keys()) {
     expectedOperations.set(`deploy-page-${index}`, 200);
   }

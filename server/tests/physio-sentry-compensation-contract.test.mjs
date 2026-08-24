@@ -501,6 +501,7 @@ test('DELETE_COMPLETED_ABSENT requires exact predelete, every deploy page, DELET
 test('completed v2 Sentry packet binds the frozen manifest, full phase chain and exact provider bytes', () => {
   const buildFinalPacket = (root, {
     omitOperation = '', providerRuntimeSha = '', withCurrentReadiness = false,
+    organizationOperation = 'organization',
   } = {}) => {
     const releaseVersion = `physio-production@${applicationSha}`;
     const manifest = canonical({
@@ -572,7 +573,7 @@ test('completed v2 Sentry packet binds the frozen manifest, full phase chain and
       ],
     });
     const operations = [
-      request('organization', 200), request('project', 200), request('precreate', 404),
+      request(organizationOperation, 200), request('project', 200), request('precreate', 404),
       request('create', 201), request('upload-0', 201), request('upload-1', 201),
       request('finalize', 200), request('final', 200), request('deploy-page-0', 200),
       request('files-page-0', 200), request('download-0', 200), request('download-1', 200),
@@ -635,7 +636,7 @@ test('completed v2 Sentry packet binds the frozen manifest, full phase chain and
       const currentRequestProof = canonical({
         release_receipt_sha256: hash(receipt),
         requests: [
-          request('organization', 200), request('project', 200), request('release', 200),
+          request(organizationOperation, 200), request('project', 200), request('release', 200),
           request('deploy-page-0', 200), request('files-page-0', 200),
           request('download-0', 200), request('download-1', 200),
         ],
@@ -661,6 +662,7 @@ test('completed v2 Sentry packet binds the frozen manifest, full phase chain and
   const invalidRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'physio-sentry-final-v2-invalid-'));
   const mismatchedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'physio-sentry-final-v2-mismatch-'));
   const readinessRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'physio-sentry-final-v2-readiness-'));
+  const directGlobalRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'physio-sentry-final-v2-global-'));
   try {
     const frozenManifestSha256 = buildFinalPacket(root);
     const finalOptions = { ...options, sourceMapManifestSha256: frozenManifestSha256 };
@@ -675,6 +677,8 @@ test('completed v2 Sentry packet binds the frozen manifest, full phase chain and
     assert.throws(() => validatePhysioSentryReleasePacket(mismatchedRoot, finalOptions), /provider source-map file/i);
     buildFinalPacket(readinessRoot, { withCurrentReadiness: true });
     assert.equal(validatePhysioSentryReleasePacket(readinessRoot, finalOptions), true);
+    buildFinalPacket(directGlobalRoot, { organizationOperation: 'organization-global', withCurrentReadiness: true });
+    assert.equal(validatePhysioSentryReleasePacket(directGlobalRoot, finalOptions), true);
     const initialPath = path.join(root, 'sentry-phase-packet', 'phase-0000.json');
     fs.writeFileSync(initialPath, canonical({ ...JSON.parse(fs.readFileSync(initialPath, 'utf8')),
       candidate_core_receipt_sha256: '0'.repeat(64),
@@ -687,6 +691,7 @@ test('completed v2 Sentry packet binds the frozen manifest, full phase chain and
     fs.rmSync(invalidRoot, { recursive: true, force: true });
     fs.rmSync(mismatchedRoot, { recursive: true, force: true });
     fs.rmSync(readinessRoot, { recursive: true, force: true });
+    fs.rmSync(directGlobalRoot, { recursive: true, force: true });
   }
 });
 
