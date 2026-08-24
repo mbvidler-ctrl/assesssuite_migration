@@ -395,6 +395,37 @@ test('reconciliation packet joins exact target readback, exhaustive pages and re
     buildPacket(invalidRoot, exactProof.filter((row) => row.operation !== 'deploy-page-0'));
     assert.throws(() => validatePhysioSentryReconciliationPacket(invalidRoot, reconciliationOptions),
       /operation|status/i);
+
+    const redirectedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'physio-sentry-reconciliation-redirect-'));
+    try {
+      buildPacket(redirectedRoot, [
+        request('organization-global', 301),
+        request('organization-region', 200),
+        request('project', 200),
+        request('release', 200),
+        request('deploy-page-0', 200),
+      ]);
+      assert.equal(validatePhysioSentryReconciliationPacket(redirectedRoot, reconciliationOptions), true);
+
+      const incompleteRedirectRoot = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'physio-sentry-reconciliation-redirect-invalid-'),
+      );
+      try {
+        buildPacket(incompleteRedirectRoot, [
+          request('organization-global', 301),
+          request('project', 200),
+          request('release', 200),
+          request('deploy-page-0', 200),
+        ]);
+        assert.throws(() => validatePhysioSentryReconciliationPacket(
+          incompleteRedirectRoot, reconciliationOptions,
+        ), /organization redirect|operation|status/i);
+      } finally {
+        fs.rmSync(incompleteRedirectRoot, { recursive: true, force: true });
+      }
+    } finally {
+      fs.rmSync(redirectedRoot, { recursive: true, force: true });
+    }
   } finally {
     fs.rmSync(root, { recursive: true, force: true });
     fs.rmSync(invalidRoot, { recursive: true, force: true });

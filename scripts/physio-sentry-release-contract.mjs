@@ -232,9 +232,22 @@ function validateProviderRequestProof(proof, label, { receipt, deployPages } = {
   if (!receipt) return;
   const rows = new Map(proof.requests.map((row) => [row.operation, row]));
   const expected = new Map([
-    ['organization', 200],
     ['project', 200],
   ]);
+  const hasGlobalOrganizationRead = rows.has('organization-global');
+  const hasRegionalOrganizationRead = rows.has('organization-region');
+  if (hasGlobalOrganizationRead || hasRegionalOrganizationRead) {
+    const globalStatus = rows.get('organization-global')?.http_status;
+    if (!hasGlobalOrganizationRead || !hasRegionalOrganizationRead || rows.has('organization') ||
+        ![301, 302, 307, 308].includes(globalStatus) ||
+        rows.get('organization-region')?.http_status !== 200) {
+      fail(`${label} organization redirect proof differs`);
+    }
+    expected.set('organization-global', globalStatus);
+    expected.set('organization-region', 200);
+  } else {
+    expected.set('organization', 200);
+  }
   if (receipt.result === 'EXACT_ABSENCE') {
     expected.set('release', 404);
   } else if (receipt.result === 'SAFE_ORPHAN') {
