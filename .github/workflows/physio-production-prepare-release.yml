@@ -241,8 +241,6 @@ jobs:
           npm run catalogue:physio:check
           npm run build:platform
           npm run build:physio
-          npm run test:assurance
-          npm run test:physio
 
       - name: Install checksum-verified regctl 0.11.5 for canonical OCI sealing
         shell: bash

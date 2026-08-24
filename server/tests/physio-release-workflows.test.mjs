@@ -791,8 +791,6 @@ test('prepare gates EP and Physio then seals one local candidate and same-build 
     'npm run typecheck',
     'npm run build:platform',
     'npm run build:physio',
-    'npm run test:assurance',
-    'npm run test:physio',
     'docker buildx bake --file "$bake" --pull candidate sourcemaps',
     'docker save "$candidate"',
     'candidate-image.oci.tar.gz',
@@ -806,6 +804,8 @@ test('prepare gates EP and Physio then seals one local candidate and same-build 
   assert.match(source, /same_build_source_maps_verified: true/);
   assert.match(source, /oci_descriptor_manifest_sha256:/);
   assert.match(source, /fly_resource_count: 0/);
+  assert.doesNotMatch(source, /npm run test:(?:assurance|physio)/,
+    'extended assurance runs after first deployment, not inside immutable image preparation');
   assert.doesNotMatch(source, /registry\.fly\.io|docker push|regctl image copy/);
   assert.doesNotMatch(source, /\bfly deploy\b|fly volumes create|fly machine (?:run|restart|stop|destroy)/);
 });
