@@ -276,10 +276,11 @@ jobs:
           source_maps="$RUNNER_TEMP/physio-sourcemap-output"
           map_archive_root="$RUNNER_TEMP/physio-sourcemap-archive-root"
           runtime_extract="$RUNNER_TEMP/physio-runtime-extract"
+          oci_import_layout="$RUNNER_TEMP/physio-candidate-oci-import"
           oci_layout="$RUNNER_TEMP/physio-candidate-oci"
           docker_archive="$RUNNER_TEMP/physio-candidate.docker.tar"
           bake="$RUNNER_TEMP/physio-candidate-bake.hcl"
-          install -d -m 0700 "$packet" "$source_maps" "$map_archive_root" "$runtime_extract" "$oci_layout"
+          install -d -m 0700 "$packet" "$source_maps" "$map_archive_root" "$runtime_extract" "$oci_import_layout" "$oci_layout"
           install -m 0600 "$RUNNER_TEMP/state-snapshot-artifact-admission.json" "$packet/state-snapshot-artifact-admission.json"
           cat >"$bake" <<BAKE
           target "candidate" {
@@ -379,9 +380,11 @@ jobs:
           docker save "$candidate" | gzip -n >"$packet/candidate-image.tar.gz"
           archive_sha256="sha256:$(sha256sum "$packet/candidate-image.tar.gz" | awk '{print $1}')"
           gzip -dc "$packet/candidate-image.tar.gz" >"$docker_archive"
-          "$RUNNER_TEMP/regctl" image import "ocidir://$oci_layout:$APPLICATION_SHA" "$docker_archive" --name "$candidate"
+          "$RUNNER_TEMP/regctl" image import "ocidir://$oci_import_layout:$APPLICATION_SHA" "$docker_archive" --name "$candidate"
           rm -f "$docker_archive"
-          "$RUNNER_TEMP/regctl" image mod "ocidir://$oci_layout:$APPLICATION_SHA" --to-oci --replace
+          "$RUNNER_TEMP/regctl" image mod "ocidir://$oci_import_layout:$APPLICATION_SHA" --to-oci --replace
+          "$RUNNER_TEMP/regctl" image copy \
+            "ocidir://$oci_import_layout:$APPLICATION_SHA" "ocidir://$oci_layout:$APPLICATION_SHA"
           oci_manifest_digest="$(node scripts/physio-oci-image.mjs write-descriptors \
             --layout "$oci_layout" --tag "$APPLICATION_SHA" --application-sha "$APPLICATION_SHA" \
             --local-image-id "$local_image_id" --receipt "$packet/candidate-oci-descriptors.json")"
