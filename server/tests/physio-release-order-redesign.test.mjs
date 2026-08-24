@@ -1465,6 +1465,12 @@ test('Physio Sentry releases are target-qualified while the application SHA rema
 
   const prepare = workflow('physio-production-prepare-release.yml');
   const sentryReleaseJob = prepare.slice(prepare.indexOf('\n  sentry_release:\n'));
+  const regionalOrganizationUrl =
+    'https://us.sentry.io/api/0/organizations/unimatter/?detailed=0';
+  assert.doesNotMatch(prepare, /https:\/\/sentry\.io\/api\/0\/organizations\/unimatter/,
+    'organization identity reads must not use the redirecting global Sentry API route');
+  assert.equal(prepare.split(regionalOrganizationUrl).length - 1, 4,
+    'every organization identity read must use the pinned US regional API route');
   assert.match(prepare,
     /release_version:\s*sentryReleaseForProfession\('physio', process\.env\.APPLICATION_SHA\)/,
     'source-map evidence must derive the exact target-qualified release ID');
