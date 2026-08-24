@@ -77,10 +77,10 @@ test('T02 typecheck comparator rejects empty file-mode candidate evidence', () =
   assert.match(result.stderr, /Candidate typecheck evidence file is empty/);
 });
 
-test('T02a typecheck comparator rejects empty file-mode base evidence', () => {
+test('T02a typecheck comparator accepts a clean base and rejects candidate regressions', () => {
   const result = runComparator('', 'src/probe.js(1,1): error TS1234: candidate\n');
   assert.notEqual(result.status, 0, result.stdout + result.stderr);
-  assert.match(result.stderr, /production base unexpectedly has no TypeScript errors/);
+  assert.match(result.stderr, /"introducedCount": 1/);
 });
 
 test('T02b typecheck comparator preserves exact raw base and candidate evidence', () => {
