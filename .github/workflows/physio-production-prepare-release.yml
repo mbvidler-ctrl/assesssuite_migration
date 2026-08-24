@@ -235,6 +235,7 @@ jobs:
         run: |
           set -euo pipefail
           npm ci
+          npx playwright install --with-deps chromium
           npm run lint
           npm run typecheck
           npm run catalogue:physio:check
