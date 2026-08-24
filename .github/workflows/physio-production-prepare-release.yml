@@ -757,7 +757,7 @@ jobs:
             node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids \
               --headers "$work/$operation.headers" --label "$operation" --output "$work/proof-$operation.json"
           }
-          request organization 'https://sentry.io/api/0/organizations/unimatter/?detailed=0'
+          request organization 'https://us.sentry.io/api/0/organizations/unimatter/?detailed=0'
           [[ "$(cat "$work/organization.status")" == '200' ]]
           ORGANIZATION="$work/organization.body" REGION_OUT="$work/region-url" node --input-type=module <<'NODE'
           import fs from 'node:fs';
@@ -1172,7 +1172,7 @@ jobs:
             node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids \
               --headers "$work/$operation.headers" --label "$operation" --output "$work/proof-$operation.json"
           }
-          request organization 'https://sentry.io/api/0/organizations/unimatter/?detailed=0'
+          request organization 'https://us.sentry.io/api/0/organizations/unimatter/?detailed=0'
           [[ "$(cat "$work/organization.status")" == '200' ]]
           ORGANIZATION="$work/organization.body" REGION_OUT="$work/region-url" node --input-type=module <<'NODE'
           import fs from 'node:fs';const r=JSON.parse(fs.readFileSync(process.env.ORGANIZATION,'utf8'));const region=r.links?.regionUrl;
@@ -1432,7 +1432,7 @@ jobs:
             node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids \
               --headers "$work/$operation.headers" --label "$operation" --output "$work/proof-$operation.json"
           }
-          request organization GET 'https://sentry.io/api/0/organizations/unimatter/?detailed=0'
+          request organization GET 'https://us.sentry.io/api/0/organizations/unimatter/?detailed=0'
           [[ "$(cat "$work/organization.status")" == '200' ]]
           ORGANIZATION="$work/organization.body" REGION_URL="$REGION_URL" node --input-type=module <<'NODE'
           import fs from 'node:fs'; const row=JSON.parse(fs.readFileSync(process.env.ORGANIZATION,'utf8'));
@@ -1798,7 +1798,7 @@ jobs:
             node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids --headers "$work/$operation.headers" \
               --label "$operation" --output "$work/proof-$operation.json"
           }
-          request organization GET 'https://sentry.io/api/0/organizations/unimatter/?detailed=0'; [[ "$(cat "$work/organization.status")" == '200' ]]
+          request organization GET 'https://us.sentry.io/api/0/organizations/unimatter/?detailed=0'; [[ "$(cat "$work/organization.status")" == '200' ]]
           ORGANIZATION="$work/organization.body" REGION_URL="$REGION_URL" node --input-type=module <<'NODE'
           import fs from 'node:fs';const r=JSON.parse(fs.readFileSync(process.env.ORGANIZATION,'utf8'));if(r.slug!=='unimatter'||r.links?.regionUrl!==process.env.REGION_URL)throw new Error('Sentry organization changed before create');
           NODE
