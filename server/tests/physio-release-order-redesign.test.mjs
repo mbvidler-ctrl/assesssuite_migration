@@ -400,7 +400,7 @@ test('candidate preparation consumes the snapshot, seals one archive and creates
     'docker buildx bake --allow="fs.write=$source_maps" --file "$bake" --pull candidate sourcemaps',
     'docker save "$candidate"',
     'image import "ocidir://$oci_import_layout:$APPLICATION_SHA"',
-    'image mod "ocidir://$oci_import_layout:$APPLICATION_SHA" --to-oci --replace',
+    'image mod "ocidir://$oci_import_layout:$APPLICATION_SHA" --to-oci --layer-compress gzip --replace',
     '"$RUNNER_TEMP/regctl" image copy',
     'scripts/physio-oci-image.mjs write-descriptors',
     'candidate-image.oci.tar.gz',
