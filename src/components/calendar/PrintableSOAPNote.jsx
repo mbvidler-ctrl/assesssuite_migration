@@ -2,31 +2,36 @@ import React from 'react';
 import moment from 'moment';
 import { SecureFileImage } from '@/components/files/SecureFile';
 
-const PrintableSOAPNote = React.forwardRef(({ soapNote, client, appointment, clinician }, ref) => {
+const PrintableSOAPNote = React.forwardRef(
+  /**
+   * @param {{soapNote: any, client: any, appointment: any, clinician: any}} props
+   * @param {React.ForwardedRef<HTMLDivElement>} ref
+   */
+  ({ soapNote, client, appointment, clinician }, ref) => {
     if (!soapNote || !client || !appointment || !clinician) {
         return null;
     }
 
-    const sectionStyle = {
+    const sectionStyle = /** @type {React.CSSProperties} */ ({
         marginBottom: '1.5rem',
         paddingBottom: '1rem',
         borderBottom: '1px solid #e5e7eb',
-    };
+    });
     
-    const labelStyle = {
+    const labelStyle = /** @type {React.CSSProperties} */ ({
         fontWeight: 'bold',
         fontSize: '1.1rem',
         color: '#1f2937',
         marginBottom: '0.5rem',
         pageBreakAfter: 'avoid'
-    };
+    });
 
-    const contentStyle = {
+    const contentStyle = /** @type {React.CSSProperties} */ ({
         whiteSpace: 'pre-wrap',
         fontSize: '1rem',
         color: '#374151',
         pageBreakInside: 'avoid',
-    };
+    });
     
     return (
         <div ref={ref} className="printable-soap-note">
@@ -132,6 +137,7 @@ const PrintableSOAPNote = React.forwardRef(({ soapNote, client, appointment, cli
             )}
         </div>
     );
-});
+  }
+);
 
 export default PrintableSOAPNote;

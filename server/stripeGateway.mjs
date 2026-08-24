@@ -17,20 +17,26 @@
 // The request surface deliberately covers only what the four functions
 // need, mirroring the captured Base44 sources (base44/functions/*/entry.ts):
 //   - POST /v1/checkout/sessions        (mode=subscription)
+//   - GET  /v1/checkout/sessions/{id}
 //   - POST /v1/billing_portal/sessions
 //   - GET  /v1/customers?email=&limit=1
 //   - GET  /v1/subscriptions?customer=&limit=
 //   - GET  /v1/subscriptions/{id}
-// No Stripe-Version header is pinned, matching the captured functions
-// (the account's default API version applies).
+// Every request pins the reviewed API contract. Checkout also carries a
+// server-generated integration identifier; neither value is accepted from
+// browser input.
 
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 
 import { capabilityEnabled } from './capabilityFlags.mjs';
 
 const STRIPE_API_BASE = 'https://api.stripe.com';
+export const STRIPE_API_VERSION = '2026-07-29.dahlia';
 const REQUEST_TIMEOUT_MS = 20_000;
 const WEBHOOK_TOLERANCE_SECONDS = 300; // 5 minutes, per Stripe's own default
+const STRIPE_REQUEST_IDS = new WeakMap();
+const CHECKOUT_INTENT_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const CHECKOUT_IDEMPOTENCY_KEY_PATTERN = /^assesssuite_checkout_v1_[0-9a-f]{64}$/;
 
 /**
  * True only when PAYMENTS_ENABLED is exactly 1, a real Stripe key is
@@ -73,7 +79,16 @@ export class StripeApiError extends Error {
  * 'line_items[0][price]'), matching how the captured Deno functions built
  * their URLSearchParams. GET requests carry params in the query string.
  */
-async function stripeRequest(method, apiPath, params = []) {
+function formEncoded(params) {
+  const search = new URLSearchParams();
+  for (const [name, value] of params) {
+    if (value === undefined || value === null || value === '') continue;
+    search.append(name, String(value));
+  }
+  return search;
+}
+
+async function stripeRequest(method, apiPath, params = [], { idempotencyKey = null } = {}) {
   // Enforce the capability at the network sink as well as at every ordinary
   // caller's mode branch. An imported gateway method must never turn a secret
   // alone into authority for a real payment request.
@@ -88,16 +103,24 @@ async function stripeRequest(method, apiPath, params = []) {
     throw new StripeApiError('STRIPE_SECRET_KEY is not set', { status: 0 });
   }
 
-  const search = new URLSearchParams();
-  for (const [name, value] of params) {
-    if (value === undefined || value === null || value === '') continue;
-    search.append(name, String(value));
+  if (idempotencyKey !== null) {
+    if (method !== 'POST') {
+      throw new TypeError('Stripe idempotency keys are permitted only for POST requests');
+    }
+    if (!CHECKOUT_IDEMPOTENCY_KEY_PATTERN.test(idempotencyKey)) {
+      throw new TypeError('Stripe Checkout idempotency key is malformed');
+    }
   }
+
+  const search = formEncoded(params);
 
   let url = `${STRIPE_API_BASE}${apiPath}`;
   const options = {
     method,
-    headers: { Authorization: `Bearer ${key}` },
+    headers: {
+      Authorization: `Bearer ${key}`,
+      'Stripe-Version': STRIPE_API_VERSION,
+    },
     signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
   };
   if (method === 'GET') {
@@ -105,6 +128,7 @@ async function stripeRequest(method, apiPath, params = []) {
     if (qs) url += `?${qs}`;
   } else {
     options.headers['Content-Type'] = 'application/x-www-form-urlencoded';
+    if (idempotencyKey) options.headers['Idempotency-Key'] = idempotencyKey;
     options.body = search.toString();
   }
 
@@ -130,19 +154,77 @@ async function stripeRequest(method, apiPath, params = []) {
       requestId: response.headers.get('request-id'),
     });
   }
+  if (payload && typeof payload === 'object') {
+    STRIPE_REQUEST_IDS.set(payload, response.headers.get('request-id') || null);
+  }
   return payload;
 }
 
+/** Returns the provider request id captured with a successful response. */
+export function stripeRequestIdFor(payload) {
+  return payload && typeof payload === 'object'
+    ? STRIPE_REQUEST_IDS.get(payload) || null
+    : null;
+}
+
+function requireCheckoutIntentId(checkoutIntentId) {
+  if (!CHECKOUT_INTENT_ID_PATTERN.test(checkoutIntentId || '')) {
+    throw new TypeError('Stripe Checkout intent id is malformed');
+  }
+}
+
+function integrationSuffixForIntent(checkoutIntentId) {
+  requireCheckoutIntentId(checkoutIntentId);
+  return Array.from(createHash('sha256').update(checkoutIntentId).digest().subarray(0, 8), (byte) => (
+    String.fromCharCode(97 + (byte % 26))
+  )).join('');
+}
+
 /**
- * POST /v1/checkout/sessions — subscription-mode checkout session.
- * Parameter set mirrors base44/functions/createCheckoutSession/entry.ts
- * exactly (including the metadata and subscription_data metadata the
- * webhook's customer.subscription.* handlers rely on to find the user).
- * Returns the full session object; callers read `session.url`.
+ * Provider idempotency namespace. The random persisted intent UUID prevents
+ * reuse across user actions; the digest also binds account, app and price so
+ * a corrupted row cannot silently redirect a retry to another commercial
+ * object.
  */
-export async function createCheckoutSession({ priceId, userId, userEmail, successUrl, cancelUrl }) {
-  return stripeRequest('POST', '/v1/checkout/sessions', [
+export function checkoutIdempotencyKeyFor({ userId, appId, priceId, checkoutIntentId }) {
+  requireCheckoutIntentId(checkoutIntentId);
+  for (const [name, value] of Object.entries({ userId, appId, priceId })) {
+    if (typeof value !== 'string' || value.trim() === '') {
+      throw new TypeError(`Stripe Checkout ${name} is required`);
+    }
+  }
+  const digest = createHash('sha256')
+    .update(JSON.stringify(['assesssuite-checkout-v1', userId, appId, priceId, checkoutIntentId]))
+    .digest('hex');
+  return `assesssuite_checkout_v1_${digest}`;
+}
+
+function buildCheckoutSessionParams({
+  priceId,
+  userId,
+  userEmail,
+  successUrl,
+  cancelUrl,
+  appId,
+  professionId,
+  trialPeriodDays,
+  qaSequence = null,
+  checkoutIntentId,
+}) {
+  requireCheckoutIntentId(checkoutIntentId);
+  if (
+    qaSequence !== null
+    && !/^assesssuite-physio-self-service-[0-9a-f]{12}$/.test(qaSequence)
+  ) {
+    throw new TypeError('Stripe QA sequence binding is malformed');
+  }
+  const integrationSuffix = integrationSuffixForIntent(checkoutIntentId);
+  const params = [
     ['mode', 'subscription'],
+    // A zero-due trial must still collect and attach a reusable payment
+    // method for the controlled off-session validation and later renewal.
+    ['payment_method_collection', 'always'],
+    ['integration_identifier', `assesssuite_physio_${integrationSuffix}`],
     ['line_items[0][price]', priceId],
     ['line_items[0][quantity]', '1'],
     ['success_url', successUrl],
@@ -152,13 +234,81 @@ export async function createCheckoutSession({ priceId, userId, userEmail, succes
     ['metadata[userId]', userId],
     ['metadata[userEmail]', userEmail],
     ['metadata[priceId]', priceId],
+    ['metadata[appId]', appId],
+    ['metadata[professionId]', professionId],
+    ['metadata[checkoutIntentId]', checkoutIntentId],
     ['subscription_data[metadata][userId]', userId],
     ['subscription_data[metadata][userEmail]', userEmail],
     ['subscription_data[metadata][priceId]', priceId],
+    ['subscription_data[metadata][appId]', appId],
+    ['subscription_data[metadata][professionId]', professionId],
+    ['subscription_data[metadata][checkoutIntentId]', checkoutIntentId],
     // Stripe-hosted Checkout validates the code and applies the discount.
     // No promotion value or discount amount is accepted from the browser.
     ['allow_promotion_codes', 'true'],
-  ]);
+  ];
+  if (qaSequence) {
+    params.push(['metadata[qaSequence]', qaSequence]);
+    params.push(['subscription_data[metadata][qaSequence]', qaSequence]);
+  }
+  if (trialPeriodDays !== undefined && trialPeriodDays !== null) {
+    params.push(['subscription_data[trial_period_days]', trialPeriodDays]);
+  }
+  return params;
+}
+
+/** Hashes the exact Stripe form body together with the exact request key. */
+export function checkoutSessionRequestSha256(args) {
+  if (!CHECKOUT_IDEMPOTENCY_KEY_PATTERN.test(args.idempotencyKey || '')) {
+    throw new TypeError('Stripe Checkout idempotency key is malformed');
+  }
+  const body = formEncoded(buildCheckoutSessionParams(args)).toString();
+  return createHash('sha256')
+    .update(`assesssuite-checkout-request-v1\n${args.idempotencyKey}\n${body}`)
+    .digest('hex');
+}
+
+/**
+ * POST /v1/checkout/sessions — subscription-mode checkout session.
+ * Parameter set mirrors base44/functions/createCheckoutSession/entry.ts
+ * exactly (including the metadata and subscription_data metadata the
+ * webhook's customer.subscription.* handlers rely on to find the user).
+ * Returns the full session object; callers read `session.url`.
+ */
+export async function createCheckoutSession({
+  priceId,
+  userId,
+  userEmail,
+  successUrl,
+  cancelUrl,
+  appId,
+  professionId,
+  trialPeriodDays,
+  qaSequence = null,
+  checkoutIntentId,
+  idempotencyKey,
+}) {
+  const params = buildCheckoutSessionParams({
+    priceId,
+    userId,
+    userEmail,
+    successUrl,
+    cancelUrl,
+    appId,
+    professionId,
+    trialPeriodDays,
+    qaSequence,
+    checkoutIntentId,
+  });
+  return stripeRequest('POST', '/v1/checkout/sessions', params, { idempotencyKey });
+}
+
+/** GET /v1/checkout/sessions/{id} — reconciles a durable creation intent. */
+export async function retrieveCheckoutSession(checkoutSessionId) {
+  if (typeof checkoutSessionId !== 'string' || !/^cs_[A-Za-z0-9_]+$/.test(checkoutSessionId)) {
+    throw new TypeError('Stripe Checkout Session id is malformed');
+  }
+  return stripeRequest('GET', `/v1/checkout/sessions/${encodeURIComponent(checkoutSessionId)}`);
 }
 
 /** Lists the promotion codes and coupons needed by the admin surface. */

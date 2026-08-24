@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Play, Pause, RotateCcw, X, Save, AlertTriangle, CheckCircle2, Activity } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreSixMinuteWalk } from "@/lib/clinical/scorers/coreA";
 
 export default function SixMinuteWalkRunner({ onSave, onClose }) {
   const [phase, setPhase] = useState('pre'); // pre, running, post, recovery
@@ -134,30 +135,17 @@ export default function SixMinuteWalkRunner({ onSave, onClose }) {
     if (terminationReason) soapText += `  Terminated: ${terminationReason}\n`;
     if (notes) soapText += `  Notes: ${notes}\n`;
 
-    onSave({
-      result_value: parseFloat(postTest.total_distance),
-      additional_data: {
-        soap_text: soapText,
-        sixmwt_pre_hr: parseFloat(preTest.hr) || null,
-        sixmwt_pre_bp_sys: parseFloat(preTest.bp_sys) || null,
-        sixmwt_pre_bp_dia: parseFloat(preTest.bp_dia) || null,
-        sixmwt_pre_spo2: parseFloat(preTest.spo2) || null,
-        sixmwt_pre_rpe: parseFloat(preTest.rpe) || null,
-        sixmwt_post_hr: parseFloat(postTest.hr) || null,
-        sixmwt_post_spo2: parseFloat(postTest.spo2) || null,
-        sixmwt_post_rpe: parseFloat(postTest.rpe) || null,
-        sixmwt_post_dyspnea: parseFloat(postTest.dyspnea) || null,
-        sixmwt_laps: parseFloat(duringTest.laps) || null,
-        sixmwt_rest_periods: duringTest.rests.length,
-        sixmwt_test_duration: timerSeconds,
-        sixmwt_terminated: terminationReason ? true : false,
-        sixmwt_termination_reason: terminationReason || null,
-        sixmwt_rests_detail: duringTest.rests,
-        measurement_type: '6mwt'
+    onSave(scoreSixMinuteWalk(
+      {
+        pre_test: preTest,
+        during_test: { ...duringTest, current_distance: duringTest.currentDistance },
+        post_test: postTest,
+        test_duration_seconds: timerSeconds,
+        termination_reason: terminationReason,
+        notes,
       },
-      notes: notes,
-      assessment_date: todayLocal()
-    });
+      { assessmentName: 'Six-Minute Walk Test', assessmentDate: todayLocal(), notes },
+    ));
   };
 
   const standardizedInstructions = `"You are now going to do a 6 minute walk test. The object of this test is to walk as far as you can for six minutes so that you cover as much ground as possible.

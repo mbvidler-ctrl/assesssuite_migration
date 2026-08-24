@@ -6,21 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_FGA_ITEMS as ITEMS, PROM_NEURO_FGA_SCORE_LABELS as SCORE_LABELS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const ITEMS = [
-  { id: "gait_level", label: "1. Gait on Level Surface" },
-  { id: "change_speed", label: "2. Change in Gait Speed" },
-  { id: "horizontal_head", label: "3. Gait with Horizontal Head Turns" },
-  { id: "vertical_head", label: "4. Gait with Vertical Head Turns" },
-  { id: "pivot_turn", label: "5. Gait and Pivot Turn" },
-  { id: "over_obstacle", label: "6. Step Over Obstacle" },
-  { id: "narrow_bos", label: "7. Gait with Narrow Base of Support" },
-  { id: "eyes_closed", label: "8. Gait with Eyes Closed" },
-  { id: "backwards", label: "9. Walking Backwards" },
-  { id: "stairs", label: "10. Steps" },
-];
 
-const SCORE_LABELS = ["0 — Severe impairment", "1 — Moderate impairment", "2 — Mild impairment", "3 — Normal"];
 
 function getInterpretation(score) {
   if (score >= 27) return { label: "Normal / Minimal Risk", color: "bg-green-100 text-green-800 border-green-300" };
@@ -40,7 +28,7 @@ export default function FunctionalGaitAssessmentFGARunner({ client, onSave, onCl
   const interp = allAnswered ? getInterpretation(total) : null;
 
   const handleSave = () => {
-    if (answered === 0) { toast.error("Please score at least one item before saving."); return; }
+    if (!allAnswered) { toast.error(`Please score all ${ITEMS.length} items before saving (${answered}/${ITEMS.length} completed).`); return; }
     const lines = ITEMS.map(it => `  ${it.label}: ${scores[it.id]}/3`).join("\n");
     const interpLabel = interp ? interp.label : "Partial assessment";
     const soap = `• Functional Gait Assessment (FGA)\n  Total Score: ${total}/30 — ${interpLabel}\n\n  Item Scores:\n${lines}${notes ? `\n\n  Notes: ${notes}` : ""}\n  Cutoff: <22/30 = fall risk in community-dwelling older adults\n  MCID: 4 points\n  Reference: Wrisley DM et al. (2004). Functional Gait Assessment: concurrent, discriminative, and predictive validity in community-dwelling older adults. Phys Ther, 84:906-918.`;
@@ -167,7 +155,7 @@ export default function FunctionalGaitAssessmentFGARunner({ client, onSave, onCl
           <span className="text-sm text-slate-500">{answered}/10 scored</span>
           <div className="flex gap-2">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} className="bg-indigo-600 hover:bg-indigo-700"><Save className="w-4 h-4 mr-2" />Save</Button>
+            <Button onClick={handleSave} disabled={!allAnswered} className="bg-indigo-600 hover:bg-indigo-700"><Save className="w-4 h-4 mr-2" />Save</Button>
           </div>
         </div>
       </div>

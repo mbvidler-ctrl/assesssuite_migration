@@ -13,7 +13,7 @@ import {
   Info, ExternalLink, Activity, AlertCircle, ChevronDown, ChevronRight, Wind
 } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreSgrq } from "@/lib/clinical/scorers/coreB";
 
 // ─── SGRQ Question Definitions ────────────────────────────────────────────────
 // Weights sourced from Jones PW (1991) original SGRQ manual
@@ -152,7 +152,7 @@ const IMPACT_MAX = IMPACT_ITEMS.reduce((s, i) => s + i.weight, 0);
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function SectionHeader({ icon: Icon, title, color = "slate", subtitle }) {
+function SectionHeader({ icon: Icon, title, color = "slate", subtitle = null }) {
   const bg = {
     slate: "bg-slate-700", blue: "bg-blue-700", green: "bg-green-700",
     purple: "bg-purple-700", amber: "bg-amber-600", red: "bg-red-600",
@@ -281,7 +281,9 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
   const totalAnswered = symptomsAnswered + activityAnswered + impactAnswered;
   const progressPct = Math.round((totalAnswered / totalItems) * 100);
 
-  const isComplete = symptomsScore !== null;
+  const isComplete = symptomsScore !== null
+    && activityAnswered === ACTIVITY_ITEMS.length
+    && impactAnswered === IMPACT_ITEMS.length;
 
   // ── Interpretation ────────────────────────────────────────────────────────
 
@@ -339,70 +341,15 @@ export default function StGeorgesRespiratoryQuestionnaireSGRQRunner({ client, on
     return f;
   }, [totalScore, activityScore, impactScore, symptomsScore, oxygenUse, exacerbations]);
 
-  // ── SOAP ──────────────────────────────────────────────────────────────────
-
-  const buildSOAP = () => {
-    const lines = [
-      `• St George's Respiratory Questionnaire (SGRQ)`,
-      ``,
-      `  Domain Scores:`,
-      `    Symptoms: ${symptomsScore !== null ? `${symptomsScore}/100 (${domainLabel(symptomsScore)})` : "Incomplete"}`,
-      `    Activity: ${activityScore !== null ? `${activityScore}/100 (${domainLabel(activityScore)})` : "Incomplete"}`,
-      `    Impact:   ${impactScore !== null ? `${impactScore}/100 (${domainLabel(impactScore)})` : "Incomplete"}`,
-      `    Total:    ${totalScore !== null ? `${totalScore}/100 (${domainLabel(totalScore)})` : "Incomplete"}`,
-      ``,
-      interpretation ? `  Interpretation: ${interpretation.level}` : null,
-      interpretation ? `  ${interpretation.narrative}` : null,
-      ``,
-      flags.length ? `  Clinical Flags:` : null,
-      ...flags.map(f => `    ⚑ ${f}`),
-      ``,
-      diagnosis ? `  Primary Diagnosis: ${diagnosis}` : null,
-      smokingStatus ? `  Smoking Status: ${smokingStatus}` : null,
-      oxygenUse !== null ? `  Oxygen Use: ${oxygenUse ? "Yes" : "No"}` : null,
-      exacerbations ? `  Exacerbations (last year): ${exacerbations}` : null,
-      ``,
-      notes ? `  Clinical Notes: ${notes}` : null,
-      ``,
-      `  References: Jones PW et al. (1991) Respir Med; MCID ≥4 points (Jones PW 2005 COPD J); Schäfer et al. Manual Therapy.`,
-    ].filter(v => v !== null).join('\n');
-    return lines;
-  };
-
   // ── Save ──────────────────────────────────────────────────────────────────
 
   const handleSave = () => {
-    if (!isComplete) {
-      toast.error("Complete all questionnaire domains before saving.");
-      return;
+    try {
+      onSave(scoreSgrq({ diagnosis, smoking_status: smokingStatus, oxygen_use: oxygenUse, exacerbations, rehab, admin_mode: adminMode, symptoms_responses: symptomsR, activity_responses: activityR, impact_responses: impactR, notes }, { assessmentName: "St George's Respiratory Questionnaire (SGRQ)", client }));
+      toast.success("SGRQ saved successfully.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save SGRQ assessment.');
     }
-    onSave({
-      status: "completed",
-      result_value: totalScore,
-      additional_data: {
-        measurement_type: "sgrq",
-        symptoms_score: symptomsScore,
-        activity_score: activityScore,
-        impact_score: impactScore,
-        total_score: totalScore,
-        symptoms_responses: symptomsR,
-        activity_responses: activityR,
-        impact_responses: impactR,
-        diagnosis,
-        smoking_status: smokingStatus,
-        oxygen_use: oxygenUse,
-        exacerbations,
-        rehab,
-        admin_mode: adminMode,
-        interpretation: interpretation?.level,
-        interpretation_narrative: interpretation?.narrative,
-        clinical_flags: flags,
-        soap_text: buildSOAP(),
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("SGRQ saved successfully.");
   };
 
   const handleReset = () => {

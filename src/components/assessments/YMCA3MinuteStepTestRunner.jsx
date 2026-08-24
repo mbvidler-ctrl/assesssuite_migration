@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Save, X, Play, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreYmcaThreeMinuteStep } from "@/lib/clinical/scorers/extrasPhysiological";
 
 // ─── FITNESS CLASSIFICATION (RECOVERY HR) ──────────────────────────────────
 const FITNESS_CATEGORIES = {
@@ -83,59 +84,21 @@ export default function YMCA3MinuteStepTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (!recoveryHR) {
-      toast.error("Please record recovery heart rate before saving.");
-      return;
-    }
-    const category = getCategory(recoveryHR, sex);
-    const soapText = `• Allied 3-Minute Step Recovery Test
-  Submaximal cardiovascular recovery and aerobic estimation assessment
-  
-  CLIENT DETAILS:
-  Age: ${age} | Sex: ${sex === "M" ? "Male" : "Female"}
-  
-  PROTOCOL:
-  Step Height: ${stepHeight} cm
-  Cadence Target: 96 bpm (24 steps/min — 4-count pattern: up-up-down-down)
-  Duration: 3 minutes continuous stepping
-  
-  VITAL SIGNS:
-  Resting HR: ${restingHR} bpm
-  Recovery HR (5–20 sec post): ${recoveryHR} bpm
-  ${rpe ? `RPE (Borg 0–10): ${rpe}` : ""}
-  
-  INTERPRETATION:
-  Fitness Category: ${category}
-  
-  CLINICAL NOTES:
-  Lower recovery heart rate indicates better cardiovascular efficiency and aerobic fitness.
-  Recovery HR of ${recoveryHR} bpm is classified as ${category} fitness for ${sex === "M" ? "male" : "female"} participants.
-  ${symptoms ? `Symptoms noted: ${symptoms}` : "No symptoms reported."}
-  
-  IP STATEMENT:
-  This assessment is an independently developed AssessSuite submaximal step recovery test.
-  It does not use YMCA branding, copyrighted materials, or proprietary scoring sheets.
-  The protocol is based on submaximal exercise physiology principles and recovery heart rate assessment.`;
-
-    onSave({
-      status: "completed",
-      result_value: parseInt(recoveryHR),
-      additional_data: {
-        soap_text: soapText,
-        measurement_type: "allied_step_recovery_test",
+    try {
+      onSave(scoreYmcaThreeMinuteStep({
         age,
         sex,
-        step_height_cm: parseInt(stepHeight),
-        resting_hr: parseInt(restingHR),
-        recovery_hr: parseInt(recoveryHR),
-        fitness_category: category,
-        rpe: rpe ? parseInt(rpe) : null,
+        step_height_cm: stepHeight,
+        resting_hr: restingHR,
+        recovery_hr: recoveryHR,
+        rpe,
         symptoms,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved.");
+        notes,
+      }, { assessmentDate: todayLocal(), assessmentName: 'YMCA 3-Minute Step Test' }));
+      toast.success("Assessment saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save assessment.");
+    }
   };
 
   const mins = Math.floor(timer / 60);

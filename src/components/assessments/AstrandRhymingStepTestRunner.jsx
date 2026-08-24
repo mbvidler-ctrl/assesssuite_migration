@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScoreAstrandStep } from "@/lib/clinical/scorers/residualAssessments";
 
 export default function AstrandRhymingStepTestRunner({ client, onSave, onClose }) {
   const [isRunning, setIsRunning] = useState(false);
@@ -56,38 +57,28 @@ export default function AstrandRhymingStepTestRunner({ client, onSave, onClose }
     setIsTestCompleted(true);
   };
 
-  const calculateVO2Max = (hr) => {
-    const stepHeight = gender === "male" ? 40 : 33;
-    const cadence = 22.5;
-    const stepHeightInMeters = stepHeight / 100;
-    const workRate = (stepHeightInMeters * 9.81 * cadence * 60) / 1000;
-    const vo2Max = (workRate + 0.326) / (0.769 * hr - 56.1) * 100;
-    return vo2Max;
-  };
-
   const handleSave = () => {
-    if (!postTestHeartRate) {
-      toast.error("Please record the post-test heart rate before saving.");
-      return;
+    try {
+      const payload = validateAndScoreAstrandStep({
+        sex: gender,
+        age,
+        weight_kg: weight,
+        height_cm: height,
+        elapsed_seconds: 300 - timeLeft,
+        heart_rate_during: heartRate,
+        post_test_heart_rate: postTestHeartRate,
+        notes,
+      }, {
+        assessmentName: "Åstrand-Rhyming Step Test",
+        assessmentDate: todayLocal(),
+        notes,
+        client,
+      });
+      onSave(payload);
+      toast.success("Test results saved successfully.");
+    } catch (error) {
+      toast.error(error?.message || "Unable to score the step test.");
     }
-    const vo2max = calculateVO2Max(Number(postTestHeartRate)).toFixed(1);
-    const resultValue = Number(vo2max);
-    const additionalData = {
-      soap_text: `• Åstrand-Rhyming Step Test\n  Estimated VO2max: ${vo2max} mL/kg/min\n  Post-test HR: ${postTestHeartRate} bpm`,
-      measurement_type: "astrand_rhyming_step_test",
-      heart_rate: heartRate,
-      post_test_heart_rate: postTestHeartRate,
-      vo2max,
-      notes,
-    };
-    onSave({
-      status: "completed",
-      result_value: resultValue,
-      additional_data: additionalData,
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Test results saved successfully.");
   };
 
   return (
@@ -103,20 +94,10 @@ export default function AstrandRhymingStepTestRunner({ client, onSave, onClose }
             <p><strong>Note:</strong> Age-correction factor should be applied to the Åstrand nomogram result. The formula in this runner uses a simplified estimation.</p>
           </div>
 
-          {/* Norms */}
+          {/* Result contract */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">📊 VO2max Norms (ml/kg/min) — ACSM Classification</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs border border-slate-300 rounded">
-                <thead className="bg-slate-200"><tr><th className="p-2 text-left">Category</th><th className="p-2 text-center">Men 20–39</th><th className="p-2 text-center">Men 40–59</th><th className="p-2 text-center">Women 20–39</th><th className="p-2 text-center">Women 40–59</th></tr></thead>
-                <tbody>
-                  <tr className="border-t"><td className="p-2">Excellent</td><td className="p-2 text-center">≥52</td><td className="p-2 text-center">≥45</td><td className="p-2 text-center">≥41</td><td className="p-2 text-center">≥35</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">Good</td><td className="p-2 text-center">43–51</td><td className="p-2 text-center">38–44</td><td className="p-2 text-center">35–40</td><td className="p-2 text-center">29–34</td></tr>
-                  <tr className="border-t"><td className="p-2">Fair</td><td className="p-2 text-center">34–42</td><td className="p-2 text-center">30–37</td><td className="p-2 text-center">27–34</td><td className="p-2 text-center">23–28</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">Poor</td><td className="p-2 text-center">≤33</td><td className="p-2 text-center">≤29</td><td className="p-2 text-center">≤26</td><td className="p-2 text-center">≤22</td></tr>
-                </tbody>
-              </table>
-            </div>
+            <p className="font-semibold text-slate-700">Recorded result</p>
+            <p>The canonical result is the immediate post-test heart rate together with the exact step height, cadence and elapsed duration. This runner does not calculate a VO₂max from an unvalidated shortcut equation.</p>
           </div>
 
           {/* Reference */}

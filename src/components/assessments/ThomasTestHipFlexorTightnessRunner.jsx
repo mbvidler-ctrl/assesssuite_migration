@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, ChevronDown, ChevronUp, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -412,39 +413,21 @@ export default function ThomasTestHipFlexorTightnessRunner({ client, onSave, onC
   };
 
   const handleSave = () => {
-    if (!allChecked) { toast.error("Please confirm all setup checklist items before saving."); return; }
-
-    const primaryData = testMode === "left" ? sides.left : sides.right;
-    const hip = parseFloat(primaryData.hipAngle) || 0;
-
-    const recs = buildRecommendations(primaryData);
-    const redFlags = buildRedFlags(primaryData);
-
-    const soapLines = [
-      `• Thomas Test (Hip Flexor Tightness Assessment)`,
-      `  Sides Tested: ${testMode === "bilateral" ? "Bilateral" : testMode === "right" ? "Right" : "Left"}`,
-      (testMode === "bilateral" || testMode === "right") ? buildSoapForSide("Right", sides.right) : "",
-      (testMode === "bilateral" || testMode === "left") ? buildSoapForSide("Left", sides.left) : "",
-      redFlags.length > 0 ? `  ⚠ Red Flags: ${redFlags.join("; ")}` : "",
-      `  Clinical Recommendations: ${recs.slice(0, 3).join(" | ")}`,
-      notes ? `  Notes: ${notes}` : "",
-      `  Reference: Harvey (1998); Clapis et al. (2008); Peeler & Anderson (2008)`,
-    ].filter(Boolean).join("\n");
-
-    onSave({
-      result_value: hip,
-      notes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: soapLines,
-        test_mode: testMode,
-        right: sides.right,
-        left: sides.left,
-        setup_confirmed: allChecked,
-        overall_result: overallResult(primaryData),
-      }
-    });
-    toast.success("Thomas Test saved.");
+    try {
+      onSave(validateFunctionalOrtho(
+        {
+          setupConfirmed: allChecked,
+          testMode,
+          right: sides.right,
+          left: sides.left,
+          notes,
+        },
+        { runnerKey: "thomas_test", assessmentDate: todayLocal() },
+      ));
+      toast.success("Thomas Test saved.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

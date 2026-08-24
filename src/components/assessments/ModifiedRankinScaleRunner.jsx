@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { X, Save, Info, CheckCircle2, ChevronDown, AlertTriangle, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 // ─── Grade definitions ────────────────────────────────────────────────────────
 const MRS_GRADES = [
@@ -113,6 +114,7 @@ function YNUToggle({ value, onChange }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
+  /** @type {[Record<string, string>, React.Dispatch<React.SetStateAction<Record<string, string>>>]} */
   const [interview, setInterview]       = useState({});
   const [observations, setObservations] = useState([]);
   const [context, setContext]           = useState({ diagnosis: "", eventDate: "", affectedSide: "", livingSituation: "", supports: "", previousScore: "", previousScoreDate: "" });
@@ -140,69 +142,37 @@ export default function ModifiedRankinScaleRunner({ client, onSave, onClose }) {
   const reportText = selectedGradeInfo ? (() => {
     const walkStr = interview.walk_independently === "yes" ? "walks independently"
       : interview.walk_independently === "no" ? "does not walk independently" : "walking status unclear";
-    const careStr = (interview.needs_bathing_help === "yes" || interview.needs_dressing_help === "yes" || interview.needs_toileting_help === "yes")
-      ? "requires personal care assistance" : "is independent in personal care";
-    const supStr = interview.needs_supervision === "yes" ? "requires supervision for safety" : "does not require supervision";
+    const careAnswers = [interview.needs_bathing_help, interview.needs_dressing_help, interview.needs_toileting_help];
+    const careStr = careAnswers.some(answer => answer === "yes")
+      ? "requires personal care assistance"
+      : careAnswers.every(answer => answer === "no")
+        ? "is independent in personal care"
+        : "personal care status is unclear";
+    const supStr = interview.needs_supervision === "yes"
+      ? "requires supervision for safety"
+      : interview.needs_supervision === "no"
+        ? "does not require supervision"
+        : "supervision requirements are unclear";
     return `Modified Rankin Scale score: ${selectedScore}/6. This indicates ${selectedGradeInfo.label.toLowerCase()}. The client ${walkStr}, ${careStr}, and ${supStr}. Clinical reasoning: ${clinicalReasoning || "(not provided)"}`;
   })() : "";
 
   // ─── Save ──────────────────────────────────────────────────────────────────
   const handleSave = () => {
-    if (selectedScore === null) { toast.error("Please select a final disability grade."); return; }
-    if (!clinicalReasoning.trim()) { toast.error("Clinical reasoning is required before saving."); return; }
-
-    const interviewSummary = INTERVIEW_QUESTIONS
-      .filter(q => interview[q.id])
-      .map(q => `    ${q.label}: ${interview[q.id]}`)
-      .join("\n");
-
-    const obsSummary = observations.length ? observations.map(o => `    ✓ ${o}`).join("\n") : "    None recorded";
-
-    const soapText = [
-      `• Modified Rankin Scale (mRS): Grade ${selectedScore}/6 — ${selectedGradeInfo.label}`,
-      `  ${selectedGradeInfo.description}`,
-      suggestedGrade !== null ? `  Suggested Grade (logic): ${suggestedGrade} — clinician confirmed: ${selectedScore}` : null,
-      scoreChange !== null ? `  Change from previous score (${prevScore}): ${scoreChange > 0 ? "+" : ""}${scoreChange} grade(s) — ${changeLabel}` : null,
-      ``,
-      `  Structured Interview:`,
-      interviewSummary || "    Not completed",
-      ``,
-      `  Observations:`,
-      obsSummary,
-      context.diagnosis ? `  Primary diagnosis: ${context.diagnosis}` : null,
-      context.eventDate ? `  Event date: ${context.eventDate}` : null,
-      context.affectedSide ? `  Affected side: ${context.affectedSide}` : null,
-      context.livingSituation ? `  Living situation: ${context.livingSituation}` : null,
-      context.supports ? `  Supports/carers: ${context.supports}` : null,
-      riskFlags.length ? `\n  Risk Flags:\n${riskFlags.map(f => `    ${f}`).join("\n")}` : null,
-      ``,
-      `  Clinical reasoning: ${clinicalReasoning}`,
-      ``,
-      `  Report: ${reportText}`,
-    ].filter(l => l !== null).join("\n");
-
-    onSave({
-      result_value: selectedScore,
-      additional_data: {
-        soap_text: soapText,
-        grade: selectedScore,
-        label: selectedGradeInfo.label,
-        suggested_grade: suggestedGrade,
-        previous_score: prevScore,
-        score_change: scoreChange,
-        change_label: changeLabel,
-        interview_responses: interview,
-        observations,
-        clinical_context: context,
-        clinical_reasoning: clinicalReasoning,
-        risk_flags: riskFlags,
-        report_text: reportText,
-        measurement_type: "modified_rankin",
-      },
-      notes: clinicalReasoning,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Modified Rankin Scale saved.");
+    try {
+      onSave(validateFunctionalOrtho(
+        {
+          selectedScore,
+          clinicalReasoning,
+          interview,
+          observations,
+          clinicalContext: context,
+        },
+        { runnerKey: "modified_rankin", assessmentDate: todayLocal() },
+      ));
+      toast.success("Modified Rankin Scale saved.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

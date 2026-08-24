@@ -6,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ClipboardList, CheckCircle2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { hasAssessmentResultValue } from "../assessmentResultValue";
 
 export default function SelectAssessments({ assessments, selectedIds, onChange, isLoading }) {
   const handleToggle = (id) => {
@@ -24,7 +25,7 @@ export default function SelectAssessments({ assessments, selectedIds, onChange, 
     }
   };
 
-  const sorted = [...assessments].sort((a, b) => new Date(b.assessment_date) - new Date(a.assessment_date));
+  const sorted = [...assessments].sort((a, b) => new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime());
 
   return (
     <div className="space-y-4 pt-2">
@@ -62,7 +63,7 @@ export default function SelectAssessments({ assessments, selectedIds, onChange, 
             {sorted.map(assessment => {
               const additional = assessment.additional_data || {};
               const hasSoapText = !!additional.soap_text;
-              const hasResult = !!assessment.result_value;
+              const hasResult = hasAssessmentResultValue(assessment.result_value);
               const isSelected = selectedIds.includes(assessment.id);
               return (
                 <div

@@ -7,70 +7,9 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Save, X, RotateCcw, ChevronDown, ChevronRight, AlertTriangle, CheckCircle2, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_SARC_F_QUESTIONS as QUESTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 // ─── Question Definitions ────────────────────────────────────────────────────
-const QUESTIONS = [
-  {
-    id: 1,
-    domain: "Strength",
-    icon: "💪",
-    script: "How much difficulty do you have lifting and carrying 10 pounds (approximately 4.5 kg)?",
-    example: "e.g. a heavy shopping bag or a gallon of milk",
-    options: [
-      { value: 0, label: "None" },
-      { value: 1, label: "Some difficulty" },
-      { value: 2, label: "A lot of difficulty or unable" },
-    ],
-  },
-  {
-    id: 2,
-    domain: "Assistance Walking",
-    icon: "🚶",
-    script: "How much difficulty do you have walking across a room?",
-    example: "e.g. walking from one side of a room to the other without stopping",
-    options: [
-      { value: 0, label: "None" },
-      { value: 1, label: "Some difficulty" },
-      { value: 2, label: "A lot of difficulty, use aids, or unable" },
-    ],
-  },
-  {
-    id: 3,
-    domain: "Rise from Chair",
-    icon: "🪑",
-    script: "How much difficulty do you have transferring from a chair or bed?",
-    example: "e.g. rising from a chair without using the armrests",
-    options: [
-      { value: 0, label: "None" },
-      { value: 1, label: "Some difficulty" },
-      { value: 2, label: "A lot of difficulty or requires assistance" },
-    ],
-  },
-  {
-    id: 4,
-    domain: "Climb Stairs",
-    icon: "🪜",
-    script: "How much difficulty do you have climbing a flight of 10 stairs?",
-    example: "e.g. climbing one full flight of stairs indoors",
-    options: [
-      { value: 0, label: "None" },
-      { value: 1, label: "Some difficulty" },
-      { value: 2, label: "A lot of difficulty or unable" },
-    ],
-  },
-  {
-    id: 5,
-    domain: "Falls",
-    icon: "⚠",
-    script: "How many times have you fallen in the last year?",
-    example: "Include any unplanned descent to the ground, regardless of injury",
-    options: [
-      { value: 0, label: "None" },
-      { value: 1, label: "1–3 falls" },
-      { value: 2, label: "4 or more falls" },
-    ],
-  },
-];
 
 // ─── Scoring Helpers ──────────────────────────────────────────────────────────
 function getRiskLevel(score) {
@@ -131,7 +70,7 @@ function getSuggestedTests(total) {
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
-function Section({ title, defaultOpen = false, children, badge }) {
+function Section({ title, defaultOpen = false, children, badge = null }) {
   const [open, setOpen] = useState(defaultOpen);
   return (
     <Collapsible open={open} onOpenChange={setOpen}>

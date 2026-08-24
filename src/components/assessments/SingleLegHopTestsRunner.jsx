@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreSingleLegHop } from "@/lib/clinical/scorers/coreA";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -47,7 +48,7 @@ const lsiColor = (lsi) => {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function SectionHeader({ icon: Icon, title, color = "slate", subtitle }) {
+function SectionHeader({ icon: Icon, title, color = "slate", subtitle = "" }) {
   const bg = {
     slate: "bg-slate-700", blue: "bg-blue-700", green: "bg-green-700",
     purple: "bg-purple-700", amber: "bg-amber-600", red: "bg-red-600",
@@ -105,7 +106,7 @@ function LSIPill({ lsi, label }) {
 
 // ─── Hop Test Panel (bilateral entry) ─────────────────────────────────────────
 
-function HopTestPanel({ title, subtitle, unit = "cm", trialsPerSide = 3, isTimed = false,
+function HopTestPanel({ title, subtitle = "", unit = "cm", trialsPerSide = 3, isTimed = false,
   leftTrials, setLeftTrials, rightTrials, setRightTrials,
   leftObs, setLeftObs, rightObs, setRightObs, injuredSide, lsi }) {
 
@@ -410,29 +411,27 @@ export default function SingleLegHopTestsRunner({ client, onSave, onClose }) {
       toast.error("Complete bilateral testing (at least one test with both legs) before saving.");
       return;
     }
-    onSave({
-      status: "completed",
-      result_value: meanLSI ? parseFloat(meanLSI) : null,
-      additional_data: {
-        measurement_type: "single_leg_hop",
+    onSave(scoreSingleLegHop(
+      {
         injured_side: injuredSide,
         dominant_side: dominantSide,
-        single_hop: { left_best: singleBestLeft, right_best: singleBestRight, lsi: singleLSI, left_obs: singleLeftObs, right_obs: singleRightObs },
-        triple_hop: { left_best: tripleBestLeft, right_best: tripleBestRight, lsi: tripleLSI },
-        crossover_hop: { left_best: crossBestLeft, right_best: crossBestRight, lsi: crossLSI },
-        timed_hop: { left_best: timedBestLeft, right_best: timedBestRight, lsi: timedLSI },
-        mean_lsi: parseFloat(meanLSI) || null,
-        interpretation: interpretation?.level,
-        interpretation_narrative: interpretation?.narrative,
-        clinical_flags: flags,
+        enabled_tests: enabledTests,
+        single_left: singleLeft,
+        single_right: singleRight,
+        triple_left: tripleLeft,
+        triple_right: tripleRight,
+        crossover_left: crossLeft,
+        crossover_right: crossRight,
+        timed_left: timedLeft,
+        timed_right: timedRight,
+        brace_used: braceUsed,
         baseline_pain: baselinePain,
         confidence_level: confidenceLevel,
-        brace_used: braceUsed,
-        soap_text: buildSOAP(),
+        fatigue,
+        notes,
       },
-      notes,
-      assessment_date: todayLocal(),
-    });
+      { assessmentName: 'Single Leg Hop Test Battery', assessmentDate: todayLocal(), notes, client },
+    ));
     toast.success("Single Leg Hop Tests saved.");
   };
 

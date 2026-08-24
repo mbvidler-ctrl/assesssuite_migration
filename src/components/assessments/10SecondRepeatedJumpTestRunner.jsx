@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Timer, Trash2, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 export default function TenSecondRepeatedJumpTestRunner({ client, onSave, onClose }) {
   const [testRunning, setTestRunning] = useState(false);
@@ -100,49 +101,12 @@ export default function TenSecondRepeatedJumpTestRunner({ client, onSave, onClos
   };
 
   const handleSave = () => {
-    if (validJumps.length === 0) {
-      toast.error("Please complete at least one full jump (flight + contact time).");
-      return;
+    try {
+      onSave(validateMobilityOrtho({ jumps: validJumps, notes }, { runnerKey: '10sec_jump', assessmentDate }));
+      toast.success("Test data saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-    const jumpHeights = validJumps.map(j => j.jump_height_cm).filter(h => h !== null && h !== undefined);
-    const avgFlightTime = validJumps.reduce((sum, j) => sum + j.flight_time_ms, 0) / validJumps.length;
-    const avgContactTime = validJumps.reduce((sum, j) => sum + j.contact_time_ms, 0) / validJumps.length;
-    const rsiValues = validJumps.map(j => j.flight_time_ms / j.contact_time_ms);
-    const bestRSI = Math.max(...rsiValues);
-    const avgRSI = rsiValues.reduce((sum, r) => sum + r, 0) / rsiValues.length;
-    let fatigueIndex = null;
-    if (jumpHeights.length > 1) {
-      const highestJump = Math.max(...jumpHeights);
-      const lowestJump = Math.min(...jumpHeights);
-      fatigueIndex = ((highestJump - lowestJump) / highestJump) * 100;
-    }
-
-    const jumpLines = validJumps.map((j, i) => {
-      const rsi = (j.flight_time_ms / j.contact_time_ms).toFixed(3);
-      return `    Jump ${i + 1}: Flight=${j.flight_time_ms}ms, Contact=${j.contact_time_ms}ms, RSI=${rsi}${j.jump_height_cm ? `, Height=${j.jump_height_cm}cm` : ''}`;
-    }).join('\n');
-
-    const soapText = `• 10-Second Repeated Jump Test\n  Total Valid Jumps: ${validJumps.length} | Best RSI: ${bestRSI.toFixed(3)} | Average RSI: ${avgRSI.toFixed(3)}\n  Avg Flight Time: ${Math.round(avgFlightTime)} ms | Avg Contact Time: ${Math.round(avgContactTime)} ms${fatigueIndex !== null ? ` | Fatigue Index: ${fatigueIndex.toFixed(1)}%` : ''}\n\n  Individual Jump Data:\n${jumpLines}${notes ? `\n\n  Clinical Notes: ${notes}` : ''}`;
-
-    onSave({
-      status: "completed",
-      result_value: parseFloat(bestRSI.toFixed(3)),
-      additional_data: {
-        soap_text: soapText,
-        measurement_type: "10_second_repeated_jump",
-        total_jumps: validJumps.length,
-        jumps: validJumps,
-        average_flight_time_ms: Math.round(avgFlightTime),
-        average_contact_time_ms: Math.round(avgContactTime),
-        best_rsi: parseFloat(bestRSI.toFixed(3)),
-        average_rsi: parseFloat(avgRSI.toFixed(3)),
-        jump_heights_cm: jumpHeights.length > 0 ? jumpHeights : null,
-        fatigue_index: fatigueIndex !== null ? parseFloat(fatigueIndex.toFixed(1)) : null,
-      },
-      notes,
-      assessment_date: assessmentDate,
-    });
-    toast.success("Test data saved successfully.");
   };
 
   return (

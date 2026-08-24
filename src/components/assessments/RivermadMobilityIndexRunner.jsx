@@ -9,24 +9,8 @@ import { toast } from "sonner";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_RIVERMEAD_RMI_TASKS as RMI_TASKS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const RMI_TASKS = [
-  { id: 1, name: "Turning in Bed", description: "Can client turn in bed unaided?" },
-  { id: 2, name: "Lying to Sitting", description: "Can client lie to sitting unaided?" },
-  { id: 3, name: "Sitting Balance (Unsupported)", description: "Can client sit unsupported for 5 seconds?" },
-  { id: 4, name: "Sitting to Standing", description: "Can client sit to stand unaided?" },
-  { id: 5, name: "Standing Balance (Unsupported)", description: "Can client stand unsupported for 5 seconds?" },
-  { id: 6, name: "Standing Balance (Eyes Closed)", description: "Can client stand with eyes closed for 3 seconds?" },
-  { id: 7, name: "Standing to Sitting", description: "Can client stand to sit safely?" },
-  { id: 8, name: "Transfer: Bed to Chair", description: "Can client transfer from bed to chair?" },
-  { id: 9, name: "Transfer: Chair to Toilet", description: "Can client transfer to toilet?" },
-  { id: 10, name: "Walking (Indoors) on Level Surface", description: "Can client walk 10m on level surface?" },
-  { id: 11, name: "Walking (Outdoors) on Level Surface", description: "Can client walk outdoors?" },
-  { id: 12, name: "Walking Up Stairs", description: "Can client walk up stairs?" },
-  { id: 13, name: "Walking Down Stairs", description: "Can client walk down stairs?" },
-  { id: 14, name: "Walking (Carpet or Uneven)", description: "Can client walk on carpet/uneven surfaces?" },
-  { id: 15, name: "Walking (Outdoor Terrain)", description: "Can client walk on outdoor terrain?" },
-];
 
 export default function RivermadMobilityIndexRunner({ client, onSave, onClose }) {
   const [taskScores, setTaskScores] = useState({});

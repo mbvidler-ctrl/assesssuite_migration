@@ -30,7 +30,7 @@ export default function LegalNotices() {
   const [audience, setAudience] = useState(null);
   const [audiences, setAudiences] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}));
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -73,6 +73,7 @@ export default function LegalNotices() {
   };
 
   const handleContinue = async () => {
+    /** @type {Record<string, string>} */
     const newErrors = {};
     if (!consent.accepted) newErrors.accepted = "Required to continue";
     if (!audience?.orgId) newErrors.context = "Practice context is unavailable";

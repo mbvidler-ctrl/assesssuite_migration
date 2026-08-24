@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Save, X, Play, Square, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 // GST: patient places as many tins as possible on overhead shelf in 30s
 // Normative data varies; primary measure is number of tins placed (reps)
@@ -50,12 +51,14 @@ export default function GroceryShelvingTestGSTRunner({ client, onSave, onClose }
   const pct = Math.min((elapsed / DURATION) * 100, 100);
 
   const handleSave = () => {
-    const r = parseInt(reps);
-    if (!reps || isNaN(r) || r < 0) { toast.error("Enter repetitions completed"); return; }
-    let interp = r >= 18 ? "Excellent" : r >= 14 ? "Good" : r >= 10 ? "Average" : "Below Average";
-    const soap = `• Grocery Shelving Test (GST)\n  Items Placed: ${r} in 30s — ${interp}\n  Side: ${side} | Weight: ${weight}\n  The GST evaluates functional upper limb endurance and overhead task performance.\n  Reference: Conditioning for a 30s overhead shelf-stacking task (upper limb functional endurance). ${notes ? `\n  Notes: ${notes}` : ""}`;
-    onSave({ status: "completed", result_value: r, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "performance_timed", repetitions: r, duration_s: DURATION, side, weight, classification: interp } });
-    toast.success("GST saved.");
+    try {
+      onSave(validateFunctionalOrtho({ reps, side, weight, notes }, {
+        runnerKey: 'gst', assessmentDate: todayLocal(),
+      }));
+      toast.success("GST saved.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

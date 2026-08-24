@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreSkinfold } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 export default function BodyFatPercentageSkinfoldsRunner({ client, onSave, onClose }) {
   const [measurements, setMeasurements] = useState({
@@ -44,63 +44,12 @@ export default function BodyFatPercentageSkinfoldsRunner({ client, onSave, onClo
   };
 
   const handleSave = () => {
-    const { biceps, triceps, subscapular, suprailiac, chest, midaxillary, abdominal, thigh } = measurements;
-    const skinfolds = [biceps, triceps, subscapular, suprailiac, chest, midaxillary, abdominal, thigh].map(Number);
-    const validMeasurements = skinfolds.filter((value) => !isNaN(value) && value > 0);
-
-    if (validMeasurements.length < 4) {
-      toast.error("Please provide at least four valid skinfold measurements.");
-      return;
+    try {
+      onSave(scoreSkinfold({ measurements, age, sex, notes }, { assessmentName: "Body Fat Percentage (Skinfolds)", client }));
+      toast.success("Assessment saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const sumOfSkinfolds = validMeasurements.reduce((acc, val) => acc + val, 0);
-    let bodyDensity;
-    let bodyFatPercentage;
-
-    if (sex === "male") {
-      if (validMeasurements.length === 4) {
-        bodyDensity = 1.10938 - 0.0008267 * sumOfSkinfolds + 0.0000016 * sumOfSkinfolds ** 2 - 0.0002574 * age;
-      } else if (validMeasurements.length === 7) {
-        bodyDensity = 1.112 - 0.00043499 * sumOfSkinfolds + 0.00000055 * sumOfSkinfolds ** 2 - 0.00028826 * age;
-      } else {
-        toast.error("Invalid number of measurements for male.");
-        return;
-      }
-    } else if (sex === "female") {
-      if (validMeasurements.length === 4) {
-        bodyDensity = 1.0994921 - 0.0009929 * sumOfSkinfolds + 0.0000023 * sumOfSkinfolds ** 2 - 0.0001392 * age;
-      } else if (validMeasurements.length === 7) {
-        bodyDensity = 1.097 - 0.00046971 * sumOfSkinfolds + 0.00000056 * sumOfSkinfolds ** 2 - 0.00012828 * age;
-      } else {
-        toast.error("Invalid number of measurements for female.");
-        return;
-      }
-    } else {
-      toast.error("Invalid sex.");
-      return;
-    }
-
-    bodyFatPercentage = (495 / bodyDensity) - 450;
-
-    const result_value = bodyFatPercentage.toFixed(2);
-    const additional_data = {
-      soap_text: `• Body Fat Percentage (Skinfolds)\n  Result: ${result_value}%\n  Sum of Skinfolds: ${sumOfSkinfolds} mm\n  Body Density: ${bodyDensity.toFixed(4)}\n  Age: ${age} | Sex: ${sex}`,
-      measurement_type: "skinfold",
-      measurements: validMeasurements,
-      sum_of_skinfolds: sumOfSkinfolds,
-      body_density: bodyDensity.toFixed(4),
-      body_fat_percentage: result_value,
-    };
-
-    onSave({
-      status: "completed",
-      result_value,
-      additional_data,
-      notes,
-      assessment_date: todayLocal(),
-    });
-
-    toast.success("Assessment saved successfully.");
   };
 
   return (

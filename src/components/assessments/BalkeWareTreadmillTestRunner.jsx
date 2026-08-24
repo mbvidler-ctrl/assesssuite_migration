@@ -6,6 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Play, StopCircle, Info } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
+import { toast } from "sonner";
+import { scoreBalke } from "@/lib/clinical/scorers/extrasPhysiological";
 
 // Balke-Ware stages: constant speed 3.3 mph, grade increases 1% per minute
 const generateStages = () => {
@@ -34,7 +36,7 @@ function estimateVO2max(timeMins, sex) {
 
 export default function BalkeWareTreadmillTestRunner({ client, onSave, onClose }) {
   const clientAge = client?.date_of_birth
-    ? Math.floor((new Date() - new Date(client.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
+    ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
     : null;
   const agePredictedHRmax = clientAge ? 220 - clientAge : null;
 
@@ -77,50 +79,21 @@ export default function BalkeWareTreadmillTestRunner({ client, onSave, onClose }
   const vo2max = estimateVO2max(testFinished ? totalTimeMins : null, sex);
 
   const handleSave = () => {
-    const timeMins = parseFloat((totalSeconds / 60).toFixed(2));
-    
-    // Build comprehensive SOAP text
-    let soapText = `• Balke-Ware Treadmill Test: ${timeMins} minutes (${formatTime(totalSeconds)})\n`;
-    if (clientAge) soapText += `  Client Age: ${clientAge} yrs | Age-predicted HRmax: ${agePredictedHRmax} bpm\n`;
-    if (preHR || preBP) soapText += `  Pre-test: HR ${preHR || '—'} bpm, BP ${preBP || '—'}${preRPE ? `, RPE ${preRPE}/20` : ''}\n`;
-    if (weight) soapText += `  Body Weight: ${weight} kg\n`;
-    if (vo2max) soapText += `  Estimated VO2max: ${vo2max} ml/kg/min (${sex})\n`;
-    soapText += `  Protocol: 3.3 mph, +1% grade/min, last grade ${Math.min(Math.floor(timeMins), 25)}%\n`;
-    if (peakRPE) soapText += `  Peak RPE: ${peakRPE}/20\n`;
-    if (endReason) soapText += `  Test Stopped: ${endReason}\n`;
-    const hrEntries = Object.entries(stageHRs).filter(([, v]) => v);
-    if (hrEntries.length > 0) {
-      soapText += `  Heart Rate Log:\n`;
-      hrEntries.forEach(([min, hr]) => {
-        soapText += `    Min ${min} (${min}% grade): ${hr} bpm\n`;
-      });
-    }
-    if (notes) soapText += `  Clinical Notes: ${notes}\n`;
-
-    onSave({
-      result_value: timeMins,
-      additional_data: {
-        soap_text: soapText,
-        total_time_minutes: timeMins,
-        total_time_formatted: formatTime(totalSeconds),
+    try {
+      onSave(scoreBalke({
+        total_seconds: totalSeconds,
         sex,
         client_age: clientAge,
-        age_predicted_hrmax: agePredictedHRmax,
-        pre_test_hr: preHR ? parseInt(preHR) : null,
-        pre_test_bp: preBP || null,
-        pre_test_rpe: preRPE ? parseInt(preRPE) : null,
-        body_weight_kg: weight ? parseFloat(weight) : null,
-        estimated_vo2max: vo2max ? parseFloat(vo2max) : null,
-        peak_rpe: peakRPE ? parseInt(peakRPE) : null,
+        pre_test: { heart_rate: preHR, blood_pressure: preBP, rpe: preRPE },
+        body_weight_kg: weight,
+        peak_rpe: peakRPE,
         end_reason: endReason,
         stage_heart_rates: stageHRs,
-        last_stage_completed: Math.floor(timeMins),
-        last_grade_pct: Math.min(Math.floor(timeMins), 25),
-        measurement_type: 'balke_ware'
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
+        notes,
+      }, { assessmentDate: todayLocal(), assessmentName: 'Balke-Ware Treadmill Test', client }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save Balke-Ware test.");
+    }
   };
 
   return (

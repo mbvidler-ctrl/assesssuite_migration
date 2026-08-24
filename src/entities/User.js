@@ -4,19 +4,19 @@ import { base44 } from '@/api/base44Client';
 // (delegating to base44.entities.User) with the auth-scoped current-user
 // helpers historically imported from this path.
 export const User = {
-  list: (...args) => base44.entities.User.list(...args),
-  filter: (...args) => base44.entities.User.filter(...args),
-  get: (...args) => base44.entities.User.get(...args),
-  create: (...args) => base44.entities.User.create(...args),
-  update: (...args) => base44.entities.User.update(...args),
-  delete: (...args) => base44.entities.User.delete(...args),
-  bulkCreate: (...args) => base44.entities.User.bulkCreate(...args),
+  list: (sort, limit, skip, fields) => base44.entities.User.list(sort, limit, skip, fields),
+  filter: (query, sort, limit, skip, fields) => base44.entities.User.filter(query, sort, limit, skip, fields),
+  get: (id) => base44.entities.User.get(id),
+  create: (data) => base44.entities.User.create(data),
+  update: (id, data) => base44.entities.User.update(id, data),
+  delete: (id) => base44.entities.User.delete(id),
+  bulkCreate: (data) => base44.entities.User.bulkCreate(data),
 
-  me: (...args) => base44.auth.me(...args),
-  updateMe: (...args) => base44.auth.updateMe(...args),
+  me: () => base44.auth.me(),
+  updateMe: (data) => base44.auth.updateMe(data),
   // Alias retained for the legacy call site in src/pages/MyProfile.jsx:226.
-  updateMyUserData: (...args) => base44.auth.updateMe(...args),
-  logout: (...args) => base44.auth.logout(...args),
+  updateMyUserData: (data) => base44.auth.updateMe(data),
+  logout: (redirectUrl) => base44.auth.logout(redirectUrl),
 };
 
 export default User;

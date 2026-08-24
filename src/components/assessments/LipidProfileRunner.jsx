@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreLipidProfile } from "@/lib/clinical/scorers/coreB";
 
 export default function LipidProfileRunner({ client, onSave, onClose }) {
   const [totalCholesterol, setTotalCholesterol] = useState("");
@@ -61,45 +61,13 @@ export default function LipidProfileRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    const tcValue = parseFloat(totalCholesterol);
-    const ldlValue = parseFloat(ldl);
-    const hdlValue = parseFloat(hdl);
-    const trigValue = parseFloat(triglycerides);
-
-    if (!totalCholesterol || isNaN(tcValue)) {
-      toast.error("Please enter total cholesterol value");
-      return;
+    try {
+      onSave(scoreLipidProfile({ unit, total_cholesterol: totalCholesterol, ldl, hdl, triglycerides, notes }, { assessmentName: 'Lipid Profile', client }));
+      toast.success("Assessment saved successfully.");
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save lipid profile.');
     }
-
-    // Build SOAP text
-    let soapText = `• Lipid Profile (${unit === "mgdl" ? "USA/mg/dL" : "Australian/mmol/L"}):\n`;
-    soapText += `  Total Cholesterol: ${tcValue} ${unit === "mgdl" ? "mg/dL" : "mmol/L"} (${convertValue(tcValue, unit, unit === "mgdl" ? "mmol" : "mgdl")} ${unit === "mgdl" ? "mmol/L" : "mg/dL"}) - ${getCholesterolCategory(tcValue, unit).label}\n`;
-    if (ldlValue) soapText += `  LDL Cholesterol: ${ldlValue} ${unit === "mgdl" ? "mg/dL" : "mmol/L"} (${convertValue(ldlValue, unit, unit === "mgdl" ? "mmol" : "mgdl")} ${unit === "mgdl" ? "mmol/L" : "mg/dL"}) - ${getLDLCategory(ldlValue, unit).label}\n`;
-    if (hdlValue) soapText += `  HDL Cholesterol: ${hdlValue} ${unit === "mgdl" ? "mg/dL" : "mmol/L"} (${convertValue(hdlValue, unit, unit === "mgdl" ? "mmol" : "mgdl")} ${unit === "mgdl" ? "mmol/L" : "mg/dL"}) - ${getHDLCategory(hdlValue, unit).label}\n`;
-    if (trigValue) soapText += `  Triglycerides: ${trigValue} ${unit === "mgdl" ? "mg/dL" : "mmol/L"} (${convertValue(trigValue, unit, unit === "mgdl" ? "mmol" : "mgdl")} ${unit === "mgdl" ? "mmol/L" : "mg/dL"}) - ${getTriglyceridesCategory(trigValue, unit).label}\n`;
-    if (notes.trim()) soapText += `  Clinical Notes: ${notes}`;
-
-    onSave({
-      status: "completed",
-      result_value: tcValue,
-      additional_data: {
-        measurement_type: "lipid_profile",
-        total_cholesterol: tcValue,
-        ldl: ldlValue || null,
-        hdl: hdlValue || null,
-        triglycerides: trigValue || null,
-        unit: unit,
-        total_cholesterol_category: getCholesterolCategory(tcValue, unit).label,
-        ldl_category: ldlValue ? getLDLCategory(ldlValue, unit).label : null,
-        hdl_category: hdlValue ? getHDLCategory(hdlValue, unit).label : null,
-        triglycerides_category: trigValue ? getTriglyceridesCategory(trigValue, unit).label : null,
-        soap_text: soapText
-      },
-      notes: soapText,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved successfully.");
-    onClose();
   };
 
   return (

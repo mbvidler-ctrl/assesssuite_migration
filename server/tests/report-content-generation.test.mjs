@@ -209,7 +209,15 @@ test('legacy report templates, lifecycle, editor and export composition remain i
     : null;
 
   assert.ok(templateBlock, 'report template catalogue must remain parseable');
-  assert.equal((templateBlock.match(/^  [a-z0-9_]+: \{/gm) || []).length, 124);
+  assert.equal((templateBlock.match(/^  [a-z0-9_]+: \{/gm) || []).length, 128);
+  for (const physioTemplate of [
+    'physio_initial_assessment',
+    'physio_progress_report',
+    'physio_referrer_update',
+    'physio_discharge_summary',
+  ]) {
+    assert.match(templateBlock, new RegExp(`^  ${physioTemplate}: \\{`, 'm'));
+  }
   assert.match(wizard, /status: "final"/);
   assert.match(wizard, /SavedReport\.update\(/);
   assert.match(wizard, /SavedReport\.create\(/);

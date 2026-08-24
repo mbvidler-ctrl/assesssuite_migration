@@ -57,8 +57,16 @@ import {
 } from './referralCommit.mjs';
 import {
   isInitialClinicalReleaseEligible,
+  resolveClinicalReleasePolicy,
   validateInitialReleaseProfileUpdate,
 } from './clinicalRelease.mjs';
+import { createRuntimeStatus } from './runtimeStatus.mjs';
+import { assertProductionBootstrapEnvironment } from './productionBootstrap.mjs';
+import { readTestProviderServices } from './providerServices.mjs';
+import {
+  buildPublicResetUrl,
+  PublicRequestOriginError,
+} from './publicRequestOrigin.mjs';
 import {
   CONTRACT_BUNDLE_IDS,
   EVENT_TYPES,
@@ -70,6 +78,10 @@ import {
 } from '../src/lib/legal/documentRegistry.js';
 import { effectiveLegalContent } from '../src/lib/legal/effectiveContent.js';
 import { resolveLegalConsentAudiences } from '../src/lib/legal/consentAudience.js';
+import {
+  PHYSIO_CARE_EPISODE_SCHEMA_VERSION,
+  PHYSIO_EPISODE_TRANSITIONS,
+} from '../src/lib/physio/careEpisode.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
@@ -93,6 +105,15 @@ const uploadsDir = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
     if (process.env[key] === undefined) process.env[key] = val;
   }
 })();
+
+// Docker runs productionBootstrap before this process. Repeat its pure
+// environment contract here so a direct `node server/index.mjs` launch cannot
+// bypass the exact profession/provider/storage posture before touching the
+// uploads directory or opening SQLite. The exact-image canary is an explicit,
+// separately labelled exception within that same contract.
+if (process.env.NODE_ENV === 'production') {
+  assertProductionBootstrapEnvironment(process.env);
+}
 
 const PORT = Number(process.env.PORT) || 8787;
 // Fly requires the production process to accept traffic from its proxy, so the
@@ -126,9 +147,46 @@ const registrationGlobalLimiter = createFixedWindowRateLimiter({ limit: 60, wind
 const authEmailIpLimiter = createFixedWindowRateLimiter({ limit: 20, windowMs: 60 * 1000 });
 const authEmailAddressLimiter = createFixedWindowRateLimiter({ limit: 5, windowMs: 15 * 60 * 1000 });
 const authEmailGlobalLimiter = createFixedWindowRateLimiter({ limit: 60, windowMs: 60 * 1000, maxKeys: 1 });
+// Resolve once, after .env.local has been loaded and before opening the
+// database or accepting traffic. This is the authoritative server identity
+// and clinical-admission contract for the process. Explicit cross-target or
+// unknown profession configuration fails bootstrap here.
+const CLINICAL_RELEASE_POLICY = resolveClinicalReleasePolicy(process.env);
+// The sole test-adapter election occurs at process composition. The installed
+// bag can exist only under NODE_ENV=test + SELFTEST=1; production receives an
+// empty bag and the sealed image omits the adapter module that installs it.
+const TEST_PROVIDER_SERVICES = readTestProviderServices(process.env);
 // Default app id used for the dev-only /functions/<name> relative path when it
 // is served in single-process production (mirrors the vite proxy rewrite).
-const DEFAULT_APP_ID = process.env.DEFAULT_APP_ID || 'local-assesssuite';
+const DEFAULT_APP_ID = CLINICAL_RELEASE_POLICY.appId;
+
+function requestApplicationId(req, pathname) {
+  const header = req.headers?.['x-app-id'];
+  if (header !== undefined && (typeof header !== 'string' || header !== DEFAULT_APP_ID)) {
+    return { supplied: String(header), source: 'header' };
+  }
+
+  const publicSettings =
+    /^\/api\/apps\/public\/prod\/public-settings\/by-id\/([^/]+)$/.exec(pathname);
+  if (publicSettings) return { supplied: publicSettings[1], source: 'public-settings' };
+
+  const appLog = /^\/api\/app-logs\/([^/]+)(?:\/|$)/.exec(pathname);
+  if (appLog) return { supplied: appLog[1], source: 'app-log' };
+
+  // This legacy SDK logout endpoint has no app-id segment. Its bearer token
+  // is still process/database-bound, and an optional X-App-Id was validated
+  // above. Every other /api/apps/{id}/... route is explicitly target-bound.
+  if (pathname === '/api/apps/auth/logout') return null;
+  const scoped = /^\/api\/apps\/([^/]+)(?:\/|$)/.exec(pathname);
+  return scoped ? { supplied: scoped[1], source: 'route' } : null;
+}
+
+function rejectWrongApplicationIdentity(req, res, pathname) {
+  const identity = requestApplicationId(req, pathname);
+  if (!identity || identity.supplied === DEFAULT_APP_ID) return false;
+  sendError(res, 404, 'application not found');
+  return true;
+}
 
 fs.mkdirSync(uploadsDir, { recursive: true });
 
@@ -140,6 +198,15 @@ const outboxEmail = createOutboxRepository(db, 'email');
 const outboxSms = createOutboxRepository(db, 'sms');
 const uploadRegistry = createUploadRegistry(db, { uploadsDir });
 initEmail(outboxEmail);
+const runtimeStatus = createRuntimeStatus({
+  environment: process.env,
+  db,
+  entityNames,
+  activeContract: {
+    professionId: CLINICAL_RELEASE_POLICY.professionId,
+    appId: CLINICAL_RELEASE_POLICY.appId,
+  },
+});
 
 function runUploadLifecycleMaintenance() {
   try {
@@ -229,7 +296,11 @@ async function loadFunctionsRouter() {
     // already holds open (fails with EPERM on Windows file locking) and
     // (b) open a redundant DatabaseSync connection even outside selftest.
     if (typeof mod.init === 'function') {
-      mod.init(db, entityNames, { apiUsage });
+      mod.init(db, entityNames, {
+        apiUsage,
+        clinicalReleasePolicy: CLINICAL_RELEASE_POLICY,
+        ...TEST_PROVIDER_SERVICES,
+      });
     }
     const transcriptionModule = await import(
       pathToFileURL(path.join(__dirname, 'functions', 'transcribeSession.mjs')).href
@@ -485,9 +556,33 @@ const CLINICAL_ENTITIES = new Set([
   'ClientOnboardingEpisode',
   'ClientReport',
   'Payment',
+  'PhysioCareEpisode',
   'SOAPNote',
   'SavedReport',
 ]);
+
+// Clinical child records that may belong to one Physio care episode. The
+// Existing imported pre-episode records may remain unassigned, but every new
+// Physio clinical child must be born inside a saved episode. Once assigned the
+// link is immutable: moving a record would rewrite its clinical context.
+const PHYSIO_EPISODE_LINK_FIELD = 'physio_care_episode_id';
+const PHYSIO_EPISODE_LINKED_ENTITIES = new Set([
+  'ClientAssessment',
+  'SOAPNote',
+  'SavedReport',
+  'ClientReport',
+  'ClientDocument',
+]);
+const PHYSIO_REPORT_ENTITIES = new Set(['SavedReport', 'ClientReport']);
+const PHYSIO_REPORT_CONTENT_FIELDS = Object.freeze({
+  SavedReport: [
+    'report_type', 'report_name', 'report_date', 'date_range_start', 'date_range_end',
+    'assessment_ids', 'section_content', 'active_sections', 'report_html', 'status', 'ai_generation',
+  ],
+  ClientReport: [
+    'report_type', 'report_name', 'report_date', 'report_data', 'html_content', 'notes',
+  ],
+});
 
 // Entities a not-yet-approved user may still WRITE. Founding an organisation
 // is deliberately absent: it must use EnsureFounderOrganization so the
@@ -686,7 +781,7 @@ const referralCommitService = createReferralCommitService({
   uploadsDir,
   getOrgIdsForUser: orgIdsForUser,
   hasCurrentLegalAcceptance,
-  isClinicalUseEligible: isInitialClinicalReleaseEligible,
+  isClinicalUseEligible: (user) => isInitialClinicalReleaseEligible(user, CLINICAL_RELEASE_POLICY),
 });
 
 async function handleReviewedReferralCommit(req, res) {
@@ -986,7 +1081,11 @@ function entityAccessDenied(req, res, entityName, sessionUser, isAdmin) {
     sendError(res, 403, 'organisation changes are server-controlled');
     return true;
   }
-  if (!isAdmin && CLINICAL_ENTITIES.has(entityName) && !isInitialClinicalReleaseEligible(sessionUser)) {
+  if (
+    !isAdmin &&
+    CLINICAL_ENTITIES.has(entityName) &&
+    !isInitialClinicalReleaseEligible(sessionUser, CLINICAL_RELEASE_POLICY)
+  ) {
     sendError(res, 403, 'clinical access is not approved for this account profile');
     return true;
   }
@@ -1108,7 +1207,12 @@ function validateMembershipUpdate(existing, data, sessionUser) {
  * generic org_id scope alone is insufficient: a valid secondary-org client
  * identifier must never be stored in a primary-org assessment or note.
  */
-function validateEntityReferenceScope(entityName, data, existing = null) {
+function validateEntityReferenceScope(
+  entityName,
+  data,
+  existing = null,
+  { isCreate = false } = {},
+) {
   const orgId = data?.org_id ?? existing?.org_id ?? null;
   const clientId = Object.prototype.hasOwnProperty.call(data || {}, 'client_id')
     ? data.client_id
@@ -1132,7 +1236,344 @@ function validateEntityReferenceScope(entityName, data, existing = null) {
       return { ok: false, status: 409, message: 'appointment and client references do not match' };
     }
   }
+
+  const hasEpisodeLink = Object.prototype.hasOwnProperty.call(data || {}, PHYSIO_EPISODE_LINK_FIELD);
+  const storedEpisodeId = typeof existing?.[PHYSIO_EPISODE_LINK_FIELD] === 'string'
+    ? existing[PHYSIO_EPISODE_LINK_FIELD].trim()
+    : '';
+  if (hasEpisodeLink && !PHYSIO_EPISODE_LINKED_ENTITIES.has(entityName)) {
+    return { ok: false, status: 400, message: 'this entity cannot be linked to a Physio care episode' };
+  }
+  const suppliedEpisodeId = hasEpisodeLink && typeof data?.[PHYSIO_EPISODE_LINK_FIELD] === 'string'
+    ? data[PHYSIO_EPISODE_LINK_FIELD].trim()
+    : '';
+  if (
+    isCreate
+    && CLINICAL_RELEASE_POLICY.professionId === 'physio'
+    && PHYSIO_EPISODE_LINKED_ENTITIES.has(entityName)
+    && !suppliedEpisodeId
+  ) {
+    return {
+      ok: false,
+      status: 400,
+      message: 'a saved Physio care episode is required for every new clinical record',
+    };
+  }
+  if (hasEpisodeLink && !suppliedEpisodeId) {
+    return { ok: false, status: 400, message: 'physio_care_episode_id must be a non-empty care-episode identifier' };
+  }
+  if (
+    CLINICAL_RELEASE_POLICY.professionId === 'physio'
+    && PHYSIO_EPISODE_LINKED_ENTITIES.has(entityName)
+    && existing
+    && !storedEpisodeId
+  ) {
+    if (!suppliedEpisodeId) {
+      return {
+        ok: false,
+        status: 409,
+        message: 'assign this legacy record to a saved Physio care episode before editing it',
+      };
+    }
+    const expectedUpdatedDate = typeof data?.expected_updated_date === 'string'
+      ? data.expected_updated_date
+      : '';
+    delete data.expected_updated_date;
+    if (!expectedUpdatedDate || expectedUpdatedDate !== existing.updated_date) {
+      return {
+        ok: false,
+        status: 409,
+        message: 'legacy record changed; reload before assigning its care episode',
+      };
+    }
+    const assignmentOnlyKeys = new Set([
+      'id', 'org_id', PHYSIO_EPISODE_LINK_FIELD,
+    ]);
+    const contentKeys = Object.keys(data || {}).filter((key) => !assignmentOnlyKeys.has(key));
+    if (contentKeys.length > 0) {
+      return {
+        ok: false,
+        status: 409,
+        message: 'legacy episode assignment cannot alter imported clinical content',
+      };
+    }
+  }
+  if (storedEpisodeId && hasEpisodeLink && suppliedEpisodeId !== storedEpisodeId) {
+    return { ok: false, status: 409, message: 'a clinical record cannot be moved between Physio care episodes' };
+  }
+  const episodeId = suppliedEpisodeId || storedEpisodeId;
+  if (episodeId) {
+    const episode = repoFor('PhysioCareEpisode')?.getById(episodeId);
+    if (!episode || !orgId || episode.org_id !== orgId) {
+      return { ok: false, status: 404, message: 'referenced Physio care episode not found in this organisation' };
+    }
+    if (!clientId || episode.client_id !== clientId) {
+      return { ok: false, status: 409, message: 'Physio care episode and patient references do not match' };
+    }
+    if (hasEpisodeLink) data[PHYSIO_EPISODE_LINK_FIELD] = suppliedEpisodeId;
+  }
   return { ok: true };
+}
+
+function preparePhysioReportMutation(entityName, data, existing, sessionUser, { isCreate = false } = {}) {
+  if (CLINICAL_RELEASE_POLICY.professionId !== 'physio' || !PHYSIO_REPORT_ENTITIES.has(entityName)) {
+    return { ok: true, data };
+  }
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { ok: false, status: 400, message: 'report payload must be an object' };
+  }
+  if (
+    Object.prototype.hasOwnProperty.call(data, 'revision_number')
+    || Object.prototype.hasOwnProperty.call(data, 'revision_history')
+  ) {
+    return { ok: false, status: 403, message: 'Physio report revision history is server-controlled' };
+  }
+  const prepared = { ...data };
+  if (isCreate) {
+    prepared.revision_number = 1;
+    prepared.revision_history = [];
+    return { ok: true, data: prepared };
+  }
+  if (!existing) return { ok: false, status: 404, message: 'report not found' };
+  if (
+    !existing[PHYSIO_EPISODE_LINK_FIELD]
+    && typeof prepared[PHYSIO_EPISODE_LINK_FIELD] === 'string'
+    && prepared[PHYSIO_EPISODE_LINK_FIELD].trim()
+  ) {
+    return { ok: true, data: prepared };
+  }
+  const expectedUpdatedDate = typeof prepared.expected_updated_date === 'string'
+    ? prepared.expected_updated_date
+    : '';
+  delete prepared.expected_updated_date;
+  if (!expectedUpdatedDate || expectedUpdatedDate !== existing.updated_date) {
+    return { ok: false, status: 409, message: 'report changed; reload before saving' };
+  }
+  const priorContent = Object.fromEntries(
+    (PHYSIO_REPORT_CONTENT_FIELDS[entityName] || [])
+      .filter((field) => Object.prototype.hasOwnProperty.call(existing, field))
+      .map((field) => [field, structuredClone(existing[field])]),
+  );
+  const priorRevision = Math.max(1, Number(existing.revision_number) || 1);
+  prepared.revision_number = priorRevision + 1;
+  prepared.revision_history = [
+    ...(Array.isArray(existing.revision_history) ? structuredClone(existing.revision_history) : []),
+    {
+      revision_number: priorRevision,
+      superseded_at: new Date().toISOString(),
+      actor_user_id: String(sessionUser?.id || ''),
+      actor_email: String(sessionUser?.email || ''),
+      prior_content: priorContent,
+    },
+  ];
+  return { ok: true, data: prepared };
+}
+
+function preparePhysioAiLinkedClinicalMutation(entityName, data, existing, sessionUser) {
+  if (
+    CLINICAL_RELEASE_POLICY.professionId !== 'physio'
+    || !['SOAPNote', 'SavedReport'].includes(entityName)
+  ) return { ok: true, data };
+  if (
+    Object.prototype.hasOwnProperty.call(data || {}, 'ai_generation')
+    || Object.prototype.hasOwnProperty.call(data || {}, 'ai_edit_revision_history')
+  ) {
+    return {
+      ok: false,
+      status: 403,
+      message: 'AI generation binding and provenance are server-controlled',
+    };
+  }
+  if (!existing?.ai_generation) return { ok: true, data };
+  if (entityName === 'SavedReport') return { ok: true, data };
+  const prepared = { ...(data || {}) };
+  const expectedUpdatedDate = typeof prepared.expected_updated_date === 'string'
+    ? prepared.expected_updated_date
+    : '';
+  delete prepared.expected_updated_date;
+  if (!expectedUpdatedDate || expectedUpdatedDate !== existing.updated_date) {
+    return { ok: false, status: 409, message: 'AI-linked SOAP note changed; reload before saving' };
+  }
+  prepared.ai_edit_revision_history = [
+    ...(Array.isArray(existing.ai_edit_revision_history)
+      ? structuredClone(existing.ai_edit_revision_history)
+      : []),
+    {
+      superseded_at: new Date().toISOString(),
+      actor_user_id: String(sessionUser?.id || ''),
+      actor_email: String(sessionUser?.email || ''),
+      prior_content: Object.fromEntries([
+        'subjective', 'objective', 'assessment', 'plan', 'other', 'full_transcript',
+        'session_audio_url', 'session_audio_urls', 'plan_attachments', 'status',
+      ].filter((field) => Object.prototype.hasOwnProperty.call(existing, field))
+        .map((field) => [field, structuredClone(existing[field])])),
+    },
+  ];
+  return { ok: true, data: prepared };
+}
+
+function preparePhysioEpisodeMutation(data, existing, sessionUser, { isCreate = false } = {}) {
+  if (!data || typeof data !== 'object' || Array.isArray(data)) {
+    return { ok: false, status: 400, message: 'care-episode payload must be an object' };
+  }
+  if (Object.prototype.hasOwnProperty.call(data, 'status_history')) {
+    return { ok: false, status: 403, message: 'care-episode status history is server-controlled' };
+  }
+
+  const prepared = { ...data };
+  const transition = prepared.lifecycle_transition;
+  delete prepared.lifecycle_transition;
+  prepared.schema_version = PHYSIO_CARE_EPISODE_SCHEMA_VERSION;
+
+  const actorUserId = String(sessionUser?.id || '').trim();
+  const actorEmail = String(sessionUser?.email || '').trim();
+  if (!actorUserId || !actorEmail) {
+    return { ok: false, status: 401, message: 'authenticated lifecycle actor required' };
+  }
+
+  if (isCreate) {
+    if (transition !== undefined) {
+      return { ok: false, status: 400, message: 'a new care episode cannot include a lifecycle transition' };
+    }
+    const initialStatus = String(prepared.status || 'active');
+    if (!['draft', 'active'].includes(initialStatus)) {
+      return { ok: false, status: 400, message: 'a new care episode must start as draft or active' };
+    }
+    const reporting = { ...(prepared.reporting || {}) };
+    if (reporting.discharge_status === 'completed' || reporting.discharge_date) {
+      return { ok: false, status: 409, message: 'a new care episode cannot already be discharged' };
+    }
+    prepared.status = initialStatus;
+    prepared.episode_number = Math.max(
+      0,
+      ...repoFor('PhysioCareEpisode').listAll()
+        .filter((episode) => episode.org_id === prepared.org_id && episode.client_id === prepared.client_id)
+        .map((episode) => Number(episode.episode_number) || 0),
+    ) + 1;
+    prepared.reporting = reporting;
+    prepared.status_history = [{
+      sequence: 1,
+      from: null,
+      to: initialStatus,
+      reason: 'episode_created',
+      occurred_at: new Date().toISOString(),
+      actor_user_id: actorUserId,
+      actor_email: actorEmail,
+    }];
+    return { ok: true, data: prepared };
+  }
+
+  if (!existing) return { ok: false, status: 404, message: 'care episode not found' };
+  const topLevelExpectedUpdatedDate = typeof prepared.expected_updated_date === 'string'
+    ? prepared.expected_updated_date
+    : '';
+  delete prepared.expected_updated_date;
+  const transitionExpectedUpdatedDate = typeof transition?.expected_updated_date === 'string'
+    ? transition.expected_updated_date
+    : '';
+  if (
+    topLevelExpectedUpdatedDate
+    && transitionExpectedUpdatedDate
+    && topLevelExpectedUpdatedDate !== transitionExpectedUpdatedDate
+  ) {
+    return { ok: false, status: 409, message: 'care episode update versions do not match' };
+  }
+  const expectedUpdatedDate = transitionExpectedUpdatedDate || topLevelExpectedUpdatedDate;
+  if (!expectedUpdatedDate || expectedUpdatedDate !== existing.updated_date) {
+    return { ok: false, status: 409, message: 'care episode changed; reload before saving' };
+  }
+  const authoritativeHistory = Array.isArray(existing.status_history) && existing.status_history.length > 0
+    ? existing.status_history
+    : [{
+        sequence: 1,
+        from: null,
+        to: String(existing.status || 'active'),
+        reason: 'legacy_state_adopted_on_first_write',
+        occurred_at: existing.created_date || new Date().toISOString(),
+        actor_user_id: actorUserId,
+        actor_email: actorEmail,
+      }];
+  for (const immutableField of ['org_id', 'client_id']) {
+    if (
+      Object.prototype.hasOwnProperty.call(prepared, immutableField)
+      && prepared[immutableField] !== existing[immutableField]
+    ) {
+      return { ok: false, status: 409, message: `care-episode ${immutableField} is immutable` };
+    }
+  }
+
+  const requestedStatus = Object.prototype.hasOwnProperty.call(prepared, 'status')
+    ? String(prepared.status || '')
+    : String(existing.status || 'active');
+  if (transition === undefined) {
+    if (requestedStatus !== existing.status) {
+      return { ok: false, status: 409, message: 'care-episode status changes require an explicit lifecycle transition' };
+    }
+    const reporting = { ...(existing.reporting || {}), ...(prepared.reporting || {}) };
+    if (existing.status === 'discharged') {
+      if (reporting.discharge_status !== 'completed' || !reporting.discharge_date) {
+        return { ok: false, status: 409, message: 'a discharged care episode must retain its completed discharge state' };
+      }
+    } else if (reporting.discharge_status === 'completed' || reporting.discharge_date) {
+      return { ok: false, status: 409, message: 'only a discharged care episode may carry completed discharge state' };
+    }
+    prepared.status_history = authoritativeHistory;
+    return { ok: true, data: prepared };
+  }
+
+  if (!transition || typeof transition !== 'object' || Array.isArray(transition)) {
+    return { ok: false, status: 400, message: 'invalid care-episode lifecycle transition' };
+  }
+  const from = String(transition.from || '');
+  const to = String(transition.to || '');
+  const reason = String(transition.reason || '').trim();
+  if (from !== existing.status) {
+    return { ok: false, status: 409, message: 'care-episode transition source no longer matches current status' };
+  }
+  if (!PHYSIO_EPISODE_TRANSITIONS[from]?.includes(to)) {
+    return { ok: false, status: 409, message: `unsupported care-episode transition: ${from} to ${to}` };
+  }
+  if (!reason || reason.length > 500) {
+    return { ok: false, status: 400, message: 'a lifecycle reason of 1 to 500 characters is required' };
+  }
+  if (requestedStatus !== to) {
+    return { ok: false, status: 409, message: 'care-episode status does not match its lifecycle transition' };
+  }
+
+  const lastSequence = authoritativeHistory.reduce(
+    (maximum, item) => Math.max(maximum, Number(item?.sequence) || 0),
+    0,
+  );
+  const reporting = { ...(existing.reporting || {}), ...(prepared.reporting || {}) };
+  const historyEntry = {
+    sequence: lastSequence + 1,
+    from,
+    to,
+    reason,
+    occurred_at: new Date().toISOString(),
+    actor_user_id: actorUserId,
+    actor_email: actorEmail,
+  };
+  if (to === 'discharged') {
+    reporting.discharge_status = 'completed';
+    reporting.discharge_date = reporting.discharge_date || new Date().toISOString().slice(0, 10);
+  } else if (from === 'discharged') {
+    historyEntry.prior_discharge = {
+      discharge_status: existing.reporting?.discharge_status || '',
+      discharge_date: existing.reporting?.discharge_date || '',
+      discharge_outcome: existing.reporting?.discharge_outcome || '',
+    };
+    reporting.discharge_status = 'not_ready';
+    reporting.discharge_date = '';
+    reporting.discharge_outcome = '';
+  } else if (reporting.discharge_status === 'completed' || reporting.discharge_date) {
+    return { ok: false, status: 409, message: 'only a discharged care episode may carry completed discharge state' };
+  }
+
+  prepared.status = to;
+  prepared.reporting = reporting;
+  prepared.status_history = [...authoritativeHistory, historyEntry];
+  return { ok: true, data: prepared };
 }
 
 async function handleEntitiesRoute(req, res, url, match) {
@@ -1190,7 +1631,7 @@ async function handleEntitiesRoute(req, res, url, match) {
   }
 
   if (req.method === 'POST' && !rest) {
-    const data = await readJsonBody(req);
+    let data = await readJsonBody(req);
     const createdBy = sessionUser?.email || null;
     if (!isAdmin) {
       // Central write-authorisation: refuses User/catalogue writes and scopes
@@ -1204,14 +1645,44 @@ async function handleEntitiesRoute(req, res, url, match) {
       const validPolicy = validateClinicPolicyMutation(data);
       if (!validPolicy.ok) return sendError(res, validPolicy.status, validPolicy.message);
     }
-    const referenceScope = validateEntityReferenceScope(entityName, data);
+    if (entityName === 'PhysioCareEpisode') {
+      const lifecycle = preparePhysioEpisodeMutation(data, null, sessionUser, { isCreate: true });
+      if (!lifecycle.ok) return sendError(res, lifecycle.status, lifecycle.message);
+      data = lifecycle.data;
+    }
+    const reportMutation = preparePhysioReportMutation(entityName, data, null, sessionUser, { isCreate: true });
+    if (!reportMutation.ok) return sendError(res, reportMutation.status, reportMutation.message);
+    data = reportMutation.data;
+    const aiClinicalMutation = preparePhysioAiLinkedClinicalMutation(
+      entityName,
+      data,
+      null,
+      sessionUser,
+      { isCreate: true },
+    );
+    if (!aiClinicalMutation.ok) return sendError(res, aiClinicalMutation.status, aiClinicalMutation.message);
+    data = aiClinicalMutation.data;
+    const referenceScope = validateEntityReferenceScope(entityName, data, null, {
+      isCreate: true,
+    });
     if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
     if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, data?.org_id)) return;
     const bindingOrgId = entityName === 'Organization' ? null : data?.org_id;
     const pendingBindings = bindingOrgId
       ? prepareUploadBindings(entityName, data, bindingOrgId, null, sessionUser)
       : [];
-    const record = repo.create(data, createdBy);
+    let record;
+    try {
+      record = repo.create(data, createdBy);
+    } catch (error) {
+      if (
+        entityName === 'PhysioCareEpisode'
+        && String(error?.code || '').startsWith('SQLITE_CONSTRAINT')
+      ) {
+        return sendError(res, 409, 'care episode numbering changed; retry creation');
+      }
+      throw error;
+    }
     if (pendingBindings.length > 0) {
       commitUploadBindings(pendingBindings, {
         entityName,
@@ -1227,7 +1698,7 @@ async function handleEntitiesRoute(req, res, url, match) {
 
   if (req.method === 'PUT' && rest) {
     if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
-    const data = await readJsonBody(req);
+    let data = await readJsonBody(req);
     // The record is re-read AFTER the awaited body stream, not before it. The
     // request body is caller-paced (e.g. chunked transfer-encoding), so a
     // snapshot taken before this await can be arbitrarily stale by the time
@@ -1256,6 +1727,17 @@ async function handleEntitiesRoute(req, res, url, match) {
       const validPolicy = validateClinicPolicyMutation(data, existing);
       if (!validPolicy.ok) return sendError(res, validPolicy.status, validPolicy.message);
     }
+    if (entityName === 'PhysioCareEpisode') {
+      const lifecycle = preparePhysioEpisodeMutation(data, existing, sessionUser);
+      if (!lifecycle.ok) return sendError(res, lifecycle.status, lifecycle.message);
+      data = lifecycle.data;
+    }
+    const reportMutation = preparePhysioReportMutation(entityName, data, existing, sessionUser);
+    if (!reportMutation.ok) return sendError(res, reportMutation.status, reportMutation.message);
+    data = reportMutation.data;
+    const aiClinicalMutation = preparePhysioAiLinkedClinicalMutation(entityName, data, existing, sessionUser);
+    if (!aiClinicalMutation.ok) return sendError(res, aiClinicalMutation.status, aiClinicalMutation.message);
+    data = aiClinicalMutation.data;
     const referenceScope = validateEntityReferenceScope(entityName, data, existing);
     if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
     const bindingOrgId = data?.org_id || existing?.org_id || (entityName === 'Organization' ? existing.id : null);
@@ -1272,19 +1754,57 @@ async function handleEntitiesRoute(req, res, url, match) {
       });
     }
     reconcileBoundUploads(entityName, record, sessionUser.id);
-    // Welcome email on activation (admin approval path; the payment
-    // auto-approve path sends its own from stripeWebhook). Fire-and-forget —
-    // an email failure must not fail the update.
+    let welcomeDelivery = null;
+    // Admin activation and email delivery remain separate outcomes. The user
+    // mutation is committed first; the response and a durable content-free
+    // outbox event then expose whether the real provider confirmed delivery.
     if (isUserCollection && existing.account_status !== 'active' && record.account_status === 'active') {
-      sendEmail({ to: record.email, ...welcomeEmail(record.clinician_name || record.full_name) }).catch(() => {});
+      const delivery = await sendEmail({
+        to: record.email,
+        ...welcomeEmail(record.clinician_name || record.full_name),
+      });
+      welcomeDelivery = {
+        event: 'admin_welcome_email_delivery',
+        user_id: String(record.id || '').slice(0, 200),
+        attempted: true,
+        recorded: delivery.recorded === true,
+        sent: delivery.sent === true,
+        provider_message_id: delivery.sent === true ? delivery.providerId || null : null,
+        failure: delivery.sent === true
+          ? null
+          : delivery.failure || { code: 'delivery_not_sent' },
+      };
+      try {
+        outboxEmail.record(welcomeDelivery);
+      } catch (error) {
+        console.error('[admin-activation] welcome delivery evidence persistence failed:', {
+          code: 'welcome_delivery_evidence_persistence_failed',
+          error: error?.name || 'Error',
+        });
+      }
+      if (!delivery.sent) {
+        console.error('[admin-activation] welcome email delivery failed:', welcomeDelivery.failure);
+      }
     }
     const stripped = isUserCollection ? stripAuthFields(record) : record;
-    return sendJson(res, 200, stripped);
+    return sendJson(res, 200, welcomeDelivery ? { ...stripped, welcome_delivery: welcomeDelivery } : stripped);
   }
 
   if (req.method === 'DELETE' && rest) {
     const existing = repo.getById(rest);
     if (!existing) return sendError(res, 404, 'record not found');
+    if (
+      CLINICAL_RELEASE_POLICY.professionId === 'physio'
+      && (entityName === 'PhysioCareEpisode' || PHYSIO_EPISODE_LINKED_ENTITIES.has(entityName))
+    ) {
+      return sendError(
+        res,
+        405,
+        entityName === 'PhysioCareEpisode'
+          ? 'care episodes must be closed through an explicit lifecycle transition'
+          : 'Physio episode clinical records cannot be hard deleted',
+      );
+    }
     if (isUserCollection && !isAdmin) return sendError(res, 403, 'admin access required');
     if (!isAdmin && (entityName === 'Organization' || entityName === 'OrganizationMember')) {
       return sendError(res, 403, 'organisation and membership removal is server-controlled');
@@ -1456,6 +1976,16 @@ async function handleBulk(req, res, entityName) {
     return sendError(res, 403, 'membership changes are server-controlled');
   }
   if (entityAccessDenied(req, res, entityName, sessionUser, isAdmin)) return;
+  if (entityName === 'PhysioCareEpisode' && ['POST', 'PUT'].includes(req.method)) {
+    return sendError(res, 405, 'care-episode lifecycle writes require one explicit record');
+  }
+  if (
+    CLINICAL_RELEASE_POLICY.professionId === 'physio'
+    && PHYSIO_REPORT_ENTITIES.has(entityName)
+    && req.method === 'PUT'
+  ) {
+    return sendError(res, 405, 'Physio report revisions require one explicit record');
+  }
   if (entityName === 'LegalAcceptanceEvent' && req.method !== 'POST') {
     return sendError(res, 405, 'legal acceptance events are append-only');
   }
@@ -1465,6 +1995,20 @@ async function handleBulk(req, res, entityName) {
   if (req.method === 'POST') {
     // bulkCreate: JSON array of records.
     const items = Array.isArray(body) ? body : body.items || [];
+    for (let index = 0; index < items.length; index += 1) {
+      const preparedReport = preparePhysioReportMutation(entityName, items[index], null, sessionUser, { isCreate: true });
+      if (!preparedReport.ok) return sendError(res, preparedReport.status, preparedReport.message);
+      items[index] = preparedReport.data;
+      const preparedAiClinical = preparePhysioAiLinkedClinicalMutation(
+        entityName,
+        items[index],
+        null,
+        sessionUser,
+        { isCreate: true },
+      );
+      if (!preparedAiClinical.ok) return sendError(res, preparedAiClinical.status, preparedAiClinical.message);
+      items[index] = preparedAiClinical.data;
+    }
     const createdBy = sessionUser?.email || null;
     if (!isAdmin && entityName === 'OrganizationMember' && items.length !== 1) {
       return sendError(res, 403, 'membership creation must be one server-verifiable record');
@@ -1476,13 +2020,17 @@ async function handleBulk(req, res, entityName) {
         if (!auth.ok) return sendError(res, auth.status, auth.message);
         const owner = clinicPolicyOwnerDenied(entityName, sessionUser, item?.org_id);
         if (owner) return sendError(res, owner.status, owner.message);
-        const referenceScope = validateEntityReferenceScope(entityName, item);
+        const referenceScope = validateEntityReferenceScope(entityName, item, null, {
+          isCreate: true,
+        });
         if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
         if (clinicalLegalAccessDenied(res, entityName, sessionUser, isAdmin, item?.org_id)) return;
       }
     } else {
       for (const item of items) {
-        const referenceScope = validateEntityReferenceScope(entityName, item);
+        const referenceScope = validateEntityReferenceScope(entityName, item, null, {
+          isCreate: true,
+        });
         if (!referenceScope.ok) return sendError(res, referenceScope.status, referenceScope.message);
       }
     }
@@ -1568,6 +2116,11 @@ async function handleBulk(req, res, entityName) {
     }
     const planned = items.filter((item) => item.id).map((item) => {
       const existing = repo.getById(item.id);
+      const aiClinicalMutation = preparePhysioAiLinkedClinicalMutation(entityName, item, existing, sessionUser);
+      if (!aiClinicalMutation.ok) {
+        throw new UploadError(aiClinicalMutation.status, 'ai_generation_binding_mismatch', aiClinicalMutation.message);
+      }
+      item = aiClinicalMutation.data;
       const orgId = item?.org_id || existing?.org_id || (entityName === 'Organization' ? existing?.id : null);
       const referenceScope = validateEntityReferenceScope(entityName, { ...item, org_id: orgId }, existing);
       if (!referenceScope.ok) throw new UploadError(referenceScope.status, 'reference_scope_mismatch', referenceScope.message);
@@ -1634,9 +2187,25 @@ async function handleUpdateMany(req, res, entityName) {
     return sendError(res, 403, 'membership changes are server-controlled');
   }
   if (entityAccessDenied(req, res, entityName, sessionUser, isAdmin)) return;
+  if (entityName === 'PhysioCareEpisode') {
+    return sendError(res, 405, 'care-episode lifecycle writes require one explicit record');
+  }
+  if (CLINICAL_RELEASE_POLICY.professionId === 'physio' && PHYSIO_REPORT_ENTITIES.has(entityName)) {
+    return sendError(res, 405, 'Physio report revisions require one explicit record');
+  }
 
   const body = await readJsonBody(req);
   const { query, data } = body || {};
+  if (
+    CLINICAL_RELEASE_POLICY.professionId === 'physio'
+    && ['SOAPNote', 'SavedReport'].includes(entityName)
+    && (
+      Object.prototype.hasOwnProperty.call(data || {}, 'ai_generation')
+      || Object.prototype.hasOwnProperty.call(data || {}, 'ai_edit_revision_history')
+    )
+  ) {
+    return sendError(res, 403, 'AI generation binding and provenance are server-controlled');
+  }
   if (extractUploadIdsFromValue(data).length > 0) {
     return sendError(res, 400, 'file references must be bound to one explicit record');
   }
@@ -1649,6 +2218,12 @@ async function handleUpdateMany(req, res, entityName) {
   }
   const scopedQuery = scopeQueryToOrg(query, entityName, sessionUser, isAdmin);
   const matched = repo.listAll().filter((record) => matchesQuery(record, scopedQuery));
+  if (
+    CLINICAL_RELEASE_POLICY.professionId === 'physio'
+    && matched.some((record) => record?.ai_generation)
+  ) {
+    return sendError(res, 405, 'AI-linked clinical revisions require one explicit record');
+  }
   if (!isAdmin) {
     // A shared `data` payload can never be a valid per-record amendment (the
     // history prefix differs per note), so any sweep that matches a published
@@ -1697,7 +2272,7 @@ async function handleMe(req, res) {
   if (req.method === 'PUT') {
     const payload = await readJsonBody(req);
     const sanitized = sanitizeUpdateMePayload(payload);
-    const releaseProfile = validateInitialReleaseProfileUpdate(sanitized);
+    const releaseProfile = validateInitialReleaseProfileUpdate(sanitized, CLINICAL_RELEASE_POLICY);
     if (!releaseProfile.ok) return sendError(res, 403, releaseProfile.message);
     const orgId = primaryOrgIdForUser(sessionUser.email);
     const pendingBindings = orgId
@@ -1903,9 +2478,22 @@ async function handleAuthRoute(req, res, url, appId, action) {
     if (!user.email_verified) {
       return sendError(res, 403, 'please verify your email before signing in — request a new code from the registration page');
     }
-    const token = sessions.create(user.id);
+    // Credential verification and account-state authorisation are separate.
+    // Re-read after the deliberately expensive password check so a concurrent
+    // self-service closure cannot mint a new session from a stale user object.
+    const persistedUser = userRepo.getById(user.id);
+    if (!persistedUser) {
+      return sendError(res, 401, 'invalid email or password');
+    }
+    if (persistedUser?.account_status === 'deactivated') {
+      return sendJson(res, 403, {
+        error: 'account_deactivated',
+        account_status: 'deactivated',
+      });
+    }
+    const token = sessions.create(persistedUser.id);
     recordUsageMetric('successful_sign_in');
-    return sendJson(res, 200, { access_token: token, user: stripAuthFields(user) });
+    return sendJson(res, 200, { access_token: token, user: stripAuthFields(persistedUser) });
   }
 
   if (action === 'register' && req.method === 'POST') {
@@ -2098,21 +2686,33 @@ async function handleAuthRoute(req, res, url, appId, action) {
     if (!authEmailRateLimit(req, email).allowed) {
       return sendJson(res, 200, { status: 'accepted' });
     }
+    // Resolve the public target before looking up the account. This keeps a
+    // malformed/foreign Host response identical for known and unknown email
+    // addresses, while ensuring neither an unusable token nor its resend
+    // throttle is persisted. The browser cannot supply a return URL in the
+    // body or query: the resolver admits only the exact Fly/custom origins in
+    // Physio production (and exact loopback origins during local development).
+    const resetToken = randomUUID();
+    let resetTarget;
+    try {
+      resetTarget = buildPublicResetUrl({ request: req, token: resetToken });
+    } catch (error) {
+      if (error instanceof PublicRequestOriginError) {
+        return sendError(res, 400, 'password reset request origin is not permitted');
+      }
+      throw error;
+    }
     const user = findUserByEmail(email);
     if (user) {
       if (user.reset_last_request_at && Date.now() - Date.parse(user.reset_last_request_at) < RESEND_MIN_INTERVAL_MS) {
         return sendJson(res, 200, { status: 'accepted' });
       }
-      const resetToken = randomUUID();
       userRepo.update(user.id, {
         reset_token: resetToken,
         reset_token_expires: new Date(Date.now() + RESET_TTL_MS).toISOString(),
         reset_last_request_at: new Date().toISOString(),
       });
-      // Single-origin production serves the SPA from APP_URL; local default
-      // matches the shim origin (dist/ is served when built).
-      const origin = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, '');
-      const delivery = await sendEmail({ to: email, ...resetEmail(`${origin}/reset-password?token=${resetToken}`) });
+      const delivery = await sendEmail({ to: email, ...resetEmail(resetTarget) });
       if (transactionalEmailDeliveryRequired() && !delivery.sent) {
         // Preserve the enumeration-resistant public response, but revoke the
         // unusable bearer token and allow an immediate retry. The UI's copy is
@@ -2215,7 +2815,10 @@ async function handleInviteUser(req, res) {
     return sendError(res, 400, 'user_email and a valid role are required');
   }
   let user = findUserByEmail(user_email);
-  if (!user) {
+  const existingUser = user;
+  const priorRole = existingUser?.role;
+  const createdInvite = !existingUser;
+  if (createdInvite) {
     user = userRepo.create(
       { email: user_email, role, account_status: 'invited' },
       user_email,
@@ -2223,7 +2826,23 @@ async function handleInviteUser(req, res) {
   } else {
     user = userRepo.update(user.id, { role });
   }
-  await sendEmail({ to: user_email, ...inviteEmail(role) });
+  let delivery;
+  try {
+    delivery = await sendEmail({ to: user_email, ...inviteEmail(role) });
+  } catch {
+    delivery = { sent: false };
+  }
+  if (delivery?.sent !== true) {
+    if (createdInvite) {
+      userRepo.remove(user.id);
+    } else if (priorRole !== role && userRepo.getById(user.id)?.role === role) {
+      userRepo.update(user.id, { role: priorRole });
+    }
+    return sendJson(res, 502, {
+      status: 'delivery_failed',
+      error: 'invite_delivery_failed',
+    });
+  }
   return sendJson(res, 200, { status: 'invited', user: stripAuthFields(user) });
 }
 
@@ -2239,7 +2858,7 @@ function handleLogout(req, res, url) {
 // Public settings + telemetry stubs
 // ---------------------------------------------------------------------------
 
-function handlePublicSettings(req, res, appId) {
+function handlePublicSettings(req, res) {
   // The single runtime config channel the frontend already reads
   // (src/lib/AuthContext.jsx -> appPublicSettings via useAuth()).
   // - transcription_enabled: launch posture is OFF for users (Max's
@@ -2269,10 +2888,17 @@ function handlePublicSettings(req, res, appId) {
   const capabilities = publicCapabilities();
   const capabilitiesForCaller = sessionUser
     ? capabilities
-    : { ...capabilities, general_clinical_llm: { available: capabilities.general_clinical_llm.available } };
+    : {
+        ...capabilities,
+        general_clinical_llm: { available: capabilities.general_clinical_llm.available },
+        ...(capabilities.physio_ai_tasks
+          ? { physio_ai_tasks: { available: capabilities.physio_ai_tasks.available } }
+          : {}),
+      };
   return sendJson(res, 200, {
-    id: appId,
+    id: CLINICAL_RELEASE_POLICY.appId,
     public_settings: {
+      profession: CLINICAL_RELEASE_POLICY.publicProfession,
       transcription_enabled: capabilityConfigured('TRANSCRIPTION_ENABLED'),
       legal: {
         status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',
@@ -2379,7 +3005,7 @@ function canUserAccessUpload(upload, sessionUser) {
   if (upload.state !== 'bound' && !upload.isLegacy && upload.uploaderUserId !== sessionUser.id) return false;
   if (
     CLINICAL_UPLOAD_PURPOSES.has(upload.purpose) &&
-    (!isInitialClinicalReleaseEligible(sessionUser) ||
+    (!isInitialClinicalReleaseEligible(sessionUser, CLINICAL_RELEASE_POLICY) ||
       sessionUser.account_status !== 'active' ||
       !hasCurrentLegalAcceptance(sessionUser.email, upload.orgId))
   ) return false;
@@ -2744,6 +3370,12 @@ async function handleRequest(req, res) {
     const url = parseUrl(req);
     const pathname = url.pathname;
 
+    // Enforce the process target once, before any app-scoped route drains a
+    // body, authenticates, mutates SQLite, invokes a provider, or echoes
+    // caller-controlled identity. A Physio process therefore cannot accept
+    // EP-labelled or arbitrary Base44-compatible routes.
+    if (rejectWrongApplicationIdentity(req, res, pathname)) return;
+
     if (pathname === '/api/usage/page-load') {
       return await handleMarketingPageLoad(req, res);
     }
@@ -2773,16 +3405,24 @@ async function handleRequest(req, res) {
       pathname,
     );
     if (publicSettingsMatch && req.method === 'GET') {
-      return handlePublicSettings(req, res, publicSettingsMatch[1]);
+      return handlePublicSettings(req, res);
+    }
+
+    if (pathname === '/api/health/live' && req.method === 'GET') {
+      return sendJson(res, 200, runtimeStatus.live());
+    }
+
+    if (pathname === '/api/health/ready' && req.method === 'GET') {
+      const readiness = runtimeStatus.readiness();
+      return sendJson(res, readiness.ready ? 200 : 503, readiness);
     }
 
     if (pathname === '/api/version' && req.method === 'GET') {
-      const clean = (value, fallback) =>
-        typeof value === 'string' && /^[A-Za-z0-9._:+-]{1,120}$/.test(value) ? value : fallback;
-      return sendJson(res, 200, {
-        release_sha: clean(process.env.RELEASE_SHA, 'unknown'),
-        build_timestamp: clean(process.env.BUILD_TIMESTAMP || process.env.RELEASE_BUILD_TIMESTAMP, 'unknown'),
-      });
+      return sendJson(res, 200, runtimeStatus.version());
+    }
+
+    if (pathname === '/api/capabilities' && req.method === 'GET') {
+      return sendJson(res, 200, runtimeStatus.capabilities());
     }
 
     // Durable upload URLs are never anonymous. Native browser media may use a
@@ -2839,8 +3479,9 @@ async function handleRequest(req, res) {
       return functionsRouter(req, res, { appId, functionName, url });
     }
 
-    // Integration endpoints (Core.InvokeLLM, Core.SendEmail, etc.) — mocked
-    // per docs/shim/20260702-sdk-wire-protocol.md, "Integrations".
+    // Integration endpoints (Core.InvokeLLM, Core.SendEmail, etc.). Provider
+    // paths are real by default; the isolated self-test entry may install an
+    // explicit test service bag before this process module is imported.
     const integrationMatch =
       /^\/api\/apps\/([^/]+)\/integration-endpoints\/Core\/([^/]+)$/.exec(pathname);
     if (integrationMatch && req.method === 'POST') {
@@ -2865,12 +3506,17 @@ async function handleRequest(req, res) {
         hasExtractionAcceptance,
         hasCurrentLegalAcceptance,
         ensureFounderOrganization,
-        isClinicalUseEligible: () => isInitialClinicalReleaseEligible(integrationUser),
+        isClinicalUseEligible: () => isInitialClinicalReleaseEligible(integrationUser, CLINICAL_RELEASE_POLICY),
+        generalClinicalLlmAllowed:
+          CLINICAL_RELEASE_POLICY.publicProfession.features.legacyGeneralClinicalLlm === true,
+        disabledCoreIntegrationIds:
+          CLINICAL_RELEASE_POLICY.publicProfession.features.disabledCoreIntegrationIds,
         recordLegalAcceptanceBundle,
         canAccessUpload: (upload) => canUserAccessUpload(upload, integrationUser),
         resolveLegacyUpload: ({ storedName, selectedOrgId }) =>
           resolveLegacyUploadForUser({ storedName, selectedOrgId, sessionUser: integrationUser }),
         readUploadBuffer,
+        invokeLlmFallback: TEST_PROVIDER_SERVICES.invokeLlmFallback || null,
       });
     }
     if (/^\/api\/apps\/[^/]+\/integration-endpoints\//.test(pathname)) {
@@ -2880,7 +3526,8 @@ async function handleRequest(req, res) {
     // Relative /functions/<name> passthrough. In dev the vite proxy rewrites
     // this to the app-scoped route; in single-process production we do the
     // equivalent here so relative calls (e.g. MyProfile.jsx createPortalSession)
-    // work without a rebuild. The functions router ignores appId.
+    // work without a rebuild. The router receives the already-validated
+    // process app ID rather than a caller-selected value.
     const relFunctionMatch = /^\/functions\/([^/]+)$/.exec(pathname);
     if (relFunctionMatch && req.method === 'POST') {
       const [, functionName] = relFunctionMatch;

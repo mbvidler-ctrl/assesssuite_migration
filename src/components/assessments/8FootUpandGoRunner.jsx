@@ -3,10 +3,13 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, RotateCcw, AlertTriangle, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import {
+  interpretEightFootUpGo,
+  validateAndScoreEightFootUpGo,
+} from "@/lib/clinical/scorers/standaloneAndFim";
 
 export default function EightFootUpandGoRunner({ client, onSave, onClose }) {
   const [timerMs, setTimerMs] = useState(0);
@@ -36,11 +39,19 @@ export default function EightFootUpandGoRunner({ client, onSave, onClose }) {
   const handleStartStop = () => {
     if (isRunning) {
       const timeS = parseFloat((timerMs / 1000).toFixed(2));
+      if (timeS <= 0) {
+        toast.error("Trial time must be greater than zero.");
+        return;
+      }
       setTrials(prev => [...prev, { time_s: timeS }]);
       toast.success(`Trial ${trials.length + 1}: ${timeS}s`);
       setIsRunning(false);
       setTimerMs(0);
     } else {
+      if (trials.length >= 2) {
+        toast.error("The two required trials are already recorded. Remove a trial to repeat it.");
+        return;
+      }
       setTimerMs(0);
       setIsRunning(true);
     }
@@ -50,36 +61,30 @@ export default function EightFootUpandGoRunner({ client, onSave, onClose }) {
 
   const bestTrial = trials.length > 0 ? trials.reduce((best, t) => t.time_s < best.time_s ? t : best) : null;
 
-  const getInterpretation = (timeS) => {
-    if (timeS <= 8.1) return { label: 'Low fall risk', color: 'bg-green-100 text-green-800' };
-    if (timeS <= 9.2) return { label: 'Moderate fall risk', color: 'bg-yellow-100 text-yellow-800' };
-    return { label: 'High fall risk — increased mobility limitations', color: 'bg-red-100 text-red-800' };
-  };
-
   const handleSave = () => {
-    if (trials.length === 0) {
-      toast.error("Complete at least one trial.");
+    if (trials.length !== 2) {
+      toast.error("Complete both required trials before saving.");
       return;
     }
-    onSave({
-      result_value: bestTrial?.time_s,
-      assessment_date: todayLocal(),
-      notes,
-      additional_data: {
-        soap_text: `• 8-Foot Up-and-Go Test\n  Best Time: ${bestTrial?.time_s?.toFixed(2)}s\n  Interpretation: ${bestTrial ? getInterpretation(bestTrial.time_s).label : 'N/A'}\n  Chair Height: ${chairHeight} | Assistance: ${assistanceUsed}`,
-        measurement_type: '8_foot_up_and_go',
+    try {
+      const payload = validateAndScoreEightFootUpGo({
         trials,
-        best_time_s: bestTrial?.time_s,
         chair_height: chairHeight,
         assistance_used: assistanceUsed,
         footwear,
-        interpretation: bestTrial ? getInterpretation(bestTrial.time_s).label : null,
-      }
-    });
-    toast.success("Assessment saved.");
+        notes,
+      }, {
+        assessmentName: '8-Foot Up-and-Go Test',
+        assessmentDate: todayLocal(),
+      });
+      onSave(payload);
+      toast.success("Assessment saved.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to score this assessment.");
+    }
   };
 
-  const interp = bestTrial ? getInterpretation(bestTrial.time_s) : null;
+  const interp = bestTrial ? interpretEightFootUpGo() : null;
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -201,7 +206,7 @@ export default function EightFootUpandGoRunner({ client, onSave, onClose }) {
                       <span className="text-slate-500">Best Time:</span>
                       <span className="font-bold text-cyan-700 text-lg">{bestTrial.time_s.toFixed(2)}s</span>
                     </div>
-                    {interp && <div className={`rounded px-3 py-2 text-xs font-medium ${interp.color}`}>{interp.label}</div>}
+                    {interp && <div className="rounded px-3 py-2 text-xs font-medium bg-blue-50 text-blue-800">{interp}</div>}
                   </div>
                 )}
               </CardContent>
@@ -210,18 +215,8 @@ export default function EightFootUpandGoRunner({ client, onSave, onClose }) {
 
           {/* Norms & Interpretation */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">📊 Norms & Interpretation (Rikli & Jones — older adults)</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs border border-slate-300 rounded">
-                <thead className="bg-slate-200"><tr><th className="p-2 text-left">Time</th><th className="p-2 text-left">Classification</th><th className="p-2 text-left">Fall Risk</th></tr></thead>
-                <tbody>
-                  <tr className="border-t border-slate-200"><td className="p-2">≤ 8.1 s</td><td className="p-2">Normal / Low concern</td><td className="p-2 text-green-600">Low</td></tr>
-                  <tr className="border-t border-slate-200 bg-white"><td className="p-2">8.2–9.2 s</td><td className="p-2">Borderline</td><td className="p-2 text-yellow-600">Moderate</td></tr>
-                  <tr className="border-t border-slate-200"><td className="p-2">≥ 9.3 s</td><td className="p-2">Mobility limitation</td><td className="p-2 text-red-600">High</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <p className="text-xs text-slate-500">MCID: 0.67 s. Community-dwelling older adults aged 60–94. Best of 2 trials used. Source: Rikli & Jones (2013).</p>
+            <p className="font-semibold text-slate-700">📊 Norms & Interpretation</p>
+            <p className="text-xs text-slate-600">Report the best of two trials and compare it with the age- and gender-matched Senior Fitness Test reference data stored with this assessment. A universal fall-risk band is not substituted for the matched reference.</p>
           </div>
 
           {/* Reference */}
@@ -246,7 +241,7 @@ export default function EightFootUpandGoRunner({ client, onSave, onClose }) {
 
         <div className="p-4 border-t bg-slate-50 flex justify-between">
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSave} disabled={trials.length === 0} className="bg-cyan-600 hover:bg-cyan-700">
+          <Button onClick={handleSave} disabled={trials.length !== 2} className="bg-cyan-600 hover:bg-cyan-700">
             <Save className="w-4 h-4 mr-2" />Save Results
           </Button>
         </div>

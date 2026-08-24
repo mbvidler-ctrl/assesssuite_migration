@@ -1,15 +1,14 @@
 // Ported from base44/functions/createPortalSession/entry.ts.
 //
-// Two modes, switched solely by stripeGateway.stripeEnabled():
-//   - Mock (default; always under SELFTEST=1): deterministic fake
-//     billing-portal session URL — no network calls, byte-identical to the
-//     pre-gateway behaviour.
-//   - Real (STRIPE_SECRET_KEY set): billing-portal session created against
-//     api.stripe.com via server/stripeGateway.mjs. Both modes return the
-//     same response shape: { url } on 200, { error } on 400/500.
+// Production creates a real billing-portal session through the server-owned
+// Stripe adapter. Isolated tests may inject a test adapter through ctx; this
+// runnable module imports and ships no fake provider implementation.
 
-import { createMockPortalSession } from '../mocks/stripe.mjs';
-import * as stripeGateway from '../stripeGateway.mjs';
+import { resolvePublicRequestOrigin } from '../publicRequestOrigin.mjs';
+import {
+  resolveStripeProvider,
+  stripeProviderReady,
+} from '../providers/stripeProduction.mjs';
 
 export default async function createPortalSession(ctx) {
   const { body, user, respond } = ctx;
@@ -27,27 +26,36 @@ export default async function createPortalSession(ctx) {
     return respond(400, { error: 'No Stripe customer ID found.' });
   }
 
-  if (stripeGateway.stripeEnabled()) {
-    // Real mode. Stripe requires an absolute return_url. The captured Base44
-    // function used the retired /Settings path; the migrated app's canonical
-    // account and billing route is /MyProfile. An optional `flow`
-    // ('subscription_update' | 'payment_method_update') is forwarded to the
-    // gateway as flow_data so the portal opens directly on that flow.
-    const appUrl = (process.env.APP_URL || 'http://localhost:5173').replace(/\/+$/, '');
-    try {
-      const session = await stripeGateway.createPortalSession({
-        stripeCustomerId,
-        returnUrl: `${appUrl}/MyProfile`,
-        flow,
-        subscriptionId,
-      });
-      return respond(200, { url: session.url });
-    } catch (err) {
-      return respond(500, { error: err.message });
-    }
+  let provider;
+  try {
+    provider = resolveStripeProvider(ctx.stripeProvider, process.env);
+  } catch (error) {
+    return respond(500, { error: error.message, code: 'stripe_provider_invalid' });
+  }
+  if (!stripeProviderReady(provider, process.env)) {
+    return respond(503, {
+      error: 'The billing portal is unavailable because Stripe is not configured.',
+      code: 'stripe_provider_unavailable',
+    });
   }
 
-  // Mock mode (default) — unchanged behaviour.
-  const session = createMockPortalSession({ stripeCustomerId, returnUrl: '/MyProfile' });
-  return respond(200, { url: session.url });
+  // Stripe requires an absolute return_url. Resolve it from the exact public
+  // request host (custom or Fly) and never from caller JSON.
+  let appUrl;
+  try {
+    appUrl = resolvePublicRequestOrigin({ request: ctx.request, environment: process.env });
+  } catch (error) {
+    return respond(400, { error: error.message, code: error.code });
+  }
+  try {
+    const session = await provider.createPortalSession({
+      stripeCustomerId,
+      returnUrl: `${appUrl}/MyProfile`,
+      flow,
+      subscriptionId,
+    });
+    return respond(200, { url: session.url });
+  } catch (err) {
+    return respond(502, { error: err.message, code: 'stripe_provider_rejected' });
+  }
 }

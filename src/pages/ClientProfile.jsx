@@ -54,6 +54,10 @@ import NutritionSummaryCard from "@/components/client/NutritionSummaryCard";
 import NutritionTab from "@/components/client/NutritionTab";
 import ClientDataExporter from "@/components/client/ClientDataExporter";
 import AdverseEventsTab from "@/components/client/AdverseEventsTab";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
+
+const legacyNutritionSurfaceAllowed = activeProfession.features.legacyGeneralClinicalLlm === true;
+const careEpisodeWorkflow = activeProfession.features.careEpisodes === true;
 
 export default function ClientProfile() {
   const navigate = useNavigate();
@@ -103,7 +107,7 @@ export default function ClientProfile() {
         .sort((a, b) => {
           if (!a.assessment_date) return 1;
           if (!b.assessment_date) return -1;
-          return new Date(b.assessment_date) - new Date(a.assessment_date);
+          return new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime();
         });
       setAssessments(assessmentsData);
     } catch (error) {
@@ -158,7 +162,7 @@ export default function ClientProfile() {
         .sort((a, b) => {
           if (!a.assessment_date) return 1;
           if (!b.assessment_date) return -1;
-          return new Date(b.assessment_date) - new Date(a.assessment_date);
+          return new Date(b.assessment_date).getTime() - new Date(a.assessment_date).getTime();
         });
 
       setConditions(conditionsData);
@@ -228,7 +232,12 @@ export default function ClientProfile() {
 
   return (
     <>
-      <Toaster richColors position="top-center" />
+      <Toaster
+        richColors
+        position="top-center"
+        style={{ pointerEvents: "none" }}
+        toastOptions={{ style: { pointerEvents: "auto" } }}
+      />
       
       {showOnboardingReport && (
         <PrintableOnboardingReport 
@@ -286,23 +295,25 @@ export default function ClientProfile() {
         </DialogContent>
       </Dialog>
 
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 p-6">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50/30 p-4 sm:p-6">
         <div className="max-w-7xl mx-auto space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex min-w-0 items-start gap-3 sm:items-center sm:gap-4">
               <Button
                 variant="outline"
                 size="icon"
                 onClick={() => navigate(createPageUrl("Clients"))}
+                aria-label="Back to clients"
+                className="shrink-0"
               >
                 <ArrowLeft className="w-4 h-4" />
               </Button>
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-lg">
-                  <UserIcon className="w-8 h-8 text-white" />
+              <div className="flex min-w-0 items-center gap-3 sm:gap-6">
+                <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-blue-500 to-blue-600 shadow-lg sm:h-16 sm:w-16">
+                  <UserIcon className="h-6 w-6 text-white sm:h-8 sm:w-8" />
                 </div>
-                <div>
-                  <h1 className="text-3xl font-bold text-slate-900">
+                <div className="min-w-0">
+                  <h1 className="break-words text-2xl font-bold text-slate-900 sm:text-3xl">
                     {client.full_name}
                   </h1>
                   <p className="text-slate-600">
@@ -311,18 +322,18 @@ export default function ClientProfile() {
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="grid w-full grid-cols-1 gap-3 sm:flex sm:w-auto sm:items-center">
               <Button
                 onClick={() => setShowOnboardingReport(true)}
                 variant="outline"
-                className="bg-white"
+                className="w-full bg-white sm:w-auto"
               >
                 <FileText className="w-4 h-4 mr-2" />
                 View Onboarding Report
               </Button>
               <Button
                 variant="outline"
-                className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                className="w-full text-red-600 hover:bg-red-50 hover:text-red-700 sm:w-auto"
                 onClick={() => setShowDeleteDialog(true)}
               >
                 <Trash2 className="w-4 h-4 mr-2" />
@@ -372,33 +383,40 @@ export default function ClientProfile() {
                 </CardContent>
               </Card>
 
-              <Card className="bg-white/80 backdrop-blur-sm border-slate-200/60">
+              <Card className="min-w-0 bg-white/80 backdrop-blur-sm border-slate-200/60">
                 <CardHeader>
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                     <CardTitle className="flex items-center gap-2">
                       <Phone className="w-5 h-5 text-blue-600" />
                       Contact Details
                     </CardTitle>
-                    <Button variant="ghost" size="sm" onClick={() => setEditingSection('contact')}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setEditingSection('contact')}
+                      aria-label="Edit contact details"
+                      className="h-11 w-full sm:h-8 sm:w-auto"
+                    >
                       <Edit className="w-4 h-4" />
+                      <span className="sm:sr-only">Edit contact details</span>
                     </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex items-center gap-3">
-                    <Phone className="w-4 h-4 text-slate-500" />
-                    <span className="text-sm text-slate-600">Phone:</span>
-                    <span className="font-medium">{client.phone || "N/A"}</span>
+                  <div className="flex min-w-0 items-start gap-3">
+                    <Phone className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+                    <span className="shrink-0 text-sm text-slate-600">Phone:</span>
+                    <span className="min-w-0 break-words font-medium">{client.phone || "N/A"}</span>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <Mail className="w-4 h-4 text-slate-500" />
-                    <span className="text-sm text-slate-600">Email:</span>
-                    <span className="font-medium">{client.email || "N/A"}</span>
+                  <div className="flex min-w-0 items-start gap-3">
+                    <Mail className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+                    <span className="shrink-0 text-sm text-slate-600">Email:</span>
+                    <span className="min-w-0 break-all font-medium">{client.email || "N/A"}</span>
                   </div>
-                  <div className="flex items-start gap-3">
-                    <Home className="w-4 h-4 text-slate-500 mt-0.5" />
-                    <span className="text-sm text-slate-600">Address:</span>
-                    <span className="font-medium">{client.address || "N/A"}</span>
+                  <div className="flex min-w-0 items-start gap-3">
+                    <Home className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" />
+                    <span className="shrink-0 text-sm text-slate-600">Address:</span>
+                    <span className="min-w-0 break-words font-medium">{client.address || "N/A"}</span>
                   </div>
                 </CardContent>
               </Card>
@@ -613,51 +631,74 @@ export default function ClientProfile() {
             <div className="space-y-6">
               <OnboardingStatus client={client} conditions={conditions} />
               <OnboardingEpisodes client={client} onReOnboardStarted={() => {}} />
-              <ClientDocuments 
-                clientId={clientId} 
-                client={client}
-              />
-              <NutritionSummaryCard 
-                clientId={clientId}
-                client={client}
-                onCreatePlan={() => setShowNutritionModal(true)}
-              />
-              <MedicationAlerts
-                conditions={conditions}
-                client={client}
-                clientAge={getAge(client.date_of_birth)}
-              />
+              {!careEpisodeWorkflow && (
+                <ClientDocuments
+                  clientId={clientId}
+                  client={client}
+                />
+              )}
+              {legacyNutritionSurfaceAllowed && (
+                <NutritionSummaryCard
+                  clientId={clientId}
+                  client={client}
+                  onCreatePlan={() => setShowNutritionModal(true)}
+                />
+              )}
+              {legacyNutritionSurfaceAllowed && (
+                <MedicationAlerts
+                  conditions={conditions}
+                  client={client}
+                />
+              )}
             </div>
           </div>
 
-          <AssessmentRecommendations
-            clientConditions={conditions}
-            allAssessments={allAssessments}
-            clientAssessments={assessments}
-            clientId={clientId}
-            onAssessmentAdded={loadClientData}
-            client={client}
-          />
+          {careEpisodeWorkflow ? (
+            <Card className="border-teal-200 bg-teal-50/60">
+              <CardHeader>
+                <CardTitle>Physio care episodes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="mb-4 text-sm text-slate-700">
+                  Assessments, SOAP notes, documents, reports and AI drafts are created and viewed inside one selected episode.
+                </p>
+                <Button onClick={() => navigate(createPageUrl(`PhysioEpisodes?client_id=${client.id}`))}>
+                  Open care episodes
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
+            <>
+              <AssessmentRecommendations
+                clientConditions={conditions}
+                allAssessments={allAssessments}
+                clientAssessments={assessments}
+                clientId={clientId}
+                onAssessmentAdded={loadClientData}
+                client={client}
+              />
 
-          <SavedReports client={client} />
+              <SavedReports client={client} />
 
-          <ClientSOAPNotes client={client} />
+              <ClientSOAPNotes client={client} />
 
-          <ClientAssessments
-            client={client}
-            clientAssessments={assessments}
-            allAssessments={allAssessments}
-            onAssessmentUpdate={refreshAssessments}
-          />
+              <ClientAssessments
+                client={client}
+                clientAssessments={assessments}
+                allAssessments={allAssessments}
+                onAssessmentUpdate={refreshAssessments}
+              />
 
-          <Card className="bg-white/80 backdrop-blur-sm border-slate-200/60">
-            <CardHeader>
-              <CardTitle>Progress Tracking</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ProgressVisualization client={client} conditions={conditions} />
-            </CardContent>
-          </Card>
+              <Card className="bg-white/80 backdrop-blur-sm border-slate-200/60">
+                <CardHeader>
+                  <CardTitle>Progress Tracking</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ProgressVisualization client={client} conditions={conditions} />
+                </CardContent>
+              </Card>
+            </>
+          )}
 
           <Card className="bg-gradient-to-br from-purple-50 to-blue-50 border-purple-200">
             <CardHeader>
@@ -681,17 +722,19 @@ export default function ClientProfile() {
         </div>
       </div>
 
-      <Dialog open={showNutritionModal} onOpenChange={setShowNutritionModal}>
-        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Utensils className="w-5 h-5 text-green-600" />
-              Nutrition Plan - {client.full_name}
-            </DialogTitle>
-          </DialogHeader>
-          <NutritionTab client={client} onUpdate={loadClientData} />
-        </DialogContent>
-      </Dialog>
+      {legacyNutritionSurfaceAllowed && (
+        <Dialog open={showNutritionModal} onOpenChange={setShowNutritionModal}>
+          <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Utensils className="w-5 h-5 text-green-600" />
+                Nutrition Plan - {client.full_name}
+              </DialogTitle>
+            </DialogHeader>
+            <NutritionTab client={client} onUpdate={loadClientData} />
+          </DialogContent>
+        </Dialog>
+      )}
 
       <ClientDataExporter
         client={client}

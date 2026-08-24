@@ -3,6 +3,7 @@ import test from 'node:test';
 
 import managePromotions from '../functions/managePromotions.mjs';
 import { _mockStripeStore } from '../mocks/stripe.mjs';
+import { testStripeProvider } from './support/provider-services.mjs';
 
 function responder() {
   return (status, body) => ({ status, body });
@@ -11,6 +12,10 @@ function responder() {
 function resetMockStore() {
   _mockStripeStore.couponsById.clear();
   _mockStripeStore.promotionCodesById.clear();
+}
+
+function withTestProvider(context) {
+  return { ...context, stripeProvider: testStripeProvider };
 }
 
 async function withEnvironment(values, operation) {
@@ -46,7 +51,8 @@ test('administrator can create, list, and deactivate a bounded mock promotion', 
     PAYMENTS_ENABLED: undefined,
     STRIPE_SECRET_KEY: undefined,
     NODE_ENV: 'test',
-  }, () => managePromotions({
+    SELFTEST: '1',
+  }, () => managePromotions(withTestProvider({
     user,
     body: {
       action: 'create',
@@ -61,7 +67,7 @@ test('administrator can create, list, and deactivate a bounded mock promotion', 
       internal_note: 'Approved synthetic campaign',
     },
     respond: responder(),
-  }));
+  })));
   assert.equal(create.status, 201);
   assert.equal(create.body.promotion.code, 'WELCOME-20');
   assert.equal(create.body.promotion.coupon.percent_off, 20);
@@ -69,16 +75,20 @@ test('administrator can create, list, and deactivate a bounded mock promotion', 
   assert.equal(create.body.promotion.restrictions.minimum_amount, 5000);
   assert.equal(create.body.promotion.metadata.assesssuite_created_by_user_id, 'admin-a');
 
-  const list = await managePromotions({ user, body: { action: 'list' }, respond: responder() });
+  const list = await withEnvironment({ NODE_ENV: 'test', SELFTEST: '1' }, () => (
+    managePromotions(withTestProvider({ user, body: { action: 'list' }, respond: responder() }))
+  ));
   assert.equal(list.status, 200);
   assert.equal(list.body.promotions.length, 1);
-  assert.equal(list.body.mode, 'mock');
+  assert.equal(list.body.mode, 'test');
 
-  const deactivate = await managePromotions({
-    user,
-    body: { action: 'deactivate', promotion_id: create.body.promotion.id },
-    respond: responder(),
-  });
+  const deactivate = await withEnvironment({ NODE_ENV: 'test', SELFTEST: '1' }, () => (
+    managePromotions(withTestProvider({
+      user,
+      body: { action: 'deactivate', promotion_id: create.body.promotion.id },
+      respond: responder(),
+    }))
+  ));
   assert.equal(deactivate.status, 200);
   assert.equal(deactivate.body.promotion.active, false);
 });
@@ -86,13 +96,12 @@ test('administrator can create, list, and deactivate a bounded mock promotion', 
 test('invalid or duplicate codes fail without leaving an extra coupon', { concurrency: false }, async () => {
   resetMockStore();
   const user = { id: 'admin-a', email: 'admin@example.invalid', role: 'admin' };
-  const invalid = await managePromotions({
-    user,
-    body: {
-      action: 'create', code: 'no spaces', name: 'Invalid', discount_type: 'percent',
-      discount_value: 10, duration: 'once',
-    },
-    respond: responder(),
+  const invoke = (body) => withEnvironment({ NODE_ENV: 'test', SELFTEST: '1' }, () => (
+    managePromotions(withTestProvider({ user, body, respond: responder() }))
+  ));
+  const invalid = await invoke({
+    action: 'create', code: 'no spaces', name: 'Invalid', discount_type: 'percent',
+    discount_value: 10, duration: 'once',
   });
   assert.equal(invalid.status, 400);
 
@@ -100,8 +109,8 @@ test('invalid or duplicate codes fail without leaving an extra coupon', { concur
     action: 'create', code: 'LIMITED10', name: 'Limited', discount_type: 'percent',
     discount_value: 10, duration: 'once',
   };
-  assert.equal((await managePromotions({ user, body: validBody, respond: responder() })).status, 201);
-  assert.equal((await managePromotions({ user, body: validBody, respond: responder() })).status, 400);
+  assert.equal((await invoke(validBody)).status, 201);
+  assert.equal((await invoke(validBody)).status, 400);
   assert.equal(_mockStripeStore.couponsById.size, 1);
 });
 

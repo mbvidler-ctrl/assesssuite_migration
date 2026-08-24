@@ -1,0 +1,45 @@
+{
+  "contract_version": "assesssuite-physio-live-qa-capabilities/1.0.0",
+  "profession_id": "physio",
+  "app_id": "local-assesssuite-physio",
+  "catalogue_count": 236,
+  "required_dependencies_ready": true,
+  "capabilities": {
+    "general_clinical_llm": {
+      "enabled": false,
+      "required": false,
+      "ready": true,
+      "status": "disabled"
+    },
+    "physio_ai_tasks": {
+      "enabled": true,
+      "required": true,
+      "ready": true,
+      "status": "ready"
+    },
+    "transcription": {
+      "enabled": true,
+      "required": true,
+      "ready": true,
+      "status": "ready"
+    },
+    "document_extraction": {
+      "enabled": true,
+      "required": true,
+      "ready": true,
+      "status": "ready"
+    },
+    "transactional_email": {
+      "enabled": true,
+      "required": true,
+      "ready": true,
+      "status": "ready"
+    },
+    "payments": {
+      "enabled": true,
+      "required": true,
+      "ready": true,
+      "status": "ready"
+    }
+  }
+}

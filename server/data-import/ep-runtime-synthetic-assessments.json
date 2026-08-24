@@ -1,0 +1,97 @@
+[
+  {
+    "name": "Timed Up and Go",
+    "category": "geriatric",
+    "description": "Measures functional mobility and fall risk via time to rise, walk 3m, turn, and sit.",
+    "instructions": "Client rises from a standard armchair, walks 3 metres, turns, walks back, and sits down. Time from \"go\" to seated is recorded.",
+    "scoring_system": "Lower time (seconds) indicates better functional mobility.",
+    "unit_of_measure": "seconds",
+    "equipment_needed": "Standard armchair, stopwatch, 3m marked walkway",
+    "contraindications": "Acute lower-limb injury preventing weight-bearing",
+    "conditions_indicated": ["falls_risk", "geriatric_deconditioning"],
+    "search_tags": ["tug", "mobility", "falls"],
+    "is_questionnaire": false,
+    "has_test_runner": true,
+    "results_add_to_soap": true,
+    "has_normatives": true,
+    "has_instructions": true,
+    "has_references": true,
+    "normative_direction": "lower_better",
+    "normative_source": "SYNTHETIC example data — not clinically verified (see docs/qa/20260705-clinical-claims-audit-register.md)",
+    "normative_data": [
+      {"age_min": 60, "age_max": 69, "gender": "both", "mean": 8.5, "std_dev": 1.8, "percentile_25": 7.2, "percentile_75": 9.8},
+      {"age_min": 70, "age_max": 79, "gender": "both", "mean": 9.2, "std_dev": 2.2, "percentile_25": 7.6, "percentile_75": 10.8, "clinical_inference": {"below_average": "A slower time in this range may indicate elevated falls risk; further balance assessment may be warranted. (Illustrative curated example — clinician review required.)"}},
+      {"age_min": 80, "age_max": 99, "gender": "both", "mean": 11.5, "std_dev": 3, "percentile_25": 9, "percentile_75": 13.5}
+    ]
+  },
+  {
+    "name": "Six-Minute Walk Test",
+    "category": "cardio_pulmonary",
+    "description": "Measures the distance walked in six minutes as a proxy for functional exercise capacity.",
+    "instructions": "Client walks as far as possible along a flat 30m course for six minutes, with standardised encouragement.",
+    "scoring_system": "Total distance walked (metres) compared to normative predicted distance.",
+    "unit_of_measure": "metres",
+    "equipment_needed": "30m flat corridor, cones, stopwatch, pulse oximeter",
+    "contraindications": "Unstable angina, recent myocardial infarction",
+    "conditions_indicated": ["copd", "cardiac_rehabilitation"],
+    "search_tags": ["6mwt", "endurance", "cardiopulmonary"],
+    "is_questionnaire": false,
+    "has_test_runner": true,
+    "results_add_to_soap": true,
+    "has_normatives": true,
+    "has_instructions": true,
+    "has_references": true,
+    "normative_direction": "higher_better",
+    "normative_source": "SYNTHETIC example data — not clinically verified (see docs/qa/20260705-clinical-claims-audit-register.md)",
+    "normative_data": [
+      {"age_min": 40, "age_max": 59, "gender": "both", "mean": 560, "std_dev": 90, "percentile_25": 500, "percentile_75": 620},
+      {"age_min": 60, "age_max": 79, "gender": "both", "mean": 480, "std_dev": 100, "percentile_25": 410, "percentile_75": 550}
+    ]
+  },
+  {
+    "name": "DASS-21",
+    "category": "mental_health",
+    "description": "Twenty-one item questionnaire measuring depression, anxiety, and stress symptom severity.",
+    "instructions": "Client self-completes 21 items on a 0-3 severity scale referenced to the past week.",
+    "scoring_system": "Subscale raw scores multiplied by two, compared against severity bands.",
+    "unit_of_measure": "score",
+    "equipment_needed": "Printed or digital questionnaire",
+    "contraindications": "None specific; clinical judgement where acute distress is present",
+    "conditions_indicated": ["depression", "anxiety", "chronic_pain"],
+    "search_tags": ["dass21", "mental_health", "questionnaire"],
+    "is_questionnaire": true,
+    "has_test_runner": true,
+    "results_add_to_soap": true,
+    "has_normatives": false,
+    "has_instructions": true,
+    "has_references": true,
+    "questions": [
+      {"question_text": "I found it hard to wind down", "question_type": "scale", "options": [{"label": "Never", "value": 0}, {"label": "Sometimes", "value": 1}, {"label": "Often", "value": 2}, {"label": "Almost always", "value": 3}], "reverse_scored": false},
+      {"question_text": "I was aware of dryness of my mouth", "question_type": "scale", "options": [{"label": "Never", "value": 0}, {"label": "Sometimes", "value": 1}, {"label": "Often", "value": 2}, {"label": "Almost always", "value": 3}], "reverse_scored": false}
+    ]
+  },
+  {
+    "name": "30-Second Sit to Stand",
+    "category": "musculoskeletal",
+    "description": "Counts the number of full stands from a seated position in thirty seconds, as a proxy for lower-limb strength.",
+    "instructions": "Client crosses arms over chest and stands fully then sits, repeating for thirty seconds; count each full stand.",
+    "scoring_system": "Higher repetition count indicates greater lower-limb strength.",
+    "unit_of_measure": "repetitions",
+    "equipment_needed": "Standard chair without arms, stopwatch",
+    "contraindications": "Unstable hip or knee replacement, uncontrolled hypertension",
+    "conditions_indicated": ["sarcopenia", "post_surgical_deconditioning"],
+    "search_tags": ["sit_to_stand", "strength", "lower_limb"],
+    "is_questionnaire": false,
+    "has_test_runner": true,
+    "results_add_to_soap": true,
+    "has_normatives": true,
+    "has_instructions": true,
+    "has_references": true,
+    "normative_direction": "higher_better",
+    "normative_source": "SYNTHETIC example data — not clinically verified (see docs/qa/20260705-clinical-claims-audit-register.md)",
+    "normative_data": [
+      {"age_min": 60, "age_max": 69, "gender": "both", "mean": 14, "std_dev": 3.5, "percentile_25": 12, "percentile_75": 17, "clinical_inference": {"below_average": "A result below the 25th percentile may indicate reduced lower-limb strength; consider a targeted strengthening programme and clinical review. (Illustrative curated example — clinician review required.)"}},
+      {"age_min": 70, "age_max": 79, "gender": "both", "mean": 12, "std_dev": 3, "percentile_25": 10, "percentile_75": 15}
+    ]
+  }
+]

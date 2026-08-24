@@ -79,6 +79,16 @@ function performanceFrom(position, direction) {
     : { label: "Below average", enum: "below_average" };
 }
 
+/**
+ * @param {{
+ *   resultValue?: number,
+ *   norm?: Record<string, any> | null,
+ *   subjectName?: string,
+ *   unit?: string,
+ *   ageLabel?: string | null,
+ *   genderLabel?: string | null
+ * }} [options]
+ */
 export function generateInterpretation({
   resultValue,
   norm,

@@ -33,6 +33,7 @@
 // Never binds 8787 (lead's shim) or 5173 (Vite). Synthetic data only.
 
 import { spawn, spawnSync } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { once } from 'node:events';
 import path from 'node:path';
 import fs from 'node:fs';
@@ -45,6 +46,8 @@ const repoRoot = path.join(__dirname, '..');
 const serverEntry = path.join(repoRoot, 'server', 'index.mjs');
 const seedModulePath = path.join(repoRoot, 'server', 'seed.mjs');
 const dbFile = path.join(repoRoot, 'server', 'data', 'selftest.db');
+const smokeSeedPassword = process.env.SEED_PASSWORD || randomBytes(24).toString('base64url');
+process.env.SEED_PASSWORD = smokeSeedPassword;
 
 const FORBIDDEN_PORTS = new Set([8787, 5173]);
 
@@ -84,14 +87,26 @@ async function waitForServer(baseUrl, timeoutMs = 15000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
-      const res = await fetch(`${baseUrl}/api/apps/public/prod/public-settings/by-id/probe`);
-      if (res.status === 200) return true;
+      const res = await fetch(`${baseUrl}/api/health/live`);
+      if (res.status === 200) {
+        const body = await res.json();
+        if (
+          body && typeof body === 'object' && !Array.isArray(body) &&
+          JSON.stringify(Object.keys(body).sort()) === JSON.stringify([
+            'app_id', 'contract_version', 'profession_id', 'status',
+          ]) &&
+          body.contract_version === 'assesssuite-runtime-status/1.0.0' &&
+          body.status === 'live' &&
+          typeof body.profession_id === 'string' && body.profession_id &&
+          typeof body.app_id === 'string' && body.app_id
+        ) return body;
+      }
     } catch {
       // server not up yet
     }
     await new Promise((r) => setTimeout(r, 150));
   }
-  return false;
+  return null;
 }
 
 function removeThrowawayDbFiles() {
@@ -144,7 +159,7 @@ async function main() {
     port = await getFreePort();
   }
   const baseUrl = `http://127.0.0.1:${port}`;
-  const appId = 'smoke-test-app';
+  let appId = null;
 
   // Always start from a clean throwaway db file — this script owns it
   // exclusively and never touches server/data/app.db.
@@ -211,18 +226,19 @@ async function main() {
   }
 
   try {
-    const up = await waitForServer(baseUrl);
+    const live = await waitForServer(baseUrl);
+    appId = live?.app_id || null;
     const expectedListener = `[shim] listening on http://127.0.0.1:${port}`;
     for (let attempt = 0; attempt < 100 && !serverOutput.split(/\r?\n/).includes(expectedListener); attempt += 1) {
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
-    if (!up || !serverOutput.split(/\r?\n/).includes(expectedListener)) {
+    if (!live || !appId || !serverOutput.split(/\r?\n/).includes(expectedListener)) {
       console.error('[smoke] server failed to start within timeout. Output so far:\n', serverOutput);
       process.exitCode = 1;
       await cleanup();
       return;
     }
-    record('shim server started on ephemeral port', true, `pid=${childPid} url=${baseUrl}`);
+    record('shim server started on ephemeral port', true, `pid=${childPid} url=${baseUrl} app=${appId}`);
 
     // -----------------------------------------------------------------
     // Seed the now-open throwaway db via a second, independent
@@ -277,7 +293,7 @@ async function main() {
     {
       const { status, body } = await api(baseUrl, appId, `/api/apps/${appId}/auth/login`, {
         method: 'POST',
-        body: { email: users.alphaClinician.email, password: 'SeedDemo!2026' },
+        body: { email: users.alphaClinician.email, password: smokeSeedPassword },
       });
       alphaClinicianToken = body?.access_token;
       record(
@@ -380,12 +396,11 @@ async function main() {
     }
 
     // -----------------------------------------------------------------
-    // Integration: InvokeLLM with a schema -> object
+    // Integration: generic InvokeLLM is fail-loud when no provider is configured
     // -----------------------------------------------------------------
-    // This only proves the SELFTEST=1 mock/schema-instantiation path
-    // (schema-shaped 200), not production LLM_REQUIRED=1 behaviour on any
-    // of the 11 clinical-AI surfaces — see
-    // server/tests/clinical-ai-feature-matrix.test.mjs for that coverage.
+    // SELFTEST does not manufacture AI success. This proves the shared route
+    // remains authenticated but returns an explicit provider-configuration
+    // failure without placeholder content or a durable usage reservation.
     {
       const schema = {
         type: 'object',
@@ -398,6 +413,11 @@ async function main() {
       // Integrations require a session (auth gate added 7 July); the app
       // only ever calls them from an authenticated context, so the probe
       // authenticates as the seeded clinician.
+      const usageDb = new DatabaseSync(dbFile, { readOnly: true });
+      const usageBefore = Number(usageDb.prepare(
+        'SELECT COUNT(*) AS count FROM api_usage_reservation',
+      ).get().count);
+      usageDb.close();
       const { status, body } = await api(
         baseUrl,
         appId,
@@ -408,10 +428,18 @@ async function main() {
           body: { prompt: 'Summarise smoke test findings', response_json_schema: schema },
         },
       );
+      const usageReadback = new DatabaseSync(dbFile, { readOnly: true });
+      const usageAfter = Number(usageReadback.prepare(
+        'SELECT COUNT(*) AS count FROM api_usage_reservation',
+      ).get().count);
+      usageReadback.close();
+      const responseText = JSON.stringify(body);
       record(
-        'integration InvokeLLM with response_json_schema returns a schema-shaped object',
-        status === 200 && typeof body === 'object' && body !== null && typeof body.summary === 'string',
-        `status=${status} body=${JSON.stringify(body)}`,
+        'integration InvokeLLM fails loud without provider or placeholder persistence',
+        status === 503 && body?.code === 'ai_provider_unconfigured' &&
+          !/(?:mock|simulat|placeholder|fallback)/i.test(responseText) &&
+          body?.output === undefined && usageAfter === usageBefore,
+        `status=${status} usage_before=${usageBefore} usage_after=${usageAfter} body=${responseText}`,
       );
     }
 

@@ -32,9 +32,9 @@ concurrency:
 
 jobs:
   checks:
-    name: Build, lint, and offline assurance battery
+    name: Build, full typecheck, lint, and offline assurance battery
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       - name: Check out pull request
         uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -50,6 +50,45 @@ jobs:
       - name: Install locked dependencies
         run: npm ci
 
+      - name: Verify live self-service phase commands without provider effects
+        run: npm run check:physio-live-self-service-commands
+
+      - name: Differential typecheck against pull-request base
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          set -euo pipefail
+          merge_base="$(git merge-base "${BASE_SHA}" HEAD)"
+          [[ -n "${merge_base}" ]]
+          git cat-file -e "${merge_base}^{commit}"
+          base_dir="${RUNNER_TEMP}/typecheck-base"
+          git worktree add --detach "${base_dir}" "${merge_base}"
+          npm --prefix "${base_dir}" ci
+          node scripts/compare-typecheck-baseline.mjs \
+            --base-dir "${base_dir}" \
+            --candidate-dir "${GITHUB_WORKSPACE}" \
+            --base-output "${RUNNER_TEMP}/typecheck-base.txt" \
+            --candidate-output "${RUNNER_TEMP}/typecheck-candidate.txt" \
+            --introduced-output "${RUNNER_TEMP}/typecheck-introduced.json" \
+            | tee "${RUNNER_TEMP}/typecheck-summary.json"
+
+      - name: Preserve raw typecheck evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: typecheck-evidence-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/typecheck-base.txt
+            ${{ runner.temp }}/typecheck-candidate.txt
+            ${{ runner.temp }}/typecheck-introduced.json
+            ${{ runner.temp }}/typecheck-summary.json
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Full repository typecheck
+        run: npm run typecheck
+
       - name: Dependency audit gate
         run: node scripts/check-dependency-audit.mjs
 
@@ -57,7 +96,7 @@ jobs:
         shell: bash
         env:
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
-          EXPECTED_RELEASE_SCANNER_SHA256: 9cab943c725a8faf159fbeb7ee5c4a020ef1cc4f3e41845f4f6654990bc3775d
+          EXPECTED_RELEASE_SCANNER_SHA256: 8eed6357833ba8430786192e2d6be1a2bbedab3153dfef684729549e307fad80
         run: |
           set -euo pipefail
           base_sha="${BASE_SHA}"
@@ -84,6 +123,15 @@ jobs:
       - name: Build authenticated platform
         run: npm run build:platform
 
+      - name: Verify deterministic Physio catalogue
+        run: npm run catalogue:physio:check
+
+      - name: Build isolated Physio platform
+        run: npm run build:physio
+
+      - name: Physio functional and profession-isolation suite
+        run: npm run test:physio
+
       - name: Build public landing site
         run: npm run build:landing
 
@@ -104,6 +152,15 @@ jobs:
       # the same ordering the release workflow established in PR #18.
       - name: Install pinned Playwright Chromium
         run: npx --no-install playwright install --with-deps chromium
+
+      - name: EP canonical assessment browser regression
+        run: npm run test:ep-assessment-browser
+
+      - name: Physio public entry desktop and mobile regression
+        run: npm run test:physio-public-browser
+
+      - name: Physio offline full journey desktop and mobile regression
+        run: npm run test:physio-offline-journey
 
       - name: Offline assurance battery (server/tests/run-assurance.mjs)
         run: npm run test:assurance

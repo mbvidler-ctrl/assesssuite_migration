@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Navigate, useSearchParams } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { Client, OrganizationMember } from "@/entities/all";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,12 +14,17 @@ import {
 } from "lucide-react";
 import { Toaster, toast } from "sonner";
 import UnifiedReportWizard from "@/components/reports/UnifiedReportWizard";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
 
 // ─────────────────────────────────────────────
 // REPORT TYPE DEFINITIONS
 // ─────────────────────────────────────────────
 
 const australiaReportTypes = {
+  physio_initial_assessment: { label: "Physiotherapy Initial Assessment", category: "physio", description: "Initial presentation, examination findings, baseline measures, goals and management plan", region: "australia" },
+  physio_progress_report: { label: "Physiotherapy Progress Report", category: "physio", description: "Baseline-to-current measures, functional change, goal progress and next plan", region: "australia" },
+  physio_referrer_update: { label: "Physiotherapy Referrer Update", category: "physio", description: "Concise clinical and functional update for the referrer or treating team", region: "australia" },
+  physio_discharge_summary: { label: "Physiotherapy Discharge Summary", category: "physio", description: "Episode course, outcomes, current function, ongoing management and follow-up", region: "australia" },
   gp_summary: { label: "GP Summary Letter", category: "general", description: "Summary for referring GP", region: "australia" },
   custom_report: { label: "Custom Report", category: "general", description: "Custom formatted report", region: "australia" },
   progress_note: { label: "Progress / Extra Report", category: "general", description: "Free-form progress update or additional report — pulls all prior history", region: "australia" },
@@ -145,7 +151,7 @@ const singaporeReportTypes = {
 const irelandReportTypes = {
   ie_hse_initial: { label: "HSE — Initial Assessment Report", category: "hse", description: "Initial assessment for HSE-commissioned cardiac, pulmonary, or cancer rehab programme", region: "ireland" },
   ie_hse_progress: { label: "HSE — Progress Review Report", category: "hse", description: "Progress review note for HSE programme", region: "ireland" },
-  ie_hse_discharge: { label: "HSE — Discharge Summary", category: "hse", description: "Discharge summary for HSE-funded exercise physiology programme", region: "ireland" },
+  ie_hse_discharge: { label: "HSE — Discharge Summary", category: "hse", description: `Discharge summary for HSE-funded ${activeProfession.disciplineName.toLowerCase()} programme`, region: "ireland" },
   ie_cardiac_initial: { label: "Cardiac Rehab — Initial Assessment", category: "cardiac_ie", description: "Irish Heart Foundation-aligned cardiac rehab initial assessment", region: "ireland" },
   ie_cardiac_completion: { label: "Cardiac Rehab — Completion Report", category: "cardiac_ie", description: "Cardiac rehab phase completion report with outcomes", region: "ireland" },
   ie_piab_fce: { label: "PIAB — Functional Capacity Report", category: "piab", description: "Functional assessment / expert report for PIAB personal injury claim", region: "ireland" },
@@ -180,6 +186,44 @@ const reportTypesMap = {
   ireland: irelandReportTypes,
   southafrica: southAfricaReportTypes,
 };
+
+const regionOptions = Object.freeze([
+  { id: 'australia', label: '🇦🇺 Australia' },
+  { id: 'usa', label: '🇺🇸 USA' },
+  { id: 'uk', label: '🇬🇧 UK' },
+  { id: 'canada', label: '🇨🇦 Canada' },
+  { id: 'nz', label: '🇳🇿 New Zealand' },
+  { id: 'singapore', label: '🇸🇬 Singapore' },
+  { id: 'ireland', label: '🇮🇪 Ireland' },
+  { id: 'southafrica', label: '🇿🇦 South Africa' },
+]);
+
+const persistedReportTypeByKey = Object.freeze({
+  physio_initial_assessment: 'PHYSIO_INITIAL_ASSESSMENT',
+  physio_progress_report: 'PHYSIO_PROGRESS_REPORT',
+  physio_referrer_update: 'PHYSIO_REFERRER_UPDATE',
+  physio_discharge_summary: 'PHYSIO_DISCHARGE_SUMMARY',
+  custom_report: 'CUSTOM_REPORT',
+});
+
+const allReportRegionsAllowed = activeProfession.reports.allowedRegions.includes('*');
+const allowedRegionIds = new Set(activeProfession.reports.allowedRegions);
+const availableRegionOptions = regionOptions.filter((region) => (
+  allReportRegionsAllowed || allowedRegionIds.has(region.id)
+));
+const allReportTypesAllowed = activeProfession.reports.allowedTypeIds.includes('*');
+const allowedReportTypeIds = new Set(activeProfession.reports.allowedTypeIds);
+const allowedPersistedReportTypeIds = new Set(
+  activeProfession.reports.allowedTypeIds.flatMap((id) => [id, persistedReportTypeByKey[id] || id]),
+);
+
+function isReportTypeAllowed(reportTypeId) {
+  return allReportTypesAllowed || allowedReportTypeIds.has(reportTypeId);
+}
+
+function filterAllowedReportTypes(reportTypes) {
+  return Object.fromEntries(Object.entries(reportTypes).filter(([id]) => isReportTypeAllowed(id)));
+}
 
 const allReportTypes = {
   ...australiaReportTypes,
@@ -239,15 +283,25 @@ export default function Reports() {
   const [searchParams] = useSearchParams();
   const clientId = searchParams.get("clientId");
   const editReportId = searchParams.get("editReportId");
+  const careEpisodeId = searchParams.get("careEpisodeId") || searchParams.get("episode_id");
 
-  const reportTypes = reportTypesMap[activeTab] || australiaReportTypes;
+  const reportTypes = filterAllowedReportTypes(reportTypesMap[activeTab] || australiaReportTypes);
+
+  useEffect(() => {
+    if (!availableRegionOptions.some((region) => region.id === activeTab)) {
+      setActiveTab(availableRegionOptions[0]?.id || 'australia');
+    }
+  }, [activeTab]);
 
   const getRecommendedReports = () => {
     if (!selectedClient) return [];
-    if (activeTab !== "australia") return intlDefaults[activeTab] || [];
+    if (activeProfession.id === 'physio') {
+      return activeProfession.reports.allowedTypeIds.filter((id) => reportTypes[id]);
+    }
+    if (activeTab !== "australia") return (intlDefaults[activeTab] || []).filter(isReportTypeAllowed);
     const recs = australiaRecommendations[selectedClient.funding_source] || ["gp_summary", "custom_report"];
     if (!recs.includes("progress_note")) recs.push("progress_note");
-    return recs;
+    return recs.filter((id) => reportTypes[id]);
   };
 
   const getOtherReports = () => {
@@ -310,9 +364,16 @@ export default function Reports() {
 
   const loadReportForEditing = async () => {
     try {
-      const reports = await base44.entities.SavedReport.filter({ id: editReportId });
+      const reports = await base44.entities.SavedReport.filter({
+        id: editReportId,
+        ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
+      });
       if (reports.length > 0) {
         const report = reports[0];
+        if (!allReportTypesAllowed && !allowedPersistedReportTypeIds.has(report.report_type)) {
+          toast.error(`That report template is not available in ${activeProfession.shortName}.`);
+          return;
+        }
         setEditingReport(report);
         const matchingType = allReportTypes[report.report_type];
         setSelectedReportInfo({
@@ -339,6 +400,10 @@ export default function Reports() {
   }, [clientSearchTerm, clients]);
 
   const handleSelectClient = (client) => {
+    if (careEpisodeId && clientId && client.id !== clientId) {
+      toast.error('This report is bound to the patient in the selected care episode.');
+      return;
+    }
     setSelectedClient(client);
     setClientSearchTerm("");
     setFilteredClients([]);
@@ -346,6 +411,7 @@ export default function Reports() {
   };
 
   const handleClearClient = () => {
+    if (careEpisodeId) return;
     setSelectedClient(null);
     setSelectedReportInfo(null);
     setEditingReport(null);
@@ -353,13 +419,23 @@ export default function Reports() {
   };
 
   const handleSelectReportType = (reportTypeId) => {
+    if (!isReportTypeAllowed(reportTypeId) || !reportTypes[reportTypeId]) {
+      toast.error(`That report template is not available in ${activeProfession.shortName}.`);
+      return;
+    }
     setSelectedReportInfo({ id: reportTypeId });
     setShowWizard(true);
   };
 
-  const recentClients = [...clients].sort((a, b) => new Date(b.created_date) - new Date(a.created_date)).slice(0, 10);
+  const recentClients = [...clients].sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime()).slice(0, 10);
   const recommendedReports = getRecommendedReports();
   const otherReports = getOtherReports();
+
+  if (activeProfession.id === 'physio' && !careEpisodeId) {
+    return <Navigate to={createPageUrl(
+      clientId ? `PhysioEpisodes?client_id=${clientId}` : 'PhysioEpisodes',
+    )} replace />;
+  }
 
   if (isLoading) {
     return (
@@ -381,27 +457,24 @@ export default function Reports() {
             </div>
             <div>
               <h1 className="text-3xl font-bold text-slate-900">Report Generator</h1>
-              <p className="text-slate-600">Select a region and client to generate reports.</p>
+              <p className="text-slate-600">Select {availableRegionOptions.length > 1 ? 'a region and ' : ''}a {activeProfession.lexicon.client} to generate a report.</p>
             </div>
           </div>
 
           {/* Region Selector */}
-          <Card className="bg-white/80 backdrop-blur-sm border-slate-200/60">
-            <CardContent className="pt-6 pb-4">
-              <Tabs value={activeTab} onValueChange={setActiveTab}>
-                <TabsList className="flex flex-wrap gap-1 h-auto p-1">
-                  <TabsTrigger value="australia" className="text-sm">🇦🇺 Australia</TabsTrigger>
-                  <TabsTrigger value="usa" className="text-sm">🇺🇸 USA</TabsTrigger>
-                  <TabsTrigger value="uk" className="text-sm">🇬🇧 UK</TabsTrigger>
-                  <TabsTrigger value="canada" className="text-sm">🇨🇦 Canada</TabsTrigger>
-                  <TabsTrigger value="nz" className="text-sm">🇳🇿 New Zealand</TabsTrigger>
-                  <TabsTrigger value="singapore" className="text-sm">🇸🇬 Singapore</TabsTrigger>
-                  <TabsTrigger value="ireland" className="text-sm">🇮🇪 Ireland</TabsTrigger>
-                  <TabsTrigger value="southafrica" className="text-sm">🇿🇦 South Africa</TabsTrigger>
-                </TabsList>
-              </Tabs>
-            </CardContent>
-          </Card>
+          {availableRegionOptions.length > 1 && (
+            <Card className="bg-white/80 backdrop-blur-sm border-slate-200/60">
+              <CardContent className="pt-6 pb-4">
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="flex flex-wrap gap-1 h-auto p-1">
+                    {availableRegionOptions.map((region) => (
+                      <TabsTrigger key={region.id} value={region.id} className="text-sm">{region.label}</TabsTrigger>
+                    ))}
+                  </TabsList>
+                </Tabs>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Step 1: Client Selection */}
           {!selectedClient ? (
@@ -409,7 +482,7 @@ export default function Reports() {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <Users className="text-blue-600" />
-                  Step 1: Select a Client
+                  Step 1: Select a {activeProfession.lexicon.clientTitleCase}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -417,7 +490,7 @@ export default function Reports() {
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 w-4 h-4" />
                     <Input
-                      placeholder="Search for a client by name..."
+                      placeholder={`Search for a ${activeProfession.lexicon.client} by name...`}
                       value={clientSearchTerm}
                       onChange={(e) => setClientSearchTerm(e.target.value)}
                       className="pl-10"
@@ -466,10 +539,10 @@ export default function Reports() {
               <CardContent>
                 <div className="flex items-center justify-between p-3 bg-blue-50 border border-blue-200 rounded-lg mb-6">
                   <div>
-                    <p className="font-semibold text-blue-800">Selected Client: {selectedClient.full_name}</p>
-                    <p className="text-sm text-blue-600">
+                    <p className="font-semibold text-blue-800">Selected {activeProfession.lexicon.clientTitleCase}: {selectedClient.full_name}</p>
+                    <div className="flex items-center gap-1 text-sm text-blue-600">
                       Funding: <Badge variant="secondary" className="capitalize">{fundingSourceLabels[selectedClient.funding_source] || "N/A"}</Badge>
-                    </p>
+                    </div>
                   </div>
                   <Button variant="ghost" size="icon" onClick={handleClearClient}>
                     <X className="w-4 h-4" />
@@ -560,6 +633,7 @@ export default function Reports() {
           reportType={selectedReportInfo.id}
           existingReport={editingReport}
           clinician={currentUser}
+          careEpisodeId={careEpisodeId}
         />
       )}
     </>

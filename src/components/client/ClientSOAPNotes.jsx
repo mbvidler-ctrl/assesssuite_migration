@@ -20,7 +20,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import SOAPNoteModal from "../calendar/SOAPNoteModal";
 
-export default function ClientSOAPNotes({ client }) {
+export default function ClientSOAPNotes({ client, careEpisodeId = null }) {
   const [soapNotes, setSoapNotes] = useState([]);
   const [appointments, setAppointments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,19 +33,22 @@ export default function ClientSOAPNotes({ client }) {
     if (client && client.id) {
       loadSOAPNotes();
     }
-  }, [client?.id]);
+  }, [client?.id, careEpisodeId]);
 
   const loadSOAPNotes = async () => {
     setIsLoading(true);
     try {
       const [notesData, appointmentsData] = await Promise.all([
-        SOAPNote.filter({ client_id: client.id }),
+        SOAPNote.filter({
+          client_id: client.id,
+          ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
+        }),
         Appointment.filter({ client_id: client.id })
       ]);
 
       // Sort notes by date (newest first)
       const sortedNotes = notesData.sort((a, b) => 
-        new Date(b.note_date) - new Date(a.note_date)
+        new Date(b.note_date).getTime() - new Date(a.note_date).getTime()
       );
       
       // Sort appointments by date
@@ -80,7 +83,8 @@ export default function ClientSOAPNotes({ client }) {
       end: new Date(now.getTime() + 60 * 60 * 1000),
       status: 'completed',
       notes: '',
-      isVirtual: true // Flag to indicate this is not a real calendar appointment
+      isVirtual: true, // Flag to indicate this is not a real calendar appointment
+      ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
     };
 
     setSelectedAppointment(virtualAppointment);
@@ -110,7 +114,8 @@ export default function ClientSOAPNotes({ client }) {
         end: new Date(note.note_date),
         status: 'completed',
         notes: '',
-        isVirtual: !note.appointment_id  // Only mark virtual if there's no real appointment_id
+        isVirtual: !note.appointment_id, // Only mark virtual if there's no real appointment_id
+        ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
       };
       setSelectedAppointment(virtualAppointment);
       setCurrentIndex(-1);
@@ -259,6 +264,7 @@ export default function ClientSOAPNotes({ client }) {
             current: currentIndex + 1,
             total: appointments.length,
           } : null}
+          careEpisodeId={careEpisodeId}
         />
       )}
     </>

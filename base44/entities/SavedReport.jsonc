@@ -10,6 +10,10 @@
       "type": "string",
       "description": "Reference to the client"
     },
+    "physio_care_episode_id": {
+      "type": "string",
+      "description": "Canonical Physio care episode owning this report. Older unassigned reports omit this field until explicitly assigned."
+    },
     "report_type": {
       "type": "string",
       "description": "Internal report type key (e.g. gp_summary, workcover_pmp)"
@@ -63,6 +67,45 @@
       ],
       "default": "draft",
       "description": "Report status"
+    },
+    "revision_number": {
+      "type": "number",
+      "minimum": 1,
+      "description": "Server-owned monotonic Physio report revision number."
+    },
+    "revision_history": {
+      "type": "array",
+      "description": "Server-owned immutable snapshots of superseded Physio report content.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "revision_number": { "type": "number", "minimum": 1 },
+          "superseded_at": { "type": "string", "format": "date-time" },
+          "actor_user_id": { "type": "string" },
+          "actor_email": { "type": "string" },
+          "prior_content": { "type": "object" }
+        },
+        "required": ["revision_number", "superseded_at", "actor_user_id", "actor_email", "prior_content"]
+      }
+    },
+    "ai_generation": {
+      "type": "object",
+      "description": "Server-owned immutable binding to the durable Physio AI generation reviewed into this report.",
+      "properties": {
+        "generation_id": { "type": "string" },
+        "task_type": {
+          "type": "string",
+          "enum": ["physio.initial_assessment_summary.v1", "physio.management_plan.v1", "physio.progress_comparison.v1", "physio.referrer_update.v1", "physio.discharge_summary.v1"]
+        },
+        "source_output_state": { "type": "string", "const": "ai_draft_unreviewed" },
+        "care_episode_id": { "type": "string" },
+        "source_output_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "provenance_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "provenance": { "type": "object" },
+        "reviewed_by": { "type": "string" },
+        "reviewed_at": { "type": "string", "format": "date-time" }
+      },
+      "required": ["generation_id", "task_type", "source_output_state", "care_episode_id", "source_output_sha256", "provenance_sha256", "provenance", "reviewed_by", "reviewed_at"]
     }
   },
   "required": [

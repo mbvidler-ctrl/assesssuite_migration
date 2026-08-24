@@ -10,6 +10,10 @@
       "type": "string",
       "description": "Reference to the client"
     },
+    "physio_care_episode_id": {
+      "type": "string",
+      "description": "Canonical Physio care episode owning this legacy report. Older unassigned reports omit this field until explicitly assigned."
+    },
     "report_type": {
       "type": "string",
       "enum": [
@@ -50,6 +54,26 @@
     "notes": {
       "type": "string",
       "description": "Additional notes about this report"
+    },
+    "revision_number": {
+      "type": "number",
+      "minimum": 1,
+      "description": "Server-owned monotonic Physio report revision number."
+    },
+    "revision_history": {
+      "type": "array",
+      "description": "Server-owned immutable snapshots of superseded Physio report content.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "revision_number": { "type": "number", "minimum": 1 },
+          "superseded_at": { "type": "string", "format": "date-time" },
+          "actor_user_id": { "type": "string" },
+          "actor_email": { "type": "string" },
+          "prior_content": { "type": "object" }
+        },
+        "required": ["revision_number", "superseded_at", "actor_user_id", "actor_email", "prior_content"]
+      }
     }
   },
   "required": [

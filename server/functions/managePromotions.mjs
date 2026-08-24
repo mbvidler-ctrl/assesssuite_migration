@@ -1,14 +1,10 @@
 import {
-  createMockCoupon,
-  createMockPromotionCode,
-  deactivateMockPromotionCode,
-  deleteMockCoupon,
-  listMockPromotionCodes,
-} from '../mocks/stripe.mjs';
-import * as stripeGateway from '../stripeGateway.mjs';
+  resolveStripeProvider,
+  stripeProviderReady,
+} from '../providers/stripeProduction.mjs';
 
 const CODE_PATTERN = /^[A-Z0-9-]{3,32}$/;
-const PROMOTION_ID_PATTERN = /^(promo_|mock_promo_)[A-Za-z0-9_-]+$/;
+const PROMOTION_ID_PATTERN = /^promo_[A-Za-z0-9_-]+$/;
 const FIVE_YEARS_MS = 5 * 365 * 24 * 60 * 60 * 1000;
 
 function normaliseCouponReference(promotion, couponsById) {
@@ -129,33 +125,31 @@ function validateCreate(body) {
   };
 }
 
-function realStripeUnavailable() {
-  return process.env.NODE_ENV === 'production' &&
-    process.env.SELFTEST !== '1' &&
-    !stripeGateway.stripeEnabled();
-}
-
 export default async function managePromotions(ctx) {
   const { body, user, respond } = ctx;
   if (!user) return respond(401, { error: 'authentication required' });
   if (user.role !== 'admin') return respond(403, { error: 'admin access required' });
-  if (realStripeUnavailable()) {
+  let provider;
+  try {
+    provider = resolveStripeProvider(ctx.stripeProvider, process.env);
+  } catch (error) {
+    return respond(500, { error: error.message, code: 'stripe_provider_invalid' });
+  }
+  if (!stripeProviderReady(provider, process.env)) {
     return respond(503, { error: 'Promotion management is unavailable while payments are disabled.' });
   }
 
-  const useStripe = stripeGateway.stripeEnabled();
+  const providerMode = provider.providerId || 'stripe';
   const action = body?.action;
 
   try {
     if (action === 'list') {
-      const result = useStripe
-        ? await stripeGateway.listPromotionCodes()
-        : listMockPromotionCodes();
+      const result = await provider.listPromotionCodes();
       const couponsById = new Map(result.coupons.map((coupon) => [coupon.id, coupon]));
       const promotions = result.promotionCodes
         .map((promotion) => presentPromotion(promotion, couponsById))
         .sort((a, b) => (b.created || 0) - (a.created || 0));
-      return respond(200, { promotions, has_more: result.hasMore, mode: useStripe ? 'stripe' : 'mock' });
+      return respond(200, { promotions, has_more: result.hasMore, mode: providerMode });
     }
 
     if (action === 'create') {
@@ -167,21 +161,16 @@ export default async function managePromotions(ctx) {
       };
       let coupon = null;
       try {
-        coupon = useStripe
-          ? await stripeGateway.createCoupon({ ...input, metadata })
-          : createMockCoupon({ ...input, metadata });
-        const promotion = useStripe
-          ? await stripeGateway.createPromotionCode({ couponId: coupon.id, ...input, metadata })
-          : createMockPromotionCode({ couponId: coupon.id, ...input, metadata });
+        coupon = await provider.createCoupon({ ...input, metadata });
+        const promotion = await provider.createPromotionCode({ couponId: coupon.id, ...input, metadata });
         return respond(201, {
           promotion: presentPromotion(promotion, new Map([[coupon.id, coupon]])),
-          mode: useStripe ? 'stripe' : 'mock',
+          mode: providerMode,
         });
       } catch (error) {
         if (coupon?.id) {
           try {
-            if (useStripe) await stripeGateway.deleteCoupon(coupon.id);
-            else deleteMockCoupon(coupon.id);
+            await provider.deleteCoupon(coupon.id);
           } catch {
             // Preserve the original failure. Stripe's dashboard can reconcile
             // an unlikely orphan coupon using the attached creator metadata.
@@ -193,16 +182,16 @@ export default async function managePromotions(ctx) {
 
     if (action === 'deactivate') {
       const id = String(body?.promotion_id || '').trim();
-      if (!PROMOTION_ID_PATTERN.test(id)) throw new Error('A valid promotion code id is required.');
-      const promotion = useStripe
-        ? await stripeGateway.deactivatePromotionCode(id)
-        : deactivateMockPromotionCode(id);
-      return respond(200, { promotion: presentPromotion(promotion, new Map()), mode: useStripe ? 'stripe' : 'mock' });
+      const promotionIdPattern = provider.promotionIdPattern || PROMOTION_ID_PATTERN;
+      if (!promotionIdPattern.test(id)) throw new Error('A valid promotion code id is required.');
+      const promotion = await provider.deactivatePromotionCode(id);
+      return respond(200, { promotion: presentPromotion(promotion, new Map()), mode: providerMode });
     }
 
     return respond(400, { error: 'Action must be list, create, or deactivate.' });
   } catch (error) {
-    const isStripeFailure = error?.name === 'StripeApiError';
+    const isStripeFailure = typeof provider.errorClass === 'function'
+      && error instanceof provider.errorClass;
     const status = isStripeFailure
       ? (error.status >= 400 && error.status < 500 ? error.status : 502)
       : 400;

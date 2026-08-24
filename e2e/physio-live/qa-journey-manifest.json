@@ -1,0 +1,70 @@
+{
+  "contract_version": "assesssuite-physio-live-qa-journey/2.0.0",
+  "application": "assesssuite-physio-production",
+  "app_id": "local-assesssuite-physio",
+  "profession_id": "physio",
+  "catalogue_count": 236,
+  "browser_projects": [
+    "chromium-desktop",
+    "chromium-mobile"
+  ],
+  "account_provisioning": {
+    "source": "physio-live-self-service-provision",
+    "contract_version": "assesssuite-physio-live-self-service-provision/4.0.0",
+    "provision_receipt_hash_required": true,
+    "immutable_provision_cleanup_ledger_hash_required": true,
+    "shared_sequence_suffix_hex_length": 12,
+    "same_account_for_both_acceptance_passes": true
+  },
+  "live_payment_validation": {
+    "source": "physio-live-self-service-validate-payment",
+    "contract_version": "assesssuite-stripe-live-payment-validation/2.0.0",
+    "validation_receipt_hash_required": true,
+    "email_configuration_receipt_hash_derived_from_validation_receipt": true,
+    "immutable_validation_cleanup_ledger_hash_required": true,
+    "amount_aud_cents": 100,
+    "refunded_aud_cents": 100,
+    "shared_sequence_suffix_required": true
+  },
+  "ordered_phases": [
+    "public-runtime-readiness",
+    "public-entry-registration-recovery-surfaces",
+    "normal-email-password-login",
+    "synthetic-client-reconciliation",
+    "dass-21-zero-score-runner-save-reload",
+    "care-episode-create-red-flag-subjective-objective-reload",
+    "six-physio-ai-generate-edit-save-reload",
+    "ai-download-print",
+    "real-audio-transcription",
+    "real-referral-document-extraction",
+    "temporary-upload-cancellation-readback",
+    "episode-discharge-reopen-reload",
+    "synthetic-child-cleanup-client-archive-readback"
+  ],
+  "physio_ai_task_ids": [
+    "physio.initial_assessment_summary.v1",
+    "physio.soap_note.v1",
+    "physio.management_plan.v1",
+    "physio.progress_comparison.v1",
+    "physio.referrer_update.v1",
+    "physio.discharge_summary.v1"
+  ],
+  "provider_paths": [
+    "functions/physioAiTask",
+    "functions/transcribeSession",
+    "integration-endpoints/Core/ExtractDataFromUploadedFile"
+  ],
+  "forbidden_postures": [
+    "mock",
+    "fake",
+    "placeholder",
+    "fallback",
+    "simulation"
+  ],
+  "normal_auth_only": true,
+  "synthetic_namespace_only": true,
+  "real_patient_data_allowed": false,
+  "ep_origin_access_allowed": false,
+  "cleanup_required": true,
+  "skipped_or_quarantined_steps_allowed": false
+}

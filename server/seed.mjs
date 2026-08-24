@@ -43,6 +43,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { openDatabase, createEntityRepository } from './db.mjs';
 import { hashPassword } from './auth.mjs';
 import { buildDass21Payload } from '../src/lib/clinical/dass21.js';
+import { resolveProfession } from '../packages/profession-config/runtime.mjs';
 import {
   CONTRACT_BUNDLE_IDS,
   LEGAL_DOCUMENTS,
@@ -63,22 +64,36 @@ const repoRoot = path.join(__dirname, '..');
  * Returns [] when the directory or files are absent, so the seed degrades to
  * the built-in synthetic catalogue with no import present.
  */
-function loadImportedCatalogue(prefix) {
+function loadImportedCatalogue(prefix, { required = false } = {}) {
   const dir = path.join(__dirname, 'data-import');
-  if (!fs.existsSync(dir)) return [];
+  if (!fs.existsSync(dir)) {
+    if (required) throw new Error(`Required catalogue directory is missing: ${dir}`);
+    return [];
+  }
   const out = [];
-  for (const file of fs.readdirSync(dir)) {
-    if (!file.startsWith(prefix) || !file.endsWith('.jsonl')) continue;
+  const matchingFiles = fs.readdirSync(dir)
+    .filter((file) => file.startsWith(prefix) && file.endsWith('.jsonl'))
+    .sort((left, right) => left.localeCompare(right, 'en', { numeric: true }));
+  if (required && matchingFiles.length === 0) {
+    throw new Error(`Required assessment catalogue prefix has no JSONL files: ${prefix}`);
+  }
+  for (const file of matchingFiles) {
     const text = fs.readFileSync(path.join(dir, file), 'utf8');
-    for (const line of text.split(/\r?\n/)) {
+    for (const [lineIndex, line] of text.split(/\r?\n/).entries()) {
       if (!line.trim()) continue;
       try {
         const rec = JSON.parse(line);
         if (rec && rec.is_deleted !== true) out.push(rec);
-      } catch {
-        /* skip malformed line */
+      } catch (error) {
+        if (required) {
+          throw new Error(`${file}:${lineIndex + 1}: invalid required catalogue JSON (${error.message})`);
+        }
+        /* skip malformed optional catalogue line */
       }
     }
+  }
+  if (required && out.length === 0) {
+    throw new Error(`Required assessment catalogue prefix contains no active records: ${prefix}`);
   }
   return out;
 }
@@ -102,7 +117,10 @@ function isoDateTime(year, month, day, hour = 9, minute = 0) {
  * per the funding_source enum and its dependent fields in the captured
  * schema (docs/source-capture/20260702-live-entity-schemas.json).
  */
-function fundingFields(fundingSource) {
+function fundingFields(
+  fundingSource,
+  { ndisSupportRecommendations = 'Weekly exercise physiology, home exercise programme review' } = {},
+) {
   switch (fundingSource) {
     case 'dva':
       return {
@@ -120,7 +138,7 @@ function fundingFields(fundingSource) {
         ndis_number: '430000123',
         ndis_goals: 'Improve independent mobility around the home and community access',
         ndis_functional_impact: 'Reduced lower-limb strength and balance affecting transfers',
-        ndis_support_recommendations: 'Weekly exercise physiology, home exercise programme review',
+        ndis_support_recommendations: ndisSupportRecommendations,
         ndis_assistive_tech: 'Four-wheel walker',
         ndis_risk_factors: 'Fall risk on uneven surfaces',
       };
@@ -166,7 +184,10 @@ const CONDITION_NAMES = [
   'Lumbar Disc Prolapse',
 ];
 
-const CATALOGUE_ASSESSMENTS = [
+// Exported so catalogue-integrity tooling consumes the exact definitions used
+// by the runtime seed. Importing this module does not execute the standalone
+// seed entry point (guarded by isMainModule at the end of this file).
+export const CATALOGUE_ASSESSMENTS = [
   {
     name: 'Timed Up and Go',
     category: 'geriatric',
@@ -270,6 +291,59 @@ const CATALOGUE_ASSESSMENTS = [
     ],
   },
 ];
+
+/**
+ * Resolves the assessment seed from the registered profession definition.
+ * The existing EP target remains the default when PROFESSION is absent.
+ * Explicit libraries (currently Physio) are required and parsed strictly so
+ * a missing, malformed, or unknown profession cannot silently boot with EP or
+ * synthetic-only catalogue content.
+ */
+export function buildAssessmentCatalogueForProfession(environment = process.env) {
+  const profession = resolveProfession(environment);
+  const prefixes = profession.assessmentLibrary.seedFiles;
+  const required = profession.assessmentLibrary.mode === 'explicit';
+  const importedAssessments = prefixes.flatMap((prefix) => (
+    loadImportedCatalogue(prefix, { required })
+  ));
+
+  const importedNames = new Set();
+  for (const assessment of importedAssessments) {
+    if (!assessment?.name) {
+      throw new Error(`Assessment catalogue for ${profession.id} contains a record without a name`);
+    }
+    if (importedNames.has(assessment.name)) {
+      throw new Error(`Assessment catalogue for ${profession.id} contains duplicate name: ${assessment.name}`);
+    }
+    importedNames.add(assessment.name);
+  }
+
+  // An explicit profession catalogue is a complete, generated identity set.
+  // Merging the EP built-ins into that set would add name variants that are
+  // already represented by canonical aliases and would break the exact
+  // catalogue denominator. Optional/default EP imports retain the historical
+  // built-in-first merge unchanged.
+  const includedSynthetics = required ? [] : CATALOGUE_ASSESSMENTS;
+  const syntheticNames = new Set(includedSynthetics.map((assessment) => assessment.name));
+  const nonCollidingImports = importedAssessments.filter(({ name }) => !syntheticNames.has(name));
+  const assessments = [...includedSynthetics, ...nonCollidingImports];
+  const assessmentNames = assessments.map(({ name }) => name);
+  if (new Set(assessmentNames).size !== assessmentNames.length) {
+    throw new Error(`Assessment catalogue for ${profession.id} is not unique after runtime merge`);
+  }
+
+  return {
+    professionId: profession.id,
+    prefixes: [...prefixes],
+    required,
+    syntheticCount: includedSynthetics.length,
+    shadowedSyntheticCount: CATALOGUE_ASSESSMENTS.length - includedSynthetics.length,
+    importedDefinitionCount: importedAssessments.length,
+    shadowedImportCount: importedAssessments.length - nonCollidingImports.length,
+    runtimeCount: assessments.length,
+    assessments,
+  };
+}
 
 const CATALOGUE_EXERCISES = [
   {
@@ -377,16 +451,17 @@ function buildCredentialsMarkdown({ adminEmail, adminPassword, seedPassword, use
  * organisations, users, clients or acceptances; writes no files.
  */
 function seedCataloguesCore({ entityNames, repoFor, note, seedCatalogue }) {
-  // Merge the built-in synthetic definitions (which the demo client clusters
-  // and the DASS-21 per-question exemplar depend on) with the imported live
-  // catalogue. Synthetic names win on collision so those wired shapes are
-  // preserved; every other imported assessment is added.
-  const syntheticNames = new Set(CATALOGUE_ASSESSMENTS.map((a) => a.name));
-  const importedAssessments = loadImportedCatalogue('assessment-part')
-    .filter((a) => a && a.name && !syntheticNames.has(a.name));
-  const mergedAssessments = [...CATALOGUE_ASSESSMENTS, ...importedAssessments];
-  note(`Assessment catalogue: ${CATALOGUE_ASSESSMENTS.length} synthetic + ${importedAssessments.length} imported = ${mergedAssessments.length}`);
-  const assessmentCatalogue = seedCatalogue('Assessment', mergedAssessments);
+  // Resolve the registered profession before touching the database. Physio's
+  // explicit 236-record seed fails closed if its configured source is absent;
+  // absent PROFESSION retains the existing 232-record EP default.
+  const resolvedCatalogue = buildAssessmentCatalogueForProfession();
+  note(
+    `Assessment catalogue (${resolvedCatalogue.professionId}; ${resolvedCatalogue.prefixes.join(', ')}): `
+    + `${resolvedCatalogue.syntheticCount} synthetic + `
+    + `${resolvedCatalogue.importedDefinitionCount - resolvedCatalogue.shadowedImportCount} imported `
+    + `(${resolvedCatalogue.shadowedImportCount} shadowed) = ${resolvedCatalogue.runtimeCount}`,
+  );
+  const assessmentCatalogue = seedCatalogue('Assessment', resolvedCatalogue.assessments);
   seedCatalogue('Exercise', CATALOGUE_EXERCISES);
 
   // Treatment protocols: the client-authorised live export. The
@@ -462,8 +537,88 @@ export function assertSyntheticSeedEnvironment(environment = process.env) {
   }
 }
 
+/**
+ * Profession-specific copy and clinician profiles for the local synthetic
+ * tenant fixture. The default/EP branch deliberately retains the established
+ * values exactly; the Physio branch prevents local QA and browser journeys
+ * from exposing EP credentials or discipline wording in the Physio product.
+ */
+export function buildSyntheticDemoContent(environment = process.env) {
+  const profession = resolveProfession(environment);
+  if (profession.id === 'physio') {
+    return {
+      professionId: profession.id,
+      practitionerProfession: 'Physiotherapist',
+      referralReason: 'Functional decline requiring physiotherapy review',
+      ndisSupportRecommendations: 'Weekly physiotherapy, home exercise programme review',
+      appointmentNotes: 'Initial physiotherapy assessment and goal-setting.',
+      assessmentPhrase: 'physiotherapy assessment',
+      assessmentPhraseWithArticle: 'a physiotherapy assessment',
+      managementPhrase: 'physiotherapy management',
+      programmePhrase: 'management plan',
+      userProfiles: {
+        alphaOwner: {
+          qualifications: 'Bachelor of Physiotherapy (Honours)',
+          registration_number: 'PHY0001234567',
+          clinic_name: 'Org Alpha Physiotherapy',
+        },
+        alphaClinician: {
+          qualifications: 'Master of Physiotherapy Studies',
+          registration_number: 'PHY0001234568',
+          clinic_name: 'Org Alpha Physiotherapy',
+        },
+        betaOwner: {
+          qualifications: 'Bachelor of Physiotherapy',
+          registration_number: 'PHY0001234569',
+          clinic_name: 'Org Beta Allied Health',
+        },
+        betaClinician: {
+          qualifications: 'Doctor of Physiotherapy',
+          registration_number: 'PHY0001234570',
+          clinic_name: 'Org Beta Allied Health',
+        },
+      },
+    };
+  }
+
+  return {
+    professionId: profession.id,
+    practitionerProfession: 'Exercise Physiologist',
+    referralReason: 'Functional decline requiring exercise physiology review',
+    ndisSupportRecommendations: 'Weekly exercise physiology, home exercise programme review',
+    appointmentNotes: 'Initial exercise physiology assessment and goal-setting.',
+    assessmentPhrase: 'exercise physiology assessment',
+    assessmentPhraseWithArticle: 'an exercise physiology assessment',
+    managementPhrase: 'exercise physiology management',
+    programmePhrase: 'exercise programme',
+    userProfiles: {
+      alphaOwner: {
+        qualifications: 'BExSc, AEP',
+        registration_number: 'AEP-ALPHA-001',
+        clinic_name: 'Org Alpha Exercise Physiology',
+      },
+      alphaClinician: {
+        qualifications: 'BExSc (Hons), AEP',
+        registration_number: 'AEP-ALPHA-002',
+        clinic_name: 'Org Alpha Exercise Physiology',
+      },
+      betaOwner: {
+        qualifications: 'BAppSc (ExSpSc), AEP',
+        registration_number: 'AEP-BETA-001',
+        clinic_name: 'Org Beta Allied Health',
+      },
+      betaClinician: {
+        qualifications: 'BExSc, AEP',
+        registration_number: 'AEP-BETA-002',
+        clinic_name: 'Org Beta Allied Health',
+      },
+    },
+  };
+}
+
 export function runSeed({ db, entityNames }) {
   assertSyntheticSeedEnvironment();
+  const demoContent = buildSyntheticDemoContent();
   const log = [];
   function note(message) {
     log.push(message);
@@ -670,7 +825,7 @@ export function runSeed({ db, entityNames }) {
         emergency_contact_phone: '0400 000 000',
         referral_source: 'gp',
         referral_source_name: 'Dr Seed Referrer',
-        referral_reason: 'Functional decline requiring exercise physiology review',
+        referral_reason: demoContent.referralReason,
         referral_date: isoDate(seedYear, seedMonth, seedDay),
         client_goals: 'Improve function and independence with daily activities',
         consent_confirmed: true,
@@ -679,7 +834,9 @@ export function runSeed({ db, entityNames }) {
         pricing_explained: true,
         cancellation_policy_agreed: true,
         consent_date: isoDateTime(seedYear, seedMonth, seedDay),
-        ...fundingFields(fundingSource),
+        ...fundingFields(fundingSource, {
+          ndisSupportRecommendations: demoContent.ndisSupportRecommendations,
+        }),
       },
       clinician.email,
     );
@@ -718,7 +875,7 @@ export function runSeed({ db, entityNames }) {
         client_id: client.id,
         start_time: isoDateTime(seedYear, seedMonth, seedDay, 10, 0),
         end_time: isoDateTime(seedYear, seedMonth, seedDay, 11, 0),
-        notes: 'Initial exercise physiology assessment and goal-setting.',
+        notes: demoContent.appointmentNotes,
         status: 'completed',
       },
       clinician.email,
@@ -826,10 +983,10 @@ export function runSeed({ db, entityNames }) {
         report_name: `Initial Assessment Report - ${fullName}`,
         report_date: isoDate(seedYear, seedMonth, seedDay),
         report_data: {
-          summary: `Initial exercise physiology assessment documenting ${firstName}'s baseline functional capacity, presenting conditions, and agreed goals for the programme.`,
+          summary: `Initial ${demoContent.assessmentPhrase} documenting ${firstName}'s baseline functional capacity, presenting conditions, and agreed goals for the ${demoContent.programmePhrase}.`,
           assessments_included: clientAssessments.map((ca) => ca.id),
         },
-        html_content: `<h2>Initial Assessment Report</h2><p>${fullName} attended for an initial exercise physiology assessment. Baseline functional testing was completed and management goals were established. Findings and the proposed exercise programme are documented below.</p>`,
+        html_content: `<h2>Initial Assessment Report</h2><p>${fullName} attended for ${demoContent.assessmentPhraseWithArticle}. Baseline functional testing was completed and management goals were established. Findings and the proposed ${demoContent.programmePhrase} are documented below.</p>`,
         notes: 'Initial assessment.',
       },
       clinician.email,
@@ -848,10 +1005,10 @@ export function runSeed({ db, entityNames }) {
         date_range_end: isoDate(seedYear, seedMonth, seedDay),
         assessment_ids: clientAssessments.map((ca) => ca.id),
         section_content: {
-          summary: `${firstName} was reviewed for exercise physiology management. Baseline assessments were within the expected range for the presenting conditions, and a progressive exercise programme has been commenced with clear functional goals.`,
+          summary: `${firstName} was reviewed for ${demoContent.managementPhrase}. Baseline assessments were within the expected range for the presenting conditions, and a progressive ${demoContent.programmePhrase} has been commenced with clear functional goals.`,
         },
         active_sections: ['summary'],
-        report_html: `<h2>GP Summary</h2><p>Thank you for referring ${fullName}. Following an exercise physiology assessment, a progressive programme has been commenced targeting the agreed functional goals. Baseline outcome measures and recommendations are summarised below; further updates will follow at review.</p>`,
+        report_html: `<h2>GP Summary</h2><p>Thank you for referring ${fullName}. Following ${demoContent.assessmentPhraseWithArticle}, a progressive ${demoContent.programmePhrase} has been commenced targeting the agreed functional goals. Baseline outcome measures and recommendations are summarised below; further updates will follow at review.</p>`,
         status: 'final',
       },
       clinician.email,
@@ -884,7 +1041,7 @@ export function runSeed({ db, entityNames }) {
     const adminProfile = {
       full_name: 'Local Administrator',
       clinician_name: 'Local Administrator',
-      profession: 'Exercise Physiologist',
+      profession: demoContent.practitionerProfession,
       country: 'australia',
       role: 'admin',
       account_status: 'active',
@@ -920,13 +1077,11 @@ export function runSeed({ db, entityNames }) {
     email: 'owner@org-alpha.seed.test',
     full_name: 'Priya Chandran',
     clinician_name: 'Priya Chandran',
-    qualifications: 'BExSc, AEP',
-    registration_number: 'AEP-ALPHA-001',
-    clinic_name: 'Org Alpha Exercise Physiology',
+    ...demoContent.userProfiles.alphaOwner,
     clinic_address: '10 Alpha Street, Demo QLD 4000',
     clinic_phone: '07 3111 1111',
     clinic_email: 'reception@org-alpha.seed.test',
-    profession: 'Exercise Physiologist',
+    profession: demoContent.practitionerProfession,
     country: 'australia',
     provider_number: 'PRV-ALPHA-001',
   });
@@ -934,13 +1089,11 @@ export function runSeed({ db, entityNames }) {
     email: 'clinician@org-alpha.seed.test',
     full_name: 'Daniel Whitfield',
     clinician_name: 'Daniel Whitfield',
-    qualifications: 'BExSc (Hons), AEP',
-    registration_number: 'AEP-ALPHA-002',
-    clinic_name: 'Org Alpha Exercise Physiology',
+    ...demoContent.userProfiles.alphaClinician,
     clinic_address: '10 Alpha Street, Demo QLD 4000',
     clinic_phone: '07 3111 1111',
     clinic_email: 'reception@org-alpha.seed.test',
-    profession: 'Exercise Physiologist',
+    profession: demoContent.practitionerProfession,
     country: 'australia',
     provider_number: 'PRV-ALPHA-002',
   });
@@ -948,13 +1101,11 @@ export function runSeed({ db, entityNames }) {
     email: 'owner@org-beta.seed.test',
     full_name: 'Marcus Delacroix',
     clinician_name: 'Marcus Delacroix',
-    qualifications: 'BAppSc (ExSpSc), AEP',
-    registration_number: 'AEP-BETA-001',
-    clinic_name: 'Org Beta Allied Health',
+    ...demoContent.userProfiles.betaOwner,
     clinic_address: '25 Beta Avenue, Demo QLD 4101',
     clinic_phone: '07 3222 2222',
     clinic_email: 'reception@org-beta.seed.test',
-    profession: 'Exercise Physiologist',
+    profession: demoContent.practitionerProfession,
     country: 'australia',
     provider_number: 'PRV-BETA-001',
   });
@@ -962,13 +1113,11 @@ export function runSeed({ db, entityNames }) {
     email: 'clinician@org-beta.seed.test',
     full_name: 'Aroha Ngata',
     clinician_name: 'Aroha Ngata',
-    qualifications: 'BExSc, AEP',
-    registration_number: 'AEP-BETA-002',
-    clinic_name: 'Org Beta Allied Health',
+    ...demoContent.userProfiles.betaClinician,
     clinic_address: '25 Beta Avenue, Demo QLD 4101',
     clinic_phone: '07 3222 2222',
     clinic_email: 'reception@org-beta.seed.test',
-    profession: 'Exercise Physiologist',
+    profession: demoContent.practitionerProfession,
     country: 'australia',
     provider_number: 'PRV-BETA-002',
   });

@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Save, Info, Play, Pause, StopCircle, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreNaughton } from "@/lib/clinical/scorers/coreB";
 
 const PROTOCOLS = {
   classic_naughton: {
@@ -123,50 +123,11 @@ export default function NaughtonTreadmillProtocolRunner({ client, onSave, onClos
   const formatTime = (sec) => `${Math.floor(sec / 60)}:${(sec % 60).toString().padStart(2, '0')}`;
 
   const handleSave = () => {
-    if (!terminationReason) { toast.error("Please select a termination reason"); return; }
-
-    const stagesCompleted = currentStageIdx + 1;
-    const interpretation = getInterpretation(stagesCompleted);
-
-    const stageLines = stageData.map(s =>
-      `  Stage ${s.stage} (${formatTime(s.timeSec)}) — ${s.speedMph} mph / ${s.speedKmh} km/h / ${s.grade}% grade / ~${s.mets} METs` +
-      (s.heartRate ? ` | HR: ${s.heartRate} bpm` : '') +
-      (s.bp ? ` | BP: ${s.bp}` : '') +
-      (s.rpe ? ` | RPE: ${s.rpe}/10` : '') +
-      (s.symptoms ? ` | Symptoms: ${s.symptoms}` : '')
-    ).join('\n');
-
-    const soapText = [
-      `• Naughton Treadmill Protocol (${protocol.label}):`,
-      `  Total Time: ${formatTime(totalTime)}`,
-      `  Stages Completed: ${stagesCompleted}`,
-      `  Final Stage: Stage ${currentStage.stage} — ${currentStage.speedMph} mph (${currentStage.speedKmh} km/h) / ${currentStage.gradePercent}% grade / ~${currentStage.estimatedMETs} METs`,
-      `  Termination Reason: ${terminationReason}`,
-      `  Clinical Interpretation: ${interpretation}`,
-      stageLines ? `  Stage Data:\n${stageLines}` : null,
-      notes ? `  Clinical Notes: ${notes}` : null,
-      `  Note: Estimated METs are approximations. Interpret alongside symptoms, haemodynamic response, medications, and diagnosis.`,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      result_value: totalTime,
-      additional_data: {
-        soap_text: soapText,
-        protocol: protocol.label,
-        total_time_seconds: totalTime,
-        stages_completed: stagesCompleted,
-        final_stage: currentStage.stage,
-        peak_speed_mph: currentStage.speedMph,
-        peak_speed_kmh: currentStage.speedKmh,
-        peak_grade_percent: currentStage.gradePercent,
-        peak_estimated_mets: currentStage.estimatedMETs,
-        termination_reason: terminationReason,
-        stage_data: stageData,
-        measurement_type: 'treadmill_protocol',
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
+    try {
+      onSave(scoreNaughton({ protocol_key: protocolKey, total_time_seconds: totalTime, current_stage_index: currentStageIdx, stage_data: stageData, termination_reason: terminationReason, notes }, { assessmentName: 'Naughton Treadmill Protocol', client }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save Naughton assessment.');
+    }
   };
 
   return (

@@ -14,6 +14,9 @@ import {
   discoverAssessments,
   MAX_ASSESSMENT_RECOMMENDATIONS,
 } from '@/lib/clinical/assessmentDiscovery';
+import { buildTimeProfession as activeProfession } from '@/lib/profession';
+
+const legacyRecommendationAiAllowed = activeProfession.features.legacyGeneralClinicalLlm === true;
 
 // Derive a list of clinical conditions from APSS Stage 2 fields on the client object.
 function extractApssConditions(client) {
@@ -63,6 +66,10 @@ export default function AssessmentRecommendations({ clientConditions, allAssessm
     let cancelled = false;
 
     const enhanceRecommendationReasons = async (discovered) => {
+      if (!legacyRecommendationAiAllowed) {
+        setSource('rule_based');
+        return;
+      }
       if (!ai.canTrigger) {
         setSource('rule_based');
         return;
@@ -255,7 +262,7 @@ ${JSON.stringify({ condition_names: conditionNames, selected_candidates: candida
           {source === 'rule_based' && recommendations.length > 0 && (
             <p className="text-sm text-yellow-800 mb-3">{AI_COPY.ruleBasedExplanation}</p>
           )}
-          {!ai.canTrigger && recommendations.length > 0 && (
+          {legacyRecommendationAiAllowed && !ai.canTrigger && recommendations.length > 0 && (
             <p className="text-xs text-slate-500 mb-3">
               Catalogue matches remain available. {ai.unavailableMessage}
             </p>

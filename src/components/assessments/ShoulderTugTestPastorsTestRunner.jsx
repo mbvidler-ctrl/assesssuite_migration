@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 export default function ShoulderTugTestPastorsTestRunner({ client, onSave, onClose }) {
   const [steps, setSteps] = useState("");
@@ -67,62 +68,14 @@ export default function ShoulderTugTestPastorsTestRunner({ client, onSave, onClo
   };
 
   const handleSave = () => {
-    if (steps === "" || isNaN(steps)) {
-      toast.error("Please enter a valid number of steps.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho({ steps, assistanceNeeded, notes }, {
+        runnerKey: 'shoulder_tug', assessmentDate: todayLocal(),
+      }));
+      toast.success("Shoulder Tug Test saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    if (assistanceNeeded === null) {
-      toast.error("Please indicate whether assistance was needed.");
-      return;
-    }
-
-    const resultValue = parseInt(steps, 10);
-    const interpretation = getInterpretation(resultValue, assistanceNeeded);
-
-    const soapText = [
-      `• Shoulder Tug Test (Pastor's Test) - Reactive Balance Assessment`,
-      ``,
-      `  Measurement:`,
-      `    Steps Taken to Recover: ${resultValue}`,
-      `    Assistance Required: ${assistanceNeeded ? "Yes" : "No"}`,
-      ``,
-      `  Interpretation: ${interpretation.level}`,
-      `    ${interpretation.desc}`,
-      `    Fall Risk: ${interpretation.risk}`,
-      ``,
-      `  Clinical Significance:`,
-      `    • ≤1 step: Normal postural reaction (low risk)`,
-      `    • 2 steps: Normal response (appropriate recovery)`,
-      `    • ≥3 steps: Impaired postural reaction (increased fall risk)`,
-      `    • Assistance needed: Severely impaired balance (high fall risk)`,
-      `    • Multiple large steps or loss of balance = poor reactive balance`,
-      ``,
-      notes ? `  Clinical Notes: ${notes}` : null,
-      ``,
-      `  References:`,
-      `    • Pastor's Test developed as simple screening for reactive balance`,
-      `    • Part of comprehensive fall risk assessment battery`,
-      `    • Assesses ability to recover from unexpected backward perturbation`,
-      `    • Quick indicator of postural stability and fall risk`,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      status: "completed",
-      result_value: resultValue,
-      additional_data: {
-        soap_text: soapText,
-        measurement_type: "shoulder_tug_test",
-        steps_taken: resultValue,
-        assistance_needed: assistanceNeeded,
-        interpretation: interpretation.level,
-        fall_risk: interpretation.risk,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-
-    toast.success("Shoulder Tug Test saved successfully.");
   };
 
   const interpretation = steps ? getInterpretation(parseInt(steps, 10), assistanceNeeded) : null;

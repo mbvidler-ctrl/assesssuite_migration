@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreHba1c } from "@/lib/clinical/scorers/extrasPhysiological";
 
 export default function HbA1cRunner({ client, onSave, onClose }) {
   const [hba1c, setHba1c] = useState("");
@@ -20,27 +21,14 @@ export default function HbA1cRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    const value = parseFloat(hba1c);
-    if (!hba1c || isNaN(value) || value < 0 || value > 20) {
-      toast.error("Please enter a valid HbA1c value (0-20%)");
-      return;
+    try {
+      onSave(scoreHba1c(
+        { hba1c_percent: hba1c, notes },
+        { assessmentDate: todayLocal(), assessmentName: 'HbA1c (Glycated Hemoglobin)', client },
+      ));
+    } catch (error) {
+      toast.error(error?.message || "HbA1c could not be scored.");
     }
-
-    const category = getCategory(value);
-
-    const soapText = `• HbA1c (Glycated Hemoglobin): ${value}%\n  Interpretation: ${category.label}\n  Reference Ranges: Normal <5.7% | Pre-diabetes 5.7–6.4% | Diabetes ≥6.5%\n`;
-
-    onSave({
-      status: "completed",
-      result_value: value,
-      additional_data: {
-        measurement_type: "hba1c",
-        category: category.label,
-        soap_text: soapText,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
   };
 
   const category = hba1c && !isNaN(parseFloat(hba1c)) ? getCategory(parseFloat(hba1c)) : null;

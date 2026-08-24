@@ -6,27 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_CHALDER_PHYSICAL_Q as PHYSICAL_Q, PROM_NEURO_CHALDER_MENTAL_Q as MENTAL_Q, PROM_NEURO_CHALDER_OPTIONS_LIKERT as OPTIONS_LIKERT, PROM_NEURO_CHALDER_OPTIONS_LABELS as OPTIONS_LABELS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 // Chalder Fatigue Scale — 11-item bimodal + Likert scoring
-const PHYSICAL_Q = [
-  "Do you have problems with fatigue?",
-  "Do you need to rest more?",
-  "Do you feel sleepy or drowsy?",
-  "Do you have problems starting things?",
-  "Do you start things without difficulty but get weak as you go on?",
-  "Do you feel less strong in your muscles?",
-  "Do you feel weak?",
-  "Do you have difficulties concentrating?",
-];
 
-const MENTAL_Q = [
-  "Do you have problems with your memory?",
-  "Do you have difficulties thinking clearly?",
-  "Do you make slips of the tongue when talking?",
-];
 
-const OPTIONS_LIKERT = ["Less than usual", "No more than usual", "More than usual", "Much more than usual"];
-const OPTIONS_LABELS = ["Less", "No more", "More", "Much more"]; // Short labels for button display
 const BIMODAL_MAP = [0, 1, 1, 1]; // 0,1,2,3 -> bimodal score (Likert options 2-3 = 1 in bimodal)
 
 function getInterpretation(bimodalScore) {

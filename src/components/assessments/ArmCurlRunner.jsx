@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Save, Play, Pause, RotateCcw, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 const NORMATIVE_DATA = [
   { sex: "male", age_min: 60, age_max: 64, low: 16, mid_low: 16, mid_high: 22, high: 22 },
@@ -29,7 +30,7 @@ const NORMATIVE_DATA = [
 export default function ArmCurlRunner({ client, onSave, onClose }) {
   const [timerSeconds, setTimerSeconds] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
-  const [sex, setSex] = useState(client?.gender || 'male');
+  const [sex, setSex] = useState(client?.gender === 'male' || client?.gender === 'female' ? client.gender : '');
   const [age, setAge] = useState(null);
   const [dominantSide, setDominantSide] = useState('right');
   const [testedSide, setTestedSide] = useState('right');
@@ -49,8 +50,10 @@ export default function ArmCurlRunner({ client, onSave, onClose }) {
   useEffect(() => {
     if (sex === 'male') {
       setWeightKg('4');
-    } else {
+    } else if (sex === 'female') {
       setWeightKg('2');
+    } else {
+      setWeightKg('');
     }
   }, [sex]);
 
@@ -102,40 +105,13 @@ export default function ArmCurlRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    const primaryReps = testedSide === 'right' ? parseFloat(rightReps) : parseFloat(leftReps);
-    if (isNaN(primaryReps)) {
-      toast.error("Enter repetitions for the selected primary side before saving.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho({
+        sex, age, dominantSide, testedSide, weightKg, rightReps, leftReps,
+      }, { runnerKey: 'arm_curl', assessmentDate: todayLocal() }));
+    } catch (error) {
+      toast.error(error.message);
     }
-    const asymmetry = (rightReps && leftReps) ? Math.abs(parseFloat(rightReps) - parseFloat(leftReps)) : 0;
-    const comparison = getNormativeComparison();
-
-    const soapText = [
-      `• 30-Second Seated Arm Curl Test`,
-      `  Right Arm: ${rightReps || 'NR'} reps | Left Arm: ${leftReps || 'NR'} reps`,
-      `  Weight Used: ${weightKg} kg | Primary Side: ${testedSide} (${primaryReps} reps)`,
-      comparison ? `  Normative Category: ${comparison.category}` : null,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      result_value: primaryReps,
-      additional_data: {
-        measurement_type: 'arm_curl',
-        soap_text: soapText,
-        primary_side_reps: primaryReps,
-        right_arm_reps: rightReps ? parseFloat(rightReps) : null,
-        left_arm_reps: leftReps ? parseFloat(leftReps) : null,
-        asymmetry_reps: asymmetry,
-        sex,
-        age,
-        dominant_side: dominantSide,
-        tested_side_primary: testedSide,
-        weight_used_kg: parseFloat(weightKg),
-        normative_category: comparison?.category || null,
-        test_duration: 30
-      },
-      assessment_date: todayLocal()
-    });
   };
 
   const comparison = getNormativeComparison();

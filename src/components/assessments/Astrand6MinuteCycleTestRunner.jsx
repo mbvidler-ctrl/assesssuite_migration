@@ -68,8 +68,9 @@ export default function Astrand6MinuteCycleTestRunner({ client, onSave, onClose 
   };
 
   const calculateVO2Max = () => {
-    const avgHeartRate = heartRate.reduce((a, b) => a + b, 0) / heartRate.length;
-    const vo2Max = (workload * 1.8) / (avgHeartRate - 60) + 7;
+    const avgHeartRate = Number(heartRate);
+    const workloadWatts = Number(workload);
+    const vo2Max = (workloadWatts * 1.8) / (avgHeartRate - 60) + 7;
     const ageCorrectionFactor = getAgeCorrectionFactor();
     return vo2Max * ageCorrectionFactor;
   };

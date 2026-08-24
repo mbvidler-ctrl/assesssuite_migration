@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreAclRsi } from "@/lib/clinical/scorers/coreB";
 
 const ACL_RSI_QUESTIONS = [
   { text: "Are you confident that you can perform at your previous level of sport?", id: "q1" },
@@ -43,33 +43,13 @@ export default function ACLRSIRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    const percentageScore = parseFloat(getPercentageScore());
-    const readiness = percentageScore >= 77 ? 'Psychologically Ready' : percentageScore >= 56 ? 'Moderate Readiness' : 'Low Readiness';
-
-    let soapText = `• ACL-RSI: ${percentageScore}% (${readiness})\n  Total: ${getTotalScore()}/120\n\n  Individual Responses:\n`;
-    ACL_RSI_QUESTIONS.forEach((q, i) => {
-      soapText += `  Q${i+1}. ${q.text}\n      Score: ${responses[i]}/10\n`;
-    });
-
-    onSave({
-      status: "completed",
-      result_value: percentageScore,
-      additional_data: {
-        measurement_type: "aclrsi",
-        soap_text: soapText,
-        aclrsi_data: {
-          result_value: percentageScore,
-          responses,
-          total_score: getTotalScore(),
-          percentage_score: percentageScore
-        }
-      },
-      notes,
-      assessment_date: todayLocal()
-    });
-
-    toast.success("Assessment saved successfully.");
-    onClose();
+    try {
+      onSave(scoreAclRsi({ responses, notes }, { assessmentName: 'ACL Return to Sport after Injury (ACL-RSI)', client }));
+      toast.success("Assessment saved successfully.");
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save ACL-RSI assessment.');
+    }
   };
 
   return (

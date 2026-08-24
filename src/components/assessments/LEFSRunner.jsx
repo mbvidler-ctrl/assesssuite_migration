@@ -7,29 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_LEFS_LEFS_ACTIVITIES as LEFS_ACTIVITIES } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const LEFS_ACTIVITIES = [
-  "Any of your usual work, housework, or school activities",
-  "Your usual hobbies, recreational or sporting activities",
-  "Getting into or out of the bath",
-  "Walking between rooms",
-  "Putting on your shoes or socks",
-  "Squatting",
-  "Lifting an object, like a bag of groceries from the floor",
-  "Performing light activities around your home",
-  "Performing heavy activities around your home",
-  "Getting into or out of a car",
-  "Walking 2 blocks",
-  "Walking a mile",
-  "Going up or down 10 stairs (about 1 flight of stairs)",
-  "Standing for 1 hour",
-  "Sitting for 1 hour",
-  "Running on even ground",
-  "Running on uneven ground",
-  "Making sharp turns while running fast",
-  "Hopping",
-  "Rolling over in bed"
-];
 
 export default function LEFSRunner({ onSave, onClose }) {
   const [side, setSide] = useState("right");

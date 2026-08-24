@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Save, X, Info, AlertTriangle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreFastingGlucose } from "@/lib/clinical/scorers/extrasPhysiological";
 
 function classify(mmol) {
   if (mmol < 3.9) return { label: "Hypoglycaemia", color: "bg-purple-100 text-purple-800 border-purple-300", alert: true };
@@ -29,10 +30,15 @@ export default function FastingBloodGlucoseRunner({ client, onSave, onClose }) {
   const result = !isNaN(value) && value > 0 ? classify(value) : null;
 
   const handleSave = () => {
-    if (!glucose || isNaN(value)) { toast.error("Enter a valid glucose value"); return; }
-    const soap = `• Fasting Blood Glucose\n  Result: ${value} mmol/L — ${result?.label}\n  Fasting Duration: ${fastingHours} hours\n  Method: ${method === "fingerprick" ? "Finger-prick glucometer" : method === "venous" ? "Venous blood sample" : "Other"}${currentMedications ? `\n  Current Medications: ${currentMedications}` : ""}${notes ? `\n  Notes: ${notes}` : ""}\n  Reference Ranges: <3.9 = hypo | 3.9–5.5 = normal | 5.6–6.9 = IFG | ≥7.0 = diabetes\n  Diagnosis requires 2 separate readings. Single value is screening only.\n  Reference: Diabetes Australia / WHO criteria.`;
-    onSave({ status: "completed", result_value: value, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "fasting_blood_glucose", glucose_mmol: value, fasting_hours: parseInt(fastingHours), method, classification: result?.label } });
-    toast.success("Fasting blood glucose saved.");
+    try {
+      onSave(scoreFastingGlucose(
+        { glucose_mmol_l: glucose, fasting_hours: fastingHours, method, current_medications: currentMedications, notes },
+        { assessmentDate: todayLocal(), assessmentName: 'Fasting Blood Glucose', client },
+      ));
+      toast.success("Fasting blood glucose saved.");
+    } catch (error) {
+      toast.error(error?.message || "Fasting glucose could not be scored.");
+    }
   };
 
   return (

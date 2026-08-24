@@ -49,7 +49,7 @@ const documentTypeColors = {
   other: 'bg-slate-100 text-slate-800'
 };
 
-export default function ClientDocuments({ clientId, client }) {
+export default function ClientDocuments({ clientId, client, careEpisodeId = null }) {
   const [documents, setDocuments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -60,12 +60,15 @@ export default function ClientDocuments({ clientId, client }) {
 
   useEffect(() => {
     loadDocuments();
-  }, [clientId]);
+  }, [careEpisodeId, clientId]);
 
   const loadDocuments = async () => {
     setIsLoading(true);
     try {
-      const docs = await base44.entities.ClientDocument.filter({ client_id: clientId }, '-created_date');
+      const docs = await base44.entities.ClientDocument.filter({
+        client_id: clientId,
+        ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
+      }, '-created_date');
       setDocuments(docs);
     } catch (error) {
       console.error('Error loading documents:', error);
@@ -101,6 +104,7 @@ export default function ClientDocuments({ clientId, client }) {
       await base44.entities.ClientDocument.create({
         org_id: clientRecord.org_id,
         client_id: clientId,
+        ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
         document_type: uploadType,
         file_url: file_url,
         file_name: uploadFile.name

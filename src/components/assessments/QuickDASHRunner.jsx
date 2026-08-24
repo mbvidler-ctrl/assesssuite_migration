@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, AlertCircle, ExternalLink, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreQuickDash } from "@/lib/clinical/scorers/coreB";
 
 export default function QuickDASHRunner({ client, onSave, onClose }) {
   const [state, setState] = useState("setup"); // setup, score_entry, complete
@@ -24,54 +25,17 @@ export default function QuickDASHRunner({ client, onSave, onClose }) {
     return { level: "Severe disability", color: "bg-red-50 border-red-300" };
   };
 
-  const isFormValid = totalScore && parseFloat(totalScore) >= 0 && parseFloat(totalScore) <= 100;
+  const parsedTotalScore = Number(totalScore);
+  const isFormValid = totalScore !== '' && Number.isFinite(parsedTotalScore) && parsedTotalScore >= 0 && parsedTotalScore <= 100;
   const interpretation = isFormValid ? getInterpretation(totalScore) : null;
 
   const handleSave = () => {
-    if (!isFormValid) {
-      toast.error("Please enter a valid QuickDASH score (0-100).");
-      return;
+    try {
+      onSave(scoreQuickDash({ raw_sum: rawSum, total_score: totalScore, assessor_name: assessorName, assessment_date: assessmentDate, notes }, { assessmentName: 'QuickDASH', client }));
+      toast.success("QuickDASH assessment saved successfully.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save QuickDASH assessment.');
     }
-
-    const score = parseFloat(totalScore);
-    const rawSumValue = rawSum ? parseInt(rawSum) : null;
-    
-    const soapLines = [
-      `• QuickDASH (Disabilities of the Arm, Shoulder and Hand)`,
-      `  Assessment Date: ${assessmentDate}`,
-      ``,
-      rawSumValue ? `  Sum of Item Scores: ${rawSumValue}/55` : ``,
-      `  QuickDASH Score: ${score}/100`,
-      `  Interpretation: ${interpretation.level}`,
-      ``,
-      `  Scoring Scale:`,
-      `    0-20: Minimal upper limb disability`,
-      `    21-40: Mild disability`,
-      `    41-60: Moderate disability`,
-      `    61-100: Severe disability`,
-      ``,
-      notes ? `  Clinician Notes:\n    ${notes.replace(/\n/g, '\n    ')}` : `  Clinician Notes: None provided`,
-      ``,
-      `  Reference:`,
-      `    Institute for Work & Health. Disabilities of the Arm, Shoulder and Hand (DASH) and QuickDASH.`,
-      `    https://dash.iwh.on.ca`,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      status: "completed",
-      result_value: score,
-      additional_data: {
-        measurement_type: "questionnaire_external",
-        raw_sum: rawSumValue,
-        total_score: score,
-        interpretation: interpretation.level,
-        soap_text: soapLines,
-      },
-      notes,
-      assessment_date: assessmentDate,
-    });
-
-    toast.success("QuickDASH assessment saved successfully.");
   };
 
   return (

@@ -128,6 +128,9 @@ test('provider-backed subscription reconciliation persists the exact trusted ent
         method: 'POST',
         token: adminToken,
         body: {
+          id: 'evt_subscriptionreconcileunpaid',
+          created: 1_800_000_001,
+          livemode: false,
           type: 'checkout.session.completed',
           data: {
             object: {
@@ -137,7 +140,7 @@ test('provider-backed subscription reconciliation persists the exact trusted ent
               subscription: `${subscriptionId}_unpaid`,
               client_reference_id: user.id,
               customer_email: user.email,
-              metadata: { userId: user.id, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M' },
+              metadata: { userId: user.id, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M', appId: server.appId, professionId: 'exercise-physiology' },
             },
           },
         },
@@ -155,6 +158,9 @@ test('provider-backed subscription reconciliation persists the exact trusted ent
         method: 'POST',
         token: adminToken,
         body: {
+          id: 'evt_subscriptionreconcileidentity',
+          created: 1_800_000_002,
+          livemode: false,
           type: 'checkout.session.completed',
           data: {
             object: {
@@ -164,7 +170,7 @@ test('provider-backed subscription reconciliation persists the exact trusted ent
               subscription: `${subscriptionId}_mismatch`,
               client_reference_id: user.id,
               customer_email: user.email,
-              metadata: { userId: 'different-user-id', priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M' },
+              metadata: { userId: 'different-user-id', priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M', appId: server.appId, professionId: 'exercise-physiology' },
             },
           },
         },
@@ -182,6 +188,9 @@ test('provider-backed subscription reconciliation persists the exact trusted ent
         method: 'POST',
         token: adminToken,
         body: {
+          id: 'evt_subscriptionreconcileprice',
+          created: 1_800_000_003,
+          livemode: false,
           type: 'checkout.session.completed',
           data: {
             object: {
@@ -191,7 +200,7 @@ test('provider-backed subscription reconciliation persists the exact trusted ent
               subscription: `${subscriptionId}_wrong_price`,
               client_reference_id: user.id,
               customer_email: user.email,
-              metadata: { userId: user.id, priceId: 'price_not_approved' },
+              metadata: { userId: user.id, priceId: 'price_not_approved', appId: server.appId, professionId: 'exercise-physiology' },
             },
           },
         },
@@ -209,6 +218,9 @@ test('provider-backed subscription reconciliation persists the exact trusted ent
         method: 'POST',
         token: adminToken,
         body: {
+          id: 'evt_subscriptionreconcilesuccess',
+          created: 1_800_000_004,
+          livemode: false,
           type: 'checkout.session.completed',
           data: {
             object: {
@@ -218,7 +230,7 @@ test('provider-backed subscription reconciliation persists the exact trusted ent
               subscription: subscriptionId,
               client_reference_id: user.id,
               customer_email: user.email,
-              metadata: { userId: user.id, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M' },
+              metadata: { userId: user.id, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M', appId: server.appId, professionId: 'exercise-physiology' },
             },
           },
         },

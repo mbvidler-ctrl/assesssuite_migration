@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 // ─── ENDURANCE CLASSIFICATION ──────────────────────────────────────────────
 const getEnduranceCategory = (reps, gender) => {
@@ -67,64 +68,16 @@ export default function YMCABenchPressTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (testComplete === false) {
-      toast.error("Test must be completed before saving.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho({
+        completed: testComplete, bodyMass, gender, testWeight, repetitions,
+        cadenceBreakdown, rpe, painPresent, notes,
+      }, { runnerKey: 'ymca_bench', assessmentDate: todayLocal() }));
+      toast.success("Assessment saved.");
+      setTimeout(() => onClose(), 500);
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const category = getEnduranceCategory(repetitions, gender);
-    const soapText = `• Allied Upper Body Endurance Press Test
-  Standardized repetition endurance assessment for upper body muscular endurance
-  
-  CLIENT DETAILS:
-  Body Mass: ${bodyMass} kg
-  Gender: ${gender === "M" ? "Male" : "Female"}
-  
-  PROTOCOL:
-  Test Load: ${testWeight} kg
-  Cadence: 60 bpm via metronome (1 rep per 2 beats = 30 reps/min)
-  Procedure: Continuous pressing until cadence breakdown or failure
-  
-  PERFORMANCE:
-  Repetitions Completed: ${repetitions}
-  Muscular Endurance Category: ${category}
-  Cadence Maintained: ${cadenceBreakdown === "no" ? "Yes" : "No (breakdown occurred)"}
-  ${rpe ? `Perceived Exertion (RPE): ${rpe}/10` : ""}
-  
-  SAFETY & RESPONSE:
-  Pain During Test: ${painPresent === "yes" ? "Present" : "None"}
-  ${notes ? `Clinical Notes: ${notes}` : ""}
-  
-  INTERPRETATION:
-  Upper-body endurance performance classified as ${category} based on standardized loading.
-  ${repetitions >= 36 ? "Excellent muscular endurance capacity." : ""}
-  ${repetitions >= 29 && repetitions < 36 ? "Good muscular endurance capacity." : ""}
-  ${repetitions >= 22 && repetitions < 29 ? "Moderate muscular endurance capacity." : ""}
-  ${repetitions < 22 ? "Limited upper-body muscular endurance for standardized load." : ""}
-  
-  IP STATEMENT:
-  This assessment is independently structured and does not reproduce YMCA proprietary materials or score sheets.`;
-
-    onSave({
-      status: "completed",
-      result_value: repetitions,
-      additional_data: {
-        measurement_type: "allied_bench_press_endurance",
-        body_mass_kg: parseInt(bodyMass),
-        gender,
-        test_weight_kg: parseInt(testWeight),
-        repetitions,
-        category,
-        cadence_breakdown: cadenceBreakdown === "yes",
-        rpe: rpe ? parseInt(rpe) : null,
-        pain_present: painPresent === "yes",
-        soap_text: soapText,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved.");
-    setTimeout(() => onClose(), 500);
   };
 
   const category = testComplete ? getEnduranceCategory(repetitions, gender) : null;

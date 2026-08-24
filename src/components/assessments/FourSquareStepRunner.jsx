@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Play, Pause, RotateCcw, Info, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreFourSquareStep } from "@/lib/clinical/scorers/coreA";
 
 export default function FourSquareStepRunner({ client, onSave, onClose, initialData }) {
   const [timerRunning, setTimerRunning] = useState(false);
@@ -40,31 +41,10 @@ export default function FourSquareStepRunner({ client, onSave, onClose, initialD
   };
 
   const handleSave = () => {
-    const best = calculateBest();
-    if (!best) {
-      toast.error("Please record at least one trial before saving.");
-      return;
-    }
-
-    const interpretation = getInterpretation(best).text;
-
-    const soapText = `• Four Square Step Test (FSST)\n  Best Time: ${best.toFixed(2)}s\n  Interpretation: ${interpretation}\n\n  Trials:\n    Trial 1: ${data.trial1 ? data.trial1 + "s" : "—"}\n    Trial 2: ${data.trial2 ? data.trial2 + "s" : "—"}${
-      data.observations ? `\n\n  Observations: ${data.observations}` : ""
-    }\n\n  Reference: Dite, W., & Temple, V. A. (2002). Development of a clinical measure of turning for older adults. American Journal of Physical Medicine & Rehabilitation, 81(3), 180–188.`;
-
-    onSave({
-      status: "completed",
-      result_value: best,
-      additional_data: {
-        soap_text: soapText,
-        trial1: parseFloat(data.trial1) || null,
-        trial2: parseFloat(data.trial2) || null,
-        best_time: best,
-        interpretation,
-      },
-      notes: data.observations,
-      assessment_date: todayLocal(),
-    });
+    onSave(scoreFourSquareStep(
+      { trial1: data.trial1, trial2: data.trial2, observations: data.observations },
+      { assessmentName: 'Four Square Step Test', assessmentDate: todayLocal(), notes: data.observations, client },
+    ));
     toast.success("Four Square Step Test saved successfully.");
     setTimeout(() => onClose(), 500);
   };

@@ -5,7 +5,7 @@ import { ExternalLink, ShieldCheck, ShieldAlert } from "lucide-react";
 //   true  -> references were confirmed against academic databases (green badge)
 //   false -> references were NOT independently verified (amber caution)
 //   undefined -> no badge (unchanged behaviour for existing callers)
-export default function ClickableReferences({ references, verified }) {
+export default function ClickableReferences({ references, verified = undefined }) {
   if (!references) return null;
 
   // Deduplicate references by trimming and comparing

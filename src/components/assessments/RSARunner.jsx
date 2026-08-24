@@ -6,7 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreRsa } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 const RSA_PROTOCOLS = {
   "6 × 30 m (straight)": { sprints: 6, distance: 30, recovery: "20-30", isShuttle: false, key: "6x30" },
@@ -38,7 +38,10 @@ export default function RSARunner({ testName, assessment, onSave, onClose, clien
   const [selectedProtocolName, setSelectedProtocolName] = useState(
     initialProtocolKey ? NAME_TO_PROTOCOL[initialProtocolKey] : detectedProtocol
   );
-  const [sprintTimes, setSprintTimes] = useState(null);
+  const [sprintTimes, setSprintTimes] = useState(() => {
+    const fixedProtocolName = initialProtocolKey ? NAME_TO_PROTOCOL[initialProtocolKey] : null;
+    return fixedProtocolName ? Array(RSA_PROTOCOLS[fixedProtocolName].sprints).fill('') : null;
+  });
   const [notes, setNotes] = useState('');
   const [surfaceType, setSurfaceType] = useState('');
 
@@ -102,45 +105,12 @@ export default function RSARunner({ testName, assessment, onSave, onClose, clien
   };
 
   const handleSave = () => {
-    if (parsedTimes.length === 0) {
-      toast.error("Please enter at least one sprint time.");
-      return;
+    try {
+      const protocolKey = Object.entries(NAME_TO_PROTOCOL).find(([, name]) => name === selectedProtocolName)?.[0];
+      onSave(scoreRsa({ protocol_key: protocolKey, sprint_times: sprintTimes, surface_type: surfaceType, notes }, { runnerKey: initialProtocolKey || "rsa_generic", assessmentName: testName || assessment?.name || "Repeated Sprint Ability Test", client }));
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const bestTime = parseFloat(calculateBestTime());
-    const meanTime = parseFloat(calculateMeanTime());
-    const totalTime = parseFloat(calculateTotalTime());
-    const decrement = parseFloat(calculateDecrement());
-
-    const soapText = [
-      `• Repeated Sprint Ability Test (${selectedProtocolName})`,
-      `  Best Time: ${bestTime.toFixed(2)}s | Mean Time: ${meanTime.toFixed(2)}s | Total Time: ${totalTime.toFixed(2)}s`,
-      `  Fatigue Index (%Decrement): ${decrement.toFixed(2)}% (lower = better sprint maintenance)`,
-      `  Sprint Times: ${parsedTimes.map(t => t.toFixed(2)).join(', ')}s`,
-      surfaceType ? `  Surface: ${surfaceType}` : null,
-      notes ? `  Clinical Notes: ${notes}` : null,
-      `  Interpretation: FI <5% Excellent | 5-10% Good | >10% Significant fatigue`,
-      `  Reference: Spencer et al. (2005). Reliability of a repeated-sprint test. J Sci Med Sport, 8(2), 197-202.`,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      result_value: bestTime,
-      additional_data: {
-        soap_text: soapText,
-        sprint_times: parsedTimes,
-        best_time: bestTime,
-        mean_time: meanTime,
-        total_time: totalTime,
-        percentage_decrement: decrement,
-        number_of_sprints: sprintTimes.length,
-        distance: protocol.distance,
-        is_shuttle: protocol.isShuttle,
-        surface_type: surfaceType,
-        protocol: selectedProtocolName,
-      },
-      notes: notes,
-      assessment_date: todayLocal(),
-    });
   };
 
   return (

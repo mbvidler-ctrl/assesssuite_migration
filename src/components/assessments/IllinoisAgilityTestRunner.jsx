@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Info, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 export default function IllinoisAgilityTestRunner({ client, onSave, onClose }) {
   const [trialTimes, setTrialTimes] = useState([]);
@@ -31,27 +32,12 @@ export default function IllinoisAgilityTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (trialTimes.length === 0) {
-      toast.error("Please complete at least one trial.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({ trialTimes, notes }, { runnerKey: 'illinois', assessmentDate: todayLocal() }));
+      toast.success("Assessment recorded — please confirm and save.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const bestTime = Math.min(...trialTimes);
-    const soapText = `• Illinois Agility Test:\n  Best Time: ${bestTime}s\n  All Trials: ${trialTimes.join('s, ')}s${notes.trim() ? `\n  Clinical Notes: ${notes}` : ''}`;
-
-    onSave({
-      status: "completed",
-      result_value: bestTime,
-      additional_data: {
-        measurement_type: "illinois_agility_test",
-        trials: trialTimes,
-        best_time: bestTime,
-        soap_text: soapText
-      },
-      notes: soapText,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment recorded — please confirm and save.");
   };
 
   return (

@@ -77,7 +77,7 @@ export default function ClinicPolicies() {
       try {
         const results = await base44.entities.ClinicPolicy.list();
         const filtered = (results || []).filter(p => p.org_id === uid);
-        const sorted = filtered.sort((a, b) => new Date(b.created_date) - new Date(a.created_date));
+        const sorted = filtered.sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime());
         setPolicies(sorted);
       } catch (policyErr) {
         console.warn("Could not load policies:", policyErr);

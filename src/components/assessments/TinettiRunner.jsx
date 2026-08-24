@@ -8,182 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { ChevronRight, Save, ChevronDown, ChevronUp, BookOpen } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
+import { scoreTinetti, TINETTI_BALANCE_ITEMS, TINETTI_GAIT_ITEMS } from "@/lib/clinical/scorers/coreA";
 
-// ── Balance Items ─────────────────────────────────────────────────────────────
-const balanceItems = [
-  {
-    name: "1. Sitting Balance",
-    tip: "Observe the patient seated in a hard, armless chair. Watch for trunk lean, sliding, or any loss of upright position without external support.",
-    options: [
-      { label: "Leans or slides in chair", value: 0 },
-      { label: "Steady, safe", value: 1 }
-    ]
-  },
-  {
-    name: "2. Rising from Chair",
-    tip: "Ask patient to stand up. Watch whether they need arm support, multiple attempts, or forward momentum to complete the movement.",
-    options: [
-      { label: "Unable without help", value: 0 },
-      { label: "Able, uses arms to help", value: 1 },
-      { label: "Able without using arms", value: 2 }
-    ]
-  },
-  {
-    name: "3. Immediate Standing Balance (first 3–5 seconds)",
-    tip: "Observe immediately after rising. Note any staggering, stepping to regain balance, or need to grab a surface within the first few seconds.",
-    options: [
-      { label: "Unsteady (staggers, moves feet, trunk sway)", value: 0 },
-      { label: "Steady but uses walker/cane or grabs objects", value: 1 },
-      { label: "Steady without walker/cane or other support", value: 2 }
-    ]
-  },
-  {
-    name: "4. Standing Balance",
-    tip: "With feet as close together as possible (patient's choice of stance). Observe for 5 seconds. Note use of support or wide base. Medial heel separation >10 cm = wide stance.",
-    options: [
-      { label: "Unsteady", value: 0 },
-      { label: "Steady but wide stance (heels >10 cm apart) or uses cane/support", value: 1 },
-      { label: "Narrow stance without support", value: 2 }
-    ]
-  },
-  {
-    name: "5. Balance with Eyes Closed (at position from item 4)",
-    tip: "Without changing stance from item 4, ask patient to close their eyes for 3 seconds. Assess whether they can maintain balance without vision.",
-    options: [
-      { label: "Unsteady", value: 0 },
-      { label: "Steady", value: 1 }
-    ]
-  },
-  {
-    name: "6a. Turning 360° — Steps",
-    tip: "Ask patient to turn a full circle. Count whether steps are discontinuous (pauses between) or continuous (smooth rotation). Discontinuous = 0.",
-    options: [
-      { label: "Discontinuous steps (stops between)", value: 0 },
-      { label: "Continuous steps", value: 1 }
-    ]
-  },
-  {
-    name: "6b. Turning 360° — Steadiness",
-    tip: "During the same 360° turn, observe stability. Grabs for support or staggers during the turn = 0.",
-    options: [
-      { label: "Unsteady (grabs, staggers)", value: 0 },
-      { label: "Steady", value: 1 }
-    ]
-  },
-  {
-    name: "7. Nudge Test — Sternal Push (×3)",
-    tip: "Stand close. Apply a gentle firm push to the sternum 3 times. Assess postural response. Do NOT push hard enough to cause a fall — this tests reactive balance.",
-    options: [
-      { label: "Begins to fall", value: 0 },
-      { label: "Staggers, grabs, catches self", value: 1 },
-      { label: "Steady", value: 2 }
-    ]
-  },
-  {
-    name: "8. Sitting Down",
-    tip: "Observe patient returning to seated. Watch for loss of control, falling into chair, misjudging distance, or requiring arm support for controlled descent.",
-    options: [
-      { label: "Unsafe (misjudges distance, falls into chair)", value: 0 },
-      { label: "Uses arms or not a smooth motion", value: 1 },
-      { label: "Safe, smooth motion", value: 2 }
-    ]
-  },
-  {
-    name: "9. Single Leg Stance (5 seconds)",
-    tip: "Ask patient to stand on one leg for 5 seconds without support. Clinician may demonstrate. Score based on best leg attempted.",
-    options: [
-      { label: "Unable or holds <5 seconds", value: 0 },
-      { label: "Able to hold ≥5 seconds", value: 1 }
-    ]
-  }
-];
-
-// ── Gait Items ────────────────────────────────────────────────────────────────
-const gaitItems = [
-  {
-    name: "1. Gait Initiation (immediately after told to 'Go')",
-    tip: "Ask patient to begin walking at their normal pace. Observe the first step. Any hesitancy, shuffling before lifting foot, or multiple attempts = 0.",
-    options: [
-      { label: "Any hesitancy or multiple attempts to start", value: 0 },
-      { label: "No hesitancy, single fluid initiation", value: 1 }
-    ]
-  },
-  {
-    name: "2. Right Swing Foot — Step Length",
-    tip: "Observe the RIGHT foot during swing phase. The foot should pass the left stance foot. If it does not pass the stance foot = 0.",
-    options: [
-      { label: "Does not pass left stance foot", value: 0 },
-      { label: "Passes left stance foot", value: 1 }
-    ]
-  },
-  {
-    name: "3. Right Swing Foot — Step Height (foot clearance)",
-    tip: "Observe the RIGHT foot lift. Foot should fully clear the floor. Scraping, shuffling or partial clearance = 0.",
-    options: [
-      { label: "Right foot does not clear floor completely", value: 0 },
-      { label: "Right foot clears floor completely", value: 1 }
-    ]
-  },
-  {
-    name: "4. Left Swing Foot — Step Length",
-    tip: "Observe the LEFT foot during swing phase. Should pass the right stance foot. Failure to pass = 0.",
-    options: [
-      { label: "Does not pass right stance foot", value: 0 },
-      { label: "Passes right stance foot", value: 1 }
-    ]
-  },
-  {
-    name: "5. Left Swing Foot — Step Height (foot clearance)",
-    tip: "Observe the LEFT foot lift. Full floor clearance required. Scraping or shuffling = 0.",
-    options: [
-      { label: "Left foot does not clear floor completely", value: 0 },
-      { label: "Left foot clears floor completely", value: 1 }
-    ]
-  },
-  {
-    name: "6. Step Symmetry",
-    tip: "Compare right and left step lengths throughout the walk. Both sides should appear roughly equal in length. Asymmetry (one side consistently shorter) = 0.",
-    options: [
-      { label: "Right and left step length not equal (asymmetrical)", value: 0 },
-      { label: "Right and left step length appears equal", value: 1 }
-    ]
-  },
-  {
-    name: "7. Step Continuity",
-    tip: "Observe for stopping or periods of both feet on the ground simultaneously (double stance). Smooth, continuous stepping = 1.",
-    options: [
-      { label: "Stopping or discontinuity between steps", value: 0 },
-      { label: "Steps appear continuous", value: 1 }
-    ]
-  },
-  {
-    name: "8. Path Deviation (observe over ~3 metres)",
-    tip: "Watch the patient walk along a 3 m straight line (imagined or taped). Note deviation from a straight path. Use of a walking aid automatically limits score to 1.",
-    options: [
-      { label: "Marked deviation", value: 0 },
-      { label: "Mild/moderate deviation or uses assistive device", value: 1 },
-      { label: "Straight without assistive device", value: 2 }
-    ]
-  },
-  {
-    name: "9. Trunk Stability",
-    tip: "Observe the trunk during walking. Any visible sway, use of arms for balance, knee or back flexion while walking limits score to 1 even without an aid.",
-    options: [
-      { label: "Marked sway or uses assistive device", value: 0 },
-      { label: "No sway but flexes knees/back or spreads arms while walking", value: 1 },
-      { label: "No sway, no assistive device, no compensatory movements", value: 2 }
-    ]
-  },
-  {
-    name: "10. Walking Stance (base width)",
-    tip: "Observe heel separation while walking. Heels should nearly touch (narrow base). Wide base of support (heels apart) = 0.",
-    options: [
-      { label: "Heels apart (wide base)", value: 0 },
-      { label: "Heels almost touching while walking", value: 1 }
-    ]
-  }
-];
-
+// The UI renders the same ordered prompts, tips and options the pure scorer
+// and serializable RunnerSpec consume.
+const balanceItems = TINETTI_BALANCE_ITEMS;
+const gaitItems = TINETTI_GAIT_ITEMS;
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function TinettiRunner({ client, onSave, onClose }) {
   const [activeTab, setActiveTab] = useState("balance");
@@ -234,20 +64,10 @@ export default function TinettiRunner({ client, onSave, onClose }) {
     if (notes) soapText += `\n  Clinical Notes: ${notes}\n`;
     soapText += `  Reference: Tinetti (1986). JAGS, 34(2), 119–126.`;
 
-    onSave({
-      result_value: ts,
-      additional_data: {
-        soap_text: soapText,
-        balance_score: bs,
-        gait_score: gs,
-        balance_responses: balanceScores,
-        gait_responses: gaitScores,
-        interpretation: interp.text,
-        measurement_type: 'tinetti'
-      },
-      notes,
-      assessment_date: todayLocal()
-    });
+    onSave(scoreTinetti(
+      { balance_scores: balanceScores, gait_scores: gaitScores, notes },
+      { assessmentName: 'Tinetti Performance Oriented Mobility Assessment', assessmentDate: todayLocal(), notes, client },
+    ));
 
     toast.success("Tinetti POMA saved!");
   };

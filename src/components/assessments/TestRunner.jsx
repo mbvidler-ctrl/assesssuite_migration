@@ -128,21 +128,42 @@ import ClockDrawingTestRunner from './ClockDrawingTestRunner';
 import TrailMakingTestTMTPartsAandBRunner from './TrailMakingTestTMTPartsAandBRunner';
 import TinettiRunner from './TinettiRunner';
 import OneMinuteSitToStandTestRunner from './1MinuteSittoStandTestRunner'; import ModifiedRankinScaleRunner from './ModifiedRankinScaleRunner'; import NaughtonTreadmillProtocolRunner from './NaughtonTreadmillProtocolRunner';import { saveAssessmentToSOAP } from './TestRunnerSOAPHelper';
+import { resolveRegisteredAssessmentRoute } from './assessmentRunnerRegistry';
+import { scoreHandGrip, scorePainScales, scoreSingleLegStance, scoreYBalance } from '@/lib/clinical/scorers/coreA';
 
-export default function TestRunner({ client, assessment, clientAssessment, onClose, onComplete, isStandaloneMode = false, clinicianNotes }) {
+export default function TestRunner({ client, assessment, clientAssessment, onClose, onComplete, isStandaloneMode = false, clinicianNotes = '', runnerKey = null }) {
   const [searchParams] = useSearchParams();
   const appointmentId = searchParams.get('appointmentId');
   const [clinicianName, setClinicianName] = useState("");
   const [selectedClient, setSelectedClient] = useState(client);
   const [allClients, setAllClients] = useState([]);
   const [showClientDropdown, setShowClientDropdown] = useState(isStandaloneMode);
+  const registeredRoute = resolveRegisteredAssessmentRoute(assessment);
+  const activeRunnerKey = runnerKey || (registeredRoute?.host === 'test-runner' ? registeredRoute.runnerKey : null);
+  const isRoute = (...keys) => keys.indexOf(activeRunnerKey) !== -1;
+  const restoredRunnerPayload = (...keys) => {
+    const storedValue = clientAssessment?.result_value;
+    return isRoute(...keys)
+      && storedValue !== null
+      && storedValue !== undefined
+      && storedValue !== ''
+      && Number.isFinite(Number(storedValue))
+      ? clientAssessment
+      : null;
+  };
+  const restoredAdditionalData = clientAssessment?.additional_data || {};
+  const restoredRawInput = restoredAdditionalData.raw_input || {};
+  const restoredStanceTime = (side, eyesOpen) => {
+    const trials = restoredAdditionalData.trials || restoredRawInput.trials || [];
+    return trials.find((trial) => trial?.side === side && trial?.eyes_open === eyesOpen)?.time ?? '';
+  };
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [questionnaireResponses, setQuestionnaireResponses] = useState(
     clientAssessment?.additional_data?.responses || {}
   );
   const [result, setResult] = useState({
-    result_value: clientAssessment?.result_value || "",
+    result_value: clientAssessment?.result_value ?? "",
     notes: clientAssessment?.notes || "",
     barriers: clientAssessment?.barriers || "",
     assessment_date: (clientAssessment?.assessment_date || new Date().toISOString()).split('T')[0],
@@ -172,13 +193,13 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     post_exercise_spo2: clientAssessment?.additional_data?.post_exercise_spo2 || "",
     recovery_spo2: clientAssessment?.additional_data?.recovery_spo2 || "",
     // For Hand Grip Strength
-    dominant_hand: clientAssessment?.additional_data?.dominant_hand || "right",
-    dominant_trial_1: clientAssessment?.additional_data?.dominant_trial_1 || "",
-    dominant_trial_2: clientAssessment?.additional_data?.dominant_trial_2 || "",
-    dominant_trial_3: clientAssessment?.additional_data?.dominant_trial_3 || "",
-    non_dominant_trial_1: clientAssessment?.additional_data?.non_dominant_trial_1 || "",
-    non_dominant_trial_2: clientAssessment?.additional_data?.non_dominant_trial_2 || "",
-    non_dominant_trial_3: clientAssessment?.additional_data?.non_dominant_trial_3 || "",
+    dominant_hand: restoredAdditionalData.dominant_hand ?? restoredRawInput.dominant_hand ?? "right",
+    dominant_trial_1: restoredAdditionalData.dominant_trial_1 ?? restoredAdditionalData.dominant_trials?.[0] ?? "",
+    dominant_trial_2: restoredAdditionalData.dominant_trial_2 ?? restoredAdditionalData.dominant_trials?.[1] ?? "",
+    dominant_trial_3: restoredAdditionalData.dominant_trial_3 ?? restoredAdditionalData.dominant_trials?.[2] ?? "",
+    non_dominant_trial_1: restoredAdditionalData.non_dominant_trial_1 ?? restoredAdditionalData.non_dominant_trials?.[0] ?? "",
+    non_dominant_trial_2: restoredAdditionalData.non_dominant_trial_2 ?? restoredAdditionalData.non_dominant_trials?.[1] ?? "",
+    non_dominant_trial_3: restoredAdditionalData.non_dominant_trial_3 ?? restoredAdditionalData.non_dominant_trials?.[2] ?? "",
     // For 6 Minute Walk Test
     sixmwt_pre_hr: clientAssessment?.additional_data?.sixmwt_pre_hr || "",
     sixmwt_pre_bp_sys: clientAssessment?.additional_data?.sixmwt_pre_bp_sys || "",
@@ -203,22 +224,22 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     single_leg_left_trial2: clientAssessment?.additional_data?.single_leg_left_trial2 || "",
     single_leg_left_trial3: clientAssessment?.additional_data?.single_leg_left_trial3 || "",
     // New SLS fields (eyes open/closed)
-    sls_left_eyes_open: clientAssessment?.additional_data?.sls_left_eyes_open || "",
-    sls_right_eyes_open: clientAssessment?.additional_data?.sls_right_eyes_open || "",
-    sls_left_eyes_closed: clientAssessment?.additional_data?.sls_left_eyes_closed || "",
-    sls_right_eyes_closed: clientAssessment?.additional_data?.sls_right_eyes_closed || "",
+    sls_left_eyes_open: restoredAdditionalData.sls_left_eyes_open ?? restoredStanceTime('left', true),
+    sls_right_eyes_open: restoredAdditionalData.sls_right_eyes_open ?? restoredStanceTime('right', true),
+    sls_left_eyes_closed: restoredAdditionalData.sls_left_eyes_closed ?? restoredStanceTime('left', false),
+    sls_right_eyes_closed: restoredAdditionalData.sls_right_eyes_closed ?? restoredStanceTime('right', false),
     sls_dominant_leg: clientAssessment?.additional_data?.sls_dominant_leg || "",
     sls_required_support: clientAssessment?.additional_data?.sls_required_support || "",
     sls_stop_reason: clientAssessment?.additional_data?.sls_stop_reason || "",
     // Y-Balance Test
-    ybt_limb_length_left: clientAssessment?.additional_data?.ybt_limb_length_left || "",
-    ybt_limb_length_right: clientAssessment?.additional_data?.ybt_limb_length_right || "",
-    ybt_left_anterior: clientAssessment?.additional_data?.ybt_left_anterior || "",
-    ybt_left_posteromedial: clientAssessment?.additional_data?.ybt_left_posteromedial || "",
-    ybt_left_posterolateral: clientAssessment?.additional_data?.ybt_left_posterolateral || "",
-    ybt_right_anterior: clientAssessment?.additional_data?.ybt_right_anterior || "",
-    ybt_right_posteromedial: clientAssessment?.additional_data?.ybt_right_posteromedial || "",
-    ybt_right_posterolateral: clientAssessment?.additional_data?.ybt_right_posterolateral || "",
+    ybt_limb_length_left: restoredAdditionalData.ybt_limb_length_left ?? restoredAdditionalData.limb_length_left ?? "",
+    ybt_limb_length_right: restoredAdditionalData.ybt_limb_length_right ?? restoredAdditionalData.limb_length_right ?? "",
+    ybt_left_anterior: restoredAdditionalData.ybt_left_anterior ?? restoredAdditionalData.left_anterior ?? "",
+    ybt_left_posteromedial: restoredAdditionalData.ybt_left_posteromedial ?? restoredAdditionalData.left_posteromedial ?? "",
+    ybt_left_posterolateral: restoredAdditionalData.ybt_left_posterolateral ?? restoredAdditionalData.left_posterolateral ?? "",
+    ybt_right_anterior: restoredAdditionalData.ybt_right_anterior ?? restoredAdditionalData.right_anterior ?? "",
+    ybt_right_posteromedial: restoredAdditionalData.ybt_right_posteromedial ?? restoredAdditionalData.right_posteromedial ?? "",
+    ybt_right_posterolateral: restoredAdditionalData.ybt_right_posterolateral ?? restoredAdditionalData.right_posterolateral ?? "",
     // 10-Meter Walk Test
     tenm_comfortable_time: clientAssessment?.additional_data?.tenm_comfortable_time || "",
     tenm_fast_time: clientAssessment?.additional_data?.tenm_fast_time || "",
@@ -238,7 +259,10 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     // Pain Scales (VAS/NPRS)
     pain_locations: clientAssessment?.additional_data?.pain_locations || [],
     // ROM Assessment
-    rom_data: clientAssessment?.additional_data?.rom_data || null,
+    rom_data: clientAssessment?.additional_data?.rom_data || restoredRunnerPayload('range-of-motion'),
+    // Preserve full runner payloads used by legacy modal paths.
+    additional_data: clientAssessment?.additional_data || {},
+    ebbeling_data: clientAssessment?.additional_data || null,
     // BMI calculation fields
     height_cm: clientAssessment?.additional_data?.height_cm || "",
     weight_kg: clientAssessment?.additional_data?.weight_kg || "",
@@ -366,18 +390,18 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
   const [showOneMinuteSitToStandRunner, setShowOneMinuteSitToStandRunner] = useState(false);
   
   const [mocaData, setMocaData] = useState(clientAssessment?.additional_data?.moca_data || null);
-  const [mmtData, setMMTData] = useState(clientAssessment?.additional_data?.mmt_data || null);
+  const [mmtData, setMMTData] = useState(clientAssessment?.additional_data?.mmt_data || restoredRunnerPayload('manual-muscle-testing'));
   const [whrData, setWHRData] = useState(clientAssessment?.additional_data?.whr_data || null);
-  const [bergData, setBergData] = useState(clientAssessment?.additional_data?.berg_data || null);
+  const [bergData, setBergData] = useState(clientAssessment?.additional_data?.berg_data || restoredRunnerPayload('berg-balance'));
   const [tugData, setTUGData] = useState(clientAssessment?.additional_data?.tug_data || null);
-  const [chairStandData, setChairStandData] = useState(clientAssessment?.additional_data?.chair_stand_data || null);
+  const [chairStandData, setChairStandData] = useState(clientAssessment?.additional_data?.chair_stand_data || restoredRunnerPayload('one-minute-sit-to-stand'));
   const [functionalReachData, setFunctionalReachData] = useState(clientAssessment?.additional_data?.functional_reach_data || null);
   const [backScratchData, setBackScratchData] = useState(clientAssessment?.additional_data?.back_scratch_data || null);
   const [sitReachData, setSitReachData] = useState(clientAssessment?.additional_data?.sit_reach_data || null);
   const [rombergData, setRombergData] = useState(clientAssessment?.additional_data?.romberg_data || null);
   const [storkData, setStorkData] = useState(clientAssessment?.additional_data?.stork_data || null);
-  const [ctsibData, setCTSIBData] = useState(clientAssessment?.additional_data?.ctsib_data || null);
-  const [fourSquareData, setFourSquareData] = useState(clientAssessment?.additional_data?.four_square_data || null);
+  const [ctsibData, setCTSIBData] = useState(clientAssessment?.additional_data?.ctsib_data || restoredRunnerPayload('ctsib'));
+  const [fourSquareData, setFourSquareData] = useState(clientAssessment?.additional_data?.four_square_data || restoredRunnerPayload('four-square-step'));
   const [skinfoldData, setSkinfoldData] = useState(clientAssessment?.additional_data?.skinfold_data || null);
   const [girthData, setGirthData] = useState(clientAssessment?.additional_data?.girth_data || null);
   const [iswtData, setISWTData] = useState(clientAssessment?.additional_data?.iswt_data || null);
@@ -387,12 +411,12 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
   const [astrandData, setAstrandData] = useState(clientAssessment?.additional_data?.astrand_data || null);
   const [jtaData, setJTAData] = useState(clientAssessment?.additional_data?.jta_data || null);
   const [borgRPEData, setBorgRPEData] = useState(clientAssessment?.additional_data?.borg_rpe_data || null);
-  const [gmsData, setGMSData] = useState(clientAssessment?.additional_data?.gms_data || null);
+  const [gmsData, setGMSData] = useState(clientAssessment?.additional_data?.gms_data || restoredRunnerPayload('general-movement-screen'));
   const [gad7Data, setGAD7Data] = useState(clientAssessment?.additional_data?.gad7_data || null);
   const [phq9Data, setPHQ9Data] = useState(clientAssessment?.additional_data?.phq9_data || null);
   const [armCurlData, setArmCurlData] = useState(clientAssessment?.additional_data?.arm_curl_data || null);
   const [k10Data, setK10Data] = useState(clientAssessment?.additional_data?.k10_data || null);
-  const [fourStageBalanceData, setFourStageBalanceData] = useState(clientAssessment?.additional_data?.four_stage_balance_data || null);
+  const [fourStageBalanceData, setFourStageBalanceData] = useState(clientAssessment?.additional_data?.four_stage_balance_data || restoredRunnerPayload('four-stage-balance'));
   const [hoosData, setHOOSData] = useState(clientAssessment?.additional_data?.hoos_data || null);
   const [koosData, setKOOSData] = useState(clientAssessment?.additional_data?.koos_data || null);
   const [repeatedJumpData, setRepeatedJumpData] = useState(clientAssessment?.additional_data?.repeated_jump_data || null);
@@ -400,7 +424,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
   const [oneRMData, setOneRMData] = useState(clientAssessment?.additional_data?.one_rm_data || null);
   const [isometricData, setIsometricData] = useState(clientAssessment?.additional_data?.isometric_data || null);
   const [isokineticsData, setIsokineticsData] = useState(clientAssessment?.additional_data?.isokinetics_data || null);
-  const [specialTestData, setSpecialTestData] = useState(clientAssessment?.additional_data?.special_test_data || null);
+  const [specialTestData, setSpecialTestData] = useState(clientAssessment?.additional_data?.special_test_data || restoredRunnerPayload('modified-thomas'));
   const [slrData, setSLRData] = useState(clientAssessment?.additional_data?.slr_data || null);
   const [slumpData, setSlumpData] = useState(clientAssessment?.additional_data?.slump_data || null);
   const [kneeStabilityData, setKneeStabilityData] = useState(clientAssessment?.additional_data?.knee_stability_data || null);
@@ -431,13 +455,13 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
   const [tenMeterWalkData, setTenMeterWalkData] = useState(clientAssessment?.additional_data?.ten_meter_walk_data || null);
   const [dass21Data, setDASS21Data] = useState(clientAssessment?.additional_data?.dass21_data || null);
   const [hadsData, setHadsData] = useState(clientAssessment?.additional_data?.hads_data || null);
-  const [clinicalFrailtyScaleData, setClinicalFrailtyScaleData] = useState(clientAssessment?.additional_data?.clinical_frailty_scale_data || null);
+  const [clinicalFrailtyScaleData, setClinicalFrailtyScaleData] = useState(clientAssessment?.additional_data?.clinical_frailty_scale_data || restoredRunnerPayload('clinical-frailty-scale'));
   const [vitalSignsData, setVitalSignsData] = useState(clientAssessment?.additional_data?.vital_signs_data || null);
-  const [singleLegStanceData, setSingleLegStanceData] = useState(clientAssessment?.additional_data?.single_leg_stance_data || null);
-  const [yBalanceData, setYBalanceData] = useState(clientAssessment?.additional_data?.y_balance_data || null);
-  const [painScalesData, setPainScalesData] = useState(clientAssessment?.additional_data?.pain_scales_data || null);
+  const [singleLegStanceData, setSingleLegStanceData] = useState(clientAssessment?.additional_data?.single_leg_stance_data || restoredRunnerPayload('single-leg-stance'));
+  const [yBalanceData, setYBalanceData] = useState(clientAssessment?.additional_data?.y_balance_data || restoredRunnerPayload('y-balance'));
+  const [painScalesData, setPainScalesData] = useState(clientAssessment?.additional_data?.pain_scales_data || restoredRunnerPayload('pain-scales'));
   const [bodyMeasurementsData, setBodyMeasurementsData] = useState(clientAssessment?.additional_data?.body_measurements_data || null);
-  const [gaitSpeedData, setGaitSpeedData] = useState(clientAssessment?.additional_data?.gait_speed_data || null);
+  const [gaitSpeedData, setGaitSpeedData] = useState(clientAssessment?.additional_data?.gait_speed_data || restoredRunnerPayload('four-meter-gait-speed', 'habitual-gait-speed', 'fast-gait-speed'));
   const [iesrData, setIESRData] = useState(clientAssessment?.additional_data?.iesr_data || null);
   const [pcl5Data, setPCL5Data] = useState(clientAssessment?.additional_data?.pcl5_data || null);
   const [isiData, setISIData] = useState(clientAssessment?.additional_data?.isi_data || null);
@@ -465,16 +489,16 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
   const [constantMurleyData, setConstantMurleyData] = useState(clientAssessment?.additional_data?.constant_murley_data || null);
   const [lysholmData, setLysholmData] = useState(clientAssessment?.additional_data?.lysholm_data || null);
   const [aclrsiData, setACLRSIData] = useState(clientAssessment?.additional_data?.aclrsi_data || null);
-  const [grocData, setGROCData] = useState(clientAssessment?.additional_data?.groc_data || null);
+  const [grocData, setGROCData] = useState(clientAssessment?.additional_data?.groc_data || restoredRunnerPayload('groc'));
   const [sgrqData, setSGRQData] = useState(clientAssessment?.additional_data?.sgrq_data || null);
   const [fabqData, setFABQData] = useState(clientAssessment?.additional_data?.fabq_data || null);
-  const [singleLegHopData, setSingleLegHopData] = useState(clientAssessment?.additional_data?.single_leg_hop_data || null);
+  const [singleLegHopData, setSingleLegHopData] = useState(clientAssessment?.additional_data?.single_leg_hop_data || restoredRunnerPayload('single-leg-hop'));
   const [dropVerticalJumpData, setDropVerticalJumpData] = useState(clientAssessment?.additional_data?.drop_vertical_jump_data || null);
   const [verticalJumpData, setVerticalJumpData] = useState(clientAssessment?.additional_data?.vertical_jump_data || null);
-  const [clockDrawingData, setClockDrawingData] = useState(clientAssessment?.additional_data?.clock_drawing_data || null);
+  const [clockDrawingData, setClockDrawingData] = useState(clientAssessment?.additional_data?.clock_drawing_data || restoredRunnerPayload('clock-drawing'));
   const [tmtData, setTMTData] = useState(clientAssessment?.additional_data?.tmt_data || null);
-  const [tinettiData, setTinettiData] = useState(clientAssessment?.additional_data?.tinetti_data || null);
-  const [sixMWTData, setSixMWTData] = useState(clientAssessment?.additional_data?.sixmwt_data || null); const [showModifiedRankinRunner, setShowModifiedRankinRunner] = useState(false); const [modifiedRankinData, setModifiedRankinData] = useState(clientAssessment?.additional_data?.modified_rankin_data || null); const [showNaughtonRunner, setShowNaughtonRunner] = useState(false); const [naughtonData, setNaughtonData] = useState(clientAssessment?.additional_data?.naughton_data || null);
+  const [tinettiData, setTinettiData] = useState(clientAssessment?.additional_data?.tinetti_data || restoredRunnerPayload('tinetti'));
+  const [sixMWTData, setSixMWTData] = useState(clientAssessment?.additional_data?.sixmwt_data || restoredRunnerPayload('six-minute-walk')); const [showModifiedRankinRunner, setShowModifiedRankinRunner] = useState(false); const [modifiedRankinData, setModifiedRankinData] = useState(clientAssessment?.additional_data?.modified_rankin_data || null); const [showNaughtonRunner, setShowNaughtonRunner] = useState(false); const [naughtonData, setNaughtonData] = useState(clientAssessment?.additional_data?.naughton_data || null);
 
   // Timer effect
   useEffect(() => {
@@ -517,501 +541,148 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
     loadData();
   }, [isStandaloneMode]);
 
-  const isVitalSignsAssessment = (name) => {
-    return isBloodPressureAssessment(name) || isHeartRateAssessment(name) || isSpO2Assessment(name);
-  };
-
-  const isBloodPressureAssessment = (name) => {
-    return name.toLowerCase().includes('blood pressure');
-  };
-
-  const isHeartRateAssessment = (name) => {
-    return name.toLowerCase().includes('heart rate') && !name.toLowerCase().includes('recovery');
-  };
-
-  const isSpO2Assessment = (name) => {
-    return name.toLowerCase().includes('oxygen saturation') || name.toLowerCase().includes('spo2');
-  };
-
-  const isFiveTimesSitToStand = () => {
-    return assessment.name === 'Five-Times Sit-to-Stand Test (5xSTS)';
-  };
-
-  const isHandGripAssessment = (name) => {
-    return name.toLowerCase().includes('hand grip') || name.toLowerCase().includes('grip strength');
-  };
-
-  const is6MinuteWalkTest = () => {
-    return assessment.name === '6 Minute Walk Test';
-  };
-
-  const is2MinuteStepTest = () => {
-    return assessment.name === '2-Minute Step Test';
-  };
-
-  const isSingleLegStance = () => {
-    return assessment.name === 'Single Leg Stance Test (SLS)' || assessment.name === 'Single Leg Stance Test' || assessment.name === 'One-Leg Stance Test';
-  };
-
-  const isYBalanceTest = () => {
-    return assessment.name === 'Y-Balance Test';
-  };
-
-  const is10MeterWalkTest = () => {
-    return assessment.name === '10-Meter Walk Test (10MWT)';
-  };
-
-  const is4StageBalanceTest = () => {
-    return assessment.name === '4-Stage Balance Test' ||
-           assessment.name.toLowerCase().includes('4 stage balance') ||
-           assessment.name.toLowerCase().includes('four stage balance');
-  };
-
-  const isHabitualGaitSpeed = () => { const n=assessment.name.toLowerCase(); return n==='habitual gait speed'||(n.includes('gait speed')&&!n.includes('fast')&&!n.includes('4-meter')&&!n.includes('4 meter')&&!n.includes('4-metre')&&!n.includes('4 metre')); };
-  const isFastGaitSpeed = () => { const n=assessment.name.toLowerCase(); return n==='fast gait speed'||(n.includes('gait speed')&&n.includes('fast')); };
-  const is4MeterGaitSpeed = () => { const n=assessment.name.toLowerCase(); return n.includes('4-meter')||n.includes('4 meter')||n.includes('4-metre')||n.includes('4 metre'); };
-
-  const isHeartRateRecovery = () => {
-    return assessment.name === 'Heart Rate Recovery';
-  };
-
-  const isPainScales = () => {
-    return assessment.name === 'Pain Scales (VAS/NPRS)';
-  };
-
-  const isROMAssessment = () => {
-    return assessment.name === 'Range of Motion (ROM) Assessment' || 
-           assessment.name === 'ROM Assessment' ||
-           assessment.name.toLowerCase().includes('range of motion');
-  };
-
-  const isEbbelingTest = () => {
-    return assessment.name.toLowerCase().includes('ebbeling') || 
-           assessment.name.toLowerCase().includes('single-stage treadmill');
-  };
-
-  const isMoCATest = () => {
-    return assessment.name.toLowerCase().includes('moca') || 
-           assessment.name.toLowerCase().includes('montreal cognitive');
-  };
-
-  const isMMTTest = () => {
-    return assessment.name.toLowerCase().includes('manual muscle') || 
-           assessment.name === 'Manual Muscle Testing (MMT)';
-  };
-
-  const isWaistHipRatio = () => {
-    return assessment.name.toLowerCase().includes('waist-hip') || 
-           assessment.name.toLowerCase().includes('waist hip ratio') ||
-           assessment.name === 'Waist-Hip Ratio';
-  };
-
-  const isBMITest = () => {
-    return assessment.name.toLowerCase().includes('body mass index') ||
-           assessment.name === 'BMI';
-  };
-
-  const isWaistCircumference = () => {
-    return assessment.name.toLowerCase().includes('waist circumference') &&
-           !assessment.name.toLowerCase().includes('hip');
-  };
-
-  const isHeightTest = () => {
-    return assessment.name === 'Height';
-  };
-
-  const isWeightTest = () => {
-    return assessment.name === 'Weight';
-  };
-
-  const isBergBalance = () => {
-    return assessment.name.toLowerCase().includes('berg balance');
-  };
-
-  const isTUG = () => {
-    return assessment.name.toLowerCase().includes('timed up and go') || 
-           assessment.name.toLowerCase().includes('tug');
-  };
-
-  const isChairStand = () => {
-    return (assessment.name.toLowerCase().includes('chair stand') || 
-           assessment.name.toLowerCase().includes('sit to stand') ||
-           assessment.name.toLowerCase().includes('sit-to-stand')) &&
-           !assessment.name.toLowerCase().includes('1-minute') &&
-           !assessment.name.toLowerCase().includes('1 minute');
-  };
-
-  const isOneMinuteSitToStand = () => {
-    return assessment.name.toLowerCase().includes('1-minute') || 
-           assessment.name.toLowerCase().includes('1 minute');
-  };
-
-  const isFunctionalReach = () => {
-    return assessment.name.toLowerCase().includes('functional reach');
-  };
-
-  const isBackScratch = () => {
-    return assessment.name.toLowerCase().includes('back scratch');
-  };
-
-  const isSitAndReach = () => {
-    return assessment.name.toLowerCase().includes('sit and reach') || 
-           assessment.name.toLowerCase().includes('sit & reach');
-  };
-
-  const isRomberg = () => {
-    return assessment.name.toLowerCase().includes('romberg');
-  };
-
-  const isStorkTest = () => {
-    return assessment.name.toLowerCase().includes('stork');
-  };
-
-  const isCTSIB = () => {
-    return assessment.name.toLowerCase().includes('ctsib') || 
-           assessment.name.toLowerCase().includes('sensory interaction');
-  };
-
-  const isFourSquareStep = () => {
-    return assessment.name.toLowerCase().includes('four square') || 
-           assessment.name.toLowerCase().includes('4 square');
-  };
-
-  const isSkinfold = () => {
-    return assessment.name.toLowerCase().includes('skinfold');
-  };
-
-  const isGirthMeasurement = () => {
-    return assessment.name.toLowerCase().includes('girth measurement');
-  };
-
-  const isISWT = () => {
-    return assessment.name.toLowerCase().includes('iswt') || 
-           assessment.name.toLowerCase().includes('incremental shuttle');
-  };
-
-  const isHarvardStep = () => {
-    return assessment.name.toLowerCase().includes('harvard step');
-  };
-
-  const isBoxAndBlock = () => {
-    return assessment.name.toLowerCase().includes('box and block');
-  };
-
-  const isHiMAT = () => {
-    return assessment.name.toLowerCase().includes('himat') || 
-           assessment.name.toLowerCase().includes('high-level mobility');
-  };
-
-  const isAstrand = () => {
-    return assessment.name.toLowerCase().includes('astrand') || 
-           assessment.name.toLowerCase().includes('åstrand');
-  };
-
-  const isJTA = () => {
-    return assessment.name.toLowerCase().includes('job task analysis') || 
-           assessment.name.toLowerCase().includes('icare');
-  };
-
-  const isBorgRPE = () => {
-    return assessment.name.toLowerCase().includes('borg') && 
-           assessment.name.toLowerCase().includes('rpe');
-  };
-
-  const isGeneralMovementScreen = () => {
-    return assessment.name.toLowerCase().includes('general movement screen');
-  };
-
-  const isGAD7 = () => {
-    return assessment.name.toLowerCase().includes('gad-7') || 
-           assessment.name.toLowerCase().includes('gad7');
-  };
-
-  const isPHQ9 = () => {
-    return assessment.name.toLowerCase().includes('phq-9') || 
-           assessment.name.toLowerCase().includes('phq9');
-  };
-
-  const isArmCurl = () => {
-    return assessment.name.toLowerCase().includes('arm curl') || 
-           assessment.name.toLowerCase().includes('bicep curl');
-  };
-
-  const isK10 = () => {
-    return assessment.name.toLowerCase().includes('k10') || 
-           assessment.name.toLowerCase().includes('k-10') ||
-           assessment.name.toLowerCase().includes('kessler');
-  };
-
-  const isHOOS = () => {
-    return assessment.name.toLowerCase().includes('hoos') ||
-           (assessment.name.toLowerCase().includes('hip') && 
-            assessment.name.toLowerCase().includes('osteoarthritis'));
-  };
-
-  const isKOOS = () => {
-    return assessment.name.toLowerCase().includes('koos') ||
-           (assessment.name.toLowerCase().includes('knee') && 
-            assessment.name.toLowerCase().includes('osteoarthritis') &&
-            assessment.name.toLowerCase().includes('outcome'));
-  };
-
-  const isPediatricBalance = () => {
-    return assessment.name.toLowerCase().includes('pediatric balance');
-  };
-
-  const isRepeatedJump = () => {
-    return assessment.name.toLowerCase().includes('repeated jump') || 
-           assessment.name.toLowerCase().includes('10-s repeated jump') ||
-           assessment.name.toLowerCase().includes('10/5 repeated jump');
-  };
-
-  const isCKCUEST = () => {
-    return assessment.name.toLowerCase().includes('ckcuest') ||
-           assessment.name.toLowerCase().includes('closed kinetic chain upper');
-  };
-
-  const isOneRM = () => {
-    return assessment.name.toLowerCase().includes('1rm') ||
-           assessment.name.toLowerCase().includes('1-repetition maximum') ||
-           assessment.name.toLowerCase().includes('one repetition maximum');
-  };
-
-  const isIsometricStrength = () => {
-    return assessment.name.toLowerCase().includes('isometric strength');
-  };
-
-  const isIsokinetics = () => {
-    return assessment.name.toLowerCase().includes('isokinetic');
-  };
-
-  const isElyTest = () => {
-    return assessment.name.toLowerCase().includes("ely's test") ||
-           assessment.name.toLowerCase().includes("ely test");
-  };
-
-  const isThomasTest = () => {
-    return assessment.name.toLowerCase().includes("thomas test");
-  };
-
-  const isOberTest = () => {
-    return assessment.name.toLowerCase().includes("ober's test") ||
-           assessment.name.toLowerCase().includes("ober test");
-  };
-
-  const isSLR = () => {
-    return assessment.name.toLowerCase().includes('straight leg raise') ||
-           assessment.name.toLowerCase().includes('slr');
-  };
-
-  const isSlump = () => {
-    return assessment.name.toLowerCase().includes('slump test');
-  };
-
-  const isLachman = () => {
-    return assessment.name.toLowerCase().includes('lachman');
-  };
-
-  const isAnteriorDrawer = () => {
-    return assessment.name.toLowerCase().includes('anterior drawer') &&
-           assessment.name.toLowerCase().includes('knee');
-  };
-
-  const isPivotShift = () => {
-    return assessment.name.toLowerCase().includes('pivot shift');
-  };
-
-  const isMcMurray = () => {
-    return assessment.name.toLowerCase().includes('mcmurray');
-  };
-
-  const isThessaly = () => {
-    return assessment.name.toLowerCase().includes('thessaly');
-  };
-
-  const isApleys = () => {
-    return assessment.name.toLowerCase().includes('apley');
-  };
-
-  const isNoble = () => {
-    return assessment.name.toLowerCase().includes('noble');
-  };
-
-  const isBruceProtocol = () => {
-    return assessment.name.toLowerCase().includes('bruce') && !assessment.name.toLowerCase().includes('naughton');
-  };
-
-  const isModifiedBruce = () => {
-    return assessment.name.toLowerCase().includes('modified bruce');
-  };
-
-  const isNaughton = () => assessment.name.toLowerCase().includes('naughton');
-
-  const isYMCACycle = () => {
-    return assessment.name.toLowerCase().includes('ymca cycle');
-  };
-
-  const isAstrandCycle = () => {
-    return assessment.name.toLowerCase().includes('astrand');
-  };
-
-  const isWingate = () => {
-    return assessment.name.toLowerCase().includes('wingate');
-  };
-
-  const isTwoMinuteWalk = () => {
-    return assessment.name.toLowerCase().includes('2 minute walk') || 
-           assessment.name.toLowerCase().includes('two minute walk');
-  };
-
-  const isCooperTest = () => {
-    return assessment.name.toLowerCase().includes('cooper') || 
-           assessment.name.toLowerCase().includes('12 minute') ||
-           assessment.name.toLowerCase().includes('12-minute');
-  };
-
-  const isBeepTest = () => {
-    return assessment.name.toLowerCase().includes('beep') || 
-           assessment.name.toLowerCase().includes('20') && assessment.name.toLowerCase().includes('shuttle');
-  };
-
-  const isYoYoTest = () => {
-    return assessment.name.toLowerCase().includes('yo-yo') || 
-           assessment.name.toLowerCase().includes('yoyo');
-  };
-
-  const isThirtyFifteenIFT = () => {
-    return assessment.name.toLowerCase().includes('30-15') || 
-           assessment.name.toLowerCase().includes('30 15');
-  };
-
-  const isRSATest = () => {
-    return assessment.name.toLowerCase().includes('repeated sprint ability');
-  };
-
-  const isHRRTest = () => {
-    return assessment.name.toLowerCase().includes('heart rate recovery') && 
-           assessment.name.toLowerCase().includes('minute');
-  };
-
-  const isVO2maxGXT = () => {
-    return assessment.name.toLowerCase().includes('vo2max testing') ||
-           (assessment.name.toLowerCase().includes('maximal graded exercise'));
-  };
-
-  const isHbA1c = () => {
-    return assessment.name.toLowerCase().includes('hba1c') ||
-           assessment.name.toLowerCase().includes('glycated hemoglobin');
-  };
-
-  const isLipidProfile = () => {
-    return assessment.name.toLowerCase().includes('lipid profile');
-  };
-
-  const isMETCalculation = () => {
-    return assessment.name.toLowerCase().includes('met calculation') ||
-           assessment.name.toLowerCase().includes('metabolic equivalent');
-  };
-
-  const isSixMinuteStep = () => {
-    return assessment.name.toLowerCase().includes('6-minute step') ||
-           assessment.name.toLowerCase().includes('6 minute step');
-  };
-
-  const isPPT = () => {
-    return assessment.name.toLowerCase().includes('physical performance test') ||
-           assessment.name.toLowerCase().includes('ppt');
-  };
-
-  const isCBM = () => {
-    return assessment.name.toLowerCase().includes('community balance') ||
-           assessment.name.toLowerCase().includes('cb&m');
-  };
-
-  const isBESTest = () => {
-    return assessment.name.toLowerCase().includes('bestest') ||
-           assessment.name.toLowerCase().includes('balance evaluation systems');
-  };
-
-  const isEMS = () => {
-    return assessment.name.toLowerCase().includes('elderly mobility scale') ||
-           assessment.name.toLowerCase().includes('ems');
-  };
-
-  const isYMCA3MinStep = () => {
-    return assessment.name.toLowerCase().includes('ymca 3-minute') ||
-           assessment.name.toLowerCase().includes('ymca 3 minute');
-  };
-
-  const isDGI = () => {
-    return assessment.name.toLowerCase().includes('dynamic gait index') ||
-           assessment.name.toLowerCase().includes('dgi');
-  };
-
-  const isRockportWalk = () => {
-    return assessment.name.toLowerCase().includes('rockport') ||
-           assessment.name.toLowerCase().includes('1-mile walk');
-  };
-
-  const isTenMeterWalk = () => {
-    return assessment.name.toLowerCase().includes('ten meter walk') ||
-           assessment.name.toLowerCase().includes('10 meter walk') ||
-           assessment.name.toLowerCase().includes('10-meter walk');
-  };
-
-  const isDASS21 = () => {
-    return assessment.name.toLowerCase().includes('dass-21') ||
-           assessment.name.toLowerCase().includes('dass21') ||
-           assessment.name.toLowerCase().includes('dass 21');
-  };
-
-  const isHADSTest = () => {
-    return assessment.name.toLowerCase().includes('hospital anxiety and depression scale') ||
-           assessment.name.toLowerCase().includes('hads');
-  };
-
-  const isClinicalFrailtyScaleTest = () => {
-    return assessment.name.toLowerCase().includes('clinical frailty scale') ||
-           assessment.name.toLowerCase().includes('cfs');
-  };
-
-  const isIESR = () => assessment.name.toLowerCase().includes('ies-r') || assessment.name.toLowerCase().includes('impact of event');
-  const isPCL5 = () => assessment.name.toLowerCase().includes('pcl-5') || assessment.name.toLowerCase().includes('ptsd checklist');
-  const isISI = () => assessment.name.toLowerCase().includes('insomnia severity');
-  const isMRCDyspnea = () => assessment.name.toLowerCase().includes('mrc dyspnea') || assessment.name.toLowerCase().includes('medical research council dysp');
-  const isCAT = () => assessment.name.toLowerCase().includes('copd assessment test') || assessment.name.toLowerCase().includes('cat');
-  const isCCQ = () => assessment.name.toLowerCase().includes('clinical copd questionnaire') || assessment.name.toLowerCase().includes('ccq');
-  const isLCQ = () => assessment.name.toLowerCase().includes('leicester cough');
-  const isIKDC = () => assessment.name.toLowerCase().includes('ikdc') || assessment.name.toLowerCase().includes('international knee documentation');
-  const isFIM = () => assessment.name.toLowerCase().includes('functional independence measure') || assessment.name.toLowerCase().includes('fim');
-  const isBarthel = () => assessment.name.toLowerCase().includes('barthel index');
-  const isRivermead = () => assessment.name.toLowerCase().includes('rivermead mobility'); const isModifiedRankin = () => assessment.name.toLowerCase().includes('modified rankin') || assessment.name.toLowerCase().includes('rankin scale');
-  const isRMDQ = () => assessment.name.toLowerCase().includes('roland') || assessment.name.toLowerCase().includes('roland-morris');
-  const isQuickDASH = () => assessment.name.toLowerCase().includes('quickdash') || assessment.name.toLowerCase().includes('quick dash');
-  const isFAAM = () => assessment.name.toLowerCase().includes('faam') || assessment.name.toLowerCase().includes('foot and ankle ability');
-  const isABCScale = () => assessment.name.toLowerCase().includes('abc scale') || assessment.name.toLowerCase().includes('activities-specific balance confidence');
-  const isChalder = () => assessment.name.toLowerCase().includes('chalder fatigue');
-  const isPSQI = () => assessment.name.toLowerCase().includes('psqi') || assessment.name.toLowerCase().includes('pittsburgh sleep');
-  const isSARCF = () => assessment.name.toLowerCase().includes('sarc-f') || assessment.name.toLowerCase().includes('sarcf');
-  const isNDI = () => assessment.name.toLowerCase().includes('neck disability') || assessment.name.toLowerCase().includes('ndi');
-  const isODI = () => assessment.name.toLowerCase().includes('oswestry') || assessment.name.toLowerCase() === 'odi' || /\bodi\b/.test(assessment.name.toLowerCase());
-  const isASES = () => assessment.name.toLowerCase().includes('ases') || assessment.name.toLowerCase().includes('american shoulder and elbow');
-  const isDEXA = () => assessment.name.toLowerCase().includes('dexa') || assessment.name.toLowerCase().includes('bone density');
-  const isConley = () => assessment.name.toLowerCase().includes('conley scale');
-  const isPSS = () => assessment.name.toLowerCase().includes('perceived stress scale') || assessment.name.toLowerCase().includes('pss-10');
-  const isConstantMurley = () => assessment.name.toLowerCase().includes('constant') && assessment.name.toLowerCase().includes('murley');
-  const isLysholm = () => assessment.name.toLowerCase().includes('lysholm');
-  const isACLRSI = () => assessment.name.toLowerCase().includes('acl-rsi') || assessment.name.toLowerCase().includes('acl return to sport');
-  const isGROC = () => assessment.name.toLowerCase().includes('global rating of change') || assessment.name.toLowerCase().includes('groc');
-  const isSGRQ = () => assessment.name.toLowerCase().includes('sgrq') || assessment.name.toLowerCase().includes("st george's respiratory");
-  const isFABQ = () => assessment.name.toLowerCase().includes('fabq') || assessment.name.toLowerCase().includes('fear-avoidance beliefs');
-  const isSingleLegHop = () => assessment.name.toLowerCase().includes('single leg hop');
-  const isDropVerticalJump = () => assessment.name.toLowerCase().includes('drop vertical jump');
-  const isVerticalJump = () => (assessment.name.toLowerCase().includes('vertical jump') || assessment.name.toLowerCase().includes('sargent jump')) && !assessment.name.toLowerCase().includes('drop');
-  const isClockDrawing = () => assessment.name.toLowerCase().includes('clock drawing');
-  const isTMT = () => assessment.name.toLowerCase().includes('trail making') || assessment.name.toLowerCase().includes('tmt');
-  const isTinetti = () => assessment.name.toLowerCase().includes('tinetti') || assessment.name.toLowerCase().includes('poma');
-  const is6MWT = () => assessment.name.toLowerCase().includes('6') && assessment.name.toLowerCase().includes('minute') && assessment.name.toLowerCase().includes('walk');
+  // Every branch is keyed by the canonical route registry. No assessment name
+  // is inspected here, so punctuation, abbreviations and overlapping words
+  // cannot change which scoring workflow is selected.
+  const isVitalSignsAssessment = () => isRoute('blood-pressure', 'resting-heart-rate', 'heart-rate', 'spo2');
+  const isBloodPressureAssessment = () => isRoute('blood-pressure');
+  const isHeartRateAssessment = () => isRoute('resting-heart-rate', 'heart-rate');
+  const isSpO2Assessment = () => isRoute('spo2');
+  const isFiveTimesSitToStand = () => isRoute('five-times-sit-to-stand');
+  const isHandGripAssessment = () => isRoute('hand-grip');
+  // Both canonical six-minute-walk definitions use the full 6MWT runner below.
+  const is6MinuteWalkTest = () => false;
+  const is2MinuteStepTest = () => isRoute('two-minute-step');
+  const isSingleLegStance = () => isRoute('single-leg-stance');
+  const isYBalanceTest = () => isRoute('y-balance');
+  const is10MeterWalkTest = () => isRoute('ten-meter-walk');
+  const is4StageBalanceTest = () => isRoute('four-stage-balance');
+  const isHabitualGaitSpeed = () => isRoute('habitual-gait-speed');
+  const isFastGaitSpeed = () => isRoute('fast-gait-speed');
+  const is4MeterGaitSpeed = () => isRoute('four-meter-gait-speed');
+  const isHeartRateRecovery = () => isRoute('heart-rate-recovery');
+  const isPainScales = () => isRoute('pain-scales');
+  const isROMAssessment = () => isRoute('range-of-motion');
+  const isEbbelingTest = () => isRoute('ebbeling');
+  const isMoCATest = () => isRoute('moca');
+  const isMMTTest = () => isRoute('manual-muscle-testing');
+  const isWaistHipRatio = () => isRoute('whr_full');
+  const isBMITest = () => isRoute('bmi_full');
+  const isWaistCircumference = () => isRoute('waist_circ');
+  const isHeightTest = () => isRoute('height_measurement');
+  const isWeightTest = () => isRoute('weight_measure');
+  const isBergBalance = () => isRoute('berg-balance');
+  const isTUG = () => isRoute('tug_full');
+  const isChairStand = () => isRoute('chair-stand');
+  const isOneMinuteSitToStand = () => isRoute('one-minute-sit-to-stand');
+  const isFunctionalReach = () => isRoute('functional_reach_test');
+  const isBackScratch = () => isRoute('back_scratch_test');
+  const isSitAndReach = () => isRoute('sit_reach_test');
+  const isRomberg = () => isRoute('rombergs_standing');
+  const isStorkTest = () => isRoute('standing_stork');
+  const isCTSIB = () => isRoute('ctsib');
+  const isFourSquareStep = () => isRoute('four-square-step');
+  const isSkinfold = () => isRoute('body_fat_skinfold');
+  const isGirthMeasurement = () => isRoute('girth');
+  const isISWT = () => isRoute('iswt_full');
+  const isHarvardStep = () => isRoute('harvard-step');
+  const isBoxAndBlock = () => isRoute('box_block_test');
+  const isHiMAT = () => isRoute('himat_full');
+  const isAstrand = () => isRoute('astrand');
+  const isJTA = () => isRoute('jta_full', 'jta_icare');
+  const isBorgRPE = () => isRoute('borg-rpe');
+  const isGeneralMovementScreen = () => isRoute('general-movement-screen');
+  const isGAD7 = () => isRoute('gad7_full');
+  const isPHQ9 = () => isRoute('phq9_full');
+  const isArmCurl = () => isRoute('arm_curl');
+  const isK10 = () => isRoute('k10_full');
+  const isHOOS = () => isRoute('hoos_full');
+  const isKOOS = () => isRoute('koos_full');
+  const isPediatricBalance = () => isRoute('pediatric_balance');
+  const isRepeatedJump = () => isRoute('10sec_jump');
+  const isCKCUEST = () => isRoute('ckcuest_full');
+  const isOneRM = () => isRoute('1rm_testing');
+  const isIsometricStrength = () => isRoute('isometric_strength', 'isometric_testing');
+  const isIsokinetics = () => isRoute('isokinetic_dyn');
+  const isElyTest = () => isRoute('elys_test');
+  const isThomasTest = () => isRoute('modified-thomas', 'thomas_test');
+  const isOberTest = () => isRoute('obers_test');
+  const isSLR = () => isRoute('slr_test');
+  const isSlump = () => isRoute('slump_test');
+  const isLachman = () => isRoute('lachman_test');
+  const isAnteriorDrawer = () => isRoute('anterior_drawer_knee');
+  const isPivotShift = () => isRoute('pivot_shift');
+  const isMcMurray = () => isRoute('mcmurrays_test');
+  const isThessaly = () => isRoute('thessaly_test');
+  const isApleys = () => isRoute('apleys_compression');
+  const isNoble = () => isRoute('noble_compression');
+  const isBruceProtocol = () => isRoute('bruce_treadmill');
+  const isModifiedBruce = () => isRoute('modified_bruce');
+  const isNaughton = () => isRoute('naughton');
+  const isYMCACycle = () => isRoute('ymca_cycle');
+  const isAstrandCycle = () => isRoute('astrand');
+  const isWingate = () => isRoute('wingate');
+  const isTwoMinuteWalk = () => isRoute('2min_walk');
+  const isCooperTest = () => isRoute('12min_walk');
+  const isBeepTest = () => isRoute('20m_shuttle');
+  const isYoYoTest = () => isRoute('yoyo_intermittent');
+  const isThirtyFifteenIFT = () => isRoute('3015_ift');
+  const isRSATest = () => isRoute('rsa_10x20', 'rsa_6x30', 'rsa_7x35', 'rsa_shuttle', 'rsa_generic');
+  const isHRRTest = () => isRoute('heart-rate-recovery');
+  const isVO2maxGXT = () => isRoute('vo2max_gxt_full');
+  const isHbA1c = () => isRoute('hba1c');
+  const isLipidProfile = () => isRoute('lipid-profile');
+  const isMETCalculation = () => isRoute('met_calc_full');
+  const isSixMinuteStep = () => isRoute('six_min_step_test');
+  const isPPT = () => isRoute('ppt_full');
+  const isCBM = () => isRoute('cbm_full');
+  const isBESTest = () => isRoute('bestest_full');
+  const isEMS = () => isRoute('ems_full');
+  const isYMCA3MinStep = () => isRoute('ymca_3min_step');
+  const isDGI = () => isRoute('dgi_full');
+  const isRockportWalk = () => isRoute('rockport-walk');
+  const isTenMeterWalk = () => isRoute('ten_metre_walk');
+  const isDASS21 = () => isRoute('dass21');
+  const isHADSTest = () => isRoute('hads');
+  const isClinicalFrailtyScaleTest = () => isRoute('clinical-frailty-scale');
+  const isIESR = () => isRoute('iesr');
+  const isPCL5 = () => isRoute('pcl5');
+  const isISI = () => isRoute('isi');
+  const isMRCDyspnea = () => isRoute('mrc-dyspnea');
+  const isCAT = () => isRoute('cat');
+  const isCCQ = () => isRoute('ccq');
+  const isLCQ = () => isRoute('lcq');
+  const isIKDC = () => isRoute('ikdc');
+  const isFIM = () => isRoute('fim');
+  const isBarthel = () => isRoute('barthel');
+  const isRivermead = () => isRoute('rivermead_mobility');
+  const isModifiedRankin = () => isRoute('modified_rankin');
+  const isRMDQ = () => isRoute('roland');
+  const isQuickDASH = () => isRoute('quickdash');
+  const isFAAM = () => isRoute('faam');
+  const isABCScale = () => isRoute('abc_scale');
+  const isChalder = () => isRoute('chalder_fatigue');
+  const isPSQI = () => isRoute('psqi');
+  const isSARCF = () => isRoute('sarc_f');
+  const isNDI = () => isRoute('ndi');
+  const isODI = () => isRoute('odi');
+  const isASES = () => isRoute('ases');
+  const isDEXA = () => isRoute('dexa');
+  const isConley = () => isRoute('conley');
+  const isPSS = () => isRoute('perceived-stress-scale');
+  const isConstantMurley = () => isRoute('constant-murley');
+  const isLysholm = () => isRoute('lysholm');
+  const isACLRSI = () => isRoute('acl-rsi');
+  const isGROC = () => isRoute('groc');
+  const isSGRQ = () => isRoute('sgrq');
+  const isFABQ = () => isRoute('fabq');
+  const isSingleLegHop = () => isRoute('single-leg-hop');
+  const isDropVerticalJump = () => isRoute('drop-vertical-jump');
+  const isVerticalJump = () => isRoute('vertical-jump');
+  const isClockDrawing = () => isRoute('clock-drawing');
+  const isTMT = () => isRoute('trail-making');
+  const isTinetti = () => isRoute('tinetti');
+  const is6MWT = () => isRoute('six-minute-walk');
 
   const isQuestionnaireAssessment = () => {
     // Exclude tests with dedicated runners from generic questionnaire handler
@@ -1188,7 +859,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         }
         }
     // Custom formatting for Grip Strength
-    else if (assessment.name && assessment.name.toLowerCase().includes('grip strength') && assessmentData.additional_data) {
+    else if (activeRunnerKey === 'hand-grip' && assessmentData.additional_data) {
       const data = assessmentData.additional_data;
       const domHand = data.dominant_hand ? data.dominant_hand.charAt(0).toUpperCase() + data.dominant_hand.slice(1) : 'Dominant';
       const nonDomHand = data.dominant_hand === 'right' ? 'Left' : 'Right';
@@ -1961,7 +1632,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       } else if (isHADSTest()) { if (!hadsData) { toast.error("Please complete the HADS questionnaire first."); setIsSubmitting(false); return; } const hd=hadsData.additional_data||hadsData; updateData.result_value=(hd.anxiety_score||0)+(hd.depression_score||0); updateData.additional_data=hd; updateData.assessment_date = resolveAssessmentDate(hadsData?.assessment_date);
       } else if (isClinicalFrailtyScaleTest()) {
         if (!clinicalFrailtyScaleData) { toast.error("Please complete the Clinical Frailty Scale first."); setIsSubmitting(false); return; }
-        updateData.result_value = clinicalFrailtyScaleData.frailty_score;
+        updateData.result_value = clinicalFrailtyScaleData.result_value ?? clinicalFrailtyScaleData.additional_data?.frailty_score;
         updateData.additional_data = clinicalFrailtyScaleData.additional_data || clinicalFrailtyScaleData;
         updateData.assessment_date = resolveAssessmentDate(clinicalFrailtyScaleData?.assessment_date);
       } else if (isQuestionnaireAssessment()) {
@@ -1971,21 +1642,20 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           responses: questionnaireResponses,
           measurement_type: 'questionnaire'
         };
-      } else if (isHandGripAssessment(assessment.name)) {
-        const { bestDominant, bestNonDominant } = calculateBestGripScore();
-        updateData.result_value = bestDominant; // Primary result is best dominant hand score
-        updateData.additional_data = {
+      } else if (isHandGripAssessment()) {
+        const scored = scoreHandGrip({
           dominant_hand: result.dominant_hand,
-          dominant_trial_1: parseFloat(result.dominant_trial_1) || null,
-          dominant_trial_2: parseFloat(result.dominant_trial_2) || null,
-          dominant_trial_3: parseFloat(result.dominant_trial_3) || null,
-          non_dominant_trial_1: parseFloat(result.non_dominant_trial_1) || null,
-          non_dominant_trial_2: parseFloat(result.non_dominant_trial_2) || null,
-          non_dominant_trial_3: parseFloat(result.non_dominant_trial_3) || null,
-          dominant_best: bestDominant,
-          non_dominant_best: bestNonDominant,
-          measurement_type: 'hand_grip_strength'
-        };
+          dominant_trial_1: result.dominant_trial_1,
+          dominant_trial_2: result.dominant_trial_2,
+          dominant_trial_3: result.dominant_trial_3,
+          non_dominant_trial_1: result.non_dominant_trial_1,
+          non_dominant_trial_2: result.non_dominant_trial_2,
+          non_dominant_trial_3: result.non_dominant_trial_3,
+          notes: result.notes,
+        }, { assessmentName: assessment.name, assessmentDate: resolveAssessmentDate(result.assessment_date), notes: result.notes, client });
+        updateData.result_value = scored.result_value;
+        updateData.additional_data = scored.additional_data;
+        updateData.assessment_date = scored.assessment_date;
       } else if (is6MinuteWalkTest()) {
         updateData.result_value = parseFloat(result.result_value); // Distance in meters
         updateData.additional_data = {
@@ -2011,58 +1681,32 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           measurement_type: '2min_step'
         };
       } else if (isSingleLegStance()) {
-        // Calculate best times for each condition
-        const leftEyesOpen = parseFloat(result.sls_left_eyes_open) || 0;
-        const rightEyesOpen = parseFloat(result.sls_right_eyes_open) || 0;
-        const leftEyesClosed = parseFloat(result.sls_left_eyes_closed) || 0;
-        const rightEyesClosed = parseFloat(result.sls_right_eyes_closed) || 0;
-        
-        // Best eyes open result (primary measure)
-        const bestEyesOpen = Math.max(leftEyesOpen, rightEyesOpen);
-        
-        updateData.result_value = bestEyesOpen; // Best eyes open as primary result
-        updateData.additional_data = {
-          sls_left_eyes_open: leftEyesOpen || null,
-          sls_right_eyes_open: rightEyesOpen || null,
-          sls_left_eyes_closed: leftEyesClosed || null,
-          sls_right_eyes_closed: rightEyesClosed || null,
-          sls_dominant_leg: result.sls_dominant_leg || null,
-          sls_required_support: result.sls_required_support || null,
-          sls_stop_reason: result.sls_stop_reason || null,
-          best_eyes_open: bestEyesOpen,
-          best_eyes_closed: Math.max(leftEyesClosed, rightEyesClosed),
-          measurement_type: 'single_leg_stance'
-        };
+        const trials = [
+          ['left', true, result.sls_left_eyes_open],
+          ['right', true, result.sls_right_eyes_open],
+          ['left', false, result.sls_left_eyes_closed],
+          ['right', false, result.sls_right_eyes_closed],
+        ].filter(([, , time]) => time !== '' && time !== null && time !== undefined)
+          .map(([side, eyes_open, time]) => ({ side, eyes_open, time }));
+        const scored = scoreSingleLegStance({ trials, notes: result.notes }, { assessmentName: assessment.name, assessmentDate: resolveAssessmentDate(result.assessment_date), notes: result.notes, client });
+        updateData.result_value = scored.result_value;
+        updateData.additional_data = { ...scored.additional_data, dominant_leg: result.sls_dominant_leg || null, required_support: result.sls_required_support || null, stop_reason: result.sls_stop_reason || null };
+        updateData.assessment_date = scored.assessment_date;
       } else if (isYBalanceTest()) {
-        const limbLengthLeft = parseFloat(result.ybt_limb_length_left) || 0;
-        const limbLengthRight = parseFloat(result.ybt_limb_length_right) || 0;
-        
-        const leftAnt = parseFloat(result.ybt_left_anterior) || 0;
-        const leftPM = parseFloat(result.ybt_left_posteromedial) || 0;
-        const leftPL = parseFloat(result.ybt_left_posterolateral) || 0;
-        const rightAnt = parseFloat(result.ybt_right_anterior) || 0;
-        const rightPM = parseFloat(result.ybt_right_posteromedial) || 0;
-        const rightPL = parseFloat(result.ybt_right_posterolateral) || 0;
-        
-        // Calculate composite scores
-        const leftComposite = limbLengthLeft > 0 ? ((leftAnt + leftPM + leftPL) / (3 * limbLengthLeft)) * 100 : 0;
-        const rightComposite = limbLengthRight > 0 ? ((rightAnt + rightPM + rightPL) / (3 * limbLengthRight)) * 100 : 0;
-        
-        updateData.result_value = Math.max(leftComposite, rightComposite).toFixed(1);
-        updateData.additional_data = {
-          ybt_limb_length_left: limbLengthLeft || null,
-          ybt_limb_length_right: limbLengthRight || null,
-          ybt_left_anterior: leftAnt || null,
-          ybt_left_posteromedial: leftPM || null,
-          ybt_left_posterolateral: leftPL || null,
-          ybt_right_anterior: rightAnt || null,
-          ybt_right_posteromedial: rightPM || null,
-          ybt_right_posterolateral: rightPL || null,
-          left_composite: leftComposite.toFixed(1),
-          right_composite: rightComposite.toFixed(1),
-          anterior_asymmetry: Math.abs(leftAnt - rightAnt).toFixed(1),
-          measurement_type: 'y_balance'
-        };
+        const scored = scoreYBalance({
+          limb_length_left: result.ybt_limb_length_left,
+          limb_length_right: result.ybt_limb_length_right,
+          left_anterior: result.ybt_left_anterior,
+          left_posteromedial: result.ybt_left_posteromedial,
+          left_posterolateral: result.ybt_left_posterolateral,
+          right_anterior: result.ybt_right_anterior,
+          right_posteromedial: result.ybt_right_posteromedial,
+          right_posterolateral: result.ybt_right_posterolateral,
+          notes: result.notes,
+        }, { assessmentName: assessment.name, assessmentDate: resolveAssessmentDate(result.assessment_date), notes: result.notes, client });
+        updateData.result_value = scored.result_value;
+        updateData.additional_data = scored.additional_data;
+        updateData.assessment_date = scored.assessment_date;
       } else if (is10MeterWalkTest() || isTenMeterWalk()) {
         updateData.result_value = tenMeterWalkData?.average_speed;
         updateData.additional_data = {
@@ -2076,9 +1720,9 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         }
       } else if (is4StageBalanceTest()) {
         if (fourStageBalanceData) {
-          updateData.result_value = fourStageBalanceData.stage_achieved;
-          updateData.notes = fourStageBalanceData.clinician_notes || fourStageBalanceData.notes || updateData.notes;
-          updateData.additional_data = { four_stage_balance_data: fourStageBalanceData, measurement_type: '4_stage_balance' };
+          updateData.result_value = fourStageBalanceData.result_value ?? fourStageBalanceData.additional_data?.stage_achieved;
+          updateData.notes = fourStageBalanceData.notes || updateData.notes;
+          updateData.additional_data = fourStageBalanceData.additional_data || fourStageBalanceData;
           updateData.assessment_date = resolveAssessmentDate(fourStageBalanceData?.assessment_date);
         } else {
           const feetTogether = result.four_stage_feet_together;
@@ -2115,26 +1759,22 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           measurement_type: 'heart_rate_recovery'
           };
           } else if (isPainScales()) {
-            updateData.result_value = parseFloat(result.result_value);
-            updateData.additional_data = {
-              pain_locations: result.pain_locations || [],
-              measurement_type: 'pain_scales'
-            };
+            const scored = scorePainScales({
+              scale_type: 'nprs',
+              current_pain: result.result_value,
+              best_pain: null,
+              worst_pain: null,
+              pain_location: JSON.stringify(result.pain_locations || []),
+              notes: result.notes,
+            }, { assessmentName: assessment.name, assessmentDate: resolveAssessmentDate(result.assessment_date), notes: result.notes, client });
+            updateData.result_value = scored.result_value;
+            updateData.additional_data = { ...scored.additional_data, pain_locations: result.pain_locations || [] };
+            updateData.assessment_date = scored.assessment_date;
           } else if (isROMAssessment()) {
-            // Count number of measurements taken
             const romData = result.rom_data;
-            let measurementCount = 0;
-            if (romData?.measurements) {
-              Object.values(romData.measurements).forEach(m => {
-                if (m.left) measurementCount++;
-                if (m.right) measurementCount++;
-              });
-            }
-            updateData.result_value = measurementCount;
-            updateData.additional_data = {
-              rom_data: romData,
-              measurement_type: 'rom_assessment'
-            };
+            if (!romData?.additional_data || !Number.isFinite(romData.result_value)) { toast.error('Please record at least one range-of-motion measurement.'); setIsSubmitting(false); return; }
+            updateData.result_value = romData.result_value;
+            updateData.additional_data = romData.additional_data;
             updateData.assessment_date = resolveAssessmentDate(romData?.assessment_date);
           } else if (isEbbelingTest()) {
             updateData.result_value = parseFloat(result.result_value);
@@ -2237,7 +1877,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             };
             updateData.assessment_date = resolveAssessmentDate(tugData?.assessment_date);
           } else if (isChairStand()) {
-            updateData.result_value = chairStandData.repetitions;
+            updateData.result_value = chairStandData.result_value ?? chairStandData.repetitions;
             updateData.additional_data = chairStandData.additional_data || {
               chair_stand_data: chairStandData,
               measurement_type: 'chair_stand'
@@ -2248,7 +1888,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             // this branch the 1MSTS fell into the generic else and stored
             // result_value NaN -> null. Guarded on chairStandData because the
             // detector matches on name alone.
-            updateData.result_value = chairStandData.repetitions;
+            updateData.result_value = chairStandData.result_value ?? chairStandData.repetitions;
             updateData.additional_data = chairStandData.additional_data || {
               chair_stand_data: chairStandData,
               measurement_type: '1_minute_sit_to_stand'
@@ -2296,7 +1936,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             };
             updateData.assessment_date = resolveAssessmentDate(ctsibData?.assessment_date);
           } else if (isFourSquareStep()) {
-            updateData.result_value = fourSquareData.best_time;
+            updateData.result_value = fourSquareData.result_value ?? fourSquareData.additional_data?.best_time;
             updateData.additional_data = fourSquareData.additional_data || {
               four_square_data: fourSquareData,
               measurement_type: 'four_square_step'
@@ -2660,10 +2300,10 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         const distance = parseFloat(result.gait_distance) || 4;
         const times = [parseFloat(result.gait_time_trial1)||0,parseFloat(result.gait_time_trial2)||0,parseFloat(result.gait_time_trial3)||0].filter(t=>t>0);
         const avgTime = times.length>0?times.reduce((a,b)=>a+b)/times.length:0;
-        const speed = avgTime>0?(distance/avgTime).toFixed(2):0;
-        updateData.result_value = parseFloat(speed);
-        updateData.additional_data = { gait_distance:distance, average_time:avgTime.toFixed(2), speed_mps:parseFloat(speed), measurement_type:'habitual_gait' };
-      } else if (isVitalSignsAssessment(assessment.name) && vitalSignsData) {
+        const speed = avgTime > 0 ? Number((distance / avgTime).toFixed(2)) : 0;
+        updateData.result_value = speed;
+        updateData.additional_data = { gait_distance: distance, average_time: avgTime.toFixed(2), speed_mps: speed, measurement_type: 'habitual_gait' };
+      } else if (isVitalSignsAssessment() && vitalSignsData) {
         // VitalSignsRunner data takes precedence: the wiring stores the whole
         // runner payload; without this branch the manual-field reads below
         // saw only empty inputs and persisted nothing from the runner.
@@ -2672,9 +2312,9 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         updateData.result_value = (typeof parsedVital === 'number' && !isNaN(parsedVital)) ? parsedVital : null;
         updateData.additional_data = vitalSignsData.additional_data || {};
         updateData.assessment_date = resolveAssessmentDate(vitalSignsData.assessment_date);
-      } else if (isVitalSignsAssessment(assessment.name)) {
+      } else if (isVitalSignsAssessment()) {
         // For vital signs, store the primary result and additional data
-        if (isBloodPressureAssessment(assessment.name)) {
+        if (isBloodPressureAssessment()) {
           updateData.result_value = parseFloat(result.pre_exercise_systolic);
           updateData.additional_data = {
             pre_exercise_systolic: parseFloat(result.pre_exercise_systolic),
@@ -2683,7 +2323,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             post_exercise_diastolic: result.post_exercise_diastolic ? parseFloat(result.post_exercise_diastolic) : null,
             measurement_type: 'blood_pressure'
           };
-        } else if (isHeartRateAssessment(assessment.name)) {
+        } else if (isHeartRateAssessment()) {
           updateData.result_value = parseFloat(result.pre_exercise_hr);
           updateData.additional_data = {
             pre_exercise_hr: parseFloat(result.pre_exercise_hr),
@@ -2693,7 +2333,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
             recovery_hr_5min: result.recovery_hr_5min ? parseFloat(result.recovery_hr_5min) : null,
             measurement_type: 'heart_rate'
           };
-        } else if (isSpO2Assessment(assessment.name)) {
+        } else if (isSpO2Assessment()) {
           updateData.result_value = parseFloat(result.pre_exercise_spo2);
           updateData.additional_data = {
             pre_exercise_spo2: parseFloat(result.pre_exercise_spo2),
@@ -2728,7 +2368,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           appointmentId: finalAppointmentId,
           objectiveText,
           assessmentToUpdateId: assessmentToUpdate.id,
-          updateData
+          updateData,
+          assessment
         });
       } catch (soapError) {
         console.error("Error saving to SOAP note:", soapError);
@@ -2877,7 +2518,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
   );
 
   const renderVitalSignsFields = () => {
-    if (isBloodPressureAssessment(assessment.name)) {
+    if (isBloodPressureAssessment()) {
       return (
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -2930,7 +2571,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           </div>
         </div>
       );
-    } else if (isHeartRateAssessment(assessment.name)) {
+    } else if (isHeartRateAssessment()) {
       return (
         <div className="space-y-4">
           <div>
@@ -2992,7 +2633,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           </div>
         </div>
       );
-    } else if (isSpO2Assessment(assessment.name)) {
+    } else if (isSpO2Assessment()) {
       return (
         <div className="space-y-4">
           <div>
@@ -3926,16 +3567,16 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         Open ROM Assessment Module
       </Button>
 
-      {result.rom_data && result.rom_data.joint && (
+      {result.rom_data && (result.rom_data.additional_data?.joint || result.rom_data.joint) && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-          <h4 className="font-semibold text-green-900 mb-2">Current ROM Data: {result.rom_data.jointName}</h4>
+          <h4 className="font-semibold text-green-900 mb-2">Current ROM Data: {result.rom_data.additional_data?.joint_name ?? result.rom_data.jointName}</h4>
           <div className="space-y-1 text-sm">
-            {result.rom_data.measurements && Object.entries(result.rom_data.measurements).map(([movement, values]) => (
-              (values.left || values.right) && (
+            {(result.rom_data.additional_data?.measurements || result.rom_data.measurements) && Object.entries(result.rom_data.additional_data?.measurements || result.rom_data.measurements).map(([movement, values]) => (
+              (values.left !== null && values.left !== undefined || values.right !== null && values.right !== undefined) && (
                 <p key={movement} className="text-green-800">
                   <strong>{movement}:</strong> 
-                  {values.left && ` L: ${values.left}°`}
-                  {values.right && ` R: ${values.right}°`}
+                  {values.left !== null && values.left !== undefined && ` L: ${values.left}°`}
+                  {values.right !== null && values.right !== undefined && ` R: ${values.right}°`}
                 </p>
               )
             ))}
@@ -4552,7 +4193,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {clinicalFrailtyScaleData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">Clinical Frailty Scale Completed</h4>
-                      <p className="text-sm">Frailty Score: <strong className="text-2xl">{clinicalFrailtyScaleData.frailty_score}</strong> / 9</p>
+                      <p className="text-sm">Frailty Score: <strong className="text-2xl">{clinicalFrailtyScaleData.result_value ?? clinicalFrailtyScaleData.additional_data?.frailty_score ?? clinicalFrailtyScaleData.frailty_score}</strong> / 9</p>
                     </div>
                   )}
                   </div>
@@ -4720,8 +4361,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {chairStandData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">1-Minute STS Completed</h4>
-                      <p className="text-2xl font-bold text-green-600">{chairStandData.repetitions} reps</p>
-                      <p className="text-sm text-green-700">{chairStandData.interpretation}</p>
+                      <p className="text-2xl font-bold text-green-600">{chairStandData.result_value ?? chairStandData.additional_data?.repetitions ?? chairStandData.repetitions} reps</p>
+                      <p className="text-sm text-green-700">{chairStandData.additional_data?.interpretation ?? chairStandData.interpretation}</p>
                     </div>
                   )}
                 </div>
@@ -4888,7 +4529,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {ctsibData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">CTSIB Completed</h4>
-                      <p className="text-lg font-bold text-green-600">{ctsibData.conditions_completed}/4 conditions passed</p>
+                      <p className="text-lg font-bold text-green-600">{ctsibData.additional_data?.conditions_completed ?? ctsibData.conditions_completed}/4 conditions recorded</p>
                     </div>
                   )}
                 </div>
@@ -4911,8 +4552,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {fourSquareData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">FSST Completed</h4>
-                      <p className="text-2xl font-bold text-green-600">{fourSquareData.best_time}s</p>
-                      <p className="text-sm text-green-700">{fourSquareData.interpretation}</p>
+                      <p className="text-2xl font-bold text-green-600">{fourSquareData.result_value ?? fourSquareData.additional_data?.best_time ?? fourSquareData.best_time}s</p>
+                      <p className="text-sm text-green-700">{fourSquareData.additional_data?.interpretation ?? fourSquareData.interpretation}</p>
                     </div>
                   )}
                 </div>
@@ -5151,8 +4792,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {gmsData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">Movement Screen Completed</h4>
-                      <p className="text-2xl font-bold text-green-600">{gmsData.total_score} / {gmsData.max_score || 72}</p>
-                      <p className="text-sm text-green-700">{gmsData.asymmetry_count} asymmetries detected</p>
+                      <p className="text-2xl font-bold text-green-600">{gmsData.result_value ?? gmsData.additional_data?.total ?? gmsData.total_score} / 27</p>
+                      <p className="text-sm text-green-700">{gmsData.additional_data?.pain_tests?.length ?? gmsData.asymmetry_count ?? 0} pain/unsafe responses recorded</p>
                     </div>
                   )}
                 </div>
@@ -5506,7 +5147,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {specialTestData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">Test Completed</h4>
-                      <p className="text-lg font-bold text-green-600">{specialTestData.interpretation}</p>
+                      <p className="text-lg font-bold text-green-600">{specialTestData.additional_data?.interpretation ?? specialTestData.interpretation}</p>
                     </div>
                   )}
                 </div>
@@ -6129,7 +5770,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
               ) : isClockDrawing() ? (
                 <div className="space-y-4">
                   <Button type="button" onClick={() => setShowClockDrawingRunner(true)} className="w-full" size="lg"><Play className="w-5 h-5 mr-2" />Start Clock Drawing Test</Button>
-                  {clockDrawingData && (<div className="bg-green-50 border border-green-200 rounded-lg p-4"><h4 className="font-semibold text-green-900 mb-2">Test Completed</h4><p className="text-2xl font-bold text-green-600">{clockDrawingData.result_value}/5</p></div>)}
+                  {clockDrawingData && (<div className="bg-green-50 border border-green-200 rounded-lg p-4"><h4 className="font-semibold text-green-900 mb-2">Test Completed</h4><p className="text-2xl font-bold text-green-600">{clockDrawingData.result_value}/{clockDrawingData.additional_data?.attempts?.at(-1)?.scoring_method === 'ten_point' ? 10 : 5}</p></div>)}
                 </div>
               ) : isTMT() ? (
                 <div className="space-y-4">
@@ -6179,21 +5820,21 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">6MWT Completed</h4>
                       <p className="text-3xl font-bold text-green-600">{sixMWTData.result_value ?? sixMWTData.distance_metres}m</p>
-                      {(sixMWTData.additional_data?.sixmwt_test_duration ?? sixMWTData.test_duration) && (
-                        <p className="text-sm text-green-700 mt-1">Test Duration: {Math.floor((sixMWTData.additional_data?.sixmwt_test_duration ?? sixMWTData.test_duration) / 60)}:{((sixMWTData.additional_data?.sixmwt_test_duration ?? sixMWTData.test_duration) % 60).toString().padStart(2, '0')}</p>
+                      {(sixMWTData.additional_data?.test_duration_seconds ?? sixMWTData.additional_data?.sixmwt_test_duration ?? sixMWTData.test_duration) !== undefined && (
+                        <p className="text-sm text-green-700 mt-1">Test Duration: {Math.floor((sixMWTData.additional_data?.test_duration_seconds ?? sixMWTData.additional_data?.sixmwt_test_duration ?? sixMWTData.test_duration) / 60)}:{((sixMWTData.additional_data?.test_duration_seconds ?? sixMWTData.additional_data?.sixmwt_test_duration ?? sixMWTData.test_duration) % 60).toString().padStart(2, '0')}</p>
                       )}
-                      {(sixMWTData.additional_data?.sixmwt_laps ?? sixMWTData.laps_completed) && (
-                        <p className="text-sm text-green-700">Laps: {sixMWTData.additional_data?.sixmwt_laps ?? sixMWTData.laps_completed}</p>
+                      {(sixMWTData.additional_data?.during_test?.laps ?? sixMWTData.additional_data?.sixmwt_laps ?? sixMWTData.laps_completed) !== null && (sixMWTData.additional_data?.during_test?.laps ?? sixMWTData.additional_data?.sixmwt_laps ?? sixMWTData.laps_completed) !== undefined && (
+                        <p className="text-sm text-green-700">Laps: {sixMWTData.additional_data?.during_test?.laps ?? sixMWTData.additional_data?.sixmwt_laps ?? sixMWTData.laps_completed}</p>
                       )}
-                      {(sixMWTData.additional_data?.sixmwt_rest_periods ?? sixMWTData.rest_periods_count) > 0 && (
-                        <p className="text-sm text-amber-700">Rest Periods: {sixMWTData.additional_data?.sixmwt_rest_periods ?? sixMWTData.rest_periods_count}</p>
+                      {(sixMWTData.additional_data?.rest_periods ?? sixMWTData.additional_data?.sixmwt_rest_periods ?? sixMWTData.rest_periods_count) > 0 && (
+                        <p className="text-sm text-amber-700">Rest Periods: {sixMWTData.additional_data?.rest_periods ?? sixMWTData.additional_data?.sixmwt_rest_periods ?? sixMWTData.rest_periods_count}</p>
                       )}
                     </div>
                   )}
                 </div>
               ) : isQuestionnaireAssessment() ? (
                 renderQuestionnaireFields()
-              ) : isHandGripAssessment(assessment.name) ? (
+              ) : isHandGripAssessment() ? (
                 renderHandGripFields()
               ) : is6MinuteWalkTest() ? (
                 <div className="space-y-4">
@@ -6243,24 +5884,24 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   </Button>
                   {fourStageBalanceData && (
                     <div className={`border rounded-lg p-4 ${
-                      fourStageBalanceData.fall_risk === 'increased' 
+                      (fourStageBalanceData.additional_data?.fall_risk ?? fourStageBalanceData.fall_risk) === 'high'
                         ? 'bg-red-50 border-red-300' 
                         : 'bg-green-50 border-green-200'
                     }`}>
                       <h4 className={`font-semibold mb-2 ${
-                        fourStageBalanceData.fall_risk === 'increased' ? 'text-red-900' : 'text-green-900'
+                        (fourStageBalanceData.additional_data?.fall_risk ?? fourStageBalanceData.fall_risk) === 'high' ? 'text-red-900' : 'text-green-900'
                       }`}>
                         4-Stage Balance Completed
                       </h4>
                       <p className={`text-2xl font-bold ${
-                        fourStageBalanceData.fall_risk === 'increased' ? 'text-red-600' : 'text-green-600'
+                        (fourStageBalanceData.additional_data?.fall_risk ?? fourStageBalanceData.fall_risk) === 'high' ? 'text-red-600' : 'text-green-600'
                       }`}>
-                        Stage {fourStageBalanceData.stage_achieved} / 4
+                        Stage {fourStageBalanceData.result_value ?? fourStageBalanceData.additional_data?.stage_achieved ?? fourStageBalanceData.stage_achieved} / 4
                       </p>
                       <p className={`text-sm ${
-                        fourStageBalanceData.fall_risk === 'increased' ? 'text-red-700' : 'text-green-700'
+                        (fourStageBalanceData.additional_data?.fall_risk ?? fourStageBalanceData.fall_risk) === 'high' ? 'text-red-700' : 'text-green-700'
                       }`}>
-                        {fourStageBalanceData.fall_risk === 'increased' ? '⚠ Increased fall risk' : '✓ Normal balance'}
+                        {(fourStageBalanceData.additional_data?.fall_risk ?? fourStageBalanceData.fall_risk) === 'high' ? '⚠ Increased fall risk' : '✓ Tandem criterion met'}
                       </p>
                     </div>
                   )}
@@ -6288,8 +5929,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                   {painScalesData && (
                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                       <h4 className="font-semibold text-green-900 mb-2">Pain Assessment Completed</h4>
-                      <p className="text-2xl font-bold text-green-600">{painScalesData.current_pain}/10</p>
-                      <p className="text-sm text-green-700">{painScalesData.interpretation}</p>
+                      <p className="text-2xl font-bold text-green-600">{painScalesData.additional_data?.current_pain ?? painScalesData.current_pain}/10</p>
+                      <p className="text-sm text-green-700">{painScalesData.additional_data?.interpretation ?? painScalesData.interpretation}</p>
                     </div>
                   )}
                 </div>
@@ -6340,7 +5981,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
                     </div>
                   )}
                 </div>
-              ) : isVitalSignsAssessment(assessment.name) ? (
+              ) : isVitalSignsAssessment() ? (
                 <div className="space-y-4">
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <p className="text-sm text-blue-800">
@@ -6548,7 +6189,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* ROM Assessment Runner Modal */}
       {showROMRunner && (
         <ROMAssessmentRunner
-          initialData={result.rom_data}
+          initialData={result.rom_data?.additional_data || result.rom_data}
           onSave={(romData) => {
             setResult({ ...result, rom_data: romData });
             setShowROMRunner(false);
@@ -6627,6 +6268,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Berg Balance Runner Modal */}
       {showBergRunner && (
         <BergBalanceRunner
+          initialData={bergData}
           onSave={(data) => {
             setBergData(data);
             setResult(prev => ({
@@ -6643,6 +6285,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Timed Up and Go Runner Modal */}
       {showTUGRunner && (
         <TUGRunner
+          initialData={tugData}
           onSave={(data) => {
             setTUGData(data);
             setResult(prev => ({
@@ -6659,7 +6302,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Chair Stand Runner Modal */}
       {showChairStandRunner && (
         <ChairStandRunner
-          duration={assessment.name.includes('30') ? 30 : 60}
+          duration={isRoute('chair-stand-30') ? 30 : 60}
           onSave={(data) => {
             setChairStandData(data);
             setResult(prev => ({
@@ -6692,6 +6335,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Back Scratch Runner Modal */}
       {showBackScratchRunner && (
         <BackScratchRunner
+          initialData={backScratchData}
           onSave={(data) => {
             setBackScratchData(data);
             setResult(prev => ({
@@ -6708,6 +6352,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Sit and Reach Runner Modal */}
       {showSitReachRunner && (
         <SitAndReachRunner
+          initialData={sitReachData}
           onSave={(data) => {
             setSitReachData(data);
             setResult(prev => ({
@@ -6724,6 +6369,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Romberg Runner Modal */}
       {showRombergRunner && (
         <RombergRunner
+          initialData={rombergData}
           onSave={(data) => {
             setRombergData(data);
             setResult(prev => ({
@@ -6740,6 +6386,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Stork Test Runner Modal */}
       {showStorkRunner && (
         <StorkTestRunner
+          initialData={storkData}
           onSave={(data) => {
             setStorkData(data);
             setResult(prev => ({
@@ -6756,6 +6403,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* CTSIB Runner Modal */}
       {showCTSIBRunner && (
         <CTSIBRunner
+          initialData={ctsibData}
           onSave={(data) => {
             setCTSIBData(data);
             setResult(prev => ({
@@ -6772,6 +6420,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Four Square Step Runner Modal */}
       {showFourSquareRunner && (
         <FourSquareStepRunner
+          client={selectedClient || client}
+          initialData={fourSquareData}
           onSave={(data) => {
             setFourSquareData(data);
             setResult(prev => ({
@@ -6788,6 +6438,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Skinfold Runner Modal */}
       {showSkinfoldRunner && (
         <SkinfoldRunner
+          initialData={skinfoldData}
           onSave={(data) => {
             setSkinfoldData(data);
             setResult(prev => ({
@@ -6804,6 +6455,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Girth Measurements Runner Modal */}
       {showGirthRunner && (
         <GirthMeasurementsRunner
+          initialData={girthData}
           onSave={(data) => {
             setGirthData(data);
             setResult(prev => ({
@@ -6820,6 +6472,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* ISWT Runner Modal */}
       {showISWTRunner && (
         <ISWTRunner
+          initialData={iswtData}
           onSave={(data) => {
             setISWTData(data);
             setResult(prev => ({
@@ -6836,6 +6489,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Harvard Step Runner Modal */}
       {showHarvardRunner && (
         <HarvardStepRunner
+          initialData={harvardData}
           onSave={(data) => {
             setHarvardData(data);
             setResult(prev => ({
@@ -6852,6 +6506,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Box and Block Runner Modal */}
       {showBoxBlockRunner && (
         <BoxAndBlockRunner
+          client={selectedClient || client}
+          initialData={boxBlockData}
           onSave={(data) => {
             setBoxBlockData(data);
             setResult(prev => ({
@@ -6868,6 +6524,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* HiMAT Runner Modal */}
       {showHiMATRunner && (
         <HiMATRunner
+          initialData={himatData}
           onSave={(data) => {
             setHiMATData(data);
             setResult(prev => ({
@@ -6884,6 +6541,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Åstrand Test Runner Modal */}
       {showAstrandRunner && (
         <AstrandTestRunner
+          client={selectedClient || client}
+          initialData={astrandData}
           onSave={(data) => {
             setAstrandData(data);
             setResult(prev => ({
@@ -6938,6 +6597,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* General Movement Screen Runner Modal */}
       {showGMSRunner && (
         <GeneralMovementScreenRunner
+          client={selectedClient || client}
           onSave={(data) => {
             setGMSData(data);
             setResult(prev => ({
@@ -7185,6 +6845,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {showSpecialTestsRunner && (
         <SpecialTestsRunner
           testName={assessment.name}
+          initialData={specialTestData}
           onSave={(data) => {
             setSpecialTestData(data);
             setResult(prev => ({
@@ -7341,6 +7002,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Two Minute Walk Runner */}
       {showTwoMinWalkRunner && (
         <TwoMinuteWalkRunner
+          client={selectedClient || client}
           onSave={(data) => {
             setTwoMinWalkData(data);
             setResult(prev => ({
@@ -7373,6 +7035,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Beep Test Runner */}
       {showBeepRunner && (
         <BeepTestRunner
+          client={selectedClient || client}
           onSave={(data) => {
             setBeepData(data);
             setResult(prev => ({
@@ -7422,6 +7085,9 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {showRSARunner && (
         <RSARunner
           testName={assessment.name}
+          assessment={assessment}
+          client={selectedClient || client}
+          initialProtocolKey={activeRunnerKey}
           onSave={(data) => {
             setRSAData(data);
             setResult(prev => ({
@@ -7454,6 +7120,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* VO2max GXT Runner */}
       {showVO2maxGXTRunner && (
         <VO2maxGXTRunner
+          client={selectedClient || client}
           onSave={(data) => {
             setVO2maxGXTData(data);
             setResult(prev => ({
@@ -7470,6 +7137,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* HbA1c Runner */}
       {showHbA1cRunner && (
         <HbA1cRunner
+          client={selectedClient || client}
           onSave={(data) => {
             setHbA1cData(data);
             setResult(prev => ({
@@ -7503,6 +7171,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* MET Calculation Runner */}
       {showMETCalcRunner && (
         <METCalculationRunner
+          client={selectedClient || client}
           onSave={(data) => {
             setMETCalcData(data);
             setResult(prev => ({
@@ -7617,6 +7286,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* DGI Runner */}
       {showDGIRunner && (
         <DynamicGaitIndexRunner
+          client={selectedClient || client}
           onSave={(data) => {
             setDGIData(data);
             setResult(prev => ({
@@ -7723,7 +7393,10 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {/* Vital Signs Runner */}
       {showVitalSignsRunner && (
         <VitalSignsRunner
+          client={client}
+          assessment={assessment}
           assessmentName={assessment.name}
+          runnerKey={activeRunnerKey}
           onSave={(data) => {
             setVitalSignsData(data);
             setResult(prev => ({
@@ -7741,7 +7414,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {showSingleLegStanceRunner && (
         <SingleLegStanceRunner
           onSave={(data) => {
-            setSingleLegStanceData(data.additional_data);
+            setSingleLegStanceData(data);
             setResult(prev => ({
               ...prev,
               notes: data.notes || prev.notes,
@@ -7757,7 +7430,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {showPainScalesRunner && (
         <PainScalesRunner
           onSave={(data) => {
-            setPainScalesData(data.additional_data);
+            setPainScalesData(data);
             setResult(prev => ({
               ...prev,
               notes: data.notes || prev.notes,
@@ -7958,6 +7631,8 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {showFIMRunner && (
         <FunctionalIndependenceMeasureFIMRunner
           client={selectedClient || client}
+          assessment={assessment}
+          clientAssessment={clientAssessment}
           onSave={(data) => {
             setFIMData(data);
             setResult(prev => ({
@@ -7975,6 +7650,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {showBarthelRunner && (
         <BarthelIndexRunner
           client={selectedClient || client}
+          assessment={assessment}
           onSave={(data) => {
             setBarthelData(data);
             setResult(prev => ({
@@ -8060,6 +7736,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       {showABCScaleRunner && (
         <ActivitiesspecificBalanceConfidenceABCScaleRunner
           client={selectedClient || client}
+          isStandaloneMode={isStandaloneMode}
           onSave={(data) => {
             setABCScaleData(data);
             setResult(prev => ({
@@ -8278,6 +7955,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           client={selectedClient || client}
           onSave={(data) => {
             setGROCData(data);
+            setResult(prev => ({ ...prev, notes: data.notes ?? prev.notes, assessment_date: data.assessment_date ?? prev.assessment_date }));
             setShowGROCRunner(false);
           }}
           onClose={() => setShowGROCRunner(false)}
@@ -8314,6 +7992,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
           client={selectedClient || client}
           onSave={(data) => {
             setSingleLegHopData(data);
+            setResult(prev => ({ ...prev, notes: data.notes ?? prev.notes, assessment_date: data.assessment_date ?? prev.assessment_date }));
             setShowSingleLegHopRunner(false);
           }}
           onClose={() => setShowSingleLegHopRunner(false)}
@@ -8344,9 +8023,9 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
         />
       )}
 
-      {showClockDrawingRunner && (<ClockDrawingTestRunner client={selectedClient || client} onSave={(data) => { setClockDrawingData(data); setShowClockDrawingRunner(false); }} onClose={() => setShowClockDrawingRunner(false)} />)}
+      {showClockDrawingRunner && (<ClockDrawingTestRunner client={selectedClient || client} onSave={(data) => { setClockDrawingData(data); setResult(prev => ({ ...prev, notes: data.notes ?? prev.notes, assessment_date: data.assessment_date ?? prev.assessment_date })); setShowClockDrawingRunner(false); }} onClose={() => setShowClockDrawingRunner(false)} />)}
       {showTMTRunner && (<TrailMakingTestTMTPartsAandBRunner client={selectedClient || client} onSave={(data) => { setTMTData(data); setShowTMTRunner(false); }} onClose={() => setShowTMTRunner(false)} />)}
-      {showTinettiRunner && (<TinettiRunner client={selectedClient || client} onSave={(data) => { setTinettiData(data); setShowTinettiRunner(false); }} onClose={() => setShowTinettiRunner(false)} />)}
+      {showTinettiRunner && (<TinettiRunner client={selectedClient || client} onSave={(data) => { setTinettiData(data); setResult(prev => ({ ...prev, notes: data.notes ?? prev.notes, assessment_date: data.assessment_date ?? prev.assessment_date })); setShowTinettiRunner(false); }} onClose={() => setShowTinettiRunner(false)} />)}
 
       {/* 6MWT Runner */}
       {show6MWTRunner && (
@@ -8365,7 +8044,7 @@ export default function TestRunner({ client, assessment, clientAssessment, onClo
       )}
 
       {showNaughtonRunner && (<NaughtonTreadmillProtocolRunner client={selectedClient || client} onSave={(data) => { setNaughtonData(data); setResult(prev => ({ ...prev, notes: data.notes || prev.notes })); setShowNaughtonRunner(false); }} onClose={() => setShowNaughtonRunner(false)} />)}
-      {showOneMinuteSitToStandRunner && (<OneMinuteSitToStandTestRunner client={selectedClient || client} onSave={(data) => { setChairStandData({ repetitions: data.result_value ?? data.repetitions, measurement_type: '1_minute_sit_to_stand', interpretation: data.interpretation || '', additional_data: data.additional_data, assessment_date: data.assessment_date }); setResult(prev => ({ ...prev, notes: data.notes || prev.notes })); setShowOneMinuteSitToStandRunner(false); }} onClose={() => setShowOneMinuteSitToStandRunner(false)} />)}
+      {showOneMinuteSitToStandRunner && (<OneMinuteSitToStandTestRunner client={selectedClient || client} onSave={(data) => { setChairStandData(data); setResult(prev => ({ ...prev, notes: data.notes || prev.notes, assessment_date: data.assessment_date || prev.assessment_date })); setShowOneMinuteSitToStandRunner(false); }} onClose={() => setShowOneMinuteSitToStandRunner(false)} />)}
 
       {/* Modified Rankin Scale Runner */}
       {showModifiedRankinRunner && (<ModifiedRankinScaleRunner client={selectedClient || client} onSave={(data) => { setModifiedRankinData(data); setShowModifiedRankinRunner(false); }} onClose={() => setShowModifiedRankinRunner(false)} />)}

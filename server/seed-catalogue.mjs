@@ -7,7 +7,7 @@
 //
 // (or locally: node server/seed-catalogue.mjs). Idempotent; safe to re-run.
 import { openDatabase } from './db.mjs';
-import { runCatalogueSeed } from './seed.mjs';
+import { runProductionCatalogueSeed } from './productionCatalogue.mjs';
 
 const { db, entityNames } = openDatabase();
-runCatalogueSeed({ db, entityNames });
+runProductionCatalogueSeed({ db, entityNames });

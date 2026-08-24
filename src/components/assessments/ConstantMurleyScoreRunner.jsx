@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Info, AlertCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreConstantMurley } from "@/lib/clinical/scorers/coreB";
 
 export default function ConstantMurleyScoreRunner({ client, onSave, onClose }) {
   const [pain, setPain] = useState(15); // 0-15, where 15 is no pain
@@ -73,7 +73,7 @@ export default function ConstantMurleyScoreRunner({ client, onSave, onClose }) {
   };
 
   const getTotalScore = () => {
-    const painValue = parseInt(pain) || 0;
+    const painValue = Number(pain) || 0;
     const adlTotal = Object.values(adlScores).reduce((sum, val) => sum + val, 0);
     const romScore = calculateROMScore();
     const strengthValue = parseInt(strength) || 0;
@@ -82,30 +82,23 @@ export default function ConstantMurleyScoreRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    const totalScore = getTotalScore();
-    const adlTotal = Object.values(adlScores).reduce((sum, val) => sum + val, 0);
-    const romScore = calculateROMScore();
-    const soapText = `• Constant-Murley Score: ${totalScore}/100\n\n  Subscores:\n  - Pain: ${pain}/15\n  - Activities of Daily Living: ${adlTotal}/20\n    • Work: ${adlScores.work}/4\n    • Recreation/Sport: ${adlScores.leisure}/4\n    • Sleep: ${adlScores.sleep}/2\n    • Positioning: ${adlScores.positioning}/10\n  - Range of Motion: ${romScore}/40\n    • Forward Flexion: ${rangeOfMotion.flexion || 'N/A'}°\n    • Abduction: ${rangeOfMotion.abduction || 'N/A'}°\n    • External Rotation: ${rangeOfMotion.externalRotation || 'N/A'}°\n    • Internal Rotation level: ${rangeOfMotion.internalRotation || 'N/A'}\n  - Strength: ${strength || 0}/25 lbs`;
-
-    onSave({
-      status: "completed",
-      result_value: totalScore,
-      additional_data: {
-        measurement_type: "constant_murley",
-        soap_text: soapText,
-        constant_murley_data: {
-          result_value: totalScore,
-          pain,
-          adlScores,
-          rangeOfMotion,
-          rom_score: romScore,
-          strength,
-        }
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved successfully.");
+    try {
+      onSave(scoreConstantMurley({
+        pain,
+        adl_scores: adlScores,
+        range_of_motion: {
+          flexion: rangeOfMotion.flexion,
+          abduction: rangeOfMotion.abduction,
+          external_rotation: rangeOfMotion.externalRotation,
+          internal_rotation: rangeOfMotion.internalRotation,
+        },
+        strength,
+        notes,
+      }, { assessmentName: 'Constant-Murley Score', client }));
+      toast.success("Assessment saved successfully.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save Constant-Murley assessment.');
+    }
   };
 
   return (

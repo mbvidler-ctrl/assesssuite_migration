@@ -12,11 +12,16 @@
 
 const BASE = process.env.SMOKE_URL || 'http://localhost:8787';
 const APP = 'local-assesssuite';
+const SEEDED_DEMO_PASSWORD = process.env.SEED_PASSWORD;
+
+if (!SEEDED_DEMO_PASSWORD) {
+  throw new Error('SEED_PASSWORD is required for the seeded-shim gate tests');
+}
 
 const CREDS = {
   admin: { email: 'admin@local.test', password: 'change-me-local' },
-  alpha: { email: 'clinician@org-alpha.seed.test', password: 'SeedDemo!2026' },
-  beta: { email: 'clinician@org-beta.seed.test', password: 'SeedDemo!2026' },
+  alpha: { email: 'clinician@org-alpha.seed.test', password: SEEDED_DEMO_PASSWORD },
+  beta: { email: 'clinician@org-beta.seed.test', password: SEEDED_DEMO_PASSWORD },
 };
 
 let pass = 0;
@@ -130,7 +135,7 @@ async function main() {
 
   const webhook = await api(`/api/apps/${APP}/functions/stripeWebhook`, {
     method: 'POST', token: adminTok,
-    body: { type: 'checkout.session.completed', data: { object: { mode: 'subscription', payment_status: 'paid', customer: 'mock_cus_beta', customer_email: betaMe.data.email, subscription: 'mock_sub_beta', client_reference_id: betaMe.data.id, metadata: { userId: betaMe.data.id, userEmail: betaMe.data.email, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M' } } } },
+    body: { id: 'evt_gatebetacheckout', created: 1800000006, livemode: false, type: 'checkout.session.completed', data: { object: { mode: 'subscription', payment_status: 'paid', customer: 'mock_cus_beta', customer_email: betaMe.data.email, subscription: 'mock_sub_beta', client_reference_id: betaMe.data.id, metadata: { userId: betaMe.data.id, userEmail: betaMe.data.email, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M', appId: APP, professionId: 'exercise-physiology' } } } },
   });
   const betaAfter = await api(`/api/apps/${APP}/entities/User/me`, { token: betaTok });
   const roleUnchanged = betaAfter.data?.role === betaBeforeRole;

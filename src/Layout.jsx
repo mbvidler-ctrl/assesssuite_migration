@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from "react";
-import { Link, useLocation, useSearchParams, useNavigate } from "react-router-dom";
+import { Link, Navigate, useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import {
   Users, FileText, BarChart3, Stethoscope, ClipboardList,
   User as UserIcon, ExternalLink, Loader2, Calendar as CalendarIcon,
-  Utensils, ShieldCheck, TicketPercent
+  Utensils, ShieldCheck, TicketPercent, HeartPulse
 } from "lucide-react";
 import { SUITE_VERSION } from "@/lib/legal/documentRegistry";
 import { resolveLegalConsentAudience } from "@/lib/legal/consentAudience";
@@ -13,23 +13,38 @@ import { selectedOrganizationLegalAcceptanceStatus } from "@/lib/legal/acceptanc
 import { loadLegalContent } from "@/lib/legal/loadContent";
 import { useAuth } from "@/lib/AuthContext";
 import { isInitialClinicalReleaseEligible } from "@/lib/clinicalRelease";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
+import { assessSuiteHeaderLogo } from "@/brandAssets";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent,
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarHeader, SidebarProvider, SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-const navigationItems = [
-  { title: "Dashboard", url: createPageUrl("Dashboard"), icon: BarChart3 },
-  { title: "Calendar", url: createPageUrl("Calendar"), icon: CalendarIcon },
-  { title: "Clients", url: createPageUrl("Clients"), icon: Users },
-  { title: "Assessment Library", url: createPageUrl("AssessmentLibrary"), icon: ClipboardList },
-  { title: "Treatment Protocols", url: createPageUrl("TreatmentProtocols"), icon: Stethoscope },
-  { title: "Nutrition", url: createPageUrl("Nutrition"), icon: Utensils },
-  { title: "Reports", url: createPageUrl("Reports"), icon: FileText },
-  { title: "Funding Forms", url: createPageUrl("FundingForms"), icon: ExternalLink },
-  { title: "Settings", url: createPageUrl("MyProfile"), icon: UserIcon },
-];
+const activeReleaseProfessions = new Set(activeProfession.releaseProfessions);
+const assessmentAuditAvailable = import.meta.env.VITE_PROFESSION === 'exercise-physiology';
+
+const navigationDefinitions = Object.freeze({
+  Dashboard: { title: "Dashboard", icon: BarChart3 },
+  Calendar: { title: "Calendar", icon: CalendarIcon },
+  Clients: { title: activeProfession.lexicon.clientPluralTitleCase, icon: Users },
+  PhysioEpisodes: { title: "Care Episodes", icon: HeartPulse },
+  AssessmentLibrary: { title: activeProfession.lexicon.assessmentLibrary, icon: ClipboardList },
+  TreatmentProtocols: { title: activeProfession.lexicon.protocolLibrary, icon: Stethoscope },
+  Nutrition: { title: "Nutrition", icon: Utensils },
+  Reports: { title: "Reports", icon: FileText },
+  FundingForms: { title: "Funding Forms", icon: ExternalLink },
+  MyProfile: { title: "Settings", icon: UserIcon },
+});
+
+const navigationItems = activeProfession.navigation.primaryPages.map((page) => {
+  const definition = navigationDefinitions[page];
+  if (!definition) throw new TypeError(`No navigation definition is registered for ${page}`);
+  return { ...definition, page, url: createPageUrl(page) };
+});
+const activeAllowedPages = new Set(
+  activeProfession.navigation.allowedPages.map((page) => page.toLowerCase()),
+);
 
 const usageDashboardViewerEmails = new Set([
   "mb.vidler@gmail.com",
@@ -53,6 +68,19 @@ function isBypassPath(pathname) {
   return BYPASS_PATHS.some(p => pathname.toLowerCase() === p.toLowerCase());
 }
 
+function isProfessionRouteDenied(pathname, currentPageName) {
+  const pathPage = decodeURIComponent(String(pathname || '').split('/').filter(Boolean)[0] || '');
+  // App.jsx mounts one shared Layout around every generated page route and
+  // passes the configured main page as currentPageName. The URL segment is
+  // therefore the authoritative requested surface; currentPageName is only a
+  // root-path fallback. Preferring the latter would admit every direct route
+  // whenever Dashboard is allowed.
+  const requestedPage = pathPage || (
+    typeof currentPageName === 'string' && currentPageName ? currentPageName : 'Home'
+  );
+  return !activeAllowedPages.has(requestedPage.toLowerCase());
+}
+
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -64,6 +92,10 @@ export default function Layout({ children, currentPageName }) {
   useEffect(() => {
     const checkProfile = async () => {
       if (isBypassPath(location.pathname)) {
+        setIsLoading(false);
+        return;
+      }
+      if (isProfessionRouteDenied(location.pathname, currentPageName)) {
         setIsLoading(false);
         return;
       }
@@ -122,7 +154,7 @@ export default function Layout({ children, currentPageName }) {
           navigate("/ProfileSetup");
           return;
         }
-        if (!isInitialClinicalReleaseEligible(freshUser)) {
+        if (!isInitialClinicalReleaseEligible(freshUser, activeReleaseProfessions)) {
           navigate("/ProfileSetup?reason=clinical-profile");
           return;
         }
@@ -179,11 +211,14 @@ export default function Layout({ children, currentPageName }) {
       }
     };
     checkProfile();
-  }, [location.pathname, navigate, appPublicSettings]);
+  }, [location.pathname, currentPageName, navigate, appPublicSettings]);
 
   const isClientView = searchParams.get("client") === "true";
 
   if (isBypassPath(location.pathname)) return <>{children}</>;
+  if (isProfessionRouteDenied(location.pathname, currentPageName)) {
+    return <Navigate to={createPageUrl("Dashboard")} replace />;
+  }
   if (isClientView) return <>{children}</>;
 
   if (isLoading) {
@@ -213,8 +248,8 @@ export default function Layout({ children, currentPageName }) {
           <SidebarHeader className="px-6 py-0">
             <div className="flex items-center justify-center -my-8">
               <img
-                src="https://media.base44.com/images/public/68746e3e91f52664774f3d05/4c24cafdd_Logo-Transparent1.png"
-                alt="AssessSuite Clinical Logo"
+                src={assessSuiteHeaderLogo}
+                alt={`${activeProfession.productName} Logo`}
                 className="h-auto w-full max-w-[180px]"
               />
             </div>
@@ -271,14 +306,16 @@ export default function Layout({ children, currentPageName }) {
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
-                      <SidebarMenuItem>
-                        <SidebarMenuButton asChild className={`hover:bg-purple-50 hover:text-purple-700 transition-all duration-200 rounded-xl py-3 px-4 ${location.pathname === createPageUrl("AssessmentAudit") ? "bg-purple-50 text-purple-700 border border-purple-200/50 shadow-sm" : "text-slate-600"}`}>
-                          <Link to={createPageUrl("AssessmentAudit")} className="flex items-center gap-3">
-                            <ClipboardList className="w-5 h-5" />
-                            <span className="font-medium">Assessment Audit</span>
-                          </Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
+                      {assessmentAuditAvailable && activeAllowedPages.has("assessmentaudit") && (
+                        <SidebarMenuItem>
+                          <SidebarMenuButton asChild className={`hover:bg-purple-50 hover:text-purple-700 transition-all duration-200 rounded-xl py-3 px-4 ${location.pathname === createPageUrl("AssessmentAudit") ? "bg-purple-50 text-purple-700 border border-purple-200/50 shadow-sm" : "text-slate-600"}`}>
+                            <Link to={createPageUrl("AssessmentAudit")} className="flex items-center gap-3">
+                              <ClipboardList className="w-5 h-5" />
+                              <span className="font-medium">Assessment Audit</span>
+                            </Link>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                      )}
                       <SidebarMenuItem>
                         <SidebarMenuButton asChild className={`hover:bg-purple-50 hover:text-purple-700 transition-all duration-200 rounded-xl py-3 px-4 ${location.pathname === createPageUrl("AdminAnalytics") ? "bg-purple-50 text-purple-700 border border-purple-200/50 shadow-sm" : "text-slate-600"}`}>
                           <Link to={createPageUrl("AdminAnalytics")} className="flex items-center gap-3">
@@ -299,7 +336,7 @@ export default function Layout({ children, currentPageName }) {
           <header className="bg-white/60 backdrop-blur-sm border-b border-slate-200/60 px-6 py-4 md:hidden">
             <div className="flex items-center gap-4">
               <SidebarTrigger className="hover:bg-slate-100 p-2 rounded-lg transition-colors duration-200" />
-              <h1 className="text-xl font-bold text-slate-900">AssessSuite</h1>
+              <h1 className="text-xl font-bold text-slate-900">{activeProfession.shortName}</h1>
             </div>
           </header>
           <div className="flex-1">{children}</div>

@@ -6,32 +6,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Plus, Trash2, ChevronDown, ChevronUp } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
+import { toast } from "sonner";
+import { PROM_NEURO_TARDIEU_MUSCLE_GROUPS as MUSCLE_GROUPS, PROM_NEURO_TARDIEU_TARDIEU_SCORES as TARDIEU_SCORES, PROM_NEURO_TARDIEU_VELOCITIES as VELOCITIES } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const MUSCLE_GROUPS = {
-  "Upper Limb": [
-    "Elbow Flexors", "Elbow Extensors", "Wrist Flexors", "Wrist Extensors",
-    "Finger Flexors", "Shoulder Internal Rotators",
-  ],
-  "Lower Limb": [
-    "Hamstrings", "Quadriceps", "Gastrocnemius", "Soleus",
-    "Hip Adductors", "Hip Flexors", "Tibialis Posterior",
-  ],
-};
 
-const TARDIEU_SCORES = [
-  { value: "0", label: "0 — No resistance throughout" },
-  { value: "1", label: "1 — Slight resistance, no catch" },
-  { value: "2", label: "2 — Clear catch at precise angle" },
-  { value: "3", label: "3 — Fatigable clonus (< 10 sec)" },
-  { value: "4", label: "4 — Unfatigable clonus (> 10 sec)" },
-  { value: "5", label: "5 — Joint immobile" },
-];
 
-const VELOCITIES = [
-  { key: "v1", label: "V1 — Slow Stretch", desc: "As slow as possible. Measures passive ROM (R2).", color: "bg-blue-50 border-blue-200" },
-  { key: "v2", label: "V2 — Speed of Limb Under Gravity", desc: "Speed of limb falling under gravity. Moderate speed.", color: "bg-yellow-50 border-yellow-200" },
-  { key: "v3", label: "V3 — Fast Stretch", desc: "As fast as possible. Used to provoke spasticity (R1).", color: "bg-red-50 border-red-200" },
-];
 
 const emptyVelocity = () => ({
   tardieu_score: "",
@@ -266,7 +245,24 @@ export default function TardieuScaleRunner({ client, onSave, onClose }) {
     setEntries(prev => [...prev, emptyMuscleEntry()]);
   };
 
+  const entriesComplete = entries.length > 0 && entries.every((entry) => (
+    entry.muscle_group
+    && entry.side
+    && entry.position
+    && entry.v1.tardieu_score !== ""
+    && entry.v1.r2_angle !== ""
+    && Number.isFinite(Number(entry.v1.r2_angle))
+    && entry.v2.tardieu_score !== ""
+    && entry.v3.tardieu_score !== ""
+    && entry.v3.r1_angle !== ""
+    && Number.isFinite(Number(entry.v3.r1_angle))
+  ));
+
   const handleSave = () => {
+    if (!entriesComplete) {
+      toast.error("Complete the muscle group, position, all velocity scores, V1 R2 angle and V3 R1 angle before saving.");
+      return;
+    }
     // Build comprehensive SOAP text
     const lines = [`• Tardieu Scale Assessment`, `  Diagnosis/Condition: ${header.diagnosis || "Not specified"}`];
     entries.forEach((entry, i) => {
@@ -416,7 +412,7 @@ export default function TardieuScaleRunner({ client, onSave, onClose }) {
       {/* Footer */}
       <div className="flex justify-between pt-2 border-t">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSave} disabled={entries.length === 0} className="bg-blue-600 hover:bg-blue-700 text-white">
+        <Button onClick={handleSave} disabled={!entriesComplete} className="bg-blue-600 hover:bg-blue-700 text-white">
           Save Assessment
         </Button>
       </div>

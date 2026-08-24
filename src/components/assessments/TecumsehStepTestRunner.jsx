@@ -6,6 +6,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { X, Play, Square, ChevronDown, ChevronUp } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
+import { toast } from "sonner";
+import { scoreTecumseh } from "@/lib/clinical/scorers/extrasPhysiological";
 
 // Full normative table: [age_group][gender] = {Excellent, Good, Average, Poor}
 // Values are upper bounds (bpm). "Poor" = anything above Average upper bound.
@@ -107,30 +109,14 @@ export default function TecumsehStepTestRunner({ client, onSave, onClose }) {
   const category = getCategory(recoveryHR, ageGroup, gender);
 
   const handleSave = () => {
-    const bpm = parseInt(recoveryHR);
-    const soapLines = [
-      `• Tecumseh Step Test`,
-      `  Protocol: 20 cm step, 24 steps/min (96 bpm metronome), 3 minutes`,
-      `  Pre-Exercise HR: ${preHR || "Not recorded"} bpm`,
-      `  Recovery HR (1-min post-exercise, 30-sec count × 2): ${bpm} bpm`,
-      `  Age Group: ${ageGroup || "Not specified"} | Gender: ${gender || "Not specified"}`,
-      category ? `  Classification: ${category.label} aerobic fitness` : "",
-      notes ? `  Notes: ${notes}` : "",
-    ].filter(Boolean).join("\n");
-
-    onSave({
-      result_value: bpm,
-      notes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: soapLines,
-        pre_hr: parseInt(preHR) || null,
-        recovery_hr: bpm,
-        age_group: ageGroup,
-        gender,
-        classification: category?.label || null,
-      }
-    });
+    try {
+      onSave(scoreTecumseh(
+        { pre_hr: preHR, recovery_hr: recoveryHR, age_group: ageGroup, sex: gender, notes },
+        { assessmentDate: todayLocal(), assessmentName: 'Tecumseh Step Test', client },
+      ));
+    } catch (error) {
+      toast.error(error?.message || "Tecumseh results could not be scored.");
+    }
   };
 
   // Phase display helpers

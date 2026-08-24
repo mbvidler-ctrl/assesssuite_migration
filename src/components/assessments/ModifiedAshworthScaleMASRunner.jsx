@@ -7,31 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { X, Save, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_MAS_MUSCLES as MUSCLES, PROM_NEURO_MAS_MAS_GRADES as MAS_GRADES } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const MUSCLES = [
-  "Elbow Flexors",
-  "Elbow Extensors",
-  "Wrist Flexors",
-  "Wrist Extensors",
-  "Finger Flexors",
-  "Hip Flexors",
-  "Hip Extensors",
-  "Hip Abductors",
-  "Hip Adductors",
-  "Knee Flexors",
-  "Knee Extensors",
-  "Ankle Plantarflexors",
-  "Ankle Dorsiflexors"
-];
 
-const MAS_GRADES = [
-  { score: 0, label: "0 - No increase in muscle tone" },
-  { score: 1, label: "1 - Slight increase in muscle tone" },
-  { score: "1+", label: "1+ - Slight increase with brief catch" },
-  { score: 2, label: "2 - Marked increase in muscle tone" },
-  { score: 3, label: "3 - Considerable increase in muscle tone" },
-  { score: 4, label: "4 - Rigid (passive movement difficult)" }
-];
 
 export default function ModifiedAshworthScaleMASRunner({ client, onSave, onClose }) {
   const [muscle, setMuscle] = useState("");

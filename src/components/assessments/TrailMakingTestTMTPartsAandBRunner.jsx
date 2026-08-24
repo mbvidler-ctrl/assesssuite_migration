@@ -108,7 +108,7 @@ function ImageCard({ url, caption }) {
   return (
     <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
       <img src={url} alt={caption} className={`w-full object-cover cursor-pointer transition-all ${ex ? "max-h-96" : "max-h-36"}`}
-        onClick={() => setEx(e => !e)} onError={e => { e.target.style.display = "none"; }} />
+        onClick={() => setEx(e => !e)} onError={e => { e.currentTarget.style.display = "none"; }} />
       <p className="text-xs text-slate-500 text-center p-2">{caption} <span className="text-indigo-500 cursor-pointer" onClick={() => setEx(e => !e)}>{ex ? "(collapse)" : "(expand)"}</span></p>
     </div>
   );
@@ -315,7 +315,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
   const [clinicalNotes, setClinicalNotes] = useState("");
 
   const age = client?.date_of_birth
-    ? Math.floor((Date.now() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000))
+    ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000))
     : null;
 
   // Metrics
@@ -646,7 +646,7 @@ export default function TrailMakingTestTMTPartsAandBRunner({ client, onSave, onC
                   <div className="flex justify-center gap-1 items-center flex-wrap">
                     {["1","A","2","B","3"].map((n, i) => (
                       <React.Fragment key={i}>
-                        <div className={`w-9 h-9 rounded-full font-bold text-sm flex items-center justify-center shadow ${isNaN(n) ? "bg-orange-500 text-white" : "bg-indigo-600 text-white"}`}>{n}</div>
+                        <div className={`w-9 h-9 rounded-full font-bold text-sm flex items-center justify-center shadow ${Number.isNaN(Number(n)) ? "bg-orange-500 text-white" : "bg-indigo-600 text-white"}`}>{n}</div>
                         {i < 4 && <span className="text-slate-400 text-xs">→</span>}
                       </React.Fragment>
                     ))}

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { X, Save, Play, Pause, RotateCcw, AlertTriangle, CheckCircle2, ChevronRight, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreFourStageBalance } from "@/lib/clinical/scorers/coreA";
 
 const STAGES = [
   {
@@ -119,33 +120,15 @@ export default function FourStageBalanceRunner({ onSave, onClose }) {
   const stageAchieved = calculateStageAchieved();
 
   const handleSave = () => {
-    const soapText = [
-      `• 4-Stage Balance Test`,
-      `  Highest Stage Achieved: ${stageAchieved}/4`,
-      `  Fall Risk: ${fallRisk ? 'Increased (tandem stance not held for 10s)' : 'Normal'}`,
-      ...STAGES.map(s => results[s.id] ? `  Stage ${s.number} (${s.title}): ${results[s.id] === 'pass' ? `Pass (${times[s.id].toFixed(1)}s)` : `Fail (${times[s.id] > 0 ? times[s.id].toFixed(1) + 's' : '—'})`}` : null).filter(Boolean),
-      clinicianNotes ? `  Notes: ${clinicianNotes}` : null,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      status: 'completed',
-      result_value: stageAchieved,
-      notes: soapText,
-      assessment_date: todayLocal(),
-      additional_data: {
-        measurement_type: 'four_stage_balance_test',
-        soap_text: soapText,
-        fall_risk: fallRisk ? 'high' : 'low',
-        stages: {
-          side_by_side: { passed: results.feet_together === 'pass', time_seconds: times.feet_together || null },
-          semi_tandem:  { passed: results.semi_tandem === 'pass',  time_seconds: times.semi_tandem || null },
-          tandem:       { passed: results.tandem === 'pass',       time_seconds: times.tandem || null },
-          single_leg:   { passed: results.single_leg === 'pass',   time_seconds: times.single_leg || null },
-        },
-        stage_notes: stageNotes,
-        clinician_notes: clinicianNotes,
-      }
-    });
+    onSave(scoreFourStageBalance(
+      { stages: {
+        side_by_side: { passed: results.feet_together === 'pass', time_seconds: times.feet_together, notes: stageNotes.feet_together },
+        semi_tandem: { passed: results.semi_tandem === 'pass', time_seconds: times.semi_tandem, notes: stageNotes.semi_tandem },
+        tandem: { passed: results.tandem === 'pass', time_seconds: times.tandem, notes: stageNotes.tandem },
+        single_leg: { passed: results.single_leg === 'pass', time_seconds: times.single_leg, notes: stageNotes.single_leg },
+      }, notes: clinicianNotes },
+      { assessmentName: '4-Stage Balance Test', assessmentDate: todayLocal(), notes: clinicianNotes },
+    ));
   };
 
   const handlePrint = () => window.print();

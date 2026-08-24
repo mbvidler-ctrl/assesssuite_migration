@@ -5,85 +5,11 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { X, Save, ChevronRight, ChevronLeft, CheckCircle, AlertCircle, RotateCcw } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
+import { VISUAL_ROM_JOINTS, validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
-// ─── Joint + movement definitions ───────────────────────────────────────────
-const JOINTS = [
-  {
-    key: "cervical", label: "Cervical Spine", emoji: "🔵",
-    movements: ["Flexion","Extension","Lat. Flexion (L)","Lat. Flexion (R)","Rotation (L)","Rotation (R)"],
-    normals:   ["40-60°","50-70°","35-45°","35-45°","60-80°","60-80°"],
-  },
-  {
-    key: "thoracic", label: "Thoracic Spine", emoji: "🟣",
-    movements: ["Rotation (L)","Rotation (R)","Extension","Lat. Flexion (L)","Lat. Flexion (R)"],
-    normals:   ["30-35°","30-35°","15-20°","15-20°","15-20°"],
-  },
-  {
-    key: "lumbar", label: "Lumbar Spine", emoji: "🟠",
-    movements: ["Flexion","Extension","Lat. Flexion (L)","Lat. Flexion (R)","Rotation (L)","Rotation (R)"],
-    normals:   ["40-60°","20-35°","20-30°","20-30°","5-15°","5-15°"],
-  },
-  {
-    key: "shoulder_L", label: "Shoulder (Left)", emoji: "💪",
-    movements: ["Flexion","Extension","Abduction","Adduction","Ext. Rotation","Int. Rotation"],
-    normals:   ["0-180°","0-60°","0-180°","0-30°","0-90°","0-70°"],
-  },
-  {
-    key: "shoulder_R", label: "Shoulder (Right)", emoji: "💪",
-    movements: ["Flexion","Extension","Abduction","Adduction","Ext. Rotation","Int. Rotation"],
-    normals:   ["0-180°","0-60°","0-180°","0-30°","0-90°","0-70°"],
-  },
-  {
-    key: "elbow_L", label: "Elbow (Left)", emoji: "🦾",
-    movements: ["Flexion","Extension","Supination","Pronation"],
-    normals:   ["0-150°","0°","0-80°","0-80°"],
-  },
-  {
-    key: "elbow_R", label: "Elbow (Right)", emoji: "🦾",
-    movements: ["Flexion","Extension","Supination","Pronation"],
-    normals:   ["0-150°","0°","0-80°","0-80°"],
-  },
-  {
-    key: "wrist_L", label: "Wrist (Left)", emoji: "✋",
-    movements: ["Flexion","Extension","Radial Dev.","Ulnar Dev."],
-    normals:   ["0-80°","0-70°","0-20°","0-30°"],
-  },
-  {
-    key: "wrist_R", label: "Wrist (Right)", emoji: "✋",
-    movements: ["Flexion","Extension","Radial Dev.","Ulnar Dev."],
-    normals:   ["0-80°","0-70°","0-20°","0-30°"],
-  },
-  {
-    key: "hip_L", label: "Hip (Left)", emoji: "🦵",
-    movements: ["Flexion","Extension","Abduction","Adduction","Int. Rotation","Ext. Rotation"],
-    normals:   ["0-120°","0-20°","0-45°","0-30°","0-45°","0-45°"],
-  },
-  {
-    key: "hip_R", label: "Hip (Right)", emoji: "🦵",
-    movements: ["Flexion","Extension","Abduction","Adduction","Int. Rotation","Ext. Rotation"],
-    normals:   ["0-120°","0-20°","0-45°","0-30°","0-45°","0-45°"],
-  },
-  {
-    key: "knee_L", label: "Knee (Left)", emoji: "🦿",
-    movements: ["Flexion","Extension"],
-    normals:   ["0-135°","0°"],
-  },
-  {
-    key: "knee_R", label: "Knee (Right)", emoji: "🦿",
-    movements: ["Flexion","Extension"],
-    normals:   ["0-135°","0°"],
-  },
-  {
-    key: "ankle_L", label: "Ankle (Left)", emoji: "🦶",
-    movements: ["Dorsiflexion","Plantarflexion","Inversion","Eversion"],
-    normals:   ["0-20°","0-50°","0-35°","0-15°"],
-  },
-  {
-    key: "ankle_R", label: "Ankle (Right)", emoji: "🦶",
-    movements: ["Dorsiflexion","Plantarflexion","Inversion","Eversion"],
-    normals:   ["0-20°","0-50°","0-35°","0-15°"],
-  },
-];
+// Movement names and reference ranges are consumed from the same frozen contract as scoring.
+const JOINT_EMOJIS = ["🔵", "🟣", "🟠", "💪", "💪", "🦾", "🦾", "✋", "✋", "🦵", "🦵", "🦿", "🦿", "🦶", "🦶"];
+const JOINTS = VISUAL_ROM_JOINTS.map((joint, index) => ({ ...joint, emoji: JOINT_EMOJIS[index] }));
 
 const ROM_PCTS = [
   { label: "Full (100%)", value: 100, color: "bg-green-500" },
@@ -159,36 +85,11 @@ export default function VisualROMAssessmentRunner({ onSave, onClose }) {
   };
 
   const handleSave = () => {
-    // Build SOAP text
-    let soapText = `• Visual ROM Assessment\n\n`;
-    activeJoints.forEach(joint => {
-      soapText += `  ${joint.label}:\n`;
-      joint.movements.forEach((mv, i) => {
-        const r = getResult(joint.key, mv);
-        if (r.rom !== null) {
-          soapText += `    ${mv}: ${r.rom}% ROM (Normal: ${joint.normals[i]})`;
-          soapText += r.pain ? " — PAIN reported" : " — No pain";
-          if (r.note) soapText += ` | Note: ${r.note}`;
-          soapText += "\n";
-        }
-      });
-    });
-    if (globalNotes) soapText += `\n  Clinical Notes: ${globalNotes}`;
-
-    onSave({
-      result_value: Math.round(doneMovements > 0 ?
-        activeJoints.reduce((sum, j) =>
-          sum + j.movements.reduce((s, m) => s + (getResult(j.key, m).rom ?? 0), 0), 0
-        ) / totalMovements : 0),
-      notes: globalNotes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        measurement_type: "visual_rom",
-        soap_text: soapText,
-        results,
-        joints_assessed: activeJoints.map(j => j.label),
-      },
-    });
+    try {
+      onSave(validateMobilityOrtho({ selectedJointKeys: activeJoints.map(({ key }) => key), results, notes: globalNotes }, { runnerKey: 'visual_rom', assessmentDate: todayLocal() }));
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
 
   // ─── Phase: Joint Selection ───────────────────────────────────────────────

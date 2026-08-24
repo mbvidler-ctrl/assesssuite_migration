@@ -8,7 +8,12 @@ import {
  * Both the browser and the server use this function so the acceptance receipt
  * is fingerprinted over the same bytes the practitioner can read.
  */
-export function effectiveLegalContent(content, { status, effectiveDate } = {}) {
+/**
+ * @param {string} content
+ * @param {{ status?: string, effectiveDate?: string }} [options]
+ */
+export function effectiveLegalContent(content, options = {}) {
+  const { status, effectiveDate } = options;
   if (status !== "effective" || !effectiveDate) return content;
   if (!/^\*\*Release status:\*\* (?:APPROVED FOR PUBLICATION|PUBLIC SCHEDULE)/m.test(content)) {
     return content;

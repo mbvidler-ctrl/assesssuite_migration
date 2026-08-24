@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, Play, Square, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreSingleLegStance } from "@/lib/clinical/scorers/coreA";
 
 export default function SingleLegStanceRunner({ onSave, onClose }) {
   const [side, setSide] = useState("right");
@@ -85,24 +86,10 @@ export default function SingleLegStanceRunner({ onSave, onClose }) {
   const interpretation = trials.length > 0 ? getInterpretation() : null;
 
   const handleSave = () => {
-    const soapText = [
-      `• Single Leg Stance Test`,
-      `  Best Time: ${getBestTime().toFixed(2)}s (${eyesOpen ? 'Eyes Open' : 'Eyes Closed'})`,
-      interpretation ? `  Interpretation: ${interpretation.level}` : null,
-      notes ? `  Notes: ${notes}` : null,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      result_value: getBestTime(),
-      additional_data: {
-        soap_text: soapText,
-        best_time: getBestTime(),
-        trials: trials,
-        interpretation: interpretation?.level
-      },
-      notes: notes,
-      assessment_date: todayLocal()
-    });
+    onSave(scoreSingleLegStance(
+      { trials: trials.map((trial) => ({ side: trial.side, eyes_open: trial.eyesOpen, time: trial.time })), notes },
+      { assessmentName: 'Single Leg Stance Test', assessmentDate: todayLocal(), notes },
+    ));
   };
 
   return (

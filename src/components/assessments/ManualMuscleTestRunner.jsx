@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Textarea } from '@/components/ui/textarea';
 import { X, Plus, Trash2 } from 'lucide-react';
 import { todayLocal } from "@/lib/localDate";
+import { scoreManualMuscleTesting } from "@/lib/clinical/scorers/coreA";
 
 const MMT_GRADES = [
   { value: 0, label: '0 - No contraction', description: 'No visible or palpable muscle contraction' },
@@ -73,22 +74,10 @@ export default function ManualMuscleTestRunner({ initialData, onSave, onClose })
   };
 
   const handleSave = () => {
-    const avgGrade = tests.length > 0 ? (tests.reduce((sum, t) => sum + t.grade, 0) / tests.length).toFixed(1) : 0;
-    const testLines = tests.map(t =>
-      `  ${t.region} ${t.movement} (${t.side}): ${t.grade}/5${t.notes ? ` — ${t.notes}` : ''}`
-    ).join('\n');
-    const soapText = `• Manual Muscle Testing (MMT):\n${testLines}\n  Average Grade: ${avgGrade}/5`;
-
-    onSave({
-      result_value: parseFloat(avgGrade),
-      additional_data: {
-        soap_text: soapText,
-        tests,
-        average_grade: parseFloat(avgGrade),
-      },
-      notes: '',
-      assessment_date: todayLocal(),
-    });
+    onSave(scoreManualMuscleTesting(
+      { tests: tests.map(({ id, ...test }) => test), notes: '' },
+      { assessmentName: 'Manual Muscle Testing', assessmentDate: todayLocal(), notes: '' },
+    ));
   };
 
   const getPositionInstruction = () => {

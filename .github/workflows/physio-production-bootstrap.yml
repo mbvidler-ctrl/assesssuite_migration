@@ -1,0 +1,2765 @@
+name: Physio production bootstrap after exact local canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      trusted_workflow_sha:
+        description: Exact current main SHA supplying this trusted workflow
+        required: true
+        type: string
+      application_sha:
+        description: Exact canary-proven candidate SHA
+        required: true
+        type: string
+      candidate_artifact_id:
+        description: Exact immutable candidate artifact ID
+        required: true
+        type: string
+      candidate_artifact_digest:
+        description: Exact candidate artifact digest
+        required: true
+        type: string
+      candidate_receipt_sha256:
+        description: Raw-byte SHA-256 of candidate-build-receipt.json
+        required: true
+        type: string
+      archive_sha256:
+        description: Exact sha256-prefixed candidate archive digest
+        required: true
+        type: string
+      oci_archive_sha256:
+        description: Exact sha256-prefixed canonical OCI archive digest
+        required: true
+        type: string
+      oci_manifest_digest:
+        description: Exact canonical OCI manifest digest
+        required: true
+        type: string
+      oci_descriptor_manifest_sha256:
+        description: Raw-byte SHA-256 of candidate-oci-descriptors.json
+        required: true
+        type: string
+      local_image_id:
+        description: Exact local image ID proven by the canary
+        required: true
+        type: string
+      canary_artifact_id:
+        description: Exact local-canary artifact ID
+        required: true
+        type: string
+      canary_artifact_digest:
+        description: Exact local-canary artifact digest
+        required: true
+        type: string
+      canary_receipt_sha256:
+        description: Raw-byte SHA-256 of physio-exact-image-canary.json
+        required: true
+        type: string
+      fly_organization:
+        description: Existing approved Fly organisation slug
+        required: true
+        type: string
+      capability_intent_id:
+        description: Exact post-canary Fly bootstrap capability intent
+        required: true
+        type: string
+      authority_reference:
+        description: Mission or order reference authorising this action
+        required: true
+        type: string
+      ledger_provisioning_receipt_sha256:
+        description: Raw-byte SHA-256 of the exact L5 ruleset-first ledger provisioning receipt
+        required: true
+        type: string
+      resume_action_artifact_id:
+        description: Prior bootstrap reconciliation artifact ID, or 0 for a fresh action
+        required: true
+        default: '0'
+        type: string
+      resume_action_artifact_digest:
+        description: Exact prior bootstrap artifact digest, or 0 for a fresh action
+        required: true
+        default: '0'
+        type: string
+      resume_action_receipt_sha256:
+        description: Prior bootstrap-effect-reconciliation.json raw SHA-256, or 64 zeros for a fresh action
+        required: true
+        default: '0000000000000000000000000000000000000000000000000000000000000000'
+        type: string
+      resume_action_prior_generation:
+        description: Prior bootstrap effect generation, or -1 for a fresh action
+        required: true
+        default: '-1'
+        type: string
+      confirmation:
+        description: Type BOOTSTRAP assesssuite-physio-production AFTER CANARY
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: assesssuite-physio-production
+  cancel-in-progress: false
+
+jobs:
+  admit:
+    name: Admit exact candidate and local-canary receipts without providers
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      admission_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      admission_artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
+      admission_receipt_sha256: ${{ steps.admit.outputs.admission_receipt_sha256 }}
+      candidate_run_id: ${{ steps.artifacts.outputs.candidate_run_id }}
+      canary_run_id: ${{ steps.artifacts.outputs.canary_run_id }}
+    steps:
+      - name: Validate exact post-canary dispatch
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_ARTIFACT_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_ARTIFACT_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANDIDATE_RECEIPT_SHA256: ${{ inputs.candidate_receipt_sha256 }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA256: ${{ inputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ inputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_MANIFEST_SHA256: ${{ inputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          CANARY_ARTIFACT_ID: ${{ inputs.canary_artifact_id }}
+          CANARY_ARTIFACT_DIGEST: ${{ inputs.canary_artifact_digest }}
+          CANARY_RECEIPT_SHA256: ${{ inputs.canary_receipt_sha256 }}
+          FLY_ORGANIZATION: ${{ inputs.fly_organization }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          LEDGER_PROVISIONING_RECEIPT_SHA256: ${{ inputs.ledger_provisioning_receipt_sha256 }}
+          RESUME_ACTION_ARTIFACT_ID: ${{ inputs.resume_action_artifact_id }}
+          RESUME_ACTION_ARTIFACT_DIGEST: ${{ inputs.resume_action_artifact_digest }}
+          RESUME_ACTION_RECEIPT_SHA256: ${{ inputs.resume_action_receipt_sha256 }}
+          RESUME_ACTION_PRIOR_GENERATION: ${{ inputs.resume_action_prior_generation }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == 'mbvidler-ctrl/assesssuite_migration' ]]
+          [[ "$ACTOR" == 'mbvidler-ctrl' && "$TRIGGERING_ACTOR" == 'mbvidler-ctrl' && "$IS_FORK" == 'false' ]]
+          [[ "$EVENT_REF" == 'refs/heads/main' ]]
+          [[ "$WORKFLOW_REF" == 'mbvidler-ctrl/assesssuite_migration/.github/workflows/physio-production-bootstrap.yml@refs/heads/main' ]]
+          [[ "$TRUSTED_WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ && "$APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" && "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          for id in "$CANDIDATE_ARTIFACT_ID" "$CANARY_ARTIFACT_ID"; do [[ "$id" =~ ^[1-9][0-9]*$ ]]; done
+          for digest in "$CANDIDATE_ARTIFACT_DIGEST" "$ARCHIVE_SHA256" "$OCI_ARCHIVE_SHA256" "$OCI_MANIFEST_DIGEST" "$LOCAL_IMAGE_ID" "$CANARY_ARTIFACT_DIGEST"; do
+            [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]]
+          done
+          [[ "$OCI_DESCRIPTOR_MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$CANDIDATE_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ && "$CANARY_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$FLY_ORGANIZATION" =~ ^[A-Za-z0-9][A-Za-z0-9_-]{0,62}$ ]]
+          [[ "$CAPABILITY_INTENT_ID" =~ ^[A-Za-z0-9._:-]{1,160}$ && "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
+          [[ "$LEDGER_PROVISIONING_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$RESUME_ACTION_ARTIFACT_ID" =~ ^[0-9]+$ && "$RESUME_ACTION_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          if [[ "$RESUME_ACTION_ARTIFACT_ID" == '0' ]]; then
+            [[ "$RESUME_ACTION_ARTIFACT_DIGEST" == '0' && "$RESUME_ACTION_PRIOR_GENERATION" == '-1' ]]
+            [[ "$RESUME_ACTION_RECEIPT_SHA256" == '0000000000000000000000000000000000000000000000000000000000000000' ]]
+          else
+            [[ "$RESUME_ACTION_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$RESUME_ACTION_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+            [[ "$RESUME_ACTION_PRIOR_GENERATION" =~ ^[0-9]+$ && "$RESUME_ACTION_RECEIPT_SHA256" != '0000000000000000000000000000000000000000000000000000000000000000' ]]
+          fi
+          [[ "$CONFIRMATION" == 'BOOTSTRAP assesssuite-physio-production AFTER CANARY' ]]
+
+      - name: Check out exact validator source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve and admit exact candidate and canary source runs
+        id: artifacts
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANARY_ID: ${{ inputs.canary_artifact_id }}
+          CANARY_DIGEST: ${{ inputs.canary_artifact_digest }}
+        run: |
+          set -euo pipefail
+          umask 077
+          spec="$RUNNER_TEMP/bootstrap-predecessor-artifact-spec.json"
+          SPEC="$spec" APPLICATION_SHA="$APPLICATION_SHA" CANDIDATE_ID="$CANDIDATE_ID" CANDIDATE_DIGEST="$CANDIDATE_DIGEST" \
+          CANARY_ID="$CANARY_ID" CANARY_DIGEST="$CANARY_DIGEST" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const sha = process.env.APPLICATION_SHA;
+          const row = { repository: 'mbvidler-ctrl/assesssuite_migration', application_sha: sha, artifacts: [
+            { key: 'candidate', id: process.env.CANDIDATE_ID, expected_digest: process.env.CANDIDATE_DIGEST,
+              maximum_bytes: 1073741824, name_patterns: [`^physio-candidate-${sha}$`],
+              workflow_path: '.github/workflows/physio-production-prepare-release.yml', allowed_conclusions: ['success'] },
+            { key: 'canary', id: process.env.CANARY_ID, expected_digest: process.env.CANARY_DIGEST,
+              maximum_bytes: 33554432, name_patterns: [`^physio-exact-image-canary-${sha}$`],
+              workflow_path: '.github/workflows/physio-production-exact-image-canary.yml', allowed_conclusions: ['success'] },
+          ] };
+          fs.writeFileSync(process.env.SPEC, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/github-artifact-admission.mjs --spec "$spec" \
+            --output "$RUNNER_TEMP/bootstrap-predecessor-artifact-admission.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Download exact candidate receipt
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.candidate_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.artifacts.outputs.candidate_run_id }}
+          path: ${{ runner.temp }}/candidate
+          github-token: ${{ github.token }}
+
+      - name: Download exact local-canary receipt
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.canary_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.artifacts.outputs.canary_run_id }}
+          path: ${{ runner.temp }}/canary
+          github-token: ${{ github.token }}
+
+      - name: Validate both content-free receipts before first Fly credential
+        id: admit
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_ARTIFACT_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_ARTIFACT_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANDIDATE_RECEIPT_SHA256: ${{ inputs.candidate_receipt_sha256 }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA256: ${{ inputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ inputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_MANIFEST_SHA256: ${{ inputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          CANARY_ARTIFACT_ID: ${{ inputs.canary_artifact_id }}
+          CANARY_ARTIFACT_DIGEST: ${{ inputs.canary_artifact_digest }}
+          CANARY_RECEIPT_SHA256: ${{ inputs.canary_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ -z "${OPENAI_API_KEY:-}" && -z "${SENTRY_AUTH_TOKEN:-}" ]]
+          candidate="$RUNNER_TEMP/candidate"
+          canary="$RUNNER_TEMP/canary"
+          candidate_receipt="$candidate/candidate-build-receipt.json"
+          canary_receipt="$canary/physio-exact-image-canary.json"
+          (cd "$candidate" && sha256sum --check --strict SHA256SUMS)
+          (cd "$canary" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$candidate_receipt" | awk '{print $1}')" == "$CANDIDATE_RECEIPT_SHA256" ]]
+          [[ "$(sha256sum "$canary_receipt" | awk '{print $1}')" == "$CANARY_RECEIPT_SHA256" ]]
+          node scripts/physio-exact-image-canary-contract.mjs validate --receipt "$canary_receipt" \
+            --application-sha "$APPLICATION_SHA" --immutable-image "$LOCAL_IMAGE_ID" \
+            --candidate-archive-sha256 "$ARCHIVE_SHA256" --maximum-cost-microusd 5000000
+          CANDIDATE="$candidate_receipt" APPLICATION_SHA="$APPLICATION_SHA" ARCHIVE_SHA="$ARCHIVE_SHA256" \
+          OCI_ARCHIVE_SHA="$OCI_ARCHIVE_SHA256" OCI_MANIFEST_DIGEST="$OCI_MANIFEST_DIGEST" \
+          OCI_DESCRIPTOR_SHA="$OCI_DESCRIPTOR_MANIFEST_SHA256" IMAGE_ID="$LOCAL_IMAGE_ID" \
+          CANARY_SHA="$CANARY_RECEIPT_SHA256" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.CANDIDATE, 'utf8'));
+          if (row.contract_version !== 'assesssuite-physio-candidate-build/3.0.0' || row.result !== 'PASS' ||
+              row.application_sha !== process.env.APPLICATION_SHA || row.profession_id !== 'physio' ||
+              row.archive_sha256 !== process.env.ARCHIVE_SHA || row.local_image_id !== process.env.IMAGE_ID ||
+              row.oci_archive_sha256 !== process.env.OCI_ARCHIVE_SHA ||
+              row.oci_manifest_digest !== process.env.OCI_MANIFEST_DIGEST ||
+              row.oci_descriptor_manifest_sha256 !== process.env.OCI_DESCRIPTOR_SHA ||
+              row.no_fly_resource_created !== true || !/^[0-9a-f]{64}$/.test(process.env.CANARY_SHA)) {
+            throw new Error('bootstrap candidate admission differs');
+          }
+          NODE
+          packet="$RUNNER_TEMP/physio-bootstrap-admission"
+          install -d -m 0700 "$packet"
+          install -m 0600 "$RUNNER_TEMP/bootstrap-predecessor-artifact-admission.json" "$packet/bootstrap-predecessor-artifact-admission.json"
+          RECEIPT="$packet/physio-bootstrap-admission.json" APPLICATION_SHA="$APPLICATION_SHA" \
+          CANDIDATE_ID="$CANDIDATE_ARTIFACT_ID" CANDIDATE_DIGEST="$CANDIDATE_ARTIFACT_DIGEST" CANDIDATE_SHA="$CANDIDATE_RECEIPT_SHA256" \
+          ARCHIVE_SHA="$ARCHIVE_SHA256" OCI_ARCHIVE_SHA="$OCI_ARCHIVE_SHA256" \
+          OCI_MANIFEST_DIGEST="$OCI_MANIFEST_DIGEST" OCI_DESCRIPTOR_SHA="$OCI_DESCRIPTOR_MANIFEST_SHA256" \
+          IMAGE_ID="$LOCAL_IMAGE_ID" CANARY_ID="$CANARY_ARTIFACT_ID" \
+          CANARY_DIGEST="$CANARY_ARTIFACT_DIGEST" CANARY_SHA="$CANARY_RECEIPT_SHA256" \
+          ARTIFACT_ADMISSION_SHA="$(sha256sum "$packet/bootstrap-predecessor-artifact-admission.json" | awk '{print $1}')" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = { contract_version: 'assesssuite-physio-bootstrap-admission/1.0.0', result: 'PASS',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            candidate_artifact_id: process.env.CANDIDATE_ID, candidate_artifact_digest: process.env.CANDIDATE_DIGEST,
+            candidate_receipt_sha256: process.env.CANDIDATE_SHA, archive_sha256: process.env.ARCHIVE_SHA,
+            oci_archive_sha256: process.env.OCI_ARCHIVE_SHA, oci_manifest_digest: process.env.OCI_MANIFEST_DIGEST,
+            oci_descriptor_manifest_sha256: process.env.OCI_DESCRIPTOR_SHA,
+            local_image_id: process.env.IMAGE_ID, canary_artifact_id: process.env.CANARY_ID,
+            canary_artifact_digest: process.env.CANARY_DIGEST, exact_image_canary_receipt_sha256: process.env.CANARY_SHA,
+            github_artifact_admission_sha256: process.env.ARTIFACT_ADMISSION_SHA,
+            provider_credentials_absent: true, admitted_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          echo "admission_receipt_sha256=$(sha256sum "$packet/physio-bootstrap-admission.json" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+
+      - name: Upload credential-free bootstrap admission
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-bootstrap-admission-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/physio-bootstrap-admission
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  start:
+    name: Persist exact bootstrap STARTED effect before Fly credentials
+    needs: admit
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: physio-production
+    outputs:
+      resume_mode: ${{ (steps.ledger.outputs.ledger_prior_stage == 'NONE' || steps.ledger.outputs.ledger_prior_stage == 'TERMINAL') && 'NEW_GENERATION' || 'RESUME_UNRESOLVED_GENERATION' }}
+      started_artifact_id: ${{ steps.upload.outputs.artifact-id || steps.ledger.outputs.active_started_artifact_id }}
+      started_artifact_digest: ${{ steps.upload.outputs.artifact-digest && format('sha256:{0}', steps.upload.outputs.artifact-digest) || steps.ledger.outputs.active_started_artifact_digest }}
+      active_started_record_sha256: ${{ steps.ledger.outputs.active_started_record_sha256 }}
+      started_effect_receipt_sha256: ${{ steps.start.outputs.started_effect_receipt_sha256 || steps.recover_started.outputs.started_effect_receipt_sha256 }}
+      secret_bundle_fingerprint_sha256: ${{ steps.start.outputs.secret_bundle_fingerprint_sha256 || steps.recover_started.outputs.secret_bundle_fingerprint_sha256 }}
+      retained_artifact_history_inventory_sha256: ${{ steps.start.outputs.retained_artifact_history_inventory_sha256 || steps.recover_started.outputs.retained_artifact_history_inventory_sha256 }}
+      resume_action_expired: ${{ steps.retained_history.outputs.resume_action_expired }}
+      resume_action_transport_available: ${{ steps.retained_history.outputs.resume_action_transport_available }}
+      resume_action_run_id: ${{ steps.resume_artifacts.outputs.resume_action_run_id }}
+      prior_effect_generation: ${{ steps.recover_started.outputs.prior_effect_generation || steps.ledger.outputs.ledger_prior_generation }}
+      prior_effect_result: ${{ steps.recover_started.outputs.prior_effect_result || steps.ledger.outputs.ledger_prior_effect_result }}
+      prior_ledger_stage: ${{ steps.ledger.outputs.ledger_prior_stage }}
+      prior_ledger_record_sha256: ${{ steps.ledger.outputs.ledger_latest_record_sha256 }}
+      next_effect_generation: ${{ steps.ledger.outputs.next_effect_generation }}
+      ledger_inventory_sha256: ${{ steps.start.outputs.ledger_inventory_sha256 || steps.recover_started.outputs.ledger_inventory_sha256 }}
+      active_started_commit_sha: ${{ steps.ledger.outputs.active_started_commit_sha }}
+      provider_ledger_commit_sha: ${{ steps.ledger.outputs.active_provider_admission_commit_sha }}
+      provider_ledger_record_sha256: ${{ steps.ledger.outputs.active_provider_admission_record_sha256 }}
+      predecessor_terminal_record_sha256: ${{ steps.ledger.outputs.active_predecessor_terminal_record_sha256 }}
+      reuse_predecessor_artifact_id: ${{ (steps.ledger.outputs.ledger_prior_stage == 'STARTED' || steps.ledger.outputs.ledger_prior_stage == 'PROVIDER_ADMISSION' || steps.ledger.outputs.ledger_prior_stage == 'PROVIDER_RECONCILIATION') && steps.ledger.outputs.active_predecessor_terminal_artifact_id || inputs.resume_action_artifact_id }}
+      reuse_predecessor_artifact_digest: ${{ (steps.ledger.outputs.ledger_prior_stage == 'STARTED' || steps.ledger.outputs.ledger_prior_stage == 'PROVIDER_ADMISSION' || steps.ledger.outputs.ledger_prior_stage == 'PROVIDER_RECONCILIATION') && steps.ledger.outputs.active_predecessor_terminal_artifact_digest || inputs.resume_action_artifact_digest }}
+      reuse_predecessor_effect_receipt_sha256: ${{ (steps.ledger.outputs.ledger_prior_stage == 'STARTED' || steps.ledger.outputs.ledger_prior_stage == 'PROVIDER_ADMISSION' || steps.ledger.outputs.ledger_prior_stage == 'PROVIDER_RECONCILIATION') && steps.ledger.outputs.active_predecessor_terminal_effect_receipt_sha256 || inputs.resume_action_receipt_sha256 }}
+      reuse_predecessor_effect_generation: ${{ (steps.ledger.outputs.ledger_prior_stage == 'STARTED' || steps.ledger.outputs.ledger_prior_stage == 'PROVIDER_ADMISSION' || steps.ledger.outputs.ledger_prior_stage == 'PROVIDER_RECONCILIATION') && steps.ledger.outputs.active_predecessor_terminal_effect_generation || inputs.resume_action_prior_generation }}
+      ledger_tip_commit_sha: ${{ steps.ledger.outputs.ledger_head_sha }}
+      prior_ledger_retry_ordinal: ${{ steps.ledger.outputs.ledger_prior_retry_ordinal }}
+      next_provider_reconciliation_retry_ordinal: ${{ steps.ledger.outputs.next_provider_reconciliation_retry_ordinal }}
+      ledger_provisioning_receipt_sha256: ${{ steps.ledger.outputs.ledger_provisioning_receipt_sha256 }}
+      started_packet_bundle_sha256: ${{ steps.started_packet_scan.outputs.packet_bundle_sha256 }}
+      started_packet_scan_policy_version: ${{ steps.started_packet_scan.outputs.packet_scan_policy_version }}
+      started_packet_secret_set_fingerprint_sha256: ${{ steps.started_packet_scan.outputs.packet_secret_set_fingerprint_sha256 }}
+      started_packet_durable_secret_names: ${{ steps.started_packet_scan.outputs.packet_durable_secret_names }}
+    steps:
+      - name: Check out exact protected-ledger client source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Inventory protected append-only bootstrap ledger before retained artifacts
+        id: ledger
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          RESUME_ID: ${{ inputs.resume_action_artifact_id }}
+          RESUME_DIGEST: ${{ inputs.resume_action_artifact_digest }}
+          RESUME_RECEIPT_SHA256: ${{ inputs.resume_action_receipt_sha256 }}
+          RESUME_PRIOR_GENERATION: ${{ inputs.resume_action_prior_generation }}
+          LEDGER_PROVISIONING_RECEIPT_SHA256: ${{ inputs.ledger_provisioning_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          [[ "$(git rev-parse HEAD)" == "$APPLICATION_SHA" ]]
+          node scripts/physio-bootstrap-ledger.mjs inventory \
+            --repository "$REPOSITORY" --application-sha "$APPLICATION_SHA" \
+            --resume-artifact-id "$RESUME_ID" --resume-artifact-digest "$RESUME_DIGEST" \
+            --resume-receipt-sha256 "$RESUME_RECEIPT_SHA256" \
+            --resume-prior-generation "$RESUME_PRIOR_GENERATION" \
+            --provisioning-receipt-sha256 "$LEDGER_PROVISIONING_RECEIPT_SHA256" \
+            --output "$RUNNER_TEMP/bootstrap-ledger-inventory.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Inventory retained bootstrap artifact transport after durable ledger
+        id: retained_history
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          RESUME_ID: ${{ inputs.resume_action_artifact_id }}
+          RESUME_DIGEST: ${{ inputs.resume_action_artifact_digest }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          inventory="$RUNNER_TEMP/bootstrap-retained-artifact-history-inventory.json"
+          INVENTORY="$inventory" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const api = 'https://api.github.com';
+          const repository = process.env.REPOSITORY;
+          const applicationSha = process.env.APPLICATION_SHA;
+          const resumeId = process.env.RESUME_ID;
+          const resumeDigest = process.env.RESUME_DIGEST;
+          const names = [`physio-bootstrap-started-${applicationSha}`,
+            `physio-bootstrap-provider-admission-${applicationSha}`,
+            `physio-production-bootstrap-${applicationSha}`];
+          const headers = { Accept: 'application/vnd.github+json', Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+            'X-GitHub-Api-Version': '2022-11-28' };
+          async function getJson(url) {
+            const response = await fetch(url, { headers, redirect: 'error' });
+            if (response.status !== 200) throw new Error(`GitHub history readback status ${response.status}`);
+            const text = await response.text();
+            if (Buffer.byteLength(text) > 16_777_216) throw new Error('GitHub history readback exceeds bound');
+            return JSON.parse(text);
+          }
+          const listed = [];
+          for (const name of names) {
+            let observedTotal = null;
+            let pageCount = 0;
+            for (let page = 1; page <= 100; page += 1) {
+              const value = await getJson(`${api}/repos/${repository}/actions/artifacts?name=${encodeURIComponent(name)}&per_page=100&page=${page}`);
+              if (!Number.isSafeInteger(value?.total_count) || value.total_count < 0 || !Array.isArray(value?.artifacts)) {
+                throw new Error('GitHub history list shape differs');
+              }
+              if (observedTotal === null) observedTotal = value.total_count;
+              if (value.total_count !== observedTotal) throw new Error('GitHub history changed during exhaustive inventory');
+              listed.push(...value.artifacts);
+              pageCount += value.artifacts.length;
+              if (value.artifacts.length < 100) break;
+              if (page === 100) throw new Error('GitHub history exceeds exhaustive pagination bound');
+            }
+            if (pageCount !== observedTotal) throw new Error('GitHub history pagination is incomplete');
+          }
+          const exact = [];
+          const runCache = new Map();
+          for (const listedArtifact of listed) {
+            if (!Number.isSafeInteger(listedArtifact?.id) || listedArtifact.id <= 0) {
+              throw new Error('GitHub bootstrap history list artifact identity differs');
+            }
+            const artifact = await getJson(`${api}/repos/${repository}/actions/artifacts/${listedArtifact.id}`);
+            if (!Number.isSafeInteger(artifact?.id) || artifact.id <= 0 || !names.includes(artifact.name) ||
+                !/^sha256:[0-9a-f]{64}$/.test(artifact.digest || '') ||
+                !Number.isSafeInteger(artifact.size_in_bytes) || artifact.size_in_bytes <= 0 ||
+                artifact.size_in_bytes > 33_554_432 || typeof artifact.expired !== 'boolean' ||
+                !Number.isSafeInteger(artifact.workflow_run?.id) || artifact.workflow_run.id <= 0 ||
+                artifact.workflow_run.head_sha !== applicationSha) {
+              throw new Error('GitHub bootstrap history artifact metadata differs');
+            }
+            const runId = artifact.workflow_run.id;
+            if (!runCache.has(runId)) runCache.set(runId, await getJson(`${api}/repos/${repository}/actions/runs/${runId}`));
+            const run = runCache.get(runId);
+            if (run?.id !== runId || run?.head_sha !== applicationSha || run?.head_branch !== 'main' ||
+                run?.path !== '.github/workflows/physio-production-bootstrap.yml' || run?.event !== 'workflow_dispatch' ||
+                run?.status !== 'completed' || run?.repository?.full_name !== repository ||
+                run?.head_repository?.full_name !== repository ||
+                !['success','failure','cancelled','timed_out'].includes(run?.conclusion)) {
+              throw new Error('GitHub bootstrap history workflow identity differs');
+            }
+            exact.push({ id: artifact.id, name: artifact.name, digest: artifact.digest,
+              size_in_bytes: artifact.size_in_bytes, expired: artifact.expired, workflow_run_id: runId,
+              workflow_run_head_sha: run.head_sha, workflow_run_head_branch: run.head_branch,
+              workflow_run_path: run.path, workflow_run_event: run.event,
+              workflow_run_conclusion: run.conclusion, created_at: artifact.created_at, expires_at: artifact.expires_at });
+          }
+          exact.sort((a, b) => a.id - b.id);
+          if (new Set(exact.map(({ id }) => id)).size !== exact.length) throw new Error('duplicate bootstrap history artifact identity');
+          let selected = null;
+          if (resumeId === '0') {
+            if (resumeDigest !== '0') throw new Error('retained artifact fresh-input digest differs');
+          } else {
+            selected = exact.find(({ id }) => String(id) === resumeId);
+            if (selected && selected.digest !== resumeDigest) {
+              throw new Error('RETAINED_ARTIFACT_DIGEST_TAMPER: retained artifact differs from the durable ledger tip');
+            }
+          }
+          const unledgeredAfterTip = exact.filter(({ id }) => resumeId === '0' || id > Number(resumeId));
+          const row = { contract_version: 'assesssuite-physio-bootstrap-retained-artifact-history-inventory/1.0.0', result: 'PASS',
+            repository, application_sha: applicationSha, artifact_names: names, artifact_count: exact.length,
+            artifacts: exact, selected_artifact_id: selected?.id ?? null,
+            selected_artifact_digest: selected?.digest ?? null, selected_artifact_expired: selected?.expired ?? null,
+            selected_workflow_run_id: selected?.workflow_run_id ?? null,
+            ledger_required_artifact_id: resumeId === '0' ? null : Number(resumeId),
+            ledger_required_artifact_digest: resumeId === '0' ? null : resumeDigest,
+            unledgered_transport_ignored: true,
+            unledgered_artifact_count: unledgeredAfterTip.length,
+            unledgered_artifact_ids: unledgeredAfterTip.map(({ id }) => id),
+            resume_transport_state: resumeId === '0' ? 'NOT_APPLICABLE' :
+              selected?.expired === false ? 'RETAINED_ARTIFACT_AVAILABLE' : 'LEDGER_PACKET_FALLBACK',
+            inventoried_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.INVENTORY, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            `resume_action_expired=${selected?.expired === true ? 'true' : 'false'}\n` +
+            `resume_action_transport_available=${selected?.expired === false ? 'true' : 'false'}\n` +
+            `resume_action_run_id=${selected?.workflow_run_id ?? 0}\n`);
+          NODE
+          echo "retained_artifact_history_inventory_sha256=$(sha256sum "$inventory" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+
+      - name: Check out exact resume validator source
+        if: ${{ inputs.resume_action_artifact_id != '0' && steps.retained_history.outputs.resume_action_transport_available == 'true' }}
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve and admit exact prior bootstrap source run
+        id: resume_artifacts
+        if: ${{ inputs.resume_action_artifact_id != '0' && steps.retained_history.outputs.resume_action_transport_available == 'true' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          RESUME_ID: ${{ inputs.resume_action_artifact_id }}
+          RESUME_DIGEST: ${{ inputs.resume_action_artifact_digest }}
+        run: |
+          set -euo pipefail
+          umask 077
+          spec="$RUNNER_TEMP/bootstrap-resume-artifact-spec.json"
+          SPEC="$spec" APPLICATION_SHA="$APPLICATION_SHA" RESUME_ID="$RESUME_ID" RESUME_DIGEST="$RESUME_DIGEST" env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const sha = process.env.APPLICATION_SHA;
+          const row = { repository: 'mbvidler-ctrl/assesssuite_migration', application_sha: sha,
+            artifacts: [{ key: 'resume_action', id: process.env.RESUME_ID, expected_digest: null,
+              maximum_bytes: 33554432, name_patterns: [`^physio-bootstrap-started-${sha}$`,
+                `^physio-bootstrap-provider-admission-${sha}$`, `^physio-production-bootstrap-${sha}$`],
+              workflow_path: '.github/workflows/physio-production-bootstrap.yml',
+              allowed_conclusions: ['success','failure','cancelled','timed_out'] }] };
+          fs.writeFileSync(process.env.SPEC, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/github-artifact-admission.mjs --spec "$spec" \
+            --output "$RUNNER_TEMP/bootstrap-resume-artifact-admission.json" --github-output "$GITHUB_OUTPUT"
+          RECEIPT="$RUNNER_TEMP/bootstrap-resume-artifact-admission.json" EXPECTED_DIGEST="$RESUME_DIGEST" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECEIPT, 'utf8'));
+          if (row.contract_version !== 'assesssuite-github-artifact-admission/1.0.0' || row.result !== 'PASS' ||
+              row.artifacts?.resume_action?.digest !== process.env.EXPECTED_DIGEST) {
+            throw new Error('resolved bootstrap resume artifact digest differs from the exhaustive inventory');
+          }
+          NODE
+
+      - name: Download prior unresolved bootstrap effect for exact resume
+        if: ${{ inputs.resume_action_artifact_id != '0' && steps.retained_history.outputs.resume_action_transport_available == 'true' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.resume_action_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.resume_artifacts.outputs.resume_action_run_id }}
+          path: ${{ runner.temp }}/resume-bootstrap
+          github-token: ${{ github.token }}
+
+      - name: Materialize exact resume packet from protected ledger when artifact transport is gone
+        if: ${{ inputs.resume_action_artifact_id != '0' && steps.retained_history.outputs.resume_action_transport_available != 'true' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          LEDGER_RECORD_SHA256: ${{ steps.ledger.outputs.ledger_latest_record_sha256 }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          node scripts/physio-bootstrap-ledger.mjs materialize-remote \
+            --repository "$REPOSITORY" --application-sha "$APPLICATION_SHA" \
+            --record-sha256 "$LEDGER_RECORD_SHA256" \
+            --output-directory "$RUNNER_TEMP/resume-bootstrap" \
+            --output "$RUNNER_TEMP/bootstrap-ledger-materialization.json"
+          RECEIPT="$RUNNER_TEMP/bootstrap-resume-artifact-admission.json" \
+          MATERIALIZATION="$RUNNER_TEMP/bootstrap-ledger-materialization.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const materialization = JSON.parse(fs.readFileSync(process.env.MATERIALIZATION, 'utf8'));
+          if (materialization.result !== 'PASS' || materialization.source_record_sha256 !== process.env.LEDGER_RECORD_SHA256) {
+            throw new Error('ledger packet materialization binding differs');
+          }
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify({
+            contract_version: 'assesssuite-physio-bootstrap-ledger-packet-admission/1.0.0', result: 'PASS',
+            repository: process.env.REPOSITORY, application_sha: process.env.APPLICATION_SHA,
+            ledger_record_sha256: process.env.LEDGER_RECORD_SHA256,
+            artifact_transport_available: false, admitted_at: new Date().toISOString(),
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+
+      - name: Build content-free secret fingerprint and persist STARTED
+        id: start
+        if: ${{ steps.ledger.outputs.ledger_prior_stage == 'NONE' || steps.ledger.outputs.ledger_prior_stage == 'TERMINAL' }}
+        shell: bash
+        env:
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PRICE_ID_MONTHLY: ${{ secrets.STRIPE_PRICE_ID_MONTHLY }}
+          STRIPE_PRICE_ID_ANNUAL: ${{ secrets.STRIPE_PRICE_ID_ANNUAL }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          FLY_ORGANIZATION: ${{ inputs.fly_organization }}
+          CANDIDATE_RECEIPT_SHA256: ${{ inputs.candidate_receipt_sha256 }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA256: ${{ inputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ inputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_MANIFEST_SHA256: ${{ inputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          CANARY_RECEIPT_SHA256: ${{ inputs.canary_receipt_sha256 }}
+          ADMISSION_RECEIPT_SHA256: ${{ needs.admit.outputs.admission_receipt_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          RESUME_ACTION_ARTIFACT_ID: ${{ inputs.resume_action_artifact_id }}
+          RESUME_ACTION_ARTIFACT_DIGEST: ${{ inputs.resume_action_artifact_digest }}
+          RESUME_ACTION_RECEIPT_SHA256: ${{ inputs.resume_action_receipt_sha256 }}
+          RESUME_ACTION_PRIOR_GENERATION: ${{ inputs.resume_action_prior_generation }}
+          RESUME_ACTION_EXPIRED: ${{ steps.retained_history.outputs.resume_action_expired }}
+          RETAINED_ARTIFACT_HISTORY_INVENTORY_SHA256: ${{ steps.retained_history.outputs.retained_artifact_history_inventory_sha256 }}
+          LEDGER_INVENTORY_SHA256: ${{ steps.ledger.outputs.ledger_inventory_sha256 }}
+          LEDGER_PRIOR_GENERATION: ${{ steps.ledger.outputs.ledger_prior_generation }}
+          LEDGER_PRIOR_EFFECT_RESULT: ${{ steps.ledger.outputs.ledger_prior_effect_result }}
+          NEXT_EFFECT_GENERATION: ${{ steps.ledger.outputs.next_effect_generation }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          packet="$RUNNER_TEMP/physio-bootstrap-started"
+          install -d -m 0700 "$packet"
+          resume_artifact_admission="$packet/resume-artifact-admission.json"
+          bundle="$packet/secret-bundle-manifest.json"
+          retained_history="$packet/bootstrap-retained-artifact-history-inventory.json"
+          ledger_inventory="$packet/bootstrap-ledger-inventory.json"
+          install -m 0600 "$RUNNER_TEMP/bootstrap-retained-artifact-history-inventory.json" "$retained_history"
+          install -m 0600 "$RUNNER_TEMP/bootstrap-ledger-inventory.json" "$ledger_inventory"
+          [[ "$(sha256sum "$retained_history" | awk '{print $1}')" == "$RETAINED_ARTIFACT_HISTORY_INVENTORY_SHA256" ]]
+          [[ "$(sha256sum "$ledger_inventory" | awk '{print $1}')" == "$LEDGER_INVENTORY_SHA256" ]]
+          SECRET_BUNDLE="$bundle" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const sha = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
+          const values = {
+            ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+            APP_URL: 'https://physio.app.assesssuite.com',
+            EXPECTED_APP_URL: 'https://physio.app.assesssuite.com',
+            OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+            RESEND_API_KEY: process.env.RESEND_API_KEY,
+            SENTRY_DSN: process.env.SENTRY_DSN,
+            STRIPE_PRICE_ID_ANNUAL: process.env.STRIPE_PRICE_ID_ANNUAL,
+            STRIPE_PRICE_ID_MONTHLY: process.env.STRIPE_PRICE_ID_MONTHLY,
+            STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+          };
+          const names = Object.keys(values).sort();
+          if (names.some((name) => typeof values[name] !== 'string' || values[name].length === 0)) {
+            throw new Error('pre-webhook secret bundle is incomplete');
+          }
+          const entries = names.map((name) => ({ name, value_sha256: sha(values[name]) }));
+          const row = { contract_version: 'assesssuite-physio-secret-bundle/1.0.0', secret_names: names,
+            value_sha256_by_name: Object.fromEntries(entries.map(({ name, value_sha256 }) => [name, value_sha256])),
+            bundle_sha256: sha(JSON.stringify(entries)) };
+          fs.writeFileSync(process.env.SECRET_BUNDLE, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          bundle_sha="$(SECRET_BUNDLE="$bundle" node --input-type=module -e \
+            "import fs from 'node:fs'; process.stdout.write(JSON.parse(fs.readFileSync(process.env.SECRET_BUNDLE,'utf8')).bundle_sha256)")"
+          prior_result="$LEDGER_PRIOR_EFFECT_RESULT"
+          prior_generation="$LEDGER_PRIOR_GENERATION"
+          prior_effect_sha='0000000000000000000000000000000000000000000000000000000000000000'
+          if [[ "$RESUME_ACTION_ARTIFACT_ID" == '0' ]]; then
+            [[ "$RESUME_ACTION_ARTIFACT_DIGEST" == '0' && "$RESUME_ACTION_PRIOR_GENERATION" == '-1' ]]
+            [[ "$RESUME_ACTION_RECEIPT_SHA256" == '0000000000000000000000000000000000000000000000000000000000000000' ]]
+            RECEIPT="$resume_artifact_admission" APPLICATION_SHA="$APPLICATION_SHA" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify({
+            contract_version: 'assesssuite-github-artifact-admission/1.0.0', result: 'NOT_APPLICABLE',
+            repository: 'mbvidler-ctrl/assesssuite_migration', application_sha: process.env.APPLICATION_SHA,
+            artifacts: {}, admitted_at: null,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          else
+            install -m 0600 "$RUNNER_TEMP/bootstrap-resume-artifact-admission.json" "$resume_artifact_admission"
+            resume_root="$RUNNER_TEMP/resume-bootstrap"
+            [[ -f "$resume_root/SHA256SUMS" && ! -L "$resume_root/SHA256SUMS" ]]
+            if find "$resume_root" -mindepth 1 -type l -print -quit | grep -q .; then exit 1; fi
+            if find "$resume_root" -mindepth 2 -print -quit | grep -q .; then exit 1; fi
+            [[ "$(find "$resume_root" -maxdepth 1 -type f -printf '%s\n' | awk '{s+=$1} END {print s+0}')" -le 33554432 ]]
+            (cd "$resume_root" && sha256sum --check --strict SHA256SUMS)
+            resume="$RUNNER_TEMP/resume-bootstrap/bootstrap-effect-reconciliation.json"
+            [[ -f "$resume" && ! -L "$resume" && "$(wc -c <"$resume")" -le 16384 ]]
+            [[ "$(sha256sum "$resume" | awk '{print $1}')" == "$RESUME_ACTION_RECEIPT_SHA256" ]]
+            prior_fields="$(RESUME="$resume" APPLICATION_SHA="$APPLICATION_SHA" INTENT="$CAPABILITY_INTENT_ID" \
+              CANDIDATE_SHA="$CANDIDATE_RECEIPT_SHA256" CANARY_SHA="$CANARY_RECEIPT_SHA256" \
+              SECRET_BUNDLE_SHA="$bundle_sha" FLY_ORGANIZATION="$FLY_ORGANIZATION" \
+              EXPECTED_GENERATION="$RESUME_ACTION_PRIOR_GENERATION" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const r = JSON.parse(fs.readFileSync(process.env.RESUME, 'utf8'));
+          const generation = r.effect_generation ?? 0;
+          if (r.contract_version !== 'assesssuite-physio-bootstrap-effect-reconciliation/1.0.0' ||
+              !['STARTED','STARTED_UNRESOLVED','FAILED','COMPLETED'].includes(r.result) ||
+              !Number.isSafeInteger(generation) || generation < 0 || String(generation) !== process.env.EXPECTED_GENERATION ||
+              r.application_sha !== process.env.APPLICATION_SHA || r.capability_intent_id !== process.env.INTENT ||
+              r.candidate_receipt_sha256 !== process.env.CANDIDATE_SHA ||
+              r.exact_image_canary_receipt_sha256 !== process.env.CANARY_SHA ||
+              r.secret_bundle_fingerprint_sha256 !== process.env.SECRET_BUNDLE_SHA ||
+              r.fly_organization !== process.env.FLY_ORGANIZATION) throw new Error('bootstrap resume binding differs');
+          if (r.result === 'COMPLETED') {
+            const finalPath = process.env.RESUME.replace(/bootstrap-effect-reconciliation\.json$/, 'physio-production-bootstrap.json');
+            if (!fs.existsSync(finalPath)) throw new Error('completed bootstrap resume lacks its final receipt');
+            const final = JSON.parse(fs.readFileSync(finalPath, 'utf8'));
+            const effectSha = createHash('sha256').update(fs.readFileSync(process.env.RESUME)).digest('hex');
+            if (final.contract_version !== 'assesssuite-physio-bootstrap/3.0.0' || final.result !== 'PASS' ||
+                final.application_sha !== process.env.APPLICATION_SHA ||
+                final.bootstrap_effect_reconciliation_sha256 !== effectSha) {
+              throw new Error('completed bootstrap final receipt binding differs');
+            }
+          }
+          process.stdout.write(`${r.result}\t${generation}`);
+          NODE
+            )"
+            IFS=$'\t' read -r prior_result prior_generation <<<"$prior_fields"
+            prior_effect_sha="$RESUME_ACTION_RECEIPT_SHA256"
+          fi
+          resume_artifact_admission_sha="$(sha256sum "$resume_artifact_admission" | awk '{print $1}')"
+          receipt="$packet/bootstrap-effect-reconciliation.json"
+          RECEIPT="$receipt" APPLICATION_SHA="$APPLICATION_SHA" INTENT="$CAPABILITY_INTENT_ID" \
+          CANDIDATE_SHA="$CANDIDATE_RECEIPT_SHA256" CANARY_SHA="$CANARY_RECEIPT_SHA256" \
+          RESUME_SHA="$RESUME_ACTION_RECEIPT_SHA256" SECRET_BUNDLE_SHA="$bundle_sha" \
+          FLY_ORGANIZATION="$FLY_ORGANIZATION" PRIOR_RESULT="$prior_result" AUTHORITY="$AUTHORITY_REFERENCE" \
+          RESUME_ARTIFACT_ADMISSION_SHA="$resume_artifact_admission_sha" \
+          RETAINED_HISTORY_SHA="$RETAINED_ARTIFACT_HISTORY_INVENTORY_SHA256" LEDGER_INVENTORY_SHA="$LEDGER_INVENTORY_SHA256" \
+          PRIOR_GENERATION="$prior_generation" PRIOR_EFFECT_SHA="$prior_effect_sha" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const priorGeneration = Number(process.env.PRIOR_GENERATION);
+          const effectGeneration = Number(process.env.NEXT_EFFECT_GENERATION);
+          if (!Number.isSafeInteger(effectGeneration) || effectGeneration < 0) throw new Error('bootstrap effect generation differs');
+          if (effectGeneration !== priorGeneration + 1) throw new Error('ledger effect generation transition differs');
+          const row = { contract_version: 'assesssuite-physio-bootstrap-effect-reconciliation/1.0.0',
+            result: 'STARTED', application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            capability_intent_id: process.env.INTENT, authority_reference: process.env.AUTHORITY,
+            fly_organization: process.env.FLY_ORGANIZATION, candidate_receipt_sha256: process.env.CANDIDATE_SHA,
+            exact_image_canary_receipt_sha256: process.env.CANARY_SHA,
+            resume_action_receipt_sha256: process.env.RESUME_SHA, prior_result: process.env.PRIOR_RESULT,
+            effect_generation: effectGeneration, prior_effect_generation: priorGeneration,
+            prior_effect_receipt_sha256: process.env.PRIOR_EFFECT_SHA,
+            resume_artifact_admission_sha256: process.env.RESUME_ARTIFACT_ADMISSION_SHA,
+            retained_artifact_history_inventory_sha256: process.env.RETAINED_HISTORY_SHA,
+            ledger_inventory_sha256: process.env.LEDGER_INVENTORY_SHA,
+            provider_admission_state: 'PENDING_AUTHORITATIVE_READBACK',
+            provider_absence_resolution_sha256: null,
+            secret_bundle_fingerprint_sha256: process.env.SECRET_BUNDLE_SHA,
+            app_create_exit_code: null, volume_create_exit_code: null, apps_readback_sha256: null,
+            organization_readback_sha256: null, machines_readback_sha256: null, volumes_readback_sha256: null,
+            secret_import_state: 'NOT_ATTEMPTED', secret_import_exit_code: null,
+            secrets_before_readback_sha256: null, secrets_after_readback_sha256: null,
+            started_at: new Date().toISOString(), completed_at: null };
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$packet" && LC_ALL=C printf '%s\n' bootstrap-effect-reconciliation.json bootstrap-ledger-inventory.json bootstrap-retained-artifact-history-inventory.json resume-artifact-admission.json secret-bundle-manifest.json | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          echo "started_effect_receipt_sha256=$(sha256sum "$receipt" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+          echo "secret_bundle_fingerprint_sha256=$bundle_sha" >>"$GITHUB_OUTPUT"
+          echo "retained_artifact_history_inventory_sha256=$RETAINED_ARTIFACT_HISTORY_INVENTORY_SHA256" >>"$GITHUB_OUTPUT"
+          echo "ledger_inventory_sha256=$LEDGER_INVENTORY_SHA256" >>"$GITHUB_OUTPUT"
+
+      - name: Scan exact STARTED packet against every provider secret value
+        id: started_packet_scan
+        if: ${{ steps.ledger.outputs.ledger_prior_stage == 'NONE' || steps.ledger.outputs.ledger_prior_stage == 'TERMINAL' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PRICE_ID_MONTHLY: ${{ secrets.STRIPE_PRICE_ID_MONTHLY }}
+          STRIPE_PRICE_ID_ANNUAL: ${{ secrets.STRIPE_PRICE_ID_ANNUAL }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          node scripts/physio-bootstrap-ledger.mjs scan-packet \
+            --packet-directory "$RUNNER_TEMP/physio-bootstrap-started" \
+            --secret-env-names GITHUB_TOKEN,ADMIN_PASSWORD,RESEND_API_KEY,OPENAI_API_KEY,STRIPE_SECRET_KEY,STRIPE_PRICE_ID_MONTHLY,STRIPE_PRICE_ID_ANNUAL,SENTRY_DSN \
+            --output "$RUNNER_TEMP/bootstrap-started-packet-scan.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Recover exact same-generation STARTED packet from protected ledger
+        id: recover_started
+        if: ${{ steps.ledger.outputs.ledger_prior_stage == 'STARTED' || steps.ledger.outputs.ledger_prior_stage == 'PROVIDER_ADMISSION' || steps.ledger.outputs.ledger_prior_stage == 'PROVIDER_RECONCILIATION' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PRICE_ID_MONTHLY: ${{ secrets.STRIPE_PRICE_ID_MONTHLY }}
+          STRIPE_PRICE_ID_ANNUAL: ${{ secrets.STRIPE_PRICE_ID_ANNUAL }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          REPOSITORY: ${{ github.repository }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          EFFECT_GENERATION: ${{ steps.ledger.outputs.next_effect_generation }}
+          STARTED_RECORD_SHA256: ${{ steps.ledger.outputs.active_started_record_sha256 }}
+          STARTED_EFFECT_RECEIPT_SHA256: ${{ steps.ledger.outputs.active_started_effect_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          node scripts/physio-bootstrap-ledger.mjs materialize-remote \
+            --repository "$REPOSITORY" --application-sha "$APPLICATION_SHA" \
+            --record-sha256 "$STARTED_RECORD_SHA256" \
+            --secret-env-names GITHUB_TOKEN,ADMIN_PASSWORD,RESEND_API_KEY,OPENAI_API_KEY,STRIPE_SECRET_KEY,STRIPE_PRICE_ID_MONTHLY,STRIPE_PRICE_ID_ANNUAL,SENTRY_DSN \
+            --output-directory "$RUNNER_TEMP/recovered-bootstrap-started" \
+            --output "$RUNNER_TEMP/recovered-bootstrap-started-materialization.json"
+          packet="$RUNNER_TEMP/recovered-bootstrap-started"
+          expected=$'SHA256SUMS\nbootstrap-effect-reconciliation.json\nbootstrap-ledger-inventory.json\nbootstrap-retained-artifact-history-inventory.json\nresume-artifact-admission.json\nsecret-bundle-manifest.json'
+          [[ "$(find "$packet" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" == "$expected" ]]
+          (cd "$packet" && sha256sum --check --strict SHA256SUMS)
+          EFFECT="$packet/bootstrap-effect-reconciliation.json" BUNDLE="$packet/secret-bundle-manifest.json" \
+          APPLICATION_SHA="$APPLICATION_SHA" EFFECT_GENERATION="$EFFECT_GENERATION" \
+          EXPECTED_EFFECT_SHA="$STARTED_EFFECT_RECEIPT_SHA256" GITHUB_OUTPUT="$GITHUB_OUTPUT" \
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const hash = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const effect = JSON.parse(fs.readFileSync(process.env.EFFECT, 'utf8'));
+          const bundle = JSON.parse(fs.readFileSync(process.env.BUNDLE, 'utf8'));
+          if (effect.contract_version !== 'assesssuite-physio-bootstrap-effect-reconciliation/1.0.0' ||
+              effect.result !== 'STARTED' || effect.application_sha !== process.env.APPLICATION_SHA ||
+              effect.effect_generation !== Number(process.env.EFFECT_GENERATION) ||
+              hash(process.env.EFFECT) !== process.env.EXPECTED_EFFECT_SHA ||
+              bundle.bundle_sha256 !== effect.secret_bundle_fingerprint_sha256) {
+            throw new Error('same-generation STARTED ledger packet differs');
+          }
+          const root = path.dirname(process.env.EFFECT);
+          const retained = path.join(root, 'bootstrap-retained-artifact-history-inventory.json');
+          const ledger = path.join(root, 'bootstrap-ledger-inventory.json');
+          if (hash(retained) !== effect.retained_artifact_history_inventory_sha256 ||
+              hash(ledger) !== effect.ledger_inventory_sha256) throw new Error('recovered STARTED inventory binding differs');
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            `started_effect_receipt_sha256=${process.env.EXPECTED_EFFECT_SHA}\n` +
+            `secret_bundle_fingerprint_sha256=${effect.secret_bundle_fingerprint_sha256}\n` +
+            `retained_artifact_history_inventory_sha256=${effect.retained_artifact_history_inventory_sha256}\n` +
+            `ledger_inventory_sha256=${effect.ledger_inventory_sha256}\n` +
+            `prior_effect_generation=${effect.prior_effect_generation}\n` +
+            `prior_effect_result=${effect.prior_result}\n`);
+          NODE
+
+      - name: Upload durable bootstrap STARTED effect
+        id: upload
+        if: ${{ steps.ledger.outputs.ledger_prior_stage == 'NONE' || steps.ledger.outputs.ledger_prior_stage == 'TERMINAL' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-bootstrap-started-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/physio-bootstrap-started
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  ledger_started:
+    name: Append or re-admit STARTED in the protected ledger without provider calls
+    needs: start
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      started_ledger_commit_sha: ${{ steps.append.outputs.ledger_commit_sha || needs.start.outputs.active_started_commit_sha }}
+      started_ledger_record_sha256: ${{ steps.append.outputs.ledger_record_sha256 || needs.start.outputs.active_started_record_sha256 }}
+    steps:
+      - name: Check out exact protected-ledger client source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact new STARTED packet for ledger append
+        if: ${{ needs.start.outputs.resume_mode == 'NEW_GENERATION' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.start.outputs.started_artifact_id }}
+          path: ${{ runner.temp }}/ledger-started-packet
+          github-token: ${{ github.token }}
+
+      - name: Append immutable STARTED record only for a new generation
+        id: append
+        if: ${{ needs.start.outputs.resume_mode == 'NEW_GENERATION' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          EFFECT_GENERATION: ${{ needs.start.outputs.next_effect_generation }}
+          EFFECT_RECEIPT_SHA256: ${{ needs.start.outputs.started_effect_receipt_sha256 }}
+          ARTIFACT_ID: ${{ needs.start.outputs.started_artifact_id }}
+          ARTIFACT_DIGEST: ${{ needs.start.outputs.started_artifact_digest }}
+          EXPECTED_LEDGER_HEAD_SHA: ${{ needs.start.outputs.ledger_tip_commit_sha }}
+          LEDGER_PROVISIONING_RECEIPT_SHA256: ${{ needs.start.outputs.ledger_provisioning_receipt_sha256 }}
+          EXPECTED_PACKET_BUNDLE_SHA256: ${{ needs.start.outputs.started_packet_bundle_sha256 }}
+          PACKET_SCAN_POLICY_VERSION: ${{ needs.start.outputs.started_packet_scan_policy_version }}
+          PACKET_SECRET_SET_FINGERPRINT_SHA256: ${{ needs.start.outputs.started_packet_secret_set_fingerprint_sha256 }}
+          PACKET_DURABLE_SECRET_NAMES: ${{ needs.start.outputs.started_packet_durable_secret_names }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -z "${FLY_API_TOKEN:-}" ]]
+          request="$RUNNER_TEMP/bootstrap-ledger-started-request.json"
+          REQUEST="$request" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = {
+            repository: process.env.REPOSITORY,
+            ledger_branch: 'assesssuite-physio-bootstrap-ledger',
+            application_sha: process.env.APPLICATION_SHA,
+            ledger_provisioning_receipt_sha256: process.env.LEDGER_PROVISIONING_RECEIPT_SHA256,
+            stage: 'STARTED', retry_ordinal: null,
+            effect_generation: Number(process.env.EFFECT_GENERATION), effect_result: 'STARTED',
+            artifact: { id: Number(process.env.ARTIFACT_ID),
+              name: `physio-bootstrap-started-${process.env.APPLICATION_SHA}`,
+              digest: process.env.ARTIFACT_DIGEST,
+              effect_receipt_sha256: process.env.EFFECT_RECEIPT_SHA256, packet_receipt_sha256: null },
+            packet_scan: {
+              contract_version: 'assesssuite-physio-bootstrap-ledger-packet-scan-proof/2.0.0',
+              result: 'PASS', scanner_policy_version: process.env.PACKET_SCAN_POLICY_VERSION,
+              packet_bundle_sha256: process.env.EXPECTED_PACKET_BUNDLE_SHA256,
+              durable_secret_names: process.env.PACKET_DURABLE_SECRET_NAMES.split(',').filter(Boolean),
+              durable_secret_set_fingerprint_sha256: process.env.PACKET_SECRET_SET_FINGERPRINT_SHA256,
+            },
+            workflow_run_id: Number(process.env.RUN_ID), workflow_run_attempt: Number(process.env.RUN_ATTEMPT),
+          };
+          fs.writeFileSync(process.env.REQUEST, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/physio-bootstrap-ledger.mjs append \
+            --repository "$REPOSITORY" --application-sha "$APPLICATION_SHA" \
+            --expected-head-sha "$EXPECTED_LEDGER_HEAD_SHA" --request "$request" \
+            --packet-directory "$RUNNER_TEMP/ledger-started-packet" \
+            --secret-env-names GITHUB_TOKEN \
+            --expected-packet-bundle-sha256 "$EXPECTED_PACKET_BUNDLE_SHA256" \
+            --output "$RUNNER_TEMP/bootstrap-ledger-started-append.json" --github-output "$GITHUB_OUTPUT"
+
+  provider:
+    name: Read authoritative provider state and build a credential-free admission handoff
+    needs: [admit, start, ledger_started]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: physio-production
+    outputs:
+      provider_action: ${{ steps.provider.outputs.action }}
+      mutation_resume_state: ${{ steps.provider.outputs.mutation_resume_state }}
+      provider_started_effect_sha256: ${{ steps.provider.outputs.provider_started_effect_sha256 }}
+      provider_admission_receipt_sha256: ${{ steps.provider.outputs.provider_admission_receipt_sha256 }}
+      reuse_volume_id: ${{ steps.provider.outputs.reuse_volume_id }}
+      provider_artifact_id: ${{ steps.provider_upload.outputs.artifact-id }}
+      provider_artifact_digest: sha256:${{ steps.provider_upload.outputs.artifact-digest }}
+      provider_artifact_readback_sha256: ${{ steps.provider_readback.outputs.provider_artifact_readback_sha256 }}
+      provider_handoff_artifact_id: ${{ steps.provider_handoff.outputs.artifact-id }}
+      provider_handoff_artifact_digest: sha256:${{ steps.provider_handoff.outputs.artifact-digest }}
+      provider_handoff_packet_bundle_sha256: ${{ steps.provider_packet.outputs.packet_bundle_sha256 }}
+      provider_packet_scan_policy_version: ${{ steps.provider_packet.outputs.packet_scan_policy_version }}
+      provider_packet_secret_set_fingerprint_sha256: ${{ steps.provider_packet.outputs.packet_secret_set_fingerprint_sha256 }}
+      provider_packet_durable_secret_names: ${{ steps.provider_packet.outputs.packet_durable_secret_names }}
+    steps:
+
+      - name: Check out exact release source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact credential-free admission
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.admit.outputs.admission_artifact_id }}
+          path: ${{ runner.temp }}/admission
+          github-token: ${{ github.token }}
+
+      - name: Download durable bootstrap STARTED effect
+        if: ${{ needs.start.outputs.resume_mode == 'NEW_GENERATION' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.start.outputs.started_artifact_id }}
+          path: ${{ runner.temp }}/bootstrap-started
+          github-token: ${{ github.token }}
+
+      - name: Materialize same-generation STARTED handoff from protected ledger
+        if: ${{ needs.start.outputs.resume_mode == 'RESUME_UNRESOLVED_GENERATION' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          STARTED_RECORD_SHA256: ${{ needs.start.outputs.active_started_record_sha256 }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          node scripts/physio-bootstrap-ledger.mjs materialize-remote \
+            --repository "$REPOSITORY" --application-sha "$APPLICATION_SHA" \
+            --record-sha256 "$STARTED_RECORD_SHA256" \
+            --output-directory "$RUNNER_TEMP/bootstrap-started" \
+            --output "$RUNNER_TEMP/bootstrap-started-ledger-materialization.json"
+
+      - name: Download exact readable prior bootstrap packet for provider-state reconciliation
+        if: ${{ inputs.resume_action_artifact_id != '0' && needs.start.outputs.resume_action_transport_available == 'true' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.resume_action_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.start.outputs.resume_action_run_id }}
+          path: ${{ runner.temp }}/bootstrap-prior
+          github-token: ${{ github.token }}
+
+      - name: Materialize exact prior packet from protected ledger for provider reconciliation
+        if: ${{ inputs.resume_action_artifact_id != '0' && needs.start.outputs.resume_action_transport_available != 'true' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          LEDGER_RECORD_SHA256: ${{ needs.start.outputs.prior_ledger_record_sha256 }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          node scripts/physio-bootstrap-ledger.mjs materialize-remote \
+            --repository "$REPOSITORY" --application-sha "$APPLICATION_SHA" \
+            --record-sha256 "$LEDGER_RECORD_SHA256" \
+            --output-directory "$RUNNER_TEMP/bootstrap-prior" \
+            --output "$RUNNER_TEMP/bootstrap-prior-ledger-materialization.json"
+
+      - name: Materialize predecessor terminal packet for unresolved STARTED exact-state reuse
+        if: ${{ needs.start.outputs.resume_mode == 'RESUME_UNRESOLVED_GENERATION' && needs.start.outputs.prior_ledger_stage == 'STARTED' && needs.start.outputs.predecessor_terminal_record_sha256 != '0000000000000000000000000000000000000000000000000000000000000000' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          PREDECESSOR_TERMINAL_RECORD_SHA256: ${{ needs.start.outputs.predecessor_terminal_record_sha256 }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          node scripts/physio-bootstrap-ledger.mjs materialize-remote \
+            --repository "$REPOSITORY" --application-sha "$APPLICATION_SHA" \
+            --record-sha256 "$PREDECESSOR_TERMINAL_RECORD_SHA256" \
+            --output-directory "$RUNNER_TEMP/bootstrap-predecessor-terminal" \
+            --output "$RUNNER_TEMP/bootstrap-predecessor-terminal-ledger-materialization.json"
+
+      - name: Re-admit the immutable handoff without provider credentials
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          ADMISSION_RECEIPT_SHA256: ${{ needs.admit.outputs.admission_receipt_sha256 }}
+          CANARY_RECEIPT_SHA256: ${{ inputs.canary_receipt_sha256 }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA256: ${{ inputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ inputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_MANIFEST_SHA256: ${{ inputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          STARTED_EFFECT_RECEIPT_SHA256: ${{ needs.start.outputs.started_effect_receipt_sha256 }}
+          SECRET_BUNDLE_FINGERPRINT_SHA256: ${{ needs.start.outputs.secret_bundle_fingerprint_sha256 }}
+          RETAINED_ARTIFACT_HISTORY_INVENTORY_SHA256: ${{ needs.start.outputs.retained_artifact_history_inventory_sha256 }}
+          LEDGER_INVENTORY_SHA256: ${{ needs.start.outputs.ledger_inventory_sha256 }}
+          STARTED_LEDGER_COMMIT_SHA: ${{ needs.ledger_started.outputs.started_ledger_commit_sha }}
+          STARTED_LEDGER_RECORD_SHA256: ${{ needs.ledger_started.outputs.started_ledger_record_sha256 }}
+          PRIOR_EFFECT_GENERATION: ${{ needs.start.outputs.prior_effect_generation }}
+          PRIOR_EFFECT_RESULT: ${{ needs.start.outputs.prior_effect_result }}
+          PRIOR_LEDGER_STAGE: ${{ needs.start.outputs.prior_ledger_stage }}
+        run: |
+          set -euo pipefail
+          receipt="$RUNNER_TEMP/admission/physio-bootstrap-admission.json"
+          (cd "$RUNNER_TEMP/admission" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$receipt" | awk '{print $1}')" == "$ADMISSION_RECEIPT_SHA256" ]]
+          RECEIPT="$receipt" APPLICATION_SHA="$APPLICATION_SHA" CANARY_SHA="$CANARY_RECEIPT_SHA256" \
+          ARCHIVE_SHA="$ARCHIVE_SHA256" OCI_ARCHIVE_SHA="$OCI_ARCHIVE_SHA256" \
+          OCI_MANIFEST_DIGEST="$OCI_MANIFEST_DIGEST" OCI_DESCRIPTOR_SHA="$OCI_DESCRIPTOR_MANIFEST_SHA256" \
+          IMAGE_ID="$LOCAL_IMAGE_ID" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECEIPT, 'utf8'));
+          if (row.contract_version !== 'assesssuite-physio-bootstrap-admission/1.0.0' || row.result !== 'PASS' ||
+              row.application_sha !== process.env.APPLICATION_SHA || row.exact_image_canary_receipt_sha256 !== process.env.CANARY_SHA ||
+              row.archive_sha256 !== process.env.ARCHIVE_SHA || row.local_image_id !== process.env.IMAGE_ID ||
+              row.oci_archive_sha256 !== process.env.OCI_ARCHIVE_SHA ||
+              row.oci_manifest_digest !== process.env.OCI_MANIFEST_DIGEST ||
+              row.oci_descriptor_manifest_sha256 !== process.env.OCI_DESCRIPTOR_SHA ||
+              row.provider_credentials_absent !== true) throw new Error('bootstrap admission replay differs');
+          NODE
+          started="$RUNNER_TEMP/bootstrap-started"
+          expected=$'SHA256SUMS\nbootstrap-effect-reconciliation.json\nbootstrap-ledger-inventory.json\nbootstrap-retained-artifact-history-inventory.json\nresume-artifact-admission.json\nsecret-bundle-manifest.json'
+          [[ "$(find "$started" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" == "$expected" ]]
+          if find "$started" -type l -print -quit | grep -q .; then exit 1; fi
+          (cd "$started" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$started/bootstrap-effect-reconciliation.json" | awk '{print $1}')" == "$STARTED_EFFECT_RECEIPT_SHA256" ]]
+          [[ "$(sha256sum "$started/bootstrap-retained-artifact-history-inventory.json" | awk '{print $1}')" == "$RETAINED_ARTIFACT_HISTORY_INVENTORY_SHA256" ]]
+          [[ "$(sha256sum "$started/bootstrap-ledger-inventory.json" | awk '{print $1}')" == "$LEDGER_INVENTORY_SHA256" ]]
+          STARTED="$started/bootstrap-effect-reconciliation.json" BUNDLE="$started/secret-bundle-manifest.json" \
+          APPLICATION_SHA="$APPLICATION_SHA" CANARY_SHA="$CANARY_RECEIPT_SHA256" \
+          SECRET_BUNDLE_SHA="$SECRET_BUNDLE_FINGERPRINT_SHA256" \
+          RETAINED_HISTORY_SHA="$RETAINED_ARTIFACT_HISTORY_INVENTORY_SHA256" LEDGER_INVENTORY_SHA="$LEDGER_INVENTORY_SHA256" \
+          PRIOR_GENERATION="$PRIOR_EFFECT_GENERATION" PRIOR_RESULT="$PRIOR_EFFECT_RESULT" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.STARTED, 'utf8'));
+          const bundle = JSON.parse(fs.readFileSync(process.env.BUNDLE, 'utf8'));
+          if (row.contract_version !== 'assesssuite-physio-bootstrap-effect-reconciliation/1.0.0' || row.result !== 'STARTED' ||
+              row.application_sha !== process.env.APPLICATION_SHA || row.exact_image_canary_receipt_sha256 !== process.env.CANARY_SHA ||
+              row.secret_bundle_fingerprint_sha256 !== process.env.SECRET_BUNDLE_SHA || bundle.bundle_sha256 !== process.env.SECRET_BUNDLE_SHA ||
+              row.retained_artifact_history_inventory_sha256 !== process.env.RETAINED_HISTORY_SHA ||
+              row.ledger_inventory_sha256 !== process.env.LEDGER_INVENTORY_SHA ||
+              row.prior_effect_generation !== Number(process.env.PRIOR_GENERATION) ||
+              row.prior_result !== process.env.PRIOR_RESULT || row.effect_generation !== Number(process.env.PRIOR_GENERATION) + 1 ||
+              row.provider_admission_state !== 'PENDING_AUTHORITATIVE_READBACK') {
+            throw new Error('durable bootstrap STARTED packet differs');
+          }
+          NODE
+
+      - name: Install checksum-verified flyctl 0.4.71
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          bin="$RUNNER_TEMP/flyctl-bin"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --output "$archive" \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'
+          printf '%s  %s\n' 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2' "$archive" | sha256sum --check --strict
+          mkdir -p "$bin"; tar -xzf "$archive" -C "$bin" flyctl; install -m 0755 "$bin/flyctl" "$bin/fly"
+          echo "$bin" >> "$GITHUB_PATH"; "$bin/fly" version | grep -F '0.4.71'
+
+      - name: Reconcile authoritative Fly state and persist provider-admitted generation
+        id: provider
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          FLY_ORGANIZATION: ${{ inputs.fly_organization }}
+          CANDIDATE_RECEIPT_SHA256: ${{ inputs.candidate_receipt_sha256 }}
+          CANARY_RECEIPT_SHA256: ${{ inputs.canary_receipt_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          RESUME_ACTION_ARTIFACT_ID: ${{ inputs.resume_action_artifact_id }}
+          RESUME_ACTION_ARTIFACT_DIGEST: ${{ inputs.resume_action_artifact_digest }}
+          RESUME_ACTION_RECEIPT_SHA256: ${{ inputs.resume_action_receipt_sha256 }}
+          REUSE_PREDECESSOR_EFFECT_RECEIPT_SHA256: ${{ needs.start.outputs.reuse_predecessor_effect_receipt_sha256 }}
+          RESUME_ACTION_EXPIRED: ${{ needs.start.outputs.resume_action_expired }}
+          RESUME_ACTION_TRANSPORT_AVAILABLE: ${{ needs.start.outputs.resume_action_transport_available }}
+          PRIOR_EFFECT_GENERATION: ${{ needs.start.outputs.prior_effect_generation }}
+          PRIOR_EFFECT_RESULT: ${{ needs.start.outputs.prior_effect_result }}
+          STARTED_EFFECT_REQUEST_SHA256: ${{ needs.start.outputs.started_effect_receipt_sha256 }}
+          SECRET_BUNDLE_FINGERPRINT_SHA256: ${{ needs.start.outputs.secret_bundle_fingerprint_sha256 }}
+          RETAINED_ARTIFACT_HISTORY_INVENTORY_SHA256: ${{ needs.start.outputs.retained_artifact_history_inventory_sha256 }}
+          LEDGER_INVENTORY_SHA256: ${{ needs.start.outputs.ledger_inventory_sha256 }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -n "$FLY_API_TOKEN" ]]
+          app=assesssuite-physio-production
+          work="$RUNNER_TEMP/bootstrap-provider-readback"
+          packet="$RUNNER_TEMP/bootstrap-provider-admission"
+          started="$RUNNER_TEMP/bootstrap-started"
+          prior="$RUNNER_TEMP/bootstrap-prior"
+          if [[ -d "$RUNNER_TEMP/bootstrap-predecessor-terminal" ]]; then
+            prior="$RUNNER_TEMP/bootstrap-predecessor-terminal"
+          fi
+          final="$RUNNER_TEMP/physio-bootstrap-receipt"
+          install -d -m 0700 "$work" "$packet"
+          cp -a "$started/." "$packet/"
+          rm -f "$packet/SHA256SUMS"
+
+          provider_call() {
+            local stdout_file="$1" stderr_file="$2"
+            shift 2
+            set +e
+            timeout --signal=TERM --kill-after=10s 60s "$@" >"$stdout_file" 2>"$stderr_file"
+            local status=$?
+            set -e
+            printf '%s' "$status"
+          }
+
+          org_exit="$(provider_call "$work/organization-raw.json" "$work/organization.stderr" fly orgs show "$FLY_ORGANIZATION" --json)"
+          apps_exit="$(provider_call "$work/apps-raw.json" "$work/apps.stderr" fly apps list --org "$FLY_ORGANIZATION" --json)"
+          state=AMBIGUOUS
+          ambiguity_reason=PROVIDER_READBACK_FAILED
+          if [[ "$org_exit" -eq 0 && "$apps_exit" -eq 0 && -s "$work/organization-raw.json" && -s "$work/apps-raw.json" ]]; then
+            set +e
+            organization="$(env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-org \
+              --organization-readback "$work/organization-raw.json" --organization "$FLY_ORGANIZATION" 2>"$work/organization-validate.stderr")"
+            organization_exit=$?
+            env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-app \
+              --apps "$work/apps-raw.json" --organization "$FLY_ORGANIZATION" --mode absent \
+              >"$work/app-absent.stdout" 2>"$work/app-absent.stderr"
+            absent_exit=$?
+            env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-app \
+              --apps "$work/apps-raw.json" --organization "$FLY_ORGANIZATION" --mode present \
+              >"$work/app-present.stdout" 2>"$work/app-present.stderr"
+            present_exit=$?
+            set -e
+            if [[ "$organization_exit" -eq 0 && "$absent_exit" -eq 0 && "$present_exit" -ne 0 ]]; then
+              state=ABSENT
+              ambiguity_reason=NONE
+              ORGANIZATION="$organization" env -u FLY_API_TOKEN node --input-type=module <<'NODE' >"$work/organization-readback.json"
+          const row = JSON.parse(process.env.ORGANIZATION);
+          process.stdout.write(`${JSON.stringify({ slug: row.slug, id: row.id }, null, 2)}\n`);
+          NODE
+            elif [[ "$organization_exit" -eq 0 && "$present_exit" -eq 0 && "$absent_exit" -ne 0 ]]; then
+              state=PRESENT
+              ambiguity_reason=PARTIAL_OR_UNPROVEN_PROVIDER_STATE
+              machines_exit="$(provider_call "$work/machines-raw.json" "$work/machines.stderr" fly machines list --app "$app" --json)"
+              volumes_exit="$(provider_call "$work/volumes-raw.json" "$work/volumes.stderr" fly volumes list --app "$app" --json)"
+              secrets_exit="$(provider_call "$work/secrets-raw.json" "$work/secrets.stderr" fly secrets list --app "$app" --json)"
+              certs_exit="$(provider_call "$work/certificates-raw.json" "$work/certificates.stderr" fly certs list --app "$app" --json)"
+              if [[ "$machines_exit" -eq 0 && "$volumes_exit" -eq 0 && "$secrets_exit" -eq 0 && "$certs_exit" -eq 0 ]]; then
+                set +e
+                topology="$(env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+                  --machines "$work/machines-raw.json" --volumes "$work/volumes-raw.json" --mode bootstrapped \
+                  2>"$work/topology-validate.stderr")"
+                topology_exit=$?
+                env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-no-certificates \
+                  --certificates "$work/certificates-raw.json" >"$work/certificates-validate.stdout" \
+                  2>"$work/certificates-validate.stderr"
+                certificates_exit=$?
+                set -e
+                secrets_state=INVALID
+                if [[ "$topology_exit" -eq 0 && "$certificates_exit" -eq 0 ]]; then
+                  set +e
+                  secrets_state="$(SECRETS="$work/secrets-raw.json" SANITIZED="$work/secrets-sanitized.json" \
+                    env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const value = JSON.parse(fs.readFileSync(process.env.SECRETS, 'utf8'));
+          const rows = Array.isArray(value) ? value : value.secrets || value.data || [];
+          const expected = ['ADMIN_PASSWORD','APP_URL','EXPECTED_APP_URL','OPENAI_API_KEY','RESEND_API_KEY','SENTRY_DSN',
+            'STRIPE_PRICE_ID_ANNUAL','STRIPE_PRICE_ID_MONTHLY','STRIPE_SECRET_KEY'].sort();
+          const sanitized = rows.map((row) => {
+            if (!row || typeof row !== 'object' || Array.isArray(row) ||
+                Object.keys(row).some((key) => /(?:^|_)(?:value|raw_value|secret_value)(?:$|_)/i.test(key))) {
+              throw new Error('Fly secret metadata is malformed or value-bearing');
+            }
+            const name = row.Name ?? row.name;
+            const digest = row.Digest ?? row.digest;
+            const status = row.Status ?? row.status;
+            if (typeof name !== 'string' || !/^[0-9a-f]{16,64}$/i.test(digest || '') || status !== 'Staged') {
+              throw new Error('Fly secret metadata name, digest, or staged status is invalid');
+            }
+            return { name, digest: digest.toLowerCase(), status };
+          }).sort((a, b) => a.name.localeCompare(b.name));
+          const actual = sanitized.map(({ name }) => name);
+          if (new Set(actual).size !== actual.length || JSON.stringify(actual) !== JSON.stringify(expected)) {
+            throw new Error('provider secret state is not the exact complete pre-webhook set');
+          }
+          fs.writeFileSync(process.env.SANITIZED, JSON.stringify({
+            contract_version: 'assesssuite-fly-secret-metadata/1.0.0', secrets: sanitized,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          process.stdout.write('COMPLETE');
+          NODE
+                  )"
+                  secrets_validate_exit=$?
+                  set -e
+                  if [[ "$secrets_validate_exit" -eq 0 && "$secrets_state" == COMPLETE ]]; then
+                    state=BOOTSTRAPPED_EXACT
+                    ambiguity_reason=NONE
+                    printf '%s\n' "$topology" >"$work/topology-readback.json"
+                    ORGANIZATION="$organization" env -u FLY_API_TOKEN node --input-type=module <<'NODE' >"$work/organization-readback.json"
+          const row = JSON.parse(process.env.ORGANIZATION);
+          process.stdout.write(`${JSON.stringify({ slug: row.slug, id: row.id }, null, 2)}\n`);
+          NODE
+                  fi
+                fi
+              fi
+              if [[ "$state" == PRESENT && \
+                  ( "$PRIOR_LEDGER_STAGE" == PROVIDER_ADMISSION || "$PRIOR_LEDGER_STAGE" == PROVIDER_RECONCILIATION ) && \
+                  "$machines_exit" -eq 0 && "$volumes_exit" -eq 0 && "$secrets_exit" -eq 0 && "$certs_exit" -eq 0 ]]; then
+                set +e
+                env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-no-certificates \
+                  --certificates "$work/certificates-raw.json" >"$work/resume-certificates-validate.stdout" \
+                  2>"$work/resume-certificates-validate.stderr"
+                resume_certificates_exit=$?
+                resume_topology_state=INVALID
+                if topology="$(env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+                    --machines "$work/machines-raw.json" --volumes "$work/volumes-raw.json" --mode absent \
+                    2>"$work/resume-topology-absent.stderr")"; then
+                  resume_topology_state=APP_CREATED_ONLY
+                elif topology="$(env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+                    --machines "$work/machines-raw.json" --volumes "$work/volumes-raw.json" --mode bootstrapped \
+                    2>"$work/resume-topology-bootstrapped.stderr")"; then
+                  resume_topology_state=VOLUME_CREATED
+                fi
+                resume_secret_state="$(SECRETS="$work/secrets-raw.json" SANITIZED="$work/secrets-sanitized.json" \
+                  env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const value = JSON.parse(fs.readFileSync(process.env.SECRETS, 'utf8'));
+          const rows = Array.isArray(value) ? value : value.secrets || value.data || [];
+          const expected = ['ADMIN_PASSWORD','APP_URL','EXPECTED_APP_URL','OPENAI_API_KEY','RESEND_API_KEY','SENTRY_DSN',
+            'STRIPE_PRICE_ID_ANNUAL','STRIPE_PRICE_ID_MONTHLY','STRIPE_SECRET_KEY'].sort();
+          const sanitized = rows.map((row) => {
+            if (!row || typeof row !== 'object' || Array.isArray(row) ||
+                Object.keys(row).some((key) => /(?:^|_)(?:value|raw_value|secret_value)(?:$|_)/i.test(key))) {
+              throw new Error('Fly secret metadata is malformed or value-bearing');
+            }
+            const name = row.Name ?? row.name;
+            const digest = row.Digest ?? row.digest;
+            const status = row.Status ?? row.status;
+            if (!expected.includes(name) || !/^[0-9a-f]{16,64}$/i.test(digest || '') || status !== 'Staged') {
+              throw new Error('Fly response-loss secret metadata differs');
+            }
+            return { name, digest: digest.toLowerCase(), status };
+          }).sort((a, b) => a.name.localeCompare(b.name));
+          const actual = sanitized.map(({ name }) => name);
+          if (new Set(actual).size !== actual.length) throw new Error('Fly response-loss secret metadata is duplicated');
+          fs.writeFileSync(process.env.SANITIZED, JSON.stringify({
+            contract_version: 'assesssuite-fly-secret-metadata/1.0.0', secrets: sanitized,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          process.stdout.write(actual.length === 0 ? 'EMPTY' :
+            JSON.stringify(actual) === JSON.stringify(expected) ? 'COMPLETE' : 'ADMITTED_SUBSET');
+          NODE
+                )"
+                resume_secret_exit=$?
+                set -e
+                if [[ "$resume_certificates_exit" -eq 0 && "$resume_secret_exit" -eq 0 && \
+                    "$resume_topology_state" == APP_CREATED_ONLY && "$resume_secret_state" == EMPTY ]]; then
+                  state=ADMITTED_APP_CREATE_APPLIED
+                  ambiguity_reason=NONE
+                  printf '%s\n' "$topology" >"$work/topology-readback.json"
+                elif [[ "$resume_certificates_exit" -eq 0 && "$resume_secret_exit" -eq 0 && \
+                    "$resume_topology_state" == VOLUME_CREATED && \
+                    ( "$resume_secret_state" == EMPTY || "$resume_secret_state" == ADMITTED_SUBSET ) ]]; then
+                  state=ADMITTED_VOLUME_CREATE_APPLIED
+                  ambiguity_reason=NONE
+                  printf '%s\n' "$topology" >"$work/topology-readback.json"
+                fi
+              fi
+            else
+              ambiguity_reason=APP_INVENTORY_CLASSIFICATION_CONFLICT
+            fi
+          fi
+
+          for file in organization-raw.json apps-raw.json organization-readback.json machines-raw.json volumes-raw.json \
+            secrets-sanitized.json certificates-raw.json topology-readback.json; do
+            if [[ -f "$work/$file" && ! -L "$work/$file" ]]; then install -m 0600 "$work/$file" "$packet/$file"; fi
+          done
+
+          action=DENY
+          decision_result=AMBIGUOUS_DENIED
+          decision_name=bootstrap-provider-admission.json
+          provider_effect_sha='0000000000000000000000000000000000000000000000000000000000000000'
+          mutation_resume_state=NONE
+          volume_id=''
+          selected_history_name="$(LEDGER="$packet/bootstrap-ledger-inventory.json" env -u FLY_API_TOKEN node --input-type=module -e \
+            "import fs from 'node:fs'; const r=JSON.parse(fs.readFileSync(process.env.LEDGER,'utf8')); process.stdout.write(r.latest_record?.artifact?.name||'NONE')")"
+          prior_packet_admitted=false
+          if [[ "$RESUME_ACTION_ARTIFACT_ID" != '0' ]]; then
+            set +e
+            [[ -f "$prior/SHA256SUMS" && ! -L "$prior/SHA256SUMS" ]] && \
+              ! find "$prior" -mindepth 1 -type l -print -quit | grep -q . && \
+              ! find "$prior" -mindepth 2 -print -quit | grep -q . && \
+              [[ "$(find "$prior" -maxdepth 1 -type f -printf '%s\n' | awk '{s+=$1} END {print s+0}')" -le 33554432 ]] && \
+              (cd "$prior" && sha256sum --check --strict SHA256SUMS)
+            prior_packet_status=$?
+            set -e
+            if [[ "$prior_packet_status" -eq 0 ]]; then prior_packet_admitted=true; fi
+          fi
+
+          admit_durable_provider_authority() {
+            local durable_decision="$prior/bootstrap-provider-admission.json"
+            if [[ -f "$prior/durable-bootstrap-provider-admission.json" ]]; then
+              durable_decision="$prior/durable-bootstrap-provider-admission.json"
+            fi
+            PRIOR="$prior" DECISION="$durable_decision" APPLICATION_SHA="$APPLICATION_SHA" \
+            INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" \
+            EXPECTED_EFFECT_SHA="$RESUME_ACTION_RECEIPT_SHA256" EXPECTED_GENERATION="$((PRIOR_EFFECT_GENERATION + 1))" \
+            STARTED_SHA="$STARTED_EFFECT_REQUEST_SHA256" SECRET_BUNDLE_SHA="$SECRET_BUNDLE_FINGERPRINT_SHA256" \
+            env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const hash = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const effectFile = path.join(process.env.PRIOR, 'bootstrap-effect-reconciliation.json');
+          const absenceFile = path.join(process.env.PRIOR, 'bootstrap-authoritative-absence-resolution.json');
+          const readbackFile = path.join(process.env.PRIOR, 'bootstrap-provider-admission-upload-readback.json');
+          for (const file of [effectFile, absenceFile, readbackFile, process.env.DECISION]) {
+            if (!fs.existsSync(file) || !fs.statSync(file).isFile()) throw new Error('durable provider authority packet is incomplete');
+          }
+          const effect = JSON.parse(fs.readFileSync(effectFile, 'utf8'));
+          const absence = JSON.parse(fs.readFileSync(absenceFile, 'utf8'));
+          const decision = JSON.parse(fs.readFileSync(process.env.DECISION, 'utf8'));
+          if (hash(effectFile) !== process.env.EXPECTED_EFFECT_SHA ||
+              effect.application_sha !== process.env.APPLICATION_SHA || effect.capability_intent_id !== process.env.INTENT ||
+              effect.authority_reference !== process.env.AUTHORITY || effect.effect_generation !== Number(process.env.EXPECTED_GENERATION) ||
+              effect.started_effect_request_sha256 !== process.env.STARTED_SHA ||
+              effect.secret_bundle_fingerprint_sha256 !== process.env.SECRET_BUNDLE_SHA ||
+              effect.provider_mutation_authorized !== true ||
+              !['FRESH_AUTHORITATIVE_ABSENCE','NOT_APPLIED_BY_AUTHORITATIVE_ABSENCE'].includes(effect.provider_admission_state) ||
+              effect.provider_absence_resolution_sha256 !== hash(absenceFile) || absence.mutation_authorized !== true ||
+              absence.authoritative_app_state !== 'ABSENT' || absence.application_sha !== process.env.APPLICATION_SHA ||
+              decision.contract_version !== 'assesssuite-physio-bootstrap-provider-admission/1.0.0' ||
+              decision.application_sha !== process.env.APPLICATION_SHA || decision.next_action !== 'MUTATE' ||
+              decision.result !== 'PROVIDER_MUTATION_ADMITTED' || decision.provider_mutation_occurred !== false ||
+              decision.provider_started_effect_sha256 !== process.env.EXPECTED_EFFECT_SHA) {
+            throw new Error('durable provider mutation authority differs');
+          }
+          NODE
+            install -m 0600 "$prior/bootstrap-effect-reconciliation.json" "$packet/bootstrap-effect-reconciliation.json"
+            install -m 0600 "$prior/bootstrap-authoritative-absence-resolution.json" \
+              "$packet/bootstrap-authoritative-absence-resolution.json"
+            install -m 0600 "$durable_decision" "$packet/durable-bootstrap-provider-admission.json"
+          }
+
+          if [[ ( "$PRIOR_LEDGER_STAGE" == PROVIDER_ADMISSION || "$PRIOR_LEDGER_STAGE" == PROVIDER_RECONCILIATION ) && \
+              "$prior_packet_admitted" == true && \
+              ( "$state" == ABSENT || "$state" == ADMITTED_APP_CREATE_APPLIED || \
+                "$state" == ADMITTED_VOLUME_CREATE_APPLIED || "$state" == BOOTSTRAPPED_EXACT ) ]]; then
+            admit_durable_provider_authority
+            action=MUTATE
+            decision_result=DURABLE_PROVIDER_MUTATION_RECONCILED_FOR_EXACT_RETRY
+            provider_effect_sha="$RESUME_ACTION_RECEIPT_SHA256"
+            mutation_resume_state="$state"
+            ambiguity_reason=NONE
+            if [[ "$state" == BOOTSTRAPPED_EXACT ]]; then
+              volume_id="$(TOPOLOGY="$topology" env -u FLY_API_TOKEN node --input-type=module -e \
+                'process.stdout.write(JSON.parse(process.env.TOPOLOGY).volumeId)')"
+            fi
+          elif [[ "$state" == ABSENT && "$PRIOR_EFFECT_RESULT" == COMPLETED ]]; then
+            ambiguity_reason=COMPLETED_RECEIPT_PROVIDER_ABSENCE_DRIFT
+          elif [[ "$state" == ABSENT ]]; then
+            if [[ "$RESUME_ACTION_ARTIFACT_ID" == '0' ]]; then
+              resolution_result=FRESH_AUTHORITATIVE_ABSENCE
+            else
+              resolution_result=NOT_APPLIED_BY_AUTHORITATIVE_ABSENCE
+            fi
+            resolution="$packet/bootstrap-authoritative-absence-resolution.json"
+            RESOLUTION="$resolution" RESULT="$resolution_result" APPLICATION_SHA="$APPLICATION_SHA" \
+            INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" \
+            PRIOR_EFFECT_SHA="$RESUME_ACTION_RECEIPT_SHA256" PRIOR_GENERATION="$PRIOR_EFFECT_GENERATION" \
+            PRIOR_ARTIFACT_ID="$RESUME_ACTION_ARTIFACT_ID" PRIOR_ARTIFACT_DIGEST="$RESUME_ACTION_ARTIFACT_DIGEST" \
+            PRIOR_ARTIFACT_NAME="$selected_history_name" PRIOR_ARTIFACT_TRANSPORT_AVAILABLE="$RESUME_ACTION_TRANSPORT_AVAILABLE" \
+            EFFECT_GENERATION="$((PRIOR_EFFECT_GENERATION + 1))" RETAINED_HISTORY_SHA="$RETAINED_ARTIFACT_HISTORY_INVENTORY_SHA256" \
+            ORG_SHA="$(sha256sum "$work/organization-raw.json" | awk '{print $1}')" \
+            APPS_SHA="$(sha256sum "$work/apps-raw.json" | awk '{print $1}')" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = { contract_version: 'assesssuite-physio-bootstrap-provider-absence/1.0.0',
+            result: process.env.RESULT, application: 'assesssuite-physio-production',
+            application_sha: process.env.APPLICATION_SHA, capability_intent_id: process.env.INTENT,
+            authority_reference: process.env.AUTHORITY, prior_effect_receipt_sha256: process.env.PRIOR_EFFECT_SHA,
+            prior_effect_generation: Number(process.env.PRIOR_GENERATION),
+            prior_artifact_id: Number(process.env.PRIOR_ARTIFACT_ID),
+            prior_artifact_digest: process.env.PRIOR_ARTIFACT_DIGEST,
+            prior_artifact_name: process.env.PRIOR_ARTIFACT_NAME,
+            prior_artifact_transport_available: process.env.PRIOR_ARTIFACT_TRANSPORT_AVAILABLE === 'true',
+            effect_generation: Number(process.env.EFFECT_GENERATION),
+            retained_artifact_history_inventory_sha256: process.env.RETAINED_HISTORY_SHA,
+            organization_raw_readback_sha256: process.env.ORG_SHA,
+            apps_raw_readback_sha256: process.env.APPS_SHA,
+            authoritative_app_state: 'ABSENT', mutation_authorized: true, resolved_at: new Date().toISOString() };
+          if (!Number.isSafeInteger(row.effect_generation) || row.effect_generation < 0 ||
+              row.effect_generation !== row.prior_effect_generation + 1) throw new Error('absence generation transition differs');
+          fs.writeFileSync(process.env.RESOLUTION, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+            resolution_sha="$(sha256sum "$resolution" | awk '{print $1}')"
+            effect="$packet/bootstrap-effect-reconciliation.json"
+            EFFECT="$effect" REQUEST_SHA="$STARTED_EFFECT_REQUEST_SHA256" RESOLUTION_SHA="$resolution_sha" \
+            RESOLUTION_RESULT="$resolution_result" PRIOR_EFFECT_SHA="$RESUME_ACTION_RECEIPT_SHA256" \
+            PRIOR_GENERATION="$PRIOR_EFFECT_GENERATION" RETAINED_HISTORY_SHA="$RETAINED_ARTIFACT_HISTORY_INVENTORY_SHA256" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.EFFECT, 'utf8'));
+          if (row.result !== 'STARTED' || row.provider_admission_state !== 'PENDING_AUTHORITATIVE_READBACK' ||
+              row.effect_generation !== Number(process.env.PRIOR_GENERATION) + 1 ||
+              row.retained_artifact_history_inventory_sha256 !== process.env.RETAINED_HISTORY_SHA) throw new Error('provider admission source STARTED differs');
+          row.started_effect_request_sha256 = process.env.REQUEST_SHA;
+          row.prior_effect_receipt_sha256 = process.env.PRIOR_EFFECT_SHA;
+          row.provider_admission_state = process.env.RESOLUTION_RESULT;
+          row.provider_absence_resolution_sha256 = process.env.RESOLUTION_SHA;
+          row.provider_mutation_authorized = true;
+          row.provider_admitted_at = new Date().toISOString();
+          fs.writeFileSync(process.env.EFFECT, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+            provider_effect_sha="$(sha256sum "$effect" | awk '{print $1}')"
+            action=MUTATE
+            decision_result=PROVIDER_MUTATION_ADMITTED
+          elif [[ "$state" == BOOTSTRAPPED_EXACT ]]; then
+            if [[ "$RESUME_ACTION_ARTIFACT_ID" != '0' && \
+                "$PRIOR_EFFECT_RESULT" == COMPLETED && "$prior_packet_admitted" == true ]]; then
+              set +e
+              reuse_volume_candidate="$(PRIOR="$prior" APPLICATION_SHA="$APPLICATION_SHA" INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" \
+              CANDIDATE_SHA="$CANDIDATE_RECEIPT_SHA256" CANARY_SHA="$CANARY_RECEIPT_SHA256" \
+              ARCHIVE_SHA="$ARCHIVE_SHA256" OCI_ARCHIVE_SHA="$OCI_ARCHIVE_SHA256" \
+              OCI_MANIFEST_DIGEST="$OCI_MANIFEST_DIGEST" OCI_DESCRIPTOR_SHA="$OCI_DESCRIPTOR_MANIFEST_SHA256" \
+              LOCAL_IMAGE_ID="$LOCAL_IMAGE_ID" ADMISSION_SHA="$ADMISSION_RECEIPT_SHA256" \
+              SECRET_BUNDLE_SHA="$SECRET_BUNDLE_FINGERPRINT_SHA256" EXPECTED_GENERATION="$PRIOR_EFFECT_GENERATION" \
+              EXPECTED_EFFECT_SHA="$REUSE_PREDECESSOR_EFFECT_RECEIPT_SHA256" TOPOLOGY="$work/topology-readback.json" \
+              ORGANIZATION="$work/organization-readback.json" CURRENT_SECRETS="$work/secrets-sanitized.json" \
+              env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const hash = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const root = process.env.PRIOR;
+          const sums = path.join(root, 'SHA256SUMS');
+          const effectFile = path.join(root, 'bootstrap-effect-reconciliation.json');
+          const finalFile = path.join(root, 'physio-production-bootstrap.json');
+          const secretsFile = path.join(root, 'secrets-sanitized.json');
+          const admissionFile = path.join(root, 'bootstrap-provider-admission.json');
+          const artifactReadbackFile = path.join(root, 'bootstrap-provider-admission-upload-readback.json');
+          const absenceFile = path.join(root, 'bootstrap-authoritative-absence-resolution.json');
+          const historyFile = path.join(root, 'bootstrap-retained-artifact-history-inventory.json');
+          for (const file of [sums, effectFile, finalFile, secretsFile, admissionFile, artifactReadbackFile, absenceFile, historyFile]) {
+            if (!fs.existsSync(file) || !fs.statSync(file).isFile()) throw new Error('completed provider reuse packet is incomplete');
+          }
+          const effect = JSON.parse(fs.readFileSync(effectFile, 'utf8'));
+          const final = JSON.parse(fs.readFileSync(finalFile, 'utf8'));
+          const topology = JSON.parse(fs.readFileSync(process.env.TOPOLOGY, 'utf8'));
+          const organization = JSON.parse(fs.readFileSync(process.env.ORGANIZATION, 'utf8'));
+          const names = ['ADMIN_PASSWORD','APP_URL','EXPECTED_APP_URL','OPENAI_API_KEY','RESEND_API_KEY','SENTRY_DSN',
+            'STRIPE_PRICE_ID_ANNUAL','STRIPE_PRICE_ID_MONTHLY','STRIPE_SECRET_KEY'].sort();
+          if (hash(effectFile) !== process.env.EXPECTED_EFFECT_SHA || effect.result !== 'COMPLETED' ||
+              (effect.effect_generation ?? 0) !== Number(process.env.EXPECTED_GENERATION) ||
+              effect.application !== 'assesssuite-physio-production' || effect.application_sha !== process.env.APPLICATION_SHA ||
+              effect.capability_intent_id !== process.env.INTENT || effect.authority_reference !== process.env.AUTHORITY ||
+              effect.candidate_receipt_sha256 !== process.env.CANDIDATE_SHA ||
+              effect.exact_image_canary_receipt_sha256 !== process.env.CANARY_SHA ||
+              effect.secret_bundle_fingerprint_sha256 !== process.env.SECRET_BUNDLE_SHA ||
+              effect.fly_organization !== process.env.FLY_ORGANIZATION || effect.provider_mutation_authorized !== true ||
+              !['FRESH_AUTHORITATIVE_ABSENCE','NOT_APPLIED_BY_AUTHORITATIVE_ABSENCE'].includes(effect.provider_admission_state) ||
+              effect.provider_absence_resolution_sha256 !== hash(absenceFile) ||
+              final.contract_version !== 'assesssuite-physio-bootstrap/3.0.0' || final.result !== 'PASS' ||
+              final.application !== 'assesssuite-physio-production' || final.application_sha !== process.env.APPLICATION_SHA ||
+              final.profession_id !== 'physio' || final.region !== 'syd' || final.capability_intent_id !== process.env.INTENT ||
+              final.authority_reference !== process.env.AUTHORITY ||
+              final.candidate_receipt_sha256 !== process.env.CANDIDATE_SHA || final.archive_sha256 !== process.env.ARCHIVE_SHA ||
+              final.oci_archive_sha256 !== process.env.OCI_ARCHIVE_SHA ||
+              final.oci_manifest_digest !== process.env.OCI_MANIFEST_DIGEST ||
+              final.oci_descriptor_manifest_sha256 !== process.env.OCI_DESCRIPTOR_SHA ||
+              final.local_image_id !== process.env.LOCAL_IMAGE_ID ||
+              final.exact_image_canary_receipt_sha256 !== process.env.CANARY_SHA ||
+              final.bootstrap_admission_receipt_sha256 !== process.env.ADMISSION_SHA ||
+              final.bootstrap_effect_reconciliation_sha256 !== hash(effectFile) ||
+              final.secret_bundle_fingerprint_sha256 !== process.env.SECRET_BUNDLE_SHA ||
+              final.effect_generation !== Number(process.env.EXPECTED_GENERATION) ||
+              final.provider_admission_receipt_sha256 !== hash(admissionFile) ||
+              final.provider_admission_artifact_readback_sha256 !== hash(artifactReadbackFile) ||
+              final.provider_absence_resolution_sha256 !== hash(absenceFile) ||
+              final.retained_artifact_history_inventory_sha256 !== hash(historyFile) ||
+              final.fly_organization_slug !== process.env.FLY_ORGANIZATION || final.fly_organization_id !== organization.id ||
+              final.volume_name !== 'assesssuite_physio_data' || final.volume_size_gb !== 3 ||
+              final.volume_snapshot_retention_days !== 5 || final.scheduled_snapshots !== true ||
+              final.machine_count !== 0 || final.custom_certificate_count !== 0 || final.production_ready !== false ||
+              final.webhook_secret_pending !== true || final.app_url_equals_expected_app_url !== true ||
+              JSON.stringify(final.staged_secret_names) !== JSON.stringify(names) ||
+              JSON.stringify(final.observed_secret_names) !== JSON.stringify(names) ||
+              topology.machineCount !== 0 || topology.volumeCount !== 1 || final.volume_id !== topology.volumeId ||
+              hash(secretsFile) !== final.secret_names_readback_sha256 ||
+              !fs.readFileSync(secretsFile).equals(fs.readFileSync(process.env.CURRENT_SECRETS))) {
+            throw new Error('completed provider state does not exactly bind the prior receipt');
+          }
+          process.stdout.write(final.volume_id);
+          NODE
+              )"
+              reuse_status=$?
+              set -e
+              if [[ "$reuse_status" -eq 0 && "$reuse_volume_candidate" =~ ^vol_[A-Za-z0-9]+$ ]]; then
+                volume_id="$reuse_volume_candidate"
+                install -m 0600 "$prior/bootstrap-effect-reconciliation.json" \
+                  "$packet/predecessor-bootstrap-effect-reconciliation.json"
+                install -m 0600 "$prior/physio-production-bootstrap.json" \
+                  "$packet/predecessor-physio-production-bootstrap.json"
+                for file in organization-raw.json apps-raw.json organization-readback.json machines-raw.json \
+                  volumes-raw.json secrets-sanitized.json certificates-raw.json topology-readback.json; do
+                  install -m 0600 "$work/$file" "$packet/reuse-$file"
+                done
+                install -m 0600 "$started/bootstrap-retained-artifact-history-inventory.json" "$packet/bootstrap-reuse-retained-artifact-history-inventory.json"
+                install -m 0600 "$started/resume-artifact-admission.json" "$packet/bootstrap-reuse-artifact-admission.json"
+                action=REUSE_COMPLETED
+                decision_result=COMPLETED_EXACT_PROVIDER_STATE_REUSED_READ_ONLY
+                decision_name=bootstrap-provider-reuse-admission.json
+                provider_effect_sha="$STARTED_EFFECT_REQUEST_SHA256"
+                ambiguity_reason=NONE
+              else
+                ambiguity_reason=COMPLETED_RECEIPT_PROVIDER_JOIN_DIFFERS
+              fi
+            else
+              ambiguity_reason=EXACT_PROVIDER_STATE_WITHOUT_READABLE_COMPLETED_RECEIPT
+            fi
+          fi
+
+          decision="$packet/$decision_name"
+          DECISION="$decision" RESULT="$decision_result" STATE="$state" REASON="$ambiguity_reason" ACTION="$action" \
+          APPLICATION_SHA="$APPLICATION_SHA" INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" \
+          RETAINED_HISTORY_SHA="$RETAINED_ARTIFACT_HISTORY_INVENTORY_SHA256" REQUEST_SHA="$STARTED_EFFECT_REQUEST_SHA256" \
+          PROVIDER_EFFECT_SHA="$provider_effect_sha" ORG_EXIT="$org_exit" APPS_EXIT="$apps_exit" \
+          ORG_SHA="$([[ -s "$work/organization-raw.json" ]] && sha256sum "$work/organization-raw.json" | awk '{print $1}' || printf '%064d' 0)" \
+          APPS_SHA="$([[ -s "$work/apps-raw.json" ]] && sha256sum "$work/apps-raw.json" | awk '{print $1}' || printf '%064d' 0)" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = { contract_version: 'assesssuite-physio-bootstrap-provider-admission/1.0.0',
+            result: process.env.RESULT, application: 'assesssuite-physio-production',
+            application_sha: process.env.APPLICATION_SHA, capability_intent_id: process.env.INTENT,
+            authority_reference: process.env.AUTHORITY, authoritative_provider_state: process.env.STATE,
+            ambiguity_reason: process.env.REASON, next_action: process.env.ACTION,
+            retained_artifact_history_inventory_sha256: process.env.RETAINED_HISTORY_SHA,
+            started_effect_request_sha256: process.env.REQUEST_SHA,
+            provider_started_effect_sha256: process.env.PROVIDER_EFFECT_SHA,
+            organization_read_exit_code: Number(process.env.ORG_EXIT), apps_read_exit_code: Number(process.env.APPS_EXIT),
+            organization_raw_readback_sha256: process.env.ORG_SHA,
+            apps_raw_readback_sha256: process.env.APPS_SHA,
+            provider_mutation_occurred: false, admitted_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.DECISION, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+
+          PACKET="$packet" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          for (const name of fs.readdirSync(process.env.PACKET)) {
+            const file = path.join(process.env.PACKET, name);
+            const stat = fs.lstatSync(file);
+            if (!stat.isFile() || stat.isSymbolicLink() || stat.size > 16_777_216) {
+              throw new Error(`provider admission member ${name} is unsafe`);
+            }
+            const body = fs.readFileSync(file, 'utf8');
+            if (/(?:sk|rk)_live_[A-Za-z0-9]+|whsec_[A-Za-z0-9]+|re_[A-Za-z0-9]+|sk-(?:proj-)?[A-Za-z0-9_-]+/.test(body)) {
+              throw new Error(`provider admission member ${name} contains credential material`);
+            }
+          }
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          echo "action=$action" >>"$GITHUB_OUTPUT"
+          echo "provider_started_effect_sha256=$provider_effect_sha" >>"$GITHUB_OUTPUT"
+          echo "provider_admission_receipt_sha256=$(sha256sum "$decision" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+          echo "reuse_volume_id=$volume_id" >>"$GITHUB_OUTPUT"
+          echo "mutation_resume_state=$mutation_resume_state" >>"$GITHUB_OUTPUT"
+
+      - name: Upload durable authoritative provider admission before mutation
+        id: provider_upload
+        if: ${{ always() && steps.provider.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-bootstrap-provider-admission-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/bootstrap-provider-admission
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+      - name: Read back durable provider admission artifact metadata
+        id: provider_readback
+        if: ${{ always() && steps.provider_upload.outcome == 'success' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          ARTIFACT_ID: ${{ steps.provider_upload.outputs.artifact-id }}
+          ARTIFACT_DIGEST: sha256:${{ steps.provider_upload.outputs.artifact-digest }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          RECEIPT="$RUNNER_TEMP/bootstrap-provider-admission-upload-readback.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const response = await fetch(`https://api.github.com/repos/${process.env.REPOSITORY}/actions/artifacts/${process.env.ARTIFACT_ID}`, {
+            headers: { Accept: 'application/vnd.github+json', Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+              'X-GitHub-Api-Version': '2022-11-28' }, redirect: 'error' });
+          if (response.status !== 200) throw new Error(`provider admission artifact readback status ${response.status}`);
+          const text = await response.text();
+          if (Buffer.byteLength(text) > 1_048_576) throw new Error('provider admission artifact readback exceeds bound');
+          const value = JSON.parse(text);
+          const expectedId = Number(process.env.ARTIFACT_ID);
+          const expectedRunId = Number(process.env.RUN_ID);
+          const expectedName = `physio-bootstrap-provider-admission-${process.env.APPLICATION_SHA}`;
+          if (!Number.isSafeInteger(expectedId) || expectedId <= 0 || !Number.isSafeInteger(expectedRunId) || expectedRunId <= 0 ||
+              value?.id !== expectedId || value?.name !== expectedName || value?.digest !== process.env.ARTIFACT_DIGEST ||
+              value?.expired !== false || !Number.isSafeInteger(value?.size_in_bytes) || value.size_in_bytes <= 0 ||
+              value.size_in_bytes > 33_554_432 || value?.workflow_run?.id !== expectedRunId ||
+              value?.workflow_run?.head_sha !== process.env.APPLICATION_SHA) {
+            throw new Error('provider admission artifact metadata readback differs');
+          }
+          const row = { contract_version: 'assesssuite-physio-bootstrap-provider-artifact-readback/1.0.0', result: 'PASS',
+            repository: process.env.REPOSITORY, application_sha: process.env.APPLICATION_SHA,
+            artifact_id: value.id, artifact_name: value.name, artifact_digest: value.digest,
+            artifact_size_in_bytes: value.size_in_bytes, artifact_expired: value.expired,
+            workflow_run_id: value.workflow_run.id, workflow_run_head_sha: value.workflow_run.head_sha,
+            read_back_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          echo "provider_artifact_readback_sha256=$(sha256sum "$RUNNER_TEMP/bootstrap-provider-admission-upload-readback.json" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+
+      - name: Build exact provider-admission ledger handoff
+        id: provider_packet
+        if: ${{ always() && steps.provider.outcome == 'success' && steps.provider_readback.outcome == 'success' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PRICE_ID_MONTHLY: ${{ secrets.STRIPE_PRICE_ID_MONTHLY }}
+          STRIPE_PRICE_ID_ANNUAL: ${{ secrets.STRIPE_PRICE_ID_ANNUAL }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          handoff="$RUNNER_TEMP/bootstrap-provider-ledger-handoff"
+          install -d -m 0700 "$handoff"
+          cp -a "$RUNNER_TEMP/bootstrap-provider-admission/." "$handoff/"
+          rm -f "$handoff/SHA256SUMS"
+          install -m 0600 "$RUNNER_TEMP/bootstrap-provider-admission-upload-readback.json" \
+            "$handoff/bootstrap-provider-admission-upload-readback.json"
+          (cd "$handoff" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          node scripts/physio-bootstrap-ledger.mjs scan-packet \
+            --packet-directory "$handoff" \
+            --secret-env-names GITHUB_TOKEN,FLY_API_TOKEN,ADMIN_PASSWORD,RESEND_API_KEY,OPENAI_API_KEY,STRIPE_SECRET_KEY,STRIPE_PRICE_ID_MONTHLY,STRIPE_PRICE_ID_ANNUAL,SENTRY_DSN \
+            --output "$RUNNER_TEMP/bootstrap-provider-packet-scan.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Upload exact provider-admission ledger handoff
+        id: provider_handoff
+        if: ${{ always() && steps.provider.outcome == 'success' && steps.provider_readback.outcome == 'success' }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-bootstrap-provider-ledger-handoff-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/bootstrap-provider-ledger-handoff
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  ledger_provider:
+    name: Append provider authority to the protected bootstrap ledger
+    needs: [start, ledger_started, provider]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      provider_ledger_commit_sha: ${{ steps.append.outputs.ledger_commit_sha }}
+      provider_ledger_record_sha256: ${{ steps.append.outputs.ledger_record_sha256 }}
+    steps:
+      - name: Check out exact protected-ledger client source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact provider-admission ledger handoff
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.provider.outputs.provider_handoff_artifact_id }}
+          path: ${{ runner.temp }}/bootstrap-provider-ledger-packet
+          github-token: ${{ github.token }}
+
+      - name: Persist immutable provider-admission record in protected bootstrap ledger
+        id: append
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          EFFECT_GENERATION: ${{ needs.start.outputs.next_effect_generation }}
+          EFFECT_RESULT: ${{ (needs.start.outputs.prior_ledger_stage == 'PROVIDER_ADMISSION' || needs.start.outputs.prior_ledger_stage == 'PROVIDER_RECONCILIATION') && 'RECOVERY_RETRY_ADMITTED' || needs.provider.outputs.provider_action == 'REUSE_COMPLETED' && 'STARTED' || needs.provider.outputs.provider_action == 'MUTATE' && 'STARTED' || 'PROVIDER_ADMISSION_DENIED' }}
+          LEDGER_STAGE: ${{ (needs.start.outputs.prior_ledger_stage == 'PROVIDER_ADMISSION' || needs.start.outputs.prior_ledger_stage == 'PROVIDER_RECONCILIATION') && 'PROVIDER_RECONCILIATION' || 'PROVIDER_ADMISSION' }}
+          RETRY_ORDINAL: ${{ needs.start.outputs.next_provider_reconciliation_retry_ordinal }}
+          EFFECT_RECEIPT_SHA256: ${{ needs.provider.outputs.provider_started_effect_sha256 }}
+          PACKET_RECEIPT_SHA256: ${{ needs.provider.outputs.provider_admission_receipt_sha256 }}
+          ARTIFACT_ID: ${{ needs.provider.outputs.provider_artifact_id }}
+          ARTIFACT_DIGEST: ${{ needs.provider.outputs.provider_artifact_digest }}
+          EXPECTED_LEDGER_HEAD_SHA: ${{ (needs.start.outputs.prior_ledger_stage == 'PROVIDER_ADMISSION' || needs.start.outputs.prior_ledger_stage == 'PROVIDER_RECONCILIATION') && needs.start.outputs.ledger_tip_commit_sha || needs.ledger_started.outputs.started_ledger_commit_sha }}
+          PROVIDER_ARTIFACT_READBACK_SHA256: ${{ needs.provider.outputs.provider_artifact_readback_sha256 }}
+          LEDGER_PROVISIONING_RECEIPT_SHA256: ${{ needs.start.outputs.ledger_provisioning_receipt_sha256 }}
+          EXPECTED_PACKET_BUNDLE_SHA256: ${{ needs.provider.outputs.provider_handoff_packet_bundle_sha256 }}
+          PACKET_SCAN_POLICY_VERSION: ${{ needs.provider.outputs.provider_packet_scan_policy_version }}
+          PACKET_SECRET_SET_FINGERPRINT_SHA256: ${{ needs.provider.outputs.provider_packet_secret_set_fingerprint_sha256 }}
+          PACKET_DURABLE_SECRET_NAMES: ${{ needs.provider.outputs.provider_packet_durable_secret_names }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          ledger_packet="$RUNNER_TEMP/bootstrap-provider-ledger-packet"
+          (cd "$ledger_packet" && sha256sum --check --strict SHA256SUMS)
+          request="$RUNNER_TEMP/bootstrap-ledger-provider-request.json"
+          REQUEST="$request" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = {
+            repository: process.env.REPOSITORY,
+            ledger_branch: 'assesssuite-physio-bootstrap-ledger',
+            application_sha: process.env.APPLICATION_SHA,
+            ledger_provisioning_receipt_sha256: process.env.LEDGER_PROVISIONING_RECEIPT_SHA256,
+            stage: process.env.LEDGER_STAGE,
+            retry_ordinal: process.env.LEDGER_STAGE === 'PROVIDER_RECONCILIATION'
+              ? Number(process.env.RETRY_ORDINAL) : null,
+            effect_generation: Number(process.env.EFFECT_GENERATION),
+            effect_result: process.env.EFFECT_RESULT,
+            artifact: {
+              id: Number(process.env.ARTIFACT_ID),
+              name: `physio-bootstrap-provider-admission-${process.env.APPLICATION_SHA}`,
+              digest: process.env.ARTIFACT_DIGEST,
+              effect_receipt_sha256: process.env.EFFECT_RECEIPT_SHA256,
+              packet_receipt_sha256: process.env.PACKET_RECEIPT_SHA256,
+              artifact_readback_sha256: process.env.PROVIDER_ARTIFACT_READBACK_SHA256,
+            },
+            packet_scan: {
+              contract_version: 'assesssuite-physio-bootstrap-ledger-packet-scan-proof/2.0.0',
+              result: 'PASS', scanner_policy_version: process.env.PACKET_SCAN_POLICY_VERSION,
+              packet_bundle_sha256: process.env.EXPECTED_PACKET_BUNDLE_SHA256,
+              durable_secret_names: process.env.PACKET_DURABLE_SECRET_NAMES.split(',').filter(Boolean),
+              durable_secret_set_fingerprint_sha256: process.env.PACKET_SECRET_SET_FINGERPRINT_SHA256,
+            },
+            workflow_run_id: Number(process.env.RUN_ID),
+            workflow_run_attempt: Number(process.env.RUN_ATTEMPT),
+          };
+          fs.writeFileSync(process.env.REQUEST, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/physio-bootstrap-ledger.mjs append \
+            --repository "$REPOSITORY" --application-sha "$APPLICATION_SHA" \
+            --expected-head-sha "$EXPECTED_LEDGER_HEAD_SHA" --request "$request" \
+            --packet-directory "$ledger_packet" \
+            --secret-env-names GITHUB_TOKEN \
+            --expected-packet-bundle-sha256 "$EXPECTED_PACKET_BUNDLE_SHA256" \
+            --output "$RUNNER_TEMP/bootstrap-ledger-provider-append.json" --github-output "$GITHUB_OUTPUT"
+
+  bootstrap:
+    name: Execute only the durably admitted bootstrap effect
+    needs: [admit, start, provider, ledger_provider]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    environment: physio-production
+    outputs:
+      bootstrap_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      bootstrap_artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
+      bootstrap_receipt_sha256: ${{ steps.result.outputs.bootstrap_receipt_sha256 }}
+      terminal_effect_receipt_sha256: ${{ steps.result.outputs.terminal_effect_receipt_sha256 }}
+      terminal_packet_bundle_sha256: ${{ steps.terminal_packet_scan.outputs.packet_bundle_sha256 }}
+      terminal_packet_scan_policy_version: ${{ steps.terminal_packet_scan.outputs.packet_scan_policy_version }}
+      terminal_packet_secret_set_fingerprint_sha256: ${{ steps.terminal_packet_scan.outputs.packet_secret_set_fingerprint_sha256 }}
+      terminal_packet_durable_secret_names: ${{ steps.terminal_packet_scan.outputs.packet_durable_secret_names }}
+      volume_id: ${{ steps.result.outputs.volume_id }}
+    steps:
+      - name: Check out exact release source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact durably admitted provider handoff
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.provider.outputs.provider_handoff_artifact_id }}
+          path: ${{ runner.temp }}/bootstrap-provider-admission
+          github-token: ${{ github.token }}
+
+      - name: Re-admit exact provider ledger handoff before any effect
+        shell: bash
+        env:
+          EXPECTED_HANDOFF_DIGEST: ${{ needs.provider.outputs.provider_handoff_artifact_digest }}
+          EXPECTED_READBACK_SHA256: ${{ needs.provider.outputs.provider_artifact_readback_sha256 }}
+          PROVIDER_LEDGER_COMMIT_SHA: ${{ needs.ledger_provider.outputs.provider_ledger_commit_sha }}
+          PROVIDER_LEDGER_RECORD_SHA256: ${{ needs.ledger_provider.outputs.provider_ledger_record_sha256 }}
+        run: |
+          set -euo pipefail
+          packet="$RUNNER_TEMP/bootstrap-provider-admission"
+          (cd "$packet" && sha256sum --check --strict SHA256SUMS)
+          install -m 0600 "$packet/bootstrap-provider-admission-upload-readback.json" \
+            "$RUNNER_TEMP/bootstrap-provider-admission-upload-readback.json"
+          [[ "$(sha256sum "$RUNNER_TEMP/bootstrap-provider-admission-upload-readback.json" | awk '{print $1}')" == "$EXPECTED_READBACK_SHA256" ]]
+          [[ "$EXPECTED_HANDOFF_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$PROVIDER_LEDGER_COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$PROVIDER_LEDGER_RECORD_SHA256" =~ ^[0-9a-f]{64}$ ]]
+
+      - name: Install checksum-verified flyctl 0.4.71 for admitted effect only
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          bin="$RUNNER_TEMP/flyctl-bin"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location --output "$archive" \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'
+          printf '%s  %s\n' 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2' "$archive" | sha256sum --check --strict
+          mkdir -p "$bin"; tar -xzf "$archive" -C "$bin" flyctl; install -m 0755 "$bin/flyctl" "$bin/fly"
+          echo "$bin" >> "$GITHUB_PATH"; "$bin/fly" version | grep -F '0.4.71'
+
+      - name: Gate provider mutation or exact completed-state reuse
+        if: ${{ always() }}
+        shell: bash
+        env:
+          PROVIDER_STEP_OUTCOME: ${{ needs.provider.result }}
+          PROVIDER_ACTION: ${{ needs.provider.outputs.provider_action }}
+          PROVIDER_ADMISSION_ARTIFACT_ID: ${{ needs.provider.outputs.provider_artifact_id }}
+          PROVIDER_ADMISSION_ARTIFACT_DIGEST: ${{ needs.provider.outputs.provider_artifact_digest }}
+          PROVIDER_ARTIFACT_READBACK_SHA256: ${{ needs.provider.outputs.provider_artifact_readback_sha256 }}
+          PROVIDER_READBACK_OUTCOME: ${{ needs.provider.result }}
+          PROVIDER_LEDGER_OUTCOME: ${{ needs.ledger_provider.result }}
+          PROVIDER_LEDGER_RECORD_SHA256: ${{ needs.ledger_provider.outputs.provider_ledger_record_sha256 }}
+        run: |
+          set -euo pipefail
+          [[ "$PROVIDER_STEP_OUTCOME" == success ]]
+          [[ "$PROVIDER_READBACK_OUTCOME" == success ]]
+          [[ "$PROVIDER_LEDGER_OUTCOME" == success && "$PROVIDER_LEDGER_RECORD_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$PROVIDER_ACTION" == MUTATE || "$PROVIDER_ACTION" == REUSE_COMPLETED ]]
+          [[ "$PROVIDER_ADMISSION_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$PROVIDER_ADMISSION_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$PROVIDER_ARTIFACT_READBACK_SHA256" =~ ^[0-9a-f]{64}$ ]]
+
+      - name: Terminalise current generation as exact read-only reuse
+        id: reuse_terminal
+        if: ${{ needs.provider.outputs.provider_action == 'REUSE_COMPLETED' }}
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          EFFECT_GENERATION: ${{ needs.start.outputs.next_effect_generation }}
+          STARTED_EFFECT_RECEIPT_SHA256: ${{ needs.start.outputs.started_effect_receipt_sha256 }}
+          PROVIDER_ADMISSION_ARTIFACT_ID: ${{ needs.provider.outputs.provider_artifact_id }}
+          PROVIDER_ADMISSION_ARTIFACT_DIGEST: ${{ needs.provider.outputs.provider_artifact_digest }}
+          PROVIDER_ADMISSION_RECEIPT_SHA256: ${{ needs.provider.outputs.provider_admission_receipt_sha256 }}
+          PROVIDER_ARTIFACT_READBACK_SHA256: ${{ needs.provider.outputs.provider_artifact_readback_sha256 }}
+          PROVIDER_LEDGER_COMMIT_SHA: ${{ needs.ledger_provider.outputs.provider_ledger_commit_sha }}
+          PROVIDER_LEDGER_RECORD_SHA256: ${{ needs.ledger_provider.outputs.provider_ledger_record_sha256 }}
+          PREDECESSOR_ARTIFACT_ID: ${{ needs.start.outputs.reuse_predecessor_artifact_id }}
+          PREDECESSOR_ARTIFACT_DIGEST: ${{ needs.start.outputs.reuse_predecessor_artifact_digest }}
+          PREDECESSOR_EFFECT_RECEIPT_SHA256: ${{ needs.start.outputs.reuse_predecessor_effect_receipt_sha256 }}
+          PREDECESSOR_EFFECT_GENERATION: ${{ needs.start.outputs.reuse_predecessor_effect_generation }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          provider="$RUNNER_TEMP/bootstrap-provider-admission"
+          packet="$RUNNER_TEMP/physio-bootstrap-receipt"
+          install -d -m 0700 "$packet"
+          cp -a "$provider/." "$packet/"
+          rm -f "$packet/SHA256SUMS"
+          install -m 0600 "$RUNNER_TEMP/bootstrap-provider-admission-upload-readback.json" \
+            "$packet/bootstrap-provider-admission-upload-readback.json"
+          EFFECT="$packet/bootstrap-effect-reconciliation.json" \
+          PREDECESSOR_EFFECT="$packet/predecessor-bootstrap-effect-reconciliation.json" \
+          PREDECESSOR_FINAL="$packet/predecessor-physio-production-bootstrap.json" \
+          PACKET="$packet" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const hash = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const effect = JSON.parse(fs.readFileSync(process.env.EFFECT, 'utf8'));
+          const predecessorEffect = JSON.parse(fs.readFileSync(process.env.PREDECESSOR_EFFECT, 'utf8'));
+          const predecessorFinal = JSON.parse(fs.readFileSync(process.env.PREDECESSOR_FINAL, 'utf8'));
+          const generation = Number(process.env.EFFECT_GENERATION);
+          const predecessorGeneration = Number(process.env.PREDECESSOR_EFFECT_GENERATION);
+          if (effect.contract_version !== 'assesssuite-physio-bootstrap-effect-reconciliation/1.0.0' ||
+              effect.result !== 'STARTED' || effect.application_sha !== process.env.APPLICATION_SHA ||
+              effect.effect_generation !== generation || predecessorEffect.result !== 'COMPLETED' ||
+              predecessorEffect.effect_generation !== predecessorGeneration || generation !== predecessorGeneration + 1 ||
+              hash(process.env.PREDECESSOR_EFFECT) !== process.env.PREDECESSOR_EFFECT_RECEIPT_SHA256 ||
+              predecessorFinal.bootstrap_effect_reconciliation_sha256 !== process.env.PREDECESSOR_EFFECT_RECEIPT_SHA256) {
+            throw new Error('read-only reuse predecessor generation binding differs');
+          }
+          const readbacks = {
+            organization_raw_readback_sha256: 'reuse-organization-raw.json',
+            apps_raw_readback_sha256: 'reuse-apps-raw.json',
+            organization_readback_sha256: 'reuse-organization-readback.json',
+            machines_readback_sha256: 'reuse-machines-raw.json',
+            volumes_readback_sha256: 'reuse-volumes-raw.json',
+            secret_names_readback_sha256: 'reuse-secrets-sanitized.json',
+            certificates_readback_sha256: 'reuse-certificates-raw.json',
+            topology_readback_sha256: 'reuse-topology-readback.json',
+          };
+          for (const [field, name] of Object.entries(readbacks)) {
+            const file = path.join(process.env.PACKET, name);
+            if (!fs.existsSync(file) || !fs.statSync(file).isFile()) throw new Error(`reuse readback ${name} is missing`);
+            effect[field] = hash(file);
+          }
+          effect.result = 'COMPLETED';
+          effect.completion_mode = 'REUSED_EXACT_STATE_READ_ONLY';
+          effect.provider_admission_state = 'COMPLETED_EXACT_PROVIDER_STATE_REUSED_READ_ONLY';
+          effect.provider_mutation_authorized = false;
+          effect.provider_mutation_occurred = false;
+          effect.started_effect_receipt_sha256 = process.env.STARTED_EFFECT_RECEIPT_SHA256;
+          effect.provider_admission_artifact_id = Number(process.env.PROVIDER_ADMISSION_ARTIFACT_ID);
+          effect.provider_admission_artifact_digest = process.env.PROVIDER_ADMISSION_ARTIFACT_DIGEST;
+          effect.provider_admission_receipt_sha256 = process.env.PROVIDER_ADMISSION_RECEIPT_SHA256;
+          effect.provider_admission_artifact_readback_sha256 = process.env.PROVIDER_ARTIFACT_READBACK_SHA256;
+          effect.provider_ledger_commit_sha = process.env.PROVIDER_LEDGER_COMMIT_SHA;
+          effect.provider_ledger_record_sha256 = process.env.PROVIDER_LEDGER_RECORD_SHA256;
+          effect.predecessor_artifact_id = Number(process.env.PREDECESSOR_ARTIFACT_ID);
+          effect.predecessor_artifact_digest = process.env.PREDECESSOR_ARTIFACT_DIGEST;
+          effect.predecessor_effect_receipt_sha256 = process.env.PREDECESSOR_EFFECT_RECEIPT_SHA256;
+          effect.predecessor_effect_generation = predecessorGeneration;
+          effect.completed_at = new Date().toISOString();
+          fs.writeFileSync(process.env.EFFECT, JSON.stringify(effect, null, 2) + '\n', { mode: 0o600 });
+          const effectSha = hash(process.env.EFFECT);
+          const final = {
+            ...predecessorFinal,
+            application_sha: process.env.APPLICATION_SHA,
+            effect_generation: generation,
+            completion_mode: 'REUSED_EXACT_STATE_READ_ONLY',
+            provider_mutation_occurred: false,
+            predecessor_artifact_id: Number(process.env.PREDECESSOR_ARTIFACT_ID),
+            predecessor_artifact_digest: process.env.PREDECESSOR_ARTIFACT_DIGEST,
+            predecessor_effect_receipt_sha256: process.env.PREDECESSOR_EFFECT_RECEIPT_SHA256,
+            predecessor_effect_generation: predecessorGeneration,
+            initial_started_effect_request_sha256: process.env.STARTED_EFFECT_RECEIPT_SHA256,
+            started_effect_receipt_sha256: process.env.STARTED_EFFECT_RECEIPT_SHA256,
+            bootstrap_effect_reconciliation_sha256: effectSha,
+            provider_admission_artifact_id: Number(process.env.PROVIDER_ADMISSION_ARTIFACT_ID),
+            provider_admission_artifact_digest: process.env.PROVIDER_ADMISSION_ARTIFACT_DIGEST,
+            provider_admission_receipt_sha256: process.env.PROVIDER_ADMISSION_RECEIPT_SHA256,
+            provider_admission_artifact_readback_sha256: process.env.PROVIDER_ARTIFACT_READBACK_SHA256,
+            provider_ledger_commit_sha: process.env.PROVIDER_LEDGER_COMMIT_SHA,
+            provider_ledger_record_sha256: process.env.PROVIDER_LEDGER_RECORD_SHA256,
+            provider_absence_resolution_sha256: null,
+            completed_at: new Date().toISOString(),
+          };
+          for (const field of Object.keys(readbacks)) final[field] = effect[field];
+          fs.writeFileSync(path.join(process.env.PACKET, 'physio-production-bootstrap.json'),
+            JSON.stringify(final, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          echo "bootstrap_receipt_sha256=$(sha256sum "$packet/physio-production-bootstrap.json" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+          echo "volume_id=${{ needs.provider.outputs.reuse_volume_id }}" >>"$GITHUB_OUTPUT"
+
+      - name: Bootstrap exact app volume and pre-webhook staged secret set
+        id: bootstrap
+        if: ${{ needs.provider.outputs.provider_action == 'MUTATE' }}
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PRICE_ID_MONTHLY: ${{ secrets.STRIPE_PRICE_ID_MONTHLY }}
+          STRIPE_PRICE_ID_ANNUAL: ${{ secrets.STRIPE_PRICE_ID_ANNUAL }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          FLY_ORGANIZATION: ${{ inputs.fly_organization }}
+          CANDIDATE_RECEIPT_SHA256: ${{ inputs.candidate_receipt_sha256 }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA256: ${{ inputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ inputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_MANIFEST_SHA256: ${{ inputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          CANARY_RECEIPT_SHA256: ${{ inputs.canary_receipt_sha256 }}
+          ADMISSION_RECEIPT_SHA256: ${{ needs.admit.outputs.admission_receipt_sha256 }}
+          PROVIDER_ADMISSION_ARTIFACT_ID: ${{ needs.provider.outputs.provider_artifact_id }}
+          PROVIDER_ADMISSION_ARTIFACT_DIGEST: ${{ needs.provider.outputs.provider_artifact_digest }}
+          PROVIDER_ARTIFACT_READBACK_SHA256: ${{ needs.provider.outputs.provider_artifact_readback_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          RESUME_ACTION_ARTIFACT_ID: ${{ inputs.resume_action_artifact_id }}
+          RESUME_ACTION_RECEIPT_SHA256: ${{ inputs.resume_action_receipt_sha256 }}
+          STARTED_EFFECT_REQUEST_SHA256: ${{ needs.start.outputs.started_effect_receipt_sha256 }}
+          STARTED_EFFECT_RECEIPT_SHA256: ${{ needs.provider.outputs.provider_started_effect_sha256 }}
+          SECRET_BUNDLE_FINGERPRINT_SHA256: ${{ needs.start.outputs.secret_bundle_fingerprint_sha256 }}
+          MUTATION_RESUME_STATE: ${{ needs.provider.outputs.mutation_resume_state }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          app=assesssuite-physio-production
+          work="$RUNNER_TEMP/physio-bootstrap-work"
+          packet="$RUNNER_TEMP/physio-bootstrap-receipt"
+          install -d -m 0700 "$work" "$packet"
+          reconciliation="$packet/bootstrap-effect-reconciliation.json"
+          secret_bundle="$packet/secret-bundle-manifest.json"
+          current_secret_bundle="$work/current-secret-bundle-manifest.json"
+          provider_packet="$RUNNER_TEMP/bootstrap-provider-admission"
+          (cd "$provider_packet" && sha256sum --check --strict SHA256SUMS)
+          install -m 0600 "$provider_packet/bootstrap-effect-reconciliation.json" "$reconciliation"
+          install -m 0600 "$provider_packet/secret-bundle-manifest.json" "$secret_bundle"
+          install -m 0600 "$RUNNER_TEMP/bootstrap-provider-admission-upload-readback.json" \
+            "$packet/bootstrap-provider-admission-upload-readback.json"
+          [[ "$(sha256sum "$packet/bootstrap-provider-admission-upload-readback.json" | awk '{print $1}')" == "$PROVIDER_ARTIFACT_READBACK_SHA256" ]]
+          preserve_bootstrap_pre_mutation_evidence() {
+            local status=$?
+            trap - EXIT
+            if [[ "$status" -ne 0 && -f "$reconciliation" && ! -L "$reconciliation" ]]; then
+              RECONCILIATION="$reconciliation" STATUS="$status" \
+              env -u FLY_API_TOKEN -u ADMIN_PASSWORD -u RESEND_API_KEY -u OPENAI_API_KEY \
+                -u STRIPE_SECRET_KEY -u STRIPE_PRICE_ID_MONTHLY -u STRIPE_PRICE_ID_ANNUAL -u SENTRY_DSN \
+                node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          row.result = 'FAILED';
+          row.failure_stage = 'PRE_MUTATION_CONFIGURATION';
+          row.provider_mutation_authorized = false;
+          row.process_exit_code = Number(process.env.STATUS);
+          row.failed_at = new Date().toISOString();
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+              (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+            fi
+            exit "$status"
+          }
+          trap preserve_bootstrap_pre_mutation_evidence EXIT
+          for file in resume-artifact-admission.json bootstrap-ledger-inventory.json \
+            bootstrap-retained-artifact-history-inventory.json \
+            bootstrap-authoritative-absence-resolution.json bootstrap-provider-admission.json \
+            organization-raw.json apps-raw.json organization-readback.json; do
+            [[ -f "$provider_packet/$file" && ! -L "$provider_packet/$file" ]]
+            install -m 0600 "$provider_packet/$file" "$packet/$file"
+          done
+          [[ "$PROVIDER_ADMISSION_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$PROVIDER_ADMISSION_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ -n "$FLY_API_TOKEN" && "$OPENAI_API_KEY" == sk-* && "$RESEND_API_KEY" == re_* ]]
+          [[ "$STRIPE_SECRET_KEY" == rk_live_* || "$STRIPE_SECRET_KEY" == sk_live_* ]]
+          stripe_credential_mode="$([[ "$STRIPE_SECRET_KEY" == rk_live_* ]] && echo restricted_live || echo secret_live)"
+          [[ "$STRIPE_PRICE_ID_MONTHLY" == price_* && "$STRIPE_PRICE_ID_ANNUAL" == price_* ]]
+          [[ ${#ADMIN_PASSWORD} -ge 16 && "$SENTRY_DSN" =~ ^https://[^[:space:]]+$ ]]
+          for value in "$ADMIN_PASSWORD" "$RESEND_API_KEY" "$OPENAI_API_KEY" "$STRIPE_SECRET_KEY" \
+            "$STRIPE_PRICE_ID_MONTHLY" "$STRIPE_PRICE_ID_ANNUAL" "$SENTRY_DSN"; do
+            [[ ! "$value" =~ (test|mock|placeholder|fake|invalid|changeme) ]]
+          done
+          SECRET_BUNDLE="$current_secret_bundle" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const sha = (value) => `sha256:${createHash('sha256').update(value).digest('hex')}`;
+          const values = {
+            ADMIN_PASSWORD: process.env.ADMIN_PASSWORD,
+            APP_URL: 'https://physio.app.assesssuite.com',
+            EXPECTED_APP_URL: 'https://physio.app.assesssuite.com',
+            OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+            RESEND_API_KEY: process.env.RESEND_API_KEY,
+            SENTRY_DSN: process.env.SENTRY_DSN,
+            STRIPE_PRICE_ID_ANNUAL: process.env.STRIPE_PRICE_ID_ANNUAL,
+            STRIPE_PRICE_ID_MONTHLY: process.env.STRIPE_PRICE_ID_MONTHLY,
+            STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
+          };
+          const names = Object.keys(values).sort();
+          if (names.some((name) => typeof values[name] !== 'string' || values[name].length === 0)) {
+            throw new Error('pre-webhook secret bundle is incomplete');
+          }
+          const entries = names.map((name) => ({ name, value_sha256: sha(values[name]) }));
+          const bundle = {
+            contract_version: 'assesssuite-physio-secret-bundle/1.0.0',
+            secret_names: names,
+            value_sha256_by_name: Object.fromEntries(entries.map(({ name, value_sha256 }) => [name, value_sha256])),
+            bundle_sha256: sha(JSON.stringify(entries)),
+          };
+          fs.writeFileSync(process.env.SECRET_BUNDLE, JSON.stringify(bundle, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          secret_bundle_fingerprint_sha256="$(SECRET_BUNDLE="$current_secret_bundle" env -u FLY_API_TOKEN node --input-type=module -e \
+            "import fs from 'node:fs'; process.stdout.write(JSON.parse(fs.readFileSync(process.env.SECRET_BUNDLE, 'utf8')).bundle_sha256)")"
+          [[ "$secret_bundle_fingerprint_sha256" == "$SECRET_BUNDLE_FINGERPRINT_SHA256" ]]
+          cmp --silent "$current_secret_bundle" "$secret_bundle"
+          RECONCILIATION="$reconciliation" STARTED_SHA="$STARTED_EFFECT_RECEIPT_SHA256" \
+          APPLICATION_SHA="$APPLICATION_SHA" INTENT="$CAPABILITY_INTENT_ID" \
+          CANDIDATE_SHA="$CANDIDATE_RECEIPT_SHA256" CANARY_SHA="$CANARY_RECEIPT_SHA256" \
+          SECRET_BUNDLE_SHA="$secret_bundle_fingerprint_sha256" FLY_ORGANIZATION="$FLY_ORGANIZATION" \
+          RESOLUTION_SHA="$(sha256sum "$packet/bootstrap-authoritative-absence-resolution.json" | awk '{print $1}')" \
+          PROVIDER_ADMISSION_ID="$PROVIDER_ADMISSION_ARTIFACT_ID" \
+          PROVIDER_ADMISSION_DIGEST="$PROVIDER_ADMISSION_ARTIFACT_DIGEST" \
+          PROVIDER_ARTIFACT_READBACK_SHA="$PROVIDER_ARTIFACT_READBACK_SHA256" \
+          env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          if (row.contract_version !== 'assesssuite-physio-bootstrap-effect-reconciliation/1.0.0' || row.result !== 'STARTED' ||
+              row.application_sha !== process.env.APPLICATION_SHA || row.capability_intent_id !== process.env.INTENT ||
+              row.candidate_receipt_sha256 !== process.env.CANDIDATE_SHA ||
+              row.exact_image_canary_receipt_sha256 !== process.env.CANARY_SHA ||
+              row.secret_bundle_fingerprint_sha256 !== process.env.SECRET_BUNDLE_SHA ||
+              row.fly_organization !== process.env.FLY_ORGANIZATION || row.provider_mutation_authorized !== true ||
+              !['FRESH_AUTHORITATIVE_ABSENCE','NOT_APPLIED_BY_AUTHORITATIVE_ABSENCE'].includes(row.provider_admission_state) ||
+              row.provider_absence_resolution_sha256 !== process.env.RESOLUTION_SHA) {
+            throw new Error('bootstrap provider-admitted STARTED effect binding differs');
+          }
+          row.started_effect_receipt_sha256 = process.env.STARTED_SHA;
+          row.provider_admission_artifact_id = Number(process.env.PROVIDER_ADMISSION_ID);
+          row.provider_admission_artifact_digest = process.env.PROVIDER_ADMISSION_DIGEST;
+          row.provider_admission_artifact_readback_sha256 = process.env.PROVIDER_ARTIFACT_READBACK_SHA;
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+          preserve_bootstrap_effect_evidence() {
+            local status=$?
+            trap - EXIT
+            if [[ "$status" -ne 0 ]]; then
+              for file in organization-readback.json apps-before.json apps-after.json machines-before.json machines-final.json \
+                volumes-before.json volumes-final.json secrets-before-sanitized.json secrets-sanitized.json certificates.json; do
+                if [[ -f "$work/$file" && ! -L "$work/$file" ]]; then install -m 0600 "$work/$file" "$packet/$file"; fi
+              done
+              RECONCILIATION="$reconciliation" WORK="$work" STATUS="$status" \
+              env -u FLY_API_TOKEN -u ADMIN_PASSWORD -u RESEND_API_KEY -u OPENAI_API_KEY \
+                -u STRIPE_SECRET_KEY -u STRIPE_PRICE_ID_MONTHLY -u STRIPE_PRICE_ID_ANNUAL -u SENTRY_DSN \
+                node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+           const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          const sha = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const resultHashes = {};
+          for (const name of ['app-created.stdout','app-created.stderr','volume-created.stdout','volume-created.stderr',
+            'secrets-before.json','secrets-import.stdout','secrets-import.stderr','secrets.json']) {
+            const file = path.join(process.env.WORK, name);
+            if (fs.existsSync(file) && fs.statSync(file).isFile()) resultHashes[name] = sha(file);
+          }
+          if (row.result === 'COMPLETED') process.exit(0);
+          const mutationMayHaveCommitted = row.prior_result !== 'NONE' || [
+            'app-create-started','app-create-committed','volume-create-started','volume-create-committed',
+            'secret-import-started','secret-import-committed',
+          ].some((name) => fs.existsSync(path.join(process.env.WORK, name)));
+          row.result = mutationMayHaveCommitted ? 'STARTED_UNRESOLVED' : 'FAILED';
+          row.process_exit_code = Number(process.env.STATUS);
+          row.provider_result_sha256 = resultHashes;
+          row.failed_at = new Date().toISOString();
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+              (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+            fi
+            exit "$status"
+          }
+          trap preserve_bootstrap_effect_evidence EXIT
+          timeout --signal=TERM --kill-after=10s 60s fly orgs show "$FLY_ORGANIZATION" --json >"$work/organization-readback.raw.json"
+          organization="$(env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-org \
+            --organization-readback "$work/organization-readback.raw.json" --organization "$FLY_ORGANIZATION")"
+          ORGANIZATION="$organization" env -u FLY_API_TOKEN node --input-type=module <<'NODE' >"$work/organization-readback.json"
+          const row = JSON.parse(process.env.ORGANIZATION);
+          process.stdout.write(`${JSON.stringify({ slug: row.slug, id: row.id }, null, 2)}\n`);
+          NODE
+          app_create_attempted=false
+          app_create_exit_code=0
+          volume_create_attempted=false
+          volume_create_exit_code=0
+          timeout --signal=TERM --kill-after=10s 60s fly apps list --org "$FLY_ORGANIZATION" --json >"$work/apps-before.json"
+          if env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-app \
+              --apps "$work/apps-before.json" --organization "$FLY_ORGANIZATION" --mode absent >/dev/null 2>&1; then
+            app_create_attempted=true
+            : >"$work/app-create-started"
+            set +e
+            timeout --signal=TERM --kill-after=10s 60s fly apps create "$app" --org "$FLY_ORGANIZATION" \
+              --json --yes >"$work/app-created.stdout" 2>"$work/app-created.stderr"
+            app_create_exit_code=$?
+            set -e
+          elif [[ "$MUTATION_RESUME_STATE" != NONE ]] && env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-app \
+              --apps "$work/apps-before.json" --organization "$FLY_ORGANIZATION" --mode present >/dev/null 2>&1; then
+            :
+          else
+            echo 'Fly app state changed after the durable authoritative-absence admission; refusing mutation.' >&2
+            exit 1
+          fi
+          timeout --signal=TERM --kill-after=10s 60s fly apps list --org "$FLY_ORGANIZATION" --json >"$work/apps-after.json"
+          env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-app \
+            --apps "$work/apps-after.json" --organization "$FLY_ORGANIZATION" --mode present >/dev/null
+          rm -f "$work/app-create-started"
+          if [[ "$app_create_attempted" == 'true' ]]; then : >"$work/app-create-committed"; fi
+          timeout --signal=TERM --kill-after=10s 60s fly machines list --app "$app" --json >"$work/machines-before.json"
+          timeout --signal=TERM --kill-after=10s 60s fly volumes list --app "$app" --json >"$work/volumes-before.json"
+          if env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+              --machines "$work/machines-before.json" --volumes "$work/volumes-before.json" --mode absent >/dev/null 2>&1; then
+            volume_create_attempted=true
+            : >"$work/volume-create-started"
+            set +e
+            timeout --signal=TERM --kill-after=10s 120s fly volumes create assesssuite_physio_data \
+              --app "$app" --region syd --size 3 --snapshot-retention 5 --scheduled-snapshots --json --yes \
+              >"$work/volume-created.stdout" 2>"$work/volume-created.stderr"
+            volume_create_exit_code=$?
+            set -e
+          elif [[ "$MUTATION_RESUME_STATE" != NONE ]] && env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+              --machines "$work/machines-before.json" --volumes "$work/volumes-before.json" --mode bootstrapped >/dev/null 2>&1; then
+            :
+          else
+            echo 'Fly volume state changed after the durable authoritative-absence admission; refusing mutation.' >&2
+            exit 1
+          fi
+          timeout --signal=TERM --kill-after=10s 60s fly machines list --app "$app" --json >"$work/machines-final.json"
+          timeout --signal=TERM --kill-after=10s 60s fly volumes list --app "$app" --json >"$work/volumes-final.json"
+          topology="$(env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+            --machines "$work/machines-final.json" --volumes "$work/volumes-final.json" --mode bootstrapped)"
+          rm -f "$work/volume-create-started"
+          if [[ "$volume_create_attempted" == 'true' ]]; then : >"$work/volume-create-committed"; fi
+          volume_id="$(TOPOLOGY="$topology" env -u FLY_API_TOKEN node --input-type=module -e 'process.stdout.write(JSON.parse(process.env.TOPOLOGY).volumeId)')"
+          set +e
+          timeout --signal=TERM --kill-after=10s 60s fly secrets list --app "$app" --json \
+            >"$work/secrets-before.json" 2>"$work/secrets-before.stderr"
+          secrets_before_exit_code=$?
+          set -e
+          [[ "$secrets_before_exit_code" -eq 0 && -s "$work/secrets-before.json" && ! -s "$work/secrets-before.stderr" ]]
+          secret_prestate="$(SECRETS="$work/secrets-before.json" SANITIZED="$work/secrets-before-sanitized.json" \
+          env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const value = JSON.parse(fs.readFileSync(process.env.SECRETS, 'utf8'));
+          const rows = Array.isArray(value) ? value : value.secrets || value.data || [];
+          const expected = ['ADMIN_PASSWORD','APP_URL','EXPECTED_APP_URL','OPENAI_API_KEY','RESEND_API_KEY','SENTRY_DSN',
+            'STRIPE_PRICE_ID_ANNUAL','STRIPE_PRICE_ID_MONTHLY','STRIPE_SECRET_KEY'].sort();
+          const sanitized = [];
+          for (const row of rows) {
+            if (!row || typeof row !== 'object' || Array.isArray(row) ||
+                Object.keys(row).some((key) => /(?:^|_)(?:value|raw_value|secret_value)(?:$|_)/i.test(key))) {
+              throw new Error('Fly secret metadata is malformed or value-bearing');
+            }
+            const name = row.Name ?? row.name;
+            const digest = row.Digest ?? row.digest;
+            const status = row.Status ?? row.status;
+            if (typeof name !== 'string' || !/^[0-9a-f]{16,64}$/i.test(digest || '') || status !== 'Staged') {
+              throw new Error('Fly secret metadata name, digest, or staged status is invalid');
+            }
+            sanitized.push({ name, digest: digest.toLowerCase(), status });
+          }
+          sanitized.sort((a, b) => a.name.localeCompare(b.name));
+          const actual = sanitized.map(({ name }) => name);
+          if (new Set(actual).size !== actual.length) throw new Error('Fly secret metadata contains duplicate names');
+          fs.writeFileSync(process.env.SANITIZED, JSON.stringify({
+            contract_version: 'assesssuite-fly-secret-metadata/1.0.0', secrets: sanitized,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          if (actual.length === 0) process.stdout.write('ABSENT');
+          else if (JSON.stringify(actual) === JSON.stringify(expected)) process.stdout.write('COMPLETE');
+          else if (actual.every((name) => expected.includes(name))) process.stdout.write('ADMITTED_SUBSET');
+          else throw new Error('pre-webhook Fly secret state is partial or ambiguous');
+          NODE
+          )"
+          if [[ -f "$provider_packet/secrets-sanitized.json" ]]; then
+            node scripts/physio-bootstrap-ledger.mjs verify-provider-digest-map \
+              --expected "$provider_packet/secrets-sanitized.json" \
+              --observed "$work/secrets-before-sanitized.json" \
+              --output "$work/provider-barrier-secret-digest-stability.json"
+          elif [[ "$MUTATION_RESUME_STATE" != NONE && "$MUTATION_RESUME_STATE" != ABSENT ]]; then
+            echo 'Durable provider reconciliation lacks its exact pre-mutation secret digest map.' >&2
+            exit 1
+          fi
+          RECONCILIATION="$reconciliation" PRESTATE="$secret_prestate" \
+          PRE_SHA="$(sha256sum "$work/secrets-before-sanitized.json" | awk '{print $1}')" \
+          env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          row.secrets_before_readback_sha256 = process.env.PRE_SHA;
+          row.secret_import_prestate = process.env.PRESTATE;
+          row.secret_import_state = process.env.PRESTATE === 'COMPLETE'
+            ? 'COMPLETE_PRESTATE_EXACT_RESTAGE_REQUIRED_WITH_EQUALITY_PROBE'
+            : process.env.PRESTATE === 'ADMITTED_SUBSET'
+              ? 'PARTIAL_PRESTATE_EXACT_REPLAY_REQUIRED' : 'ABSENT_CONFIRMED_EXACT_STAGE_ADMITTED';
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+          secret_import_attempted=true
+          if [[ "$secret_prestate" == COMPLETE && "$MUTATION_RESUME_STATE" != BOOTSTRAPPED_EXACT ]]; then
+            echo 'Fly secret state changed after the durable authoritative-absence admission; refusing mutation.' >&2
+            exit 1
+          fi
+          if [[ "$secret_prestate" == ADMITTED_SUBSET && "$MUTATION_RESUME_STATE" == NONE ]]; then
+            echo 'Partial Fly secret state lacks a durable same-generation reconciliation barrier.' >&2
+            exit 1
+          fi
+          : >"$work/secret-import-started"
+          set +e
+          {
+            printf 'ADMIN_PASSWORD=%s\n' "$ADMIN_PASSWORD"
+            printf 'APP_URL=%s\n' 'https://physio.app.assesssuite.com'
+            printf 'EXPECTED_APP_URL=%s\n' 'https://physio.app.assesssuite.com'
+            printf 'RESEND_API_KEY=%s\n' "$RESEND_API_KEY"
+            printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY"
+            printf 'STRIPE_SECRET_KEY=%s\n' "$STRIPE_SECRET_KEY"
+            printf 'STRIPE_PRICE_ID_MONTHLY=%s\n' "$STRIPE_PRICE_ID_MONTHLY"
+            printf 'STRIPE_PRICE_ID_ANNUAL=%s\n' "$STRIPE_PRICE_ID_ANNUAL"
+            printf 'SENTRY_DSN=%s\n' "$SENTRY_DSN"
+          } | timeout --signal=TERM --kill-after=10s 120s fly secrets import --app "$app" --stage --dns-checks=false \
+            >"$work/secrets-import.stdout" 2>"$work/secrets-import.stderr"
+          secret_import_exit_code=$?
+          set -e
+          set +e
+          timeout --signal=TERM --kill-after=10s 60s fly secrets list --app "$app" --json \
+            >"$work/secrets.json" 2>"$work/secrets-after.stderr"
+          secrets_after_exit_code=$?
+          set -e
+          [[ "$secrets_after_exit_code" -eq 0 && -s "$work/secrets.json" && ! -s "$work/secrets-after.stderr" ]]
+          SECRETS="$work/secrets.json" SANITIZED="$work/secrets-sanitized.json" \
+          env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const value = JSON.parse(fs.readFileSync(process.env.SECRETS, 'utf8'));
+          const rows = Array.isArray(value) ? value : value.secrets || value.data || [];
+          const expected = ['ADMIN_PASSWORD','APP_URL','EXPECTED_APP_URL','OPENAI_API_KEY','RESEND_API_KEY','SENTRY_DSN',
+            'STRIPE_PRICE_ID_ANNUAL','STRIPE_PRICE_ID_MONTHLY','STRIPE_SECRET_KEY'].sort();
+          const sanitized = rows.map((row) => {
+            if (!row || typeof row !== 'object' || Array.isArray(row) ||
+                Object.keys(row).some((key) => /(?:^|_)(?:value|raw_value|secret_value)(?:$|_)/i.test(key))) {
+              throw new Error('Fly secret metadata is malformed or value-bearing');
+            }
+            const name = row.Name ?? row.name;
+            const digest = row.Digest ?? row.digest;
+            const status = row.Status ?? row.status;
+            if (typeof name !== 'string' || !/^[0-9a-f]{16,64}$/i.test(digest || '') || status !== 'Staged') {
+              throw new Error('Fly secret metadata name, digest, or staged status is invalid');
+            }
+            return { name, digest: digest.toLowerCase(), status };
+          }).sort((a, b) => a.name.localeCompare(b.name));
+          const actual = sanitized.map(({ name }) => name);
+          if (new Set(actual).size !== actual.length) throw new Error('Fly secret metadata contains duplicate names');
+          if (JSON.stringify(actual) !== JSON.stringify(expected)) throw new Error('complete production secret-name set differs');
+          fs.writeFileSync(process.env.SANITIZED, JSON.stringify({
+            contract_version: 'assesssuite-fly-secret-metadata/1.0.0', secrets: sanitized,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          if [[ "$secret_import_exit_code" -ne 0 && "$secret_prestate" == COMPLETE ]] && \
+              cmp --silent "$work/secrets-before-sanitized.json" "$work/secrets-sanitized.json"; then
+            echo 'Exact staged-secret equality probe response was lost with an unchanged digest map; same-generation durable retry is required.' >&2
+            echo 'COMMITTED_CONFIRMED_BY_CHANGED_EXACT_STAGE_READBACK_AFTER_RESPONSE_LOSS is not accepted without a successful equality probe.' >&2
+            exit 1
+          fi
+          if [[ "$secret_import_exit_code" -ne 0 ]]; then
+            echo 'Exact staged-secret equality probe response was lost; same-generation durable retry is required. COMMITTED_CONFIRMED_BY_CHANGED_EXACT_STAGE_READBACK_AFTER_RESPONSE_LOSS is forbidden.' >&2
+            exit 1
+          fi
+          timeout --signal=TERM --kill-after=10s 60s fly secrets list --app "$app" --json >"$work/secrets-stable.json"
+          SECRETS="$work/secrets-stable.json" SANITIZED="$work/secrets-stable-sanitized.json" \
+          env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const value = JSON.parse(fs.readFileSync(process.env.SECRETS, 'utf8'));
+          const rows = Array.isArray(value) ? value : value.secrets || value.data || [];
+          const expected = ['ADMIN_PASSWORD','APP_URL','EXPECTED_APP_URL','OPENAI_API_KEY','RESEND_API_KEY','SENTRY_DSN',
+            'STRIPE_PRICE_ID_ANNUAL','STRIPE_PRICE_ID_MONTHLY','STRIPE_SECRET_KEY'].sort();
+          const sanitized = rows.map((row) => {
+            if (!row || typeof row !== 'object' || Array.isArray(row) ||
+                Object.keys(row).some((key) => /(?:^|_)(?:value|raw_value|secret_value)(?:$|_)/i.test(key))) {
+              throw new Error('Fly stable secret metadata is malformed or value-bearing');
+            }
+            const name = row.Name ?? row.name;
+            const digest = row.Digest ?? row.digest;
+            const status = row.Status ?? row.status;
+            if (!expected.includes(name) || !/^[0-9a-f]{16,64}$/i.test(digest || '') || status !== 'Staged') {
+              throw new Error('Fly stable secret metadata differs');
+            }
+            return { name, digest: digest.toLowerCase(), status };
+          }).sort((a, b) => a.name.localeCompare(b.name));
+          const actual = sanitized.map(({ name }) => name);
+          if (new Set(actual).size !== actual.length || JSON.stringify(actual) !== JSON.stringify(expected)) {
+            throw new Error('Fly stable secret-name set differs');
+          }
+          fs.writeFileSync(process.env.SANITIZED, JSON.stringify({
+            contract_version: 'assesssuite-fly-secret-metadata/1.0.0', secrets: sanitized,
+          }, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/physio-bootstrap-ledger.mjs verify-provider-digest-map \
+            --expected "$work/secrets-sanitized.json" --observed "$work/secrets-stable-sanitized.json" \
+            --output "$work/post-import-secret-digest-stability.json"
+          rm -f "$work/secret-import-started"
+          : >"$work/secret-import-committed"
+          RECONCILIATION="$reconciliation" IMPORT_ATTEMPTED="$secret_import_attempted" \
+          IMPORT_EXIT="$secret_import_exit_code" AFTER_SHA="$(sha256sum "$work/secrets-sanitized.json" | awk '{print $1}')" \
+          IMPORT_STDOUT_SHA="$(sha256sum "$work/secrets-import.stdout" | awk '{print $1}')" \
+          IMPORT_STDERR_SHA="$(sha256sum "$work/secrets-import.stderr" | awk '{print $1}')" \
+          env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          row.secret_import_attempted = process.env.IMPORT_ATTEMPTED === 'true';
+          row.secret_import_exit_code = Number(process.env.IMPORT_EXIT);
+          row.secrets_after_readback_sha256 = process.env.AFTER_SHA;
+          row.secret_import_stdout_sha256 = process.env.IMPORT_STDOUT_SHA;
+          row.secret_import_stderr_sha256 = process.env.IMPORT_STDERR_SHA;
+          row.secret_import_state = 'COMMITTED_CONFIRMED_BY_SUCCESSFUL_EXACT_STAGE_AND_READBACK_WITH_STABLE_DIGEST_MAP';
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+          timeout --signal=TERM --kill-after=10s 60s fly certs list --app "$app" --json >"$work/certificates.json"
+          env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-no-certificates --certificates "$work/certificates.json"
+          RECONCILIATION="$reconciliation" APP_EXIT="$app_create_exit_code" VOLUME_EXIT="$volume_create_exit_code" \
+          ORGANIZATION="$organization" ORGANIZATION_SHA="$(sha256sum "$work/organization-readback.json" | awk '{print $1}')" \
+          APPS_SHA="$(sha256sum "$work/apps-after.json" | awk '{print $1}')" \
+          MACHINES_SHA="$(sha256sum "$work/machines-final.json" | awk '{print $1}')" \
+          VOLUMES_SHA="$(sha256sum "$work/volumes-final.json" | awk '{print $1}')" \
+          env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
+          row.result = 'COMPLETED';
+          row.app_create_exit_code = Number(process.env.APP_EXIT);
+          row.volume_create_exit_code = Number(process.env.VOLUME_EXIT);
+          row.fly_organization_slug = JSON.parse(process.env.ORGANIZATION).slug;
+          row.fly_organization_id = JSON.parse(process.env.ORGANIZATION).id;
+          row.organization_readback_sha256 = process.env.ORGANIZATION_SHA;
+          row.apps_readback_sha256 = process.env.APPS_SHA;
+          row.machines_readback_sha256 = process.env.MACHINES_SHA;
+          row.volumes_readback_sha256 = process.env.VOLUMES_SHA;
+          if (row.secret_import_state !== 'COMMITTED_CONFIRMED_BY_SUCCESSFUL_EXACT_STAGE_AND_READBACK_WITH_STABLE_DIGEST_MAP' ||
+              !/^[0-9a-f]{64}$/.test(row.secrets_before_readback_sha256 || '') ||
+              !/^[0-9a-f]{64}$/.test(row.secrets_after_readback_sha256 || '')) {
+            throw new Error('secret import reconciliation is not complete');
+          }
+          row.completed_at = new Date().toISOString();
+          fs.writeFileSync(process.env.RECONCILIATION, JSON.stringify(row, null, 2) + '\n', { mode: 0o600 });
+          NODE
+          reconciliation_sha256="$(sha256sum "$reconciliation" | awk '{print $1}')"
+          organization_id="$(ORGANIZATION="$organization" env -u FLY_API_TOKEN node --input-type=module -e \
+            'process.stdout.write(JSON.parse(process.env.ORGANIZATION).id)')"
+          RECEIPT="$packet/physio-production-bootstrap.json" APPLICATION_SHA="$APPLICATION_SHA" VOLUME_ID="$volume_id" \
+          CANDIDATE_SHA="$CANDIDATE_RECEIPT_SHA256" ARCHIVE_SHA="$ARCHIVE_SHA256" \
+          OCI_ARCHIVE_SHA="$OCI_ARCHIVE_SHA256" OCI_MANIFEST_DIGEST="$OCI_MANIFEST_DIGEST" \
+          OCI_DESCRIPTOR_SHA="$OCI_DESCRIPTOR_MANIFEST_SHA256" IMAGE_ID="$LOCAL_IMAGE_ID" \
+          CANARY_SHA="$CANARY_RECEIPT_SHA256" ADMISSION_SHA="$ADMISSION_RECEIPT_SHA256" STRIPE_MODE="$stripe_credential_mode" \
+          INTENT="$CAPABILITY_INTENT_ID" AUTHORITY="$AUTHORITY_REFERENCE" \
+          STARTED_SHA="$STARTED_EFFECT_RECEIPT_SHA256" RECONCILIATION_SHA="$reconciliation_sha256" \
+          STARTED_REQUEST_SHA="$STARTED_EFFECT_REQUEST_SHA256" \
+          PROVIDER_ADMISSION_ID="$PROVIDER_ADMISSION_ARTIFACT_ID" PROVIDER_ADMISSION_DIGEST="$PROVIDER_ADMISSION_ARTIFACT_DIGEST" \
+          PROVIDER_ADMISSION_SHA="$(sha256sum "$packet/bootstrap-provider-admission.json" | awk '{print $1}')" \
+          PROVIDER_ARTIFACT_READBACK_SHA="$PROVIDER_ARTIFACT_READBACK_SHA256" \
+          RETAINED_HISTORY_SHA="$(sha256sum "$packet/bootstrap-retained-artifact-history-inventory.json" | awk '{print $1}')" \
+          LEDGER_INVENTORY_SHA="$(sha256sum "$packet/bootstrap-ledger-inventory.json" | awk '{print $1}')" \
+          ABSENCE_SHA="$(sha256sum "$packet/bootstrap-authoritative-absence-resolution.json" | awk '{print $1}')" \
+          EFFECT_GENERATION="$(RECONCILIATION="$reconciliation" env -u FLY_API_TOKEN node --input-type=module -e \
+            "import fs from 'node:fs'; process.stdout.write(String(JSON.parse(fs.readFileSync(process.env.RECONCILIATION,'utf8')).effect_generation))")" \
+          FLY_ORGANIZATION="$FLY_ORGANIZATION" FLY_ORGANIZATION_ID="$organization_id" \
+          ORGANIZATION_SHA="$(sha256sum "$work/organization-readback.json" | awk '{print $1}')" \
+          SECRET_BUNDLE_SHA="$secret_bundle_fingerprint_sha256" SECRET_IMPORT_STATE="$(RECONCILIATION="$reconciliation" env -u FLY_API_TOKEN node --input-type=module -e \
+            "import fs from 'node:fs'; process.stdout.write(JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8')).secret_import_state)")" \
+          MACHINES_SHA="$(sha256sum "$work/machines-final.json" | awk '{print $1}')" \
+          VOLUMES_SHA="$(sha256sum "$work/volumes-final.json" | awk '{print $1}')" \
+          SECRETS_SHA="$(sha256sum "$work/secrets-sanitized.json" | awk '{print $1}')" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const names = ['ADMIN_PASSWORD','APP_URL','EXPECTED_APP_URL','OPENAI_API_KEY','RESEND_API_KEY','SENTRY_DSN',
+            'STRIPE_PRICE_ID_ANNUAL','STRIPE_PRICE_ID_MONTHLY','STRIPE_SECRET_KEY'].sort();
+          const row = { contract_version: 'assesssuite-physio-bootstrap/3.0.0', result: 'PASS',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            profession_id: 'physio', region: 'syd', volume_id: process.env.VOLUME_ID,
+            volume_name: 'assesssuite_physio_data', volume_size_gb: 3, volume_snapshot_retention_days: 5,
+            scheduled_snapshots: true, machine_count: 0, custom_certificate_count: 0,
+            candidate_receipt_sha256: process.env.CANDIDATE_SHA, archive_sha256: process.env.ARCHIVE_SHA,
+            oci_archive_sha256: process.env.OCI_ARCHIVE_SHA, oci_manifest_digest: process.env.OCI_MANIFEST_DIGEST,
+            oci_descriptor_manifest_sha256: process.env.OCI_DESCRIPTOR_SHA,
+            local_image_id: process.env.IMAGE_ID, exact_image_canary_receipt_sha256: process.env.CANARY_SHA,
+            bootstrap_admission_receipt_sha256: process.env.ADMISSION_SHA, production_ready: false,
+            initial_started_effect_request_sha256: process.env.STARTED_REQUEST_SHA,
+            started_effect_receipt_sha256: process.env.STARTED_SHA,
+            bootstrap_effect_reconciliation_sha256: process.env.RECONCILIATION_SHA,
+            effect_generation: Number(process.env.EFFECT_GENERATION),
+            provider_admission_artifact_id: Number(process.env.PROVIDER_ADMISSION_ID),
+            provider_admission_artifact_digest: process.env.PROVIDER_ADMISSION_DIGEST,
+            provider_admission_receipt_sha256: process.env.PROVIDER_ADMISSION_SHA,
+            provider_admission_artifact_readback_sha256: process.env.PROVIDER_ARTIFACT_READBACK_SHA,
+            retained_artifact_history_inventory_sha256: process.env.RETAINED_HISTORY_SHA,
+            ledger_inventory_sha256: process.env.LEDGER_INVENTORY_SHA,
+            provider_absence_resolution_sha256: process.env.ABSENCE_SHA,
+            fly_organization_slug: process.env.FLY_ORGANIZATION,
+            fly_organization_id: process.env.FLY_ORGANIZATION_ID,
+            organization_readback_sha256: process.env.ORGANIZATION_SHA,
+            webhook_secret_pending: true,
+            staged_secret_names: names, observed_secret_names: names, app_url_equals_expected_app_url: true,
+            secret_bundle_fingerprint_sha256: process.env.SECRET_BUNDLE_SHA,
+            secret_import_reconciliation: process.env.SECRET_IMPORT_STATE,
+            stripe_credential_mode: process.env.STRIPE_MODE, machines_readback_sha256: process.env.MACHINES_SHA,
+            volumes_readback_sha256: process.env.VOLUMES_SHA, secret_names_readback_sha256: process.env.SECRETS_SHA,
+            capability_intent_id: process.env.INTENT, authority_reference: process.env.AUTHORITY,
+            completed_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          for file in organization-readback.json apps-after.json machines-final.json volumes-final.json \
+            secrets-before-sanitized.json secrets-sanitized.json certificates.json; do
+            install -m 0600 "$work/$file" "$packet/$file"
+          done
+          PACKET="$packet" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const exactSecrets = [process.env.ADMIN_PASSWORD, process.env.RESEND_API_KEY, process.env.OPENAI_API_KEY,
+            process.env.STRIPE_SECRET_KEY, process.env.STRIPE_PRICE_ID_MONTHLY,
+            process.env.STRIPE_PRICE_ID_ANNUAL].filter((value) => typeof value === 'string' && value.length > 0);
+          for (const name of fs.readdirSync(process.env.PACKET)) {
+            const file = path.join(process.env.PACKET, name);
+            if (!fs.statSync(file).isFile()) throw new Error('bootstrap packet contains a non-regular member');
+            const body = fs.readFileSync(file, 'utf8');
+            if (exactSecrets.some((secret) => body.includes(secret)) ||
+                /(?:sk|rk)_live_[A-Za-z0-9]+|whsec_[A-Za-z0-9]+|re_[A-Za-z0-9]+|sk-(?:proj-)?[A-Za-z0-9_-]+/.test(body)) {
+              throw new Error(`bootstrap packet ${name} contains provider credential material`);
+            }
+          }
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          echo "bootstrap_receipt_sha256=$(sha256sum "$packet/physio-production-bootstrap.json" | awk '{print $1}')" >> "$GITHUB_OUTPUT"
+          echo "volume_id=$volume_id" >> "$GITHUB_OUTPUT"
+
+      - name: Select exact new or read-only reused bootstrap result
+        id: result
+        if: ${{ always() }}
+        shell: bash
+        env:
+          PROVIDER_ACTION: ${{ needs.provider.outputs.provider_action }}
+          PROVIDER_STEP_OUTCOME: ${{ needs.provider.result }}
+          PROVIDER_ADMISSION_ARTIFACT_ID: ${{ needs.provider.outputs.provider_artifact_id }}
+          BOOTSTRAP_STEP_OUTCOME: ${{ steps.bootstrap.outcome }}
+          NEW_RECEIPT_SHA256: ${{ steps.bootstrap.outputs.bootstrap_receipt_sha256 }}
+          NEW_VOLUME_ID: ${{ steps.bootstrap.outputs.volume_id }}
+          REUSE_RECEIPT_SHA256: ${{ steps.reuse_terminal.outputs.bootstrap_receipt_sha256 }}
+          REUSE_VOLUME_ID: ${{ needs.provider.outputs.reuse_volume_id }}
+          EFFECT_GENERATION: ${{ needs.start.outputs.next_effect_generation }}
+        run: |
+          set -euo pipefail
+          [[ "$PROVIDER_STEP_OUTCOME" == success && "$PROVIDER_ADMISSION_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          packet="$RUNNER_TEMP/physio-bootstrap-receipt"
+          [[ -d "$packet" && -f "$packet/SHA256SUMS" && ! -L "$packet/SHA256SUMS" ]]
+          if find "$packet" -mindepth 1 -type l -print -quit | grep -q .; then exit 1; fi
+          if find "$packet" -mindepth 2 -print -quit | grep -q .; then exit 1; fi
+          (cd "$packet" && sha256sum --check --strict SHA256SUMS)
+          receipt_sha="$(sha256sum "$packet/physio-production-bootstrap.json" | awk '{print $1}')"
+          if [[ "$PROVIDER_ACTION" == MUTATE ]]; then
+            [[ "$BOOTSTRAP_STEP_OUTCOME" == success && "$receipt_sha" == "$NEW_RECEIPT_SHA256" ]]
+            volume_id="$NEW_VOLUME_ID"
+          elif [[ "$PROVIDER_ACTION" == REUSE_COMPLETED ]]; then
+            [[ "$BOOTSTRAP_STEP_OUTCOME" == skipped ]]
+            [[ "$receipt_sha" == "$REUSE_RECEIPT_SHA256" ]]
+            volume_id="$REUSE_VOLUME_ID"
+          else
+            exit 1
+          fi
+          [[ "$receipt_sha" =~ ^[0-9a-f]{64}$ && "$volume_id" =~ ^vol_[A-Za-z0-9]+$ ]]
+          RECEIPT="$packet/physio-production-bootstrap.json" EFFECT="$packet/bootstrap-effect-reconciliation.json" \
+          APPLICATION_SHA="${{ inputs.application_sha }}" VOLUME_ID="$volume_id" \
+          PROVIDER_ACTION="$PROVIDER_ACTION" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECEIPT, 'utf8'));
+          const effect = JSON.parse(fs.readFileSync(process.env.EFFECT, 'utf8'));
+          const effectSha = createHash('sha256').update(fs.readFileSync(process.env.EFFECT)).digest('hex');
+          if (row.contract_version !== 'assesssuite-physio-bootstrap/3.0.0' || row.result !== 'PASS' ||
+              row.application !== 'assesssuite-physio-production' || row.application_sha !== process.env.APPLICATION_SHA ||
+              row.profession_id !== 'physio' || row.volume_id !== process.env.VOLUME_ID || row.machine_count !== 0 ||
+              row.custom_certificate_count !== 0 || row.production_ready !== false || row.webhook_secret_pending !== true ||
+              row.effect_generation !== Number(process.env.EFFECT_GENERATION) || effect.effect_generation !== row.effect_generation ||
+              effect.result !== 'COMPLETED' || row.bootstrap_effect_reconciliation_sha256 !== effectSha) {
+            throw new Error('selected bootstrap result differs');
+          }
+          if (process.env.PROVIDER_ACTION === 'REUSE_COMPLETED' &&
+              (row.completion_mode !== 'REUSED_EXACT_STATE_READ_ONLY' ||
+               effect.completion_mode !== 'REUSED_EXACT_STATE_READ_ONLY' ||
+               row.provider_mutation_occurred !== false || effect.provider_mutation_occurred !== false ||
+               row.predecessor_effect_generation !== row.effect_generation - 1 ||
+               effect.predecessor_effect_generation !== effect.effect_generation - 1)) {
+            throw new Error('current read-only reuse generation differs');
+          }
+          NODE
+          echo "bootstrap_receipt_sha256=$receipt_sha" >>"$GITHUB_OUTPUT"
+          echo "terminal_effect_receipt_sha256=$(sha256sum "$packet/bootstrap-effect-reconciliation.json" | awk '{print $1}')" >>"$GITHUB_OUTPUT"
+          echo "volume_id=$volume_id" >>"$GITHUB_OUTPUT"
+
+      - name: Scan exact terminal packet against every provider secret value
+        id: terminal_packet_scan
+        if: ${{ always() && steps.result.outcome == 'success' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_PRICE_ID_MONTHLY: ${{ secrets.STRIPE_PRICE_ID_MONTHLY }}
+          STRIPE_PRICE_ID_ANNUAL: ${{ secrets.STRIPE_PRICE_ID_ANNUAL }}
+          SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          node scripts/physio-bootstrap-ledger.mjs scan-packet \
+            --packet-directory "$RUNNER_TEMP/physio-bootstrap-receipt" \
+            --secret-env-names GITHUB_TOKEN,FLY_API_TOKEN,ADMIN_PASSWORD,RESEND_API_KEY,OPENAI_API_KEY,STRIPE_SECRET_KEY,STRIPE_PRICE_ID_MONTHLY,STRIPE_PRICE_ID_ANNUAL,SENTRY_DSN \
+            --output "$RUNNER_TEMP/bootstrap-terminal-packet-scan.json" --github-output "$GITHUB_OUTPUT"
+
+      - if: ${{ always() }}
+        name: Upload exact production bootstrap receipt
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-production-bootstrap-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/physio-bootstrap-receipt
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0
+
+  ledger_terminal:
+    name: Append terminal bootstrap receipt to the protected ledger
+    needs: [start, provider, ledger_provider, bootstrap]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - name: Check out exact protected-ledger client source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact terminal bootstrap packet
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.bootstrap.outputs.bootstrap_artifact_id }}
+          path: ${{ runner.temp }}/physio-bootstrap-receipt
+          github-token: ${{ github.token }}
+
+      - name: Persist immutable terminal or reuse record in protected bootstrap ledger
+        id: append
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          EFFECT_GENERATION: ${{ needs.start.outputs.next_effect_generation }}
+          ARTIFACT_ID: ${{ needs.bootstrap.outputs.bootstrap_artifact_id }}
+          ARTIFACT_DIGEST: ${{ needs.bootstrap.outputs.bootstrap_artifact_digest }}
+          EXPECTED_LEDGER_HEAD_SHA: ${{ needs.ledger_provider.outputs.provider_ledger_commit_sha }}
+          LEDGER_PROVISIONING_RECEIPT_SHA256: ${{ needs.start.outputs.ledger_provisioning_receipt_sha256 }}
+          EXPECTED_PACKET_BUNDLE_SHA256: ${{ needs.bootstrap.outputs.terminal_packet_bundle_sha256 }}
+          PACKET_SCAN_POLICY_VERSION: ${{ needs.bootstrap.outputs.terminal_packet_scan_policy_version }}
+          PACKET_SECRET_SET_FINGERPRINT_SHA256: ${{ needs.bootstrap.outputs.terminal_packet_secret_set_fingerprint_sha256 }}
+          PACKET_DURABLE_SECRET_NAMES: ${{ needs.bootstrap.outputs.terminal_packet_durable_secret_names }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          packet="$RUNNER_TEMP/physio-bootstrap-receipt"
+          effect="$packet/bootstrap-effect-reconciliation.json"
+          [[ -f "$effect" && ! -L "$effect" ]]
+          read -r effect_result effect_generation < <(EFFECT="$effect" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.EFFECT, 'utf8'));
+          process.stdout.write(`${row.result} ${row.effect_generation}`);
+          NODE
+          )
+          [[ "$effect_generation" == "$EFFECT_GENERATION" ]]
+          effect_sha="$(sha256sum "$effect" | awk '{print $1}')"
+          final="$packet/physio-production-bootstrap.json"
+          packet_receipt_sha=null
+          if [[ -f "$final" && ! -L "$final" ]]; then packet_receipt_sha="$(sha256sum "$final" | awk '{print $1}')"; fi
+          request="$RUNNER_TEMP/bootstrap-ledger-terminal-request.json"
+          REQUEST="$request" EFFECT_RESULT="$effect_result" EFFECT_SHA="$effect_sha" PACKET_RECEIPT_SHA="$packet_receipt_sha" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const packetReceipt = process.env.PACKET_RECEIPT_SHA === 'null' ? null : process.env.PACKET_RECEIPT_SHA;
+          const row = {
+            repository: process.env.REPOSITORY,
+            ledger_branch: 'assesssuite-physio-bootstrap-ledger',
+            application_sha: process.env.APPLICATION_SHA,
+            ledger_provisioning_receipt_sha256: process.env.LEDGER_PROVISIONING_RECEIPT_SHA256,
+            stage: 'TERMINAL',
+            effect_generation: Number(process.env.EFFECT_GENERATION),
+            effect_result: process.env.EFFECT_RESULT,
+            artifact: {
+              id: Number(process.env.ARTIFACT_ID),
+              name: `physio-production-bootstrap-${process.env.APPLICATION_SHA}`,
+              digest: process.env.ARTIFACT_DIGEST,
+              effect_receipt_sha256: process.env.EFFECT_SHA,
+              packet_receipt_sha256: packetReceipt,
+            },
+            packet_scan: {
+              contract_version: 'assesssuite-physio-bootstrap-ledger-packet-scan-proof/2.0.0',
+              result: 'PASS', scanner_policy_version: process.env.PACKET_SCAN_POLICY_VERSION,
+              packet_bundle_sha256: process.env.EXPECTED_PACKET_BUNDLE_SHA256,
+              durable_secret_names: process.env.PACKET_DURABLE_SECRET_NAMES.split(',').filter(Boolean),
+              durable_secret_set_fingerprint_sha256: process.env.PACKET_SECRET_SET_FINGERPRINT_SHA256,
+            },
+            workflow_run_id: Number(process.env.RUN_ID),
+            workflow_run_attempt: Number(process.env.RUN_ATTEMPT),
+          };
+          fs.writeFileSync(process.env.REQUEST, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/physio-bootstrap-ledger.mjs append \
+            --repository "$REPOSITORY" --application-sha "$APPLICATION_SHA" \
+            --expected-head-sha "$EXPECTED_LEDGER_HEAD_SHA" --request "$request" \
+            --packet-directory "$packet" \
+            --secret-env-names GITHUB_TOKEN \
+            --expected-packet-bundle-sha256 "$EXPECTED_PACKET_BUNDLE_SHA256" \
+            --output "$RUNNER_TEMP/bootstrap-ledger-terminal-append.json" --github-output "$GITHUB_OUTPUT"

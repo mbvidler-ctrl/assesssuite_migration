@@ -135,7 +135,10 @@ export default function IncrementalShuttleWalkTestISWTRunner({ client, onSave, o
 
   const playBeep = (frequency = 1000, duration = 200) => {
     if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      const AudioContextConstructor = window.AudioContext
+        || /** @type {Window & { webkitAudioContext?: typeof AudioContext }} */ (window).webkitAudioContext;
+      if (!AudioContextConstructor) throw new Error('Web Audio API is unavailable in this browser');
+      audioContextRef.current = new AudioContextConstructor();
     }
     createBeep(audioContextRef.current, frequency, duration);
   };

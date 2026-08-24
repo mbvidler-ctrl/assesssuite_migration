@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, Play, Square, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreFastGaitSpeed, scoreFourMeterGaitSpeed, scoreHabitualGaitSpeed } from "@/lib/clinical/scorers/coreA";
 
 export default function GaitSpeedRunner({ onSave, onClose, assessmentName }) {
   const [speed, setSpeed] = useState("");
@@ -65,7 +66,7 @@ export default function GaitSpeedRunner({ onSave, onClose, assessmentName }) {
   };
 
   const getAverageSpeed = () => {
-    if (trials.length === 0) return 0;
+    if (trials.length === 0) return "0";
     const sum = trials.reduce((acc, t) => acc + t.speed, 0);
     return (sum / trials.length).toFixed(2);
   };
@@ -91,37 +92,13 @@ export default function GaitSpeedRunner({ onSave, onClose, assessmentName }) {
   const interpretation = trials.length > 0 ? getInterpretation() : null;
 
   const handleSave = () => {
-    const avgSpeed = parseFloat(getAverageSpeed());
-    const avgTime = trials.length > 0 ? (trials.reduce((acc, t) => acc + t.time, 0) / trials.length).toFixed(2) : null;
-    
-    // Build comprehensive SOAP text
-    let soapText = `• ${testType} Gait Speed Test: ${avgSpeed} m/s\n`;
-    soapText += `  Distance: ${distance}m\n`;
-    soapText += `  Number of Trials: ${trials.length}\n`;
-    soapText += `  Average Time: ${avgTime}s\n\n  Individual Trials:\n`;
-    trials.forEach((trial, idx) => {
-      soapText += `    Trial ${idx + 1}: ${trial.speed.toFixed(2)} m/s (${trial.time.toFixed(2)}s)\n`;
-    });
-    if (interpretation) soapText += `\n  Interpretation: ${interpretation.level}\n`;
-    if (notes) soapText += `  Notes: ${notes}\n`;
-
-    onSave({
-      result_value: avgSpeed,
-      notes: notes,
-      additional_data: {
-        soap_text: soapText,
-        measurement_type: 'gait_speed',
-        gait_type: testType.toLowerCase(),
-        distance_meters: parseFloat(distance),
-        trials: trials,
-        average_speed_ms: avgSpeed,
-        speed_mps: avgSpeed,
-        interpretation: interpretation?.level,
-        gait_distance: parseFloat(distance),
-        average_time: avgTime,
-      },
-      assessment_date: todayLocal()
-    });
+    const input = { distance, trials: trials.map(({ distance: trialDistance, time }) => ({ distance: trialDistance, time })), notes };
+    const context = { assessmentName: `${testType} Gait Speed Test`, assessmentDate: todayLocal(), notes };
+    onSave(isFastGait
+      ? scoreFastGaitSpeed(input, context)
+      : is4Meter
+        ? scoreFourMeterGaitSpeed(input, context)
+        : scoreHabitualGaitSpeed(input, context));
   };
 
   return (

@@ -7,8 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, AlertTriangle, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import {
+  scoreBloodPressure,
+  scoreHeartRate,
+  scoreSpo2Exercise,
+  scoreSpo2Resting,
+} from "@/lib/clinical/scorers/extrasPhysiological";
+import { scoreRestingHeartRate } from "@/lib/clinical/scorers/coreB";
 
-export default function VitalSignsRunner({ client, assessment, onSave, onClose, assessmentName }) {
+export default function VitalSignsRunner({ client, assessment, onSave, onClose, assessmentName, runnerKey = null }) {
   const [measurements, setMeasurements] = useState({
     systolic: "",
     diastolic: "",
@@ -96,6 +103,48 @@ export default function VitalSignsRunner({ client, assessment, onSave, onClose, 
   const spo2PostInterp = getSpO2Interpretation(measurements.spo2Post);
 
   const handleSave = async () => {
+    if (['blood_pressure', 'heart_rate', 'resting-heart-rate', 'spo2-exercise', 'spo2-resting'].includes(runnerKey)) {
+      try {
+        const context = { assessmentDate: todayLocal(), assessmentName, client };
+        let scored;
+        if (runnerKey === 'blood_pressure') {
+          scored = scoreBloodPressure({
+            systolic: measurements.systolic,
+            diastolic: measurements.diastolic,
+            notes,
+          }, context);
+        } else if (runnerKey === 'heart_rate') {
+          scored = scoreHeartRate(isPrePost ? {
+            mode: 'pre_post',
+            pre_bpm: measurements.heartRatePre,
+            post_bpm: measurements.heartRatePost,
+            additional_measurements: additionalPostMeasures,
+            notes,
+          } : {
+            mode: 'single',
+            heart_rate_bpm: measurements.heartRate,
+            notes,
+          }, context);
+        } else if (runnerKey === 'resting-heart-rate') {
+          scored = scoreRestingHeartRate({ heart_rate_bpm: measurements.heartRate, notes }, context);
+        } else if (runnerKey === 'spo2-exercise') {
+          scored = scoreSpo2Exercise({
+            pre_percent: measurements.spo2Pre,
+            post_percent: measurements.spo2Post,
+            notes,
+          }, context);
+        } else {
+          scored = scoreSpo2Resting({ spo2_percent: measurements.spo2, notes }, context);
+        }
+        await onSave(scored);
+        toast.success("Assessment saved.");
+      } catch (error) {
+        toast.error(error instanceof Error ? error.message : "Unable to save assessment.");
+      }
+      return;
+    }
+
+    /** @type {string | number | null} */
     let resultValue = "";
     let additionalData = {};
     let soapText = "";

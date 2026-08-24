@@ -1,3 +1,6 @@
+import { resolveActiveProfessionContract } from '../packages/profession-config/runtime.mjs';
+import { sentryReleaseForProfession } from '../packages/profession-config/sentry-release.mjs';
+
 // Loading the Node SDK and its native profiler is intentionally limited to the
 // production runtime. Tests and local assurance use injected SDK doubles and
 // should not pay several seconds of native instrumentation startup before the
@@ -18,7 +21,7 @@ const OMITTED_RESPONSE_BODY = '[Omitted: response body is not safe bounded JSON]
 const MAX_SANITIZE_DEPTH = 12;
 const MAX_SANITIZE_KEYS = 1_000;
 const MAX_RESPONSE_BODY_BYTES = 64 * 1024;
-const EXACT_RELEASE = /^[0-9a-f]{40}$/i;
+const EXACT_RELEASE_SHA = /^[0-9a-f]{40}$/;
 const APPROVED_SENTRY_HOST = 'o4511822688813056.ingest.us.sentry.io';
 const APPROVED_SENTRY_PROJECT_ID = '4511827129663488';
 
@@ -130,12 +133,25 @@ function parseSentryDsn(rawDsn) {
 function productionConfiguration(environment) {
   const dsn = parseSentryDsn(environment.SENTRY_DSN);
   const releaseCandidate = environment.RELEASE_SHA;
-  if (!dsn || typeof releaseCandidate !== 'string' || !EXACT_RELEASE.test(releaseCandidate)) return null;
-  const release = releaseCandidate.toLowerCase();
+  if (!dsn || typeof releaseCandidate !== 'string' || !EXACT_RELEASE_SHA.test(releaseCandidate)) return null;
   if (environment.NODE_ENV !== 'production') return null;
+  let active;
+  try {
+    active = resolveActiveProfessionContract(environment);
+  } catch {
+    return null;
+  }
+  const release = sentryReleaseForProfession(active.professionId, releaseCandidate);
+  if (!release) return null;
   if (environment.SENTRY_RELEASE !== undefined && environment.SENTRY_RELEASE !== release) return null;
-  if (environment.SENTRY_ENVIRONMENT !== undefined && environment.SENTRY_ENVIRONMENT !== 'production') return null;
-  return Object.freeze({ dsn, release, environment: 'production' });
+  const expectedEnvironment = active.professionId === 'physio'
+    ? 'physio-production'
+    : 'production';
+  if (
+    environment.SENTRY_ENVIRONMENT !== undefined
+    && environment.SENTRY_ENVIRONMENT !== expectedEnvironment
+  ) return null;
+  return Object.freeze({ dsn, release, environment: expectedEnvironment });
 }
 
 function isSensitiveField(key) {

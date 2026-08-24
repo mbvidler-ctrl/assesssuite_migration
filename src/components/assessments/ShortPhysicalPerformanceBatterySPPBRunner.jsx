@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 // ─── Scoring Helpers ──────────────────────────────────────────────────────────
 
@@ -54,7 +55,7 @@ const calcGaitSpeed = (seconds, distance) => {
 
 // ─── Helper Components ────────────────────────────────────────────────────────
 
-function SectionHeader({ icon: Icon, title, color = "slate", subtitle }) {
+function SectionHeader({ icon: Icon, title, color = "slate", subtitle = null }) {
   const bg = {
     slate: "bg-slate-700", blue: "bg-blue-700", green: "bg-green-700",
     purple: "bg-purple-700", amber: "bg-amber-600", red: "bg-red-600", teal: "bg-teal-700"
@@ -152,7 +153,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
   const [walkDistance, setWalkDistance] = useState(4);
   const [gaitTrial1, setGaitTrial1] = useState("");
   const [gaitTrial2, setGaitTrial2] = useState("");
-  const [gaitAidUsed, setGaitAidUsed] = useState("");
+  const [gaitAidUsed, setGaitAidUsed] = useState(null);
   const [gaitDeviations, setGaitDeviations] = useState([]);
   const [gaitNotes, setGaitNotes] = useState("");
 
@@ -261,43 +262,18 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
   // ── Save ──────────────────────────────────────────────────────────────────
 
   const handleSave = () => {
-    if (!allComplete) {
-      toast.error("Complete all SPPB domains before saving.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({
+        balance: { sideBySide, semiTandem, tandemResult },
+        gait: { walkDistance, trial1: gaitTrial1, trial2: gaitTrial2, aidUsed: gaitAidUsed, deviations: gaitDeviations },
+        chair: { singleRiseAble, standTime: chairStandTime, stoppedEarly: chairStoppedEarly },
+        setup: { assistiveDevice, shoesOff, surface, baselinePain, baselineFatigue, safetyChecks, safetyDone },
+        domainNotes: { balance: balanceNotes, gait: gaitNotes, chair: chairNotes }, notes,
+      }, { runnerKey: 'sppb', assessmentDate: todayLocal() }));
+      toast.success("SPPB Assessment saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-    const chairFinalScore = singleRiseAble === false ? 0 : (chairScore || 0);
-    const soap = buildSOAP();
-    onSave({
-      status: "completed",
-      result_value: totalScore,
-      additional_data: {
-        measurement_type: "sppb",
-        balance_score: balanceScore,
-        gait_score: gaitScore,
-        chair_score: chairFinalScore,
-        total_score: totalScore,
-        gait_speed_ms: parseFloat(gaitSpeed),
-        gait_fastest_time: fastestGait,
-        gait_distance: walkDistance,
-        gait_trial_1: parseFloat(gaitTrial1) || null,
-        gait_trial_2: parseFloat(gaitTrial2) || null,
-        balance_side_by_side: sideBySide,
-        balance_semi_tandem: semiTandem,
-        balance_tandem: tandemResult,
-        chair_single_rise: singleRiseAble,
-        chair_stand_time: parseFloat(chairStandTime) || null,
-        chair_stopped_early: chairStoppedEarly,
-        baseline_pain: baselinePain,
-        assistive_device: assistiveDevice,
-        clinical_flags: flags,
-        interpretation: interpretation?.level,
-        interpretation_narrative: interpretation?.narrative,
-        soap_text: soap,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("SPPB Assessment saved.");
   };
 
   const handleReset = () => {
@@ -589,7 +565,7 @@ export default function ShortPhysicalPerformanceBatterySPPBRunner({ client, onSa
 
                 <div>
                   <Label className="text-xs font-semibold text-slate-600 block mb-2">Walking aid used during test?</Label>
-                  <YesNoButtons value={gaitAidUsed === true} onChange={v => setGaitAidUsed(v)} yesLabel="Yes" noLabel="No" />
+                  <YesNoButtons value={gaitAidUsed} onChange={v => setGaitAidUsed(v)} yesLabel="Yes" noLabel="No" />
                 </div>
 
                 <Textarea value={gaitNotes} onChange={e => setGaitNotes(e.target.value)} placeholder="Gait deviations, stops, compensatory strategies, confidence..." rows={2} />

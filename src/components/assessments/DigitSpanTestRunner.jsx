@@ -98,6 +98,10 @@ export default function DigitSpanTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
+    if (forwardTrials.length === 0 || backwardTrials.length === 0) {
+      toast.error("Complete at least one forward and one backward trial before saving.");
+      return;
+    }
     const fwMax = forwardTrials.filter(t => t.correct).reduce((max, t) => Math.max(max, t.length), 0);
     const bwMax = backwardTrials.filter(t => t.correct).reduce((max, t) => Math.max(max, t.length), 0);
 
@@ -330,7 +334,9 @@ export default function DigitSpanTestRunner({ client, onSave, onClose }) {
 
               <div className="flex gap-2 justify-end">
                 <Button variant="outline" onClick={onClose}><X className="mr-2 w-4 h-4" /> Cancel</Button>
-                <Button onClick={handleSave}><Save className="mr-2 w-4 h-4" /> Save to SOAP</Button>
+                <Button onClick={handleSave} disabled={forwardTrials.length === 0 || backwardTrials.length === 0}>
+                  <Save className="mr-2 w-4 h-4" /> Save to SOAP
+                </Button>
               </div>
             </div>
           )}

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Trash2, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 // Rikli & Jones (2001) Senior Fitness Test norms — Back Scratch (cm)
 const NORMS = {
@@ -45,7 +46,7 @@ export default function BackScratchTestRunner({ client, onSave, onClose }) {
   const [rightInput, setRightInput] = useState("");
   const [notes, setNotes] = useState("");
 
-  const age = client?.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000)) : null;
+  const age = client?.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000)) : null;
   const gender = client?.gender;
 
   const bestLeft = leftTrials.length > 0 ? Math.max(...leftTrials) : null;
@@ -70,10 +71,12 @@ export default function BackScratchTestRunner({ client, onSave, onClose }) {
   const catRight = bestRight !== null && age && gender ? classify(bestRight, age, gender) : null;
 
   const handleSave = () => {
-    if (leftTrials.length === 0 && rightTrials.length === 0) { toast.error("Record at least one trial"); return; }
-    const soap = `• Back Scratch Test (Senior Fitness Test)\n  Best Left: ${bestLeft !== null ? bestLeft + " cm" : "N/A"}${catLeft ? ` — ${catLeft.label}` : ""}\n  Best Right: ${bestRight !== null ? bestRight + " cm" : "N/A"}${catRight ? ` — ${catRight.label}` : ""}\n  Positive = overlap; Negative = gap${notes ? `\n  Notes: ${notes}` : ""}\n  Assesses upper body (shoulder) flexibility\n  Reference: Rikli RE & Jones CJ (2001). Senior Fitness Test Manual. Human Kinetics.`;
-    onSave({ status: "completed", result_value: best, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "back_scratch", best_left_cm: bestLeft, best_right_cm: bestRight, left_trials: leftTrials, right_trials: rightTrials, left_classification: catLeft?.label, right_classification: catRight?.label } });
-    toast.success("Saved.");
+    try {
+      onSave(validateMobilityOrtho({ leftTrials, rightTrials, age, gender, notes }, { runnerKey: 'back_scratch_test', assessmentDate: todayLocal() }));
+      toast.success("Saved.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

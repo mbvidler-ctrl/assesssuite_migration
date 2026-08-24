@@ -17,7 +17,7 @@ import { todayLocal } from "@/lib/localDate";
 import { uploadTenantFile } from "@/lib/fileIntegrations";
 import { renderSafeHtmlDocument } from "@/lib/safeHtml";
 
-export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted, readOnly = false, existingEvent = null, onEdit }) {
+export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted = null, readOnly = false, existingEvent = null, onEdit = null }) {
   const [currentUser, setCurrentUser] = useState(null);
   const [formData, setFormData] = useState({
     person_completing_form: "",
@@ -261,14 +261,14 @@ export default function AdverseEventForm({ client, isOpen, onClose, onSubmitted,
         ...formData,
         attachments,
         supervisor_notified: false,
-        supervisor_notified_date: null
+        supervisor_notified_date: null,
+        report_date: existingEvent?.report_date || new Date().toISOString(),
+        status: existingEvent?.status || "submitted"
       };
 
       if (existingEvent) {
         await base44.entities.AdverseEvent.update(existingEvent.id, eventData);
       } else {
-        eventData.report_date = new Date().toISOString();
-        eventData.status = "submitted";
         await base44.entities.AdverseEvent.create(eventData);
       }
       

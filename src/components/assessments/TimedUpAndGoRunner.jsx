@@ -6,6 +6,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { X, Play, Pause, RotateCcw } from 'lucide-react';
+import { todayLocal } from '@/lib/localDate';
+import { validateAndScore as validateMobilityOrtho } from '@/lib/clinical/scorers/extrasMobilityBalanceOrtho';
 
 export default function TimedUpAndGoRunner({ onSave, onClose }) {
   const [timerRunning, setTimerRunning] = useState(false);
@@ -74,22 +76,11 @@ export default function TimedUpAndGoRunner({ onSave, onClose }) {
   };
 
   const handleSave = () => {
-    const avgTime = calculateAverage();
-    const interpretation = getInterpretation(avgTime);
-    const trialSummary = trials.map((t, i) =>
-      `Trial ${i + 1}: ${t.time}s${t.assistiveDevice !== 'none' ? ` (${t.assistiveDevice.replace('_', ' ')})` : ''}${t.observations ? ` — ${t.observations}` : ''}`
-    ).join('\n');
-    onSave({
-      result_value: parseFloat(avgTime),
-      notes: `Interpretation: ${interpretation.text}\n\nTrials:\n${trialSummary}`,
-      additional_data: {
-        soap_text: `• Timed Up and Go (TUG): ${avgTime}s (average of ${trials.length} trial${trials.length > 1 ? 's' : ''})\n  Interpretation: ${interpretation.text}\n  Assistive Device: ${trials[0]?.assistiveDevice?.replace('_', ' ') || 'None'}\n\n  Trial Details:\n${trials.map((t, i) => `    Trial ${i + 1}: ${t.time}s${t.assistiveDevice !== 'none' ? ` | Device: ${t.assistiveDevice.replace('_', ' ')}` : ''}${t.steps ? ` | Steps: ${t.steps}` : ''}${t.observations ? `\n      Observations: ${t.observations}` : ''}`).join('\n')}`,
-        trials,
-        averageTime: parseFloat(avgTime),
-        interpretation: interpretation.text,
-        primaryAssistiveDevice: trials[0]?.assistiveDevice || 'none'
-      }
-    });
+    try {
+      onSave(validateMobilityOrtho({ trials }, { runnerKey: 'tug_full', assessmentDate: todayLocal() }));
+    } catch (error) {
+      window.alert(error.message);
+    }
   };
 
   return (

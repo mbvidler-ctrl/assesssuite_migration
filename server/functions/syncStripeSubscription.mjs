@@ -1,18 +1,14 @@
 // Ported from base44/functions/syncStripeSubscription/entry.ts.
 //
-// Two modes, switched solely by stripeGateway.stripeEnabled():
-//   - Mock (default; always under SELFTEST=1): reconciles from the mock
-//     Stripe store (server/mocks/stripe.mjs) — byte-identical to the
-//     pre-gateway behaviour.
-//   - Real (STRIPE_SECRET_KEY set): looks up the customer by email and the
-//     customer's latest subscription against api.stripe.com via
-//     server/stripeGateway.mjs, mirroring entry.ts.
-// Both modes write the identical entitlement shape to the User record
-// (subscription_status, stripe_customer_id, stripe_subscription_id,
-// subscription_start_date) — the mock's shapes are the contract.
+// Production reconciles only against Stripe through the server-owned adapter.
+// A test adapter may be injected through ctx solely in the exact self-test
+// posture; no fake implementation is imported by this runnable module.
 
-import { findMockSubscriptionByEmail } from '../mocks/stripe.mjs';
-import * as stripeGateway from '../stripeGateway.mjs';
+import { resolveActiveProfessionContract } from '../../packages/profession-config/runtime.mjs';
+import {
+  resolveStripeProvider,
+  stripeProviderReady,
+} from '../providers/stripeProduction.mjs';
 
 export default async function syncStripeSubscription(ctx) {
   const { user, respond, updateSubscriptionEntitlement } = ctx;
@@ -21,31 +17,42 @@ export default async function syncStripeSubscription(ctx) {
     return respond(401, { error: 'Unauthorized' });
   }
 
+  let provider;
+  try {
+    provider = resolveStripeProvider(ctx.stripeProvider, process.env);
+  } catch (error) {
+    return respond(500, { error: error.message, code: 'stripe_provider_invalid' });
+  }
+  if (!stripeProviderReady(provider, process.env)) {
+    return respond(503, {
+      error: 'Subscription reconciliation is unavailable because Stripe is not configured.',
+      code: 'stripe_provider_unavailable',
+    });
+  }
+
   let customer;
   let subscription;
-
-  if (stripeGateway.stripeEnabled()) {
-    // Real mode — same lookup sequence and 404 branches as entry.ts.
-    try {
-      customer = await stripeGateway.findCustomerByEmail(user.email);
+  try {
+      customer = await provider.findCustomerByEmail(user.email);
       if (!customer) {
         return respond(404, { error: 'No Stripe customer found for this email' });
       }
-      const subscriptions = await stripeGateway.listSubscriptionsForCustomer(customer.id, 1);
-      if (subscriptions.length === 0) {
+      const activeContract = resolveActiveProfessionContract(process.env);
+      const subscriptions = await provider.listSubscriptionsForCustomer(
+        customer.id,
+        activeContract.professionId === 'physio' ? 100 : 1,
+      );
+      subscription = activeContract.professionId === 'physio'
+        ? subscriptions.find((candidate) => (
+            candidate?.metadata?.appId === activeContract.appId
+            && candidate?.metadata?.professionId === activeContract.professionId
+          ))
+        : subscriptions[0];
+      if (!subscription) {
         return respond(404, { error: 'No active subscription found' });
       }
-      subscription = subscriptions[0];
-    } catch (err) {
-      return respond(500, { error: err.message });
-    }
-  } else {
-    // Mock mode (default) — unchanged behaviour.
-    const found = findMockSubscriptionByEmail(user.email);
-    if (!found) {
-      return respond(404, { error: 'No Stripe customer found for this email' });
-    }
-    ({ customer, subscription } = found);
+  } catch (err) {
+    return respond(502, { error: err.message, code: 'stripe_provider_rejected' });
   }
 
   // Epoch seconds for the period start. entry.ts read the top-level
@@ -60,7 +67,9 @@ export default async function syncStripeSubscription(ctx) {
     Math.floor(Date.now() / 1000);
 
   const updateData = {
-    subscription_status: subscription.status === 'active' ? 'active' : subscription.status,
+    subscription_status: ['active', 'trialing'].includes(subscription.status)
+      ? 'active'
+      : subscription.status,
     stripe_customer_id: customer.id,
     stripe_subscription_id: subscription.id,
     subscription_start_date: new Date(periodStartSeconds * 1000).toISOString(),

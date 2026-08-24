@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { X, Play, Square, ChevronDown, ChevronUp } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
+import { toast } from "sonner";
+import { scoreTriLevelArm } from "@/lib/clinical/scorers/extrasPhysiological";
 
 const STAGES = [
   { label: "Stage 1", watts: 25, duration: 120 },
@@ -62,28 +64,14 @@ export default function TriLevelArmErgometerTestRunner({ client, onSave, onClose
   const finalHR = heartRates[2] ? parseFloat(heartRates[2]) : avgHR;
 
   const handleSave = () => {
-    const soapText = [
-      `• Tri-Level Arm Ergometer Test`,
-      `  Protocol: 3 stages × 2 min | 25W → 50W → 75W | 50 rpm`,
-      `  Stage 1 HR: ${heartRates[0] || "—"} bpm`,
-      `  Stage 2 HR: ${heartRates[1] || "—"} bpm`,
-      `  Stage 3 HR: ${heartRates[2] || "—"} bpm`,
-      rpeBorg ? `  RPE (Borg 6–20): ${rpeBorg}` : "",
-      notes ? `  Notes: ${notes}` : "",
-    ].filter(Boolean).join("\n");
-
-    onSave({
-      result_value: finalHR || avgHR || 0,
-      notes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: soapText,
-        stage1_hr: parseFloat(heartRates[0]) || null,
-        stage2_hr: parseFloat(heartRates[1]) || null,
-        stage3_hr: parseFloat(heartRates[2]) || null,
-        rpe: rpeBorg ? parseInt(rpeBorg) : null,
-      }
-    });
+    try {
+      onSave(scoreTriLevelArm(
+        { stage_heart_rates: heartRates, rpe: rpeBorg, notes },
+        { assessmentDate: todayLocal(), assessmentName: 'Tri-Level Arm Ergometer Test', client },
+      ));
+    } catch (error) {
+      toast.error(error?.message || "Arm ergometer results could not be scored.");
+    }
   };
 
   const stageInfo = stage > 0 && stage <= 3 ? STAGES[stage - 1] : null;

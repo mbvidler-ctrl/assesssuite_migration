@@ -5,7 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, Save } from 'lucide-react';
-import { todayLocal } from "@/lib/localDate";
+import { toast } from 'sonner';
+import { scoreGirth } from '@/lib/clinical/scorers/extrasBodyFitness';
 
 const GIRTH_SITES = [
   { id: 'chest', name: 'Chest', description: 'At nipple line' },
@@ -40,41 +41,11 @@ export default function GirthMeasurementsRunner({ onSave, onClose, initialData }
   };
 
   const handleSave = () => {
-    const siteMeasurements = {};
-    selectedSites.forEach(siteId => {
-      const m = measurements[siteId];
-      siteMeasurements[siteId] = {
-        left: parseFloat(m?.left) || null,
-        right: parseFloat(m?.right) || null,
-        center: parseFloat(m?.center) || null
-      };
-    });
-
-    const siteLines = selectedSites.map(siteId => {
-      const site = GIRTH_SITES.find(s => s.id === siteId);
-      const m = siteMeasurements[siteId];
-      if (isBilateral(siteId)) {
-        const parts = [];
-        if (m.left) parts.push(`L: ${m.left} cm`);
-        if (m.right) parts.push(`R: ${m.right} cm`);
-        return `  ${site.name}: ${parts.join(', ')}`;
-      } else {
-        return `  ${site.name}: ${m.center ?? '—'} cm`;
-      }
-    }).join('\n');
-
-    const soapText = `• Girth Measurements:\n${siteLines}${observations ? `\n\n  Observations: ${observations}` : ''}`;
-
-    onSave({
-      result_value: selectedSites.length,
-      additional_data: {
-        soap_text: soapText,
-        sites: selectedSites,
-        measurements: siteMeasurements,
-      },
-      notes: observations,
-      assessment_date: todayLocal(),
-    });
+    try {
+      onSave(scoreGirth({ selected_sites: selectedSites, measurements, observations }, { assessmentName: 'Girth Measurements' }));
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   const isBilateral = (siteId) => {

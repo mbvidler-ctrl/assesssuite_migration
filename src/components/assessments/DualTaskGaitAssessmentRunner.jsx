@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 export default function DualTaskGaitAssessmentRunner({ client, onSave, onClose }) {
   const [singleTaskTime, setSingleTaskTime] = useState("");
@@ -15,43 +16,12 @@ export default function DualTaskGaitAssessmentRunner({ client, onSave, onClose }
   const [cognitiveTask, setCognitiveTask] = useState("");
   const [notes, setNotes] = useState("");
   const handleSave = () => {
-    if (!singleTaskTime || !dualTaskTime || !cognitiveTask) {
-      toast.error("Please fill in all fields before saving.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({ singleTaskTime, dualTaskTime, cognitiveTask, notes }, { runnerKey: 'dual_task_gait', assessmentDate: todayLocal() }));
+      toast.success("Assessment saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const singleTime = parseFloat(singleTaskTime);
-    const dualTime = parseFloat(dualTaskTime);
-
-    if (isNaN(singleTime) || isNaN(dualTime)) {
-      toast.error("Please enter valid numerical values for times.");
-      return;
-    }
-
-    // DTC = ((Dual - Single) / Single) * 100
-    // Positive = slowing during dual task (worse), Negative = paradoxical (faster during dual task)
-    const dualTaskCost = ((dualTime - singleTime) / singleTime) * 100;
-
-    const soapText = `• Dual-Task Gait Assessment:\n  Single-Task Time: ${singleTime} seconds\n  Dual-Task Time: ${dualTime} seconds\n  Dual-Task Cost: ${dualTaskCost.toFixed(2)}%\n  Cognitive Task: ${cognitiveTask}\n  Interpretation: ${dualTaskCost > 20 ? "Clinically significant (>20%) - increased fall risk" : dualTaskCost < 0 ? "Paradoxical response (faster during dual-task) - unusual" : "Within normal range (<20%)"}\n${notes ? `\n  Clinician Notes:\n    ${notes.replace(/\n/g, '\n    ')}` : ""}`;
-
-    const additionalData = {
-      measurement_type: "dual_task_gait_assessment",
-      single_task_time: singleTime,
-      dual_task_time: dualTime,
-      cognitive_task: cognitiveTask,
-      dual_task_cost: dualTaskCost.toFixed(2),
-      soap_text: soapText
-    };
-
-    onSave({
-      status: "completed",
-      result_value: dualTaskCost.toFixed(2),
-      additional_data: additionalData,
-      notes,
-      assessment_date: todayLocal(),
-    });
-
-    toast.success("Assessment saved successfully.");
     };
 
     return (

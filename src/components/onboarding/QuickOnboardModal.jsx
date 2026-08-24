@@ -598,7 +598,7 @@ export default function QuickOnboardModal({ isOpen, onClose, onClientCreated }) 
                   <Checkbox
                     id={`consent_${item.key}`}
                     checked={!!consents[item.key]}
-                    onCheckedChange={(checked) => setConsents(prev => ({ ...prev, [item.key]: checked }))}
+                    onCheckedChange={(checked) => setConsents(prev => ({ ...prev, [item.key]: checked === true }))}
                   />
                   <div className="flex-1">
                     <label htmlFor={`consent_${item.key}`} className="text-sm font-semibold text-slate-900 cursor-pointer">

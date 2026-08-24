@@ -10,79 +10,15 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_STROOP_TRIAL1_WORDS as TRIAL1_WORDS, PROM_NEURO_STROOP_TRIAL2_COLORS as TRIAL2_COLORS, PROM_NEURO_STROOP_TRIAL3_INTERFERENCE as TRIAL3_INTERFERENCE, PROM_NEURO_STROOP_NORMS_45S as NORMS_45S } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 // ─── STIMULUS CARDS ────────────────────────────────────────────────────────────
 // 50-item lists matching Golden CJ standard form
-const TRIAL1_WORDS = [
-  { word: "RED", color: "#1a1a1a" }, { word: "BLUE", color: "#1a1a1a" },
-  { word: "GREEN", color: "#1a1a1a" }, { word: "YELLOW", color: "#1a1a1a" },
-  { word: "RED", color: "#1a1a1a" }, { word: "GREEN", color: "#1a1a1a" },
-  { word: "BLUE", color: "#1a1a1a" }, { word: "YELLOW", color: "#1a1a1a" },
-  { word: "GREEN", color: "#1a1a1a" }, { word: "RED", color: "#1a1a1a" },
-  { word: "BLUE", color: "#1a1a1a" }, { word: "YELLOW", color: "#1a1a1a" },
-  { word: "RED", color: "#1a1a1a" }, { word: "GREEN", color: "#1a1a1a" },
-  { word: "BLUE", color: "#1a1a1a" }, { word: "YELLOW", color: "#1a1a1a" },
-  { word: "GREEN", color: "#1a1a1a" }, { word: "RED", color: "#1a1a1a" },
-  { word: "BLUE", color: "#1a1a1a" }, { word: "YELLOW", color: "#1a1a1a" },
-];
 
-const TRIAL2_COLORS = [
-  { word: "XXXX", color: "#e53e3e", name: "RED" },
-  { word: "XXXX", color: "#2b6cb0", name: "BLUE" },
-  { word: "XXXX", color: "#276749", name: "GREEN" },
-  { word: "XXXX", color: "#b7791f", name: "YELLOW" },
-  { word: "XXXX", color: "#e53e3e", name: "RED" },
-  { word: "XXXX", color: "#276749", name: "GREEN" },
-  { word: "XXXX", color: "#2b6cb0", name: "BLUE" },
-  { word: "XXXX", color: "#b7791f", name: "YELLOW" },
-  { word: "XXXX", color: "#276749", name: "GREEN" },
-  { word: "XXXX", color: "#e53e3e", name: "RED" },
-  { word: "XXXX", color: "#2b6cb0", name: "BLUE" },
-  { word: "XXXX", color: "#b7791f", name: "YELLOW" },
-  { word: "XXXX", color: "#e53e3e", name: "RED" },
-  { word: "XXXX", color: "#276749", name: "GREEN" },
-  { word: "XXXX", color: "#2b6cb0", name: "BLUE" },
-  { word: "XXXX", color: "#b7791f", name: "YELLOW" },
-  { word: "XXXX", color: "#276749", name: "GREEN" },
-  { word: "XXXX", color: "#e53e3e", name: "RED" },
-  { word: "XXXX", color: "#2b6cb0", name: "BLUE" },
-  { word: "XXXX", color: "#b7791f", name: "YELLOW" },
-];
 
-const TRIAL3_INTERFERENCE = [
-  { word: "RED", color: "#2b6cb0", correct: "BLUE" },
-  { word: "BLUE", color: "#276749", correct: "GREEN" },
-  { word: "GREEN", color: "#e53e3e", correct: "RED" },
-  { word: "YELLOW", color: "#2b6cb0", correct: "BLUE" },
-  { word: "RED", color: "#b7791f", correct: "YELLOW" },
-  { word: "BLUE", color: "#e53e3e", correct: "RED" },
-  { word: "GREEN", color: "#b7791f", correct: "YELLOW" },
-  { word: "YELLOW", color: "#276749", correct: "GREEN" },
-  { word: "RED", color: "#276749", correct: "GREEN" },
-  { word: "GREEN", color: "#2b6cb0", correct: "BLUE" },
-  { word: "BLUE", color: "#b7791f", correct: "YELLOW" },
-  { word: "YELLOW", color: "#e53e3e", correct: "RED" },
-  { word: "RED", color: "#2b6cb0", correct: "BLUE" },
-  { word: "GREEN", color: "#e53e3e", correct: "RED" },
-  { word: "BLUE", color: "#276749", correct: "GREEN" },
-  { word: "YELLOW", color: "#2b6cb0", correct: "BLUE" },
-  { word: "RED", color: "#b7791f", correct: "YELLOW" },
-  { word: "BLUE", color: "#e53e3e", correct: "RED" },
-  { word: "GREEN", color: "#b7791f", correct: "YELLOW" },
-  { word: "YELLOW", color: "#276749", correct: "GREEN" },
-];
 
 // ─── NORMATIVE DATA (Golden CJ, age-adjusted, 45s trial) ─────────────────────
 // Word Reading (T1), Color Naming (T2), Interference (T3) — mean scores (correct items in 45s)
-const NORMS_45S = {
-  "17-29": { t1: { mean: 109, sd: 17 }, t2: { mean: 81, sd: 14 }, t3: { mean: 51, sd: 10 } },
-  "30-39": { t1: { mean: 106, sd: 18 }, t2: { mean: 79, sd: 14 }, t3: { mean: 49, sd: 10 } },
-  "40-49": { t1: { mean: 104, sd: 16 }, t2: { mean: 77, sd: 13 }, t3: { mean: 47, sd: 9 } },
-  "50-59": { t1: { mean: 100, sd: 17 }, t2: { mean: 73, sd: 14 }, t3: { mean: 45, sd: 9 } },
-  "60-69": { t1: { mean: 93, sd: 18 }, t2: { mean: 67, sd: 14 }, t3: { mean: 40, sd: 9 } },
-  "70-79": { t1: { mean: 85, sd: 19 }, t2: { mean: 60, sd: 15 }, t3: { mean: 35, sd: 9 } },
-  "80+":   { t1: { mean: 77, sd: 20 }, t2: { mean: 53, sd: 15 }, t3: { mean: 30, sd: 9 } },
-};
 
 function getAgeNorm(age) {
   if (!age) return null;
@@ -160,7 +96,7 @@ function ImageCard({ url, caption }) {
   const [ex, setEx] = useState(false);
   return (
     <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
-      <img src={url} alt={caption} className={`w-full object-cover cursor-pointer transition-all ${ex ? "max-h-96" : "max-h-36"}`} onClick={() => setEx(e => !e)} onError={e => { e.target.style.display = "none"; }} />
+      <img src={url} alt={caption} className={`w-full object-cover cursor-pointer transition-all ${ex ? "max-h-96" : "max-h-36"}`} onClick={() => setEx(e => !e)} onError={e => { e.currentTarget.style.display = "none"; }} />
       <p className="text-xs text-slate-500 text-center p-2">{caption} <span className="text-purple-500 cursor-pointer" onClick={() => setEx(e => !e)}>{ex ? "(collapse)" : "(expand)"}</span></p>
     </div>
   );
@@ -322,7 +258,7 @@ export default function StroopTestRunner({ client, onSave, onClose }) {
 
   // Client age
   const age = client?.date_of_birth
-    ? Math.floor((Date.now() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000))
+    ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000))
     : null;
 
   const norms = getAgeNorm(age);

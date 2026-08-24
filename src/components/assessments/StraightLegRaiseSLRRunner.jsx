@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
@@ -406,36 +407,15 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
   const canSave = left.maxAngle && right.maxAngle && left.positive && right.positive;
 
   const handleSave = () => {
-    if (!canSave) {
-      toast.error("Complete both limb assessments (max ROM and positive/negative result) before saving.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({
+        left, right, modifiers, baselinePain, symptomaticSide, safetyFlags,
+        setup: { surface, shoesOff, warmupDone, consentObtained, safetyDone }, notes,
+      }, { runnerKey: 'slr_test', assessmentDate: todayLocal() }));
+      toast.success("SLR Assessment saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const soap = buildSOAP();
-    const { lAngle, rAngle, diff, lPositive, rPositive, flags, interp } = analysis;
-
-    onSave({
-      status: "completed",
-      result_value: Math.max(lAngle, rAngle),
-      additional_data: {
-        measurement_type: "slr_neurodynamic",
-        left: { ...left, maxAngle: lAngle, onsetAngle: parseFloat(left.onsetAngle) || null },
-        right: { ...right, maxAngle: rAngle, onsetAngle: parseFloat(right.onsetAngle) || null },
-        bilateral_asymmetry: diff,
-        left_positive: lPositive,
-        right_positive: rPositive,
-        symptom_modifiers: modifiers,
-        baseline_pain: baselinePain,
-        symptomatic_side: symptomaticSide,
-        clinical_flags: flags,
-        interpretation: interp,
-        safety_flags_noted: safetyFlags,
-        soap_text: soap,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("SLR Assessment saved.");
   };
 
   const handleReset = () => {
@@ -523,7 +503,7 @@ export default function StraightLegRaiseSLRRunner({ client, onSave, onClose }) {
                 )}
 
                 <label className="flex items-center gap-3 cursor-pointer text-sm p-2.5 rounded border bg-white border-slate-200">
-                  <Checkbox checked={consentObtained} onCheckedChange={setConsentObtained} />
+                  <Checkbox checked={consentObtained} onCheckedChange={checked => setConsentObtained(checked === true)} />
                   <span className="font-medium text-slate-800">Patient consent obtained for assessment</span>
                 </label>
 

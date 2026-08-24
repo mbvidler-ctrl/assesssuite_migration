@@ -11,6 +11,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import AIDisclosureNote from '@/components/legal/AIDisclosureNote';
 import { useAiCapability } from '@/hooks/useAiCapability';
 import { AI_COPY, aiErrorMessage } from '@/lib/aiCapabilities';
+import { buildTimeProfession as activeProfession } from '@/lib/profession';
+
+const legacyMedicationAiAllowed = activeProfession.features.legacyGeneralClinicalLlm === true;
 
 export default function MedicationAlerts({ conditions, client }) {
     const ai = useAiCapability();
@@ -81,6 +84,13 @@ export default function MedicationAlerts({ conditions, client }) {
                 setLabelLookupFailed(degraded);
             }
 
+            if (!legacyMedicationAiAllowed) {
+                setAlerts([]);
+                setAiErrorKind(null);
+                setIsLoading(false);
+                return;
+            }
+
             if (!ai.canTrigger) {
                 setAlerts([]);
                 setAiErrorKind(null);
@@ -124,7 +134,10 @@ export default function MedicationAlerts({ conditions, client }) {
                 };
 
                 const result = await InvokeLLM({ prompt, response_json_schema });
-                setAlerts(result && result.alerts ? result.alerts : []);
+                if (!result || typeof result !== 'object' || !('alerts' in result) || !Array.isArray(result.alerts)) {
+                    throw new Error('Medication alert provider returned an invalid structured response.');
+                }
+                setAlerts(result.alerts);
             } catch (err) {
                 console.error("Error fetching medication alerts:", err);
                 setAiErrorKind(ai.reportError(err));
@@ -210,7 +223,9 @@ export default function MedicationAlerts({ conditions, client }) {
         </>
     );
 
-    const aiNotice = !ai.canTrigger ? ai.unavailableMessage : (aiErrorKind ? aiErrorMessage(aiErrorKind) : null);
+    const aiNotice = legacyMedicationAiAllowed
+        ? (!ai.canTrigger ? ai.unavailableMessage : (aiErrorKind ? aiErrorMessage(aiErrorKind) : null))
+        : null;
 
     return (
         <Card className="bg-amber-50 border-amber-200">

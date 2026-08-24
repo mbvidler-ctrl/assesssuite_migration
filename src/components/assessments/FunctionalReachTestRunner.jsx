@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 export default function FunctionalReachTestRunner({ client, onSave, onClose }) {
   const [trials, setTrials] = useState([]);
@@ -27,29 +28,12 @@ export default function FunctionalReachTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (trials.length < 3) {
-      toast.error("Please complete at least 3 trials.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({ trials, notes }, { runnerKey: 'functional_reach_test', assessmentDate: todayLocal() }));
+      toast.success("Assessment saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-    const avgReach = trials.reduce((sum, val) => sum + val, 0) / trials.length;
-    let fallRisk = "";
-    if (avgReach < 15) fallRisk = "High";
-    else if (avgReach <= 25) fallRisk = "Moderate";
-    else fallRisk = "Low";
-
-    onSave({
-      status: "completed",
-      result_value: avgReach,
-      additional_data: {
-        soap_text: `• Functional Reach Test\n  Average Reach: ${avgReach.toFixed(1)} cm — ${fallRisk} Fall Risk\n  Trials: ${trials.map(t => t.toFixed(1) + ' cm').join(', ')}`,
-        measurement_type: "Functional Reach",
-        trials,
-        fall_risk: fallRisk,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved.");
   };
 
   const avgReach = trials.length > 0 ? trials.reduce((s, v) => s + v, 0) / trials.length : null;
@@ -80,7 +64,7 @@ export default function FunctionalReachTestRunner({ client, onSave, onClose }) {
                 src="https://www.physio-pedia.com/images/thumb/e/e4/Functional_reach_test.jpg/400px-Functional_reach_test.jpg"
                 alt="Functional Reach Test setup diagram"
                 className="rounded-lg border border-slate-200 w-full max-w-xs mx-auto block"
-                onError={e => e.target.style.display = 'none'}
+                onError={e => { e.currentTarget.style.display = 'none'; }}
               />
               <p className="text-xs text-slate-500 text-center mt-1 italic">Patient stands beside wall-mounted yardstick/tape measure</p>
             </div>

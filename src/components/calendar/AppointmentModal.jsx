@@ -32,7 +32,8 @@ export default function AppointmentModal({
     onSave,
     onDelete,
     onOpenSOAPNote,
-    calSettings
+    calSettings,
+    careEpisodeWorkflow = false,
 }) {
     const {
         register,
@@ -315,6 +316,11 @@ export default function AppointmentModal({
             toast.error("Please select a client and save the appointment first.");
             return;
         }
+        if (careEpisodeWorkflow) {
+            navigate(createPageUrl(`PhysioEpisodes?client_id=${appointment.client_id}`));
+            onClose();
+            return;
+        }
         const returnToUrl = `${window.location.origin}${createPageUrl(`Calendar?openAppointmentId=${appointment.id}`)}`;
         const url = createPageUrl(`AssessmentLibrary?mode=run&clientId=${appointment.client_id}&appointmentId=${appointment.id}&returnTo=${encodeURIComponent(returnToUrl)}`);
         navigate(url);
@@ -419,9 +425,8 @@ export default function AppointmentModal({
                                         <Select
                                             value={field.value}
                                             onValueChange={field.onChange}
-                                            className="mt-1"
                                         >
-                                            <SelectTrigger>
+                                            <SelectTrigger className="mt-1">
                                                 <SelectValue placeholder="Select location" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -504,8 +509,8 @@ export default function AppointmentModal({
                                     name="status"
                                     control={control}
                                     render={({ field }) => (
-                                        <Select onValueChange={field.onChange} value={field.value} className="mt-1">
-                                            <SelectTrigger>
+                                        <Select onValueChange={field.onChange} value={field.value}>
+                                            <SelectTrigger className="mt-1">
                                                 <SelectValue placeholder="Select status" />
                                             </SelectTrigger>
                                             <SelectContent>
@@ -624,8 +629,12 @@ export default function AppointmentModal({
                                     >
                                         <FileText className="w-5 h-5 mr-3 flex-shrink-0 text-blue-600" />
                                         <div>
-                                            <p className="font-semibold text-slate-800">Open SOAP Note</p>
-                                            <p className="text-xs text-slate-500 font-normal">Document the client session</p>
+                                            <p className="font-semibold text-slate-800">
+                                              {careEpisodeWorkflow ? 'Open Care Episodes' : 'Open SOAP Note'}
+                                            </p>
+                                            <p className="text-xs text-slate-500 font-normal">
+                                              {careEpisodeWorkflow ? 'Select the episode before documenting' : 'Document the client session'}
+                                            </p>
                                         </div>
                                     </Button>
                                     <Button
@@ -635,8 +644,12 @@ export default function AppointmentModal({
                                     >
                                         <ClipboardList className="w-5 h-5 mr-3 flex-shrink-0 text-purple-600" />
                                         <div>
-                                            <p className="font-semibold text-slate-800">Add / Run Assessment</p>
-                                            <p className="text-xs text-slate-500 font-normal">Perform a clinical assessment</p>
+                                            <p className="font-semibold text-slate-800">
+                                              {careEpisodeWorkflow ? 'Choose Episode for Assessment' : 'Add / Run Assessment'}
+                                            </p>
+                                            <p className="text-xs text-slate-500 font-normal">
+                                              {careEpisodeWorkflow ? 'Assessment creation is episode-scoped' : 'Perform a clinical assessment'}
+                                            </p>
                                         </div>
                                     </Button>
                                     <Button

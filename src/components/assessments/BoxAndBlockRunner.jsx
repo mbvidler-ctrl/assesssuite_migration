@@ -13,7 +13,7 @@ export default function BoxAndBlockRunner({ client, onSave, onClose, initialData
   const [showInstructions, setShowInstructions] = useState(false);
 
   // Calculate age from DOB if available
-  const clientAge = client?.date_of_birth ? Math.floor((new Date() - new Date(client.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000)) : null;
+  const clientAge = client?.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000)) : null;
   const clientSex = client?.gender ? client.gender.charAt(0).toUpperCase() + client.gender.slice(1) : null;
 
   const [data, setData] = useState({

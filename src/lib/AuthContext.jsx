@@ -8,7 +8,7 @@ import {
   setFrontendTelemetryUser,
 } from '@/lib/errorTelemetry';
 
-const AuthContext = createContext();
+const AuthContext = createContext(undefined);
 
 // Hoisted so both checkAppState() and the capability-only refreshPublicSettings()
 // share one request shape. Behaviour must stay byte-identical to the inline

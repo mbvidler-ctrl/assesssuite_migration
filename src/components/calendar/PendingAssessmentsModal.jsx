@@ -25,7 +25,6 @@ export default function PendingAssessmentsModal({
   const [pendingAssessments, setPendingAssessments] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [runningAssessment, setRunningAssessment] = useState(null);
-  const [clinicianNotes, setClinicianNotes] = useState('');
 
   useEffect(() => {
     if (isOpen && clientId) {
@@ -67,7 +66,6 @@ export default function PendingAssessmentsModal({
 
   const handleAssessmentComplete = () => {
     setRunningAssessment(null);
-    setClinicianNotes('');
     loadPendingAssessments();
     if (onAssessmentCompleted) {
       onAssessmentCompleted();
@@ -85,14 +83,11 @@ export default function PendingAssessmentsModal({
               client={client}
               clientAssessment={runningAssessment}
               isStandaloneMode={false}
-              clinicianNotes={clinicianNotes}
               onClose={() => {
                 setRunningAssessment(null);
-                setClinicianNotes('');
               }}
               onComplete={() => {
                 handleAssessmentComplete();
-                setClinicianNotes('');
               }}
             />
           </div>

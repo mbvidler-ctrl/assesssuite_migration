@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scorePerceivedStress } from "@/lib/clinical/scorers/coreB";
 
 const PSS_QUESTIONS = [
   { text: "In the last month, how often have you been upset because of something that happened unexpectedly?", reversed: false },
@@ -39,38 +39,13 @@ export default function PerceivedStressScalePSSRunner({ client, onSave, onClose 
   };
 
   const handleSubmit = () => {
-    if (responses.includes(null)) {
-      toast.error("Please answer all questions.");
-      return;
+    try {
+      onSave(scorePerceivedStress({ responses, notes }, { assessmentName: 'Perceived Stress Scale (PSS-10)', client }));
+      toast.success("Assessment saved successfully.");
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save PSS-10 assessment.');
     }
-
-    const adjustedResponses = responses.map((response, index) =>
-      PSS_QUESTIONS[index].reversed ? 4 - response : response
-    );
-
-    const totalScore = adjustedResponses.reduce((acc, curr) => acc + curr, 0);
-    const stressLevel = totalScore <= 13 ? 'Low Stress' : totalScore <= 26 ? 'Moderate Stress' : 'High Stress';
-
-    let soapText = `• Perceived Stress Scale (PSS-10): ${totalScore}/40 (${stressLevel})\n\n  Individual Responses:\n`;
-    PSS_QUESTIONS.forEach((q, i) => {
-      const opt = RESPONSE_OPTIONS.find(o => o.value === responses[i]);
-      soapText += `  Q${i+1}. ${q.text}\n      Answer: ${opt ? opt.label : responses[i]}${q.reversed ? ' (reversed)' : ''}\n`;
-    });
-
-    onSave({
-      status: "completed",
-      result_value: totalScore,
-      additional_data: {
-        measurement_type: "pss",
-        soap_text: soapText,
-        responses,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-
-    toast.success("Assessment saved successfully.");
-    onClose();
   };
 
   return (

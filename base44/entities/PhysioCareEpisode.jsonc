@@ -1,0 +1,310 @@
+{
+  "name": "PhysioCareEpisode",
+  "type": "object",
+  "description": "A versioned physiotherapy episode of care joining referral, screening, examinations, goals, outcomes, encounters, home programs, notes, reports and discharge.",
+  "properties": {
+    "schema_version": { "type": "number", "default": 3 },
+    "org_id": { "type": "string", "description": "Owning organisation; required for tenant scoping." },
+    "client_id": { "type": "string", "description": "Client receiving care." },
+    "primary_practitioner_id": { "type": "string" },
+    "care_team_user_ids": { "type": "array", "items": { "type": "string" } },
+    "episode_number": { "type": "number", "minimum": 1 },
+    "title": { "type": "string" },
+    "status": {
+      "type": "string",
+      "enum": ["draft", "active", "on_hold", "discharged", "cancelled"],
+      "default": "active"
+    },
+    "status_history": {
+      "type": "array",
+      "description": "Server-owned append-only lifecycle history. Client writes are rejected.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sequence": { "type": "number", "minimum": 1 },
+          "from": { "type": ["string", "null"] },
+          "to": { "type": "string", "enum": ["draft", "active", "on_hold", "discharged", "cancelled"] },
+          "reason": { "type": "string" },
+          "occurred_at": { "type": "string", "format": "date-time" },
+          "actor_user_id": { "type": "string" },
+          "actor_email": { "type": "string" },
+          "prior_discharge": {
+            "type": "object",
+            "description": "Archived discharge state retained when a discharged episode is reopened.",
+            "properties": {
+              "discharge_status": { "type": "string" },
+              "discharge_date": { "type": "string" },
+              "discharge_outcome": { "type": "string" }
+            }
+          }
+        },
+        "required": ["sequence", "to", "reason", "occurred_at", "actor_user_id", "actor_email"]
+      }
+    },
+    "presenting_problem": { "type": "string" },
+    "body_region": { "type": "string" },
+    "onset_date": { "type": "string", "format": "date" },
+    "episode_start_date": { "type": "string", "format": "date" },
+    "target_discharge_date": { "type": "string", "format": "date" },
+    "last_reviewed_at": { "type": "string", "format": "date-time" },
+    "referral": {
+      "type": "object",
+      "properties": {
+        "source": { "type": "string" },
+        "referrer_name": { "type": "string" },
+        "referrer_provider_number": { "type": "string" },
+        "referrer_contact": { "type": "string" },
+        "referral_date": { "type": "string", "format": "date" },
+        "reason": { "type": "string" },
+        "funding_source": { "type": "string" },
+        "claim_or_plan_number": { "type": "string" },
+        "approved_sessions": { "type": "number", "minimum": 0 },
+        "sessions_used": { "type": "number", "minimum": 0 },
+        "authorization_expiry": { "type": "string", "format": "date" }
+      }
+    },
+    "red_flag_screen": {
+      "type": "object",
+      "description": "Versioned structured red-flag responses, findings, reasoning and escalation disposition.",
+      "properties": {
+        "physio_screen_outcome": { "type": "string" },
+        "physio_screen_clinical_reasoning": { "type": "string" },
+        "physio_screen_escalation_disposition": { "type": "string" },
+        "physio_screen_escalation_recipient": { "type": "string" },
+        "physio_screen_escalation_time": { "type": "string" },
+        "physio_screen_activity_restriction": { "type": "string" },
+        "physio_screen_summary": {
+          "type": "object",
+          "properties": {
+            "schema_version": { "type": "number" },
+            "completion_status": { "type": "string", "enum": ["draft", "complete"] },
+            "recorded_at": { "type": "string", "format": "date-time" },
+            "responses": { "type": "array", "items": { "type": "object" } },
+            "finding_count": { "type": "number", "minimum": 0 },
+            "finding_keys": { "type": "array", "items": { "type": "string" } },
+            "outcome": { "type": ["string", "null"] },
+            "clinical_reasoning": { "type": ["string", "null"] },
+            "escalation": { "type": ["object", "null"] }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "subjective_examination": {
+      "type": "object",
+      "properties": {
+        "completion_status": { "type": "string", "enum": ["draft", "complete"] },
+        "recorded_at": { "type": "string", "format": "date-time" },
+        "physio_subj_presenting_complaint": { "type": "string" },
+        "physio_subj_body_chart_area": { "type": "string" },
+        "physio_subj_mechanism_of_onset": { "type": "string" },
+        "physio_subj_duration": { "type": "string" },
+        "physio_subj_pattern_morning": { "type": "string" },
+        "physio_subj_pattern_evening": { "type": "string" },
+        "physio_subj_pattern_night": { "type": "string" },
+        "physio_subj_aggravating_factors": { "type": "string" },
+        "physio_subj_easing_factors": { "type": "string" },
+        "physio_subj_pain_descriptors": { "type": "string" },
+        "physio_subj_current_pain": { "type": ["number", "string"] },
+        "physio_subj_worst_pain_last_week": { "type": ["number", "string"] },
+        "physio_subj_best_pain_last_week": { "type": ["number", "string"] },
+        "physio_subj_previous_episodes": { "type": "string" },
+        "physio_subj_investigations_to_date": { "type": "string" },
+        "physio_subj_current_medications": { "type": "string" },
+        "physio_subj_other_health_professionals": { "type": "string" },
+        "physio_subj_patient_goals": { "type": "string" },
+        "physio_subj_occupation_and_functional_demands": { "type": "string" },
+        "physio_subj_social_home_situation": { "type": "string" }
+      }
+    },
+    "objective_examination": {
+      "type": "object",
+      "properties": {
+        "completion_status": { "type": "string", "enum": ["draft", "complete"] },
+        "recorded_at": { "type": "string", "format": "date-time" },
+        "physio_obj_observation_posture": { "type": "string" },
+        "physio_obj_active_rom": { "type": "array", "items": { "type": "object" } },
+        "physio_obj_passive_rom_findings": { "type": "string" },
+        "physio_obj_muscle_strength": { "type": "array", "items": { "type": "object" } },
+        "physio_obj_neuro_myotomes_result": { "type": "string" },
+        "physio_obj_neuro_myotomes_details": { "type": "string" },
+        "physio_obj_neuro_dermatomes_result": { "type": "string" },
+        "physio_obj_neuro_dermatomes_details": { "type": "string" },
+        "physio_obj_neuro_reflexes_result": { "type": "string" },
+        "physio_obj_neuro_reflexes_details": { "type": "string" },
+        "physio_obj_special_tests": { "type": "array", "items": { "type": "object" } },
+        "physio_obj_palpation_findings": { "type": "string" },
+        "physio_obj_functional_tests": { "type": "string" },
+        "physio_obj_diagnosis_clinical_impression": { "type": "string" }
+      }
+    },
+    "initial_findings": {
+      "type": "object",
+      "description": "Concise snapshot derived from the structured examinations and editable by the treating clinician.",
+      "properties": {
+        "subjective_summary": { "type": "string" },
+        "objective_summary": { "type": "string" },
+        "physiotherapy_diagnosis": { "type": "string" },
+        "red_flag_status": {
+          "type": "string",
+          "enum": ["clear", "managed", "referred", "not_recorded"]
+        },
+        "precautions": { "type": "string" }
+      }
+    },
+    "goals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "baseline": { "type": "string" },
+          "target": { "type": "string" },
+          "target_date": { "type": "string", "format": "date" },
+          "status": {
+            "type": "string",
+            "enum": ["planned", "in_progress", "achieved", "paused", "not_achieved"]
+          }
+        }
+      }
+    },
+    "outcome_measures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "assessment_id": { "type": "string" },
+          "client_assessment_ids": { "type": "array", "items": { "type": "string" } },
+          "name": { "type": "string" },
+          "baseline_value": { "type": ["number", "string"] },
+          "current_value": { "type": ["number", "string"] },
+          "unit": { "type": "string" },
+          "direction": { "type": "string", "enum": ["higher_better", "lower_better", "descriptive"] },
+          "last_measured_date": { "type": "string", "format": "date" },
+          "target_value": { "type": ["number", "string"] }
+        }
+      }
+    },
+    "encounters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "appointment_id": { "type": "string" },
+          "practitioner_id": { "type": "string" },
+          "date": { "type": "string", "format": "date-time" },
+          "type": {
+            "type": "string",
+            "enum": ["initial", "review", "treatment", "reassessment", "discharge"]
+          },
+          "summary": { "type": "string" },
+          "treatments": { "type": "array", "items": { "type": "string" } },
+          "response": { "type": "string" },
+          "next_plan": { "type": "string" },
+          "soap_note_id": { "type": "string" }
+        }
+      }
+    },
+    "home_programs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "current", "superseded", "completed", "ceased"]
+          },
+          "prescribed_date": { "type": "string", "format": "date" },
+          "review_date": { "type": "string", "format": "date" },
+          "dosage": { "type": "string" },
+          "adherence": { "type": "string" },
+          "instructions": { "type": "string" }
+        }
+      }
+    },
+    "reporting": {
+      "type": "object",
+      "properties": {
+        "progress_report_status": {
+          "type": "string",
+          "enum": ["not_due", "due", "draft", "ready_for_review", "finalised", "sent"]
+        },
+        "referrer_update_due": { "type": "string", "format": "date" },
+        "discharge_status": {
+          "type": "string",
+          "enum": ["not_ready", "planning", "ready", "completed"]
+        },
+        "discharge_date": { "type": "string", "format": "date" },
+        "discharge_outcome": { "type": "string" },
+        "report_id": { "type": "string" },
+        "report_ids": { "type": "array", "items": { "type": "string" } },
+        "ai_drafts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "generation_id": { "type": "string" },
+              "task_type": {
+                "type": "string",
+                "enum": ["physio.initial_assessment_summary.v1", "physio.soap_note.v1", "physio.management_plan.v1", "physio.progress_comparison.v1", "physio.referrer_update.v1", "physio.discharge_summary.v1"]
+              },
+              "task_label": { "type": "string" },
+              "output_state": {
+                "type": "string",
+                "enum": ["clinician_reviewed_draft", "clinician_edited_draft"]
+              },
+              "source_output_state": { "type": "string", "enum": ["ai_draft_unreviewed"] },
+              "output": { "type": "object" },
+              "provenance": { "type": "object" },
+              "generated_at": { "type": "string", "format": "date-time" },
+              "saved_at": { "type": "string", "format": "date-time" },
+              "saved_by": { "type": "string" },
+              "destination": { "type": "string", "enum": ["soap_note", "saved_report"] },
+              "linked_entity": { "type": "string", "enum": ["SOAPNote", "SavedReport"] },
+              "linked_record_id": { "type": "string" },
+              "source_output_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+              "provenance_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+            },
+            "required": ["id", "generation_id", "task_type", "task_label", "output_state", "source_output_state", "output", "provenance", "generated_at", "saved_at", "destination", "linked_entity", "linked_record_id", "source_output_sha256", "provenance_sha256"]
+          }
+        },
+        "latest_ai_draft": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "generation_id": { "type": "string" },
+            "task_type": { "type": "string" },
+            "task_label": { "type": "string" },
+            "output_state": { "type": "string" },
+            "source_output_state": { "type": "string" },
+            "output": { "type": "object" },
+            "provenance": { "type": "object" },
+            "generated_at": { "type": "string", "format": "date-time" },
+            "saved_at": { "type": "string", "format": "date-time" },
+            "saved_by": { "type": "string" },
+            "destination": { "type": "string" },
+            "linked_entity": { "type": "string" },
+            "linked_record_id": { "type": "string" },
+            "source_output_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+            "provenance_sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "org_id",
+    "client_id",
+    "episode_number",
+    "status",
+    "status_history",
+    "episode_start_date"
+  ]
+}

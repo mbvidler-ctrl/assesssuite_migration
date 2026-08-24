@@ -7,9 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_PSFS_SCORE_OPTIONS as PSFS_SCORE_OPTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 export default function PSFSRunner({ onSave, onClose }) {
-  const [activities, setActivities] = useState([{ activity: "", score: "" }]);
+  const [activities, setActivities] = useState([{ name: "", score: "" }]);
   const [notes, setNotes] = useState("");
 
   const handleAddActivity = () => {
@@ -17,7 +18,7 @@ export default function PSFSRunner({ onSave, onClose }) {
       toast.error("Maximum 5 activities");
       return;
     }
-    setActivities([...activities, { activity: "", score: "" }]);
+    setActivities([...activities, { name: "", score: "" }]);
   };
 
   const handleRemoveActivity = (index) => {
@@ -34,7 +35,7 @@ export default function PSFSRunner({ onSave, onClose }) {
     setActivities(newActivities);
   };
 
-  const validActivities = () => activities.filter(a => a.activity && a.score);
+  const validActivities = () => activities.filter(a => a.name.trim() && a.score !== "");
 
   const calculateAverage = () => {
     const valid = validActivities();
@@ -52,8 +53,8 @@ export default function PSFSRunner({ onSave, onClose }) {
     }
 
     const valid = validActivities();
-    const avg = parseFloat(average);
-    const activityLines = valid.map((a, i) => `    ${i + 1}. "${a.activity}": ${a.score}/10`).join('\n');
+    const avg = Number(average);
+    const activityLines = valid.map((a, i) => `    ${i + 1}. "${a.name}": ${a.score}/10`).join('\n');
     const soapText = [
       `• Patient-Specific Functional Scale (PSFS)`,
       `  Average Score: ${avg}/10 (${valid.length} activit${valid.length > 1 ? 'ies' : 'y'})`,
@@ -146,8 +147,8 @@ export default function PSFSRunner({ onSave, onClose }) {
                     <div>
                       <Label className="text-sm">Activity Description</Label>
                       <Input
-                        value={activity.activity}
-                        onChange={(e) => handleActivityChange(index, 'activity', e.target.value)}
+                        value={activity.name}
+                        onChange={(e) => handleActivityChange(index, 'name', e.target.value)}
                         placeholder="e.g., Putting on socks, Climbing stairs, Lifting groceries"
                         className="mt-1"
                       />
@@ -155,7 +156,7 @@ export default function PSFSRunner({ onSave, onClose }) {
                     <div>
                       <Label className="text-sm">Current Ability (0-10)</Label>
                       <div className="flex gap-2 mt-2 flex-wrap">
-                        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((score) => (
+                        {PSFS_SCORE_OPTIONS.map((score) => (
                           <Button
                             key={score}
                             type="button"

@@ -13,6 +13,7 @@ export default function StorkTestRunner({ onSave, onClose, initialData }) {
   const [data, setData] = useState({
     left_time: initialData?.left_time || "",
     right_time: initialData?.right_time || "",
+    result: initialData?.result || "",
     observations: initialData?.observations || ""
   });
 

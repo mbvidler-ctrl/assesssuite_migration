@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { X, Save, Info, Activity } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreBorgRpe } from "@/lib/clinical/scorers/coreB";
 
 export default function BorgRPERunner({ onSave, onClose }) {
   const [selectedScale, setSelectedScale] = useState("borg_6_20");
@@ -65,33 +65,11 @@ export default function BorgRPERunner({ onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (selectedRating === null) {
-      toast.error("Please select an RPE rating");
-      return;
+    try {
+      onSave(scoreBorgRpe({ scale_type: selectedScale, rpe_value: selectedRating, activity_description: activityDescription, notes }, { assessmentName: 'Borg Rating of Perceived Exertion' }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save Borg RPE assessment.');
     }
-
-    const interpretation = getInterpretation(selectedRating, selectedScale);
-    
-    const soapText = [
-      `• Borg RPE Scale Assessment`,
-      `  Scale: ${selectedScale === 'borg_6_20' ? 'Borg RPE (6-20)' : 'Modified CR10 (0-10)'}`,
-      `  Rating: ${selectedRating} — ${interpretation.text}`,
-      activityDescription ? `  Activity: ${activityDescription}` : null,
-      notes ? `  Notes: ${notes}` : null,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      result_value: selectedRating,
-      additional_data: {
-        soap_text: soapText,
-        scale_type: selectedScale,
-        rpe_value: selectedRating,
-        interpretation: interpretation.text,
-        activity_description: activityDescription,
-      },
-      notes: notes,
-      assessment_date: todayLocal()
-    });
   };
 
   const scaleData = selectedScale === "borg_6_20" ? borgScale : cr10Scale;

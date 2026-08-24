@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Play, Square, RotateCcw, Hand, ExternalLink, ChevronDown, ChevronUp, CheckCircle, AlertCircle, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 const NORMS = {
   male:   { right: { mean: 19.0, sd: 3.2 }, left: { mean: 20.6, sd: 3.9 } },
@@ -118,37 +119,14 @@ export default function NineHolePegTestRunner({ client, onSave, onClose }) {
   const normRef = gender ? NORMS[gender] : null;
 
   const handleSave = () => {
-    if (!dominantTime && !nonDominantTime) {
-      toast.error("Please record at least one hand time.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho(
+        { dominantTime, nonDominantTime, dominantSide, gender, notes },
+        { runnerKey: "nine_peg", assessmentDate: todayLocal() },
+      ));
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const primaryResult = dominantTime || nonDominantTime;
-    const domClass = dominantTime && gender ? classifyResult(dominantTime, gender, dominantSide) : null;
-    const nonDomClass = nonDominantTime && gender ? classifyResult(nonDominantTime, gender, nonDominantSide) : null;
-
-    const soapLines = [
-      `• Nine-Hole Peg Test (NHPT)`,
-      dominantTime ? `  Dominant Hand (${dominantSide}): ${dominantTime}s${domClass ? ` — ${domClass.label}` : ''}` : null,
-      nonDominantTime ? `  Non-Dominant Hand (${nonDominantSide}): ${nonDominantTime}s${nonDomClass ? ` — ${nonDomClass.label}` : ''}` : null,
-      normRef ? `  Reference Norms (${gender}): Right ${normRef.right.mean}s ±${normRef.right.sd}, Left ${normRef.left.mean}s ±${normRef.left.sd}` : null,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      status: "completed",
-      result_value: primaryResult,
-      additional_data: {
-        measurement_type: "nine_hole_peg_test",
-        dominant_side: dominantSide,
-        dominant_hand_time: dominantTime,
-        non_dominant_hand_time: nonDominantTime,
-        dominant_classification: domClass?.label || null,
-        non_dominant_classification: nonDomClass?.label || null,
-        soap_text: soapLines,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
   };
 
   return (
@@ -363,7 +341,7 @@ export default function NineHolePegTestRunner({ client, onSave, onClose }) {
             <Button variant="outline" onClick={onClose}>
               <X className="w-4 h-4 mr-2" />Cancel
             </Button>
-            <Button onClick={handleSave} disabled={!dominantTime && !nonDominantTime}>
+            <Button onClick={handleSave} disabled={!dominantTime}>
               <Save className="w-4 h-4 mr-2" />Save Assessment
             </Button>
           </div>

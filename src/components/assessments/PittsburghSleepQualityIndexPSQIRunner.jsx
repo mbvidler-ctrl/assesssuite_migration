@@ -7,52 +7,14 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Info, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_PSQI_COMPONENTS as COMPONENTS, PROM_NEURO_PSQI_Q1_OPTIONS as Q1_OPTIONS, PROM_NEURO_PSQI_FREQ_OPTIONS as FREQ_OPTIONS, PROM_NEURO_PSQI_LATENCY_MIN_OPTIONS as LATENCY_MIN_OPTIONS, PROM_NEURO_PSQI_DURATION_OPTIONS as DURATION_OPTIONS, PROM_NEURO_PSQI_DYSFUNCTION_OPTIONS as DYSFUNCTION_OPTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 // PSQI Components and scoring
-const COMPONENTS = [
-  { label: "Subjective Sleep Quality", key: "c1" },
-  { label: "Sleep Latency", key: "c2" },
-  { label: "Sleep Duration", key: "c3" },
-  { label: "Habitual Sleep Efficiency", key: "c4" },
-  { label: "Sleep Disturbances", key: "c5" },
-  { label: "Use of Sleep Medication", key: "c6" },
-  { label: "Daytime Dysfunction", key: "c7" },
-];
 
-const Q1_OPTIONS = [
-  { label: "Very good", value: 0 },
-  { label: "Fairly good", value: 1 },
-  { label: "Fairly bad", value: 2 },
-  { label: "Very bad", value: 3 },
-];
 
-const FREQ_OPTIONS = [
-  { label: "Not during the past month", value: 0 },
-  { label: "Less than once a week", value: 1 },
-  { label: "Once or twice a week", value: 2 },
-  { label: "Three or more times a week", value: 3 },
-];
 
-const LATENCY_MIN_OPTIONS = [
-  { label: "≤15 minutes", value: 0 },
-  { label: "16–30 minutes", value: 1 },
-  { label: "31–60 minutes", value: 2 },
-  { label: ">60 minutes", value: 3 },
-];
 
-const DURATION_OPTIONS = [
-  { label: "More than 7 hours", value: 0 },
-  { label: "6–7 hours", value: 1 },
-  { label: "5–6 hours", value: 2 },
-  { label: "Less than 5 hours", value: 3 },
-];
 
-const DYSFUNCTION_OPTIONS = [
-  { label: "No problem at all", value: 0 },
-  { label: "Only a very slight problem", value: 1 },
-  { label: "Somewhat of a problem", value: 2 },
-  { label: "A very big problem", value: 3 },
-];
 
 function ScoreButtons({ options, value, onChange }) {
   return (
@@ -75,7 +37,7 @@ function ScoreButtons({ options, value, onChange }) {
   );
 }
 
-function SectionHeader({ number, title, subtitle }) {
+function SectionHeader({ number, title, subtitle = "" }) {
   return (
     <div className="bg-slate-100 border border-slate-200 rounded-lg px-4 py-2 mb-3">
       <p className="font-bold text-slate-800 text-sm">Component {number}: {title}</p>
@@ -89,9 +51,7 @@ export default function PittsburghSleepQualityIndexPSQIRunner({ client, onSave, 
   const [notes, setNotes] = useState("");
 
   // Raw question responses
-  const [q1, setQ1] = useState(null);           // bedtime
   const [q2min, setQ2min] = useState(null);     // minutes to fall asleep
-  const [q3, setQ3] = useState("");             // wake time
   const [q4hrs, setQ4hrs] = useState(null);     // hours of actual sleep
   const [q5a, setQ5a] = useState(null);         // can't sleep within 30 min
   const [q5b, setQ5b] = useState(null);         // wake in night or early morning
@@ -182,6 +142,25 @@ export default function PittsburghSleepQualityIndexPSQIRunner({ client, onSave, 
       assessment_date: todayLocal(),
       additional_data: {
         soap_text: soapText,
+        bedtime,
+        wake_time: wakeTime,
+        bed_hours: Number(bedHours),
+        q2min,
+        q5a,
+        q4hrs,
+        q5b,
+        q5c,
+        q5d,
+        q5e,
+        q5f,
+        q5g,
+        q5h,
+        q5i,
+        q5j,
+        q6,
+        q7,
+        q8,
+        q9,
         components: { c1, c2, c3, c4, c5, c6, c7 },
         interpretation: interp.label,
       },

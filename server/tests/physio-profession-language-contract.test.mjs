@@ -1,0 +1,95 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+import {
+  getProfession,
+  toPublicProfession,
+  validateProfession,
+} from '../../packages/profession-config/index.mjs';
+
+const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+const readSource = (relativePath) => fs.readFileSync(path.join(repositoryRoot, relativePath), 'utf8');
+
+test('both profession manifests provide validated clinical writing language', () => {
+  const ep = getProfession('exercise-physiology');
+  const physio = getProfession('physio');
+
+  assert.equal(ep.disciplineName, 'Exercise Physiology');
+  assert.equal(ep.clinicalPromptRole, 'Accredited Exercise Physiologist (AEP)');
+  assert.equal(physio.disciplineName, 'Physiotherapy');
+  assert.equal(physio.clinicalPromptRole, 'Registered Physiotherapist');
+
+  assert.equal(toPublicProfession(ep).disciplineName, ep.disciplineName);
+  assert.equal(toPublicProfession(ep).clinicalPromptRole, ep.clinicalPromptRole);
+  assert.equal(toPublicProfession(physio).disciplineName, physio.disciplineName);
+  assert.equal(toPublicProfession(physio).clinicalPromptRole, physio.clinicalPromptRole);
+
+  const invalid = JSON.parse(JSON.stringify(physio));
+  invalid.clinicalPromptRole = '';
+  assert.throws(
+    () => validateProfession(invalid),
+    /profession\.clinicalPromptRole must be a non-empty, trimmed string/,
+  );
+});
+
+test('Physio-exposed SOAP and report paths compose terminology from the active manifest', () => {
+  const sources = {
+    soap: readSource('src/components/calendar/SOAPNoteModal.jsx'),
+    sectionEditor: readSource('src/components/reports/wizard-steps/SectionEditor.jsx'),
+    reports: readSource('src/pages/Reports.jsx'),
+  };
+
+  for (const [name, source] of Object.entries(sources)) {
+    assert.match(
+      source,
+      /buildTimeProfession as activeProfession/,
+      `${name} must bind to the validated build-time profession`,
+    );
+  }
+
+  assert.match(sources.soap, /activeProfession\.clinicalPromptRole/g);
+  assert.match(sources.sectionEditor, /activeProfession\.clinicalPromptRole/);
+  assert.match(sources.reports, /activeProfession\.disciplineName\.toLowerCase\(\)/);
+
+  const exposedSource = Object.values(sources).join('\n');
+  for (const epOnlyLiteral of [
+    'You are a clinical exercise physiologist',
+    'You are an expert Exercise Physiologist (AEP)',
+    'HSE-funded exercise physiology programme',
+  ]) {
+    assert.equal(
+      exposedSource.includes(epOnlyLiteral),
+      false,
+      `Physio-exposed source must not hard-code: ${epOnlyLiteral}`,
+    );
+  }
+});
+
+test('active language renders distinct EP and Physio author identities without changing capability', () => {
+  const ep = toPublicProfession('exercise-physiology');
+  const physio = toPublicProfession('physio');
+  const soapLead = (profession) => `You are the treating ${profession.clinicalPromptRole} writing a SOAP note assessment section.`;
+  const reportLead = (profession) => `You are acting as an expert ${profession.clinicalPromptRole} writing the report.`;
+
+  assert.equal(
+    soapLead(ep),
+    'You are the treating Accredited Exercise Physiologist (AEP) writing a SOAP note assessment section.',
+  );
+  assert.equal(
+    soapLead(physio),
+    'You are the treating Registered Physiotherapist writing a SOAP note assessment section.',
+  );
+  assert.equal(
+    reportLead(ep),
+    'You are acting as an expert Accredited Exercise Physiologist (AEP) writing the report.',
+  );
+  assert.equal(
+    reportLead(physio),
+    'You are acting as an expert Registered Physiotherapist writing the report.',
+  );
+  assert.equal(ep.disciplineName.toLowerCase(), 'exercise physiology');
+  assert.equal(physio.disciplineName.toLowerCase(), 'physiotherapy');
+});

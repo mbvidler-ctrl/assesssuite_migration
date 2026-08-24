@@ -35,6 +35,35 @@ function runComparator(baseText, candidateText) {
   }
 }
 
+function runComparatorWithEvidence(baseText, candidateText) {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'assesssuite-typecheck-evidence-'));
+  try {
+    const base = path.join(root, 'base.log');
+    const candidate = path.join(root, 'candidate.log');
+    const baseOutput = path.join(root, 'evidence', 'base.txt');
+    const candidateOutput = path.join(root, 'evidence', 'candidate.txt');
+    fs.writeFileSync(base, baseText);
+    fs.writeFileSync(candidate, candidateText);
+    const result = spawnSync(process.execPath, [
+      comparator,
+      '--base', base,
+      '--candidate', candidate,
+      '--base-output', baseOutput,
+      '--candidate-output', candidateOutput,
+    ], {
+      cwd: repoRoot,
+      encoding: 'utf8',
+    });
+    return {
+      result,
+      baseEvidence: fs.readFileSync(baseOutput, 'utf8'),
+      candidateEvidence: fs.readFileSync(candidateOutput, 'utf8'),
+    };
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+}
+
 test('T01 typecheck comparator counts global diagnostics and rejects newly introduced fatal errors', () => {
   const base = 'src/probe.js(1,1): error TS1234: reviewed baseline\n';
   const result = runComparator(base, `${base}error TS18003: No inputs were found in config file.\n`);
@@ -46,6 +75,42 @@ test('T02 typecheck comparator rejects empty file-mode candidate evidence', () =
   const result = runComparator('src/probe.js(1,1): error TS1234: reviewed baseline\n', '');
   assert.notEqual(result.status, 0, result.stdout + result.stderr);
   assert.match(result.stderr, /Candidate typecheck evidence file is empty/);
+});
+
+test('T02a typecheck comparator rejects empty file-mode base evidence', () => {
+  const result = runComparator('', 'src/probe.js(1,1): error TS1234: candidate\n');
+  assert.notEqual(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stderr, /production base unexpectedly has no TypeScript errors/);
+});
+
+test('T02b typecheck comparator preserves exact raw base and candidate evidence', () => {
+  const base = 'src/probe.js(1,1): error TS1234: reviewed baseline\n';
+  const candidate = 'src/probe.js(4,2): error TS1234: reviewed baseline\n';
+  const evidence = runComparatorWithEvidence(base, candidate);
+  assert.equal(evidence.result.status, 0, evidence.result.stdout + evidence.result.stderr);
+  assert.equal(evidence.baseEvidence, base);
+  assert.equal(evidence.candidateEvidence, candidate);
+});
+
+test('T02c typecheck fingerprints normalise worktree roots and source locations', () => {
+  const base = 'C:\\runner\\base\\packages\\probe\\index.mjs(1,1): error TS1234: reviewed baseline\n';
+  const candidate = '/tmp/candidate/packages/probe/index.mjs(99,44): error TS1234: reviewed baseline\n';
+  const result = runComparator(base, candidate);
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.match(result.stdout, /"ok":true/u);
+});
+
+test('T02d typecheck comparison uses per-fingerprint multiset counts', () => {
+  const repeated = 'src/probe.js(1,1): error TS1234: repeated signature\n';
+  const removed = 'src/other.js(1,1): error TS5678: removed signature\n';
+  const candidate = [
+    repeated,
+    'src/probe.js(99,44): error TS1234: repeated signature\n',
+  ].join('');
+  const result = runComparator(`${repeated}${removed}`, candidate);
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stderr, /src\/probe\.js\|TS1234\|repeated signature/);
+  assert.match(result.stderr, /"excess": 1/);
 });
 
 test('T03 production secret preflight is sealed to the exact production app before invoking flyctl', () => {
@@ -125,7 +190,7 @@ test('T04 public-surface workflow checks explicitly propagate failures and requi
 });
 
 test('T05 release scanner accepts the exact reviewed diff and rejects constructed secret material', () => {
-  const exact = spawnSync('git', ['diff', '--binary', 'd593a7f2e83657125d5be4acb49642a38215d5bd...HEAD'], {
+  const exact = spawnSync('git', ['diff', '--binary', 'd593a7f2e83657125d5be4acb49642a38215d5bd'], {
     cwd: repoRoot,
     encoding: 'utf8',
     maxBuffer: 128 * 1024 * 1024,
@@ -133,28 +198,87 @@ test('T05 release scanner accepts the exact reviewed diff and rejects constructe
   assert.equal(exact.status, 0, exact.stderr);
   assert.deepEqual(scanReleaseDiff(exact.stdout), []);
 
-  const providerKey = ['sk_', 'live_', 'AbCdEf0123456789AbCdEf'].join('');
-  const githubToken = ['gh', 'p_', 'AbCdEf0123456789AbCdEf012345'].join('');
+  const providerKey = ['sk_', 'live_', 'FixtureAbCdEf0123456789'].join('');
+  const githubToken = ['gh', 'p_', 'FixtureAbCdEf0123456789AbCdEf'].join('');
   const unquotedCredential = ['AbCdEf01', '23456789', 'GhIjKlMn', 'OpQrStUv'].join('');
+  const dollarCredential = ['$AbCdEf01', '23456789', 'GhIjKlMn'].join('');
+  const constructedFragmentOne = ['AbCdEf01', '234567'].join('');
+  const constructedFragmentTwo = ['GhIjKlMn', '89012345'].join('');
+  const microFragments = ['Ab', 'Cd', 'Ef', '01', '23', '45', 'Gh', 'Ij', 'Kl', 'Mn', '89', '01'];
+  const sensitiveNames = {
+    apiKey: ['API', '_KEY'].join(''),
+    token: ['TO', 'KEN'].join(''),
+    password: ['PASS', 'WORD'].join(''),
+    secret: ['SEC', 'RET'].join(''),
+    secretBundle: ['SECRET', '_BUNDLE'].join(''),
+    secretsExit: ['secrets', '_exit'].join(''),
+  };
   const fakeDiff = [
     'diff --git a/src/probe.js b/src/probe.js',
     '+++ b/src/probe.js',
     `+const credential = "${providerKey}";`,
     `+const sourceControlCredential = "${githubToken}";`,
-    `+INTERNAL_API_KEY=${unquotedCredential}`,
+    `+INTERNAL_${sensitiveNames.apiKey}=${unquotedCredential}`,
+    `+const embedded = { ${sensitiveNames.apiKey}: "${dollarCredential}" };`,
+    `+${sensitiveNames.token}_STATE="${unquotedCredential}"`,
   ].join('\n');
   assert.ok(scanReleaseDiff(fakeDiff).some((finding) => finding.kind === 'provider-secret-format'));
   assert.equal(scanReleaseDiff(fakeDiff).filter((finding) => finding.kind === 'provider-secret-format').length, 2);
   assert.ok(scanReleaseDiff(fakeDiff).some((finding) => finding.kind === 'literal-sensitive-assignment'));
+  assert.ok(scanReleaseDiff(fakeDiff).some((finding) => finding.name === 'TOKEN_STATE'));
+
+  const constructedSecretDiff = [
+    'diff --git a/.github/workflows/probe.yml b/.github/workflows/probe.yml',
+    '+++ b/.github/workflows/probe.yml',
+    `+${sensitiveNames.token}="$(printf ${constructedFragmentOne}${constructedFragmentTwo})"`,
+    `+${sensitiveNames.password}="$work/${constructedFragmentOne}${constructedFragmentTwo}"`,
+    `+${sensitiveNames.secret}="$(printf '%s%s' '${constructedFragmentOne}' '${constructedFragmentTwo}')"`,
+    'diff --git a/src/probe.js b/src/probe.js',
+    '+++ b/src/probe.js',
+    `+const ${sensitiveNames.apiKey} = ["${constructedFragmentOne}", "${constructedFragmentTwo}"].join("");`,
+    `+const ${sensitiveNames.token} = ${JSON.stringify(microFragments)}.join("");`,
+  ].join('\n');
+  assert.equal(
+    scanReleaseDiff(constructedSecretDiff)
+      .filter((finding) => finding.kind === 'literal-sensitive-assignment').length,
+    5,
+  );
+
+  const multilineConstructionDiff = [
+    'diff --git a/src/probe.js b/src/probe.js',
+    '+++ b/src/probe.js',
+    `+const ${sensitiveNames.apiKey} = [`,
+    ...microFragments.map((fragment) => `+  "${fragment}",`),
+    '+].join("");',
+    'diff --git a/.github/workflows/probe.yml b/.github/workflows/probe.yml',
+    '+++ b/.github/workflows/probe.yml',
+    `+${sensitiveNames.token}="$(`,
+    `+  printf '%s%s' '${constructedFragmentOne}' '${constructedFragmentTwo}'`,
+    '+)"',
+  ].join('\n');
+  assert.equal(
+    scanReleaseDiff(multilineConstructionDiff)
+      .filter((finding) => finding.kind === 'literal-sensitive-assignment').length,
+    2,
+  );
 
   const runtimeReferences = [
     'diff --git a/server/tests/probe.mjs b/server/tests/probe.mjs',
     '+++ b/server/tests/probe.mjs',
-    '+const request = { token: authenticatedUser.token };',
-    '+const options = { API_KEY: configuredProviderCredential };',
-    '+ASSESSSUITE_DASHBOARD_METRICS_TOKEN="$ASSESSSUITE_DASHBOARD_METRICS_TOKEN"',
-    "+const invalid = { token: 'invalid-session-token' };",
+    `+const request = { ${sensitiveNames.token.toLowerCase()}: authenticatedUser.token };`,
+    '+const assigned' + sensitiveNames.token[0] + sensitiveNames.token.slice(1).toLowerCase()
+      + ' = authenticatedUser.token;',
+    `+const options = { ${sensitiveNames.apiKey}: configuredProviderCredential };`,
+    `+const invalid = { ${sensitiveNames.token.toLowerCase()}: 'invalid-session-token' };`,
     "+const weakToken = 'too-short';",
+    'diff --git a/.github/workflows/probe.yml b/.github/workflows/probe.yml',
+    '+++ b/.github/workflows/probe.yml',
+    `+ASSESSSUITE_DASHBOARD_METRICS_${sensitiveNames.token}="$ASSESSSUITE_DASHBOARD_METRICS_${sensitiveNames.token}"`,
+    `+${sensitiveNames.secretBundle}="$work/secret-bundle-manifest.json"`,
+    `+${sensitiveNames.secretsExit}="$(provider_call "$work/secrets.json" fly secrets list)"`,
+    '+secret_import_state: \'NOT_ATTEMPTED\'',
+    '+stripe_signing_secret_sha256: webhook.stripe_signing_secret_sha256,',
+    "+sys.stdout.write('STRIPE_WEBHOOK_SECRET=' + value + '\\n')",
   ].join('\n');
   assert.deepEqual(scanReleaseDiff(runtimeReferences), []);
 });

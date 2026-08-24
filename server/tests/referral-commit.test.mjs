@@ -11,6 +11,7 @@ import { createClient } from '@base44/sdk';
 import {
   REFERRAL_REVIEW_COMMIT_VERSION,
 } from '../referralCommit.mjs';
+import { RUNTIME_STATUS_CONTRACT_VERSION } from '../runtimeStatus.mjs';
 import {
   REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
 } from '../uploadRegistry.mjs';
@@ -190,9 +191,15 @@ test('aborted commit request bodies are contained for app-scoped and relative fu
       assert.equal(server.child.exitCode, null, route);
       const health = await requestJson(
         server,
-        '/api/apps/public/prod/public-settings/by-id/referral-abort-health',
+        '/api/health/live',
       );
       assert.equal(health.status, 200, `${route}\n${server.getOutput()}`);
+      assert.deepEqual(health.body, {
+        contract_version: RUNTIME_STATUS_CONTRACT_VERSION,
+        status: 'live',
+        profession_id: 'exercise-physiology',
+        app_id: server.appId,
+      });
     }
     assert.doesNotMatch(server.getOutput(), /UnhandledPromiseRejection|triggerUncaughtException/);
   } finally {

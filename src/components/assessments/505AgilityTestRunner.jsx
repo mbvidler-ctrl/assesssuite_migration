@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, RotateCcw, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 const TURN_DIRECTIONS = ['Left', 'Right'];
 
@@ -68,32 +69,12 @@ export default function FiveOFiveAgilityTestRunner({ client, onSave, onClose }) 
   const asymmetry = bestLeft && bestRight ? Math.abs(bestLeft - bestRight).toFixed(2) : null;
 
   const handleSave = () => {
-    if (trials.length === 0) { toast.error("Complete at least one trial."); return; }
-    let soapText = `• 505 Agility Test:\n`;
-    soapText += `  Best Overall Time: ${bestOverall}s | Dominant Leg: ${dominantLeg}\n`;
-    if (bestLeft !== null) soapText += `  Best Left Turn: ${bestLeft.toFixed(2)}s\n`;
-    if (bestRight !== null) soapText += `  Best Right Turn: ${bestRight.toFixed(2)}s\n`;
-    if (asymmetry !== null) soapText += `  L/R Asymmetry: ${asymmetry}s${parseFloat(asymmetry) > 0.1 ? ' (clinically significant >0.1s)' : ''}\n`;
-    soapText += `\n  All Trials:\n`;
-    trials.forEach((t, i) => { soapText += `    Trial ${i+1} (Turn ${t.direction}): ${t.time.toFixed(2)}s\n`; });
-    if (notes.trim()) soapText += `\n  Clinical Notes: ${notes}`;
-    onSave({
-      result_value: bestOverall,
-      assessment_date: todayLocal(),
-      notes: soapText,
-      additional_data: {
-        measurement_type: '505_agility_test',
-        trials,
-        best_time_overall: bestOverall,
-        best_time_left: bestLeft,
-        best_time_right: bestRight,
-        asymmetry_seconds: asymmetry ? parseFloat(asymmetry) : null,
-        dominant_leg: dominantLeg,
-        total_trials: trials.length,
-        soap_text: soapText,
-      }
-    });
-    toast.success("Assessment recorded — please confirm and save.");
+    try {
+      onSave(validateMobilityOrtho({ trials, dominantLeg, notes }, { runnerKey: '505', assessmentDate: todayLocal() }));
+      toast.success("Assessment recorded — please confirm and save.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

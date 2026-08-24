@@ -44,7 +44,7 @@ export default function VerticalJumpTestSargentJumpRunner({ client, onSave, onCl
   const [jumpInput, setJumpInput] = useState("");
   const [notes, setNotes] = useState("");
 
-  const age = client?.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth)) / (365.25 * 24 * 3600 * 1000)) : null;
+  const age = client?.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 3600 * 1000)) : null;
   const gender = client?.gender;
 
   const jumpHeights = jumpReaches.map(jr => parseFloat((parseFloat(jr) - parseFloat(standingReach)).toFixed(1)));

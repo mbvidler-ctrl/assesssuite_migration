@@ -17,10 +17,15 @@ import {
 } from '../src/lib/referralWorkflow.js';
 import { REFERRAL_EXTRACTION_SCHEMA } from '../src/lib/referralExtractionSchema.js';
 import { REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION } from './uploadRegistry.mjs';
+import { resolveActiveProfessionContract } from '../packages/profession-config/index.mjs';
 
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const serverEntry = path.join(__dirname, 'index.mjs');
+// Provider doubles are composed only by this test-only entrypoint.  The
+// production server entry never imports them, so the offline self-test can
+// prove the historical payment/AI/transcription contracts without permitting
+// an accidental production fallback.
+const serverEntry = path.join(__dirname, 'tests', 'support', 'selftest-entry.mjs');
 const SYNTHETIC_FUTURE_TIMESTAMP = '2099-01-01T00:00:00.000Z';
 
 const results = [];
@@ -46,11 +51,22 @@ async function getFreePort() {
 }
 
 async function waitForServer(baseUrl, timeoutMs = 15000) {
+  const parsed = new URL(baseUrl);
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     try {
-      const res = await fetch(`${baseUrl}/api/apps/public/prod/public-settings/by-id/probe`);
-      if (res.status === 200) return true;
+      const connected = await new Promise((resolve) => {
+        const socket = net.connect({ host: parsed.hostname, port: Number(parsed.port) });
+        const finish = (value) => {
+          socket.removeAllListeners();
+          socket.destroy();
+          resolve(value);
+        };
+        socket.once('connect', () => finish(true));
+        socket.once('error', () => finish(false));
+        socket.setTimeout(500, () => finish(false));
+      });
+      if (connected) return true;
     } catch {
       // server not up yet
     }
@@ -62,7 +78,15 @@ async function waitForServer(baseUrl, timeoutMs = 15000) {
 async function main() {
   const port = await getFreePort();
   const baseUrl = `http://127.0.0.1:${port}`;
-  const appId = 'selftest-app';
+  // The server now deliberately rejects requests for an application identity
+  // other than the composed target.  Derive the same ID here rather than
+  // probing an arbitrary legacy self-test ID, so readiness exercises the
+  // target-isolation boundary instead of timing out after a successful bind.
+  const appId = resolveActiveProfessionContract({
+    ...process.env,
+    NODE_ENV: 'test',
+    SELFTEST: '1',
+  }).appId;
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'assesssuite-selftest-'));
   const uploadsDir = path.join(tempRoot, 'uploads');
   fs.mkdirSync(uploadsDir, { recursive: true });
@@ -992,6 +1016,8 @@ async function runChecks(baseUrl, appId) {
       method: 'POST',
       token: adminToken,
       body: {
+        id: `evt_restore${Date.now()}`,
+        created: Math.floor(Date.now() / 1000),
         type: 'checkout.session.completed',
         data: {
           object: {
@@ -1001,7 +1027,7 @@ async function runChecks(baseUrl, appId) {
             customer: 'mock_cus_restore',
             subscription: 'mock_sub_restore',
             customer_email: suspendedEmail,
-            metadata: { userId: suspendedUser.id, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M' },
+            metadata: { userId: suspendedUser.id, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M', appId, professionId: 'exercise-physiology' },
           },
         },
       },
@@ -1451,6 +1477,8 @@ async function runChecks(baseUrl, appId) {
         method: 'POST',
         token: adminToken,
         body: {
+          id: `evt_checkout${Date.now()}`,
+          created: Math.floor(Date.now() / 1000),
           type: 'checkout.session.completed',
           data: {
             object: {
@@ -1460,7 +1488,7 @@ async function runChecks(baseUrl, appId) {
               subscription: mockSubscriptionId,
               client_reference_id: stripeUserId,
               customer_email: stripeEmail,
-              metadata: { userId: stripeUserId, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M' },
+              metadata: { userId: stripeUserId, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M', appId, professionId: 'exercise-physiology' },
             },
           },
         },
@@ -1514,8 +1542,10 @@ async function runChecks(baseUrl, appId) {
         method: 'POST',
         token: adminToken,
         body: {
+          id: `evt_rejected${Date.now()}`,
+          created: Math.floor(Date.now() / 1000),
           type: 'checkout.session.completed',
-          data: { object: { mode: 'subscription', payment_status: 'paid', customer: rejectedCustomerId, subscription: rejectedSubscriptionId, client_reference_id: rejUser.id, customer_email: rejectedEmail, metadata: { userId: rejUser.id, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M' } } },
+          data: { object: { mode: 'subscription', payment_status: 'paid', customer: rejectedCustomerId, subscription: rejectedSubscriptionId, client_reference_id: rejUser.id, customer_email: rejectedEmail, metadata: { userId: rejUser.id, priceId: 'price_1TbH07LVAtM9m2RxqiPCaZ8M', appId, professionId: 'exercise-physiology' } } },
         },
       });
       const { body: allAfter } = await api(baseUrl, appId, `/api/apps/${appId}/entities/User`, { token: adminToken });

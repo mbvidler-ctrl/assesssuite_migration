@@ -66,6 +66,7 @@ import NewAssessmentCreator from './pages/NewAssessmentCreator';
 import Nutrition from './pages/Nutrition';
 import Onboarding from './pages/Onboarding';
 import PendingApproval from './pages/PendingApproval';
+import PhysioEpisodes from './pages/PhysioEpisodes';
 import ProfileSetup from './pages/ProfileSetup';
 import Reports from './pages/Reports';
 import TestRunner from './pages/TestRunner';
@@ -74,24 +75,20 @@ import UsageOverview from './pages/UsageOverview';
 import __Layout from './Layout.jsx';
 
 
-export const PAGES = {
+const SHARED_PAGES = {
     "AdminAnalytics": AdminAnalytics,
     "AdminApprovals": AdminApprovals,
     "AdminPromotions": AdminPromotions,
-    "AssessmentAudit": AssessmentAudit,
     "AssessmentLibrary": AssessmentLibrary,
     "Calendar": Calendar,
-    "ClientConditions": ClientConditions,
     "ClientProfile": ClientProfile,
     "Clients": Clients,
     "Dashboard": Dashboard,
     "Finances": Finances,
-    "FundingForms": FundingForms,
     "Home": Home,
     "MyProfile": MyProfile,
     "NewAssessment": NewAssessment,
     "NewAssessmentCreator": NewAssessmentCreator,
-    "Nutrition": Nutrition,
     "Onboarding": Onboarding,
     "PendingApproval": PendingApproval,
     "ProfileSetup": ProfileSetup,
@@ -99,7 +96,29 @@ export const PAGES = {
     "TestRunner": TestRunner,
     "TreatmentProtocols": TreatmentProtocols,
     "UsageOverview": UsageOverview,
-}
+};
+
+// Compose the route table at build time so a vertical's denied pages are not
+// merely redirected at runtime: Rollup can remove the other vertical's page
+// modules from the production artifact entirely. This keeps the legacy EP
+// assessment-audit/demo tooling out of the Physio image while preserving the
+// maintained EP surface unchanged.
+const PHYSIO_PAGES = {
+    ...SHARED_PAGES,
+    "PhysioEpisodes": PhysioEpisodes,
+};
+
+const EP_PAGES = {
+    ...SHARED_PAGES,
+    "AssessmentAudit": AssessmentAudit,
+    "ClientConditions": ClientConditions,
+    "FundingForms": FundingForms,
+    "Nutrition": Nutrition,
+};
+
+export const PAGES = import.meta.env.VITE_PROFESSION === 'physio'
+    ? PHYSIO_PAGES
+    : EP_PAGES;
 
 export const pagesConfig = {
     mainPage: "Home",

@@ -26,9 +26,16 @@ import { createPageUrl } from "@/utils";
 import ConsentSection from "@/components/legal/ConsentSection";
 import { recordLegalAcceptanceBundle } from "@/lib/legal/recordAcceptance";
 import { resolveLegalConsentAudience } from "@/lib/legal/consentAudience";
-import { INITIAL_RELEASE_PROFESSIONS } from "@/lib/clinicalRelease";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
+import {
+  isManagementProfileProfession,
+  isProfileProfessionAllowed,
+  profileProfessionOptions,
+} from "@/lib/profileProfession";
 import { profileSetupRedirectForUser } from "@/lib/profileSetupAccess";
 import { ensureFounderOrganization } from "@/lib/profileFounderOrganization";
+
+const activeProfessionOptions = profileProfessionOptions(activeProfession);
 
 export default function ProfileSetup() {
   const navigate = useNavigate();
@@ -38,7 +45,7 @@ export default function ProfileSetup() {
     marketing: false,
   });
   const [formData, setFormData] = useState({
-    country: "australia",
+    country: activeProfession.releaseCountry,
     clinician_name: "", // Renamed from full_name
     email: "",
     profession: "", // Added profession
@@ -57,7 +64,7 @@ export default function ProfileSetup() {
   const [newSpecialization, setNewSpecialization] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true); // New state for loading user data
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}));
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -95,7 +102,7 @@ export default function ProfileSetup() {
           }
 
           // Specific handling for profession
-          if (INITIAL_RELEASE_PROFESSIONS.has(currentUser.profession)) {
+          if (isProfileProfessionAllowed(activeProfession, currentUser.profession)) {
             updatedData.profession = currentUser.profession;
           } else {
             updatedData.profession = "";
@@ -104,7 +111,7 @@ export default function ProfileSetup() {
           // RC-2026.07.19 self-service is Australia-only. No jurisdiction
           // selector is presented; separately approved customers use a
           // negotiated order rather than this public profile path.
-          updatedData.country = "australia";
+          updatedData.country = activeProfession.releaseCountry;
 
           // Ensure specializations is an array
           if (currentUser.specializations) {
@@ -160,6 +167,7 @@ export default function ProfileSetup() {
   };
 
   const validateForm = () => {
+    /** @type {Record<string, string>} */
     const newErrors = {};
 
     if (!formData.clinician_name.trim()) newErrors.clinician_name = "Your full name is required"; // Updated field name and message
@@ -170,13 +178,20 @@ export default function ProfileSetup() {
     }
 
     // Only require professional fields for non-management roles
-    const isManagementRole = formData.profession === "Gym Management" || formData.profession === "Clinic Management";
+    const isManagementRole = isManagementProfileProfession(activeProfession, formData.profession);
+
+    if (formData.profession && !isProfileProfessionAllowed(activeProfession, formData.profession)) {
+      newErrors.profession = activeProfession.signup.ineligibleMessage;
+    }
 
     if (!isManagementRole) {
-      if (formData.profession !== "Exercise Physiologist") {
-        newErrors.profession = "Self-service clinical accounts are limited to Australian Accredited Exercise Physiologists";
-      }
       if (!formData.qualifications.trim()) newErrors.qualifications = "Professional qualifications are required";
+      if (
+        activeProfession.signup.registrationNumberRequired
+        && !formData.registration_number.trim()
+      ) {
+        newErrors.registration_number = `${activeProfession.signup.registrationNumberLabel} is required`;
+      }
     }
 
     if (!formData.clinic_name.trim()) newErrors.clinic_name = "Clinic name is required";
@@ -345,9 +360,9 @@ export default function ProfileSetup() {
                         <SelectValue placeholder="Select your profession" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Exercise Physiologist">Accredited Exercise Physiologist (AEP)</SelectItem>
-                        <SelectItem value="Gym Management">Gym Management</SelectItem>
-                        <SelectItem value="Clinic Management">Clinic Management</SelectItem>
+                        {activeProfessionOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                     {errors.profession && (
@@ -371,7 +386,7 @@ export default function ProfileSetup() {
                 </div>
 
                 {/* Only show professional fields for non-management roles */}
-                {formData.profession && formData.profession !== "Gym Management" && formData.profession !== "Clinic Management" && (
+                {formData.profession && !isManagementProfileProfession(activeProfession, formData.profession) && (
                   <>
                     <div>
                       <Label htmlFor="qualifications" className="text-sm font-medium text-slate-700">
@@ -381,7 +396,7 @@ export default function ProfileSetup() {
                         id="qualifications"
                         value={formData.qualifications}
                         onChange={(e) => handleInputChange("qualifications", e.target.value)}
-                        placeholder="e.g., Exercise Physiologist, Physiotherapist"
+                        placeholder={activeProfession.signup.qualificationsPlaceholder}
                         className={`mt-1 ${errors.qualifications ? "border-red-500" : ""}`}
                       />
                       {errors.qualifications && (
@@ -396,8 +411,11 @@ export default function ProfileSetup() {
                         {errors.provider_number && <p className="text-red-500 text-sm mt-1">{errors.provider_number}</p>}
                       </div>
                       <div>
-                        <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">ESSA Accreditation Number</Label>
-                        <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="e.g. EPH0001234" className={`mt-1 ${errors.registration_number ? "border-red-500" : ""}`} />
+                        <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">
+                          {activeProfession.signup.registrationNumberLabel}
+                          {activeProfession.signup.registrationNumberRequired ? " *" : ""}
+                        </Label>
+                        <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder={activeProfession.signup.registrationNumberPlaceholder} className={`mt-1 ${errors.registration_number ? "border-red-500" : ""}`} />
                         {errors.registration_number && <p className="text-red-500 text-sm mt-1">{errors.registration_number}</p>}
                       </div>
                     </div>

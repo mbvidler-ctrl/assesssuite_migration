@@ -215,6 +215,7 @@ export default function ReviewExport({ reportHtml, client, clinician, onEditHtml
           <RichTextEditor
             value={editableBody}
             onChange={setEditableBody}
+            placeholder="Edit the report wording…"
             className="max-h-[60vh] overflow-y-auto"
           />
         </div>

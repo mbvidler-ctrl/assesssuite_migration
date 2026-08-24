@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, AlertTriangle, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scorePefr } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 export default function PeakExpiratoryFlowRatePEFRRunner({ client, onSave, onClose }) {
   const [preTestVitals, setPreTestVitals] = useState({ systolic: "", diastolic: "", heartRate: "" });
@@ -16,25 +16,6 @@ export default function PeakExpiratoryFlowRatePEFRRunner({ client, onSave, onClo
   const [notes, setNotes] = useState("");
   // Removed isTesting state — form is always accessible
   const [showClinicianInfo, setShowClinicianInfo] = useState(false);
-
-  const handleEndTest = () => {
-    const validResults = trialResults.filter(r => r !== null && r !== "" && !isNaN(r));
-    const bestResult = validResults.length > 0 ? Math.max(...validResults) : 0;
-    const additionalData = {
-      soap_text: `• Peak Expiratory Flow Rate (PEFR)\n  Best Result: ${bestResult} L/min\n  Trials: ${validResults.join(', ')} L/min`,
-      measurement_type: "PEFR",
-      pre_test_vitals: preTestVitals,
-      post_test_vitals: postTestVitals,
-      trial_results: trialResults,
-    };
-    onSave({
-      status: "completed",
-      result_value: bestResult,
-      additional_data: additionalData,
-      notes,
-      assessment_date: todayLocal(),
-    });
-  };
 
   const handleTrialChange = (index, value) => {
     const newTrialResults = [...trialResults];
@@ -56,12 +37,11 @@ export default function PeakExpiratoryFlowRatePEFRRunner({ client, onSave, onClo
   };
 
   const handleSave = () => {
-    const validResults = trialResults.filter(r => r !== null && r !== "" && !isNaN(r));
-    if (validResults.length === 0) {
-      toast.error("Please enter at least one trial result before saving.");
-      return;
+    try {
+      onSave(scorePefr({ trials: trialResults.filter((result) => result !== null && result !== ""), pre_test_vitals: preTestVitals, post_test_vitals: postTestVitals, notes }, { assessmentName: "Peak Expiratory Flow Rate (PEFR)", client }));
+    } catch (error) {
+      toast.error(error.message);
     }
-    handleEndTest();
   };
 
   return (

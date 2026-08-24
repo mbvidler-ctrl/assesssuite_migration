@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Play, Pause, AlertTriangle, Info, ExternalLink, BookOpen, Video } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 // Normative data by age group and sex (number of pegs in 30 seconds)
 const NORMATIVE_DATA = {
@@ -45,7 +46,7 @@ export default function PurduePegboardTestRunner({ client, onSave, onClose }) {
 
   // Auto-populate from client data
   const clientAge = client?.date_of_birth
-    ? Math.floor((new Date() - new Date(client.date_of_birth)) / (365.25 * 24 * 60 * 60 * 1000))
+    ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
     : null;
   const clientSex = client?.gender || null;
 
@@ -135,7 +136,7 @@ export default function PurduePegboardTestRunner({ client, onSave, onClose }) {
     const normative = NORMATIVE_DATA[ageGroup]?.[clientSex.toLowerCase()]?.[subtest];
     if (!normative) return null;
 
-    const percentile = ((score / normative) * 100).toFixed(0);
+    const percentile = (score / normative) * 100;
     if (percentile >= 90) return { level: "Excellent", color: "text-green-700" };
     if (percentile >= 75) return { level: "Above Average", color: "text-blue-700" };
     if (percentile >= 25) return { level: "Average", color: "text-slate-700" };
@@ -143,59 +144,12 @@ export default function PurduePegboardTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    const ageGroup = clientAge ? getAgeGroup(clientAge) : "unknown";
-    const completedScores = Object.fromEntries(
-      Object.entries(scores).filter(([_, v]) => v !== null)
-    );
-
-    if (Object.keys(completedScores).length === 0) {
-      toast.error("Please record at least one score before saving.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({ scores, clientAge, clientSex, notes }, { runnerKey: 'purdue_peg', assessmentDate }));
+      toast.success("Purdue Pegboard Test saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const soapLines = [
-      `• Purdue Pegboard Test`,
-      `  Assessment Date: ${assessmentDate}`,
-      `  Client Age: ${clientAge} years (${ageGroup})`,
-      `  Client Sex: ${clientSex}`,
-      ``,
-      `  Test Scores (number of pegs placed in allotted time):`,
-      `    Right Hand (30 sec): ${scores.rightHand ?? 'Not completed'}`,
-      `    Left Hand (30 sec): ${scores.leftHand ?? 'Not completed'}`,
-      `    Both Hands (30 sec): ${scores.bothHands ?? 'Not completed'}`,
-      `    Assembly (60 sec): ${scores.assembly ?? 'Not completed'}`,
-      ``,
-      `  Clinical Interpretation:`,
-      `    The Purdue Pegboard Test measures fine motor dexterity and hand-eye coordination.`,
-      `    Scores reflect the number of pegs placed within time limits for each subtest.`,
-      `    Laterality differences may indicate dominant vs. non-dominant hand performance.`,
-      ``,
-      `  Clinical Notes:`,
-      notes ? `    ${notes.replace(/\n/g, '\n    ')}` : `    None provided`,
-      ``,
-      `  References:`,
-      `    Tiffin J, Asher EJ. The Purdue Pegboard Test: norms and studies of reliability and validity.`,
-      `    J Clin Psychol. 1950;6(4):390-395.`,
-    ].join('\n');
-
-    const totalValue = Object.values(completedScores).reduce((a, b) => (a ?? 0) + (b ?? 0), 0);
-
-    onSave({
-      status: "completed",
-      result_value: totalValue,
-      additional_data: {
-        measurement_type: "dexterity_test",
-        scores,
-        client_age: clientAge,
-        client_sex: clientSex,
-        age_group: ageGroup,
-        soap_text: soapLines,
-      },
-      notes,
-      assessment_date: assessmentDate,
-    });
-
-    toast.success("Purdue Pegboard Test saved successfully.");
   };
 
   return (

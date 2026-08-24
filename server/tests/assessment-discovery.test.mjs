@@ -7,6 +7,7 @@ import {
   discoverAssessments,
   MAX_ASSESSMENT_RECOMMENDATIONS,
   normalizeClinicalText,
+  searchAssessments,
 } from '../../src/lib/clinical/assessmentDiscovery.js';
 
 const testsDir = path.dirname(fileURLToPath(import.meta.url));
@@ -30,6 +31,30 @@ test('normalisation removes case, punctuation, whitespace, hyphen and underscore
     'knee osteoarthritis right side',
   );
   assert.equal(normalizeClinicalText('High-BP'), 'high bp');
+});
+
+test('production catalogue search covers canonical identity aliases source variants and full descriptive fields', () => {
+  const catalogue = [
+    assessment('canonical-one', 'Primary Display Name', {
+      canonical_id: 'assessment:physio:primary-one',
+      aliases: ['Legacy Clinical Alias'],
+      source_variants: [{ source_name: 'Original Imported Measure', source_ref: 'legacy:23' }],
+      instructions: 'Perform with the patient standing beside a plinth.',
+    }),
+    assessment('canonical-two', 'Unrelated Measure'),
+  ];
+
+  for (const query of [
+    'assessment physio primary one',
+    'legacy clinical alias',
+    'original imported measure',
+    'legacy 23',
+    'standing beside a plinth',
+  ]) {
+    assert.deepEqual(searchAssessments({ assessments: catalogue, query }).map(({ id }) => id), ['canonical-one']);
+  }
+  assert.deepEqual(searchAssessments({ assessments: catalogue, query: '' }), catalogue);
+  assert.deepEqual(searchAssessments({ assessments: null, query: 'anything' }), []);
 });
 
 test('the full 229+ row catalogue is searched and output remains capped', () => {

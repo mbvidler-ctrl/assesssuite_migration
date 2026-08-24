@@ -4,38 +4,13 @@ import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
-import { buildDass21Payload } from "@/lib/clinical/dass21";
-
-const DASS21_QUESTIONS = [
-  { category: "S", text: "I found it hard to wind down" },
-  { category: "A", text: "I was aware of dryness of my mouth" },
-  { category: "D", text: "I couldn't seem to experience any positive feeling at all" },
-  { category: "A", text: "I experienced breathing difficulty (e.g., excessively rapid breathing, breathlessness in the absence of physical exertion)" },
-  { category: "D", text: "I found it difficult to work up the initiative to do things" },
-  { category: "S", text: "I tended to over-react to situations" },
-  { category: "A", text: "I experienced trembling (e.g., in the hands)" },
-  { category: "S", text: "I felt that I was using a lot of nervous energy" },
-  { category: "A", text: "I was worried about situations in which I might panic and make a fool of myself" },
-  { category: "D", text: "I felt that I had nothing to look forward to" },
-  { category: "S", text: "I found myself getting agitated" },
-  { category: "S", text: "I found it difficult to relax" },
-  { category: "D", text: "I felt down-hearted and blue" },
-  { category: "S", text: "I was intolerant of anything that kept me from getting on with what I was doing" },
-  { category: "A", text: "I felt I was close to panic" },
-  { category: "D", text: "I was unable to become enthusiastic about anything" },
-  { category: "D", text: "I felt I wasn't worth much as a person" },
-  { category: "S", text: "I felt that I was rather touchy" },
-  { category: "A", text: "I was aware of the action of my heart in the absence of physical exertion (e.g., sense of heart rate increase, heart missing a beat)" },
-  { category: "A", text: "I felt scared without any good reason" },
-  { category: "D", text: "I felt that life was meaningless" }
-];
-
-const DASS21_OPTIONS = [
-  "Did not apply to me at all",
-  "Applied to me to some degree, or some of the time",
-  "Applied to me to a considerable degree, or a good part of time",
-  "Applied to me very much, or most of the time"
-];
+import {
+  buildDass21Payload,
+  DASS21_LEVEL_STYLES,
+  DASS21_OPTIONS,
+  DASS21_QUESTIONS,
+  getDassLevel,
+} from "@/lib/clinical/dass21";
 
 export default function DASS21Runner({ client, onSave, onClose }) {
   const [scores, setScores] = useState({});
@@ -68,28 +43,8 @@ export default function DASS21Runner({ client, onSave, onClose }) {
   const { depression, anxiety, stress } = calculateScores();
 
   const getInterpretation = (score, category) => {
-    let level, color, bg;
-
-    if (category === "depression") {
-      if (score <= 9) { level = "Normal"; color = "text-green-600"; bg = "bg-green-50"; }
-      else if (score <= 13) { level = "Mild"; color = "text-yellow-600"; bg = "bg-yellow-50"; }
-      else if (score <= 20) { level = "Moderate"; color = "text-orange-600"; bg = "bg-orange-50"; }
-      else if (score <= 27) { level = "Severe"; color = "text-red-600"; bg = "bg-red-50"; }
-      else { level = "Extremely Severe"; color = "text-red-800"; bg = "bg-red-100"; }
-    } else if (category === "anxiety") {
-      if (score <= 7) { level = "Normal"; color = "text-green-600"; bg = "bg-green-50"; }
-      else if (score <= 9) { level = "Mild"; color = "text-yellow-600"; bg = "bg-yellow-50"; }
-      else if (score <= 14) { level = "Moderate"; color = "text-orange-600"; bg = "bg-orange-50"; }
-      else if (score <= 19) { level = "Severe"; color = "text-red-600"; bg = "bg-red-50"; }
-      else { level = "Extremely Severe"; color = "text-red-800"; bg = "bg-red-100"; }
-    } else {
-      if (score <= 14) { level = "Normal"; color = "text-green-600"; bg = "bg-green-50"; }
-      else if (score <= 18) { level = "Mild"; color = "text-yellow-600"; bg = "bg-yellow-50"; }
-      else if (score <= 25) { level = "Moderate"; color = "text-orange-600"; bg = "bg-orange-50"; }
-      else if (score <= 33) { level = "Severe"; color = "text-red-600"; bg = "bg-red-50"; }
-      else { level = "Extremely Severe"; color = "text-red-800"; bg = "bg-red-100"; }
-    }
-    return { level, color, bg };
+    const level = getDassLevel(score, category);
+    return { level, ...DASS21_LEVEL_STYLES[level] };
   };
 
   const depressionInterpretation = getInterpretation(depression, "depression");

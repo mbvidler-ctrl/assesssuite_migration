@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
 
-export default function AddToClientModal({ assessment, onClose, onAssessmentAdded }) {
+export default function AddToClientModal({ assessment, onClose, onAssessmentAdded, careEpisodeId = '', clientId = '' }) {
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -34,8 +34,10 @@ export default function AddToClientModal({ assessment, onClose, onAssessmentAdde
         // Load clients from user's organization only
         const data = await base44.entities.Client.filter({ org_id: userOrgId });
         console.log('[AddToClientModal] Loaded clients for org_id:', userOrgId, 'Count:', data?.length);
-        setClients(data || []);
-        setFilteredClients(data || []);
+        const permittedClients = clientId ? (data || []).filter((client) => client.id === clientId) : (data || []);
+        setClients(permittedClients);
+        setFilteredClients(permittedClients);
+        if (clientId && permittedClients.length === 1) setSelectedClientId(clientId);
       } catch (error) {
         console.error("Error loading clients:", error);
       } finally {
@@ -43,7 +45,7 @@ export default function AddToClientModal({ assessment, onClose, onAssessmentAdde
       }
     };
     loadClients();
-  }, []);
+  }, [clientId]);
 
   useEffect(() => {
     if (searchTerm) {
@@ -79,6 +81,7 @@ export default function AddToClientModal({ assessment, onClose, onAssessmentAdde
             assessment_id: assessment.id,
             assessment_date: todayLocal(),
             status: "pending",
+            ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
           });
           break; // Success
         } catch (createError) {

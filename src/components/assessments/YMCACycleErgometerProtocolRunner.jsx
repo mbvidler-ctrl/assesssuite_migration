@@ -7,25 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle, Info, AlertCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
-
-// ─── VO2MAX CLASSIFICATION (ACSM) ──────────────────────────────────────────
-const getVO2Classification = (vo2, age, gender) => {
-  const vo2Num = parseFloat(vo2);
-  const ageNum = parseInt(age);
-  const isMale = gender === "M";
-
-  // ACSM Norms
-  if (ageNum < 40) {
-    return isMale
-      ? vo2Num >= 52 ? "Excellent" : vo2Num >= 43 ? "Good" : vo2Num >= 34 ? "Fair" : "Poor"
-      : vo2Num >= 41 ? "Excellent" : vo2Num >= 35 ? "Good" : vo2Num >= 27 ? "Fair" : "Poor";
-  } else {
-    return isMale
-      ? vo2Num >= 45 ? "Excellent" : vo2Num >= 38 ? "Good" : vo2Num >= 30 ? "Fair" : "Poor"
-      : vo2Num >= 35 ? "Excellent" : vo2Num >= 29 ? "Good" : vo2Num >= 23 ? "Fair" : "Poor";
-  }
-};
+import { scoreYmcaCycle } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 const colorForClassification = (classification) => {
   switch (classification) {
@@ -51,7 +33,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
   const [workload, setWorkload] = useState(25);
   const [stage, setStage] = useState(1);
   const [heartRates, setHeartRates] = useState([]);
-  const [workloads, setWorkloads] = useState([25]);
+  const [workloads, setWorkloads] = useState([]);
   const [isTestRunning, setIsTestRunning] = useState(false);
   const [timer, setTimer] = useState(0);
   const [rpe, setRpe] = useState("");
@@ -77,7 +59,7 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
     }
     setIsTestRunning(true);
     setHeartRates([]);
-    setWorkloads([25]);
+    setWorkloads([]);
     setTimer(0);
     setStage(1);
     setWorkload(25);
@@ -124,89 +106,34 @@ export default function YMCACycleErgometerProtocolRunner({ client, onSave, onClo
   };
 
   const calculateResult = (finalHeartRates, finalWorkloads) => {
-    const ageNum = parseInt(age);
-    const weightNum = parseFloat(weight);
-    const maxHeartRate = 220 - ageNum;
-    const lastWorkload = finalWorkloads[finalWorkloads.length - 1];
-    
-    // Linear regression: VO2 = (workload × 10.8) / weight + 7
-    const vo2Max = ((lastWorkload * 10.8) / weightNum + 7).toFixed(2);
-    const classification = getVO2Classification(vo2Max, age, gender);
-
-    setVo2maxResult({
-      vo2Max,
-      heartRates: finalHeartRates,
-      workloads: finalWorkloads,
-      maxHeartRate,
-      lastWorkload,
-      age: ageNum,
-      weight: weightNum,
-      gender,
-      classification,
-    });
-    setTestComplete(true);
+    try {
+      const payload = scoreYmcaCycle({ age, weight_kg: weight, gender, heart_rates: finalHeartRates, workloads: finalWorkloads }, { assessmentName: "Allied Submaximal Cycle Ergometer VO2 Assessment", client });
+      setVo2maxResult({
+        vo2Max: payload.additional_data.vo2max,
+        heartRates: payload.additional_data.heartRates,
+        workloads: payload.additional_data.workloads,
+        maxHeartRate: payload.additional_data.maxHeartRate,
+        lastWorkload: payload.additional_data.lastWorkload,
+        age: Number(age),
+        weight: Number(weight),
+        gender,
+        classification: payload.additional_data.classification,
+      });
+      setTestComplete(true);
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   const handleSaveResult = () => {
     if (!vo2maxResult) return;
-
-    const soapText = `• Allied Submaximal Cycle Ergometer VO2 Assessment
-  Multi-stage cardiovascular fitness prediction using heart rate response
-  
-  CLIENT DETAILS:
-  Age: ${vo2maxResult.age} years | Gender: ${vo2maxResult.gender === "M" ? "Male" : "Female"}
-  Body Mass: ${vo2maxResult.weight} kg
-  
-  TEST PROTOCOL:
-  Predicted Max HR (220 − age): ${vo2maxResult.maxHeartRate} bpm
-  Final Workload: ${vo2maxResult.lastWorkload} W
-  Cadence: 50 rpm (constant)
-  Stages: 3 minutes per stage, progressive load
-  
-  HEART RATE RESPONSE BY STAGE:
-  ${vo2maxResult.workloads.map((w, i) => `  Stage ${i + 1}: ${w}W → ${vo2maxResult.heartRates[i]} bpm`).join("\n")}
-  
-  STEADY-STATE ACHIEVEMENT:
-  ✓ HR in target range (110–150 bpm)
-  ✓ HR variation between stages ≤5 bpm
-  
-  ESTIMATED VO2MAX:
-  ${vo2maxResult.vo2Max} ml/kg/min
-  
-  CLASSIFICATION (ACSM):
-  ${vo2maxResult.classification} cardiovascular fitness
-  
-  ${rpe ? `RPE (Borg 0–10): ${rpe}` : ""}
-  ${symptoms ? `Symptoms: ${symptoms}` : "No adverse symptoms reported."}
-  
-  CLINICAL INTERPRETATION:
-  Submaximal cardiovascular response indicates ${vo2maxResult.classification.toLowerCase()} aerobic fitness.
-  Estimated VO2max of ${vo2maxResult.vo2Max} ml/kg/min reflects good exercise tolerance and cardiovascular efficiency.
-  
-  IP STATEMENT:
-  This assessment is independently developed by AssessSuite.
-  It does not reproduce YMCA proprietary manuals or materials.`;
-
-    onSave({
-      status: "completed",
-      result_value: parseFloat(vo2maxResult.vo2Max),
-      additional_data: {
-        measurement_type: "allied_cycle_ergometer_vo2",
-        vo2max: vo2maxResult.vo2Max,
-        classification: vo2maxResult.classification,
-        heartRates: vo2maxResult.heartRates,
-        workloads: vo2maxResult.workloads,
-        maxHeartRate: vo2maxResult.maxHeartRate,
-        lastWorkload: vo2maxResult.lastWorkload,
-        rpe: rpe ? parseInt(rpe) : null,
-        symptoms,
-        soap_text: soapText,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved.");
-    setTimeout(() => onClose(), 500);
+    try {
+      onSave(scoreYmcaCycle({ age: vo2maxResult.age, weight_kg: vo2maxResult.weight, gender: vo2maxResult.gender, heart_rates: vo2maxResult.heartRates, workloads: vo2maxResult.workloads, rpe, symptoms, notes }, { assessmentName: "Allied Submaximal Cycle Ergometer VO2 Assessment", client }));
+      toast.success("Assessment saved.");
+      setTimeout(() => onClose(), 500);
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   const mins = Math.floor(timer / 60);

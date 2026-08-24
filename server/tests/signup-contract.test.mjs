@@ -87,21 +87,21 @@ test('S03 paediatric and jurisdiction controls, validation, and payload fields a
   assert.doesNotMatch(profileSource, /name=["'](?:adult_only_confirmed|served_jurisdictions)["']/);
   assert.doesNotMatch(consentSource, /id=["'](?:adult-only|served-jurisdictions)/);
   assert.doesNotMatch(profileSource, /Country of Practice|Select your country|value=["'](?:usa|canada|new_zealand|united_kingdom)["']/i);
-  assert.match(profileSource, /country:\s*["']australia["']/);
-  assert.match(profileSource, /Accredited Exercise Physiologist \(AEP\)/);
-  assert.match(profileSource, /<SelectItem value=["']Gym Management["']>Gym Management<\/SelectItem>/);
-  assert.match(profileSource, /<SelectItem value=["']Clinic Management["']>Clinic Management<\/SelectItem>/);
+  assert.match(profileSource, /country:\s*activeProfession\.releaseCountry/);
+  assert.match(profileSource, /profileProfessionOptions\(activeProfession\)/);
+  assert.match(profileSource, /activeProfessionOptions\.map/);
+  assert.match(profileSource, /isProfileProfessionAllowed\(activeProfession, formData\.profession\)/);
   assert.doesNotMatch(
     profileSource,
-    /<SelectItem value=["'](?:Physiotherapist|Occupational Therapist|Psychologist|Dietitian|Other)["']>/,
+    /<SelectItem value=["'](?:Exercise Physiologist|Physiotherapist|Gym Management|Clinic Management|Occupational Therapist|Psychologist|Dietitian|Other)["']>/,
   );
   assert.doesNotMatch(profileEditorSource, /Country of Practice|Select country|United States|Canada|New Zealand|United Kingdom/i);
-  assert.match(profileEditorSource, /Accredited Exercise Physiologist \(AEP\)/);
-  assert.match(profileEditorSource, /<SelectItem value=["']Gym Management["']>Gym Management<\/SelectItem>/);
-  assert.match(profileEditorSource, /<SelectItem value=["']Clinic Management["']>Clinic Management<\/SelectItem>/);
+  assert.match(profileEditorSource, /profileProfessionOptions\(activeProfession\)/);
+  assert.match(profileEditorSource, /activeProfessionOptions\.map/);
+  assert.match(profileEditorSource, /isProfileProfessionAllowed\(activeProfession, formData\.profession\)/);
   assert.doesNotMatch(
     profileEditorSource,
-    /<SelectItem value=["'](?:Exercise Scientist|Dual Exercise Scientist & Exercise Physiologist)["']>/,
+    /<SelectItem value=["'](?:Exercise Physiologist|Physiotherapist|Gym Management|Clinic Management|Exercise Scientist|Dual Exercise Scientist & Exercise Physiologist)["']>/,
   );
 });
 
@@ -477,7 +477,10 @@ test('S17 browser and server share the exact clinical-release profile predicate'
     profession: 'Physiotherapist',
   }), false);
   assert.equal(isInitialClinicalReleaseEligible({ profession: 'Exercise Physiologist' }), false);
-  assert.match(layoutSource, /isInitialClinicalReleaseEligible\(freshUser\)/);
+  assert.match(
+    layoutSource,
+    /isInitialClinicalReleaseEligible\(freshUser,\s*activeReleaseProfessions\)/,
+  );
   assert.match(layoutSource, /ProfileSetup\?reason=clinical-profile/);
 });
 

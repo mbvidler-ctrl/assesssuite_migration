@@ -24,7 +24,10 @@ export default function ISWTRunner({ onSave, onClose, initialData }) {
 
   const createBeep = (frequency = 1000, duration = 200) => {
     if (!audioContextRef.current) {
-      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      const AudioContextConstructor = window.AudioContext
+        || /** @type {Window & { webkitAudioContext?: typeof AudioContext }} */ (window).webkitAudioContext;
+      if (!AudioContextConstructor) throw new Error('Web Audio API is unavailable in this browser');
+      audioContextRef.current = new AudioContextConstructor();
     }
     const ctx = audioContextRef.current;
     const oscillator = ctx.createOscillator();

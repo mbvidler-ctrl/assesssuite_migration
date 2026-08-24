@@ -10,17 +10,19 @@ import { ArrowRight, ArrowLeft, Target, AlertCircle, Plus, Trash2 } from "lucide
 export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndFinishLater }) {
   const [formData, setFormData] = useState({
     // Demographics - auto-filled from Stage 1
-    apss_s2_age: data.date_of_birth ? Math.floor((new Date() - new Date(data.date_of_birth)) / 31557600000) : "",
+    apss_s2_age: data.date_of_birth ? Math.floor((Date.now() - new Date(data.date_of_birth).getTime()) / 31557600000) : "",
     apss_s2_gender: data.gender || "",
     
     // Family history
     apss_s2_family_history: data.apss_s2_family_history !== undefined ? (data.apss_s2_family_history ? "yes" : "no") : "",
     apss_s2_family_history_records: data.apss_s2_family_history_records || [],
+    apss_s2_family_history_extra_notes: data.apss_s2_family_history_extra_notes || "",
     
     // Smoking
     apss_s2_smoking: data.apss_s2_smoking !== undefined ? (data.apss_s2_smoking ? "yes" : "no") : "",
     apss_s2_smoking_details: data.apss_s2_smoking_details || "",
     apss_s2_smoking_years: data.apss_s2_smoking_years || "",
+    apss_s2_smoking_extra_notes: data.apss_s2_smoking_extra_notes || "",
     apss_s2_vaping: data.apss_s2_vaping !== undefined ? (data.apss_s2_vaping ? "yes" : "no") : "",
     apss_s2_vaping_details: data.apss_s2_vaping_details || "",
     apss_s2_vaping_years: data.apss_s2_vaping_years || "",
@@ -40,6 +42,7 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
     apss_s2_heart_rate: data.apss_s2_heart_rate || "",
     apss_s2_bp_medication: data.apss_s2_bp_medication !== undefined ? (data.apss_s2_bp_medication ? "yes" : "no") : "",
     apss_s2_bp_medication_details: data.apss_s2_bp_medication_details || "",
+    apss_s2_bp_extra_notes: data.apss_s2_bp_extra_notes || "",
     
     // Cholesterol
     apss_s2_high_cholesterol: data.apss_s2_high_cholesterol !== undefined ? (data.apss_s2_high_cholesterol ? "yes" : "no") : "",
@@ -49,12 +52,14 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
     apss_s2_triglycerides: data.apss_s2_triglycerides || "",
     apss_s2_cholesterol_medication: data.apss_s2_cholesterol_medication !== undefined ? (data.apss_s2_cholesterol_medication ? "yes" : "no") : "",
     apss_s2_cholesterol_medication_details: data.apss_s2_cholesterol_medication_details || "",
+    apss_s2_cholesterol_extra_notes: data.apss_s2_cholesterol_extra_notes || "",
     
     // Blood sugar
     apss_s2_high_blood_sugar: data.apss_s2_high_blood_sugar !== undefined ? (data.apss_s2_high_blood_sugar ? "yes" : "no") : "",
     apss_s2_fasting_glucose: data.apss_s2_fasting_glucose || "",
     apss_s2_glucose_medication: data.apss_s2_glucose_medication !== undefined ? (data.apss_s2_glucose_medication ? "yes" : "no") : "",
     apss_s2_glucose_medication_details: data.apss_s2_glucose_medication_details || "",
+    apss_s2_glucose_extra_notes: data.apss_s2_glucose_extra_notes || "",
     
     // Medications
     apss_s2_prescribed_medications: data.apss_s2_prescribed_medications !== undefined ? (data.apss_s2_prescribed_medications ? "yes" : "no") : "",
@@ -114,9 +119,11 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
         relationship: r.relationship,
         age_at_event: r.age_at_event ? Number(r.age_at_event) : null
       })),
+      apss_s2_family_history_extra_notes: formData.apss_s2_family_history_extra_notes,
       apss_s2_smoking: formData.apss_s2_smoking === "yes",
       apss_s2_smoking_details: formData.apss_s2_smoking_details,
       apss_s2_smoking_years: formData.apss_s2_smoking_years ? Number(formData.apss_s2_smoking_years) : null,
+      apss_s2_smoking_extra_notes: formData.apss_s2_smoking_extra_notes,
       apss_s2_vaping: formData.apss_s2_vaping === "yes",
       apss_s2_vaping_details: formData.apss_s2_vaping_details,
       apss_s2_vaping_years: formData.apss_s2_vaping_years ? Number(formData.apss_s2_vaping_years) : null,
@@ -133,6 +140,7 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
       apss_s2_spo2: formData.apss_s2_spo2 ? Number(formData.apss_s2_spo2) : null,
       apss_s2_bp_medication: formData.apss_s2_bp_medication === "yes",
       apss_s2_bp_medication_details: formData.apss_s2_bp_medication_details,
+      apss_s2_bp_extra_notes: formData.apss_s2_bp_extra_notes,
       apss_s2_high_cholesterol: formData.apss_s2_high_cholesterol === "yes",
       apss_s2_total_cholesterol: formData.apss_s2_total_cholesterol ? Number(formData.apss_s2_total_cholesterol) : null,
       apss_s2_hdl: formData.apss_s2_hdl ? Number(formData.apss_s2_hdl) : null,
@@ -140,10 +148,12 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
       apss_s2_triglycerides: formData.apss_s2_triglycerides ? Number(formData.apss_s2_triglycerides) : null,
       apss_s2_cholesterol_medication: formData.apss_s2_cholesterol_medication === "yes",
       apss_s2_cholesterol_medication_details: formData.apss_s2_cholesterol_medication_details,
+      apss_s2_cholesterol_extra_notes: formData.apss_s2_cholesterol_extra_notes,
       apss_s2_high_blood_sugar: formData.apss_s2_high_blood_sugar === "yes",
       apss_s2_fasting_glucose: formData.apss_s2_fasting_glucose ? Number(formData.apss_s2_fasting_glucose) : null,
       apss_s2_glucose_medication: formData.apss_s2_glucose_medication === "yes",
       apss_s2_glucose_medication_details: formData.apss_s2_glucose_medication_details,
+      apss_s2_glucose_extra_notes: formData.apss_s2_glucose_extra_notes,
       apss_s2_prescribed_medications: formData.apss_s2_prescribed_medications === "yes",
       apss_s2_medications_list: formData.apss_s2_medications_list,
       apss_s2_hospital_admissions: formData.apss_s2_hospital_admissions === "yes",
@@ -192,7 +202,7 @@ export default function APSSStage2({ data, onNext, onBack, canGoBack, onSaveAndF
   };
 
   // Calculate age from date of birth
-  const age = data.date_of_birth ? Math.floor((new Date() - new Date(data.date_of_birth)) / 31557600000) : null;
+  const age = data.date_of_birth ? Math.floor((Date.now() - new Date(data.date_of_birth).getTime()) / 31557600000) : null;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">

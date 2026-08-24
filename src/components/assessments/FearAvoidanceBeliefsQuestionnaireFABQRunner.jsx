@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreFabq } from "@/lib/clinical/scorers/coreB";
 
 const FABQ_QUESTIONS = [
   "My pain was caused by physical activity",
@@ -37,39 +37,13 @@ export default function FearAvoidanceBeliefsQuestionnaireFABQRunner({ client, on
   };
 
   const handleSubmit = () => {
-    if (responses.includes(null)) {
-      toast.error("Please answer all questions.");
-      return;
+    try {
+      onSave(scoreFabq({ responses, notes }, { assessmentName: 'Fear-Avoidance Beliefs Questionnaire (FABQ)', client }));
+      toast.success("Assessment saved successfully.");
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Unable to save FABQ assessment.');
     }
-
-    const physicalActivityItems = [0, 1, 2, 3, 4];
-    const workItems = [5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-
-    const physicalActivityScore = physicalActivityItems.reduce((sum, index) => sum + responses[index], 0);
-    const workScore = workItems.reduce((sum, index) => sum + responses[index], 0);
-    const totalScore = physicalActivityScore + workScore;
-
-    let soapText = `• FABQ: Total ${totalScore}/96\n  Physical Activity Subscale: ${physicalActivityScore}/24 (high risk ≥15)\n  Work Subscale: ${workScore}/66 (high risk ≥34)\n\n  Individual Responses:\n`;
-    FABQ_QUESTIONS.forEach((q, i) => {
-      soapText += `  Q${i+1}. ${q}\n      Score: ${responses[i]}/6\n`;
-    });
-
-    onSave({
-      status: "completed",
-      result_value: totalScore,
-      additional_data: {
-        measurement_type: "fabq",
-        soap_text: soapText,
-        physical_activity_score: physicalActivityScore,
-        work_score: workScore,
-        responses,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-
-    toast.success("Assessment saved successfully.");
-    onClose();
   };
 
   return (

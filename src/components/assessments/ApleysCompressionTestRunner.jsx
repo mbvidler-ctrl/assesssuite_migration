@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 export default function ApleysCompressionTestRunner({ client, onSave, onClose }) {
   const [trialData, setTrialData] = useState([]);
@@ -25,20 +26,12 @@ export default function ApleysCompressionTestRunner({ client, onSave, onClose })
   const handleEndTest = () => {
     setIsRunning(false);
     setIsTestCompleted(true);
-    const resultValue = calculateResultValue(trialData);
-    const additionalData = {
-      soap_text: `• Apley's Compression Test\n  Positive Trials: ${resultValue}\n  Pain Locations: ${trialData.map(t => t.painLocation).join(', ')}`,
-      measurement_type: "ApleysCompressionTest",
-      trials: trialData,
-    };
-    onSave({
-      status: "completed",
-      result_value: resultValue,
-      additional_data: additionalData,
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Test completed and saved successfully.");
+    try {
+      onSave(validateMobilityOrtho({ trials: trialData, notes }, { runnerKey: 'apleys_compression', assessmentDate: todayLocal() }));
+      toast.success("Test completed and saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   const handleAddTrial = (painLocation) => {

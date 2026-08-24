@@ -22,6 +22,7 @@ import { format, differenceInYears } from 'date-fns';
 import { toast } from 'sonner';
 import { generateInterpretation, selectNorm } from '@/lib/clinical/generateInterpretation';
 import { todayLocal } from "@/lib/localDate";
+import { buildTimeProfession } from '@/lib/profession';
 
 export default function ClientAssessments({ client, clientAssessments, allAssessments, onAssessmentUpdate }) {
   const parseDate = (dateString) => {
@@ -309,7 +310,10 @@ export default function ClientAssessments({ client, clientAssessments, allAssess
         console.warn(`Client assessment ${ca.id} references deleted assessment ${ca.assessment_id} - filtering out`);
         return false;
       }
-      if (assessment.name?.toLowerCase().includes('ymca')) return false;
+      if (
+        buildTimeProfession.id !== 'physio'
+        && assessment.name?.toLowerCase().includes('ymca')
+      ) return false;
       return true;
     });
   }, [clientAssessments, allAssessments]);
@@ -321,7 +325,7 @@ export default function ClientAssessments({ client, clientAssessments, allAssess
   const completedAssessments = React.useMemo(() => {
     return validClientAssessments
       .filter(a => a.status === 'completed')
-      .sort((a, b) => new Date(b.updated_date || b.created_date) - new Date(a.updated_date || a.created_date));
+      .sort((a, b) => new Date(b.updated_date || b.created_date).getTime() - new Date(a.updated_date || a.created_date).getTime());
   }, [validClientAssessments]);
 
   const getInterpretationForAssessment = (clientAssessment) => {

@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 const NORMATIVE_DATA = [
   { group: "Male Athletes (collegiate)", mean: 21.9, sd: 4.7 },
@@ -32,26 +33,13 @@ export default function ClosedKineticChainUpperExtremityStabilityTestCKCUESTRunn
   const best = values.length ? Math.max(...values) : null;
 
   const handleSave = () => {
-    if (!t1 && !t2 && !t3) {
-      toast.error("Please enter at least one trial result.");
-      return;
+    try {
+      const completedTrials = [trial1, trial2, trial3].filter((value) => value !== '');
+      onSave(validateMobilityOrtho({ trials: completedTrials, notes }, { runnerKey: 'ckcuest_full', assessmentDate }));
+      toast.success("Test data saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const additionalData = {
-      soap_text: `• Closed Kinetic Chain Upper Extremity Stability Test (CKCUEST)\n  Trial 1: ${t1} touches | Trial 2: ${t2} touches | Trial 3: ${t3} touches\n  Average: ${average} touches | Best: ${best} touches`,
-      measurement_type: "ckcuest",
-      trial1: t1, trial2: t2, trial3: t3,
-      average, best,
-    };
-
-    onSave({
-      status: "completed",
-      result_value: Number(average),
-      additional_data: additionalData,
-      notes,
-      assessment_date: assessmentDate,
-    });
-    toast.success("Test data saved successfully.");
   };
 
   return (
@@ -195,10 +183,14 @@ export default function ClosedKineticChainUpperExtremityStabilityTestCKCUESTRunn
 
           {/* Trial Inputs */}
           <div className="grid grid-cols-3 gap-4">
-            {[["Trial 1", trial1, setTrial1], ["Trial 2", trial2, setTrial2], ["Trial 3", trial3, setTrial3]].map(([label, val, setter]) => (
+            {[
+              { label: "Trial 1", value: trial1, setValue: setTrial1 },
+              { label: "Trial 2", value: trial2, setValue: setTrial2 },
+              { label: "Trial 3", value: trial3, setValue: setTrial3 },
+            ].map(({ label, value, setValue }) => (
               <div key={label}>
                 <Label>{label} (touches)</Label>
-                <Input type="number" value={val} onChange={e => setter(e.target.value)} placeholder="e.g. 20" className="mt-1" />
+                <Input type="number" value={value} onChange={e => setValue(e.target.value)} placeholder="e.g. 20" className="mt-1" />
               </div>
             ))}
           </div>

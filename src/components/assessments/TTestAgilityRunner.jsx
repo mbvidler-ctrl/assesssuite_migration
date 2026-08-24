@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 // ─── NORMATIVE DATA ────────────────────────────────────────────────────────────
 // Pauole et al. 2000 + Semenick 1990 + sport-adjusted ranges
@@ -123,7 +124,7 @@ function ImageCard({ url, caption }) {
   const [ex, setEx] = useState(false);
   return (
     <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
-      <img src={url} alt={caption} className={`w-full object-cover cursor-pointer transition-all ${ex ? "max-h-96" : "max-h-36"}`} onClick={() => setEx(e => !e)} onError={e => { e.target.style.display = "none"; }} />
+      <img src={url} alt={caption} className={`w-full object-cover cursor-pointer transition-all ${ex ? "max-h-96" : "max-h-36"}`} onClick={() => setEx(e => !e)} onError={e => { e.currentTarget.style.display = "none"; }} />
       <p className="text-xs text-slate-500 text-center p-2">{caption} <span className="text-amber-500 cursor-pointer" onClick={() => setEx(e => !e)}>{ex ? "(collapse)" : "(expand)"}</span></p>
     </div>
   );
@@ -189,7 +190,10 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
   const [step, setStep] = useState(0);
 
   // Safety
-  const [safety, setSafety] = useState({});
+  const [safety, setSafety] = useState({
+    cleared_running: false, no_acute_pain: false, no_instability: false, no_swelling: false,
+    warmup_done: false, safe_footwear: false, safe_surface: false, consent: false,
+  });
 
   // Setup
   const [setup, setSetup] = useState({
@@ -374,32 +378,12 @@ export default function TTestAgilityRunner({ client, onSave, onClose }) {
   const canSave = validTrials.length > 0;
 
   const handleSave = () => {
-    if (!canSave) { toast.error("Complete at least one valid trial before saving."); return; }
-    onSave({
-      status: "completed",
-      result_value: bestTime,
-      notes: clinicalNotes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: generateSoap(),
-        measurement_type: "T_test_agility",
-        best_time_s: bestTime,
-        mean_time_s: avgTime,
-        consistency_pct: consistency,
-        trial_variability_s: trialVariability,
-        valid_trials: validTrials,
-        all_trials: trialResults,
-        classification: classification?.label,
-        rts_status: rts?.label,
-        quality_scores: quality,
-        avg_quality: avgQuality,
-        quality_label: qualityLabel,
-        setup,
-        flags: generateFlags().map(f => f.label),
-        interpretation: generateInterpretation(),
-      },
-    });
-    toast.success("T-Test Agility saved successfully.");
+    try {
+      onSave(validateMobilityOrtho({ trialResults, quality, setup, safety, gender, notes: clinicalNotes }, { runnerKey: 't_test', assessmentDate: todayLocal() }));
+      toast.success("T-Test Agility saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   const allSafeClear = SAFETY_ITEMS.every(s => safety[s.id]);

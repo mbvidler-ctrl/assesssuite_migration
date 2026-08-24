@@ -5,46 +5,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_BREQ_ITEMS as ITEMS, PROM_NEURO_BREQ_RESPONSE_OPTIONS as RESPONSE_OPTIONS, PROM_NEURO_BREQ_SUBSCALE_INFO as SUBSCALE_INFO } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 // BREQ-2 items with subscale mapping
 // Markland & Tobin (2004)
-const ITEMS = [
-  { num: 1,  text: "I exercise because other people say I should",                    subscale: "external" },
-  { num: 2,  text: "I feel guilty when I don't exercise",                              subscale: "introjected" },
-  { num: 3,  text: "I value the benefits of exercise",                                 subscale: "identified" },
-  { num: 4,  text: "I exercise because it's fun",                                      subscale: "intrinsic" },
-  { num: 5,  text: "I don't see why I should have to exercise",                        subscale: "amotivation" },
-  { num: 6,  text: "I take part in exercise because my friends/family/partner say I should", subscale: "external" },
-  { num: 7,  text: "I feel ashamed when I miss an exercise session",                   subscale: "introjected" },
-  { num: 8,  text: "It's important to me to exercise regularly",                       subscale: "identified" },
-  { num: 9,  text: "I can't see why I should bother exercising",                       subscale: "amotivation" },
-  { num: 10, text: "I enjoy my exercise sessions",                                     subscale: "intrinsic" },
-  { num: 11, text: "I exercise because others will not be pleased with me if I don't", subscale: "external" },
-  { num: 12, text: "I don't see the point in exercising",                              subscale: "amotivation" },
-  { num: 13, text: "I feel like a failure when I haven't exercised in a while",        subscale: "introjected" },
-  { num: 14, text: "I think it is important to make the effort to exercise regularly", subscale: "identified" },
-  { num: 15, text: "I find exercise a pleasurable activity",                           subscale: "intrinsic" },
-  { num: 16, text: "I feel under pressure from my friends/family to exercise",         subscale: "external" },
-  { num: 17, text: "I get restless if I don't exercise regularly",                     subscale: "identified" },
-  { num: 18, text: "I get pleasure and satisfaction from participating in exercise",   subscale: "intrinsic" },
-  { num: 19, text: "I think exercising is a waste of time",                            subscale: "amotivation" },
-];
 
-const RESPONSE_OPTIONS = [
-  { value: 0, label: "0 – Not true for me" },
-  { value: 1, label: "1 – Not very true for me" },
-  { value: 2, label: "2 – Sometimes true for me" },
-  { value: 3, label: "3 – Often true for me" },
-  { value: 4, label: "4 – Very true for me" },
-];
 
-const SUBSCALE_INFO = {
-  amotivation:   { label: "Amotivation",           color: "bg-red-100 text-red-800 border-red-200",     items: [5,9,12,19] },
-  external:      { label: "External Regulation",   color: "bg-orange-100 text-orange-800 border-orange-200", items: [1,6,11,16] },
-  introjected:   { label: "Introjected Regulation",color: "bg-yellow-100 text-yellow-800 border-yellow-200", items: [2,7,13] },
-  identified:    { label: "Identified Regulation", color: "bg-blue-100 text-blue-800 border-blue-200",   items: [3,8,14,17] },
-  intrinsic:     { label: "Intrinsic Motivation",  color: "bg-green-100 text-green-800 border-green-200", items: [4,10,15,18] },
-};
 
 function calcSubscaleMean(responses, itemNums) {
   const vals = itemNums.map(n => responses[n]).filter(v => v !== undefined && v !== null);

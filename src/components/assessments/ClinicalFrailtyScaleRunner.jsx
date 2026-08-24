@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreClinicalFrailtyScale } from "@/lib/clinical/scorers/coreA";
 
 const LEVELS = [
   { score: 1, label: "Very Fit", desc: "Robust, active, energetic, motivated and fit. These people commonly exercise regularly and are among the fittest for their age.", icon: "💪", color: "bg-green-100 border-green-400 text-green-900" },
@@ -26,8 +27,10 @@ export default function ClinicalFrailtyScaleRunner({ client, onSave, onClose }) 
 
   const handleSave = () => {
     if (!selected) { toast.error("Select a frailty level"); return; }
-    const soap = `• Clinical Frailty Scale (CFS)\n  Score: ${selected}/9 — ${level.label}\n  Description: ${level.desc}${notes ? `\n  Notes: ${notes}` : ""}\n  Interpretation: 1–3 = fit | 4 = vulnerable | 5–6 = frail | 7–8 = severely frail | 9 = terminally ill\n  Reference: Rockwood et al. (2005). A global clinical measure of fitness and frailty in elderly people. CMAJ, 173(5):489-495.`;
-    onSave({ status: "completed", result_value: selected, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "clinical_frailty_scale", frailty_label: level.label } });
+    onSave(scoreClinicalFrailtyScale(
+      { score: selected, notes },
+      { assessmentName: 'Clinical Frailty Scale', assessmentDate: todayLocal(), notes, client },
+    ));
     toast.success("Saved.");
   };
 

@@ -207,8 +207,8 @@ export default function Clients() {
     const cutoff = new Date();
     cutoff.setDate(cutoff.getDate() - 30);
     return [...clients]
-      .filter(c => c.created_date && new Date(c.created_date) >= cutoff)
-      .sort((a, b) => new Date(b.created_date) - new Date(a.created_date))
+      .filter(c => c.created_date && new Date(c.created_date).getTime() >= cutoff.getTime())
+      .sort((a, b) => new Date(b.created_date).getTime() - new Date(a.created_date).getTime())
       .slice(0, 6);
   }, [clients, searchTerm]);
 
@@ -311,7 +311,7 @@ export default function Clients() {
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-2">
                     {recentlyOnboarded.map(client => {
-                      const daysAgo = Math.floor((Date.now() - new Date(client.created_date)) / 86400000);
+                      const daysAgo = Math.floor((Date.now() - new Date(client.created_date).getTime()) / 86400000);
                       return (
                         <button
                           key={client.id}

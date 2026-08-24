@@ -25,11 +25,11 @@ export default function FunctionalReachRunner({ onSave, onClose }) {
   const calculateAverage = () => {
     if (trials.length === 0) return 0;
     const sum = trials.reduce((acc, val) => acc + val, 0);
-    return (sum / trials.length).toFixed(1);
+    return Number((sum / trials.length).toFixed(1));
   };
 
   const getInterpretation = (reach) => {
-    const r = parseFloat(reach);
+    const r = Number(reach);
     if (r >= 25) return { text: 'Normal - Low Fall Risk', color: 'text-green-600' };
     if (r >= 15) return { text: 'Moderate Risk', color: 'text-yellow-600' };
     if (r >= 6) return { text: 'High Fall Risk - 2x risk', color: 'text-orange-600' };
@@ -48,11 +48,11 @@ export default function FunctionalReachRunner({ onSave, onClose }) {
     if (notes) soapText += `  Notes: ${notes}\n`;
     
     onSave({
-      result_value: parseFloat(avgReach),
+      result_value: avgReach,
       additional_data: {
         soap_text: soapText,
         trials,
-        averageReach: parseFloat(avgReach),
+        averageReach: avgReach,
         maxReach,
         interpretation: interpretation.text,
         measurement_type: 'functional_reach'

@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Checkbox } from "@/components/ui/checkbox";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 export default function SquatTestDynamicRunner({ client, onSave, onClose }) {
   const [isRunning, setIsRunning] = useState(false);
@@ -88,74 +89,15 @@ export default function SquatTestDynamicRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (squatCount === 0) {
-      toast.error("Please record at least one squat or cancel the test.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho({
+        squatCount, testDuration, age, bodyWeight, observations,
+        preTestNotes, postTestNotes, notes,
+      }, { runnerKey: 'squat', assessmentDate: todayLocal() }));
+      toast.success("Squat Test saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const interpretation = getInterpretation();
-    const qualityCheck = Object.values(observations).filter(v => v).length;
-
-    const soapText = [
-      `• Dynamic Squat Test - Lower Limb Strength & Muscular Endurance`,
-      ``,
-      `  Test Parameters:`,
-      `    Duration: ${testDuration} seconds`,
-      `    Squats Completed: ${squatCount}`,
-      `${age ? `    Age: ${age} years` : ""}`,
-      `${bodyWeight ? `    Body Weight: ${bodyWeight} kg` : ""}`,
-      ``,
-      `  Clinical Interpretation: ${interpretation.level}`,
-      `    Score: ${squatCount} squats in ${testDuration} seconds`,
-      `    Normative Comparison: ${interpretation.level}`,
-      ``,
-      `  Test Quality Observations (${qualityCheck}/5):`,
-      observations.chestUp ? `    ✓ Maintained upright chest position` : `    • Chest collapsed (poor form)`,
-      observations.kneeTracking ? `    ✓ Knees tracked over toes` : `    • Knees valgus/varus (alignment issue)`,
-      observations.fullDepth ? `    ✓ Achieved full depth (thighs parallel or below)` : `    • Shallow squats (reduced range)`,
-      observations.noCompensation ? `    ✓ No compensatory patterns observed` : `    • Asymmetrical movement/compensations noted`,
-      observations.consistentPace ? `    ✓ Maintained consistent pace throughout` : `    • Pace declined (fatigue evident)`,
-      ``,
-      `  Interpretation Criteria (60-second test):`,
-      `    • Excellent: ≥40 squats (strong lower limb power & endurance)`,
-      `    • Good: 30-39 squats (above-average function)`,
-      `    • Fair: 20-29 squats (average function)`,
-      `    • Poor: 10-19 squats (below-average function; consider targeted training)`,
-      `    • Very Poor: <10 squats (significant weakness; screen for pathology)`,
-      ``,
-      preTestNotes ? `  Pre-Test Notes: ${preTestNotes}` : null,
-      notes ? `  Additional Notes: ${notes}` : null,
-      postTestNotes ? `  Post-Test Notes: ${postTestNotes}` : null,
-      ``,
-      `  Clinical Relevance:`,
-      `    • Measures quadriceps, gluteal, and calf endurance`,
-      `    • Correlates with functional mobility and fall risk (elderly)`,
-      `    • Useful for baseline assessment and rehabilitation progress`,
-      `    • Sensitive to training response in rehabilitation`,
-      ``,
-      `  References:`,
-      `    • Lower Limb Strength & Endurance Testing - ESSA guidelines`,
-      `    • Correlated with 30-Second Sit-to-Stand Test and SPPB`,
-      `    • Age-adjusted normative data available (NHANES, ESSA databases)`,
-    ].filter(Boolean).join('\n');
-
-    onSave({
-      status: "completed",
-      result_value: squatCount,
-      additional_data: {
-        soap_text: soapText,
-        testDuration,
-        squatCount,
-        age: age || null,
-        bodyWeight: bodyWeight || null,
-        qualityScore: qualityCheck,
-        observations,
-        interpretation: interpretation.level,
-      },
-      notes,
-      assessment_date: todayLocal()
-    });
-    toast.success("Squat Test saved successfully.");
   };
 
   const interpretation = getInterpretation();

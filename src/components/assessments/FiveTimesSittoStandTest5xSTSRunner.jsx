@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Play, Square, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 export default function FiveTimesSittoStandTest5xSTSRunner({ client, onSave, onClose }) {
   const [elapsed, setElapsed] = useState(0);
@@ -56,23 +57,15 @@ export default function FiveTimesSittoStandTest5xSTSRunner({ client, onSave, onC
   const fallRisk = totalTime !== null ? (totalTime >= 15 ? "Elevated fall risk (≥15s)" : "Lower fall risk (<15s)") : null;
 
   const handleSave = () => {
-    const trialLines = trials.map((t, i) => `  Stand ${i + 1}: ${t.toFixed(2)}s`).join('\n');
-    const soap_text = `Five Times Sit-to-Stand Test (5xSTS)\n\nTotal Time: ${totalTime.toFixed(2)}s — ${fallRisk}\n\nIndividual Stands:\n${trialLines}${notes ? `\n\nClinical Notes: ${notes}` : ''}`;
-
-    onSave({
-      status: "completed",
-      result_value: parseFloat(totalTime.toFixed(2)),
-      notes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text,
-        measurement_type: '5sts',
-        trials: trials.map((t, i) => ({ stand: i + 1, time: parseFloat(t.toFixed(2)) })),
-        total_time: parseFloat(totalTime.toFixed(2)),
-        fall_risk: fallRisk,
-      },
-    });
-    toast.success("Assessment saved successfully.");
+    try {
+      onSave(validateFunctionalOrtho(
+        { trials, notes },
+        { runnerKey: "5xsts", assessmentDate: todayLocal() },
+      ));
+      toast.success("Assessment saved successfully.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

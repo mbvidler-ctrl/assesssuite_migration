@@ -24,6 +24,8 @@ import PaymentRequired from './pages/PaymentRequired';
 import TestingBypass from '@/pages/TestingBypass';
 import LegalNotices from '@/pages/LegalNotices';
 import AccountDeactivated from '@/pages/AccountDeactivated';
+import PhysioPublicLanding from '@/pages/PhysioPublicLanding';
+import { buildTimeProfession } from '@/lib/profession';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -65,7 +67,9 @@ const AuthenticatedApp = () => {
         </div>
       );
     }
-    return <Navigate to={isAuthenticated ? `/${mainPageKey}` : '/login'} replace />;
+    if (isAuthenticated) return <Navigate to={`/${mainPageKey}`} replace />;
+    if (buildTimeProfession.id === 'physio') return <PhysioPublicLanding />;
+    return <Navigate to="/login" replace />;
   }
 
   // Show loading spinner while checking app public settings or auth

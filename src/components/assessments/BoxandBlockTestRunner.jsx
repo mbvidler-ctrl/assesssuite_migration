@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Square, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 
 export default function BoxandBlockTestRunner({ client, assessment, onSave, onClose }) {
@@ -56,46 +57,13 @@ export default function BoxandBlockTestRunner({ client, assessment, onSave, onCl
   };
 
   const handleSave = () => {
-    if (!testCompleted) {
-      toast.error("Please complete the test before saving.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho({
+        completed: testCompleted, blocksMoved, dominantHand, age, sex, notes,
+      }, { runnerKey: 'box_block_test', assessmentDate: todayLocal() }));
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const resultValue = blocksMoved;
-    const normativeData = getNormativeData(age, sex, dominantHand);
-    const comparison = compareToNormativeData(resultValue, normativeData);
-    const assessmentDate = todayLocal();
-    
-    const soapText = `• Box and Block Test:\n  Blocks Moved: ${resultValue}\n  Dominant Hand: ${dominantHand}\n  Age: ${age}\n  Sex: ${sex}\n  Result: ${comparison}`;
-
-    const assessmentData = {
-      status: "completed",
-      result_value: resultValue,
-      additional_data: { 
-        measurement_type: "box_and_block",
-        blocks_moved: resultValue,
-        dominant_hand: dominantHand,
-        age: parseInt(age),
-        sex: sex,
-        comparison: comparison,
-        soap_text: soapText
-      },
-      notes,
-      assessment_date: assessmentDate,
-    };
-
-    onSave(assessmentData);
-  };
-
-  const getNormativeData = (age, sex, hand) => {
-    // Replace with actual normative data retrieval logic
-    return { mean: 80, sd: 10 }; // Placeholder values
-  };
-
-  const compareToNormativeData = (score, { mean, sd }) => {
-    if (score >= mean + sd) return "Above average";
-    if (score >= mean - sd) return "Average";
-    return "Below average";
   };
 
   return (
@@ -147,9 +115,9 @@ export default function BoxandBlockTestRunner({ client, assessment, onSave, onCl
                     className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
                   >
                     <option value="">Select sex</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
                   </select>
                 </div>
               </div>

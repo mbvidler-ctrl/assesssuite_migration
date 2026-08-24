@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreModifiedThomas } from "@/lib/clinical/scorers/coreA";
 
 const SPECIAL_TESTS = {
   "Ely's Test": {
@@ -29,16 +30,17 @@ const SPECIAL_TESTS = {
   }
 };
 
-export default function SpecialTestsRunner({ testName, onSave, onClose }) {
+export default function SpecialTestsRunner({ testName, onSave, onClose, initialData = null }) {
   // Normalize test name to match keys
   const normalizedName = testName.includes("Ely") ? "Ely's Test" :
                          testName.includes("Thomas") ? "Thomas Test" :
                          testName.includes("Ober") ? "Ober's Test" : testName;
   
   const testConfig = SPECIAL_TESTS[normalizedName];
-  const [leftResult, setLeftResult] = useState('');
-  const [rightResult, setRightResult] = useState('');
-  const [notes, setNotes] = useState('');
+  const persisted = initialData?.additional_data || initialData || {};
+  const [leftResult, setLeftResult] = useState(persisted.left_result || '');
+  const [rightResult, setRightResult] = useState(persisted.right_result || '');
+  const [notes, setNotes] = useState(initialData?.notes || persisted.notes || persisted.raw_input?.notes || '');
 
   const handleSave = () => {
     if (!leftResult && !rightResult) {
@@ -59,6 +61,14 @@ export default function SpecialTestsRunner({ testName, onSave, onClose }) {
       `  Overall: ${overallInterp}`,
       notes ? `  Notes: ${notes}` : null,
     ].filter(Boolean).join('\n');
+
+    if (normalizedName === 'Thomas Test') {
+      onSave(scoreModifiedThomas(
+        { left_result: leftResult || 'not_tested', right_result: rightResult || 'not_tested', notes },
+        { assessmentName: 'Modified Thomas Test', assessmentDate: todayLocal(), notes },
+      ));
+      return;
+    }
 
     onSave({
       result_value: (leftPositive || rightPositive) ? 1 : 0,

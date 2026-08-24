@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
+import { toast } from "sonner";
 
 function getLSI(tested, contralateral) {
   if (!tested || !contralateral || parseFloat(contralateral) === 0) return null;
@@ -42,34 +44,13 @@ export default function TripleHopTestRunner({ client, onSave, onClose }) {
   const lsiCat = lsi ? getLSICategory(lsi) : null;
 
   const handleSave = () => {
-    const tested = side === "right" ? bestRight : bestLeft;
-    const contra = side === "right" ? bestLeft : bestRight;
-    const soapText = [
-      `• Triple Hop Test for Distance`,
-      `  Tested limb: ${side === "right" ? "Right" : "Left"}`,
-      bestRight ? `  Right — Best: ${bestRight} cm (trials: ${hops.right.filter(v => v).join(", ")} cm)` : "",
-      bestLeft ? `  Left — Best: ${bestLeft} cm (trials: ${hops.left.filter(v => v).join(", ")} cm)` : "",
-      lsi ? `  Limb Symmetry Index (LSI): ${lsi}%` : "",
-      lsiCat ? `  Interpretation: ${lsiCat.label}` : "",
-      notes ? `  Notes: ${notes}` : "",
-      `  LSI ≥90% required for return-to-sport clearance (Noyes et al., 1991)`,
-    ].filter(Boolean).join("\n");
-
-    onSave({
-      result_value: tested ? parseFloat(tested) : null,
-      notes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: soapText,
-        tested_side: side,
-        best_right_cm: bestRight ? parseFloat(bestRight) : null,
-        best_left_cm: bestLeft ? parseFloat(bestLeft) : null,
-        lsi_percent: lsi ? parseFloat(lsi) : null,
-        lsi_category: lsiCat?.label,
-        right_trials: hops.right.map(parseFloat).filter(v => !isNaN(v)),
-        left_trials: hops.left.map(parseFloat).filter(v => !isNaN(v)),
-      }
-    });
+    try {
+      onSave(validateFunctionalOrtho({
+        side, rightTrials: hops.right, leftTrials: hops.left, notes,
+      }, { runnerKey: 'triple_hop', assessmentDate: todayLocal() }));
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

@@ -8,6 +8,8 @@ import {
   Zap, Wind, Check, CheckCheck
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { searchAssessments } from "@/lib/clinical/assessmentDiscovery";
+import { buildTimeProfession } from "@/lib/profession";
 import AssessmentModal from "./AssessmentModal";
 
 const CATEGORIES = [
@@ -70,17 +72,33 @@ export default function AssessmentLibraryModal({ onClose, onSelectAssessment, cl
     setIsLoading(true);
     try {
       const data = await base44.entities.Assessment.list();
-      const active = data.filter(a => !a.is_deleted && !a.name?.toLowerCase().includes('ymca'));
-      const map = new Map();
-      active.forEach(a => {
-        const key = a.name?.toLowerCase().trim();
-        if (!key) return;
-        if (!map.has(key)) { map.set(key, a); return; }
-        const score = r => [r.instructions, r.normative_data, r.references, r.description].filter(Boolean).length;
-        if (score(a) > score(map.get(key))) map.set(key, a);
-      });
-      const deduped = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-      setAssessments(deduped);
+      // The seeded registry is already canonical and identity-pinned. UI-side
+      // name deduplication can collapse distinct protocols, while historical
+      // name exclusions silently removed the entire YMCA family.
+      const active = data.filter((assessment) => !assessment.is_deleted);
+      if (buildTimeProfession.id === 'physio') {
+        setAssessments(active.sort((left, right) => (
+          String(left.name || '').localeCompare(String(right.name || ''))
+        )));
+      } else {
+        // Preserve the current EP surface exactly; Physio is the only target
+        // whose canonical 236-row registry is governed by the no-omission gate.
+        const visible = active.filter((assessment) => !assessment.name?.toLowerCase().includes('ymca'));
+        const byName = new Map();
+        visible.forEach((assessment) => {
+          const key = assessment.name?.toLowerCase().trim();
+          if (!key) return;
+          if (!byName.has(key)) { byName.set(key, assessment); return; }
+          const completeness = (record) => [
+            record.instructions,
+            record.normative_data,
+            record.references,
+            record.description,
+          ].filter(Boolean).length;
+          if (completeness(assessment) > completeness(byName.get(key))) byName.set(key, assessment);
+        });
+        setAssessments([...byName.values()].sort((left, right) => left.name.localeCompare(right.name)));
+      }
     } catch (e) {
       console.error("Error loading assessments:", e);
     }
@@ -90,13 +108,17 @@ export default function AssessmentLibraryModal({ onClose, onSelectAssessment, cl
   const applyFilter = () => {
     let list = [...assessments];
     if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase();
-      list = list.filter(a =>
-        a.name?.toLowerCase().includes(q) ||
-        a.description?.toLowerCase().includes(q) ||
-        a.category?.toLowerCase().includes(q) ||
-        a.search_tags?.some?.(t => t.toLowerCase().includes(q))
-      );
+      if (buildTimeProfession.id === 'physio') {
+        list = searchAssessments({ assessments: list, query: searchTerm });
+      } else {
+        const q = searchTerm.toLowerCase();
+        list = list.filter(a =>
+          a.name?.toLowerCase().includes(q) ||
+          a.description?.toLowerCase().includes(q) ||
+          a.category?.toLowerCase().includes(q) ||
+          a.search_tags?.some?.(t => t.toLowerCase().includes(q))
+        );
+      }
     }
     if (selectedCategory !== "all") {
       list = list.filter(a => a.category === selectedCategory);

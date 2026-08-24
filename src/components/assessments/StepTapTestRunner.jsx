@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Play, Square, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 // Step Tap Test: count alternating foot taps on step in set time (15s or 30s)
 // Normative data from Lord et al. (senior balance tests)
@@ -49,10 +50,14 @@ export default function StepTapTestRunner({ client, onSave, onClose }) {
   const rate = !isNaN(r) && r > 0 ? (r / duration).toFixed(2) : null;
 
   const handleSave = () => {
-    if (!reps || isNaN(r) || r < 0) { toast.error("Enter taps completed"); return; }
-    const soap = `• Step Tap Test\n  Taps: ${r} in ${duration}s\n  Rate: ${rate} taps/sec\n  Step Height: ${stepHeight} cm${notes ? `\n  Notes: ${notes}` : ""}\n  Assesses lower limb agility, coordination, and dynamic balance\n  Reference: Lord SR et al. (2003). Balance, reaction time, and falls in older people. J Am Geriatr Soc.`;
-    onSave({ status: "completed", result_value: r, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "performance_timed", taps: r, duration_s: duration, rate_per_sec: parseFloat(rate), step_height_cm: parseFloat(stepHeight) } });
-    toast.success("Step Tap Test saved.");
+    try {
+      onSave(validateFunctionalOrtho({ reps, duration, stepHeight, notes }, {
+        runnerKey: 'step_tap', assessmentDate: todayLocal(),
+      }));
+      toast.success("Step Tap Test saved.");
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   const remaining = Math.max(0, duration - elapsed);

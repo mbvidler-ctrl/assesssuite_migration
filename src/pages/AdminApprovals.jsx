@@ -204,7 +204,7 @@ export default function AdminApprovals() {
   const [deletingAssessment, setDeletingAssessment] = useState(null);
   const [expandedAssessments, setExpandedAssessments] = useState(new Set());
   const [editingAssessmentId, setEditingAssessmentId] = useState(null);
-  const [editingData, setEditingData] = useState({});
+  const [editingData, setEditingData] = useState(/** @type {Record<string, any>} */ ({}));
   const [runningDiagnostics, setRunningDiagnostics] = useState(false);
   const [activatingUser, setActivatingUser] = useState(null);
 

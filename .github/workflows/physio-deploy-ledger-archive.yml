@@ -1,0 +1,281 @@
+name: Physio deploy protected ledger archive
+
+on:
+  workflow_call:
+    inputs:
+      application_sha:
+        required: true
+        type: string
+      source_artifact_id:
+        required: true
+        type: string
+      source_artifact_digest:
+        required: true
+        type: string
+      source_run_id:
+        required: true
+        type: string
+      source_run_attempt:
+        required: true
+        type: string
+      confirmation:
+        required: true
+        type: string
+    outputs:
+      ledger_commit_sha:
+        value: ${{ jobs.archive.outputs.ledger_commit_sha }}
+      ledger_record_sha256:
+        value: ${{ jobs.archive.outputs.ledger_record_sha256 }}
+      ledger_head_sha:
+        value: ${{ jobs.archive.outputs.ledger_head_sha }}
+  workflow_dispatch:
+    inputs:
+      application_sha:
+        description: Exact current-main application SHA owning the source deploy packet
+        required: true
+        type: string
+      source_artifact_id:
+        description: Exact deploy phase or terminal artifact ID to append
+        required: true
+        type: string
+      source_artifact_digest:
+        description: Exact GitHub SHA-256 artifact digest
+        required: true
+        type: string
+      source_run_id:
+        description: Exact source Physio deploy workflow run ID
+        required: true
+        type: string
+      source_run_attempt:
+        description: Exact source Physio deploy workflow run attempt
+        required: true
+        type: string
+      confirmation:
+        description: Exact protected-ledger append confirmation
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: assesssuite-physio-deploy-ledger
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    name: Append one admitted deploy packet to the protected no-bypass ledger
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      ledger_commit_sha: ${{ steps.append.outputs.deploy_ledger_commit_sha }}
+      ledger_record_sha256: ${{ steps.append.outputs.deploy_ledger_record_sha256 }}
+      ledger_head_sha: ${{ steps.append.outputs.deploy_ledger_readback_head_sha }}
+    steps:
+      - name: Validate isolated ledger-only dispatch
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+          SOURCE_ARTIFACT_DIGEST: ${{ inputs.source_artifact_digest }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == 'mbvidler-ctrl/assesssuite_migration' ]]
+          [[ "$ACTOR" == 'mbvidler-ctrl' && "$TRIGGERING_ACTOR" == 'mbvidler-ctrl' ]]
+          [[ "$EVENT_REF" == 'refs/heads/main' && "$EVENT_SHA" == "$APPLICATION_SHA" ]]
+          [[ "$WORKFLOW_SHA" == "$APPLICATION_SHA" ]]
+          [[ "$EVENT_NAME" == 'workflow_dispatch' || "$EVENT_NAME" == 'workflow_call' ]]
+          [[ "$WORKFLOW_REF" == 'mbvidler-ctrl/assesssuite_migration/.github/workflows/physio-deploy-ledger-archive.yml@refs/heads/main' || \
+             "$EVENT_NAME" == 'workflow_call' ]]
+          [[ "$APPLICATION_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$SOURCE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+          [[ "$SOURCE_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ && "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]
+          [[ "$CONFIRMATION" == "ARCHIVE DEPLOY PACKET $APPLICATION_SHA $SOURCE_ARTIFACT_ID" ]]
+          [[ -z "${FLY_API_TOKEN:-}" && -z "${SENTRY_AUTH_TOKEN:-}" && -z "${SENTRY_DSN:-}" ]]
+          [[ -n "${{ vars.PHYSIO_DEPLOY_LEDGER_PROVISIONING_RECEIPT_SHA256 }}" ]]
+
+      - name: Check out exact source application and ledger contract without persistent credentials
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Admit exact source artifact and in-progress or terminal source run
+        id: source
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          REPOSITORY: ${{ github.repository }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          SOURCE_ARTIFACT_ID: ${{ inputs.source_artifact_id }}
+          SOURCE_ARTIFACT_DIGEST: ${{ inputs.source_artifact_digest }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          SOURCE_RUN_ATTEMPT: ${{ inputs.source_run_attempt }}
+        run: |
+          set -euo pipefail
+          umask 077
+          OUTPUT="$RUNNER_TEMP/deploy-ledger-source-admission.json" GITHUB_OUTPUT_PATH="$GITHUB_OUTPUT" \
+            env -u FLY_API_TOKEN -u SENTRY_AUTH_TOKEN -u SENTRY_DSN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const base = `https://api.github.com/repos/${process.env.REPOSITORY}`;
+          const headers = { accept: 'application/vnd.github+json', authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+            'x-github-api-version': '2022-11-28' };
+          async function get(path) {
+            const response = await fetch(`${base}${path}`, { headers, redirect: 'error', signal: AbortSignal.timeout(30000) });
+            const text = await response.text();
+            if (text.length > 2097152 || response.status !== 200) throw new Error(`source API ${path} returned ${response.status}`);
+            return JSON.parse(text);
+          }
+          const artifact = await get(`/actions/artifacts/${process.env.SOURCE_ARTIFACT_ID}`);
+          const run = await get(`/actions/runs/${process.env.SOURCE_RUN_ID}`);
+          const name = String(artifact?.name || '');
+          const family = new RegExp(`^physio-deploy-(?:phase-${process.env.APPLICATION_SHA}-(?:[0-9]{3}-[a-z0-9-]+|sentry-handoff)-[0-9]+-[0-9]+|terminal-${process.env.APPLICATION_SHA}-sentry-[0-9]+-[0-9]+|completed-reuse-${process.env.APPLICATION_SHA}(?:-sentry)?-[0-9]+-[0-9]+)$`);
+          const conclusion = run.status === 'in_progress' ? 'in_progress' : run.conclusion;
+          if (artifact.id !== Number(process.env.SOURCE_ARTIFACT_ID) || artifact.digest !== process.env.SOURCE_ARTIFACT_DIGEST ||
+              artifact.expired !== false || !Number.isSafeInteger(artifact.size_in_bytes) || artifact.size_in_bytes < 1 ||
+              artifact.size_in_bytes > 67108864 || !family.test(name) || artifact.workflow_run?.id !== run.id ||
+              run.id !== Number(process.env.SOURCE_RUN_ID) || run.run_attempt !== Number(process.env.SOURCE_RUN_ATTEMPT) ||
+              run.head_sha !== process.env.APPLICATION_SHA || run.head_branch !== 'main' ||
+              run.path !== '.github/workflows/physio-production-deploy.yml' || run.event !== 'workflow_dispatch' ||
+              run.repository?.full_name !== process.env.REPOSITORY || run.head_repository?.full_name !== process.env.REPOSITORY ||
+              !['in_progress','success','failure','cancelled','timed_out'].includes(conclusion)) {
+            throw new Error('source deploy artifact/run admission differs');
+          }
+          const row = { contract_version: 'assesssuite-physio-deploy-ledger-source-admission/1.0.0', result: 'PASS',
+            repository: process.env.REPOSITORY, application_sha: process.env.APPLICATION_SHA,
+            artifact: { id: artifact.id, name, digest: artifact.digest, run_id: run.id,
+              run_attempt: run.run_attempt, workflow_path: run.path, workflow_conclusion: conclusion },
+            admitted_at: new Date().toISOString() };
+          fs.writeFileSync(process.env.OUTPUT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          fs.appendFileSync(process.env.GITHUB_OUTPUT_PATH, `artifact_name=${name}\nworkflow_conclusion=${conclusion}\n`);
+          NODE
+
+      - name: Download exact source packet by immutable artifact ID
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.source_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ inputs.source_run_id }}
+          path: ${{ runner.temp }}/deploy-ledger-source
+          github-token: ${{ github.token }}
+
+      - name: Normalize flat or enveloped packet and reject path or link attacks
+        shell: bash
+        run: |
+          set -euo pipefail
+          source="$RUNNER_TEMP/deploy-ledger-source"
+          packet="$RUNNER_TEMP/deploy-ledger-packet"
+          [[ -d "$source" && ! -L "$source" && ! -e "$packet" ]]
+          if find "$source" -type l -o ! -type d ! -type f | grep -q .; then exit 1; fi
+          [[ "$(du -sb "$source" | awk '{print $1}')" -le 67108864 ]]
+          mapfile -t members < <(find "$source" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)
+          if [[ -d "$source/phase" ]]; then
+            [[ "${#members[@]}" -ge 1 && "${#members[@]}" -le 3 ]]
+            for member in "${members[@]}"; do
+              [[ "$member" == phase || "$member" == deploy-result || "$member" == sentry-result ]]
+              [[ -d "$source/$member" && ! -L "$source/$member" ]]
+            done
+            install -d -m 0700 "$packet"
+            cp -a -- "$source/." "$packet/"
+          else
+            [[ "${#members[@]}" -ge 4 ]]
+            if find "$source" -mindepth 1 -maxdepth 1 ! -type f | grep -q .; then exit 1; fi
+            install -d -m 0700 "$packet" "$packet/phase"
+            cp -a -- "$source/." "$packet/phase/"
+          fi
+          for root in "$packet/phase" "$packet/deploy-result" "$packet/sentry-result"; do
+            if [[ -d "$root" ]]; then
+              [[ -f "$root/SHA256SUMS" && ! -L "$root/SHA256SUMS" ]]
+              (cd "$root" && sha256sum --check --strict SHA256SUMS)
+            fi
+          done
+
+      - name: Inventory exact protected branch tip before append
+        id: inventory
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" && -z "${SENTRY_AUTH_TOKEN:-}" ]]
+          node scripts/physio-deploy-ledger.mjs inventory \
+            --repository "$GITHUB_REPOSITORY" \
+            --application-sha "${{ inputs.application_sha }}" \
+            --provisioning-receipt-sha256 "${{ vars.PHYSIO_DEPLOY_LEDGER_PROVISIONING_RECEIPT_SHA256 }}" \
+            --output "$RUNNER_TEMP/deploy-ledger-inventory.json" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Build exact append request from admitted provider-free source evidence
+        shell: bash
+        env:
+          ADMISSION: ${{ runner.temp }}/deploy-ledger-source-admission.json
+          INVENTORY: ${{ runner.temp }}/deploy-ledger-inventory.json
+          OUTPUT: ${{ runner.temp }}/deploy-ledger-append-request.json
+        run: |
+          set -euo pipefail
+          env -u GITHUB_TOKEN -u FLY_API_TOKEN -u SENTRY_AUTH_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const admission = JSON.parse(fs.readFileSync(process.env.ADMISSION, 'utf8'));
+          const inventory = JSON.parse(fs.readFileSync(process.env.INVENTORY, 'utf8'));
+          const row = { repository: admission.repository, ledger_branch: inventory.ledger_branch,
+            application_sha: admission.application_sha,
+            ledger_provisioning_receipt_sha256: inventory.ledger_provisioning_receipt_sha256,
+            artifact: admission.artifact };
+          fs.writeFileSync(process.env.OUTPUT, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+
+      - name: Append once and globally re-audit exact protected history
+        id: append
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          [[ -z "${FLY_API_TOKEN:-}" && -z "${SENTRY_AUTH_TOKEN:-}" && -z "${SENTRY_DSN:-}" ]]
+          node scripts/physio-deploy-ledger.mjs append \
+            --repository "$GITHUB_REPOSITORY" \
+            --application-sha "${{ inputs.application_sha }}" \
+            --expected-head-sha "${{ steps.inventory.outputs.deploy_ledger_head_sha }}" \
+            --provisioning-receipt-sha256 "${{ vars.PHYSIO_DEPLOY_LEDGER_PROVISIONING_RECEIPT_SHA256 }}" \
+            --request "$RUNNER_TEMP/deploy-ledger-append-request.json" \
+            --packet-directory "$RUNNER_TEMP/deploy-ledger-packet" \
+            --secret-env-names GITHUB_TOKEN \
+            --output "$RUNNER_TEMP/deploy-ledger-append-receipt.json" \
+            --github-output "$GITHUB_OUTPUT"
+
+      - name: Seal provider-free protected-ledger append evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          result="$RUNNER_TEMP/deploy-ledger-archive-result"
+          install -d -m 0700 "$result"
+          install -m 0600 "$RUNNER_TEMP/deploy-ledger-source-admission.json" "$result/source-admission.json"
+          install -m 0600 "$RUNNER_TEMP/deploy-ledger-inventory.json" "$result/preappend-inventory.json"
+          install -m 0600 "$RUNNER_TEMP/deploy-ledger-append-receipt.json" "$result/deploy-ledger-append.json"
+          (cd "$result" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+
+      - name: Upload protected-ledger append evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-deploy-ledger-append-${{ inputs.application_sha }}-${{ inputs.source_artifact_id }}
+          path: ${{ runner.temp }}/deploy-ledger-archive-result
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 0

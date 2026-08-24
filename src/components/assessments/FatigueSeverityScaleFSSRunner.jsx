@@ -5,18 +5,8 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Info, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_FSS_QUESTIONS as questions } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const questions = [
-  "My motivation is lower when I am fatigued.",
-  "Exercise brings on my fatigue.",
-  "I am easily fatigued.",
-  "Fatigue interferes with my physical functioning.",
-  "Fatigue causes frequent problems for me.",
-  "My fatigue prevents sustained physical functioning.",
-  "Fatigue interferes with carrying out certain duties and responsibilities.",
-  "Fatigue is among my three most disabling symptoms.",
-  "Fatigue interferes with my work, family, or social life."
-];
 
 export default function FatigueSeverityScaleFSSRunner({ client, onSave, onClose }) {
   const [responses, setResponses] = useState(Array(9).fill(null));

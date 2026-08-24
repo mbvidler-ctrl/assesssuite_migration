@@ -53,10 +53,10 @@ export default function CycleProtocolRunner({ protocol, onSave, onClose }) {
       const hr2 = lastTwo[1].heartRate;
       const w1 = lastTwo[0].workload || 50;
       const w2 = lastTwo[1].workload || 75;
-      const agePredMax = 220 - parseInt(age || 30);
+      const agePredMax = 220 - Number(age || 30);
       const slope = (hr2 - hr1) / (w2 - w1);
       const predictedMaxWatts = w2 + ((agePredMax - hr2) / slope);
-      const vo2max = ((predictedMaxWatts * 12) + 300) / parseFloat(weight || 70);
+      const vo2max = ((predictedMaxWatts * 12) + 300) / Number(weight || 70);
       return vo2max.toFixed(1);
     } else if (protocol === 'Astrand') {
       // Astrand-Ryhming equation

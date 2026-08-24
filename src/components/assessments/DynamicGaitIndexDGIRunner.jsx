@@ -7,49 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_DGI_TASKS as TASKS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const TASKS = [
-  {
-    name: "Gait level surface",
-    instructions: 'Say: "Walk at your normal speed from here to the next mark (20 feet)." Walk alongside or behind for safety. Observe stride length, arm swing, trunk stability, and foot clearance.',
-    scores: ["Unable to walk 20 feet safely without assistance", "Walks with assistive device, slow speed, abnormal gait, or evidence of imbalance", "Walks 20 feet; slow speed or abnormal gait pattern", "Walks 20 feet, no assistive device, good speed, no evidence of imbalance"]
-  },
-  {
-    name: "Changing gait speed",
-    instructions: 'Say: "Begin walking at your normal pace. When I say \'go faster\', walk as fast as you can. When I say \'slow down\', walk as slowly as you can." Observe ability to change speed smoothly without loss of balance.',
-    scores: ["Unable to change speeds; severe imbalance or assistance required", "Makes minimal speed adjustments; significant deviation, imbalance, or stops", "Able to change speed with minor deviations or uses assistive device", "Safely changes speed without loss of balance or deviation"]
-  },
-  {
-    name: "Gait with horizontal head turns",
-    instructions: 'Say: "Walk from here to the mark. When I say \'look right\', turn your head right. When I say \'look left\', turn your head left." Call turns every 3–5 steps. Observe veering, stumbling, or imbalance.',
-    scores: ["Cannot perform or needs assistance; severe imbalance", "Severe disruption to gait; stops, grabs support, or marked deviation", "Head turns cause slight change in gait speed or minor deviation; recovers", "Performs head turns with no change in gait speed or direction"]
-  },
-  {
-    name: "Gait with vertical head turns",
-    instructions: 'Say: "Walk from here to the mark. When I say \'look up\', tip your head up. When I say \'look down\', tip your head down." Call turns every 3–5 steps. Observe loss of balance or veering.',
-    scores: ["Cannot perform or needs assistance; severe imbalance", "Severe disruption to gait; stops, grabs support, or marked deviation", "Head turns cause slight change in gait speed or minor deviation; recovers", "Performs head turns with no change in gait speed or direction"]
-  },
-  {
-    name: "Gait and pivot turn",
-    instructions: 'Say: "Walk to the mark (6 feet), turn around and walk back." Observe quality of turn: balance, steadiness, number of steps, and need to grab support.',
-    scores: ["Cannot turn safely; falls or requires assistance", "Turns slowly; more than 4 steps; stops to regain balance before/after turn", "Turns safely; uses more than 4 steps to complete turn", "Turns safely in 4 steps or fewer; no loss of balance"]
-  },
-  {
-    name: "Step over obstacle",
-    instructions: 'Place a shoebox (~6 inches high) on the walkway. Say: "Walk from here to the mark and step over the box; do not go around it." Observe foot clearance, stride disruption, and trunk control.',
-    scores: ["Cannot step over obstacle; trips or requires assistance", "Steps over obstacle but requires stopping or shows significant deviation/imbalance", "Steps over obstacle with minor deviation or slowing", "Steps over obstacle with no change in gait speed; no evidence of imbalance"]
-  },
-  {
-    name: "Step around obstacles",
-    instructions: 'Place 2 cones at 6 and 12 feet in the path. Say: "Walk from here to the mark. Go around the right side of the first cone, then the left side of the second." Observe lateral trunk control and stability.',
-    scores: ["Cannot navigate around obstacles; requires assistance", "Unable to avoid obstacles cleanly; stops, steps around awkwardly, or shows imbalance", "Walks around both cones with minor deviation or slowing", "Walks around both cones with no gait deviation or evidence of imbalance"]
-  },
-  {
-    name: "Steps",
-    instructions: 'Lead client to stairs. Say: "Walk up and down these stairs the way you would at home." Allow handrail use. Observe step height, rhythm, handrail reliance, foot placement, and trunk stability during both ascent and descent.',
-    scores: ["Cannot perform stairs safely; requires assistance or high fall risk", "Ascends/descends but relies on handrail throughout, or one step at a time", "Ascends/descends with minimal handrail use or slower than normal; minor deviation", "Ascends and descends safely, alternating feet, with or without handrail; good control"]
-  },
-];
 
 export default function DynamicGaitIndexDGIRunner({ client, onSave, onClose }) {
   const [scores, setScores] = useState(Array(8).fill(null));
@@ -88,7 +47,15 @@ export default function DynamicGaitIndexDGIRunner({ client, onSave, onClose }) {
     onSave({
       status: "completed",
       result_value: totalScore,
-      additional_data: { soap_text: soapText, measurement_type: "dgi", tasks: TASKS.map((t, i) => ({ name: t.name, score: scores[i] })), totalScore, interpretation },
+      additional_data: {
+        soap_text: soapText,
+        measurement_type: "dgi",
+        tasks: TASKS.map((t, i) => ({ name: t.name, score: scores[i] })),
+        totalScore,
+        interpretation,
+        pre_vitals: preVitals,
+        post_vitals: postVitals,
+      },
       notes,
       assessment_date: todayLocal(),
     });

@@ -5,8 +5,10 @@ import FourHundredMeterWalkStandaloneWrapper from "./400MeterWalkStandaloneWrapp
 import SixMinuteStepTestStandaloneWrapper from "./SixMinuteStepTestStandaloneWrapper";
 import TestRunner from "./TestRunner";
 import QuestionnaireRunner from "./QuestionnaireRunner";
-import TestRunnerExtras, { canHandleAssessment } from "./TestRunnerExtras";
+import TestRunnerExtras from "./TestRunnerExtras";
+import { resolveRegisteredAssessmentRoute } from "./assessmentRunnerRegistry";
 import FunctionalIndependenceMeasureFIMRunner from "./FunctionalIndependenceMeasureFIMRunner";
+import StructuredAssessmentRunner from './StructuredAssessmentRunner';
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { X, User } from "lucide-react";
@@ -113,10 +115,9 @@ export default function AssessmentTestRunnerRouter({
 }) {
   const [selectedClient, setSelectedClient] = useState(initialClient);
   const [clinicianNotes, setClinicianNotes] = useState('');
-  const [showNotes, setShowNotes] = useState(true);
+  const [compactNotesViewport] = useState(() => window.innerWidth < 768);
+  const [showNotes, setShowNotes] = useState(() => window.innerWidth >= 768);
   const [pos, setPos] = useState({ x: window.innerWidth - 296, y: 80 });
-  const assessmentName = assessment.name.toLowerCase();
-
   // If standalone mode and no client chosen yet, show selector first
   if (isStandaloneMode && !selectedClient) {
     return (
@@ -146,21 +147,32 @@ export default function AssessmentTestRunnerRouter({
   const notesSidebar = showNotes ? (
     <div
       className="fixed z-[10000] flex flex-col bg-white border border-slate-200 rounded-xl shadow-2xl"
-      style={{ top: pos.y, left: pos.x, width: '280px', maxHeight: 'calc(100vh - 100px)' }}
+      style={compactNotesViewport
+        ? { inset: 'auto 12px 12px 12px', maxHeight: '70vh' }
+        : { top: pos.y, left: pos.x, width: '280px', maxHeight: 'calc(100vh - 100px)' }}
     >
       <div
-        className="flex items-center justify-between px-4 py-3 border-b border-slate-200 rounded-t-xl bg-slate-50 cursor-grab active:cursor-grabbing select-none"
-        onMouseDown={handleDragStart}
+        className="flex items-center justify-between px-4 py-3 border-b border-slate-200 rounded-t-xl bg-slate-50 select-none md:cursor-grab md:active:cursor-grabbing"
+        onMouseDown={compactNotesViewport ? undefined : handleDragStart}
       >
         <span className="text-sm font-semibold text-slate-700">📝 Clinician Notes</span>
-        <button onClick={() => setShowNotes(false)} className="text-slate-400 hover:text-slate-600 text-lg leading-none">✕</button>
+        <button
+          type="button"
+          onClick={() => setShowNotes(false)}
+          aria-label="Close clinician notes"
+          className="flex h-11 w-11 items-center justify-center text-lg leading-none text-slate-400 hover:text-slate-600 md:h-auto md:w-auto"
+        >
+          ✕
+        </button>
       </div>
       <textarea
         className="flex-1 w-full p-4 text-sm text-slate-700 bg-white border-none resize-none focus:outline-none focus:ring-0 placeholder-slate-400"
         placeholder={"Jot notes as you assess...\n\nThese will be appended to the SOAP note on save."}
         value={clinicianNotes}
         onChange={(e) => setClinicianNotes(e.target.value)}
-        style={{ minHeight: '260px', maxHeight: 'calc(100vh - 220px)' }}
+        style={compactNotesViewport
+          ? { minHeight: '180px', maxHeight: 'calc(70vh - 100px)' }
+          : { minHeight: '260px', maxHeight: 'calc(100vh - 220px)' }}
       />
       <div className="px-4 py-2 text-xs text-slate-400 border-t border-slate-200 rounded-b-xl bg-slate-50">
         Notes auto-append to SOAP on save
@@ -168,13 +180,15 @@ export default function AssessmentTestRunnerRouter({
     </div>
   ) : (
     <button
+      type="button"
       onClick={() => setShowNotes(true)}
-      className="fixed z-[10000] bg-white border border-slate-200 rounded-lg shadow-lg px-2 py-3 flex flex-col items-center gap-1 hover:bg-slate-50 transition-colors"
-      style={{ top: pos.y, left: pos.x }}
+      className="fixed right-0 top-1/2 z-[10000] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-slate-200 bg-white shadow-lg transition-colors hover:bg-slate-50 md:right-auto md:h-auto md:w-auto md:translate-y-0 md:flex-col md:px-2 md:py-3"
+      style={compactNotesViewport ? undefined : { top: pos.y, left: pos.x }}
       title="Open clinician notes"
+      aria-label="Open clinician notes"
     >
       <span className="text-base">📝</span>
-      <span className="text-slate-500 text-xs" style={{ writingMode: 'vertical-rl', textOrientation: 'mixed' }}>Notes</span>
+      <span className="hidden text-xs text-slate-500 md:block md:[text-orientation:mixed] md:[writing-mode:vertical-rl]">Notes</span>
     </button>
   );
 
@@ -185,143 +199,115 @@ export default function AssessmentTestRunnerRouter({
     </>
   );
 
-  // Check for dedicated interactive runners
-  if (assessmentName.includes('6') && assessmentName.includes('meter') && assessmentName.includes('walk')) {
-    return wrapWithNotes(<SixMeterWalkStandaloneWrapper assessment={assessment} client={selectedClient} clientAssessment={clientAssessment} onSave={onSave} onClose={onClose} clinicianNotes={clinicianNotes} />);
-  }
-
-  if (assessmentName.includes('8') && assessmentName.includes('foot') && assessmentName.includes('go')) {
-    return wrapWithNotes(<EightFootUpandGoStandaloneWrapper assessment={assessment} client={selectedClient} clientAssessment={clientAssessment} onSave={onSave} onClose={onClose} clinicianNotes={clinicianNotes} />);
-  }
-
-  if (assessmentName.includes('400') && assessmentName.includes('meter') && assessmentName.includes('walk')) {
-    return wrapWithNotes(<FourHundredMeterWalkStandaloneWrapper assessment={assessment} client={selectedClient} clientAssessment={clientAssessment} onSave={onSave} onClose={onClose} clinicianNotes={clinicianNotes} />);
-  }
-
-  if (assessmentName.includes('6') && assessmentName.includes('minute') && assessmentName.includes('step')) {
-    return wrapWithNotes(<SixMinuteStepTestStandaloneWrapper assessment={assessment} client={selectedClient} clientAssessment={clientAssessment} onSave={onSave} onClose={onClose} clinicianNotes={clinicianNotes} />);
-  }
-
-  if (assessmentName.toLowerCase().includes('functional independence measure') || (assessmentName.includes('fim') && assessmentName.includes('functional'))) {
+  const registeredRoute = resolveRegisteredAssessmentRoute(assessment);
+  if (!registeredRoute) {
     return wrapWithNotes(
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-[9999] p-4" onClick={onClose}>
-        <div className="w-full max-w-2xl max-h-[90vh]" onClick={e => e.stopPropagation()}>
-          <FunctionalIndependenceMeasureFIMRunner 
-            client={selectedClient} 
-            assessment={assessment} 
-            clientAssessment={clientAssessment} 
-            clinicianNotes={clinicianNotes}
-            onSave={(resultData) => {
-              if (onSave) onSave(resultData);
-              (onComplete || onClose)(resultData);
-            }} 
-            onClose={onClose} 
-          />
+      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
+        <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4">
+          <h2 className="text-lg font-bold text-slate-900">Assessment route not registered</h2>
+          <p className="text-sm text-slate-600">
+            {assessment?.name || 'This assessment'} has no canonical runner route. It cannot be opened until its canonical ID is registered.
+          </p>
+          <Button onClick={onClose}>Close</Button>
         </div>
       </div>
     );
   }
 
-  // Assessments handled by TestRunner (not TestRunnerExtras) — force them through TestRunner
-  const testRunnerOnly = [
-    'quickdash', 'quick dash',
+  const complete = (resultData) => {
+    if (onSave) onSave(resultData);
+    (onComplete || onClose)(resultData);
+  };
 
-    'mrc dyspnea',
-    'ases', 'american shoulder', 'conley scale', 'perceived stress scale', 'pss-10',
-    'constant', 'murley', 'lysholm', 'acl-rsi', 'acl return to sport', 'global rating of change',
-    "st george's respiratory", 'sgrq', 'fabq', 'fear-avoidance beliefs', 'single leg hop',
-    'drop vertical jump', 'clock drawing', 'tinetti', 'poma',
-    'dass-21', 'dass21', 'dass 21', 'hospital anxiety and depression', 'hads', 'clinical frailty scale',
-  ];
-  // Precise GROC match — avoid matching "grocery"
-  if (assessmentName.includes('global rating of change') || (assessmentName.includes('groc') && !assessmentName.includes('grocery'))) {
-    return wrapWithNotes(
-      <TestRunner
-        client={selectedClient || { full_name: 'Unknown Client' }}
-        assessment={assessment}
-        clientAssessment={clientAssessment || { id: null, assessment_id: assessment.id, client_id: selectedClient?.id || null, status: 'pending' }}
-        onClose={onClose}
-        onComplete={(resultData) => {
-          if (onSave) onSave(resultData);
-          (onComplete || onClose)(resultData);
-        }}
-        isStandaloneMode={isStandaloneMode}
-        clinicianNotes={clinicianNotes}
-      />
-    );
+  switch (registeredRoute.host) {
+    case 'questionnaire':
+      return wrapWithNotes(
+        <QuestionnaireRunner
+          assessment={assessment}
+          client={selectedClient}
+          clientAssessment={clientAssessment}
+          onSave={complete}
+          onClose={onClose}
+          isStandaloneMode={isStandaloneMode}
+          clinicianNotes={clinicianNotes}
+          scoringKey={registeredRoute.scoringKey}
+        />
+      );
+    case 'structured':
+      return wrapWithNotes(
+        <StructuredAssessmentRunner
+          assessment={assessment}
+          client={selectedClient}
+          clientAssessment={clientAssessment}
+          onSave={complete}
+          onClose={onClose}
+          isStandaloneMode={isStandaloneMode}
+          clinicianNotes={clinicianNotes}
+          scoringKey={registeredRoute.scoringKey}
+        />
+      );
+    case 'extras':
+      return wrapWithNotes(
+        <TestRunnerExtras
+          assessment={assessment}
+          client={selectedClient}
+          clientAssessment={clientAssessment}
+          onClose={onClose}
+          onComplete={complete}
+          isStandaloneMode={isStandaloneMode}
+          clinicianNotes={clinicianNotes}
+          runnerKey={registeredRoute.runnerKey}
+        />
+      );
+    case 'test-runner':
+      return wrapWithNotes(
+        <TestRunner
+          client={selectedClient || { full_name: 'Unknown Client' }}
+          assessment={assessment}
+          clientAssessment={clientAssessment || {
+            id: null,
+            assessment_id: assessment.id,
+            client_id: selectedClient?.id || null,
+            status: 'pending',
+          }}
+          onClose={onClose}
+          onComplete={complete}
+          isStandaloneMode={isStandaloneMode}
+          clinicianNotes={clinicianNotes}
+          runnerKey={registeredRoute.runnerKey}
+        />
+      );
+    case 'standalone-6-meter-walk':
+      return wrapWithNotes(<SixMeterWalkStandaloneWrapper assessment={assessment} client={selectedClient} clientAssessment={clientAssessment} onSave={complete} onClose={onClose} clinicianNotes={clinicianNotes} />);
+    case 'standalone-8-foot-up-go':
+      return wrapWithNotes(<EightFootUpandGoStandaloneWrapper assessment={assessment} client={selectedClient} clientAssessment={clientAssessment} onSave={complete} onClose={onClose} clinicianNotes={clinicianNotes} />);
+    case 'standalone-400-meter-walk':
+      return wrapWithNotes(<FourHundredMeterWalkStandaloneWrapper assessment={assessment} client={selectedClient} clientAssessment={clientAssessment} onSave={complete} onClose={onClose} clinicianNotes={clinicianNotes} />);
+    case 'standalone-6-minute-step':
+      return wrapWithNotes(<SixMinuteStepTestStandaloneWrapper assessment={assessment} client={selectedClient} clientAssessment={clientAssessment} onSave={complete} onClose={onClose} clinicianNotes={clinicianNotes} />);
+    case 'fim':
+      return wrapWithNotes(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4" onClick={onClose}>
+          <div className="w-full max-w-2xl max-h-[90vh]" onClick={(event) => event.stopPropagation()}>
+            <FunctionalIndependenceMeasureFIMRunner
+              client={selectedClient}
+              assessment={assessment}
+              clientAssessment={clientAssessment}
+              onSave={complete}
+              onClose={onClose}
+            />
+          </div>
+        </div>
+      );
+    default:
+      return wrapWithNotes(
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-lg w-full p-6 space-y-4">
+            <h2 className="text-lg font-bold text-slate-900">Invalid canonical runner host</h2>
+            <p className="text-sm text-slate-600">The registered host “{registeredRoute.host}” is not implemented.</p>
+            <Button onClick={onClose}>Close</Button>
+          </div>
+        </div>
+      );
   }
-
-  if (testRunnerOnly.some(keyword => assessmentName.toLowerCase().includes(keyword))) {
-    return wrapWithNotes(
-      <TestRunner
-        client={selectedClient || { full_name: 'Unknown Client' }}
-        assessment={assessment}
-        clientAssessment={clientAssessment || { id: null, assessment_id: assessment.id, client_id: selectedClient?.id || null, status: 'pending' }}
-        onClose={onClose}
-        onComplete={(resultData) => {
-          if (onSave) onSave(resultData);
-          (onComplete || onClose)(resultData);
-        }}
-        isStandaloneMode={isStandaloneMode}
-        clinicianNotes={clinicianNotes}
-      />
-    );
-  }
-
-  // Check if TestRunnerExtras handles this assessment
-  if (canHandleAssessment(assessmentName)) {
-    return wrapWithNotes(
-      <TestRunnerExtras
-        assessment={assessment}
-        client={selectedClient}
-        clientAssessment={clientAssessment}
-        onClose={onClose}
-        onComplete={(resultData) => {
-          if (onSave) onSave(resultData);
-          (onComplete || onClose)(resultData);
-        }}
-        isStandaloneMode={isStandaloneMode}
-        clinicianNotes={clinicianNotes}
-      />
-    );
-  }
-
-  // Fallback to questionnaire runner
-  if (assessment.is_questionnaire && assessment.questions && assessment.questions.length > 0) {
-    return wrapWithNotes(
-      <QuestionnaireRunner
-        assessment={assessment}
-        client={selectedClient}
-        clientAssessment={clientAssessment}
-        onSave={(resultData) => {
-          if (onSave) onSave(resultData);
-          (onComplete || onClose)(resultData);
-        }}
-        onClose={onClose}
-        isStandaloneMode={isStandaloneMode}
-        clinicianNotes={clinicianNotes}
-      />
-    );
-  }
-
-  // Default generic test runner
-  return wrapWithNotes(
-    <TestRunner
-      client={selectedClient || { full_name: 'Unknown Client' }}
-      assessment={assessment}
-      clientAssessment={clientAssessment || {
-        id: null,
-        assessment_id: assessment.id,
-        client_id: selectedClient?.id || null,
-        status: 'pending'
-      }}
-      onClose={onClose}
-      onComplete={(resultData) => {
-        if (onSave) onSave(resultData);
-        (onComplete || onClose)(resultData);
-      }}
-      isStandaloneMode={isStandaloneMode}
-      clinicianNotes={clinicianNotes}
-    />
-  );
 }

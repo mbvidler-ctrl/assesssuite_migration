@@ -7,39 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { X, Save, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_WOMAC_WOMAC_SECTIONS as WOMAC_SECTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const WOMAC_SECTIONS = {
-  pain: [
-    "Walking on a flat surface",
-    "Going up or down stairs",
-    "At night while in bed",
-    "Sitting or lying",
-    "Standing upright"
-  ],
-  stiffness: [
-    "After first waking in the morning",
-    "After sitting, lying, or resting later in the day"
-  ],
-  function: [
-    "Descending stairs",
-    "Ascending stairs",
-    "Rising from sitting",
-    "Standing",
-    "Bending to floor",
-    "Walking on flat surface",
-    "Getting in/out of car",
-    "Going shopping",
-    "Putting on socks",
-    "Rising from bed",
-    "Taking off socks",
-    "Lying in bed",
-    "Getting in/out of bath",
-    "Sitting",
-    "Getting on/off toilet",
-    "Heavy domestic duties",
-    "Light domestic duties"
-  ]
-};
 
 export default function WOMACRunner({ onSave, onClose }) {
   const [joint, setJoint] = useState("knee");

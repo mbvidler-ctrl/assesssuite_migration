@@ -4,33 +4,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_WPI_WPI_REGIONS as WPI_REGIONS, PROM_NEURO_WPI_SSS_ITEMS as SSS_ITEMS, PROM_NEURO_WPI_SOMATIC_OPTIONS as SOMATIC_OPTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 // WPI body regions
-const WPI_REGIONS = [
-  "Left jaw", "Right jaw",
-  "Left shoulder", "Right shoulder",
-  "Left upper arm", "Right upper arm",
-  "Left lower arm", "Right lower arm",
-  "Left hip (buttock/trochanter)", "Right hip (buttock/trochanter)",
-  "Left upper leg", "Right upper leg",
-  "Left lower leg", "Right lower leg",
-  "Left chest", "Right chest",
-  "Upper back", "Lower back",
-  "Abdomen", "Neck",
-];
 
-const SSS_ITEMS = [
-  { key: "fatigue", label: "Fatigue" },
-  { key: "waking_unrefreshed", label: "Waking unrefreshed" },
-  { key: "cognitive_symptoms", label: "Cognitive symptoms" },
-];
 
-const SOMATIC_OPTIONS = [
-  { value: 0, label: "0 — No symptoms" },
-  { value: 1, label: "1 — Few symptoms, generally mild" },
-  { value: 2, label: "2 — Moderate number of symptoms" },
-  { value: 3, label: "3 — Many symptoms, severe" },
-];
 
 function getInterpretation(wpi, sss) {
   const total = wpi + sss;
@@ -50,6 +28,8 @@ export default function WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner({
   const wpiScore = Object.values(wpiRegions).filter(Boolean).length;
   const sssScore = [sssScores.fatigue, sssScores.waking_unrefreshed, sssScores.cognitive_symptoms, somaticSymptoms]
     .filter(v => v !== null).reduce((a, b) => a + b, 0);
+  const sssComplete = [sssScores.fatigue, sssScores.waking_unrefreshed, sssScores.cognitive_symptoms, somaticSymptoms]
+    .every((value) => Number.isInteger(value) && value >= 0 && value <= 3);
   const { total, meetsACR } = getInterpretation(wpiScore, sssScore);
 
   const toggleRegion = (region) => {
@@ -57,6 +37,7 @@ export default function WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner({
   };
 
   const handleSave = () => {
+    if (!sssComplete) return;
     const soapText = [
       `• WPI / SSS — Widespread Pain Index & Symptom Severity Scale`,
       `  WPI Score: ${wpiScore}/19`,
@@ -77,6 +58,7 @@ export default function WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner({
         sss_score: sssScore,
         total_score: total,
         meets_acr_criteria: meetsACR,
+        pain_region_responses: Object.fromEntries(WPI_REGIONS.map((region, index) => [String(index), Boolean(wpiRegions[region])])),
         pain_regions: Object.keys(wpiRegions).filter(k => wpiRegions[k]),
         sss_fatigue: sssScores.fatigue,
         sss_waking: sssScores.waking_unrefreshed,
@@ -216,7 +198,7 @@ export default function WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner({
 
       <div className="flex justify-between pt-2 border-t">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
-        <Button onClick={handleSave} disabled={wpiScore === 0 && sssScore === 0}
+        <Button onClick={handleSave} disabled={!sssComplete}
           className="bg-blue-600 hover:bg-blue-700 text-white">Save Results</Button>
       </div>
     </div>

@@ -9,6 +9,7 @@ import { Save, X, Play, Square, Timer } from "lucide-react";
 import { toast } from "sonner";
 import { differenceInYears, parseISO } from "date-fns";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScoreSixMinuteStep } from "@/lib/clinical/scorers/standaloneAndFim";
 
 const TOTAL_SECONDS = 360; // 6 minutes
 
@@ -95,38 +96,30 @@ export default function SixMinuteStepTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (!stepCount && stepCount !== 0) {
-      toast.error("Please enter the step count.");
+    if (!testDone) {
+      toast.error("Complete or stop the timed test before saving.");
       return;
     }
-
-    const noteParts = [`Step height: ${stepHeight} cm. Total steps: ${stepCount}.`];
-    if (symptoms.trim()) noteParts.push(`Symptoms: ${symptoms}`);
-    if (notes.trim()) noteParts.push(notes);
-
-    const additionalData = {
-      measurement_type: "6-minute_step_test",
-      step_height: Number(stepHeight),
-      age: Number(age),
-      gender,
-      pre_test_hr: preHR,
-      pre_test_bp: preBP,
-      pre_test_spO2: preSpO2,
-      post_test_hr: postHR,
-      post_test_bp: postBP,
-      post_test_spO2: postSpO2,
-      symptoms,
-      elapsed_seconds: elapsed,
-    };
-
-    onSave({
-      status: "completed",
-      result_value: Number(stepCount),
-      additional_data: additionalData,
-      notes: noteParts.join(" "),
-      assessment_date: assessmentDate,
-    });
-    toast.success("Results saved successfully.");
+    try {
+      const payload = validateAndScoreSixMinuteStep({
+        step_count: stepCount,
+        step_height_cm: stepHeight,
+        elapsed_seconds: elapsed,
+        age,
+        gender,
+        pre_test: { heart_rate: preHR, blood_pressure: preBP, spo2: preSpO2 },
+        post_test: { heart_rate: postHR, blood_pressure: postBP, spo2: postSpO2 },
+        symptoms,
+        notes,
+      }, {
+        assessmentName: '6-Minute Step Test',
+        assessmentDate,
+      });
+      onSave(payload);
+      toast.success("Results saved successfully.");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to score this assessment.");
+    }
   };
 
   return (
@@ -154,25 +147,15 @@ export default function SixMinuteStepTestRunner({ client, onSave, onClose }) {
 
           {/* Norms */}
           <div className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm space-y-2">
-            <p className="font-semibold text-slate-700">📊 Normative Values — 6-Minute Step Test (20 cm, steps)</p>
-            <div className="overflow-x-auto">
-              <table className="w-full text-xs border border-slate-300 rounded">
-                <thead className="bg-slate-200"><tr><th className="p-2 text-left">Age</th><th className="p-2 text-center">Men (avg)</th><th className="p-2 text-center">Women (avg)</th></tr></thead>
-                <tbody>
-                  <tr className="border-t"><td className="p-2">55–64</td><td className="p-2 text-center">78–107</td><td className="p-2 text-center">72–94</td></tr>
-                  <tr className="border-t bg-white"><td className="p-2">65–74</td><td className="p-2 text-center">70–96</td><td className="p-2 text-center">64–85</td></tr>
-                  <tr className="border-t"><td className="p-2">75–84</td><td className="p-2 text-center">55–80</td><td className="p-2 text-center">50–70</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <p className="text-xs text-slate-500">MCID: ~12 steps. Source: Rikli & Jones (2013) Senior Fitness Test.</p>
+            <p className="font-semibold text-slate-700">📊 Protocol-Specific Interpretation</p>
+            <p className="text-xs text-slate-600">Record the total completed step cycles, step height, elapsed time and physiological response. Compare results only with a reference dataset using the same step height, six-minute protocol, age and population; the 2-minute Senior Fitness Test table is not interchangeable.</p>
           </div>
 
           {/* Reference */}
           <div className="bg-slate-100 border border-slate-200 rounded-lg p-3 text-xs text-slate-600 space-y-1">
             <p className="font-semibold">📖 Reference</p>
-            <p>Rikli RE & Jones CJ. (2013). <em>Senior Fitness Test Manual</em> (2nd ed.). Human Kinetics.</p>
-            <p>Butland RJ et al. (1982). Two-, six-, and 12-minute walking tests in respiratory disease. <em>British Medical Journal, 284</em>(6329), 1607.</p>
+            <p>Mendes et al. Six-Minute Step Test in healthy adults and people with chronic disease.</p>
+            <p>Rehabilitation Measures Database. 6-Minute Step Test.</p>
           </div>
 
           {/* Assessment Date */}
@@ -340,7 +323,7 @@ export default function SixMinuteStepTestRunner({ client, onSave, onClose }) {
           <Button variant="outline" onClick={onClose}>
             <X className="w-4 h-4 mr-2" /> Close
           </Button>
-          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
+          <Button onClick={handleSave} disabled={!testDone} className="bg-blue-600 hover:bg-blue-700">
             <Save className="w-4 h-4 mr-2" /> Save Results
           </Button>
         </div>

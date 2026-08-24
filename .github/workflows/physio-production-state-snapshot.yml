@@ -1,0 +1,296 @@
+name: Physio production state snapshot - read only
+
+on:
+  workflow_dispatch:
+    inputs:
+      trusted_workflow_sha:
+        description: Exact current main SHA supplying this trusted read-only workflow
+        required: true
+        type: string
+      expected_state:
+        description: Expected first-release state before any action
+        required: true
+        default: absent
+        type: choice
+        options:
+          - absent
+          - bootstrapped
+          - deployed
+      expected_volume_id:
+        description: Exact volume ID, or NOT-CREATED when absent
+        required: true
+        type: string
+      expected_machine_id:
+        description: Exact machine ID, or NOT-CREATED before deployment
+        required: true
+        type: string
+      expected_image:
+        description: Exact immutable image digest when deployed, otherwise NOT-DEPLOYED
+        required: true
+        type: string
+      capability_intent_id:
+        description: Authorised read-only Physio state capability intent
+        required: true
+        type: string
+      authority_reference:
+        description: Mission/order reference authorising this observation
+        required: true
+        type: string
+      confirmation:
+        description: Type SNAPSHOT assesssuite-physio-production READ ONLY
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assesssuite-physio-production
+  cancel-in-progress: false
+
+jobs:
+  snapshot:
+    name: Capture content-free Physio first-release state
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: physio-production
+    steps:
+      - name: Validate trusted read-only dispatch
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          EXPECTED_STATE: ${{ inputs.expected_state }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+          EXPECTED_IMAGE: ${{ inputs.expected_image }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == "mbvidler-ctrl/assesssuite_migration" ]]
+          [[ "$ACTOR" == "mbvidler-ctrl" && "$TRIGGERING_ACTOR" == "mbvidler-ctrl" ]]
+          [[ "$IS_FORK" == "false" && "$EVENT_REF" == "refs/heads/main" ]]
+          [[ "$WORKFLOW_REF" == "mbvidler-ctrl/assesssuite_migration/.github/workflows/physio-production-state-snapshot.yml@refs/heads/main" ]]
+          [[ "$TRUSTED_WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" && "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$EXPECTED_STATE" =~ ^(absent|bootstrapped|deployed)$ ]]
+          [[ "$CAPABILITY_INTENT_ID" =~ ^[A-Za-z0-9._:-]{1,160}$ ]]
+          [[ "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
+          [[ "$CONFIRMATION" == "SNAPSHOT assesssuite-physio-production READ ONLY" ]]
+          if [[ "$EXPECTED_STATE" == "absent" ]]; then
+            [[ "$EXPECTED_VOLUME_ID" == "NOT-CREATED" && "$EXPECTED_MACHINE_ID" == "NOT-CREATED" && "$EXPECTED_IMAGE" == "NOT-DEPLOYED" ]]
+          elif [[ "$EXPECTED_STATE" == "bootstrapped" ]]; then
+            [[ "$EXPECTED_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ && "$EXPECTED_MACHINE_ID" == "NOT-CREATED" && "$EXPECTED_IMAGE" == "NOT-DEPLOYED" ]]
+          else
+            [[ "$EXPECTED_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ && "$EXPECTED_MACHINE_ID" =~ ^[0-9a-f]{14,32}$ ]]
+            [[ "$EXPECTED_IMAGE" =~ ^registry\.fly\.io/assesssuite-physio-production@sha256:[0-9a-f]{64}$ ]]
+          fi
+
+      - name: Check out exact trusted main SHA
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.trusted_workflow_sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Verify exact source and remote main
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse --verify 'HEAD^{commit}')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$(git ls-remote --exit-code https://github.com/mbvidler-ctrl/assesssuite_migration.git refs/heads/main | awk 'NR == 1 { print $1 }')" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ -z "$(git status --porcelain --untracked-files=no)" ]]
+          node scripts/physio-release-contract.mjs validate-source
+
+      - name: Install checksum-verified flyctl 0.4.71
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          bin_dir="$RUNNER_TEMP/flyctl-bin"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+            --output "$archive" \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'
+          printf '%s  %s\n' 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2' "$archive" | sha256sum --check --strict
+          mkdir -p "$bin_dir"
+          tar -xzf "$archive" -C "$bin_dir" flyctl
+          install -m 0755 "$bin_dir/flyctl" "$bin_dir/fly"
+          echo "$bin_dir" >> "$GITHUB_PATH"
+          "$bin_dir/fly" version | grep -F '0.4.71'
+
+      - name: Capture stable read-only Fly state
+        id: capture
+        shell: bash
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          EXPECTED_STATE: ${{ inputs.expected_state }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+          EXPECTED_IMAGE: ${{ inputs.expected_image }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -n "$FLY_API_TOKEN" ]]
+          app=assesssuite-physio-production
+          evidence="$RUNNER_TEMP/physio-state"
+          receipt_dir="$RUNNER_TEMP/physio-state-receipt"
+          install -d -m 0700 "$evidence" "$receipt_dir"
+          trap 'rm -rf "$evidence"' EXIT
+
+          timeout --signal=TERM --kill-after=10s 60s fly apps list --json >"$evidence/apps-initial.json"
+          if [[ "$EXPECTED_STATE" == "absent" ]]; then
+            env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-app \
+              --apps "$evidence/apps-initial.json" --mode absent >"$evidence/app-canonical-initial.json"
+            printf '[]\n' >"$evidence/machines-initial.json"
+            printf '[]\n' >"$evidence/volumes-initial.json"
+            printf '[]\n' >"$evidence/certificates-initial.json"
+            env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+              --machines "$evidence/machines-initial.json" --volumes "$evidence/volumes-initial.json" \
+              --mode absent >"$evidence/topology-canonical-initial.json"
+            env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-no-certificates \
+              --certificates "$evidence/certificates-initial.json" >"$evidence/certificates-canonical-initial.json"
+          else
+            env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-app \
+              --apps "$evidence/apps-initial.json" --mode present >"$evidence/app-canonical-initial.json"
+            timeout --signal=TERM --kill-after=10s 60s fly machines list --app "$app" --json >"$evidence/machines-initial.json"
+            timeout --signal=TERM --kill-after=10s 60s fly volumes list --app "$app" --json >"$evidence/volumes-initial.json"
+            timeout --signal=TERM --kill-after=10s 60s fly certs list --app "$app" --json >"$evidence/certificates-initial.json"
+            if [[ "$EXPECTED_STATE" == "bootstrapped" ]]; then
+              env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+                --machines "$evidence/machines-initial.json" --volumes "$evidence/volumes-initial.json" \
+                --mode bootstrapped --volume-id "$EXPECTED_VOLUME_ID" >"$evidence/topology-canonical-initial.json"
+            else
+              env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+                --machines "$evidence/machines-initial.json" --volumes "$evidence/volumes-initial.json" \
+                --mode deployed --volume-id "$EXPECTED_VOLUME_ID" --machine-id "$EXPECTED_MACHINE_ID" \
+                --image "$EXPECTED_IMAGE" >"$evidence/topology-canonical-initial.json"
+            fi
+            env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-no-certificates \
+              --certificates "$evidence/certificates-initial.json" >"$evidence/certificates-canonical-initial.json"
+          fi
+
+          # Repeat the complete provider readback and canonical validation. The
+          # uploaded snapshot is the exact observed state, not a restatement of
+          # dispatch expectations, and mixed-time topology drift fails closed.
+          timeout --signal=TERM --kill-after=10s 60s fly apps list --json >"$evidence/apps-final.json"
+          if [[ "$EXPECTED_STATE" == "absent" ]]; then
+            printf '[]\n' >"$evidence/machines-final.json"
+            printf '[]\n' >"$evidence/volumes-final.json"
+            printf '[]\n' >"$evidence/certificates-final.json"
+            env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-app \
+              --apps "$evidence/apps-final.json" --mode absent >"$evidence/app-canonical-final.json"
+            env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+              --machines "$evidence/machines-final.json" --volumes "$evidence/volumes-final.json" \
+              --mode absent >"$evidence/topology-canonical-final.json"
+          else
+            timeout --signal=TERM --kill-after=10s 60s fly machines list --app "$app" --json >"$evidence/machines-final.json"
+            timeout --signal=TERM --kill-after=10s 60s fly volumes list --app "$app" --json >"$evidence/volumes-final.json"
+            timeout --signal=TERM --kill-after=10s 60s fly certs list --app "$app" --json >"$evidence/certificates-final.json"
+            env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-app \
+              --apps "$evidence/apps-final.json" --mode present >"$evidence/app-canonical-final.json"
+            if [[ "$EXPECTED_STATE" == "bootstrapped" ]]; then
+              env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+                --machines "$evidence/machines-final.json" --volumes "$evidence/volumes-final.json" \
+                --mode bootstrapped --volume-id "$EXPECTED_VOLUME_ID" >"$evidence/topology-canonical-final.json"
+            else
+              env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-topology \
+                --machines "$evidence/machines-final.json" --volumes "$evidence/volumes-final.json" \
+                --mode deployed --volume-id "$EXPECTED_VOLUME_ID" --machine-id "$EXPECTED_MACHINE_ID" \
+                --image "$EXPECTED_IMAGE" >"$evidence/topology-canonical-final.json"
+            fi
+          fi
+          env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-no-certificates \
+            --certificates "$evidence/certificates-final.json" >"$evidence/certificates-canonical-final.json"
+          INITIAL_APP="$evidence/app-canonical-initial.json" INITIAL_TOPOLOGY="$evidence/topology-canonical-initial.json" \
+          INITIAL_CERTIFICATES="$evidence/certificates-canonical-initial.json" \
+          FINAL_APP="$evidence/app-canonical-final.json" FINAL_TOPOLOGY="$evidence/topology-canonical-final.json" \
+          FINAL_CERTIFICATES="$evidence/certificates-canonical-final.json" \
+          INITIAL_OUT="$receipt_dir/provider-state-initial.json" FINAL_OUT="$receipt_dir/provider-state-final.json" \
+            env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const read = (name) => JSON.parse(fs.readFileSync(process.env[name], 'utf8'));
+          for (const [output, prefix] of [[process.env.INITIAL_OUT, 'INITIAL'], [process.env.FINAL_OUT, 'FINAL']]) {
+            const row = { application: read(`${prefix}_APP`), topology: read(`${prefix}_TOPOLOGY`),
+              certificates: read(`${prefix}_CERTIFICATES`) };
+            fs.writeFileSync(output, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          }
+          NODE
+          cmp --silent "$receipt_dir/provider-state-initial.json" "$receipt_dir/provider-state-final.json"
+
+          RECEIPT="$receipt_dir/physio-production-state.json" \
+          EVENT_SHA="$TRUSTED_WORKFLOW_SHA" STATE="$EXPECTED_STATE" VOLUME="$EXPECTED_VOLUME_ID" \
+          MACHINE="$EXPECTED_MACHINE_ID" IMAGE="$EXPECTED_IMAGE" INTENT="$CAPABILITY_INTENT_ID" \
+          AUTHORITY="$AUTHORITY_REFERENCE" INITIAL_STATE="$receipt_dir/provider-state-initial.json" \
+          FINAL_STATE="$receipt_dir/provider-state-final.json" EVIDENCE="$evidence" \
+            env -u FLY_API_TOKEN node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const sha = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+          const raw = Object.fromEntries(['apps-initial','apps-final','machines-initial','machines-final',
+            'volumes-initial','volumes-final','certificates-initial','certificates-final']
+            .map((name) => [name.replaceAll('-', '_'), sha(path.join(process.env.EVIDENCE, `${name}.json`))]));
+          const receipt = {
+            contract_version: 'assesssuite-physio-state-snapshot/2.0.0',
+            result: 'PASS',
+            application: 'assesssuite-physio-production',
+            event_sha: process.env.EVENT_SHA,
+            expected_state: process.env.STATE,
+            volume_id: process.env.VOLUME,
+            machine_id: process.env.MACHINE,
+            immutable_image: process.env.IMAGE,
+            custom_certificate_count: 0,
+            fly_hostname_precedes_custom_dns: true,
+            provider_state_unchanged: true,
+            provider_state_initial_sha256: sha(process.env.INITIAL_STATE),
+            provider_state_final_sha256: sha(process.env.FINAL_STATE),
+            provider_raw_readback_sha256: raw,
+            capability_intent_id: process.env.INTENT,
+            authority_reference: process.env.AUTHORITY,
+            observed_at: new Date().toISOString(),
+          };
+          fs.writeFileSync(process.env.RECEIPT, JSON.stringify(receipt, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$receipt_dir" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          find "$receipt_dir" -type f -size +32768c -print -quit | grep -q . && exit 1 || true
+          echo "receipt_dir=$receipt_dir" >> "$GITHUB_OUTPUT"
+
+      - name: Upload bounded state receipt
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-production-state-${{ inputs.trusted_workflow_sha }}
+          path: ${{ steps.capture.outputs.receipt_dir }}
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Emit read-only state summary
+        shell: bash
+        env:
+          EXPECTED_STATE: ${{ inputs.expected_state }}
+          EXPECTED_VOLUME_ID: ${{ inputs.expected_volume_id }}
+          EXPECTED_MACHINE_ID: ${{ inputs.expected_machine_id }}
+        run: |
+          set -euo pipefail
+          {
+            echo '## Physio production state snapshot'
+            echo "- Result: PASS (read only)"
+            echo "- State: $EXPECTED_STATE"
+            echo "- Volume: $EXPECTED_VOLUME_ID"
+            echo "- Machine: $EXPECTED_MACHINE_ID"
+            echo '- Custom DNS/certificates: absent by first-release contract'
+          } >> "$GITHUB_STEP_SUMMARY"

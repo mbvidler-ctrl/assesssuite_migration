@@ -6,6 +6,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { AlertTriangle, Play, Pause, Square, ChevronDown, ChevronUp, Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
+import { todayLocal } from "@/lib/localDate";
+import { scoreEswt } from "@/lib/clinical/scorers/extrasPhysiological";
 
 const STOP_REASONS = [
   "Unable to maintain pace",
@@ -99,73 +101,42 @@ export default function EnduranceShuttleWalkTestESWTRunner({ client, onSave, onC
   };
 
   const handleSave = () => {
-    if (!stopReason) {
-      toast.error("Please select a stop reason.");
-      return;
-    }
-
-    const estimatedDistance = calculateEstimatedDistance();
-
-    const soapText = `• Endurance Shuttle Walk Test (ESWT)
-
-Pre-Test Assessment:
-  HR: ${restingHR || "not recorded"} bpm | BP: ${restingBP || "not recorded"} | SpO2: ${restingSpO2 || "not recorded"}%
-  Dyspnoea: ${baselineDyspnoea || "0"}/10 | Leg Fatigue: ${baselineLegFatigue || "0"}/10
-  Safety: Chest pain: ${chestPain} | Dizziness: ${dizziness} | Recent illness: ${recentIllness}
-  Walking aid: ${walkingAid} | Oxygen therapy: ${oxygenTherapy}
-  ${preTestNotes ? `Notes: ${preTestNotes}` : ""}
-
-Test Parameters:
-  ISWT Completed: ${iswtCompleted}
-  ${iswtCompleted === "yes" ? `ISWT Result: ${iswtResult}` : "No prior ISWT"}
-  Selected Speed: ${selectedSpeed} km/h (${speedReason || "standard"})\
-
-Test Execution:
-  Duration: ${formatTime(timeElapsed)} (${timeElapsed} seconds)
-  Estimated Distance: ${estimatedDistance}m
-  Shuttles Completed: ${shuttleCount}
-  Stop Reason: ${stopReason}
-
-Post-Test Assessment:
-  HR: ${postHR || "not recorded"} bpm | BP: ${postBP || "not recorded"} | SpO2: ${postSpO2 || "not recorded"}%
-  Dyspnoea: ${postDyspnoea || "not recorded"}/10 | Leg Fatigue: ${postLegFatigue || "not recorded"}/10
-  ${adverseEvents ? `Adverse Events: ${adverseEvents}` : "No adverse events"}
-
-Interpretation:
-  Endurance capacity: ${
-    timeElapsed < 120 ? "Very low (<120s) — significant limitation" :
-    timeElapsed < 300 ? "Reduced (120–300s) — mild-moderate limitation" :
-    timeElapsed < 600 ? "Moderate (300–600s) — reasonable tolerance" :
-    "Better endurance (>600s) — improved functional tolerance"
-  }
-  Responsiveness: Suitable for reassessment post-rehabilitation or intervention monitoring.
-  Note: Interpret relative to client baseline and clinical context, not population norms.
-  ${clinicalNotes ? `\nClinical Notes: ${clinicalNotes}` : ""}`;
-
-    onSave({
-      result_value: timeElapsed || 0,
-      notes: clinicalNotes,
-      additional_data: {
-        soap_text: soapText,
-        endurance_time_seconds: timeElapsed,
-        endurance_time_display: formatTime(timeElapsed),
-        estimated_distance_metres: estimatedDistance,
+    try {
+      onSave(scoreEswt({
+        time_elapsed_seconds: timeElapsed,
+        selected_speed_kmh: selectedSpeed,
         shuttles_completed: shuttleCount,
-        iswt_completed: iswtCompleted,
-        iswt_result: iswtResult,
-        selected_speed: selectedSpeed,
         stop_reason: stopReason,
-        post_hr: postHR,
-        post_spo2: postSpO2,
-        post_bp: postBP,
-        post_dyspnoea: postDyspnoea,
-        post_leg_fatigue: postLegFatigue,
-        adverse_events: adverseEvents,
-      },
-    });
-
-    toast.success("ESWT assessment saved successfully.");
-    onClose();
+        speed_reason: speedReason,
+        pre_test: {
+          heart_rate: restingHR,
+          blood_pressure: restingBP,
+          spo2: restingSpO2,
+          dyspnoea: baselineDyspnoea,
+          leg_fatigue: baselineLegFatigue,
+          chest_pain: chestPain,
+          dizziness,
+          recent_illness: recentIllness,
+          walking_aid: walkingAid,
+          oxygen_therapy: oxygenTherapy,
+          notes: preTestNotes,
+        },
+        post_test: {
+          heart_rate: postHR,
+          blood_pressure: postBP,
+          spo2: postSpO2,
+          dyspnoea: postDyspnoea,
+          leg_fatigue: postLegFatigue,
+          adverse_events: adverseEvents,
+        },
+        iswt: { completed: iswtCompleted, result_metres: iswtResult },
+        notes: clinicalNotes,
+      }, { assessmentDate: todayLocal(), assessmentName: 'Endurance Shuttle Walk Test (ESWT)', client }));
+      toast.success("ESWT assessment saved successfully.");
+      onClose();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to save ESWT assessment.");
+    }
   };
 
   const toggleSection = (section) => {

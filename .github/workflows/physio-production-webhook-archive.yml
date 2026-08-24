@@ -1,0 +1,414 @@
+name: Physio production Stripe webhook protected archive
+
+on:
+  workflow_dispatch:
+    inputs:
+      trusted_workflow_sha:
+        description: Exact current main SHA supplying this trusted archive workflow
+        required: true
+        type: string
+      application_sha:
+        description: Exact Physio application SHA encoded by the webhook evidence
+        required: true
+        type: string
+      source_mode:
+        description: Archive an unexpired source artifact or rehydrate an exact protected-ledger record
+        required: true
+        type: choice
+        options:
+          - SOURCE_ARTIFACT
+          - LEDGER_RECORD
+      webhook_archive_source_artifact_id:
+        description: Exact source webhook artifact ID, or 0 for protected-ledger rehydration
+        required: true
+        type: string
+      webhook_archive_source_artifact_digest:
+        description: Exact source webhook artifact digest, or sha256 plus 64 zeroes for rehydration
+        required: true
+        type: string
+      source_artifact_receipt_sha256:
+        description: Exact completed webhook receipt or compensation control raw SHA-256
+        required: true
+        type: string
+      lifecycle_kind:
+        description: Exact owning webhook packet validator
+        required: true
+        type: choice
+        options:
+          - COMPLETED
+          - COMPENSATION
+      lifecycle_control_receipt_sha256:
+        description: Latest compensation control receipt SHA-256, or 64 zeroes for COMPLETED
+        required: true
+        type: string
+      effect_receipt_sha256:
+        description: Completed webhook effect receipt SHA-256, or 64 zeroes for COMPENSATION
+        required: true
+        type: string
+      bootstrap_receipt_sha256:
+        description: Exact production bootstrap receipt SHA-256 bound by the webhook packet
+        required: true
+        type: string
+      canary_receipt_sha256:
+        description: Exact canary receipt SHA-256 bound by a completed webhook packet
+        required: true
+        type: string
+      capability_intent_id:
+        description: Exact Stripe webhook capability intent bound by the packet
+        required: true
+        type: string
+      authority_reference:
+        description: Exact mission or order reference bound by the packet
+        required: true
+        type: string
+      compensation_require_completed:
+        description: Require the compensation packet to have a PASS terminal control
+        required: true
+        type: boolean
+      ledger_commit_sha:
+        description: Exact protected-ledger record commit for rehydration, or 40 zeroes for source archival
+        required: true
+        type: string
+      confirmation:
+        description: Type ARCHIVE PHYSIO STRIPE WEBHOOK EVIDENCE
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: assesssuite-physio-production
+  cancel-in-progress: false
+
+jobs:
+  archive:
+    name: Admit validate append read back and package exact webhook evidence
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    permissions:
+      contents: write
+      actions: read
+    outputs:
+      archive_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      archive_artifact_digest: ${{ steps.upload.outputs.artifact-digest }}
+      archive_receipt_sha256: ${{ steps.verify.outputs.archive_receipt_sha256 }}
+      source_webhook_receipt_sha256: ${{ steps.verify.outputs.source_webhook_receipt_sha256 }}
+      ledger_commit_sha: ${{ steps.verify.outputs.ledger_commit_sha }}
+      ledger_record_sha256: ${{ steps.verify.outputs.ledger_record_sha256 }}
+      packet_manifest_sha256: ${{ steps.verify.outputs.packet_manifest_sha256 }}
+    steps:
+      - name: Validate exact immutable archive invocation
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          SOURCE_MODE: ${{ inputs.source_mode }}
+          SOURCE_ID: ${{ inputs.webhook_archive_source_artifact_id }}
+          SOURCE_DIGEST: ${{ inputs.webhook_archive_source_artifact_digest }}
+          SOURCE_RECEIPT_SHA: ${{ inputs.source_artifact_receipt_sha256 }}
+          LIFECYCLE_KIND: ${{ inputs.lifecycle_kind }}
+          CONTROL_SHA: ${{ inputs.lifecycle_control_receipt_sha256 }}
+          EFFECT_SHA: ${{ inputs.effect_receipt_sha256 }}
+          BOOTSTRAP_SHA: ${{ inputs.bootstrap_receipt_sha256 }}
+          CANARY_SHA: ${{ inputs.canary_receipt_sha256 }}
+          LEDGER_COMMIT_SHA: ${{ inputs.ledger_commit_sha }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == 'mbvidler-ctrl/assesssuite_migration' && "$ACTOR" == 'mbvidler-ctrl' && "$TRIGGERING_ACTOR" == 'mbvidler-ctrl' ]]
+          [[ "$IS_FORK" == 'false' && "$EVENT_REF" == 'refs/heads/main' ]]
+          [[ "$WORKFLOW_REF" == 'mbvidler-ctrl/assesssuite_migration/.github/workflows/physio-production-webhook-archive.yml@refs/heads/main' ]]
+          [[ "$TRUSTED_WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ && "$APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" && "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$SOURCE_RECEIPT_SHA" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$CONTROL_SHA" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$EFFECT_SHA" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$BOOTSTRAP_SHA" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$CANARY_SHA" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$LEDGER_COMMIT_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$CONFIRMATION" == 'ARCHIVE PHYSIO STRIPE WEBHOOK EVIDENCE' ]]
+          if [[ "$SOURCE_MODE" == 'SOURCE_ARTIFACT' ]]; then
+            [[ "$SOURCE_ID" =~ ^[1-9][0-9]*$ ]]
+            [[ "$SOURCE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+            [[ "$LEDGER_COMMIT_SHA" == '0000000000000000000000000000000000000000' ]]
+          else
+            [[ "$SOURCE_MODE" == 'LEDGER_RECORD' ]]
+            [[ "$SOURCE_ID" == '0' ]]
+            [[ "$SOURCE_DIGEST" == 'sha256:0000000000000000000000000000000000000000000000000000000000000000' ]]
+            [[ "$LEDGER_COMMIT_SHA" != '0000000000000000000000000000000000000000' ]]
+          fi
+          if [[ "$LIFECYCLE_KIND" == 'COMPLETED' ]]; then
+            [[ "$CONTROL_SHA" == '0000000000000000000000000000000000000000000000000000000000000000' ]]
+            [[ "$EFFECT_SHA" != '0000000000000000000000000000000000000000000000000000000000000000' ]]
+          else
+            [[ "$LIFECYCLE_KIND" == 'COMPENSATION' ]]
+            [[ "$EFFECT_SHA" == '0000000000000000000000000000000000000000000000000000000000000000' ]]
+            [[ "$CONTROL_SHA" == "$SOURCE_RECEIPT_SHA" ]]
+          fi
+
+      - name: Check out exact trusted application SHA without persisted credentials
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Admit exact source webhook artifact metadata
+        id: source
+        if: ${{ inputs.source_mode == 'SOURCE_ARTIFACT' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          SOURCE_ID: ${{ inputs.webhook_archive_source_artifact_id }}
+          SOURCE_DIGEST: ${{ inputs.webhook_archive_source_artifact_digest }}
+        run: |
+          set -euo pipefail
+          spec="$RUNNER_TEMP/webhook-archive-source-spec.json"
+          SPEC="$spec" APPLICATION_SHA="$APPLICATION_SHA" SOURCE_ID="$SOURCE_ID" SOURCE_DIGEST="$SOURCE_DIGEST" \
+            node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const sha = process.env.APPLICATION_SHA;
+          fs.writeFileSync(process.env.SPEC, `${JSON.stringify({
+            repository: 'mbvidler-ctrl/assesssuite_migration',
+            application_sha: sha,
+            artifacts: [{
+              key: 'webhook_archive_source',
+              id: process.env.SOURCE_ID,
+              expected_digest: process.env.SOURCE_DIGEST,
+              maximum_bytes: 33554432,
+              name_patterns: [
+                `^physio-stripe-webhook-compensation-phase-${sha}-[0-9]+-[0-9]+$`,
+                `^physio-production-stripe-webhook-${sha}$`,
+              ],
+              workflow_path: '.github/workflows/physio-production-stripe-webhook.yml',
+              allowed_conclusions: ['success','failure','cancelled','timed_out'],
+            }],
+          }, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/github-artifact-admission.mjs --spec "$spec" \
+            --output "$RUNNER_TEMP/webhook-archive-source-admission.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Download exact source webhook artifact
+        if: ${{ inputs.source_mode == 'SOURCE_ARTIFACT' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.webhook_archive_source_artifact_id }}
+          repository: ${{ github.repository }}
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.source.outputs.webhook_archive_source_run_id }}
+          path: ${{ runner.temp }}/source-packet
+
+      - name: Build exact source archive request and expectation
+        if: ${{ inputs.source_mode == 'SOURCE_ARTIFACT' }}
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          SOURCE_ID: ${{ inputs.webhook_archive_source_artifact_id }}
+          SOURCE_DIGEST: ${{ inputs.webhook_archive_source_artifact_digest }}
+          SOURCE_RECEIPT_SHA: ${{ inputs.source_artifact_receipt_sha256 }}
+          LIFECYCLE_KIND: ${{ inputs.lifecycle_kind }}
+          CONTROL_SHA: ${{ inputs.lifecycle_control_receipt_sha256 }}
+          EFFECT_SHA: ${{ inputs.effect_receipt_sha256 }}
+          BOOTSTRAP_SHA: ${{ inputs.bootstrap_receipt_sha256 }}
+          CANARY_SHA: ${{ inputs.canary_receipt_sha256 }}
+          INTENT: ${{ inputs.capability_intent_id }}
+          AUTHORITY: ${{ inputs.authority_reference }}
+          REQUIRE_COMPLETED: ${{ inputs.compensation_require_completed }}
+        run: |
+          set -euo pipefail
+          APPLICATION_SHA="$APPLICATION_SHA" SOURCE_ID="$SOURCE_ID" SOURCE_DIGEST="$SOURCE_DIGEST" \
+            SOURCE_RECEIPT_SHA="$SOURCE_RECEIPT_SHA" LIFECYCLE_KIND="$LIFECYCLE_KIND" \
+            CONTROL_SHA="$CONTROL_SHA" EFFECT_SHA="$EFFECT_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_SHA" \
+            CANARY_SHA="$CANARY_SHA" INTENT="$INTENT" AUTHORITY="$AUTHORITY" \
+            REQUIRE_COMPLETED="$REQUIRE_COMPLETED" RUNNER_TEMP="$RUNNER_TEMP" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const admissionFile = `${process.env.RUNNER_TEMP}/webhook-archive-source-admission.json`;
+          const admissionBytes = fs.readFileSync(admissionFile);
+          const admission = JSON.parse(admissionBytes);
+          const row = admission.artifacts?.webhook_archive_source;
+          if (!row || row.id !== Number(process.env.SOURCE_ID) || row.digest !== process.env.SOURCE_DIGEST ||
+              row.workflow_run_path !== '.github/workflows/physio-production-stripe-webhook.yml' ||
+              !Number.isSafeInteger(row.workflow_run_attempt) || row.workflow_run_attempt < 1) {
+            throw new Error('source webhook artifact admission differs');
+          }
+          const kind = process.env.LIFECYCLE_KIND;
+          const expectation = kind === 'COMPLETED' ? {
+            applicationSha: process.env.APPLICATION_SHA,
+            authorityReference: process.env.AUTHORITY,
+            bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+            canaryReceiptSha256: process.env.CANARY_SHA,
+            capabilityIntentId: process.env.INTENT,
+            effectReceiptSha256: process.env.EFFECT_SHA,
+          } : {
+            applicationSha: process.env.APPLICATION_SHA,
+            authorityReference: process.env.AUTHORITY,
+            bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+            capabilityIntentId: process.env.INTENT,
+            controlReceiptSha256: process.env.CONTROL_SHA,
+            requireCompleted: process.env.REQUIRE_COMPLETED === 'true',
+          };
+          const request = {
+            lifecycle_kind: kind,
+            expectation,
+            source: {
+              artifact_admission_sha256: createHash('sha256').update(admissionBytes).digest('hex'),
+              artifact_digest: row.digest,
+              artifact_expired: row.expired,
+              artifact_id: row.id,
+              artifact_maximum_bytes: row.maximum_bytes,
+              artifact_name: row.name,
+              artifact_receipt_sha256: process.env.SOURCE_RECEIPT_SHA,
+              artifact_size_in_bytes: row.size_in_bytes,
+              repository: row.repository,
+              workflow_run_attempt: row.workflow_run_attempt,
+              workflow_run_conclusion: row.workflow_run_conclusion,
+              workflow_run_event: row.workflow_run_event,
+              workflow_run_head_branch: row.workflow_run_head_branch,
+              workflow_run_head_sha: row.workflow_run_head_sha,
+              workflow_run_id: row.workflow_run_id,
+              workflow_run_path: row.workflow_run_path,
+            },
+          };
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/webhook-archive-request.json`,
+            `${JSON.stringify(request, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/webhook-archive-expectation.json`,
+            `${JSON.stringify(expectation, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+          NODE
+
+      - name: Build exact protected-ledger rehydration expectation
+        if: ${{ inputs.source_mode == 'LEDGER_RECORD' }}
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          LIFECYCLE_KIND: ${{ inputs.lifecycle_kind }}
+          CONTROL_SHA: ${{ inputs.lifecycle_control_receipt_sha256 }}
+          EFFECT_SHA: ${{ inputs.effect_receipt_sha256 }}
+          BOOTSTRAP_SHA: ${{ inputs.bootstrap_receipt_sha256 }}
+          CANARY_SHA: ${{ inputs.canary_receipt_sha256 }}
+          INTENT: ${{ inputs.capability_intent_id }}
+          AUTHORITY: ${{ inputs.authority_reference }}
+          REQUIRE_COMPLETED: ${{ inputs.compensation_require_completed }}
+        run: |
+          set -euo pipefail
+          APPLICATION_SHA="$APPLICATION_SHA" LIFECYCLE_KIND="$LIFECYCLE_KIND" CONTROL_SHA="$CONTROL_SHA" \
+            EFFECT_SHA="$EFFECT_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_SHA" CANARY_SHA="$CANARY_SHA" \
+            INTENT="$INTENT" AUTHORITY="$AUTHORITY" REQUIRE_COMPLETED="$REQUIRE_COMPLETED" \
+            RUNNER_TEMP="$RUNNER_TEMP" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const expectation = process.env.LIFECYCLE_KIND === 'COMPLETED' ? {
+            applicationSha: process.env.APPLICATION_SHA,
+            authorityReference: process.env.AUTHORITY,
+            bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+            canaryReceiptSha256: process.env.CANARY_SHA,
+            capabilityIntentId: process.env.INTENT,
+            effectReceiptSha256: process.env.EFFECT_SHA,
+          } : {
+            applicationSha: process.env.APPLICATION_SHA,
+            authorityReference: process.env.AUTHORITY,
+            bootstrapReceiptSha256: process.env.BOOTSTRAP_SHA,
+            capabilityIntentId: process.env.INTENT,
+            controlReceiptSha256: process.env.CONTROL_SHA,
+            requireCompleted: process.env.REQUIRE_COMPLETED === 'true',
+          };
+          fs.writeFileSync(`${process.env.RUNNER_TEMP}/webhook-archive-expectation.json`,
+            `${JSON.stringify(expectation, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+          NODE
+
+      - name: Append exact validated source packet to protected ledger
+        if: ${{ inputs.source_mode == 'SOURCE_ARTIFACT' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          node scripts/physio-webhook-ledger.mjs append \
+            --repository "$GITHUB_REPOSITORY" --token-env GITHUB_TOKEN \
+            --request "$RUNNER_TEMP/webhook-archive-request.json" \
+            --packet-directory "$RUNNER_TEMP/source-packet" \
+            --archive-directory "$RUNNER_TEMP/webhook-archive" \
+            --output "$RUNNER_TEMP/webhook-ledger-append.json" \
+            --secret-env-names GITHUB_TOKEN
+
+      - name: Rehydrate exact expired source packet from protected ledger
+        if: ${{ inputs.source_mode == 'LEDGER_RECORD' }}
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          LEDGER_COMMIT_SHA: ${{ inputs.ledger_commit_sha }}
+        run: |
+          set -euo pipefail
+          node scripts/physio-webhook-ledger.mjs rehydrate \
+            --repository "$GITHUB_REPOSITORY" --token-env GITHUB_TOKEN \
+            --application-sha "$APPLICATION_SHA" --ledger-commit-sha "$LEDGER_COMMIT_SHA" \
+            --expectation "$RUNNER_TEMP/webhook-archive-expectation.json" \
+            --archive-directory "$RUNNER_TEMP/webhook-archive" \
+            --output "$RUNNER_TEMP/webhook-ledger-rehydration.json"
+
+      - name: Verify exact archive receipt and nested packet after provider readback
+        id: verify
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          SOURCE_RECEIPT_SHA: ${{ inputs.source_artifact_receipt_sha256 }}
+          LIFECYCLE_KIND: ${{ inputs.lifecycle_kind }}
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/webhook-archive"
+          receipt="$archive/physio-webhook-archive-receipt.json"
+          [[ -f "$receipt" && -d "$archive/packet" ]]
+          APPLICATION_SHA="$APPLICATION_SHA" SOURCE_RECEIPT_SHA="$SOURCE_RECEIPT_SHA" \
+            LIFECYCLE_KIND="$LIFECYCLE_KIND" RECEIPT="$receipt" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECEIPT, 'utf8'));
+          if (row.contract_version !== 'assesssuite-physio-webhook-ledger-receipt/1.0.0' ||
+              row.result !== 'PASS' || row.application_sha !== process.env.APPLICATION_SHA ||
+              row.source_artifact_receipt_sha256 !== process.env.SOURCE_RECEIPT_SHA ||
+              row.lifecycle_kind !== process.env.LIFECYCLE_KIND ||
+              row.ledger_branch !== 'assesssuite-physio-webhook-ledger' ||
+              !Number.isSafeInteger(row.ledger_ruleset_id) || row.ledger_ruleset_id < 1 ||
+              !/^[0-9a-f]{40}$/.test(row.ledger_commit_sha) ||
+              !/^[0-9a-f]{40}$/.test(row.ledger_record_blob_sha) ||
+              !/^[0-9a-f]{64}$/.test(row.ledger_record_sha256) ||
+              !/^[0-9a-f]{64}$/.test(row.ledger_packet_manifest_sha256)) {
+            throw new Error('protected webhook archive receipt differs');
+          }
+          NODE
+          RECEIPT="$receipt" GITHUB_OUTPUT="$GITHUB_OUTPUT" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const bytes = fs.readFileSync(process.env.RECEIPT);
+          const row = JSON.parse(bytes);
+          const values = {
+            archive_receipt_sha256: createHash('sha256').update(bytes).digest('hex'),
+            source_webhook_receipt_sha256: row.source_artifact_receipt_sha256,
+            ledger_commit_sha: row.ledger_commit_sha,
+            ledger_record_sha256: row.ledger_record_sha256,
+            packet_manifest_sha256: row.ledger_packet_manifest_sha256,
+          };
+          fs.appendFileSync(process.env.GITHUB_OUTPUT,
+            `${Object.entries(values).map(([key, value]) => `${key}=${value}`).join('\n')}\n`);
+          NODE
+
+      - name: Upload exact protected webhook archive transport
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-webhook-archive-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/webhook-archive
+          if-no-files-found: error
+          include-hidden-files: false
+          compression-level: 0
+          retention-days: 30

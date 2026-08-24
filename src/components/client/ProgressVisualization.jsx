@@ -211,7 +211,7 @@ export default function ProgressVisualization({ client, conditions }) {
         });
       });
 
-      const sortedData = chartData.sort((a, b) => new Date(a.date) - new Date(b.date));
+      const sortedData = chartData.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
       setFullAssessmentData(sortedData);
       setAssessmentData(sortedData);
 
@@ -495,7 +495,7 @@ export default function ProgressVisualization({ client, conditions }) {
 
     // Sort each assessment's history chronologically
     Object.keys(history).forEach(name => {
-      history[name].sort((a, b) => new Date(a.date) - new Date(b.date));
+      history[name].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     });
 
     setAssessmentHistory(history);
@@ -855,7 +855,7 @@ export default function ProgressVisualization({ client, conditions }) {
             {validAssessments.length > 0 ? (
               <div className="space-y-2">
                 {validAssessments
-                  .sort((a, b) => new Date(b.assessment_date || b.created_date) - new Date(a.assessment_date || a.created_date))
+                  .sort((a, b) => new Date(b.assessment_date || b.created_date).getTime() - new Date(a.assessment_date || a.created_date).getTime())
                   .map((ca, index) => {
                     const assessment = allAssessments.find(a => a.id === ca.assessment_id);
                     if (!assessment) return null;

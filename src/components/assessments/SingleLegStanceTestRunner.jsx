@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 export default function SingleLegStanceTestRunner({ client, onSave, onClose }) {
   const [isTiming, setIsTiming] = useState(false);
@@ -43,36 +44,12 @@ export default function SingleLegStanceTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (trials.left.length === 0 && trials.right.length === 0) {
-      toast.error("Please complete at least one trial.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({ leftTrials: trials.left, rightTrials: trials.right, notes }, { runnerKey: 'single_leg_stance_test', assessmentDate: todayLocal() }));
+      toast.success("Assessment saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-
-    const bestLeft = Math.max(...trials.left, 0);
-    const bestRight = Math.max(...trials.right, 0);
-    const resultValue = Math.max(bestLeft, bestRight);
-
-    // Build comprehensive SOAP text
-    let soapText = `• Single-Leg Stance Test:\n`;
-    if (trials.left.length > 0) soapText += `  Left Leg Trials: ${trials.left.join(', ')}s (Best: ${bestLeft}s)\n`;
-    if (trials.right.length > 0) soapText += `  Right Leg Trials: ${trials.right.join(', ')}s (Best: ${bestRight}s)\n`;
-    soapText += `  Overall Best Time: ${resultValue}s\n`;
-    if (notes) soapText += `  Notes: ${notes}\n`;
-
-    onSave({
-      status: "completed",
-      result_value: resultValue,
-      additional_data: {
-        soap_text: soapText,
-        measurement_type: "Single-Leg Stance",
-        trials,
-        best_left: bestLeft,
-        best_right: bestRight,
-      },
-      notes,
-      assessment_date: todayLocal(),
-    });
-    toast.success("Assessment saved.");
   };
 
   return (

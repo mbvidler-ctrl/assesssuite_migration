@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Play, Info, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 export default function LTestofFunctionalMobilityRunner({ client, onSave, onClose }) {
   const [preVitals, setPreVitals] = useState({ heartRate: "", bloodPressure: "" });
@@ -48,23 +49,12 @@ export default function LTestofFunctionalMobilityRunner({ client, onSave, onClos
   };
 
   const handleSave = () => {
-    if (trialTimes.length < 1) {
-      toast.error("Please complete at least one trial.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({ trialTimesDeciseconds: trialTimes, preVitals, postVitals, notes }, { runnerKey: 'l_test', assessmentDate: todayLocal() }));
+      toast.success("Assessment recorded — please confirm and save.");
+    } catch (error) {
+      toast.error(error.message);
     }
-    const trialsInSeconds = trialTimes.map(t => t / 10);
-    const resultValue = trialsInSeconds.reduce((acc, time) => acc + time, 0) / trialsInSeconds.length;
-    const bestTime = Math.min(...trialsInSeconds);
-    
-    let soapText = `• L Test of Functional Mobility:\n`;
-    soapText += `  Best Time: ${bestTime.toFixed(2)}s\n`;
-    soapText += `  Average Time: ${resultValue.toFixed(2)}s over ${trialsInSeconds.length} trial(s)\n`;
-    soapText += `  Individual Trials: ${trialsInSeconds.map((t, i) => `Trial ${i+1}: ${t.toFixed(2)}s`).join(', ')}\n`;
-    if (preVitals.heartRate) soapText += `  Pre-Test HR: ${preVitals.heartRate} bpm, BP: ${preVitals.bloodPressure}\n`;
-    if (postVitals.heartRate) soapText += `  Post-Test HR: ${postVitals.heartRate} bpm, BP: ${postVitals.bloodPressure}\n`;
-    if (notes.trim()) soapText += `  Clinical Notes: ${notes}`;
-    onSave({ status: "completed", result_value: parseFloat(bestTime.toFixed(2)), additional_data: { measurement_type: "LTestofFunctionalMobility", trials: trialsInSeconds, pre_vitals: preVitals, post_vitals: postVitals, soap_text: soapText }, notes: soapText, assessment_date: todayLocal() });
-    toast.success("Assessment recorded — please confirm and save.");
   };
 
   return (

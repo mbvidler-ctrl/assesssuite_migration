@@ -7,25 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Info, AlertCircle, CheckCircle2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_IKDC_IKDC_QUESTIONS as IKDC_QUESTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const IKDC_QUESTIONS = [
-  // SYMPTOMS SUBSCALE (5 items)
-  { id: 'q1_pain', label: 'What is the highest level of activity you can perform without significant knee pain?', max: 10, subscale: 'Symptoms', anchors: { 0: 'Unable', 5: 'Moderate', 10: 'Very high activity' } },
-  { id: 'q2_stiffness', label: 'During the past 4 weeks, how stiff or swollen was your knee?', max: 4, subscale: 'Symptoms', anchors: { 0: 'Not stiff/swollen', 2: 'Moderately stiff/swollen', 4: 'Very stiff/swollen' } },
-  { id: 'q3_swelling', label: 'What is the highest level of activity you can perform without significant swelling?', max: 10, subscale: 'Symptoms', anchors: { 0: 'Unable', 5: 'Moderate', 10: 'Very high activity' } },
-  { id: 'q4_lock_catch', label: 'Does your knee lock or catch?', max: 2, subscale: 'Symptoms', anchors: { 0: 'Yes, frequently', 1: 'Occasionally', 2: 'No, never' } },
-  { id: 'q5_giving_way', label: 'What is the highest level of activity you can perform without significant giving way?', max: 10, subscale: 'Symptoms', anchors: { 0: 'Unable', 5: 'Moderate', 10: 'Very high activity' } },
-  // FUNCTION SUBSCALE (9 items)
-  { id: 'q6_stairs_up', label: 'How difficult is it to go up stairs?', max: 4, subscale: 'Function', anchors: { 0: 'Extremely difficult', 2: 'Moderately difficult', 4: 'Not difficult' } },
-  { id: 'q7_stairs_down', label: 'How difficult is it to go down stairs?', max: 4, subscale: 'Function', anchors: { 0: 'Extremely difficult', 2: 'Moderately difficult', 4: 'Not difficult' } },
-  { id: 'q8_kneel', label: 'How difficult is it to kneel on the front of your knee?', max: 4, subscale: 'Function', anchors: { 0: 'Extremely difficult', 2: 'Moderately difficult', 4: 'Not difficult' } },
-  { id: 'q9_squat', label: 'How difficult is it to squat?', max: 4, subscale: 'Function', anchors: { 0: 'Extremely difficult', 2: 'Moderately difficult', 4: 'Not difficult' } },
-  { id: 'q10_sit_bent', label: 'How difficult is it to sit with your knee bent?', max: 4, subscale: 'Function', anchors: { 0: 'Extremely difficult', 2: 'Moderately difficult', 4: 'Not difficult' } },
-  { id: 'q11_rise_chair', label: 'How difficult is it to rise from a chair?', max: 4, subscale: 'Function', anchors: { 0: 'Extremely difficult', 2: 'Moderately difficult', 4: 'Not difficult' } },
-  { id: 'q12_run_straight', label: 'How difficult is it to run straight ahead?', max: 4, subscale: 'Function', anchors: { 0: 'Extremely difficult', 2: 'Moderately difficult', 4: 'Not difficult' } },
-  { id: 'q13_jump_land', label: 'How difficult is it to jump and land on your involved leg?', max: 4, subscale: 'Function', anchors: { 0: 'Extremely difficult', 2: 'Moderately difficult', 4: 'Not difficult' } },
-  { id: 'q14_stop_quickly', label: 'How difficult is it to stop and start quickly?', max: 4, subscale: 'Function', anchors: { 0: 'Extremely difficult', 2: 'Moderately difficult', 4: 'Not difficult' } },
-];
 
 export default function InternationalKneeDocumentationCommitteeIKDCRunner({ client, onSave, onClose }) {
   const [responses, setResponses] = useState({});
@@ -39,7 +22,7 @@ export default function InternationalKneeDocumentationCommitteeIKDCRunner({ clie
     const sum = Object.values(responses).reduce((acc, val) => acc + val, 0);
     const maxPossible = IKDC_QUESTIONS.reduce((sum, q) => sum + q.max, 0);
     if (maxPossible === 0) return 0;
-    return ((sum / maxPossible) * 100).toFixed(1);
+    return Number(((sum / maxPossible) * 100).toFixed(1));
   };
 
   const handleSave = () => {
@@ -73,7 +56,7 @@ export default function InternationalKneeDocumentationCommitteeIKDCRunner({ clie
     const additionalData = { 
       measurement_type: "questionnaire", 
       ikdc_responses: responses,
-      ikdc_score_percent: parseFloat(totalScore),
+      ikdc_score_percent: totalScore,
       symptoms_subscale: symptomsScore,
       function_subscale: functionScore,
       scoring_formula: "Sum of all item responses / Maximum possible score × 100",
@@ -81,7 +64,7 @@ export default function InternationalKneeDocumentationCommitteeIKDCRunner({ clie
     };
 
     onSave({ 
-      result_value: parseFloat(totalScore), 
+      result_value: totalScore,
       additional_data: additionalData, 
       notes, 
       assessment_date: assessmentDate 

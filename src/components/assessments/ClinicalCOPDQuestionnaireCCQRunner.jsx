@@ -6,48 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_CCQ_DOMAINS as DOMAINS, PROM_NEURO_CCQ_OPTIONS as OPTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
 // CCQ domains and items
-const DOMAINS = [
-  {
-    label: "Symptoms (S)",
-    items: [
-      { id: 0, text: "On average, during the past week, how often did you feel short of breath at rest?" },
-      { id: 1, text: "On average, during the past week, how often did you feel short of breath doing physical activities?" },
-      { id: 2, text: "On average, during the past week, how often did you cough?" },
-      { id: 3, text: "On average, during the past week, how often did you produce phlegm?" },
-    ],
-    color: "border-blue-200 bg-blue-50/30",
-  },
-  {
-    label: "Functional State (F)",
-    items: [
-      { id: 4, text: "On average, during the past week, how limited were you in strenuous activities (e.g. climbing stairs, hurrying, sports)?" },
-      { id: 5, text: "On average, during the past week, how limited were you in moderate activities (e.g. walking, housework, carrying things)?" },
-      { id: 6, text: "On average, during the past week, how limited were you in daily activities at home (e.g. dressing, washing)?" },
-    ],
-    color: "border-green-200 bg-green-50/30",
-  },
-  {
-    label: "Mental State (M)",
-    items: [
-      { id: 7, text: "On average, during the past week, how often did you feel concerned about getting a cold or your breathing getting worse?" },
-      { id: 8, text: "On average, during the past week, how often did you feel depressed (down) because of your breathing problems?" },
-      { id: 9, text: "On average, during the past week, how often did you feel worried about your breathing?" },
-    ],
-    color: "border-purple-200 bg-purple-50/30",
-  },
-];
 
-const OPTIONS = [
-  { value: 0, label: "0 – Never/Not limited at all" },
-  { value: 1, label: "1 – Hardly ever/Hardly limited" },
-  { value: 2, label: "2 – A few times/A little limited" },
-  { value: 3, label: "3 – Several times/Moderately limited" },
-  { value: 4, label: "4 – Many times/Very limited" },
-  { value: 5, label: "5 – A great many times/Extremely limited" },
-  { value: 6, label: "6 – Almost always/Unable to do" },
-];
 
 function getInterpretation(mean) {
   if (mean < 1.0) return { label: "Very good COPD control", color: "bg-green-100 text-green-800 border-green-300" };

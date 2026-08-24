@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Play, Square, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateFunctionalOrtho } from "@/lib/clinical/scorers/extrasFunctionalOrtho";
 
 export default function StairClimbTestRunner({ client, onSave, onClose }) {
   const [elapsed, setElapsed] = useState(0);
@@ -39,13 +40,14 @@ export default function StairClimbTestRunner({ client, onSave, onClose }) {
   };
 
   const handleSave = () => {
-    if (recorded === null) {
-      toast.error("Run the timer and record a time before saving.");
-      return;
+    try {
+      onSave(validateFunctionalOrtho({
+        timeSeconds: recorded, stairCount, handrailUse, gaitStability, assistiveDevice, notes,
+      }, { runnerKey: 'stair_climb', assessmentDate: todayLocal() }));
+      toast.success("Saved.");
+    } catch (error) {
+      toast.error(error.message);
     }
-    const soap = `• Stair Climb Test\n  Stairs: ${stairCount} steps | Time: ${recorded}s | Handrail: ${handrailUse ? "Yes" : "No"} | Gait: ${gaitStability} | Device: ${assistiveDevice}${notes ? `\n  Notes: ${notes}` : ""}`;
-    onSave({ status: "completed", result_value: recorded, notes, assessment_date: todayLocal(), additional_data: { soap_text: soap, measurement_type: "stair_climb_test", time_seconds: recorded, stair_count: parseInt(stairCount) || null, handrail_use: handrailUse, gait_stability: gaitStability, assistive_device: assistiveDevice } });
-    toast.success("Saved.");
   };
 
   return (

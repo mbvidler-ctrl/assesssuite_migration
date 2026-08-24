@@ -21,12 +21,12 @@ export default function PersonalInfo({ data, onNext, onSaveAndSend, onSaveAndFin
     cultural_considerations: data.cultural_considerations || ""
   });
 
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}));
 
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    const newErrors = {};
+    const newErrors = /** @type {Record<string, string>} */ ({});
     if (!formData.full_name.trim()) newErrors.full_name = "Full name is required";
     if (!formData.date_of_birth) newErrors.date_of_birth = "Date of birth is required";
 
@@ -40,7 +40,7 @@ export default function PersonalInfo({ data, onNext, onSaveAndSend, onSaveAndFin
   const handleSaveAndSendToClient = (e) => {
     e.preventDefault();
     
-    const newErrors = {};
+    const newErrors = /** @type {Record<string, string>} */ ({});
     if (!formData.full_name.trim()) newErrors.full_name = "Full name is required";
     if (!formData.email.trim()) newErrors.email = "Email is required";
     if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
@@ -253,23 +253,28 @@ export default function PersonalInfo({ data, onNext, onSaveAndSend, onSaveAndFin
         </div>
       </div>
 
-      <div className="flex justify-between pt-6">
-        <div className="flex gap-2">
+      <div className="flex flex-col gap-3 pt-6 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2 sm:flex-row">
           {onSaveAndFinishLater && (
-            <Button type="button" variant="outline" onClick={() => onSaveAndFinishLater(formData)} className="text-slate-600">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => onSaveAndFinishLater(formData)}
+              className="w-full text-slate-600 sm:w-auto"
+            >
               Save & Finish Later
             </Button>
           )}
         </div>
         
-        <div className="flex gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row">
           {/* Save and Send to Client Button */}
           {canSaveAndSend && (
             <Button 
               type="button" 
               variant="outline" 
               onClick={handleSaveAndSendToClient}
-              className="bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100"
+              className="w-full bg-blue-50 border-blue-200 text-blue-700 hover:bg-blue-100 sm:w-auto"
             >
               <Mail className="w-4 h-4 mr-2" />
               Save & Send to Client
@@ -277,7 +282,7 @@ export default function PersonalInfo({ data, onNext, onSaveAndSend, onSaveAndFin
           )}
           
           {/* Continue Button */}
-          <Button type="submit" className="bg-blue-600 hover:bg-blue-700">
+          <Button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 sm:w-auto">
             Continue
             <ArrowRight className="w-4 h-4 ml-2" />
           </Button>

@@ -18,8 +18,10 @@ import {
 } from "lucide-react";
 import AppointmentModal from "@/components/calendar/AppointmentModal";
 import SOAPNoteModal from "@/components/calendar/SOAPNoteModal";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { toast } from 'sonner';
+import { createPageUrl } from '@/utils';
+import { buildTimeProfession as activeProfession } from '@/lib/profession';
 
 // --- Status colour config ---
 const STATUS_STYLES = {
@@ -310,6 +312,7 @@ const TimeGridView = ({ days, events, onSlotClick, onEventClick, calSettings, wo
 
 // --- Main Calendar Page ---
 export default function CalendarPage() {
+  const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -378,6 +381,7 @@ export default function CalendarPage() {
 
   useEffect(() => {
     const openSOAPId = searchParams.get("openSOAP");
+    const openAppointmentId = searchParams.get("openAppointmentId");
     if (openSOAPId && events.length > 0) {
       const eventToOpen = events.find((e) => e.id === openSOAPId);
       if (eventToOpen) {
@@ -385,6 +389,15 @@ export default function CalendarPage() {
         handleOpenSOAPNote(eventToOpen);
         const newParams = new URLSearchParams(searchParams);
         newParams.delete("openSOAP");
+        setSearchParams(newParams, { replace: true });
+      }
+    } else if (openAppointmentId && events.length > 0) {
+      const eventToOpen = events.find((event) => event.id === openAppointmentId);
+      if (eventToOpen) {
+        setCurrentDate(moment(eventToOpen.start));
+        setModalInfo({ isOpen: true, event: eventToOpen });
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete("openAppointmentId");
         setSearchParams(newParams, { replace: true });
       }
     }
@@ -452,11 +465,15 @@ export default function CalendarPage() {
     const client = clients.find((c) => c.id === appointment.client_id);
     if (!client) { toast.error("Could not find client."); return; }
     setModalInfo({ isOpen: false, event: null });
+    if (activeProfession.features.careEpisodes === true) {
+      navigate(createPageUrl(`PhysioEpisodes?client_id=${client.id}`));
+      return;
+    }
     try {
       const allAppointmentsForClient = await Appointment.filter({ client_id: client.id });
       const sorted = allAppointmentsForClient
-        .map((apt) => ({ ...apt, start: new Date(apt.start_time), end: new Date(apt.end_time) }))
-        .sort((a, b) => a.start - b.start);
+        .map((apt) => ({ ...apt, id: apt.id, start: new Date(apt.start_time), end: new Date(apt.end_time) }))
+        .sort((a, b) => a.start.getTime() - b.start.getTime());
       const currentIndex = sorted.findIndex((apt) => apt.id === appointment.id);
       setSoapNoteModal({ isOpen: true, appointment, client, allAppointments: sorted, currentIndex });
     } catch (error) {
@@ -617,11 +634,12 @@ export default function CalendarPage() {
             onSave={handleSave}
             onDelete={handleDelete}
             onOpenSOAPNote={handleOpenSOAPNote}
+            careEpisodeWorkflow={activeProfession.features.careEpisodes === true}
             calSettings={calSettings}
           />
         )}
 
-        {soapNoteModal.isOpen && (
+        {activeProfession.features.careEpisodes !== true && soapNoteModal.isOpen && (
           <SOAPNoteModal
             appointment={soapNoteModal.appointment}
             client={soapNoteModal.client}

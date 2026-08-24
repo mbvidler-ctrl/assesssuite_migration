@@ -54,7 +54,7 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
   );
   
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState(/** @type {Record<string, string>} */ ({}));
   const [showAPSSForm, setShowAPSSForm] = useState(false);
   const [showAPSSStage2, setShowAPSSStage2] = useState(false);
   const [apssData, setApssData] = useState({
@@ -64,7 +64,7 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
   });
 
   const validate = () => {
-    const newErrors = {};
+    const newErrors = /** @type {Record<string, string>} */ ({});
     if (section === 'personal' || section === 'all') {
       if (!formData.full_name.trim()) newErrors.full_name = 'Full name is required';
       if (!formData.date_of_birth) newErrors.date_of_birth = 'Date of birth is required';
@@ -730,7 +730,7 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
                   onNext={handleAPSSComplete}
                   onBack={() => setShowAPSSForm(false)}
                   canGoBack={true}
-                  isSubmitting={isSubmitting}
+                  onSaveAndFinishLater={null}
                 />
               </DialogContent>
             </Dialog>
@@ -748,7 +748,7 @@ export default function EditClientInfoModal({ client, section, conditions = [], 
                   onNext={handleAPSSStage2Complete}
                   onBack={() => setShowAPSSStage2(false)}
                   canGoBack={true}
-                  isSubmitting={isSubmitting}
+                  onSaveAndFinishLater={null}
                 />
               </DialogContent>
             </Dialog>

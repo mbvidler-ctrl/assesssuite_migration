@@ -17,8 +17,10 @@
 // in UPDATE_ME_GUARDED_FIELDS, so this dedicated endpoint is the only permitted
 // self-service transition.
 
-import * as stripeGateway from '../stripeGateway.mjs';
-import { cancelMockSubscription } from '../mocks/stripe.mjs';
+import {
+  resolveStripeProvider,
+  stripeProviderReady,
+} from '../providers/stripeProduction.mjs';
 
 const NO_PROVIDER_CANCELLATION_REQUIRED = new Set([
   '',
@@ -74,12 +76,14 @@ export default async function cancelSubscriptionAndDeactivate(ctx) {
   const providerCancellationRequired = subscriptionId && !LOCALLY_CANCELLED_SUBSCRIPTION_STATUSES.has(subscriptionStatus);
   if (providerCancellationRequired) {
     try {
-      let cancellation;
-      if (stripeGateway.stripeEnabled()) {
-        cancellation = await stripeGateway.cancelSubscription(subscriptionId);
-      } else {
-        cancellation = cancelMockSubscription(subscriptionId);
+      const provider = resolveStripeProvider(ctx.stripeProvider, process.env);
+      if (!stripeProviderReady(provider, process.env)) {
+        return respond(503, {
+          error: 'Subscription cancellation is unavailable because Stripe is not configured. Your account remains open.',
+          code: 'stripe_provider_unavailable',
+        });
       }
+      const cancellation = await provider.cancelSubscription(subscriptionId);
       if (!cancellationConfirmed(cancellation, subscriptionId)) {
         throw new Error('subscription cancellation was not confirmed');
       }

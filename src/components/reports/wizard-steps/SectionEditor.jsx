@@ -13,6 +13,7 @@ import { SecureFileLink } from "@/components/files/SecureFile";
 import { uploadTenantFile } from "@/lib/fileIntegrations";
 import { useAiCapability } from "@/hooks/useAiCapability";
 import { aiErrorMessage } from "@/lib/aiCapabilities";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
 import {
   buildPriorReportContext,
   buildReportAssessmentSummary,
@@ -25,6 +26,8 @@ import {
   normaliseReportAssessments,
   validateReportBatchResponse,
 } from "@/lib/reports/reportContentGeneration";
+
+const legacyReportAiAllowed = activeProfession.features.legacyGeneralClinicalLlm === true;
 
 const SECTION_GUIDANCE = {
   "Referral Details": {
@@ -253,7 +256,7 @@ const SECTION_GUIDANCE = {
   },
 };
 
-export default function SectionEditor({ sections, content, onChange, client, clientAssessments, clientConditions, selectedAssessmentIds, clinician, priorReports, soapNotes, reportTypeKey, reportTitle }) {
+export default function SectionEditor({ sections, content, onChange, client, clientAssessments, clientConditions, selectedAssessmentIds, clinician, priorReports, soapNotes, mandatorySections = [], onRemoveSection = null, reportTypeKey, reportTitle, careEpisodeId = null }) {
   const ai = useAiCapability();
   const [activeSection, setActiveSection] = useState(sections[0]);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -280,6 +283,12 @@ export default function SectionEditor({ sections, content, onChange, client, cli
       onChange({ ...content, [activeSection]: autoText, [`${activeSection}_ai_drafted`]: false });
     }
   }, [activeSection, clinician]);
+
+  React.useEffect(() => {
+    if (!sections.includes(activeSection)) {
+      setActiveSection(sections[0]);
+    }
+  }, [activeSection, sections]);
 
   const getCoordinates = (e) => {
     const canvas = canvasRef.current;
@@ -360,6 +369,7 @@ export default function SectionEditor({ sections, content, onChange, client, cli
       const documentPromises = newAttachments.map(attachment =>
         base44.entities.ClientDocument.create({
           org_id: client.org_id, client_id: client.id, document_type: "report",
+          ...(careEpisodeId ? { physio_care_episode_id: careEpisodeId } : {}),
           file_url: attachment.url, file_name: attachment.name,
           notes: `Attached to report section: ${activeSection}`
         })
@@ -391,7 +401,7 @@ export default function SectionEditor({ sections, content, onChange, client, cli
     const clientContext = {
       name: client.full_name,
       dob: client.date_of_birth,
-      age: client.date_of_birth ? Math.floor((new Date() - new Date(client.date_of_birth)) / 31557600000) : null,
+      age: client.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / 31557600000) : null,
       conditions: (clientConditions || []).slice(0, 20).map(c => ({
         name: limitReportText(c.condition_name, 200),
         medication: limitReportText(c.medication, 500),
@@ -437,6 +447,10 @@ export default function SectionEditor({ sections, content, onChange, client, cli
   };
 
   const handleGenerate = async () => {
+    if (!legacyReportAiAllowed) {
+      toast.error("Use the versioned Physio AI workspace from the care episode to create an AI draft.");
+      return;
+    }
     setIsGenerating(true);
     try {
       const { clientContext, priorReportContext, soapContext } = buildFullContext();
@@ -460,7 +474,7 @@ export default function SectionEditor({ sections, content, onChange, client, cli
         ? `\n\nREPORT FORMAT GUIDANCE (${meta.label} — target ${meta.recommended_length_pages} page${meta.recommended_length_pages > 1 ? 's' : ''}):\n${meta.ai_instruction}`
         : '';
 
-      const prompt = `You are an expert Exercise Physiologist (AEP) writing the "${activeSection}" section of a "${reportTitle || 'clinical'}" report for an allied health practice.
+      const prompt = `You are acting as an expert ${activeProfession.clinicalPromptRole} writing the "${activeSection}" section of a "${reportTitle || 'clinical'}" report for an allied health practice.
 
 REPORT TYPE: ${reportTitle || reportTypeKey || 'Clinical Report'}
 SECTION BEING WRITTEN: ${activeSection}${metaInstruction}
@@ -560,6 +574,10 @@ Write ONLY the "${activeSection}" section. Return ONLY plain text — no HTML, n
   };
 
   const handleTidy = async () => {
+    if (!legacyReportAiAllowed) {
+      toast.error("AI section editing is not available in this report wizard.");
+      return;
+    }
     if (!content[activeSection]?.trim()) { toast.error("Please add some content first"); return; }
     setIsTidying(true);
     try {
@@ -586,6 +604,10 @@ ${content[activeSection]}`;
   };
 
   const handleGenerateAll = async () => {
+    if (!legacyReportAiAllowed) {
+      toast.error("Use the versioned Physio AI workspace from the care episode to create an AI draft.");
+      return;
+    }
     setIsGeneratingAll(true);
     const eligibleSections = getDraftableReportSections(sections);
     try {
@@ -684,47 +706,64 @@ ${content[activeSection]}`;
         <p className="text-sm text-slate-600">
           <span className="font-semibold text-blue-600">{completedSections}</span> of {sections.length} sections completed
         </p>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleGenerateAll}
-          disabled={isGeneratingAll || !ai.canTrigger}
-          title={ai.unavailableMessage || undefined}
-          className="border-purple-300 text-purple-700 hover:bg-purple-50"
-        >
-          {isGeneratingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
-          Generate All Sections
-        </Button>
+        {legacyReportAiAllowed && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleGenerateAll}
+            disabled={isGeneratingAll || !ai.canTrigger}
+            title={ai.unavailableMessage || undefined}
+            className="border-purple-300 text-purple-700 hover:bg-purple-50"
+          >
+            {isGeneratingAll ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Sparkles className="w-4 h-4 mr-2" />}
+            Generate All Sections
+          </Button>
+        )}
       </div>
-      {!ai.canTrigger && <p className="text-xs text-slate-500">{ai.unavailableMessage}</p>}
+      {legacyReportAiAllowed && !ai.canTrigger && <p className="text-xs text-slate-500">{ai.unavailableMessage}</p>}
 
       <div className="flex gap-4">
         <div className="w-48 flex-shrink-0 space-y-1">
-          {sections.map(section => (
-            <button
-              key={section}
-              onClick={() => setActiveSection(section)}
-              className={`w-full text-left text-xs px-3 py-2 rounded-lg transition-colors ${
-                activeSection === section
-                  ? 'bg-blue-600 text-white font-semibold'
-                  : content[section]?.trim()
-                  ? 'bg-green-50 text-green-800 border border-green-200 hover:bg-green-100'
-                  : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
-              }`}
-            >
-              {content[section]?.trim() && activeSection !== section && (
-                <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1.5 mb-0.5" />
-              )}
-              {section}
-            </button>
-          ))}
+          {sections.map(section => {
+            const removable = Boolean(onRemoveSection) && !mandatorySections.includes(section);
+            return (
+              <div key={section} className="group relative">
+                <button
+                  onClick={() => setActiveSection(section)}
+                  className={`w-full text-left text-xs px-3 py-2 rounded-lg transition-colors ${removable ? 'pr-8' : ''} ${
+                    activeSection === section
+                      ? 'bg-blue-600 text-white font-semibold'
+                      : content[section]?.trim()
+                      ? 'bg-green-50 text-green-800 border border-green-200 hover:bg-green-100'
+                      : 'bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100'
+                  }`}
+                >
+                  {content[section]?.trim() && activeSection !== section && (
+                    <span className="inline-block w-2 h-2 rounded-full bg-green-500 mr-1.5 mb-0.5" />
+                  )}
+                  {section}
+                </button>
+                {removable && (
+                  <button
+                    type="button"
+                    aria-label={`Remove ${section} section`}
+                    title={`Remove ${section}`}
+                    onClick={() => onRemoveSection(section)}
+                    className={`absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 opacity-70 hover:opacity-100 ${activeSection === section ? 'text-white hover:bg-blue-500' : 'text-slate-500 hover:bg-slate-200'}`}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
 
         <div className="flex-1 space-y-3">
           <div className="flex items-center justify-between">
             <Label className="text-sm font-semibold text-slate-700">{activeSection}</Label>
             <div className="flex gap-2">
-              {!isSignatureSection && !isAttachmentSection && (
+              {legacyReportAiAllowed && !isSignatureSection && !isAttachmentSection && (
                 <>
                   <Button size="sm" variant="outline" onClick={handleTidy} disabled={isTidying || !content[activeSection]?.trim() || !ai.canTrigger} title={ai.unavailableMessage || undefined} className="text-xs">
                     {isTidying ? <Loader2 className="w-3 h-3 mr-1 animate-spin" /> : <Wand2 className="w-3 h-3 mr-1" />}
@@ -792,7 +831,9 @@ ${content[activeSection]}`;
             <Textarea
               value={content[activeSection] || ""}
               onChange={(e) => onChange({ ...content, [activeSection]: e.target.value })}
-              placeholder={`Write the ${activeSection} section here, or click AI Generate to auto-fill...`}
+              placeholder={legacyReportAiAllowed
+                ? `Write the ${activeSection} section here, or click AI Generate to auto-fill...`
+                : `Write the ${activeSection} section here...`}
               className="min-h-[280px] text-sm leading-relaxed resize-y"
             />
           )}
@@ -800,10 +841,12 @@ ${content[activeSection]}`;
           <p className="text-xs text-slate-400">
             {content[activeSection]?.trim()
               ? `${content[activeSection].trim().split(/\s+/).length} words`
-              : 'Empty — type freely or use AI Generate'}
+              : legacyReportAiAllowed
+                ? 'Empty — type freely or use AI Generate'
+                : 'Empty — type freely'}
           </p>
 
-          {!isSignatureSection && !isAttachmentSection && <AIDisclosureNote />}
+          {legacyReportAiAllowed && !isSignatureSection && !isAttachmentSection && <AIDisclosureNote />}
         </div>
       </div>
     </div>

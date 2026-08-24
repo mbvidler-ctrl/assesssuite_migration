@@ -6,75 +6,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Save, X, ChevronDown, ChevronUp, Info, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { PROM_NEURO_FMA_SECTIONS as SECTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
 
-const SECTIONS = [
-  {
-    key: "upper_extremity",
-    label: "Upper Extremity Motor Function",
-    maxScore: 66,
-    items: [
-      "Shoulder retraction", "Shoulder elevation", "Shoulder abduction (90°)",
-      "Shoulder external rotation", "Elbow flexion", "Elbow supination/pronation",
-      "Wrist stability (elbow 90°)", "Wrist flexion/extension (elbow 90°)",
-      "Wrist stability (elbow 0°)", "Wrist flexion/extension (elbow 0°)",
-      "Wrist circumduction", "Finger mass flexion", "Finger mass extension",
-      "Hook grasp", "Lateral prehension", "Palmar prehension",
-      "Cylindrical grasp", "Spherical grasp", "Finger individual movements",
-      "Wrist flexion (elbow extended)", "Wrist extension (elbow extended)",
-      "Elbow flexion (full ROM)", "Elbow extension (full ROM)",
-    ],
-  },
-  {
-    key: "lower_extremity",
-    label: "Lower Extremity Motor Function",
-    maxScore: 34,
-    items: [
-      "Hip flexion (supine)", "Knee flexion (supine)", "Ankle dorsiflexion (supine)",
-      "Hip flexion (sitting)", "Knee extension (sitting)", "Ankle dorsiflexion (sitting)",
-      "Hip abduction (sitting)", "Hip internal/external rotation (sitting)",
-      "Heel to shin (supine)", "Knee flexion (prone)", "Ankle dorsiflexion (prone)",
-      "Hip extension (prone)", "Standing - hip abduction", "Standing - hip/knee flexion",
-      "Standing - ankle dorsiflexion", "Tremor", "Dysmetria", "Speed",
-    ],
-  },
-  {
-    key: "balance",
-    label: "Balance",
-    maxScore: 14,
-    items: [
-      "Sitting without support", "Protective reaction (non-affected side)",
-      "Protective reaction (affected side)", "Standing with support",
-      "Standing without support", "Standing on non-affected leg",
-      "Standing on affected leg",
-    ],
-  },
-  {
-    key: "sensation",
-    label: "Sensation",
-    maxScore: 24,
-    items: [
-      "Light touch - upper arm", "Light touch - forearm", "Light touch - palm",
-      "Light touch - thumb", "Position sense - shoulder", "Position sense - elbow",
-      "Position sense - wrist", "Position sense - thumb",
-      "Light touch - thigh", "Light touch - leg", "Light touch - dorsum of foot",
-      "Position sense - hip", "Position sense - knee", "Position sense - ankle",
-      "Position sense - toe",
-    ],
-  },
-  {
-    key: "joint_rom",
-    label: "Joint ROM / Pain",
-    maxScore: 44,
-    items: [
-      "Shoulder ROM", "Shoulder pain", "Elbow ROM", "Elbow pain",
-      "Forearm ROM", "Forearm pain", "Wrist ROM", "Wrist pain",
-      "Finger ROM", "Finger pain", "Hip ROM", "Hip pain",
-      "Knee ROM", "Knee pain", "Ankle ROM", "Ankle pain",
-      "Foot ROM", "Foot pain", "Subtalar ROM", "Subtalar pain",
-      "Knee extension ROM", "Knee extension pain",
-    ],
-  },
-];
 
 export default function FuglMeyerAssessmentFMARunner({ client, onSave, onClose }) {
   const [scores, setScores] = useState({});
@@ -122,6 +55,7 @@ export default function FuglMeyerAssessmentFMARunner({ client, onSave, onClose }
       additional_data: {
         measurement_type: "performance",
         soap_text,
+        item_scores: scores,
         ...sectionScores,
         max_total: getMaxTotal(),
       },

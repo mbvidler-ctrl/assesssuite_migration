@@ -46,6 +46,14 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
+import {
+  isManagementProfileProfession,
+  isProfileProfessionAllowed,
+  profileProfessionOptions,
+} from "@/lib/profileProfession";
+
+const activeProfessionOptions = profileProfessionOptions(activeProfession);
 
 export default function MyProfile() {
   const [user, setUser] = useState(null);
@@ -57,7 +65,7 @@ export default function MyProfile() {
     qualifications: "",
     professional_bio: "",
     registration_number: "",
-    country: "australia",
+    country: activeProfession.releaseCountry,
     npi_number: "",
     abn: "",
     specializations: [],
@@ -78,7 +86,7 @@ export default function MyProfile() {
       if (payload?.status !== "deactivated") {
         throw new Error(payload?.error || "Cancellation failed");
       }
-      base44.auth.logout(window.location.origin + "/");
+      base44.auth.logout(window.location.origin + "/AccountDeactivated");
     } catch (error) {
       console.error("Cancellation failed", error);
       toast.error("Failed to cancel your subscription and close your account. Please try again or contact support.");
@@ -141,7 +149,7 @@ export default function MyProfile() {
         qualifications: userData.qualifications || "",
         professional_bio: userData.professional_bio || "",
         registration_number: userData.registration_number || "",
-        country: userData.country || "australia",
+        country: userData.country || activeProfession.releaseCountry,
         npi_number: userData.npi_number || "",
         abn: userData.abn || "",
         specializations: userData.specializations || [],
@@ -283,6 +291,21 @@ export default function MyProfile() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSaving(true);
+
+    if (!isProfileProfessionAllowed(activeProfession, formData.profession)) {
+      toast.error(activeProfession.signup.ineligibleMessage);
+      setIsSaving(false);
+      return;
+    }
+    if (
+      !isManagementProfileProfession(activeProfession, formData.profession)
+      && activeProfession.signup.registrationNumberRequired
+      && !formData.registration_number.trim()
+    ) {
+      toast.error(`${activeProfession.signup.registrationNumberLabel} is required`);
+      setIsSaving(false);
+      return;
+    }
     
     try {
       const mainLocation = formData.locations.find(loc => loc.is_main);
@@ -367,9 +390,9 @@ export default function MyProfile() {
                         <SelectValue placeholder="Select your profession" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Exercise Physiologist">Accredited Exercise Physiologist (AEP)</SelectItem>
-                        <SelectItem value="Gym Management">Gym Management</SelectItem>
-                        <SelectItem value="Clinic Management">Clinic Management</SelectItem>
+                        {activeProfessionOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -414,7 +437,7 @@ export default function MyProfile() {
                         id="qualifications"
                         value={formData.qualifications}
                         onChange={(e) => handleInputChange("qualifications", e.target.value)}
-                        placeholder="e.g., BSc Exercise Science, MSc Exercise Physiology"
+                        placeholder={activeProfession.signup.qualificationsPlaceholder}
                         className="mt-1"
                       />
                     </div>
@@ -424,8 +447,11 @@ export default function MyProfile() {
                       Geographic requirements are governed by the linked policies rather than a profile declaration.
                     </p>
                     <div>
-                      <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">Professional Registration or Accreditation Number</Label>
-                      <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder="e.g. ESSA accreditation number" className="mt-1" />
+                      <Label htmlFor="registration_number" className="text-sm font-medium text-slate-700">
+                        {activeProfession.signup.registrationNumberLabel}
+                        {activeProfession.signup.registrationNumberRequired ? " *" : ""}
+                      </Label>
+                      <Input id="registration_number" value={formData.registration_number} onChange={(e) => handleInputChange("registration_number", e.target.value)} placeholder={activeProfession.signup.registrationNumberPlaceholder} className="mt-1" />
                     </div>
                     <div>
                       <Label htmlFor="abn" className="text-sm font-medium text-slate-700">ABN</Label>

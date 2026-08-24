@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Save, X, Play, Square, ChevronRight, ChevronLeft, Trash2, Info, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { validateAndScore as validateMobilityOrtho } from "@/lib/clinical/scorers/extrasMobilityBalanceOrtho";
 
 // Two pages: 0 = instructions, 1 = test execution
 export default function FigureofEightWalkTestRunner({ client, onSave, onClose }) {
@@ -64,36 +65,11 @@ export default function FigureofEightWalkTestRunner({ client, onSave, onClose })
   const interp = getInterpretation(avgTime);
 
   const handleSave = () => {
-    if (trialData.length === 0) {
-      toast.error("Please complete at least one trial before saving.");
-      return;
+    try {
+      onSave(validateMobilityOrtho({ trialData, preVitals, postVitals, notes }, { runnerKey: 'figure8', assessmentDate: todayLocal() }));
+    } catch (error) {
+      toast.error(error.message);
     }
-    const avg = parseFloat(avgTime.toFixed(2));
-    const interpretation = interp?.label || "";
-
-    let soapText = `• Figure of Eight Walk Test\n`;
-    soapText += `  Average Time: ${avg}s over ${trialData.length} trial(s)\n`;
-    soapText += `  Interpretation: ${interpretation}\n`;
-    trialData.forEach((t, i) => { soapText += `  Trial ${i + 1}: ${t.time}s\n`; });
-    if (preVitals.heartRate || preVitals.bloodPressure)
-      soapText += `  Pre-Test Vitals: HR ${preVitals.heartRate || "—"} bpm, BP ${preVitals.bloodPressure || "—"}\n`;
-    if (postVitals.heartRate || postVitals.bloodPressure)
-      soapText += `  Post-Test Vitals: HR ${postVitals.heartRate || "—"} bpm, BP ${postVitals.bloodPressure || "—"}\n`;
-    if (notes.trim()) soapText += `  Notes: ${notes}`;
-
-    onSave({
-      status: "completed",
-      result_value: avg,
-      additional_data: {
-        measurement_type: "Figure-of-Eight Walk Test",
-        trials: trialData,
-        average_time: avg,
-        interpretation,
-        soap_text: soapText,
-      },
-      notes: soapText,
-      assessment_date: todayLocal(),
-    });
   };
 
   return (

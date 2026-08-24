@@ -1,0 +1,1482 @@
+name: Physio production exact-image local provider canary
+
+on:
+  workflow_dispatch:
+    inputs:
+      trusted_workflow_sha:
+        description: Exact current main SHA supplying this trusted workflow
+        required: true
+        type: string
+      application_sha:
+        description: Exact candidate application SHA
+        required: true
+        type: string
+      candidate_artifact_id:
+        description: Exact immutable candidate artifact ID
+        required: true
+        type: string
+      candidate_artifact_digest:
+        description: Exact candidate artifact digest
+        required: true
+        type: string
+      candidate_receipt_sha256:
+        description: Raw-byte SHA-256 of candidate-build-receipt.json
+        required: true
+        type: string
+      archive_sha256:
+        description: Exact sha256-prefixed candidate image archive digest
+        required: true
+        type: string
+      oci_archive_sha256:
+        description: Exact sha256-prefixed canonical OCI archive digest
+        required: true
+        type: string
+      oci_manifest_digest:
+        description: Exact sha256-prefixed canonical OCI manifest digest
+        required: true
+        type: string
+      oci_descriptor_manifest_sha256:
+        description: Raw-byte SHA-256 of candidate-oci-descriptors.json
+        required: true
+        type: string
+      local_image_id:
+        description: Exact local Docker image ID from preparation
+        required: true
+        type: string
+      provider_task_set:
+        description: Exact eight-name bounded provider task set
+        required: true
+        default: initial_assessment_summary,soap_note,management_plan,progress_comparison,referrer_update,discharge_summary,transcription,extraction
+        type: string
+      maximum_cost_microusd:
+        description: Canary cost ceiling in micro-USD
+        required: true
+        default: '3000000'
+        type: string
+      capability_intent_id:
+        description: Authorised isolated real-provider canary intent
+        required: true
+        type: string
+      authority_reference:
+        description: Mission or order reference authorising this action
+        required: true
+        type: string
+      resume_effect_artifact_id:
+        description: Exact prior COMPLETED provider-effect artifact ID for zero-call reconciliation, or 0
+        required: true
+        default: '0'
+        type: string
+      resume_effect_artifact_digest:
+        description: Exact prior COMPLETED provider-effect artifact digest, or 0
+        required: true
+        default: '0'
+        type: string
+      resume_success_artifact_id:
+        description: Exact already-published successful canary artifact ID, or 0
+        required: true
+        default: '0'
+        type: string
+      resume_success_artifact_digest:
+        description: Exact already-published successful canary artifact digest, or 0
+        required: true
+        default: '0'
+        type: string
+      confirmation:
+        description: Type CANARY assesssuite-physio-production LOCAL EXACT IMAGE
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: assesssuite-physio-production
+  cancel-in-progress: false
+
+jobs:
+  admit:
+    name: Admit exact candidate and reserve provider effect identity
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    environment: physio-production
+    outputs:
+      candidate_run_id: ${{ steps.artifacts.outputs.candidate_run_id }}
+      admission_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      admission_artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
+      admission_receipt_sha256: ${{ steps.admit.outputs.admission_receipt_sha256 }}
+      candidate_artifact_admission_receipt_sha256: ${{ steps.admit.outputs.candidate_artifact_admission_receipt_sha256 }}
+      provider_effect_id: ${{ steps.admit.outputs.provider_effect_id }}
+      provider_effect_hex: ${{ steps.admit.outputs.provider_effect_hex }}
+      capability_binding_sha256: ${{ steps.admit.outputs.capability_binding_sha256 }}
+      audio_fixture_sha256: ${{ steps.admit.outputs.audio_fixture_sha256 }}
+      document_fixture_sha256: ${{ steps.admit.outputs.document_fixture_sha256 }}
+      admission_mode: ${{ steps.admit.outputs.admission_mode }}
+      resume_effect_run_id: ${{ steps.resume_artifacts.outputs.resume_effect_run_id }}
+      resume_effect_artifact_admission_receipt_sha256: ${{ steps.resume_artifacts.outputs.artifact_admission_receipt_sha256 }}
+      resume_canary_receipt_sha256: ${{ steps.resume_validate.outputs.resume_canary_receipt_sha256 }}
+      resume_effect_receipt_sha256: ${{ steps.resume_validate.outputs.resume_effect_receipt_sha256 }}
+      resume_started_effect_receipt_sha256: ${{ steps.resume_validate.outputs.resume_started_effect_receipt_sha256 }}
+      existing_success_artifact_id: ${{ steps.admit.outputs.existing_success_artifact_id }}
+      existing_success_artifact_digest: ${{ steps.admit.outputs.existing_success_artifact_digest }}
+      existing_success_run_id: ${{ steps.resume_artifacts.outputs.resume_success_run_id }}
+    steps:
+      - name: Validate exact credential-free admission dispatch
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_ARTIFACT_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_ARTIFACT_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANDIDATE_RECEIPT_SHA256: ${{ inputs.candidate_receipt_sha256 }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA256: ${{ inputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ inputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_MANIFEST_SHA256: ${{ inputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          PROVIDER_TASK_SET: ${{ inputs.provider_task_set }}
+          MAXIMUM_COST_MICROUSD: ${{ inputs.maximum_cost_microusd }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          RESUME_EFFECT_ARTIFACT_ID: ${{ inputs.resume_effect_artifact_id }}
+          RESUME_EFFECT_ARTIFACT_DIGEST: ${{ inputs.resume_effect_artifact_digest }}
+          RESUME_SUCCESS_ARTIFACT_ID: ${{ inputs.resume_success_artifact_id }}
+          RESUME_SUCCESS_ARTIFACT_DIGEST: ${{ inputs.resume_success_artifact_digest }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == 'mbvidler-ctrl/assesssuite_migration' ]]
+          [[ "$ACTOR" == 'mbvidler-ctrl' && "$TRIGGERING_ACTOR" == 'mbvidler-ctrl' ]]
+          [[ "$IS_FORK" == 'false' && "$EVENT_REF" == 'refs/heads/main' ]]
+          [[ "$RUN_ATTEMPT" == '1' ]]
+          [[ "$WORKFLOW_REF" == 'mbvidler-ctrl/assesssuite_migration/.github/workflows/physio-production-exact-image-canary.yml@refs/heads/main' ]]
+          [[ "$TRUSTED_WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ && "$APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" && "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$CANDIDATE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$CANDIDATE_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$CANDIDATE_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$ARCHIVE_SHA256" =~ ^sha256:[0-9a-f]{64}$ && "$LOCAL_IMAGE_ID" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$OCI_ARCHIVE_SHA256" =~ ^sha256:[0-9a-f]{64}$ && "$OCI_MANIFEST_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$OCI_DESCRIPTOR_MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$PROVIDER_TASK_SET" == 'initial_assessment_summary,soap_note,management_plan,progress_comparison,referrer_update,discharge_summary,transcription,extraction' ]]
+          [[ "$MAXIMUM_COST_MICROUSD" =~ ^[1-9][0-9]*$ && "$MAXIMUM_COST_MICROUSD" -le 5000000 ]]
+          [[ "$CAPABILITY_INTENT_ID" =~ ^[A-Za-z0-9._:-]{1,160}$ && "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
+          if [[ "$RESUME_EFFECT_ARTIFACT_ID" == '0' ]]; then
+            [[ "$RESUME_EFFECT_ARTIFACT_DIGEST" == '0' ]]
+          else
+            [[ "$RESUME_EFFECT_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+            [[ "$RESUME_EFFECT_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          fi
+          if [[ "$RESUME_SUCCESS_ARTIFACT_ID" == '0' ]]; then
+            [[ "$RESUME_SUCCESS_ARTIFACT_DIGEST" == '0' ]]
+          else
+            [[ "$RESUME_SUCCESS_ARTIFACT_ID" =~ ^[1-9][0-9]*$ ]]
+            [[ "$RESUME_SUCCESS_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          fi
+          [[ "$RESUME_EFFECT_ARTIFACT_ID" != '0' || "$RESUME_SUCCESS_ARTIFACT_ID" == '0' ]]
+          [[ "$CONFIRMATION" == 'CANARY assesssuite-physio-production LOCAL EXACT IMAGE' ]]
+
+      - name: Check out exact credential-free admission source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Resolve exact candidate source run
+        id: artifacts
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_DIGEST: ${{ inputs.candidate_artifact_digest }}
+        run: |
+          set -euo pipefail
+          umask 077
+          spec="$RUNNER_TEMP/candidate-artifact-spec.json"
+          SPEC="$spec" APPLICATION_SHA="$APPLICATION_SHA" CANDIDATE_ID="$CANDIDATE_ID" CANDIDATE_DIGEST="$CANDIDATE_DIGEST" \
+          env -u OPENAI_API_KEY node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = { repository: 'mbvidler-ctrl/assesssuite_migration', application_sha: process.env.APPLICATION_SHA,
+            artifacts: [{ key: 'candidate', id: process.env.CANDIDATE_ID, expected_digest: process.env.CANDIDATE_DIGEST,
+              maximum_bytes: 1073741824, name_patterns: [`^physio-candidate-${process.env.APPLICATION_SHA}$`],
+              workflow_path: '.github/workflows/physio-production-prepare-release.yml', allowed_conclusions: ['success'] }] };
+          fs.writeFileSync(process.env.SPEC, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/github-artifact-admission.mjs --spec "$spec" \
+            --output "$RUNNER_TEMP/candidate-artifact-admission.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Download candidate for credential-free admission
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.candidate_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.artifacts.outputs.candidate_run_id }}
+          path: ${{ runner.temp }}/physio-candidate-admission
+          github-token: ${{ github.token }}
+
+      - name: Validate candidate and reserve deterministic effect identity
+        id: admit
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          GITHUB_API_URL_VALUE: ${{ github.api_url }}
+          REPOSITORY: ${{ github.repository }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_ARTIFACT_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_ARTIFACT_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANDIDATE_RECEIPT_SHA256: ${{ inputs.candidate_receipt_sha256 }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA256: ${{ inputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ inputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_MANIFEST_SHA256: ${{ inputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          PROVIDER_TASK_SET: ${{ inputs.provider_task_set }}
+          MAXIMUM_COST_MICROUSD: ${{ inputs.maximum_cost_microusd }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          RESUME_EFFECT_ARTIFACT_ID: ${{ inputs.resume_effect_artifact_id }}
+          RESUME_EFFECT_ARTIFACT_DIGEST: ${{ inputs.resume_effect_artifact_digest }}
+          RESUME_SUCCESS_ARTIFACT_ID: ${{ inputs.resume_success_artifact_id }}
+          RESUME_SUCCESS_ARTIFACT_DIGEST: ${{ inputs.resume_success_artifact_digest }}
+          CANDIDATE_RUN_ID: ${{ steps.artifacts.outputs.candidate_run_id }}
+        run: |
+          set -euo pipefail
+          umask 077
+          candidate="$RUNNER_TEMP/physio-candidate-admission"
+          [[ -f "$candidate/SHA256SUMS" && ! -L "$candidate/SHA256SUMS" ]]
+          if find "$candidate" -mindepth 1 -type l -print -quit | grep -q .; then exit 1; fi
+          if find "$candidate" -mindepth 1 -type d -print -quit | grep -q .; then exit 1; fi
+          (cd "$candidate" && sha256sum --check --strict SHA256SUMS)
+          listed="$(awk '{ name=$2; sub(/^\*/, "", name); print name }' "$candidate/SHA256SUMS" | LC_ALL=C sort)"
+          actual="$(find "$candidate" -mindepth 1 -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | LC_ALL=C sort)"
+          [[ -n "$listed" && "$listed" == "$actual" ]]
+          for file in candidate-build-receipt.json candidate-image.tar.gz candidate-image.oci.tar.gz candidate-oci-descriptors.json image-inspect.json physio-sentry-release.json provider-release-readback.json; do
+            [[ -f "$candidate/$file" && ! -L "$candidate/$file" ]]
+          done
+          [[ "$(sha256sum "$candidate/candidate-build-receipt.json" | awk '{print $1}')" == "$CANDIDATE_RECEIPT_SHA256" ]]
+          [[ "sha256:$(sha256sum "$candidate/candidate-image.tar.gz" | awk '{print $1}')" == "$ARCHIVE_SHA256" ]]
+          [[ "sha256:$(sha256sum "$candidate/candidate-image.oci.tar.gz" | awk '{print $1}')" == "$OCI_ARCHIVE_SHA256" ]]
+          [[ "$(sha256sum "$candidate/candidate-oci-descriptors.json" | awk '{print $1}')" == "$OCI_DESCRIPTOR_MANIFEST_SHA256" ]]
+          packet="$RUNNER_TEMP/provider-canary-admission"
+          install -d -m 0700 "$packet"
+          install -m 0600 "$RUNNER_TEMP/candidate-artifact-admission.json" "$packet/candidate-artifact-admission.json"
+          RECEIPT="$candidate/candidate-build-receipt.json" OUTPUT="$packet/provider-canary-admission.json" \
+          SOURCE_ADMISSION="$packet/candidate-artifact-admission.json" GITHUB_OUTPUT_FILE="$GITHUB_OUTPUT" \
+          node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import { PHYSIO_CANARY_AUDIO_SHA256 } from './scripts/physio-exact-image-canary-fixture.mjs';
+          import { buildPhysioCanaryReferralPdf } from './scripts/physio-exact-image-canary-document-fixture.mjs';
+          const sha = (bytes) => createHash('sha256').update(bytes).digest('hex');
+          const candidate = JSON.parse(fs.readFileSync(process.env.RECEIPT, 'utf8'));
+          if (candidate.contract_version !== 'assesssuite-physio-candidate-build/3.0.0' || candidate.result !== 'PASS' ||
+              candidate.application !== 'assesssuite-physio-production' || candidate.application_sha !== process.env.APPLICATION_SHA ||
+              candidate.profession_id !== 'physio' || candidate.archive_sha256 !== process.env.ARCHIVE_SHA256 ||
+              candidate.oci_archive_sha256 !== process.env.OCI_ARCHIVE_SHA256 ||
+              candidate.oci_manifest_digest !== process.env.OCI_MANIFEST_DIGEST ||
+              candidate.oci_descriptor_manifest_sha256 !== process.env.OCI_DESCRIPTOR_MANIFEST_SHA256 ||
+              candidate.local_image_id !== process.env.LOCAL_IMAGE_ID || candidate.no_fly_resource_created !== true ||
+              candidate.sentry_release?.contract_version !== 'assesssuite-physio-sentry-release/1.0.0' ||
+              !/^[0-9a-f]{64}$/.test(candidate.sentry_release?.receipt_sha256 || '')) {
+            throw new Error('provider-canary candidate receipt differs');
+          }
+          const documentFixtureSha256 = sha(buildPhysioCanaryReferralPdf());
+          const stableEffect = {
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            candidate_artifact_id: Number(process.env.CANDIDATE_ARTIFACT_ID),
+            candidate_artifact_digest: process.env.CANDIDATE_ARTIFACT_DIGEST,
+            candidate_receipt_sha256: process.env.CANDIDATE_RECEIPT_SHA256,
+            candidate_archive_sha256: process.env.ARCHIVE_SHA256,
+            oci_archive_sha256: process.env.OCI_ARCHIVE_SHA256,
+            oci_manifest_digest: process.env.OCI_MANIFEST_DIGEST,
+            oci_descriptor_manifest_sha256: process.env.OCI_DESCRIPTOR_MANIFEST_SHA256,
+            local_image_id: process.env.LOCAL_IMAGE_ID,
+            provider_task_set: process.env.PROVIDER_TASK_SET,
+            provider_call_maximum: 8,
+            maximum_cost_microusd: Number(process.env.MAXIMUM_COST_MICROUSD),
+            capability_intent_id: process.env.CAPABILITY_INTENT_ID,
+            authority_reference: process.env.AUTHORITY_REFERENCE,
+            audio_fixture_sha256: PHYSIO_CANARY_AUDIO_SHA256,
+            document_fixture_sha256: documentFixtureSha256,
+          };
+          // A provider effect is one authorised eight-call action, independent
+          // of replaceable GitHub artifact IDs, packaging bytes, budget labels
+          // or authority prose. Reusing an intent for the same application SHA
+          // can therefore never buy a second call set by changing those fields.
+          const effectIdentity = {
+            contract_version: 'assesssuite-physio-exact-image-canary-effect-identity/1.0.0',
+            application: stableEffect.application,
+            application_sha: stableEffect.application_sha,
+            capability_intent_id: stableEffect.capability_intent_id,
+            provider_action: 'exact-eight-real-provider-canary',
+            audio_fixture_sha256: stableEffect.audio_fixture_sha256,
+            document_fixture_sha256: stableEffect.document_fixture_sha256,
+          };
+          const effectHex = sha(JSON.stringify(effectIdentity));
+          const sourceAdmissionBytes = fs.readFileSync(process.env.SOURCE_ADMISSION);
+          const row = {
+            ...stableEffect,
+            contract_version: 'assesssuite-physio-exact-image-canary-admission/1.0.0', result: 'PASS',
+            provider_effect_id: `sha256:${effectHex}`,
+            candidate_source_run_id: Number(process.env.CANDIDATE_RUN_ID),
+            candidate_artifact_admission_receipt_sha256: sha(sourceAdmissionBytes),
+            admitted_at: new Date().toISOString(),
+          };
+          const bytes = `${JSON.stringify(row, null, 2)}\n`;
+          fs.writeFileSync(process.env.OUTPUT, bytes, { flag: 'wx', mode: 0o600 });
+          fs.appendFileSync(process.env.GITHUB_OUTPUT_FILE, [
+            `admission_receipt_sha256=${sha(bytes)}`,
+            `candidate_artifact_admission_receipt_sha256=${sha(sourceAdmissionBytes)}`,
+            `provider_effect_id=sha256:${effectHex}`,
+            `provider_effect_hex=${effectHex}`,
+            `capability_binding_sha256=${sha(JSON.stringify({
+              capability_intent_id: row.capability_intent_id,
+              authority_reference: row.authority_reference,
+            }))}`,
+            `audio_fixture_sha256=${PHYSIO_CANARY_AUDIO_SHA256}`,
+            `document_fixture_sha256=${documentFixtureSha256}`,
+          ].join('\n') + '\n');
+          NODE
+          PROVIDER_EFFECT_HEX="$(awk -F= '$1=="provider_effect_hex" {print $2}' "$GITHUB_OUTPUT")" \
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const names = [
+            `physio-exact-image-canary-started-${process.env.PROVIDER_EFFECT_HEX}`,
+            `physio-exact-image-canary-effect-${process.env.PROVIDER_EFFECT_HEX}`,
+            `physio-exact-image-canary-${process.env.APPLICATION_SHA}`,
+          ];
+          const artifactsByName = new Map();
+          for (const name of names) {
+            const url = `${process.env.GITHUB_API_URL_VALUE}/repos/${process.env.REPOSITORY}/actions/artifacts?per_page=100&name=${encodeURIComponent(name)}`;
+            const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(30_000), headers: {
+              Accept: 'application/vnd.github+json', Authorization: `Bearer ${process.env.GITHUB_TOKEN}`,
+              'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'assesssuite-physio-provider-effect-admission',
+            } });
+            if (response.status !== 200) throw new Error(`prior_effect readback failed with HTTP ${response.status}`);
+            if (!/^application\/json(?:;|$)/i.test(response.headers.get('content-type') || '')) {
+              throw new Error('prior_effect readback was not JSON');
+            }
+            const body = await response.text();
+            if (Buffer.byteLength(body) > 1_048_576) throw new Error('prior_effect readback exceeded 1 MiB');
+            const payload = JSON.parse(body);
+            if (!Number.isSafeInteger(payload.total_count) || !Array.isArray(payload.artifacts) ||
+                payload.total_count > payload.artifacts.length || payload.artifacts.length > 100) {
+              throw new Error('prior_effect readback was incomplete or malformed');
+            }
+            if (payload.artifacts.some((row) => row?.name !== name || typeof row?.expired !== 'boolean')) {
+              throw new Error('prior_effect readback contained an invalid artifact identity');
+            }
+            artifactsByName.set(name, payload.artifacts);
+          }
+          const [startedName, effectName, successName] = names;
+          const started = artifactsByName.get(startedName);
+          const effects = artifactsByName.get(effectName);
+          const successes = artifactsByName.get(successName);
+          const resumeId = process.env.RESUME_EFFECT_ARTIFACT_ID;
+          if (resumeId === '0') {
+            if (started.length || effects.length || successes.length) {
+              throw new Error('prior_effect exists; ambiguous STARTED_UNRESOLVED or completed replay forbidden; exit 1');
+            }
+            fs.appendFileSync(process.env.GITHUB_OUTPUT, 'admission_mode=fresh\n');
+          } else {
+            if ([...started, ...effects, ...successes].some((row) => row.expired)) {
+              throw new Error('prior_effect artifact is expired; replay and resume are forbidden pending durable reconciliation');
+            }
+            if (started.length !== 1 || effects.length !== 1 ||
+                effects[0]?.id !== Number(resumeId) ||
+                effects[0]?.digest !== process.env.RESUME_EFFECT_ARTIFACT_DIGEST ||
+                effects[0]?.name !== effectName) {
+              throw new Error('prior_effect resume identity is absent or ambiguous');
+            }
+            if (successes.length > 1) throw new Error('prior success artifact readback is ambiguous');
+            if (successes.length === 1) {
+              if (successes[0]?.id !== Number(process.env.RESUME_SUCCESS_ARTIFACT_ID) ||
+                  successes[0]?.digest !== process.env.RESUME_SUCCESS_ARTIFACT_DIGEST) {
+                throw new Error('prior success artifact does not match exact resume inputs');
+              }
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, [
+                'admission_mode=resume_success',
+                `existing_success_artifact_id=${successes[0].id}`,
+                `existing_success_artifact_digest=${successes[0].digest}`,
+              ].join('\n') + '\n');
+            } else {
+              if (process.env.RESUME_SUCCESS_ARTIFACT_ID !== '0' ||
+                  process.env.RESUME_SUCCESS_ARTIFACT_DIGEST !== '0') {
+                throw new Error('success resume input was supplied but exact artifact is absent');
+              }
+              fs.appendFileSync(process.env.GITHUB_OUTPUT, 'admission_mode=resume_completed\n');
+            }
+          }
+          NODE
+
+      - name: Resolve exact prior completed provider effect
+        if: ${{ steps.admit.outputs.admission_mode != 'fresh' }}
+        id: resume_artifacts
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          RESUME_EFFECT_ID: ${{ inputs.resume_effect_artifact_id }}
+          RESUME_EFFECT_DIGEST: ${{ inputs.resume_effect_artifact_digest }}
+          PROVIDER_EFFECT_HEX: ${{ steps.admit.outputs.provider_effect_hex }}
+          ADMISSION_MODE: ${{ steps.admit.outputs.admission_mode }}
+          EXISTING_SUCCESS_ID: ${{ inputs.resume_success_artifact_id }}
+          EXISTING_SUCCESS_DIGEST: ${{ inputs.resume_success_artifact_digest }}
+        run: |
+          set -euo pipefail
+          umask 077
+          spec="$RUNNER_TEMP/resume-effect-artifact-spec.json"
+          SPEC="$spec" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const artifacts = [{ key: 'resume_effect', id: process.env.RESUME_EFFECT_ID,
+              expected_digest: process.env.RESUME_EFFECT_DIGEST, maximum_bytes: 33554432,
+              name_patterns: [`^physio-exact-image-canary-effect-${process.env.PROVIDER_EFFECT_HEX}$`],
+              workflow_path: '.github/workflows/physio-production-exact-image-canary.yml',
+              allowed_conclusions: ['success', 'failure', 'cancelled', 'timed_out'] }];
+          if (process.env.ADMISSION_MODE === 'resume_success') {
+            artifacts.push({ key: 'resume_success', id: process.env.EXISTING_SUCCESS_ID,
+              expected_digest: process.env.EXISTING_SUCCESS_DIGEST, maximum_bytes: 33554432,
+              name_patterns: [`^physio-exact-image-canary-${process.env.APPLICATION_SHA}$`],
+              workflow_path: '.github/workflows/physio-production-exact-image-canary.yml',
+              allowed_conclusions: ['success', 'failure', 'cancelled', 'timed_out'] });
+          }
+          const row = { repository: 'mbvidler-ctrl/assesssuite_migration',
+            application_sha: process.env.APPLICATION_SHA, artifacts };
+          fs.writeFileSync(process.env.SPEC, JSON.stringify(row, null, 2) + '\n', { flag: 'wx', mode: 0o600 });
+          NODE
+          node scripts/github-artifact-admission.mjs --spec "$spec" \
+            --output "$RUNNER_TEMP/resume-effect-artifact-admission.json" --github-output "$GITHUB_OUTPUT"
+
+      - name: Download exact prior completed provider effect
+        if: ${{ steps.admit.outputs.admission_mode != 'fresh' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.resume_effect_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.resume_artifacts.outputs.resume_effect_run_id }}
+          path: ${{ runner.temp }}/prior-provider-canary-effect
+          github-token: ${{ github.token }}
+
+      - name: Download exact existing successful canary artifact
+        if: ${{ steps.admit.outputs.admission_mode == 'resume_success' }}
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.resume_success_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ steps.resume_artifacts.outputs.resume_success_run_id }}
+          path: ${{ runner.temp }}/existing-provider-canary-success
+          github-token: ${{ github.token }}
+
+      - name: Validate exact COMPLETED effect for zero-call reconciliation
+        if: ${{ steps.admit.outputs.admission_mode != 'fresh' }}
+        id: resume_validate
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          MAXIMUM_COST_MICROUSD: ${{ inputs.maximum_cost_microusd }}
+          CANDIDATE_ARTIFACT_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_ARTIFACT_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANDIDATE_RECEIPT_SHA256: ${{ inputs.candidate_receipt_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          PROVIDER_EFFECT_ID: ${{ steps.admit.outputs.provider_effect_id }}
+        run: |
+          set -euo pipefail
+          umask 077
+          prior="$RUNNER_TEMP/prior-provider-canary-effect"
+          expected=$'SHA256SUMS\ncanary-effect-reconciliation.json\ncandidate-artifact-admission.json\ncandidate-artifact-execution-admission.json\nphysio-exact-image-canary.json\nprovider-canary-admission.json\nprovider-canary-started-effect.json'
+          [[ "$(find "$prior" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" == "$expected" ]]
+          if find "$prior" -type l -print -quit | grep -q .; then exit 1; fi
+          (cd "$prior" && sha256sum --check --strict SHA256SUMS)
+          started_sha="$(sha256sum "$prior/provider-canary-started-effect.json" | awk '{print $1}')"
+          effect_sha="$(sha256sum "$prior/canary-effect-reconciliation.json" | awk '{print $1}')"
+          canary_sha="$(sha256sum "$prior/physio-exact-image-canary.json" | awk '{print $1}')"
+          node scripts/physio-exact-image-canary-contract.mjs validate-effect \
+            --receipt "$prior/canary-effect-reconciliation.json" \
+            --application-sha "$APPLICATION_SHA" --provider-effect-id "$PROVIDER_EFFECT_ID" \
+            --started-effect-receipt-sha256 "$started_sha"
+          node scripts/physio-exact-image-canary-contract.mjs validate \
+            --receipt "$prior/physio-exact-image-canary.json" --application-sha "$APPLICATION_SHA" \
+            --immutable-image "$LOCAL_IMAGE_ID" --candidate-archive-sha256 "$ARCHIVE_SHA256" \
+            --maximum-cost-microusd "$MAXIMUM_COST_MICROUSD"
+          PRIOR="$prior" CURRENT="$RUNNER_TEMP/provider-canary-admission" \
+          PROVIDER_EFFECT_ID="$PROVIDER_EFFECT_ID" STARTED_SHA="$started_sha" node --input-type=module <<'NODE'
+          import assert from 'node:assert/strict';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const read = (base, name) => JSON.parse(fs.readFileSync(path.join(base, name), 'utf8'));
+          const prior = process.env.PRIOR;
+          const effect = read(prior, 'canary-effect-reconciliation.json');
+          if (effect.result !== 'COMPLETED' || effect.provider_call_maximum !== 8 ||
+              effect.producer_exit_code !== 0 || effect.provider_effect_id !== process.env.PROVIDER_EFFECT_ID ||
+              effect.started_effect_receipt_sha256 !== process.env.STARTED_SHA ||
+              effect.partial_provider_usage?.calls_succeeded !== 8 ||
+              effect.partial_provider_usage?.usage_complete !== true) {
+            throw new Error('prior provider effect is not exact COMPLETED evidence');
+          }
+          const started = read(prior, 'provider-canary-started-effect.json');
+          if (started.result !== 'STARTED' || started.provider_effect_id !== process.env.PROVIDER_EFFECT_ID ||
+              started.provider_call_maximum !== 8 || started.application_sha !== process.env.APPLICATION_SHA) {
+            throw new Error('prior STARTED effect identity differs');
+          }
+          const originalAdmission = read(prior, 'candidate-artifact-admission.json');
+          const executionAdmission = read(prior, 'candidate-artifact-execution-admission.json');
+          assert.deepEqual(executionAdmission, originalAdmission, 'execution artifact admission differs from original');
+          const currentAdmission = read(process.env.CURRENT, 'candidate-artifact-admission.json');
+          delete originalAdmission.admitted_at;
+          delete currentAdmission.admitted_at;
+          assert.deepEqual(currentAdmission, originalAdmission, 'resumed candidate artifact identity differs');
+          NODE
+          packet="$RUNNER_TEMP/provider-canary-admission"
+          install -m 0600 "$RUNNER_TEMP/resume-effect-artifact-admission.json" \
+            "$packet/resume-effect-artifact-admission.json"
+          for file in canary-effect-reconciliation.json candidate-artifact-admission.json \
+            candidate-artifact-execution-admission.json physio-exact-image-canary.json \
+            provider-canary-admission.json provider-canary-started-effect.json; do
+            install -m 0600 "$prior/$file" "$packet/resume-$file"
+          done
+          echo "resume_canary_receipt_sha256=$canary_sha" >>"$GITHUB_OUTPUT"
+          echo "resume_effect_receipt_sha256=$effect_sha" >>"$GITHUB_OUTPUT"
+          echo "resume_started_effect_receipt_sha256=$started_sha" >>"$GITHUB_OUTPUT"
+
+      - name: Validate exact existing successful canary readback
+        if: ${{ steps.admit.outputs.admission_mode == 'resume_success' }}
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          MAXIMUM_COST_MICROUSD: ${{ inputs.maximum_cost_microusd }}
+          PROVIDER_EFFECT_ID: ${{ steps.admit.outputs.provider_effect_id }}
+          RESUME_CANARY_RECEIPT_SHA256: ${{ steps.resume_validate.outputs.resume_canary_receipt_sha256 }}
+          RESUME_EFFECT_RECEIPT_SHA256: ${{ steps.resume_validate.outputs.resume_effect_receipt_sha256 }}
+          RESUME_STARTED_EFFECT_RECEIPT_SHA256: ${{ steps.resume_validate.outputs.resume_started_effect_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          success="$RUNNER_TEMP/existing-provider-canary-success"
+          effect="$RUNNER_TEMP/prior-provider-canary-effect"
+          expected=$'SHA256SUMS\ncanary-completed-effect-reconciliation.json\ncanary-effect-reconciliation.json\ncandidate-artifact-admission.json\ncandidate-artifact-execution-admission.json\nphysio-exact-image-canary.json\nprovider-canary-admission.json\nprovider-canary-started-effect.json'
+          [[ "$(find "$success" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" == "$expected" ]]
+          if find "$success" -type l -print -quit | grep -q .; then exit 1; fi
+          (cd "$success" && sha256sum --check --strict SHA256SUMS)
+          node scripts/physio-exact-image-canary-contract.mjs validate-success-packet \
+            --packet "$success" --application-sha "$APPLICATION_SHA" \
+            --immutable-image "$LOCAL_IMAGE_ID" \
+            --candidate-archive-sha256 "$ARCHIVE_SHA256" \
+            --canary-receipt-sha256 "$RESUME_CANARY_RECEIPT_SHA256" \
+            --provider-effect-id "$PROVIDER_EFFECT_ID" \
+            --candidate-artifact-id "$CANDIDATE_ARTIFACT_ID" \
+            --candidate-artifact-digest "$CANDIDATE_ARTIFACT_DIGEST" \
+            --candidate-receipt-sha256 "$CANDIDATE_RECEIPT_SHA256" \
+            --capability-intent-id "$CAPABILITY_INTENT_ID" \
+            --authority-reference "$AUTHORITY_REFERENCE" \
+            --maximum-cost-microusd "$MAXIMUM_COST_MICROUSD"
+          for file in canary-effect-reconciliation.json candidate-artifact-admission.json \
+            candidate-artifact-execution-admission.json physio-exact-image-canary.json \
+            provider-canary-admission.json provider-canary-started-effect.json; do
+            [[ "$(sha256sum "$success/$file" | awk '{print $1}')" == \
+              "$(sha256sum "$effect/$file" | awk '{print $1}')" ]]
+          done
+          [[ "$(sha256sum "$success/physio-exact-image-canary.json" | awk '{print $1}')" == "$RESUME_CANARY_RECEIPT_SHA256" ]]
+          [[ "$(sha256sum "$success/canary-effect-reconciliation.json" | awk '{print $1}')" == "$RESUME_EFFECT_RECEIPT_SHA256" ]]
+          [[ "$(sha256sum "$success/provider-canary-started-effect.json" | awk '{print $1}')" == "$RESUME_STARTED_EFFECT_RECEIPT_SHA256" ]]
+          RECEIPT="$success/canary-completed-effect-reconciliation.json" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const row = JSON.parse(fs.readFileSync(process.env.RECEIPT, 'utf8'));
+          const root = path.dirname(process.env.RECEIPT);
+          const sha = (name) => createHash('sha256').update(fs.readFileSync(path.join(root, name))).digest('hex');
+          const expected = {
+            contract_version: 'assesssuite-physio-exact-image-canary-completed-effect/1.0.0',
+            result: 'PASS', application: 'assesssuite-physio-production',
+            application_sha: process.env.APPLICATION_SHA, provider_effect_id: process.env.PROVIDER_EFFECT_ID,
+            provider_call_maximum: 8,
+            started_effect_receipt_sha256: sha('provider-canary-started-effect.json'),
+            effect_reconciliation_receipt_sha256: sha('canary-effect-reconciliation.json'),
+            canary_receipt_sha256: sha('physio-exact-image-canary.json'),
+            provider_canary_admission_receipt_sha256: sha('provider-canary-admission.json'),
+            candidate_artifact_admission_receipt_sha256: sha('candidate-artifact-admission.json'),
+            candidate_artifact_execution_admission_receipt_sha256:
+              sha('candidate-artifact-execution-admission.json'),
+          };
+          for (const [key, value] of Object.entries(expected)) {
+            if (row[key] !== value) throw new Error(`completed effect ${key} differs`);
+          }
+          if (!/^\d{4}-\d{2}-\d{2}T/.test(row.reconciled_at || '') ||
+              Object.keys(row).length !== Object.keys(expected).length + 1) {
+            throw new Error('completed effect timestamp or key set differs');
+          }
+          NODE
+          packet="$RUNNER_TEMP/provider-canary-admission"
+          for file in canary-completed-effect-reconciliation.json canary-effect-reconciliation.json \
+            candidate-artifact-admission.json candidate-artifact-execution-admission.json \
+            physio-exact-image-canary.json provider-canary-admission.json \
+            provider-canary-started-effect.json; do
+            install -m 0600 "$success/$file" "$packet/success-$file"
+          done
+
+      - name: Seal exact provider-canary admission packet
+        shell: bash
+        run: |
+          set -euo pipefail
+          packet="$RUNNER_TEMP/provider-canary-admission"
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+
+      - name: Upload credential-free provider-canary admission
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-exact-image-canary-admission-${{ steps.admit.outputs.provider_effect_hex }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/provider-canary-admission
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+  start:
+    name: Persist durable provider-canary STARTED effect
+    needs: admit
+    if: ${{ needs.admit.outputs.admission_mode == 'fresh' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: physio-production
+    outputs:
+      started_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      started_artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
+      started_effect_receipt_sha256: ${{ steps.start.outputs.started_effect_receipt_sha256 }}
+    steps:
+      - name: Refuse workflow rerun before STARTED publication
+        shell: bash
+        env:
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          [[ "$RUN_ATTEMPT" == '1' ]]
+
+      - name: Check out exact STARTED packet source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact provider-canary admission
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.admit.outputs.admission_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.run_id }}
+          path: ${{ runner.temp }}/provider-canary-admission
+          github-token: ${{ github.token }}
+
+      - name: Verify admission and write STARTED effect
+        id: start
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_ARTIFACT_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_ARTIFACT_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANDIDATE_RECEIPT_SHA256: ${{ inputs.candidate_receipt_sha256 }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA256: ${{ inputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ inputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_MANIFEST_SHA256: ${{ inputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          PROVIDER_TASK_SET: ${{ inputs.provider_task_set }}
+          MAXIMUM_COST_MICROUSD: ${{ inputs.maximum_cost_microusd }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          PROVIDER_EFFECT_ID: ${{ needs.admit.outputs.provider_effect_id }}
+          AUDIO_FIXTURE_SHA256: ${{ needs.admit.outputs.audio_fixture_sha256 }}
+          DOCUMENT_FIXTURE_SHA256: ${{ needs.admit.outputs.document_fixture_sha256 }}
+          ADMISSION_RECEIPT_SHA256: ${{ needs.admit.outputs.admission_receipt_sha256 }}
+          SOURCE_ADMISSION_RECEIPT_SHA256: ${{ needs.admit.outputs.candidate_artifact_admission_receipt_sha256 }}
+          CANDIDATE_SOURCE_RUN_ID: ${{ needs.admit.outputs.candidate_run_id }}
+          GITHUB_RUN_ID_VALUE: ${{ github.run_id }}
+          GITHUB_RUN_ATTEMPT_VALUE: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          umask 077
+          admission="$RUNNER_TEMP/provider-canary-admission"
+          expected=$'SHA256SUMS\ncandidate-artifact-admission.json\nprovider-canary-admission.json'
+          [[ "$(find "$admission" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" == "$expected" ]]
+          if find "$admission" -type l -print -quit | grep -q .; then exit 1; fi
+          (cd "$admission" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$admission/provider-canary-admission.json" | awk '{print $1}')" == "$ADMISSION_RECEIPT_SHA256" ]]
+          [[ "$(sha256sum "$admission/candidate-artifact-admission.json" | awk '{print $1}')" == "$SOURCE_ADMISSION_RECEIPT_SHA256" ]]
+          ADMISSION="$admission/provider-canary-admission.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.ADMISSION, 'utf8'));
+          const expected = {
+            contract_version: 'assesssuite-physio-exact-image-canary-admission/1.0.0', result: 'PASS',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            candidate_artifact_id: Number(process.env.CANDIDATE_ARTIFACT_ID),
+            candidate_artifact_digest: process.env.CANDIDATE_ARTIFACT_DIGEST,
+            candidate_receipt_sha256: process.env.CANDIDATE_RECEIPT_SHA256,
+            candidate_archive_sha256: process.env.ARCHIVE_SHA256,
+            oci_archive_sha256: process.env.OCI_ARCHIVE_SHA256,
+            oci_manifest_digest: process.env.OCI_MANIFEST_DIGEST,
+            oci_descriptor_manifest_sha256: process.env.OCI_DESCRIPTOR_MANIFEST_SHA256,
+            local_image_id: process.env.LOCAL_IMAGE_ID, provider_task_set: process.env.PROVIDER_TASK_SET,
+            provider_call_maximum: 8, maximum_cost_microusd: Number(process.env.MAXIMUM_COST_MICROUSD),
+            capability_intent_id: process.env.CAPABILITY_INTENT_ID, authority_reference: process.env.AUTHORITY_REFERENCE,
+            audio_fixture_sha256: process.env.AUDIO_FIXTURE_SHA256,
+            document_fixture_sha256: process.env.DOCUMENT_FIXTURE_SHA256,
+            provider_effect_id: process.env.PROVIDER_EFFECT_ID,
+            candidate_source_run_id: Number(process.env.CANDIDATE_SOURCE_RUN_ID),
+            candidate_artifact_admission_receipt_sha256: process.env.SOURCE_ADMISSION_RECEIPT_SHA256,
+          };
+          for (const [key, value] of Object.entries(expected)) {
+            if (row[key] !== value) throw new Error(`provider-canary admission ${key} differs`);
+          }
+          if (!/^\d{4}-\d{2}-\d{2}T/.test(row.admitted_at || '')) throw new Error('admission timestamp differs');
+          NODE
+          packet="$RUNNER_TEMP/provider-canary-started"
+          install -d -m 0700 "$packet"
+          install -m 0600 "$admission/provider-canary-admission.json" "$packet/provider-canary-admission.json"
+          install -m 0600 "$admission/candidate-artifact-admission.json" "$packet/candidate-artifact-admission.json"
+          OUTPUT="$packet/provider-canary-started-effect.json" GITHUB_OUTPUT_FILE="$GITHUB_OUTPUT" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const row = {
+            contract_version: 'assesssuite-physio-exact-image-canary-effect/1.0.0',
+            result: 'STARTED', application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            provider_effect_id: process.env.PROVIDER_EFFECT_ID,
+            candidate_artifact_id: Number(process.env.CANDIDATE_ARTIFACT_ID),
+            candidate_artifact_digest: process.env.CANDIDATE_ARTIFACT_DIGEST,
+            candidate_receipt_sha256: process.env.CANDIDATE_RECEIPT_SHA256,
+            candidate_archive_sha256: process.env.ARCHIVE_SHA256,
+            oci_archive_sha256: process.env.OCI_ARCHIVE_SHA256,
+            oci_manifest_digest: process.env.OCI_MANIFEST_DIGEST,
+            oci_descriptor_manifest_sha256: process.env.OCI_DESCRIPTOR_MANIFEST_SHA256,
+            local_image_id: process.env.LOCAL_IMAGE_ID,
+            provider_task_set: process.env.PROVIDER_TASK_SET,
+            provider_call_maximum: 8,
+            maximum_cost_microusd: Number(process.env.MAXIMUM_COST_MICROUSD),
+            capability_intent_id: process.env.CAPABILITY_INTENT_ID,
+            authority_reference: process.env.AUTHORITY_REFERENCE,
+            audio_fixture_sha256: process.env.AUDIO_FIXTURE_SHA256,
+            document_fixture_sha256: process.env.DOCUMENT_FIXTURE_SHA256,
+            candidate_admission_receipt_sha256: process.env.ADMISSION_RECEIPT_SHA256,
+            candidate_artifact_admission_receipt_sha256: process.env.SOURCE_ADMISSION_RECEIPT_SHA256,
+            github_run_id: Number(process.env.GITHUB_RUN_ID_VALUE),
+            github_run_attempt: Number(process.env.GITHUB_RUN_ATTEMPT_VALUE),
+            started_at: new Date().toISOString(),
+          };
+          const bytes = `${JSON.stringify(row, null, 2)}\n`;
+          fs.writeFileSync(process.env.OUTPUT, bytes, { flag: 'wx', mode: 0o600 });
+          fs.appendFileSync(process.env.GITHUB_OUTPUT_FILE,
+            `started_effect_receipt_sha256=${createHash('sha256').update(bytes).digest('hex')}\n`);
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+
+      - name: Upload durable provider-canary STARTED effect
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-exact-image-canary-started-${{ needs.admit.outputs.provider_effect_hex }}
+          path: ${{ runner.temp }}/provider-canary-started
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+  canary:
+    name: Run real providers in one disposable local container
+    needs: [admit, start]
+    if: ${{ needs.admit.outputs.admission_mode == 'fresh' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    environment: physio-production
+    outputs:
+      canary_artifact_id: ${{ steps.upload_success.outputs.artifact-id }}
+      canary_artifact_digest: sha256:${{ steps.upload_success.outputs.artifact-digest }}
+      canary_receipt_sha256: ${{ steps.seal_effect.outputs.canary_receipt_sha256 }}
+      capability_binding_sha256: ${{ needs.admit.outputs.capability_binding_sha256 }}
+    steps:
+      - name: Validate exact local-canary dispatch
+        shell: bash
+        env:
+          TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_ARTIFACT_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_ARTIFACT_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANDIDATE_RECEIPT_SHA256: ${{ inputs.candidate_receipt_sha256 }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA256: ${{ inputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ inputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_MANIFEST_SHA256: ${{ inputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          PROVIDER_TASK_SET: ${{ inputs.provider_task_set }}
+          MAXIMUM_COST_MICROUSD: ${{ inputs.maximum_cost_microusd }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+          EVENT_REF: ${{ github.ref }}
+          EVENT_SHA: ${{ github.sha }}
+          WORKFLOW_SHA: ${{ github.workflow_sha }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          REPOSITORY: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+          TRIGGERING_ACTOR: ${{ github.triggering_actor }}
+          IS_FORK: ${{ github.event.repository.fork }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          [[ "$REPOSITORY" == 'mbvidler-ctrl/assesssuite_migration' ]]
+          [[ "$ACTOR" == 'mbvidler-ctrl' && "$TRIGGERING_ACTOR" == 'mbvidler-ctrl' ]]
+          [[ "$IS_FORK" == 'false' && "$EVENT_REF" == 'refs/heads/main' ]]
+          [[ "$RUN_ATTEMPT" == '1' ]]
+          [[ "$WORKFLOW_REF" == 'mbvidler-ctrl/assesssuite_migration/.github/workflows/physio-production-exact-image-canary.yml@refs/heads/main' ]]
+          [[ "$TRUSTED_WORKFLOW_SHA" =~ ^[0-9a-f]{40}$ && "$APPLICATION_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$EVENT_SHA" == "$TRUSTED_WORKFLOW_SHA" && "$WORKFLOW_SHA" == "$TRUSTED_WORKFLOW_SHA" ]]
+          [[ "$CANDIDATE_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$CANDIDATE_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$CANDIDATE_RECEIPT_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$ARCHIVE_SHA256" =~ ^sha256:[0-9a-f]{64}$ && "$LOCAL_IMAGE_ID" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$OCI_ARCHIVE_SHA256" =~ ^sha256:[0-9a-f]{64}$ && "$OCI_MANIFEST_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
+          [[ "$OCI_DESCRIPTOR_MANIFEST_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$PROVIDER_TASK_SET" == 'initial_assessment_summary,soap_note,management_plan,progress_comparison,referrer_update,discharge_summary,transcription,extraction' ]]
+          [[ "$MAXIMUM_COST_MICROUSD" =~ ^[1-9][0-9]*$ && "$MAXIMUM_COST_MICROUSD" -le 5000000 ]]
+          [[ "$CAPABILITY_INTENT_ID" =~ ^[A-Za-z0-9._:-]{1,160}$ && "$AUTHORITY_REFERENCE" =~ ^[A-Za-z0-9._:/-]{1,240}$ ]]
+          [[ "$CONFIRMATION" == 'CANARY assesssuite-physio-production LOCAL EXACT IMAGE' ]]
+
+      - name: Check out exact validator source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download durable provider-canary STARTED effect
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.start.outputs.started_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.run_id }}
+          path: ${{ runner.temp }}/provider-canary-started
+          github-token: ${{ github.token }}
+
+      - name: Verify durable provider-canary STARTED boundary
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_ARTIFACT_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_ARTIFACT_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANDIDATE_RECEIPT_SHA256: ${{ inputs.candidate_receipt_sha256 }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          PROVIDER_TASK_SET: ${{ inputs.provider_task_set }}
+          MAXIMUM_COST_MICROUSD: ${{ inputs.maximum_cost_microusd }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          PROVIDER_EFFECT_ID: ${{ needs.admit.outputs.provider_effect_id }}
+          ADMISSION_RECEIPT_SHA256: ${{ needs.admit.outputs.admission_receipt_sha256 }}
+          SOURCE_ADMISSION_RECEIPT_SHA256: ${{ needs.admit.outputs.candidate_artifact_admission_receipt_sha256 }}
+          STARTED_EFFECT_RECEIPT_SHA256: ${{ needs.start.outputs.started_effect_receipt_sha256 }}
+          GITHUB_RUN_ID_VALUE: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          started="$RUNNER_TEMP/provider-canary-started"
+          expected=$'SHA256SUMS\ncandidate-artifact-admission.json\nprovider-canary-admission.json\nprovider-canary-started-effect.json'
+          [[ "$(find "$started" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" == "$expected" ]]
+          if find "$started" -type l -print -quit | grep -q .; then exit 1; fi
+          (cd "$started" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$started/provider-canary-started-effect.json" | awk '{print $1}')" == "$STARTED_EFFECT_RECEIPT_SHA256" ]]
+          [[ "$(sha256sum "$started/provider-canary-admission.json" | awk '{print $1}')" == "$ADMISSION_RECEIPT_SHA256" ]]
+          [[ "$(sha256sum "$started/candidate-artifact-admission.json" | awk '{print $1}')" == "$SOURCE_ADMISSION_RECEIPT_SHA256" ]]
+          STARTED="$started/provider-canary-started-effect.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.STARTED, 'utf8'));
+          const expected = {
+            contract_version: 'assesssuite-physio-exact-image-canary-effect/1.0.0', result: 'STARTED',
+            application: 'assesssuite-physio-production', application_sha: process.env.APPLICATION_SHA,
+            provider_effect_id: process.env.PROVIDER_EFFECT_ID,
+            candidate_artifact_id: Number(process.env.CANDIDATE_ARTIFACT_ID),
+            candidate_artifact_digest: process.env.CANDIDATE_ARTIFACT_DIGEST,
+            candidate_receipt_sha256: process.env.CANDIDATE_RECEIPT_SHA256,
+            candidate_archive_sha256: process.env.ARCHIVE_SHA256,
+            local_image_id: process.env.LOCAL_IMAGE_ID,
+            provider_task_set: process.env.PROVIDER_TASK_SET, provider_call_maximum: 8,
+            maximum_cost_microusd: Number(process.env.MAXIMUM_COST_MICROUSD),
+            capability_intent_id: process.env.CAPABILITY_INTENT_ID,
+            authority_reference: process.env.AUTHORITY_REFERENCE,
+            candidate_admission_receipt_sha256: process.env.ADMISSION_RECEIPT_SHA256,
+            candidate_artifact_admission_receipt_sha256: process.env.SOURCE_ADMISSION_RECEIPT_SHA256,
+            github_run_id: Number(process.env.GITHUB_RUN_ID_VALUE), github_run_attempt: 1,
+          };
+          for (const [key, value] of Object.entries(expected)) {
+            if (row[key] !== value) throw new Error(`provider-canary STARTED ${key} differs`);
+          }
+          if (!/^\d{4}-\d{2}-\d{2}T/.test(row.started_at || '') ||
+              row.started_effect_receipt_sha256 !== undefined) {
+            throw new Error('provider-canary STARTED timestamp or self-reference differs');
+          }
+          NODE
+
+      - name: Download exact immutable candidate
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ inputs.candidate_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ needs.admit.outputs.candidate_run_id }}
+          path: ${{ runner.temp }}/physio-candidate
+          github-token: ${{ github.token }}
+
+      - name: Admit sealed candidate and load exact local image
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          CANDIDATE_RECEIPT_SHA256: ${{ inputs.candidate_receipt_sha256 }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          OCI_ARCHIVE_SHA256: ${{ inputs.oci_archive_sha256 }}
+          OCI_MANIFEST_DIGEST: ${{ inputs.oci_manifest_digest }}
+          OCI_DESCRIPTOR_MANIFEST_SHA256: ${{ inputs.oci_descriptor_manifest_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+        run: |
+          set -euo pipefail
+          candidate="$RUNNER_TEMP/physio-candidate"
+          [[ -f "$candidate/SHA256SUMS" && ! -L "$candidate/SHA256SUMS" ]]
+          if find "$candidate" -type l -print -quit | grep -q .; then exit 1; fi
+          if find "$candidate" -mindepth 1 -type d -print -quit | grep -q .; then exit 1; fi
+          (cd "$candidate" && sha256sum --check --strict SHA256SUMS)
+          listed="$(awk '{ name=$2; sub(/^\*/, "", name); print name }' "$candidate/SHA256SUMS" | LC_ALL=C sort)"
+          actual="$(find "$candidate" -mindepth 1 -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | LC_ALL=C sort)"
+          [[ -n "$listed" && "$listed" == "$actual" ]]
+          for file in candidate-build-receipt.json candidate-image.tar.gz candidate-image.oci.tar.gz candidate-oci-descriptors.json image-inspect.json physio-sentry-release.json provider-release-readback.json; do
+            [[ -f "$candidate/$file" && ! -L "$candidate/$file" ]]
+          done
+          [[ "$(sha256sum "$candidate/candidate-build-receipt.json" | awk '{print $1}')" == "$CANDIDATE_RECEIPT_SHA256" ]]
+          [[ "sha256:$(sha256sum "$candidate/candidate-image.tar.gz" | awk '{print $1}')" == "$ARCHIVE_SHA256" ]]
+          [[ "sha256:$(sha256sum "$candidate/candidate-image.oci.tar.gz" | awk '{print $1}')" == "$OCI_ARCHIVE_SHA256" ]]
+          [[ "$(sha256sum "$candidate/candidate-oci-descriptors.json" | awk '{print $1}')" == "$OCI_DESCRIPTOR_MANIFEST_SHA256" ]]
+          RECEIPT="$candidate/candidate-build-receipt.json" APPLICATION_SHA="$APPLICATION_SHA" \
+          ARCHIVE_SHA="$ARCHIVE_SHA256" OCI_ARCHIVE_SHA="$OCI_ARCHIVE_SHA256" OCI_MANIFEST_DIGEST="$OCI_MANIFEST_DIGEST" \
+          OCI_DESCRIPTOR_SHA="$OCI_DESCRIPTOR_MANIFEST_SHA256" IMAGE_ID="$LOCAL_IMAGE_ID" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.RECEIPT, 'utf8'));
+          if (row.contract_version !== 'assesssuite-physio-candidate-build/3.0.0' || row.result !== 'PASS' ||
+              row.application !== 'assesssuite-physio-production' || row.application_sha !== process.env.APPLICATION_SHA ||
+              row.profession_id !== 'physio' || row.archive_sha256 !== process.env.ARCHIVE_SHA ||
+              row.oci_archive_sha256 !== process.env.OCI_ARCHIVE_SHA ||
+              row.oci_manifest_digest !== process.env.OCI_MANIFEST_DIGEST ||
+              row.oci_descriptor_manifest_sha256 !== process.env.OCI_DESCRIPTOR_SHA ||
+              row.local_image_id !== process.env.IMAGE_ID || row.no_fly_resource_created !== true ||
+              row.sentry_release?.contract_version !== 'assesssuite-physio-sentry-release/1.0.0' ||
+              !/^[0-9a-f]{64}$/.test(row.sentry_release?.receipt_sha256 || '')) {
+            throw new Error('local-canary candidate receipt differs');
+          }
+          NODE
+          gzip -dc "$candidate/candidate-image.tar.gz" | docker load >/dev/null
+          [[ "$(docker image inspect "assesssuite-physio-candidate:$APPLICATION_SHA" --format '{{.Id}}')" == "$LOCAL_IMAGE_ID" ]]
+          [[ "$(docker image inspect "$LOCAL_IMAGE_ID" --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}')" == "$APPLICATION_SHA" ]]
+
+      - name: Run exact local image provider canary
+        id: run_canary
+        shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          RUN_PHYSIO_EXACT_IMAGE_CANARY: I_ACKNOWLEDGE_THIS_USES_ONLY_SYNTHETIC_FIXTURES_IN_A_DISPOSABLE_NO_SERVICE_NO_VOLUME_NO_DNS_CONTAINER
+          ALLOW_PAID_PROVIDER_PROBE: '1'
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          PROVIDER_TASK_SET: ${{ inputs.provider_task_set }}
+          MAXIMUM_COST_MICROUSD: ${{ inputs.maximum_cost_microusd }}
+          PROVIDER_EFFECT_ID: ${{ needs.admit.outputs.provider_effect_id }}
+          STARTED_EFFECT_RECEIPT_SHA256: ${{ needs.start.outputs.started_effect_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          set +x
+          umask 077
+          [[ -n "$OPENAI_API_KEY" && -z "${SENTRY_AUTH_TOKEN:-}" && -z "${SENTRY_DSN:-}" ]]
+          receipt_packet="$RUNNER_TEMP/physio-canary-receipt"
+          effect_packet="$RUNNER_TEMP/physio-canary-effect"
+          private="$RUNNER_TEMP/physio-canary-private"
+          install -d -m 0700 "$receipt_packet" "$effect_packet" "$private"
+          install -m 0600 "$RUNNER_TEMP/provider-canary-started/provider-canary-started-effect.json" \
+            "$effect_packet/provider-canary-started-effect.json"
+          install -m 0600 "$RUNNER_TEMP/provider-canary-started/provider-canary-admission.json" \
+            "$effect_packet/provider-canary-admission.json"
+          install -m 0600 "$RUNNER_TEMP/provider-canary-started/candidate-artifact-admission.json" \
+            "$effect_packet/candidate-artifact-admission.json"
+          install -m 0600 "$RUNNER_TEMP/provider-canary-started/candidate-artifact-admission.json" \
+            "$effect_packet/candidate-artifact-execution-admission.json"
+          printf '%s\n' '125' >"$private/producer-exit-code"
+          # docker run --detach --rm, topology admission, captured-ID cleanup,
+          # and Docker-volume reconciliation are owned by this sealed producer.
+          set +e
+          node scripts/physio-exact-image-canary.mjs produce-local \
+            --application-sha "$APPLICATION_SHA" \
+            --immutable-image "$LOCAL_IMAGE_ID" \
+            --candidate-archive-sha256 "$ARCHIVE_SHA256" \
+            --container-name "assesssuite-physio-canary-${APPLICATION_SHA:0:12}" \
+            --ttl-seconds 1800 \
+            --provider-task-set "$PROVIDER_TASK_SET" \
+            --maximum-cost-microusd "$MAXIMUM_COST_MICROUSD" \
+            --provider-effect-id "$PROVIDER_EFFECT_ID" \
+            --started-effect-receipt-sha256 "$STARTED_EFFECT_RECEIPT_SHA256" \
+            --effect-ledger "$effect_packet/canary-effect-reconciliation.json" \
+            --output "$receipt_packet/physio-exact-image-canary.json" \
+            >"$private/producer.stdout" 2>"$private/producer.stderr"
+          producer_status=$?
+          set -e
+          printf '%s\n' "$producer_status" >"$private/producer-exit-code"
+
+      - name: Seal content-free provider effect evidence
+        id: seal_effect
+        if: ${{ always() }}
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          MAXIMUM_COST_MICROUSD: ${{ inputs.maximum_cost_microusd }}
+          CANDIDATE_ARTIFACT_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_ARTIFACT_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANDIDATE_RECEIPT_SHA256: ${{ inputs.candidate_receipt_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          PROVIDER_EFFECT_ID: ${{ needs.admit.outputs.provider_effect_id }}
+          STARTED_EFFECT_RECEIPT_SHA256: ${{ needs.start.outputs.started_effect_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          receipt_packet="$RUNNER_TEMP/physio-canary-receipt"
+          effect_packet="$RUNNER_TEMP/physio-canary-effect"
+          private="$RUNNER_TEMP/physio-canary-private"
+          install -d -m 0700 "$receipt_packet" "$effect_packet" "$private"
+          if [[ ! -e "$private/producer-exit-code" ]]; then
+            printf '%s\n' '125' >"$private/producer-exit-code"
+          fi
+          [[ -f "$private/producer-exit-code" && ! -L "$private/producer-exit-code" ]]
+          started_packet="$RUNNER_TEMP/provider-canary-started"
+          for file in provider-canary-started-effect.json provider-canary-admission.json \
+            candidate-artifact-admission.json; do
+            if [[ -f "$started_packet/$file" && ! -L "$started_packet/$file" && ! -e "$effect_packet/$file" ]]; then
+              install -m 0600 "$started_packet/$file" "$effect_packet/$file"
+            fi
+          done
+          if [[ -f "$started_packet/candidate-artifact-admission.json" && \
+                ! -e "$effect_packet/candidate-artifact-execution-admission.json" ]]; then
+            install -m 0600 "$started_packet/candidate-artifact-admission.json" \
+              "$effect_packet/candidate-artifact-execution-admission.json"
+          fi
+          producer_status="$(tr -d '\r\n' <"$private/producer-exit-code")"
+          [[ "$producer_status" =~ ^[0-9]{1,3}$ ]]
+          touch "$private/producer.stdout" "$private/producer.stderr"
+          [[ -f "$private/producer.stdout" && ! -L "$private/producer.stdout" ]]
+          [[ -f "$private/producer.stderr" && ! -L "$private/producer.stderr" ]]
+          stdout_sha="sha256:$(sha256sum "$private/producer.stdout" | awk '{print $1}')"
+          stderr_sha="sha256:$(sha256sum "$private/producer.stderr" | awk '{print $1}')"
+          ledger="$effect_packet/canary-effect-reconciliation.json"
+          if [[ ! -f "$ledger" ]]; then
+            [[ "$producer_status" != '0' ]] || producer_status=125
+            OUTPUT="$ledger" PRODUCER_EXIT_CODE="$producer_status" PRODUCER_STDOUT_SHA256="$stdout_sha" \
+            PRODUCER_STDERR_SHA256="$stderr_sha" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          const row = {
+            contract_version: 'assesssuite-physio-exact-image-canary-effect/1.0.0',
+            result: 'STARTED_UNRESOLVED', application: 'assesssuite-physio-production',
+            application_sha: process.env.APPLICATION_SHA, provider_effect_id: process.env.PROVIDER_EFFECT_ID,
+            candidate_archive_sha256: process.env.ARCHIVE_SHA256, local_image_id: process.env.LOCAL_IMAGE_ID,
+            provider_call_maximum: 8, maximum_cost_microusd: Number(process.env.MAXIMUM_COST_MICROUSD),
+            started_effect_receipt_sha256: process.env.STARTED_EFFECT_RECEIPT_SHA256,
+            partial_provider_calls: [],
+            partial_provider_request_id_hashes: [],
+            partial_provider_usage: {
+              usage_complete: false, calls_succeeded: null,
+              actual_cost_microusd: null, last_observed_call_ordinal: null,
+            },
+            producer_exit_code: Number(process.env.PRODUCER_EXIT_CODE),
+            producer_stdout_sha256: process.env.PRODUCER_STDOUT_SHA256,
+            producer_stderr_sha256: process.env.PRODUCER_STDERR_SHA256,
+            error_receipt_sha256: `sha256:${createHash('sha256').update('provider runner terminated before terminal ledger').digest('hex')}`,
+            completed_at: new Date().toISOString(),
+          };
+          fs.writeFileSync(process.env.OUTPUT, `${JSON.stringify(row, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+          NODE
+          fi
+          LEDGER="$ledger" EXPECTED_STDOUT_SHA="$stdout_sha" EXPECTED_STDERR_SHA="$stderr_sha" \
+          EXPECTED_EXIT="$producer_status" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = JSON.parse(fs.readFileSync(process.env.LEDGER, 'utf8'));
+          if (row.producer_exit_code !== Number(process.env.EXPECTED_EXIT) ||
+              row.producer_stdout_sha256 !== process.env.EXPECTED_STDOUT_SHA ||
+              row.producer_stderr_sha256 !== process.env.EXPECTED_STDERR_SHA) {
+            throw new Error('provider runner transcript or exit receipt differs');
+          }
+          NODE
+          rm -f "$private/producer.stdout" "$private/producer.stderr"
+          node scripts/physio-exact-image-canary-contract.mjs validate-effect \
+            --receipt "$ledger" \
+            --application-sha "$APPLICATION_SHA" \
+            --provider-effect-id "$PROVIDER_EFFECT_ID" \
+            --started-effect-receipt-sha256 "$STARTED_EFFECT_RECEIPT_SHA256"
+          result="$(LEDGER="$ledger" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          process.stdout.write(JSON.parse(fs.readFileSync(process.env.LEDGER, 'utf8')).result);
+          NODE
+          )"
+          if [[ "$producer_status" == '0' ]]; then
+            [[ "$result" == 'COMPLETED' ]]
+            node scripts/physio-exact-image-canary-contract.mjs validate \
+            --receipt "$receipt_packet/physio-exact-image-canary.json" \
+            --application-sha "$APPLICATION_SHA" \
+            --immutable-image "$LOCAL_IMAGE_ID" \
+            --candidate-archive-sha256 "$ARCHIVE_SHA256" \
+            --maximum-cost-microusd "$MAXIMUM_COST_MICROUSD"
+            canary_sha="$(sha256sum "$receipt_packet/physio-exact-image-canary.json" | awk '{print $1}')"
+            install -m 0600 "$receipt_packet/physio-exact-image-canary.json" \
+              "$effect_packet/physio-exact-image-canary.json"
+            echo "canary_receipt_sha256=$canary_sha" >>"$GITHUB_OUTPUT"
+          else
+            [[ "$result" == 'STARTED_UNRESOLVED' ]]
+            [[ ! -e "$receipt_packet/physio-exact-image-canary.json" ]]
+            echo 'canary_receipt_sha256=' >>"$GITHUB_OUTPUT"
+          fi
+          echo "producer_exit_code=$producer_status" >>"$GITHUB_OUTPUT"
+          (cd "$effect_packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          if [[ "$producer_status" == '0' ]]; then
+            install -m 0600 "$effect_packet/canary-effect-reconciliation.json" \
+              "$receipt_packet/canary-effect-reconciliation.json"
+            install -m 0600 "$effect_packet/provider-canary-started-effect.json" \
+              "$receipt_packet/provider-canary-started-effect.json"
+            install -m 0600 "$effect_packet/provider-canary-admission.json" \
+              "$receipt_packet/provider-canary-admission.json"
+            install -m 0600 "$effect_packet/candidate-artifact-admission.json" \
+              "$receipt_packet/candidate-artifact-admission.json"
+            install -m 0600 "$effect_packet/candidate-artifact-execution-admission.json" \
+              "$receipt_packet/candidate-artifact-execution-admission.json"
+            PACKET="$receipt_packet" OUTPUT="$receipt_packet/canary-completed-effect-reconciliation.json" \
+            PROVIDER_EFFECT_ID="$PROVIDER_EFFECT_ID" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const sha = (name) => createHash('sha256').update(
+            fs.readFileSync(path.join(process.env.PACKET, name)),
+          ).digest('hex');
+          const row = {
+            contract_version: 'assesssuite-physio-exact-image-canary-completed-effect/1.0.0',
+            result: 'PASS', application: 'assesssuite-physio-production',
+            application_sha: process.env.APPLICATION_SHA,
+            provider_effect_id: process.env.PROVIDER_EFFECT_ID,
+            provider_call_maximum: 8,
+            started_effect_receipt_sha256: sha('provider-canary-started-effect.json'),
+            effect_reconciliation_receipt_sha256: sha('canary-effect-reconciliation.json'),
+            canary_receipt_sha256: sha('physio-exact-image-canary.json'),
+            provider_canary_admission_receipt_sha256: sha('provider-canary-admission.json'),
+            candidate_artifact_admission_receipt_sha256: sha('candidate-artifact-admission.json'),
+            candidate_artifact_execution_admission_receipt_sha256:
+              sha('candidate-artifact-execution-admission.json'),
+            reconciled_at: new Date().toISOString(),
+          };
+          fs.writeFileSync(process.env.OUTPUT, `${JSON.stringify(row, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+          NODE
+            (cd "$receipt_packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+            node scripts/physio-exact-image-canary-contract.mjs validate-success-packet \
+              --packet "$receipt_packet" --application-sha "$APPLICATION_SHA" \
+              --immutable-image "$LOCAL_IMAGE_ID" \
+              --candidate-archive-sha256 "$ARCHIVE_SHA256" \
+              --canary-receipt-sha256 "$canary_sha" \
+              --provider-effect-id "$PROVIDER_EFFECT_ID" \
+              --candidate-artifact-id "$CANDIDATE_ARTIFACT_ID" \
+              --candidate-artifact-digest "$CANDIDATE_ARTIFACT_DIGEST" \
+              --candidate-receipt-sha256 "$CANDIDATE_RECEIPT_SHA256" \
+              --capability-intent-id "$CAPABILITY_INTENT_ID" \
+              --authority-reference "$AUTHORITY_REFERENCE" \
+              --maximum-cost-microusd "$MAXIMUM_COST_MICROUSD"
+          fi
+
+      - name: Upload bounded exact-image canary effect evidence
+        if: ${{ always() }}
+        id: upload_effect
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-exact-image-canary-effect-${{ needs.admit.outputs.provider_effect_hex }}
+          path: ${{ runner.temp }}/physio-canary-effect
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+      - name: Upload successful bounded exact-image canary receipt
+        if: ${{ steps.seal_effect.outputs.producer_exit_code == '0' }}
+        id: upload_success
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-exact-image-canary-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/physio-canary-receipt
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+      - name: Enforce exact-image provider canary terminal result
+        if: ${{ always() }}
+        shell: bash
+        env:
+          PRODUCER_EXIT_CODE: ${{ steps.seal_effect.outputs.producer_exit_code }}
+          EFFECT_UPLOAD_OUTCOME: ${{ steps.upload_effect.outcome }}
+          SUCCESS_UPLOAD_OUTCOME: ${{ steps.upload_success.outcome }}
+        run: |
+          set -euo pipefail
+          [[ "$EFFECT_UPLOAD_OUTCOME" == 'success' ]]
+          [[ "$PRODUCER_EXIT_CODE" == '0' ]]
+          [[ "$SUCCESS_UPLOAD_OUTCOME" == 'success' ]]
+
+  reconcile:
+    name: Reconcile exact completed effect without another provider call
+    needs: admit
+    if: ${{ needs.admit.outputs.admission_mode == 'resume_completed' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: physio-production
+    outputs:
+      canary_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      canary_artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
+      canary_receipt_sha256: ${{ needs.admit.outputs.resume_canary_receipt_sha256 }}
+      capability_binding_sha256: ${{ needs.admit.outputs.capability_binding_sha256 }}
+    steps:
+      - name: Refuse workflow rerun before zero-call reconciliation
+        shell: bash
+        env:
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          [[ "$RUN_ATTEMPT" == '1' ]]
+
+      - name: Check out exact reconciliation source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact completed-effect admission packet
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.admit.outputs.admission_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.run_id }}
+          path: ${{ runner.temp }}/provider-canary-resume-admission
+          github-token: ${{ github.token }}
+
+      - name: Revalidate and assemble exact successful receipt with zero paid calls
+        id: reconcile
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          ARCHIVE_SHA256: ${{ inputs.archive_sha256 }}
+          LOCAL_IMAGE_ID: ${{ inputs.local_image_id }}
+          MAXIMUM_COST_MICROUSD: ${{ inputs.maximum_cost_microusd }}
+          CANDIDATE_ARTIFACT_ID: ${{ inputs.candidate_artifact_id }}
+          CANDIDATE_ARTIFACT_DIGEST: ${{ inputs.candidate_artifact_digest }}
+          CANDIDATE_RECEIPT_SHA256: ${{ inputs.candidate_receipt_sha256 }}
+          CAPABILITY_INTENT_ID: ${{ inputs.capability_intent_id }}
+          AUTHORITY_REFERENCE: ${{ inputs.authority_reference }}
+          PROVIDER_EFFECT_ID: ${{ needs.admit.outputs.provider_effect_id }}
+          ADMISSION_RECEIPT_SHA256: ${{ needs.admit.outputs.admission_receipt_sha256 }}
+          RESUME_CANARY_RECEIPT_SHA256: ${{ needs.admit.outputs.resume_canary_receipt_sha256 }}
+          RESUME_EFFECT_RECEIPT_SHA256: ${{ needs.admit.outputs.resume_effect_receipt_sha256 }}
+          RESUME_STARTED_EFFECT_RECEIPT_SHA256: ${{ needs.admit.outputs.resume_started_effect_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          admission="$RUNNER_TEMP/provider-canary-resume-admission"
+          expected=$'SHA256SUMS\ncandidate-artifact-admission.json\nprovider-canary-admission.json\nresume-canary-effect-reconciliation.json\nresume-candidate-artifact-admission.json\nresume-candidate-artifact-execution-admission.json\nresume-effect-artifact-admission.json\nresume-physio-exact-image-canary.json\nresume-provider-canary-admission.json\nresume-provider-canary-started-effect.json'
+          [[ "$(find "$admission" -mindepth 1 -maxdepth 1 -printf '%f\n' | LC_ALL=C sort)" == "$expected" ]]
+          if find "$admission" -type l -print -quit | grep -q .; then exit 1; fi
+          (cd "$admission" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$admission/provider-canary-admission.json" | awk '{print $1}')" == "$ADMISSION_RECEIPT_SHA256" ]]
+          [[ "$(sha256sum "$admission/resume-physio-exact-image-canary.json" | awk '{print $1}')" == "$RESUME_CANARY_RECEIPT_SHA256" ]]
+          [[ "$(sha256sum "$admission/resume-canary-effect-reconciliation.json" | awk '{print $1}')" == "$RESUME_EFFECT_RECEIPT_SHA256" ]]
+          [[ "$(sha256sum "$admission/resume-provider-canary-started-effect.json" | awk '{print $1}')" == "$RESUME_STARTED_EFFECT_RECEIPT_SHA256" ]]
+          node scripts/physio-exact-image-canary-contract.mjs validate-effect \
+            --receipt "$admission/resume-canary-effect-reconciliation.json" \
+            --application-sha "$APPLICATION_SHA" --provider-effect-id "$PROVIDER_EFFECT_ID" \
+            --started-effect-receipt-sha256 "$RESUME_STARTED_EFFECT_RECEIPT_SHA256"
+          node scripts/physio-exact-image-canary-contract.mjs validate \
+            --receipt "$admission/resume-physio-exact-image-canary.json" \
+            --application-sha "$APPLICATION_SHA" --immutable-image "$LOCAL_IMAGE_ID" \
+            --candidate-archive-sha256 "$ARCHIVE_SHA256" \
+            --maximum-cost-microusd "$MAXIMUM_COST_MICROUSD"
+          packet="$RUNNER_TEMP/physio-canary-resumed-success"
+          install -d -m 0700 "$packet"
+          for file in canary-effect-reconciliation.json candidate-artifact-admission.json \
+            candidate-artifact-execution-admission.json physio-exact-image-canary.json \
+            provider-canary-admission.json provider-canary-started-effect.json; do
+            install -m 0600 "$admission/resume-$file" "$packet/$file"
+          done
+          PACKET="$packet" OUTPUT="$packet/canary-completed-effect-reconciliation.json" \
+          PROVIDER_EFFECT_ID="$PROVIDER_EFFECT_ID" node --input-type=module <<'NODE'
+          import { createHash } from 'node:crypto';
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const sha = (name) => createHash('sha256').update(
+            fs.readFileSync(path.join(process.env.PACKET, name)),
+          ).digest('hex');
+          const row = {
+            contract_version: 'assesssuite-physio-exact-image-canary-completed-effect/1.0.0',
+            result: 'PASS', application: 'assesssuite-physio-production',
+            application_sha: process.env.APPLICATION_SHA,
+            provider_effect_id: process.env.PROVIDER_EFFECT_ID,
+            provider_call_maximum: 8,
+            started_effect_receipt_sha256: sha('provider-canary-started-effect.json'),
+            effect_reconciliation_receipt_sha256: sha('canary-effect-reconciliation.json'),
+            canary_receipt_sha256: sha('physio-exact-image-canary.json'),
+            provider_canary_admission_receipt_sha256: sha('provider-canary-admission.json'),
+            candidate_artifact_admission_receipt_sha256: sha('candidate-artifact-admission.json'),
+            candidate_artifact_execution_admission_receipt_sha256:
+              sha('candidate-artifact-execution-admission.json'),
+            reconciled_at: new Date().toISOString(),
+          };
+          fs.writeFileSync(process.env.OUTPUT, `${JSON.stringify(row, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+          NODE
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          node scripts/physio-exact-image-canary-contract.mjs validate-success-packet \
+            --packet "$packet" --application-sha "$APPLICATION_SHA" \
+            --immutable-image "$LOCAL_IMAGE_ID" \
+            --candidate-archive-sha256 "$ARCHIVE_SHA256" \
+            --canary-receipt-sha256 "$RESUME_CANARY_RECEIPT_SHA256" \
+            --provider-effect-id "$PROVIDER_EFFECT_ID" \
+            --candidate-artifact-id "$CANDIDATE_ARTIFACT_ID" \
+            --candidate-artifact-digest "$CANDIDATE_ARTIFACT_DIGEST" \
+            --candidate-receipt-sha256 "$CANDIDATE_RECEIPT_SHA256" \
+            --capability-intent-id "$CAPABILITY_INTENT_ID" \
+            --authority-reference "$AUTHORITY_REFERENCE" \
+            --maximum-cost-microusd "$MAXIMUM_COST_MICROUSD"
+          echo 'provider_calls_executed=0' >>"$GITHUB_OUTPUT"
+
+      - name: Publish reconciled exact-image canary success artifact
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-exact-image-canary-${{ inputs.application_sha }}
+          path: ${{ runner.temp }}/physio-canary-resumed-success
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+      - name: Prove reconciliation executed no provider calls
+        shell: bash
+        env:
+          PROVIDER_CALLS_EXECUTED: ${{ steps.reconcile.outputs.provider_calls_executed }}
+        run: |
+          set -euo pipefail
+          [[ "$PROVIDER_CALLS_EXECUTED" == '0' ]]
+
+  reuse:
+    name: Read back an already published exact canary success
+    needs: admit
+    if: ${{ needs.admit.outputs.admission_mode == 'resume_success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    environment: physio-production
+    outputs:
+      canary_artifact_id: ${{ needs.admit.outputs.existing_success_artifact_id }}
+      canary_artifact_digest: ${{ needs.admit.outputs.existing_success_artifact_digest }}
+      canary_receipt_sha256: ${{ needs.admit.outputs.resume_canary_receipt_sha256 }}
+      capability_binding_sha256: ${{ needs.admit.outputs.capability_binding_sha256 }}
+      readback_artifact_id: ${{ steps.upload.outputs.artifact-id }}
+      readback_artifact_digest: sha256:${{ steps.upload.outputs.artifact-digest }}
+    steps:
+      - name: Refuse workflow rerun before success readback
+        shell: bash
+        env:
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          [[ "$RUN_ATTEMPT" == '1' ]]
+
+      - name: Check out exact success-readback source
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ inputs.application_sha }}
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Download exact admitted success-readback packet
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          artifact-ids: ${{ needs.admit.outputs.admission_artifact_id }}
+          repository: ${{ github.repository }}
+          run-id: ${{ github.run_id }}
+          path: ${{ runner.temp }}/provider-canary-success-readback-admission
+          github-token: ${{ github.token }}
+
+      - name: Prove exact existing success with zero provider calls
+        id: readback
+        shell: bash
+        env:
+          APPLICATION_SHA: ${{ inputs.application_sha }}
+          PROVIDER_EFFECT_ID: ${{ needs.admit.outputs.provider_effect_id }}
+          SUCCESS_ARTIFACT_ID: ${{ needs.admit.outputs.existing_success_artifact_id }}
+          SUCCESS_ARTIFACT_DIGEST: ${{ needs.admit.outputs.existing_success_artifact_digest }}
+          SUCCESS_SOURCE_RUN_ID: ${{ needs.admit.outputs.existing_success_run_id }}
+          CANARY_RECEIPT_SHA256: ${{ needs.admit.outputs.resume_canary_receipt_sha256 }}
+          EFFECT_RECEIPT_SHA256: ${{ needs.admit.outputs.resume_effect_receipt_sha256 }}
+          STARTED_RECEIPT_SHA256: ${{ needs.admit.outputs.resume_started_effect_receipt_sha256 }}
+        run: |
+          set -euo pipefail
+          umask 077
+          admission="$RUNNER_TEMP/provider-canary-success-readback-admission"
+          [[ -f "$admission/SHA256SUMS" && ! -L "$admission/SHA256SUMS" ]]
+          if find "$admission" -type l -print -quit | grep -q .; then exit 1; fi
+          (cd "$admission" && sha256sum --check --strict SHA256SUMS)
+          [[ "$(sha256sum "$admission/success-physio-exact-image-canary.json" | awk '{print $1}')" == "$CANARY_RECEIPT_SHA256" ]]
+          [[ "$(sha256sum "$admission/success-canary-effect-reconciliation.json" | awk '{print $1}')" == "$EFFECT_RECEIPT_SHA256" ]]
+          [[ "$(sha256sum "$admission/success-provider-canary-started-effect.json" | awk '{print $1}')" == "$STARTED_RECEIPT_SHA256" ]]
+          packet="$RUNNER_TEMP/provider-canary-success-readback"
+          install -d -m 0700 "$packet"
+          OUTPUT="$packet/physio-exact-image-canary-success-readback.json" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const row = {
+            contract_version: 'assesssuite-physio-exact-image-canary-success-readback/1.0.0',
+            result: 'PASS', application: 'assesssuite-physio-production',
+            application_sha: process.env.APPLICATION_SHA,
+            provider_effect_id: process.env.PROVIDER_EFFECT_ID,
+            existing_success_artifact_id: Number(process.env.SUCCESS_ARTIFACT_ID),
+            existing_success_artifact_digest: process.env.SUCCESS_ARTIFACT_DIGEST,
+            existing_success_source_run_id: Number(process.env.SUCCESS_SOURCE_RUN_ID),
+            canary_receipt_sha256: process.env.CANARY_RECEIPT_SHA256,
+            effect_reconciliation_receipt_sha256: process.env.EFFECT_RECEIPT_SHA256,
+            started_effect_receipt_sha256: process.env.STARTED_RECEIPT_SHA256,
+            provider_calls_executed: 0,
+            read_back_at: new Date().toISOString(),
+          };
+          fs.writeFileSync(process.env.OUTPUT, `${JSON.stringify(row, null, 2)}\n`, { flag: 'wx', mode: 0o600 });
+          NODE
+          install -m 0600 "$admission/success-canary-completed-effect-reconciliation.json" \
+            "$packet/canary-completed-effect-reconciliation.json"
+          install -m 0600 "$admission/resume-effect-artifact-admission.json" \
+            "$packet/resume-effect-artifact-admission.json"
+          (cd "$packet" && LC_ALL=C find . -maxdepth 1 -type f ! -name SHA256SUMS -printf '%f\n' | sort | xargs sha256sum >SHA256SUMS && sha256sum --check --strict SHA256SUMS)
+          echo 'provider_calls_executed=0' >>"$GITHUB_OUTPUT"
+
+      - name: Upload exact existing-success readback evidence
+        id: upload
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-exact-image-canary-success-readback-${{ inputs.application_sha }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/provider-canary-success-readback
+          if-no-files-found: error
+          retention-days: 90
+          compression-level: 0
+
+      - name: Prove success readback executed no provider calls
+        shell: bash
+        env:
+          PROVIDER_CALLS_EXECUTED: ${{ steps.readback.outputs.provider_calls_executed }}
+        run: |
+          set -euo pipefail
+          [[ "$PROVIDER_CALLS_EXECUTED" == '0' ]]

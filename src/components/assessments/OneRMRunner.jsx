@@ -19,6 +19,7 @@ export default function OneRMRunner({ onSave, onClose }) {
   const [exercises, setExercises] = useState([]);
   const [currentExercise, setCurrentExercise] = useState({
     exercise_name: '',
+    custom_exercise: '',
     one_rm_kg: '',
     method: 'actual',
     reps_performed: '',
@@ -27,13 +28,17 @@ export default function OneRMRunner({ onSave, onClose }) {
   const [notes, setNotes] = useState('');
 
   const addExercise = () => {
-    if (!currentExercise.exercise_name || !currentExercise.one_rm_kg) {
+    const exerciseName = currentExercise.exercise_name === 'Other'
+      ? currentExercise.custom_exercise.trim()
+      : currentExercise.exercise_name;
+    if (!exerciseName || !currentExercise.one_rm_kg) {
       toast.error("Please enter exercise name and 1RM value");
       return;
     }
 
     setExercises([...exercises, {
       ...currentExercise,
+      exercise_name: exerciseName,
       one_rm_kg: parseFloat(currentExercise.one_rm_kg),
       reps_performed: currentExercise.reps_performed ? parseInt(currentExercise.reps_performed) : null,
       load_used_kg: currentExercise.load_used_kg ? parseFloat(currentExercise.load_used_kg) : null
@@ -41,6 +46,7 @@ export default function OneRMRunner({ onSave, onClose }) {
 
     setCurrentExercise({
       exercise_name: '',
+      custom_exercise: '',
       one_rm_kg: '',
       method: 'actual',
       reps_performed: '',
@@ -128,7 +134,7 @@ export default function OneRMRunner({ onSave, onClose }) {
                     {currentExercise.exercise_name === 'Other' && (
                       <Input
                         value={currentExercise.custom_exercise || ''}
-                        onChange={(e) => setCurrentExercise({...currentExercise, exercise_name: e.target.value})}
+                        onChange={(e) => setCurrentExercise({...currentExercise, custom_exercise: e.target.value})}
                         placeholder="Enter exercise name"
                         className="mt-2"
                       />

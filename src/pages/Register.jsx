@@ -8,6 +8,7 @@ import { Mail, Lock, Loader2, User as UserIcon } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { createPageUrl } from "@/utils";
+import { buildTimeProfession } from "@/lib/profession";
 
 const Input = /** @type {React.ComponentType<any>} */ (InputPrimitive);
 const RESEND_COOLDOWN_SECONDS = 30;
@@ -57,7 +58,7 @@ export default function Register() {
 
     setLoading(true);
     try {
-      await base44.auth.register({ email, password, full_name: fullName.trim() });
+      await base44.auth.register({ email, password });
       setResendConfirmation("Verification code sent.");
       setResendCooldown(RESEND_COOLDOWN_SECONDS);
       setOtpSent(true);
@@ -209,7 +210,7 @@ export default function Register() {
     <AuthLayout
       icon={Mail}
       title="Create your account"
-      subtitle="Join AssessSuite Clinical"
+      subtitle={`Join ${buildTimeProfession.productName}`}
       footer={
         <>
           Already have an account?{" "}

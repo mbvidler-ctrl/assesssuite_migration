@@ -5,11 +5,16 @@ import { Badge } from "@/components/ui/badge";
 import { RotateCcw } from "lucide-react";
 import { useAuth } from "@/lib/AuthContext";
 import { AI_COPY, CAPABILITY_KEYS, capabilityStatusLabel } from "@/lib/aiCapabilities";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
 
 const CAPABILITY_ROWS = {
   general_clinical_llm: {
     name: "AI writing assistance",
     description: "Treatment protocols, SOAP drafting, report sections, medication considerations, assessment suggestions and nutrition advice.",
+  },
+  physio_ai_tasks: {
+    name: "Physio AI drafts",
+    description: "Initial summaries, SOAP notes, management plans, progress comparisons, referrer updates and discharge summaries.",
   },
   transcription: {
     name: "Session transcription",
@@ -20,6 +25,16 @@ const CAPABILITY_ROWS = {
     description: "Reading uploaded referral documents into a reviewable draft.",
   },
 };
+
+const visibleCapabilityKeys = CAPABILITY_KEYS.filter((key) => {
+  if (key === 'general_clinical_llm') {
+    return activeProfession.features.legacyGeneralClinicalLlm === true;
+  }
+  if (key === 'physio_ai_tasks') {
+    return activeProfession.features.aiTaskIds.length > 0;
+  }
+  return true;
+});
 
 function statusBadgeVariant(capability) {
   if (!capability || capability.reason === 'unknown') return 'secondary';
@@ -34,7 +49,7 @@ function unavailableExplanation(capability) {
 export default function AiFeatureStatusCard() {
   const { capabilities, publicSettingsFetchedAt, refreshPublicSettings } = useAuth();
 
-  const hasUnknown = CAPABILITY_KEYS.some((key) => capabilities?.[key]?.reason === 'unknown');
+  const hasUnknown = visibleCapabilityKeys.some((key) => capabilities?.[key]?.reason === 'unknown');
 
   return (
     <Card className="bg-white/80 backdrop-blur-sm border-slate-200/60">
@@ -43,7 +58,7 @@ export default function AiFeatureStatusCard() {
         <p className="text-sm text-slate-600">{AI_COPY.panelIntro}</p>
       </CardHeader>
       <CardContent className="space-y-4">
-        {CAPABILITY_KEYS.map((key) => {
+        {visibleCapabilityKeys.map((key) => {
           const capability = capabilities?.[key];
           const row = CAPABILITY_ROWS[key];
           const explanation = unavailableExplanation(capability);

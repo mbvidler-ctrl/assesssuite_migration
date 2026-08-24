@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Save, X, Plus, Trash2, Info, ExternalLink, ChevronDown, ChevronUp } from "lucide-react";
 import { toast } from "sonner";
-import { todayLocal } from "@/lib/localDate";
+import { scoreFvc } from "@/lib/clinical/scorers/extrasBodyFitness";
 
 // GOLD Classification based on FEV1% predicted
 function goldClassify(fev1pct) {
@@ -67,36 +67,11 @@ export default function ForcedVitalCapacityFVCSpirometryRunner({ client, onSave,
   const gold = fev1pct && fev1FvcRatio < 0.7 ? goldClassify(fev1pct) : null;
 
   const handleSave = () => {
-    const trialLines = trials
-      .filter((t) => t.fvc)
-      .map(
-        (t, i) =>
-          `  Trial ${i + 1}: FVC ${t.fvc}L${t.fev1 ? ` | FEV1 ${t.fev1}L` : ""}${t.pef ? ` | PEF ${t.pef} L/min` : ""}`
-      )
-      .join("\n");
-    const soap = `• FVC Spirometry (ATS/ERS standards)\n  Best FVC: ${bestFVC}L${fvcPct ? ` (${fvcPct}% predicted)` : ""}\n  Best FEV1: ${bestFEV1 ?? "N/A"}L${fev1pct ? ` (${fev1pct}% predicted)` : ""}\n  FEV1/FVC Ratio: ${fev1FvcRatio ?? "N/A"}\n  Best PEF: ${bestPEF ?? "N/A"} L/min${gold ? `\n  GOLD Classification: ${gold.stage}` : ""}${fev1FvcRatio !== null ? `\n  ${fev1FvcRatio < 0.7 ? "Obstructive pattern (FEV1/FVC <0.7)" : "No obstruction detected (FEV1/FVC ≥0.7)"}` : ""}\n  Trials:\n${trialLines}${notes ? `\n  Notes: ${notes}` : ""}\n  Reference: GOLD (2023). Global Strategy for COPD; ATS/ERS Task Force (2005). Standardisation of Spirometry. ERJ, 26(2):319-338.`;
-    onSave({
-      status: "completed",
-      result_value: bestFVC,
-      notes,
-      assessment_date: todayLocal(),
-      additional_data: {
-        soap_text: soap,
-        measurement_type: "spirometry",
-        best_fvc_L: bestFVC,
-        best_fev1_L: bestFEV1,
-        best_pef_L_per_min: bestPEF,
-        fev1_fvc_ratio: fev1FvcRatio,
-        fev1_pct_predicted: fev1pct,
-        fvc_pct_predicted: fvcPct,
-        gold_stage: gold?.stage || null,
-        trials: validTrials.map((t) => ({
-          fvc: parseFloat(t.fvc),
-          fev1: t.fev1 ? parseFloat(t.fev1) : null,
-          pef: t.pef ? parseFloat(t.pef) : null,
-        })),
-      },
-    });
+    try {
+      onSave(scoreFvc({ trials, height_cm: height, predicted_fvc: predictedFVC, predicted_fev1: predictedFEV1, notes }, { assessmentName: "FVC Spirometry", client }));
+    } catch (error) {
+      toast.error(error.message);
+    }
   };
 
   return (

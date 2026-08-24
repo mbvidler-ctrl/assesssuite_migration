@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Save, X, Info } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
+import { scoreGeneralMovementScreen } from "@/lib/clinical/scorers/coreA";
 
 const GMS_TESTS = [
   { key: "squat",            label: "Deep Squat",                  description: "Stand with feet shoulder-width apart, arms overhead. Squat as deep as possible while maintaining upright torso." },
@@ -56,29 +57,10 @@ export default function GeneralMovementScreenRunner({ client, onSave, onClose })
       return;
     }
 
-    const painTests = GMS_TESTS.filter(t => scores[t.key] === 0).map(t => t.label);
-    const asymmetryTests = GMS_TESTS
-      .filter(t => t.label.includes("L & R"))
-      .map(t => t.label); // note: scoring already captures worst side
-
-    const scoreLines = GMS_TESTS.map(t =>
-      `  ${t.label}: ${scores[t.key]}/3`
-    ).join('\n');
-
-    const soapText = `General Movement Screen:\n\nTotal Score: ${totalScore}/${maxScore}\n${scoreLines}${painTests.length > 0 ? `\n  ⚠ Pain provoked: ${painTests.join(', ')}` : ''}${notes ? `\n  Notes: ${notes}` : ''}`;
-
-    onSave({
-      status: "completed",
-      result_value: totalScore,
-      additional_data: {
-        measurement_type: "GeneralMovementScreen",
-        soap_text: soapText,
-        scores,
-        pain_tests: painTests,
-      },
-      notes,
-      assessment_date: assessmentDate,
-    });
+    onSave(scoreGeneralMovementScreen(
+      { scores, notes },
+      { assessmentName: 'General Movement Screen', assessmentDate, notes, client },
+    ));
 
     toast.success("Assessment saved successfully.");
   };
