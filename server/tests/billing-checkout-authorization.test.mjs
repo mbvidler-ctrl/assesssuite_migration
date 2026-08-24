@@ -89,12 +89,16 @@ test('checkout uses only server-owned price, authenticated identity and applicat
 
   try {
     const response = await withEnvironment({
+      NODE_ENV: 'production',
+      PROFESSION: 'exercise-physiology',
+      DEFAULT_APP_ID: 'local-assesssuite',
       SELFTEST: undefined,
       PARITY_ASSURANCE_MODE: undefined,
       PAYMENTS_ENABLED: '1',
       STRIPE_SECRET_KEY: 'synthetic_test_key',
       STRIPE_PRICE_ID_MONTHLY: 'price_owned',
-      APP_URL: 'https://assesssuite.example.test/',
+      APP_URL: 'https://app.assesssuite.com',
+      EXPECTED_APP_URL: 'https://app.assesssuite.com',
     }, () => createCheckoutSession({
       user: { id: 'user-owned', email: 'owned@example.invalid' },
       body: {
@@ -116,8 +120,8 @@ test('checkout uses only server-owned price, authenticated identity and applicat
     assert.equal(form.get('line_items[0][price]'), 'price_owned');
     assert.equal(form.get('client_reference_id'), 'user-owned');
     assert.equal(form.get('customer_email'), 'owned@example.invalid');
-    assert.equal(form.get('success_url'), 'https://assesssuite.example.test/PaymentRequired?checkout_return=1');
-    assert.equal(form.get('cancel_url'), 'https://assesssuite.example.test/PaymentRequired');
+    assert.equal(form.get('success_url'), 'https://app.assesssuite.com/PaymentRequired?checkout_return=1');
+    assert.equal(form.get('cancel_url'), 'https://app.assesssuite.com/PaymentRequired');
     assert.equal(form.get('allow_promotion_codes'), 'true');
     assert.match(requests[0].options.headers['Idempotency-Key'], /^assesssuite_checkout_v1_[0-9a-f]{64}$/);
     assert.match(form.get('metadata[checkoutIntentId]'), /^[0-9a-f-]{36}$/);
