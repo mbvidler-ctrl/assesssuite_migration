@@ -396,6 +396,19 @@ test('reconciliation packet joins exact target readback, exhaustive pages and re
     assert.throws(() => validatePhysioSentryReconciliationPacket(invalidRoot, reconciliationOptions),
       /operation|status/i);
 
+    const directGlobalRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'physio-sentry-reconciliation-global-'));
+    try {
+      buildPacket(directGlobalRoot, [
+        request('organization-global', 200),
+        request('project', 200),
+        request('release', 200),
+        request('deploy-page-0', 200),
+      ]);
+      assert.equal(validatePhysioSentryReconciliationPacket(directGlobalRoot, reconciliationOptions), true);
+    } finally {
+      fs.rmSync(directGlobalRoot, { recursive: true, force: true });
+    }
+
     const redirectedRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'physio-sentry-reconciliation-redirect-'));
     try {
       buildPacket(redirectedRoot, [

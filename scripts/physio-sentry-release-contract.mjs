@@ -238,13 +238,16 @@ function validateProviderRequestProof(proof, label, { receipt, deployPages } = {
   const hasRegionalOrganizationRead = rows.has('organization-region');
   if (hasGlobalOrganizationRead || hasRegionalOrganizationRead) {
     const globalStatus = rows.get('organization-global')?.http_status;
-    if (!hasGlobalOrganizationRead || !hasRegionalOrganizationRead || rows.has('organization') ||
-        ![301, 302, 307, 308].includes(globalStatus) ||
-        rows.get('organization-region')?.http_status !== 200) {
+    const directGlobalRead = hasGlobalOrganizationRead && !hasRegionalOrganizationRead &&
+      !rows.has('organization') && globalStatus === 200;
+    const redirectedGlobalRead = hasGlobalOrganizationRead && hasRegionalOrganizationRead &&
+      !rows.has('organization') && [301, 302, 307, 308].includes(globalStatus) &&
+      rows.get('organization-region')?.http_status === 200;
+    if (!directGlobalRead && !redirectedGlobalRead) {
       fail(`${label} organization redirect proof differs`);
     }
     expected.set('organization-global', globalStatus);
-    expected.set('organization-region', 200);
+    if (redirectedGlobalRead) expected.set('organization-region', 200);
   } else {
     expected.set('organization', 200);
   }
