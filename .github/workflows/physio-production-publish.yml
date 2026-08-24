@@ -249,6 +249,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.artifacts.outputs.candidate_run_id }}
           path: ${{ runner.temp }}/candidate
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact local canary
@@ -258,6 +259,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.artifacts.outputs.canary_run_id }}
           path: ${{ runner.temp }}/canary
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact pre-webhook bootstrap
@@ -267,6 +269,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.artifacts.outputs.bootstrap_run_id }}
           path: ${{ runner.temp }}/bootstrap
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact protected webhook archive transport
@@ -276,6 +279,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.artifacts.outputs.stripe_webhook_archive_run_id }}
           path: ${{ runner.temp }}/webhook
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download prior unresolved publication effect for resume
@@ -286,6 +290,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.artifacts.outputs.resume_started_effect_run_id }}
           path: ${{ runner.temp }}/resume
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Validate chain and persist publication STARTED receipt
@@ -754,6 +759,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ needs.admit.outputs.candidate_run_id }}
           path: ${{ runner.temp }}/candidate
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download durable publication STARTED effect
@@ -761,6 +767,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.admit.outputs.admission_artifact_id }}
           path: ${{ runner.temp }}/started
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Install checksum-verified regctl 0.11.5 without provider credentials

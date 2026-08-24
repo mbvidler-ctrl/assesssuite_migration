@@ -208,6 +208,7 @@ jobs:
           github-token: ${{ github.token }}
           run-id: ${{ steps.source.outputs.webhook_archive_source_run_id }}
           path: ${{ runner.temp }}/source-packet
+          merge-multiple: true
 
       - name: Build exact source archive request and expectation
         if: ${{ inputs.source_mode == 'SOURCE_ARTIFACT' }}

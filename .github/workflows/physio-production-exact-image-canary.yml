@@ -222,6 +222,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.artifacts.outputs.candidate_run_id }}
           path: ${{ runner.temp }}/physio-candidate-admission
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Validate candidate and reserve deterministic effect identity
@@ -465,6 +466,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.resume_artifacts.outputs.resume_effect_run_id }}
           path: ${{ runner.temp }}/prior-provider-canary-effect
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Download exact existing successful canary artifact
@@ -475,6 +477,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.resume_artifacts.outputs.resume_success_run_id }}
           path: ${{ runner.temp }}/existing-provider-canary-success
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Validate exact COMPLETED effect for zero-call reconciliation
@@ -679,6 +682,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ github.run_id }}
           path: ${{ runner.temp }}/provider-canary-admission
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Verify admission and write STARTED effect
@@ -865,6 +869,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ github.run_id }}
           path: ${{ runner.temp }}/provider-canary-started
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Verify durable provider-canary STARTED boundary
@@ -931,6 +936,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ needs.admit.outputs.candidate_run_id }}
           path: ${{ runner.temp }}/physio-candidate
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Admit sealed candidate and load exact local image
@@ -1269,6 +1275,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ github.run_id }}
           path: ${{ runner.temp }}/provider-canary-resume-admission
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Revalidate and assemble exact successful receipt with zero paid calls
@@ -1412,6 +1419,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ github.run_id }}
           path: ${{ runner.temp }}/provider-canary-success-readback-admission
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Prove exact existing success with zero provider calls

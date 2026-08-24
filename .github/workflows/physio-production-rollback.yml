@@ -215,6 +215,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.target_artifact.outputs.rollback_target_run_id }}
           path: ${{ runner.temp }}/rollback-target
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Resolve exact prior rollback phase for deliberate resume
@@ -255,6 +256,7 @@ jobs:
           repository: ${{ github.repository }}
           run-id: ${{ steps.resume_artifact.outputs.resume_rollback_effect_run_id }}
           path: ${{ runner.temp }}/rollback-resume
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Admit target bytes and seal rollback phase packet
@@ -551,6 +553,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.rollback_start.outputs.started_artifact_id }}
           path: ${{ runner.temp }}/rollback-phase-input
+          merge-multiple: true
           github-token: ${{ github.token }}
 
       - name: Re-admit raw target provenance and exact phase chain before credentials
