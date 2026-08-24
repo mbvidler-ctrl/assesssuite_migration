@@ -550,7 +550,10 @@ test('cleanup admission binds captured carrier ID, immutable image, labels, comm
     Config: {
       Cmd: ['sleep', String(PHYSIO_CANARY_TTL_SECONDS)],
       Env: ['NODE_VERSION=24'],
-      ExposedPorts: {},
+      // Docker preserves Dockerfile EXPOSE metadata even when the carrier has
+      // no published host port. HostConfig.PortBindings is the network-effect
+      // boundary the canary must enforce.
+      ExposedPorts: { '8787/tcp': {} },
       Labels: {
         'assesssuite-canary-role': 'physio-exact-image',
         'assesssuite-release-sha': applicationSha,
@@ -584,6 +587,13 @@ test('cleanup admission binds captured carrier ID, immutable image, labels, comm
     /local_container_image_differs/);
   assert.throws(() => assertLocalCanaryContainer({ ...carrier, Mounts: [{}] }, options),
     /local_container_topology_differs/);
+  assert.throws(() => assertLocalCanaryContainer({
+    ...carrier,
+    HostConfig: {
+      ...carrier.HostConfig,
+      PortBindings: { '8787/tcp': [{ HostIp: '0.0.0.0', HostPort: '8787' }] },
+    },
+  }, options), /local_container_topology_differs/);
 });
 
 test('inner receipt sentinels tolerate tool warnings but reject ambiguous payloads', () => {

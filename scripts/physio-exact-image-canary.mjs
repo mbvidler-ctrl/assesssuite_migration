@@ -2061,7 +2061,6 @@ export function assertLocalCanaryContainer(container, {
     (container?.HostConfig?.Dns == null ||
       (Array.isArray(container.HostConfig.Dns) && container.HostConfig.Dns.length === 0)) &&
     Object.keys(container?.HostConfig?.PortBindings || {}).length === 0 &&
-    Object.keys(container?.Config?.ExposedPorts || {}).length === 0 &&
     arraysEqual(container?.Config?.Cmd, ['sleep', String(ttlSeconds)]),
   'local_container_topology_differs');
   const environment = container?.Config?.Env || [];
