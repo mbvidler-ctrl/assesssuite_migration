@@ -49,8 +49,10 @@ function inspectLayout({ layout, tag, applicationSha, localImageId }) {
   exactObject(readJson(path.join(root, 'oci-layout')), ['imageLayoutVersion'], 'oci-layout');
   if (readJson(path.join(root, 'oci-layout')).imageLayoutVersion !== '1.0.0') fail('OCI layout version differs');
   const index = readJson(path.join(root, 'index.json'));
-  exactObject(index, ['schemaVersion', 'manifests'], 'index');
-  if (index.schemaVersion !== 2 || !Array.isArray(index.manifests) || index.manifests.length !== 1) {
+  exactObject(index, ['schemaVersion', 'mediaType', 'manifests'], 'index');
+  if (index.schemaVersion !== 2
+      || index.mediaType !== 'application/vnd.oci.image.index.v1+json'
+      || !Array.isArray(index.manifests) || index.manifests.length !== 1) {
     fail('OCI index must contain exactly one manifest');
   }
   const indexDescriptor = index.manifests[0];
