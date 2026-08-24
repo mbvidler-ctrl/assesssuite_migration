@@ -396,7 +396,7 @@ test('candidate preparation consumes the snapshot, seals one archive and creates
     'physio-production-state.json',
     'target "candidate"',
     'target "sourcemaps"',
-    'docker buildx bake --file "$bake" --pull candidate sourcemaps',
+    'docker buildx bake --allow="fs.write=$source_maps" --file "$bake" --pull candidate sourcemaps',
     'docker save "$candidate"',
     'image import "ocidir://$oci_layout:$APPLICATION_SHA"',
     'image mod "ocidir://$oci_layout:$APPLICATION_SHA" --to-oci --replace',
