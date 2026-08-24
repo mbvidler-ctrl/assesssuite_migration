@@ -1465,12 +1465,46 @@ test('Physio Sentry releases are target-qualified while the application SHA rema
 
   const prepare = workflow('physio-production-prepare-release.yml');
   const sentryReleaseJob = prepare.slice(prepare.indexOf('\n  sentry_release:\n'));
-  const regionalOrganizationUrl =
-    'https://us.sentry.io/api/0/organizations/unimatter/?detailed=0';
-  assert.doesNotMatch(prepare, /https:\/\/sentry\.io\/api\/0\/organizations\/unimatter/,
-    'organization identity reads must not use the redirecting global Sentry API route');
-  assert.equal(prepare.split(regionalOrganizationUrl).length - 1, 4,
-    'every organization identity read must use the pinned US regional API route');
+  const globalOrganizationUrl =
+    'https://sentry.io/api/0/organizations/unimatter/?detailed=0';
+  assert.equal(prepare.split(globalOrganizationUrl).length - 1, 4,
+    'every organization identity read must use Sentry\'s documented global API route');
+  assert.doesNotMatch(prepare, /https:\/\/(?:us|de)\.sentry\.io\/api\/0\/organizations\/unimatter/,
+    'organization identity reads must not guess a regional organization endpoint');
+  assert.equal(prepare.split('Sentry organization identity read returned HTTP').length - 1, 4,
+    'every organization identity read must emit its non-secret HTTP status on failure');
+  assert.equal(prepare.split('request organization-global').length - 1, 4,
+    'every organization identity read must preserve evidence for its global discovery leg');
+  assert.equal(prepare.split('request organization-region').length - 1, 4,
+    'every regional redirect must use a new explicitly validated request and evidence label');
+  assert.equal(prepare.split('^(301|302|307|308)$').length - 1, 4,
+    'organization discovery must accept only the bounded redirect status set');
+  assert.equal([...prepare.matchAll(/(?:url|u)\.username\s*\|\|\s*(?:url|u)\.password\s*\|\|\s*(?:url|u)\.hash/g)].length, 4,
+    'every redirect validator must reject credentials and fragments');
+  assert.equal([...prepare.matchAll(/(?:url|u)\.pathname\s*!==?\s*'\/api\/0\/organizations\/unimatter\/'/g)].length, 4,
+    'every redirect validator must bind the exact organization identity path');
+  assert.equal([...prepare.matchAll(/(?:url|u)\.searchParams\.size\s*!==?\s*1/g)].length, 4,
+    'every redirect validator must reject duplicate or additional query parameters');
+  assert.equal([...prepare.matchAll(/(?:url|u)\.searchParams\.get\('detailed'\)\s*!==?\s*'0'/g)].length, 4,
+    'every redirect validator must require the exact detailed=0 query');
+  assert.equal(prepare.split("['https://us.sentry.io','https://de.sentry.io'].includes").length - 1, 6,
+    'redirect and response validation must share the exact two-region allowlist');
+  assert.equal([...prepare.matchAll(/new URL\(process\.env\.REDIRECT_URL\)\.origin\s*!==?\s*region/g)].length, 2,
+    'region-discovery responses must agree with the validated redirect origin');
+  assert.equal([...prepare.matchAll(/u\.origin\s*!==?\s*process\.env\.EXPECTED_REGION_URL/g)].length, 2,
+    'mutation routes must reject redirects away from their frozen provider region');
+  const organizationDiscoverySteps = Object.values(yaml.load(prepare).jobs || {}).flatMap((job) => job.steps || [])
+    .filter((step) => String(step.run || '').includes('request organization-global'));
+  assert.equal(organizationDiscoverySteps.length, 4,
+    'each organization discovery site must remain independently auditable');
+  for (const step of organizationDiscoverySteps) {
+    const source = String(step.run || '');
+    const requestFunction = /request\(\) \{[\s\S]*?\n\}/.exec(source)?.[0] || '';
+    assert.match(requestFunction, /--max-redirs 0/,
+      'each authenticated organization discovery must disable automatic redirects');
+    assert.doesNotMatch(requestFunction, /--location(?:-trusted)?\b|(?:^|\s)-L(?:\s|$)/m,
+      'Sentry bearer credentials must never be forwarded through automatic redirects');
+  }
   assert.match(prepare,
     /release_version:\s*sentryReleaseForProfession\('physio', process\.env\.APPLICATION_SHA\)/,
     'source-map evidence must derive the exact target-qualified release ID');

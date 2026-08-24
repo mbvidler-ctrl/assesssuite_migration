@@ -757,14 +757,48 @@ jobs:
             node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids \
               --headers "$work/$operation.headers" --label "$operation" --output "$work/proof-$operation.json"
           }
-          request organization 'https://us.sentry.io/api/0/organizations/unimatter/?detailed=0'
-          [[ "$(cat "$work/organization.status")" == '200' ]]
-          ORGANIZATION="$work/organization.body" REGION_OUT="$work/region-url" node --input-type=module <<'NODE'
+          request organization-global 'https://sentry.io/api/0/organizations/unimatter/?detailed=0'
+          organization_http="$(cat "$work/organization-global.status")"
+          organization_body="$work/organization-global.body"
+          organization_redirect_url=''
+          if [[ "$organization_http" =~ ^(301|302|307|308)$ ]]; then
+            ORGANIZATION_HEADERS="$work/organization-global.headers" EXPECTED_STATUS="$organization_http" \
+              REDIRECT_OUT="$work/organization-redirect-url" node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const lines = fs.readFileSync(process.env.ORGANIZATION_HEADERS, 'utf8').split(/\r?\n/);
+          const statuses = lines.filter((line) => /^HTTP\/\d(?:\.\d)?\s+\d{3}(?:\s|$)/i.test(line));
+          const locations = lines.filter((line) => /^location:/i.test(line));
+          if (statuses.length !== 1 || locations.length !== 1 ||
+              !new RegExp(`^HTTP\\/\\d(?:\\.\\d)?\\s+${process.env.EXPECTED_STATUS}(?:\\s|$)`, 'i').test(statuses[0])) {
+            throw new Error('Sentry organization redirect response is ambiguous');
+          }
+          const url = new URL(locations[0].slice(locations[0].indexOf(':') + 1).trim());
+          if (!['https://us.sentry.io','https://de.sentry.io'].includes(url.origin) || url.username || url.password ||
+              url.hash || url.pathname !== '/api/0/organizations/unimatter/' || url.searchParams.size !== 1 ||
+              url.searchParams.get('detailed') !== '0') {
+            throw new Error('Sentry organization redirect escapes the exact regional identity route');
+          }
+          fs.writeFileSync(process.env.REDIRECT_OUT, url.href, { flag: 'wx', mode: 0o600 });
+          NODE
+            organization_redirect_url="$(cat "$work/organization-redirect-url")"
+            request organization-region "$organization_redirect_url"
+            [[ "$(cat "$work/organization-region.status")" == '200' ]]
+            organization_body="$work/organization-region.body"
+          elif [[ "$organization_http" != '200' ]]; then
+            echo "::error::Sentry organization identity read returned HTTP $organization_http"
+            exit 1
+          fi
+          install -m 0600 "$organization_body" "$work/organization.body"
+          ORGANIZATION="$work/organization.body" REDIRECT_URL="$organization_redirect_url" \
+            REGION_OUT="$work/region-url" node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const row = JSON.parse(fs.readFileSync(process.env.ORGANIZATION, 'utf8'));
           const region = row?.links?.regionUrl;
           if (row.slug !== 'unimatter' || !['https://us.sentry.io','https://de.sentry.io'].includes(region)) {
             throw new Error('Sentry organization identity or region differs');
+          }
+          if (process.env.REDIRECT_URL && new URL(process.env.REDIRECT_URL).origin !== region) {
+            throw new Error('Sentry organization identity differs from its validated redirect region');
           }
           fs.writeFileSync(process.env.REGION_OUT, `${region}\n`, { flag: 'wx', mode: 0o600 });
           NODE
@@ -1172,11 +1206,33 @@ jobs:
             node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids \
               --headers "$work/$operation.headers" --label "$operation" --output "$work/proof-$operation.json"
           }
-          request organization 'https://us.sentry.io/api/0/organizations/unimatter/?detailed=0'
-          [[ "$(cat "$work/organization.status")" == '200' ]]
-          ORGANIZATION="$work/organization.body" REGION_OUT="$work/region-url" node --input-type=module <<'NODE'
+          request organization-global 'https://sentry.io/api/0/organizations/unimatter/?detailed=0'
+          organization_http="$(cat "$work/organization-global.status")"
+          organization_body="$work/organization-global.body"
+          organization_redirect_url=''
+          if [[ "$organization_http" =~ ^(301|302|307|308)$ ]]; then
+            ORGANIZATION_HEADERS="$work/organization-global.headers" EXPECTED_STATUS="$organization_http" \
+              REDIRECT_OUT="$work/organization-redirect-url" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const lines=fs.readFileSync(process.env.ORGANIZATION_HEADERS,'utf8').split(/\r?\n/);
+          const statuses=lines.filter((line)=>/^HTTP\/\d(?:\.\d)?\s+\d{3}(?:\s|$)/i.test(line));const locations=lines.filter((line)=>/^location:/i.test(line));
+          if(statuses.length!==1||locations.length!==1||!new RegExp(`^HTTP\\/\\d(?:\\.\\d)?\\s+${process.env.EXPECTED_STATUS}(?:\\s|$)`,'i').test(statuses[0]))throw new Error('Sentry completed-reuse organization redirect is ambiguous');
+          const u=new URL(locations[0].slice(locations[0].indexOf(':')+1).trim());if(!['https://us.sentry.io','https://de.sentry.io'].includes(u.origin)||u.username||u.password||u.hash||u.pathname!=='/api/0/organizations/unimatter/'||u.searchParams.size!==1||u.searchParams.get('detailed')!=='0')throw new Error('Sentry completed-reuse redirect escapes the exact regional identity route');
+          fs.writeFileSync(process.env.REDIRECT_OUT,u.href,{flag:'wx',mode:0o600});
+          NODE
+            organization_redirect_url="$(cat "$work/organization-redirect-url")"
+            request organization-region "$organization_redirect_url"
+            [[ "$(cat "$work/organization-region.status")" == '200' ]]
+            organization_body="$work/organization-region.body"
+          elif [[ "$organization_http" != '200' ]]; then
+            echo "::error::Sentry organization identity read returned HTTP $organization_http"
+            exit 1
+          fi
+          install -m 0600 "$organization_body" "$work/organization.body"
+          ORGANIZATION="$work/organization.body" REDIRECT_URL="$organization_redirect_url" \
+            REGION_OUT="$work/region-url" node --input-type=module <<'NODE'
           import fs from 'node:fs';const r=JSON.parse(fs.readFileSync(process.env.ORGANIZATION,'utf8'));const region=r.links?.regionUrl;
           if(r.slug!=='unimatter'||!['https://us.sentry.io','https://de.sentry.io'].includes(region))throw new Error('Sentry completed-reuse organization identity differs');
+          if(process.env.REDIRECT_URL&&new URL(process.env.REDIRECT_URL).origin!==region)throw new Error('Sentry completed-reuse identity differs from its validated redirect region');
           fs.writeFileSync(process.env.REGION_OUT,region,{flag:'wx',mode:0o600});
           NODE
           region_url="$(cat "$work/region-url")"
@@ -1432,8 +1488,26 @@ jobs:
             node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids \
               --headers "$work/$operation.headers" --label "$operation" --output "$work/proof-$operation.json"
           }
-          request organization GET 'https://us.sentry.io/api/0/organizations/unimatter/?detailed=0'
-          [[ "$(cat "$work/organization.status")" == '200' ]]
+          request organization-global GET 'https://sentry.io/api/0/organizations/unimatter/?detailed=0'
+          organization_http="$(cat "$work/organization-global.status")"
+          organization_body="$work/organization-global.body"
+          if [[ "$organization_http" =~ ^(301|302|307|308)$ ]]; then
+            ORGANIZATION_HEADERS="$work/organization-global.headers" EXPECTED_STATUS="$organization_http" EXPECTED_REGION_URL="$REGION_URL" \
+              REDIRECT_OUT="$work/organization-redirect-url" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const lines=fs.readFileSync(process.env.ORGANIZATION_HEADERS,'utf8').split(/\r?\n/);
+          const statuses=lines.filter((line)=>/^HTTP\/\d(?:\.\d)?\s+\d{3}(?:\s|$)/i.test(line));const locations=lines.filter((line)=>/^location:/i.test(line));
+          if(statuses.length!==1||locations.length!==1||!new RegExp(`^HTTP\\/\\d(?:\\.\\d)?\\s+${process.env.EXPECTED_STATUS}(?:\\s|$)`,'i').test(statuses[0]))throw new Error('Sentry pre-compensation organization redirect is ambiguous');
+          const u=new URL(locations[0].slice(locations[0].indexOf(':')+1).trim());if(!['https://us.sentry.io','https://de.sentry.io'].includes(u.origin)||u.origin!==process.env.EXPECTED_REGION_URL||u.username||u.password||u.hash||u.pathname!=='/api/0/organizations/unimatter/'||u.searchParams.size!==1||u.searchParams.get('detailed')!=='0')throw new Error('Sentry pre-compensation redirect escapes the frozen regional identity route');
+          fs.writeFileSync(process.env.REDIRECT_OUT,u.href,{flag:'wx',mode:0o600});
+          NODE
+            request organization-region GET "$(cat "$work/organization-redirect-url")"
+            [[ "$(cat "$work/organization-region.status")" == '200' ]]
+            organization_body="$work/organization-region.body"
+          elif [[ "$organization_http" != '200' ]]; then
+            echo "::error::Sentry organization identity read returned HTTP $organization_http"
+            exit 1
+          fi
+          install -m 0600 "$organization_body" "$work/organization.body"
           ORGANIZATION="$work/organization.body" REGION_URL="$REGION_URL" node --input-type=module <<'NODE'
           import fs from 'node:fs'; const row=JSON.parse(fs.readFileSync(process.env.ORGANIZATION,'utf8'));
           if(row.slug!=='unimatter'||row.links?.regionUrl!==process.env.REGION_URL) throw new Error('Sentry organization changed before compensation');
@@ -1798,7 +1872,26 @@ jobs:
             node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids --headers "$work/$operation.headers" \
               --label "$operation" --output "$work/proof-$operation.json"
           }
-          request organization GET 'https://us.sentry.io/api/0/organizations/unimatter/?detailed=0'; [[ "$(cat "$work/organization.status")" == '200' ]]
+          request organization-global GET 'https://sentry.io/api/0/organizations/unimatter/?detailed=0'
+          organization_http="$(cat "$work/organization-global.status")"
+          organization_body="$work/organization-global.body"
+          if [[ "$organization_http" =~ ^(301|302|307|308)$ ]]; then
+            ORGANIZATION_HEADERS="$work/organization-global.headers" EXPECTED_STATUS="$organization_http" EXPECTED_REGION_URL="$REGION_URL" \
+              REDIRECT_OUT="$work/organization-redirect-url" node --input-type=module <<'NODE'
+          import fs from 'node:fs';const lines=fs.readFileSync(process.env.ORGANIZATION_HEADERS,'utf8').split(/\r?\n/);
+          const statuses=lines.filter((line)=>/^HTTP\/\d(?:\.\d)?\s+\d{3}(?:\s|$)/i.test(line));const locations=lines.filter((line)=>/^location:/i.test(line));
+          if(statuses.length!==1||locations.length!==1||!new RegExp(`^HTTP\\/\\d(?:\\.\\d)?\\s+${process.env.EXPECTED_STATUS}(?:\\s|$)`,'i').test(statuses[0]))throw new Error('Sentry pre-create organization redirect is ambiguous');
+          const u=new URL(locations[0].slice(locations[0].indexOf(':')+1).trim());if(!['https://us.sentry.io','https://de.sentry.io'].includes(u.origin)||u.origin!==process.env.EXPECTED_REGION_URL||u.username||u.password||u.hash||u.pathname!=='/api/0/organizations/unimatter/'||u.searchParams.size!==1||u.searchParams.get('detailed')!=='0')throw new Error('Sentry pre-create redirect escapes the frozen regional identity route');
+          fs.writeFileSync(process.env.REDIRECT_OUT,u.href,{flag:'wx',mode:0o600});
+          NODE
+            request organization-region GET "$(cat "$work/organization-redirect-url")"
+            [[ "$(cat "$work/organization-region.status")" == '200' ]]
+            organization_body="$work/organization-region.body"
+          elif [[ "$organization_http" != '200' ]]; then
+            echo "::error::Sentry organization identity read returned HTTP $organization_http"
+            exit 1
+          fi
+          install -m 0600 "$organization_body" "$work/organization.body"
           ORGANIZATION="$work/organization.body" REGION_URL="$REGION_URL" node --input-type=module <<'NODE'
           import fs from 'node:fs';const r=JSON.parse(fs.readFileSync(process.env.ORGANIZATION,'utf8'));if(r.slug!=='unimatter'||r.links?.regionUrl!==process.env.REGION_URL)throw new Error('Sentry organization changed before create');
           NODE
