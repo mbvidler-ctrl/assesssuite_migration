@@ -791,7 +791,7 @@ test('prepare gates EP and Physio then seals one local candidate and same-build 
     'npm run typecheck',
     'npm run build:platform',
     'npm run build:physio',
-    'docker buildx bake --file "$bake" --pull candidate sourcemaps',
+    'docker buildx bake --allow="fs.write=$source_maps" --file "$bake" --pull candidate sourcemaps',
     'docker save "$candidate"',
     'candidate-image.oci.tar.gz',
     'Upload immutable candidate core',

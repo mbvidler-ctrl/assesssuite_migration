@@ -314,7 +314,7 @@ jobs:
             output = ["type=local,dest=$source_maps"]
           }
           BAKE
-          docker buildx bake --file "$bake" --pull candidate sourcemaps
+          docker buildx bake --allow="fs.write=$source_maps" --file "$bake" --pull candidate sourcemaps
           rm -f "$bake"
           local_image_id="$(docker image inspect "$candidate" --format '{{.Id}}')"
           [[ "$local_image_id" =~ ^sha256:[0-9a-f]{64}$ ]]
