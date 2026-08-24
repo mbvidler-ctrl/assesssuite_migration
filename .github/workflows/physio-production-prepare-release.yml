@@ -385,8 +385,8 @@ jobs:
           # Docker archives can contain uncompressed tar layers. Canonicalise
           # both the descriptor family and layer compression before copying
           # into the clean OCI layout; the OCI contract intentionally admits
-          # only gzip-compressed OCI layers.
-          "$RUNNER_TEMP/regctl" image mod "ocidir://$oci_import_layout:$APPLICATION_SHA" --to-oci --layer-compress gzip --replace
+          # both OCI gzip and OCI uncompressed tar layers are admitted.
+          "$RUNNER_TEMP/regctl" image mod "ocidir://$oci_import_layout:$APPLICATION_SHA" --to-oci --replace
           "$RUNNER_TEMP/regctl" image copy \
             "ocidir://$oci_import_layout:$APPLICATION_SHA" "ocidir://$oci_layout:$APPLICATION_SHA"
           oci_manifest_digest="$(node scripts/physio-oci-image.mjs write-descriptors \

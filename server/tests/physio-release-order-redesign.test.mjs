@@ -1,4 +1,6 @@
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
@@ -400,7 +402,7 @@ test('candidate preparation consumes the snapshot, seals one archive and creates
     'docker buildx bake --allow="fs.write=$source_maps" --file "$bake" --pull candidate sourcemaps',
     'docker save "$candidate"',
     'image import "ocidir://$oci_import_layout:$APPLICATION_SHA"',
-    'image mod "ocidir://$oci_import_layout:$APPLICATION_SHA" --to-oci --layer-compress gzip --replace',
+    'image mod "ocidir://$oci_import_layout:$APPLICATION_SHA" --to-oci --replace',
     '"$RUNNER_TEMP/regctl" image copy',
     'scripts/physio-oci-image.mjs write-descriptors',
     'candidate-image.oci.tar.gz',
@@ -1355,6 +1357,64 @@ test('registry protocol validator distinguishes exact absence and compares the c
     'the typed registry parser must reject an oversized response even if curl bounds regress');
   assert.doesNotMatch(helper, /includes\(['"]not found['"]\)|match\([^\n]*404|stderr/i,
     'typed provider classification may not fall back to human-readable error text');
+});
+
+test('OCI descriptor validator admits only OCI gzip or uncompressed tar layers', () => {
+  const helper = path.join(root, 'scripts', 'physio-oci-image.mjs');
+  const applicationSha = 'b'.repeat(40);
+  const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'physio-oci-layer-media-'));
+  const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
+  const writeLayout = (directory, mediaType) => {
+    const blobRoot = path.join(directory, 'blobs', 'sha256');
+    fs.mkdirSync(blobRoot, { recursive: true });
+    fs.writeFileSync(path.join(directory, 'oci-layout'), '{"imageLayoutVersion":"1.0.0"}\n');
+    const layer = Buffer.from(`synthetic ${mediaType}`);
+    const layerDigest = `sha256:${hash(layer)}`;
+    fs.writeFileSync(path.join(blobRoot, layerDigest.slice(7)), layer);
+    const config = {
+      architecture: 'amd64', os: 'linux', rootfs: { type: 'layers', diff_ids: [layerDigest] },
+      config: { Labels: {
+        'org.opencontainers.image.revision': applicationSha,
+        'com.assesssuite.profession': 'physio', 'com.assesssuite.app-id': 'local-assesssuite-physio',
+      } },
+    };
+    const configBytes = Buffer.from(JSON.stringify(config));
+    const configDigest = `sha256:${hash(configBytes)}`;
+    fs.writeFileSync(path.join(blobRoot, configDigest.slice(7)), configBytes);
+    const manifest = {
+      schemaVersion: 2, mediaType: 'application/vnd.oci.image.manifest.v1+json',
+      config: { mediaType: 'application/vnd.oci.image.config.v1+json', digest: configDigest, size: configBytes.length },
+      layers: [{ mediaType, digest: layerDigest, size: layer.length }],
+    };
+    const manifestBytes = Buffer.from(JSON.stringify(manifest));
+    const manifestDigest = `sha256:${hash(manifestBytes)}`;
+    fs.writeFileSync(path.join(blobRoot, manifestDigest.slice(7)), manifestBytes);
+    fs.writeFileSync(path.join(directory, 'index.json'), JSON.stringify({
+      schemaVersion: 2, mediaType: 'application/vnd.oci.image.index.v1+json',
+      manifests: [{ annotations: { 'org.opencontainers.image.ref.name': applicationSha },
+        digest: manifestDigest, mediaType: manifest.mediaType, size: manifestBytes.length }],
+    }));
+    return configDigest;
+  };
+  const verify = (directory, localImageId) => execFileSync(process.execPath, [helper, 'write-descriptors',
+    '--layout', directory, '--tag', applicationSha, '--application-sha', applicationSha,
+    '--local-image-id', localImageId, '--receipt', path.join(directory, 'receipt.json')], { stdio: 'pipe' });
+
+  try {
+    for (const [name, mediaType] of [
+      ['gzip', 'application/vnd.oci.image.layer.v1.tar+gzip'],
+      ['tar', 'application/vnd.oci.image.layer.v1.tar'],
+    ]) verify(path.join(tempRoot, name), writeLayout(path.join(tempRoot, name), mediaType));
+
+    const invalid = path.join(tempRoot, 'docker');
+    const localImageId = writeLayout(invalid, 'application/vnd.docker.image.rootfs.diff.tar.gzip');
+    assert.throws(() => verify(invalid, localImageId), (error) => {
+      assert.match(error.stderr.toString(), /layer 0 media type differs/);
+      return true;
+    });
+  } finally {
+    fs.rmSync(tempRoot, { recursive: true, force: true });
+  }
 });
 
 test('Physio Sentry releases are target-qualified while the application SHA remains raw', () => {
