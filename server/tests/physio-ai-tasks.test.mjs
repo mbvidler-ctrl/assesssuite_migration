@@ -506,6 +506,15 @@ test('versioned Physio function reaches the real adapter with legacy general AI 
     });
     assert.equal(activation.status, 200, activation.text);
     const organization = await createOrganizationForUser(server, adminToken, clinician);
+    const legalAcceptance = await requestJson(
+      server,
+      `/api/apps/${server.appId}/integration-endpoints/Core/RecordLegalAcceptanceBundle`,
+      {
+        method: 'POST', token: clinician.token,
+        body: { org_id: organization.id, marketing_opt_in: false },
+      },
+    );
+    assert.equal(legalAcceptance.status, 200, legalAcceptance.text);
     const createEntity = async (entityName, body) => {
       const response = await requestJson(server, `/api/apps/${server.appId}/entities/${entityName}`, {
         method: 'POST', token: adminToken, body,
@@ -743,6 +752,25 @@ test('versioned Physio function reaches the real adapter with legacy general AI 
     assert.equal(savedDraftReplay.body?.linked_record?.ai_generation?.generation_id, success.body.generation_id);
     assert.equal(savedDraftReplay.body?.linked_record?.ai_generation?.task_type, requestBody.task);
     assert.equal(savedDraftReplay.body?.care_episode?.reporting?.latest_ai_draft?.generation_id, success.body.generation_id);
+    const editedReport = await requestJson(
+      server,
+      `/api/apps/${server.appId}/entities/SavedReport/${savedDraftReplay.body.linked_record.id}`,
+      {
+        method: 'PUT', token: clinician.token,
+        body: {
+          section_content: {
+            ...savedDraftReplay.body.linked_record.section_content,
+            synthetic_clinician_edit: 'PHYSIO_CANARY_CLINICIAN_EDIT_VERIFIED',
+          },
+          expected_updated_date: savedDraftReplay.body.linked_record.updated_date,
+        },
+      },
+    );
+    assert.equal(editedReport.status, 200, editedReport.text);
+    assert.equal(
+      editedReport.body?.section_content?.synthetic_clinician_edit,
+      'PHYSIO_CANARY_CLINICIAN_EDIT_VERIFIED',
+    );
     const saveConflict = await requestJson(server, saveRoute, {
       method: 'POST', token: clinician.token,
       body: {
