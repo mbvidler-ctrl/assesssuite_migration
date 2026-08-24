@@ -752,7 +752,7 @@ jobs:
             curl --proto '=https' --tlsv1.2 --silent --show-error --max-redirs 0 --max-time 60 \
               --max-filesize 1048576 --dump-header "$work/$operation.headers" \
               --header "Authorization: Bearer $SENTRY_AUTH_TOKEN" --output "$work/$operation.body" \
-              --write-out '%{http_code}' "$url" >"$work/$operation.status"
+              --write-out '%{http_code}\n' "$url" >"$work/$operation.status"
             [[ "$(wc -l <"$work/$operation.status")" == '1' ]]
             node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids \
               --headers "$work/$operation.headers" --label "$operation" --output "$work/proof-$operation.json"
@@ -1167,7 +1167,7 @@ jobs:
             curl --proto '=https' --tlsv1.2 --silent --show-error --max-redirs 0 --max-time 120 \
               --max-filesize 52428800 --request GET --dump-header "$work/$operation.headers" \
               --header "Authorization: Bearer $SENTRY_AUTH_TOKEN" --output "$work/$operation.body" \
-              --write-out '%{http_code}' "$url" >"$work/$operation.status"
+              --write-out '%{http_code}\n' "$url" >"$work/$operation.status"
             [[ "$(wc -l <"$work/$operation.status")" == '1' ]]
             node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids \
               --headers "$work/$operation.headers" --label "$operation" --output "$work/proof-$operation.json"
@@ -1428,7 +1428,7 @@ jobs:
             curl --proto '=https' --tlsv1.2 --silent --show-error --max-redirs 0 --max-time 60 --max-filesize 1048576 \
               --request "$method" --dump-header "$work/$operation.headers" \
               --header "Authorization: Bearer $SENTRY_AUTH_TOKEN" --output "$work/$operation.body" \
-              --write-out '%{http_code}' "$url" >"$work/$operation.status"
+              --write-out '%{http_code}\n' "$url" >"$work/$operation.status"
             node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids \
               --headers "$work/$operation.headers" --label "$operation" --output "$work/proof-$operation.json"
           }
@@ -1794,7 +1794,7 @@ jobs:
             local operation="$1" method="$2" url="$3"; shift 3
             curl --proto '=https' --tlsv1.2 --silent --show-error --max-redirs 0 --max-time 120 --max-filesize 52428800 \
               --request "$method" --dump-header "$work/$operation.headers" --header "Authorization: Bearer $SENTRY_AUTH_TOKEN" \
-              "$@" --output "$work/$operation.body" --write-out '%{http_code}' "$url" >"$work/$operation.status"
+              "$@" --output "$work/$operation.body" --write-out '%{http_code}\n' "$url" >"$work/$operation.status"
             node scripts/physio-sentry-release-contract.mjs extract-provider-request-ids --headers "$work/$operation.headers" \
               --label "$operation" --output "$work/proof-$operation.json"
           }

@@ -19,6 +19,10 @@ function workflow(name) {
   return read('.github', 'workflows', name);
 }
 
+function countOf(source, needle) {
+  return source.split(needle).length - 1;
+}
+
 function ordered(source, markers, label) {
   let cursor = -1;
   for (const marker of markers) {
@@ -421,6 +425,12 @@ test('candidate preparation consumes the snapshot, seals one archive and creates
   assert.doesNotMatch(source, /\$\{\{ secrets\.FLY_API_TOKEN \}\}|\bflyctl\b|\bfly (?:apps|volumes|machines?|secrets|deploy|certs|dns)\b/);
   assert.doesNotMatch(source, /registry\.fly\.io|\bdocker (?:tag|push)\b|physio-production-publication\.json/);
   assert.doesNotMatch(source, /bootstrap_receipt|expected_volume_id|publication_artifact|immutable_image:/);
+  assert.equal(countOf(source, "--write-out '%{http_code}'"), 0,
+    'Sentry status captures must not rely on curl output without a line terminator');
+  assert.equal(countOf(source, "--write-out '%{http_code}\\n'"), 4,
+    'all Sentry status captures must terminate with a newline');
+  assert.equal(countOf(source, 'wc -l <"$work/$operation.status"'), 2,
+    'line-count validation must cover the two Sentry request helpers that use it');
 });
 
 test('candidate sealing safely extracts source maps and closes both downloaded receipt chains', () => {
