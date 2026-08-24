@@ -47,6 +47,28 @@ const REQUEST_ID_HEADERS = Object.freeze([
   'sentry-trace',
   'x-request-id',
   'x-sentry-request-id',
+  // Sentry's API does not consistently emit a request-id header. It does,
+  // however, guarantee these provider-generated rate-limit headers on every
+  // API response (including the organization endpoint). Keep them as
+  // response evidence so a real Sentry response cannot fail solely because
+  // the edge did not add an opaque request id.
+  'x-sentry-rate-limit-limit',
+  'x-sentry-rate-limit-remaining',
+  'x-sentry-rate-limit-reset',
+  'x-sentry-rate-limit-concurrentlimit',
+  'x-sentry-rate-limit-concurrentremaining',
+]);
+const SENTRY_RATE_LIMIT_HEADERS = new Set([
+  'x-sentry-rate-limit-limit',
+  'x-sentry-rate-limit-remaining',
+  'x-sentry-rate-limit-reset',
+  'x-sentry-rate-limit-concurrentlimit',
+  'x-sentry-rate-limit-concurrentremaining',
+]);
+const SENTRY_RATE_LIMIT_REQUIRED_HEADERS = Object.freeze([
+  'x-sentry-rate-limit-limit',
+  'x-sentry-rate-limit-remaining',
+  'x-sentry-rate-limit-reset',
 ]);
 const PHASE_RECEIPT_KEYS = Object.freeze([
   'application', 'application_sha', 'authority_reference', 'candidate_core_receipt_sha256',
@@ -539,7 +561,16 @@ export function extractSentryProviderRequestIdHashes(headerBytes, { label = 'pro
     const name = line.slice(0, colon).trim().toLowerCase();
     const value = line.slice(colon + 1).trim();
     if (!REQUEST_ID_HEADERS.includes(name) || !value || value.length > 512 || /[\x00-\x1f\x7f]/.test(value)) continue;
+    // Rate-limit headers are accepted only in the numeric form emitted by
+    // Sentry. This keeps arbitrary caller-controlled values out of the proof
+    // while remaining compatible with the API's guaranteed response headers.
+    if (SENTRY_RATE_LIMIT_HEADERS.has(name) && !/^\d+$/u.test(value)) continue;
     values.push({ name, value });
+  }
+  const requestIds = values.filter((row) => !SENTRY_RATE_LIMIT_HEADERS.has(row.name));
+  if (requestIds.length === 0 &&
+      !SENTRY_RATE_LIMIT_REQUIRED_HEADERS.every((name) => values.some((row) => row.name === name))) {
+    fail(`${label} has no provider-derived request identifier or complete Sentry rate-limit evidence`);
   }
   const unique = [...new Map(values.map((row) => [`${row.name}\0${row.value}`, row])).values()]
     .sort((left, right) => left.name.localeCompare(right.name) || left.value.localeCompare(right.value));

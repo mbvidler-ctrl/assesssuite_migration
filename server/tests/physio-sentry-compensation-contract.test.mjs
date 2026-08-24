@@ -314,6 +314,36 @@ test('provider proof hashes parsed request identifiers and rejects whole-header 
   ), /ambiguous response chain/i);
 });
 
+test('provider proof accepts Sentry guaranteed rate-limit response headers', () => {
+  const headers = Buffer.from([
+    'HTTP/2 200',
+    'x-sentry-rate-limit-limit: 40',
+    'x-sentry-rate-limit-remaining: 39',
+    'x-sentry-rate-limit-reset: 1787579240',
+    'x-sentry-rate-limit-concurrentlimit: 25',
+    'x-sentry-rate-limit-concurrentremaining: 24',
+    '',
+    '',
+  ].join('\r\n'));
+  const proof = extractSentryProviderRequestIdHashes(headers, { label: 'organization' });
+  assert.equal(proof.http_status, 200);
+  assert.deepEqual(proof.request_id_header_names, [
+    'x-sentry-rate-limit-concurrentlimit',
+    'x-sentry-rate-limit-concurrentremaining',
+    'x-sentry-rate-limit-limit',
+    'x-sentry-rate-limit-remaining',
+    'x-sentry-rate-limit-reset',
+  ]);
+  assert.equal(proof.request_id_count, 5);
+  assert.ok(proof.request_id_sha256.every((value) => /^[0-9a-f]{64}$/u.test(value)));
+  assert.throws(() => extractSentryProviderRequestIdHashes(
+    'HTTP/2 200\r\nx-sentry-rate-limit-limit: synthetic\r\n\r\n',
+  ), /no provider-derived request identifier|complete Sentry rate-limit evidence/i);
+  assert.throws(() => extractSentryProviderRequestIdHashes(
+    'HTTP/2 200\r\nx-sentry-rate-limit-limit: 40\r\nx-sentry-rate-limit-remaining: 39\r\n\r\n',
+  ), /complete Sentry rate-limit evidence/i);
+});
+
 test('reconciliation packet joins exact target readback, exhaustive pages and result-specific HTTP receipts', () => {
   const buildPacket = (root, proof) => {
     const release = canonical({
