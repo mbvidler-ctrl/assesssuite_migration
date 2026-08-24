@@ -8,7 +8,10 @@ export default defineConfig({
   testMatch: 'ep-assessment-runner.spec.mjs',
   fullyParallel: false,
   workers: 1,
-  timeout: 30_000,
+  // Windows cold transforms include the full canonical catalogue and legacy
+  // runner graph.  The server is healthy, but that first deterministic
+  // transform can exceed 30 seconds on the release workstation.
+  timeout: 120_000,
   expect: {
     timeout: 8_000,
   },
@@ -27,6 +30,6 @@ export default defineConfig({
     command: `npx vite --config vite.config.mjs --host 127.0.0.1 --port ${port}`,
     url: `${baseURL}/e2e/ep-assessment-runner/`,
     reuseExistingServer: false,
-    timeout: 30_000,
+    timeout: 120_000,
   },
 });

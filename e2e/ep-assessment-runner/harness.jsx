@@ -21,12 +21,6 @@ function loadFrozenEpAssessment() {
   };
 }
 
-const client = Object.freeze({
-  id: 'ep-browser-client-1',
-  org_id: 'ep-browser-org-1',
-  full_name: 'EP Browser Fixture',
-});
-
 function Harness() {
   const [result, setResult] = useState(null);
   const scenario = new URLSearchParams(window.location.search).get('scenario') || 'frail-zero';
@@ -52,7 +46,6 @@ function Harness() {
     <main className="min-h-screen bg-slate-50 p-8">
       <AssessmentTestRunnerRouter
         assessment={assessment}
-        client={client}
         isStandaloneMode={false}
         onSave={captureResult}
         onComplete={() => {}}
