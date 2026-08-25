@@ -887,6 +887,8 @@ test('inside journey uses normal authenticated routes for all exact tasks, trans
   for (const taskId of PHYSIO_CANARY_TASK_IDS) assert.match(contract, new RegExp(taskId.replaceAll('.', '\\.')));
   assert.match(source, /functions\/physioAiTask/);
   assert.match(source, /functions\/transcribeSession/);
+  assert.equal((source.match(/care_episode_id:\s*subject\.episodeId/g) || []).length, 4);
+  assert.equal((source.match(/client_id:\s*subject\.clientId/g) || []).length, 2);
   assert.match(source, /integration-endpoints\/Core\/ExtractDataFromUploadedFile/);
   assert.match(source, /integration-endpoints\/Core\/InvokeLLM/);
   assert.match(source, /action:\s*'dissect_to_soap'/);
