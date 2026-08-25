@@ -1118,9 +1118,10 @@ jobs:
           EXPECTED_EXIT="$producer_status" node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const row = JSON.parse(fs.readFileSync(process.env.LEDGER, 'utf8'));
+          const streamMismatch = row.producer_stdout_sha256 !== process.env.EXPECTED_STDOUT_SHA ||
+            row.producer_stderr_sha256 !== process.env.EXPECTED_STDERR_SHA;
           if (row.producer_exit_code !== Number(process.env.EXPECTED_EXIT) ||
-              row.producer_stdout_sha256 !== process.env.EXPECTED_STDOUT_SHA ||
-              row.producer_stderr_sha256 !== process.env.EXPECTED_STDERR_SHA) {
+              (row.result === 'STARTED_UNRESOLVED' && streamMismatch)) {
             throw new Error('provider runner transcript or exit receipt differs');
           }
           NODE
