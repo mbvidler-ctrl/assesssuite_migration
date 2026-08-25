@@ -45,7 +45,11 @@ export default function Dashboard() {
     try {
       const currentUser = await base44.auth.me();
 
-      if (!currentUser.clinician_name) {
+      // Layout deliberately lets administrators bypass clinician onboarding,
+      // and ProfileSetup redirects an administrator back here. Keep the
+      // page-level guard aligned with that policy or an admin with no
+      // clinician_name will bounce forever between Dashboard and ProfileSetup.
+      if (currentUser.role !== "admin" && !currentUser.clinician_name) {
         navigate(createPageUrl("ProfileSetup"));
         setIsLoading(false);
         return;
