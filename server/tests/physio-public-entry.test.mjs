@@ -41,3 +41,9 @@ test('registration and shared authentication chrome use the active profession id
   assert.match(read('src/pages/Register.jsx'), /buildTimeProfession\.productName/);
   assert.match(read('src/components/AuthLayout.jsx'), /buildTimeProfession\.shortName/);
 });
+
+test('Physio Docker build reserves enough Node heap for the production bundle', () => {
+  const dockerfile = read('Dockerfile.physio');
+  assert.match(dockerfile, /ENV NODE_OPTIONS=--max-old-space-size=4096/);
+  assert.match(dockerfile, /RUN npm run build:physio/);
+});
