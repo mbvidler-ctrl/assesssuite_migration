@@ -27,6 +27,41 @@ const EPISODE_CONTEXT_ENTITIES = Object.freeze([
 const IDEMPOTENCY_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:-]{7,199}$/;
 const PENDING_GENERATION_ABANDON_MS = 15 * 60 * 1000;
 
+function omitKeys(record, keys) {
+  if (!record || typeof record !== 'object' || Array.isArray(record)) return record;
+  return Object.fromEntries(Object.entries(record).filter(([key]) => !keys.has(key)));
+}
+
+function projectCareEpisodeForAi(episode) {
+  const projected = omitKeys(episode, new Set());
+  if (!projected?.reporting || typeof projected.reporting !== 'object' || Array.isArray(projected.reporting)) {
+    return projected;
+  }
+  // Saved AI drafts already re-enter the bounded context through their
+  // linked SOAPNote/SavedReport clinical fields. Re-including their complete
+  // output and provider provenance here duplicates content, exceeds the
+  // context-depth contract after the first save, and prevents the next task
+  // from reaching the provider.
+  projected.reporting = omitKeys(
+    projected.reporting,
+    new Set(['ai_drafts', 'latest_ai_draft']),
+  );
+  return projected;
+}
+
+function projectEpisodeRecordForAi(contextKey, record) {
+  if (contextKey === 'saved_reports') {
+    return omitKeys(record, new Set(['ai_generation', 'report_html', 'revision_history']));
+  }
+  if (contextKey === 'soap_notes') {
+    return omitKeys(record, new Set(['ai_generation', 'ai_edit_revision_history']));
+  }
+  if (contextKey === 'client_reports') {
+    return omitKeys(record, new Set(['html_content', 'revision_history']));
+  }
+  return record;
+}
+
 async function assertOrganisationAccess(ctx, orgId) {
   if (!ctx.user) {
     throw new PhysioAiTaskError(401, 'authentication_required', 'Authentication is required.');
@@ -159,14 +194,15 @@ export function buildEpisodeScopedPhysioClinicalContext({
 
   const context = {
     client_profile: client,
-    care_episode: episode,
+    care_episode: projectCareEpisodeForAi(episode),
   };
   for (const [, contextKey] of EPISODE_CONTEXT_ENTITIES) {
-    context[contextKey] = assertEpisodeRecordScope(records?.[contextKey], contextKey, {
+    const scoped = assertEpisodeRecordScope(records?.[contextKey], contextKey, {
       orgId,
       clientId,
       careEpisodeId,
     });
+    context[contextKey] = scoped.map((record) => projectEpisodeRecordForAi(contextKey, record));
   }
   if (clinicianContext) context.clinician_context = clinicianContext;
   return preparePhysioClinicalContext(context);
