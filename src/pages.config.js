@@ -67,6 +67,7 @@ import Nutrition from './pages/Nutrition';
 import Onboarding from './pages/Onboarding';
 import PendingApproval from './pages/PendingApproval';
 import PhysioEpisodes from './pages/PhysioEpisodes';
+import PhysioHome from './pages/PhysioHome';
 import ProfileSetup from './pages/ProfileSetup';
 import Reports from './pages/Reports';
 import TestRunner from './pages/TestRunner';
@@ -85,7 +86,6 @@ const SHARED_PAGES = {
     "Clients": Clients,
     "Dashboard": Dashboard,
     "Finances": Finances,
-    "Home": Home,
     "MyProfile": MyProfile,
     "NewAssessment": NewAssessment,
     "NewAssessmentCreator": NewAssessmentCreator,
@@ -105,11 +105,13 @@ const SHARED_PAGES = {
 // maintained EP surface unchanged.
 const PHYSIO_PAGES = {
     ...SHARED_PAGES,
+    "Home": PhysioHome,
     "PhysioEpisodes": PhysioEpisodes,
 };
 
 const EP_PAGES = {
     ...SHARED_PAGES,
+    "Home": Home,
     "AssessmentAudit": AssessmentAudit,
     "ClientConditions": ClientConditions,
     "FundingForms": FundingForms,
@@ -121,7 +123,7 @@ export const PAGES = import.meta.env.VITE_PROFESSION === 'physio'
     : EP_PAGES;
 
 export const pagesConfig = {
-    mainPage: "Home",
+    mainPage: import.meta.env.VITE_PROFESSION === 'physio' ? "Dashboard" : "Home",
     Pages: PAGES,
     Layout: __Layout,
 };

@@ -12,6 +12,15 @@ test('public Physio root is vertical-specific while the EP unauthenticated root 
   assert.match(app, /return <PhysioPublicLanding \/>/);
   assert.match(app, /return <Navigate to="\/login" replace \/>/);
 
+  const pages = read('src/pages.config.js');
+  assert.match(pages, /mainPage:\s*import\.meta\.env\.VITE_PROFESSION === 'physio' \? "Dashboard" : "Home"/);
+  assert.match(pages, /const PHYSIO_PAGES = \{[\s\S]*["']Home["']:\s*PhysioHome/);
+  assert.match(pages, /const EP_PAGES = \{[\s\S]*["']Home["']:\s*Home/);
+
+  const physioHome = read('src/pages/PhysioHome.jsx');
+  assert.match(physioHome, /<Navigate to="\/Dashboard" replace \/>/);
+  assert.doesNotMatch(physioHome, /LandingLive|Exercise Physiolog/);
+
   const landing = read('src/pages/PhysioPublicLanding.jsx');
   assert.match(landing, /236 canonical assessments/);
   assert.match(landing, /Six structured AI workflows/);
