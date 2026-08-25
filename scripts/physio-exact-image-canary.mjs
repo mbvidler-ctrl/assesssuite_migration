@@ -2406,12 +2406,10 @@ async function main() {
   }
 
   if (!producerError) {
-    // The producer may print only the artifact path and SHA-256; no receipt
-    // body or provider content is echoed into general workflow logs.
-    producerStdout = `${JSON.stringify({
-      artifact: result.output,
-      sha256: sha256(fs.readFileSync(result.output)),
-    })}\n`;
+    // Keep the successful producer transcript empty. The receipt path and
+    // hash are already sealed by the workflow packet; echoing a runner-local
+    // path creates a second, unnecessary transcript identity.
+    producerStdout = '';
   } else {
     const errorCode = /^physio_canary_[a-z0-9_]{1,160}$/.test(producerError?.message || '')
       ? producerError.message
