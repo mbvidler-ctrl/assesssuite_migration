@@ -572,7 +572,7 @@ test('application certificate snapshot and runtime validators fail closed on dri
 test('all Physio release workflows are manual SHA-pinned isolated and custom-DNS-free', () => {
   assert.deepEqual(
     fs.readdirSync(workflowDirectory).filter((name) => name.startsWith('physio-production-')).sort(),
-    [...workflowNames].sort(),
+    [...workflowNames, 'physio-production-lean-live.yml'].sort(),
   );
   for (const name of workflowNames) {
     const source = workflow(name);
