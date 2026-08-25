@@ -1392,7 +1392,13 @@ async function runTranscriptionSuccess(server, subject, fixture) {
   const before = usageRows(server.dbPath, subject.user.id);
   const result = await requestJson(server, `/api/apps/${server.appId}/functions/transcribeSession`, {
     method: 'POST', token: subject.user.token,
-    body: { action: 'transcribe', audio_url: uploaded.file_url, org_id: subject.orgId },
+    body: {
+      action: 'transcribe',
+      audio_url: uploaded.file_url,
+      org_id: subject.orgId,
+      care_episode_id: subject.episodeId,
+      client_id: subject.clientId,
+    },
   });
   requireTrue(result.status === 200 && result.body?.simulated === false &&
     typeof result.body?.transcript === 'string' && result.body.transcript.trim(), 'transcription_success_failed');
@@ -1570,7 +1576,13 @@ async function runFaultPaths(server, subject, fixture) {
   const transcriptionBefore = usageRows(server.dbPath, subject.user.id);
   const transcription = await requestJson(server, `/api/apps/${server.appId}/functions/transcribeSession`, {
     method: 'POST', token: subject.user.token,
-    body: { action: 'transcribe', audio_url: audio.file_url, org_id: subject.orgId },
+    body: {
+      action: 'transcribe',
+      audio_url: audio.file_url,
+      org_id: subject.orgId,
+      care_episode_id: subject.episodeId,
+      client_id: subject.clientId,
+    },
   });
   const failedTranscriptionUsage = latestNewUsage(
     transcriptionBefore,
