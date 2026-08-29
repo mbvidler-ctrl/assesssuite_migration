@@ -67,6 +67,21 @@ const physiotherapyEnvironment = Object.freeze({
   SENTRY_ENVIRONMENT: 'physio-production',
   SENTRY_RELEASE: `physio-production@${physioReleaseSha}`,
 });
+const {
+  STRIPE_SECRET_KEY: _stripeSecretKey,
+  STRIPE_WEBHOOK_SECRET: _stripeWebhookSecret,
+  STRIPE_PRICE_ID_MONTHLY: _stripeMonthlyPrice,
+  STRIPE_PRICE_ID_ANNUAL: _stripeAnnualPrice,
+  ...physiotherapyWithoutStripe
+} = physiotherapyEnvironment;
+const physioR1ComparisonEnvironment = Object.freeze({
+  ...physiotherapyWithoutStripe,
+  ASSESSSUITE_DEPLOYMENT_VARIANT: 'physio-r1-comparison',
+  EXPECTED_APP_URL: 'https://assesssuite-physio-r1.fly.dev',
+  APP_URL: 'https://assesssuite-physio-r1.fly.dev',
+  ALLOW_OPEN_REGISTRATION: '0',
+  PAYMENTS_ENABLED: '0',
+});
 
 function restoreEnvironment(previous) {
   for (const [name, value] of Object.entries(previous)) {
@@ -175,6 +190,21 @@ test('production bootstrap binds each profession to its own exact public origin'
   });
   assert.deepEqual(calls, ['catalogue', 'close']);
 
+  assert.equal(
+    productionAppUrlFor(physioR1ComparisonEnvironment),
+    'https://assesssuite-physio-r1.fly.dev',
+  );
+  const r1Calls = [];
+  runProductionBootstrap({
+    environment: physioR1ComparisonEnvironment,
+    openDatabaseFn: () => ({
+      db: { close: () => r1Calls.push('close') },
+      entityNames: new Set(['Assessment']),
+    }),
+    catalogueSeedFn: () => r1Calls.push('catalogue'),
+  });
+  assert.deepEqual(r1Calls, ['catalogue', 'close']);
+
   for (const environment of [
     { ...physiotherapyEnvironment, EXPECTED_APP_URL: PRODUCTION_APP_URL },
     { ...physiotherapyEnvironment, APP_URL: PRODUCTION_APP_URL },
@@ -183,6 +213,10 @@ test('production bootstrap binds each profession to its own exact public origin'
       ...productionAppEnvironment,
       PROFESSION: 'exercise-physiology',
       DEFAULT_APP_ID: 'local-assesssuite-physio',
+    },
+    {
+      ...physioR1ComparisonEnvironment,
+      EXPECTED_APP_URL: 'https://physio.app.assesssuite.com',
     },
   ]) {
     let databaseOpened = false;

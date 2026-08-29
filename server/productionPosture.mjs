@@ -18,8 +18,8 @@ const PLACEHOLDER = /^(?:change-me|dummy|fake|mock|placeholder|synthetic|test)(?
 const SENTRY_HOST = 'o4511822688813056.ingest.us.sentry.io';
 const SENTRY_PROJECT = '4511827129663488';
 const PUBLIC_URL = 'https://physio.app.assesssuite.com';
-const R1_COMPARISON_VARIANT = 'physio-r1-comparison';
-const R1_COMPARISON_PUBLIC_URL = 'https://assesssuite-physio-r1.fly.dev';
+export const PHYSIO_R1_COMPARISON_VARIANT = 'physio-r1-comparison';
+export const PHYSIO_R1_COMPARISON_PUBLIC_URL = 'https://assesssuite-physio-r1.fly.dev';
 const CANARY_BOOTSTRAP_RECEIPT =
   /^\/tmp\/physio-exact-image-canary-bootstrap-(?:success|fault)\.json$/;
 
@@ -76,14 +76,14 @@ function addAbsentFailures(failures, environment, names) {
  */
 export function resolvePhysioProductionPosture(environment = process.env) {
   const r1Comparison = environment.ASSESSSUITE_DEPLOYMENT_VARIANT
-    === R1_COMPARISON_VARIANT;
-  const publicUrl = r1Comparison ? R1_COMPARISON_PUBLIC_URL : PUBLIC_URL;
+    === PHYSIO_R1_COMPARISON_VARIANT;
+  const publicUrl = r1Comparison ? PHYSIO_R1_COMPARISON_PUBLIC_URL : PUBLIC_URL;
   const physioTargetClaimed = environment.PROFESSION === 'physio'
     || environment.DEFAULT_APP_ID === 'local-assesssuite-physio'
     || environment.EXPECTED_APP_URL === PUBLIC_URL
     || environment.APP_URL === PUBLIC_URL
-    || environment.EXPECTED_APP_URL === R1_COMPARISON_PUBLIC_URL
-    || environment.APP_URL === R1_COMPARISON_PUBLIC_URL
+    || environment.EXPECTED_APP_URL === PHYSIO_R1_COMPARISON_PUBLIC_URL
+    || environment.APP_URL === PHYSIO_R1_COMPARISON_PUBLIC_URL
     || r1Comparison
     || environment[PHYSIO_EXACT_IMAGE_CANARY_MODE] === '1';
   const applicable = environment.NODE_ENV === 'production'
@@ -127,7 +127,7 @@ export function resolvePhysioProductionPosture(environment = process.env) {
   });
   if (r1Comparison) {
     addExactFailures(failures, environment, {
-      ASSESSSUITE_DEPLOYMENT_VARIANT: R1_COMPARISON_VARIANT,
+      ASSESSSUITE_DEPLOYMENT_VARIANT: PHYSIO_R1_COMPARISON_VARIANT,
     });
     addAbsentFailures(failures, environment, [
       'STRIPE_SECRET_KEY',

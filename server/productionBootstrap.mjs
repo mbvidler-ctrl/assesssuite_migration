@@ -18,6 +18,8 @@ import {
   PHYSIO_EXACT_IMAGE_CANARY_MODE,
   PHYSIO_PRODUCTION_DATA_FILE,
   PHYSIO_PRODUCTION_UPLOADS_DIR,
+  PHYSIO_R1_COMPARISON_PUBLIC_URL,
+  PHYSIO_R1_COMPARISON_VARIANT,
 } from './productionPosture.mjs';
 
 export const PARITY_ASSURANCE_UPLOADS_DIR = '/app/server/data/assesssuite-parity-uploads';
@@ -26,6 +28,9 @@ export const PHYSIO_CANARY_BOOTSTRAP_RECEIPT_CONTRACT_VERSION =
   'assesssuite-physio-exact-image-canary-bootstrap/1.0.0';
 
 export function productionAppUrlFor(environment = process.env) {
+  if (environment.ASSESSSUITE_DEPLOYMENT_VARIANT === PHYSIO_R1_COMPARISON_VARIANT) {
+    return PHYSIO_R1_COMPARISON_PUBLIC_URL;
+  }
   const { profession } = resolveActiveProfessionContract(environment);
   return `https://${profession.deployment.intendedAppHost}`;
 }
