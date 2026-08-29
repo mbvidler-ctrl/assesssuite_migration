@@ -175,9 +175,20 @@ jobs:
             .[0].region == "syd" and
             .[0].encrypted == true and
             .[0].auto_backup_enabled == true and
-            .[0].snapshot_retention == 5 and
-            .[0].attached_machine_id == null
+            .[0].snapshot_retention == 5
           ' <<<"$volumes" >/dev/null
+          attached_machine="$(jq -r '.[0].attached_machine_id // ""' <<<"$volumes")"
+          if [[ -z "$attached_machine" ]]; then
+            jq -e '(.Machines | length) == 0' <<<"$status" >/dev/null
+          else
+            jq -e --arg machine "$attached_machine" --arg sha "$R1_COMPARISON_SHA" --arg volume "$R1_VOLUME_ID" '
+              (.Machines | length) == 1 and
+              .Machines[0].id == $machine and
+              .Machines[0].state == "started" and
+              .Machines[0].image_ref.labels.ASSESSSUITE_SOURCE_SHA == $sha and
+              .Machines[0].config.mounts[0].volume == $volume
+            ' <<<"$status" >/dev/null
+          fi
           printf '%s\n' "$volumes" >r1-volume-before.json
 
       - name: Stage only non-billing R1 comparison secrets
@@ -239,14 +250,26 @@ jobs:
             .catalogue.expected_checksum == $checksum and
             .catalogue.ready == true
           ' r1-version.json >/dev/null
-          flyctl status --app "$APP" --json >r1-fly-status.json
+          for attempt in $(seq 1 24); do
+            flyctl status --app "$APP" --json >r1-fly-status.json
+            if jq -e --arg sha "$R1_COMPARISON_SHA" --arg volume "$R1_VOLUME_ID" '
+              .Deployed == true and
+              .Status == "deployed" and
+              ([.Machines[] | select(.state == "started")] | length) == 1 and
+              .Machines[0].image_ref.labels.ASSESSSUITE_SOURCE_SHA == $sha and
+              .Machines[0].config.mounts[0].volume == $volume
+            ' r1-fly-status.json >/dev/null; then
+              break
+            fi
+            [[ "$attempt" -lt 24 ]]
+            sleep 5
+          done
           flyctl volumes list --app "$APP" --json >r1-volumes-after.json
-          jq -e --arg sha "$R1_COMPARISON_SHA" --arg volume "$R1_VOLUME_ID" '
-            .Deployed == true and
-            ([.Machines[] | select(.state == "started")] | length) == 1 and
-            .Machines[0].image_ref.labels.ASSESSSUITE_SOURCE_SHA == $sha and
-            .Machines[0].config.mounts[0].volume == $volume
-          ' r1-fly-status.json >/dev/null
+          jq -e --arg id "$R1_VOLUME_ID" '
+            length == 1 and
+            .[0].id == $id and
+            .[0].attached_machine_id != null
+          ' r1-volumes-after.json >/dev/null
 
       - name: Provision and prove restricted comparison access
         shell: bash
@@ -279,7 +302,7 @@ jobs:
             --data '{"email":"unauthorised-r1-probe@example.test","password":"NotARealPassword1!"}' \
             "$APP_URL/api/apps/local-assesssuite-physio/auth/register")"
           [[ "$register_status" == "403" ]]
-          jq -e '.error == "self-registration is disabled for this deployment"' r1-register-response.json >/dev/null
+          jq -e '(.message // .error) == "self-registration is disabled for this deployment"' r1-register-response.json >/dev/null
 
       - name: Write content-free R1 deployment receipt
         if: ${{ success() }}
