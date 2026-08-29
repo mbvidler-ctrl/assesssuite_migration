@@ -206,6 +206,16 @@
           },
           "study_type": {
             "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "catalogue_verified_at": {
+            "type": "string",
+            "format": "date"
+          },
+          "verification": {
+            "type": "string"
           }
         }
       }
@@ -218,6 +228,24 @@
       "type": "string",
       "format": "date",
       "description": "When this protocol was last updated"
+    },
+    "evidence_status": {
+      "type": "string",
+      "enum": ["source_linked", "legacy_reviewed", "ai_assisted"]
+    },
+    "evidence_reviewed_at": {
+      "type": "string",
+      "format": "date"
+    },
+    "source_revision": {
+      "type": "string"
+    },
+    "applicable_professions": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["physiotherapy", "exercise-physiology"]
+      }
     }
   },
   "required": [

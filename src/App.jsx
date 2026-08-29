@@ -27,6 +27,7 @@ import LegalNotices from '@/pages/LegalNotices';
 import AccountDeactivated from '@/pages/AccountDeactivated';
 import PhysioPublicLanding from '@/pages/PhysioPublicLanding';
 import { buildTimeProfession } from '@/lib/profession';
+import { PersistentTranscriptionProvider } from '@/lib/transcription/PersistentTranscriptionContext';
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -128,19 +129,21 @@ function App() {
 
   return (
     <AuthProvider>
-      <QueryClientProvider client={queryClientInstance}>
-        <Router>
-          <NavigationTracker />
-          <TelemetryRoutes>
+      <PersistentTranscriptionProvider>
+        <QueryClientProvider client={queryClientInstance}>
+          <Router>
+            <NavigationTracker />
+            <TelemetryRoutes>
             {/* Signup.jsx is an incomplete duplicate of the OTP-based Register.jsx
                 flow (no OTP, dead legal-link stubs) — retired as a live entry
                 point, not deleted. See docs/qa/ session note. */}
             <Route path="/signup" element={<Navigate to="/register" replace />} />
             <Route path="*" element={<AuthenticatedApp />} />
-          </TelemetryRoutes>
-        </Router>
-        <Toaster />
-      </QueryClientProvider>
+            </TelemetryRoutes>
+          </Router>
+          <Toaster />
+        </QueryClientProvider>
+      </PersistentTranscriptionProvider>
     </AuthProvider>
   )
 }

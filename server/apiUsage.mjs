@@ -31,6 +31,9 @@ export const OPENAI_PRICE_REGISTRY = Object.freeze({
     kind: 'chat', inputUsdPerMillion: 2, cachedInputUsdPerMillion: 0.5, outputUsdPerMillion: 8,
   }),
   'whisper-1': Object.freeze({ kind: 'audio', usdPerMinute: 0.006 }),
+  'gpt-4o-transcribe-diarize': Object.freeze({
+    kind: 'audio_tokens', inputUsdPerMillion: 2.5, outputUsdPerMillion: 10,
+  }),
 });
 
 const DEFAULTS = Object.freeze({
@@ -193,6 +196,16 @@ export function calculateTranscriptionCostMicrousd({ model, audioSeconds }) {
   const price = modelPrice(model, 'audio');
   if (!Number.isFinite(audioSeconds) || audioSeconds < 0) return null;
   return Math.ceil((audioSeconds / 60) * price.usdPerMinute * MICROUSD_PER_USD);
+}
+
+export function calculateTranscriptionTokenCostMicrousd({ model, inputTokens, outputTokens }) {
+  const price = modelPrice(model, 'audio_tokens');
+  if (!Number.isSafeInteger(inputTokens) || inputTokens < 0) return null;
+  if (!Number.isSafeInteger(outputTokens) || outputTokens < 0) return null;
+  return Math.ceil(
+    inputTokens * price.inputUsdPerMillion
+    + outputTokens * price.outputUsdPerMillion,
+  );
 }
 
 export function ensureApiUsageSchema(db) {
@@ -503,6 +516,7 @@ export function createApiUsageService(
       estimateChatMicrousd,
       calculateChatCostMicrousd,
       calculateTranscriptionCostMicrousd,
+      calculateTranscriptionTokenCostMicrousd,
     });
   }
 
@@ -516,5 +530,6 @@ export function createApiUsageService(
     estimateChatMicrousd,
     calculateChatCostMicrousd,
     calculateTranscriptionCostMicrousd,
+    calculateTranscriptionTokenCostMicrousd,
   });
 }

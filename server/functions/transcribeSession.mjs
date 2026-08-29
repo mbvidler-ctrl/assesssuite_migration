@@ -68,8 +68,16 @@ const TRANSCRIBE_URL = 'https://api.openai.com/v1/audio/transcriptions';
 // Pinned so admission estimates and actual-cost settlement use one reviewed
 // price-registry entry. The Fly configs repeat this value for operator clarity.
 const TRANSCRIBE_MODEL = 'whisper-1';
+const DIARIZED_TRANSCRIBE_MODEL = 'gpt-4o-transcribe-diarize';
 const PROVIDER_CALL_RECEIPT_CONTRACT_VERSION = 'assesssuite-provider-call-receipt/1.0.0';
 const MAX_AUDIO_BYTES = 20 * 1024 * 1024;
+const PERSISTENT_TRANSCRIPTION_OPEN_STATUSES = new Set([
+  'recording',
+  'paused',
+  'finalising',
+  'recoverable',
+  'error',
+]);
 
 // MIME type by stored extension. SOAPNoteModal selects WebM/Opus or MP4 from
 // the browser's supported MediaRecorder formats and names the file to match;
@@ -164,6 +172,59 @@ async function transcribeWithOpenAI(filePath) {
   }
 }
 
+async function transcribeDiarizedWithOpenAI(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const mime = MIME_BY_EXT[ext];
+  if (!mime) throw new Error('unsupported audio type');
+  const buffer = fs.readFileSync(filePath);
+  const form = new FormData();
+  form.append('file', new Blob([buffer], { type: mime }), path.basename(filePath));
+  form.append('model', DIARIZED_TRANSCRIBE_MODEL);
+  form.append('response_format', 'diarized_json');
+  form.append('chunking_strategy', 'auto');
+  form.append('language', 'en');
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 180000);
+  try {
+    const res = await fetch(TRANSCRIBE_URL, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}` },
+      body: form,
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      throw new Error(`OpenAI diarized transcription ${res.status}: ${detail.slice(0, 200)}`);
+    }
+    const data = await res.json();
+    const text = typeof data?.text === 'string' ? data.text.trim() : '';
+    if (!text) throw new Error('OpenAI diarized transcription returned empty text');
+    const segments = (Array.isArray(data?.segments) ? data.segments : []).map((segment, index) => ({
+      id: String(segment?.id ?? index),
+      speaker: String(segment?.speaker || `Speaker ${index + 1}`).slice(0, 80),
+      start: Number.isFinite(Number(segment?.start)) ? Number(segment.start) : null,
+      end: Number.isFinite(Number(segment?.end)) ? Number(segment.end) : null,
+      text: typeof segment?.text === 'string' ? segment.text.trim() : '',
+    })).filter((segment) => segment.text);
+    const usage = data?.usage && typeof data.usage === 'object' ? data.usage : {};
+    const duration = Number(data?.duration ?? usage?.seconds);
+    return {
+      text,
+      segments,
+      audioSeconds: Number.isFinite(duration) && duration > 0
+        ? duration
+        : Math.max(0, ...segments.map((segment) => segment.end || 0)) || null,
+      inputTokens: Number.isSafeInteger(usage?.input_tokens) ? usage.input_tokens : null,
+      outputTokens: Number.isSafeInteger(usage?.output_tokens) ? usage.output_tokens : null,
+      providerRequestId: res.headers.get('x-request-id') || null,
+      providerStatus: res.status,
+    };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 function apiUsageFailure(error) {
   const status = Number.isInteger(error?.httpStatus) && error.httpStatus >= 400 && error.httpStatus <= 599
     ? error.httpStatus
@@ -230,6 +291,53 @@ const SOAP_SCHEMA = {
   required: ['success', 'subjective', 'objective', 'assessment', 'plan'],
 };
 
+const TRANSCRIPT_ARTIFACT_SCHEMA = {
+  type: 'object',
+  properties: {
+    concise_summary: { type: 'string' },
+    history_and_symptoms: { type: 'array', items: { type: 'string' } },
+    objective_observations: { type: 'array', items: { type: 'string' } },
+    interventions_and_education: { type: 'array', items: { type: 'string' } },
+    goals_and_preferences: { type: 'array', items: { type: 'string' } },
+    agreed_actions: { type: 'array', items: { type: 'string' } },
+    follow_up_items: { type: 'array', items: { type: 'string' } },
+    red_flags_or_escalations: { type: 'array', items: { type: 'string' } },
+    soap: {
+      type: 'object',
+      properties: {
+        subjective: { type: 'string' },
+        objective: { type: 'string' },
+        assessment: { type: 'string' },
+        plan: { type: 'string' },
+      },
+      required: ['subjective', 'objective', 'assessment', 'plan'],
+    },
+    source_segments: { type: 'array', items: { type: 'integer' } },
+  },
+  required: [
+    'concise_summary', 'history_and_symptoms', 'objective_observations',
+    'interventions_and_education', 'goals_and_preferences', 'agreed_actions',
+    'follow_up_items', 'red_flags_or_escalations', 'soap', 'source_segments',
+  ],
+};
+
+function buildTranscriptArtifactPrompt(session) {
+  const transcript = session.segments
+    .filter((segment) => segment.status === 'ready' && segment.transcriptText)
+    .map((segment) => `[Recording segment ${segment.sequence}]\n${segment.transcriptText}`)
+    .join('\n\n');
+  return [
+    `You are a clinical documentation assistant supporting a ${resolveActiveProfessionContract(process.env).clinicalPromptRole}.`,
+    'Turn the consultation transcript into a concise, review-ready clinical workspace.',
+    'Use only facts present in the transcript. Do not infer diagnoses, measurements, consent, tests, interventions, goals or decisions that were not spoken.',
+    'Preserve uncertainty and speaker attribution where it matters. Use Australian English.',
+    'The SOAP draft must be concise and clinically useful. Put absent content in an empty string or empty array rather than inventing it.',
+    'List the zero-based recording segment numbers that materially support the output in source_segments.',
+    '',
+    transcript.slice(0, 300_000),
+  ].join('\n');
+}
+
 function buildSoapPrompt(transcript) {
   return [
     'You are a clinical scribe for an allied-health (exercise physiology) practice.',
@@ -275,6 +383,271 @@ export default async function transcribeSession(ctx) {
       code: TRANSCRIPTION_DISABLED_CODE,
       error: TRANSCRIPTION_DISABLED_MESSAGE,
     });
+  }
+
+  if (action === 'transcribe_segment') {
+    const {
+      audio_url: audioUrl,
+      org_id: orgId,
+      persistent_session_id: sessionId,
+    } = body || {};
+    const sequence = Number(body?.sequence);
+    const session = ctx.transcriptionSessions?.get(String(sessionId || ''));
+    if (!session || session.orgId !== orgId) {
+      return respond(404, { code: 'transcription_session_not_found', error: 'The transcription session was not found.' });
+    }
+    if (session.userId !== ctx.user?.id) {
+      return respond(403, { code: 'transcription_session_owner_required', error: 'Only the recording clinician can transcribe this segment.' });
+    }
+    if (!PERSISTENT_TRANSCRIPTION_OPEN_STATUSES.has(session.status)) {
+      return respond(409, {
+        code: 'transcription_session_closed',
+        error: 'This transcription session is closed and cannot incur further provider processing.',
+      });
+    }
+    const segment = session.segments.find((entry) => entry.sequence === sequence);
+    if (!segment || segment.audioUrl !== audioUrl) {
+      return respond(404, { code: 'transcription_segment_not_found', error: 'The recording segment was not found.' });
+    }
+    if (segment.status === 'ready') {
+      return respond(200, {
+        transcript: segment.transcriptText,
+        speakers: segment.speakers,
+        session_transcript: session.transcriptText,
+        simulated: Boolean(segment.providerReceipt?.simulated),
+        provider_receipt: segment.providerReceipt,
+        replayed: true,
+      });
+    }
+    if (segment.status === 'transcribing') {
+      return respond(409, {
+        code: 'transcription_segment_in_progress',
+        error: 'This recording segment is already being transcribed.',
+      });
+    }
+    const filePath = resolveUploadPath(audioUrl, { user: ctx.user, orgId });
+    if (!filePath) return respond(404, { code: 'audio_not_found', error: 'Audio file not found.' });
+    let stat;
+    try { stat = fs.lstatSync(filePath); } catch { /* handled below */ }
+    if (!stat?.isFile() || stat.isSymbolicLink()) {
+      return respond(404, { code: 'audio_not_found', error: 'Audio file not found.' });
+    }
+    if (!MIME_BY_EXT[path.extname(filePath).toLowerCase()]) {
+      return respond(415, { code: 'unsupported_audio_type', error: 'This audio format cannot be transcribed.' });
+    }
+    if (stat.size <= 0 || stat.size > MAX_AUDIO_BYTES) {
+      return respond(stat.size <= 0 ? 400 : 413, {
+        code: stat.size <= 0 ? 'empty_audio' : 'audio_too_large',
+        error: stat.size <= 0 ? 'The recording segment is empty.' : 'Each recording segment must be no larger than 20 MiB.',
+      });
+    }
+    if (!realPathEnabled()) {
+      if (testFallback) {
+        const fallback = await testFallback({ action: 'transcribe', audioUrl });
+        const transcript = String(fallback?.transcript || '').trim();
+        ctx.transcriptionSessions.updateSegmentResult(session.id, sequence, {
+          status: 'ready', transcriptText: transcript, speakers: [],
+          providerReceipt: { simulated: true }, durationSeconds: segment.durationSeconds || 1,
+          lastErrorCode: null,
+        });
+        const rebuilt = ctx.transcriptionSessions.rebuildTranscript(session.id);
+        return respond(200, { ...fallback, transcript, speakers: [], session_transcript: rebuilt.transcriptText });
+      }
+      return respond(503, { code: TRANSCRIPTION_UNCONFIGURED_CODE, error: TRANSCRIPTION_UNCONFIGURED_MESSAGE });
+    }
+
+    ctx.transcriptionSessions.updateSegmentResult(session.id, sequence, {
+      status: 'transcribing', lastErrorCode: null,
+    });
+    let reservation;
+    try {
+      reservation = await reserveApiUsage(ctx, {
+        feature: 'transcription',
+        model: DIARIZED_TRANSCRIBE_MODEL,
+        estimatedCostMicrousd: ctx.apiUsage?.estimates?.transcriptionMicrousd,
+      });
+    } catch (error) {
+      ctx.transcriptionSessions.updateSegmentResult(session.id, sequence, {
+        status: 'error', lastErrorCode: error?.code || 'api_usage_unavailable',
+      });
+      return respond(apiUsageFailure(error).status, apiUsageFailure(error).body);
+    }
+    let providerResult;
+    try {
+      providerResult = await transcribeDiarizedWithOpenAI(filePath);
+    } catch (error) {
+      await markApiUsageFailed(ctx, reservation.id);
+      ctx.transcriptionSessions.updateSegmentResult(session.id, sequence, {
+        status: 'error', lastErrorCode: TRANSCRIPTION_PROVIDER_FAILED_CODE,
+      });
+      ctx.transcriptionSessions.update(session.id, {
+        status: 'recoverable', lastErrorCode: TRANSCRIPTION_PROVIDER_FAILED_CODE,
+      });
+      console.log('[transcribeSession] diarized transcription failed:', error.message);
+      return respond(502, { code: TRANSCRIPTION_PROVIDER_FAILED_CODE, error: 'This recording segment could not be transcribed. It remains saved and can be retried.' });
+    }
+    if (
+      typeof providerResult.providerRequestId !== 'string'
+      || !providerResult.providerRequestId.trim()
+      || !Number.isInteger(providerResult.providerStatus)
+      || providerResult.providerStatus < 200
+      || providerResult.providerStatus >= 300
+    ) {
+      await markApiUsageFailed(ctx, reservation.id);
+      ctx.transcriptionSessions.updateSegmentResult(session.id, sequence, {
+        status: 'error', lastErrorCode: TRANSCRIPTION_PROVIDER_FAILED_CODE,
+      });
+      ctx.transcriptionSessions.update(session.id, {
+        status: 'recoverable', lastErrorCode: TRANSCRIPTION_PROVIDER_FAILED_CODE,
+      });
+      return respond(502, {
+        code: TRANSCRIPTION_PROVIDER_FAILED_CODE,
+        error: 'The transcription provider did not return a verifiable receipt. The audio remains saved and can be retried.',
+      });
+    }
+    const { text: safeText } = deidentify(providerResult.text);
+    const safeSpeakers = providerResult.segments.map((entry) => ({
+      ...entry,
+      text: deidentify(entry.text).text,
+    }));
+    const settlement = {
+      reservationId: reservation.id,
+      status: 'succeeded',
+      inputTokens: providerResult.inputTokens,
+      cachedInputTokens: 0,
+      outputTokens: providerResult.outputTokens,
+      audioSeconds: providerResult.audioSeconds,
+      providerRequestId: providerResult.providerRequestId,
+    };
+    if (
+      Number.isSafeInteger(providerResult.inputTokens)
+      && Number.isSafeInteger(providerResult.outputTokens)
+      && typeof ctx.apiUsage.calculateTranscriptionTokenCostMicrousd === 'function'
+    ) {
+      settlement.actualCostMicrousd = ctx.apiUsage.calculateTranscriptionTokenCostMicrousd({
+        model: DIARIZED_TRANSCRIBE_MODEL,
+        inputTokens: providerResult.inputTokens,
+        outputTokens: providerResult.outputTokens,
+      });
+    }
+    if (!Number.isSafeInteger(settlement.actualCostMicrousd) || settlement.actualCostMicrousd < 0) {
+      await markApiUsageFailed(ctx, reservation.id);
+      ctx.transcriptionSessions.updateSegmentResult(session.id, sequence, {
+        status: 'error', lastErrorCode: 'api_usage_accounting_unavailable',
+      });
+      ctx.transcriptionSessions.update(session.id, {
+        status: 'recoverable', lastErrorCode: 'api_usage_accounting_unavailable',
+      });
+      return respond(503, { code: 'api_usage_accounting_unavailable', error: 'AI usage controls are temporarily unavailable. The audio remains saved.' });
+    }
+    try {
+      await settleApiUsage(ctx, settlement);
+    } catch (error) {
+      ctx.transcriptionSessions.updateSegmentResult(session.id, sequence, {
+        status: 'error', lastErrorCode: error?.code || 'api_usage_settlement_failed',
+      });
+      ctx.transcriptionSessions.update(session.id, {
+        status: 'recoverable', lastErrorCode: error?.code || 'api_usage_settlement_failed',
+      });
+      const failure = apiUsageFailure(error);
+      return respond(failure.status, failure.body);
+    }
+    const providerReceipt = {
+      contract_version: PROVIDER_CALL_RECEIPT_CONTRACT_VERSION,
+      feature: 'transcription',
+      provider: 'openai',
+      model: DIARIZED_TRANSCRIBE_MODEL,
+      provider_status: providerResult.providerStatus,
+      provider_request_id_hash: createHash('sha256').update(providerResult.providerRequestId).digest('hex'),
+      usage: {
+        audio_seconds: providerResult.audioSeconds,
+        input_tokens: providerResult.inputTokens,
+        output_tokens: providerResult.outputTokens,
+        actual_cost_microusd: settlement.actualCostMicrousd,
+      },
+    };
+    ctx.transcriptionSessions.updateSegmentResult(session.id, sequence, {
+      status: 'ready', transcriptText: safeText, speakers: safeSpeakers,
+      providerReceipt, durationSeconds: providerResult.audioSeconds,
+      lastErrorCode: null,
+    });
+    const rebuilt = ctx.transcriptionSessions.rebuildTranscript(session.id);
+    const refreshed = ctx.transcriptionSessions.get(session.id);
+    if (refreshed.status === 'finalising' && refreshed.segments.every((entry) => entry.status === 'ready')) {
+      ctx.transcriptionSessions.update(session.id, { status: 'ready', lastErrorCode: null });
+    } else if (refreshed.status === 'recoverable') {
+      ctx.transcriptionSessions.update(session.id, { status: 'paused', lastErrorCode: null });
+    }
+    return respond(200, {
+      transcript: safeText,
+      speakers: safeSpeakers,
+      session_transcript: rebuilt.transcriptText,
+      simulated: false,
+      provider_receipt: providerReceipt,
+    });
+  }
+
+  if (action === 'structure_transcript') {
+    const { org_id: orgId, persistent_session_id: sessionId } = body || {};
+    const session = ctx.transcriptionSessions?.get(String(sessionId || ''));
+    if (!session || session.orgId !== orgId) {
+      return respond(404, { code: 'transcription_session_not_found', error: 'The transcription session was not found.' });
+    }
+    if (session.userId !== ctx.user?.id) {
+      return respond(403, { code: 'transcription_session_owner_required', error: 'Only the recording clinician can structure this transcript.' });
+    }
+    if (!session.transcriptText.trim()) {
+      return respond(409, { code: 'transcription_not_ready', error: 'At least one recording segment must be transcribed first.' });
+    }
+    if (!llmEnabled()) {
+      return respond(503, { code: TRANSCRIPTION_UNCONFIGURED_CODE, error: 'Clinical transcript structuring is not configured on this server.' });
+    }
+    const prompt = buildTranscriptArtifactPrompt(session);
+    const model = pickModel(prompt, TRANSCRIPT_ARTIFACT_SCHEMA);
+    let reservation = null;
+    try {
+      reservation = await reserveApiUsage(ctx, {
+        feature: 'soap_dissection', model,
+        estimatedCostMicrousd: ctx.apiUsage?.estimates?.soapMicrousd,
+      });
+      const llmResult = await invokeLLMWithUsage({ prompt, schema: TRANSCRIPT_ARTIFACT_SCHEMA });
+      const usage = llmResult.usage || {};
+      const settlement = {
+        reservationId: reservation.id,
+        status: 'succeeded',
+        inputTokens: usage.inputTokens ?? null,
+        cachedInputTokens: usage.cachedInputTokens ?? null,
+        outputTokens: usage.outputTokens ?? null,
+        providerRequestId: llmResult.providerRequestId ?? null,
+      };
+      if (Number.isSafeInteger(usage.inputTokens) && Number.isSafeInteger(usage.outputTokens)) {
+        settlement.actualCostMicrousd = ctx.apiUsage.calculateChatCostMicrousd({
+          model: llmResult.model || model,
+          inputTokens: usage.inputTokens,
+          cachedInputTokens: usage.cachedInputTokens ?? 0,
+          outputTokens: usage.outputTokens,
+        });
+      }
+      await settleApiUsage(ctx, settlement);
+      const artifacts = llmResult.value;
+      const updated = ctx.transcriptionSessions.update(session.id, {
+        status: 'ready', artifacts, lastErrorCode: null,
+      });
+      return respond(200, {
+        success: true,
+        simulated: false,
+        artifacts,
+        persistent_session_id: updated.id,
+      });
+    } catch (error) {
+      if (reservation) await markApiUsageFailed(ctx, reservation.id);
+      if (Number.isInteger(error?.httpStatus)) {
+        const failure = apiUsageFailure(error);
+        return respond(failure.status, failure.body);
+      }
+      console.log('[transcribeSession] transcript structuring failed:', error.message);
+      return respond(502, { code: TRANSCRIPTION_PROVIDER_FAILED_CODE, error: 'The transcript is saved, but its clinical workspace could not be prepared. Try again.' });
+    }
   }
 
   if (action === 'transcribe') {

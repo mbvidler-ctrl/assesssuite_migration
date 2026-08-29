@@ -42,6 +42,14 @@ test('a missing verified flag fails closed, not open', () => {
   assert.match(badge.className, /bg-amber/);
 });
 
+test('a bundled catalogue reference is labelled source-linked without claiming independent bibliographic verification', () => {
+  const badge = getReferenceVerificationBadge({ verification: 'catalogue_source_linked' });
+  assert.equal(badge.verified, false);
+  assert.equal(badge.sourceLinked, true);
+  assert.equal(badge.label, 'Source-linked');
+  assert.match(badge.className, /bg-teal/);
+});
+
 test('TreatmentProtocols.jsx wires the truthful badge into the references map', () => {
   assert.match(pageSource, /import \{ getReferenceVerificationBadge \} from "@\/lib\/referenceVerificationBadge";/);
   assert.match(pageSource, /getReferenceVerificationBadge\(ref\)/);
