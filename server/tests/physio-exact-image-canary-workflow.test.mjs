@@ -312,6 +312,7 @@ function assertExactCandidateSourceRun(source) {
 
 function assertContentFreeTerminalEvidence(source) {
   const canary = job(source, 'canary');
+  const producer = step(canary, 'Run exact local image provider canary');
   const seal = step(canary, 'Seal content-free provider effect evidence');
   const effectUpload = step(canary, 'Upload bounded exact-image canary effect evidence');
 
@@ -344,6 +345,8 @@ function assertContentFreeTerminalEvidence(source) {
     'fallback reconciliation must hash, rather than publish, error content');
   assert.doesNotMatch(effectUpload, /include-hidden-files:\s*true/,
     'terminal evidence must not scoop up hidden runner files');
+  assert.match(producer, /NODE_NO_WARNINGS:\s*'1'/,
+    'the producer transcript must not be changed by Node runtime warnings after its ledger is sealed');
   assert.match(seal,
     /if \[\[ ! -e "\$private\/producer-exit-code" \]\]; then[\s\S]*printf '%s\\n' '125' >"\$private\/producer-exit-code"[\s\S]*fi/,
     'seal must synthesize an unresolved producer status when any post-STARTED pre-producer step fails');

@@ -23,6 +23,7 @@ import {
   parseProviderProgress,
   parseInnerReceipt,
   prepareProviderEffectLedgerTarget,
+  sanitizedChildCanaryFailure,
   startPhysioCanaryServer,
   physioCanaryContainerName,
   verifySharedSoapAiParity,
@@ -312,6 +313,22 @@ test('provider progress is content-free, ordinal-bound and rejects malformed or 
   assert.throws(() => parseProviderProgress(`${prefix}${JSON.stringify({
     ...rows[0], raw_provider_request_id: 'req_secret',
   })}`), /provider_progress_row_keys_differ/);
+});
+
+test('child canary failures preserve exactly one bounded code and hide all other stderr', () => {
+  const warning = '(node:123) ExperimentalWarning: synthetic warning';
+  const bounded = 'physio_canary_initial_assessment_summary_provider_success_failed';
+  assert.equal(sanitizedChildCanaryFailure(
+    `${warning}\nPhysio exact-image canary producer failed: ${bounded}\n`,
+    'docker',
+    1,
+  ), bounded);
+  assert.equal(sanitizedChildCanaryFailure(
+    `secret detail\nPhysio exact-image canary producer failed: ${bounded}\n` +
+      'Physio exact-image canary producer failed: physio_canary_second_failure\n',
+    'C:\\Program Files\\Docker\\docker.exe',
+    137,
+  ), 'physio_canary_command_failed_c_program_files_docker_docker_exe_137');
 });
 
 test('terminal effect ledger is atomically published once with exact producer stream hashes', () => {

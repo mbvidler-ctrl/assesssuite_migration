@@ -992,6 +992,7 @@ jobs:
         shell: bash
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          NODE_NO_WARNINGS: '1'
           RUN_PHYSIO_EXACT_IMAGE_CANARY: I_ACKNOWLEDGE_THIS_USES_ONLY_SYNTHETIC_FIXTURES_IN_A_DISPOSABLE_NO_SERVICE_NO_VOLUME_NO_DNS_CONTAINER
           ALLOW_PAID_PROVIDER_PROBE: '1'
           APPLICATION_SHA: ${{ inputs.application_sha }}
