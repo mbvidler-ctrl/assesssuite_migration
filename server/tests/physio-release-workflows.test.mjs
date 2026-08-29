@@ -13,6 +13,7 @@ import {
   PHYSIO_RELEASE_TARGET,
   canonicalizePhysioFlyImageReference,
   inspectApplication,
+  inspectCertificateInventory,
   inspectFirstReleaseRecoveryVerifierTopology,
   inspectNoCustomCertificates,
   inspectRestoreVerifierTopology,
@@ -581,6 +582,55 @@ test('application certificate snapshot and runtime validators fail closed on dri
   assert.throws(() => inspectApplication({ applicationsPayload: [appRow], mode: 'absent' }), /already exists/);
   assert.deepEqual(inspectNoCustomCertificates([]), { count: 0 });
   assert.throws(() => inspectNoCustomCertificates([{ hostname: 'physio.app.assesssuite.com' }]), /not empty/);
+  const productionCertificate = {
+    hostname: 'physio.app.assesssuite.com',
+    status: 'Ready',
+    dns_provider: 'godaddy',
+    acme_dns_configured: false,
+    acme_alpn_configured: true,
+    acme_http_configured: false,
+    ownership_txt_configured: false,
+    configured: true,
+    acme_requested: true,
+    has_custom_certificate: false,
+    has_fly_certificate: true,
+    created_at: '2026-08-25T02:45:44.06Z',
+    updated_at: '2026-08-25T03:09:55.13Z',
+  };
+  assert.deepEqual(inspectCertificateInventory([productionCertificate], { mode: 'production' }), {
+    count: 1,
+    hostname: 'physio.app.assesssuite.com',
+    status: 'ready',
+    dnsProvider: 'godaddy',
+    challenge: 'tls-alpn-01',
+    configured: true,
+    acmeRequested: true,
+    flyManaged: true,
+    customCertificateCount: 0,
+    createdAt: '2026-08-25T02:45:44.06Z',
+    updatedAt: '2026-08-25T03:09:55.13Z',
+  });
+  for (const mutate of [
+    (certificate) => { certificate.hostname = 'other.example.com'; },
+    (certificate) => { certificate.status = 'Awaiting certificates'; },
+    (certificate) => { certificate.has_custom_certificate = true; },
+    (certificate) => { certificate.has_fly_certificate = false; },
+    (certificate) => { certificate.acme_alpn_configured = false; },
+    (certificate) => { certificate.created_at = 'not-a-date'; },
+    (certificate) => { certificate.extra = true; },
+  ]) {
+    const certificate = structuredClone(productionCertificate);
+    mutate(certificate);
+    assert.throws(
+      () => inspectCertificateInventory([certificate], { mode: 'production' }),
+      /Physio release contract/,
+    );
+  }
+  assert.throws(
+    () => inspectCertificateInventory([productionCertificate, productionCertificate], { mode: 'production' }),
+    /expected 1/,
+  );
+  assert.throws(() => inspectCertificateInventory([], { mode: 'other' }), /unsupported certificate inventory mode/);
   assert.deepEqual(inspectSnapshot({ snapshotsPayload: [{ id: 'vs_snapshot123', status: 'created' }] }), {
     snapshotId: 'vs_snapshot123', status: 'created',
   });
@@ -606,7 +656,7 @@ test('application certificate snapshot and runtime validators fail closed on dri
   }
 });
 
-test('all Physio release workflows are manual SHA-pinned isolated and custom-DNS-free', () => {
+test('all Physio release workflows are manual SHA-pinned isolated and certificate-bounded', () => {
   assert.deepEqual(
     fs.readdirSync(workflowDirectory).filter((name) => name.startsWith('physio-production-')).sort(),
     [
@@ -781,6 +831,9 @@ test('state snapshot is effect-free and captures stable absent bootstrapped or d
   assert.match(source, /fly machines list --app "\$app" --json/);
   assert.match(source, /fly volumes list --app "\$app" --json/);
   assert.match(source, /inspect-no-certificates/);
+  assert.match(source, /certificate_mode=absent/);
+  assert.match(source, /certificate_mode=production/);
+  assert.equal(countOf(source, '--mode "$certificate_mode"'), 3);
   assert.match(source, /assesssuite-physio-state-snapshot\/2\.0\.0/);
   assert.match(source, /provider-state-initial\.json/);
   assert.match(source, /provider-state-final\.json/);

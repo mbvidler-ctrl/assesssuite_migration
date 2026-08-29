@@ -151,6 +151,10 @@ jobs:
           receipt_dir="$RUNNER_TEMP/physio-state-receipt"
           install -d -m 0700 "$evidence" "$receipt_dir"
           trap 'rm -rf "$evidence"' EXIT
+          certificate_mode=absent
+          if [[ "$EXPECTED_STATE" == "deployed" ]]; then
+            certificate_mode=production
+          fi
 
           timeout --signal=TERM --kill-after=10s 60s fly apps list --json >"$evidence/apps-initial.json"
           if [[ "$EXPECTED_STATE" == "absent" ]]; then
@@ -163,7 +167,8 @@ jobs:
               --machines "$evidence/machines-initial.json" --volumes "$evidence/volumes-initial.json" \
               --mode absent >"$evidence/topology-canonical-initial.json"
             env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-no-certificates \
-              --certificates "$evidence/certificates-initial.json" >"$evidence/certificates-canonical-initial.json"
+              --certificates "$evidence/certificates-initial.json" --mode "$certificate_mode" \
+              >"$evidence/certificates-canonical-initial.json"
           else
             env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-app \
               --apps "$evidence/apps-initial.json" --mode present >"$evidence/app-canonical-initial.json"
@@ -181,7 +186,8 @@ jobs:
                 --image "$EXPECTED_IMAGE" >"$evidence/topology-canonical-initial.json"
             fi
             env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-no-certificates \
-              --certificates "$evidence/certificates-initial.json" >"$evidence/certificates-canonical-initial.json"
+              --certificates "$evidence/certificates-initial.json" --mode "$certificate_mode" \
+              >"$evidence/certificates-canonical-initial.json"
           fi
 
           # Repeat the complete provider readback and canonical validation. The
@@ -215,7 +221,8 @@ jobs:
             fi
           fi
           env -u FLY_API_TOKEN node scripts/physio-release-contract.mjs inspect-no-certificates \
-            --certificates "$evidence/certificates-final.json" >"$evidence/certificates-canonical-final.json"
+            --certificates "$evidence/certificates-final.json" --mode "$certificate_mode" \
+            >"$evidence/certificates-canonical-final.json"
           INITIAL_APP="$evidence/app-canonical-initial.json" INITIAL_TOPOLOGY="$evidence/topology-canonical-initial.json" \
           INITIAL_CERTIFICATES="$evidence/certificates-canonical-initial.json" \
           FINAL_APP="$evidence/app-canonical-final.json" FINAL_TOPOLOGY="$evidence/topology-canonical-final.json" \

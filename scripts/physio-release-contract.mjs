@@ -922,10 +922,53 @@ export function inspectApplication({ applicationsPayload, mode, expectedOrganiza
   return Object.freeze({ mode, count: matches.length, ...(expectedOrganization ? { organization: expectedOrganization } : {}) });
 }
 
-export function inspectNoCustomCertificates(certificatesPayload) {
+export function inspectCertificateInventory(certificatesPayload, { mode = 'absent' } = {}) {
+  if (!['absent', 'production'].includes(mode)) fail(`unsupported certificate inventory mode ${mode}`);
   const certificates = asRows(certificatesPayload, ['certificates', 'certs']);
-  if (certificates.length !== 0) fail(`custom certificate inventory is not empty (${certificates.length})`);
-  return Object.freeze({ count: 0 });
+  if (mode === 'absent') {
+    if (certificates.length !== 0) fail(`custom certificate inventory is not empty (${certificates.length})`);
+    return Object.freeze({ count: 0 });
+  }
+  if (certificates.length !== 1) {
+    fail(`production certificate inventory count is ${certificates.length}; expected 1`);
+  }
+  const certificate = certificates[0];
+  exactKeys(certificate, [
+    'hostname', 'status', 'dns_provider', 'acme_dns_configured', 'acme_alpn_configured',
+    'acme_http_configured', 'ownership_txt_configured', 'configured', 'acme_requested',
+    'has_custom_certificate', 'has_fly_certificate', 'created_at', 'updated_at',
+  ], 'production certificate');
+  const expectedHostname = new URL(PHYSIO_RELEASE_TARGET.publicHostname).hostname;
+  const createdAt = stringValue(certificate.created_at, 'production certificate created timestamp');
+  const updatedAt = stringValue(certificate.updated_at, 'production certificate updated timestamp');
+  const createdAtMs = Date.parse(createdAt);
+  const updatedAtMs = Date.parse(updatedAt);
+  if (certificate.hostname !== expectedHostname || certificate.status !== 'Ready' ||
+      certificate.dns_provider !== 'godaddy' || certificate.acme_dns_configured !== false ||
+      certificate.acme_alpn_configured !== true || certificate.acme_http_configured !== false ||
+      certificate.ownership_txt_configured !== false || certificate.configured !== true ||
+      certificate.acme_requested !== true || certificate.has_custom_certificate !== false ||
+      certificate.has_fly_certificate !== true || !Number.isFinite(createdAtMs) ||
+      !Number.isFinite(updatedAtMs) || createdAtMs > updatedAtMs) {
+    fail('production certificate identity or readiness differs');
+  }
+  return Object.freeze({
+    count: 1,
+    hostname: expectedHostname,
+    status: 'ready',
+    dnsProvider: 'godaddy',
+    challenge: 'tls-alpn-01',
+    configured: true,
+    acmeRequested: true,
+    flyManaged: true,
+    customCertificateCount: 0,
+    createdAt,
+    updatedAt,
+  });
+}
+
+export function inspectNoCustomCertificates(certificatesPayload) {
+  return inspectCertificateInventory(certificatesPayload, { mode: 'absent' });
 }
 
 export function inspectSnapshot({ snapshotsPayload, expectedSnapshotId = '' }) {
@@ -3269,7 +3312,10 @@ async function main() {
     return;
   }
   if (command === 'inspect-no-certificates') {
-    const result = inspectNoCustomCertificates(readJsonFile(readOption(args, '--certificates')));
+    const result = inspectCertificateInventory(
+      readJsonFile(readOption(args, '--certificates')),
+      { mode: readOption(args, '--mode', { required: false, fallback: 'absent' }) },
+    );
     process.stdout.write(`${JSON.stringify(result)}\n`);
     return;
   }
