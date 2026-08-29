@@ -1,6 +1,17 @@
-import { buildTimeProfession as activeProfession } from "@/lib/profession";
+import { getProfession } from "../../../packages/profession-config/index.mjs";
 
 const REPORT_SECTION_METADATA_SUFFIX = /_(?:ai_drafted|signature|attachments)$/i;
+
+function resolveReportProfession(explicitProfessionId) {
+  const runtimeProcess = Reflect.get(globalThis, "process");
+  const professionId = explicitProfessionId
+    || import.meta.env?.VITE_PROFESSION
+    || runtimeProcess?.env?.PROFESSION;
+  if (typeof professionId !== "string" || professionId.trim() === "") {
+    throw new TypeError("report drafting requires an explicit profession target");
+  }
+  return getProfession(professionId.trim());
+}
 
 export const REPORT_PROMPT_LIMITS = Object.freeze({
   priorReports: 5,
@@ -310,6 +321,7 @@ function formatSectionRequirements(sections, sectionGuidance, outcomeSection) {
 
 /** Build the prompt used by both single-section and atomic whole-report drafting. */
 export function buildReportDraftPrompt({
+  professionId = undefined,
   reportTitle,
   reportTypeKey,
   clientContext,
@@ -321,6 +333,7 @@ export function buildReportDraftPrompt({
   meta,
   outcomeSection,
 }) {
+  const activeProfession = resolveReportProfession(professionId);
   const eligibleSections = getDraftableReportSections(sections);
   if (eligibleSections.length === 0) {
     throw new Error("At least one report section is required for drafting.");

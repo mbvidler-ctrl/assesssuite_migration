@@ -190,7 +190,7 @@ test('T04 public-surface workflow checks explicitly propagate failures and requi
 });
 
 test('T05 release scanner accepts the exact reviewed diff and rejects constructed secret material', () => {
-  const exact = spawnSync('git', ['diff', '--binary', 'd593a7f2e83657125d5be4acb49642a38215d5bd'], {
+  const exact = spawnSync('git', ['diff', '--binary', 'ba47570e3c09279cedb1ee37c9dfa374b6cba178'], {
     cwd: repoRoot,
     encoding: 'utf8',
     maxBuffer: 128 * 1024 * 1024,
@@ -298,13 +298,23 @@ test('T06 referral extraction is the sole visible extraction path and preserves 
   assert.match(referral, /processing_authority_confirmed:\s*true/);
   assert.match(referral, /DOCUMENT_EXTRACTION_MAX_FILES/);
   assert.match(helper, /params\.file_urls\.length > DOCUMENT_EXTRACTION_MAX_FILES/);
-  assert.match(referral, /subject_age_confirmation:\s*REFERRAL_SUBJECT_AGE_CONFIRMATION/);
+  assert.match(
+    referral,
+    /activeProfession\.id === 'physio' \? '' : REFERRAL_SUBJECT_AGE_CONFIRMATION/,
+  );
+  assert.match(referral, /subject_age_confirmation:[^\n]*subjectAgeConfirmation/);
   assert.match(referral, /subject_age_attestation_version:\s*REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION/);
+  assert.match(referral, /value=\{REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13\}>Under 13 years/);
+  assert.match(referral, /referralProcessingAttestation\(subjectAgeConfirmation\)/);
   assert.doesNotMatch(referral, /subject_date_of_birth/);
   for (const source of nonReferralUploaders) {
     assert.doesNotMatch(source, /subject_date_of_birth/);
   }
   assert.match(integrations, /attestationVersion !== REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION/);
+  assert.match(
+    integrations,
+    /confirmation === 'under_13'[\s\S]*?process\.env\.PROFESSION !== 'physio'[\s\S]*?DOCUMENT_EXTRACTION_UNDER_13_ENABLED/,
+  );
   assert.match(integrations, /subject_date_of_birth_rejected/);
   assert.match(uploadRegistry, /subject_age_attestation_source:\s*REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE/);
   assert.match(uploadRegistry, /subject_age_attestation_version:\s*subjectAgeAttestationVersion/);
@@ -320,7 +330,7 @@ test('T06 referral extraction is the sole visible extraction path and preserves 
   assert.match(referral, /Extract Data from \{files\.length\} file\(s\)/);
   assert.match(referral, /aria-describedby="referral-extraction-attestation"/);
   assert.match(referral, /id="referral-extraction-attestation"/);
-  assert.match(referral, /\{REFERRAL_PROCESSING_ATTESTATION\}/);
+  assert.match(referral, /\{referralProcessingAttestation\(subjectAgeConfirmation\)\}/);
   assert.doesNotMatch(referral, /<HistoricalAssessmentExtractor/);
   assert.doesNotMatch(clientDocuments, /ClientDataExtractor|Scan for (?:Client )?Data|showExtractor/);
   assert.match(
