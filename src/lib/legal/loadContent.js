@@ -1,3 +1,6 @@
+import { buildTimeProfession as activeProfession } from '@/lib/profession';
+import { applyProfessionLegalContent } from './professionContent.js';
+
 // Bulk-loads every copied suite document as a raw string at build time
 // (Vite 6 glob-import), keyed by filename, so LegalDocumentPage / the
 // acceptance forms never need a dynamic per-file import path.
@@ -10,7 +13,7 @@ const modules = import.meta.glob("../../legal-content/*.md", {
 const byFilename = {};
 for (const [path, content] of Object.entries(modules)) {
   const filename = path.split("/").pop();
-  byFilename[filename] = content;
+  byFilename[filename] = applyProfessionLegalContent(content, activeProfession.id);
 }
 
 export function loadLegalContent(filename) {

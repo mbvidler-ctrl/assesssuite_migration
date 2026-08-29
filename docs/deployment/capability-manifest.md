@@ -66,7 +66,7 @@ _No client-side detector: ExtractDataFromUploadedFile( occurs in exactly one src
 
 ### Under-13 document extraction (`DOCUMENT_EXTRACTION_UNDER_13_ENABLED`)
 
-Additional fail-closed gate for referral documents whose subject is under 13 or whose age is unknown; must stay off until independently verified zero-data-retention evidence is recorded for the exact production provider project.
+Additional fail-closed gate for paediatric referral documents. AssessSuite Physio Revision 3 enables the path only for an explicit under-13 practitioner attestation and the configured real document-extraction provider; an age mismatch is quarantined and provider retry remains blocked.
 
 **When off:** Extraction of an under-13 (or age-unknown) referral document is refused with a privacy-review message; the practitioner keys the referral details in by hand instead.
 
@@ -77,6 +77,10 @@ Additional fail-closed gate for referral documents whose subject is under 13 or 
 | `server/documentExtraction.mjs` | POST /integration-endpoints/Core/ExtractDataFromUploadedFile (subject under 13 or age unknown) | 409 under_13_review_required "This referral requires a privacy review before automated extraction can be used." |
 
 _No client-side detector: Same reasoning as DOCUMENT_EXTRACTION_ENABLED: no InvokeLLM/ExtractDataFromUploadedFile-shaped client surface exists to detect; the gate is entirely server-side._
+
+**Caveats:**
+
+- The shared production default remains 0 for EP. fly.physio.production.toml is the reviewed vertical-specific override and pins this flag to 1.
 
 ### Legacy general clinical AI drafting (`GENERAL_CLINICAL_LLM_ENABLED`)
 

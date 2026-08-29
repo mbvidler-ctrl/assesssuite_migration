@@ -7,6 +7,7 @@ import { Save, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
 import { scoreOgtt } from "@/lib/clinical/scorers/extrasPhysiological";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
 
 const INTERPRETATIONS = [
   {
@@ -78,7 +79,7 @@ export default function OralGlucoseToleranceTestOGTTRunner({ client, onSave, onC
           <div className="bg-amber-50 border border-amber-300 rounded-lg p-3 flex gap-2 text-sm text-amber-900">
             <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
             <div>
-              <strong>Scope of Practice Notice:</strong> Exercise Physiologists should not administer the OGTT. This test must be ordered and conducted by a medical practitioner or pathology service. Record results obtained externally to guide exercise prescription.
+              <strong>Test-source notice:</strong> The OGTT must be ordered and conducted by an authorised medical practitioner or pathology service. Record externally obtained results here to inform the {activeProfession.disciplineName.toLowerCase()} assessment and management plan.
             </div>
           </div>
 

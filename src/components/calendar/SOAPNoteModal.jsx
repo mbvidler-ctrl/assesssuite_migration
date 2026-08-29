@@ -98,13 +98,14 @@ export default function SOAPNoteModal({
 }) {
   // Recording and provider-backed transcription remain available in both
   // clinical targets. The legacy transcript-dissection action is EP-only;
-  // Physio SOAP drafting is served by the versioned physio.soap_note.v1
-  // workspace and the server independently rejects this legacy action.
+  // Keep the shared section drafting and transcript-dissection tools available
+  // wherever the profession contract enables general clinical AI. Physio also
+  // retains its versioned physio.soap_note.v1 workspace as the structured path.
   const transcription = useAiCapability('transcription');
   const transcriptionEnabled = transcription.canTrigger;
   const ai = useAiCapability();
-  const legacySectionAiAllowed = activeProfession.id === 'exercise-physiology';
-  const legacyTranscriptDissectionAllowed = activeProfession.id === 'exercise-physiology';
+  const sharedSectionAiAllowed = activeProfession.features.legacyGeneralClinicalLlm === true;
+  const sharedTranscriptDissectionAllowed = activeProfession.features.legacyGeneralClinicalLlm === true;
 
   const [soapNote, setSoapNote] = useState(null);
   const [originalSoapNote, setOriginalSoapNote] = useState(null);
@@ -1501,7 +1502,7 @@ export default function SOAPNoteModal({
                   placeholder="Transcript will appear here once transcription completes."
                   className="text-sm"
                 />
-                {!isLocked && legacyTranscriptDissectionAllowed && (
+                {!isLocked && sharedTranscriptDissectionAllowed && (
                   <div className="flex justify-end mt-2">
                     <Button
                       size="sm"
@@ -1590,7 +1591,7 @@ export default function SOAPNoteModal({
                   <div className="flex items-center justify-between mb-2">
                     <Label htmlFor="assessment" className="text-lg font-semibold">Assessment</Label>
                     <div className="flex gap-2">
-                      {!isLocked && legacySectionAiAllowed && (
+                      {!isLocked && sharedSectionAiAllowed && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1712,7 +1713,7 @@ export default function SOAPNoteModal({
                             )}
                             Attach Document
                           </Button>
-                          {legacySectionAiAllowed && (
+                          {sharedSectionAiAllowed && (
                             <Button
                               variant="outline"
                               size="sm"

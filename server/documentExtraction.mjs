@@ -618,7 +618,9 @@ export function assertDocumentExtractionEnabled(environment = process.env) {
 function providerConfiguration(subjectAgeBands) {
   assertDocumentExtractionEnabled();
   const needsUnderAgeGate = subjectAgeBands.some((value) => value !== '13_or_over');
-  if (needsUnderAgeGate && !capabilityEnabled('DOCUMENT_EXTRACTION_UNDER_13_ENABLED')) {
+  const under13Enabled = process.env.PROFESSION === 'physio'
+    && capabilityEnabled('DOCUMENT_EXTRACTION_UNDER_13_ENABLED');
+  if (needsUnderAgeGate && !under13Enabled) {
     throw new ExtractionError(
       409,
       'under_13_review_required',
@@ -647,6 +649,7 @@ function providerConfiguration(subjectAgeBands) {
       ),
       isTestProvider: true,
       providerProbe: false,
+      allowUnder13: under13Enabled,
     };
   }
 
@@ -668,6 +671,7 @@ function providerConfiguration(subjectAgeBands) {
     timeoutMs: PRODUCTION_TIMEOUT_MS,
     isTestProvider: false,
     providerProbe,
+    allowUnder13: under13Enabled,
   };
 }
 
@@ -771,6 +775,7 @@ async function extractOneDocument({
   selectedModel,
   config,
   schemaContract,
+  subjectAgeBand,
   extractionTime,
   timeoutMs,
 }) {
@@ -840,7 +845,11 @@ async function extractOneDocument({
       const output = validateExtractionOutput(parsed, prepared.sourceSchema);
       if (
         schemaContract === 'referral' &&
-        extractedDateOfBirthIsUnder13(output.date_of_birth, extractionTime)
+        extractedDateOfBirthIsUnder13(output.date_of_birth, extractionTime) &&
+        (
+          config.allowUnder13 !== true
+          || subjectAgeBand !== 'under_13'
+        )
       ) {
         throw new ExtractionError(
           409,
@@ -898,14 +907,18 @@ export async function extractDocumentData({
   const selectedModel = resolveDocumentExtractionModel();
   // Construct and policy-check every per-file request before any provider I/O.
   // A malformed later file therefore cannot cause an earlier file to be sent.
-  const preparedRequests = files.map((file) => {
+  const preparedRequests = files.map((file, index) => {
     const payload = buildResponsesRequest({
       files: [file],
       sourceSchema: prepared.sourceSchema,
       providerSchema: prepared.providerSchema,
       model: selectedModel,
     });
-    return { payload, policy: assertProviderRequestPolicy(payload) };
+    return {
+      payload,
+      policy: assertProviderRequestPolicy(payload),
+      subjectAgeBand: subjectAgeBands?.[index] || 'unknown',
+    };
   });
   const deadline = Date.now() + config.timeoutMs;
   const extractions = [];
@@ -930,6 +943,7 @@ export async function extractDocumentData({
       selectedModel,
       config,
       schemaContract,
+      subjectAgeBand: request.subjectAgeBand,
       extractionTime,
       timeoutMs: remainingMs,
     }));

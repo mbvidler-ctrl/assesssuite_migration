@@ -208,9 +208,9 @@ const FLAGS = [
     owner: 'Maxwell Vidler',
     ownerName: 'Under-13 document extraction',
     ownerSummary:
-      'Additional fail-closed gate for referral documents whose subject is under 13 or whose age is unknown; ' +
-      'must stay off until independently verified zero-data-retention evidence is recorded for the exact ' +
-      'production provider project.',
+      'Additional fail-closed gate for paediatric referral documents. AssessSuite Physio Revision 3 enables the ' +
+      'path only for an explicit under-13 practitioner attestation and the configured real document-extraction ' +
+      'provider; an age mismatch is quarantined and provider retry remains blocked.',
     whenOff:
       'Extraction of an under-13 (or age-unknown) referral document is refused with a privacy-review message; ' +
       'the practitioner keys the referral details in by hand instead.',
@@ -238,8 +238,10 @@ const FLAGS = [
     overrideNote:
       'Present in FORBIDDEN_OPAQUE_OVERRIDES (scripts/check-production-secrets.mjs:35-45); a bare Fly secret set ' +
       'cannot change this value outside a reviewed release.',
-    caveats: [],
-    documentedIn: ['.env.example', 'fly.production.toml', 'fly.rollback.production.toml'],
+    caveats: [
+      'The shared production default remains 0 for EP. fly.physio.production.toml is the reviewed vertical-specific override and pins this flag to 1.',
+    ],
+    documentedIn: ['.env.example', 'fly.production.toml', 'fly.physio.production.toml', 'fly.rollback.production.toml'],
   },
   {
     name: 'GENERAL_CLINICAL_LLM_ENABLED',

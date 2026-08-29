@@ -2037,8 +2037,8 @@ jobs:
             row.data_manifest_sha256 !== process.env.MANIFEST||row.database_read_only!==true||
             row.provider_switches_disabled !== true || row.provider_credentials_absent !== true ||
             row.test_provider_settings_absent !== true ||
-            row.schema_digest !== 'sha256:0b67a8b1556b9adff373477f089497a10681e035a3ae523006bc50290a990428'||
-            row.schema_object_count!==106||row.schema_table_count!==36||row.data_manifest_table_count!==36||
+            row.schema_digest !== 'sha256:9e0ccdab32367a91151d78830eb115dc92c0bdea7f3cdaa85ce906cf10c8c575'||
+            row.schema_object_count!==115||row.schema_table_count!==38||row.data_manifest_table_count!==38||
             row.catalogue_count !== Number(process.env.PHYSIO_EXPECTED_CATALOGUE_COUNT)||
             row.catalogue_checksum !== process.env.PHYSIO_EXPECTED_CATALOGUE_CHECKSUM)throw new Error('restore verification differs');
           NODE

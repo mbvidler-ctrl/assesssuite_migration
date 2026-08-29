@@ -21,27 +21,24 @@ test('profession manifests explicitly admit navigation routes and report surface
 
   assert.ok(physio.navigation.primaryPages.includes('PhysioEpisodes'));
   assert.ok(physio.navigation.primaryPages.includes('Reports'));
-  assert.ok(!physio.navigation.primaryPages.includes('Nutrition'));
-  assert.ok(!physio.navigation.primaryPages.includes('FundingForms'));
-  assert.ok(!physio.navigation.allowedPages.includes('Nutrition'));
-  assert.ok(!physio.navigation.allowedPages.includes('FundingForms'));
-  assert.deepEqual(physio.reports.allowedRegions, ['australia']);
-  assert.deepEqual(physio.reports.allowedTypeIds, [
-    'physio_initial_assessment',
-    'physio_progress_report',
-    'physio_referrer_update',
-    'physio_discharge_summary',
-    'custom_report',
-  ]);
+  assert.ok(physio.navigation.primaryPages.includes('Nutrition'));
+  assert.ok(physio.navigation.primaryPages.includes('FundingForms'));
+  assert.ok(physio.navigation.allowedPages.includes('Nutrition'));
+  assert.ok(physio.navigation.allowedPages.includes('FundingForms'));
+  assert.ok(physio.navigation.allowedPages.includes('AssessmentAudit'));
+  assert.ok(physio.navigation.allowedPages.includes('ClientConditions'));
+  assert.ok(physio.navigation.allowedPages.includes('AccessInvitations'));
+  assert.deepEqual(physio.reports.allowedRegions, ['*']);
+  assert.deepEqual(physio.reports.allowedTypeIds, ['*']);
 });
 
 test('public profession projection carries isolated navigation and report policy copies', () => {
   const publicPhysio = toPublicProfession('physio');
   assert.deepEqual(publicPhysio.navigation.allowedPages, getProfession('physio').navigation.allowedPages);
   assert.deepEqual(publicPhysio.reports.allowedTypeIds, getProfession('physio').reports.allowedTypeIds);
-  publicPhysio.navigation.allowedPages.push('Nutrition');
+  publicPhysio.navigation.allowedPages.push('SyntheticPage');
   publicPhysio.reports.allowedTypeIds.push('ep_exercise_prescription');
-  assert.ok(!getProfession('physio').navigation.allowedPages.includes('Nutrition'));
+  assert.ok(!getProfession('physio').navigation.allowedPages.includes('SyntheticPage'));
   assert.ok(!getProfession('physio').reports.allowedTypeIds.includes('ep_exercise_prescription'));
 });
 
@@ -63,16 +60,16 @@ test('the production route graph is composed per vertical before bundling', () =
   assert.match(pages, /const PHYSIO_PAGES = \{[\s\S]*"PhysioEpisodes": PhysioEpisodes/);
   assert.match(pages, /const EP_PAGES = \{[\s\S]*"AssessmentAudit": AssessmentAudit/);
   assert.match(pages, /import\.meta\.env\.VITE_PROFESSION === 'physio'[\s\S]*\? PHYSIO_PAGES[\s\S]*: EP_PAGES/);
-  assert.doesNotMatch(
+  assert.match(
     pages.slice(pages.indexOf('const PHYSIO_PAGES'), pages.indexOf('const EP_PAGES')),
-    /AssessmentAudit|ClientConditions|FundingForms|Nutrition/,
+    /AssessmentAudit[\s\S]*ClientConditions[\s\S]*FundingForms[\s\S]*Nutrition/,
   );
-  assert.match(layout, /assessmentAuditAvailable = import\.meta\.env\.VITE_PROFESSION === 'exercise-physiology'/);
+  assert.match(layout, /assessmentAuditAvailable = activeProfession\.navigation\.allowedPages\.includes\('AssessmentAudit'\)/);
   assert.match(brandAssets, /assesssuite-logo-header\.png/);
   assert.doesNotMatch(layout, /media\.base44\.com/);
 });
 
-test('Physio Reports exposes only initial, progress, referrer, discharge and custom templates', () => {
+test('Physio Reports retains its native templates while admitting the complete shared report library', () => {
   const reports = read('src', 'pages', 'Reports.jsx');
   const wizard = read('src', 'components', 'reports', 'UnifiedReportWizard.jsx');
 

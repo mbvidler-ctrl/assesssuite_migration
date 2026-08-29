@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import {
   Users, FileText, BarChart3, Stethoscope, ClipboardList,
   User as UserIcon, ExternalLink, Loader2, Calendar as CalendarIcon,
-  Utensils, ShieldCheck, TicketPercent, HeartPulse
+  Utensils, ShieldCheck, TicketPercent, HeartPulse, KeyRound, DollarSign
 } from "lucide-react";
 import { SUITE_VERSION } from "@/lib/legal/documentRegistry";
 import { resolveLegalConsentAudience } from "@/lib/legal/consentAudience";
@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/sidebar";
 
 const activeReleaseProfessions = new Set(activeProfession.releaseProfessions);
-const assessmentAuditAvailable = import.meta.env.VITE_PROFESSION === 'exercise-physiology';
+const assessmentAuditAvailable = activeProfession.navigation.allowedPages.includes('AssessmentAudit');
 
 const navigationDefinitions = Object.freeze({
   Dashboard: { title: "Dashboard", icon: BarChart3 },
@@ -34,6 +34,7 @@ const navigationDefinitions = Object.freeze({
   Nutrition: { title: "Nutrition", icon: Utensils },
   Reports: { title: "Reports", icon: FileText },
   FundingForms: { title: "Funding Forms", icon: ExternalLink },
+  Finances: { title: "Finances", icon: DollarSign },
   MyProfile: { title: "Settings", icon: UserIcon },
 });
 
@@ -62,7 +63,7 @@ function canViewUsageDashboard(user) {
 // aggregate summary without being provisioned as a treating practitioner. The
 // ProtectedRoute, UsageOverview and server summary endpoint each still enforce
 // authentication and the exact viewer allowlist.
-const BYPASS_PATHS = ["/ProfileSetup", "/PendingApproval", "/Signup", "/Home", "/PaymentRequired", "/LegalNotices", "/AccountDeactivated", "/UsageOverview"];
+const BYPASS_PATHS = ["/ProfileSetup", "/PendingApproval", "/Signup", "/Home", "/PaymentRequired", "/LegalNotices", "/AccountDeactivated", "/UsageOverview", "/AccessInvitations"];
 
 function isBypassPath(pathname) {
   return BYPASS_PATHS.some(p => pathname.toLowerCase() === p.toLowerCase());
@@ -88,6 +89,7 @@ export default function Layout({ children, currentPageName }) {
   const { appPublicSettings } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState(null);
+  const [isPracticeOwner, setIsPracticeOwner] = useState(false);
 
   useEffect(() => {
     const checkProfile = async () => {
@@ -171,6 +173,7 @@ export default function Layout({ children, currentPageName }) {
           memberships = await base44.entities.OrganizationMember.filter({
             user_email: freshUser.email,
           });
+          setIsPracticeOwner(memberships.some((membership) => membership.role === "owner"));
           legalAudience = resolveLegalConsentAudience(memberships);
           if (!legalAudience.orgId) {
             navigate("/ProfileSetup");
@@ -284,6 +287,16 @@ export default function Layout({ children, currentPageName }) {
                         <Link to={createPageUrl("UsageOverview")} className="flex items-center gap-3">
                           <BarChart3 className="w-5 h-5" />
                           <span className="font-medium">Practice overview</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  )}
+                  {isPracticeOwner && activeAllowedPages.has("accessinvitations") && (
+                    <SidebarMenuItem>
+                      <SidebarMenuButton asChild className={`hover:bg-teal-50 hover:text-teal-800 transition-all duration-200 rounded-xl py-3 px-4 ${location.pathname === createPageUrl("AccessInvitations") ? "bg-teal-50 text-teal-800 border border-teal-200/50 shadow-sm" : "text-slate-600"}`}>
+                        <Link to={createPageUrl("AccessInvitations")} className="flex items-center gap-3">
+                          <KeyRound className="w-5 h-5" />
+                          <span className="font-medium">Access &amp; invitations</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>

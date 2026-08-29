@@ -44,6 +44,7 @@ test('Physio runtime tree builder enforces the exact pruned source boundary', ()
     'server/index.mjs',
     'server/functions/index.mjs',
     'server/functions/transcribeSession.mjs',
+    'scripts/provision-physio-restricted-owners.mjs',
     'scripts/physio-exact-image-canary.mjs',
   ]) {
     assert.match(builder, new RegExp(requiredRoot.replace(/[./]/g, '\\$&')));
@@ -71,9 +72,12 @@ test('Physio Fly topology is isolated from EP and exposes required real capabili
   assert.match(physio, /^\s*UPLOADS_DIR = "\/app\/server\/data\/physio-uploads"$/m);
   assert.match(physio, /^\s*source = "assesssuite_physio_data"$/m);
   assert.match(physio, /^\s*LLM_REQUIRED = "1"$/m);
-  assert.match(physio, /^\s*GENERAL_CLINICAL_LLM_ENABLED = "0"$/m);
+  assert.match(physio, /^\s*GENERAL_CLINICAL_LLM_ENABLED = "1"$/m);
+  assert.match(physio, /^\s*ALLOW_OPEN_REGISTRATION = "0"$/m);
+  assert.match(physio, /^\s*ADMIN_EMAIL = "mb\.vidler@gmail\.com"$/m);
   assert.match(physio, /^\s*TRANSCRIPTION_ENABLED = "1"$/m);
   assert.match(physio, /^\s*DOCUMENT_EXTRACTION_ENABLED = "1"$/m);
+  assert.match(physio, /^\s*DOCUMENT_EXTRACTION_UNDER_13_ENABLED = "1"$/m);
   assert.match(physio, /^\s*PAYMENTS_ENABLED = "1"$/m);
   assert.match(physio, /^\s*OUTBOUND_EMAIL_ENABLED = "1"$/m);
   assert.match(physio, /^\s*OUTBOUND_SMS_ENABLED = "0"$/m);

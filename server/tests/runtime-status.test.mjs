@@ -48,7 +48,7 @@ const REAL_PHYSIO_PROVIDER_CONFIGURATION = Object.freeze({
   ...REAL_PROVIDER_CONFIGURATION,
   PROFESSION: 'physio',
   DEFAULT_APP_ID: 'local-assesssuite-physio',
-  GENERAL_CLINICAL_LLM_ENABLED: '0',
+  GENERAL_CLINICAL_LLM_ENABLED: '1',
 });
 
 const PHYSIO_PRODUCTION_CONFIGURATION = Object.freeze({
@@ -58,9 +58,9 @@ const PHYSIO_PRODUCTION_CONFIGURATION = Object.freeze({
   APP_URL: 'https://physio.app.assesssuite.com',
   SELFTEST: '0',
   PARITY_ASSURANCE_MODE: '0',
-  ALLOW_OPEN_REGISTRATION: '1',
+  ALLOW_OPEN_REGISTRATION: '0',
   OUTBOUND_SMS_ENABLED: '0',
-  DOCUMENT_EXTRACTION_UNDER_13_ENABLED: '0',
+  DOCUMENT_EXTRACTION_UNDER_13_ENABLED: '1',
   OPENAI_MODEL_FAST: 'gpt-4.1-mini-2025-04-14',
   OPENAI_MODEL_QUALITY: 'gpt-4.1-2025-04-14',
   OPENAI_TRANSCRIBE_MODEL: 'whisper-1',
@@ -193,7 +193,7 @@ test('enabled dependencies require real fail-loud provider configuration and moc
   });
   assert.equal(configuredPhysio.ready, true);
   assert.deepEqual(configuredPhysio.dependencies.general_clinical_llm, {
-    enabled: false, required: false, ready: true, status: 'disabled',
+    enabled: true, required: true, ready: true, status: 'ready',
   });
   assert.deepEqual(configuredPhysio.dependencies.physio_ai_tasks, {
     enabled: true, required: true, ready: true, status: 'ready',
@@ -204,7 +204,7 @@ test('enabled dependencies require real fail-loud provider configuration and moc
     OPENAI_API_KEY: undefined,
   });
   assert.equal(physioWithoutProvider.ready, false);
-  assert.equal(physioWithoutProvider.dependencies.general_clinical_llm.status, 'disabled');
+  assert.equal(physioWithoutProvider.dependencies.general_clinical_llm.status, 'unavailable');
   assert.equal(physioWithoutProvider.dependencies.physio_ai_tasks.status, 'unavailable');
 
   const physioWithoutFailLoud = resolveDependencyReadiness({
@@ -212,7 +212,7 @@ test('enabled dependencies require real fail-loud provider configuration and moc
     LLM_REQUIRED: '0',
   });
   assert.equal(physioWithoutFailLoud.ready, false);
-  assert.equal(physioWithoutFailLoud.dependencies.general_clinical_llm.status, 'disabled');
+  assert.equal(physioWithoutFailLoud.dependencies.general_clinical_llm.status, 'unavailable');
   assert.equal(physioWithoutFailLoud.dependencies.physio_ai_tasks.status, 'unavailable');
 
   const noFailLoud = resolveDependencyReadiness({
@@ -461,7 +461,7 @@ test('seeded EP and Physio servers publish complete positive runtime matrices', 
       env: {
         PROFESSION: 'physio',
         DEFAULT_APP_ID: 'local-assesssuite-physio',
-        GENERAL_CLINICAL_LLM_ENABLED: '0',
+        GENERAL_CLINICAL_LLM_ENABLED: '1',
       },
       appId: 'local-assesssuite-physio',
       count: PHYSIO_RELEASE_TARGET.catalogueCount,
@@ -534,12 +534,12 @@ test('seeded EP and Physio servers publish complete positive runtime matrices', 
           'payments',
         ]);
         assert.deepEqual(capabilityRows.general_clinical_llm, {
-          enabled: false, required: false, ready: true, status: 'disabled',
+          enabled: true, required: true, ready: true, status: 'ready',
         });
         assert.deepEqual(capabilityRows.physio_ai_tasks, {
           enabled: true, required: true, ready: true, status: 'ready',
         });
-        assert.ok(Object.values(capabilityRows).slice(1).every(({ status }) => status === 'ready'));
+        assert.ok(Object.values(capabilityRows).every(({ status }) => status === 'ready'));
       } else {
         assert.deepEqual(
           Object.values(capabilityRows).map(({ status }) => status),
@@ -588,7 +588,7 @@ test('readiness returns 503 for catalogue drift and unavailable enabled provider
       DEFAULT_APP_ID: 'local-assesssuite-physio',
       RELEASE_SHA,
       BUILD_TIMESTAMP,
-      GENERAL_CLINICAL_LLM_ENABLED: '0',
+      GENERAL_CLINICAL_LLM_ENABLED: '1',
       LLM_REQUIRED: '1',
       TRANSCRIPTION_ENABLED: '1',
       DOCUMENT_EXTRACTION_ENABLED: '1',
@@ -598,6 +598,7 @@ test('readiness returns 503 for catalogue drift and unavailable enabled provider
     const unavailable = await requestJson(providerServer, '/api/health/ready');
     assert.equal(unavailable.status, 503, unavailable.text);
     assert.equal(unavailable.body?.ready, false);
+    assert.ok(unavailable.body?.failures?.includes('dependency_unavailable:general_clinical_llm'));
     assert.ok(unavailable.body?.failures?.includes('dependency_unavailable:physio_ai_tasks'));
     assert.ok(unavailable.body?.failures?.includes('dependency_unavailable:transcription'));
     assert.ok(unavailable.body?.failures?.includes('dependency_unavailable:document_extraction'));
@@ -607,10 +608,8 @@ test('readiness returns 503 for catalogue drift and unavailable enabled provider
     const capabilities = await requestJson(providerServer, '/api/capabilities');
     assert.equal(capabilities.status, 200, capabilities.text);
     assert.equal(capabilities.body?.required_dependencies_ready, false);
-    assert.deepEqual(capabilities.body?.capabilities?.general_clinical_llm, {
-      enabled: false, required: false, ready: true, status: 'disabled',
-    });
     for (const name of [
+      'general_clinical_llm',
       'physio_ai_tasks',
       'transcription',
       'document_extraction',

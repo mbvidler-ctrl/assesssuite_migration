@@ -25,7 +25,7 @@ import {
   prepareProviderEffectLedgerTarget,
   startPhysioCanaryServer,
   physioCanaryContainerName,
-  verifyLegacySoapAiIsolation,
+  verifySharedSoapAiParity,
   verifyPhysioDisabledCoreIntegrations,
   verifyProductionArtifactPosture,
   writeProviderEffectLedger,
@@ -197,7 +197,7 @@ function productionEnvironment(overrides = {}) {
     PROFESSION: 'physio',
     DEFAULT_APP_ID: 'local-assesssuite-physio',
     LLM_REQUIRED: '1',
-    GENERAL_CLINICAL_LLM_ENABLED: '0',
+    GENERAL_CLINICAL_LLM_ENABLED: '1',
     TRANSCRIPTION_ENABLED: '1',
     DOCUMENT_EXTRACTION_ENABLED: '1',
     OPENAI_HEALTH_DATA_TERMS_CONFIRMED: '1',
@@ -211,7 +211,7 @@ function productionEnvironment(overrides = {}) {
     OUTBOUND_EMAIL_ENABLED: '0',
     OUTBOUND_SMS_ENABLED: '0',
     PAYMENTS_ENABLED: '0',
-    ALLOW_OPEN_REGISTRATION: '1',
+    ALLOW_OPEN_REGISTRATION: '0',
     APP_URL: 'https://physio.app.assesssuite.com',
     EXPECTED_APP_URL: 'https://physio.app.assesssuite.com',
     UPLOADS_DIR: '/app/server/data/physio-uploads',
@@ -754,7 +754,7 @@ test('executed production artifact scan passes only the real fail-closed runtime
     sealedRuntime: false,
   }), /openai_chat_test_base_url_active/);
   assert.throws(() => verifyProductionArtifactPosture({
-    environment: productionEnvironment({ GENERAL_CLINICAL_LLM_ENABLED: '1' }),
+    environment: productionEnvironment({ GENERAL_CLINICAL_LLM_ENABLED: '0' }),
     root,
     distRoot: path.join(root, 'dist'),
     sealedRuntime: false,
@@ -808,20 +808,20 @@ test('production artifact scan rejects legacy and non-Physio product markers in 
   }
 });
 
-test('production artifact scan proves both shared SOAP legacy AI helpers are EP-only', () => {
+test('production artifact scan proves shared SOAP AI parity is enabled through the profession contract', () => {
   const source = read('src', 'components', 'calendar', 'SOAPNoteModal.jsx');
-  assert.equal(verifyLegacySoapAiIsolation(source), true);
+  assert.equal(verifySharedSoapAiParity(source), true);
 
   const unguardedPlan = source.replace(
-    '{legacySectionAiAllowed && (\n                            <Button',
+    '{sharedSectionAiAllowed && (\n                            <Button',
     '{true && (\n                            <Button',
   );
   assert.notEqual(unguardedPlan, source, 'test fixture must remove the plan AI profession gate');
-  assert.throws(() => verifyLegacySoapAiIsolation(unguardedPlan),
-    /artifact_scan_soap_legacy_ai_reachable_in_physio/);
+  assert.throws(() => verifySharedSoapAiParity(unguardedPlan),
+    /artifact_scan_soap_shared_ai_not_feature_gated/);
 
-  assert.throws(() => verifyLegacySoapAiIsolation(`${source}\nbase44.integrations.Core.InvokeLLM({});`),
-    /artifact_scan_soap_legacy_ai_call_count_differs/);
+  assert.throws(() => verifySharedSoapAiParity(`${source}\nbase44.integrations.Core.InvokeLLM({});`),
+    /artifact_scan_soap_shared_ai_call_count_differs/);
 });
 
 test('production artifact scan proves unused SMS and placeholder image surfaces are unreachable in Physio before body parsing', () => {
@@ -870,7 +870,7 @@ test('producer statically binds one exact no-service/no-volume/no-custom-DNS loc
   assert.match(source, /remaining_exact_namespace_container_count/);
   assert.match(source, /PHYSIO_CANARY_TTL_SECONDS/);
   assert.match(source, /INNER_EXEC_TIMEOUT_SECONDS = 1_500/);
-  assert.match(source, /'GENERAL_CLINICAL_LLM_ENABLED=0'/);
+  assert.match(source, /'GENERAL_CLINICAL_LLM_ENABLED=1'/);
   assert.doesNotMatch(source, /physio-canary-\$\{applicationSha\.slice\(0, 12\)\}-\$\{randomUUID/);
   assert.doesNotMatch(source, /2700s|'2400'/);
   assert.match(source, /dockerVolumeInventory\(docker\), initialVolumeInventory/);

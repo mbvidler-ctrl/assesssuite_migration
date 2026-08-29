@@ -18,6 +18,7 @@ import {
 import {
   REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
   REFERRAL_SUBJECT_AGE_CONFIRMATION,
+  REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13,
 } from '../../src/lib/referralWorkflow.js';
 import { pdfFixture } from './support/synthetic-fixtures.mjs';
 import {
@@ -35,14 +36,20 @@ function openGateDatabase(server) {
   return db;
 }
 
-async function setupPractitioner(suffix) {
+async function setupPractitioner(suffix, environment = {}) {
   const server = await startTestServer({
     UPLOAD_USER_PER_MINUTE: '60',
     UPLOAD_ORG_PER_MINUTE: '240',
+    ...environment,
   });
   const adminToken = await loginAdmin(server);
   const user = await registerUser(server, `referral-commit-${suffix}@example.test`);
-  await activateUser(server, adminToken, user.id);
+  await activateUser(
+    server,
+    adminToken,
+    user.id,
+    environment.PROFESSION === 'physio' ? 'Physiotherapist' : 'Exercise Physiologist',
+  );
   const organization = await createOrganizationForUser(server, adminToken, user);
   const acceptance = await requestJson(
     server,
@@ -63,7 +70,11 @@ async function setupPractitioner(suffix) {
   return { server, adminToken, user, organization, sdk };
 }
 
-async function createReviewPendingUpload(context, fileName = 'synthetic-referral.pdf') {
+async function createReviewPendingUpload(
+  context,
+  fileName = 'synthetic-referral.pdf',
+  subjectAgeConfirmation = REFERRAL_SUBJECT_AGE_CONFIRMATION,
+) {
   const upload = await context.sdk.integrations.Core.UploadFile({
     file: new File([pdfFixture()], fileName, { type: 'application/pdf' }),
     org_id: context.organization.id,
@@ -71,7 +82,7 @@ async function createReviewPendingUpload(context, fileName = 'synthetic-referral
     processing_authority_confirmed: true,
     processing_authority_attestation_version:
       REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
-    subject_age_confirmation: REFERRAL_SUBJECT_AGE_CONFIRMATION,
+    subject_age_confirmation: subjectAgeConfirmation,
     subject_age_attestation_version: REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
   });
   const uploadId = upload.upload_id || String(upload.file_url).split('/').at(-1);
@@ -823,6 +834,61 @@ test('reviewed under-13 DOB blocks the commit, clinical writes and every later p
       db.close();
     }
     assert.equal(fs.statSync(markerPath).size, 0);
+  } finally {
+    context.sdk.cleanup();
+    await context.server.stop();
+  }
+});
+
+test('Physio paediatric referral authority permits an under-13 reviewed commit with real persistence', async () => {
+  const context = await setupPractitioner('physio-paediatric', {
+    PROFESSION: 'physio',
+    DEFAULT_APP_ID: 'local-assesssuite-physio',
+    ALLOW_OPEN_REGISTRATION: '1',
+    DOCUMENT_EXTRACTION_UNDER_13_ENABLED: '1',
+  });
+  try {
+    const uploadId = await createReviewPendingUpload(
+      context,
+      'synthetic-physio-paediatric-referral.pdf',
+      REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13,
+    );
+    const result = await invokeCommit(context.sdk, createPayload(context, uploadId, {
+      client: {
+        full_name: 'Synthetic Physio Child',
+        date_of_birth: '2020-01-02',
+        gender: 'other',
+      },
+      conditions: [{
+        condition_name: 'Synthetic paediatric mobility presentation',
+        condition_type: 'primary',
+      }],
+    }));
+
+    assert.equal(typeof result.client_id, 'string');
+    assert.deepEqual(result.counts, {
+      conditions_created: 1,
+      documents_retained: 1,
+      historical_assessments_created: 0,
+    });
+    const patient = await context.sdk.entities.Client.get(result.client_id);
+    assert.equal(patient.full_name, 'Synthetic Physio Child');
+    assert.equal(patient.date_of_birth, '2020-01-02');
+    const documents = await context.sdk.entities.ClientDocument.filter({ client_id: result.client_id });
+    assert.equal(documents.length, 1);
+
+    const db = openGateDatabase(context.server);
+    try {
+      const upload = db.prepare(`
+        SELECT lifecycle_state, subject_age_band, bound_entity_id
+        FROM upload_registry WHERE id = ?
+      `).get(uploadId);
+      assert.equal(upload.lifecycle_state, 'bound');
+      assert.equal(upload.subject_age_band, REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13);
+      assert.equal(upload.bound_entity_id, documents[0].id);
+    } finally {
+      db.close();
+    }
   } finally {
     context.sdk.cleanup();
     await context.server.stop();

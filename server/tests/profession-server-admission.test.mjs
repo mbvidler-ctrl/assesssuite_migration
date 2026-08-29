@@ -135,6 +135,7 @@ test('explicit Physio server admits Physio profiles and function calls while rej
   const server = await startTestServer({
     PROFESSION: 'physio',
     DEFAULT_APP_ID: 'local-assesssuite-physio',
+    ALLOW_OPEN_REGISTRATION: '1',
     GENERAL_CLINICAL_LLM_ENABLED: '1',
     LLM_REQUIRED: '1',
   });

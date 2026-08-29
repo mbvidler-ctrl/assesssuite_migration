@@ -68,7 +68,30 @@ export const PHYSIO_CATALOGUE_IDENTITY_PINS = Object.freeze({
   originalSourceContentSha256: 'bdc2b49a58c38fec41d7542de38dff022c3c912b3e6781c78a370b9ef9e691d0',
   sourceContentSha256: '047eb670ad7958a8259e8fc0adacefe5e906a8f17f527cb7456befb777e39132',
   componentImplementationSha256: '4a3d14747559acb24af6c7ea2d62bc0b241bb7ade22e580cbb634bc2cd7e1918',
-  canonicalContentSha256: '950d3f4cdf372a486dd15d1efceb9bbef9afeea81c713a50bb5ff68bc0fd91c9',
+  canonicalContentSha256: '69c238e7ed2a3078e947d25fc8ffa2b3439938ffac57ffac83f96cad89d6d4a7',
+});
+
+const PHYSIO_RUNTIME_CONTENT_REPLACEMENTS = Object.freeze({
+  'assessment:ep-import:691eb419ae95315ff3bad4f6': Object.freeze([{
+    field: 'description',
+    from: 'Useful for behavioral activation planning in exercise physiology context.',
+    to: 'Useful for behavioural activation planning in physiotherapy and multidisciplinary rehabilitation contexts.',
+  }]),
+  'assessment:ep-import:691eb419ae95315ff3bad4fa': Object.freeze([{
+    field: 'description',
+    from: 'Essential for exercise physiologists designing pacing and graded exposure plans.',
+    to: 'Relevant to physiotherapists designing pacing and graded exposure plans.',
+  }]),
+  'assessment:ep-import:6934cb9404d9e954fd8b150e': Object.freeze([{
+    field: 'references',
+    from: 'Non-proprietary general movement screening tool for exercise physiology practice.',
+    to: 'Non-proprietary general movement screening tool for physiotherapy and allied-health practice.',
+  }]),
+  'assessment:ep-import:693a932ee95d0bcc4922a20b': Object.freeze([{
+    field: 'scoring_system',
+    from: 'Normative MET capacities and VO2max values are available in ACSM and other exercise physiology references and are usually stratified by age and sex.',
+    to: 'Normative MET capacities and VO2max values are available in ACSM and other exercise-testing and rehabilitation references and are usually stratified by age and sex.',
+  }]),
 });
 
 function invariant(condition, message) {
@@ -179,6 +202,18 @@ function canonicalFromSource(source) {
     sourceRefs: [source.sourceRef],
     content: source.sourceContent,
   };
+}
+
+function applyPhysioRuntimeContentReplacements(canonicalId, content) {
+  const replacements = PHYSIO_RUNTIME_CONTENT_REPLACEMENTS[canonicalId] || [];
+  return replacements.reduce((updated, { field, from, to }) => {
+    const current = String(updated[field] ?? '');
+    invariant(current.includes(from), `${canonicalId}.${field} Physio language source drifted`);
+    return {
+      ...updated,
+      [field]: current.replace(from, to),
+    };
+  }, content);
 }
 
 function componentSourceRecord(definition) {
@@ -474,6 +509,8 @@ export function buildPhysioCatalogueManifest() {
         questions: dassShadow.sourceContent.questions,
       };
     }
+
+    runtimeContent = applyPhysioRuntimeContentReplacements(canonical.canonicalId, runtimeContent);
 
     const runtimeSpecOverlay = PHYSIO_RUNTIME_SPEC_OVERLAYS[canonical.canonicalId];
     if (runtimeSpecOverlay) {

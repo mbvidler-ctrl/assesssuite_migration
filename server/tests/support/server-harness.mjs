@@ -304,14 +304,14 @@ export async function registerUser(server, email) {
   return { id: registration.body?.user_id, email, token: verification.body.access_token };
 }
 
-export async function activateUser(server, adminToken, userId) {
+export async function activateUser(server, adminToken, userId, profession = 'Exercise Physiologist') {
   const result = await requestJson(server, `/api/apps/${server.appId}/entities/User/${userId}`, {
     method: 'PUT',
     token: adminToken,
     body: {
       account_status: 'active',
       country: 'australia',
-      profession: 'Exercise Physiologist',
+      profession,
     },
   });
   if (result.status !== 200) throw new Error(`activation failed: ${result.status} ${result.text}`);

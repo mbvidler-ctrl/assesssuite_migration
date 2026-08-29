@@ -3,6 +3,7 @@ import { once } from 'node:events';
 import { DatabaseSync } from 'node:sqlite';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
+import { hashPassword } from '../../server/auth.mjs';
 import { loadEntityNames } from '../../server/db.mjs';
 import { MOCK_CHECKOUT_PRICE_ID } from '../../server/mocks/stripe.mjs';
 import { runCatalogueSeed } from '../../server/seed.mjs';
@@ -16,7 +17,65 @@ import { startFakeOpenAIChat } from '../../server/tests/support/fake-openai-chat
 
 const PHYSIO_APP_ID = 'local-assesssuite-physio';
 const EXPECTED_PHYSIO_ASSESSMENT_COUNT = 236;
+const RESTRICTED_OWNER_EMAIL = 'synthetic-offline-owner@example.test';
+const RESTRICTED_OWNER_PASSWORD = 'Synthetic-Offline-Owner-Password-1!';
 const viteChildEntry = fileURLToPath(new URL('./vite-child.mjs', import.meta.url));
+
+function appRoute(server, suffix) {
+  return `/api/apps/${server.appId}${suffix}`;
+}
+
+async function provisionRestrictedOwner(server) {
+  const adminToken = await loginAdmin(server);
+  const credentials = hashPassword(RESTRICTED_OWNER_PASSWORD);
+  const owner = await requestJson(server, appRoute(server, '/entities/User'), {
+    method: 'POST',
+    token: adminToken,
+    body: {
+      email: RESTRICTED_OWNER_EMAIL,
+      full_name: 'Synthetic Offline Practice Owner',
+      clinician_name: 'Synthetic Offline Practice Owner',
+      role: 'user',
+      account_status: 'active',
+      email_verified: true,
+      subscription_status: 'active',
+      access_entitlement: 'organisation',
+      profession: 'Physiotherapist',
+      ...credentials,
+    },
+  });
+  if (owner.status !== 200) {
+    throw new Error(`Offline restricted owner creation failed: ${owner.status} ${owner.text}`);
+  }
+
+  const organization = await requestJson(server, appRoute(server, '/entities/Organization'), {
+    method: 'POST',
+    token: adminToken,
+    body: {
+      name: 'Synthetic Offline Physiotherapy Practice',
+      subscription_status: 'active',
+    },
+  });
+  if (organization.status !== 200) {
+    throw new Error(`Offline restricted organisation creation failed: ${organization.status} ${organization.text}`);
+  }
+
+  const membership = await requestJson(server, appRoute(server, '/entities/OrganizationMember'), {
+    method: 'POST',
+    token: adminToken,
+    body: {
+      org_id: organization.body.id,
+      user_email: RESTRICTED_OWNER_EMAIL,
+      role: 'owner',
+      is_primary: true,
+    },
+  });
+  if (membership.status !== 200) {
+    throw new Error(`Offline restricted owner membership failed: ${membership.status} ${membership.text}`);
+  }
+
+  return { organizationId: organization.body.id };
+}
 
 function seedPhysioCatalogue(dbPath) {
   const previousProfession = process.env.PROFESSION;
@@ -135,16 +194,17 @@ export async function startOfflinePhysioRuntime() {
   let vite = null;
   let stopped = false;
   let hasStarted = false;
+  let restrictedAccess = null;
 
   const startBackend = async () => {
     server = await startTestServer({
       PROFESSION: 'physio',
       DEFAULT_APP_ID: PHYSIO_APP_ID,
       APP_URL: frontendBaseUrl,
-      ALLOW_OPEN_REGISTRATION: '1',
+      ALLOW_OPEN_REGISTRATION: '0',
       STRIPE_TRIAL_PERIOD_DAYS: '30',
       OUTBOUND_EMAIL_ENABLED: '0',
-      GENERAL_CLINICAL_LLM_ENABLED: '0',
+      GENERAL_CLINICAL_LLM_ENABLED: '1',
       LLM_REQUIRED: '0',
       OPENAI_API_KEY: 'synthetic-physio-offline-browser-key',
       OPENAI_CHAT_TEST_BASE_URL: fakeChat.baseUrl,
@@ -162,6 +222,7 @@ export async function startOfflinePhysioRuntime() {
     // the same catalogue-only seed used in production, rather than injecting
     // browser fixtures or bypassing the repository layer.
     seedPhysioCatalogue(store.dbPath);
+    if (!hasStarted) restrictedAccess = await provisionRestrictedOwner(server);
     if (server.baseUrl !== `http://127.0.0.1:${backendPort}`) {
       throw new Error(`Offline Physio backend did not bind the reserved port ${backendPort}`);
     }
@@ -206,6 +267,40 @@ export async function startOfflinePhysioRuntime() {
     frontendBaseUrl,
     get server() { return server; },
     get providerCalls() { return [...fakeChat.calls]; },
+    async inviteClinician(email) {
+      if (!server || !restrictedAccess?.organizationId) {
+        throw new Error('The offline restricted Physio owner is unavailable.');
+      }
+      const ownerLogin = await requestJson(server, appRoute(server, '/auth/login'), {
+        method: 'POST',
+        body: { email: RESTRICTED_OWNER_EMAIL, password: RESTRICTED_OWNER_PASSWORD },
+      });
+      if (ownerLogin.status !== 200 || !ownerLogin.body?.access_token) {
+        throw new Error(`Offline restricted owner login failed: ${ownerLogin.status} ${ownerLogin.text}`);
+      }
+      const invitation = await requestJson(
+        server,
+        appRoute(server, '/functions/manageOrganizationAccess'),
+        {
+          method: 'POST',
+          token: ownerLogin.body.access_token,
+          body: {
+            action: 'invite',
+            org_id: restrictedAccess.organizationId,
+            email,
+            role: 'clinician',
+          },
+        },
+      );
+      if (invitation.status !== 200 || !invitation.body?.test_token) {
+        throw new Error(`Offline clinician invitation failed: ${invitation.status} ${invitation.text}`);
+      }
+      return {
+        token: invitation.body.test_token,
+        invitation: invitation.body.invitation,
+        organizationId: restrictedAccess.organizationId,
+      };
+    },
     async completeCheckout(email) {
       if (!server) throw new Error('The offline Physio backend is not running.');
       const userId = registeredUserId(store.dbPath, email);

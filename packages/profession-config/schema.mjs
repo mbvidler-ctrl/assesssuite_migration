@@ -242,15 +242,6 @@ export function validateProfession(definition) {
       `profession "${definition.id}" features.disabledCoreIntegrationIds must not contain duplicates`,
     );
   }
-  if (
-    definition.features.legacyGeneralClinicalLlm
-    && definition.features.aiTaskIds.length > 0
-  ) {
-    throw new TypeError(
-      `profession "${definition.id}" cannot expose both legacy general AI and versioned task AI`,
-    );
-  }
-
   assertPlainObject(definition.branding, `profession "${definition.id}" branding`);
   for (const key of ['accent', 'accentDark', 'logoAlt']) {
     assertNonEmptyString(definition.branding[key], `profession "${definition.id}" branding.${key}`);

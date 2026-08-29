@@ -50,6 +50,7 @@
 import AdminAnalytics from './pages/AdminAnalytics';
 import AdminApprovals from './pages/AdminApprovals';
 import AdminPromotions from './pages/AdminPromotions';
+import AccessInvitations from './pages/AccessInvitations';
 import AssessmentAudit from './pages/AssessmentAudit';
 import AssessmentLibrary from './pages/AssessmentLibrary';
 import Calendar from './pages/Calendar';
@@ -67,7 +68,9 @@ import Nutrition from './pages/Nutrition';
 import Onboarding from './pages/Onboarding';
 import PendingApproval from './pages/PendingApproval';
 import PhysioEpisodes from './pages/PhysioEpisodes';
+import PhysioFundingForms from './pages/PhysioFundingForms';
 import PhysioHome from './pages/PhysioHome';
+import PhysioNutrition from './pages/PhysioNutrition';
 import ProfileSetup from './pages/ProfileSetup';
 import Reports from './pages/Reports';
 import TestRunner from './pages/TestRunner';
@@ -107,6 +110,11 @@ const PHYSIO_PAGES = {
     ...SHARED_PAGES,
     "Home": PhysioHome,
     "PhysioEpisodes": PhysioEpisodes,
+    "AccessInvitations": AccessInvitations,
+    "AssessmentAudit": AssessmentAudit,
+    "ClientConditions": ClientConditions,
+    "FundingForms": PhysioFundingForms,
+    "Nutrition": PhysioNutrition,
 };
 
 const EP_PAGES = {

@@ -180,3 +180,17 @@ export function buildPublicResetUrl({
   target.searchParams.set('token', token);
   return target.href;
 }
+
+/** Builds the branded, single-use invitation-acceptance target. */
+export function buildPublicInvitationUrl({
+  request = null,
+  environment = process.env,
+  token,
+} = {}) {
+  if (typeof token !== 'string' || !/^[A-Za-z0-9_-]{32,128}$/.test(token)) {
+    throw new PublicRequestOriginError('invitation token is invalid');
+  }
+  const target = new URL('/accept-invitation', resolvePublicRequestOrigin({ request, environment }));
+  target.searchParams.set('token', token);
+  return target.href;
+}

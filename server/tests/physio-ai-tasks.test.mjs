@@ -474,6 +474,7 @@ test('versioned Physio function reaches the real adapter with legacy general AI 
   const server = await startTestServer({
     PROFESSION: 'physio',
     DEFAULT_APP_ID: 'local-assesssuite-physio',
+    ALLOW_OPEN_REGISTRATION: '1',
     GENERAL_CLINICAL_LLM_ENABLED: '0',
     LLM_REQUIRED: '0',
     OPENAI_API_KEY: 'synthetic-physio-provider-proof-key',

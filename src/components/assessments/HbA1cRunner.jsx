@@ -9,6 +9,7 @@ import { Save, X, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { todayLocal } from "@/lib/localDate";
 import { scoreHba1c } from "@/lib/clinical/scorers/extrasPhysiological";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
 
 export default function HbA1cRunner({ client, onSave, onClose }) {
   const [hba1c, setHba1c] = useState("");
@@ -69,7 +70,7 @@ export default function HbA1cRunner({ client, onSave, onClose }) {
                     <div className="bg-amber-50 border border-amber-200 rounded-md p-3 text-sm text-amber-800">
                       <p className="font-semibold mb-1">⚠ Scope of Practice Reminder</p>
                       {category.label === "Pre-diabetes" && (
-                        <p>This result is in the pre-diabetes range. As an Exercise Physiologist, you may incorporate lifestyle and exercise interventions; however, <strong>diagnosis is outside your scope</strong>. Refer to the client's GP or a Credentialled Diabetes Educator (CDE) for medical review and management planning.</p>
+                        <p>This result is in the pre-diabetes range. A {activeProfession.practitionerNoun} may incorporate relevant activity, function and lifestyle factors into the management plan; however, <strong>this result must not be used as a standalone diagnosis</strong>. Refer to the {activeProfession.lexicon.client}'s GP or a Credentialled Diabetes Educator (CDE) for medical review and management planning.</p>
                       )}
                       {category.label === "Diabetes" && (
                         <p>This result is in the diabetes range. <strong>Do not diagnose.</strong> If this is a new or unexpected finding, promptly refer to the client's GP or a Credentialled Diabetes Educator (CDE). Continue to support the client within your scope through evidence-based exercise prescription and lifestyle coaching.</p>

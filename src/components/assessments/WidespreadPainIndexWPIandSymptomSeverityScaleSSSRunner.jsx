@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { todayLocal } from "@/lib/localDate";
 import { PROM_NEURO_WPI_WPI_REGIONS as WPI_REGIONS, PROM_NEURO_WPI_SSS_ITEMS as SSS_ITEMS, PROM_NEURO_WPI_SOMATIC_OPTIONS as SOMATIC_OPTIONS } from '@/lib/clinical/scorers/extrasPromNeuro';
+import { buildTimeProfession as activeProfession } from '@/lib/profession';
 
 // WPI body regions
 
@@ -108,8 +109,8 @@ export default function WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner({
             </div>
             <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-xs">
               <p className="font-semibold text-purple-800">⚠ Scope of Practice Note</p>
-              <p className="text-purple-700 mt-1">In many jurisdictions, Exercise Physiologists and allied health professionals are <strong>not authorised to diagnose</strong> fibromyalgia. This tool should be used to <strong>validate and support</strong> an existing medical diagnosis, monitor symptom severity over time, and inform exercise prescription — not as a standalone diagnostic instrument.</p>
-              <p className="text-purple-700 mt-1">If criteria are met and no diagnosis exists, refer to the client's GP or rheumatologist for formal assessment.</p>
+              <p className="text-purple-700 mt-1">Use this tool to <strong>characterise and monitor</strong> widespread pain and symptom severity and to inform the {activeProfession.disciplineName.toLowerCase()} assessment. It does not establish a diagnosis by itself.</p>
+              <p className="text-purple-700 mt-1">If criteria are met and no diagnosis exists, refer to the {activeProfession.lexicon.client}'s GP or rheumatologist for formal assessment.</p>
             </div>
           </div>
         )}

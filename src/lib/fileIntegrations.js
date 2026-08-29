@@ -12,7 +12,7 @@ export const REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION =
  * one-field upload shape, so the cast belongs here rather than at every
  * clinical call site.
  *
- * @param {{file: File, org_id: string, purpose: string, subject_age_confirmation?: '13_or_over', subject_age_attestation_version?: 'referral-subject-age-attestation-v2026-07-21.1', processing_authority_confirmed?: true, processing_authority_attestation_version?: 'referral-processing-authority-v2026-07-21.1'}} params
+ * @param {{file: File, org_id: string, purpose: string, subject_age_confirmation?: '13_or_over'|'under_13', subject_age_attestation_version?: 'referral-subject-age-attestation-v2026-07-21.1', processing_authority_confirmed?: true, processing_authority_attestation_version?: 'referral-processing-authority-v2026-07-21.1'}} params
  * @returns {Promise<{file_url: string, upload_id: string}>}
  */
 export async function uploadTenantFile(params) {

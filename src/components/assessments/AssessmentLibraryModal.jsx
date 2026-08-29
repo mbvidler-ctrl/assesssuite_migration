@@ -11,6 +11,7 @@ import { base44 } from "@/api/base44Client";
 import { searchAssessments } from "@/lib/clinical/assessmentDiscovery";
 import { buildTimeProfession } from "@/lib/profession";
 import AssessmentModal from "./AssessmentModal";
+import { hasRegisteredAssessmentRunner } from "./assessmentRunnerAvailability";
 
 const CATEGORIES = [
   { value: "all",               label: "All",               icon: Book },
@@ -309,7 +310,7 @@ function AssessmentListCard({ assessment, isAdded, onView, onAdd }) {
       )}
 
       <div className="flex gap-1 flex-wrap">
-        {assessment.has_test_runner && (
+        {hasRegisteredAssessmentRunner(assessment) && (
           <span className="text-xs px-1.5 py-0.5 rounded bg-green-50 text-green-700 font-medium flex items-center gap-1">
             <Play className="w-2.5 h-2.5" /> Runner
           </span>

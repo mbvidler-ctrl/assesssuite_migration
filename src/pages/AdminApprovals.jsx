@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import AssessmentModal from "@/components/assessments/AssessmentModal";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -47,7 +48,7 @@ By accessing or using AssessSuite (the "Application", "Service"), you agree to b
 
 ### 2. Intended Users
 
-AssessSuite is intended for qualified health professionals (including Exercise Physiologists and other allied health professionals) and authorised end users accessing the Application under appropriate professional supervision. You confirm that you are legally permitted to use the Application in your jurisdiction.
+AssessSuite is intended for qualified health professionals (including ${activeProfession.practitionerNounPlural}) and authorised end users accessing the Application under appropriate professional supervision. You confirm that you are legally permitted to use the Application in your jurisdiction.
 
 ### 3. Nature of the Application
 

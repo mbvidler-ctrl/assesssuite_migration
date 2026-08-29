@@ -264,7 +264,7 @@ function runtimeEvidence() {
       production_posture_mode: 'normal-production',
       capabilities: {
         general_clinical_llm: {
-          enabled: false, required: false, ready: true, status: 'disabled',
+          enabled: true, required: true, ready: true, status: 'ready',
         },
         ...Object.fromEntries([
           'physio_ai_tasks', 'transcription', 'document_extraction', 'transactional_email', 'payments',
@@ -290,7 +290,8 @@ test('Physio release source is explicit deterministic and isolated from EP topol
   assert.match(config, /^  EMAIL_DOMAIN = "assesssuite\.com"$/m);
   assert.match(config, /^  STRIPE_TRIAL_PERIOD_DAYS = "30"$/m);
   assert.match(config, /^  LLM_REQUIRED = "1"$/m);
-  assert.match(config, /^  GENERAL_CLINICAL_LLM_ENABLED = "0"$/m);
+  assert.match(config, /^  GENERAL_CLINICAL_LLM_ENABLED = "1"$/m);
+  assert.match(config, /^  ALLOW_OPEN_REGISTRATION = "0"$/m);
   assert.doesNotMatch(config, /assesssuite_data_r12|app = "assesssuite-production"/);
 });
 
@@ -558,7 +559,7 @@ test('application certificate snapshot and runtime validators fail closed on dri
     (evidence) => { evidence.version.database.integrity = 'failed'; },
     (evidence) => { evidence.capabilities.capabilities.transcription.status = 'unavailable'; },
     (evidence) => { evidence.capabilities.capabilities.general_clinical_llm = {
-      enabled: true, required: true, ready: true, status: 'ready',
+      enabled: false, required: true, ready: false, status: 'disabled',
     }; },
     (evidence) => { delete evidence.capabilities.capabilities.physio_ai_tasks; },
     (evidence) => { delete evidence.capabilities.capabilities.document_extraction; },
@@ -572,7 +573,11 @@ test('application certificate snapshot and runtime validators fail closed on dri
 test('all Physio release workflows are manual SHA-pinned isolated and custom-DNS-free', () => {
   assert.deepEqual(
     fs.readdirSync(workflowDirectory).filter((name) => name.startsWith('physio-production-')).sort(),
-    [...workflowNames, 'physio-production-lean-live.yml'].sort(),
+    [
+      ...workflowNames,
+      'physio-production-lean-live.yml',
+      'physio-production-provision-owners.yml',
+    ].sort(),
   );
   for (const name of workflowNames) {
     const source = workflow(name);
@@ -987,10 +992,10 @@ test('first deploy snapshots exact volume proves restore deploys digest verifies
     'row.data_manifest_sha256 !== process.env.MANIFEST',
     'row.database_read_only!==true',
     'row.provider_credentials_absent !== true',
-    "row.schema_digest !== 'sha256:0b67a8b1556b9adff373477f089497a10681e035a3ae523006bc50290a990428'",
-    'row.schema_object_count!==106',
-    'row.schema_table_count!==36',
-    'row.data_manifest_table_count!==36',
+    "row.schema_digest !== 'sha256:9e0ccdab32367a91151d78830eb115dc92c0bdea7f3cdaa85ce906cf10c8c575'",
+    'row.schema_object_count!==115',
+    'row.schema_table_count!==38',
+    'row.data_manifest_table_count!==38',
     'row.catalogue_count !== Number(process.env.PHYSIO_EXPECTED_CATALOGUE_COUNT)',
     'row.catalogue_checksum !== process.env.PHYSIO_EXPECTED_CATALOGUE_CHECKSUM',
   ]) assert.ok(source.includes(proof), `restore phase is missing exact proof ${proof}`);
@@ -1189,4 +1194,64 @@ test('restore workflow contract rejects provider-capable or service-exposed veri
       );
     }
   }
+});
+
+test('R1 comparison deployment is immutable, snapshot-isolated, fully tested and non-billing', () => {
+  const source = workflow('physio-r1-comparison-deploy.yml');
+  assert.match(source, /APP: assesssuite-physio-r1/);
+  assert.match(source, /R1_BASELINE_SHA: ba47570e3c09279cedb1ee37c9dfa374b6cba178/);
+  assert.match(source, /R1_COMPARISON_SHA: d17eac5627ed104bdb6cc79007c6c5e83df3fe11/);
+  assert.match(source, /R1_SNAPSHOT_ID: vs_MaPo8mb2XbOzhakmXG2N4Az/);
+  assert.match(source, /R1_SNAPSHOT_DIGEST: aa46c34a166bf663693dcbdba39757528400458febecc591875366d6ab252114/);
+  assert.match(source, /R1_VOLUME_ID: vol_vgn67klw1jq1km04/);
+  assert.match(source, /R1_VOLUME_NAME: assesssuite_physio_r1_data/);
+  assert.match(source, /R1_CATALOGUE_COUNT: "236"/);
+  assert.match(source, /R1_CATALOGUE_CHECKSUM: c39fd9e75054857d7f642c8fc2210446781d247e44c751b04499db749bfaa56f/);
+  assert.match(source, /ref: \$\{\{ env\.R1_COMPARISON_SHA \}\}/);
+  assert.match(source, /git rev-parse HEAD\^/);
+  assert.match(source, /npm audit --audit-level=high/);
+  assert.match(source, /npm run test:physio/);
+  assert.match(source, /npm run test:physio-offline-journey/);
+  assert.match(source, /npm run build:physio/);
+  assert.match(source, /\.catalogue\.count == \$count/);
+  assert.match(source, /\.catalogue\.checksum == \$checksum/);
+  assert.match(source, /provision-physio-r1-comparison-access\.mjs --apply/);
+  assert.match(source, /provision-physio-r1-comparison-access\.mjs --inspect/);
+  assert.match(source, /\.all_access_paths_ready == true/);
+  assert.match(source, /"\$register_status" == "403"/);
+  assert.match(source, /flyctl deploy --app "\$APP" --config fly\.physio\.r1-comparison\.toml/);
+  assert.match(source, /open_registration: false/);
+  assert.match(source, /payments_enabled: false/);
+  assert.doesNotMatch(source, /\$\{\{ secrets\.STRIPE_/);
+  assertInOrder(source, [
+    '- name: Prove complete R1 assessment and application test surface',
+    '- name: Prove isolated restored volume before deployment',
+    '- name: Stage only non-billing R1 comparison secrets',
+    '- name: Deploy exact R1 comparison source onto restored volume',
+    '- name: Prove exact live release, readiness, and isolation',
+    '- name: Provision and prove restricted comparison access',
+  ]);
+});
+
+test('restricted-owner workflow activates Maxwell and provider-invites Brenton on the exact R3 release', () => {
+  const source = workflow('physio-production-provision-owners.yml');
+  assert.match(source, /MAXWELL_EMAIL: mb\.vidler@gmail\.com/);
+  assert.match(source, /BRENTON_EMAIL: brenton@primehealthclinics\.com/);
+  assert.match(source, /ORGANIZATION_NAME: AssessSuite Physio/);
+  assert.match(source, /ref: \$\{\{ inputs\.application_sha \}\}/);
+  assert.match(source, /image_ref\.labels\.GH_SHA == \$sha/);
+  assert.match(source, /config\.env\.ALLOW_OPEN_REGISTRATION == "0"/);
+  assert.match(source, /provision-physio-restricted-owners\.mjs --apply/);
+  assert.match(source, /provision-physio-restricted-owners\.mjs --inspect/);
+  assert.match(source, /\.all_targets_accounted_for == true/);
+  assert.match(source, /\.state == "active-owner" or \.state == "invited-owner"/);
+  assert.match(source, /"\$status" == "403"/);
+  assert.doesNotMatch(source, /ADMIN_PASSWORD|STRIPE_SECRET_KEY|--password/);
+  assertInOrder(source, [
+    '- name: Prove the exact deployed R3 machine before access mutation',
+    '- name: Preview exact owner transition without mutation',
+    '- name: Activate Maxwell and issue Brenton owner invitation',
+    '- name: Inspect persisted owner and invitation state',
+    '- name: Prove public registration remains unavailable',
+  ]);
 });

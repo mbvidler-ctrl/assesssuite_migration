@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { Utensils, Save, Printer, Calculator, AlertTriangle, ExternalLink, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
 import { renderSafeHtmlDocument } from '@/lib/safeHtml';
+import { buildTimeProfession as activeProfession } from '@/lib/profession';
 
 export default function NutritionTab({ client, onUpdate }) {
   const [nutritionPlan, setNutritionPlan] = useState(null);
@@ -193,10 +194,10 @@ export default function NutritionTab({ client, onUpdate }) {
           </div>
 
           <div class="warning-box">
-            <h3 style="margin-top: 0; color: #92400e;">⚠ Exercise Physiology Scope of Practice</h3>
-            <p style="margin-bottom: 0.5rem;"><strong>This nutrition advice is provided within the scope of an Accredited Exercise Physiologist (AEP) as defined by ESSA guidelines.</strong></p>
+            <h3 style="margin-top: 0; color: #92400e;">⚠ ${activeProfession.disciplineName} nutrition education context</h3>
+            <p style="margin-bottom: 0.5rem;"><strong>This record contains nutrition and hydration education linked to the ${activeProfession.disciplineName.toLowerCase()} management plan.</strong></p>
             
-            <p style="margin-top: 1rem; margin-bottom: 0.5rem;"><strong>Within EP Scope:</strong></p>
+            <p style="margin-top: 1rem; margin-bottom: 0.5rem;"><strong>Patient education and rehabilitation integration:</strong></p>
             <ul style="margin-top: 0.5rem;">
               <li>General healthy eating education aligned with Australian Dietary Guidelines</li>
               <li>Portion sizes and daily serves from Australian Guide to Healthy Eating</li>
@@ -206,7 +207,7 @@ export default function NutritionTab({ client, onUpdate }) {
               <li>Behavior change strategies related to eating</li>
             </ul>
 
-            <p style="margin-top: 1rem; margin-bottom: 0.5rem;"><strong>Outside EP Scope (Requires Referral to APD/Dietitian):</strong></p>
+            <p style="margin-top: 1rem; margin-bottom: 0.5rem;"><strong>Requires individual assessment by an APD/dietitian:</strong></p>
             <ul style="margin-top: 0.5rem;">
               <li>Medical Nutrition Therapy (MNT) - prescribing therapeutic diets</li>
               <li>Specific macronutrient ratios to treat disease</li>
@@ -325,7 +326,7 @@ export default function NutritionTab({ client, onUpdate }) {
           </div>
 
           <div class="footer">
-            <p><strong>Prepared by:</strong> ${client.created_by || 'Exercise Physiologist'}</p>
+            <p><strong>Prepared by:</strong> ${client.created_by || activeProfession.practitionerNoun}</p>
             <p><strong>Date:</strong> ${format(new Date(), 'PPP')}</p>
             <p style="margin-top: 1rem; font-style: italic;">
               This nutrition plan contains general advice only. For therapeutic dietary interventions or personalized meal planning, please consult an Accredited Practising Dietitian.
@@ -359,15 +360,15 @@ export default function NutritionTab({ client, onUpdate }) {
 
   return (
     <div className="space-y-6">
-      {/* EP Scope Warning */}
+      {/* Profession-calibrated nutrition context */}
       <Card className="bg-amber-50 border-amber-300">
         <CardContent className="py-4">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
             <div className="flex-1">
-              <h4 className="font-semibold text-amber-900 mb-2">Exercise Physiology Scope of Practice</h4>
+              <h4 className="font-semibold text-amber-900 mb-2">{activeProfession.disciplineName} nutrition education context</h4>
               <p className="text-sm text-amber-800 mb-2">
-                As an Exercise Physiologist, you may provide <strong>general healthy eating advice</strong> aligned with the Australian Dietary Guidelines. You cannot provide Medical Nutrition Therapy or prescribe therapeutic diets.
+                Record <strong>general healthy-eating and hydration education</strong> that is relevant to rehabilitation, recovery, function and participation, and connect it to the management plan.
               </p>
               <p className="text-sm text-amber-800">
                 For individualized meal plans or therapeutic dietary interventions, refer to an <strong>Accredited Practising Dietitian (APD)</strong>.
@@ -548,7 +549,7 @@ export default function NutritionTab({ client, onUpdate }) {
           <CardTitle className="flex items-center gap-2">
             <ExternalLink className="w-5 h-5 text-blue-600" />
             General Healthy Eating Advice
-            <Badge variant="outline" className="ml-2">Within EP Scope</Badge>
+            <Badge variant="outline" className="ml-2">Patient education</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">

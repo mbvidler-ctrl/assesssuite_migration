@@ -14,8 +14,8 @@
 // provider egress they reserve bounded usage against the authenticated user;
 // a missing ledger, cap refusal or unpriced model fails before the provider
 // call. Successful transcription settles against verbose-json audio duration;
-// SOAP dissection settles against provider token counts. It is retained only
-// for the EP target; Physio rejects it and uses physio.soap_note.v1 instead.
+// SOAP dissection settles against provider token counts. Physio retains this
+// operational EP-compatible tool alongside its richer versioned SOAP workflow.
 //
 // `transcribe` resolves only a tenant-authorised direct child of UPLOADS_DIR,
 // validates the supported container and 20 MiB limit, then calls OpenAI using
@@ -261,20 +261,6 @@ export default async function transcribeSession(ctx) {
     testFallback = resolveTranscriptionFallback(ctx, process.env);
   } catch (error) {
     return respond(500, { code: 'test_provider_injection_rejected', error: error.message });
-  }
-
-  // Physio has one versioned SOAP generation surface:
-  // physio.soap_note.v1. Keep real audio transcription available, but never
-  // expose this legacy generic transcript-to-SOAP model call in the Physio
-  // runtime, even if a caller bypasses the browser control.
-  if (
-    action === 'dissect_to_soap'
-    && resolveActiveProfessionContract(process.env).professionId === 'physio'
-  ) {
-    return respond(403, {
-      code: 'profession_ai_surface_unavailable',
-      error: 'Use the versioned physiotherapy SOAP-note workflow for AI drafting.',
-    });
   }
 
   // Launch posture: transcription is disabled for users unless expressly

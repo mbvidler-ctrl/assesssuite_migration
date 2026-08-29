@@ -53,6 +53,7 @@ import {
   isLegalDocumentPublicationApproved,
 } from '../src/lib/legal/documentRegistry.js';
 import { effectiveLegalContent } from '../src/lib/legal/effectiveContent.js';
+import { applyProfessionLegalContent } from '../src/lib/legal/professionContent.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.join(__dirname, '..');
@@ -727,7 +728,10 @@ export function runSeed({ db, entityNames }) {
       if (!isLegalDocumentPublicationApproved(document)) {
         throw new Error(`Mandatory legal document is not approved for publication: ${documentId}`);
       }
-      const raw = fs.readFileSync(path.join(repoRoot, 'src', 'legal-content', document.file), 'utf8');
+      const raw = applyProfessionLegalContent(
+        fs.readFileSync(path.join(repoRoot, 'src', 'legal-content', document.file), 'utf8'),
+        process.env.PROFESSION,
+      );
       const displayed = effectiveLegalContent(raw, {
         status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',
         effectiveDate: process.env.LEGAL_EFFECTIVE_DATE || null,

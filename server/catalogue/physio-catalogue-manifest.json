@@ -18659,8 +18659,8 @@
           "implementation": {
             "component_file": "src/components/assessments/WidespreadPainIndexWPIandSymptomSeverityScaleSSSRunner.jsx",
             "component_scorer_binding_marker": "@/lib/clinical/scorers/extrasPromNeuro",
-            "component_scorer_binding_sha256": "803e682b953347c14185396d140e65350231d7af950dd97dbc0cee05b3e3f4c2",
-            "component_sha256": "992c55866a4089ff0fc137195c745a0ddbbe573396256ff70115b8912684b716",
+            "component_scorer_binding_sha256": "cfe7e2cf1d71058a89e28ed2dfe5e81a17b01dd904a2f9a097438a11612f3ae5",
+            "component_sha256": "649cd2f3670c4c47ae34b23a7ffac6d675000c14aaac950d9d9f3ee7944b4103",
             "scorer_file": "src/lib/clinical/scorers/extrasPromNeuro.js",
             "scorer_sha256": "7d4cf5a13e36e21ed8b94fd923bf7c1f65cce7881c52c3987f8dcfbe6f83c045"
           },
@@ -19244,7 +19244,7 @@
         "source_variants": [],
         "unit_of_measure": "score"
       },
-      "contentSha256": "ab3f490fbb71c529add89bc8fded85a210e0d5f019be0385cd66953b4040c616",
+      "contentSha256": "1243338b240b6d4f090b5f1acfa04d9f28d7c628c8decdbaf1b815f80f970c23",
       "name": "Widespread Pain Index (WPI) and Symptom Severity Scale (SSS)",
       "primarySourceRef": "ep-import:691eb419ae95315ff3bad4ef",
       "sourceRefs": [
@@ -32933,7 +32933,7 @@
         ],
         "contraindications": "The HADS is a self-report questionnaire and may not be suitable for individuals who are illiterate, have severe cognitive impairments, or are unable to understand the language in which the questionnaire is presented. In such cases, alternative assessment methods should be considered. Additionally, the HADS is not intended to diagnose clinical conditions but to screen for potential anxiety and depression symptoms. A comprehensive clinical evaluation is necessary for a definitive diagnosis.",
         "deleted_date": null,
-        "description": "Screens for anxiety and depression in medical populations. High comorbidity with CFS/ME and fibromyalgia. Useful for behavioral activation planning in exercise physiology context.",
+        "description": "Screens for anxiety and depression in medical populations. High comorbidity with CFS/ME and fibromyalgia. Useful for behavioural activation planning in physiotherapy and multidisciplinary rehabilitation contexts.",
         "equipment_needed": "The HADS is a paper-based questionnaire that requires only the printed form and a pen or pencil for completion. No specialized equipment is necessary.",
         "has_instructions": true,
         "has_normatives": true,
@@ -33780,7 +33780,7 @@
         "source_variants": [],
         "unit_of_measure": "score"
       },
-      "contentSha256": "1b446aece08ff6449eef6b9d8bd12b09719eda2d53aa3a2eeb9f73204da23d6d",
+      "contentSha256": "f32fffe39a4f1bd07412b629942905b034b654eefee4a6562359c2f6289f7b1e",
       "name": "Hospital Anxiety and Depression Scale (HADS)",
       "primarySourceRef": "ep-import:691eb419ae95315ff3bad4f6",
       "sourceRefs": [
@@ -35675,7 +35675,7 @@
         ],
         "contraindications": "**Absolute Contraindications:**\n\n- None identified.\n\n**Relative Contraindications:**\n\n- Severe cognitive impairments affecting comprehension.\n\n- Acute psychiatric conditions that may influence self-reporting.\n\n**Safety Considerations:**\n\n- Ensure the patient understands the purpose and nature of the assessment.\n\n- Provide assistance if the patient has difficulty reading or writing.\n\n**Red Flags:**\n\n- If the patient exhibits significant distress or discomfort during the assessment, consider postponing or modifying the evaluation.\n\n- If the patient reports severe pain or exacerbation of symptoms during the assessment, discontinue and reassess the appropriateness of the tool.\n\n**Note:** The TSK is a self-report measure and should be used as part of a comprehensive assessment, considering the patient's overall clinical picture.",
         "deleted_date": null,
-        "description": "Measures fear of movement and re-injury. Common in fibromyalgia and CFS patients. Essential for exercise physiologists designing pacing and graded exposure plans.",
+        "description": "Measures fear of movement and re-injury. Common in fibromyalgia and CFS patients. Relevant to physiotherapists designing pacing and graded exposure plans.",
         "equipment_needed": "- None required; the TSK is a paper-based questionnaire.",
         "has_instructions": true,
         "has_normatives": true,
@@ -36712,7 +36712,7 @@
         ],
         "unit_of_measure": "score"
       },
-      "contentSha256": "9f44689b4fbc226f752315385fe149ddb28a95ee4fe06bf35891181e16e6a1ec",
+      "contentSha256": "ebe1e552993c189cca9407573c8b6aac4438c6110a8a99f67fb72d21dd8c863b",
       "name": "Tampa Scale for Kinesiophobia (TSK)",
       "primarySourceRef": "ep-import:691eb419ae95315ff3bad4fa",
       "sourceRefs": [
@@ -96758,8 +96758,8 @@
           "implementation": {
             "component_file": "src/components/assessments/OralGlucoseToleranceTestOGTTRunner.jsx",
             "component_scorer_binding_marker": "@/lib/clinical/scorers/extrasPhysiological",
-            "component_scorer_binding_sha256": "017feeb3815300984ada924318ad1f0e9addeb2fc267f7646e2480f9e286ed01",
-            "component_sha256": "1ea5003fd049462e7465db7f7387998c70a6165fb1504cec19094d6c52c0c457",
+            "component_scorer_binding_sha256": "18fb965b199c789e5d93ca46c8b6fb708adc1f97d11393369da257b26c9d79ec",
+            "component_sha256": "9c5d907a3b7496c8ebafdb50ccf382e568ea7d474d60dcf7bb1cd0f606f668c3",
             "scorer_file": "src/lib/clinical/scorers/extrasPhysiological.js",
             "scorer_sha256": "b10cf0853a2444d131dd72eed3ee725c8e49c7af6757e79485b1fba41cab08f1"
           },
@@ -96797,7 +96797,7 @@
         "source_variants": [],
         "unit_of_measure": "mmol/L"
       },
-      "contentSha256": "e6aa567d7a08eed41ea387a2318b34c3aa8aa83f52688e187acb296d9a821129",
+      "contentSha256": "a195256378ff8e7f572e8e81827c92d99a2da2a91a6975b395e70a9b7925bc06",
       "name": "Oral Glucose Tolerance Test (OGTT)",
       "primarySourceRef": "ep-import:6933d97ed8d7afa0d779cc87",
       "sourceRefs": [
@@ -103574,7 +103574,7 @@
         ],
         "primary_source_ref": "ep-import:6934cb9404d9e954fd8b150e",
         "questions": [],
-        "references": "Non-proprietary general movement screening tool for exercise physiology practice.",
+        "references": "Non-proprietary general movement screening tool for physiotherapy and allied-health practice.",
         "results_add_to_soap": true,
         "runner_spec": {
           "fields": [
@@ -103857,7 +103857,7 @@
         "source_variants": [],
         "unit_of_measure": "points (0-3 per test)"
       },
-      "contentSha256": "a64bad84d813109aa2fd26be7aaa6e53e062b4297fbaad747c01eb24739f3149",
+      "contentSha256": "fe098967122db0763747aaa74aa530de434f69f181cd8b9c27e7f619535b4a64",
       "name": "General Movement Screen",
       "primarySourceRef": "ep-import:6934cb9404d9e954fd8b150e",
       "sourceRefs": [
@@ -105120,8 +105120,8 @@
           "implementation": {
             "component_file": "src/components/assessments/HbA1cRunner.jsx",
             "component_scorer_binding_marker": "@/lib/clinical/scorers/extrasPhysiological",
-            "component_scorer_binding_sha256": "0afce2cfc55915e03e4c29f2113a07faf2703f4bc075405d5c7ab3b119906497",
-            "component_sha256": "36930bc819235927646b8ad92c1de9da21a602b06f04d3d49705f52cc9e959ed",
+            "component_scorer_binding_sha256": "4548c61982b8819620acc903e96c19b9e028eeaa902b4f448fabee62f91bbbfc",
+            "component_sha256": "6842d5e88d67a43300bf337712e4e28c17a6fa4d2840f7f1f2a6e148aa12a4ed",
             "scorer_file": "src/lib/clinical/scorers/extrasPhysiological.js",
             "scorer_sha256": "b10cf0853a2444d131dd72eed3ee725c8e49c7af6757e79485b1fba41cab08f1"
           },
@@ -105161,7 +105161,7 @@
         "source_variants": [],
         "unit_of_measure": "%"
       },
-      "contentSha256": "63bc09d100fbd66d47d210f8a64140ddef8b8492a63e5631a53290ecdc6aa8d2",
+      "contentSha256": "7e6edd48eb6c5182894c2490c0c897f4c91cd4140f691e22cbef64537a75d961",
       "name": "HbA1c (Glycated Hemoglobin)",
       "primarySourceRef": "ep-import:693a932ee95d0bcc4922a209",
       "sourceRefs": [
@@ -105512,7 +105512,7 @@
           },
           "scoringKey": "met_calc_full"
         },
-        "scoring_system": "Higher MET capacity generally indicates better aerobic fitness and more favourable health prognosis. As a rough guide, peak capacity <5 METs is low, 5–10 METs is moderate, and >10 METs is high for many adults, though exact cut-offs vary by age and guideline. MET thresholds are also used to classify individual activities (light <3 METs, moderate 3–6 METs, vigorous >6 METs).\n\nNormative MET capacities and VO2max values are available in ACSM and other exercise physiology references and are usually stratified by age and sex. These tables can be loaded into Base44 as separate look-up references rather than embedded as fixed cut-offs.",
+        "scoring_system": "Higher MET capacity generally indicates better aerobic fitness and more favourable health prognosis. As a rough guide, peak capacity <5 METs is low, 5–10 METs is moderate, and >10 METs is high for many adults, though exact cut-offs vary by age and guideline. MET thresholds are also used to classify individual activities (light <3 METs, moderate 3–6 METs, vigorous >6 METs).\n\nNormative MET capacities and VO2max values are available in ACSM and other exercise-testing and rehabilitation references and are usually stratified by age and sex. These tables can be loaded into Base44 as separate look-up references rather than embedded as fixed cut-offs.",
         "search_tags": [
           "METs",
           "metabolic equivalent",
@@ -105524,7 +105524,7 @@
         "source_variants": [],
         "unit_of_measure": "METs"
       },
-      "contentSha256": "7eb2ec8a7c8cb74013a4a1f9e4612131df08144c19828086da6553fac28ffbab",
+      "contentSha256": "4dbd234e7176373dad3e1d84cacb4e32d32796bffcd30019f3600a044ee6d7c1",
       "name": "Metabolic Equivalent (MET) Calculation",
       "primarySourceRef": "ep-import:693a932ee95d0bcc4922a20b",
       "sourceRefs": [
@@ -118883,7 +118883,7 @@
       ]
     }
   ],
-  "canonicalDigestSha256": "950d3f4cdf372a486dd15d1efceb9bbef9afeea81c713a50bb5ff68bc0fd91c9",
+  "canonicalDigestSha256": "69c238e7ed2a3078e947d25fc8ffa2b3439938ffac57ffac83f96cad89d6d4a7",
   "catalogueId": "assesssuite-physio-mvp",
   "componentImplementationSha256": "4a3d14747559acb24af6c7ea2d62bc0b241bb7ade22e580cbb634bc2cd7e1918",
   "counts": {
@@ -120749,7 +120749,7 @@
   "identityPins": {
     "additivePhysioCanonicalIdsSha256": "9cc45dff30c06f17dae4b76b5859937604ebf6b7df53f6082acb8d9626c8faf0",
     "allSourceRefsSha256": "fd1ffd19b903393206a524fe25c9c5adab2c63ec77b79a31ae78421a4e7f1288",
-    "canonicalContentSha256": "950d3f4cdf372a486dd15d1efceb9bbef9afeea81c713a50bb5ff68bc0fd91c9",
+    "canonicalContentSha256": "69c238e7ed2a3078e947d25fc8ffa2b3439938ffac57ffac83f96cad89d6d4a7",
     "componentImplementationSha256": "4a3d14747559acb24af6c7ea2d62bc0b241bb7ade22e580cbb634bc2cd7e1918",
     "deduplicationMapSha256": "94701ecc576b42d31e69586e271a48532bee981073b0a25be1f14022ad5adabf",
     "originalAcceptanceSourceRefsSha256": "2f7ec521ab0c61dc8c0ddae9e00795d38f7b413003d4cba9394df56e64032904",
@@ -120759,7 +120759,7 @@
     "retainedEpCanonicalIdsSha256": "e969f3d3355553c7e4ccaf89648f8de310ed7678c9fa4ae137f3b4da1fb00716",
     "sourceContentSha256": "047eb670ad7958a8259e8fc0adacefe5e906a8f17f527cb7456befb777e39132"
   },
-  "manifestDigestSha256": "ac48be2b2607af65c1471450dfd2ceec65ebe8ed2c288a37f4ff319da96c99b6",
+  "manifestDigestSha256": "532d8951e7abd938006fb92dd781c47c5517f8ce4e38814eaa28f0eddf6e37d7",
   "originalAcceptanceSourceRefsSha256": "2f7ec521ab0c61dc8c0ddae9e00795d38f7b413003d4cba9394df56e64032904",
   "originalDeduplicationMapDigestSha256": "fe48e7ab5d5e0306e85bb60559350dec4e998a3419d611a8923ccf79eac4855a",
   "originalSourceContentSha256": "bdc2b49a58c38fec41d7542de38dff022c3c912b3e6781c78a370b9ef9e691d0",

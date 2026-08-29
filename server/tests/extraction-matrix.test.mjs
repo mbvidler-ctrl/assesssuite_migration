@@ -22,6 +22,7 @@ import {
   REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE,
   REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
   REFERRAL_SUBJECT_AGE_CONFIRMATION,
+  REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13,
 } from '../../src/lib/referralWorkflow.js';
 import {
   CANONICAL_REFERRAL_PROFILE_A as PROFILE_A,
@@ -894,6 +895,139 @@ test('E06d an under-13 DOB in any independently extracted file blocks and quaran
     assert.equal(row?.subject_age_band, 'under_13');
   }
   assert.equal(latestExtractionUsage(colleagueA.id)?.status, 'failed');
+});
+
+test('E06d-physio an authorised Physio under-13 referral completes provider extraction', async () => {
+  fakeProvider.reset();
+  fakeProvider.setMode('under-13');
+  const isolated = await startTestServer({
+    PROFESSION: 'physio',
+    DEFAULT_APP_ID: 'local-assesssuite-physio',
+    ALLOW_OPEN_REGISTRATION: '1',
+    DOCUMENT_EXTRACTION_ENABLED: '1',
+    DOCUMENT_EXTRACTION_UNDER_13_ENABLED: '1',
+    DOCUMENT_EXTRACTION_TEST_BASE_URL: fakeProvider.baseUrl,
+    DOCUMENT_EXTRACTION_TEST_TIMEOUT_MS: '500',
+    OPENAI_API_KEY: PROVIDER_KEY_CANARY,
+    OPENAI_DOCUMENT_EXTRACTION_MODEL: 'synthetic-assurance-model',
+  });
+  const route = (suffix) => `/api/apps/${isolated.appId}${suffix}`;
+  try {
+    const isolatedAdmin = await loginAdmin(isolated);
+    const isolatedUser = await registerUser(isolated, 'physio-paediatric-extraction@synthetic.test');
+    await activateUser(isolated, isolatedAdmin, isolatedUser.id, 'Physiotherapist');
+    const isolatedOrg = await createOrganizationForUser(isolated, isolatedAdmin, isolatedUser);
+    const acceptance = await requestJson(
+      isolated,
+      route('/integration-endpoints/Core/RecordLegalAcceptanceBundle'),
+      {
+        method: 'POST',
+        token: isolatedUser.token,
+        body: { org_id: isolatedOrg.id, marketing_opt_in: false },
+      },
+    );
+    assert.equal(acceptance.status, 200, acceptance.text);
+
+    const form = new FormData();
+    form.set('org_id', isolatedOrg.id);
+    form.set('purpose', 'referral-extraction');
+    form.set('subject_age_confirmation', REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13);
+    form.set('subject_age_attestation_version', REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION);
+    form.set('processing_authority_confirmed', 'true');
+    form.set(
+      'processing_authority_attestation_version',
+      REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+    );
+    form.set('file', new File([
+      pdfFixture({ marker: 'ASSURANCE_PROFILE_UNDER_13', dateOfBirth: '2020-01-02' }),
+    ], 'physio-paediatric-referral.pdf', { type: 'application/pdf' }));
+    const uploadResponse = await fetch(`${isolated.baseUrl}${route(UPLOAD_ROUTE)}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${isolatedUser.token}`, 'X-App-Id': isolated.appId },
+      body: form,
+    });
+    const uploadText = await uploadResponse.text();
+    assert.equal(uploadResponse.status, 200, uploadText);
+    const uploaded = JSON.parse(uploadText);
+    const isolatedDb = new DatabaseSync(isolated.dbPath);
+    try {
+      const authority = isolatedDb.prepare(`
+        SELECT subject_age_band FROM upload_registry WHERE id = ?
+      `).get(uploaded.upload_id);
+      assert.equal(authority?.subject_age_band, REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13);
+    } finally {
+      isolatedDb.close();
+    }
+
+    const extracted = await requestJson(isolated, route(EXTRACTION_ROUTE), {
+      method: 'POST',
+      token: isolatedUser.token,
+      body: {
+        org_id: isolatedOrg.id,
+        file_urls: [uploaded.file_url],
+        json_schema: REFERRAL_SCHEMA,
+        processing_authority_confirmed: true,
+        processing_authority_attestation_version:
+          REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+      },
+    });
+    assert.equal(extracted.status, 200, extracted.text);
+    assert.equal(extracted.body?.status, 'success');
+    assert.equal(extracted.body?.output?.date_of_birth, '2020-01-02');
+    assert.equal(extracted.body?.output?.full_name, CANONICAL_REFERRAL_PROFILE_UNDER_13.full_name);
+
+    const mismatchedForm = new FormData();
+    mismatchedForm.set('org_id', isolatedOrg.id);
+    mismatchedForm.set('purpose', 'referral-extraction');
+    mismatchedForm.set('subject_age_confirmation', REFERRAL_SUBJECT_AGE_CONFIRMATION);
+    mismatchedForm.set('subject_age_attestation_version', REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION);
+    mismatchedForm.set('processing_authority_confirmed', 'true');
+    mismatchedForm.set(
+      'processing_authority_attestation_version',
+      REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+    );
+    mismatchedForm.set('file', new File([
+      pdfFixture({ marker: 'ASSURANCE_PROFILE_UNDER_13', dateOfBirth: '2020-01-02' }),
+    ], 'physio-age-mismatch.pdf', { type: 'application/pdf' }));
+    const mismatchUploadResponse = await fetch(`${isolated.baseUrl}${route(UPLOAD_ROUTE)}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${isolatedUser.token}`, 'X-App-Id': isolated.appId },
+      body: mismatchedForm,
+    });
+    const mismatchUploadText = await mismatchUploadResponse.text();
+    assert.equal(mismatchUploadResponse.status, 200, mismatchUploadText);
+    const mismatchUpload = JSON.parse(mismatchUploadText);
+    const mismatchResult = await requestJson(isolated, route(EXTRACTION_ROUTE), {
+      method: 'POST',
+      token: isolatedUser.token,
+      body: {
+        org_id: isolatedOrg.id,
+        upload_ids: [mismatchUpload.upload_id],
+        json_schema: REFERRAL_SCHEMA,
+        processing_authority_confirmed: true,
+        processing_authority_attestation_version:
+          REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
+      },
+    });
+    assert.equal(mismatchResult.status, 409, mismatchResult.text);
+    assert.equal(mismatchResult.body?.code, 'extracted_subject_under_13');
+    const mismatchDb = new DatabaseSync(isolated.dbPath);
+    try {
+      assert.equal(
+        mismatchDb.prepare(`
+          SELECT COUNT(*) AS count
+          FROM upload_audit
+          WHERE upload_id = ? AND event_type = 'post_extraction_age_gate' AND outcome = 'blocked'
+        `).get(mismatchUpload.upload_id).count,
+        1,
+      );
+    } finally {
+      mismatchDb.close();
+    }
+  } finally {
+    await isolated.stop();
+    fakeProvider.reset();
+  }
 });
 
 test('E06e aliases resolving to one upload are rejected before every extraction side effect', async () => {

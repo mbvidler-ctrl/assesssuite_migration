@@ -1,4 +1,12 @@
 export const REFERRAL_SUBJECT_AGE_CONFIRMATION = '13_or_over';
+export const REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13 = 'under_13';
+export const REFERRAL_SUBJECT_AGE_CONFIRMATIONS = Object.freeze([
+  REFERRAL_SUBJECT_AGE_CONFIRMATION,
+  REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13,
+]);
+export function isReferralSubjectAgeConfirmation(value) {
+  return REFERRAL_SUBJECT_AGE_CONFIRMATIONS.includes(value);
+}
 export const REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION =
   'referral-subject-age-attestation-v2026-07-21.1';
 // Recorded by the server, never accepted from the browser. Exported beside
@@ -12,6 +20,13 @@ export const REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE =
 
 export const REFERRAL_PROCESSING_ATTESTATION =
   'Starting extraction confirms that the patient is 13 or older and that the practice has documented the patient or representative notice and consent, or another valid authority, for AssessSuite and OpenAI to process this referral. No client record changes until you review and confirm the extracted data.';
+
+export function referralProcessingAttestation(subjectAgeConfirmation) {
+  const authority = subjectAgeConfirmation === REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13
+    ? 'the parent, guardian or other authorised representative has received the required notice and the practice has documented consent or another valid authority'
+    : 'the patient or representative has received the required notice and the practice has documented consent or another valid authority';
+  return `Starting extraction confirms that ${authority} for AssessSuite and OpenAI to process this referral. No patient record changes until you review and confirm the extracted data.`;
+}
 
 /**
  * Preserve an explicit, still-valid practice choice. A single unique practice

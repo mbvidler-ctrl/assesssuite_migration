@@ -20,6 +20,7 @@
 import {
   openDatabase,
   createOutboxRepository,
+  createSessionRepository,
   createPhysioAiGenerationRepository,
   createStripeCheckoutIntentRepository,
   createStripeWebhookEventRepository,
@@ -54,6 +55,7 @@ import cancelSubscriptionAndDeactivate from './cancelSubscriptionAndDeactivate.m
 import managePromotions from './managePromotions.mjs';
 import physioAiTask from './physioAiTask.mjs';
 import savePhysioAiGeneration from './savePhysioAiGeneration.mjs';
+import manageOrganizationAccess from './manageOrganizationAccess.mjs';
 
 const REGISTRY = {
   createCheckoutSession,
@@ -70,6 +72,7 @@ const REGISTRY = {
   managePromotions,
   physioAiTask,
   savePhysioAiGeneration,
+  manageOrganizationAccess,
 };
 
 // The legacy EP maintenance/debug functions are not part of the public
@@ -111,6 +114,7 @@ const REQUIRES_SESSION = new Set([
   // session is required, but it must work from any account status.
   'cancelSubscriptionAndDeactivate',
   'managePromotions',
+  'manageOrganizationAccess',
 ]);
 
 let state = null;
@@ -118,6 +122,7 @@ let state = null;
 function buildState(db, entityNames, services = {}) {
   return {
     db,
+    sessions: createSessionRepository(db),
     apiUsage: services.apiUsage || createApiUsageService(db),
     clinicalReleasePolicy: services.clinicalReleasePolicy || resolveClinicalReleasePolicy(process.env),
     outboxEmail: createOutboxRepository(db, 'email'),
@@ -173,6 +178,7 @@ export default async function handleFunction(req, res, { functionName }) {
     stripeWebhookEvents,
     stripeProvider,
     transcriptionFallback,
+    sessions,
   } = ensureState();
   if (
     ['physioAiTask', 'savePhysioAiGeneration'].includes(functionName)
@@ -226,9 +232,10 @@ export default async function handleFunction(req, res, { functionName }) {
     ...(functionName === 'stripeWebhook'
       ? { webhookEvents: stripeWebhookEvents }
       : {}),
-    ...(['physioAiTask', 'savePhysioAiGeneration'].includes(functionName)
+    ...(['physioAiTask', 'savePhysioAiGeneration', 'manageOrganizationAccess'].includes(functionName)
       ? { physioAiGenerations, db }
       : {}),
+    ...(functionName === 'manageOrganizationAccess' ? { sessions } : {}),
     outboxEmail,
     outboxSms,
     ...(stripeProvider ? { stripeProvider } : {}),

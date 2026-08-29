@@ -14,6 +14,7 @@ import FoodDiaryTemplate from "../nutrition/FoodDiaryTemplate";
 import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 import { useAiCapability } from "@/hooks/useAiCapability";
 import { aiErrorMessage } from "@/lib/aiCapabilities";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
 
 export default function NutritionPlanCreator({ isOpen, onClose, client, onSuccess }) {
   const ai = useAiCapability();
@@ -118,7 +119,7 @@ export default function NutritionPlanCreator({ isOpen, onClose, client, onSucces
       const gender = client.gender;
       
       const result = await base44.integrations.Core.InvokeLLM({
-        prompt: `You are an Exercise Physiologist in Australia providing general nutrition education within scope of practice.
+        prompt: `You are supporting a ${activeProfession.clinicalPromptRole} in Australia to create practical nutrition and hydration education relevant to rehabilitation, recovery, function and participation.
 
 Client Information:
 - Age: ${age} years
@@ -170,7 +171,7 @@ For each meal, clearly show:
 - 4-5 specific, actionable strategies tailored to ${formData.weight_goal}
 - Focus on habit formation, meal timing, portion awareness, food environment
 
-CRITICAL: This is EDUCATION not prescription. Frame as "example of how to meet daily serves" not "your meal plan". Stay within EP scope.`,
+CRITICAL: This is patient education, not individualised medical nutrition therapy. Frame the sample as an "example of how to meet daily serves", not a prescribed meal plan. Flag any information that requires medical or Accredited Practising Dietitian review.`,
         response_json_schema: {
           type: "object",
           properties: {

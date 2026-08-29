@@ -107,6 +107,8 @@ export const PHYSIO_LOGICAL_DATA_TABLES = Object.freeze([
   'entity_TreatmentProtocol',
   'entity_User',
   'extraction_usage',
+  'organization_access_event',
+  'organization_invitation',
   'outbox_email',
   'outbox_sms',
   'physio_ai_generation',
@@ -150,12 +152,12 @@ export const PHYSIO_RELEASE_TARGET = Object.freeze({
   flyHostname: 'https://assesssuite-physio-production.fly.dev',
   publicHostname: 'https://physio.app.assesssuite.com',
   catalogueCount: 236,
-  catalogueChecksum: 'c39fd9e75054857d7f642c8fc2210446781d247e44c751b04499db749bfaa56f',
+  catalogueChecksum: 'feed8f3b5c3a5cad19e682b18bcce0c848699b9cb43328fde23e267c5dbabd9e',
   sqliteUserVersion: 0,
-  sqliteSchemaDigest: 'sha256:0b67a8b1556b9adff373477f089497a10681e035a3ae523006bc50290a990428',
-  sqliteSchemaObjectCount: 106,
-  sqliteSchemaTableCount: 36,
-  logicalDataTableCount: 36,
+  sqliteSchemaDigest: 'sha256:9e0ccdab32367a91151d78830eb115dc92c0bdea7f3cdaa85ce906cf10c8c575',
+  sqliteSchemaObjectCount: 115,
+  sqliteSchemaTableCount: 38,
+  logicalDataTableCount: 38,
 });
 
 const SHA_PATTERN = /^[0-9a-f]{40}$/;
@@ -941,13 +943,14 @@ export function validateRuntimeEvidence({ live, ready, version, capabilities, ex
     || capabilities?.production_posture_mode !== 'normal-production'
   ) fail('capability identity or aggregate readiness differs');
   const required = [
+    'general_clinical_llm',
     'physio_ai_tasks',
     'transcription',
     'document_extraction',
     'transactional_email',
     'payments',
   ];
-  const deliberatelyDisabled = ['general_clinical_llm'];
+  const deliberatelyDisabled = [];
   const capabilityRows = capabilities?.capabilities;
   if (!capabilityRows || JSON.stringify(Object.keys(capabilityRows).sort()) !==
     JSON.stringify([...required, ...deliberatelyDisabled].sort())) {
@@ -3060,19 +3063,19 @@ export function validatePhysioReleaseSource(repoRoot) {
     [`DEFAULT_APP_ID = "${PHYSIO_RELEASE_TARGET.appId}"`, 'app identity binding'],
     ['SELFTEST = "0"', 'production self-test isolation'],
     ['PARITY_ASSURANCE_MODE = "0"', 'normal production database posture'],
-    ['ALLOW_OPEN_REGISTRATION = "1"', 'public registration entitlement'],
+    ['ALLOW_OPEN_REGISTRATION = "0"', 'invitation-only access posture'],
     ['OUTBOUND_EMAIL_ENABLED = "1"', 'real transactional email switch'],
     ['OUTBOUND_SMS_ENABLED = "0"', 'deliberately absent SMS switch'],
     ['PAYMENTS_ENABLED = "1"', 'real payments switch'],
     ['ALLOW_PAID_PROVIDER_PROBE = "0"', 'normal paid-provider probe posture'],
     ['LLM_REQUIRED = "1"', 'fail-loud AI provider posture'],
-    ['GENERAL_CLINICAL_LLM_ENABLED = "0"', 'generic clinical LLM isolation'],
+    ['GENERAL_CLINICAL_LLM_ENABLED = "1"', 'fully enabled clinical LLM posture'],
     ['OPENAI_MODEL_FAST = "gpt-4.1-mini-2025-04-14"', 'fast model snapshot pin'],
     ['OPENAI_MODEL_QUALITY = "gpt-4.1-2025-04-14"', 'quality model snapshot pin'],
     ['TRANSCRIPTION_ENABLED = "1"', 'transcription provider switch'],
     ['OPENAI_TRANSCRIBE_MODEL = "whisper-1"', 'transcription model pin'],
     ['DOCUMENT_EXTRACTION_ENABLED = "1"', 'document extraction provider switch'],
-    ['DOCUMENT_EXTRACTION_UNDER_13_ENABLED = "0"', 'under-13 extraction exclusion'],
+    ['DOCUMENT_EXTRACTION_UNDER_13_ENABLED = "1"', 'paediatric referral extraction'],
     ['OPENAI_HEALTH_DATA_TERMS_CONFIRMED = "1"', 'provider health-data terms posture'],
     [`EXPECTED_APP_URL = "${PHYSIO_RELEASE_TARGET.publicHostname}"`, 'public host identity'],
     ['UPLOADS_DIR = "/app/server/data/physio-uploads"', 'production upload mount binding'],

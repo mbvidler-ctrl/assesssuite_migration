@@ -112,7 +112,7 @@ const SECTION_GUIDANCE = {
   },
   "Reason for Referral Acceptance": {
     hint: "Confirm GPCCMP eligibility, chronic condition, and brief plan. Max 80 words.",
-    prompt: "Max 80 words. Confirm: (1) referral accepted, (2) qualifying chronic condition(s), (3) eligibility criteria met, (4) brief overview of planned EP intervention (type, frequency, duration). No preamble."
+    prompt: `Max 80 words. Confirm: (1) referral accepted, (2) qualifying chronic condition(s), (3) eligibility criteria met, (4) brief overview of planned ${activeProfession.disciplineName.toLowerCase()} ${activeProfession.lexicon.intervention} (type, frequency, duration). No preamble.`
   },
   "Planned Initial Assessment Date": {
     hint: "Date, location, clinician. 2–3 lines maximum.",
@@ -179,16 +179,16 @@ const SECTION_GUIDANCE = {
     prompt: "Numbered list. For each item: '(n) [Equipment/modification] — Rationale: [one-clause evidence-based reason]'. Max 5 items."
   },
   "NDIS Plan Goals": {
-    hint: "Client's NDIS goals verbatim, then EP sub-goals and measurable outcomes.",
-    prompt: "For each NDIS plan goal: (1) state the goal exactly as written in the plan, (2) state the EP sub-goal in SMART format, (3) state the measurable outcome indicator. Present as a numbered list. No prose paragraphs."
+    hint: `${activeProfession.lexicon.clientTitleCase}'s NDIS goals verbatim, then ${activeProfession.practitionerShort} sub-goals and measurable outcomes.`,
+    prompt: `For each NDIS plan goal: (1) state the goal exactly as written in the plan, (2) state the ${activeProfession.disciplineName.toLowerCase()} sub-goal in SMART format, (3) state the measurable outcome indicator. Present as a numbered list. No prose paragraphs.`
   },
   "Support Needs Summary": {
     hint: "NDIS domains — support type, frequency, justification. Max 30 words per domain.",
     prompt: "For each relevant NDIS domain: '[Domain]: [support type required], [frequency] — [one-clause justification referencing assessment evidence]'. Max 30 words per domain. Present as labelled sections."
   },
   "Reasonable & Necessary Justification": {
-    hint: "Link EP services to NDIS criteria — effective, appropriate, value for money. Max 120 words.",
-    prompt: "Max 120 words. Address NDIS reasonable and necessary criteria: (1) effective — reference assessment evidence showing EP intervention works for this condition, (2) appropriate — explain why EP specifically, not another discipline, (3) value for money — state frequency and total hours and expected functional outcome. No filler."
+    hint: `Link ${activeProfession.disciplineName.toLowerCase()} services to NDIS criteria — effective, appropriate, value for money. Max 120 words.`,
+    prompt: `Max 120 words. Address NDIS reasonable and necessary criteria: (1) effective — reference assessment evidence supporting the proposed ${activeProfession.lexicon.intervention}, (2) appropriate — explain why ${activeProfession.disciplineName.toLowerCase()} specifically meets the identified functional need, (3) value for money — state frequency and total hours and expected functional outcome. No filler.`
   },
   "Participant Profile": {
     hint: "Diagnosis, functional profile, living situation, informal supports, plan dates. Max 100 words.",

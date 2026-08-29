@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { DatabaseSync } from 'node:sqlite';
 import test from 'node:test';
 
-import { MOCK_CHECKOUT_PRICE_ID } from '../mocks/stripe.mjs';
+import { hashPassword } from '../auth.mjs';
 import {
   loginAdmin,
   requestJson,
@@ -15,9 +15,12 @@ const PHYSIO_RUNTIME = Object.freeze({
   APP_URL: 'https://physio.app.assesssuite.com',
   STRIPE_TRIAL_PERIOD_DAYS: '30',
   OUTBOUND_EMAIL_ENABLED: '0',
+  ALLOW_OPEN_REGISTRATION: '0',
 });
 
 const EMAIL = 'synthetic-physio-self-service@example.test';
+const ACCESS_OWNER_EMAIL = 'synthetic-physio-access-owner@example.test';
+const ACCESS_OWNER_PASSWORD = 'Synthetic-Physio-Access-Owner-1!';
 const INITIAL_PASSWORD = 'Synthetic-Physio-Password-1!';
 const REPLACEMENT_PASSWORD = 'Synthetic-Physio-Password-2!';
 
@@ -29,7 +32,7 @@ async function me(server, token) {
   return requestJson(server, appRoute(server, '/entities/User/me'), { token });
 }
 
-test('public Physio self-service reaches an entitled, recoverable clinical account', { timeout: 30_000 }, async () => {
+test('an invited Physio owner reaches an entitled, recoverable clinical account', { timeout: 30_000 }, async () => {
   const server = await startTestServer(PHYSIO_RUNTIME);
   let database;
   try {
@@ -38,7 +41,7 @@ test('public Physio self-service reaches an entitled, recoverable clinical accou
     assert.equal(version.body?.profession_id, 'physio');
     assert.equal(version.body?.app_id, 'local-assesssuite-physio');
 
-    const registration = await requestJson(server, appRoute(server, '/auth/register'), {
+    const publicRegistration = await requestJson(server, appRoute(server, '/auth/register'), {
       method: 'POST',
       body: {
         email: EMAIL,
@@ -46,86 +49,79 @@ test('public Physio self-service reaches an entitled, recoverable clinical accou
         full_name: 'Synthetic Physio Owner',
       },
     });
-    assert.equal(registration.status, 200, registration.text);
-    assert.equal(registration.body?.otp_required, true);
-    assert.equal(typeof registration.body?.user_id, 'string');
-
-    const unverifiedLogin = await requestJson(server, appRoute(server, '/auth/login'), {
-      method: 'POST',
-      body: { email: EMAIL, password: INITIAL_PASSWORD },
-    });
-    assert.equal(unverifiedLogin.status, 403, unverifiedLogin.text);
-    assert.match(unverifiedLogin.body?.message || '', /verify your email/i);
-
-    const verification = await requestJson(server, appRoute(server, '/auth/verify-otp'), {
-      method: 'POST',
-      body: { email: EMAIL, otp_code: '000000' },
-    });
-    assert.equal(verification.status, 200, verification.text);
-    const firstToken = verification.body?.access_token;
-    assert.equal(typeof firstToken, 'string');
-
-    const pending = await me(server, firstToken);
-    assert.equal(pending.status, 200, pending.text);
-    assert.equal(pending.body?.account_status, 'pending');
-    assert.notEqual(pending.body?.subscription_status, 'active');
-    assert.equal(pending.body?.full_name, 'Synthetic Physio Owner');
-
-    const prematureClinicalRead = await requestJson(
-      server,
-      appRoute(server, '/entities/PhysioCareEpisode'),
-      { token: firstToken },
-    );
-    assert.equal(prematureClinicalRead.status, 403, prematureClinicalRead.text);
-
-    const checkout = await requestJson(server, appRoute(server, '/functions/createCheckoutSession'), {
-      method: 'POST',
-      token: firstToken,
-      body: { plan: 'monthly' },
-    });
-    assert.equal(checkout.status, 200, checkout.text);
-    assert.match(checkout.body?.url || '', /^\/mock-stripe\/checkout\/mock_cs_/);
+    assert.equal(publicRegistration.status, 403, publicRegistration.text);
+    assert.match(publicRegistration.body?.message || '', /self-registration is disabled/i);
 
     const adminToken = await loginAdmin(server);
-    const checkoutCompletion = await requestJson(
+    const accessOwner = await requestJson(server, appRoute(server, '/entities/User'), {
+      method: 'POST', token: adminToken,
+      body: {
+        email: ACCESS_OWNER_EMAIL,
+        full_name: 'Synthetic Physio Access Owner',
+        clinician_name: 'Synthetic Physio Access Owner',
+        role: 'user',
+        account_status: 'active',
+        email_verified: true,
+        subscription_status: 'active',
+        access_entitlement: 'organisation',
+        profession: 'Physiotherapist',
+        ...hashPassword(ACCESS_OWNER_PASSWORD),
+      },
+    });
+    assert.equal(accessOwner.status, 200, accessOwner.text);
+    const organization = await requestJson(server, appRoute(server, '/entities/Organization'), {
+      method: 'POST', token: adminToken,
+      body: { name: 'Synthetic Physio Practice', subscription_status: 'active' },
+    });
+    assert.equal(organization.status, 200, organization.text);
+    const accessOwnerMembership = await requestJson(
       server,
-      appRoute(server, '/functions/stripeWebhook'),
+      appRoute(server, '/entities/OrganizationMember'),
       {
-        method: 'POST',
-        token: adminToken,
+        method: 'POST', token: adminToken,
         body: {
-          id: 'evt_physioselfservicecheckout',
-          created: 1_800_000_000,
-          livemode: false,
-          type: 'checkout.session.completed',
-          data: {
-            object: {
-              mode: 'subscription',
-              payment_status: 'paid',
-              customer: 'mock_cus_physio_self_service',
-              subscription: 'mock_sub_physio_self_service',
-              client_reference_id: registration.body.user_id,
-              customer_email: EMAIL,
-              metadata: {
-                userId: registration.body.user_id,
-                userEmail: EMAIL,
-                priceId: MOCK_CHECKOUT_PRICE_ID,
-                appId: server.appId,
-                professionId: 'physio',
-              },
-            },
-          },
+          org_id: organization.body.id,
+          user_email: ACCESS_OWNER_EMAIL,
+          role: 'owner',
+          is_primary: true,
         },
       },
     );
-    assert.equal(checkoutCompletion.status, 200, checkoutCompletion.text);
-    assert.equal(checkoutCompletion.body?.received, true);
+    assert.equal(accessOwnerMembership.status, 200, accessOwnerMembership.text);
+    const accessOwnerLogin = await requestJson(server, appRoute(server, '/auth/login'), {
+      method: 'POST',
+      body: { email: ACCESS_OWNER_EMAIL, password: ACCESS_OWNER_PASSWORD },
+    });
+    assert.equal(accessOwnerLogin.status, 200, accessOwnerLogin.text);
+    const invitation = await requestJson(
+      server,
+      appRoute(server, '/functions/manageOrganizationAccess'),
+      {
+        method: 'POST', token: accessOwnerLogin.body.access_token,
+        body: { action: 'invite', org_id: organization.body.id, email: EMAIL, role: 'owner' },
+      },
+    );
+    assert.equal(invitation.status, 200, invitation.text);
+    const inviteAcceptance = await requestJson(server, appRoute(server, '/auth/accept-invitation'), {
+      method: 'POST',
+      body: {
+        token: invitation.body.test_token,
+        password: INITIAL_PASSWORD,
+        full_name: 'Synthetic Physio Owner',
+      },
+    });
+    assert.equal(inviteAcceptance.status, 200, inviteAcceptance.text);
+    assert.equal(inviteAcceptance.body?.organization_role, 'owner');
+    const firstToken = inviteAcceptance.body?.access_token;
+    const invitedUserId = inviteAcceptance.body?.user?.id;
+    assert.equal(typeof firstToken, 'string');
+    assert.equal(typeof invitedUserId, 'string');
 
     const activated = await me(server, firstToken);
     assert.equal(activated.status, 200, activated.text);
     assert.equal(activated.body?.account_status, 'active');
     assert.equal(activated.body?.subscription_status, 'active');
-    assert.equal(activated.body?.stripe_subscription_id, 'mock_sub_physio_self_service');
+    assert.equal(activated.body?.access_entitlement, 'organisation');
 
     const profile = await requestJson(server, appRoute(server, '/entities/User/me'), {
       method: 'PUT',
@@ -156,8 +152,8 @@ test('public Physio self-service reaches an entitled, recoverable clinical accou
       },
     );
     assert.equal(founder.status, 200, founder.text);
-    assert.equal(founder.body?.name, 'Synthetic Physio Practice');
-    assert.equal(typeof founder.body?.id, 'string');
+    assert.equal(founder.body?.name, organization.body.name);
+    assert.equal(founder.body?.id, organization.body.id);
 
     const beforeAcceptance = await requestJson(
       server,
@@ -209,38 +205,23 @@ test('public Physio self-service reaches an entitled, recoverable clinical accou
     assert.equal(episode.body?.client_id, client.body.id);
 
     const secondEmail = 'synthetic-physio-second-practice@example.test';
-    const secondRegistration = await requestJson(server, appRoute(server, '/auth/register'), {
-      method: 'POST',
+    const secondAccount = await requestJson(server, appRoute(server, '/entities/User'), {
+      method: 'POST', token: adminToken,
       body: {
         email: secondEmail,
-        password: INITIAL_PASSWORD,
         full_name: 'Synthetic Second Physio',
+        clinician_name: 'Synthetic Second Physio',
+        role: 'user',
+        account_status: 'active',
+        email_verified: true,
+        subscription_status: 'active',
+        access_entitlement: 'organisation',
+        country: 'australia',
+        profession: 'Physiotherapist',
+        ...hashPassword(INITIAL_PASSWORD),
       },
     });
-    assert.equal(secondRegistration.status, 200, secondRegistration.text);
-    const secondVerification = await requestJson(server, appRoute(server, '/auth/verify-otp'), {
-      method: 'POST',
-      body: { email: secondEmail, otp_code: '000000' },
-    });
-    assert.equal(secondVerification.status, 200, secondVerification.text);
-    const secondToken = secondVerification.body?.access_token;
-
-    const secondActivation = await requestJson(
-      server,
-      appRoute(server, `/entities/User/${secondRegistration.body.user_id}`),
-      {
-        method: 'PUT',
-        token: adminToken,
-        body: {
-          account_status: 'active',
-          subscription_status: 'active',
-          clinician_name: 'Synthetic Second Physio',
-          country: 'australia',
-          profession: 'Physiotherapist',
-        },
-      },
-    );
-    assert.equal(secondActivation.status, 200, secondActivation.text);
+    assert.equal(secondAccount.status, 200, secondAccount.text);
 
     const secondOrganization = await requestJson(server, appRoute(server, '/entities/Organization'), {
       method: 'POST',
@@ -263,6 +244,12 @@ test('public Physio self-service reaches an entitled, recoverable clinical accou
       },
     );
     assert.equal(secondMembership.status, 200, secondMembership.text);
+    const secondLogin = await requestJson(server, appRoute(server, '/auth/login'), {
+      method: 'POST',
+      body: { email: secondEmail, password: INITIAL_PASSWORD },
+    });
+    assert.equal(secondLogin.status, 200, secondLogin.text);
+    const secondToken = secondLogin.body.access_token;
     const secondAcceptance = await requestJson(
       server,
       appRoute(server, '/integration-endpoints/Core/RecordLegalAcceptanceBundle'),
@@ -311,7 +298,7 @@ test('public Physio self-service reaches an entitled, recoverable clinical accou
     database = new DatabaseSync(server.dbPath);
     const storedUser = database
       .prepare('SELECT data FROM entity_User WHERE id = ?')
-      .get(registration.body.user_id);
+      .get(invitedUserId);
     const resetToken = JSON.parse(storedUser.data).reset_token;
     assert.match(resetToken, /^[0-9a-f-]{36}$/i);
 
