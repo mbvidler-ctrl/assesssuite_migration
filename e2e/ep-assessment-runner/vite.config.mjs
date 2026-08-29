@@ -23,4 +23,11 @@ export default defineConfig({
   optimizeDeps: {
     entries: ['e2e/ep-assessment-runner/index.html'],
   },
+  server: {
+    watch: {
+      // Playwright writes traces and screenshots beneath the repository root.
+      // Ignore those receipts so Vite does not reload the page under test.
+      ignored: ['**/output/playwright/**'],
+    },
+  },
 });

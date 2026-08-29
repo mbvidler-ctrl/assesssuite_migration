@@ -13,7 +13,7 @@ export default defineConfig({
   // transform can exceed 30 seconds on the release workstation.
   timeout: 120_000,
   expect: {
-    timeout: 8_000,
+    timeout: 60_000,
   },
   reporter: [['line']],
   use: {
@@ -28,6 +28,11 @@ export default defineConfig({
   outputDir: '../../output/playwright/ep-assessment-runner',
   webServer: {
     command: `npx vite --config vite.config.mjs --host 127.0.0.1 --port ${port}`,
+    env: {
+      ...process.env,
+      VITE_PROFESSION: 'exercise-physiology',
+      VITE_BASE44_APP_ID: 'local-assesssuite',
+    },
     url: `${baseURL}/e2e/ep-assessment-runner/`,
     reuseExistingServer: false,
     timeout: 120_000,
