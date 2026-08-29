@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowRight, Plus, Sparkles, FileText } from 'lucide-react';
-import { hasInteractiveRunner } from './assessmentRunnerUtils';
+import { hasRegisteredAssessmentRunner } from './assessmentRunnerAvailability';
 
 export default function AssessmentCard({ assessment, onClick, onSelect = null, showSelectButton = false, selectButtonText = "Add to Client" }) {
   const getCategoryColor = (category) => {
@@ -45,7 +45,7 @@ export default function AssessmentCard({ assessment, onClick, onSelect = null, s
           <Badge className={`${getCategoryColor(assessment.category)} border-0 w-fit`}>
             {formatCategory(assessment.category)}
           </Badge>
-          {hasInteractiveRunner(assessment.name) ? (
+          {hasRegisteredAssessmentRunner(assessment) ? (
             <Badge className="bg-gradient-to-r from-purple-500 to-indigo-500 text-white border-0 w-fit flex items-center gap-1">
               <Sparkles className="w-3 h-3" />
               Interactive
@@ -57,7 +57,7 @@ export default function AssessmentCard({ assessment, onClick, onSelect = null, s
             </Badge>
           )}
           {/* Quality Status Badge - Show when all checks complete */}
-          {assessment.has_test_runner && 
+          {hasRegisteredAssessmentRunner(assessment) &&
            assessment.results_add_to_soap && 
            assessment.has_normatives && 
            assessment.has_instructions && 

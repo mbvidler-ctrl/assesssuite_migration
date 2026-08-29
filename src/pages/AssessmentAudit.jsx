@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { hasInteractiveRunner } from "@/components/assessments/assessmentRunnerUtils";
+import { hasRegisteredAssessmentRunner } from "@/components/assessments/assessmentRunnerAvailability";
 import { splitReferenceLines, keepVerifiedReferenceLines } from "@/lib/clinical/referenceGate";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -104,7 +105,7 @@ export default function AssessmentAudit() {
         if (batch.length < pageSize) break;
         page++;
       }
-      const active = allAssessments.filter(a => !a.is_deleted && a.has_test_runner);
+      const active = allAssessments.filter(a => !a.is_deleted && hasRegisteredAssessmentRunner(a));
 
       // Get existing pending assessments for this client
       const existing = await base44.entities.ClientAssessment.filter({ client_id: client.id });

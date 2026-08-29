@@ -74,9 +74,9 @@ export default function PhysioPublicLanding() {
           <nav className="flex items-center gap-2" aria-label="Account">
             <Button asChild variant="ghost"><Link to="/login">Sign in</Link></Button>
             <Button asChild className="bg-teal-800 hover:bg-teal-900">
-              <Link to="/register">
-                <span className="sm:hidden">Start</span>
-                <span className="hidden sm:inline">Start free trial</span>
+              <Link to="/login">
+                <span className="sm:hidden">Access</span>
+                <span className="hidden sm:inline">Comparison access</span>
               </Link>
             </Button>
           </nav>
@@ -100,7 +100,7 @@ export default function PhysioPublicLanding() {
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg" className="h-12 bg-teal-800 px-6 text-base hover:bg-teal-900">
-                  <Link to="/register">Create your account <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                  <Link to="/login">Open the R1 comparison <ArrowRight className="ml-2 h-4 w-4" /></Link>
                 </Button>
                 <Button asChild size="lg" variant="outline" className="h-12 border-slate-300 bg-white px-6 text-base">
                   <Link to="/login">Sign in to your practice</Link>
@@ -170,10 +170,10 @@ export default function PhysioPublicLanding() {
 
         <section className="mx-auto max-w-5xl px-5 py-20 text-center lg:px-8">
           <div className="rounded-[2rem] bg-teal-900 px-6 py-14 text-white shadow-xl shadow-teal-950/15 sm:px-12">
-            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Start your Physio workspace</h2>
-            <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-teal-100">Register, verify your email and set up your clinician or practice profile through the normal self-service journey.</p>
+            <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">Review Revision 1</h2>
+            <p className="mx-auto mt-4 max-w-2xl text-lg leading-8 text-teal-100">This preserved comparison environment is restricted to authorised users. Sign in with your approved account.</p>
             <Button asChild size="lg" className="mt-8 h-12 bg-white px-7 text-base text-teal-950 hover:bg-teal-50">
-              <Link to="/register">Start free trial <ArrowRight className="ml-2 h-4 w-4" /></Link>
+              <Link to="/login">Sign in to Revision 1 <ArrowRight className="ml-2 h-4 w-4" /></Link>
             </Button>
           </div>
         </section>
@@ -182,7 +182,7 @@ export default function PhysioPublicLanding() {
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-8 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between lg:px-8">
           <p>© {new Date().getFullYear()} {buildTimeProfession.productName}</p>
-          <div className="flex gap-5"><Link to="/login" className="hover:text-teal-800">Sign in</Link><Link to="/register" className="hover:text-teal-800">Register</Link></div>
+          <div className="flex gap-5"><Link to="/login" className="hover:text-teal-800">Sign in</Link><Link to="/register" className="hover:text-teal-800">Access policy</Link></div>
         </div>
       </footer>
     </div>

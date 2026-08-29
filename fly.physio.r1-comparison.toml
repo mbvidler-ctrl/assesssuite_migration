@@ -1,0 +1,74 @@
+# AssessSuite Physio Revision 1 — isolated comparison target.
+#
+# This deployment preserves the accepted R1 application and its complete
+# 236-assessment catalogue on a snapshot-derived, separately encrypted volume.
+# Registration and payment effects are disabled so the comparison cannot
+# create public accounts or mutate the Revision 3 billing identity.
+
+app = "assesssuite-physio-r1"
+primary_region = "syd"
+
+[build]
+  dockerfile = "Dockerfile.physio"
+
+[env]
+  PORT = "8787"
+  PROFESSION = "physio"
+  DEFAULT_APP_ID = "local-assesssuite-physio"
+  ASSESSSUITE_DEPLOYMENT_VARIANT = "physio-r1-comparison"
+  SELFTEST = "0"
+  PARITY_ASSURANCE_MODE = "0"
+  ALLOW_OPEN_REGISTRATION = "0"
+  ADMIN_EMAIL = "admin@assesssuite.com"
+  EMAIL_FROM = "AssessSuite Physiotherapy <verification@assesssuite.com>"
+  EMAIL_REPLY_TO = "admin@assesssuite.com"
+  EMAIL_DOMAIN = "assesssuite.com"
+  OUTBOUND_EMAIL_ENABLED = "1"
+  OUTBOUND_SMS_ENABLED = "0"
+  PAYMENTS_ENABLED = "0"
+  STRIPE_TRIAL_PERIOD_DAYS = "30"
+  EXPECTED_APP_URL = "https://assesssuite-physio-r1.fly.dev"
+  UPLOADS_DIR = "/app/server/data/physio-uploads"
+  SENTRY_ENVIRONMENT = "physio-production"
+  ALLOW_PAID_PROVIDER_PROBE = "0"
+  LLM_REQUIRED = "1"
+  GENERAL_CLINICAL_LLM_ENABLED = "0"
+  OPENAI_MODEL_FAST = "gpt-4.1-mini-2025-04-14"
+  OPENAI_MODEL_QUALITY = "gpt-4.1-2025-04-14"
+  TRANSCRIPTION_ENABLED = "1"
+  OPENAI_TRANSCRIBE_MODEL = "whisper-1"
+  DOCUMENT_EXTRACTION_ENABLED = "1"
+  DOCUMENT_EXTRACTION_UNDER_13_ENABLED = "0"
+  OPENAI_HEALTH_DATA_TERMS_CONFIRMED = "1"
+  AI_USAGE_USER_ROLLING_24H_USD = "5"
+  AI_USAGE_USER_ROLLING_24H_CALLS = "100"
+  AI_USAGE_GLOBAL_MONTHLY_USD = "50"
+  AI_USAGE_INVOKE_FAST_ESTIMATE_USD = "0.07"
+  AI_USAGE_INVOKE_QUALITY_ESTIMATE_USD = "0.33"
+  AI_USAGE_TRANSCRIPTION_ESTIMATE_USD = "3.00"
+  AI_USAGE_SOAP_ESTIMATE_USD = "0.33"
+  AI_USAGE_DOCUMENT_EXTRACTION_ESTIMATE_USD = "0.20"
+  GENERAL_CLINICAL_LLM_MAX_OUTPUT_UNITS = "32768"
+  UPLOAD_AUDIT_RETENTION_DAYS = "730"
+  UPLOAD_CLEANUP_INTERVAL_MINUTES = "1"
+  LEGAL_STATUS = "effective"
+  LEGAL_EFFECTIVE_DATE = "19 July 2026"
+
+[mounts]
+  source = "assesssuite_physio_r1_data"
+  destination = "/app/server/data"
+  snapshot_retention = 5
+  scheduled_snapshots = true
+
+[http_service]
+  internal_port = 8787
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  min_machines_running = 1
+  processes = ["app"]
+
+[[vm]]
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1

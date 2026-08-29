@@ -11,6 +11,11 @@ const CLIENT_NAME = 'Synthetic Offline Physio Patient';
 const EPISODE_TITLE = 'Synthetic right knee rehabilitation';
 const EDITED_REPORT_MARKER = 'Clinician reviewed in the deterministic offline journey.';
 const FAC_NAME = 'Functional Ambulation Categories (FAC)';
+const LEGACY_FALSE_NEGATIVE_RUNNERS = Object.freeze([
+  'Orebro Musculoskeletal Pain Screening Questionnaire',
+  'QuickDASH',
+  'STarT Back Screening Tool',
+]);
 
 function syntheticIdentity(projectName) {
   const device = projectName.startsWith('mobile') ? 'mobile' : 'desktop';
@@ -93,33 +98,21 @@ async function activateAndOnboardPractitioner(page, runtime, identity) {
   // The monolithic legacy App graph can take materially longer on a cold,
   // cache-empty Windows worker; this is the one deliberately long bootstrap
   // wait. Subsequent route assertions retain the normal suite timeout.
-  await expect(page.getByRole('heading', { name: 'Create your account', exact: true }))
+  await expect(page.getByRole('heading', { name: 'Restricted comparison access', exact: true }))
     .toBeVisible({ timeout: 90_000 });
-  await page.locator(selector.registration.fullName).fill(identity.practitionerName);
-  await page.locator(selector.registration.email).fill(identity.email);
-  await page.locator(selector.registration.password).fill(PASSWORD);
-  await page.locator(selector.registration.confirmation).fill(PASSWORD);
-  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+  await expect(page.getByText('Public account creation is disabled.', { exact: false })).toBeVisible();
 
-  await expect(page.getByRole('heading', { name: 'Verify your email', exact: true })).toBeVisible();
-  await page.locator(selector.registration.verificationCode).fill('000000');
-  await page.getByRole('button', { name: 'Verify code', exact: true }).click();
-  await expectPath(page, '/PaymentRequired');
-  await expect(page.getByText('236 canonical outcome measures and assessments', { exact: true })).toBeVisible();
-
-  const checkoutResponse = page.waitForResponse((response) => (
-    response.url().includes('/functions/createCheckoutSession') && response.status() === 200
-  ));
-  await page.getByRole('button', { name: 'Start Monthly Trial', exact: true }).click();
-  await checkoutResponse;
-  const checkout = await runtime.completeCheckout(identity.email);
-  expect(checkout.userId).toBeTruthy();
-  await page.waitForURL(/\/mock-stripe\/checkout\/mock_cs_/, {
-    waitUntil: 'domcontentloaded',
-    timeout: 15_000,
+  const comparisonAccess = await runtime.provisionComparisonUser({
+    email: identity.email,
+    fullName: identity.practitionerName,
+    password: PASSWORD,
   });
+  expect(comparisonAccess.organization.id).toBeTruthy();
+  await page.goto(`${runtime.frontendBaseUrl}/login`, { waitUntil: 'domcontentloaded' });
+  await page.locator('#email').fill(identity.email);
+  await page.locator('#password').fill(PASSWORD);
+  await page.getByRole('button', { name: 'Log in', exact: true }).click();
 
-  await page.goto(`${runtime.frontendBaseUrl}/Dashboard`, { waitUntil: 'domcontentloaded' });
   await expectPath(page, '/ProfileSetup');
   await expect(page.getByRole('heading', { name: 'Welcome to AssessSuite', exact: true })).toBeVisible();
 
@@ -230,6 +223,15 @@ async function addAndCompleteZeroScoreAssessment(page, runtime, clientId, episod
   await page.goto(assessmentLibraryUrl.toString(), { waitUntil: 'domcontentloaded' });
   await expect(page.getByText('Showing 236 of 236 assessments', { exact: true })).toBeVisible();
   const search = page.getByPlaceholder(selector.librarySearchPlaceholder);
+  for (const assessmentName of LEGACY_FALSE_NEGATIVE_RUNNERS) {
+    await search.fill(assessmentName);
+    const title = page.getByText(assessmentName, { exact: true });
+    await expect(title).toBeVisible();
+    const assessmentCard = title.locator(
+      'xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " group ")][1]',
+    );
+    await expect(assessmentCard.getByText('Interactive', { exact: true })).toBeVisible();
+  }
   await search.fill(FAC_NAME);
   await expect(page.getByText('Showing 1 of 236 assessments', { exact: true })).toBeVisible();
   await page.getByText(FAC_NAME, { exact: true }).click();
@@ -413,6 +415,7 @@ test('normal Physio route survives a complete deterministic offline clinical jou
     ]);
     const evidence = {
       evidenceKind: 'offline-loopback-browser-journey',
+      accessPath: 'pre-authorised restricted comparison identity',
       project: testInfo.project.name,
       canonicalLibraryCount: 236,
       provider: 'repository loopback fake OpenAI-compatible chat adapter',

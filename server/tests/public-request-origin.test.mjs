@@ -14,6 +14,12 @@ const PHYSIO = Object.freeze({
   APP_URL: 'https://physio.app.assesssuite.com',
 });
 
+const PHYSIO_R1_COMPARISON = Object.freeze({
+  ...PHYSIO,
+  ASSESSSUITE_DEPLOYMENT_VARIANT: 'physio-r1-comparison',
+  APP_URL: 'https://assesssuite-physio-r1.fly.dev',
+});
+
 for (const origin of physioPublicOrigins()) {
   test(`admits the exact Physio public origin ${origin}`, () => {
     const host = new URL(origin).host;
@@ -29,6 +35,33 @@ for (const origin of physioPublicOrigins()) {
     }), origin);
   });
 }
+
+for (const origin of physioPublicOrigins(PHYSIO_R1_COMPARISON)) {
+  test(`admits the exact isolated R1 comparison origin ${origin}`, () => {
+    const host = new URL(origin).host;
+    assert.equal(resolvePublicRequestOrigin({
+      request: { headers: {
+        host,
+        origin,
+        'x-forwarded-host': host,
+        'x-forwarded-proto': 'https',
+        'fly-forwarded-proto': 'https',
+      } },
+      environment: PHYSIO_R1_COMPARISON,
+    }), origin);
+  });
+}
+
+test('R1 comparison and primary Physio origins cannot cross-authorise one another', () => {
+  assert.throws(() => resolvePublicRequestOrigin({
+    request: { headers: { host: 'physio.app.assesssuite.com' } },
+    environment: PHYSIO_R1_COMPARISON,
+  }));
+  assert.throws(() => resolvePublicRequestOrigin({
+    request: { headers: { host: 'assesssuite-physio-r1.fly.dev' } },
+    environment: PHYSIO,
+  }));
+});
 
 test('rejects foreign, split, downgraded and comma-joined request metadata', () => {
   for (const headers of [

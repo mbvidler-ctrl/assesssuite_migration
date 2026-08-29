@@ -3,6 +3,7 @@ import { once } from 'node:events';
 import { DatabaseSync } from 'node:sqlite';
 import net from 'node:net';
 import { fileURLToPath } from 'node:url';
+import { hashPassword } from '../../server/auth.mjs';
 import { loadEntityNames } from '../../server/db.mjs';
 import { MOCK_CHECKOUT_PRICE_ID } from '../../server/mocks/stripe.mjs';
 import { runCatalogueSeed } from '../../server/seed.mjs';
@@ -17,6 +18,10 @@ import { startFakeOpenAIChat } from '../../server/tests/support/fake-openai-chat
 const PHYSIO_APP_ID = 'local-assesssuite-physio';
 const EXPECTED_PHYSIO_ASSESSMENT_COUNT = 236;
 const viteChildEntry = fileURLToPath(new URL('./vite-child.mjs', import.meta.url));
+
+function appRoute(server, suffix) {
+  return `/api/apps/${server.appId}${suffix}`;
+}
 
 function seedPhysioCatalogue(dbPath) {
   const previousProfession = process.env.PROFESSION;
@@ -141,7 +146,7 @@ export async function startOfflinePhysioRuntime() {
       PROFESSION: 'physio',
       DEFAULT_APP_ID: PHYSIO_APP_ID,
       APP_URL: frontendBaseUrl,
-      ALLOW_OPEN_REGISTRATION: '1',
+      ALLOW_OPEN_REGISTRATION: '0',
       STRIPE_TRIAL_PERIOD_DAYS: '30',
       OUTBOUND_EMAIL_ENABLED: '0',
       GENERAL_CLINICAL_LLM_ENABLED: '0',
@@ -206,6 +211,49 @@ export async function startOfflinePhysioRuntime() {
     frontendBaseUrl,
     get server() { return server; },
     get providerCalls() { return [...fakeChat.calls]; },
+    async provisionComparisonUser({ email, fullName, password }) {
+      if (!server) throw new Error('The offline Physio backend is not running.');
+      const adminToken = await loginAdmin(server);
+      const user = await requestJson(server, appRoute(server, '/entities/User'), {
+        method: 'POST',
+        token: adminToken,
+        body: {
+          email,
+          full_name: fullName,
+          role: 'user',
+          account_status: 'active',
+          email_verified: true,
+          subscription_status: 'active',
+          access_entitlement: 'organisation',
+          ...hashPassword(password),
+        },
+      });
+      if (user.status !== 200) {
+        throw new Error(`Offline comparison user creation failed: ${user.status} ${user.text}`);
+      }
+      const organization = await requestJson(server, appRoute(server, '/entities/Organization'), {
+        method: 'POST',
+        token: adminToken,
+        body: { name: `${fullName} Comparison Practice`, subscription_status: 'active' },
+      });
+      if (organization.status !== 200) {
+        throw new Error(`Offline comparison organisation creation failed: ${organization.status} ${organization.text}`);
+      }
+      const membership = await requestJson(server, appRoute(server, '/entities/OrganizationMember'), {
+        method: 'POST',
+        token: adminToken,
+        body: {
+          org_id: organization.body.id,
+          user_email: email,
+          role: 'owner',
+          is_primary: true,
+        },
+      });
+      if (membership.status !== 200) {
+        throw new Error(`Offline comparison membership creation failed: ${membership.status} ${membership.text}`);
+      }
+      return { user: user.body, organization: organization.body, membership: membership.body };
+    },
     async completeCheckout(email) {
       if (!server) throw new Error('The offline Physio backend is not running.');
       const userId = registeredUserId(store.dbPath, email);

@@ -18,6 +18,8 @@ const PLACEHOLDER = /^(?:change-me|dummy|fake|mock|placeholder|synthetic|test)(?
 const SENTRY_HOST = 'o4511822688813056.ingest.us.sentry.io';
 const SENTRY_PROJECT = '4511827129663488';
 const PUBLIC_URL = 'https://physio.app.assesssuite.com';
+const R1_COMPARISON_VARIANT = 'physio-r1-comparison';
+const R1_COMPARISON_PUBLIC_URL = 'https://assesssuite-physio-r1.fly.dev';
 const CANARY_BOOTSTRAP_RECEIPT =
   /^\/tmp\/physio-exact-image-canary-bootstrap-(?:success|fault)\.json$/;
 
@@ -73,10 +75,16 @@ function addAbsentFailures(failures, environment, names) {
  * configuration to report normal Physio production readiness.
  */
 export function resolvePhysioProductionPosture(environment = process.env) {
+  const r1Comparison = environment.ASSESSSUITE_DEPLOYMENT_VARIANT
+    === R1_COMPARISON_VARIANT;
+  const publicUrl = r1Comparison ? R1_COMPARISON_PUBLIC_URL : PUBLIC_URL;
   const physioTargetClaimed = environment.PROFESSION === 'physio'
     || environment.DEFAULT_APP_ID === 'local-assesssuite-physio'
     || environment.EXPECTED_APP_URL === PUBLIC_URL
     || environment.APP_URL === PUBLIC_URL
+    || environment.EXPECTED_APP_URL === R1_COMPARISON_PUBLIC_URL
+    || environment.APP_URL === R1_COMPARISON_PUBLIC_URL
+    || r1Comparison
     || environment[PHYSIO_EXACT_IMAGE_CANARY_MODE] === '1';
   const applicable = environment.NODE_ENV === 'production'
     && physioTargetClaimed;
@@ -92,17 +100,19 @@ export function resolvePhysioProductionPosture(environment = process.env) {
   }
 
   const canary = environment[PHYSIO_EXACT_IMAGE_CANARY_MODE] === '1';
-  const mode = canary ? 'exact-image-canary' : 'normal-production';
+  const mode = canary
+    ? 'exact-image-canary'
+    : r1Comparison ? 'r1-comparison' : 'normal-production';
   const failures = [];
   addExactFailures(failures, environment, {
     NODE_ENV: 'production',
     PROFESSION: 'physio',
     DEFAULT_APP_ID: 'local-assesssuite-physio',
-    EXPECTED_APP_URL: PUBLIC_URL,
-    APP_URL: PUBLIC_URL,
+    EXPECTED_APP_URL: publicUrl,
+    APP_URL: publicUrl,
     SELFTEST: '0',
     PARITY_ASSURANCE_MODE: '0',
-    ALLOW_OPEN_REGISTRATION: '1',
+    ALLOW_OPEN_REGISTRATION: r1Comparison ? '0' : '1',
     OUTBOUND_SMS_ENABLED: '0',
     GENERAL_CLINICAL_LLM_ENABLED: '0',
     LLM_REQUIRED: '1',
@@ -115,6 +125,17 @@ export function resolvePhysioProductionPosture(environment = process.env) {
     OPENAI_TRANSCRIBE_MODEL: 'whisper-1',
     UPLOADS_DIR: PHYSIO_PRODUCTION_UPLOADS_DIR,
   });
+  if (r1Comparison) {
+    addExactFailures(failures, environment, {
+      ASSESSSUITE_DEPLOYMENT_VARIANT: R1_COMPARISON_VARIANT,
+    });
+    addAbsentFailures(failures, environment, [
+      'STRIPE_SECRET_KEY',
+      'STRIPE_WEBHOOK_SECRET',
+      'STRIPE_PRICE_ID_MONTHLY',
+      'STRIPE_PRICE_ID_ANNUAL',
+    ]);
+  }
   addAbsentFailures(failures, environment, [
     'ASSESSSUITE_DB_PATH',
     'ASSESSSUITE_DB_PATH_ACK',
@@ -153,7 +174,7 @@ export function resolvePhysioProductionPosture(environment = process.env) {
     }
     addExactFailures(failures, environment, {
       OUTBOUND_EMAIL_ENABLED: '1',
-      PAYMENTS_ENABLED: '1',
+      PAYMENTS_ENABLED: r1Comparison ? '0' : '1',
       ALLOW_PAID_PROVIDER_PROBE: '0',
       EMAIL_FROM: 'AssessSuite Physiotherapy <verification@assesssuite.com>',
       EMAIL_REPLY_TO: 'admin@assesssuite.com',
@@ -165,16 +186,19 @@ export function resolvePhysioProductionPosture(environment = process.env) {
       'RUN_PHYSIO_EXACT_IMAGE_CANARY',
       'PHYSIO_EXACT_IMAGE_CANARY_BOOTSTRAP_RECEIPT',
     ]);
-    for (const name of [
-      'ADMIN_PASSWORD',
-      'RESEND_API_KEY',
-      'STRIPE_SECRET_KEY',
-      'STRIPE_WEBHOOK_SECRET',
-      'STRIPE_PRICE_ID_MONTHLY',
-      'STRIPE_PRICE_ID_ANNUAL',
-    ]) if (!realSecret(environment, name)) failures.push(`${name}_must_be_real`);
-    if (!/^(?:rk_live_|sk_live_)/.test(String(environment.STRIPE_SECRET_KEY || ''))) {
-      failures.push('STRIPE_SECRET_KEY_must_be_live_restricted_or_secret');
+    for (const name of ['ADMIN_PASSWORD', 'RESEND_API_KEY']) {
+      if (!realSecret(environment, name)) failures.push(`${name}_must_be_real`);
+    }
+    if (!r1Comparison) {
+      for (const name of [
+        'STRIPE_SECRET_KEY',
+        'STRIPE_WEBHOOK_SECRET',
+        'STRIPE_PRICE_ID_MONTHLY',
+        'STRIPE_PRICE_ID_ANNUAL',
+      ]) if (!realSecret(environment, name)) failures.push(`${name}_must_be_real`);
+      if (!/^(?:rk_live_|sk_live_)/.test(String(environment.STRIPE_SECRET_KEY || ''))) {
+        failures.push('STRIPE_SECRET_KEY_must_be_live_restricted_or_secret');
+      }
     }
     if (!validSentryDsn(environment.SENTRY_DSN)) failures.push('SENTRY_DSN_must_be_approved');
     if (environment.SENTRY_RELEASE !== sentryReleaseForProfession('physio', environment.RELEASE_SHA)) {

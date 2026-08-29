@@ -45,6 +45,39 @@ test('all 236 canonical IDs have a unique deterministic runner route', () => {
   }
 });
 
+test('clinician runner availability is derived from the complete registry, not stale catalogue flags', () => {
+  const availabilitySource = fs.readFileSync(
+    new URL('../../src/components/assessments/assessmentRunnerAvailability.js', import.meta.url),
+    'utf8',
+  );
+  const cardSource = fs.readFileSync(
+    new URL('../../src/components/assessments/AssessmentCard.jsx', import.meta.url),
+    'utf8',
+  );
+  const libraryModalSource = fs.readFileSync(
+    new URL('../../src/components/assessments/AssessmentLibraryModal.jsx', import.meta.url),
+    'utf8',
+  );
+  const auditSource = fs.readFileSync(
+    new URL('../../src/pages/AssessmentAudit.jsx', import.meta.url),
+    'utf8',
+  );
+
+  assert.match(availabilitySource, /resolveRegisteredAssessmentRoute\(assessmentOrName\)/);
+  assert.doesNotMatch(availabilitySource, /interactiveRunners|\.includes\(/);
+  assert.match(cardSource, /hasRegisteredAssessmentRunner\(assessment\)/);
+  assert.match(libraryModalSource, /hasRegisteredAssessmentRunner\(assessment\)/);
+  assert.match(auditSource, /!a\.is_deleted && hasRegisteredAssessmentRunner\(a\)/);
+
+  for (const name of [
+    'Orebro Musculoskeletal Pain Screening Questionnaire',
+    'QuickDASH',
+    'STarT Back Screening Tool',
+  ]) {
+    assert.ok(resolveRegisteredAssessmentRoute(name), `${name} must remain runnable`);
+  }
+});
+
 test('route generation is rebuildable from a separate maintained assignment map', () => {
   assert.equal(Object.keys(PHYSIO_ROUTE_ASSIGNMENTS).length, 236);
   const generatorSource = fs.readFileSync(

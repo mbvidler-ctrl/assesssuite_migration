@@ -87,6 +87,23 @@ function canaryEnvironment(phase = 'success', overrides = {}) {
   return environment;
 }
 
+function r1ComparisonEnvironment(overrides = {}) {
+  const environment = normalEnvironment({
+    ASSESSSUITE_DEPLOYMENT_VARIANT: 'physio-r1-comparison',
+    EXPECTED_APP_URL: 'https://assesssuite-physio-r1.fly.dev',
+    APP_URL: 'https://assesssuite-physio-r1.fly.dev',
+    ALLOW_OPEN_REGISTRATION: '0',
+    PAYMENTS_ENABLED: '0',
+  });
+  for (const name of [
+    'STRIPE_SECRET_KEY',
+    'STRIPE_WEBHOOK_SECRET',
+    'STRIPE_PRICE_ID_MONTHLY',
+    'STRIPE_PRICE_ID_ANNUAL',
+  ]) delete environment[name];
+  return { ...environment, ...overrides };
+}
+
 test('normal Physio production posture is exact, provider-real, and content-free', () => {
   const posture = assertPhysioProductionPosture(normalEnvironment());
   assert.equal(posture.applicable, true);
@@ -100,6 +117,24 @@ test('normal Physio production posture is exact, provider-real, and content-free
     NODE_ENV: 'production',
     PROFESSION: 'exercise-physiology',
   }).failures, []);
+});
+
+test('R1 comparison posture preserves clinical providers while blocking registration and billing effects', () => {
+  const posture = assertPhysioProductionPosture(r1ComparisonEnvironment());
+  assert.equal(posture.applicable, true);
+  assert.equal(posture.ready, true);
+  assert.equal(posture.mode, 'r1-comparison');
+
+  for (const [name, value] of [
+    ['ALLOW_OPEN_REGISTRATION', '1'],
+    ['PAYMENTS_ENABLED', '1'],
+    ['APP_URL', 'https://physio.app.assesssuite.com'],
+    ['STRIPE_SECRET_KEY', 'rk_live_must_not_be_staged'],
+  ]) {
+    const denied = resolvePhysioProductionPosture(r1ComparisonEnvironment({ [name]: value }));
+    assert.equal(denied.ready, false, name);
+    assert.ok(denied.failures.some((failure) => failure.startsWith(name)), name);
+  }
 });
 
 test('normal Physio production posture fails closed for every required provider and isolation switch', () => {

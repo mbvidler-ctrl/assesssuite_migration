@@ -4,7 +4,17 @@ const PHYSIO_PUBLIC_ORIGINS = Object.freeze([
   'https://assesssuite-physio-production.fly.dev',
   'https://physio.app.assesssuite.com',
 ]);
-const PHYSIO_PUBLIC_ORIGIN_SET = new Set(PHYSIO_PUBLIC_ORIGINS);
+const PHYSIO_R1_COMPARISON_VARIANT = 'physio-r1-comparison';
+const PHYSIO_R1_COMPARISON_PUBLIC_ORIGINS = Object.freeze([
+  'https://assesssuite-physio-r1.fly.dev',
+  'https://r1.physio.app.assesssuite.com',
+]);
+
+function publicOriginsForEnvironment(environment) {
+  return environment.ASSESSSUITE_DEPLOYMENT_VARIANT === PHYSIO_R1_COMPARISON_VARIANT
+    ? PHYSIO_R1_COMPARISON_PUBLIC_ORIGINS
+    : PHYSIO_PUBLIC_ORIGINS;
+}
 
 function isLoopbackHostname(hostname) {
   return ['localhost', '127.0.0.1', '[::1]'].includes(hostname);
@@ -74,12 +84,20 @@ function productionTarget(environment) {
   } catch {
     throw new PublicRequestOriginError('production target identity is invalid');
   }
-  const expectedOrigin = `https://${contract.profession.deployment.intendedAppHost}`;
+  const comparison = environment.ASSESSSUITE_DEPLOYMENT_VARIANT
+    === PHYSIO_R1_COMPARISON_VARIANT;
+  const expectedOrigin = comparison
+    ? PHYSIO_R1_COMPARISON_PUBLIC_ORIGINS[0]
+    : `https://${contract.profession.deployment.intendedAppHost}`;
   const configuredOrigin = exactOrigin(String(environment.APP_URL || ''), { production: true });
   if (configuredOrigin !== expectedOrigin) {
     throw new PublicRequestOriginError('APP_URL does not match the active production target');
   }
-  return { contract, configuredOrigin };
+  return {
+    contract,
+    configuredOrigin,
+    publicOriginSet: new Set(publicOriginsForEnvironment(environment)),
+  };
 }
 
 /**
@@ -140,7 +158,7 @@ export function resolvePublicRequestOrigin({ request = null, environment = proce
         throw new PublicRequestOriginError('public request Origin does not match its host');
       }
     }
-    if (productionPhysio && !PHYSIO_PUBLIC_ORIGIN_SET.has(requestOrigin)) {
+    if (productionPhysio && !target.publicOriginSet.has(requestOrigin)) {
       throw new PublicRequestOriginError('public request host is not approved for Physio');
     }
     return requestOrigin;
@@ -152,14 +170,14 @@ export function resolvePublicRequestOrigin({ request = null, environment = proce
   if (!target && !isLoopbackHostname(new URL(configured).hostname)) {
     throw new PublicRequestOriginError('development APP_URL must be loopback');
   }
-  if (productionPhysio && !PHYSIO_PUBLIC_ORIGIN_SET.has(configured)) {
+  if (productionPhysio && !target.publicOriginSet.has(configured)) {
     throw new PublicRequestOriginError('APP_URL is not approved for Physio');
   }
   return configured;
 }
 
-export function physioPublicOrigins() {
-  return [...PHYSIO_PUBLIC_ORIGINS];
+export function physioPublicOrigins(environment = process.env) {
+  return [...publicOriginsForEnvironment(environment)];
 }
 
 /**
