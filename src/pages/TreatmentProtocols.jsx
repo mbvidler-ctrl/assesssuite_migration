@@ -263,16 +263,32 @@ export default function TreatmentProtocols() {
     return matchesSearch && matchesCategory;
   });
 
-  // Verify references against free academic databases via the server-side
-  // verifyReferences function (OpenAlex/PubMed). This replaces the old
-  // existence-only DOI check, which passed the dominant fabrication mode of a
-  // real DOI attached to the wrong paper. Verified references are kept (with
-  // their canonical DOI); mismatched/unverifiable references are removed with a
-  // visible count. On service failure we NEVER assert "verified" — references
-  // are kept but marked unverified so nothing false is presented as confirmed.
+  // Bundled source-linked references were resolved during catalogue build and
+  // need no repeat network lookup. AI-supplied references are still verified
+  // against free academic databases (OpenAlex/PubMed) and fail closed: a
+  // network outage never turns an unverified model citation into a verified one.
   const validateReferences = async (references) => {
     if (!references || references.length === 0) return [];
-    const citations = references.map((ref) => {
+    const verifiedCatalogueReferences = new Map();
+    const referencesNeedingVerification = [];
+    references.forEach((ref, index) => {
+      const sourceLinked = ref?.verification === "catalogue_source_linked"
+        && typeof ref?.catalogue_verified_at === "string"
+        && /^https:\/\//i.test(ref?.url || "");
+      if (sourceLinked) {
+        verifiedCatalogueReferences.set(index, {
+          ...ref,
+          verified: false,
+          verification: "catalogue_source_linked",
+        });
+      } else {
+        referencesNeedingVerification.push({ ref, index });
+      }
+    });
+    if (referencesNeedingVerification.length === 0) {
+      return references.map((_, index) => verifiedCatalogueReferences.get(index));
+    }
+    const citations = referencesNeedingVerification.map(({ ref }) => {
       const text = ref.citation || '';
       const doiMatch = text.match(/10\.\d{4,}\/[^\s"'<>]+/);
       return { doi: doiMatch ? doiMatch[0].replace(/[.,;)]+$/, '') : undefined, title: text };
@@ -286,20 +302,21 @@ export default function TreatmentProtocols() {
       results = null;
     }
     if (!results) {
-      return references.map((ref) => ({ ...ref, verified: false, verification: 'unverifiable' }));
+      referencesNeedingVerification.forEach(({ ref, index }) => {
+        verifiedCatalogueReferences.set(index, { ...ref, verified: false, verification: 'unverifiable' });
+      });
+      return references.map((_, index) => verifiedCatalogueReferences.get(index));
     }
-    const kept = [];
-    let removed = 0;
-    references.forEach((ref, i) => {
-      const r = results[i];
+    referencesNeedingVerification.forEach(({ ref, index }, resultIndex) => {
+      const r = results[resultIndex];
       if (r && r.verdict === 'verified') {
-        kept.push({ ...ref, verified: true, verification: 'verified', doi: r.canonical?.doi || ref.doi, canonical: r.canonical });
-      } else {
-        removed += 1;
+        verifiedCatalogueReferences.set(index, { ...ref, verified: true, verification: 'verified', doi: r.canonical?.doi || ref.doi, canonical: r.canonical });
       }
     });
-    // Unverified references are removed silently by design (Max's direction, 13 July 2026).
-    return kept;
+    return references.flatMap((_, index) => {
+      const kept = verifiedCatalogueReferences.get(index);
+      return kept ? [kept] : [];
+    });
   };
 
   useEffect(() => {
@@ -343,7 +360,7 @@ export default function TreatmentProtocols() {
     };
   }, []);
 
-  const loadProtocol = async (condition) => {
+  const loadProtocol = async (condition, { forceEvidenceRefresh = false } = {}) => {
     const reviewedProtocol = condition?.protocol;
     const conditionName = typeof condition?.name === "string"
       ? condition.name.trim().slice(0, CUSTOM_CONDITION_MAX_LENGTH)
@@ -397,6 +414,7 @@ export default function TreatmentProtocols() {
         query: conditionName,
         limit: 6,
         reviewsOnly: true,
+        forceRefresh: forceEvidenceRefresh,
       });
       const evidencePayload = evidenceResponse?.data ?? evidenceResponse;
       const retrievedRefs = (Array.isArray(evidencePayload?.results) ? evidencePayload.results : [])
@@ -736,25 +754,43 @@ export default function TreatmentProtocols() {
                                  AI-assisted draft
                                </Badge>
                              )}
+                             {selectedCondition?.protocol?.evidence_status === "source_linked" && (
+                               <Badge className="bg-teal-700 text-white">
+                                 Source-linked library
+                               </Badge>
+                             )}
                            </div>
                         </div>
-                        {activeProfession.features.careEpisodes === true ? (
-                          <Button
-                            onClick={() => setShowEpisodeImport(true)}
-                            className="bg-teal-700 hover:bg-teal-800 shrink-0"
-                          >
-                            <FileText className="w-4 h-4 mr-2" />
-                            Save to care episode
-                          </Button>
-                        ) : (
-                          <Button
-                            onClick={() => setShowImportModal(true)}
-                            className="bg-blue-600 hover:bg-blue-700 shrink-0"
-                          >
-                            <FileText className="w-4 h-4 mr-2" />
-                            Add to Client Plan
-                          </Button>
-                        )}
+                        <div className="flex flex-wrap justify-end gap-2">
+                          {!selectedCondition?.protocol && (
+                            <Button
+                              variant="outline"
+                              onClick={() => loadProtocol(selectedCondition, { forceEvidenceRefresh: true })}
+                              disabled={isLoading || !ai.canTrigger}
+                              className="shrink-0"
+                            >
+                              <RefreshCw className="w-4 h-4 mr-2" />
+                              Refresh evidence
+                            </Button>
+                          )}
+                          {activeProfession.features.careEpisodes === true ? (
+                            <Button
+                              onClick={() => setShowEpisodeImport(true)}
+                              className="bg-teal-700 hover:bg-teal-800 shrink-0"
+                            >
+                              <FileText className="w-4 h-4 mr-2" />
+                              Save to care episode
+                            </Button>
+                          ) : (
+                            <Button
+                              onClick={() => setShowImportModal(true)}
+                              className="bg-blue-600 hover:bg-blue-700 shrink-0"
+                            >
+                              <FileText className="w-4 h-4 mr-2" />
+                              Add to Client Plan
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     </CardHeader>
                   </Card>

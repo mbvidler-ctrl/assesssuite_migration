@@ -641,8 +641,8 @@ function validateAuxWorkflow(input, kind) {
     'configText.matchAll', 'env -u FLY_API_TOKEN node --input-type=module',
   ]) if (!secrets.includes(needle)) fail(`names-only secret boundary lacks ${needle}`);
   if (kind === 'rollback') {
-    for (const needle of ["'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN'", "boundaryState = 'exact-ten';"]) {
-      if (!secrets.includes(needle)) fail(`rollback exact ten-name secret boundary lacks ${needle}`);
+    for (const needle of ["'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN'", "'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY'", "boundaryState = 'exact-eleven';"]) {
+      if (!secrets.includes(needle)) fail(`rollback exact eleven-name secret boundary lacks ${needle}`);
     }
   }
   if (/^\s*return 0\s*$/m.test(secrets) || secrets.includes('&& false')) fail('secret boundary has a fail-open bypass');
@@ -1559,7 +1559,8 @@ function auxMutationCases(source, kind) {
       "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',",
       "            'OPENAI_API_KEY', 'SENTRY_DSN',",
     );
-    replace('rollback-exact-ten-marker-reverted', "boundaryState = 'exact-ten';", "boundaryState = 'exact-nine';");
+    replace('rollback-integration-encryption-key-removed', "            'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY',\n", '');
+    replace('rollback-exact-eleven-marker-reverted', "boundaryState = 'exact-eleven';", "boundaryState = 'exact-ten';");
   }
   return cases;
 }
@@ -1645,8 +1646,9 @@ function deployMutationCases(source) {
   replace('deploy-skip-release-command-removed', '              --skip-release-command \\\n', '');
   replace('deploy-remote-only-removed', '              --remote-only \\\n', '');
   replace('deploy-mutable-tag', 'candidate_image_ref="$CANDIDATE_IMAGE_REF"', 'candidate_image_ref="registry.fly.io/assesssuite-production:latest"');
-  replace('secret-allowlist-extra-app-key', "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',\n          ];", "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
+  replace('secret-allowlist-extra-app-key', "            'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY',\n          ];", "            'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
   replace('dashboard-token-allowlist-removed', "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',", "            'OPENAI_API_KEY', 'SENTRY_DSN',");
+  replace('integration-encryption-key-removed', "            'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY',\n", '');
   replace('cleanup-aggregate-proof-removed', "'rows_deleted','usage_aggregate_rows_deleted','files_deleted'", "'rows_deleted','files_deleted'");
   replace('validator-pin-mutated', '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + validatorSelfSha256, '          EXPECTED_TRUSTED_VALIDATOR_SHA256: ' + '0'.repeat(64));
   return cases;
@@ -1837,8 +1839,8 @@ function validateParityWorkflow(input) {
   ]) if (!effect.includes(needle)) fail('missing loopback relay/container cleanup boundary ' + needle);
   if (countOf(effect, 'cleanup_browser_boundary') !== 3) fail('browser boundary cleanup is not invoked on both trap and successful wave paths');
 
-  const exactTen = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN'";
-  if (!effect.includes(exactTen) || !effect.includes('JSON.stringify([...names].sort()) !== JSON.stringify([...expected].sort())') || !effect.includes('Parity requires the exact ten-name production secret allowlist')) fail('parity exact ten-name secret allowlist is absent');
+  const exactEleven = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',\n            'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY'";
+  if (!effect.includes(exactEleven) || !effect.includes('JSON.stringify([...names].sort()) !== JSON.stringify([...expected].sort())') || !effect.includes('Parity requires the exact eleven-name production secret allowlist')) fail('parity exact eleven-name secret allowlist is absent');
   for (const needle of [
     "'rows_deleted','usage_aggregate_rows_deleted','files_deleted'",
     'row.usage_aggregate_rows_deleted > row.rows_deleted',
@@ -1999,8 +2001,9 @@ function parityMutationCases(source) {
   replace('runner-subcommand-removed', '--entrypoint node "$parity_runner_image" server/tests/production-parity-wave.mjs run-wave', '--entrypoint node "$parity_runner_image" server/tests/production-parity-wave.mjs');
   replace('browser-receipt-not-stdout', '>"$RUNNER_TEMP/browser.raw" 2>"$RUNNER_TEMP/browser.stderr"', '>/dev/null 2>"$RUNNER_TEMP/browser.stderr"');
   replace('browser-cleanup-removed', '              cleanup_browser_boundary\n              rm -f "$RUNNER_TEMP/browser.stderr"', '              rm -f "$RUNNER_TEMP/browser.stderr"');
-  replace('secret-allowlist-extra-app-key', "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',\n          ];", "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
+  replace('secret-allowlist-extra-app-key', "            'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY',\n          ];", "            'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
   replace('dashboard-token-allowlist-removed', "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',", "            'OPENAI_API_KEY', 'SENTRY_DSN',");
+  replace('integration-encryption-key-removed', "            'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY',\n", '');
   replace('cleanup-aggregate-proof-removed', "'rows_deleted','usage_aggregate_rows_deleted','files_deleted'", "'rows_deleted','files_deleted'");
   replace('fresh-wave-absence-proof-removed', "            if (row.action === 'volume-delete' && (row.parity_machine_id !== 'NOT-CREATED' || row.parity_private_ipv6 !== 'NOT-CREATED' || row.parity_volume_id !== 'NOT-CREATED'))", '            if (false)');
   replace('machine-delete-retry-removed', "            const retryDelete = row.action === 'machine-delete' && row.result === 'FAILED'", '            const retryDelete = false && row.action === \'machine-delete\'');
@@ -2448,15 +2451,15 @@ function validateDeployWorkflowV2(input) {
   if (deploy.includes('app = "node server/productionBootstrap.mjs && exec node server/index.mjs"')) {
     fail('deploy config contract reintroduces a flyctl-tokenized process command instead of inheriting the image CMD');
   }
-  const exactTen = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN'";
-  if (!deploy.includes(exactTen) || deploy.includes('UPLOAD_AUDIT_LEGAL_HOLD')) fail('deploy exact ten-name application-secret allowlist differs');
+  const exactEleven = "'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',\n            'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',\n            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',\n            'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY'";
+  if (!deploy.includes(exactEleven) || deploy.includes('UPLOAD_AUDIT_LEGAL_HOLD')) fail('deploy exact eleven-name application-secret allowlist differs');
   for (const needle of [
     "const settled = JSON.stringify([...required].sort());",
     "const preDashboard = JSON.stringify(required.filter((name) => name !== 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN').sort());",
     "const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",
     "const preDashboardTransitionPending = JSON.stringify([...required.filter((name) => name !== 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN'), 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",
     "if (observed === settled) {", "} else if (observed === preDashboard) {", "} else if (observed === transitionPending) {", "} else if (observed === preDashboardTransitionPending) {",
-    "boundaryState = 'settled';", "boundaryState = 'pre-dashboard';", "boundaryState = 'transition-pending';", "boundaryState = 'pre-dashboard-transition-pending';", "boundaryState = 'exact-ten';",
+    "boundaryState = 'settled';", "boundaryState = 'pre-dashboard';", "boundaryState = 'transition-pending';", "boundaryState = 'pre-dashboard-transition-pending';", "boundaryState = 'exact-eleven';",
     'BOUNDARY_STATE_PATH="$boundary_state_path"',
     'initial_boundary_state="$(<"$RUNNER_TEMP/initial-secret-boundary-state")"',
     '[[ "$initial_boundary_state" == \'settled\' || "$initial_boundary_state" == \'pre-dashboard\' || "$initial_boundary_state" == \'transition-pending\' || "$initial_boundary_state" == \'pre-dashboard-transition-pending\' ]]',
@@ -2492,7 +2495,7 @@ function validateDeployWorkflowV2(input) {
   const finalSecretBoundary = deploy.indexOf('if ! assert_secret_name_boundary final forbid; then');
   const candidateDeploy = deploy.indexOf('fly deploy "$deploy_source_dir"', finalSecretBoundary);
   const postactivationBoundary = deploy.indexOf('assert_secret_name_boundary postactivation forbid', candidateDeploy);
-  if (postactivationBoundary < candidateDeploy) fail('exact-ten secret boundary is not re-proved after candidate activation');
+  if (postactivationBoundary < candidateDeploy) fail('exact-eleven secret boundary is not re-proved after candidate activation');
   for (const needle of [
     'printf \'DEPLOY_JOB_STARTED_EPOCH=%s\\n\' "$(date -u +%s)" >> "$GITHUB_ENV"',
     'curl --fail --location --silent --show-error --max-time 120',
@@ -3397,8 +3400,9 @@ function deployMutationCasesV2(source) {
   replace('remote-only-removed', '              --remote-only \\\n', '');
   replace('skip-release-command-removed', '              --skip-release-command \\\n', '');
   replace('empty-context-replaced', 'fly deploy "$deploy_source_dir" \\\n            --config "$candidate_config"', 'fly deploy "$GITHUB_WORKSPACE/candidate" \\\n            --config "$candidate_config"');
-  replace('secret-allowlist-extra', "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',\n          ];", "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
+  replace('secret-allowlist-extra', "            'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY',\n          ];", "            'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY', 'UPLOAD_AUDIT_LEGAL_HOLD',\n          ];");
   replace('dashboard-token-final-allowlist-removed', "            'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',", "            'OPENAI_API_KEY', 'SENTRY_DSN',");
+  replace('integration-encryption-key-final-allowlist-removed', "            'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY',\n", '');
   replace(
     'secret-allowlist-legal-metadata-reintroduced',
     "const transitionPending = JSON.stringify([...required, 'GENERAL_CLINICAL_LLM_ENABLED'].sort());",

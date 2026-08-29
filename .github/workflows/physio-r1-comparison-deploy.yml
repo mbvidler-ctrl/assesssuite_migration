@@ -28,7 +28,9 @@ jobs:
       R1_FOUNDATION_SHA: d17eac5627ed104bdb6cc79007c6c5e83df3fe11
       R1_ORIGIN_FIX_SHA: 2f0f3946c1a0f57d31f0f97fe04aed03e3a210fe
       R1_RUNTIME_FIX_SHA: 073d1914c8696a6fa4357752c1d30f670e4dc761
-      R1_COMPARISON_SHA: 8237e6518bd739db24711e1d4ee70b3e4c3f9d36
+      R1_PRE_STAGE2_SHA: 8237e6518bd739db24711e1d4ee70b3e4c3f9d36
+      R1_STAGE2_FOUNDATION_SHA: 68f277e6511440232ed299402cc42c598110ca65
+      R1_COMPARISON_SHA: 553b6ea49628d6e434eb852f61ce20c353d77eec
       R1_SNAPSHOT_ID: vs_MaPo8mb2XbOzhakmXG2N4Az
       R1_SNAPSHOT_DIGEST: aa46c34a166bf663693dcbdba39757528400458febecc591875366d6ab252114
       R1_VOLUME_ID: vol_vgn67klw1jq1km04
@@ -58,6 +60,8 @@ jobs:
           [[ "$R1_FOUNDATION_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_ORIGIN_FIX_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_RUNTIME_FIX_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$R1_PRE_STAGE2_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$R1_STAGE2_FOUNDATION_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_COMPARISON_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_SNAPSHOT_ID" =~ ^vs_[A-Za-z0-9]+$ ]]
           [[ "$R1_SNAPSHOT_DIGEST" =~ ^[0-9a-f]{64}$ ]]
@@ -76,41 +80,97 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$(git rev-parse HEAD)" == "$R1_COMPARISON_SHA" ]]
-          [[ "$(git rev-parse HEAD^)" == "$R1_RUNTIME_FIX_SHA" ]]
-          [[ "$(git rev-parse HEAD^^)" == "$R1_ORIGIN_FIX_SHA" ]]
-          [[ "$(git rev-parse HEAD^^^)" == "$R1_FOUNDATION_SHA" ]]
-          [[ "$(git rev-parse HEAD^^^^)" == "$R1_BASELINE_SHA" ]]
+          [[ "$(git rev-parse HEAD^)" == "$R1_STAGE2_FOUNDATION_SHA" ]]
+          [[ "$(git rev-parse HEAD^^)" == "$R1_PRE_STAGE2_SHA" ]]
+          [[ "$(git rev-parse HEAD^^^)" == "$R1_RUNTIME_FIX_SHA" ]]
+          [[ "$(git rev-parse HEAD^^^^)" == "$R1_ORIGIN_FIX_SHA" ]]
+          [[ "$(git rev-parse HEAD^^^^^)" == "$R1_FOUNDATION_SHA" ]]
+          [[ "$(git rev-parse HEAD^^^^^^)" == "$R1_BASELINE_SHA" ]]
           actual="$RUNNER_TEMP/r1-changed-files.txt"
           expected="$RUNNER_TEMP/r1-expected-files.txt"
           git diff --name-only "$R1_BASELINE_SHA..$R1_COMPARISON_SHA" | LC_ALL=C sort >"$actual"
           cat >"$expected" <<'FILES'
+          base44/entities/PhysioCareEpisode.jsonc
+          base44/entities/TreatmentProtocol.jsonc
           e2e/physio-offline-journey/physio-offline-journey.spec.mjs
           e2e/physio-offline-journey/runtime-fixture.mjs
           fly.physio.r1-comparison.toml
           package-lock.json
           package.json
+          packages/profession-config/professions/exercise-physiology.mjs
+          packages/profession-config/professions/physiotherapy.mjs
+          packages/profession-config/schema.mjs
           scripts/build-physio-runtime-tree.mjs
+          scripts/physio-exact-image-canary.mjs
+          scripts/physio-release-contract.mjs
           scripts/provision-physio-r1-comparison-access.mjs
+          server/apiUsage.mjs
+          server/capabilities.mjs
+          server/catalogue/generate-treatment-protocols.mjs
+          server/clinicalEvidence.mjs
+          server/data-import/treatmentprotocol-part-1.jsonl
+          server/db.mjs
+          server/functions/index.mjs
+          server/functions/manageIntegrations.mjs
+          server/functions/manageTranscriptionSession.mjs
+          server/functions/searchEvidence.mjs
+          server/functions/transcribeSession.mjs
+          server/index.mjs
+          server/integrations/credentialVault.mjs
+          server/integrations/halaxy.mjs
+          server/integrations/halaxySync.mjs
           server/productionBootstrap.mjs
+          server/productionCatalogue.mjs
           server/productionPosture.mjs
           server/publicRequestOrigin.mjs
           server/runtimeStatus.mjs
           server/tests/assessment-runner-registry.test.mjs
+          server/tests/clinical-evidence-cache.test.mjs
+          server/tests/halaxy-sync.test.mjs
+          server/tests/integration-connectors.test.mjs
+          server/tests/integration-management-route.test.mjs
+          server/tests/persistent-transcription-session.test.mjs
+          server/tests/physio-care-episode-functional.test.mjs
           server/tests/physio-deployment-config.test.mjs
+          server/tests/physio-exact-image-canary.test.mjs
+          server/tests/physio-legacy-ai-isolation.test.mjs
           server/tests/physio-production-posture.test.mjs
+          server/tests/physio-profession-surface-contract.test.mjs
           server/tests/physio-public-entry.test.mjs
           server/tests/physio-r1-comparison-access.test.mjs
           server/tests/physio-r1-comparison-contract.test.mjs
           server/tests/physio-runtime-tree.test.mjs
           server/tests/production-startup.test.mjs
           server/tests/public-request-origin.test.mjs
+          server/tests/reference-verification-badge.test.mjs
+          server/tests/report-content-generation.test.mjs
+          server/tests/run-assurance.mjs
           server/tests/runtime-status.test.mjs
+          server/tests/soap-dissection-fail-closed.test.mjs
+          server/tests/transcription-provider-contract.test.mjs
+          server/tests/treatment-protocol-hydration.test.mjs
+          server/uploadRegistry.mjs
+          src/App.jsx
+          src/Layout.jsx
           src/components/assessments/AssessmentCard.jsx
           src/components/assessments/AssessmentLibraryModal.jsx
           src/components/assessments/assessmentRunnerAvailability.js
+          src/components/calendar/SOAPNoteModal.jsx
+          src/components/physio/SaveProtocolToEpisodeDialog.jsx
+          src/components/reports/wizard-steps/SectionEditor.jsx
+          src/components/transcription/PersistentTranscriptionDock.jsx
+          src/lib/physio/careEpisode.js
+          src/lib/referenceVerificationBadge.js
+          src/lib/reports/reportContentGeneration.js
+          src/lib/transcription/PersistentTranscriptionContext.jsx
+          src/lib/transcription/localTranscriptionStore.js
+          src/pages.config.js
           src/pages/AssessmentAudit.jsx
+          src/pages/Customise.jsx
+          src/pages/PhysioEpisodes.jsx
           src/pages/PhysioPublicLanding.jsx
           src/pages/Register.jsx
+          src/pages/TreatmentProtocols.jsx
           FILES
           diff -u "$expected" "$actual"
 
@@ -208,7 +268,7 @@ jobs:
           } >"$secrets_file"
           flyctl secrets import --app "$APP" --stage --dns-checks=false <"$secrets_file"
           secret_names="$(flyctl secrets list --app "$APP" --json | jq -r '.[].name' | LC_ALL=C sort)"
-          expected_names=$'ADMIN_PASSWORD\nAPP_URL\nEXPECTED_APP_URL\nOPENAI_API_KEY\nRESEND_API_KEY\nSENTRY_DSN'
+          expected_names=$'ADMIN_PASSWORD\nAPP_URL\nASSESSSUITE_INTEGRATION_ENCRYPTION_KEY\nEXPECTED_APP_URL\nOPENAI_API_KEY\nRESEND_API_KEY\nSENTRY_DSN'
           [[ "$secret_names" == "$expected_names" ]]
           ! grep -Eq 'STRIPE|PAYMENT' <<<"$secret_names"
 
@@ -220,7 +280,7 @@ jobs:
           flyctl deploy --app "$APP" --config fly.physio.r1-comparison.toml --remote-only --yes \
             --label "ASSESSSUITE_SOURCE_SHA=$R1_COMPARISON_SHA" \
             --build-arg "RELEASE_SHA=$R1_COMPARISON_SHA" \
-            --build-arg "SOURCE_BRANCH=mission/physio-r1-comparison-20260829" \
+            --build-arg "SOURCE_BRANCH=feature/physio-r1-stage2-shared" \
             --build-arg "BUILD_TIMESTAMP=$built_at" \
             --build-arg "SENTRY_DSN=$SENTRY_DSN"
 
@@ -314,6 +374,8 @@ jobs:
             --arg application_sha "$R1_COMPARISON_SHA" \
             --arg baseline_sha "$R1_BASELINE_SHA" \
             --arg foundation_sha "$R1_FOUNDATION_SHA" \
+            --arg pre_stage2_sha "$R1_PRE_STAGE2_SHA" \
+            --arg stage2_foundation_sha "$R1_STAGE2_FOUNDATION_SHA" \
             --arg snapshot_id "$R1_SNAPSHOT_ID" \
             --arg snapshot_digest "$R1_SNAPSHOT_DIGEST" \
             --arg volume_id "$R1_VOLUME_ID" \
@@ -327,6 +389,8 @@ jobs:
               application_sha: $application_sha,
               baseline_sha: $baseline_sha,
               foundation_sha: $foundation_sha,
+              pre_stage2_sha: $pre_stage2_sha,
+              stage2_foundation_sha: $stage2_foundation_sha,
               source_snapshot_id: $snapshot_id,
               source_snapshot_digest: $snapshot_digest,
               isolated_volume_id: $volume_id,

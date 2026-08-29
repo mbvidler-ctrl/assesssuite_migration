@@ -301,7 +301,7 @@ jobs:
       - name: Validate the exact trusted production workflow control
         shell: bash
         env:
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 72ec047e340dc3ad0af288c9487dbccf2f73183e6853e88b6f4746800ab1be96
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 836397764f1d94e80e9a075fbb2790424fcc3ba5c17e11480e408885e7b245d7
         run: |
           set -euo pipefail
           cd application
@@ -864,8 +864,9 @@ jobs:
             'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',
             'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',
             'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',
+            'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY',
           ];
-          if (JSON.stringify([...names].sort()) !== JSON.stringify([...expected].sort())) throw new Error('Parity requires the exact ten-name production secret allowlist');
+          if (JSON.stringify([...names].sort()) !== JSON.stringify([...expected].sort())) throw new Error('Parity requires the exact eleven-name production secret allowlist');
           NODE
             rm -f "$RUNNER_TEMP/secret-names.json"
           }

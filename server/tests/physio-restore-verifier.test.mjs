@@ -203,6 +203,10 @@ test('restore verifier rejects catalogue drift and any provider-capable process 
       /OPENAI_API_KEY reached the read-only verifier process/,
     );
     assert.throws(
+      () => verify(databasePath, { ...PROVIDER_OFF, ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY: 'must-not-reach-fixture-verifier' }),
+      /ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY reached the read-only verifier process/,
+    );
+    assert.throws(
       () => verify(databasePath, { ...PROVIDER_OFF, PAYMENTS_ENABLED: '1' }),
       /PAYMENTS_ENABLED is not explicitly disabled/,
     );

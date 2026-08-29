@@ -24,6 +24,9 @@ import {
   createPhysioAiGenerationRepository,
   createStripeCheckoutIntentRepository,
   createStripeWebhookEventRepository,
+  createIntegrationConnectionRepository,
+  createEvidenceCacheRepository,
+  createTranscriptionSessionRepository,
 } from '../db.mjs';
 import { createApiUsageService } from '../apiUsage.mjs';
 import {
@@ -56,6 +59,8 @@ import managePromotions from './managePromotions.mjs';
 import physioAiTask from './physioAiTask.mjs';
 import savePhysioAiGeneration from './savePhysioAiGeneration.mjs';
 import manageOrganizationAccess from './manageOrganizationAccess.mjs';
+import manageIntegrations from './manageIntegrations.mjs';
+import manageTranscriptionSession from './manageTranscriptionSession.mjs';
 
 const REGISTRY = {
   createCheckoutSession,
@@ -73,6 +78,8 @@ const REGISTRY = {
   physioAiTask,
   savePhysioAiGeneration,
   manageOrganizationAccess,
+  manageIntegrations,
+  manageTranscriptionSession,
 };
 
 // The legacy EP maintenance/debug functions are not part of the public
@@ -97,6 +104,7 @@ const REQUIRES_ACTIVE_ACCOUNT = new Set([
   'transcribeSession',
   'physioAiTask',
   'savePhysioAiGeneration',
+  'manageTranscriptionSession',
 ]);
 
 // Functions that require a session but not approval — billing actions a
@@ -115,6 +123,7 @@ const REQUIRES_SESSION = new Set([
   'cancelSubscriptionAndDeactivate',
   'managePromotions',
   'manageOrganizationAccess',
+  'manageIntegrations',
 ]);
 
 let state = null;
@@ -130,9 +139,13 @@ function buildState(db, entityNames, services = {}) {
     stripeCheckoutIntents: createStripeCheckoutIntentRepository(db),
     stripeWebhookEvents: createStripeWebhookEventRepository(db),
     physioAiGenerations: createPhysioAiGenerationRepository(db),
+    integrationConnections: createIntegrationConnectionRepository(db),
+    evidenceCache: createEvidenceCacheRepository(db),
+    transcriptionSessions: createTranscriptionSessionRepository(db),
     entities: createEntitiesAccessor(db, entityNames),
     stripeProvider: services.stripeProvider || null,
     transcriptionFallback: services.transcriptionFallback || null,
+    uploadRegistry: services.uploadRegistry || null,
   };
 }
 
@@ -174,11 +187,15 @@ export default async function handleFunction(req, res, { functionName }) {
     apiUsage,
     clinicalReleasePolicy,
     physioAiGenerations,
+    integrationConnections,
+    evidenceCache,
+    transcriptionSessions,
     stripeCheckoutIntents,
     stripeWebhookEvents,
     stripeProvider,
     transcriptionFallback,
     sessions,
+    uploadRegistry,
   } = ensureState();
   if (
     ['physioAiTask', 'savePhysioAiGeneration'].includes(functionName)
@@ -232,10 +249,11 @@ export default async function handleFunction(req, res, { functionName }) {
     ...(functionName === 'stripeWebhook'
       ? { webhookEvents: stripeWebhookEvents }
       : {}),
-    ...(['physioAiTask', 'savePhysioAiGeneration', 'manageOrganizationAccess'].includes(functionName)
-      ? { physioAiGenerations, db }
+    ...(['physioAiTask', 'savePhysioAiGeneration', 'manageOrganizationAccess', 'manageIntegrations', 'manageTranscriptionSession', 'transcribeSession'].includes(functionName)
+      ? { physioAiGenerations, integrationConnections, transcriptionSessions, uploadRegistry, db }
       : {}),
     ...(functionName === 'manageOrganizationAccess' ? { sessions } : {}),
+    ...(functionName === 'searchEvidence' ? { evidenceCache } : {}),
     outboxEmail,
     outboxSms,
     ...(stripeProvider ? { stripeProvider } : {}),

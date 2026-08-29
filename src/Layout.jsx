@@ -5,7 +5,7 @@ import { base44 } from "@/api/base44Client";
 import {
   Users, FileText, BarChart3, Stethoscope, ClipboardList,
   User as UserIcon, ExternalLink, Loader2, Calendar as CalendarIcon,
-  Utensils, ShieldCheck, TicketPercent, HeartPulse, KeyRound, DollarSign
+  Utensils, ShieldCheck, TicketPercent, HeartPulse, KeyRound, DollarSign, Settings2
 } from "lucide-react";
 import { SUITE_VERSION } from "@/lib/legal/documentRegistry";
 import { resolveLegalConsentAudience } from "@/lib/legal/consentAudience";
@@ -20,6 +20,7 @@ import {
   SidebarGroupLabel, SidebarMenu, SidebarMenuButton, SidebarMenuItem,
   SidebarHeader, SidebarProvider, SidebarTrigger,
 } from "@/components/ui/sidebar";
+import PersistentTranscriptionDock from "@/components/transcription/PersistentTranscriptionDock";
 
 const activeReleaseProfessions = new Set(activeProfession.releaseProfessions);
 const assessmentAuditAvailable = activeProfession.navigation.allowedPages.includes('AssessmentAudit');
@@ -35,6 +36,7 @@ const navigationDefinitions = Object.freeze({
   Reports: { title: "Reports", icon: FileText },
   FundingForms: { title: "Funding Forms", icon: ExternalLink },
   Finances: { title: "Finances", icon: DollarSign },
+  Customise: { title: "Customise", icon: Settings2 },
   MyProfile: { title: "Settings", icon: UserIcon },
 });
 
@@ -354,6 +356,7 @@ export default function Layout({ children, currentPageName }) {
           </header>
           <div className="flex-1">{children}</div>
         </main>
+        <PersistentTranscriptionDock />
       </div>
     </SidebarProvider>
   );

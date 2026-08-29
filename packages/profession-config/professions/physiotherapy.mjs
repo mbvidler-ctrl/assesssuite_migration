@@ -60,6 +60,7 @@ const physiotherapy = {
       'Reports',
       'FundingForms',
       'Finances',
+      'Customise',
       'MyProfile',
     ],
     allowedPages: [
@@ -73,6 +74,7 @@ const physiotherapy = {
       'ClientConditions',
       'ClientProfile',
       'Clients',
+      'Customise',
       'Dashboard',
       'Finances',
       'FundingForms',

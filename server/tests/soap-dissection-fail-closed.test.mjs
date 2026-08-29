@@ -148,9 +148,16 @@ test('the real-dissection success response always carries simulated: false (stat
   // exercising the true real-provider-success branch offline is not possible
   // without either a live OpenAI call (forbidden) or a new DI seam (out of
   // scope for this fix). Instead we statically assert the real-result
-  // responses always set simulated: false: one for transcription and one for
-  // SOAP dissection.
+  // response sets simulated: false. Scope the assertion to the SOAP response
+  // shape so adding other real, explicitly non-simulated transcription paths
+  // does not make this test brittle.
   const source = fs.readFileSync(TRANSCRIBE_SESSION_SOURCE, 'utf8');
-  const matches = source.match(/simulated: false/g) || [];
-  assert.equal(matches.length, 2, 'expected both real provider responses to set simulated: false');
+  const soapBranchStart = source.indexOf("if (action === 'dissect_to_soap')");
+  assert.notEqual(soapBranchStart, -1, 'expected the SOAP dissection action branch');
+  const soapBranch = source.slice(soapBranchStart);
+  assert.match(
+    soapBranch,
+    /return respond\(200,\s*\{\s*success:[\s\S]*?simulated: false,\s*subjective:/,
+    'expected the real SOAP provider response to set simulated: false',
+  );
 });

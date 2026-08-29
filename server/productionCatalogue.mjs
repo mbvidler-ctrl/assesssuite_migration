@@ -130,9 +130,12 @@ export function runProductionCatalogueSeed({ db, entityNames, environment = proc
     return Object.freeze({
       assessment_count: assessmentCatalogue.length,
       exercise_count: PRODUCTION_EXERCISE_CATALOGUE.length,
+      treatment_protocol_count: treatmentProtocolCatalogue().length,
       assessment_inserted: results.Assessment.inserted,
       assessment_reconciled: results.Assessment.reconciled,
       assessment_retained: results.Assessment.retained,
+      treatment_protocol_inserted: results.TreatmentProtocol.inserted,
+      treatment_protocol_retained: results.TreatmentProtocol.retained,
     });
   } catch (error) {
     try { db.exec('ROLLBACK'); } catch { /* preserve the seed failure */ }

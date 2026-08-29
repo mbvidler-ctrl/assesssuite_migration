@@ -255,6 +255,148 @@ export const PHYSIO_AI_GENERATION_SCHEMA_SQL = `
     WHERE provider_request_id_hash IS NOT NULL;
 `;
 
+export const INTEGRATION_CONNECTION_SCHEMA_VERSION = 1;
+export const INTEGRATION_CONNECTION_SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS integration_connection (
+    id TEXT PRIMARY KEY,
+    schema_version INTEGER NOT NULL DEFAULT 1 CHECK (schema_version = 1),
+    org_id TEXT NOT NULL,
+    provider_id TEXT NOT NULL CHECK (provider_id IN ('halaxy')),
+    status TEXT NOT NULL CHECK (status IN ('disconnected', 'configured', 'connected', 'error')),
+    region TEXT,
+    credentials_encrypted TEXT,
+    credential_hint TEXT,
+    settings_json TEXT NOT NULL DEFAULT '{}',
+    capabilities_json TEXT NOT NULL DEFAULT '{}',
+    last_tested_at TEXT,
+    last_success_at TEXT,
+    last_error_code TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    updated_by_user_id TEXT NOT NULL,
+    updated_by_email TEXT NOT NULL,
+    UNIQUE (org_id, provider_id),
+    CHECK (
+      (status = 'disconnected' AND credentials_encrypted IS NULL)
+      OR (status != 'disconnected' AND credentials_encrypted IS NOT NULL)
+    )
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_integration_connection_org
+    ON integration_connection (org_id, provider_id);
+
+  CREATE TABLE IF NOT EXISTS integration_event (
+    id TEXT PRIMARY KEY,
+    org_id TEXT NOT NULL,
+    provider_id TEXT NOT NULL,
+    event_type TEXT NOT NULL CHECK (event_type IN (
+      'configured', 'connection_test_succeeded', 'connection_test_failed',
+      'disconnected', 'sync_started', 'sync_succeeded', 'sync_failed'
+    )),
+    actor_user_id TEXT,
+    actor_email TEXT,
+    detail_json TEXT NOT NULL DEFAULT '{}',
+    created_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_integration_event_org_created
+    ON integration_event (org_id, created_at DESC, id DESC);
+
+  CREATE TABLE IF NOT EXISTS integration_resource_map (
+    id TEXT PRIMARY KEY,
+    org_id TEXT NOT NULL,
+    provider_id TEXT NOT NULL,
+    resource_type TEXT NOT NULL,
+    local_entity TEXT NOT NULL,
+    local_id TEXT NOT NULL,
+    remote_id TEXT NOT NULL,
+    remote_version TEXT,
+    last_synced_at TEXT NOT NULL,
+    UNIQUE (org_id, provider_id, resource_type, local_id),
+    UNIQUE (org_id, provider_id, resource_type, remote_id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_integration_resource_remote
+    ON integration_resource_map (org_id, provider_id, resource_type, remote_id);
+`;
+
+export const EVIDENCE_CACHE_SCHEMA_VERSION = 1;
+export const EVIDENCE_CACHE_SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS evidence_query_cache (
+    cache_key TEXT PRIMARY KEY CHECK (
+      length(cache_key) = 64 AND cache_key NOT GLOB '*[^0-9a-f]*'
+    ),
+    schema_version INTEGER NOT NULL DEFAULT 1 CHECK (schema_version = 1),
+    normalized_query TEXT NOT NULL,
+    request_json TEXT NOT NULL,
+    result_json TEXT NOT NULL,
+    source_revision TEXT NOT NULL,
+    fetched_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    stale_until TEXT NOT NULL,
+    last_accessed_at TEXT NOT NULL,
+    hit_count INTEGER NOT NULL DEFAULT 0 CHECK (hit_count >= 0)
+  ) WITHOUT ROWID;
+
+  CREATE INDEX IF NOT EXISTS idx_evidence_query_cache_expiry
+    ON evidence_query_cache (expires_at, stale_until);
+`;
+
+export const TRANSCRIPTION_SESSION_SCHEMA_VERSION = 1;
+export const TRANSCRIPTION_SESSION_SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS transcription_session (
+    id TEXT PRIMARY KEY,
+    schema_version INTEGER NOT NULL DEFAULT 1 CHECK (schema_version = 1),
+    org_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN (
+      'recording', 'paused', 'finalising', 'ready', 'recoverable', 'error', 'discarded'
+    )),
+    label TEXT NOT NULL,
+    client_id TEXT,
+    appointment_id TEXT,
+    care_episode_id TEXT,
+    started_at TEXT NOT NULL,
+    ended_at TEXT,
+    duration_seconds INTEGER NOT NULL DEFAULT 0 CHECK (duration_seconds >= 0),
+    transcript_text TEXT NOT NULL DEFAULT '',
+    artifacts_json TEXT,
+    last_error_code TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_transcription_session_org_updated
+    ON transcription_session (org_id, updated_at DESC);
+  CREATE INDEX IF NOT EXISTS idx_transcription_session_user_status
+    ON transcription_session (user_id, status, updated_at DESC);
+
+  CREATE TABLE IF NOT EXISTS transcription_segment (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    org_id TEXT NOT NULL,
+    sequence INTEGER NOT NULL CHECK (sequence >= 0),
+    upload_id TEXT NOT NULL,
+    audio_url TEXT NOT NULL,
+    mime_type TEXT NOT NULL,
+    byte_size INTEGER NOT NULL CHECK (byte_size > 0),
+    duration_seconds REAL CHECK (duration_seconds IS NULL OR duration_seconds >= 0),
+    status TEXT NOT NULL CHECK (status IN ('uploaded', 'transcribing', 'ready', 'error')),
+    transcript_text TEXT,
+    speakers_json TEXT,
+    provider_receipt_json TEXT,
+    last_error_code TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE (session_id, sequence),
+    UNIQUE (session_id, upload_id),
+    FOREIGN KEY (session_id) REFERENCES transcription_session(id)
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_transcription_segment_session_sequence
+    ON transcription_segment (session_id, sequence);
+`;
+
 const SESSION_STORE_TABLE = 'session_records';
 
 /**
@@ -300,6 +442,18 @@ export function ensurePhysioAiGenerationSchema(db) {
       ON physio_ai_generation (org_id, save_idempotency_key)
       WHERE save_idempotency_key IS NOT NULL
   `);
+}
+
+export function ensureIntegrationConnectionSchema(db) {
+  db.exec(INTEGRATION_CONNECTION_SCHEMA_SQL);
+}
+
+export function ensureEvidenceCacheSchema(db) {
+  db.exec(EVIDENCE_CACHE_SCHEMA_SQL);
+}
+
+export function ensureTranscriptionSessionSchema(db) {
+  db.exec(TRANSCRIPTION_SESSION_SCHEMA_SQL);
 }
 
 /**
@@ -869,6 +1023,9 @@ export function openDatabase() {
   ensureStripeCheckoutIntentSchema(db);
   ensureStripeWebhookEventSchema(db);
   ensurePhysioAiGenerationSchema(db);
+  ensureIntegrationConnectionSchema(db);
+  ensureEvidenceCacheSchema(db);
+  ensureTranscriptionSessionSchema(db);
 
   // Existing production databases predate the crash-safe `registering`
   // lifecycle. SQLite cannot widen a CHECK constraint in place, so rebuild
@@ -1702,6 +1859,526 @@ export function createOrganizationAccessRepository(db) {
     recordEvent,
     removeInvitation,
     updateInvitation,
+  });
+}
+
+function integrationConnectionFromRow(row) {
+  if (!row) return null;
+  return Object.freeze({
+    id: row.id,
+    schemaVersion: Number(row.schema_version),
+    orgId: row.org_id,
+    providerId: row.provider_id,
+    status: row.status,
+    region: row.region,
+    credentialsEncrypted: row.credentials_encrypted,
+    credentialHint: row.credential_hint,
+    settings: JSON.parse(row.settings_json || '{}'),
+    capabilities: JSON.parse(row.capabilities_json || '{}'),
+    lastTestedAt: row.last_tested_at,
+    lastSuccessAt: row.last_success_at,
+    lastErrorCode: row.last_error_code,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    updatedByUserId: row.updated_by_user_id,
+    updatedByEmail: row.updated_by_email,
+  });
+}
+
+function integrationEventFromRow(row) {
+  if (!row) return null;
+  return Object.freeze({
+    id: row.id,
+    orgId: row.org_id,
+    providerId: row.provider_id,
+    eventType: row.event_type,
+    actorUserId: row.actor_user_id,
+    actorEmail: row.actor_email,
+    detail: JSON.parse(row.detail_json || '{}'),
+    createdAt: row.created_at,
+  });
+}
+
+function integrationResourceMapFromRow(row) {
+  if (!row) return null;
+  return Object.freeze({
+    id: row.id,
+    orgId: row.org_id,
+    providerId: row.provider_id,
+    resourceType: row.resource_type,
+    localEntity: row.local_entity,
+    localId: row.local_id,
+    remoteId: row.remote_id,
+    remoteVersion: row.remote_version,
+    lastSyncedAt: row.last_synced_at,
+  });
+}
+
+/** Private provider-connection state. Credential ciphertext is never exposed
+ * through the generic entity API and is returned only to server-side callers. */
+export function createIntegrationConnectionRepository(db, { now = () => new Date() } = {}) {
+  ensureIntegrationConnectionSchema(db);
+  const byOrgProvider = db.prepare(`
+    SELECT * FROM integration_connection WHERE org_id = ? AND provider_id = ?
+  `);
+  const listByOrg = db.prepare(`
+    SELECT * FROM integration_connection WHERE org_id = ? ORDER BY provider_id
+  `);
+  const insert = db.prepare(`
+    INSERT INTO integration_connection (
+      id, org_id, provider_id, status, region, credentials_encrypted,
+      credential_hint, settings_json, capabilities_json, last_tested_at,
+      last_success_at, last_error_code, created_at, updated_at,
+      updated_by_user_id, updated_by_email
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const update = db.prepare(`
+    UPDATE integration_connection
+    SET status = ?, region = ?, credentials_encrypted = ?, credential_hint = ?,
+        settings_json = ?, capabilities_json = ?, last_tested_at = ?,
+        last_success_at = ?, last_error_code = ?, updated_at = ?,
+        updated_by_user_id = ?, updated_by_email = ?
+    WHERE org_id = ? AND provider_id = ?
+  `);
+  const eventsByOrg = db.prepare(`
+    SELECT * FROM integration_event
+    WHERE org_id = ? ORDER BY created_at DESC, id DESC LIMIT ?
+  `);
+  const insertEvent = db.prepare(`
+    INSERT INTO integration_event (
+      id, org_id, provider_id, event_type, actor_user_id, actor_email,
+      detail_json, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const mapByLocal = db.prepare(`
+    SELECT * FROM integration_resource_map
+    WHERE org_id = ? AND provider_id = ? AND resource_type = ? AND local_id = ?
+  `);
+  const mapByRemote = db.prepare(`
+    SELECT * FROM integration_resource_map
+    WHERE org_id = ? AND provider_id = ? AND resource_type = ? AND remote_id = ?
+  `);
+  const mapsByType = db.prepare(`
+    SELECT * FROM integration_resource_map
+    WHERE org_id = ? AND provider_id = ? AND resource_type = ?
+    ORDER BY last_synced_at, id
+  `);
+  const insertMap = db.prepare(`
+    INSERT INTO integration_resource_map (
+      id, org_id, provider_id, resource_type, local_entity, local_id,
+      remote_id, remote_version, last_synced_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const updateMap = db.prepare(`
+    UPDATE integration_resource_map
+    SET local_entity = ?, local_id = ?, remote_id = ?, remote_version = ?, last_synced_at = ?
+    WHERE id = ?
+  `);
+
+  function timestamp() {
+    const value = now();
+    const date = value instanceof Date ? value : new Date(value);
+    if (!Number.isFinite(date.getTime())) throw new TypeError('Integration clock is invalid');
+    return date.toISOString();
+  }
+
+  function get(orgId, providerId) {
+    return integrationConnectionFromRow(byOrgProvider.get(orgId, providerId));
+  }
+
+  function list(orgId) {
+    return listByOrg.all(orgId).map(integrationConnectionFromRow);
+  }
+
+  function put(input) {
+    const existing = get(input.orgId, input.providerId);
+    const observedAt = timestamp();
+    const row = {
+      status: input.status,
+      region: input.region ?? null,
+      credentialsEncrypted: input.credentialsEncrypted ?? null,
+      credentialHint: input.credentialHint ?? null,
+      settings: input.settings || {},
+      capabilities: input.capabilities || {},
+      lastTestedAt: input.lastTestedAt ?? null,
+      lastSuccessAt: input.lastSuccessAt ?? null,
+      lastErrorCode: input.lastErrorCode ?? null,
+    };
+    if (existing) {
+      update.run(
+        row.status, row.region, row.credentialsEncrypted, row.credentialHint,
+        JSON.stringify(row.settings), JSON.stringify(row.capabilities),
+        row.lastTestedAt, row.lastSuccessAt, row.lastErrorCode, observedAt,
+        input.updatedByUserId, input.updatedByEmail, input.orgId, input.providerId,
+      );
+    } else {
+      insert.run(
+        input.id || randomUUID(), input.orgId, input.providerId, row.status,
+        row.region, row.credentialsEncrypted, row.credentialHint,
+        JSON.stringify(row.settings), JSON.stringify(row.capabilities),
+        row.lastTestedAt, row.lastSuccessAt, row.lastErrorCode, observedAt,
+        observedAt, input.updatedByUserId, input.updatedByEmail,
+      );
+    }
+    return get(input.orgId, input.providerId);
+  }
+
+  function recordEvent(input) {
+    const id = input.id || randomUUID();
+    insertEvent.run(
+      id, input.orgId, input.providerId, input.eventType,
+      input.actorUserId ?? null, input.actorEmail ?? null,
+      JSON.stringify(input.detail || {}), input.createdAt || timestamp(),
+    );
+    return id;
+  }
+
+  function listEvents(orgId, limit = 100) {
+    const safeLimit = Number.isSafeInteger(limit) && limit > 0 && limit <= 250 ? limit : 100;
+    return eventsByOrg.all(orgId, safeLimit).map(integrationEventFromRow);
+  }
+
+  function getResourceMapByLocal(orgId, providerId, resourceType, localId) {
+    return integrationResourceMapFromRow(mapByLocal.get(orgId, providerId, resourceType, localId));
+  }
+
+  function getResourceMapByRemote(orgId, providerId, resourceType, remoteId) {
+    return integrationResourceMapFromRow(mapByRemote.get(orgId, providerId, resourceType, remoteId));
+  }
+
+  function listResourceMaps(orgId, providerId, resourceType) {
+    return mapsByType.all(orgId, providerId, resourceType).map(integrationResourceMapFromRow);
+  }
+
+  function putResourceMap(input) {
+    const local = getResourceMapByLocal(
+      input.orgId, input.providerId, input.resourceType, input.localId,
+    );
+    const remote = getResourceMapByRemote(
+      input.orgId, input.providerId, input.resourceType, input.remoteId,
+    );
+    if (local && remote && local.id !== remote.id) {
+      const error = new Error('The local and remote resources are already mapped differently.');
+      error.code = 'integration_resource_mapping_conflict';
+      throw error;
+    }
+    if (local && local.remoteId !== input.remoteId) {
+      const error = new Error('The local resource is already mapped to another provider record.');
+      error.code = 'integration_resource_mapping_conflict';
+      throw error;
+    }
+    if (remote && remote.localId !== input.localId) {
+      const error = new Error('The provider record is already mapped to another local resource.');
+      error.code = 'integration_resource_mapping_conflict';
+      throw error;
+    }
+    const existing = local || remote;
+    const observedAt = input.lastSyncedAt || timestamp();
+    if (existing) {
+      updateMap.run(
+        input.localEntity, input.localId, input.remoteId,
+        input.remoteVersion ?? null, observedAt, existing.id,
+      );
+      return getResourceMapByLocal(input.orgId, input.providerId, input.resourceType, input.localId);
+    }
+    insertMap.run(
+      input.id || randomUUID(), input.orgId, input.providerId, input.resourceType,
+      input.localEntity, input.localId, input.remoteId,
+      input.remoteVersion ?? null, observedAt,
+    );
+    return getResourceMapByLocal(input.orgId, input.providerId, input.resourceType, input.localId);
+  }
+
+  return Object.freeze({
+    get,
+    list,
+    put,
+    recordEvent,
+    listEvents,
+    getResourceMapByLocal,
+    getResourceMapByRemote,
+    listResourceMaps,
+    putResourceMap,
+  });
+}
+
+function evidenceCacheFromRow(row) {
+  if (!row) return null;
+  return Object.freeze({
+    cacheKey: row.cache_key,
+    schemaVersion: Number(row.schema_version),
+    normalizedQuery: row.normalized_query,
+    request: JSON.parse(row.request_json),
+    result: JSON.parse(row.result_json),
+    sourceRevision: row.source_revision,
+    fetchedAt: row.fetched_at,
+    expiresAt: row.expires_at,
+    staleUntil: row.stale_until,
+    lastAccessedAt: row.last_accessed_at,
+    hitCount: Number(row.hit_count),
+  });
+}
+
+export function createEvidenceCacheRepository(db, { now = () => new Date() } = {}) {
+  ensureEvidenceCacheSchema(db);
+  const byKey = db.prepare('SELECT * FROM evidence_query_cache WHERE cache_key = ?');
+  const touch = db.prepare(`
+    UPDATE evidence_query_cache
+    SET hit_count = hit_count + 1, last_accessed_at = ?
+    WHERE cache_key = ?
+  `);
+  const upsert = db.prepare(`
+    INSERT INTO evidence_query_cache (
+      cache_key, normalized_query, request_json, result_json, source_revision,
+      fetched_at, expires_at, stale_until, last_accessed_at, hit_count
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+    ON CONFLICT(cache_key) DO UPDATE SET
+      normalized_query = excluded.normalized_query,
+      request_json = excluded.request_json,
+      result_json = excluded.result_json,
+      source_revision = excluded.source_revision,
+      fetched_at = excluded.fetched_at,
+      expires_at = excluded.expires_at,
+      stale_until = excluded.stale_until,
+      last_accessed_at = excluded.last_accessed_at,
+      hit_count = 0
+  `);
+  const prune = db.prepare('DELETE FROM evidence_query_cache WHERE stale_until <= ?');
+
+  function timestamp(value = now()) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (!Number.isFinite(date.getTime())) throw new TypeError('Evidence cache clock is invalid');
+    return date.toISOString();
+  }
+
+  function get(cacheKey, { countHit = true } = {}) {
+    const row = byKey.get(cacheKey);
+    if (!row) return null;
+    if (countHit) touch.run(timestamp(), cacheKey);
+    return evidenceCacheFromRow(byKey.get(cacheKey));
+  }
+
+  function put(input) {
+    upsert.run(
+      input.cacheKey,
+      input.normalizedQuery,
+      JSON.stringify(input.request),
+      JSON.stringify(input.result),
+      input.sourceRevision,
+      timestamp(input.fetchedAt),
+      timestamp(input.expiresAt),
+      timestamp(input.staleUntil),
+      timestamp(),
+    );
+    return get(input.cacheKey, { countHit: false });
+  }
+
+  function pruneExpired(at = now()) {
+    return Number(prune.run(timestamp(at)).changes || 0);
+  }
+
+  return Object.freeze({ get, put, pruneExpired });
+}
+
+function transcriptionSegmentFromRow(row) {
+  if (!row) return null;
+  return Object.freeze({
+    id: row.id,
+    sessionId: row.session_id,
+    orgId: row.org_id,
+    sequence: Number(row.sequence),
+    uploadId: row.upload_id,
+    audioUrl: row.audio_url,
+    mimeType: row.mime_type,
+    byteSize: Number(row.byte_size),
+    durationSeconds: row.duration_seconds == null ? null : Number(row.duration_seconds),
+    status: row.status,
+    transcriptText: row.transcript_text,
+    speakers: row.speakers_json ? JSON.parse(row.speakers_json) : [],
+    providerReceipt: row.provider_receipt_json ? JSON.parse(row.provider_receipt_json) : null,
+    lastErrorCode: row.last_error_code,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  });
+}
+
+function transcriptionSessionFromRow(row, segments = []) {
+  if (!row) return null;
+  return Object.freeze({
+    id: row.id,
+    schemaVersion: Number(row.schema_version),
+    orgId: row.org_id,
+    userId: row.user_id,
+    status: row.status,
+    label: row.label,
+    clientId: row.client_id,
+    appointmentId: row.appointment_id,
+    careEpisodeId: row.care_episode_id,
+    startedAt: row.started_at,
+    endedAt: row.ended_at,
+    durationSeconds: Number(row.duration_seconds),
+    transcriptText: row.transcript_text || '',
+    artifacts: row.artifacts_json ? JSON.parse(row.artifacts_json) : null,
+    lastErrorCode: row.last_error_code,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+    segments,
+  });
+}
+
+export function createTranscriptionSessionRepository(db, { now = () => new Date() } = {}) {
+  ensureTranscriptionSessionSchema(db);
+  const sessionById = db.prepare('SELECT * FROM transcription_session WHERE id = ?');
+  const segmentsBySession = db.prepare(`
+    SELECT * FROM transcription_segment WHERE session_id = ? ORDER BY sequence
+  `);
+  const recentByOrg = db.prepare(`
+    SELECT * FROM transcription_session
+    WHERE org_id = ? AND status != 'discarded'
+    ORDER BY updated_at DESC LIMIT ?
+  `);
+  const activeByUser = db.prepare(`
+    SELECT * FROM transcription_session
+    WHERE org_id = ? AND user_id = ?
+      AND status IN ('recording', 'paused', 'finalising', 'recoverable', 'error')
+    ORDER BY updated_at DESC LIMIT 1
+  `);
+  const insertSession = db.prepare(`
+    INSERT INTO transcription_session (
+      id, org_id, user_id, status, label, client_id, appointment_id,
+      care_episode_id, started_at, duration_seconds, created_at, updated_at
+    ) VALUES (?, ?, ?, 'recording', ?, ?, ?, ?, ?, 0, ?, ?)
+  `);
+  const updateSession = db.prepare(`
+    UPDATE transcription_session
+    SET status = ?, label = ?, client_id = ?, appointment_id = ?, care_episode_id = ?,
+        ended_at = ?, duration_seconds = ?, transcript_text = ?, artifacts_json = ?,
+        last_error_code = ?, updated_at = ?
+    WHERE id = ?
+  `);
+  const segmentBySequence = db.prepare(`
+    SELECT * FROM transcription_segment WHERE session_id = ? AND sequence = ?
+  `);
+  const insertSegment = db.prepare(`
+    INSERT INTO transcription_segment (
+      id, session_id, org_id, sequence, upload_id, audio_url, mime_type,
+      byte_size, duration_seconds, status, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'uploaded', ?, ?)
+  `);
+  const updateSegment = db.prepare(`
+    UPDATE transcription_segment
+    SET duration_seconds = ?, status = ?, transcript_text = ?, speakers_json = ?,
+        provider_receipt_json = ?, last_error_code = ?, updated_at = ?
+    WHERE session_id = ? AND sequence = ?
+  `);
+
+  function timestamp(value = now()) {
+    const date = value instanceof Date ? value : new Date(value);
+    if (!Number.isFinite(date.getTime())) throw new TypeError('Transcription clock is invalid');
+    return date.toISOString();
+  }
+
+  function get(id) {
+    const row = sessionById.get(id);
+    if (!row) return null;
+    const segments = segmentsBySession.all(id).map(transcriptionSegmentFromRow);
+    return transcriptionSessionFromRow(row, segments);
+  }
+
+  function listRecent(orgId, limit = 20) {
+    const safeLimit = Number.isSafeInteger(limit) && limit > 0 && limit <= 100 ? limit : 20;
+    return recentByOrg.all(orgId, safeLimit).map((row) => transcriptionSessionFromRow(row));
+  }
+
+  function findActive(orgId, userId) {
+    const row = activeByUser.get(orgId, userId);
+    return row ? get(row.id) : null;
+  }
+
+  function create(input) {
+    const id = input.id || randomUUID();
+    const startedAt = timestamp(input.startedAt);
+    insertSession.run(
+      id, input.orgId, input.userId, input.label,
+      input.clientId ?? null, input.appointmentId ?? null, input.careEpisodeId ?? null,
+      startedAt, startedAt, startedAt,
+    );
+    return get(id);
+  }
+
+  function update(id, patch) {
+    const current = get(id);
+    if (!current) return null;
+    const next = {
+      status: patch.status ?? current.status,
+      label: patch.label ?? current.label,
+      clientId: patch.clientId === undefined ? current.clientId : patch.clientId,
+      appointmentId: patch.appointmentId === undefined ? current.appointmentId : patch.appointmentId,
+      careEpisodeId: patch.careEpisodeId === undefined ? current.careEpisodeId : patch.careEpisodeId,
+      endedAt: patch.endedAt === undefined ? current.endedAt : patch.endedAt,
+      durationSeconds: patch.durationSeconds ?? current.durationSeconds,
+      transcriptText: patch.transcriptText ?? current.transcriptText,
+      artifacts: patch.artifacts === undefined ? current.artifacts : patch.artifacts,
+      lastErrorCode: patch.lastErrorCode === undefined ? current.lastErrorCode : patch.lastErrorCode,
+    };
+    updateSession.run(
+      next.status, next.label, next.clientId, next.appointmentId, next.careEpisodeId,
+      next.endedAt, next.durationSeconds, next.transcriptText,
+      next.artifacts == null ? null : JSON.stringify(next.artifacts),
+      next.lastErrorCode, timestamp(), id,
+    );
+    return get(id);
+  }
+
+  function addSegment(input) {
+    const existing = segmentBySequence.get(input.sessionId, input.sequence);
+    if (existing) return transcriptionSegmentFromRow(existing);
+    const observedAt = timestamp();
+    insertSegment.run(
+      input.id || randomUUID(), input.sessionId, input.orgId, input.sequence,
+      input.uploadId, input.audioUrl, input.mimeType, input.byteSize,
+      input.durationSeconds ?? null, observedAt, observedAt,
+    );
+    return transcriptionSegmentFromRow(segmentBySequence.get(input.sessionId, input.sequence));
+  }
+
+  function updateSegmentResult(sessionId, sequence, patch) {
+    const current = transcriptionSegmentFromRow(segmentBySequence.get(sessionId, sequence));
+    if (!current) return null;
+    updateSegment.run(
+      patch.durationSeconds === undefined ? current.durationSeconds : patch.durationSeconds,
+      patch.status ?? current.status,
+      patch.transcriptText === undefined ? current.transcriptText : patch.transcriptText,
+      JSON.stringify(patch.speakers === undefined ? current.speakers : patch.speakers),
+      patch.providerReceipt === undefined
+        ? (current.providerReceipt == null ? null : JSON.stringify(current.providerReceipt))
+        : (patch.providerReceipt == null ? null : JSON.stringify(patch.providerReceipt)),
+      patch.lastErrorCode === undefined ? current.lastErrorCode : patch.lastErrorCode,
+      timestamp(), sessionId, sequence,
+    );
+    return transcriptionSegmentFromRow(segmentBySequence.get(sessionId, sequence));
+  }
+
+  function rebuildTranscript(sessionId) {
+    const segments = segmentsBySession.all(sessionId).map(transcriptionSegmentFromRow);
+    const transcript = segments
+      .filter((segment) => segment.status === 'ready' && segment.transcriptText)
+      .map((segment) => segment.transcriptText.trim())
+      .filter(Boolean)
+      .join('\n\n');
+    const durationSeconds = Math.round(segments.reduce((total, segment) => total + (segment.durationSeconds || 0), 0));
+    return update(sessionId, { transcriptText: transcript, durationSeconds });
+  }
+
+  return Object.freeze({
+    addSegment,
+    create,
+    findActive,
+    get,
+    listRecent,
+    rebuildTranscript,
+    update,
+    updateSegmentResult,
   });
 }
 
