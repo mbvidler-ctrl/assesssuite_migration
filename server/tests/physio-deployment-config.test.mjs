@@ -72,7 +72,7 @@ test('Physio Fly topology is isolated from EP and exposes required real capabili
   assert.match(physio, /^\s*UPLOADS_DIR = "\/app\/server\/data\/physio-uploads"$/m);
   assert.match(physio, /^\s*source = "assesssuite_physio_data"$/m);
   assert.match(physio, /^\s*LLM_REQUIRED = "1"$/m);
-  assert.match(physio, /^\s*GENERAL_CLINICAL_LLM_ENABLED = "0"$/m);
+  assert.match(physio, /^\s*GENERAL_CLINICAL_LLM_ENABLED = "1"$/m);
   assert.match(physio, /^\s*TRANSCRIPTION_ENABLED = "1"$/m);
   assert.match(physio, /^\s*DOCUMENT_EXTRACTION_ENABLED = "1"$/m);
   assert.match(physio, /^\s*PAYMENTS_ENABLED = "1"$/m);

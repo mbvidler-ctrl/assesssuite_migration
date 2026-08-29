@@ -45,5 +45,8 @@ test('R1 comparison target is isolated and cannot register or create payment eff
   assert.match(config, /^\s*TRANSCRIPTION_ENABLED = "1"$/m);
   assert.match(config, /^\s*DOCUMENT_EXTRACTION_ENABLED = "1"$/m);
   assert.match(config, /^\s*LLM_REQUIRED = "1"$/m);
+  assert.match(config, /^\s*GENERAL_CLINICAL_LLM_ENABLED = "1"$/m);
+  assert.match(config, /^\s*AI_USAGE_USER_ROLLING_24H_USD = "15"$/m);
+  assert.match(config, /^\s*AI_USAGE_USER_ROLLING_24H_CALLS = "300"$/m);
   assert.doesNotMatch(config, /assesssuite_physio_data"/);
 });
