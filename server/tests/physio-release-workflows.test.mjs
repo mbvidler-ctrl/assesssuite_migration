@@ -290,7 +290,7 @@ test('Physio release source is explicit deterministic and isolated from EP topol
   assert.match(config, /^  EMAIL_DOMAIN = "assesssuite\.com"$/m);
   assert.match(config, /^  STRIPE_TRIAL_PERIOD_DAYS = "30"$/m);
   assert.match(config, /^  LLM_REQUIRED = "1"$/m);
-  assert.match(config, /^  GENERAL_CLINICAL_LLM_ENABLED = "0"$/m);
+  assert.match(config, /^  GENERAL_CLINICAL_LLM_ENABLED = "1"$/m);
   assert.doesNotMatch(config, /assesssuite_data_r12|app = "assesssuite-production"/);
 });
 

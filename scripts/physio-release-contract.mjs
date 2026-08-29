@@ -3072,7 +3072,7 @@ export function validatePhysioReleaseSource(repoRoot) {
     ['PAYMENTS_ENABLED = "1"', 'real payments switch'],
     ['ALLOW_PAID_PROVIDER_PROBE = "0"', 'normal paid-provider probe posture'],
     ['LLM_REQUIRED = "1"', 'fail-loud AI provider posture'],
-    ['GENERAL_CLINICAL_LLM_ENABLED = "0"', 'generic clinical LLM isolation'],
+    ['GENERAL_CLINICAL_LLM_ENABLED = "1"', 'fully enabled clinical LLM posture'],
     ['OPENAI_MODEL_FAST = "gpt-4.1-mini-2025-04-14"', 'fast model snapshot pin'],
     ['OPENAI_MODEL_QUALITY = "gpt-4.1-2025-04-14"', 'quality model snapshot pin'],
     ['TRANSCRIPTION_ENABLED = "1"', 'transcription provider switch'],
