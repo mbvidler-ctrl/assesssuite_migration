@@ -348,6 +348,29 @@ test('topology validator accepts only absent bootstrapped or sole exact-digest d
     digest: `sha256:${'b'.repeat(64)}`,
   };
   assert.equal(canonicalizePhysioFlyImageReference(flyImageObject), image);
+  const flyctl0471ImageObject = {
+    ...flyImageObject,
+    tag: `deployment-${'A'.repeat(26)}`,
+    labels: {
+      GH_ACTION_NAME: '__run_5',
+      GH_EVENT_NAME: 'workflow_dispatch',
+      GH_REPO: 'mbvidler-ctrl/assesssuite_migration',
+      GH_SHA: 'a'.repeat(40),
+    },
+  };
+  assert.equal(canonicalizePhysioFlyImageReference(flyctl0471ImageObject), image);
+  assert.deepEqual(inspectTopology({
+    machinesPayload: [{
+      ...machine,
+      image_ref: flyctl0471ImageObject,
+      config: {
+        ...machine.config,
+        image: `registry.fly.io/${PHYSIO_RELEASE_TARGET.app}:${flyctl0471ImageObject.tag}`,
+      },
+    }],
+    volumesPayload: [attached], mode: 'deployed', expectedVolumeId: volume.id,
+    expectedMachineId: machine.id, expectedImageRef: image,
+  }), { mode: 'deployed', machineCount: 1, volumeCount: 1, volumeId: volume.id, machineId: machine.id });
   assert.deepEqual(inspectTopology({
     machinesPayload: [{ ...machine, image_ref: flyImageObject, config: { ...machine.config, image: flyImageObject } }],
     volumesPayload: [attached], mode: 'deployed', expectedVolumeId: volume.id,
@@ -357,7 +380,20 @@ test('topology validator accepts only absent bootstrapped or sole exact-digest d
     { ...flyImageObject, registry: 'docker.io' },
     { ...flyImageObject, repository: 'assesssuite-ep-production' },
     { ...flyImageObject, extra: 'moving-tag' },
+    { ...flyctl0471ImageObject, tag: 'moving-tag' },
+    { ...flyctl0471ImageObject, labels: { unexpected: 'value' } },
+    { ...flyctl0471ImageObject, labels: { GH_REPO: 'other/repository' } },
   ]) assert.throws(() => canonicalizePhysioFlyImageReference(invalidImage), /Physio release contract/);
+
+  assert.throws(() => inspectTopology({
+    machinesPayload: [{
+      ...machine,
+      image_ref: flyctl0471ImageObject,
+      config: { ...machine.config, image: `registry.fly.io/${PHYSIO_RELEASE_TARGET.app}:deployment-${'B'.repeat(26)}` },
+    }],
+    volumesPayload: [attached], mode: 'deployed', expectedVolumeId: volume.id,
+    expectedMachineId: machine.id, expectedImageRef: image,
+  }), /Physio release contract/);
 
   const invalidCases = [
     () => inspectTopology({ machinesPayload: [machine], volumesPayload: [], mode: 'absent' }),
