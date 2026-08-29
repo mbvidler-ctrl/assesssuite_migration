@@ -320,18 +320,24 @@ async function exerciseReportWorkspace(page, context, runtime) {
   expect(runtime.providerCalls.length).toBeGreaterThanOrEqual(1);
 }
 
-async function exerciseSoapWorkspace(page) {
+async function exerciseSoapWorkspace(page, runtime) {
   await activateReachableControl(page, page.getByRole('button', { name: 'New SOAP Note', exact: true }));
   await expect(page.getByRole('heading', { name: new RegExp(`SOAP Note - ${CLIENT_NAME}`) })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'AI Help', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Dissect to SOAP', exact: true })).toHaveCount(0);
+  const aiHelpButtons = page.getByRole('button', { name: 'AI Help', exact: true });
+  await expect(aiHelpButtons).toHaveCount(2);
+  await expect(aiHelpButtons.first()).toBeEnabled();
+  await expect(aiHelpButtons.last()).toBeEnabled();
   await expect(page.getByRole('button', { name: /SMS/i })).toHaveCount(0);
   await expect(page.locator('img[src*="placeholder" i], img[src*="unsplash" i], img[src*="physio-pedia" i], img[src*="wikimedia" i]')).toHaveCount(0);
 
   await page.locator('#subjective').fill('Synthetic patient reports improved stair tolerance after graded loading.');
   await page.locator('#objective').fill('Synthetic step-down control improved; FAC score remains explicitly zero.');
-  await page.locator('#assessment').fill('Synthetic load tolerance is improving with a remaining functional deficit.');
-  await page.locator('#plan').fill('Continue graded strengthening and reassess function next visit.');
+  const providerCallsBeforeSoapAi = runtime.providerCalls.length;
+  await activateReachableControl(page, aiHelpButtons.first());
+  await expect(page.locator('#assessment')).toContainText('[AI-ASSISTED CONTENT - REQUIRES CLINICIAN REVIEW]');
+  await activateReachableControl(page, aiHelpButtons.last());
+  await expect(page.locator('#plan')).toContainText('[AI-ASSISTED CONTENT - REQUIRES CLINICIAN REVIEW]');
+  expect(runtime.providerCalls.length).toBeGreaterThanOrEqual(providerCallsBeforeSoapAi + 2);
   await activateReachableControl(
     page,
     page.getByRole('button', { name: 'Save Draft', exact: true }),
@@ -403,7 +409,7 @@ test('normal Physio route survives a complete deterministic offline clinical jou
     await addAndCompleteZeroScoreAssessment(page, runtime, clientId, episodeId, episodeUrl);
     await page.goto(episodeUrl, { waitUntil: 'domcontentloaded' });
     await exerciseReportWorkspace(page, context, runtime);
-    await exerciseSoapWorkspace(page);
+    await exerciseSoapWorkspace(page, runtime);
     await assertRestartPersistence(page, runtime, clientId, episodeId);
 
     const [clients, episodes, assessments, reports, notes] = await Promise.all([

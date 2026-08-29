@@ -149,7 +149,7 @@ export async function startOfflinePhysioRuntime() {
       ALLOW_OPEN_REGISTRATION: '0',
       STRIPE_TRIAL_PERIOD_DAYS: '30',
       OUTBOUND_EMAIL_ENABLED: '0',
-      GENERAL_CLINICAL_LLM_ENABLED: '0',
+      GENERAL_CLINICAL_LLM_ENABLED: '1',
       LLM_REQUIRED: '0',
       OPENAI_API_KEY: 'synthetic-physio-offline-browser-key',
       OPENAI_CHAT_TEST_BASE_URL: fakeChat.baseUrl,
