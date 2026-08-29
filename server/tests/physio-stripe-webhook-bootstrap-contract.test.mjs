@@ -114,6 +114,17 @@ test('post-bootstrap Stripe webhook lane creates one exact endpoint and stages o
   assert.doesNotMatch(source, /\bfly (?:deploy|machine (?:run|update|restart)|certs|dns)\b/,
     'the webhook lane may not create a service, deploy, attach DNS or mutate certificates');
   assert.doesNotMatch(source, /\bdocker (?:build|save|load|tag|push|run|create)\b/);
+
+  const providerEffectStep = source.slice(
+    source.indexOf('- name: Create exact Stripe endpoint and stage its signing secret'),
+    source.indexOf('- name: Scan bounded webhook provider effect evidence'),
+  );
+  const providerEffectRun = providerEffectStep.slice(providerEffectStep.indexOf('        run: |'));
+  assert.doesNotMatch(
+    providerEffectRun,
+    /\$\{\{/,
+    'the large provider-effect script must consume step outputs through env so GitHub does not exceed its expression limit',
+  );
 });
 
 test('provider mutation is bound to one durable STARTED packet and leaves a resumable uncertain state', () => {
@@ -183,7 +194,7 @@ test('provider mutation is bound to one durable STARTED packet and leaves a resu
     'Download durable webhook STARTED effect',
     'Download durable exact provider plan',
     '(cd "$started" && sha256sum --check --strict SHA256SUMS)',
-    "${{ needs.start.outputs.started_receipt_sha256 }}",
+    '== "$STARTED_RECEIPT_SHA256"',
     'row.started_effect_receipt_sha256 = process.env.STARTED_RECEIPT_SHA',
     'GET /v1/webhook_endpoints?limit=100',
     'provider-mutation-started',

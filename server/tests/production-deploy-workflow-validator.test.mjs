@@ -563,6 +563,20 @@ test('V09 previous-image rollback is dispatch-frozen, ancestrally bound, and ver
   }
 });
 
+test('V09a the seeded launch gate probes the admitted EP application identity', () => {
+  const prepare = fs.readFileSync(workflowPath('production-prepare-release.yml'), 'utf8');
+  assert.match(
+    prepare,
+    /public-settings\/by-id\/local-assesssuite/,
+    'the launch gate must probe the exact EP application identity accepted by the server',
+  );
+  assert.doesNotMatch(
+    prepare,
+    /public-settings\/by-id\/probe/,
+    'an arbitrary probe identity is rejected by the cross-target application boundary',
+  );
+});
+
 test('V10 the release filename preflight allows only root .env.example and scans its content', () => {
   const prepare = fs.readFileSync(workflowPath('production-prepare-release.yml'), 'utf8')
     .replaceAll('\r\n', '\n');
