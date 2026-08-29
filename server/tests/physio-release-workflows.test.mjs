@@ -1431,7 +1431,9 @@ test('R1 comparison deployment is immutable, snapshot-isolated, fully tested and
   assert.match(source, /\(\.message \/\/ \.error\) == "self-registration is disabled for this deployment"/);
   assert.match(source, /flyctl deploy --app "\$APP" --config fly\.physio\.r1-comparison\.toml/);
   assert.match(source, /--label "ASSESSSUITE_SOURCE_SHA=\$R1_COMPARISON_SHA"/);
-  assert.match(source, /image_ref\.labels\.ASSESSSUITE_SOURCE_SHA == \$sha/);
+  assert.match(source, /--arg upgrade_sha "\$R1_PRE_STAGE2_SHA"/);
+  assert.match(source, /image_ref\.labels\.ASSESSSUITE_SOURCE_SHA == \$upgrade_sha or/);
+  assert.match(source, /image_ref\.labels\.ASSESSSUITE_SOURCE_SHA == \$target_sha/);
   assert.match(source, /open_registration: false/);
   assert.match(source, /payments_enabled: false/);
   assert.doesNotMatch(source, /\$\{\{ secrets\.STRIPE_/);

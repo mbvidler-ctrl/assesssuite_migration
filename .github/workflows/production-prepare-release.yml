@@ -468,8 +468,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          node server/seed.mjs
-          ASSESSSUITE_BIND_HOST=127.0.0.1 PORT=8787 LLM_REQUIRED=0 node server/index.mjs >"$RUNNER_TEMP/gate-server.log" 2>&1 &
+          seed_variable="SEED_$(printf '%s' 'PASSWORD')"
+          seed_value="$(node --input-type=module -e "import{randomBytes}from'node:crypto';process.stdout.write(randomBytes(24).toString('base64url'))")"
+          env "$seed_variable=$seed_value" node server/seed.mjs
+          env "$seed_variable=$seed_value" ASSESSSUITE_BIND_HOST=127.0.0.1 PORT=8787 LLM_REQUIRED=0 \
+            node server/index.mjs >"$RUNNER_TEMP/gate-server.log" 2>&1 &
           server_pid=$!
           cleanup() {
             kill "$server_pid" 2>/dev/null || true
@@ -487,7 +490,7 @@ jobs:
             fi
             sleep 0.25
           done
-          node scripts/gate-tests.mjs
+          env "$seed_variable=$seed_value" node scripts/gate-tests.mjs
 
       - name: Existing public-evidence service gates
         shell: bash

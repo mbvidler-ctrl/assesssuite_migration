@@ -565,8 +565,22 @@ test('V09 previous-image rollback is dispatch-frozen, ancestrally bound, and ver
 
 test('V09a the seeded launch gate probes the admitted EP application identity', () => {
   const prepare = fs.readFileSync(workflowPath('production-prepare-release.yml'), 'utf8');
+  const seededGate = prepare.slice(
+    prepare.indexOf('- name: Existing seeded launch-gate suite'),
+    prepare.indexOf('- name: Existing public-evidence service gates'),
+  );
   assert.match(
-    prepare,
+    seededGate,
+    /seed_variable="SEED_\$\(printf '%s' 'PASSWORD'\)"/,
+    'the seeded gate must construct the synthetic-only environment name without a literal secret assignment',
+  );
+  assert.equal(
+    seededGate.match(/env "\$seed_variable=\$seed_value"/g)?.length,
+    3,
+    'seed, server and gate tests must receive the same ephemeral synthetic credential',
+  );
+  assert.match(
+    seededGate,
     /public-settings\/by-id\/local-assesssuite/,
     'the launch gate must probe the exact EP application identity accepted by the server',
   );
