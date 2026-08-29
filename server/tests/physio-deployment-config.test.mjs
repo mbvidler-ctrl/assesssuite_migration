@@ -44,6 +44,7 @@ test('Physio runtime tree builder enforces the exact pruned source boundary', ()
     'server/index.mjs',
     'server/functions/index.mjs',
     'server/functions/transcribeSession.mjs',
+    'scripts/provision-physio-r1-comparison-access.mjs',
     'scripts/physio-exact-image-canary.mjs',
   ]) {
     assert.match(builder, new RegExp(requiredRoot.replace(/[./]/g, '\\$&')));

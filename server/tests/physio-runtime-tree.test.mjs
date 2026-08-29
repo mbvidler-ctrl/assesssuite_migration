@@ -45,6 +45,7 @@ test('runtime tree is an exact Physio-only regular-file closure', (t) => {
     'server/index.mjs',
     'server/functions/index.mjs',
     'server/functions/transcribeSession.mjs',
+    'scripts/provision-physio-r1-comparison-access.mjs',
     'scripts/physio-exact-image-canary.mjs',
     'server/tests/fixtures/physio-exact-image-canary/synthetic-physio-canary.wav',
     'packages/profession-config/professions/physiotherapy.mjs',

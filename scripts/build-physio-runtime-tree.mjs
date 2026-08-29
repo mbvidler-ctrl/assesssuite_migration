@@ -15,6 +15,7 @@ const runtimeRoots = Object.freeze([
   'server/index.mjs',
   'server/functions/index.mjs',
   'server/functions/transcribeSession.mjs',
+  'scripts/provision-physio-r1-comparison-access.mjs',
   'scripts/physio-exact-image-canary.mjs',
 ]);
 const fixedResources = Object.freeze([
