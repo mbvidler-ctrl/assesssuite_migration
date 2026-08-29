@@ -1219,10 +1219,14 @@ test('R1 comparison deployment is immutable, snapshot-isolated, fully tested and
   assert.match(source, /npm run build:physio/);
   assert.match(source, /\.catalogue\.count == \$count/);
   assert.match(source, /\.catalogue\.checksum == \$checksum/);
+  assert.match(source, /attached_machine_id \/\/ ""/);
+  assert.match(source, /for attempt in \$\(seq 1 24\)/);
+  assert.match(source, /\.Status == "deployed"/);
   assert.match(source, /provision-physio-r1-comparison-access\.mjs --apply/);
   assert.match(source, /provision-physio-r1-comparison-access\.mjs --inspect/);
   assert.match(source, /\.all_access_paths_ready == true/);
   assert.match(source, /"\$register_status" == "403"/);
+  assert.match(source, /\(\.message \/\/ \.error\) == "self-registration is disabled for this deployment"/);
   assert.match(source, /flyctl deploy --app "\$APP" --config fly\.physio\.r1-comparison\.toml/);
   assert.match(source, /--label "ASSESSSUITE_SOURCE_SHA=\$R1_COMPARISON_SHA"/);
   assert.match(source, /image_ref\.labels\.ASSESSSUITE_SOURCE_SHA == \$sha/);
