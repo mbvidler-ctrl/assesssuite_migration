@@ -18,9 +18,9 @@ const PHYSIO_RUNTIME = Object.freeze({
 });
 
 const OWNER_EMAIL = 'owner@restricted-physio.test';
-const OWNER_PASSWORD = 'Owner-Restricted-Access-1!';
+const OWNER_PASSWORD = 'Owner-Synthetic-Test-1!';
 const CLINICIAN_EMAIL = 'clinician@restricted-physio.test';
-const CLINICIAN_PASSWORD = 'Clinician-Restricted-Access-1!';
+const CLINICIAN_PASSWORD = 'Clinician-Synthetic-Test-1!';
 
 function route(server, suffix) {
   return `/api/apps/${server.appId}${suffix}`;
@@ -48,7 +48,7 @@ test('restricted Physio access is invitation-only, owner-governed, single-use, a
 
     const registration = await requestJson(server, route(server, '/auth/register'), {
       method: 'POST',
-      body: { email: 'public@restricted-physio.test', password: 'Public-Registration-1!' },
+      body: { email: 'public@restricted-physio.test', password: 'Public-Synthetic-Test-1!' },
     });
     assert.equal(registration.status, 403, registration.text);
     assert.match(registration.body?.message || '', /self-registration is disabled/i);
