@@ -32,7 +32,9 @@ jobs:
       R1_VOLUME_NAME: assesssuite_physio_r1_data
       R1_CATALOGUE_COUNT: "236"
       R1_CATALOGUE_CHECKSUM: c39fd9e75054857d7f642c8fc2210446781d247e44c751b04499db749bfaa56f
-      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      # The production token is intentionally app-scoped. The isolated comparison
+      # therefore uses its own least-privilege deploy token.
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN_R1 }}
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
       RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
       OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
