@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Toaster, toast } from 'sonner';
 import {
-  Activity, ArrowRight, CalendarDays, CheckCircle2, ClipboardList, Dumbbell,
+  Activity, ArrowRight, BookOpenCheck, CalendarDays, CheckCircle2, ClipboardList, Dumbbell,
   FileCheck2, FileHeart, Flag, HeartPulse, History, Loader2, Plus, Save,
   Stethoscope, Target, Trash2,
 } from 'lucide-react';
@@ -561,6 +561,13 @@ export default function PhysioEpisodes() {
                   />
                 </div>
               )}
+          </CareEpisodeSection>
+
+          <CareEpisodeSection icon={BookOpenCheck} title="Management protocols" description="Reviewed and evidence-grounded treatment frameworks selected for this episode." tone="teal">
+            {!draft.management_protocols?.length ? <EmptyState>No management protocol has been added to this episode.</EmptyState> : <div className="grid gap-3 xl:grid-cols-2">{draft.management_protocols.map((protocol) => {
+              const exerciseCount = Array.isArray(protocol.protocol_data?.exercise_prescription?.exercises) ? protocol.protocol_data.exercise_prescription.exercises.length : 0;
+              return <div key={protocol.id} className="rounded-xl border border-slate-200 p-4"><div className="mb-3 flex items-start justify-between gap-3"><div><p className="font-semibold text-slate-900">{protocol.condition_name}</p><p className="mt-1 text-xs text-slate-500">{protocol.source === 'reviewed_protocol' ? 'Reviewed protocol' : 'AI-assisted, evidence-grounded draft'} · Added {displayDate(protocol.added_date)} · {Number(protocol.evidence_count || 0)} references · {exerciseCount} exercises</p></div><Button variant="ghost" size="icon" aria-label="Remove management protocol" onClick={() => removeArrayItem('management_protocols', protocol.id)}><Trash2 className="h-4 w-4 text-slate-400" /></Button></div><div className="grid gap-3 sm:grid-cols-2"><CompactSelect label="Status" value={protocol.status} onChange={(value) => setArrayItem('management_protocols', protocol.id, 'status', value)} options={[["draft", "Draft"], ["current", "Current"], ["superseded", "Superseded"], ["completed", "Completed"], ["ceased", "Ceased"]]} /><CompactInput label="Review date" type="date" value={protocol.review_date} onChange={(value) => setArrayItem('management_protocols', protocol.id, 'review_date', value)} /><div className="sm:col-span-2"><Label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">Clinical adaptation and plan</Label><Textarea value={protocol.clinical_adaptation || ''} placeholder={protocol.summary || 'Record how this protocol is adapted for the patient.'} onChange={(event) => setArrayItem('management_protocols', protocol.id, 'clinical_adaptation', event.target.value)} className="min-h-24" /></div></div>{protocol.dropped_paths?.length > 0 && <p className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">The saved AI draft omitted: {protocol.dropped_paths.join(', ')}. Complete these areas using clinical judgement.</p>}</div>;
+            })}</div>}
           </CareEpisodeSection>
 
           <CareEpisodeSection icon={Dumbbell} title="Home program prescriptions" description="The current patient-facing exercise or self-management plan." tone="amber" action={<Button variant="outline" size="sm" onClick={() => setRoot('home_programs', [...(draft.home_programs || []), { id: uid('program'), name: '', status: 'current', prescribed_date: today(), review_date: '', dosage: '', adherence: '', instructions: '' }])}><Plus className="mr-1.5 h-4 w-4" />Prescribe program</Button>}>

@@ -6,6 +6,7 @@ import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import {
+  buildManagementProtocolEntry,
   completeDischarge,
   createEpisodeDraft,
   deriveEncounters,
@@ -40,6 +41,7 @@ test('care episode schema captures the full persisted care cycle', () => {
     'goals',
     'outcome_measures',
     'encounters',
+    'management_protocols',
     'home_programs',
     'reporting',
     'status_history',
@@ -154,6 +156,7 @@ test('episode creation, payload preparation and discharge preserve lifecycle inv
   assert.equal(draft.episode_number, 3);
   assert.equal(draft.primary_practitioner_id, 'physio-user-1');
   assert.equal(draft.initial_findings.red_flag_status, 'not_recorded');
+  assert.deepEqual(draft.management_protocols, []);
 
   const payload = prepareEpisodePayload({
     ...draft,
@@ -207,9 +210,11 @@ test('normalisation and encounter derivation provide stable nested identifiers w
     goals: [{ description: 'Walk 2 km' }],
     outcome_measures: [],
     encounters: [],
+    management_protocols: [{ condition_name: 'Knee osteoarthritis' }],
     home_programs: [],
   }, (prefix) => `${prefix}-${++sequence}`);
   assert.equal(normalized.goals[0].id, 'goal-1');
+  assert.equal(normalized.management_protocols[0].id, 'protocol-2');
 
   const notes = Array.from({ length: 15 }, (_, index) => ({
     id: `note-${index}`,
@@ -219,4 +224,29 @@ test('normalisation and encounter derivation provide stable nested identifiers w
   const encounters = deriveEncounters(notes, (prefix) => `${prefix}-${++sequence}`);
   assert.equal(encounters.length, 15);
   assert.equal(encounters.at(-1).type, 'initial');
+});
+
+test('management protocol snapshots preserve the reviewed clinical content and provenance', () => {
+  const protocol = {
+    overview: { functional_impact: 'Reduced walking and stair tolerance.' },
+    exercise_prescription: { exercises: [{ name: 'Sit to stand' }] },
+    references: [{ citation: 'Verified review one' }, { citation: 'Verified review two' }],
+  };
+  const entry = buildManagementProtocolEntry({
+    conditionName: 'Knee osteoarthritis',
+    protocolData: protocol,
+    provenance: 'ai_evidence_grounded',
+    category: 'musculoskeletal',
+    droppedPaths: ['outcomes.key_outcomes', 'outcomes.key_outcomes'],
+    now: new Date('2026-08-29T04:00:00.000Z'),
+    idFactory: (prefix) => `${prefix}-fixed`,
+  });
+
+  assert.equal(entry.id, 'protocol-fixed');
+  assert.equal(entry.source, 'ai_evidence_grounded');
+  assert.equal(entry.added_date, '2026-08-29');
+  assert.equal(entry.evidence_count, 2);
+  assert.deepEqual(entry.dropped_paths, ['outcomes.key_outcomes']);
+  assert.deepEqual(entry.protocol_data, protocol);
+  assert.notEqual(entry.protocol_data, protocol, 'the care episode keeps an immutable point-in-time snapshot');
 });

@@ -129,6 +129,7 @@ test('whole-report schema contains every draftable section exactly once', () => 
 
 test('whole-report prompt coordinates sections, constrains facts and avoids outcome-table duplication', () => {
   const prompt = buildReportDraftPrompt({
+    professionId: 'physio',
     reportTitle: 'Progress Report',
     clientContext: { assessments: [{ name: '6MWT', result: 400, unit: 'm' }] },
     assessmentSummary: '6MWT | 2026-08-01 | 400 m | — | —',
@@ -206,6 +207,7 @@ test('whole-report prompt remains below the endpoint ceiling with oversized free
   const huge = 'x'.repeat(20_000);
   const sections = Array.from({ length: 12 }, (_, index) => `Section ${index + 1}`);
   const prompt = buildReportDraftPrompt({
+    professionId: 'physio',
     reportTitle: 'Large progress report',
     clientContext: { goals: huge, conditions: [{ notes: huge }], assessments: [{ notes: huge }] },
     assessmentSummary: huge,

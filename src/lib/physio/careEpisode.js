@@ -24,6 +24,7 @@ export function normalizeEpisode(episode, idFactory = localEpisodeId) {
     goals: 'goal',
     outcome_measures: 'measure',
     encounters: 'encounter',
+    management_protocols: 'protocol',
     home_programs: 'program',
   };
   return Object.entries(collectionPrefixes).reduce((current, [collection, prefix]) => ({
@@ -40,11 +41,58 @@ export function normalizeEpisode(episode, idFactory = localEpisodeId) {
     goals: [],
     outcome_measures: [],
     encounters: [],
+    management_protocols: [],
     home_programs: [],
     reporting: {},
     status_history: [],
     ...episode,
   });
+}
+
+export function buildManagementProtocolEntry({
+  conditionName,
+  protocolData,
+  provenance,
+  category = 'general',
+  sourceProtocolId = '',
+  droppedPaths = [],
+  now = new Date(),
+  idFactory = localEpisodeId,
+}) {
+  const name = String(conditionName || '').trim();
+  if (!name) throw new TypeError('A protocol condition is required');
+  if (!protocolData || typeof protocolData !== 'object' || Array.isArray(protocolData)) {
+    throw new TypeError('A structured management protocol is required');
+  }
+
+  const source = provenance === 'reviewed_protocol'
+    ? 'reviewed_protocol'
+    : 'ai_evidence_grounded';
+  const references = Array.isArray(protocolData.references) ? protocolData.references : [];
+  const summary = String(
+    protocolData.overview?.functional_impact
+      || protocolData.overview?.pathophysiology
+      || protocolData.clinical_note
+      || '',
+  ).trim();
+
+  return {
+    id: idFactory('protocol'),
+    condition_name: name,
+    category: String(category || 'general'),
+    status: 'current',
+    source,
+    source_protocol_id: String(sourceProtocolId || ''),
+    added_date: now.toISOString().slice(0, 10),
+    review_date: '',
+    clinical_adaptation: '',
+    summary,
+    evidence_count: references.length,
+    dropped_paths: Array.isArray(droppedPaths)
+      ? [...new Set(droppedPaths.filter((path) => typeof path === 'string' && path.trim()))]
+      : [],
+    protocol_data: structuredClone(protocolData),
+  };
 }
 
 export function deriveOutcomeMeasures(clientAssessments = [], catalogue = [], idFactory = localEpisodeId) {
@@ -155,6 +203,7 @@ export function createEpisodeDraft({
     goals: [],
     outcome_measures: deriveOutcomeMeasures(clientAssessments, catalogue, idFactory),
     encounters: deriveEncounters(notes, idFactory),
+    management_protocols: [],
     home_programs: [],
     reporting: {
       progress_report_status: latestReport ? 'finalised' : 'not_due',
