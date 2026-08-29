@@ -198,6 +198,7 @@ function buildPacket(directory) {
         size_in_bytes: 123_456,
         maximum_bytes: 1_073_741_824,
         workflow_run_id: 456,
+        workflow_run_attempt: 1,
         workflow_run_head_sha: applicationSha,
         workflow_run_head_branch: 'main',
         workflow_run_path: '.github/workflows/physio-production-prepare-release.yml',
@@ -436,6 +437,9 @@ test('strict admissions reject schema drift, reruns and wrong candidate source',
     ['candidate source branch', 'candidate-artifact-admission.json',
       (row) => { row.artifacts.candidate.workflow_run_head_branch = 'dev'; },
       /candidate source branch differs/],
+    ['candidate source rerun attempt', 'candidate-artifact-admission.json',
+      (row) => { row.artifacts.candidate.workflow_run_attempt = 2; },
+      /candidate source run attempt differs/],
   ]) {
     await t.test(name, () => withPacket((directory) => {
       mutateJson(directory, file, mutate);

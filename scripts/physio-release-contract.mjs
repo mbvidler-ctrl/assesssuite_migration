@@ -524,28 +524,69 @@ export function canonicalizePhysioFlyImageReference(value) {
     if (!IMAGE_PATTERN.test(value)) fail('Fly image reference string differs');
     return value;
   }
-  if (!value || typeof value !== 'object' || Array.isArray(value) ||
-      JSON.stringify(Object.keys(value).sort()) !== JSON.stringify(['digest', 'registry', 'repository'])) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
     fail('Fly image reference object differs');
   }
+  const keys = JSON.stringify(Object.keys(value).sort());
+  const baseKeys = JSON.stringify(['digest', 'registry', 'repository']);
+  const flyctl0471Keys = JSON.stringify(['digest', 'labels', 'registry', 'repository', 'tag']);
+  if (keys !== baseKeys && keys !== flyctl0471Keys) fail('Fly image reference object differs');
   if (value.registry !== 'registry.fly.io' || value.repository !== PHYSIO_RELEASE_TARGET.app ||
       !/^sha256:[0-9a-f]{64}$/.test(value.digest || '')) {
     fail('Fly image reference object identity differs');
+  }
+  if (keys === flyctl0471Keys) {
+    if (!/^deployment-[0-9A-Z]{26}$/.test(value.tag || '') ||
+        !value.labels || typeof value.labels !== 'object' || Array.isArray(value.labels)) {
+      fail('Fly image reference metadata differs');
+    }
+    const allowedLabels = new Set(['GH_ACTION_NAME', 'GH_EVENT_NAME', 'GH_REPO', 'GH_SHA']);
+    if (Object.keys(value.labels).some((label) => !allowedLabels.has(label)) ||
+        Object.values(value.labels).some((labelValue) => typeof labelValue !== 'string')) {
+      fail('Fly image reference labels differ');
+    }
+    if (value.labels.GH_ACTION_NAME !== undefined &&
+        !/^__run_[1-9][0-9]*$/.test(value.labels.GH_ACTION_NAME)) {
+      fail('Fly image reference action label differs');
+    }
+    if (value.labels.GH_EVENT_NAME !== undefined &&
+        !/^(?:push|workflow_dispatch)$/.test(value.labels.GH_EVENT_NAME)) {
+      fail('Fly image reference event label differs');
+    }
+    if (value.labels.GH_REPO !== undefined &&
+        value.labels.GH_REPO !== 'mbvidler-ctrl/assesssuite_migration') {
+      fail('Fly image reference repository label differs');
+    }
+    if (value.labels.GH_SHA !== undefined && !SHA_PATTERN.test(value.labels.GH_SHA)) {
+      fail('Fly image reference SHA label differs');
+    }
   }
   return `${value.registry}/${value.repository}@${value.digest}`;
 }
 
 function findImageReference(machine) {
-  const candidates = [
+  const primaryCandidates = [
     machine.image_ref,
     machine.imageRef,
     machine.ImageRef,
+  ].filter((value) => value !== undefined && value !== null && value !== '');
+  const configCandidates = [
     machine.config?.image,
     machine.Config?.image,
   ].filter((value) => value !== undefined && value !== null && value !== '');
+  const candidates = primaryCandidates.length > 0 ? primaryCandidates : configCandidates;
   if (candidates.length === 0) return '';
   const canonical = [...new Set(candidates.map(canonicalizePhysioFlyImageReference))];
   if (canonical.length !== 1) fail('Fly machine exposes conflicting image references');
+  const admittedTags = new Set(primaryCandidates
+    .filter((value) => value && typeof value === 'object' && !Array.isArray(value) && value.tag)
+    .map((value) => `${value.registry}/${value.repository}:${value.tag}`));
+  for (const configImage of configCandidates) {
+    if (typeof configImage === 'string' && admittedTags.has(configImage)) continue;
+    if (canonicalizePhysioFlyImageReference(configImage) !== canonical[0]) {
+      fail('Fly machine exposes conflicting image references');
+    }
+  }
   return canonical[0];
 }
 

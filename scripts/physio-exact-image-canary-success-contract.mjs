@@ -357,7 +357,7 @@ export function validatePhysioCanaryCandidateArtifactAdmission(receipt, {
   exactKeys(candidate, [
     'digest', 'expired', 'id', 'maximum_bytes', 'name', 'repository', 'size_in_bytes',
     'workflow_run_conclusion', 'workflow_run_event', 'workflow_run_head_branch',
-    'workflow_run_head_sha', 'workflow_run_id', 'workflow_run_path',
+    'workflow_run_head_sha', 'workflow_run_id', 'workflow_run_attempt', 'workflow_run_path',
   ], 'candidate artifact metadata');
   positiveInteger(candidate.id, 'candidate artifact id');
   same(candidate.name, `physio-candidate-${receipt.application_sha}`, 'candidate artifact name');
@@ -367,6 +367,7 @@ export function validatePhysioCanaryCandidateArtifactAdmission(receipt, {
   same(candidate.maximum_bytes, 1_073_741_824, 'candidate artifact maximum bytes');
   if (candidate.size_in_bytes > candidate.maximum_bytes) fail('candidate artifact exceeds size bound');
   positiveInteger(candidate.workflow_run_id, 'candidate source run id');
+  same(candidate.workflow_run_attempt, 1, 'candidate source run attempt');
   same(candidate.workflow_run_head_sha, receipt.application_sha, 'candidate source run SHA');
   same(candidate.workflow_run_head_branch, 'main', 'candidate source branch');
   same(candidate.workflow_run_path, CANDIDATE_WORKFLOW, 'candidate source workflow');
