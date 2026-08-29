@@ -320,7 +320,7 @@ test('R08 manifest freshness and determinism', () => {
   assert.equal(renderOperatorManifest(manifest, { repoRoot }), renderOperatorManifest(manifestAgain, { repoRoot }));
 });
 
-test('R09 client surface coverage is exact in both directions, and totals exactly 32 across 15 files', () => {
+test('R09 client surface coverage is exact in both directions, and totals exactly 33 across 15 files', () => {
   const flag = getFlag('GENERAL_CLINICAL_LLM_ENABLED');
   const discovered = discoverSurfaces(flag.clientDetector, repoRoot);
   const discoveredPaths = new Set(discovered.map((surface) => surface.path));
@@ -337,7 +337,7 @@ test('R09 client surface coverage is exact in both directions, and totals exactl
   }
 
   assert.equal(flag.clientSurfaces.length, 15);
-  assert.equal(flag.clientSurfaces.reduce((sum, surface) => sum + surface.callSites, 0), 32);
+  assert.equal(flag.clientSurfaces.reduce((sum, surface) => sum + surface.callSites, 0), 33);
 });
 
 test('R10 deployment-file cross-check against fly.production.toml, fly.rollback.production.toml and .env.example', () => {

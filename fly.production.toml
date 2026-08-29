@@ -60,8 +60,8 @@ primary_region = "syd"
   OPENAI_TRANSCRIBE_MODEL = "whisper-1"
   # Durable per-user/provider-spend policy. These reviewed non-secret values
   # are forbidden from opaque secret overrides by the production preflight.
-  AI_USAGE_USER_ROLLING_24H_USD = "5"
-  AI_USAGE_USER_ROLLING_24H_CALLS = "100"
+  AI_USAGE_USER_ROLLING_24H_USD = "15"
+  AI_USAGE_USER_ROLLING_24H_CALLS = "300"
   AI_USAGE_GLOBAL_MONTHLY_USD = "100"
   AI_USAGE_INVOKE_FAST_ESTIMATE_USD = "0.07"
   AI_USAGE_INVOKE_QUALITY_ESTIMATE_USD = "0.33"

@@ -18,6 +18,7 @@ import {
   PHYSIO_MODEL_FAST,
   PHYSIO_MODEL_QUALITY,
 } from './productionPosture.mjs';
+import { resolveActiveProfessionContract } from '../packages/profession-config/runtime.mjs';
 
 const OPENAI_URL = 'https://api.openai.com/v1/chat/completions';
 const PHYSIO_PRODUCTION = process.env.NODE_ENV === 'production'
@@ -184,9 +185,10 @@ async function callOpenAI({ messages, model, json }) {
 // that bare value to the client. Throws on any provider/parse failure.
 export async function invokeLLMWithUsage({ prompt, schema, systemInstructions = null }) {
   const { text: safePrompt } = deidentify(String(prompt ?? ''));
+  const activeProfession = resolveActiveProfessionContract(process.env).profession;
 
   const defaultSystemInstructions = [
-    'You are a clinical documentation assistant for an allied-health (exercise physiology) platform used in Australia.',
+    `You are a clinical documentation assistant supporting a ${activeProfession.clinicalPromptRole} in an Australian ${activeProfession.disciplineName.toLowerCase()} practice.`,
     'Write in Australian English, in a professional clinical register. Be specific, evidence-informed and concise.',
     'You are a decision-support tool: never diagnose; frame interpretation as clinical decision support.',
     'Only state clinical facts you are confident are correct; do not fabricate citations, DOIs or statistics.',

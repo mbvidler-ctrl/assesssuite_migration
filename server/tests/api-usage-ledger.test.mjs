@@ -286,8 +286,8 @@ test('reviewed production quota values are visible and cannot be shadowed by Fly
   const rollbackFly = fs.readFileSync(path.join(repoRoot, 'fly.rollback.production.toml'), 'utf8');
   const secretPreflight = fs.readFileSync(path.join(repoRoot, 'scripts', 'check-production-secrets.mjs'), 'utf8');
   const expected = Object.freeze({
-    AI_USAGE_USER_ROLLING_24H_USD: '5',
-    AI_USAGE_USER_ROLLING_24H_CALLS: '100',
+    AI_USAGE_USER_ROLLING_24H_USD: '15',
+    AI_USAGE_USER_ROLLING_24H_CALLS: '300',
     AI_USAGE_GLOBAL_MONTHLY_USD: '100',
     AI_USAGE_INVOKE_FAST_ESTIMATE_USD: '0.07',
     AI_USAGE_INVOKE_QUALITY_ESTIMATE_USD: '0.33',

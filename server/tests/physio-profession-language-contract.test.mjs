@@ -68,6 +68,77 @@ test('Physio-exposed SOAP and report paths compose terminology from the active m
   }
 });
 
+test('shared server AI and transcription defaults resolve the active profession at runtime', () => {
+  const llm = readSource('server/llm.mjs');
+  const transcription = readSource('server/functions/transcribeSession.mjs');
+
+  assert.match(llm, /resolveActiveProfessionContract\(process\.env\)\.profession/);
+  assert.match(llm, /activeProfession\.clinicalPromptRole/);
+  assert.match(transcription, /resolveActiveProfessionContract\(process\.env\)\.profession/);
+  assert.match(transcription, /activeProfession\.clinicalPromptRole/);
+  assert.doesNotMatch(llm, /allied-health \(exercise physiology\) platform/i);
+  assert.doesNotMatch(transcription, /allied-health \(exercise physiology\) practice/i);
+});
+
+test('Physio routes use native funding and recovery-nutrition workspaces', () => {
+  const routes = readSource('src/pages.config.js');
+  assert.match(routes, /const PHYSIO_PAGES = \{[\s\S]*"FundingForms": PhysioFundingForms/);
+  assert.match(routes, /const PHYSIO_PAGES = \{[\s\S]*"Nutrition": PhysioNutrition/);
+  assert.match(routes, /const EP_PAGES = \{[\s\S]*"FundingForms": FundingForms/);
+  assert.match(routes, /const EP_PAGES = \{[\s\S]*"Nutrition": Nutrition/);
+});
+
+test('Physio assessment catalogue does not present EP identity as Physio guidance', () => {
+  const assessments = readSource('server/data-import/physiotherapy-assessment-part-0.jsonl')
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => JSON.parse(line));
+  const userFacingFields = [
+    'name',
+    'description',
+    'instructions',
+    'equipment_needed',
+    'contraindications',
+    'scoring_system',
+  ];
+  const epIdentity = /exercise physiolog|accredited exercise|\bAEPs?\b/i;
+
+  for (const assessment of assessments) {
+    for (const field of userFacingFields) {
+      assert.doesNotMatch(
+        String(assessment[field] ?? ''),
+        epIdentity,
+        `${assessment.name}.${field} must use Physio-native language`,
+      );
+    }
+  }
+});
+
+test('Physio legal presentation removes EP identity and obsolete clinical-function blocks', () => {
+  const legalFiles = fs.readdirSync(path.join(repositoryRoot, 'src', 'legal-content'))
+    .filter((filename) => filename.endsWith('.md'));
+  const physioLegalSuite = legalFiles.map((filename) => applyProfessionLegalContent(
+    readSource(path.join('src', 'legal-content', filename)),
+    'physio',
+  )).join('\n');
+
+  for (const forbidden of [
+    /AssessSuite Clinical/,
+    /Exercise Physiolog/,
+    /\bESSA\b/,
+    /\bAEPs?\b/,
+    /RC-2026\.07\.19 does not approve general clinical text generation/,
+    /The Finances or patient-service payment module is excluded from the initial Service/,
+  ]) {
+    assert.doesNotMatch(physioLegalSuite, forbidden);
+  }
+  assert.match(physioLegalSuite, /AssessSuite Physio/);
+  assert.match(physioLegalSuite, /Physiotherapy Board of Australia through Ahpra/);
+  assert.match(physioLegalSuite, /clinical AI, assessment interpretation and recommendation/);
+  assert.match(physioLegalSuite, /audio transcription/);
+  assert.match(physioLegalSuite, /finance and billing functions/);
+});
+
 test('active language renders distinct EP and Physio author identities without changing capability', () => {
   const ep = toPublicProfession('exercise-physiology');
   const physio = toPublicProfession('physio');

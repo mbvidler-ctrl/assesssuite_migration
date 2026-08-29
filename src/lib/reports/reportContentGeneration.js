@@ -427,18 +427,92 @@ export function normaliseReportSectionOutput(value, {
   section = "",
   guidance = null,
   meta = null,
+  maxWords = null,
 } = {}) {
   if (typeof value !== "string" || value.trim() === "") {
     throw new Error(`Report drafting omitted content for: ${section || "section"}`);
   }
   const cleaned = stripReportFiller(value, section);
   if (!cleaned) throw new Error(`Report drafting omitted content for: ${section || "section"}`);
-  return truncateReportWords(cleaned, guidanceWordLimit(guidance, meta));
+  const guidanceLimit = guidanceWordLimit(guidance, meta);
+  const effectiveLimit = Number.isFinite(maxWords) && maxWords > 0
+    ? Math.min(guidanceLimit, Math.floor(maxWords))
+    : guidanceLimit;
+  return truncateReportWords(cleaned, effectiveLimit);
+}
+
+function reportWordCount(value) {
+  return String(value || "").trim().match(/\S+/g)?.length || 0;
+}
+
+function repeatedClinicalSentences(entries) {
+  const seen = new Map();
+  const duplicates = [];
+  for (const [section, value] of entries) {
+    const sentences = String(value || "").split(/(?<=[.!?])\s+|\r?\n+/);
+    for (const sentence of sentences) {
+      const normalized = sentence.toLowerCase().replace(/[^a-z0-9%/.-]+/g, " ").replace(/\s+/g, " ").trim();
+      if (normalized === "not documented in the available record." || reportWordCount(normalized) < 8) continue;
+      if (sentence.includes("|")) continue;
+      const firstSection = seen.get(normalized);
+      if (firstSection && firstSection !== section) duplicates.push({ sentence: sentence.trim(), sections: [firstSection, section] });
+      else seen.set(normalized, section);
+    }
+  }
+  return duplicates;
+}
+
+function reportContractError(message, details) {
+  const error = /** @type {Error & {code: string, details: unknown}} */ (new Error(message));
+  error.code = "report_contract_violation";
+  error.details = details;
+  return error;
+}
+
+function allocateReportWordBudgets(sections, sectionGuidance, meta, targetWords) {
+  if (!Number.isFinite(targetWords) || targetWords <= 0 || sections.length === 0) return new Map();
+  const target = Math.max(sections.length, Math.floor(targetWords));
+  const minimum = Math.max(1, Math.min(20, Math.floor(target / sections.length)));
+  const available = Math.max(0, target - (minimum * sections.length));
+  const weights = sections.map((section) => Math.max(
+    1,
+    guidanceWordLimit(sectionGuidance?.[section], meta) - minimum,
+  ));
+  const totalWeight = weights.reduce((sum, weight) => sum + weight, 0);
+  const shares = weights.map((weight, index) => {
+    const raw = totalWeight > 0 ? (available * weight) / totalWeight : 0;
+    return { index, words: minimum + Math.floor(raw), remainder: raw - Math.floor(raw) };
+  });
+  let unallocated = target - shares.reduce((sum, share) => sum + share.words, 0);
+  for (const share of [...shares].sort((left, right) => right.remainder - left.remainder || left.index - right.index)) {
+    if (unallocated <= 0) break;
+    share.words += 1;
+    unallocated -= 1;
+  }
+  return new Map(shares.map((share) => [sections[share.index], share.words]));
+}
+
+export function buildReportContractRepairPrompt({ originalPrompt, previousResponse, failureMessage }) {
+  const responseBlock = limitReportText(previousResponse, 6_000) || "No usable response was returned.";
+  const repairInstruction = `\n\nREPAIR REQUIRED:\nThe previous response failed the deterministic form contract: ${limitReportText(failureMessage, 1_000) || "invalid report structure"}\nRewrite the complete response once. Remove duplicated facts, obey the whole-form word budget, and return only the exact schema keys.\n\nPREVIOUS RESPONSE:\n${responseBlock}`;
+  const maximumPromptCharacters = 31_000;
+  const sourceBudget = Math.max(4_000, maximumPromptCharacters - repairInstruction.length);
+  const source = String(originalPrompt || "");
+  let boundedSource = source;
+  if (source.length > sourceBudget) {
+    const marker = "\n\n[Earlier source context bounded for repair]\n\n";
+    const available = Math.max(1, sourceBudget - marker.length);
+    const headLength = Math.floor(available * 0.75);
+    boundedSource = `${source.slice(0, headLength)}${marker}${source.slice(-(available - headLength))}`;
+  }
+  return `${boundedSource}${repairInstruction}`.slice(0, maximumPromptCharacters);
 }
 
 export function validateReportBatchResponse(response, sections, {
   sectionGuidance = {},
   meta = null,
+  reportTypeKey = null,
+  enforceCrossSectionContract = true,
 } = {}) {
   const eligibleSections = getDraftableReportSections(sections);
   if (!response || typeof response !== "object" || Array.isArray(response)) {
@@ -452,13 +526,43 @@ export function validateReportBatchResponse(response, sections, {
     throw new Error(`Report drafting omitted content for: ${invalidSections.join(", ")}`);
   }
 
-  return Object.fromEntries(
+  const unexpectedKeys = Object.keys(response).filter((key) => !eligibleSections.includes(key));
+  if (enforceCrossSectionContract && unexpectedKeys.length > 0) {
+    throw reportContractError(
+      `Report drafting returned unexpected fields: ${unexpectedKeys.join(", ")}`,
+      { unexpectedKeys },
+    );
+  }
+
+  const profile = resolveReportFormProfile(reportTypeKey);
+  const allocatedWords = profile
+    ? allocateReportWordBudgets(eligibleSections, sectionGuidance, meta, profile.targetWords)
+    : new Map();
+  const normalized = Object.fromEntries(
     eligibleSections.map((section) => [section, normaliseReportSectionOutput(response[section], {
       section,
       guidance: sectionGuidance?.[section],
       meta,
+      maxWords: allocatedWords.get(section) || null,
     })]),
   );
+
+  const duplicateSentences = repeatedClinicalSentences(Object.entries(normalized));
+  if (enforceCrossSectionContract && duplicateSentences.length > 0) {
+    throw reportContractError(
+      "Report drafting repeated the same clinical statement across form sections.",
+      { duplicateSentences: duplicateSentences.slice(0, 5) },
+    );
+  }
+
+  const totalWords = Object.values(normalized).reduce((sum, value) => sum + reportWordCount(value), 0);
+  if (enforceCrossSectionContract && profile && totalWords > profile.targetWords) {
+    throw reportContractError(
+      `Report drafting exceeded the ${profile.label} whole-form limit of ${profile.targetWords} words.`,
+      { totalWords, targetWords: profile.targetWords, profile: profile.label },
+    );
+  }
+  return normalized;
 }
 
 const CLINICAL_WRITING_RULES = `CLINICAL WRITING RULES — FOLLOW STRICTLY:

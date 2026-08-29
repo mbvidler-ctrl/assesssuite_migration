@@ -9,15 +9,17 @@ const soapModalSource = fs.readFileSync(
   'utf8',
 );
 
-test('Physio keeps transcription but cannot render legacy transcript dissection', () => {
+test('Physio keeps the shared EP transcription and SOAP-dissection surfaces functional', () => {
   assert.match(
     soapModalSource,
-    /const legacyTranscriptDissectionAllowed = activeProfession\.id === 'exercise-physiology';/,
+    /const sharedTranscriptDissectionAllowed = activeProfession\.features\.legacyGeneralClinicalLlm === true;/,
   );
   assert.match(
     soapModalSource,
-    /\{!isLocked && legacyTranscriptDissectionAllowed && \(/,
+    /\{!isLocked && sharedTranscriptDissectionAllowed && \(/,
   );
   assert.match(soapModalSource, /onClick=\{\(\) => transcribeAudio\(audio\.url\)\}/);
   assert.match(soapModalSource, /Dissect to SOAP/);
+  assert.match(soapModalSource, /await persistentTranscription\.start\(\{/);
+  assert.match(soapModalSource, /Confirm and start persistent transcription/);
 });

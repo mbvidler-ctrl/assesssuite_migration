@@ -22,6 +22,7 @@ const PersistentTranscriptionContext = createContext(null);
 const PART_DURATION_MS = 4 * 60 * 1000;
 const CHUNK_TIMESLICE_MS = 5 * 1000;
 const MAX_SEGMENT_BYTES = 18 * 1024 * 1024;
+const MIN_RECORDING_STORAGE_BYTES = 64 * 1024 * 1024;
 const MIME_CANDIDATES = Object.freeze([
   'audio/webm;codecs=opus',
   'audio/mp4;codecs=mp4a.40.2',
@@ -57,6 +58,24 @@ function ownerKey(appId, user) {
   return `${appId}:${String(user?.id || user?.email || '').toLowerCase()}`;
 }
 
+async function ensureRecordingStorageCapacity({ requestPersistence = false } = {}) {
+  if (!navigator.storage?.estimate) return;
+  try {
+    if (requestPersistence) await navigator.storage.persist?.();
+    const estimate = await navigator.storage.estimate();
+    const quota = Number(estimate?.quota);
+    const usage = Number(estimate?.usage);
+    if (Number.isFinite(quota) && Number.isFinite(usage)
+        && quota - usage < MIN_RECORDING_STORAGE_BYTES) {
+      throw new Error('This device has less than 64 MiB available for recoverable recording. Free browser storage before starting.');
+    }
+  } catch (error) {
+    if (/less than 64 MiB/.test(String(error?.message || ''))) throw error;
+    // Storage estimation is advisory. IndexedDB remains the source of truth
+    // and will stop capture explicitly if a write later fails.
+  }
+}
+
 async function primaryOrganization(user) {
   const memberships = await base44.entities.OrganizationMember.filter({ user_email: user.email });
   return memberships.find((entry) => entry.is_primary === true) || memberships[0] || null;
@@ -71,6 +90,7 @@ export function PersistentTranscriptionProvider({ children }) {
     error: null,
     localRecovery: false,
   });
+  const [dockOpenRequest, setDockOpenRequest] = useState(0);
   const streamRef = useRef(null);
   const recorderRef = useRef(null);
   const rotationTimerRef = useRef(null);
@@ -81,6 +101,12 @@ export function PersistentTranscriptionProvider({ children }) {
   const localRef = useRef(null);
   const userRef = useRef(null);
   const partFlushPromiseRef = useRef(Promise.resolve());
+  const retryInFlightRef = useRef(null);
+  const storagePersistenceRequestedRef = useRef(false);
+
+  const openDock = useCallback(() => {
+    setDockOpenRequest((value) => value + 1);
+  }, []);
 
   const updateLocal = useCallback(async (patch) => {
     if (!localRef.current) return null;
@@ -188,8 +214,17 @@ export function PersistentTranscriptionProvider({ children }) {
         mimeType: recorder.mimeType || mime,
       }).then(() => updateLocal({ lastChunkAt: new Date().toISOString(), status: 'recording' }))
         .catch((error) => {
-          setState((value) => ({ ...value, phase: 'error', error: friendlyError(error), localRecovery: false }));
-          toast.error('Recording recovery storage failed. Stop the recording and save immediately.');
+          stopReasonRef.current = 'storage_error';
+          if (rotationTimerRef.current) clearTimeout(rotationTimerRef.current);
+          rotationTimerRef.current = null;
+          if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+          elapsedTimerRef.current = null;
+          if (recorder.state !== 'inactive') recorder.stop();
+          streamRef.current?.getTracks().forEach((track) => track.stop());
+          streamRef.current = null;
+          updateLocal({ status: 'recoverable', lastError: friendlyError(error) }).catch(() => {});
+          setState((value) => ({ ...value, phase: 'error', error: friendlyError(error), localRecovery: true }));
+          toast.error('Capture paused because local storage failed. Earlier checkpoints remain saved.');
         });
       pendingWrites.push(write);
     };
@@ -201,16 +236,24 @@ export function PersistentTranscriptionProvider({ children }) {
         partIndexRef.current += 1;
         startRecorderPart(streamRef.current);
       }
-      partFlushPromiseRef.current = (async () => {
+      const priorFlush = partFlushPromiseRef.current;
+      partFlushPromiseRef.current = priorFlush.catch(() => {}).then(async () => {
         await Promise.allSettled(pendingWrites);
         try {
           await uploadAndTranscribePart(localRef.current.sessionId, currentPart);
         } catch (error) {
           await updateLocal({ status: 'recoverable', lastError: friendlyError(error) });
-          setState((value) => ({ ...value, phase: 'recoverable', error: friendlyError(error), localRecovery: true }));
+          setState((value) => ({
+            ...value,
+            // A failed background upload must not claim that capture stopped:
+            // the next bounded part may already be recording locally.
+            phase: recorderRef.current?.state === 'recording' ? 'recording' : 'recoverable',
+            error: friendlyError(error),
+            localRecovery: true,
+          }));
           toast.error('This recording part remains saved and can be retried.');
         }
-      })();
+      });
     };
     recorder.start(CHUNK_TIMESLICE_MS);
     rotationTimerRef.current = setTimeout(() => {
@@ -221,10 +264,17 @@ export function PersistentTranscriptionProvider({ children }) {
     }, PART_DURATION_MS);
   }, [updateLocal, uploadAndTranscribePart]);
 
-  const beginCapture = useCallback(async () => {
-    const stream = await navigator.mediaDevices.getUserMedia({
+  const prepareCaptureStream = useCallback(async () => {
+    const requestPersistence = !storagePersistenceRequestedRef.current;
+    storagePersistenceRequestedRef.current = true;
+    await ensureRecordingStorageCapacity({ requestPersistence });
+    return navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, channelCount: 1 },
     });
+  }, []);
+
+  const beginCapture = useCallback(async (preparedStream = null) => {
+    const stream = preparedStream || await prepareCaptureStream();
     streamRef.current = stream;
     clearTimers();
     startRecorderPart(stream);
@@ -232,7 +282,7 @@ export function PersistentTranscriptionProvider({ children }) {
       setState((value) => ({ ...value, elapsedSeconds: value.elapsedSeconds + 1 }));
     }, 1000);
     setState((value) => ({ ...value, phase: 'recording', error: null, localRecovery: true }));
-  }, [clearTimers, startRecorderPart]);
+  }, [clearTimers, prepareCaptureStream, startRecorderPart]);
 
   const start = useCallback(async ({ label = '', consentConfirmed = false, clientId = null, appointmentId = null, careEpisodeId = null } = {}) => {
     if (!consentConfirmed) throw new Error('Confirm recording consent before starting.');
@@ -241,6 +291,8 @@ export function PersistentTranscriptionProvider({ children }) {
       throw new Error('This browser does not support persistent audio capture.');
     }
     setState((value) => ({ ...value, phase: 'starting', error: null }));
+    let preparedStream = null;
+    let createdSession = null;
     try {
       const user = await base44.auth.me();
       const membership = await primaryOrganization(user);
@@ -254,6 +306,10 @@ export function PersistentTranscriptionProvider({ children }) {
         actorCapacity: 'clinician',
         sessionContext: consentContext,
       });
+      // Prove local storage and microphone access before creating durable
+      // server state. A declined permission or low-storage refusal therefore
+      // cannot strand an active session that the current page cannot recover.
+      preparedStream = await prepareCaptureStream();
       const created = unwrap(await base44.functions.invoke('manageTranscriptionSession', {
         action: 'create',
         org_id: membership.org_id,
@@ -263,6 +319,7 @@ export function PersistentTranscriptionProvider({ children }) {
         care_episode_id: careEpisodeId,
       }));
       if (!created?.session) throw new Error('The persistent transcription session was not created.');
+      createdSession = created.session;
       const local = {
         sessionId: created.session.id,
         ownerKey: ownerKey(appParams.appId, user),
@@ -275,16 +332,33 @@ export function PersistentTranscriptionProvider({ children }) {
       localRef.current = await saveLocalTranscriptionSession(local);
       partIndexRef.current = 0;
       setState({ phase: 'starting', session: created.session, elapsedSeconds: 0, error: null, localRecovery: true });
-      await beginCapture();
+      await beginCapture(preparedStream);
+      preparedStream = null;
+      openDock();
       toast.success('Persistent transcription started. It will continue while you move through AssessSuite.');
       return created.session;
     } catch (error) {
+      preparedStream?.getTracks().forEach((track) => track.stop());
       stopTracks();
       clearTimers();
+      if (createdSession?.id) {
+        try {
+          await base44.functions.invoke('manageTranscriptionSession', {
+            action: 'discard',
+            session_id: createdSession.id,
+            org_id: createdSession.org_id,
+          });
+          await deleteLocalTranscriptionSession(createdSession.id);
+          if (localRef.current?.sessionId === createdSession.id) localRef.current = null;
+        } catch {
+          // A server-side cleanup failure is recoverable on the next provider
+          // mount; preserve the original capture error for the clinician.
+        }
+      }
       setState((value) => ({ ...value, phase: 'idle', error: friendlyError(error) }));
       throw error;
     }
-  }, [beginCapture, clearTimers, state.phase, stopTracks]);
+  }, [beginCapture, clearTimers, openDock, prepareCaptureStream, state.phase, stopTracks]);
 
   const stopCurrentRecorder = useCallback(async (reason) => {
     clearTimers();
@@ -316,7 +390,7 @@ export function PersistentTranscriptionProvider({ children }) {
   }, [refreshSession, state.phase, stopCurrentRecorder, updateLocal]);
 
   const resume = useCallback(async () => {
-    if (!localRef.current || !['paused', 'recoverable'].includes(state.phase)) return;
+    if (!localRef.current || !['paused', 'recoverable', 'error'].includes(state.phase)) return;
     setState((value) => ({ ...value, phase: 'starting', error: null }));
     try {
       await flushPendingParts(localRef.current.sessionId);
@@ -334,7 +408,7 @@ export function PersistentTranscriptionProvider({ children }) {
   }, [beginCapture, flushPendingParts, state.phase, updateLocal]);
 
   const finish = useCallback(async () => {
-    if (!localRef.current || !['recording', 'paused', 'recoverable'].includes(state.phase)) return;
+    if (!localRef.current || !['recording', 'paused', 'recoverable', 'error'].includes(state.phase)) return;
     const sessionId = localRef.current.sessionId;
     setState((value) => ({ ...value, phase: 'finalising', error: null }));
     try {
@@ -369,13 +443,23 @@ export function PersistentTranscriptionProvider({ children }) {
 
   const retry = useCallback(async () => {
     if (!localRef.current) return;
-    setState((value) => ({ ...value, phase: 'finalising', error: null }));
+    if (retryInFlightRef.current) return retryInFlightRef.current;
+    const sessionId = localRef.current.sessionId;
+    const operation = (async () => {
+      setState((value) => ({ ...value, phase: 'finalising', error: null }));
+      try {
+        await flushPendingParts(sessionId);
+        const session = await refreshSession(sessionId);
+        setState((value) => ({ ...value, phase: session?.status === 'ready' ? 'ready' : 'paused', session, error: null }));
+      } catch (error) {
+        setState((value) => ({ ...value, phase: 'recoverable', error: friendlyError(error), localRecovery: true }));
+      }
+    })();
+    retryInFlightRef.current = operation;
     try {
-      await flushPendingParts(localRef.current.sessionId);
-      const session = await refreshSession(localRef.current.sessionId);
-      setState((value) => ({ ...value, phase: session?.status === 'ready' ? 'ready' : 'paused', session, error: null }));
-    } catch (error) {
-      setState((value) => ({ ...value, phase: 'recoverable', error: friendlyError(error), localRecovery: true }));
+      await operation;
+    } finally {
+      if (retryInFlightRef.current === operation) retryInFlightRef.current = null;
     }
   }, [flushPendingParts, refreshSession]);
 
@@ -436,6 +520,31 @@ export function PersistentTranscriptionProvider({ children }) {
     return () => { cancelled = true; };
   }, [isAuthenticated, isLoadingAuth]);
 
+  useEffect(() => {
+    if (!['paused', 'recoverable', 'error'].includes(state.phase)) return undefined;
+    const retryWhenOnline = () => {
+      if (!localRef.current) return;
+      retry().catch(() => {});
+    };
+    window.addEventListener('online', retryWhenOnline);
+    return () => window.removeEventListener('online', retryWhenOnline);
+  }, [retry, state.phase]);
+
+  useEffect(() => {
+    const checkpointBufferedAudio = () => {
+      const recorder = recorderRef.current;
+      if (recorder?.state === 'recording') {
+        try { recorder.requestData(); } catch { /* the next five-second checkpoint remains available */ }
+      }
+    };
+    window.addEventListener('pagehide', checkpointBufferedAudio);
+    document.addEventListener('visibilitychange', checkpointBufferedAudio);
+    return () => {
+      window.removeEventListener('pagehide', checkpointBufferedAudio);
+      document.removeEventListener('visibilitychange', checkpointBufferedAudio);
+    };
+  }, []);
+
   useEffect(() => () => {
     clearTimers();
     // Do not deliberately stop an active recording on route changes: this
@@ -452,8 +561,10 @@ export function PersistentTranscriptionProvider({ children }) {
     retry,
     discard,
     reset,
+    dockOpenRequest,
+    openDock,
     refresh: () => state.session?.id ? refreshSession(state.session.id) : null,
-  }), [discard, finish, pause, refreshSession, reset, resume, retry, start, state]);
+  }), [discard, dockOpenRequest, finish, openDock, pause, refreshSession, reset, resume, retry, start, state]);
 
   return <PersistentTranscriptionContext.Provider value={value}>{children}</PersistentTranscriptionContext.Provider>;
 }

@@ -156,7 +156,9 @@ export default async function manageTranscriptionSession(ctx) {
   }
 
   const owned = ownedSession(ctx, scope, ctx.body?.session_id, {
-    mustBeMutable: ['append_segment', 'pause', 'resume', 'finish', 'attach'].includes(action),
+    // Context attachment is metadata and remains useful after transcription
+    // has completed. Audio/session mutation stays restricted to open states.
+    mustBeMutable: ['append_segment', 'pause', 'resume', 'finish'].includes(action),
   });
   if (owned.error === 'not_found') return fail(ctx, 404, 'transcription_session_not_found', 'The transcription session was not found.');
   if (owned.error === 'not_owner') return fail(ctx, 403, 'transcription_session_owner_required', 'Only the recording clinician can change this transcription.');
@@ -206,6 +208,9 @@ export default async function manageTranscriptionSession(ctx) {
   }
 
   if (action === 'attach') {
+    if (session.status === 'discarded') {
+      return fail(ctx, 409, 'transcription_session_discarded', 'A discarded transcription cannot be attached to clinical context.');
+    }
     const clientId = cleanOptionalId(ctx.body?.client_id);
     const appointmentId = cleanOptionalId(ctx.body?.appointment_id);
     const careEpisodeId = cleanOptionalId(ctx.body?.care_episode_id);

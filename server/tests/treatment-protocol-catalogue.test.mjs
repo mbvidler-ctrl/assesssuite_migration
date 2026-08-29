@@ -29,6 +29,15 @@ test('treatment-protocol search keeps reviewed rows and restores the grounded cu
   assert.doesNotMatch(pageSource, /TreatmentProtocol\.filter/);
 });
 
+test('clinicians can run a standalone shared-cache evidence search without generating a protocol', () => {
+  assert.match(pageSource, /Clinical research search/);
+  assert.match(pageSource, /includeTrials: true/);
+  assert.match(pageSource, /forceRefresh/);
+  assert.match(pageSource, /Shared cached result/);
+  assert.match(pageSource, /PubMed, OpenAlex, Crossref and ClinicalTrials\.gov/);
+  assert.match(pageSource, /result\.evidence_type/);
+});
+
 test('reviewed catalogue preparation is null-safe, deduplicated and sorted before selection', () => {
   assert.match(pageSource, /for \(const row of Array\.isArray\(rows\) \? rows : \[\]\)/);
   assert.match(pageSource, /typeof row\?\.condition_name === "string"/);

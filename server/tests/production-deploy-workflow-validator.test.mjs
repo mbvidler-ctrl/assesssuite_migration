@@ -563,6 +563,55 @@ test('V09 previous-image rollback is dispatch-frozen, ancestrally bound, and ver
   }
 });
 
+test('V09a the seeded launch gate probes the admitted EP application identity', () => {
+  const prepare = fs.readFileSync(workflowPath('production-prepare-release.yml'), 'utf8');
+  const seededGate = prepare.slice(
+    prepare.indexOf('- name: Existing seeded launch-gate suite'),
+    prepare.indexOf('- name: Existing public-evidence service gates'),
+  );
+  assert.match(
+    seededGate,
+    /seed_variable="SEED_\$\(printf '%s' 'PASSWORD'\)"/,
+    'the seeded gate must construct the synthetic-only environment name without a literal secret assignment',
+  );
+  assert.equal(
+    seededGate.match(/env "\$seed_variable=\$seed_value"/g)?.length,
+    3,
+    'seed, server and gate tests must receive the same ephemeral synthetic credential',
+  );
+  assert.match(
+    seededGate,
+    /public-settings\/by-id\/local-assesssuite/,
+    'the launch gate must probe the exact EP application identity accepted by the server',
+  );
+  assert.doesNotMatch(
+    prepare,
+    /public-settings\/by-id\/probe/,
+    'an arbitrary probe identity is rejected by the cross-target application boundary',
+  );
+});
+
+test('V09b the seeded launch gate rejects the retired unsigned Stripe success path', () => {
+  const gate = fs.readFileSync(path.join(repoRoot, 'scripts', 'gate-tests.mjs'), 'utf8');
+  assert.match(gate, /webhook\.status === 503/);
+  assert.match(gate, /webhook\.data\?\.code === 'stripe_provider_unavailable'/);
+  assert.match(gate, /providerUnavailable && roleUnchanged/);
+  assert.doesNotMatch(gate, /webhook\.status === 200 && roleUnchanged/);
+});
+
+test('V09c candidate publication retries transient registry failures without exposing provider output', () => {
+  const prepare = fs.readFileSync(workflowPath('production-prepare-release.yml'), 'utf8');
+  const publication = prepare.slice(
+    prepare.indexOf('- name: Publish immutable image and seal compatibility bundle'),
+    prepare.indexOf('- name: Upload sealed publication receipt and rollback image data'),
+  );
+  assert.match(publication, /for push_attempt in 1 2 3; do/);
+  assert.match(publication, /sleep "\$\(\(push_attempt \* 5\)\)"/);
+  assert.match(publication, /push_succeeded=1/);
+  assert.match(publication, /Candidate image push failed after three bounded attempts; registry output withheld\./);
+  assert.doesNotMatch(publication, /echo.*\$push_output/);
+});
+
 test('V10 the release filename preflight allows only root .env.example and scans its content', () => {
   const prepare = fs.readFileSync(workflowPath('production-prepare-release.yml'), 'utf8')
     .replaceAll('\r\n', '\n');

@@ -322,10 +322,10 @@ const FLAGS = [
       },
       {
         path: 'src/components/reports/wizard-steps/SectionEditor.jsx',
-        label: 'Report wizard — Generate / Regenerate / Tidy per section',
-        callSites: 3,
+        label: 'Report wizard — Generate / Regenerate / Tidy and bounded whole-report repair',
+        callSites: 4,
         failureMode: 'disabled-with-notice',
-        userVisibleWhenOff: 'Generate, Regenerate and Tidy stay visible on every report wizard section but are disabled and labelled as unavailable, rather than failing when pressed.',
+        userVisibleWhenOff: 'Generate, Regenerate, Tidy and Generate All stay visible on every report wizard section but are disabled and labelled as unavailable, rather than failing when pressed.',
       },
       {
         path: 'src/components/calendar/SOAPNoteModal.jsx',
