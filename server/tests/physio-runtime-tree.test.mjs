@@ -40,6 +40,14 @@ test('runtime tree is an exact Physio-only regular-file closure', (t) => {
   const paths = manifest.files.map((entry) => entry.path);
   assert.deepEqual(paths, [...paths].sort());
   assert.equal(new Set(paths).size, paths.length);
+  const catalogueShards = fs.readdirSync(path.join(repoRoot, 'server', 'data-import'))
+    .filter((name) => /^(?:physiotherapy-assessment|treatmentprotocol)-part-\d+\.jsonl$/.test(name))
+    .map((name) => `server/data-import/${name}`)
+    .sort();
+  assert.ok(catalogueShards.length > 0, 'the Physio runtime must have source catalogue shards');
+  for (const shard of catalogueShards) {
+    assert.ok(paths.includes(shard), `runtime closure omitted catalogue shard ${shard}`);
+  }
   for (const required of [
     'server/productionBootstrap.mjs',
     'server/index.mjs',
