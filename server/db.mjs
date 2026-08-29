@@ -1754,13 +1754,29 @@ export function createEntityRepository(db, entityName) {
     return getById(id);
   }
 
+  function replace(id, data) {
+    const existing = getById(id);
+    if (!existing) return null;
+    const {
+      id: _ignoredId,
+      created_date: _createdDate,
+      updated_date: _updatedDate,
+      created_by: _createdBy,
+      ...replacement
+    } = data || {};
+    const now = new Date().toISOString();
+    const stmt = db.prepare(`UPDATE ${table} SET data = ?, updated_date = ? WHERE id = ?`);
+    stmt.run(JSON.stringify(replacement), now, id);
+    return getById(id);
+  }
+
   function remove(id) {
     const stmt = db.prepare(`DELETE FROM ${table} WHERE id = ?`);
     const info = stmt.run(id);
     return info.changes > 0;
   }
 
-  return { listAll, getById, create, update, remove, table };
+  return { listAll, getById, create, update, replace, remove, table };
 }
 
 /**
