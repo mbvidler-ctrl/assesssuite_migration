@@ -95,6 +95,7 @@ test('Halaxy authorization and rate-limit failures are explicit and never simula
       if (call === 1) return jsonResponse({ access_token: 'test-token', expires_in: 900 });
       return jsonResponse({ issue: [] }, 429, { 'retry-after': '11' });
     },
+    sleepImpl: async () => {},
   });
   await assert.rejects(
     () => limited.testConnection(),
@@ -102,4 +103,55 @@ test('Halaxy authorization and rate-limit failures are explicit and never simula
       && error.code === 'halaxy_rate_limited'
       && error.retryAfter === '11',
   );
+  assert.equal(call, 4, 'OAuth is reused while the FHIR request receives two bounded retries');
+});
+
+test('Halaxy client retries a transient FHIR response and succeeds without duplicating OAuth', async () => {
+  const calls = [];
+  const delays = [];
+  const client = createHalaxyClient({
+    clientId: 'client-id',
+    clientSecret: 'test-client-secret',
+    fetchImpl: async (url) => {
+      calls.push(String(url));
+      if (String(url).endsWith('/oauth/token')) return jsonResponse({ access_token: 'test-token', expires_in: 900 });
+      if (calls.filter((value) => value.includes('/Patient?')).length === 1) {
+        return jsonResponse({ issue: [] }, 503);
+      }
+      return jsonResponse({ resourceType: 'Bundle', type: 'searchset', total: 2 });
+    },
+    sleepImpl: async (milliseconds) => { delays.push(milliseconds); },
+  });
+  const result = await client.testConnection();
+  assert.equal(result.connected, true);
+  assert.equal(calls.filter((value) => value.endsWith('/oauth/token')).length, 1);
+  assert.equal(calls.filter((value) => value.includes('/Patient?')).length, 2);
+  assert.deepEqual(delays, [500], 'a missing Retry-After header uses exponential backoff from 500 ms');
+});
+
+test('Halaxy client never replays an ambiguously completed FHIR create', async () => {
+  const calls = [];
+  const client = createHalaxyClient({
+    clientId: 'client-id',
+    clientSecret: 'test-client-secret',
+    fetchImpl: async (url) => {
+      calls.push(String(url));
+      if (String(url).endsWith('/oauth/token')) {
+        return jsonResponse({ access_token: 'test-token', expires_in: 900 });
+      }
+      return jsonResponse({ issue: [] }, 504);
+    },
+    sleepImpl: async () => { throw new Error('a non-idempotent write must never enter retry backoff'); },
+  });
+
+  await assert.rejects(
+    () => client.request('/Patient', {
+      method: 'POST',
+      body: { resourceType: 'Patient', name: [{ text: 'Ambiguous Outcome' }] },
+    }),
+    (error) => error instanceof HalaxyApiError
+      && error.code === 'halaxy_write_outcome_uncertain'
+      && /Review Halaxy/.test(error.message),
+  );
+  assert.equal(calls.filter((value) => value.endsWith('/Patient')).length, 1);
 });

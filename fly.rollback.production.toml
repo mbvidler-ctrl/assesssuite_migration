@@ -31,8 +31,8 @@ primary_region = "syd"
   # Kept byte-for-byte symmetric with the candidate configuration. The
   # compatibility image ignores ledger-only AI_USAGE_* settings; the output
   # ceiling remains a harmless bound for its still-enabled general AI path.
-  AI_USAGE_USER_ROLLING_24H_USD = "5"
-  AI_USAGE_USER_ROLLING_24H_CALLS = "100"
+  AI_USAGE_USER_ROLLING_24H_USD = "15"
+  AI_USAGE_USER_ROLLING_24H_CALLS = "300"
   AI_USAGE_GLOBAL_MONTHLY_USD = "100"
   AI_USAGE_INVOKE_FAST_ESTIMATE_USD = "0.07"
   AI_USAGE_INVOKE_QUALITY_ESTIMATE_USD = "0.33"

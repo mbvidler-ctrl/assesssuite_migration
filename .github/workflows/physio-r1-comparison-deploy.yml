@@ -32,9 +32,13 @@ jobs:
       R1_STAGE2_FOUNDATION_SHA: 68f277e6511440232ed299402cc42c598110ca65
       R1_STAGE2_FUNCTIONAL_SHA: 553b6ea49628d6e434eb852f61ce20c353d77eec
       R1_STAGE2_TEST_SHA: 27cec6656472788f491cdb447c996bcf4a0b4bb1
-      R1_COMPARISON_SHA: e3957f34f0585209393237dca26c16755d4501f8
-      R1_SNAPSHOT_ID: vs_kmp35PK891uLO2MA74
-      R1_SNAPSHOT_DIGEST: 1004f97fb148027c6ef04598860723d1583db984e54c843fa938e6b7e64d2ac6
+      R1_PRE_SHARED_SHA: e3957f34f0585209393237dca26c16755d4501f8
+      R1_SHARED_FEATURE_SHA: a8c235662197d0ec92f476c0037aef3046701496
+      R1_SHARED_QUOTA_SHA: e7de6d04cf42087971f414245604ed338d3722f7
+      R1_SHARED_AI_SHA: e2923aec672406dbb63299ddd769759bf3e4f06a
+      R1_COMPARISON_SHA: 71f3ca5ec2a0d3a35e8d908a80407fe6e6e3ca0b
+      R1_SNAPSHOT_ID: vs_lmk35KXxYQuw0gnzvz
+      R1_SNAPSHOT_DIGEST: bc800957c63e2da2a03da240f60bba1810d3d6a31175fd0ff0aef0568cbc946d
       R1_VOLUME_ID: vol_vgn67klw1jq1km04
       R1_VOLUME_NAME: assesssuite_physio_r1_data
       R1_CATALOGUE_COUNT: "236"
@@ -66,6 +70,10 @@ jobs:
           [[ "$R1_STAGE2_FOUNDATION_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_STAGE2_FUNCTIONAL_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_STAGE2_TEST_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$R1_PRE_SHARED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$R1_SHARED_FEATURE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$R1_SHARED_QUOTA_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$R1_SHARED_AI_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_COMPARISON_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_SNAPSHOT_ID" =~ ^vs_[A-Za-z0-9]+$ ]]
           [[ "$R1_SNAPSHOT_DIGEST" =~ ^[0-9a-f]{64}$ ]]
@@ -84,23 +92,42 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$(git rev-parse HEAD)" == "$R1_COMPARISON_SHA" ]]
-          [[ "$(git rev-parse HEAD^)" == "$R1_STAGE2_TEST_SHA" ]]
-          [[ "$(git rev-parse HEAD^^)" == "$R1_STAGE2_FUNCTIONAL_SHA" ]]
-          [[ "$(git rev-parse HEAD^^^)" == "$R1_STAGE2_FOUNDATION_SHA" ]]
-          [[ "$(git rev-parse HEAD^^^^)" == "$R1_PRE_STAGE2_SHA" ]]
-          [[ "$(git rev-parse HEAD^^^^^)" == "$R1_RUNTIME_FIX_SHA" ]]
-          [[ "$(git rev-parse HEAD^^^^^^)" == "$R1_ORIGIN_FIX_SHA" ]]
-          [[ "$(git rev-parse HEAD^^^^^^^)" == "$R1_FOUNDATION_SHA" ]]
-          [[ "$(git rev-parse HEAD^^^^^^^^)" == "$R1_BASELINE_SHA" ]]
+          actual_chain="$RUNNER_TEMP/r1-first-parent-chain.txt"
+          expected_chain="$RUNNER_TEMP/r1-expected-first-parent-chain.txt"
+          git rev-list --first-parent --reverse "$R1_BASELINE_SHA..$R1_COMPARISON_SHA" >"$actual_chain"
+          cat >"$expected_chain" <<COMMITS
+          $R1_FOUNDATION_SHA
+          $R1_ORIGIN_FIX_SHA
+          $R1_RUNTIME_FIX_SHA
+          $R1_PRE_STAGE2_SHA
+          $R1_STAGE2_FOUNDATION_SHA
+          $R1_STAGE2_FUNCTIONAL_SHA
+          $R1_STAGE2_TEST_SHA
+          $R1_PRE_SHARED_SHA
+          $R1_SHARED_FEATURE_SHA
+          $R1_SHARED_QUOTA_SHA
+          $R1_SHARED_AI_SHA
+          $R1_COMPARISON_SHA
+          COMMITS
+          diff -u "$expected_chain" "$actual_chain"
           actual="$RUNNER_TEMP/r1-changed-files.txt"
           expected="$RUNNER_TEMP/r1-expected-files.txt"
           git diff --name-only "$R1_BASELINE_SHA..$R1_COMPARISON_SHA" | LC_ALL=C sort >"$actual"
           cat >"$expected" <<'FILES'
+          .env.example
+          .github/workflows/production-prepare-release.yml
           base44/entities/PhysioCareEpisode.jsonc
           base44/entities/TreatmentProtocol.jsonc
+          docs/deployment/capability-manifest.md
+          docs/deployment/flag-manifest.json
           e2e/physio-offline-journey/physio-offline-journey.spec.mjs
           e2e/physio-offline-journey/runtime-fixture.mjs
+          e2e/physio-offline-journey/soap-ui-contract.test.mjs
+          e2e/referral-uploader/vite.config.mjs
+          fly.physio.production.toml
           fly.physio.r1-comparison.toml
+          fly.production.toml
+          fly.rollback.production.toml
           package-lock.json
           package.json
           packages/profession-config/professions/exercise-physiology.mjs
@@ -112,6 +139,7 @@ jobs:
           scripts/provision-physio-r1-comparison-access.mjs
           server/apiUsage.mjs
           server/capabilities.mjs
+          server/capabilityFlags.mjs
           server/catalogue/generate-treatment-protocols.mjs
           server/clinicalEvidence.mjs
           server/data-import/treatmentprotocol-part-1.jsonl
@@ -125,12 +153,15 @@ jobs:
           server/integrations/credentialVault.mjs
           server/integrations/halaxy.mjs
           server/integrations/halaxySync.mjs
+          server/llm.mjs
           server/productionBootstrap.mjs
           server/productionCatalogue.mjs
           server/productionPosture.mjs
           server/publicRequestOrigin.mjs
           server/runtimeStatus.mjs
+          server/tests/api-usage-ledger.test.mjs
           server/tests/assessment-runner-registry.test.mjs
+          server/tests/capability-flag-registry.test.mjs
           server/tests/clinical-evidence-cache.test.mjs
           server/tests/halaxy-sync.test.mjs
           server/tests/integration-connectors.test.mjs
@@ -141,11 +172,14 @@ jobs:
           server/tests/physio-exact-image-canary.test.mjs
           server/tests/physio-legacy-ai-isolation.test.mjs
           server/tests/physio-production-posture.test.mjs
+          server/tests/physio-profession-language-contract.test.mjs
           server/tests/physio-profession-surface-contract.test.mjs
           server/tests/physio-public-entry.test.mjs
           server/tests/physio-r1-comparison-access.test.mjs
           server/tests/physio-r1-comparison-contract.test.mjs
+          server/tests/physio-release-workflows.test.mjs
           server/tests/physio-runtime-tree.test.mjs
+          server/tests/production-deploy-workflow-validator.test.mjs
           server/tests/production-startup.test.mjs
           server/tests/public-request-origin.test.mjs
           server/tests/reference-verification-badge.test.mjs
@@ -154,6 +188,7 @@ jobs:
           server/tests/runtime-status.test.mjs
           server/tests/soap-dissection-fail-closed.test.mjs
           server/tests/transcription-provider-contract.test.mjs
+          server/tests/treatment-protocol-catalogue.test.mjs
           server/tests/treatment-protocol-hydration.test.mjs
           server/uploadRegistry.mjs
           src/App.jsx
@@ -243,12 +278,22 @@ jobs:
             .[0].auto_backup_enabled == true and
             .[0].snapshot_retention == 5
           ' <<<"$volumes" >/dev/null
+          snapshots="$(flyctl volumes snapshots list "$R1_VOLUME_ID" --app "$APP" --json)"
+          jq -e --arg id "$R1_SNAPSHOT_ID" --arg digest "$R1_SNAPSHOT_DIGEST" '
+            [.[] | select(
+              .id == $id and
+              .digest == $digest and
+              .status == "created" and
+              .retention_days == 5 and
+              .size > 0
+            )] | length == 1
+          ' <<<"$snapshots" >/dev/null
           attached_machine="$(jq -r '.[0].attached_machine_id // ""' <<<"$volumes")"
           if [[ -z "$attached_machine" ]]; then
             jq -e '(.Machines | length) == 0' <<<"$status" >/dev/null
           else
             jq -e --arg machine "$attached_machine" --arg target_sha "$R1_COMPARISON_SHA" \
-              --arg upgrade_sha "$R1_PRE_STAGE2_SHA" --arg volume "$R1_VOLUME_ID" '
+              --arg upgrade_sha "$R1_PRE_SHARED_SHA" --arg volume "$R1_VOLUME_ID" '
               (.Machines | length) == 1 and
               .Machines[0].id == $machine and
               .Machines[0].state == "started" and
@@ -260,6 +305,7 @@ jobs:
             ' <<<"$status" >/dev/null
           fi
           printf '%s\n' "$volumes" >r1-volume-before.json
+          printf '%s\n' "$snapshots" >r1-snapshots-before.json
 
       - name: Stage only non-billing R1 comparison secrets
         shell: bash
@@ -313,6 +359,26 @@ jobs:
             [[ "$attempt" -lt 36 ]]
             sleep 10
           done
+          capabilities="$(curl --fail --silent --show-error --max-time 15 "$APP_URL/api/capabilities")"
+          jq -e '
+            .profession_id == "physio" and
+            .production_posture_mode == "r1-comparison" and
+            .required_dependencies_ready == true and
+            .production_posture_ready == true and
+            .production_deployment_ready == true and
+            ([
+              .capabilities.general_clinical_llm,
+              .capabilities.physio_ai_tasks,
+              .capabilities.transcription,
+              .capabilities.document_extraction,
+              .capabilities.transactional_email
+            ] | all(.enabled == true and .required == true and .ready == true and .status == "ready")) and
+            .capabilities.payments.enabled == false and
+            .capabilities.payments.required == false and
+            .capabilities.payments.ready == true and
+            .capabilities.payments.status == "disabled"
+          ' <<<"$capabilities" >/dev/null
+          printf '%s\n' "$capabilities" >r1-capabilities.json
           jq -e --argjson count "$R1_CATALOGUE_COUNT" --arg checksum "$R1_CATALOGUE_CHECKSUM" '
             .catalogue.count == $count and
             .catalogue.expected_count == $count and
@@ -388,6 +454,10 @@ jobs:
             --arg stage2_foundation_sha "$R1_STAGE2_FOUNDATION_SHA" \
             --arg stage2_functional_sha "$R1_STAGE2_FUNCTIONAL_SHA" \
             --arg stage2_test_sha "$R1_STAGE2_TEST_SHA" \
+            --arg pre_shared_sha "$R1_PRE_SHARED_SHA" \
+            --arg shared_feature_sha "$R1_SHARED_FEATURE_SHA" \
+            --arg shared_quota_sha "$R1_SHARED_QUOTA_SHA" \
+            --arg shared_ai_sha "$R1_SHARED_AI_SHA" \
             --arg snapshot_id "$R1_SNAPSHOT_ID" \
             --arg snapshot_digest "$R1_SNAPSHOT_DIGEST" \
             --arg volume_id "$R1_VOLUME_ID" \
@@ -405,6 +475,10 @@ jobs:
               stage2_foundation_sha: $stage2_foundation_sha,
               stage2_functional_sha: $stage2_functional_sha,
               stage2_test_sha: $stage2_test_sha,
+              pre_shared_sha: $pre_shared_sha,
+              shared_feature_sha: $shared_feature_sha,
+              shared_quota_sha: $shared_quota_sha,
+              shared_ai_sha: $shared_ai_sha,
               source_snapshot_id: $snapshot_id,
               source_snapshot_digest: $snapshot_digest,
               isolated_volume_id: $volume_id,
@@ -426,11 +500,13 @@ jobs:
             r1-health-live.json
             r1-health-ready.json
             r1-version.json
+            r1-capabilities.json
             r1-fly-status.json
             r1-access-provisioning.json
             r1-access-inspection.json
             r1-register-response.json
             r1-volume-before.json
+            r1-snapshots-before.json
             r1-volumes-after.json
           if-no-files-found: warn
           retention-days: 90

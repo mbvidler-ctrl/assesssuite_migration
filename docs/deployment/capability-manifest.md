@@ -95,7 +95,7 @@ The single switch behind every non-referral AI-assisted drafting action across t
 | `server/integrations.mjs` | POST /integration-endpoints/Core/InvokeLLM | 503 ai_capability_disabled "General AI generation is disabled on this server." |
 | `server/capabilities.mjs` | GET /api/apps/public/prod/public-settings/by-id/:appId (publication of the enforced posture) | public_settings.capabilities.general_clinical_llm is published as { available: false, reason: "switched_off" }, which is what lets each client surface disable and label its control instead of failing when pressed. |
 
-**Client surfaces (32 call site(s) across 15 file(s)):**
+**Client surfaces (33 call site(s) across 15 file(s)):**
 
 | File | Call sites | What the clinic sees | Detail |
 |---|---|---|---|
@@ -110,7 +110,7 @@ The single switch behind every non-referral AI-assisted drafting action across t
 | `src/components/reports/PDFFormFiller.jsx` | 2 | the feature is unreachable | No user-visible effect: this tree is orphaned/unreachable legacy code, flagged in the 21 July 2026 change for a human removal decision that has not yet been made. |
 | `src/components/reports/PrivateHealthInitialAssessment.jsx` | 3 | an error message where the text should be | Generating any section of the private health initial assessment report fails with an error message where the drafted text should appear. |
 | `src/components/reports/PrivateHealthProgressReport.jsx` | 4 | an error message where the text should be | Generating any section of the private health progress report fails with an error message where the drafted text should appear. |
-| `src/components/reports/wizard-steps/SectionEditor.jsx` | 3 | the control stays visible but is disabled and labelled as unavailable | Generate, Regenerate and Tidy stay visible on every report wizard section but are disabled and labelled as unavailable, rather than failing when pressed. |
+| `src/components/reports/wizard-steps/SectionEditor.jsx` | 4 | the control stays visible but is disabled and labelled as unavailable | Generate, Regenerate, Tidy and Generate All stay visible on every report wizard section but are disabled and labelled as unavailable, rather than failing when pressed. |
 | `src/pages/AssessmentAudit.jsx` | 2 | the control stays visible but is disabled and labelled as unavailable | The controls that draft the AI-authored contraindications, scoring and instructions text are disabled and labelled as unavailable. |
 | `src/pages/ClientConditions.jsx` | 1 | the control stays visible but is disabled and labelled as unavailable | Condition-based assessment suggestions are disabled and labelled as unavailable; a failed attempt reports its error state instead of rendering an empty panel. |
 | `src/pages/TreatmentProtocols.jsx` | 1 | the control stays visible but is disabled and labelled as unavailable | Generating a custom (non-catalogue) treatment protocol is disabled and labelled as unavailable; the reviewed catalogue lookup is unaffected and remains available. |

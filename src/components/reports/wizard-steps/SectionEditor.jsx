@@ -18,6 +18,7 @@ import {
   buildPriorReportContext,
   buildReportAssessmentSummary,
   buildReportBatchSchema,
+  buildReportContractRepairPrompt,
   buildReportDraftPrompt,
   buildSoapReportContext,
   findReportOutcomeSection,
@@ -559,14 +560,45 @@ ${content[activeSection]}`;
         meta,
         outcomeSection: findReportOutcomeSection(sections),
       });
-      const response = await InvokeLLM({
+      let response = await InvokeLLM({
         prompt,
         response_json_schema: buildReportBatchSchema(eligibleSections),
       });
-      const generatedSections = validateReportBatchResponse(response, eligibleSections, {
-        sectionGuidance: SECTION_GUIDANCE,
-        meta,
-      });
+      let generatedSections;
+      try {
+        generatedSections = validateReportBatchResponse(response, eligibleSections, {
+          sectionGuidance: SECTION_GUIDANCE,
+          meta,
+          reportTypeKey,
+        });
+      } catch (contractError) {
+        if (contractError?.code !== "report_contract_violation") throw contractError;
+        const repairPrompt = buildReportContractRepairPrompt({
+          originalPrompt: prompt,
+          previousResponse: response,
+          failureMessage: contractError.message,
+        });
+        response = await InvokeLLM({
+          prompt: repairPrompt,
+          response_json_schema: buildReportBatchSchema(eligibleSections),
+        });
+        try {
+          generatedSections = validateReportBatchResponse(response, eligibleSections, {
+            sectionGuidance: SECTION_GUIDANCE,
+            meta,
+            reportTypeKey,
+          });
+        } catch (repairError) {
+          if (repairError?.code !== "report_contract_violation") throw repairError;
+          generatedSections = validateReportBatchResponse(response, eligibleSections, {
+            sectionGuidance: SECTION_GUIDANCE,
+            meta,
+            reportTypeKey,
+            enforceCrossSectionContract: false,
+          });
+          toast.warning("Draft prepared for review, but repeated or over-length content still needs clinician editing.");
+        }
+      }
       const newContent = { ...content };
 
       for (const [section, value] of Object.entries(generatedSections)) {

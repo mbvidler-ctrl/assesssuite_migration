@@ -13,6 +13,7 @@ import {
   buildPriorReportContext,
   buildReportAssessmentSummary,
   buildReportBatchSchema,
+  buildReportContractRepairPrompt,
   buildReportDraftPrompt,
   buildSoapReportContext,
   limitReportText,
@@ -223,6 +224,19 @@ test('whole-report prompt remains below the endpoint ceiling with oversized free
   assert.match(prompt, /OUTPUT REQUIREMENT/);
 });
 
+test('bounded repair prompt preserves instructions and never exceeds endpoint admission', () => {
+  const prompt = buildReportContractRepairPrompt({
+    originalPrompt: `REPORT TYPE: Long form\n${'source '.repeat(8_000)}\nOUTPUT REQUIREMENT:\nReturn exact keys.`,
+    previousResponse: { Background: 'draft '.repeat(3_000) },
+    failureMessage: 'Repeated content exceeded the form contract.',
+  });
+  assert.ok(prompt.length <= 31_000, `repair prompt was ${prompt.length} characters`);
+  assert.match(prompt, /REPORT TYPE: Long form/);
+  assert.match(prompt, /OUTPUT REQUIREMENT:/);
+  assert.match(prompt, /PREVIOUS RESPONSE:/);
+  assert.match(prompt, /REPAIR REQUIRED:/);
+});
+
 test('whole-report response is atomic and rejects missing or empty sections', () => {
   assert.deepEqual(
     validateReportBatchResponse(
@@ -239,18 +253,71 @@ test('whole-report response is atomic and rejects missing or empty sections', ()
     () => validateReportBatchResponse({ Background: '', Recommendations: 'Present' }, ['Background', 'Recommendations']),
     /Background/,
   );
+  assert.throws(
+    () => validateReportBatchResponse(
+      { Background: 'Recorded background.', Recommendations: 'Continue plan.', invented_field: 'not allowed' },
+      ['Background', 'Recommendations'],
+    ),
+    /unexpected fields: invented_field/i,
+  );
+  assert.throws(
+    () => validateReportBatchResponse(
+      {
+        Background: 'The patient completed six scheduled sessions and reported improved walking confidence during daily community activities.',
+        Recommendations: 'The patient completed six scheduled sessions and reported improved walking confidence during daily community activities.',
+      },
+      ['Background', 'Recommendations'],
+    ),
+    /repeated the same clinical statement/i,
+  );
+  assert.doesNotThrow(() => validateReportBatchResponse(
+    {
+      Background: 'The patient completed six scheduled sessions and reported improved walking confidence during daily community activities.',
+      Recommendations: 'The patient completed six scheduled sessions and reported improved walking confidence during daily community activities.',
+      invented_field: 'ignored only after the bounded repair attempt',
+    },
+    ['Background', 'Recommendations'],
+    { enforceCrossSectionContract: false },
+  ));
 });
 
-test('Generate All makes one schema-backed model call while single Generate and Tidy remain', () => {
+test('short funding forms receive a complete weighted budget without a forty-word floor', () => {
+  const sections = [
+    'Referral Received & Accepted',
+    'Referring Practitioner Details',
+    'Client Details & Chronic Conditions',
+    'Planned Initial Assessment Date',
+    'Planned Service Delivery',
+    'Notes to Referrer',
+  ];
+  const response = Object.fromEntries(sections.map((section, index) => [
+    section,
+    `${section} ${Array.from({ length: 55 }, (_, word) => `recorded${index}-${word}`).join(' ')}.`,
+  ]));
+  const fitted = validateReportBatchResponse(response, sections, {
+    reportTypeKey: 'medicare_referral_acceptance',
+    enforceCrossSectionContract: false,
+  });
+  const totalWords = Object.values(fitted).join(' ').trim().split(/\s+/).length;
+  assert.ok(totalWords <= 150, `short form contained ${totalWords} words`);
+  assert.equal(Object.keys(fitted).length, sections.length);
+  assert.ok(Object.values(fitted).every((value) => value.trim().length > 0));
+});
+
+test('Generate All makes one schema-backed call plus one bounded contract-repair attempt while single Generate and Tidy remain', () => {
   const editor = readSource('src', 'components', 'reports', 'wizard-steps', 'SectionEditor.jsx');
   const start = editor.indexOf('  const handleGenerateAll = async () => {');
   const end = editor.indexOf('  const completedSections =', start);
   assert.ok(start >= 0 && end > start, 'Generate All function must remain present');
   const generateAll = editor.slice(start, end);
 
-  assert.equal((generateAll.match(/InvokeLLM\s*\(/g) || []).length, 1);
+  assert.equal((generateAll.match(/InvokeLLM\s*\(/g) || []).length, 2);
   assert.match(generateAll, /response_json_schema: buildReportBatchSchema/);
   assert.match(generateAll, /validateReportBatchResponse/);
+  assert.match(generateAll, /report_contract_violation/);
+  assert.match(generateAll, /buildReportContractRepairPrompt/);
+  assert.match(generateAll, /enforceCrossSectionContract: false/);
+  assert.match(generateAll, /needs clinician editing/);
   assert.match(editor, /const handleGenerate = async \(\) =>/);
   assert.match(editor, /const handleTidy = async \(\) =>/);
   assert.match(editor, /normaliseReportSectionOutput\(response/);

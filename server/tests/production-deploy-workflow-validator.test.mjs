@@ -599,6 +599,19 @@ test('V09b the seeded launch gate rejects the retired unsigned Stripe success pa
   assert.doesNotMatch(gate, /webhook\.status === 200 && roleUnchanged/);
 });
 
+test('V09c candidate publication retries transient registry failures without exposing provider output', () => {
+  const prepare = fs.readFileSync(workflowPath('production-prepare-release.yml'), 'utf8');
+  const publication = prepare.slice(
+    prepare.indexOf('- name: Publish immutable image and seal compatibility bundle'),
+    prepare.indexOf('- name: Upload sealed publication receipt and rollback image data'),
+  );
+  assert.match(publication, /for push_attempt in 1 2 3; do/);
+  assert.match(publication, /sleep "\$\(\(push_attempt \* 5\)\)"/);
+  assert.match(publication, /push_succeeded=1/);
+  assert.match(publication, /Candidate image push failed after three bounded attempts; registry output withheld\./);
+  assert.doesNotMatch(publication, /echo.*\$push_output/);
+});
+
 test('V10 the release filename preflight allows only root .env.example and scans its content', () => {
   const prepare = fs.readFileSync(workflowPath('production-prepare-release.yml'), 'utf8')
     .replaceAll('\r\n', '\n');

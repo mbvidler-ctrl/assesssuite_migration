@@ -98,8 +98,7 @@ export default function SOAPNoteModal({
   careEpisodeId = null,
 }) {
   // Recording and provider-backed transcription remain available in both
-  // clinical targets. The legacy transcript-dissection action is EP-only;
-  // Keep the shared section drafting and transcript-dissection tools available
+  // clinical targets. Keep the shared section drafting and transcript-dissection tools available
   // wherever the profession contract enables general clinical AI. Physio also
   // retains its versioned physio.soap_note.v1 workspace as the structured path.
   const transcription = useAiCapability('transcription');
@@ -149,6 +148,8 @@ export default function SOAPNoteModal({
   const [recordingTime, setRecordingTime] = useState(0);
   const [isSavingAudio, setIsSavingAudio] = useState(false);
   const [showRecordingConsent, setShowRecordingConsent] = useState(false);
+  const [recordingConsentMode, setRecordingConsentMode] = useState('quick');
+  const [isStartingPersistent, setIsStartingPersistent] = useState(false);
   const mediaRecorderRef = useRef(null);
   const audioChunksRef = useRef([]);
   const recordingTimerRef = useRef(null);
@@ -520,6 +521,28 @@ export default function SOAPNoteModal({
   // under the Patient Collection Notice and Consent Pack (policy-suite doc 12).
   const handleConfirmRecording = async () => {
     setShowRecordingConsent(false);
+    if (recordingConsentMode === 'persistent') {
+      setIsStartingPersistent(true);
+      try {
+        await persistentTranscription.start({
+          consentConfirmed: true,
+          clientId: client?.id || null,
+          appointmentId: appointment?.id || null,
+          careEpisodeId: careEpisodeId || null,
+          label: noteName || `${activeProfession.lexicon.client} consultation`,
+        });
+      } catch (error) {
+        toast.error(normalizeSdkError(error, {
+          stage: 'persistent_transcription_start',
+          fallbackDetails: 'Persistent transcription could not start. Check microphone access and try again.',
+        }).details);
+      } finally {
+        setIsStartingPersistent(false);
+        setRecordingConsentMode('quick');
+      }
+      return;
+    }
+    setRecordingConsentMode('quick');
     try {
       await recordLegalEvent({
         eventType: EVENT_TYPES.RECORDING_CONSENT,
@@ -1412,7 +1435,7 @@ export default function SOAPNoteModal({
                     <p className="mt-1 text-xs text-teal-800">It continues outside this window and keeps recoverable audio checkpoints.</p>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {persistentTranscription.session.client_id !== client.id && !['ready', 'discarded'].includes(persistentTranscription.phase) && (
+                    {persistentTranscription.session.client_id !== client.id && (
                       <Button type="button" size="sm" variant="outline" onClick={attachPersistentTranscription}>Attach here</Button>
                     )}
                     {persistentTranscription.session.transcript && (
@@ -1426,28 +1449,46 @@ export default function SOAPNoteModal({
               <div className="flex items-center gap-3">
                 <div className={`w-3 h-3 rounded-full ${isRecording ? 'bg-red-500 animate-pulse' : 'bg-slate-300'}`} />
                 <div>
-                  <h4 className="font-semibold text-slate-900">Session Audio Recording</h4>
+                    <h4 className="font-semibold text-slate-900">Transcription and audio</h4>
                   <p className="text-xs text-slate-600">
                     {isRecording 
                       ? `Recording... ${formatRecordingTime(recordingTime)}`
                       : isSavingAudio
                         ? 'Saving recording...'
-                        : 'Record your session for documentation'}
+                        : 'Use persistent transcription for consultations; quick clips remain available below.'}
                   </p>
                 </div>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
+                {!isLocked && persistentTranscription.phase === 'idle' && (
+                  <Button
+                    type="button"
+                    onClick={() => {
+                      setRecordingConsentMode('persistent');
+                      setShowRecordingConsent(true);
+                    }}
+                    className="bg-teal-700 hover:bg-teal-800"
+                    size="sm"
+                    disabled={isStartingPersistent}
+                  >
+                    {isStartingPersistent ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Mic className="w-4 h-4 mr-2" />}
+                    Start persistent transcription
+                  </Button>
+                )}
                 {!isRecording ? (
                   !isLocked && (
                     <Button
-                      onClick={() => setShowRecordingConsent(true)}
+                      onClick={() => {
+                        setRecordingConsentMode('quick');
+                        setShowRecordingConsent(true);
+                      }}
                       disabled={isSavingAudio || isTranscribing}
                       className="bg-purple-600 hover:bg-purple-700"
                       size="sm"
                     >
                       <Mic className="w-4 h-4 mr-2" />
-                      {isAmending ? 'Add Recording' : 'Record'}
+                      {isAmending ? 'Add quick clip' : 'Quick clip'}
                     </Button>
                   )
                 ) : (
@@ -2176,7 +2217,7 @@ export default function SOAPNoteModal({
       <AlertDialog open={showRecordingConsent} onOpenChange={setShowRecordingConsent}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Session recording consent</AlertDialogTitle>
+            <AlertDialogTitle>{recordingConsentMode === 'persistent' ? 'Persistent transcription consent' : 'Session recording consent'}</AlertDialogTitle>
             <AlertDialogDescription className="space-y-3">
               <p>Before recording this session, confirm:</p>
               <ul className="list-disc pl-5 space-y-1 text-sm">
@@ -2188,8 +2229,8 @@ export default function SOAPNoteModal({
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmRecording} className="bg-purple-600 hover:bg-purple-700">
-              Confirm and start recording
+            <AlertDialogAction onClick={handleConfirmRecording} className={recordingConsentMode === 'persistent' ? 'bg-teal-700 hover:bg-teal-800' : 'bg-purple-600 hover:bg-purple-700'}>
+              {recordingConsentMode === 'persistent' ? 'Confirm and start persistent transcription' : 'Confirm and start recording'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
