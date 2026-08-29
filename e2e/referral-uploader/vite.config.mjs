@@ -8,6 +8,13 @@ const repositoryRoot = path.resolve(import.meta.dirname, '../..');
 export default defineConfig({
   root: repositoryRoot,
   plugins: [react()],
+  // This harness renders shared production components outside either app
+  // shell. Pin the EP identity explicitly so profession-aware imports retain
+  // the same fail-closed build contract as a real bundle.
+  define: {
+    'import.meta.env.VITE_PROFESSION': JSON.stringify('exercise-physiology'),
+    'import.meta.env.VITE_BASE44_APP_ID': JSON.stringify('local-assesssuite'),
+  },
   resolve: {
     alias: [
       {
