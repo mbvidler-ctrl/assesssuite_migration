@@ -178,7 +178,7 @@ jobs:
           merge-multiple: true
           github-token: ${{ github.token }}
 
-      - name: Admit exact absent-state snapshot and source
+      - name: Admit exact release-state snapshot and source
         shell: bash
         env:
           APPLICATION_SHA: ${{ inputs.application_sha }}
@@ -198,30 +198,20 @@ jobs:
           (cd "$RUNNER_TEMP/physio-state-input" && sha256sum --check --strict SHA256SUMS)
           [[ "$(sha256sum "$state" | awk '{print $1}')" == "$STATE_SNAPSHOT_RECEIPT_SHA256" ]]
           STATE="$state" APPLICATION_SHA="$APPLICATION_SHA" node --input-type=module <<'NODE'
-          import { createHash } from 'node:crypto';
           import fs from 'node:fs';
           import path from 'node:path';
+          import { validatePhysioStateSnapshotEvidence } from './scripts/physio-release-contract.mjs';
           const row = JSON.parse(fs.readFileSync(process.env.STATE, 'utf8'));
-          const keys = ['application','authority_reference','capability_intent_id','contract_version','custom_certificate_count','event_sha','expected_state','fly_hostname_precedes_custom_dns','immutable_image','machine_id','observed_at','provider_raw_readback_sha256','provider_state_final_sha256','provider_state_initial_sha256','provider_state_unchanged','result','volume_id'].sort();
           const packet = path.dirname(process.env.STATE);
           const initial = path.join(packet, 'provider-state-initial.json');
           const final = path.join(packet, 'provider-state-final.json');
-          const sha = (file) => createHash('sha256').update(fs.readFileSync(file)).digest('hex');
-          const rawKeys = ['apps_final','apps_initial','certificates_final','certificates_initial',
-            'machines_final','machines_initial','volumes_final','volumes_initial'];
-          if (JSON.stringify(Object.keys(row).sort()) !== JSON.stringify(keys) ||
-              row.contract_version !== 'assesssuite-physio-state-snapshot/2.0.0' || row.result !== 'PASS' ||
-              row.application !== 'assesssuite-physio-production' || row.event_sha !== process.env.APPLICATION_SHA ||
-              row.expected_state !== 'absent' || row.volume_id !== 'NOT-CREATED' ||
-              row.machine_id !== 'NOT-CREATED' || row.immutable_image !== 'NOT-DEPLOYED' ||
-              row.custom_certificate_count !== 0 || row.fly_hostname_precedes_custom_dns !== true ||
-              row.provider_state_unchanged !== true || !fs.existsSync(initial) || !fs.existsSync(final) ||
-              sha(initial) !== row.provider_state_initial_sha256 || sha(final) !== row.provider_state_final_sha256 ||
-              row.provider_state_initial_sha256 !== row.provider_state_final_sha256 ||
-              JSON.stringify(Object.keys(row.provider_raw_readback_sha256 || {}).sort()) !== JSON.stringify(rawKeys) ||
-              Object.values(row.provider_raw_readback_sha256 || {}).some((value) => !/^[0-9a-f]{64}$/.test(value))) {
-            throw new Error('prepare requires the exact read-only absent-state snapshot');
-          }
+          if (!fs.existsSync(initial) || !fs.existsSync(final)) throw new Error('state snapshot provider evidence is missing');
+          validatePhysioStateSnapshotEvidence({
+            receipt: row,
+            initialStateBytes: fs.readFileSync(initial),
+            finalStateBytes: fs.readFileSync(final),
+            applicationSha: process.env.APPLICATION_SHA,
+          });
           NODE
 
       - name: Set up Node.js 24

@@ -971,6 +971,108 @@ export function inspectNoCustomCertificates(certificatesPayload) {
   return inspectCertificateInventory(certificatesPayload, { mode: 'absent' });
 }
 
+function parsePhysioStateSnapshotBytes(value, label) {
+  const bytes = Buffer.isBuffer(value)
+    ? value
+    : (value instanceof Uint8Array ? Buffer.from(value) : null);
+  if (!bytes || bytes.length === 0 || bytes.length > 1_048_576) fail(`${label} bytes differ`);
+  const text = bytes.toString('utf8');
+  if (Buffer.from(text, 'utf8').compare(bytes) !== 0 || text.includes('\r') ||
+      !text.endsWith('\n') || text.endsWith('\n\n')) {
+    fail(`${label} encoding differs`);
+  }
+  try {
+    return { bytes, value: JSON.parse(text) };
+  } catch {
+    fail(`${label} JSON differs`);
+  }
+}
+
+export function validatePhysioStateSnapshotEvidence({
+  receipt,
+  initialStateBytes,
+  finalStateBytes,
+  applicationSha,
+}) {
+  if (!SHA_PATTERN.test(applicationSha || '')) fail('state snapshot application SHA differs');
+  exactKeys(receipt, [
+    'application', 'authority_reference', 'capability_intent_id', 'contract_version',
+    'custom_certificate_count', 'event_sha', 'expected_state', 'fly_hostname_precedes_custom_dns',
+    'immutable_image', 'machine_id', 'observed_at', 'provider_raw_readback_sha256',
+    'provider_state_final_sha256', 'provider_state_initial_sha256', 'provider_state_unchanged',
+    'result', 'volume_id',
+  ], 'state snapshot receipt');
+  const initial = parsePhysioStateSnapshotBytes(initialStateBytes, 'initial provider state');
+  const final = parsePhysioStateSnapshotBytes(finalStateBytes, 'final provider state');
+  const initialSha256 = sha256(initial.bytes);
+  const finalSha256 = sha256(final.bytes);
+  const rawKeys = [
+    'apps_final', 'apps_initial', 'certificates_final', 'certificates_initial',
+    'machines_final', 'machines_initial', 'volumes_final', 'volumes_initial',
+  ];
+  exactKeys(receipt.provider_raw_readback_sha256, rawKeys, 'state snapshot raw-provider hashes');
+  if (receipt.contract_version !== 'assesssuite-physio-state-snapshot/2.0.0' ||
+      receipt.result !== 'PASS' || receipt.application !== PHYSIO_RELEASE_TARGET.app ||
+      receipt.event_sha !== applicationSha || !['absent', 'deployed'].includes(receipt.expected_state) ||
+      receipt.custom_certificate_count !== 0 || receipt.fly_hostname_precedes_custom_dns !== true ||
+      receipt.provider_state_unchanged !== true ||
+      receipt.provider_state_initial_sha256 !== initialSha256 ||
+      receipt.provider_state_final_sha256 !== finalSha256 || initialSha256 !== finalSha256 ||
+      initial.bytes.compare(final.bytes) !== 0 ||
+      Object.values(receipt.provider_raw_readback_sha256).some((value) => !/^[0-9a-f]{64}$/.test(value)) ||
+      !/^[A-Za-z0-9._:-]{1,160}$/.test(receipt.capability_intent_id || '') ||
+      !/^[A-Za-z0-9._:/-]{1,240}$/.test(receipt.authority_reference || '') ||
+      !Number.isFinite(Date.parse(receipt.observed_at || ''))) {
+    fail('state snapshot identity or immutable evidence differs');
+  }
+
+  exactKeys(initial.value, ['application', 'topology', 'certificates'], 'canonical provider state');
+  if (receipt.expected_state === 'absent') {
+    const expected = {
+      application: { mode: 'absent', count: 0 },
+      topology: { mode: 'absent', machineCount: 0, volumeCount: 0 },
+      certificates: { count: 0 },
+    };
+    if (receipt.volume_id !== 'NOT-CREATED' || receipt.machine_id !== 'NOT-CREATED' ||
+        receipt.immutable_image !== 'NOT-DEPLOYED' || canonicalJson(initial.value) !== canonicalJson(expected)) {
+      fail('absent state snapshot topology differs');
+    }
+  } else {
+    exactKeys(initial.value.application, ['mode', 'count'], 'deployed application state');
+    exactKeys(initial.value.topology, [
+      'mode', 'machineCount', 'volumeCount', 'volumeId', 'machineId',
+    ], 'deployed topology state');
+    exactKeys(initial.value.certificates, [
+      'count', 'hostname', 'status', 'dnsProvider', 'challenge', 'configured', 'acmeRequested',
+      'flyManaged', 'customCertificateCount', 'createdAt', 'updatedAt',
+    ], 'deployed certificate state');
+    const certificate = initial.value.certificates;
+    const expectedHostname = new URL(PHYSIO_RELEASE_TARGET.publicHostname).hostname;
+    const createdAtMs = Date.parse(certificate.createdAt || '');
+    const updatedAtMs = Date.parse(certificate.updatedAt || '');
+    if (!/^vol_[A-Za-z0-9]+$/.test(receipt.volume_id || '') ||
+        !/^[0-9a-f]{14,32}$/.test(receipt.machine_id || '') ||
+        !IMAGE_PATTERN.test(receipt.immutable_image || '') ||
+        initial.value.application.mode !== 'present' || initial.value.application.count !== 1 ||
+        initial.value.topology.mode !== 'deployed' || initial.value.topology.machineCount !== 1 ||
+        initial.value.topology.volumeCount !== 1 || initial.value.topology.volumeId !== receipt.volume_id ||
+        initial.value.topology.machineId !== receipt.machine_id || certificate.count !== 1 ||
+        certificate.hostname !== expectedHostname || certificate.status !== 'ready' ||
+        certificate.dnsProvider !== 'godaddy' || certificate.challenge !== 'tls-alpn-01' ||
+        certificate.configured !== true || certificate.acmeRequested !== true ||
+        certificate.flyManaged !== true || certificate.customCertificateCount !== 0 ||
+        !Number.isFinite(createdAtMs) || !Number.isFinite(updatedAtMs) || createdAtMs > updatedAtMs) {
+      fail('deployed state snapshot topology or certificate differs');
+    }
+  }
+  return Object.freeze({
+    expectedState: receipt.expected_state,
+    volumeId: receipt.volume_id,
+    machineId: receipt.machine_id,
+    immutableImage: receipt.immutable_image,
+  });
+}
+
 export function inspectSnapshot({ snapshotsPayload, expectedSnapshotId = '' }) {
   const snapshots = asRows(snapshotsPayload, ['snapshots', 'Snapshots']);
   if (snapshots.length === 0) fail('snapshot inventory is empty');

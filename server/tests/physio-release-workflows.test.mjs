@@ -20,6 +20,7 @@ import {
   inspectSnapshot,
   inspectTopology,
   renderPhysioReleaseCatalogueEnvironment,
+  validatePhysioStateSnapshotEvidence,
   validatePhysioReleaseSource,
   validateRuntimeEvidence,
 } from '../../scripts/physio-release-contract.mjs';
@@ -656,6 +657,112 @@ test('application certificate snapshot and runtime validators fail closed on dri
   }
 });
 
+test('prepare admits exact absent or deployed state snapshots and rejects state drift', () => {
+  const applicationSha = 'a'.repeat(40);
+  const rawHashes = Object.fromEntries([
+    'apps_final', 'apps_initial', 'certificates_final', 'certificates_initial',
+    'machines_final', 'machines_initial', 'volumes_final', 'volumes_initial',
+  ].map((key) => [key, 'b'.repeat(64)]));
+  const bytes = (value) => Buffer.from(`${JSON.stringify(value, null, 2)}\n`, 'utf8');
+  const receipt = (state, providerBytes, overrides = {}) => ({
+    contract_version: 'assesssuite-physio-state-snapshot/2.0.0',
+    result: 'PASS',
+    application: PHYSIO_RELEASE_TARGET.app,
+    event_sha: applicationSha,
+    expected_state: state,
+    volume_id: state === 'absent' ? 'NOT-CREATED' : 'vol_40o2xpn82k5qkmk4',
+    machine_id: state === 'absent' ? 'NOT-CREATED' : '2863214a0d2228',
+    immutable_image: state === 'absent'
+      ? 'NOT-DEPLOYED'
+      : `registry.fly.io/${PHYSIO_RELEASE_TARGET.app}@sha256:${'c'.repeat(64)}`,
+    custom_certificate_count: 0,
+    fly_hostname_precedes_custom_dns: true,
+    provider_state_unchanged: true,
+    provider_state_initial_sha256: createHash('sha256').update(providerBytes).digest('hex'),
+    provider_state_final_sha256: createHash('sha256').update(providerBytes).digest('hex'),
+    provider_raw_readback_sha256: rawHashes,
+    capability_intent_id: 'physio-state-test',
+    authority_reference: 'UM-AUTO-PHYSIO/state-test',
+    observed_at: '2026-08-29T15:48:31.997Z',
+    ...overrides,
+  });
+  const absentState = bytes({
+    application: { mode: 'absent', count: 0 },
+    topology: { mode: 'absent', machineCount: 0, volumeCount: 0 },
+    certificates: { count: 0 },
+  });
+  const deployedProvider = {
+    application: { mode: 'present', count: 1 },
+    topology: {
+      mode: 'deployed', machineCount: 1, volumeCount: 1,
+      volumeId: 'vol_40o2xpn82k5qkmk4', machineId: '2863214a0d2228',
+    },
+    certificates: {
+      count: 1,
+      hostname: 'physio.app.assesssuite.com',
+      status: 'ready',
+      dnsProvider: 'godaddy',
+      challenge: 'tls-alpn-01',
+      configured: true,
+      acmeRequested: true,
+      flyManaged: true,
+      customCertificateCount: 0,
+      createdAt: '2026-08-25T02:45:44.06Z',
+      updatedAt: '2026-08-25T03:09:55.13Z',
+    },
+  };
+  const deployedState = bytes(deployedProvider);
+  assert.deepEqual(validatePhysioStateSnapshotEvidence({
+    receipt: receipt('absent', absentState),
+    initialStateBytes: absentState,
+    finalStateBytes: absentState,
+    applicationSha,
+  }), {
+    expectedState: 'absent', volumeId: 'NOT-CREATED', machineId: 'NOT-CREATED', immutableImage: 'NOT-DEPLOYED',
+  });
+  assert.deepEqual(validatePhysioStateSnapshotEvidence({
+    receipt: receipt('deployed', deployedState),
+    initialStateBytes: deployedState,
+    finalStateBytes: deployedState,
+    applicationSha,
+  }), {
+    expectedState: 'deployed',
+    volumeId: 'vol_40o2xpn82k5qkmk4',
+    machineId: '2863214a0d2228',
+    immutableImage: `registry.fly.io/${PHYSIO_RELEASE_TARGET.app}@sha256:${'c'.repeat(64)}`,
+  });
+
+  const mutationCases = [
+    { receipt: receipt('bootstrapped', absentState) },
+    { receipt: receipt('deployed', deployedState, { volume_id: 'vol_wrong' }) },
+    { receipt: receipt('deployed', deployedState, { immutable_image: 'NOT-DEPLOYED' }) },
+    { receipt: receipt('deployed', deployedState, { unexpected: true }) },
+  ];
+  for (const input of mutationCases) {
+    assert.throws(() => validatePhysioStateSnapshotEvidence({
+      receipt: input.receipt,
+      initialStateBytes: input.receipt.expected_state === 'deployed' ? deployedState : absentState,
+      finalStateBytes: input.receipt.expected_state === 'deployed' ? deployedState : absentState,
+      applicationSha,
+    }), /Physio release contract/);
+  }
+  const wrongHost = structuredClone(deployedProvider);
+  wrongHost.certificates.hostname = 'other.example.com';
+  const wrongHostBytes = bytes(wrongHost);
+  assert.throws(() => validatePhysioStateSnapshotEvidence({
+    receipt: receipt('deployed', wrongHostBytes),
+    initialStateBytes: wrongHostBytes,
+    finalStateBytes: wrongHostBytes,
+    applicationSha,
+  }), /topology or certificate differs/);
+  assert.throws(() => validatePhysioStateSnapshotEvidence({
+    receipt: receipt('deployed', deployedState),
+    initialStateBytes: deployedState,
+    finalStateBytes: bytes({ ...deployedProvider, unexpected: true }),
+    applicationSha,
+  }), /immutable evidence differs/);
+});
+
 test('all Physio release workflows are manual SHA-pinned isolated and certificate-bounded', () => {
   assert.deepEqual(
     fs.readdirSync(workflowDirectory).filter((name) => name.startsWith('physio-production-')).sort(),
@@ -880,7 +987,7 @@ test('prepare gates EP and Physio then seals one local candidate and same-build 
   const source = workflow('physio-production-prepare-release.yml');
   assert.match(source, /gates:\n    name:[^\n]+\n    runs-on: ubuntu-24\.04\n    environment: physio-production\n    timeout-minutes: 90/);
   assertInOrder(source, [
-    'Admit exact absent-state snapshot and source',
+    'Admit exact release-state snapshot and source',
     'npm run lint',
     'npm run typecheck',
     'npm run build:platform',
@@ -894,6 +1001,7 @@ test('prepare gates EP and Physio then seals one local candidate and same-build 
     'Upload immutable candidate archive',
   ]);
   assert.match(source, /assesssuite-physio-candidate-build\/3\.0\.0/);
+  assert.match(source, /validatePhysioStateSnapshotEvidence/);
   assert.match(source, /assesssuite-physio-sentry-release\/1\.0\.0/);
   assert.match(source, /same_build_source_maps_verified: true/);
   assert.match(source, /oci_descriptor_manifest_sha256:/);
