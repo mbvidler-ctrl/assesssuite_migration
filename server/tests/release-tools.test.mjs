@@ -124,6 +124,7 @@ test('T03 production secret preflight is sealed to the exact production app befo
   assert.match(source, /LEGAL_COMPATIBILITY_ACCEPTED_VERSIONS/);
   assert.match(source, /OPENAI_DOCUMENT_EXTRACTION_MODEL/);
   assert.match(source, /ASSESSSUITE_DASHBOARD_METRICS_TOKEN/);
+  assert.match(source, /ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY/);
 });
 
 test('T03b direct local production deployment is fail-closed in favour of the trusted workflow', () => {

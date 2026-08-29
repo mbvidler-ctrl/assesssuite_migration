@@ -74,20 +74,20 @@ test('owner-managed Halaxy credentials are encrypted, non-readable and removable
           configuration: {
             region: 'au',
             client_id: 'halaxy-client-9876',
-            client_secret: 'halaxy-secret-never-return',
+            client_secret: 'test-halaxy-secret-never-return',
             settings: { import_patients: true, export_patients: true },
           },
         });
         assert.equal(saved.status, 200, saved.text);
         assert.equal(saved.body.connector.status, 'configured');
         assert.equal(saved.body.connector.credential_hint, '••••9876');
-        assert.doesNotMatch(saved.text, /halaxy-secret-never-return|halaxy-client-9876/);
+        assert.doesNotMatch(saved.text, /test-halaxy-secret-never-return|halaxy-client-9876/);
 
         const listed = await invoke(server, ownerToken, { action: 'list' });
         assert.equal(listed.status, 200, listed.text);
         assert.equal(listed.body.connectors[0].settings.export_patients, true);
         assert.ok(listed.body.events.some((event) => event.event_type === 'configured'));
-        assert.doesNotMatch(listed.text, /halaxy-secret-never-return|halaxy-client-9876/);
+        assert.doesNotMatch(listed.text, /test-halaxy-secret-never-return|halaxy-client-9876/);
 
         const adminAttempt = await invoke(server, adminToken, {
           action: 'save', provider_id: 'halaxy', configuration: {},

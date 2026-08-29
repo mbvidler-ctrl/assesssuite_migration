@@ -179,7 +179,7 @@ function assertIsolatedRestoreVerifierBlock(source, { imageVariable, role }) {
     assert.match(source, new RegExp(`--env '${name}=0'`));
   }
   for (const name of [
-    'ADMIN_PASSWORD', 'OPENAI_API_KEY', 'RESEND_API_KEY', 'SENTRY_DSN',
+    'ADMIN_PASSWORD', 'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY', 'OPENAI_API_KEY', 'RESEND_API_KEY', 'SENTRY_DSN',
     'STRIPE_SECRET_KEY', 'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY',
     'STRIPE_PRICE_ID_ANNUAL', 'OPENAI_CHAT_TEST_BASE_URL', 'OPENAI_CHAT_TEST_TIMEOUT_MS',
     'DOCUMENT_EXTRACTION_TEST_BASE_URL', 'DOCUMENT_EXTRACTION_PROVIDER_PROBE_ACK',
@@ -1400,7 +1400,9 @@ test('R1 comparison deployment is immutable, snapshot-isolated, fully tested and
   assert.match(source, /R1_FOUNDATION_SHA: d17eac5627ed104bdb6cc79007c6c5e83df3fe11/);
   assert.match(source, /R1_ORIGIN_FIX_SHA: 2f0f3946c1a0f57d31f0f97fe04aed03e3a210fe/);
   assert.match(source, /R1_RUNTIME_FIX_SHA: 073d1914c8696a6fa4357752c1d30f670e4dc761/);
-  assert.match(source, /R1_COMPARISON_SHA: 8237e6518bd739db24711e1d4ee70b3e4c3f9d36/);
+  assert.match(source, /R1_PRE_STAGE2_SHA: 8237e6518bd739db24711e1d4ee70b3e4c3f9d36/);
+  assert.match(source, /R1_STAGE2_FOUNDATION_SHA: 68f277e6511440232ed299402cc42c598110ca65/);
+  assert.match(source, /R1_COMPARISON_SHA: 553b6ea49628d6e434eb852f61ce20c353d77eec/);
   assert.match(source, /R1_SNAPSHOT_ID: vs_MaPo8mb2XbOzhakmXG2N4Az/);
   assert.match(source, /R1_SNAPSHOT_DIGEST: aa46c34a166bf663693dcbdba39757528400458febecc591875366d6ab252114/);
   assert.match(source, /R1_VOLUME_ID: vol_vgn67klw1jq1km04/);
@@ -1408,7 +1410,8 @@ test('R1 comparison deployment is immutable, snapshot-isolated, fully tested and
   assert.match(source, /R1_CATALOGUE_COUNT: "236"/);
   assert.match(source, /R1_CATALOGUE_CHECKSUM: c39fd9e75054857d7f642c8fc2210446781d247e44c751b04499db749bfaa56f/);
   assert.match(source, /ref: \$\{\{ env\.R1_COMPARISON_SHA \}\}/);
-  assert.match(source, /git rev-parse HEAD\^\^\^\^/);
+  assert.match(source, /git rev-parse HEAD\^\^\^\^\^\^/);
+  assert.match(source, /ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY/);
   assert.match(source, /secrets\.FLY_API_TOKEN_R1/);
   assert.match(source, /npm audit --audit-level=high/);
   assert.match(source, /npm run test:physio/);

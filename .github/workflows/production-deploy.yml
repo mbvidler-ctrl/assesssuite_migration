@@ -138,7 +138,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          EXPECTED_TRUSTED_VALIDATOR_SHA256: 72ec047e340dc3ad0af288c9487dbccf2f73183e6853e88b6f4746800ab1be96
+          EXPECTED_TRUSTED_VALIDATOR_SHA256: 836397764f1d94e80e9a075fbb2790424fcc3ba5c17e11480e408885e7b245d7
           TRUSTED_WORKFLOW_SHA: ${{ inputs.trusted_workflow_sha }}
           APPLICATION_SHA: ${{ inputs.application_sha }}
           CANDIDATE_CONFIG_SHA256: ${{ inputs.candidate_config_sha256 }}
@@ -1386,6 +1386,7 @@ jobs:
             'ADMIN_PASSWORD', 'APP_URL', 'RESEND_API_KEY', 'STRIPE_SECRET_KEY',
             'STRIPE_WEBHOOK_SECRET', 'STRIPE_PRICE_ID_MONTHLY', 'STRIPE_PRICE_ID_ANNUAL',
             'OPENAI_API_KEY', 'SENTRY_DSN', 'ASSESSSUITE_DASHBOARD_METRICS_TOKEN',
+            'ASSESSSUITE_INTEGRATION_ENCRYPTION_KEY',
           ];
           const observed = JSON.stringify([...names].sort());
           let boundaryState;
@@ -1411,7 +1412,7 @@ jobs:
             if (observed !== JSON.stringify([...required].sort())) {
               throw new Error('Production secret-name allowlist differs for forbid mode');
             }
-            boundaryState = 'exact-ten';
+            boundaryState = 'exact-eleven';
           }
           fs.writeFileSync(process.env.BOUNDARY_STATE_PATH, `${boundaryState}\n`, { encoding: 'utf8', mode: 0o600 });
           process.stdout.write(
