@@ -609,6 +609,19 @@ function arraysEqual(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+export function sanitizedChildCanaryFailure(stderr, command, code) {
+  const matches = [...String(stderr || '').matchAll(
+    /^Physio exact-image canary producer failed: (physio_canary_[a-z0-9_]{1,160})\r?$/gm,
+  )];
+  if (matches.length === 1) return matches[0][1];
+  const safeCommand = String(command || 'command').toLowerCase().replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '').slice(0, 80) || 'command';
+  const safeCode = Number.isSafeInteger(code) && code >= 0 && code <= 255
+    ? String(code)
+    : 'signal';
+  return `physio_canary_command_failed_${safeCommand}_${safeCode}`;
+}
+
 async function runProcess(command, args, { timeoutMs = 120_000, allowFailure = false } = {}) {
   return new Promise((resolve, reject) => {
     const child = spawn(command, args, {
@@ -635,8 +648,9 @@ async function runProcess(command, args, { timeoutMs = 120_000, allowFailure = f
       clearTimeout(timer);
       if (code !== 0 && !allowFailure) {
         // Do not include Fly/provider stderr: it may contain control-plane
-        // details. The stage-specific error code is sufficient for resumption.
-        const error = new Error(`physio_canary_command_failed_${command}_${code ?? 'signal'}`);
+        // details. Admit only the child's one bounded canary error code; if it
+        // is absent or ambiguous, retain the stage-level command code.
+        const error = new Error(sanitizedChildCanaryFailure(stderr, command, code));
         Object.defineProperties(error, {
           physioProcessExitCode: {
             value: Number.isSafeInteger(code) && code >= 0 && code <= 255 ? code : 1,
@@ -2236,6 +2250,7 @@ export async function produceLocalPhysioExactImageCanary({
       'audio_fixture_inside_image_differs');
     const environment = [
       'OPENAI_API_KEY',
+      'NODE_NO_WARNINGS=1',
       'NODE_ENV=production',
       'SELFTEST=0',
       'PARITY_ASSURANCE_MODE=0',
@@ -2488,8 +2503,11 @@ if (isMainModule()) {
     // Preflight/ledger-publication failures occur before provider replay or
     // preserve an existing no-overwrite ledger. Keep their outer process
     // failure deterministic and content-free as well.
+    const errorCode = /^physio_canary_[a-z0-9_]{1,160}$/.test(error?.message || '')
+      ? error.message
+      : 'physio_canary_control_failure';
     process.stdout.write('');
-    process.stderr.write('Physio exact-image canary producer failed: physio_canary_control_failure\n');
+    process.stderr.write(`Physio exact-image canary producer failed: ${errorCode}\n`);
     process.exitCode = 1;
   }
 }
