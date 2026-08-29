@@ -25,7 +25,8 @@ jobs:
       APP: assesssuite-physio-r1
       APP_URL: https://assesssuite-physio-r1.fly.dev
       R1_BASELINE_SHA: ba47570e3c09279cedb1ee37c9dfa374b6cba178
-      R1_COMPARISON_SHA: d17eac5627ed104bdb6cc79007c6c5e83df3fe11
+      R1_FOUNDATION_SHA: d17eac5627ed104bdb6cc79007c6c5e83df3fe11
+      R1_COMPARISON_SHA: 2f0f3946c1a0f57d31f0f97fe04aed03e3a210fe
       R1_SNAPSHOT_ID: vs_MaPo8mb2XbOzhakmXG2N4Az
       R1_SNAPSHOT_DIGEST: aa46c34a166bf663693dcbdba39757528400458febecc591875366d6ab252114
       R1_VOLUME_ID: vol_vgn67klw1jq1km04
@@ -52,6 +53,7 @@ jobs:
             [[ -n "${!name:-}" ]]
           done
           [[ "$R1_BASELINE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$R1_FOUNDATION_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_COMPARISON_SHA" =~ ^[0-9a-f]{40}$ ]]
           [[ "$R1_SNAPSHOT_ID" =~ ^vs_[A-Za-z0-9]+$ ]]
           [[ "$R1_SNAPSHOT_DIGEST" =~ ^[0-9a-f]{64}$ ]]
@@ -70,7 +72,8 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$(git rev-parse HEAD)" == "$R1_COMPARISON_SHA" ]]
-          [[ "$(git rev-parse HEAD^)" == "$R1_BASELINE_SHA" ]]
+          [[ "$(git rev-parse HEAD^)" == "$R1_FOUNDATION_SHA" ]]
+          [[ "$(git rev-parse HEAD^^)" == "$R1_BASELINE_SHA" ]]
           actual="$RUNNER_TEMP/r1-changed-files.txt"
           expected="$RUNNER_TEMP/r1-expected-files.txt"
           git diff --name-only "$R1_BASELINE_SHA..$R1_COMPARISON_SHA" | LC_ALL=C sort >"$actual"
@@ -81,6 +84,7 @@ jobs:
           package-lock.json
           package.json
           scripts/provision-physio-r1-comparison-access.mjs
+          server/productionBootstrap.mjs
           server/productionPosture.mjs
           server/publicRequestOrigin.mjs
           server/tests/assessment-runner-registry.test.mjs
@@ -88,6 +92,7 @@ jobs:
           server/tests/physio-public-entry.test.mjs
           server/tests/physio-r1-comparison-access.test.mjs
           server/tests/physio-r1-comparison-contract.test.mjs
+          server/tests/production-startup.test.mjs
           server/tests/public-request-origin.test.mjs
           src/components/assessments/AssessmentCard.jsx
           src/components/assessments/AssessmentLibraryModal.jsx
@@ -273,6 +278,7 @@ jobs:
             --arg application "$APP" \
             --arg application_sha "$R1_COMPARISON_SHA" \
             --arg baseline_sha "$R1_BASELINE_SHA" \
+            --arg foundation_sha "$R1_FOUNDATION_SHA" \
             --arg snapshot_id "$R1_SNAPSHOT_ID" \
             --arg snapshot_digest "$R1_SNAPSHOT_DIGEST" \
             --arg volume_id "$R1_VOLUME_ID" \
@@ -285,6 +291,7 @@ jobs:
               application: $application,
               application_sha: $application_sha,
               baseline_sha: $baseline_sha,
+              foundation_sha: $foundation_sha,
               source_snapshot_id: $snapshot_id,
               source_snapshot_digest: $snapshot_digest,
               isolated_volume_id: $volume_id,
