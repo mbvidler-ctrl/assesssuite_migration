@@ -201,6 +201,7 @@ jobs:
           set -euo pipefail
           built_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           flyctl deploy --app "$APP" --config fly.physio.r1-comparison.toml --remote-only --yes \
+            --label "ASSESSSUITE_SOURCE_SHA=$R1_COMPARISON_SHA" \
             --build-arg "RELEASE_SHA=$R1_COMPARISON_SHA" \
             --build-arg "SOURCE_BRANCH=mission/physio-r1-comparison-20260829" \
             --build-arg "BUILD_TIMESTAMP=$built_at" \
@@ -237,7 +238,7 @@ jobs:
           jq -e --arg sha "$R1_COMPARISON_SHA" --arg volume "$R1_VOLUME_ID" '
             .Deployed == true and
             ([.Machines[] | select(.state == "started")] | length) == 1 and
-            .Machines[0].image_ref.labels.GH_SHA == $sha and
+            .Machines[0].image_ref.labels.ASSESSSUITE_SOURCE_SHA == $sha and
             .Machines[0].config.mounts[0].volume == $volume
           ' r1-fly-status.json >/dev/null
 
