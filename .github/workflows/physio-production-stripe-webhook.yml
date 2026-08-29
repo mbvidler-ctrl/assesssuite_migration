@@ -1906,6 +1906,9 @@ jobs:
           COMPENSATION_ARTIFACT_DIGEST: ${{ needs.compensate.outputs.compensation_artifact_digest }}
           COMPENSATION_CONTROL_RECEIPT_SHA256: ${{ needs.compensate.outputs.compensation_control_receipt_sha256 }}
           COMPENSATION_EFFECT_IDENTITY_SHA256: ${{ needs.compensate.outputs.compensation_effect_identity_sha256 }}
+          STARTED_RECEIPT_SHA256: ${{ needs.start.outputs.started_receipt_sha256 }}
+          STARTED_REQUEST_SHA256: ${{ needs.start.outputs.request_sha256 }}
+          ORPHAN_ENDPOINT_COMPENSATED: ${{ needs.compensate.outputs.orphan_endpoint_compensated }}
         run: |
           set -euo pipefail
           set +x
@@ -1931,7 +1934,7 @@ jobs:
           [[ "$started_files" == "$expected" || "$started_files" == "$expected_compensation" ]]
           if find "$started" -type l -print -quit | grep -q .; then exit 1; fi
           (cd "$started" && sha256sum --check --strict SHA256SUMS)
-          [[ "$(sha256sum "$started/stripe-webhook-effect-reconciliation.json" | awk '{print $1}')" == '${{ needs.start.outputs.started_receipt_sha256 }}' ]]
+          [[ "$(sha256sum "$started/stripe-webhook-effect-reconciliation.json" | awk '{print $1}')" == "$STARTED_RECEIPT_SHA256" ]]
           install -m 0600 "$started/stripe-webhook-effect-reconciliation.json" "$reconciliation"
           install -m 0600 "$started/stripe-webhook-effect-identity.json" "$packet/stripe-webhook-effect-identity.json"
           install -m 0600 "$started/stripe-webhook-request-manifest.json" "$request_manifest"
@@ -1985,7 +1988,7 @@ jobs:
             echo 'current idempotency_key_sha256 equals prior_idempotency_key_sha256' >&2
             exit 1
           fi
-          [[ "$request_sha256" == '${{ needs.start.outputs.request_sha256 }}' ]]
+          [[ "$request_sha256" == "$STARTED_REQUEST_SHA256" ]]
           [[ "$PROVIDER_PLAN_ARTIFACT_ID" =~ ^[1-9][0-9]*$ && "$PROVIDER_PLAN_ARTIFACT_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]
           [[ "$(sha256sum "$provider_plan" | awk '{print $1}')" == "$PROVIDER_PLAN_RECEIPT_SHA256" ]]
           RECONCILIATION="$reconciliation" APPLICATION_SHA="$APPLICATION_SHA" BOOTSTRAP_SHA="$BOOTSTRAP_RECEIPT_SHA256" \
@@ -1998,7 +2001,7 @@ jobs:
           PRIOR_ARTIFACT_ADMISSION_SHA="$prior_artifact_admission_sha256" \
           PREDECESSOR_CONTROL_SHA="$predecessor_control_receipt_sha256" \
           PREDECESSOR_CONTROL_KIND="$predecessor_control_kind" \
-          STARTED_RECEIPT_SHA='${{ needs.start.outputs.started_receipt_sha256 }}' \
+          STARTED_RECEIPT_SHA="$STARTED_RECEIPT_SHA256" \
           env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
           import fs from 'node:fs';
           const row = JSON.parse(fs.readFileSync(process.env.RECONCILIATION, 'utf8'));
@@ -2132,7 +2135,7 @@ jobs:
           IFS=$'\t' read -r prior_endpoint_id observed_endpoint_lineage < <(LIST="$work/stripe-endpoints-before.raw.json" \
             SANITIZED="$packet/stripe-endpoints-before.json" ENDPOINT="$endpoint" REQUEST="$request_manifest" \
             PLAN="$provider_plan" RESUME_ID="$RESUME_ARTIFACT_ID" PRIOR_PACKET="$RUNNER_TEMP/resume" \
-            COMPENSATED='${{ needs.compensate.outputs.orphan_endpoint_compensated }}' \
+            COMPENSATED="$ORPHAN_ENDPOINT_COMPENSATED" \
             env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
           import fs from 'node:fs';
           import { classifyStripeWebhookEndpointLineage } from './scripts/physio-stripe-webhook-evidence.mjs';
@@ -2185,7 +2188,7 @@ jobs:
           NODE
           )
           PLAN="$provider_plan" OBSERVED_ID="$prior_endpoint_id" OBSERVED_LINEAGE="$observed_endpoint_lineage" \
-          COMPENSATED='${{ needs.compensate.outputs.orphan_endpoint_compensated }}' \
+          COMPENSATED="$ORPHAN_ENDPOINT_COMPENSATED" \
           env -u STRIPE_SECRET_KEY -u FLY_API_TOKEN node --input-type=module <<'NODE'
           import { createHash } from 'node:crypto';
           import fs from 'node:fs';
@@ -2218,7 +2221,7 @@ jobs:
           }
           NODE
           reconciled_existing=false
-          orphan_endpoint_compensated='${{ needs.compensate.outputs.orphan_endpoint_compensated }}'
+          orphan_endpoint_compensated="$ORPHAN_ENDPOINT_COMPENSATED"
           [[ "$observed_endpoint_lineage" == 'NONE' && "$prior_endpoint_id" == 'ABSENT' ]]
 
           if [[ "$reconciled_existing" == 'false' ]]; then
