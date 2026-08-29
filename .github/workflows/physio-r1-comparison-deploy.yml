@@ -104,6 +104,13 @@ jobs:
 
       - name: Prove complete R1 assessment and application test surface
         shell: bash
+        env:
+          # Test the immutable source in its deterministic, provider-neutral posture.
+          # Real provider credentials remain available to the later staging and deploy
+          # steps, but must not leak into unit-test expectations.
+          OPENAI_API_KEY: ""
+          RESEND_API_KEY: ""
+          SENTRY_DSN: ""
         run: |
           set -euo pipefail
           npm ci
@@ -111,9 +118,11 @@ jobs:
           npm run flags:check
           npm run typecheck
           npm run lint
+          # Several production-artifact and runtime-closure contracts intentionally
+          # inspect dist, so build it before running the complete Physio suite.
+          npm run build:physio
           npm run test:physio
           npm run test:physio-offline-journey
-          npm run build:physio
 
       - name: Install checksum-verified Fly CLI 0.4.71
         shell: bash
