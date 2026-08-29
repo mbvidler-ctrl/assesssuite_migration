@@ -17,6 +17,66 @@ export const PARITY_ASSURANCE_DB_PATH = '/app/server/data/assesssuite-parity.db'
 export const SESSION_ABSOLUTE_TTL_MS = 8 * 60 * 60 * 1000;
 export const SESSION_MAX_CONCURRENT_PER_USER = 8;
 
+export const ORGANIZATION_ACCESS_SCHEMA_VERSION = 1;
+export const ORGANIZATION_ACCESS_SCHEMA_SQL = `
+  CREATE TABLE IF NOT EXISTS organization_invitation (
+    id TEXT PRIMARY KEY,
+    org_id TEXT NOT NULL,
+    email TEXT NOT NULL COLLATE NOCASE,
+    role TEXT NOT NULL CHECK (role IN ('owner', 'admin', 'clinician')),
+    token_hash TEXT UNIQUE CHECK (
+      token_hash IS NULL OR (
+        length(token_hash) = 64 AND token_hash NOT GLOB '*[^0-9a-f]*'
+      )
+    ),
+    status TEXT NOT NULL CHECK (status IN ('pending', 'accepted', 'revoked', 'expired')),
+    invited_by_user_id TEXT NOT NULL,
+    invited_by_email TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    sent_at TEXT,
+    expires_at TEXT NOT NULL,
+    accepted_at TEXT,
+    revoked_at TEXT,
+    provider_message_id TEXT
+  );
+
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_organization_invitation_pending_email
+    ON organization_invitation (org_id, lower(email))
+    WHERE status = 'pending';
+  CREATE INDEX IF NOT EXISTS idx_organization_invitation_token
+    ON organization_invitation (token_hash)
+    WHERE token_hash IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_organization_invitation_org_created
+    ON organization_invitation (org_id, created_at DESC);
+
+  CREATE TABLE IF NOT EXISTS organization_access_event (
+    id TEXT PRIMARY KEY,
+    org_id TEXT NOT NULL,
+    event_type TEXT NOT NULL CHECK (event_type IN (
+      'invitation_sent',
+      'invitation_resent',
+      'invitation_revoked',
+      'invitation_accepted',
+      'member_suspended',
+      'member_reinstated',
+      'member_role_changed',
+      'owner_provisioned'
+    )),
+    actor_user_id TEXT,
+    actor_email TEXT,
+    subject_user_id TEXT,
+    subject_email TEXT NOT NULL,
+    invitation_id TEXT,
+    prior_role TEXT,
+    next_role TEXT,
+    created_at TEXT NOT NULL,
+    metadata_json TEXT NOT NULL DEFAULT '{}'
+  );
+
+  CREATE INDEX IF NOT EXISTS idx_organization_access_event_org_created
+    ON organization_access_event (org_id, created_at DESC, id DESC);
+`;
+
 export const STRIPE_WEBHOOK_EVENT_SCHEMA_VERSION = 1;
 export const STRIPE_WEBHOOK_EVENT_SCHEMA_SQL = `
   CREATE TABLE IF NOT EXISTS stripe_webhook_event (
@@ -795,6 +855,12 @@ export function openDatabase() {
       ON referral_commit_receipt (org_id, created_at);
   `);
 
+  // Invitation tokens and access-history records are private control-plane
+  // state. They intentionally sit outside the generic Base44 entity API so a
+  // clinician cannot enumerate invitations, token hashes, or access events by
+  // querying an otherwise tenant-scoped entity collection.
+  db.exec(ORGANIZATION_ACCESS_SCHEMA_SQL);
+
   // Paid-provider usage is deliberately outside the generic entity API. The
   // additive startup migration is rollback compatible: older application
   // images ignore this table, while every current startup idempotently
@@ -1465,6 +1531,178 @@ function rowToRecord(row) {
     created_by: row.created_by,
     ...payload,
   };
+}
+
+function invitationFromRow(row) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    orgId: row.org_id,
+    email: row.email,
+    role: row.role,
+    tokenHash: row.token_hash,
+    status: row.status,
+    invitedByUserId: row.invited_by_user_id,
+    invitedByEmail: row.invited_by_email,
+    createdAt: row.created_at,
+    sentAt: row.sent_at,
+    expiresAt: row.expires_at,
+    acceptedAt: row.accepted_at,
+    revokedAt: row.revoked_at,
+    providerMessageId: row.provider_message_id,
+  };
+}
+
+function accessEventFromRow(row) {
+  if (!row) return null;
+  let metadata = {};
+  try {
+    metadata = JSON.parse(row.metadata_json || '{}');
+  } catch {
+    metadata = {};
+  }
+  return {
+    id: row.id,
+    orgId: row.org_id,
+    eventType: row.event_type,
+    actorUserId: row.actor_user_id,
+    actorEmail: row.actor_email,
+    subjectUserId: row.subject_user_id,
+    subjectEmail: row.subject_email,
+    invitationId: row.invitation_id,
+    priorRole: row.prior_role,
+    nextRole: row.next_role,
+    createdAt: row.created_at,
+    metadata,
+  };
+}
+
+/**
+ * Private organisation-access ledger. The invitation bearer hash never enters
+ * a generic entity record and is omitted by every public presentation helper.
+ */
+export function createOrganizationAccessRepository(db) {
+  const invitationById = db.prepare('SELECT * FROM organization_invitation WHERE id = ?');
+  const invitationByHash = db.prepare(
+    "SELECT * FROM organization_invitation WHERE token_hash = ? AND status = 'pending'",
+  );
+  const invitationsForOrg = db.prepare(
+    'SELECT * FROM organization_invitation WHERE org_id = ? ORDER BY created_at DESC, id DESC',
+  );
+  const pendingForEmail = db.prepare(`
+    SELECT * FROM organization_invitation
+    WHERE org_id = ? AND lower(email) = lower(?) AND status = 'pending'
+  `);
+  const insertInvitation = db.prepare(`
+    INSERT INTO organization_invitation (
+      id, org_id, email, role, token_hash, status,
+      invited_by_user_id, invited_by_email, created_at, sent_at, expires_at,
+      accepted_at, revoked_at, provider_message_id
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+  const removeInvitationStatement = db.prepare('DELETE FROM organization_invitation WHERE id = ?');
+  const eventsForOrg = db.prepare(`
+    SELECT * FROM organization_access_event
+    WHERE org_id = ?
+    ORDER BY created_at DESC, id DESC
+    LIMIT ?
+  `);
+  const insertEvent = db.prepare(`
+    INSERT INTO organization_access_event (
+      id, org_id, event_type, actor_user_id, actor_email, subject_user_id,
+      subject_email, invitation_id, prior_role, next_role, created_at, metadata_json
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `);
+
+  function getInvitationById(id) {
+    return invitationFromRow(invitationById.get(id));
+  }
+
+  function findInvitationByTokenHash(tokenHash) {
+    return invitationFromRow(invitationByHash.get(tokenHash));
+  }
+
+  function findPendingInvitation(orgId, email) {
+    return invitationFromRow(pendingForEmail.get(orgId, email));
+  }
+
+  function listInvitations(orgId) {
+    return invitationsForOrg.all(orgId).map(invitationFromRow);
+  }
+
+  function createInvitation(input) {
+    const id = input.id || randomUUID();
+    insertInvitation.run(
+      id,
+      input.orgId,
+      input.email,
+      input.role,
+      input.tokenHash,
+      input.status || 'pending',
+      input.invitedByUserId,
+      input.invitedByEmail,
+      input.createdAt,
+      input.sentAt ?? null,
+      input.expiresAt,
+      input.acceptedAt ?? null,
+      input.revokedAt ?? null,
+      input.providerMessageId ?? null,
+    );
+    return getInvitationById(id);
+  }
+
+  function updateInvitation(id, patch = {}) {
+    const allowed = new Set([
+      'role', 'token_hash', 'status', 'sent_at', 'expires_at',
+      'accepted_at', 'revoked_at', 'provider_message_id',
+    ]);
+    const entries = Object.entries(patch).filter(([field]) => allowed.has(field));
+    if (entries.length === 0) return getInvitationById(id);
+    const columns = entries.map(([field]) => `${field} = ?`).join(', ');
+    const result = db.prepare(`UPDATE organization_invitation SET ${columns} WHERE id = ?`)
+      .run(...entries.map(([, value]) => value ?? null), id);
+    return Number(result.changes || 0) === 1 ? getInvitationById(id) : null;
+  }
+
+  function removeInvitation(id) {
+    return Number(removeInvitationStatement.run(id).changes || 0) === 1;
+  }
+
+  function recordEvent(input) {
+    const id = input.id || randomUUID();
+    insertEvent.run(
+      id,
+      input.orgId,
+      input.eventType,
+      input.actorUserId ?? null,
+      input.actorEmail ?? null,
+      input.subjectUserId ?? null,
+      input.subjectEmail,
+      input.invitationId ?? null,
+      input.priorRole ?? null,
+      input.nextRole ?? null,
+      input.createdAt,
+      JSON.stringify(input.metadata || {}),
+    );
+    return id;
+  }
+
+  function listEvents(orgId, limit = 100) {
+    const safeLimit = Number.isSafeInteger(limit) && limit > 0 && limit <= 250 ? limit : 100;
+    return eventsForOrg.all(orgId, safeLimit).map(accessEventFromRow);
+  }
+
+  return Object.freeze({
+    createInvitation,
+    findInvitationByTokenHash,
+    findPendingInvitation,
+    getInvitationById,
+    listEvents,
+    listInvitations,
+    recordEvent,
+    removeInvitation,
+    updateInvitation,
+  });
 }
 
 /**

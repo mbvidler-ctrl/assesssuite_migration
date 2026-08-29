@@ -51,9 +51,10 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  REFERRAL_PROCESSING_ATTESTATION,
   REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
   REFERRAL_SUBJECT_AGE_CONFIRMATION,
+  REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13,
+  referralProcessingAttestation,
   resolveReferralOrganization,
 } from '@/lib/referralWorkflow';
 import { REFERRAL_EXTRACTION_SCHEMA } from '@/lib/referralExtractionSchema';
@@ -73,6 +74,7 @@ import { selectedOrganizationLegalAcceptanceStatus } from '@/lib/legal/acceptanc
 import { SUITE_VERSION } from '@/lib/legal/documentRegistry';
 import { loadLegalContent } from '@/lib/legal/loadContent';
 import { normalizeSdkError, sdkErrorLogMetadata } from '@/lib/sdkError';
+import { buildTimeProfession as activeProfession } from '@/lib/profession';
 
 // The shared JavaScript UI primitives intentionally live outside checkJs and
 // therefore expose incomplete inferred prop types. Keep that typing boundary
@@ -132,6 +134,9 @@ export default function ReferralUploader({
   const [uploadedFiles, setUploadedFiles] = useState([]);
   const [organizationOptions, setOrganizationOptions] = useState([]);
   const [selectedOrgId, setSelectedOrgId] = useState('');
+  const [subjectAgeConfirmation, setSubjectAgeConfirmation] = useState(
+    activeProfession.id === 'physio' ? '' : REFERRAL_SUBJECT_AGE_CONFIRMATION,
+  );
   const [isLoadingOrganizations, setIsLoadingOrganizations] = useState(true);
   const uploadedFilesRef = useRef([]);
   const selectedOrgIdRef = useRef('');
@@ -300,6 +305,11 @@ export default function ReferralUploader({
       releaseExtractionStart();
       return;
     }
+    if (!subjectAgeConfirmation) {
+      toast.error('Select the patient age band before starting extraction.');
+      releaseExtractionStart();
+      return;
+    }
 
     // Re-check the exact selected practice immediately before any upload. The
     // layout gate may have run against an earlier membership or receipt set.
@@ -351,7 +361,7 @@ export default function ReferralUploader({
           processing_authority_confirmed: true,
           processing_authority_attestation_version:
             REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION,
-          subject_age_confirmation: REFERRAL_SUBJECT_AGE_CONFIRMATION,
+          subject_age_confirmation: /** @type {'13_or_over'|'under_13'} */ (subjectAgeConfirmation),
           subject_age_attestation_version: REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
         });
         if (!isMountedRef.current) {
@@ -468,6 +478,7 @@ export default function ReferralUploader({
     if (isSubmitting) return;
     setIsSubmitting(true);
     setProcessingError(null);
+    setSubjectAgeConfirmation(activeProfession.id === 'physio' ? '' : REFERRAL_SUBJECT_AGE_CONFIRMATION);
     try {
       if (!selectedOrgId || !organizationOptions.some((option) => option.id === selectedOrgId)) {
         throw new Error('Practice membership is no longer available.');
@@ -677,6 +688,28 @@ export default function ReferralUploader({
             <p className="text-sm text-red-600">A current practice membership is required before upload.</p>
           )}
 
+          {activeProfession.id === 'physio' && (
+            <div className="space-y-2">
+              <Label htmlFor="referral-subject-age">Patient age band</Label>
+              <Select
+                value={subjectAgeConfirmation}
+                onValueChange={setSubjectAgeConfirmation}
+                disabled={isUploading || isExtracting}
+              >
+                <SelectTrigger id="referral-subject-age">
+                  <SelectValue placeholder="Select patient age band" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={REFERRAL_SUBJECT_AGE_CONFIRMATION}>13 years or older</SelectItem>
+                  <SelectItem value={REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13}>Under 13 years</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs leading-5 text-slate-500">
+                For a child, confirm that the parent, guardian or other authorised representative has been informed about document extraction and that the practice has recorded consent or another valid processing authority.
+              </p>
+            </div>
+          )}
+
           <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 text-center hover:border-blue-400 transition-colors">
             <input
               type="file"
@@ -718,7 +751,7 @@ export default function ReferralUploader({
               ))}
               <Button
                 onClick={handleUploadAndExtract}
-                disabled={isUploading || isExtracting || !selectedOrgId}
+                disabled={isUploading || isExtracting || !selectedOrgId || !subjectAgeConfirmation}
                 aria-describedby="referral-extraction-attestation"
                 className="w-full bg-blue-600 hover:bg-blue-700"
               >
@@ -731,7 +764,7 @@ export default function ReferralUploader({
                 )}
               </Button>
               <p id="referral-extraction-attestation" className="text-xs leading-5 text-slate-600">
-                {REFERRAL_PROCESSING_ATTESTATION}
+                {referralProcessingAttestation(subjectAgeConfirmation)}
               </p>
             </div>
             )}

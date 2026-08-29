@@ -24,6 +24,7 @@ import { format } from "date-fns";
 import AIDisclosureNote from "@/components/legal/AIDisclosureNote";
 import { useAiCapability } from "@/hooks/useAiCapability";
 import { AI_COPY } from "@/lib/aiCapabilities";
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
 
 export default function ClientConditions() {
   const ai = useAiCapability();
@@ -78,7 +79,7 @@ export default function ClientConditions() {
     setSuggestionState('loading');
     try {
       const conditionsList = conditions.map(c => c.condition_name).join(", ");
-      const prompt = `Based on the following medical conditions: ${conditionsList}, suggest appropriate physical and psychological assessment tests that would be most beneficial for a clinical evaluation. Consider evidence-based practice and focus on assessments that are commonly used in physiotherapy and exercise physiology. Return only the assessment names, one per line.`;
+      const prompt = `You are supporting a ${activeProfession.clinicalPromptRole}. Based on the following medical conditions: ${conditionsList}, suggest appropriate physical, functional and psychosocial assessment tests that would be most beneficial for a ${activeProfession.disciplineName.toLowerCase()} evaluation. Consider evidence-based practice and the patient's presentation. Return only the assessment names, one per line.`;
 
       const response = await InvokeLLM({
         prompt: prompt

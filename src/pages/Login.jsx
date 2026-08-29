@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
-import GoogleIcon from "@/components/GoogleIcon";
 import { createPageUrl } from "@/utils";
 
 export default function Login() {
@@ -44,12 +43,7 @@ export default function Login() {
       title="Welcome back"
       subtitle="Log in to your account"
       footer={
-        <>
-          Don't have an account?{" "}
-          <Link to="/register" className="text-primary font-medium hover:underline">
-            Create one
-          </Link>
-        </>
+        <>Access is invitation-only. Ask a practice owner to invite you.</>
       }
     >
       {/* Google SSO removed for the private demo: the local backend has no

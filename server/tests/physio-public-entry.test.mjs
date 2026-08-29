@@ -24,8 +24,8 @@ test('public Physio root is vertical-specific while the EP unauthenticated root 
   const landing = read('src/pages/PhysioPublicLanding.jsx');
   assert.match(landing, /236 canonical assessments/);
   assert.match(landing, /Six structured AI workflows/);
-  assert.match(landing, /Create your account/);
-  assert.match(landing, /to="\/register"/);
+  assert.match(landing, /Invitation-only access/);
+  assert.doesNotMatch(landing, /Create your account|to="\/register"/);
   assert.match(landing, /to="\/login"/);
   assert.doesNotMatch(landing, /Exercise Physiolog|Accredited Exercise|\bAEP\b/);
 });
@@ -38,7 +38,10 @@ test('Physio host metadata is indexable and describes the dedicated vertical', (
 });
 
 test('registration and shared authentication chrome use the active profession identity', () => {
-  assert.match(read('src/pages/Register.jsx'), /buildTimeProfession\.productName/);
+  const register = read('src/pages/Register.jsx');
+  assert.match(register, /buildTimeProfession\.productName/);
+  assert.match(register, /Invitation-only access/);
+  assert.doesNotMatch(register, /auth\.register|Create your account/);
   assert.match(read('src/components/AuthLayout.jsx'), /buildTimeProfession\.shortName/);
 });
 

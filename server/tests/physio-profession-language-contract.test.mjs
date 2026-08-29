@@ -9,6 +9,7 @@ import {
   toPublicProfession,
   validateProfession,
 } from '../../packages/profession-config/index.mjs';
+import { applyProfessionLegalContent } from '../../src/lib/legal/professionContent.js';
 
 const repositoryRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const readSource = (relativePath) => fs.readFileSync(path.join(repositoryRoot, relativePath), 'utf8');
@@ -40,6 +41,11 @@ test('Physio-exposed SOAP and report paths compose terminology from the active m
     soap: readSource('src/components/calendar/SOAPNoteModal.jsx'),
     sectionEditor: readSource('src/components/reports/wizard-steps/SectionEditor.jsx'),
     reports: readSource('src/pages/Reports.jsx'),
+    reportGeneration: readSource('src/lib/reports/reportContentGeneration.js'),
+    nutritionPlan: readSource('src/components/client/NutritionPlanCreator.jsx'),
+    nutritionTab: readSource('src/components/client/NutritionTab.jsx'),
+    medicationAlerts: readSource('src/components/client/MedicationAlerts.jsx'),
+    conditions: readSource('src/pages/ClientConditions.jsx'),
   };
 
   for (const [name, source] of Object.entries(sources)) {
@@ -53,6 +59,11 @@ test('Physio-exposed SOAP and report paths compose terminology from the active m
   assert.match(sources.soap, /activeProfession\.clinicalPromptRole/g);
   assert.match(sources.sectionEditor, /activeProfession\.clinicalPromptRole/);
   assert.match(sources.reports, /activeProfession\.disciplineName\.toLowerCase\(\)/);
+  assert.match(sources.reportGeneration, /activeProfession\.clinicalPromptRole/);
+  assert.match(sources.nutritionPlan, /activeProfession\.clinicalPromptRole/);
+  assert.match(sources.nutritionTab, /activeProfession\.disciplineName/);
+  assert.match(sources.medicationAlerts, /activeProfession\.clinicalPromptRole/);
+  assert.match(sources.conditions, /activeProfession\.clinicalPromptRole/);
 
   const exposedSource = Object.values(sources).join('\n');
   for (const epOnlyLiteral of [
@@ -66,6 +77,65 @@ test('Physio-exposed SOAP and report paths compose terminology from the active m
       `Physio-exposed source must not hard-code: ${epOnlyLiteral}`,
     );
   }
+});
+
+test('Physio routes use native funding and recovery-nutrition workspaces', () => {
+  const routes = readSource('src/pages.config.js');
+  assert.match(routes, /const PHYSIO_PAGES = \{[\s\S]*"FundingForms": PhysioFundingForms/);
+  assert.match(routes, /const PHYSIO_PAGES = \{[\s\S]*"Nutrition": PhysioNutrition/);
+  assert.match(routes, /const EP_PAGES = \{[\s\S]*"FundingForms": FundingForms/);
+  assert.match(routes, /const EP_PAGES = \{[\s\S]*"Nutrition": Nutrition/);
+});
+
+test('Physio assessment catalogue does not present EP identity as Physio guidance', () => {
+  const assessments = readSource('server/data-import/physiotherapy-assessment-part-0.jsonl')
+    .trim()
+    .split(/\r?\n/)
+    .map((line) => JSON.parse(line));
+  const userFacingFields = [
+    'name',
+    'description',
+    'instructions',
+    'equipment_needed',
+    'contraindications',
+    'scoring_system',
+  ];
+  const epIdentity = /exercise physiolog|accredited exercise|\bAEPs?\b/i;
+
+  for (const assessment of assessments) {
+    for (const field of userFacingFields) {
+      assert.doesNotMatch(
+        String(assessment[field] ?? ''),
+        epIdentity,
+        `${assessment.name}.${field} must use Physio-native language`,
+      );
+    }
+  }
+});
+
+test('Physio legal presentation removes EP identity and obsolete clinical-function blocks', () => {
+  const legalFiles = fs.readdirSync(path.join(repositoryRoot, 'src', 'legal-content'))
+    .filter((filename) => filename.endsWith('.md'));
+  const physioLegalSuite = legalFiles.map((filename) => applyProfessionLegalContent(
+    readSource(path.join('src', 'legal-content', filename)),
+    'physio',
+  )).join('\n');
+
+  for (const forbidden of [
+    /AssessSuite Clinical/,
+    /Exercise Physiolog/,
+    /\bESSA\b/,
+    /\bAEPs?\b/,
+    /RC-2026\.07\.19 does not approve general clinical text generation/,
+    /The Finances or patient-service payment module is excluded from the initial Service/,
+  ]) {
+    assert.doesNotMatch(physioLegalSuite, forbidden);
+  }
+  assert.match(physioLegalSuite, /AssessSuite Physio/);
+  assert.match(physioLegalSuite, /Physiotherapy Board of Australia through Ahpra/);
+  assert.match(physioLegalSuite, /clinical AI, assessment interpretation and recommendation/);
+  assert.match(physioLegalSuite, /audio transcription/);
+  assert.match(physioLegalSuite, /finance and billing functions/);
 });
 
 test('active language renders distinct EP and Physio author identities without changing capability', () => {

@@ -76,6 +76,8 @@ import {
 import {
   REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
   REFERRAL_SUBJECT_AGE_CONFIRMATION,
+  REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13,
+  isReferralSubjectAgeConfirmation,
 } from '../src/lib/referralWorkflow.js';
 import {
   CLINICAL_AI_DISABLED_CODE,
@@ -1642,7 +1644,7 @@ function subjectAgeAttestationFromUploadRequest(body, purpose) {
     );
   }
   if (confirmation === undefined) {
-    throw new UploadError(400, 'subject_age_confirmation_required', 'Confirm the patient is 13 or older.');
+    throw new UploadError(400, 'subject_age_confirmation_required', 'Select the patient age band.');
   }
   if (attestationVersion === undefined) {
     throw new UploadError(
@@ -1659,17 +1661,24 @@ function subjectAgeAttestationFromUploadRequest(body, purpose) {
     );
   }
   if (confirmation === 'under_13') {
-    throw new UploadError(
-      409,
-      'under_13_review_required',
-      'This referral requires a privacy review before automated extraction can be used.',
-    );
+    if (
+      process.env.PROFESSION !== 'physio'
+      || !capabilityEnabled('DOCUMENT_EXTRACTION_UNDER_13_ENABLED')
+    ) {
+      throw new UploadError(
+        409,
+        'under_13_review_required',
+        'This referral requires a privacy review before automated extraction can be used.',
+      );
+    }
   }
-  if (confirmation !== REFERRAL_SUBJECT_AGE_CONFIRMATION) {
-    throw new UploadError(400, 'invalid_subject_age_confirmation', 'Confirm the patient is 13 or older.');
+  if (!isReferralSubjectAgeConfirmation(confirmation)) {
+    throw new UploadError(400, 'invalid_subject_age_confirmation', 'Select a supported patient age band.');
   }
   return {
-    band: REFERRAL_SUBJECT_AGE_CONFIRMATION,
+    band: confirmation === REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13
+      ? REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13
+      : REFERRAL_SUBJECT_AGE_CONFIRMATION,
     version: REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
   };
 }

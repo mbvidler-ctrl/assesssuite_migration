@@ -1,0 +1,304 @@
+name: Physio R1 isolated comparison deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirmation:
+        description: Type DEPLOY PHYSIO R1 ISOLATED COMPARISON
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: assesssuite-physio-r1
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Verify and deploy immutable R1 comparison
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    environment: physio-production
+    env:
+      APP: assesssuite-physio-r1
+      APP_URL: https://assesssuite-physio-r1.fly.dev
+      R1_BASELINE_SHA: ba47570e3c09279cedb1ee37c9dfa374b6cba178
+      R1_COMPARISON_SHA: d17eac5627ed104bdb6cc79007c6c5e83df3fe11
+      R1_SNAPSHOT_ID: vs_MaPo8mb2XbOzhakmXG2N4Az
+      R1_SNAPSHOT_DIGEST: aa46c34a166bf663693dcbdba39757528400458febecc591875366d6ab252114
+      R1_VOLUME_ID: vol_vgn67klw1jq1km04
+      R1_VOLUME_NAME: assesssuite_physio_r1_data
+      R1_CATALOGUE_COUNT: "236"
+      R1_CATALOGUE_CHECKSUM: c39fd9e75054857d7f642c8fc2210446781d247e44c751b04499db749bfaa56f
+      FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+      RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+      OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+      SENTRY_DSN: ${{ secrets.SENTRY_DSN }}
+    steps:
+      - name: Validate immutable dispatch authority
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ github.ref }}" == "refs/heads/main" ]]
+          [[ "${{ github.actor }}" == "mbvidler-ctrl" ]]
+          [[ "${{ github.triggering_actor }}" == "mbvidler-ctrl" ]]
+          [[ "${{ inputs.confirmation }}" == "DEPLOY PHYSIO R1 ISOLATED COMPARISON" ]]
+          for name in FLY_API_TOKEN ADMIN_PASSWORD RESEND_API_KEY OPENAI_API_KEY SENTRY_DSN; do
+            [[ -n "${!name:-}" ]]
+          done
+          [[ "$R1_BASELINE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$R1_COMPARISON_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$R1_SNAPSHOT_ID" =~ ^vs_[A-Za-z0-9]+$ ]]
+          [[ "$R1_SNAPSHOT_DIGEST" =~ ^[0-9a-f]{64}$ ]]
+          [[ "$R1_VOLUME_ID" =~ ^vol_[A-Za-z0-9]+$ ]]
+          [[ "$R1_CATALOGUE_CHECKSUM" =~ ^[0-9a-f]{64}$ ]]
+
+      - name: Check out exact reviewed R1 comparison commit
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          ref: ${{ env.R1_COMPARISON_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove baseline ancestry and bounded comparison adapter
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse HEAD)" == "$R1_COMPARISON_SHA" ]]
+          [[ "$(git rev-parse HEAD^)" == "$R1_BASELINE_SHA" ]]
+          actual="$RUNNER_TEMP/r1-changed-files.txt"
+          expected="$RUNNER_TEMP/r1-expected-files.txt"
+          git diff --name-only "$R1_BASELINE_SHA..$R1_COMPARISON_SHA" | LC_ALL=C sort >"$actual"
+          cat >"$expected" <<'FILES'
+          e2e/physio-offline-journey/physio-offline-journey.spec.mjs
+          e2e/physio-offline-journey/runtime-fixture.mjs
+          fly.physio.r1-comparison.toml
+          package-lock.json
+          package.json
+          scripts/provision-physio-r1-comparison-access.mjs
+          server/productionPosture.mjs
+          server/publicRequestOrigin.mjs
+          server/tests/assessment-runner-registry.test.mjs
+          server/tests/physio-production-posture.test.mjs
+          server/tests/physio-public-entry.test.mjs
+          server/tests/physio-r1-comparison-access.test.mjs
+          server/tests/physio-r1-comparison-contract.test.mjs
+          server/tests/public-request-origin.test.mjs
+          src/components/assessments/AssessmentCard.jsx
+          src/components/assessments/AssessmentLibraryModal.jsx
+          src/components/assessments/assessmentRunnerAvailability.js
+          src/pages/AssessmentAudit.jsx
+          src/pages/PhysioPublicLanding.jsx
+          src/pages/Register.jsx
+          FILES
+          diff -u "$expected" "$actual"
+
+      - name: Set up Node.js 24
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: 24
+          cache: npm
+
+      - name: Prove complete R1 assessment and application test surface
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm audit --audit-level=high
+          npm run flags:check
+          npm run typecheck
+          npm run lint
+          npm run test:physio
+          npm run test:physio-offline-journey
+          npm run build:physio
+
+      - name: Install checksum-verified Fly CLI 0.4.71
+        shell: bash
+        run: |
+          set -euo pipefail
+          archive="$RUNNER_TEMP/flyctl_0.4.71_Linux_x86_64.tar.gz"
+          bin_dir="$RUNNER_TEMP/flyctl-bin"
+          curl --proto '=https' --tlsv1.2 --fail --silent --show-error --location \
+            --output "$archive" \
+            'https://github.com/superfly/flyctl/releases/download/v0.4.71/flyctl_0.4.71_Linux_x86_64.tar.gz'
+          printf '%s  %s\n' 'a782dceed173d215c000ab94e2b08623c22267edff6d90ebe3010b3f9b671dc2' "$archive" | sha256sum --check --strict
+          mkdir -p "$bin_dir"
+          tar -xzf "$archive" -C "$bin_dir" flyctl
+          install -m 0755 "$bin_dir/flyctl" "$bin_dir/fly"
+          echo "$bin_dir" >>"$GITHUB_PATH"
+          "$bin_dir/flyctl" version | grep -F '0.4.71'
+
+      - name: Prove isolated restored volume before deployment
+        shell: bash
+        run: |
+          set -euo pipefail
+          status="$(flyctl status --app "$APP" --json)"
+          [[ "$(jq -r '.Name // .name' <<<"$status")" == "$APP" ]]
+          volumes="$(flyctl volumes list --app "$APP" --json)"
+          jq -e --arg id "$R1_VOLUME_ID" --arg name "$R1_VOLUME_NAME" '
+            length == 1 and
+            .[0].id == $id and
+            .[0].name == $name and
+            .[0].state == "created" and
+            .[0].size_gb == 3 and
+            .[0].region == "syd" and
+            .[0].encrypted == true and
+            .[0].auto_backup_enabled == true and
+            .[0].snapshot_retention == 5 and
+            .[0].attached_machine_id == null
+          ' <<<"$volumes" >/dev/null
+          printf '%s\n' "$volumes" >r1-volume-before.json
+
+      - name: Stage only non-billing R1 comparison secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+          umask 077
+          secrets_file="$(mktemp)"
+          trap 'rm -f "$secrets_file"' EXIT
+          {
+            printf 'ADMIN_PASSWORD=%s\n' "$ADMIN_PASSWORD"
+            printf 'RESEND_API_KEY=%s\n' "$RESEND_API_KEY"
+            printf 'OPENAI_API_KEY=%s\n' "$OPENAI_API_KEY"
+            printf 'SENTRY_DSN=%s\n' "$SENTRY_DSN"
+            printf 'APP_URL=%s\n' "$APP_URL"
+            printf 'EXPECTED_APP_URL=%s\n' "$APP_URL"
+          } >"$secrets_file"
+          flyctl secrets import --app "$APP" --stage --dns-checks=false <"$secrets_file"
+          secret_names="$(flyctl secrets list --app "$APP" --json | jq -r '.[].name' | LC_ALL=C sort)"
+          expected_names=$'ADMIN_PASSWORD\nAPP_URL\nEXPECTED_APP_URL\nOPENAI_API_KEY\nRESEND_API_KEY\nSENTRY_DSN'
+          [[ "$secret_names" == "$expected_names" ]]
+          ! grep -Eq 'STRIPE|PAYMENT' <<<"$secret_names"
+
+      - name: Deploy exact R1 comparison source onto restored volume
+        shell: bash
+        run: |
+          set -euo pipefail
+          built_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          flyctl deploy --app "$APP" --config fly.physio.r1-comparison.toml --remote-only --yes \
+            --build-arg "RELEASE_SHA=$R1_COMPARISON_SHA" \
+            --build-arg "SOURCE_BRANCH=mission/physio-r1-comparison-20260829" \
+            --build-arg "BUILD_TIMESTAMP=$built_at" \
+            --build-arg "SENTRY_DSN=$SENTRY_DSN"
+
+      - name: Prove exact live release, readiness, and isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 36); do
+            live="$(curl --fail --silent --show-error --max-time 15 "$APP_URL/api/health/live" || true)"
+            ready="$(curl --fail --silent --show-error --max-time 15 "$APP_URL/api/health/ready" || true)"
+            version="$(curl --fail --silent --show-error --max-time 15 "$APP_URL/api/version" || true)"
+            if jq -e '.status == "ok" or .status == "live"' <<<"$live" >/dev/null 2>&1 &&
+               jq -e '.status == "ok" or .status == "ready"' <<<"$ready" >/dev/null 2>&1 &&
+               jq -e --arg sha "$R1_COMPARISON_SHA" 'tostring | contains($sha)' <<<"$version" >/dev/null 2>&1; then
+              printf '%s\n' "$live" >r1-health-live.json
+              printf '%s\n' "$ready" >r1-health-ready.json
+              printf '%s\n' "$version" >r1-version.json
+              break
+            fi
+            [[ "$attempt" -lt 36 ]]
+            sleep 10
+          done
+          jq -e --argjson count "$R1_CATALOGUE_COUNT" --arg checksum "$R1_CATALOGUE_CHECKSUM" '
+            .catalogue.count == $count and
+            .catalogue.expected_count == $count and
+            .catalogue.checksum == $checksum and
+            .catalogue.expected_checksum == $checksum and
+            .catalogue.ready == true
+          ' r1-version.json >/dev/null
+          flyctl status --app "$APP" --json >r1-fly-status.json
+          flyctl volumes list --app "$APP" --json >r1-volumes-after.json
+          jq -e --arg sha "$R1_COMPARISON_SHA" --arg volume "$R1_VOLUME_ID" '
+            .Deployed == true and
+            ([.Machines[] | select(.state == "started")] | length) == 1 and
+            .Machines[0].image_ref.labels.GH_SHA == $sha and
+            .Machines[0].config.mounts[0].volume == $volume
+          ' r1-fly-status.json >/dev/null
+
+      - name: Provision and prove restricted comparison access
+        shell: bash
+        run: |
+          set -euo pipefail
+          command="node scripts/provision-physio-r1-comparison-access.mjs --apply --maxwell-email mb.vidler@gmail.com --brenton-email brenton@primehealthclinics.com"
+          flyctl ssh console --app "$APP" --command "$command" >r1-access-provisioning.json
+          jq -e '
+            .status == "applied" and
+            .maxwell == "active-existing-identity" and
+            (.brenton == "activation-required" or .brenton == "active-existing-identity") and
+            (
+              .brenton_activation_email == "sent" or
+              .brenton_activation_email == "already-sent" or
+              .brenton_activation_email == "not-required"
+            )
+          ' r1-access-provisioning.json >/dev/null
+
+          command="node scripts/provision-physio-r1-comparison-access.mjs --inspect --maxwell-email mb.vidler@gmail.com --brenton-email brenton@primehealthclinics.com"
+          flyctl ssh console --app "$APP" --command "$command" >r1-access-inspection.json
+          jq -e '
+            .all_access_paths_ready == true and
+            (.targets | length) == 2 and
+            ([.targets[].access_state] | all(. == "active" or . == "activation-email-sent"))
+          ' r1-access-inspection.json >/dev/null
+
+          register_status="$(curl --silent --show-error --output r1-register-response.json --write-out '%{http_code}' \
+            --max-time 15 --request POST \
+            --header 'Content-Type: application/json' \
+            --data '{"email":"unauthorised-r1-probe@example.test","password":"NotARealPassword1!"}' \
+            "$APP_URL/api/apps/local-assesssuite-physio/auth/register")"
+          [[ "$register_status" == "403" ]]
+          jq -e '.error == "self-registration is disabled for this deployment"' r1-register-response.json >/dev/null
+
+      - name: Write content-free R1 deployment receipt
+        if: ${{ success() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          jq -n \
+            --arg application "$APP" \
+            --arg application_sha "$R1_COMPARISON_SHA" \
+            --arg baseline_sha "$R1_BASELINE_SHA" \
+            --arg snapshot_id "$R1_SNAPSHOT_ID" \
+            --arg snapshot_digest "$R1_SNAPSHOT_DIGEST" \
+            --arg volume_id "$R1_VOLUME_ID" \
+            --arg url "$APP_URL" \
+            --argjson catalogue_count "$R1_CATALOGUE_COUNT" \
+            --arg catalogue_checksum "$R1_CATALOGUE_CHECKSUM" \
+            '{
+              contract_version: "assesssuite-physio-r1-comparison-deploy/1.0.0",
+              result: "PASS",
+              application: $application,
+              application_sha: $application_sha,
+              baseline_sha: $baseline_sha,
+              source_snapshot_id: $snapshot_id,
+              source_snapshot_digest: $snapshot_digest,
+              isolated_volume_id: $volume_id,
+              public_url: $url,
+              catalogue_count: $catalogue_count,
+              catalogue_checksum: $catalogue_checksum,
+              open_registration: false,
+              payments_enabled: false,
+              restricted_access_ready: true
+            }' >physio-r1-comparison-deploy.json
+
+      - name: Upload R1 deployment evidence
+        if: ${{ always() }}
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: physio-r1-comparison-${{ env.R1_COMPARISON_SHA }}
+          path: |
+            physio-r1-comparison-deploy.json
+            r1-health-live.json
+            r1-health-ready.json
+            r1-version.json
+            r1-fly-status.json
+            r1-access-provisioning.json
+            r1-access-inspection.json
+            r1-register-response.json
+            r1-volume-before.json
+            r1-volumes-after.json
+          if-no-files-found: warn
+          retention-days: 90

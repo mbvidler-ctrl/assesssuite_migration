@@ -11,7 +11,7 @@ import { capabilityEnabled } from './capabilityFlags.mjs';
 import {
   REFERRAL_SUBJECT_AGE_ATTESTATION_SOURCE,
   REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION,
-  REFERRAL_SUBJECT_AGE_CONFIRMATION,
+  isReferralSubjectAgeConfirmation,
 } from '../src/lib/referralWorkflow.js';
 
 const HOUR_MS = 60 * 60 * 1000;
@@ -840,7 +840,24 @@ export function createUploadRegistry(db, { uploadsDir }) {
     const current = getById(id);
     if (!current) return true;
     if (TRANSIENT_PROVIDER_BLOCKS.has(current.id)) return true;
-    if (current.subjectAgeBand === 'under_13') return true;
+    if (current.subjectAgeBand === 'under_13') {
+      const authorisedPhysioPaediatricPath = process.env.PROFESSION === 'physio'
+        && capabilityEnabled('DOCUMENT_EXTRACTION_UNDER_13_ENABLED');
+      if (!authorisedPhysioPaediatricPath) return true;
+      // A declared under-13 Physio referral is an authorised input, whereas a
+      // post-extraction/review age mismatch is a quarantine. Both retain the
+      // same minimal age band, so the durable blocked audit distinguishes them
+      // without storing a DOB or weakening the existing marker/transient gate.
+      const quarantine = db.prepare(`
+        SELECT 1
+        FROM upload_audit
+        WHERE upload_id = ?
+          AND event_type IN ('post_extraction_age_gate', 'referral_review_age_gate')
+          AND outcome = 'blocked'
+        LIMIT 1
+      `).get(current.id);
+      if (quarantine) return true;
+    }
     let markerPath;
     try {
       markerPath = providerBlockPath(current.id);
@@ -976,7 +993,11 @@ export function createUploadRegistry(db, { uploadsDir }) {
     }
     if (purpose === 'referral-extraction') {
       if (
-        subjectAgeBand !== REFERRAL_SUBJECT_AGE_CONFIRMATION ||
+        !isReferralSubjectAgeConfirmation(subjectAgeBand) ||
+        (subjectAgeBand === 'under_13' && (
+          process.env.PROFESSION !== 'physio'
+          || !capabilityEnabled('DOCUMENT_EXTRACTION_UNDER_13_ENABLED')
+        )) ||
         subjectAgeAttestationVersion !== REFERRAL_SUBJECT_AGE_ATTESTATION_VERSION ||
         processingAuthorityConfirmed !== true ||
         processingAuthorityAttestationVersion !== REFERRAL_PROCESSING_AUTHORITY_ATTESTATION_VERSION

@@ -1,7 +1,7 @@
 {
   "name": "PhysioCareEpisode",
   "type": "object",
-  "description": "A versioned physiotherapy episode of care joining referral, screening, examinations, goals, outcomes, encounters, home programs, notes, reports and discharge.",
+  "description": "A versioned physiotherapy episode of care joining referral, screening, examinations, goals, outcomes, encounters, management protocols, home programs, notes, reports and discharge.",
   "properties": {
     "schema_version": { "type": "number", "default": 3 },
     "org_id": { "type": "string", "description": "Owning organisation; required for tenant scoping." },
@@ -206,6 +206,38 @@
           "next_plan": { "type": "string" },
           "soap_note_id": { "type": "string" }
         }
+      }
+    },
+    "management_protocols": {
+      "type": "array",
+      "description": "Clinician-selected reviewed or evidence-grounded management protocols retained as point-in-time snapshots for this episode.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "condition_name": { "type": "string" },
+          "category": { "type": "string" },
+          "status": {
+            "type": "string",
+            "enum": ["draft", "current", "superseded", "completed", "ceased"]
+          },
+          "source": {
+            "type": "string",
+            "enum": ["reviewed_protocol", "ai_evidence_grounded"]
+          },
+          "source_protocol_id": { "type": "string" },
+          "added_date": { "type": "string", "format": "date" },
+          "review_date": { "type": "string", "format": "date" },
+          "clinical_adaptation": { "type": "string" },
+          "summary": { "type": "string" },
+          "evidence_count": { "type": "number", "minimum": 0 },
+          "dropped_paths": { "type": "array", "items": { "type": "string" } },
+          "protocol_data": {
+            "type": "object",
+            "description": "The exact structured protocol reviewed by the clinician at the time it was added."
+          }
+        },
+        "required": ["id", "condition_name", "status", "source", "added_date", "protocol_data"]
       }
     },
     "home_programs": {

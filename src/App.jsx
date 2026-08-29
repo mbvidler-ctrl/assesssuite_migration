@@ -14,6 +14,7 @@ import Login from '@/pages/Login';
 import Register from '@/pages/Register';
 import ForgotPassword from '@/pages/ForgotPassword';
 import ResetPassword from '@/pages/ResetPassword';
+import AcceptInvitation from '@/pages/AcceptInvitation';
 import ProtectedRoute from '@/components/ProtectedRoute';
 // Paywall.jsx (simulated checkout for the demo) is retired for launch — the
 // route redirects to the real PaymentRequired flow; the file stays on disk.
@@ -96,6 +97,7 @@ const AuthenticatedApp = () => {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/accept-invitation" element={<AcceptInvitation />} />
       <Route path="/Paywall" element={<Navigate to="/PaymentRequired" replace />} />
       <Route path="/PaymentRequired" element={<PaymentRequired />} />
       {/* Preserve billing-portal sessions created before the migrated route

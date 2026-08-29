@@ -1,3 +1,5 @@
+import { buildTimeProfession as activeProfession } from "@/lib/profession";
+
 const REPORT_SECTION_METADATA_SUFFIX = /_(?:ai_drafted|signature|attachments)$/i;
 
 export const REPORT_PROMPT_LIMITS = Object.freeze({
@@ -346,7 +348,7 @@ export function buildReportDraftPrompt({
   const requirementsBlock = limitReportText(sectionRequirements, 4_500) || sectionRequirements;
   const boundedMetaInstruction = limitReportText(metaInstruction, 1_000) || "";
 
-  return `You are an expert Accredited Exercise Physiologist drafting ${isBatch ? "a complete set of sections" : "one section"} for an allied-health clinical report.
+  return `You are an expert ${activeProfession.clinicalPromptRole} drafting ${isBatch ? "a complete set of sections" : "one section"} for a ${activeProfession.disciplineName.toLowerCase()} clinical report.
 
 REPORT TYPE: ${title}
 SECTIONS TO DRAFT:

@@ -113,7 +113,7 @@ export default function MedicationAlerts({ conditions, client }) {
                         (labelBits ? `\n   Reference label (US FDA): ${labelBits.slice(0, 500)}` : '');
                 }).join('\n');
 
-                const prompt = `You are advising an exercise physiologist. For each medication below, write ONE concise sentence on its most relevant consideration for physical exercise (drowsiness, dizziness, balance, heart rate, blood pressure, exercise tolerance). Where "Reference label" text is provided, base your sentence ONLY on that label information and do not introduce facts it does not support. If no concern is relevant, say so. Use the EXACT medication name as listed.\n\n${medicationList}`;
+                const prompt = `You are assisting a ${activeProfession.clinicalPromptRole}. For each medication below, write ONE concise sentence on its most relevant consideration for ${activeProfession.disciplineName.toLowerCase()} assessment or treatment (for example drowsiness, dizziness, balance, heart rate, blood pressure, pain response or activity tolerance). Where "Reference label" text is provided, base your sentence ONLY on that label information and do not introduce facts it does not support. If no concern is relevant, say so. Use the EXACT medication name as listed.\n\n${medicationList}`;
 
                 const response_json_schema = {
                     type: "object",

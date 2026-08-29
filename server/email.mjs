@@ -235,15 +235,34 @@ export function adminNotifyEmail(newUserEmail) {
   };
 }
 
-export function inviteEmail(role) {
+export function inviteEmail(input) {
+  const details = typeof input === 'string' ? { role: input } : (input || {});
+  const role = String(details.role || 'clinician');
+  const inviterName = String(details.inviterName || 'A practice owner').trim();
+  const organizationName = String(details.organizationName || 'your practice').trim();
+  const link = typeof details.link === 'string' ? details.link : null;
+  const expiresAt = details.expiresAt ? new Date(details.expiresAt) : null;
+  const expiryText = expiresAt && Number.isFinite(expiresAt.getTime())
+    ? expiresAt.toLocaleString('en-AU', { timeZone: 'Australia/Sydney', dateStyle: 'long', timeStyle: 'short' })
+    : null;
   const safeRole = escapeHtml(role);
+  const safeInviterName = escapeHtml(inviterName);
+  const safeOrganizationName = escapeHtml(organizationName);
+  const safeLink = link ? escapeHtml(link) : null;
+  const safeExpiryText = expiryText ? escapeHtml(expiryText) : null;
   const identity = productIdentity();
+  const actionText = link
+    ? `Accept the invitation and create your password here:\n${link}${expiryText ? `\n\nThis single-use link expires ${expiryText}.` : ''}`
+    : `Create your login at the ${identity.shortName} site using this email address.`;
+  const actionHtml = safeLink
+    ? `<p><a href="${safeLink}" style="background:#0d9488;color:#ffffff;padding:10px 22px;border-radius:8px;text-decoration:none;display:inline-block">Accept invitation</a></p>${safeExpiryText ? `<p>This single-use link expires ${safeExpiryText}.</p>` : ''}`
+    : `<p>Create your login at the ${escapeHtml(identity.shortName)} site using this email address.</p>`;
   return {
     subject: `You have been invited to ${identity.shortName}`,
-    text: `You have been invited to ${identity.shortName} (role: ${role}).\n\nCreate your login at the ${identity.shortName} site using this email address.`,
+    text: `${inviterName} invited you to ${organizationName} in ${identity.shortName} (role: ${role}).\n\n${actionText}\n\nIf you were not expecting this invitation, ignore this email.`,
     html: htmlWrap(
       'You have been invited',
-      `<p>You have been invited to ${escapeHtml(identity.shortName)} (role: <strong>${safeRole}</strong>).</p><p>Create your login at the ${escapeHtml(identity.shortName)} site using this email address.</p>`,
+      `<p><strong>${safeInviterName}</strong> invited you to ${safeOrganizationName} in ${escapeHtml(identity.shortName)} (role: <strong>${safeRole}</strong>).</p>${actionHtml}<p>If you were not expecting this invitation, ignore this email.</p>`,
     ),
   };
 }

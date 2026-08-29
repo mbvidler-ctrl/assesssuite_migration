@@ -122,7 +122,7 @@ export function publicCapabilities(
   environment = process.env,
   {
     professionId = environment.PROFESSION || 'exercise-physiology',
-    legacyGeneralClinicalLlmAllowed = professionId !== 'physio',
+    legacyGeneralClinicalLlmAllowed = true,
   } = {},
 ) {
   const capabilities = {

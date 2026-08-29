@@ -11,6 +11,11 @@ const CLIENT_NAME = 'Synthetic Offline Physio Patient';
 const EPISODE_TITLE = 'Synthetic right knee rehabilitation';
 const EDITED_REPORT_MARKER = 'Clinician reviewed in the deterministic offline journey.';
 const FAC_NAME = 'Functional Ambulation Categories (FAC)';
+const LEGACY_FALSE_NEGATIVE_RUNNERS = Object.freeze([
+  'Orebro Musculoskeletal Pain Screening Questionnaire',
+  'QuickDASH',
+  'STarT Back Screening Tool',
+]);
 
 function syntheticIdentity(projectName) {
   const device = projectName.startsWith('mobile') ? 'mobile' : 'desktop';
@@ -93,33 +98,23 @@ async function activateAndOnboardPractitioner(page, runtime, identity) {
   // The monolithic legacy App graph can take materially longer on a cold,
   // cache-empty Windows worker; this is the one deliberately long bootstrap
   // wait. Subsequent route assertions retain the normal suite timeout.
-  await expect(page.getByRole('heading', { name: 'Create your account', exact: true }))
+  await expect(page.getByRole('heading', { name: 'Invitation-only access', exact: true }))
     .toBeVisible({ timeout: 90_000 });
-  await page.locator(selector.registration.fullName).fill(identity.practitionerName);
-  await page.locator(selector.registration.email).fill(identity.email);
-  await page.locator(selector.registration.password).fill(PASSWORD);
-  await page.locator(selector.registration.confirmation).fill(PASSWORD);
-  await page.getByRole('button', { name: 'Create account', exact: true }).click();
+  await expect(page.getByText('Public registration is not available.', { exact: false })).toBeVisible();
 
-  await expect(page.getByRole('heading', { name: 'Verify your email', exact: true })).toBeVisible();
-  await page.locator(selector.registration.verificationCode).fill('000000');
-  await page.getByRole('button', { name: 'Verify code', exact: true }).click();
-  await expectPath(page, '/PaymentRequired');
-  await expect(page.getByText('236 canonical outcome measures and assessments', { exact: true })).toBeVisible();
+  const invitation = await runtime.inviteClinician(identity.email);
+  expect(invitation.organizationId).toBeTruthy();
+  await page.goto(
+    `${runtime.frontendBaseUrl}/accept-invitation?token=${encodeURIComponent(invitation.token)}`,
+    { waitUntil: 'domcontentloaded' },
+  );
+  await expect(page.getByRole('heading', { name: 'Accept your invitation', exact: true })).toBeVisible();
+  await expect(page.getByText(identity.email, { exact: false })).toBeVisible();
+  await page.locator(selector.invitation.fullName).fill(identity.practitionerName);
+  await page.locator(selector.invitation.password).fill(PASSWORD);
+  await page.locator(selector.invitation.confirmation).fill(PASSWORD);
+  await page.getByRole('button', { name: 'Activate account', exact: true }).click();
 
-  const checkoutResponse = page.waitForResponse((response) => (
-    response.url().includes('/functions/createCheckoutSession') && response.status() === 200
-  ));
-  await page.getByRole('button', { name: 'Start Monthly Trial', exact: true }).click();
-  await checkoutResponse;
-  const checkout = await runtime.completeCheckout(identity.email);
-  expect(checkout.userId).toBeTruthy();
-  await page.waitForURL(/\/mock-stripe\/checkout\/mock_cs_/, {
-    waitUntil: 'domcontentloaded',
-    timeout: 15_000,
-  });
-
-  await page.goto(`${runtime.frontendBaseUrl}/Dashboard`, { waitUntil: 'domcontentloaded' });
   await expectPath(page, '/ProfileSetup');
   await expect(page.getByRole('heading', { name: 'Welcome to AssessSuite', exact: true })).toBeVisible();
 
@@ -230,6 +225,15 @@ async function addAndCompleteZeroScoreAssessment(page, runtime, clientId, episod
   await page.goto(assessmentLibraryUrl.toString(), { waitUntil: 'domcontentloaded' });
   await expect(page.getByText('Showing 236 of 236 assessments', { exact: true })).toBeVisible();
   const search = page.getByPlaceholder(selector.librarySearchPlaceholder);
+  for (const assessmentName of LEGACY_FALSE_NEGATIVE_RUNNERS) {
+    await search.fill(assessmentName);
+    const title = page.getByText(assessmentName, { exact: true });
+    await expect(title).toBeVisible();
+    const assessmentCard = title.locator(
+      'xpath=ancestor::div[contains(concat(" ", normalize-space(@class), " "), " group ")][1]',
+    );
+    await expect(assessmentCard.getByText('Interactive', { exact: true })).toBeVisible();
+  }
   await search.fill(FAC_NAME);
   await expect(page.getByText('Showing 1 of 236 assessments', { exact: true })).toBeVisible();
   await page.getByText(FAC_NAME, { exact: true }).click();
@@ -318,18 +322,24 @@ async function exerciseReportWorkspace(page, context, runtime) {
   expect(runtime.providerCalls.length).toBeGreaterThanOrEqual(1);
 }
 
-async function exerciseSoapWorkspace(page) {
+async function exerciseSoapWorkspace(page, runtime) {
   await activateReachableControl(page, page.getByRole('button', { name: 'New SOAP Note', exact: true }));
   await expect(page.getByRole('heading', { name: new RegExp(`SOAP Note - ${CLIENT_NAME}`) })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'AI Help', exact: true })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Dissect to SOAP', exact: true })).toHaveCount(0);
+  const aiHelpButtons = page.getByRole('button', { name: 'AI Help', exact: true });
+  await expect(aiHelpButtons).toHaveCount(2);
+  await expect(aiHelpButtons.first()).toBeEnabled();
+  await expect(aiHelpButtons.last()).toBeEnabled();
   await expect(page.getByRole('button', { name: /SMS/i })).toHaveCount(0);
   await expect(page.locator('img[src*="placeholder" i], img[src*="unsplash" i], img[src*="physio-pedia" i], img[src*="wikimedia" i]')).toHaveCount(0);
 
   await page.locator('#subjective').fill('Synthetic patient reports improved stair tolerance after graded loading.');
   await page.locator('#objective').fill('Synthetic step-down control improved; FAC score remains explicitly zero.');
-  await page.locator('#assessment').fill('Synthetic load tolerance is improving with a remaining functional deficit.');
-  await page.locator('#plan').fill('Continue graded strengthening and reassess function next visit.');
+  const providerCallsBeforeSoapAi = runtime.providerCalls.length;
+  await activateReachableControl(page, aiHelpButtons.first());
+  await expect(page.locator('#assessment')).toContainText('[AI-ASSISTED CONTENT - REQUIRES CLINICIAN REVIEW]');
+  await activateReachableControl(page, aiHelpButtons.last());
+  await expect(page.locator('#plan')).toContainText('[AI-ASSISTED CONTENT - REQUIRES CLINICIAN REVIEW]');
+  expect(runtime.providerCalls.length).toBeGreaterThanOrEqual(providerCallsBeforeSoapAi + 2);
   await activateReachableControl(
     page,
     page.getByRole('button', { name: 'Save Draft', exact: true }),
@@ -401,7 +411,7 @@ test('normal Physio route survives a complete deterministic offline clinical jou
     await addAndCompleteZeroScoreAssessment(page, runtime, clientId, episodeId, episodeUrl);
     await page.goto(episodeUrl, { waitUntil: 'domcontentloaded' });
     await exerciseReportWorkspace(page, context, runtime);
-    await exerciseSoapWorkspace(page);
+    await exerciseSoapWorkspace(page, runtime);
     await assertRestartPersistence(page, runtime, clientId, episodeId);
 
     const [clients, episodes, assessments, reports, notes] = await Promise.all([
@@ -413,6 +423,7 @@ test('normal Physio route survives a complete deterministic offline clinical jou
     ]);
     const evidence = {
       evidenceKind: 'offline-loopback-browser-journey',
+      accessPath: 'owner-issued single-use clinician invitation',
       project: testInfo.project.name,
       canonicalLibraryCount: 236,
       provider: 'repository loopback fake OpenAI-compatible chat adapter',

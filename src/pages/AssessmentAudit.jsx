@@ -39,8 +39,6 @@ export default function AssessmentAudit() {
   const [isRunning, setIsRunning] = useState(false);
   const [fixingAssessmentId, setFixingAssessmentId] = useState(null);
   const [generatingFixes, setGeneratingFixes] = useState(false);
-  const [creatingTestClient, setCreatingTestClient] = useState(false);
-  const [testClientId, setTestClientId] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -59,82 +57,6 @@ export default function AssessmentAudit() {
   useEffect(() => {
     localStorage.setItem('assessmentAuditResults', JSON.stringify(auditResults));
   }, [auditResults]);
-
-  const createTestClient = async () => {
-    setCreatingTestClient(true);
-    try {
-      // Get org_id from existing assessments or use known value
-      const orgId = '6953a08980390d0dd6646237';
-      const today = todayLocal();
-
-      // Check if Superagent One already exists
-      const existingClients = await base44.entities.Client.filter({ email: 'superagent@test.com' });
-      let client;
-      if (existingClients.length > 0) {
-        client = existingClients[0];
-        toast.info('Test client already exists — adding any missing assessments...');
-      } else {
-        client = await base44.entities.Client.create({
-          full_name: 'Superagent One',
-          date_of_birth: '1990-01-01',
-          gender: 'male',
-          email: 'superagent@test.com',
-          phone: '0400000000',
-          org_id: orgId,
-          assessment_consent: true,
-          privacy_consent: true,
-          cancellation_policy_agreed: true,
-          consent_confirmed: true,
-          consent_date: today,
-          pricing_explained: true,
-          apss_completed: false,
-          additional_referrals: [],
-          client_completed_sections: [],
-        });
-        toast.success('Created test client: Superagent One');
-      }
-
-      // Get all active runner assessments (paginate to get all)
-      let allAssessments = [];
-      let page = 0;
-      const pageSize = 100;
-      while (true) {
-        const batch = await base44.entities.Assessment.list(undefined, pageSize, page * pageSize);
-        allAssessments = allAssessments.concat(batch);
-        if (batch.length < pageSize) break;
-        page++;
-      }
-      const active = allAssessments.filter(a => !a.is_deleted && a.has_test_runner);
-
-      // Get existing pending assessments for this client
-      const existing = await base44.entities.ClientAssessment.filter({ client_id: client.id });
-      const existingAssessmentIds = new Set(existing.map(a => a.assessment_id));
-
-      let created = 0;
-      for (const assessment of active) {
-        if (!existingAssessmentIds.has(assessment.id)) {
-          await base44.entities.ClientAssessment.create({
-            client_id: client.id,
-            assessment_id: assessment.id,
-            org_id: orgId,
-            status: 'pending',
-            assessment_date: today,
-            additional_data: {},
-            notes: '',
-          });
-          created++;
-        }
-      }
-
-      setTestClientId(client.id);
-      toast.success(`Ready! ${created} pending assessments added for Superagent One. Find them in the Clients page.`, { duration: 8000 });
-    } catch (error) {
-      toast.error('Error creating test client: ' + error.message);
-      console.error(error);
-    } finally {
-      setCreatingTestClient(false);
-    }
-  };
 
   const loadAssessments = async () => {
     setIsLoading(true);
@@ -1062,10 +984,6 @@ Return only requested fields as JSON.`;
               </div>
             </div>
             <div className="flex gap-2">
-              <Button onClick={createTestClient} variant="outline" disabled={creatingTestClient} className="bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100">
-                {creatingTestClient ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Activity className="w-4 h-4 mr-2" />}
-                {creatingTestClient ? 'Creating...' : 'Create Test Client'}
-              </Button>
               {auditResults.length > 0 && (
                 <>
                   <Button onClick={runAudit} variant="outline" disabled={isRunning}>

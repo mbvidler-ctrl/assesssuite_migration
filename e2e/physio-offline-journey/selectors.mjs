@@ -8,6 +8,11 @@ export const physioOfflineSelectors = Object.freeze({
     confirmation: '#confirm',
     verificationCode: '#otp',
   }),
+  invitation: Object.freeze({
+    fullName: '#fullName',
+    password: credentialFieldSelector,
+    confirmation: '#confirmPassword',
+  }),
   profile: Object.freeze({
     clinicianName: '#clinician_name',
     qualifications: '#qualifications',

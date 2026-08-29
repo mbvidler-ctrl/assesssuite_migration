@@ -12,7 +12,11 @@ import { createHash } from 'node:crypto';
 import { createEntityRepository } from './db.mjs';
 import { extractedDateOfBirthIsUnder13 } from './documentExtraction.mjs';
 import { canonicalUploadPath } from './uploadRegistry.mjs';
-import { REFERRAL_SUBJECT_AGE_CONFIRMATION } from '../src/lib/referralWorkflow.js';
+import { capabilityEnabled } from './capabilityFlags.mjs';
+import {
+  REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13,
+  isReferralSubjectAgeConfirmation,
+} from '../src/lib/referralWorkflow.js';
 
 export const REFERRAL_REVIEW_COMMIT_VERSION = 'referral-review-commit-v2026-07-21.1';
 
@@ -478,7 +482,7 @@ export function createReferralCommitService({
           upload.purpose !== 'referral-extraction' ||
           upload.state !== 'review-pending' ||
           !uploadRegistry.hasReferralProcessingAuthority(upload.id) ||
-          upload.subjectAgeBand !== REFERRAL_SUBJECT_AGE_CONFIRMATION ||
+          !isReferralSubjectAgeConfirmation(upload.subjectAgeBand) ||
           (upload.expiresAt && Date.parse(upload.expiresAt) <= timestamp.getTime())
         ) {
           reject(404, 'upload_not_found', 'A reviewed referral file is unavailable.');
@@ -486,7 +490,16 @@ export function createReferralCommitService({
         return upload;
       });
 
-      if (extractedDateOfBirthIsUnder13(payload.client.date_of_birth, timestamp)) {
+      const reviewedSubjectIsUnder13 = extractedDateOfBirthIsUnder13(
+        payload.client.date_of_birth,
+        timestamp,
+      );
+      const physioUnder13Enabled = process.env.PROFESSION === 'physio'
+        && capabilityEnabled('DOCUMENT_EXTRACTION_UNDER_13_ENABLED');
+      const under13AuthorityMatches = retainedUploads.every(
+        (upload) => upload.subjectAgeBand === REFERRAL_SUBJECT_AGE_CONFIRMATION_UNDER_13,
+      );
+      if (reviewedSubjectIsUnder13 && (!physioUnder13Enabled || !under13AuthorityMatches)) {
         // No entity write has occurred. End the read/validation transaction so
         // the upload registry can durably apply its own fail-closed provider
         // blocks and categorical quarantine transactions to every file.

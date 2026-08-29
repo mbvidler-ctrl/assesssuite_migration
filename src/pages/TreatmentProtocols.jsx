@@ -35,6 +35,7 @@ import { Toaster, toast } from "sonner";
 import ClickableReferences from "../components/assessments/ClickableReferences";
 import { format } from "date-fns";
 import ImportToSOAPModal from "../components/protocols/ImportToSOAPModal";
+import SaveProtocolToEpisodeDialog from "@/components/physio/SaveProtocolToEpisodeDialog";
 import { getReferenceVerificationBadge } from "@/lib/referenceVerificationBadge";
 import { describeEvidenceGrounding } from "@/lib/evidenceGroundingStatus";
 import { useAiCapability } from "@/hooks/useAiCapability";
@@ -223,6 +224,7 @@ export default function TreatmentProtocols() {
   const [disclaimerDismissed, setDisclaimerDismissed] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showEpisodeImport, setShowEpisodeImport] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [expandedSections, setExpandedSections] = useState({
     overview: true,
@@ -736,7 +738,15 @@ export default function TreatmentProtocols() {
                              )}
                            </div>
                         </div>
-                        {activeProfession.features.careEpisodes !== true && (
+                        {activeProfession.features.careEpisodes === true ? (
+                          <Button
+                            onClick={() => setShowEpisodeImport(true)}
+                            className="bg-teal-700 hover:bg-teal-800 shrink-0"
+                          >
+                            <FileText className="w-4 h-4 mr-2" />
+                            Save to care episode
+                          </Button>
+                        ) : (
                           <Button
                             onClick={() => setShowImportModal(true)}
                             className="bg-blue-600 hover:bg-blue-700 shrink-0"
@@ -1217,6 +1227,18 @@ export default function TreatmentProtocols() {
           protocolData={protocolData}
           conditionName={selectedCondition?.name}
           provenance={selectedCondition?.protocol ? PROTOCOL_PROVENANCE.REVIEWED : PROTOCOL_PROVENANCE.AI}
+          droppedPaths={protocolIssues}
+        />
+      )}
+      {activeProfession.features.careEpisodes === true && (
+        <SaveProtocolToEpisodeDialog
+          isOpen={showEpisodeImport}
+          onClose={() => setShowEpisodeImport(false)}
+          protocolData={protocolData}
+          conditionName={selectedCondition?.name}
+          provenance={selectedCondition?.protocol ? PROTOCOL_PROVENANCE.REVIEWED : PROTOCOL_PROVENANCE.AI}
+          category={selectedCondition?.category}
+          sourceProtocolId={selectedCondition?.protocol?.id}
           droppedPaths={protocolIssues}
         />
       )}

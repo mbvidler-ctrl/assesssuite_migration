@@ -22,6 +22,7 @@ import {
   createEntityRepository,
   createSessionRepository,
   createOutboxRepository,
+  createOrganizationAccessRepository,
   createUsageAnalyticsRepository,
   loadOrgScopedEntities,
 } from './db.mjs';
@@ -68,6 +69,10 @@ import {
   PublicRequestOriginError,
 } from './publicRequestOrigin.mjs';
 import {
+  hashInvitationToken,
+  normalizeAccessEmail,
+} from './organizationAccess.mjs';
+import {
   CONTRACT_BUNDLE_IDS,
   EVENT_TYPES,
   LEGAL_DOCUMENTS,
@@ -77,6 +82,7 @@ import {
   isLegalDocumentPublicationApproved,
 } from '../src/lib/legal/documentRegistry.js';
 import { effectiveLegalContent } from '../src/lib/legal/effectiveContent.js';
+import { applyProfessionLegalContent } from '../src/lib/legal/professionContent.js';
 import { resolveLegalConsentAudiences } from '../src/lib/legal/consentAudience.js';
 import {
   PHYSIO_CARE_EPISODE_SCHEMA_VERSION,
@@ -122,13 +128,6 @@ const PORT = Number(process.env.PORT) || 8787;
 const BIND_HOST = process.env.ASSESSSUITE_BIND_HOST || '0.0.0.0';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'admin@local.test';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'change-me-local';
-// Access hardening for the private demo. Self-registration and the OTP
-// endpoints (which accept the fixed code 000000, and would otherwise mint a
-// session for any known email without a password) are DISABLED unless this is
-// explicitly set to '1'. Seeded accounts use password login and are unaffected.
-// The self-test spawns an isolated throwaway server (SELFTEST=1) and validates
-// the registration/OTP flows, so they remain enabled there.
-const ALLOW_OPEN_REGISTRATION = capabilityEnabled('ALLOW_OPEN_REGISTRATION');
 // OTP / reset hardening (launch): random per-user codes with expiry, attempt
 // lockout, and per-account send throttles. The fixed 000000 code is accepted
 // only under SELFTEST=1 (see verify-otp).
@@ -152,6 +151,13 @@ const authEmailGlobalLimiter = createFixedWindowRateLimiter({ limit: 60, windowM
 // and clinical-admission contract for the process. Explicit cross-target or
 // unknown profession configuration fails bootstrap here.
 const CLINICAL_RELEASE_POLICY = resolveClinicalReleasePolicy(process.env);
+// Physio is a private, invitation-only product. Its explicit raw switch must
+// remain authoritative even under SELFTEST, where the shared EP harness
+// historically implies registration on. This lets the same harness exercise
+// the real closed-registration contract instead of silently reopening it.
+const ALLOW_OPEN_REGISTRATION = CLINICAL_RELEASE_POLICY.professionId === 'physio'
+  ? capabilityConfigured('ALLOW_OPEN_REGISTRATION')
+  : capabilityEnabled('ALLOW_OPEN_REGISTRATION');
 // The sole test-adapter election occurs at process composition. The installed
 // bag can exist only under NODE_ENV=test + SELFTEST=1; production receives an
 // empty bag and the sealed image omits the adapter module that installs it.
@@ -231,6 +237,7 @@ const userRepo = createEntityRepository(db, 'User');
 const orgMemberRepo = entityNames.has('OrganizationMember')
   ? createEntityRepository(db, 'OrganizationMember')
   : null;
+const organizationAccess = createOrganizationAccessRepository(db);
 
 /**
  * Builds a repository per entity name on demand (repositories are cheap;
@@ -615,7 +622,10 @@ function legalPresentationContent(documentId) {
   if (!isLegalDocumentPublicationApproved(document)) {
     throw new Error(`Mandatory legal document is not approved for publication: ${documentId}`);
   }
-  const raw = fs.readFileSync(path.join(repoRoot, 'src', 'legal-content', document.file), 'utf8');
+  const raw = applyProfessionLegalContent(
+    fs.readFileSync(path.join(repoRoot, 'src', 'legal-content', document.file), 'utf8'),
+    CLINICAL_RELEASE_POLICY.professionId,
+  );
   return effectiveLegalContent(raw, {
     status: process.env.LEGAL_STATUS === 'effective' ? 'effective' : 'rc',
     effectiveDate: process.env.LEGAL_EFFECTIVE_DATE || null,
@@ -2462,7 +2472,162 @@ function transactionalEmailDeliveryRequired() {
   return capabilityEnabled('OUTBOUND_EMAIL_ENABLED');
 }
 
+function invitationFromBearer(rawToken) {
+  const tokenHash = hashInvitationToken(rawToken);
+  if (!tokenHash) return null;
+  return organizationAccess.findInvitationByTokenHash(tokenHash);
+}
+
+function invitationExpired(invitation, observedAt = Date.now()) {
+  const expiry = Date.parse(invitation?.expiresAt || '');
+  return !Number.isFinite(expiry) || expiry <= observedAt;
+}
+
+function validateInvitationAcceptancePayload(payload) {
+  if (!payload || typeof payload !== 'object' || Object.getPrototypeOf(payload) !== Object.prototype) {
+    return { ok: false, message: 'invitation acceptance must be a JSON object' };
+  }
+  const allowed = new Set(['token', 'password', 'full_name']);
+  if (Reflect.ownKeys(payload).some((field) => typeof field !== 'string' || !allowed.has(field))) {
+    return { ok: false, message: 'invitation acceptance contains unsupported fields' };
+  }
+  if (!hashInvitationToken(payload.token)) {
+    return { ok: false, message: 'the invitation link is invalid or has expired' };
+  }
+  if (typeof payload.password !== 'string'
+      || payload.password.length < REGISTRATION_PASSWORD_MIN_LENGTH
+      || payload.password.length > REGISTRATION_PASSWORD_MAX_LENGTH
+      || payload.password.trim().length === 0) {
+    return { ok: false, message: 'password must be between 8 and 256 characters' };
+  }
+  if (typeof payload.full_name !== 'string') {
+    return { ok: false, message: 'enter your full name' };
+  }
+  const fullName = payload.full_name.trim();
+  if (!fullName || Array.from(fullName).length > REGISTRATION_FULL_NAME_MAX_CODE_POINTS
+      || REGISTRATION_CONTROL_CHARACTERS.test(fullName)) {
+    return { ok: false, message: 'enter a valid full name' };
+  }
+  return { ok: true, token: payload.token, password: payload.password, fullName };
+}
+
 async function handleAuthRoute(req, res, url, appId, action) {
+  if (action === 'inspect-invitation' && req.method === 'POST') {
+    const { token } = await readJsonBody(req, 8 * 1024);
+    const invitation = invitationFromBearer(token);
+    if (!invitation || invitationExpired(invitation)) {
+      if (invitation?.status === 'pending') {
+        organizationAccess.updateInvitation(invitation.id, { status: 'expired', token_hash: null });
+      }
+      return sendError(res, 410, 'the invitation link is invalid or has expired');
+    }
+    const organization = repoFor('Organization')?.getById(invitation.orgId);
+    if (!organization) return sendError(res, 410, 'the invited practice is no longer available');
+    return sendJson(res, 200, {
+      status: 'pending',
+      email: invitation.email,
+      role: invitation.role,
+      expires_at: invitation.expiresAt,
+      organization: { id: organization.id, name: organization.name },
+    });
+  }
+
+  if (action === 'accept-invitation' && req.method === 'POST') {
+    const acceptance = validateInvitationAcceptancePayload(await readJsonBody(req, 16 * 1024));
+    if (!acceptance.ok) return sendError(res, 400, acceptance.message);
+    const invitation = invitationFromBearer(acceptance.token);
+    if (!invitation || invitationExpired(invitation)) {
+      if (invitation?.status === 'pending') {
+        organizationAccess.updateInvitation(invitation.id, { status: 'expired', token_hash: null });
+      }
+      return sendError(res, 410, 'the invitation link is invalid or has expired');
+    }
+    const organization = repoFor('Organization')?.getById(invitation.orgId);
+    if (!organization || !orgMemberRepo) {
+      return sendError(res, 410, 'the invited practice is no longer available');
+    }
+    const existingUser = findUserByEmail(invitation.email);
+    if (existingUser?.account_status === 'deactivated') {
+      return sendError(res, 409, 'this account was previously closed; contact a practice owner for assistance');
+    }
+    const observedAt = new Date().toISOString();
+    const passwordMaterial = hashPassword(acceptance.password);
+    let activatedUser;
+
+    db.exec('BEGIN IMMEDIATE');
+    try {
+      const liveInvitation = invitationFromBearer(acceptance.token);
+      if (!liveInvitation || liveInvitation.id !== invitation.id || invitationExpired(liveInvitation)) {
+        throw Object.assign(new Error('invitation already consumed'), { publicStatus: 409 });
+      }
+      const userFields = {
+        email: normalizeAccessEmail(invitation.email),
+        full_name: acceptance.fullName,
+        role: existingUser?.role === 'admin' ? 'admin' : 'user',
+        account_status: 'active',
+        email_verified: true,
+        subscription_status: 'active',
+        subscription_start_date: existingUser?.subscription_start_date || observedAt,
+        access_entitlement: 'organisation',
+        ...passwordMaterial,
+      };
+      activatedUser = existingUser
+        ? userRepo.update(existingUser.id, userFields)
+        : userRepo.create(userFields, invitation.email);
+
+      const existingMembership = orgMemberRepo.listAll().find((membership) => (
+        membership.org_id === invitation.orgId
+        && normalizeAccessEmail(membership.user_email) === normalizeAccessEmail(invitation.email)
+      ));
+      const membershipFields = {
+        org_id: invitation.orgId,
+        user_email: normalizeAccessEmail(invitation.email),
+        role: invitation.role,
+        is_primary: existingMembership?.is_primary === true
+          || !orgMemberRepo.listAll().some((membership) => (
+            normalizeAccessEmail(membership.user_email) === normalizeAccessEmail(invitation.email)
+          )),
+      };
+      if (existingMembership) orgMemberRepo.update(existingMembership.id, membershipFields);
+      else orgMemberRepo.create(membershipFields, invitation.email);
+
+      organizationAccess.updateInvitation(invitation.id, {
+        token_hash: null,
+        status: 'accepted',
+        accepted_at: observedAt,
+      });
+      organizationAccess.recordEvent({
+        orgId: invitation.orgId,
+        eventType: 'invitation_accepted',
+        actorUserId: activatedUser.id,
+        actorEmail: activatedUser.email,
+        subjectUserId: activatedUser.id,
+        subjectEmail: activatedUser.email,
+        invitationId: invitation.id,
+        nextRole: invitation.role,
+        createdAt: observedAt,
+      });
+      sessions.removeForUser(activatedUser.id);
+      db.exec('COMMIT');
+    } catch (error) {
+      try { db.exec('ROLLBACK'); } catch { /* preserve the original error */ }
+      if (error?.publicStatus === 409) {
+        return sendError(res, 409, 'this invitation has already been used');
+      }
+      throw error;
+    }
+
+    const token = sessions.create(activatedUser.id);
+    recordUsageMetric('new_verified_account');
+    return sendJson(res, 200, {
+      status: 'accepted',
+      access_token: token,
+      user: stripAuthFields(activatedUser),
+      organization: { id: organization.id, name: organization.name },
+      organization_role: invitation.role,
+    });
+  }
+
   if (action === 'login' && req.method === 'POST') {
     const { email, password } = await readJsonBody(req);
     const user = findUserByEmail(email);
@@ -2489,6 +2654,21 @@ async function handleAuthRoute(req, res, url, appId, action) {
       return sendJson(res, 403, {
         error: 'account_deactivated',
         account_status: 'deactivated',
+      });
+    }
+    if (persistedUser?.account_status === 'suspended') {
+      return sendJson(res, 403, {
+        error: 'account_suspended',
+        account_status: 'suspended',
+      });
+    }
+    if (
+      CLINICAL_RELEASE_POLICY.professionId === 'physio'
+      && persistedUser?.account_status !== 'active'
+    ) {
+      return sendJson(res, 403, {
+        error: 'invitation_required',
+        account_status: persistedUser?.account_status || 'unavailable',
       });
     }
     const token = sessions.create(persistedUser.id);
@@ -2801,6 +2981,13 @@ async function handleAuthRoute(req, res, url, appId, action) {
 
 async function handleInviteUser(req, res) {
   if (req.method !== 'POST') return sendError(res, 405, 'method not allowed');
+  if (CLINICAL_RELEASE_POLICY.professionId === 'physio') {
+    return sendError(
+      res,
+      410,
+      'Physio invitations are managed by practice owners through Access & invitations',
+    );
+  }
   // Inviting a user and assigning its role is an administrator action. The
   // endpoint previously performed no authorisation check, so an anonymous
   // caller could mint an admin account or escalate any existing user to

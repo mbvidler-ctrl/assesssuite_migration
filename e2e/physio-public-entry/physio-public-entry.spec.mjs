@@ -23,8 +23,11 @@ for (const viewport of viewports) {
     await expect(page.getByText('236 canonical assessments', { exact: true })).toBeVisible();
     await expect(page.getByText('Six structured AI workflows', { exact: true })).toBeVisible();
     await expect(page.getByText('From first presentation to discharge', { exact: true })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Create your account' })).toHaveAttribute('href', '/register');
+    await expect(page.getByText('Invitation-only access', { exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Open the secure portal' })).toHaveAttribute('href', '/login');
     await expect(page.getByRole('link', { name: 'Sign in to your practice' })).toHaveAttribute('href', '/login');
+    await expect(page.getByText('This production platform is restricted to people invited by an authorised practice owner.', { exact: true })).toBeVisible();
+    await expect(page.locator('a[href="/register"]')).toHaveCount(0);
     await expect(page.getByText(/AssessSuite Physiotherapy/).last()).toBeVisible();
 
     const geometry = await page.evaluate(() => ({
