@@ -122,6 +122,7 @@ jobs:
           # inspect dist, so build it before running the complete Physio suite.
           npm run build:physio
           npm run test:physio
+          npx --no-install playwright install --with-deps chromium
           npm run test:physio-offline-journey
 
       - name: Install checksum-verified Fly CLI 0.4.71
